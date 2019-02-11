@@ -1,4 +1,4 @@
-from nmigen import Signal, Module
+from nmigen import Signal, Module, If, Else
 from nmigen.cli import main
 
 # The purpose of this Module is to check the Permissions of a given PTE 

@@ -1,4 +1,4 @@
-from nmigen import *
+from nmigen import Signal, Memory, Module, Case, If
 from nmigen.cli import main
 from PermissionValidator import PermissionValidator
 
@@ -63,4 +63,3 @@ class TLB():
         
 thing = TLB()
 print("Gottem")
-        
