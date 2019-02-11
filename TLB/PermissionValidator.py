@@ -24,7 +24,8 @@ class PermissionValidator():
             # Check if ASID matches OR entry is global
             If(data[98:113] == self.asid or data[5] == 1,
                # Check Execute, Write, Read (XWR) Permissions
-               If(data[3] == self.xwr[2] and data[2] == self.xwr[1] and data[1] == self.xwr[0],
+               If(data[3] == self.xwr[2] and data[2] == self.xwr[1] \
+                  and data[1] == self.xwr[0],
                   # Check if supervisor
                   If(self.super == 1,
                      # Check if entry is in user mode
