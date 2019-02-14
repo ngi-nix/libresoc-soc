@@ -1,15 +1,18 @@
 from nmigen import Signal
 from nmigen.cli import main
 
-# The expected form of the data is
-# Item (Bits)
-# Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
-
 # The purpose of this Module is to check the Permissions of a given PTE 
 # against the requested access permissions. 
 # This module will either validate (by setting the valid bit HIGH) the request
 # or find a permission fault and invalidate (by setting the valid bit LOW) 
 # the request
+#
+# Arguments:
+#  data_size: (bit count) The size of the data words being processed
+#
+# Return:
+#  1. Data is valid ->  valid is HIGH
+#  2. Data is not valid -> valid is LOW
 class PermissionValidator():
     def __init__(self, data_size):
         # Input
