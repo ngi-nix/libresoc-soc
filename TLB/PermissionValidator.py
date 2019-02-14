@@ -1,4 +1,4 @@
-from nmigen import Signal, Module, If, Else
+from nmigen import Signal
 from nmigen.cli import main
 
 # The expected form of the data is

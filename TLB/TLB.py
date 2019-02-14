@@ -1,4 +1,4 @@
-from nmigen import Signal, Memory, Module, Case, If
+from nmigen import Memory, Module, Signal
 from nmigen.cli import main
 from PermissionValidator import PermissionValidator
 
