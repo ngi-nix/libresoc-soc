@@ -1,6 +1,10 @@
 from nmigen import Signal, Module, If, Else
 from nmigen.cli import main
 
+# The expected form of the data is
+# Item (Bits)
+# Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
+
 # The purpose of this Module is to check the Permissions of a given PTE 
 # against the requested access permissions. 
 # This module will either validate (by setting the valid bit HIGH) the request
@@ -22,7 +26,7 @@ class PermissionValidator():
         m = Module()
         m.d.comb += [
             # Check if ASID matches OR entry is global
-            If(data[98:113] == self.asid or data[5] == 1,
+            If(data[64:78] == self.asid or data[5] == 1,
                # Check Execute, Write, Read (XWR) Permissions
                If(data[3] == self.xwr[2] and data[2] == self.xwr[1] \
                   and data[1] == self.xwr[0],
