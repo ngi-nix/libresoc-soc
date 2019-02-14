@@ -2,6 +2,10 @@ from nmigen import Memory, Module, Signal
 from nmigen.cli import main
 from PermissionValidator import PermissionValidator
 
+# The expected form of the data is
+# Item (Bits)
+# Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
+
 class TLB():
     def __init__(self):
         # Inputs
