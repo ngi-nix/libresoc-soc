@@ -1,5 +1,6 @@
 from nmigen import Memory, Module, Signal
 from nmigen.cli import main
+
 from PermissionValidator import PermissionValidator
 
 # The expected form of the data is
@@ -9,10 +10,10 @@ from PermissionValidator import PermissionValidator
 class TLB():
     def __init__(self):
         # Inputs
-        self.xwr = Signal(3) # Execute, Write, Read
         self.super = Signal(1) # Supervisor Mode
         self.super_access = Signal(1) # Supervisor Access
         self.command = Signal(2) # 00=None, 01=Search, 10=Write PTE, 11=Reset
+        self.xwr = Signal(3) # Execute, Write, Read
         self.mode = Signal(4) # 4 bits for access to Sv48 on Rv64
         self.asid = Signal(15) # Address Space IDentifier (ASID)
         self.vma = Signal(36) # Virtual Memory Address (VMA)
@@ -64,6 +65,8 @@ class TLB():
                        ]
                 })
             ]
+            return m
         
 thing = TLB()
 print("Gottem")
+    
