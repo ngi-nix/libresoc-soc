@@ -26,6 +26,7 @@ class CAM():
             
             m.d.submodules.encoder = encoder = Encoder(cam_size)
               
+            # Set the key value for every CamEntry
             for index in range(cam_size):
                 m.d.sync += [
                     entry_array[index].write.eq(self.write),
