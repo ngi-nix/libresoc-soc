@@ -13,13 +13,14 @@ class CAM():
         encoder_input = Signal(cam_size)
         
         # Input
-        self.write = Signal(1)
-        self.key = Signal(key_size)
-        self.data_in = Signal(key_size)
+        self.write = Signal(1) # Denotes read (0) or write (1)
+        self.address = Signal(max=cam_size) # The address of the CAM to be written
+        self.key = Signal(key_size) # The key to search for or to be written
+        self.data_in = Signal(key_size) # The data to be written
         
         # Output
-        self.data_match = Signal(1)
-        self.data_out = Signal(data_size)
+        self.data_hit = Signal(1) # Denotes a key data pair was stored at key_in
+        self.data_out = Signal(data_size) # The data mapped to by key_in
         
         def elaborate(self, platform):
             m = Module()
@@ -29,10 +30,12 @@ class CAM():
             # Set the key value for every CamEntry
             for index in range(cam_size):
                 m.d.sync += [
-                    entry_array[index].write.eq(self.write),
-                    entry_array[index].key_in.eq(self.key),
-                    entry_array[index].data_in.eq(self.data_in),
-                    encoder_input[index].eq(entry_array[index].match)
+                    If(self.write == 0,
+                       entry_array[index].write.eq(self.write),
+                       entry_array[index].key_in.eq(self.key),
+                       entry_array[index].data_in.eq(self.data_in),
+                       encoder_input[index].eq(entry_array[index].match)
+                    )
                 ]
             
             
@@ -43,19 +46,14 @@ class CAM():
                 If(self.write == 0,
                    # 0 denotes a mapping was found
                    If(encoder.n == 0,
-                      self.data_match.eq(0),
+                      self.data_hit.eq(0),
                       self.data_out.eq(entry_array[encoder.o].data)                      
                     ).Else(
-                       self.data_match.eq(1) 
+                       self.data_hit.eq(1) 
                     )
                 ).Else(
-                    # 0 denotes a mapping was found
-                    If(encoder.n == 0,
-                       self.data_match.eq(0),
-                       entry_array[encoder.o].data_in.eq(self.data_in)                       
-                    ).Else(
-                        # LRU algorithm here
-                    )
+                    entry_array[self.address].key_in.eq(self.key_in),
+                    entry_array[self.address].data.eq(self.data_in)
                 )
                 
             ]
