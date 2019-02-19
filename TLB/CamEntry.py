@@ -134,13 +134,13 @@ def testbench(dut):
     yield from set_cam(dut, write, key, data)
     yield from check_all(dut, key, data, match, 0, 0, 0) 
     
-    # Check write
+    # Check overwrite
     write = 1
     key = 2
     data = 5
     match = 1
     yield from set_cam(dut, write, key, data)
-    yield from check_all(dut, key, data, match, 0, 0, 0) 
+    yield from check_all(dut, key, data, match, 0, 0, 0)    
     
     yield
     
