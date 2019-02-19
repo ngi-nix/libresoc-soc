@@ -20,16 +20,16 @@ class CamEntry:
     def get_fragment(self, platform=None):
         m = Module()
         with m.If(self.write == 1):
-            m.d.comb += [
+            m.d.sync += [
                 self.key.eq(self.key_in),
                 self.data.eq(self.data_in),
                 self.match.eq(1)
             ]
         with m.Else():
             with m.If(self.key_in == self.key):
-                m.d.comb += self.match.eq(0)
+                m.d.sync += self.match.eq(0)
             with m.Else():
-                m.d.comb += self.match.eq(1)
+                m.d.sync += self.match.eq(1)
         
         return m
     
@@ -52,8 +52,10 @@ def set_cam(dut, w, k, d):
     
 def check(pre, e, out, op):
     if(op == 0):
+        yield
         assert out == e, pre + " Output " + str(out) + " Expected " + str(e)
     else:
+        yield
         assert out != e, pre + " Output " + str(out) + " Expected " + str(e) 
     
 def check_key(dut, k, op):
@@ -80,7 +82,7 @@ def check_all(dut, k, d, m, kop, dop, mop):
 def testbench(dut):
     # Check write
     write = 1
-    key = 0
+    key = 1
     data = 1
     match = 1
     yield from set_cam(dut, write, key, data)
@@ -92,7 +94,25 @@ def testbench(dut):
     data = 1
     match = 0 
     yield from set_cam(dut, write, key, data)
-    yield from check_all(dut, key, data, match, 1, 0, 0)    
+    yield from check_all(dut, key, data, match, 1, 0, 0) 
+    
+    # Check read hit
+    write = 0
+    key = 1
+    data = 1
+    match = 1
+    yield from set_cam(dut, write, key, data)
+    yield from check_all(dut, key, data, match, 0, 0, 0) 
+    
+    # Check write
+    write = 1
+    key = 2
+    data = 5
+    match = 1
+    yield from set_cam(dut, write, key, data)
+    yield from check_all(dut, key, data, match, 0, 0, 0) 
+    
+    yield
     
 if __name__ == "__main__":
     dut = CamEntry(4, 4)
