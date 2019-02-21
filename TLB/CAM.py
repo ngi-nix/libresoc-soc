@@ -9,12 +9,13 @@ from CamEntry import CamEntry
 class CAM():
     def __init__(self, key_size, data_size, cam_size):
         # Internal
-        entry_array = Array(CamEntry(key_size, data_size) for x in range(cam_size))
+        entry_array = Array(CamEntry(key_size, data_size) \
+                            for x in range(cam_size))
         encoder_input = Signal(cam_size)
         
         # Input
         self.write = Signal(1) # Denotes read (0) or write (1)
-        self.address = Signal(max=cam_size) # The address of the CAM to be written
+        self.address = Signal(max=cam_size) # address of the CAM to be written
         self.key = Signal(key_size) # The key to search for or to be written
         self.data_in = Signal(key_size) # The data to be written
         
@@ -59,4 +60,3 @@ class CAM():
             ]
                 
             return m
-            
