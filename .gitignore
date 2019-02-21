@@ -1,0 +1,4 @@
+WaveForms
+*.vcd
+.*.sw?
+*.py?
