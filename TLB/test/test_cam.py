@@ -1,7 +1,12 @@
+import sys
+sys.path.append("../src")
+sys.path.append("../../TestUtil")
+
 from nmigen.compat.sim import run_simulation
 
-from test_helper import check
 from Cam import Cam
+
+from test_helper import check
 
 def set_cam(dut, c, a, k, d):
     yield dut.command.eq(c)
