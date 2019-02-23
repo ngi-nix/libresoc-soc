@@ -24,7 +24,7 @@ class CamEntry:
         self.data = Signal(data_size)
         
         
-    def get_fragment(self, platform=None):
+    def elaborate(self, platform=None):
         m = Module()
         with m.Switch(self.command):
             with m.Case("01"):
