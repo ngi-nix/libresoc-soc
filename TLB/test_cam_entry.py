@@ -1,5 +1,6 @@
 from nmigen.compat.sim import run_simulation
 
+from test_helper import check
 from CamEntry import CamEntry
  
 # This function allows for the easy setting of values to the Cam Entry
@@ -19,19 +20,7 @@ def set_cam_entry(dut, c, k, d):
     yield dut.command.eq(0)
     yield dut.key_in.eq(0)
     yield dut.data_in.eq(0)    
-    yield
-    
-# Verifies the given values via the requested operation
-# Arguments:
-#   p (Prefix): Appended to the front of the assert statement
-#   e (Expected): The expected value
-#   o (Output): The output result
-#   op (Operation): (0 => ==), (1 => !=)
-def check(p, o, e, op):
-    if(op == 0):
-        assert o == e, p + " Output " + str(o) + " Expected " + str(e)
-    else:
-        assert o != e, p + " Output " + str(o) + " Not Expecting " + str(e)     
+    yield    
 
 # Checks the key state of the CAM entry
 # Arguments:
