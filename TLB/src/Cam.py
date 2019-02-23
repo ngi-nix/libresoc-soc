@@ -1,5 +1,6 @@
 from nmigen import Array, Module, Signal
 from nmigen.lib.coding import Encoder
+from nmigen.compat.fhdl.structure import ClockDomain
 
 from CamEntry import CamEntry
 
@@ -21,6 +22,9 @@ class Cam():
     #  cam_size: (entry count) The number of entries int he CAM
     def __init__(self, key_size, data_size, cam_size):
         # Internal
+        self.clk = ClockDomain(reset_less=True)
+        self.key_size = key_size
+        self.data_size = data_size
         self.cam_size = cam_size
         self.entry_array = Array(CamEntry(key_size, data_size) \
                             for x in range(cam_size))
@@ -36,48 +40,60 @@ class Cam():
         self.data_hit = Signal(1) # Denotes a key data pair was stored at key_in
         self.data_out = Signal(data_size) # The data mapped to by key_in
 
-    def get_fragment(self, platform=None):
+    def elaborate(self, platform=None):
         m = Module()
         
-        m.d.submodules.encoder = encoder = Encoder(self.cam_size)
-
+        m.submodules.encoder = encoder = Encoder(self.cam_size)
+        m.submodules += self.entry_array
+        
         # Set the key value for every CamEntry
         for index in range(self.cam_size):
-            with m.If(self.command == 3):
-                m.d.sync += [
-                       self.entry_array[index].write.eq(0),
-                       self.entry_array[index].key_in.eq(self.key_in),
-                       self.entry_array[index].data_in.eq(self.data_in),
-                       self.encoder_input[index].eq(self.entry_array[index].match)
-                ]
+            with m.Switch(self.command):
+                # Read and Search both read from the CamEntry
+                with m.Case("-1"):
+                    m.d.comb += self.entry_array[index].command.eq(1)
+                # Write only to one entry
+                with m.Case("10"):
+                    with m.If(self.address == index):
+                        m.d.comb += self.entry_array[index].command.eq(2)
+                    with m.Else():
+                        m.d.comb += self.entry_array[index].command.eq(0)
+                # NA
+                with m.Case():
+                    m.d.comb += self.entry_array[index].command.eq(0)
+ 
+            m.d.comb += [
+                   self.entry_array[index].key_in.eq(self.key_in),
+                   self.entry_array[index].data_in.eq(self.data_in),
+                   self.encoder_input[index].eq(self.entry_array[index].match)
+            ]
         
         with m.Switch(self.command):
             # Read
             with m.Case("01"):
-                m.d.sync += [
+                m.d.comb += [
                     self.data_hit.eq(0),
                     self.data_out.eq(self.entry_array[self.address].data)
                 ]
             # Write
             with m.Case("10"):
-                m.d.sync += [
+                m.d.comb += [
                     self.data_hit.eq(0),
-                    self.entry_array[self.address].write.eq(1),
                     self.entry_array[self.address].key_in.eq(self.key_in),
-                    self.entry_array[self.address].data.eq(self.data_in)                        
+                    self.entry_array[self.address].data_in.eq(self.data_in)
                 ]
             # Search
             with m.Case("11"):
-                m.d.sync += encoder.i.eq(self.encoder_input)
+                m.d.comb += encoder.i.eq(self.encoder_input)
                 with m.If(encoder.n == 0):
-                    m.d.sync += [
+                    m.d.comb += [
                         self.data_hit.eq(0),
                         self.data_out.eq(self.entry_array[encoder.o].data)                            
                     ]
                 with m.Else():
-                    m.d.sync += self.data_hit.eq(1)
+                    m.d.comb += self.data_hit.eq(1)
             # NA
             with m.Case():
-                self.data_hit.eq(0)
+                m.d.comb += self.data_hit.eq(0)
                 
         return m
