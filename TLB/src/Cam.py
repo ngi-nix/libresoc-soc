@@ -22,13 +22,9 @@ class Cam():
     #  cam_size: (entry count) The number of entries int he CAM
     def __init__(self, key_size, data_size, cam_size):
         # Internal
-        self.clk = ClockDomain(reset_less=True)
-        self.key_size = key_size
-        self.data_size = data_size
         self.cam_size = cam_size
         self.entry_array = Array(CamEntry(key_size, data_size) \
                             for x in range(cam_size))
-        self.encoder_input = Signal(cam_size)
 
         # Input
         self.command = Signal(2) # 00 => NA 01 => Read 10 => Write 11 => Search
@@ -65,9 +61,10 @@ class Cam():
             m.d.comb += [
                    self.entry_array[index].key_in.eq(self.key_in),
                    self.entry_array[index].data_in.eq(self.data_in),
-                   self.encoder_input[index].eq(self.entry_array[index].match)
+                   encoder.i[index].eq(self.entry_array[index].match)
             ]
         
+              
         with m.Switch(self.command):
             # Read
             with m.Case("01"):
@@ -82,18 +79,14 @@ class Cam():
                     self.entry_array[self.address].key_in.eq(self.key_in),
                     self.entry_array[self.address].data_in.eq(self.data_in)
                 ]
-            # Search
-            with m.Case("11"):
-                m.d.comb += encoder.i.eq(self.encoder_input)
+            # NA / Searching
+            with m.Case():
                 with m.If(encoder.n == 0):
                     m.d.comb += [
-                        self.data_hit.eq(0),
-                        self.data_out.eq(self.entry_array[encoder.o].data)                            
+                        self.data_hit.eq(1),
+                        self.data_out.eq(self.entry_array[encoder.o].data)
                     ]
                 with m.Else():
-                    m.d.comb += self.data_hit.eq(1)
-            # NA
-            with m.Case():
-                m.d.comb += self.data_hit.eq(0)
+                    m.d.comb += self.data_hit.eq(0)
                 
         return m

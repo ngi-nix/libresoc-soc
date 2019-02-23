@@ -9,17 +9,11 @@ from Cam import Cam
 from test_helper import assert_eq, assert_ne
 
 def set_cam(dut, c, a, k, d):
-    print("asdf")
     yield dut.command.eq(c)
     yield dut.address.eq(a)
     yield dut.key_in.eq(k)
     yield dut.data_in.eq(d)
-    yield
-    yield dut.command.eq(0)
-    yield dut.address.eq(0)
-    yield dut.key_in.eq(0)
-    yield dut.data_in.eq(0)
-    yield    
+    yield   
     
 def check_data_hit(dut, dh, op):
     out_dh = yield dut.data_hit
@@ -48,7 +42,7 @@ def testbench(dut):
     data = 0
     data_hit = 0
     yield from set_cam(dut, command, address, key, data)
-    #yield from check_data_hit(dut, data_hit, 0)
+    yield from check_data_hit(dut, data_hit, 0)
     
     # Search
     command = 3
@@ -57,7 +51,7 @@ def testbench(dut):
     data = 0
     data_hit = 0
     yield from set_cam(dut, command, address, key, data)
-    #yield from check_data_hit(dut, data_hit, 0)    
+    yield from check_data_hit(dut, data_hit, 0)    
     
     # Write Entry 0
     command = 2
@@ -66,7 +60,7 @@ def testbench(dut):
     data = 4
     data_hit = 0
     yield from set_cam(dut, command, address, key, data)
-    #yield from check_data_hit(dut, data_hit, 0) 
+    yield from check_data_hit(dut, data_hit, 0) 
     
     # Read Entry 0
     command = 1
@@ -75,7 +69,7 @@ def testbench(dut):
     data = 4
     data_hit = 0
     yield from set_cam(dut, command, address, key, data)
-    #yield from check_all(dut, data_hit, data, 0, 0) 
+    yield from check_all(dut, data_hit, data, 0, 0) 
     
     # Search 
     command = 3
@@ -84,7 +78,8 @@ def testbench(dut):
     data = 4
     data_hit = 1
     yield from set_cam(dut, command, address, key, data)
-    #yield from check_all(dut, data_hit, data, 0, 0)     
+    yield
+    yield from check_all(dut, data_hit, data, 0, 0)     
     
     yield 
     
