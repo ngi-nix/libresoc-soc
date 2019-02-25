@@ -79,7 +79,17 @@ def testbench(dut):
     data_hit = 1
     yield from set_cam(dut, command, address, key, data)
     yield
-    yield from check_all(dut, data_hit, data, 0, 0)     
+    yield from check_all(dut, data_hit, data, 0, 0)
+    
+    # Reset 
+    command = 4
+    address = 0
+    key = 0
+    data = 0
+    data_hit = 0
+    yield from set_cam(dut, command, address, key, data)
+    yield
+    yield from check_all(dut, data_hit, data, 0, 0)      
     
     yield 
     
