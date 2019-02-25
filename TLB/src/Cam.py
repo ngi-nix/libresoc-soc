@@ -16,8 +16,7 @@ from CamEntry import CamEntry
 # performed within.
 # Notes:
 # The search, write, and reset operations take one clock cycle to complete.
-# Attempting a read before reading the search result will cause 
-# the read to be ignored.
+# Performing a read right after a search will cause the read to be ignored.
 class Cam():
     
     # Arguments:
