@@ -15,7 +15,7 @@ class CamEntry:
         self.key = Signal(key_size)
         
         # Input
-        self.command = Signal(2) # 00 => NA 01 => Read 10 => Write 11 => Reserve
+        self.command = Signal(2) # 00 => NA 01 => Read 10 => Write 11 => Reset
         self.key_in = Signal(key_size) # Reference key for the CAM
         self.data_in = Signal(data_size) # Data input when writing
         
@@ -27,6 +27,8 @@ class CamEntry:
     def elaborate(self, platform=None):
         m = Module()
         with m.Switch(self.command):
+            with m.Case("00"):
+                m.d.sync += self.match.eq(0)
             with m.Case("01"):
                 with m.If(self.key_in == self.key):
                     m.d.sync += self.match.eq(1)
@@ -39,6 +41,10 @@ class CamEntry:
                     self.match.eq(0)
                 ] 
             with m.Case():
-                m.d.sync += self.match.eq(0)
+                m.d.sync += [
+                    self.match.eq(0),
+                    self.data.eq(0),
+                    self.key.eq(0)
+                ]
         
         return m

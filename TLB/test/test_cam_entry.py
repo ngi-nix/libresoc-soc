@@ -122,6 +122,14 @@ def testbench(dut):
     yield from set_cam_entry(dut, command, key, data)
     yield from check_all(dut, key, data, match, 0, 0, 0) 
     
+    # Check reset
+    command = 3
+    key = 0
+    data = 0
+    match = 0
+    yield from set_cam_entry(dut, command, key, data)
+    yield from check_all(dut, key, data, match, 0, 0, 0)     
+    
     # Extra clock cycle for waveform
     yield
     
