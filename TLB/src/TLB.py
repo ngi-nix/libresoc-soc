@@ -18,21 +18,21 @@ class TLB():
         self.asid = Signal(15) # Address Space IDentifier (ASID)
         self.vma = Signal(36) # Virtual Memory Address (VMA)
         self.pte_in = Signal(64) # To be saved Page Table Entry (PTE)
-        
+
         # Outputs
         self.hit = Signal(1) # Denotes if the VMA had a mapped PTE
         self.valid = Signal(1) # Denotes if the permissions are correct
         self.pteOut = Signal(64) # PTE that was mapped to by the VMA
-        
+
         # Cam simulations
         mem_l1 = Memory(113, 32) # L1 TLB cache
         read_port_l1 = mem_l1.read_port
         write_port_l1 = mem_l1.write_port
-        
+
         mem_l2 = Memory(113, 128) # L2 TLB cache
         read_port_l2 = mem_l2.read_port
         write_port_l2 = mem_l2.write_port
-        
+
         def elaborate(self, platform):
             m = Module()
             m.d.submodules.perm_valid = perm_valid = PermissionValidator(113)
@@ -60,13 +60,13 @@ class TLB():
                              perm_valid.super_access.eq(self.super_access),
                              perm_valid.asid.eq(self.asid),
                              self.valid,eq(perm_valid.valid)
-                          )                          
+                          )
                        )
                        ]
                 })
             ]
             return m
-        
+
 thing = TLB()
 print("Gottem")
-    
+
