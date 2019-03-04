@@ -23,7 +23,7 @@ class CacheWalker():
         self.assoc = assoc # Assciativity of the cache
 
         self.read_port = mem.read_port
-        self.write_port = mem.write_port 
+        self.write_port = mem.write_port
 
         if (mem_size % assoc != 0):
             print("Cache Walker: Memory cannot be distributed between sets")

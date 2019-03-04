@@ -25,7 +25,7 @@ class CamEntry:
         # Output
         self.match = Signal(1) # Result of the internal/input key comparison
         self.data = Signal(data_size)
- 
+
     def elaborate(self, platform=None):
         m = Module()
         with m.Switch(self.command):
