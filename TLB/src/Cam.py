@@ -1,6 +1,7 @@
 from nmigen import Array, Module, Signal
 from nmigen.lib.coding import Encoder, Decoder
 from nmigen.compat.fhdl.structure import ClockDomain
+from nmigen.cli import main #, verilog
 
 from CamEntry import CamEntry
 
@@ -107,3 +108,10 @@ class Cam():
             m.d.comb += self.data_hit.eq(0)
 
         return m
+
+if __name__ == '__main__':
+    cam = Cam(4, 4, 4)
+    main(cam, ports=[cam.command, cam.address,
+                     cam.key_in, cam.data_in,
+                     cam.data_hit, cam.data_out])
+
