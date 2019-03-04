@@ -1,6 +1,5 @@
 from nmigen import Array, Module, Signal
 from nmigen.lib.coding import Encoder, Decoder
-from nmigen.compat.fhdl.structure import ClockDomain
 from nmigen.cli import main #, verilog
 
 from CamEntry import CamEntry
@@ -25,44 +24,47 @@ class Cam():
         the read to be ignored.
     """
 
-    def __init__(self, key_size, data_size, cam_size):
+    def __init__(self data_size, cam_size):
         """ Arguments:
-            * key_size: (bit count) The size of the key
             * data_size: (bit count) The size of the data
             * cam_size: (entry count) The number of entries int he CAM
         """
+
         # Internal
         self.cam_size = cam_size
-        self.entry_array = Array(CamEntry(key_size, data_size) \
+        self.encoder = Encoder(cam_size)
+        self.decoder = Decoder(cam_size)
+        self.entry_array = Array(CamEntry(data_size) \
                             for x in range(cam_size))
 
         # Input
         # 000 => NA 001 => Read 010 => Write 011 => Search
         # 100 => Reset 101, 110, 111 => Reserved
-        self.command = Signal(3)
+        self.command = Signal(3) 
+        self.enable = Signal(1)
+        self.data_in = Signal(data_size) # The data to be written
+        self.data_mask = Signal(data_size) # mask for ternary writes
+        self.write_enable = Signal(1) # write
         self.address = Signal(max=cam_size) # address of CAM Entry to write/read
-        self.key_in = Signal(key_size) # The key to search for or to be written
-        self.data_in = Signal(key_size) # The data to be written
-
+        
         # Output
         self.data_hit = Signal(1) # Denotes a key data pair was stored at key_in
         self.data_out = Signal(data_size) # The data mapped to by key_in
 
     def elaborate(self, platform=None):
         m = Module()
-
         # Encoder is used to selecting what data is output when searching
-        m.submodules.encoder = encoder = Encoder(self.cam_size)
+        m.submodules += self.encoder
         # Decoder is used to select which entry will be written to
-        m.submodules.decoder = decoder = Decoder(self.cam_size)
+        m.submodules += self.decoder
         # Don't forget to add all entries to the submodule list
         entry_array = self.entry_array
         m.submodules += entry_array
 
         # Decoder logic
         m.d.comb += [
-            decoder.i.eq(self.address),
-            decoder.n.eq(0)
+            self.decoder.i.eq(self.address),
+            self.decoder.n.eq(0)
         ]
 
         # Set the key value for every CamEntry
@@ -72,13 +74,13 @@ class Cam():
                 with m.Case("0-1"):
                     m.d.comb += entry_array[index].command.eq(1)
                     # Only read if an encoder value is not ready
-                    with m.If(decoder.o[index] & encoder.n):
+                    with m.If(self.decoder.o[index] & self.encoder.n):
                         m.d.comb += self.data_out.eq(entry_array[index].data)
                 # Write only to one entry
                 with m.Case("010"):
                     # Address is decoded and selects which
                     # entry will be written to
-                    with m.If(decoder.o[index]):
+                    with m.If(self.decoder.o[index]):
                         m.d.comb += entry_array[index].command.eq(2)
                     with m.Else():
                         m.d.comb += entry_array[index].command.eq(0)
@@ -93,16 +95,15 @@ class Cam():
                     m.d.comb += entry_array[index].command.eq(0)
 
             m.d.comb += [
-                   entry_array[index].key_in.eq(self.key_in),
                    entry_array[index].data_in.eq(self.data_in),
-                   encoder.i[index].eq(entry_array[index].match)
+                   self.encoder.i[index].eq(entry_array[index].match)
             ]
 
         # Process out data based on encoder address
-        with m.If(encoder.n == 0):
+        with m.If(self.encoder.n == 0):
             m.d.comb += [
                 self.data_hit.eq(1),
-                self.data_out.eq(entry_array[encoder.o].data)
+                self.data_out.eq(entry_array[self.encoder.o].data)
             ]
         with m.Else():
             m.d.comb += self.data_hit.eq(0)

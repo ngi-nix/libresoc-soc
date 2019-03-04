@@ -8,10 +8,9 @@ from Cam import Cam
 
 from test_helper import assert_eq, assert_ne
 
-def set_cam(dut, c, a, k, d):
+def set_cam(dut, c, a, d):
     yield dut.command.eq(c)
     yield dut.address.eq(a)
-    yield dut.key_in.eq(k)
     yield dut.data_in.eq(d)
     yield   
     
@@ -38,63 +37,66 @@ def testbench(dut):
     # NA
     command = 0
     address = 0
-    key = 0
     data = 0
     data_hit = 0
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield from check_data_hit(dut, data_hit, 0)
     
     # Search
     command = 3
     address = 0
-    key = 0
     data = 0
     data_hit = 0
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield from check_data_hit(dut, data_hit, 0)    
     
     # Write Entry 0
     command = 2
     address = 0
-    key = 5
     data = 4
     data_hit = 0
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield from check_data_hit(dut, data_hit, 0) 
     
     # Read Entry 0
     command = 1
     address = 0
-    key = 0
     data = 4
     data_hit = 0
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield from check_all(dut, data_hit, data, 0, 0) 
     
-    # Search 
+    # Search Hit
     command = 3
     address = 0
-    key = 5
     data = 4
     data_hit = 1
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield
     yield from check_all(dut, data_hit, data, 0, 0)
+    
+    # Search Miss
+    command = 3
+    address = 0
+    data = 5
+    data_hit = 0
+    yield from set_cam(dut, command, address, data)
+    yield
+    yield from check_all(dut, data_hit, data, 0, 1)     
     
     # Reset 
     command = 4
     address = 0
-    key = 0
     data = 0
     data_hit = 0
-    yield from set_cam(dut, command, address, key, data)
+    yield from set_cam(dut, command, address, data)
     yield
-    yield from check_all(dut, data_hit, data, 0, 0)      
+    yield from check_all(dut, data_hit, data, 0, 0) 
     
     yield 
     
 
 if __name__ == "__main__":
-    dut = Cam(4, 4, 4)
+    dut = Cam(4, 4)
     run_simulation(dut, testbench(dut), vcd_name="Waveforms/cam_test.vcd")
     print("Cam Unit Test Success")
