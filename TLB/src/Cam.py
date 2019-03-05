@@ -111,8 +111,8 @@ class Cam():
         return m
 
 if __name__ == '__main__':
-    cam = Cam(4, 4, 4)
+    cam = Cam(4, 4)
     main(cam, ports=[cam.command, cam.address,
-                     cam.key_in, cam.data_in,
-                     cam.data_hit, cam.data_out])
+                     cam.data_in, cam.data_hit,
+                     cam.data_out])
 
