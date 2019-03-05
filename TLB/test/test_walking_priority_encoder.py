@@ -24,7 +24,7 @@ def testbench(dut):
     yield
     yield
     output = yield dut.output
-    #assert_eq("Output", output, 1) 
+    #assert_eq("Output", output, 1)
 
 if __name__ == "__main__":
     dut = WalkingPriorityEncoder(4)
