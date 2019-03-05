@@ -67,8 +67,8 @@ class Cam():
         ]
 
         # Set the key value for every CamEntry
-        for index in range(self.cam_size):
-            with m.If(self.enable):
+        with m.If(self.enable):
+            for index in range(self.cam_size):
 
                 # Read Operation
                 with m.If(~self.write_enable):
@@ -86,27 +86,28 @@ class Cam():
                 # Send all entry matches to the priority encoder
                 m.d.comb += self.encoder.i[index].eq(entry_array[index].match)
 
-                # Process out data based on encoder address
-                with m.If(self.encoder.n):
-                    m.d.comb += [
-                        self.read_warning.eq(0),
-                        self.single_match.eq(0),
-                        self.multiple_match.eq(0),
-                        self.match_address.eq(0)
-                    ]
-                with m.Else():
-                    m.d.comb += [
-                        self.single_match.eq(1),
-                        self.match_address.eq(self.encoder.o)
-                    ]
-
+            # Process out data based on encoder address
+            with m.If(self.encoder.n):
+                m.d.comb += [
+                    self.read_warning.eq(0),
+                    self.single_match.eq(0),
+                    self.multiple_match.eq(0),
+                    self.match_address.eq(0)
+                ]
             with m.Else():
                 m.d.comb += [
-                        self.read_warning.eq(0),
-                        self.single_match.eq(0),
-                        self.multiple_match.eq(0),
-                        self.match_address.eq(0)
+                    self.single_match.eq(1),
+                    self.match_address.eq(self.encoder.o)
                 ]
+
+        with m.Else():
+            m.d.comb += [
+                    self.read_warning.eq(0),
+                    self.single_match.eq(0),
+                    self.multiple_match.eq(0),
+                    self.match_address.eq(0)
+            ]
+
         return m
 
 if __name__ == '__main__':
