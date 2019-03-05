@@ -1,5 +1,5 @@
 from nmigen import Array, Module, Signal
-from nmigen.lib.coding import Encoder, Decoder
+from nmigen.lib.coding import PriorityEncoder, Decoder
 from nmigen.cli import main #, verilog
 
 from CamEntry import CamEntry
@@ -32,24 +32,23 @@ class Cam():
 
         # Internal
         self.cam_size = cam_size
-        self.encoder = Encoder(cam_size)
+        self.encoder = PriorityEncoder(cam_size)
         self.decoder = Decoder(cam_size)
         self.entry_array = Array(CamEntry(data_size) \
                             for x in range(cam_size))
 
         # Input
-        # 000 => NA 001 => Read 010 => Write 011 => Search
-        # 100 => Reset 101, 110, 111 => Reserved
-        self.command = Signal(3) 
         self.enable = Signal(1)
+        self.write_enable = Signal(1) 
         self.data_in = Signal(data_size) # The data to be written
         self.data_mask = Signal(data_size) # mask for ternary writes
-        self.write_enable = Signal(1) # write
-        self.address = Signal(max=cam_size) # address of CAM Entry to write/read
+        self.address_in = Signal(max=cam_size) # address of CAM Entry to write
         
         # Output
-        self.data_hit = Signal(1) # Denotes a key data pair was stored at key_in
-        self.data_out = Signal(data_size) # The data mapped to by key_in
+        self.read_warning = Signal(1) # High when a read interrupts a write
+        self.single_match = Signal(1) # High when there is only one match
+        self.multiple_match = Signal(1) # High when there at least two matches
+        self.match_address = Signal(max=cam_size) # The lowest address matched
 
     def elaborate(self, platform=None):
         m = Module()
@@ -63,51 +62,51 @@ class Cam():
 
         # Decoder logic
         m.d.comb += [
-            self.decoder.i.eq(self.address),
+            self.decoder.i.eq(self.address_in),
             self.decoder.n.eq(0)
         ]
 
         # Set the key value for every CamEntry
         for index in range(self.cam_size):
-            with m.Switch(self.command):
-                # Read from a single entry
-                with m.Case("0-1"):
+            with m.If(self.enable == 1):
+                
+                # Read Operation
+                with m.If(self.write_enable == 0):
                     m.d.comb += entry_array[index].command.eq(1)
-                    # Only read if an encoder value is not ready
-                    with m.If(self.decoder.o[index] & self.encoder.n):
-                        m.d.comb += self.data_out.eq(entry_array[index].data)
-                # Write only to one entry
-                with m.Case("010"):
-                    # Address is decoded and selects which
-                    # entry will be written to
+                    
+                # Write Operation
+                with m.Else():
                     with m.If(self.decoder.o[index]):
                         m.d.comb += entry_array[index].command.eq(2)
                     with m.Else():
                         m.d.comb += entry_array[index].command.eq(0)
-                # Search all entries
-                with m.Case("011"):
-                    m.d.comb += entry_array[index].command.eq(1)
-                # Reset
-                with m.Case("100"):
-                    m.d.comb += entry_array[index].command.eq(3)
-                # NA / Reserved
-                with m.Case():
-                    m.d.comb += entry_array[index].command.eq(0)
-
-            m.d.comb += [
-                   entry_array[index].data_in.eq(self.data_in),
-                   self.encoder.i[index].eq(entry_array[index].match)
-            ]
-
-        # Process out data based on encoder address
-        with m.If(self.encoder.n == 0):
-            m.d.comb += [
-                self.data_hit.eq(1),
-                self.data_out.eq(entry_array[self.encoder.o].data)
-            ]
-        with m.Else():
-            m.d.comb += self.data_hit.eq(0)
-
+                        
+                # Send data input to all entries
+                m.d.comb += entry_array[index].data_in.eq(self.data_in)
+                # Send all entry matches to the priority encoder
+                m.d.comb += self.encoder.i[index].eq(entry_array[index].match)
+                
+                # Process out data based on encoder address
+                with m.If(self.encoder.n == 0):
+                    m.d.comb += [
+                        self.single_match.eq(1),
+                        self.match_address.eq(self.encoder.o)
+                    ]
+                with m.Else():
+                    m.d.comb += [
+                        self.read_warning.eq(0),
+                        self.single_match.eq(0),
+                        self.multiple_match.eq(0),
+                        self.match_address.eq(0)
+                    ]
+                    
+            with m.Else():
+                m.d.comb += [
+                        self.read_warning.eq(0),
+                        self.single_match.eq(0),
+                        self.multiple_match.eq(0),
+                        self.match_address.eq(0)
+                ]
         return m
 
 if __name__ == '__main__':
