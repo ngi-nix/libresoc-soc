@@ -24,7 +24,7 @@ class Cam():
         the read to be ignored.
     """
 
-    def __init__(self data_size, cam_size):
+    def __init__(self, data_size, cam_size):
         """ Arguments:
             * data_size: (bit count) The size of the data
             * cam_size: (entry count) The number of entries int he CAM
