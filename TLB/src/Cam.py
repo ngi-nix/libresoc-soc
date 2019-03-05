@@ -111,7 +111,8 @@ class Cam():
 
 if __name__ == '__main__':
     cam = Cam(4, 4)
-    main(cam, ports=[cam.command, cam.address,
-                     cam.data_in, cam.data_hit,
-                     cam.data_out])
+    main(cam, ports=[cam.enable, cam.write_enable,
+                     cam.data_in, cam.data_mask,
+                     cam.read_warning, cam.single_match,
+                     cam.multiple_match, cam.match_address])
 
