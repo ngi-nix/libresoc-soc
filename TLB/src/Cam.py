@@ -71,7 +71,7 @@ class Cam():
             with m.If(self.enable):
 
                 # Read Operation
-                with m.If(self.write_enable == 0):
+                with m.If(~self.write_enable):
                     m.d.comb += entry_array[index].command.eq(1)
 
                 # Write Operation
