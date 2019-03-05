@@ -15,23 +15,23 @@ def set_cam(dut, e, we, a, d):
     yield dut.data_in.eq(d)
     yield   
     
-def check_data_hit(dut, dh, op):
-    out_dh = yield dut.single_match
+def check_single_match(dut, dh, op):
+    out_sm = yield dut.single_match
     if op == 0:
-        assert_eq("Data Hit", out_dh, dh)
+        assert_eq("Single Match", out_sm, dh)
     else:
-        assert_ne("Data Hit", out_dh, dh)
+        assert_ne("Single Match", out_sm, dh)
     
-def check_data(dut, d, op):
-    out_d = yield dut.data_out
+def check_match_address(dut, ma, op):
+    out_ma = yield dut.match_address
     if op == 0:
-        assert_eq("Data", out_d, d)
+        assert_eq("Match Address", out_ma, ma)
     else:
-        assert_ne("Data", out_d, d)  
+        assert_ne("Match Address", out_ma, ma)  
     
-def check_all(dut, data_hit, data, dh_op, d_op):
-    yield from check_data_hit(dut, data_hit, dh_op)
-    yield from check_data(dut, data, d_op)
+def check_all(dut, single_match, match_address, sm_op, ma_op):
+    yield from check_single_match(dut, single_match, sm_op)
+    yield from check_match_address(dut, match_address, ma_op)
     
 
 def testbench(dut):
@@ -40,60 +40,60 @@ def testbench(dut):
     write_enable = 0
     address = 0
     data = 0
-    data_hit = 0
+    single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
-    yield from check_data_hit(dut, data_hit, 0)
+    yield from check_single_match(dut, single_match, 0)
     
-    # Search Miss
+    # Read Miss
     # Note that the default starting entry data bits are all 0
     enable = 1
     write_enable = 0
     address = 0
     data = 1
-    data_hit = 0
+    single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_data_hit(dut, data_hit, 0)    
+    yield from check_single_match(dut, single_match, 0)    
     
     # Write Entry 0
     enable = 1
     write_enable = 1
     address = 0
     data = 4
-    data_hit = 0
+    single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_data_hit(dut, data_hit, 0) 
+    yield from check_single_match(dut, single_match, 0) 
     
-    # Read Entry 0
+    # Read Hit Entry 0
     enable = 1
     write_enable = 0
     address = 0
     data = 4
-    data_hit = 1
+    single_match = 1
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    #yield from check_all(dut, data_hit, data, 0, 0) 
+    yield from check_all(dut, single_match, address, 0, 0) 
     
     # Search Hit
     enable = 1
     write_enable = 0
     address = 0
     data = 4
-    data_hit = 1
+    single_match = 1
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    #yield from check_all(dut, data_hit, data, 0, 0)
+    yield from check_all(dut, single_match, address, 0, 0)
     
     # Search Miss
     enable = 1
     write_enable = 0
     address = 0
     data = 5
-    data_hit = 0
+    single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    #yield from check_all(dut, data_hit, data, 0, 1)     
+    yield from check_single_match(dut, single_match, 0)  
     
     yield 
     
