@@ -39,11 +39,11 @@ class Cam():
 
         # Input
         self.enable = Signal(1)
-        self.write_enable = Signal(1) 
+        self.write_enable = Signal(1)
         self.data_in = Signal(data_size) # The data to be written
         self.data_mask = Signal(data_size) # mask for ternary writes
         self.address_in = Signal(max=cam_size) # address of CAM Entry to write
-        
+
         # Output
         self.read_warning = Signal(1) # High when a read interrupts a write
         self.single_match = Signal(1) # High when there is only one match
@@ -69,23 +69,23 @@ class Cam():
         # Set the key value for every CamEntry
         for index in range(self.cam_size):
             with m.If(self.enable == 1):
-                
+
                 # Read Operation
                 with m.If(self.write_enable == 0):
                     m.d.comb += entry_array[index].command.eq(1)
-                    
+
                 # Write Operation
                 with m.Else():
                     with m.If(self.decoder.o[index]):
                         m.d.comb += entry_array[index].command.eq(2)
                     with m.Else():
                         m.d.comb += entry_array[index].command.eq(0)
-                        
+
                 # Send data input to all entries
                 m.d.comb += entry_array[index].data_in.eq(self.data_in)
                 # Send all entry matches to the priority encoder
                 m.d.comb += self.encoder.i[index].eq(entry_array[index].match)
-                
+
                 # Process out data based on encoder address
                 with m.If(self.encoder.n == 0):
                     m.d.comb += [
@@ -99,7 +99,7 @@ class Cam():
                         self.multiple_match.eq(0),
                         self.match_address.eq(0)
                     ]
-                    
+
             with m.Else():
                 m.d.comb += [
                         self.read_warning.eq(0),
