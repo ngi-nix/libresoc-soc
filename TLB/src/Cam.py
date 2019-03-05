@@ -66,8 +66,8 @@ class Cam():
             self.decoder.n.eq(0)
         ]
 
-        # Set the key value for every CamEntry
         with m.If(self.enable):
+            # Set the key value for every CamEntry
             for index in range(self.cam_size):
 
                 # Read Operation
