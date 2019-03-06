@@ -32,6 +32,8 @@ class Cam():
 
         # Internal
         self.cam_size = cam_size
+        # TODO create a module that merges the priority encoder and
+        # encoder into one?
         self.encoder = Encoder(cam_size)
         self.p_encoder = PriorityEncoder(cam_size)
         self.decoder = Decoder(cam_size)
