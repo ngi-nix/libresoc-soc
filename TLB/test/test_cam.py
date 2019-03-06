@@ -40,7 +40,7 @@ def check_all(dut, multiple_match, single_match, match_address, mm_op, sm_op, ma
     yield from check_multiple_match(dut, multiple_match, mm_op)
     yield from check_single_match(dut, single_match, sm_op)
     yield from check_match_address(dut, match_address, ma_op)
-    
+
 
 
 def testbench(dut):
@@ -53,7 +53,7 @@ def testbench(dut):
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
     yield from check_single_match(dut, single_match, 0)
-    
+
     # Read Miss Multiple
     # Note that the default starting entry data bits are all 0
     enable = 1
@@ -64,7 +64,7 @@ def testbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_multiple_match(dut, multiple_match, 0)    
+    yield from check_multiple_match(dut, multiple_match, 0)
 
     # Read Miss
     # Note that the default starting entry data bits are all 0
