@@ -14,13 +14,20 @@ def set_cam(dut, e, we, a, d):
     yield dut.address_in.eq(a)
     yield dut.data_in.eq(d)
     yield
+    
+def check_multiple_match(dut, mm, op):
+    out_mm = yield dut.multiple_match
+    if op == 0:
+        assert_eq("Multiple Match", out_mm, mm)
+    else:
+        assert_ne("Multiple Match", out_mm, mm)
 
-def check_single_match(dut, dh, op):
+def check_single_match(dut, sm, op):
     out_sm = yield dut.single_match
     if op == 0:
-        assert_eq("Single Match", out_sm, dh)
+        assert_eq("Single Match", out_sm, sm)
     else:
-        assert_ne("Single Match", out_sm, dh)
+        assert_ne("Single Match", out_sm, sm)
 
 def check_match_address(dut, ma, op):
     out_ma = yield dut.match_address
@@ -29,20 +36,35 @@ def check_match_address(dut, ma, op):
     else:
         assert_ne("Match Address", out_ma, ma)
 
-def check_all(dut, single_match, match_address, sm_op, ma_op):
+def check_all(dut, multiple_match, single_match, match_address, mm_op, sm_op, ma_op):
+    yield from check_multiple_match(dut, multiple_match, mm_op)
     yield from check_single_match(dut, single_match, sm_op)
     yield from check_match_address(dut, match_address, ma_op)
+    
 
 
 def testbench(dut):
     # NA
-    enable = 1
+    enable = 0
     write_enable = 0
     address = 0
     data = 0
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
+    yield
     yield from check_single_match(dut, single_match, 0)
+    
+    # Read Miss Multiple
+    # Note that the default starting entry data bits are all 0
+    enable = 1
+    write_enable = 0
+    address = 0
+    data = 0
+    multiple_match = 1
+    single_match = 0
+    yield from set_cam(dut, enable, write_enable, address, data)
+    yield
+    yield from check_multiple_match(dut, multiple_match, 0)    
 
     # Read Miss
     # Note that the default starting entry data bits are all 0
@@ -50,6 +72,7 @@ def testbench(dut):
     write_enable = 0
     address = 0
     data = 1
+    multiple_match = 0
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
@@ -60,6 +83,7 @@ def testbench(dut):
     write_enable = 1
     address = 0
     data = 4
+    multiple_match = 0
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
@@ -70,20 +94,22 @@ def testbench(dut):
     write_enable = 0
     address = 0
     data = 4
+    multiple_match = 0
     single_match = 1
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, single_match, address, 0, 0)
+    yield from check_all(dut, multiple_match, single_match, address, 0, 0, 0)
 
     # Search Hit
     enable = 1
     write_enable = 0
     address = 0
     data = 4
+    multiple_match = 0
     single_match = 1
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, single_match, address, 0, 0)
+    yield from check_all(dut, multiple_match, single_match, address, 0, 0, 0)
 
     # Search Miss
     enable = 1
