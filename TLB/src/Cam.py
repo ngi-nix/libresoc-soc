@@ -56,11 +56,11 @@ class Cam():
     def elaborate(self, platform=None):
         m = Module()
         # Encoder checks for multiple matches
-        m.submodules += self.encoder
+        m.submodules.encoder = self.encoder
         # Priority Encoder is used to select output address
-        m.submodules += self.p_encoder
+        m.submodules.p_encoder = self.p_encoder
         # Decoder is used to select which entry will be written to
-        m.submodules += self.decoder
+        m.submodules.decoder = self.decoder
         # Don't forget to add all entries to the submodule list
         entry_array = self.entry_array
         m.submodules += entry_array
@@ -94,6 +94,7 @@ class Cam():
                 m.d.comb += self.p_encoder.i[index].eq(entry_array[index].match)
 
             # If the priority encoder recieves an input of 0
+            # If n is 1 then the output is not valid
             with m.If(self.p_encoder.n):
                 m.d.comb += [
                     self.read_warning.eq(0),
