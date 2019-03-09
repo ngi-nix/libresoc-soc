@@ -15,14 +15,14 @@ assembler_size = 4
 # Arguments:
 #   dut: The CamEntry being tested
 #   input: The array of single bits to be written
-def set_assembler(dut, input):
-    assert len(input) == assembler_size
+def set_assembler(dut, i):
+    assert len(i) == assembler_size
     for index in range(assembler_size):
         # Make sure we start from the beginning of the array
         # at least the side that makes sense from a human standpoint
         # of reading bits
         input_index = assembler_size - index - 1
-        yield dut.input[index].eq(input[input_index])
+        yield dut.i[index].eq(i[input_index])
     yield
 
 # Checks the output of the VectorAssembler
@@ -37,14 +37,14 @@ def check_output(dut, o, op):
 def testbench(dut):
     # Input should but bit readable from left to right
     # with Little Endian notation
-    input = [1, 1, 0, 0]
+    i = [1, 1, 0, 0]
     output = 12
-    yield from set_assembler(dut, input)
+    yield from set_assembler(dut, i)
     yield from check_output(dut, output, 0)
 
-    input = [1, 1, 0, 1]
+    i = [1, 1, 0, 1]
     output = 13
-    yield from set_assembler(dut, input)
+    yield from set_assembler(dut, i)
     yield from check_output(dut, output, 0)
 
 if __name__ == "__main__":
