@@ -12,18 +12,42 @@ def set_encoder(dut, i):
     yield dut.i.eq(i)
     yield
     
+# Checks the single match of the AddressEncoder
+# Arguments:
+#   dut: The AddressEncoder being tested
+#   sm (Single Match): The expected match result
+#   op (Operation): (0 => ==), (1 => !=)
 def check_single_match(dut, sm, op):
     out_sm = yield dut.single_match
     assert_op("Single Match", out_sm, sm, op)
     
+# Checks the multiple match of the AddressEncoder
+# Arguments:
+#   dut: The AddressEncoder being tested
+#   mm (Multiple Match): The expected match result
+#   op (Operation): (0 => ==), (1 => !=)    
 def check_multiple_match(dut, mm, op):
     out_mm = yield dut.multiple_match
     assert_op("Multiple Match", out_mm, mm, op)
     
+# Checks the output of the AddressEncoder
+# Arguments:
+#   dut: The AddressEncoder being tested
+#   o (Output): The expected output
+#   op (Operation): (0 => ==), (1 => !=)
 def check_output(dut, o, op):
     out_o = yield dut.o
     assert_op("Output", out_o, o, op)
-    
+
+# Checks the state of the AddressEncoder
+# Arguments:
+#   dut: The AddressEncoder being tested
+#   sm (Single Match): The expected match result
+#   mm (Multiple Match): The expected match result
+#   o (Output): The expected output
+#   ss_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+#   mm_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+#   o_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 def check_all(dut, sm, mm, o, sm_op, mm_op, o_op):
     yield from check_single_match(dut, sm, sm_op)
     yield from check_multiple_match(dut, mm, mm_op)

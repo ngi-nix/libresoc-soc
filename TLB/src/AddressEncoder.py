@@ -2,7 +2,23 @@ from nmigen import Module, Signal
 from nmigen.lib.coding import Encoder, PriorityEncoder
 
 class AddressEncoder():
+    """Address Encoder
+    
+       The purpose of this module is to take in a vector and 
+       encode the bits that are one hot into an address. This module
+       combines both nmigen's Encoder and PriorityEncoder and will state
+       whether the input line has a single bit hot, multiple bits hot,
+       or no bits hot. The output line will always have the lowest value 
+       address output.
+       
+       Usage:
+       The output is valid when either single or multiple match is high.
+       Otherwise output is 0.
+    """
     def __init__(self, width):
+        """ Arguments:
+            * width: The desired length of the input vector
+        """
         # Internal
         self.encoder = Encoder(width)
         self.p_encoder = PriorityEncoder(width)
