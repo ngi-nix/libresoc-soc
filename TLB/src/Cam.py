@@ -70,12 +70,16 @@ class Cam():
             self.decoder.n.eq(0)
         ]
 
+        # XXX change name of write_enable interface to write_enable_n ?
+        wen = Signal(reset_less=True)
+        m.d.comb += wen.eq(~self.write_enable)
+
         with m.If(self.enable):
             # Set the key value for every CamEntry
             for index in range(self.cam_size):
 
                 # Read Operation
-                with m.If(~self.write_enable):
+                with m.If(wen):
                     m.d.comb += entry_array[index].command.eq(1)
 
                 # Write Operation
