@@ -19,7 +19,7 @@ class VectorAssembler():
         self.width = width
 
         # Input
-        self.input = Array(Signal(1) for index in range(width))
+        self.i = Array(Signal(1) for index in range(width))
 
         # Output
         self.o = Signal(width)
@@ -27,6 +27,6 @@ class VectorAssembler():
     def elaborate(self, platform=None):
         m = Module()
         for index in range(self.width):
-            m.d.comb += self.o[index].eq(self.input[index])
+            m.d.comb += self.o[index].eq(self.i[index])
 
         return m
