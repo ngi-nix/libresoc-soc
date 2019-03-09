@@ -104,5 +104,5 @@ def testbench(dut):
 
 if __name__ == "__main__":
     dut = CamEntry(4)
-    run_simulation(dut, testbench(dut), vcd_name="Waveforms/cam_entry_test.vcd")
+    run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_cam_entry.vcd")
     print("CamEntry Unit Test Success")
