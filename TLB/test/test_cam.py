@@ -8,6 +8,13 @@ from Cam import Cam
 
 from test_helper import assert_eq, assert_ne, assert_op
 
+# This function allows for the easy setting of values to the Cam
+# Arguments:
+#   dut: The Cam being tested
+#   e (Enable): Whether the block is going to be enabled
+#   we (Write Enable): Whether the Cam will write on the next cycle
+#   a (Address): Where the data will be written if write enable is high
+#   d (Data): Either what we are looking for or will write to the address
 def set_cam(dut, e, we, a, d):
     yield dut.enable.eq(e)
     yield dut.write_enable.eq(we)
@@ -15,24 +22,46 @@ def set_cam(dut, e, we, a, d):
     yield dut.data_in.eq(d)
     yield
     
+# Checks the multiple match of the Cam
+# Arguments:
+#   dut: The Cam being tested
+#   mm (Multiple Match): The expected match result
+#   op (Operation): (0 => ==), (1 => !=)   
 def check_multiple_match(dut, mm, op):
     out_mm = yield dut.multiple_match
     assert_op("Multiple Match", out_mm, mm, op)
 
+# Checks the single match of the Cam
+# Arguments:
+#   dut: The Cam being tested
+#   sm (Single Match): The expected match result
+#   op (Operation): (0 => ==), (1 => !=)
 def check_single_match(dut, sm, op):
     out_sm = yield dut.single_match
     assert_op("Single Match", out_sm, sm, op)
 
+# Checks the address output of the Cam
+# Arguments:
+#   dut: The Cam being tested
+#   ma (Match Address): The expected match result
+#   op (Operation): (0 => ==), (1 => !=)
 def check_match_address(dut, ma, op):
     out_ma = yield dut.match_address
     assert_op("Match Address", out_ma, ma, op)
 
-def check_all(dut, multiple_match, single_match, match_address, mm_op, sm_op, ma_op):
-    yield from check_multiple_match(dut, multiple_match, mm_op)
-    yield from check_single_match(dut, single_match, sm_op)
-    yield from check_match_address(dut, match_address, ma_op)
-
-
+# Checks the state of the Cam
+# Arguments:
+#   dut: The Cam being tested
+#   sm (Single Match): The expected match result
+#   mm (Multiple Match): The expected match result
+#   ma: (Match Address): The expected address output
+#   ss_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+#   mm_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+#   ma_op (Operation): Operation for the address assertion (0 => ==), (1 => !=)
+def check_all(dut, mm, sm, ma, mm_op, sm_op, ma_op):
+    yield from check_multiple_match(dut, mm, mm_op)
+    yield from check_single_match(dut, sm, sm_op)
+    yield from check_match_address(dut, ma, ma_op)
 
 def testbench(dut):
     # NA
