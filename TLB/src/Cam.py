@@ -91,8 +91,9 @@ class Cam():
 
                 # Send data input to all entries
                 m.d.comb += entry_array[index].data_in.eq(self.data_in)
-                #Send all entry matches to encoder
-                m.d.comb += self.vector_assembler.i[index].eq(entry_array[index].match)
+                # Send all entry matches to encoder
+                ematch = entry_array[index].match
+                m.d.comb += self.vector_assembler.i[index].eq(ematch)
 
             # Give input to and accept output from encoder module
             m.d.comb += [
