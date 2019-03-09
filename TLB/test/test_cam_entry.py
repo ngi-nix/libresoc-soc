@@ -4,7 +4,7 @@ sys.path.append("../../TestUtil")
 
 from nmigen.compat.sim import run_simulation
 
-from test_helper import assert_eq, assert_ne
+from test_helper import assert_eq, assert_ne, assert_op
 from CamEntry import CamEntry
 
 # This function allows for the easy setting of values to the Cam Entry
@@ -30,10 +30,7 @@ def set_cam_entry(dut, c, d):
 #   op (Operation): (0 => ==), (1 => !=)
 def check_data(dut, d, op):
     out_d = yield dut.data
-    if op == 0:
-        assert_eq("Data", out_d, d)
-    else:
-        assert_ne("Data", out_d, d)
+    assert_op("Data", out_d, d, op)
 
 # Checks the match state of the CAM entry
 # Arguments:
@@ -42,10 +39,7 @@ def check_data(dut, d, op):
 #   op (Operation): (0 => ==), (1 => !=)
 def check_match(dut, m, op):
     out_m = yield dut.match
-    if op == 0:
-        assert_eq("Match", out_m, m)
-    else:
-        assert_ne("Match", out_m, m)
+    assert_op("Match", out_m, m, op)
 
 # Checks the state of the CAM entry
 # Arguments:
