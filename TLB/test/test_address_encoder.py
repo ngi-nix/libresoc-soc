@@ -8,6 +8,10 @@ from AddressEncoder import AddressEncoder
 
 from test_helper import assert_eq, assert_ne, assert_op
 
+# This function allows for the easy setting of values to the AddressEncoder
+# Arguments:
+#   dut: The AddressEncoder being tested
+#   i (Input): The array of single bits to be written
 def set_encoder(dut, i):
     yield dut.i.eq(i)
     yield
