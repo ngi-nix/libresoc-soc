@@ -59,45 +59,45 @@ def check_all(dut, sm, mm, o, sm_op, mm_op, o_op):
 
 def testbench(dut):
     # Check invalid input
-    input = 0
+    in_val = 0
     single_match = 0
     multiple_match = 0
     output = 0
-    yield from set_encoder(dut, input)
+    yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check single bit
-    input = 1
+    in_val = 1
     single_match = 1
     multiple_match = 0
     output = 0
-    yield from set_encoder(dut, input)
+    yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check another single bit
-    input = 4
+    in_val = 4
     single_match = 1
     multiple_match = 0
     output = 2
-    yield from set_encoder(dut, input)
+    yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check multiple match
     # We expected the lowest bit to be returned which is address 0
-    input = 5
+    in_val = 5
     single_match = 0
     multiple_match = 1
     output = 0
-    yield from set_encoder(dut, input)
+    yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check another multiple match
     # We expected the lowest bit to be returned which is address 1
-    input = 6
+    in_val = 6
     single_match = 0
     multiple_match = 1
     output = 1
-    yield from set_encoder(dut, input)
+    yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
 if __name__ == "__main__":
