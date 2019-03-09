@@ -1,8 +1,9 @@
 from nmigen import Array, Module, Signal
-from nmigen.lib.coding import Decoder, Encoder, PriorityEncoder
+from nmigen.lib.coding import Decoder
 from nmigen.cli import main #, verilog
 
 from CamEntry import CamEntry
+from AddressEncoder import AddressEncoder
 
 class Cam():
     """ Content Addressable Memory (CAM)
@@ -32,10 +33,7 @@ class Cam():
 
         # Internal
         self.cam_size = cam_size
-        # TODO create a module that merges the priority encoder and
-        # encoder into one?
-        self.encoder = Encoder(cam_size)
-        self.p_encoder = PriorityEncoder(cam_size)
+        self.encoder = AddressEncoder(cam_size)
         self.decoder = Decoder(cam_size)
         self.entry_array = Array(CamEntry(data_size) \
                             for x in range(cam_size))
@@ -56,9 +54,7 @@ class Cam():
     def elaborate(self, platform=None):
         m = Module()
         # Encoder checks for multiple matches
-        m.submodules.encoder = self.encoder
-        # Priority Encoder is used to select output address
-        m.submodules.p_encoder = self.p_encoder
+        m.submodules.AddressEncoder = self.encoder
         # Decoder is used to select which entry will be written to
         m.submodules.decoder = self.decoder
         # Don't forget to add all entries to the submodule list
@@ -90,34 +86,13 @@ class Cam():
                 m.d.comb += entry_array[index].data_in.eq(self.data_in)
                 #Send all entry matches to encoder
                 m.d.comb += self.encoder.i[index].eq(entry_array[index].match)
-                # Send all entry matches to the priority encoder
-                m.d.comb += self.p_encoder.i[index].eq(entry_array[index].match)
 
-            # If the priority encoder recieves an input of 0
-            # If n is 1 then the output is not valid
-            with m.If(self.p_encoder.n):
-                m.d.comb += [
-                    self.read_warning.eq(0),
-                    self.single_match.eq(0),
-                    self.multiple_match.eq(0),
-                    self.match_address.eq(0)
-                ]
-            # If the priority encoder recieves an input > 0
-            with m.Else():
-                # Multiple Match if encoder n is invalid
-                with m.If(self.encoder.n):
-                    m.d.comb += [
-                        self.single_match.eq(0),
-                        self.multiple_match.eq(1)
-                    ]
-                # Single Match if encoder n is valid
-                with m.Else():
-                    m.d.comb += [
-                        self.single_match.eq(1),
-                        self.multiple_match.eq(0)
-                    ]
-                # Always set output based on priority encoder output
-                m.d.comb += self.match_address.eq(self.p_encoder.o)
+            # Accept output from encoder module
+            m.d.comb += [
+                self.single_match.eq(self.encoder.single_match),
+                self.multiple_match.eq(self.encoder.multiple_match),
+                self.match_address.eq(self.encoder.o)
+            ]
 
         # If the CAM is not enabled set all outputs to 0
         with m.Else():
