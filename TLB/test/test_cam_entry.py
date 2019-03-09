@@ -8,7 +8,6 @@ from test_helper import assert_eq, assert_ne, assert_op
 from CamEntry import CamEntry
 
 # This function allows for the easy setting of values to the Cam Entry
-# unless the key is incorrect
 # Arguments:
 #   dut: The CamEntry being tested
 #   c (command): NA (0), Read (1), Write (2), Reserve (3)
@@ -46,8 +45,8 @@ def check_match(dut, m, op):
 #   dut: The CamEntry being tested
 #   d (data): The expected data
 #   m (match): The expected match
-#   d_op (Operation): The operation for the data assertion (0 => ==), (1 => !=)
-#   m_op (Operation): The operation for the match assertion (0 => ==), (1 => !=)
+#   d_op (Operation): Operation for the data assertion (0 => ==), (1 => !=)
+#   m_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 def check_all(dut, d, m, d_op, m_op):
     yield from check_data(dut, d, d_op)
     yield from check_match(dut, m, m_op)
