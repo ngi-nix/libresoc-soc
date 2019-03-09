@@ -24,7 +24,7 @@ def set_assembler(dut, input):
         input_index = assembler_size - index - 1
         yield dut.input[index].eq(input[input_index])
     yield
-    
+
 # Checks the output of the VectorAssembler
 # Arguments:
 #   dut: The VectorAssembler
@@ -33,7 +33,7 @@ def set_assembler(dut, input):
 def check_output(dut, o, op):
     out_o = yield dut.o
     assert_op("Output", out_o, o, op)
-    
+
 def testbench(dut):
     # Input should but bit readable from left to right
     # with Little Endian notation
@@ -41,11 +41,11 @@ def testbench(dut):
     output = 12
     yield from set_assembler(dut, input)
     yield from check_output(dut, output, 0)
-    
+
     input = [1, 1, 0, 1]
     output = 13
     yield from set_assembler(dut, input)
-    yield from check_output(dut, output, 0)    
+    yield from check_output(dut, output, 0)
 
 if __name__ == "__main__":
     dut = VectorAssembler(assembler_size)
