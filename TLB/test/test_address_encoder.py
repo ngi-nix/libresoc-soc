@@ -59,7 +59,7 @@ def check_all(dut, sm, mm, o, sm_op, mm_op, o_op):
 
 def testbench(dut):
     # Check invalid input
-    in_val = 0
+    in_val = 0b000
     single_match = 0
     multiple_match = 0
     output = 0
@@ -67,7 +67,7 @@ def testbench(dut):
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check single bit
-    in_val = 1
+    in_val = 0b001
     single_match = 1
     multiple_match = 0
     output = 0
@@ -75,7 +75,7 @@ def testbench(dut):
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
     # Check another single bit
-    in_val = 4
+    in_val = 0b100
     single_match = 1
     multiple_match = 0
     output = 2
@@ -84,7 +84,7 @@ def testbench(dut):
 
     # Check multiple match
     # We expected the lowest bit to be returned which is address 0
-    in_val = 5
+    in_val = 0b101
     single_match = 0
     multiple_match = 1
     output = 0
@@ -93,7 +93,7 @@ def testbench(dut):
 
     # Check another multiple match
     # We expected the lowest bit to be returned which is address 1
-    in_val = 6
+    in_val = 0b110
     single_match = 0
     multiple_match = 1
     output = 1
