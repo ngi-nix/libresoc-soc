@@ -13,7 +13,7 @@ class AddressEncoder():
         # Output
         self.single_match = Signal(1)
         self.multiple_match = Signal(1)
-        self.o = Signal(width)
+        self.o = Signal(max=width)
         
     def elaborate(self, platform=None):
         m = Module()
