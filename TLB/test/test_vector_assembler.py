@@ -25,9 +25,9 @@ def set_assembler(dut, input):
         yield dut.input[index].eq(input[input_index])
     yield
     
-# Checks the data state of the CAM entry
+# Checks the output of the VectorAssembler
 # Arguments:
-#   dut: The CamEntry being tested
+#   dut: The VectorAssembler
 #   o (Output): The expected output
 #   op (Operation): (0 => ==), (1 => !=)
 def check_output(dut, o, op):
