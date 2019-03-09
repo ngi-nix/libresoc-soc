@@ -3,3 +3,4 @@ WaveForms
 *.vcd
 .*.sw?
 *.py?
+*.v
