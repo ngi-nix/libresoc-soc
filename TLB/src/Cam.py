@@ -10,20 +10,19 @@ class Cam():
     """ Content Addressable Memory (CAM)
 
         The purpose of this module is to quickly look up whether an
-        entry exists given a certain key and return the mapped data.
-        This module when given a key will search for the given key
-        in all internal entries and output whether a match was found or not.
-        If an entry is found the data will be returned and data_hit is HIGH,
-        if it is not LOW is asserted on data_hit. When given a write
-        command it will write the given key and data into the given cam
-        entry index.
-        Entry managment should be performed one level above this block
+        entry exists given a data key.
+        This module will search for the given data in all internal entries
+        and output whether a  single or multiple match was found.
+        If an single entry is found the address be returned and single_match
+        is set HIGH. If multiple entries are found the lowest address is
+        returned and multiple_match is set HIGH. If neither single_match or
+        multiple_match are HIGH this implies no match was found. To write
+        to the CAM set the address bus to the desired entry and set write_enable
+        HIGH. Entry managment should be performed one level above this block
         as lookup is performed within.
 
         Notes:
-        The search, write, and reset operations take one clock cycle
-        to complete.  Performing a read immediately after a search will cause
-        the read to be ignored.
+        The read and write operations take one clock cycle to complete.
     """
 
     def __init__(self, data_size, cam_size):
