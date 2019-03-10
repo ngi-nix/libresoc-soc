@@ -165,7 +165,7 @@ def testbench(dut):
     yield
     yield from check_single_match(dut, single_match, 0)      
     
-    # Read Data 5
+    # Read Hit Data 5
     enable = 1
     write_enable = 0
     address = 1
@@ -174,7 +174,29 @@ def testbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, multiple_match, single_match, address,0,0,0)      
+    yield from check_all(dut, multiple_match, single_match, address,0,0,0)  
+    
+    # Verify read_warning is not caused
+    # Write Entry 0
+    enable = 1
+    write_enable = 1
+    address = 0
+    data = 7
+    multiple_match = 0
+    single_match = 0
+    yield from set_cam(dut, enable, write_enable, address, data)   
+    # Note there is no yield we immediately attempt to read in the next cycle
+    
+    # Read Hit Data 7
+    enable = 1
+    write_enable = 0
+    address = 0
+    data = 7
+    multiple_match = 0
+    single_match = 1
+    yield from set_cam(dut, enable, write_enable, address, data) 
+    yield
+    yield from check_single_match(dut, single_match, 0) 
 
     yield
 
