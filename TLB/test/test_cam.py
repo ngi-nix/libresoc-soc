@@ -140,6 +140,41 @@ def testbench(dut):
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
     yield from check_single_match(dut, single_match, 0)
+    
+    # Multiple Match test
+    # Write Entry 1
+    enable = 1
+    write_enable = 1
+    address = 1
+    data = 5
+    multiple_match = 0
+    single_match = 0
+    yield from set_cam(dut, enable, write_enable, address, data)
+    yield
+    yield from check_single_match(dut, single_match, 0)    
+    
+    # Write Entry 2 
+    # Same data as Entry 1
+    enable = 1
+    write_enable = 1
+    address = 2
+    data = 5
+    multiple_match = 0
+    single_match = 0
+    yield from set_cam(dut, enable, write_enable, address, data)
+    yield
+    yield from check_single_match(dut, single_match, 0)      
+    
+    # Read Data 5
+    enable = 1
+    write_enable = 0
+    address = 1
+    data = 5
+    multiple_match = 1
+    single_match = 0
+    yield from set_cam(dut, enable, write_enable, address, data)
+    yield
+    yield from check_all(dut, multiple_match, single_match, address,0,0,0)      
 
     yield
 
