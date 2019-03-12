@@ -15,8 +15,7 @@ class PermissionValidator():
             * data_size: (bit count) The size of the data words being processed
 
             Return:
-            1. Data is valid ->  valid is HIGH
-            2. Data is not valid -> valid is LOW
+            * valid HIGH when permissions are correct
         """
         # Input
         self.data = Signal(data_size);
@@ -30,35 +29,23 @@ class PermissionValidator():
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += [
-            # Check if ASID matches OR entry is global
-            If(data[64:78] == self.asid or data[5] == 1,
-               # Check Execute, Write, Read (XWR) Permissions
-               If(data[3] == self.xwr[2] and data[2] == self.xwr[1] \
-                  and data[1] == self.xwr[0],
-                  # Check if supervisor
-                  If(self.super == 1,
-                     # Check if entry is in user mode
-                     # Check if supervisor has access
-                     If(data[4] == 0,
-                        self.valid.eq(1)
-                     ).Elif(self.super_access == 1,
-                        self.valid.eq(1)
-                     ).Else(
-                        self.valid.eq(0)
-                     )
-                  ).Else(
-                      # Check if entry is in user mode
-                      If(data[4] == 1,
-                         self.valid.eq(1)
-                      ).Else(
-                         self.valid.eq(0)
-                      )
-                  )
-               ).Else(
-                   self.valid.eq(0)
-               )
-            ).Else(
-                self.valid.eq(0)
-            )
-        ]
+        # ASID match or Global Permission
+        with m.If(data[64:78] == self.asid | data[5]):
+            # Check Execute, Write, Read (XWR) Permissions
+            with m.If(data[3] == self.xwr[2] \
+                      & data[2] == self.xwr[1] \
+                      & data[1] == self.xwr[0]):
+                # Supervisor Logic
+                with m.If(self.super):
+                    # Valid if entry is not in user mode or supervisor
+                    # has Supervisor User Memory (SUM) access via the
+                    # SUM bit in the sstatus register
+                    m.comb += self.valid.eq(~data[4] | self.super_access)
+                # User logic
+                with m.Else():
+                    # Valid if the entry is in user mode only
+                    m.comb += self.valid.eq(data[4])
+            with m.Else():
+                m.comb += self.valid.eq(0)
+        with m.Else():
+            m.comb += self.valid.eq(0)
