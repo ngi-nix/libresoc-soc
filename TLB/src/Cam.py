@@ -39,8 +39,7 @@ class Cam():
         self.cam_size = cam_size
         self.encoder = AddressEncoder(cam_size)
         self.decoder = Decoder(cam_size)
-        self.entry_array = Array(CamEntry(data_size) \
-                            for x in range(cam_size))
+        self.entry_array = Array(CamEntry(data_size) for x in range(cam_size))
         self.vector_assembler = VectorAssembler(cam_size)
 
         # Input
@@ -58,7 +57,7 @@ class Cam():
 
     def elaborate(self, platform=None):
         m = Module()
-        # Encoder checks for multiple matches
+        # AddressEncoder for match types and output address
         m.submodules.AddressEncoder = self.encoder
         # Decoder is used to select which entry will be written to
         m.submodules.Decoder = self.decoder
@@ -82,7 +81,7 @@ class Cam():
                     with m.If(self.decoder.o[index]):
                         m.d.comb += entry_array[index].command.eq(2)
                     with m.Else():
-                        m.d.comb += entry_array[index].command.eq(0)                    
+                        m.d.comb += entry_array[index].command.eq(0)
 
                 # Read Operation
                 with m.Else():
