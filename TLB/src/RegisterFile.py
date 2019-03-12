@@ -10,7 +10,7 @@ class RegisterFile():
         To Write: Set the address line to the desired register in the file, set
         write_enable HIGH, and wait one cycle
         To Read: Set the address line to the desired register in the file, set
-        write_enable LOW, and wait one cycle. 
+        write_enable LOW, and wait one cycle.
     """
 
     def __init__(self, data_size, file_size):
