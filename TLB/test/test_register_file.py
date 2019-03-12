@@ -14,21 +14,21 @@ def setRegisterFile(dut, e, we, a, di):
     yield dut.address.eq(a)
     yield dut.data_i.eq(di)
     yield
- 
+
 # Checks the address output of the Cam
 # Arguments:
 #   dut: The Cam being tested
 #   v (Valid): If the output is valid or not
-#   op (Operation): (0 => ==), (1 => !=)   
+#   op (Operation): (0 => ==), (1 => !=)
 def check_valid(dut, v, op):
     out_v = yield dut.valid
     assert_op("Valid", out_v, v, op)
- 
+
 # Checks the address output of the Cam
 # Arguments:
 #   dut: The Cam being tested
 #   do (Data Out): The current output data
-#   op (Operation): (0 => ==), (1 => !=)   
+#   op (Operation): (0 => ==), (1 => !=)
 def check_data(dut, do, op):
     out_do = yield dut.data_o
     assert_op("Data Out", out_do, do, op)
@@ -54,8 +54,8 @@ def testbench(dut):
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
     yield from check_all(dut, valid, 0, 0, 0)
-    
-    # Test read 0 
+
+    # Test read 0
     enable = 1
     write_enable = 0
     address = 0
@@ -63,8 +63,8 @@ def testbench(dut):
     valid = 1
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, valid, data, 0, 0) 
-    
+    yield from check_all(dut, valid, data, 0, 0)
+
     # Test write 3
     enable = 1
     write_enable = 1
@@ -74,8 +74,8 @@ def testbench(dut):
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
     yield from check_all(dut, valid, 0, 0, 0)
-    
-    # Test read 3  
+
+    # Test read 3
     enable = 1
     write_enable = 0
     address = 3
@@ -83,9 +83,9 @@ def testbench(dut):
     valid = 1
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, valid, data, 0, 0)    
-    
-    # Test read 0 
+    yield from check_all(dut, valid, data, 0, 0)
+
+    # Test read 0
     enable = 1
     write_enable = 0
     address = 0
@@ -93,8 +93,8 @@ def testbench(dut):
     valid = 1
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, valid, data, 0, 0)   
-    
+    yield from check_all(dut, valid, data, 0, 0)
+
     # Test overwrite 0
     enable = 1
     write_enable = 1
@@ -103,9 +103,9 @@ def testbench(dut):
     valid = 0
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, valid, 0, 0, 0)  
-    
-    # Test read 0 
+    yield from check_all(dut, valid, 0, 0, 0)
+
+    # Test read 0
     enable = 1
     write_enable = 0
     address = 0
@@ -113,8 +113,7 @@ def testbench(dut):
     valid = 1
     yield from setRegisterFile(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, valid, data, 0, 0)     
-    
+    yield from check_all(dut, valid, data, 0, 0)
 
 if __name__ == "__main__":
     dut = RegisterFile(4, 4)
