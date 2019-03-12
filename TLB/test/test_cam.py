@@ -21,12 +21,12 @@ def set_cam(dut, e, we, a, d):
     yield dut.address_in.eq(a)
     yield dut.data_in.eq(d)
     yield
-    
+
 # Checks the multiple match of the Cam
 # Arguments:
 #   dut: The Cam being tested
 #   mm (Multiple Match): The expected match result
-#   op (Operation): (0 => ==), (1 => !=)   
+#   op (Operation): (0 => ==), (1 => !=)
 def check_multiple_match(dut, mm, op):
     out_mm = yield dut.multiple_match
     assert_op("Multiple Match", out_mm, mm, op)
@@ -140,7 +140,7 @@ def testbench(dut):
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
     yield from check_single_match(dut, single_match, 0)
-    
+
     # Multiple Match test
     # Write Entry 1
     enable = 1
@@ -151,9 +151,9 @@ def testbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_single_match(dut, single_match, 0)    
-    
-    # Write Entry 2 
+    yield from check_single_match(dut, single_match, 0)
+
+    # Write Entry 2
     # Same data as Entry 1
     enable = 1
     write_enable = 1
@@ -163,8 +163,8 @@ def testbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_single_match(dut, single_match, 0)      
-    
+    yield from check_single_match(dut, single_match, 0)
+
     # Read Hit Data 5
     enable = 1
     write_enable = 0
@@ -174,8 +174,8 @@ def testbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, multiple_match, single_match, address,0,0,0)  
-    
+    yield from check_all(dut, multiple_match, single_match, address,0,0,0)
+
     # Verify read_warning is not caused
     # Write Entry 0
     enable = 1
@@ -184,9 +184,9 @@ def testbench(dut):
     data = 7
     multiple_match = 0
     single_match = 0
-    yield from set_cam(dut, enable, write_enable, address, data)   
+    yield from set_cam(dut, enable, write_enable, address, data)
     # Note there is no yield we immediately attempt to read in the next cycle
-    
+
     # Read Hit Data 7
     enable = 1
     write_enable = 0
@@ -194,7 +194,7 @@ def testbench(dut):
     data = 7
     multiple_match = 0
     single_match = 1
-    yield from set_cam(dut, enable, write_enable, address, data) 
+    yield from set_cam(dut, enable, write_enable, address, data)
     yield
     yield from check_single_match(dut, single_match, 0)
 
