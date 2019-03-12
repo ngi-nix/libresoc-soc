@@ -196,7 +196,7 @@ def testbench(dut):
     single_match = 1
     yield from set_cam(dut, enable, write_enable, address, data) 
     yield
-    yield from check_single_match(dut, single_match, 0) 
+    yield from check_single_match(dut, single_match, 0)
 
     yield
 
