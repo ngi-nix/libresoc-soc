@@ -24,9 +24,9 @@ class Cam():
         Notes:
         The read and write operations take one clock cycle to complete.
         Currently the read_warning line is present for interfacing but
-        is not necessary for this design. This module is capable of writing 
+        is not necessary for this design. This module is capable of writing
         in the first cycle, reading on the second, and output the correct
-        address on the third. 
+        address on the third.
     """
 
     def __init__(self, data_size, cam_size):
