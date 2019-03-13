@@ -1,12 +1,15 @@
+""" TLB Module
+
+    The expected form of the data is:
+    * Item (Bits)
+    * Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
+"""
+
 from nmigen import Memory, Module, Signal
 from nmigen.cli import main
 
 from PermissionValidator import PermissionValidator
 from Cam import Cam
-
-# The expected form of the data is
-# Item (Bits)
-# Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
 
 class TLB():
     def __init__(self, asid_size, vma_size, pte_size):
