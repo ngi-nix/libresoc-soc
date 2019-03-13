@@ -61,9 +61,11 @@ class Cam():
         m.submodules.AddressEncoder = self.encoder
         # Decoder is used to select which entry will be written to
         m.submodules.Decoder = self.decoder
-        # Don't forget to add all entries to the submodule list
+        # CamEntry Array Submodules
+        # Note these area added anonymously
         entry_array = self.entry_array
         m.submodules += entry_array
+        # VectorAssembler Submodule
         m.submodules.VectorAssembler = self.vector_assembler
 
         # Decoder logic
