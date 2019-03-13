@@ -99,7 +99,7 @@ class TLB():
                     mem_addrress = self.cam_L1.match_address
                     # Memory Logic
                     m.d.comb += read_L1.addr(mem_address)
-                    # Permission vVlidator Logic
+                    # Permission Validator Logic
                     m.d.comb += [
                         self.hit.eq(1),
                         # Set permission validator data to the correct
