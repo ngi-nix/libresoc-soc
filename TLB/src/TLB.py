@@ -35,7 +35,7 @@ class TLB():
         self.perm_validator = PermissionValidator(asid_size + pte_size)
 
         # Inputs
-        self.super = Signal(1) # Supervisor Mode
+        self.supermode = Signal(1) # Supervisor Mode
         self.super_access = Signal(1) # Supervisor Access
         self.command = Signal(2) # 00=None, 01=Search, 10=Write L1, 11=Write L2
         self.xwr = Signal(3) # Execute, Write, Read
@@ -109,7 +109,7 @@ class TLB():
                         # Execute, Read, Write
                         self.perm_validator.xwr.eq(self.xwr),
                         # Supervisor Mode
-                        self.perm_validator.super.eq(self.super),
+                        self.perm_validator.supermode.eq(self.supermode),
                         # Supverisor Access
                         self.perm_validator.super_access.eq(self.super_access),
                         # Address Space IDentifier (ASID)

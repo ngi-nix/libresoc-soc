@@ -20,7 +20,7 @@ class PermissionValidator():
         # Input
         self.data = Signal(data_size);
         self.xwr = Signal(3) # Execute, Write, Read
-        self.super = Signal(1) # Supervisor Mode
+        self.supermode = Signal(1) # Supervisor Mode
         self.super_access = Signal(1) # Supervisor Access
         self.asid = Signal(15) # Address Space IDentifier (ASID)
 
@@ -36,7 +36,7 @@ class PermissionValidator():
                       & data[2] == self.xwr[1] \
                       & data[1] == self.xwr[0]):
                 # Supervisor Logic
-                with m.If(self.super):
+                with m.If(self.supermode):
                     # Valid if entry is not in user mode or supervisor
                     # has Supervisor User Memory (SUM) access via the
                     # SUM bit in the sstatus register
