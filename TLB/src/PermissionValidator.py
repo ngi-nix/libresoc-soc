@@ -1,4 +1,4 @@
-from nmigen import Signal
+from nmigen import Module, Signal
 from nmigen.cli import main
 
 class PermissionValidator():
@@ -20,32 +20,38 @@ class PermissionValidator():
         # Input
         self.data = Signal(data_size);
         self.xwr = Signal(3) # Execute, Write, Read
-        self.supermode = Signal(1) # Supervisor Mode
+        self.super_mode = Signal(1) # Supervisor Mode
         self.super_access = Signal(1) # Supervisor Access
         self.asid = Signal(15) # Address Space IDentifier (ASID)
 
         # Output
         self.valid = Signal(1) # Denotes if the permissions are correct
 
-    def elaborate(self, platform):
+    def elaborate(self, platform=None):
         m = Module()
-        # ASID match or Global Permission
-        with m.If(data[64:78] == self.asid | data[5]):
-            # Check Execute, Write, Read (XWR) Permissions
-            with m.If(data[3] == self.xwr[2] \
-                      & data[2] == self.xwr[1] \
-                      & data[1] == self.xwr[0]):
-                # Supervisor Logic
-                with m.If(self.supermode):
-                    # Valid if entry is not in user mode or supervisor
-                    # has Supervisor User Memory (SUM) access via the
-                    # SUM bit in the sstatus register
-                    m.comb += self.valid.eq(~data[4] | self.super_access)
-                # User logic
+        # Check if the entry is valid
+        with m.If(self.data[0]):
+            # ASID match or Global Permission
+            # Note that the MSB bound is exclusive
+            with m.If((self.data[64:79] == self.asid) | self.data[5]):
+                # Check Execute, Write, Read (XWR) Permissions
+                with m.If((self.data[3] == self.xwr[2]) \
+                          & (self.data[2] == self.xwr[1]) \
+                          & (self.data[1] == self.xwr[0])):
+                    # Supervisor Logic
+                    with m.If(self.super_mode):
+                        # Valid if entry is not in user mode or supervisor
+                        # has Supervisor User Memory (SUM) access via the
+                        # SUM bit in the sstatus register
+                        m.d.comb += self.valid.eq((~self.data[4]) | self.super_access)
+                    # User logic
+                    with m.Else():
+                        # Valid if the entry is in user mode only
+                        m.d.comb += self.valid.eq(self.data[4])
                 with m.Else():
-                    # Valid if the entry is in user mode only
-                    m.comb += self.valid.eq(data[4])
+                    m.d.comb += self.valid.eq(0)
             with m.Else():
-                m.comb += self.valid.eq(0)
+                m.d.comb += self.valid.eq(0)
         with m.Else():
-            m.comb += self.valid.eq(0)
+            m.d.comb += self.valid.eq(0)
+        return m
