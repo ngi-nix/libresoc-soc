@@ -35,7 +35,7 @@ def testbench(dut):
     xwr = 0
     valid = 1
     yield from set_validator(dut, data, xwr, super_mode, super_access, asid)
-    yield from check_valid(dut, valid, 0) 
+    yield from check_valid(dut, valid, 0)
 
     # Test user mode entry valid
     # Global Bit nonmatching ASID
@@ -55,14 +55,14 @@ def testbench(dut):
     # Ensure that user mode and valid is enabled!
     data = 0x7FFF0000000000000021
     # Ignore MSB it will be truncated
-    asid = 0x7FF6  
+    asid = 0x7FF6
     super_mode = 0
     super_access = 0
     xwr = 0
     valid = 0
     yield from set_validator(dut, data, xwr, super_mode, super_access, asid)
-    yield from check_valid(dut, valid, 0)     
-    
+    yield from check_valid(dut, valid, 0)
+
     # Test user mode entry valid
     # Ensure that user mode and valid is enabled!
     data = 0x7FFF0000000000000011
