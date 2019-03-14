@@ -12,7 +12,7 @@ from PermissionValidator import PermissionValidator
 from Cam import Cam
 
 class TLB():
-    def __init__(self, asid_size, vma_size, pte_size):
+    def __init__(self, asid_size, vma_size, pte_size, L1_size):
         """ Arguments
             * asid_size: Address Space IDentifier (ASID) typically 15 bits
             * vma_size: Virtual Memory Address (VMA) typically 36 bits
@@ -28,8 +28,8 @@ class TLB():
         self.state = 0
         # L1 Cache Modules
         L1_size = 8
-        self.cam_L1 = Cam(vma_size, cam_size)
-        self.mem_L1 = Memory(asid_size + pte_size, cam_size)
+        self.cam_L1 = Cam(vma_size, L1_size)
+        self.mem_L1 = Memory(asid_size + pte_size, L1_size)
 
         # Permission Validator
         self.perm_validator = PermissionValidator(asid_size + pte_size)
@@ -40,7 +40,7 @@ class TLB():
         self.command = Signal(2) # 00=None, 01=Search, 10=Write L1, 11=Write L2
         self.xwr = Signal(3) # Execute, Write, Read
         self.mode = Signal(4) # 4 bits for access to Sv48 on Rv64
-        self.address_L1 = Signal(max=am_size)
+        self.address_L1 = Signal(max=L1_size)
         self.asid = Signal(asid_size) # Address Space IDentifier (ASID)
         self.vma = Signal(vma_size) # Virtual Memory Address (VMA)
         self.pte_in = Signal(pte_size) # To be saved Page Table Entry (PTE)
