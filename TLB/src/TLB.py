@@ -32,7 +32,7 @@ class TLB():
         self.mem_L1 = Memory(asid_size + pte_size, L1_size)
 
         # Permission Validator
-        self.perm_validator = PermissionValidator(asid_size + pte_size)
+        self.perm_validator = PermissionValidator(asid_size, pte_size)
 
         # Inputs
         self.supermode = Signal(1) # Supervisor Mode
