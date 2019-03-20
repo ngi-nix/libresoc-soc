@@ -1,6 +1,8 @@
 from nmigen import Module, Signal
 from nmigen.cli import main
 
+from PteEntry import PteEntry
+
 class PermissionValidator():
     """ The purpose of this Module is to check the Permissions of a given PTE
         against the requested access permissions.
@@ -10,15 +12,19 @@ class PermissionValidator():
         the valid bit LOW) the request
     """
 
-    def __init__(self, data_size):
+    def __init__(self, asid_size, pte_size):
         """ Arguments:
-            * data_size: (bit count) The size of the data words being processed
+            * asid_size: (bit count) The size of the asid to be processed
+            * pte_size: (bit count) The size of the pte to be processed
 
             Return:
             * valid HIGH when permissions are correct
         """
+        # Internal
+        self.pte_entry = PteEntry(asid_size, pte_size)
+
         # Input
-        self.data = Signal(data_size);
+        self.data = Signal(asid_size + pte_size);
         self.xwr = Signal(3) # Execute, Write, Read
         self.super_mode = Signal(1) # Supervisor Mode
         self.super_access = Signal(1) # Supervisor Access
@@ -29,25 +35,29 @@ class PermissionValidator():
 
     def elaborate(self, platform=None):
         m = Module()
+
+        m.submodules.pte_entry = self.pte_entry
+
+        m.d.comb += self.pte_entry.i.eq(self.data)
+
         # Check if the entry is valid
-        with m.If(self.data[0]):
+        with m.If(self.pte_entry.v):
             # ASID match or Global Permission
             # Note that the MSB bound is exclusive
-            with m.If((self.data[64:79] == self.asid) | self.data[5]):
+            with m.If((self.pte_entry.asid == self.asid) | self.pte_entry.g):
                 # Check Execute, Write, Read (XWR) Permissions
-                with m.If((self.data[3] == self.xwr[2]) \
-                          & (self.data[2] == self.xwr[1]) \
-                          & (self.data[1] == self.xwr[0])):
+                with m.If(self.pte_entry.xwr == self.xwr):
                     # Supervisor Logic
                     with m.If(self.super_mode):
                         # Valid if entry is not in user mode or supervisor
                         # has Supervisor User Memory (SUM) access via the
                         # SUM bit in the sstatus register
-                        m.d.comb += self.valid.eq((~self.data[4]) | self.super_access)
+                        m.d.comb += self.valid.eq((~self.pte_entry.u) \
+                                                  | self.super_access)
                     # User logic
                     with m.Else():
                         # Valid if the entry is in user mode only
-                        m.d.comb += self.valid.eq(self.data[4])
+                        m.d.comb += self.valid.eq(self.pte_entry.u)
                 with m.Else():
                     m.d.comb += self.valid.eq(0)
             with m.Else():

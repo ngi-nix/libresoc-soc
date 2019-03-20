@@ -140,6 +140,6 @@ def testbench(dut):
     yield from check_valid(dut, valid, 0)
 
 if __name__ == "__main__":
-    dut = PermissionValidator(64 + 15);
+    dut = PermissionValidator(15, 64);
     run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_permission_validator.vcd")
     print("PermissionValidator Unit Test Success")
