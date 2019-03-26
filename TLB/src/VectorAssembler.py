@@ -12,7 +12,7 @@ class VectorAssembler():
     """
     def __init__(self, width):
         """ Arguments:
-            * width: (bit count) The desiered size of the output vector
+            * width: (bit count) The desired size of the output vector
 
         """
         # Internal
