@@ -1,10 +1,9 @@
-from nmigen import Array, Module, Signal
+from nmigen import Array, Cat, Module, Signal
 from nmigen.lib.coding import Decoder
 from nmigen.cli import main #, verilog
 
 from CamEntry import CamEntry
 from AddressEncoder import AddressEncoder
-from VectorAssembler import VectorAssembler
 
 class Cam():
     """ Content Addressable Memory (CAM)
@@ -40,7 +39,6 @@ class Cam():
         self.encoder = AddressEncoder(cam_size)
         self.decoder = Decoder(cam_size)
         self.entry_array = Array(CamEntry(data_size) for x in range(cam_size))
-        self.vector_assembler = VectorAssembler(cam_size)
 
         # Input
         self.enable = Signal(1)
@@ -65,8 +63,6 @@ class Cam():
         # Note these area added anonymously
         entry_array = self.entry_array
         m.submodules += entry_array
-        # VectorAssembler Submodule
-        m.submodules.VectorAssembler = self.vector_assembler
 
         # Decoder logic
         m.d.comb += [
@@ -74,6 +70,7 @@ class Cam():
             self.decoder.n.eq(0)
         ]
 
+        encoder_vector = []
         with m.If(self.enable):
             # Set the key value for every CamEntry
             for index in range(self.cam_size):
@@ -93,11 +90,11 @@ class Cam():
                 m.d.comb += entry_array[index].data_in.eq(self.data_in)
                 # Send all entry matches to encoder
                 ematch = entry_array[index].match
-                m.d.comb += self.vector_assembler.i[index].eq(ematch)
+                encoder_vector.append(ematch)
 
             # Give input to and accept output from encoder module
             m.d.comb += [
-                self.encoder.i.eq(self.vector_assembler.o),
+                self.encoder.i.eq(Cat(*encoder_vector)),
                 self.single_match.eq(self.encoder.single_match),
                 self.multiple_match.eq(self.encoder.multiple_match),
                 self.match_address.eq(self.encoder.o)
