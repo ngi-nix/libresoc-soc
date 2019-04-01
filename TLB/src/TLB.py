@@ -81,7 +81,7 @@ class TLB():
                         m.d.comb += [
                             write_L1.en.eq(1),
                             write_L1.addr.eq(self.address_L1),
-                            # The first argument is the LSB
+                            # The Cat places arguments from LSB -> MSB
                             write_L1.data.eq(Cat(self.pte, self.asid))
                         ]
                         # CAM_L1 Logic
