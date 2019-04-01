@@ -50,6 +50,8 @@ def check_all(dut, d, a, g, u, xwr, v, asid, pte):
     yield from check_global(dut, g, 0)
     yield from check_user(dut, u, 0)
     yield from check_xwr(dut, xwr, 0)
+    yield from check_asid(dut, asid, 0)
+    yield from check_pte(dut, pte, 0)
     yield from check_valid(dut, v, 0)
 
 def testbench(dut):
