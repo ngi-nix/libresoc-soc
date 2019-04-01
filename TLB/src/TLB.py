@@ -55,8 +55,8 @@ class TLB():
             # Add submodules
             # Submodules for L1 Cache
             m.d.submodules.cam_L1 = self.cam_L1
-            m.d.sumbmodules.read_L1 = read_L1 = self.mem_L1.read_port
-            m.d.sumbmodules.read_L1 = write_L1 = self.mem_L1.read_port
+            m.d.sumbmodules.read_L1 = read_L1 = self.mem_L1.read_port()
+            m.d.sumbmodules.read_L1 = write_L1 = self.mem_L1.write_port()
             # Permission Validator Submodule
             m.d.submodules.perm_valididator = self.perm_validator
 
