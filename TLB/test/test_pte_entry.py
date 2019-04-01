@@ -90,7 +90,7 @@ def testbench(dut):
     xwr = 7
     valid = 1
     asid = 0x0721
-    pte = 0x00000000110000FF
+    pte = 0x000000001100001F
     yield from set_entry(dut, i)
     yield from check_all(dut, dirty, access, glob, user, xwr, valid, asid, pte)
 
