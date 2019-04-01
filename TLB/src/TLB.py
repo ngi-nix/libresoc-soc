@@ -74,6 +74,48 @@ class TLB():
                             self.cam_L1.write_enable.eq(0),
                             self.cam_L1.data_in.eq(self.vma)
                         ]
+                        # Match found in L1 CAM
+                        with m.If(self.cam_L1.single_match
+                                              | self.cam_L1.multiple_match):
+                            # Memory shortcut variables
+                            mem_addrress = self.cam_L1.match_address
+                            # Memory Logic
+                            m.d.comb += read_L1.addr(mem_address)
+                            # Permission Validator Logic
+                            m.d.comb += [
+                                self.hit.eq(1),
+                                # Set permission validator data to the correct
+                                # register file data according to CAM match
+                                # address
+                                self.perm_validator.data.eq(read_L1.data),
+                                # Execute, Read, Write
+                                self.perm_validator.xwr.eq(self.xwr),
+                                # Supervisor Mode
+                                self.perm_validator.supermode.eq(self.supermode),
+                                # Supverisor Access
+                                self.perm_validator.super_access.eq(self.super_access),
+                                # Address Space IDentifier (ASID)
+                                self.perm_validator.asid.eq(self.asid),
+                                # Output result of permission validation
+                                self.perm_valid.eq(self.perm_validator.valid)
+                            ]
+                            # Do not output PTE if permissions fail
+                            with m.If(self.perm_validator.valid):
+                                m.d.comb += [
+                                    self.pte_out.eq(reg_data)
+                                ]
+                            with m.Else():
+                                m.d.comb += [
+                                    self.pte_out.eq(0)
+                                ]
+                        # Miss Logic
+                        with m.Else():
+                            m.d.comb += [
+                                self.hit.eq(0),
+                                self.perm_valid.eq(0),
+                                self.pte_out.eq(0)
+                            ]
+
                     # Write L1
                     # Expected that the miss will be handled in software
                     with m.Case("10"):
@@ -89,50 +131,9 @@ class TLB():
                             self.cam_L1.write_enable.eq(1),
                             self.cam_L1.data_in.eq(self.vma),
                         ]
+
                     # TODO
                     #with m.Case("11"):
-
-                # Match found in L1 CAM
-                with m.If(self.cam_L1.single_match
-                          | self.cam_L1.multiple_match):
-                    # Memory shortcut variables
-                    mem_addrress = self.cam_L1.match_address
-                    # Memory Logic
-                    m.d.comb += read_L1.addr(mem_address)
-                    # Permission Validator Logic
-                    m.d.comb += [
-                        self.hit.eq(1),
-                        # Set permission validator data to the correct
-                        # register file data according to CAM match
-                        # address
-                        self.perm_validator.data.eq(read_L1.data),
-                        # Execute, Read, Write
-                        self.perm_validator.xwr.eq(self.xwr),
-                        # Supervisor Mode
-                        self.perm_validator.supermode.eq(self.supermode),
-                        # Supverisor Access
-                        self.perm_validator.super_access.eq(self.super_access),
-                        # Address Space IDentifier (ASID)
-                        self.perm_validator.asid.eq(self.asid),
-                        # Output result of permission validation
-                        self.perm_valid.eq(self.perm_validator.valid)
-                    ]
-                    # Do not output PTE if permissions fail
-                    with m.If(self.perm_validator.valid):
-                        m.d.comb += [
-                            self.pte_out.eq(reg_data)
-                            ]
-                    with m.Else():
-                        m.d.comb += [
-                            self.pte_out.eq(0)
-                        ]
-                # Miss Logic
-                with m.Else():
-                    m.d.comb += [
-                        self.hit.eq(0),
-                        self.perm_valid.eq(0),
-                        self.pte_out.eq(0)
-                    ]
             # When disabled
             with m.Else():
                 m.d.comb += [
