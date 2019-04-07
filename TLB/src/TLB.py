@@ -27,7 +27,7 @@ class TLB():
         # Internal
         self.state = 0
         # L1 Cache Modules
-        L1_size = 8
+        L1_size = 8 # XXX overridden incoming argument?
         self.cam_L1 = Cam(vma_size, L1_size)
         self.mem_L1 = Memory(asid_size + pte_size, L1_size)
 
