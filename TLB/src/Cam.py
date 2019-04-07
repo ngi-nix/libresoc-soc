@@ -111,10 +111,14 @@ class Cam():
 
         return m
 
+    def ports(self):
+        return [self.enable, self.write_enable,
+                     self.data_in, self.data_mask,
+                     self.read_warning, self.single_match,
+                     self.multiple_match, self.match_address]
+
+
 if __name__ == '__main__':
     cam = Cam(4, 4)
-    main(cam, ports=[cam.enable, cam.write_enable,
-                     cam.data_in, cam.data_mask,
-                     cam.read_warning, cam.single_match,
-                     cam.multiple_match, cam.match_address])
+    main(cam, ports=cam.ports())
 
