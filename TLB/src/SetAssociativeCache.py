@@ -3,6 +3,11 @@ from nmigen.cli import main
 
 from AddressEncoder import AddressEncoder
 
+SA_NA = "00" # no action (none)
+SA_RD = "01" # read
+SA_WR = "10" # write
+
+
 class SetAssociativeCache():
     """ Set Associative Cache Memory
 
@@ -32,7 +37,7 @@ class SetAssociativeCache():
 
         # Input
         self.enable = Signal(1)
-        self.command = Signal(2) # 00=None, 01=Read, 10=Write
+        self.command = Signal(2) # 00=None, 01=Read, 10=Write (see SA_XX)
         self.set = Signal(max=set_count)
         self.tag = Signal(tag_size)
         self.data_i = Signal(data_size + tag_size)
@@ -50,7 +55,7 @@ class SetAssociativeCache():
         with m.If(self.enable):
             with m.Switch(self.command):
                 # Search all sets at a particular tag
-                with m.Case("01"):
+                with m.Case(SA_RD):
                     # Vector to store valid results
                     valid_vector = []
                     # Loop through memory setting what set to read
@@ -103,7 +108,7 @@ class SetAssociativeCache():
                         ]
                 # TODO
                 # Write to a given tag
-                # with m.Case("10"):
+                # with m.Case(SA_WR):
                     # Search for available space
                     # What to do when there is no space
                     # Maybe catch multiple tags write here?
