@@ -85,7 +85,7 @@ class TLB():
                 # Output result of permission validation
                 self.perm_valid.eq(self.perm_validator.valid)
             ]
-            # Do not output PTE if permissions fail
+            # Only output PTE if permissions are valid
             with m.If(self.perm_validator.valid):
                 # XXX TODO - dummy for now
                 reg_data = Signal.like(self.pte_out)
