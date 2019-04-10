@@ -55,7 +55,7 @@ class SetAssociativeCache():
         # Input
         self.enable = Signal(1) # Whether the cache is enabled
         self.command = Signal(2)  # 00=None, 01=Read, 10=Write (see SA_XX)
-        self.set = Signal(max=set_count) # The set to be checked
+        self.cset = Signal(max=set_count) # The set to be checked
         self.tag = Signal(tag_size) # The tag to find
         self.data_i = Signal(data_size + tag_size) # The input data
 
@@ -78,8 +78,8 @@ class SetAssociativeCache():
         # value
         for i in range(self.way_count):
             m.d.comb += [
-                self.write_port_array[i].addr.eq(self.set),
-                self.read_port_array[i].addr.eq(self.set)
+                self.write_port_array[i].addr.eq(self.cset),
+                self.read_port_array[i].addr.eq(self.cset)
             ]
             # Pull out active bit from data
             data = self.read_port_array[i].data;
