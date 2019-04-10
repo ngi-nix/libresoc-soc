@@ -154,6 +154,7 @@ class SetAssociativeCache():
         with m.FSM() as fsm:
             with m.State("SEARCH"):
                 m.d.comb += self.ready.eq(0)
+                # check_tags will set the state if the conditions are met
                 check_tags(m)
             with m.State("FINISHED"):
                 m.next = "SEARCH"
