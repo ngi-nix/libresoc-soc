@@ -30,8 +30,8 @@ class Cam():
 
     def __init__(self, data_size, cam_size):
         """ Arguments:
-            * data_size: (bit count) The size of the data
-            * cam_size: (entry count) The number of entries in the CAM
+            * data_size: (bits) The bit size of the data
+            * cam_size: (number) The number of entries in the CAM
         """
 
         # Internal
