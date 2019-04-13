@@ -140,38 +140,39 @@ class PTW:
     ptw_pptr_q = Signal(56)
     ptw_pptr_n = Signal(56)
 
-    # Assignments
-    m.d.comb += update_vaddr_o.eq(vaddr_q)
-
-    m.d.comb += ptw_active_o.eq(state_q != IDLE)
-    m.d.comb += walking_instr_o.eq(is_instr_ptw_q)
-    # directly output the correct physical address
-    m.d.comb += req_port_o.address_index.eq(ptw_pptr_q[0:DCACHE_INDEX_WIDTH])
     end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
-    m.d.comb += req_port_o.address_tag.eq(ptw_pptr_q[DCACHE_INDEX_WIDTH:end])
-    # we are never going to kill this request
-    m.d.comb += req_port_o.kill_req.eq(0)
-    # we are never going to write with the HPTW
-    m.d.comb += req_port_o.data_wdata.eq(Const(0, 64))
-    # -----------
-    # TLB Update
-    # -----------
-    assign itlb_update_o.vpn = vaddr_q[38:12];
-    assign dtlb_update_o.vpn = vaddr_q[38:12];
-    # update the correct page table level
-    assign itlb_update_o.is_2M = (ptw_lvl_q == LVL2);
-    assign itlb_update_o.is_1G = (ptw_lvl_q == LVL1);
-    assign dtlb_update_o.is_2M = (ptw_lvl_q == LVL2);
-    assign dtlb_update_o.is_1G = (ptw_lvl_q == LVL1);
-    # output the correct ASID
-    assign itlb_update_o.asid = tlb_update_asid_q;
-    assign dtlb_update_o.asid = tlb_update_asid_q;
-    # set the global mapping bit
-    assign itlb_update_o.content = pte | (global_mapping_q << 5);
-    assign dtlb_update_o.content = pte | (global_mapping_q << 5);
+    m.d.comb += [
+        # Assignments
+        update_vaddr_o.eq(vaddr_q),
 
-    assign req_port_o.tag_valid      = tag_valid_q;
+        ptw_active_o.eq(state_q != IDLE),
+        walking_instr_o.eq(is_instr_ptw_q),
+        # directly output the correct physical address
+        req_port_o.address_index.eq(ptw_pptr_q[0:DCACHE_INDEX_WIDTH]),
+        req_port_o.address_tag.eq(ptw_pptr_q[DCACHE_INDEX_WIDTH:end]),
+        # we are never going to kill this request
+        req_port_o.kill_req.eq(0),
+        # we are never going to write with the HPTW
+        req_port_o.data_wdata.eq(Const(0, 64)),
+        # -----------
+        # TLB Update
+        # -----------
+        itlb_update_o.vpn.eq(vaddr_q[12:39]),
+        dtlb_update_o.vpn.eq(vaddr_q[12:39]),
+        # update the correct page table level
+        itlb_update_o.is_2M.eq(ptw_lvl_q == LVL2),
+        itlb_update_o.is_1G.eq(ptw_lvl_q == LVL1),
+        dtlb_update_o.is_2M.eq(ptw_lvl_q == LVL2),
+        dtlb_update_o.is_1G.eq(ptw_lvl_q == LVL1),
+        # output the correct ASID
+        itlb_update_o.asid.eq(tlb_update_asid_q),
+        dtlb_update_o.asid.eq(tlb_update_asid_q),
+        # set the global mapping bit
+        itlb_update_o.content.eq(pte | (global_mapping_q << 5)),
+        dtlb_update_o.content.eq(pte | (global_mapping_q << 5)),
 
+        req_port_o.tag_valid.eq(tag_valid_q),
+    ]
     #-------------------
     # Page table walker
     #-------------------
