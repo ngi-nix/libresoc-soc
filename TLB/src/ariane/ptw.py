@@ -199,25 +199,27 @@ class PTW:
     always_comb begin : ptw
         # default assignments
         # PTW memory interface
-        tag_valid_n           = 1'b0;
-        req_port_o.data_req   = 1'b0;
-        req_port_o.data_be    = 8'hFF;
-        req_port_o.data_size  = 2'b11;
-        req_port_o.data_we    = 1'b0;
-        ptw_error_o           = 1'b0;
-        itlb_update_o.valid   = 1'b0;
-        dtlb_update_o.valid   = 1'b0;
-        is_instr_ptw_n        = is_instr_ptw_q;
-        ptw_lvl_n             = ptw_lvl_q;
-        ptw_pptr_n            = ptw_pptr_q;
-        state_d               = state_q;
-        global_mapping_n      = global_mapping_q;
+        m.d.comb += [
+        tag_valid_n.eq(0),
+        req_port_o.data_req.eq(0),
+        req_port_o.data_be.eq(Const(0xFF, 8))
+        req_port_o.data_size.eq(Const(0bb11, 2))
+        req_port_o.data_we.eq(0),
+        ptw_error_o.eq(0),
+        itlb_update_o.valid.eq(0)
+        dtlb_update_o.valid.eq(0),
+        is_instr_ptw_n.eq(is_instr_ptw_q),
+        ptw_lvl_n.eq(ptw_lvl_q),
+        ptw_pptr_n.eq(ptw_pptr_q),
+        state_d.eq(state_q),
+        global_mapping_n.eq(global_mapping_q),
         # input registers
-        tlb_update_asid_n     = tlb_update_asid_q;
-        vaddr_n               = vaddr_q;
+        tlb_update_asid_n.eq(tlb_update_asid_q),
+        vaddr_n.eq(vaddr_q),
 
-        itlb_miss_o           = 1'b0;
-        dtlb_miss_o           = 1'b0;
+        itlb_miss_o.eq(0),
+        dtlb_miss_o.eq(0),
+        ]
 
         case (state_q)
 
