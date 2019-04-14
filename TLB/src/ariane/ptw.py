@@ -57,17 +57,11 @@ class PTE(RecordObject):
 class TLBUpdate:
     def __init__(self):
         valid = Signal()      # valid flag
-        is_2M = Signal() 
-        is_1G = Signal() 
+        is_2M = Signal()
+        is_1G = Signal()
         vpn = Signal(27)
         asid = Signal(ASID_WIDTH)
         content = PTE()
-
-IDLE = 0
-WAIT_GRANT = 1
-PTE_LOOKUP = 2
-WAIT_RVALID = 3
-PROPAGATE_ERROR = 4
 
 # SV39 defines three levels of page tables
 LVL1 = Const(0, 2)
@@ -141,7 +135,7 @@ class PTW:
         # Assignments
         update_vaddr_o.eq(vaddr),
 
-        ptw_active_o.eq(state_q != IDLE),
+        ptw_active_o.eq(state != IDLE),
         walking_instr_o.eq(is_instr_ptw),
         # directly output the correct physical address
         req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
@@ -194,7 +188,11 @@ class PTW:
     #      - If i > 0, then this is a superpage translation and
     #        pa.ppn[i-1:0] = va.vpn[i-1:0].
     #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
+    # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
+    #    stop and raise a page-fault exception.
+
         m.d.sync += tag_valid.eq(0)
+
         # default assignments
         m.d.comb += [
             # PTW memory interface
@@ -214,29 +212,28 @@ class PTW:
 
             with m.State("IDLE"):
                 # by default we start with the top-most page table
-
                 m.d.sync += [is_instr_ptw.eq(0),
                              ptw_lvl.eq(LVL1),
                              global_mapping.eq(0),
                             ]
-                # if we got an ITLB miss
+                # we got an ITLB miss?
                 with m.If(enable_translation_i & itlb_access_i & \
                           ~itlb_hit_i & ~dtlb_access_i):
                     pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr)
                                 is_instr_ptw.eq(1),
                                  vaddr.eq(itlb_vaddr_i),
-                                tlb_update_asid_n.eq(asid_i).
+                                tlb_update_asid.eq(asid_i).
                                 ]
                     m.d.comb += [itlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
-                # we got an DTLB miss
+                # we got a DTLB miss?
                 with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
                             ~dtlb_hit_i):
                     pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr)
                                  vaddr.eq(dtlb_vaddr_i),
-                                 tlb_update_asid_n.eq(asid_i).
+                                 tlb_update_asid.eq(asid_i).
                                 ]
                     m.d.comb += [ dtlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
@@ -278,9 +275,12 @@ class PTW:
                                 # ------------
                                 # Update ITLB
                                 # ------------
-                                # If page is not executable, we can directly raise an error. This
-                                # doesn't put a useless entry into the TLB. The same idea applies
-                                # to the access flag since we let the access flag be managed by SW.
+                                # If page is not executable, we can
+                                # directly raise an error. This
+                                # doesn't put a useless entry into
+                                # the TLB. The same idea applies
+                                # to the access flag since we let
+                                # the access flag be managed by SW.
                                 with m.If (~pte.x | ~pte.a):
                                     m.next = "IDLE"
                                 with m.Else():
@@ -290,25 +290,28 @@ class PTW:
                                 # ------------
                                 # Update DTLB
                                 # ------------
-                                # Check if the access flag has been set, otherwise throw a page-fault
+                                # Check if the access flag has been set,
+                                # otherwise throw a page-fault
                                 # and let the software handle those bits.
-                                # If page is not readable (there are no write-only pages)
-                                # we can directly raise an error. This doesn't put a useless
+                                # If page is not readable (there are
+                                # no write-only pages)
+                                # we can directly raise an error. This
+                                # doesn't put a useless
                                 # entry into the TLB.
                                 with m.If(pte.a & (pte.r | (pte.x & mxr_i))):
                                     m.d.comb += dtlb_update_o.valid.eq(1)
                                 with m.Else():
                                     m.next = "PROPAGATE_ERROR"
-                                # Request is a store: perform some additional checks
-                                # If the request was a store and the page is not write-able, raise an error
+                                # Request is a store: perform some
+                                # additional checks
+                                # If the request was a store and the
+                                # page is not write-able, raise an error
                                 # the same applies if the dirty flag is not set
                                 with m.If (lsu_is_store_i & (~pte.w | ~pte.d)):
                                     m.d.comb += dtlb_update_o.valid.eq(0)
                                     m.next = "PROPAGATE_ERROR"
 
-                            # check if the ppn is correctly aligned:
-                            # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
-                            # exception.
+                            # check if the ppn is correctly aligned: Case (6)
                             l1err = Signal()
                             l2err = Signal()
                             m.d.comb += [l2err.eq((ptw_lvl == LVL2) & \
@@ -330,7 +333,7 @@ class PTW:
                                            pte.ppn)
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL2)]
-                            with m.If(ptw_lvl_q == LVL2):
+                            with m.If(ptw_lvl == LVL2):
                                 # here we received a pointer to the third level
                                 pptr = Cat(Const(0, 3), dtlb_vaddr_i[12:21],
                                            pte.ppn)
@@ -340,10 +343,12 @@ class PTW:
                             m.next = "WAIT_GRANT"
 
                             with m.If (ptw_lvl == LVL3):
-                                # Should already be the last level page table => Error
+                                # Should already be the last level
+                                # page table => Error
                                 m.d.sync += ptw_lvl.eq(LVL3)
                                 m.next = "PROPAGATE_ERROR"
-                # we've got a data WAIT_GRANT so tell the cache that the tag is valid
+                # we've got a data WAIT_GRANT so tell the
+                # cache that the tag is valid
 
             # Propagate error to MMU/LSU
             with m.State("PROPAGATE_ERROR"):
@@ -360,19 +365,19 @@ class PTW:
         # -------
         # should we have flushed before we got an rvalid,
         # wait for it until going back to IDLE
-        with m.If (flush_i):
+        with m.If(flush_i):
             # on a flush check whether we are
             # 1. in the PTE Lookup check whether we still need to wait
             #    for an rvalid
             # 2. waiting for a grant, if so: wait for it
             # if not, go back to idle
-            with m.If (((state_q == PTE_LOOKUP) & ~data_rvalid) | \
-                       ((state_q == WAIT_GRANT) & req_port_i.data_gnt)):
+            with m.If (((state == PTE_LOOKUP) & ~data_rvalid) | \
+                       ((state == WAIT_GRANT) & req_port_i.data_gnt)):
                 m.next = "WAIT_RVALID"
             with m.Else():
                 m.next = "IDLE"
 
-    m.d.sync += [data_rdata.eq(req_port_i.data_rdata),
-                 data_rvalid.eq(req_port_i.data_rvalid)
-                ]
+        m.d.sync += [data_rdata.eq(req_port_i.data_rdata),
+                     data_rvalid.eq(req_port_i.data_rvalid)
+                    ]
 
