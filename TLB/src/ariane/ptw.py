@@ -116,38 +116,33 @@ class PTW:
 );
 
     # input registers
-    data_rvalid_q = Signal()
-    data_rdata_q = Signal(64)
+    data_rvalid = Signal()
+    data_rdata = Signal(64)
 
     pte = PTE()
-    assign pte = riscv::pte_t(data_rdata_q);
+    assign pte = riscv::pte_t(data_rdata);
 
-    ptw_lvl_q = Signal(2, reset=LVL1)
+    ptw_lvl = Signal(2, reset=LVL1)
 
     # is this an instruction page table walk?
-    is_instr_ptw_q = Signal()
-    is_instr_ptw_n = Signal()
-    global_mapping_q = Signal()
-    global_mapping_n = Signal()
+    is_instr_ptw = Signal()
+    global_mapping = Signal()
     # latched tag signal
-    tag_valid_n = Signal()
-    tag_valid_q = Signal()
+    tag_valid = Signal()
     # register the ASID
-    tlb_update_asid_q = Signal(ASID_WIDTH)
-    tlb_update_asid_n = Signal(ASID_WIDTH)
+    tlb_update_asid = Signal(ASID_WIDTH)
     # register the VPN we need to walk, SV39 defines a 39 bit virtual address
-    vaddr_q = Signal(64)
-    vaddr_n = Signal(64)
+    vaddr = Signal(64)
     # 4 byte aligned physical pointer
     ptw_pptr = Signal(56)
 
     end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
-    m.d.comb += [
+    m.d.sync += [
         # Assignments
-        update_vaddr_o.eq(vaddr_q),
+        update_vaddr_o.eq(vaddr),
 
         ptw_active_o.eq(state_q != IDLE),
-        walking_instr_o.eq(is_instr_ptw_q),
+        walking_instr_o.eq(is_instr_ptw),
         # directly output the correct physical address
         req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
         req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
@@ -158,21 +153,23 @@ class PTW:
         # -----------
         # TLB Update
         # -----------
-        itlb_update_o.vpn.eq(vaddr_q[12:39]),
-        dtlb_update_o.vpn.eq(vaddr_q[12:39]),
+        itlb_update_o.vpn.eq(vaddr[12:39]),
+        dtlb_update_o.vpn.eq(vaddr[12:39]),
         # update the correct page table level
-        itlb_update_o.is_2M.eq(ptw_lvl_q == LVL2),
-        itlb_update_o.is_1G.eq(ptw_lvl_q == LVL1),
-        dtlb_update_o.is_2M.eq(ptw_lvl_q == LVL2),
-        dtlb_update_o.is_1G.eq(ptw_lvl_q == LVL1),
+        itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+        itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+        dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+        dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
         # output the correct ASID
-        itlb_update_o.asid.eq(tlb_update_asid_q),
-        dtlb_update_o.asid.eq(tlb_update_asid_q),
+        itlb_update_o.asid.eq(tlb_update_asid),
+        dtlb_update_o.asid.eq(tlb_update_asid),
         # set the global mapping bit
-        itlb_update_o.content.eq(pte | (global_mapping_q << 5)),
-        dtlb_update_o.content.eq(pte | (global_mapping_q << 5)),
+        itlb_update_o.content.eq(pte | (global_mapping << 5)),
+        dtlb_update_o.content.eq(pte | (global_mapping << 5)),
 
-        req_port_o.tag_valid.eq(tag_valid_q),
+    ]
+    m.d.comb += [
+        req_port_o.tag_valid.eq(tag_valid),
     ]
     #-------------------
     # Page table walker
@@ -197,11 +194,10 @@ class PTW:
     #      - If i > 0, then this is a superpage translation and
     #        pa.ppn[i-1:0] = va.vpn[i-1:0].
     #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
-    always_comb begin : ptw
+        m.d.sync += tag_valid.eq(0)
         # default assignments
         m.d.comb += [
             # PTW memory interface
-            tag_valid_n.eq(0),
             req_port_o.data_req.eq(0),
             req_port_o.data_be.eq(Const(0xFF, 8))
             req_port_o.data_size.eq(Const(0bb11, 2))
@@ -209,13 +205,6 @@ class PTW:
             ptw_error_o.eq(0),
             itlb_update_o.valid.eq(0)
             dtlb_update_o.valid.eq(0),
-            is_instr_ptw_n.eq(is_instr_ptw_q),
-            ptw_lvl_n.eq(ptw_lvl_q),
-            state_d.eq(state_q),
-            global_mapping_n.eq(global_mapping_q),
-            # input registers
-            tlb_update_asid_n.eq(tlb_update_asid_q),
-            vaddr_n.eq(vaddr_q),
 
             itlb_miss_o.eq(0),
             dtlb_miss_o.eq(0),
@@ -225,29 +214,31 @@ class PTW:
 
             with m.State("IDLE"):
                 # by default we start with the top-most page table
-                m.d.comb += [ptw_lvl_n.eq(LVL1),
-                             global_mapping_n.eq(0),
-                             is_instr_ptw_n.eq(0)]
+
+                m.d.sync += [is_instr_ptw.eq(0),
+                             ptw_lvl.eq(LVL1),
+                             global_mapping.eq(0),
+                            ]
                 # if we got an ITLB miss
                 with m.If(enable_translation_i & itlb_access_i & \
                           ~itlb_hit_i & ~dtlb_access_i):
                     pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr)
+                                is_instr_ptw.eq(1),
+                                 vaddr.eq(itlb_vaddr_i),
+                                tlb_update_asid_n.eq(asid_i).
                                 ]
-                    m.d.comb += [is_instr_ptw_n.eq(1),
-                                 tlb_update_asid_n.eq(asid_i).
-                                 vaddr_n.eq(itlb_vaddr_i),
-                                 itlb_miss_o.eq(1)]
+                    m.d.comb += [itlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
                 # we got an DTLB miss
                 with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
                             ~dtlb_hit_i):
                     pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr)
+                                 vaddr.eq(dtlb_vaddr_i),
+                                 tlb_update_asid_n.eq(asid_i).
                                 ]
-                    m.d.comb += [tlb_update_asid_n.eq(asid_i).
-                                 vaddr_n.eq(dtlb_vaddr_i),
-                                 dtlb_miss_o.eq(1)]
+                    m.d.comb += [ dtlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
 
             with m.State("WAIT_GRANT"):
@@ -256,16 +247,16 @@ class PTW:
                 # wait for the WAIT_GRANT
                 with m.If(req_port_i.data_gnt):
                     # send the tag valid signal one cycle later
-                    m.d.comb += tag_valid_n.eq(1)
+                    m.d.sync += tag_valid.eq(1)
                     m.next = "PTE_LOOKUP"
 
             with m.State("PTE_LOOKUP"):
                 # we wait for the valid signal
-                with m.If(data_rvalid_q):
+                with m.If(data_rvalid):
 
                     # check if the global mapping bit is set
                     with m.If (pte.g):
-                        m.d.comb += global_mapping_n.eq(1)
+                        m.d.sync += global_mapping.eq(1)
 
                     # -------------
                     # Invalid PTE
@@ -283,7 +274,7 @@ class PTW:
                         # if pte.r = 1 or pte.x = 1 it is a valid PTE
                         with m.If (pte.r | pte.x):
                             # Valid translation found (either 1G, 2M or 4K entry)
-                            with m.If(is_instr_ptw_q):
+                            with m.If(is_instr_ptw):
                                 # ------------
                                 # Update ITLB
                                 # ------------
@@ -320,9 +311,9 @@ class PTW:
                             # exception.
                             l1err = Signal()
                             l2err = Signal()
-                            m.d.comb += [l2err.eq((ptw_lvl_q == LVL2) & \
+                            m.d.comb += [l2err.eq((ptw_lvl == LVL2) & \
                                            pte.ppn[0:9] != Const(0, 9)),
-                                         l1err.eq((ptw_lvl_q == LVL1) & \
+                                         l1err.eq((ptw_lvl == LVL1) & \
                                            pte.ppn[0:18] != Const(0, 18))
                                         ]
                             with m.If(l1err | l2err):
@@ -333,27 +324,24 @@ class PTW:
                         # this is a pointer to the next TLB level
                         with m.Else():
                             # pointer to next level of page table
-                            with m.If (ptw_lvl_q == LVL1):
+                            with m.If (ptw_lvl == LVL1):
                                 # we are in the second level now
                                 pptr = Cat(Const(0, 3), dtlb_vaddr_i[21:30],
                                            pte.ppn)
-                                m.d.sync += [ptw_pptr.eq(pptr)
-                                            ]
-                                m.d.comb += [ptw_lvl_n.eq(LVL2),
-                                            ]
+                                m.d.sync += [ptw_pptr.eq(pptr),
+                                            ptw_lvl.eq(LVL2)]
                             with m.If(ptw_lvl_q == LVL2):
                                 # here we received a pointer to the third level
                                 pptr = Cat(Const(0, 3), dtlb_vaddr_i[12:21],
                                            pte.ppn)
-                                m.d.sync += [ptw_pptr.eq(pptr)
-                                            ]
-                                m.d.comb += [ptw_lvl_n.eq(LVL3),
+                                m.d.sync += [ptw_pptr.eq(pptr),
+                                            ptw_lvl.eq(LVL3)
                                             ]
                             m.next = "WAIT_GRANT"
 
-                            with m.If (ptw_lvl_q == LVL3):
+                            with m.If (ptw_lvl == LVL3):
                                 # Should already be the last level page table => Error
-                                m.d.comb += [ptw_lvl_n.eq(LVL3),
+                                m.d.sync += ptw_lvl.eq(LVL3)
                                 m.next = "PROPAGATE_ERROR"
                 # we've got a data WAIT_GRANT so tell the cache that the tag is valid
 
@@ -364,7 +352,7 @@ class PTW:
 
             # wait for the rvalid before going back to IDLE
             with m.State("WAIT_RVALID"):
-                m.If (data_rvalid_q):
+                m.If (data_rvalid):
                     m.next = "IDLE"
 
         # -------
@@ -378,27 +366,13 @@ class PTW:
             #    for an rvalid
             # 2. waiting for a grant, if so: wait for it
             # if not, go back to idle
-            with m.If (((state_q == PTE_LOOKUP) & ~data_rvalid_q) | \
+            with m.If (((state_q == PTE_LOOKUP) & ~data_rvalid) | \
                        ((state_q == WAIT_GRANT) & req_port_i.data_gnt)):
                 m.next = "WAIT_RVALID"
             with m.Else():
                 m.next = "IDLE"
 
-    m.d.sync += [data_rdata_q.eq(req_port_i.data_rdata),
-                 data_rvalid_q.eq(req_port_i.data_rvalid)
+    m.d.sync += [data_rdata.eq(req_port_i.data_rdata),
+                 data_rvalid.eq(req_port_i.data_rvalid)
                 ]
-    # sequential process
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-        if (~rst_ni) begin
-        end else begin
-            is_instr_ptw_q     <= is_instr_ptw_n;
-            ptw_lvl_q          <= ptw_lvl_n;
-            tag_valid_q        <= tag_valid_n;
-            tlb_update_asid_q  <= tlb_update_asid_n;
-            vaddr_q            <= vaddr_n;
-            global_mapping_q   <= global_mapping_n;
-        end
-    end
 
-endmodule
-/* verilator lint_on WIDTH */
