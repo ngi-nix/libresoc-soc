@@ -61,15 +61,30 @@ class PTE: #(RecordObject):
         self.r = Signal()
         self.v = Signal()
 
+    def eq(self, x):
+        return [self.reserved.eq(x.reserved),
+                self.ppn.eq(x.ppn), self.rsw.eq(x.rsw),
+                self.d.eq(x.d), self.a.eq(x.a), self.g.eq(x.g),
+                self.u.eq(x.u), self.x.eq(x.x), self.w.eq(x.w),
+                self.r.eq(x.r), self.v.eq(x.v)]
+
+    def ports(self):
+        return [self.reserved, self.ppn, self.rsw, self.d, self.a, self.g,
+                self.u, self.x, self.w, self.r, self.v]
+
 
 class TLBUpdate:
     def __init__(self):
-        valid = Signal()      # valid flag
-        is_2M = Signal()
-        is_1G = Signal()
-        vpn = Signal(27)
-        asid = Signal(ASID_WIDTH)
-        content = PTE()
+        self.valid = Signal()      # valid flag
+        self.is_2M = Signal()
+        self.is_1G = Signal()
+        self.vpn = Signal(27)
+        self.asid = Signal(ASID_WIDTH)
+        self.content = PTE()
+
+    def ports(self):
+        return [self.valid, self.is_2M, self.is_1G, self.vpn, self.asid,
+                self.content.ports()]
 
 # SV39 defines three levels of page tables
 LVL1 = Const(0, 2)
@@ -389,3 +404,13 @@ class PTW:
                      data_rvalid.eq(req_port_i.data_rvalid)
                     ]
 
+"""
+if __name__ == '__main__':
+    dut = PTE()
+    ports = [dut.p.i_valid, dut.n.i_ready,
+             dut.n.o_valid, dut.p.o_ready] + \
+             [dut.p.i_data] + [dut.n.o_data]
+    vl = rtlil.convert(dut, ports=ports)
+    with open("test_bufunbuf999.il", "w") as f:
+        f.write(vl)
+"""

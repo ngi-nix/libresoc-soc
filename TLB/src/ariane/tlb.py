@@ -15,7 +15,10 @@
 # Description: Translation Lookaside Buffer, SV39
 #              fully set-associative
 """
-from math import log
+from math import log2
+from nmigen import Signal, Module, Cat, Const, Array
+from nmigen.cli import verilog, rtlil
+
 
 # SV39 defines three levels of page tables
 class TLBEntry:
@@ -32,6 +35,7 @@ TLB_ENTRIES = 4
 ASID_WIDTH  = 1
 
 from ptw import TLBUpdate, PTE
+
 
 class TLB:
     def __init__(self):
@@ -50,10 +54,9 @@ class TLB:
     def elaborate(self, platform):
         m = Module()
 
-        tags = TLBEntry()
         # SV39 defines three levels of page tables
-
-        content = Array([TLB() for i in range(TLB_ENTRIES)])
+        tags = Array([TLBEntry() for i in range(TLB_ENTRIES)])
+        content = Array([PTE() for i in range(TLB_ENTRIES)])
 
         vpn2 = Signal(9)
         vpn1 = Signal(9)
@@ -64,9 +67,9 @@ class TLB:
         #-------------
         # Translation
         #-------------
-        m.d.comb += [ vpn0.eq(lu_vaddr_i[12:21]),
-                      vpn1.eq(lu_vaddr_i[21:30]),
-                      vpn2.eq(lu_vaddr_i[30:39]),
+        m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
+                      vpn1.eq(self.lu_vaddr_i[21:30]),
+                      vpn2.eq(self.lu_vaddr_i[30:39]),
                     ]
 
         for i in range(TLB_ENTRIES):
@@ -74,23 +77,23 @@ class TLB:
             # first level match, this may be a giga page,
             # check the ASID flags as well
             with m.If(tags[i].valid & \
-                      tags[i].asid == lu_asid_i &  \
-                      tags[i].vpn2 == vpn2):
+                      (tags[i].asid == self.lu_asid_i) &  \
+                      (tags[i].vpn2 == vpn2)):
                 # second level
                 with m.If (tags[i].is_1G):
-                    m.d.sync += lu_content_o.eq(content[i])
-                    m.d.comb += [ lu_is_1G_o.eq(1),
-                                  lu_hit_o.eq(1),
+                    m.d.sync += self.lu_content_o.eq(content[i])
+                    m.d.comb += [ self.lu_is_1G_o.eq(1),
+                                  self.lu_hit_o.eq(1),
                                   lu_hit[i].eq(1),
                                 ]
                 # not a giga page hit so check further
                 with m.Elif(vpn1 == tags[i].vpn1):
                     # this could be a 2 mega page hit or a 4 kB hit
                     # output accordingly
-                    with m.If(tags[i].is_2M | vpn0 == tags[i].vpn0):
-                        m.d.sync += lu_content_o.eq(content[i])
-                        m.d.comb += [ lu_is_2M_o.eq(tags[i].is_2M),
-                                      lu_hit_o.eq(1),
+                    with m.If(tags[i].is_2M | (vpn0 == tags[i].vpn0)):
+                        m.d.sync += self.lu_content_o.eq(content[i])
+                        m.d.comb += [ self.lu_is_2M_o.eq(tags[i].is_2M),
+                                      self.lu_hit_o.eq(1),
                                       lu_hit[i].eq(1),
                                     ]
 
@@ -99,24 +102,24 @@ class TLB:
         # ------------------
 
         for i in range(TLB_ENTRIES):
-            with m.If (flush_i):
+            with m.If (self.flush_i):
                 # invalidate (flush) conditions: all if zero or just this ASID
-                with m.If (lu_asid_i == Const(0, ASID_WIDTH) |
-                          (lu_asid_i == tags[i].asid)):
+                with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
+                          (self.lu_asid_i == tags[i].asid)):
                     m.d.sync += tags[i].valid.eq(0)
 
             # normal replacement
-            with m.Elif(update_i.valid & replace_en[i]):
+            with m.Elif(self.update_i.valid & replace_en[i]):
                 m.d.sync += [ # update tag array
-                              tags[i].asid.eq(update_i.asid),
-                              tags[i].vpn2.eq(update_i.vpn [18:27]),
-                              tags[i].vpn1.eq(update_i.vpn [9:18]),
-                              tags[i].vpn0.eq(update_i.vpn[0:9]),
-                              tags[i].is_1G.eq(update_i.is_1G),
-                              tags[i].is_2M.eq(update_i.is_2M),
+                              tags[i].asid.eq(self.update_i.asid),
+                              tags[i].vpn2.eq(self.update_i.vpn [18:27]),
+                              tags[i].vpn1.eq(self.update_i.vpn [9:18]),
+                              tags[i].vpn0.eq(self.update_i.vpn[0:9]),
+                              tags[i].is_1G.eq(self.update_i.is_1G),
+                              tags[i].is_2M.eq(self.update_i.is_2M),
                               tags[i].valid.eq(1),
                               # and content as well
-                              content[i].eq(update_i.content)
+                              content[i].eq(self.update_i.content)
                             ]
 
         # -----------------------------------------------
@@ -152,7 +155,7 @@ class TLB:
         LOG_TLB = int(log2(TLB_ENTRIES))
         for i in range(TLB_ENTRIES):
             # we got a hit so update the pointer as it was least recently used
-            with m.If (lu_hit[i] & lu_access_i):
+            with m.If (lu_hit[i] & self.lu_access_i):
                 # Set the nodes to the values we would expect
                 for lvl in range(LOG_TLB):
                     idx_base = (1<<lvl)-1
@@ -201,6 +204,8 @@ class TLB:
         assert (ASID_WIDTH >= 1), \
             "ASID width must be at least 1"
 
+        return m
+
         """
         # Just for checking
         function int countSetBits(logic[TLB_ENTRIES-1:0] vector);
@@ -216,4 +221,16 @@ class TLB:
         assert property (@(posedge clk_i)(countSetBits(replace_en) <= 1))
           else $error("More then one TLB entry selected for next replace!");
         """
+
+    def ports(self):
+        return [self.flush_i, self.lu_access_i,
+                 self.lu_asid_i, self.lu_vaddr_i,
+                 self.lu_is_2M_o, self.lu_is_1G_o, self.lu_hit_o,
+                ] + self.lu_content_o.ports() + self.update_i.ports()
+
+if __name__ == '__main__':
+    tlb = TLB()
+    vl = rtlil.convert(tlb, ports=tlb.ports())
+    with open("test_tlb.il", "w") as f:
+        f.write(vl)
 
