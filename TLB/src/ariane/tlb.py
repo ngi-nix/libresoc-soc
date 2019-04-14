@@ -31,40 +31,42 @@ class TLBEntry:
 TLB_ENTRIES = 4
 ASID_WIDTH  = 1
 
-from .tlb import TLBUpdate, PTE
+from ptw import TLBUpdate, PTE
 
-module tlb #(
-  )(
-    flush_i = Signal(),  # Flush signal
-    # Update TLB
-    update_i = TLBUpdate()
-    # Lookup signals
-    lu_access_i = Signal()
-    lu_asid_i = Signal(ASID_WIDTH)
-    lu_vaddr_i = Signal(64)
-    lu_content_o = PTE()
-    lu_is_2M_o = Signal()
-    lu_is_1G_o = Signal()
-    lu_hit_o = Signal()
-)
+class TLB:
+    def __init__(self):
+        self.flush_i = Signal()  # Flush signal
+        # Update TLB
+        self.update_i = TLBUpdate()
+        # Lookup signals
+        self.lu_access_i = Signal()
+        self.lu_asid_i = Signal(ASID_WIDTH)
+        self.lu_vaddr_i = Signal(64)
+        self.lu_content_o = PTE()
+        self.lu_is_2M_o = Signal()
+        self.lu_is_1G_o = Signal()
+        self.lu_hit_o = Signal()
 
-    tags = TLBEntry()
-    # SV39 defines three levels of page tables
+    def elaborate(self, platform):
+        m = Module()
 
-    content = Array([TLB() for i in range(TLB_ENTRIES)])
+        tags = TLBEntry()
+        # SV39 defines three levels of page tables
 
-    vpn2 = Signal(9)
-    vpn1 = Signal(9)
-    vpn0 = Signal(9)
-    lu_hit = Signal(TLB_ENTRIES)     # to replacement logic
-    replace_en = Signal(TLB_ENTRIES) # replace the following entry,
-                                     # set by replacement strategy
-    #-------------
-    # Translation
-    #-------------
-        m.d.comb += [ vpn0.eq(lu_vaddr_i[12:21],
-                      vpn1.eq(lu_vaddr_i[21:30],
-                      vpn2.eq(lu_vaddr_i[30:39]
+        content = Array([TLB() for i in range(TLB_ENTRIES)])
+
+        vpn2 = Signal(9)
+        vpn1 = Signal(9)
+        vpn0 = Signal(9)
+        lu_hit = Signal(TLB_ENTRIES)     # to replacement logic
+        replace_en = Signal(TLB_ENTRIES) # replace the following entry,
+                                         # set by replacement strategy
+        #-------------
+        # Translation
+        #-------------
+        m.d.comb += [ vpn0.eq(lu_vaddr_i[12:21]),
+                      vpn1.eq(lu_vaddr_i[21:30]),
+                      vpn2.eq(lu_vaddr_i[30:39]),
                     ]
 
         for i in range(TLB_ENTRIES):
@@ -92,15 +94,15 @@ module tlb #(
                                       lu_hit[i].eq(1),
                                     ]
 
-    # ------------------
-    # Update and Flush
-    # ------------------
+        # ------------------
+        # Update and Flush
+        # ------------------
 
         for i in range(TLB_ENTRIES):
             with m.If (flush_i):
-                # invalidate logic: flush conditions
-                with m.If ((lu_asid_i == Const(0, ASID_WIDTH) | # all if zero
-                           (lu_asid_i == tags[i].asid):       # just this ASID
+                # invalidate (flush) conditions: all if zero or just this ASID
+                with m.If (lu_asid_i == Const(0, ASID_WIDTH) |
+                          (lu_asid_i == tags[i].asid)):
                     m.d.sync += tags[i].valid.eq(0)
 
             # normal replacement
@@ -117,9 +119,10 @@ module tlb #(
                               content[i].eq(update_i.content)
                             ]
 
-    # -----------------------------------------------
-    # PLRU - Pseudo Least Recently Used Replacement
-    # -----------------------------------------------
+        # -----------------------------------------------
+        # PLRU - Pseudo Least Recently Used Replacement
+        # -----------------------------------------------
+
         TLBSZ = 2*(TLB_ENTRIES-1)
         plru_tree = Signal(TLBSZ)
 
@@ -155,7 +158,7 @@ module tlb #(
                     idx_base = (1<<lvl)-1
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                     shift = LOG_TLB - lvl;
-                    new_idx = Const(~((i >> (shift-1)) & 1)
+                    new_idx = Const(~((i >> (shift-1)) & 1))
                     m.d.sync += plru_tree[idx_base + (i >> shift)].eq(new_idx)
 
         # Decode tree to write enable signals
@@ -189,28 +192,28 @@ module tlb #(
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
             m.d.sync += replace_en[i].eq(~Cat(*en).bool())
 
-    #--------------
-    # Sanity checks
-    #--------------
+        #--------------
+        # Sanity checks
+        #--------------
 
-    assert (TLB_ENTRIES % 2 == 0) and (TLB_ENTRIES > 1)), \
-        "TLB size must be a multiple of 2 and greater than 1"
-    assert (ASID_WIDTH >= 1),
-        "ASID width must be at least 1")
+        assert (TLB_ENTRIES % 2 == 0) and (TLB_ENTRIES > 1), \
+            "TLB size must be a multiple of 2 and greater than 1"
+        assert (ASID_WIDTH >= 1), \
+            "ASID width must be at least 1"
 
-    """
-    # Just for checking
-    function int countSetBits(logic[TLB_ENTRIES-1:0] vector);
-      automatic int count = 0;
-      foreach (vector[idx]) begin
-        count += vector[idx];
-      end
-      return count;
-    endfunction
+        """
+        # Just for checking
+        function int countSetBits(logic[TLB_ENTRIES-1:0] vector);
+          automatic int count = 0;
+          foreach (vector[idx]) begin
+            count += vector[idx];
+          end
+          return count;
+        endfunction
 
-    assert property (@(posedge clk_i)(countSetBits(lu_hit) <= 1))
-      else begin $error("More then one hit in TLB!"); $stop(); end
-    assert property (@(posedge clk_i)(countSetBits(replace_en) <= 1))
-      else begin $error("More then one TLB entry selected for next replace!");
-    """
+        assert property (@(posedge clk_i)(countSetBits(lu_hit) <= 1))
+          else $error("More then one hit in TLB!"); $stop(); end
+        assert property (@(posedge clk_i)(countSetBits(replace_en) <= 1))
+          else $error("More then one TLB entry selected for next replace!");
+        """
 

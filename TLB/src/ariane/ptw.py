@@ -18,6 +18,14 @@
 import ariane_pkg::*;
 """
 
+from nmigen import Const, Signal
+from math import log
+
+DCACHE_SET_ASSOC = 8
+CONFIG_L1D_SIZE =  32*1024
+DCACHE_INDEX_WIDTH = int(log(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC))
+DCACHE_TAG_WIDTH = 56 - DCACHE_INDEX_WIDTH
+
 class DCacheReqI:
     def __init__(self):
         self.address_index = Signal(DCACHE_INDEX_WIDTH)
@@ -39,7 +47,7 @@ class DCacheReqO:
 
 ASID_WIDTH = 1
 
-class PTE(RecordObject):
+class PTE: #(RecordObject):
     def __init__(self):
         self.reserved = Signal(10)
         self.ppn = Signal(44)
@@ -70,126 +78,126 @@ LVL3 = Const(2, 2)
 
 
 class PTW:
-    flush_i = Signal() # flush everything, we need to do this because
-    # actually everything we do is speculative at this stage
-    # e.g.: there could be a CSR instruction that changes everything
-    ptw_active_o = Signal()
-    walking_instr_o = Signal()        # set when walking for TLB
-    ptw_error_o = Signal()            # set when an error occurred
-    enable_translation_i = Signal()   # CSRs indicate to enable SV39
-    en_ld_st_translation_i = Signal() # enable VM translation for load/stores
+    def __init__(self):
+        flush_i = Signal() # flush everything, we need to do this because
+        # actually everything we do is speculative at this stage
+        # e.g.: there could be a CSR instruction that changes everything
+        ptw_active_o = Signal()
+        walking_instr_o = Signal()        # set when walking for TLB
+        ptw_error_o = Signal()            # set when an error occurred
+        enable_translation_i = Signal()   # CSRs indicate to enable SV39
+        en_ld_st_translation_i = Signal() # enable VM translation for ld/st
 
-    lsu_is_store_i = Signal() ,       # this translation triggered by a store
-    # PTW memory interface
-    req_port_i = DCacheReqO()
-    req_port_o = DCacheReqI()
+        lsu_is_store_i = Signal() ,       # this translation triggered by store
+        # PTW memory interface
+        req_port_i = DCacheReqO()
+        req_port_o = DCacheReqI()
 
-    # to TLBs, update logic
-    itlb_update_o = TLBUpdate()
-    dtlb_update_o = TLBUpdate()
+        # to TLBs, update logic
+        itlb_update_o = TLBUpdate()
+        dtlb_update_o = TLBUpdate()
 
-    update_vaddr_o = Signal(39)
+        update_vaddr_o = Signal(39)
 
-    asid_i = Signal(ASID_WIDTH)
-    # from TLBs
-    # did we miss?
-    itlb_access_i = Signal()
-    itlb_hit_i = Signal()
-    itlb_vaddr_i = Signal(64)
+        asid_i = Signal(ASID_WIDTH)
+        # from TLBs
+        # did we miss?
+        itlb_access_i = Signal()
+        itlb_hit_i = Signal()
+        itlb_vaddr_i = Signal(64)
 
-    dtlb_access_i = Signal()
-    dtlb_hit_i = Signal()
-    dtlb_vaddr_i = Signal(64)
-    # from CSR file
-    satp_ppn_i = Signal(44) # ppn from satp
-    mxr_i = Signal()
-    # Performance counters
-    itlb_miss_o = Signal()
-    dtlb_miss_o = Signal()
+        dtlb_access_i = Signal()
+        dtlb_hit_i = Signal()
+        dtlb_vaddr_i = Signal(64)
+        # from CSR file
+        satp_ppn_i = Signal(44) # ppn from satp
+        mxr_i = Signal()
+        # Performance counters
+        itlb_miss_o = Signal()
+        dtlb_miss_o = Signal()
 
-);
 
-    # input registers
-    data_rvalid = Signal()
-    data_rdata = Signal(64)
+        # input registers
+        data_rvalid = Signal()
+        data_rdata = Signal(64)
 
-    pte = PTE()
-    assign pte = riscv::pte_t(data_rdata);
+        pte = PTE()
+        m.d.comb += pte.eq(data_rdata)
 
-    ptw_lvl = Signal(2, reset=LVL1)
+        ptw_lvl = Signal(2, reset=LVL1)
 
-    # is this an instruction page table walk?
-    is_instr_ptw = Signal()
-    global_mapping = Signal()
-    # latched tag signal
-    tag_valid = Signal()
-    # register the ASID
-    tlb_update_asid = Signal(ASID_WIDTH)
-    # register the VPN we need to walk, SV39 defines a 39 bit virtual address
-    vaddr = Signal(64)
-    # 4 byte aligned physical pointer
-    ptw_pptr = Signal(56)
+        # is this an instruction page table walk?
+        is_instr_ptw = Signal()
+        global_mapping = Signal()
+        # latched tag signal
+        tag_valid = Signal()
+        # register the ASID
+        tlb_update_asid = Signal(ASID_WIDTH)
+        # register the VPN we need to walk, SV39 defines a 39 bit virtual address
+        vaddr = Signal(64)
+        # 4 byte aligned physical pointer
+        ptw_pptr = Signal(56)
 
-    end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
-    m.d.sync += [
-        # Assignments
-        update_vaddr_o.eq(vaddr),
+        end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
+        m.d.sync += [
+            # Assignments
+            update_vaddr_o.eq(vaddr),
 
-        ptw_active_o.eq(state != IDLE),
-        walking_instr_o.eq(is_instr_ptw),
-        # directly output the correct physical address
-        req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
-        req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
-        # we are never going to kill this request
-        req_port_o.kill_req.eq(0),
-        # we are never going to write with the HPTW
-        req_port_o.data_wdata.eq(Const(0, 64)),
-        # -----------
-        # TLB Update
-        # -----------
-        itlb_update_o.vpn.eq(vaddr[12:39]),
-        dtlb_update_o.vpn.eq(vaddr[12:39]),
-        # update the correct page table level
-        itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-        itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
-        dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-        dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
-        # output the correct ASID
-        itlb_update_o.asid.eq(tlb_update_asid),
-        dtlb_update_o.asid.eq(tlb_update_asid),
-        # set the global mapping bit
-        itlb_update_o.content.eq(pte | (global_mapping << 5)),
-        dtlb_update_o.content.eq(pte | (global_mapping << 5)),
+            ptw_active_o.eq(state != IDLE),
+            walking_instr_o.eq(is_instr_ptw),
+            # directly output the correct physical address
+            req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
+            req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
+            # we are never going to kill this request
+            req_port_o.kill_req.eq(0),
+            # we are never going to write with the HPTW
+            req_port_o.data_wdata.eq(Const(0, 64)),
+            # -----------
+            # TLB Update
+            # -----------
+            itlb_update_o.vpn.eq(vaddr[12:39]),
+            dtlb_update_o.vpn.eq(vaddr[12:39]),
+            # update the correct page table level
+            itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+            itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+            dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+            dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+            # output the correct ASID
+            itlb_update_o.asid.eq(tlb_update_asid),
+            dtlb_update_o.asid.eq(tlb_update_asid),
+            # set the global mapping bit
+            itlb_update_o.content.eq(pte | (global_mapping << 5)),
+            dtlb_update_o.content.eq(pte | (global_mapping << 5)),
 
-    ]
-    m.d.comb += [
-        req_port_o.tag_valid.eq(tag_valid),
-    ]
-    #-------------------
-    # Page table walker
-    #-------------------
-    # A virtual address va is translated into a physical address pa as follows:
-    # 1. Let a be sptbr.ppn × PAGESIZE, and let i = LEVELS-1. (For Sv39,
-    #    PAGESIZE=2^12 and LEVELS=3.)
-    # 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE. (For
-    #    Sv32, PTESIZE=4.)
-    # 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise an access
-    #    exception.
-    # 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to step 5.
-    #    Otherwise, this PTE is a pointer to the next level of the page table.
-    #    Let i=i-1. If i < 0, stop and raise an access exception. Otherwise, let
-    #    a = pte.ppn × PAGESIZE and go to step 2.
-    # 5. A leaf PTE has been found. Determine if the requested memory access
-    #    is allowed by the pte.r, pte.w, and pte.x bits. If not, stop and
-    #    raise an access exception. Otherwise, the translation is successful.
-    #    Set pte.a to 1, and, if the memory access is a store, set pte.d to 1.
-    #    The translated physical address is given as follows:
-    #      - pa.pgoff = va.pgoff.
-    #      - If i > 0, then this is a superpage translation and
-    #        pa.ppn[i-1:0] = va.vpn[i-1:0].
-    #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
-    # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
-    #    stop and raise a page-fault exception.
+        ]
+        m.d.comb += [
+            req_port_o.tag_valid.eq(tag_valid),
+        ]
+        #-------------------
+        # Page table walker
+        #-------------------
+        # A virtual address va is translated into a physical address pa as follows:
+        # 1. Let a be sptbr.ppn × PAGESIZE, and let i = LEVELS-1. (For Sv39,
+        #    PAGESIZE=2^12 and LEVELS=3.)
+        # 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE. (For
+        #    Sv32, PTESIZE=4.)
+        # 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise an access
+        #    exception.
+        # 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to step 5.
+        #    Otherwise, this PTE is a pointer to the next level of the page table.
+        #    Let i=i-1. If i < 0, stop and raise an access exception. Otherwise, let
+        #    a = pte.ppn × PAGESIZE and go to step 2.
+        # 5. A leaf PTE has been found. Determine if the requested memory access
+        #    is allowed by the pte.r, pte.w, and pte.x bits. If not, stop and
+        #    raise an access exception. Otherwise, the translation is successful.
+        #    Set pte.a to 1, and, if the memory access is a store, set pte.d to 1.
+        #    The translated physical address is given as follows:
+        #      - pa.pgoff = va.pgoff.
+        #      - If i > 0, then this is a superpage translation and
+        #        pa.ppn[i-1:0] = va.vpn[i-1:0].
+        #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
+        # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
+        #    stop and raise a page-fault exception.
 
         m.d.sync += tag_valid.eq(0)
 
@@ -197,11 +205,11 @@ class PTW:
         m.d.comb += [
             # PTW memory interface
             req_port_o.data_req.eq(0),
-            req_port_o.data_be.eq(Const(0xFF, 8))
-            req_port_o.data_size.eq(Const(0bb11, 2))
+            req_port_o.data_be.eq(Const(0xFF, 8)),
+            req_port_o.data_size.eq(Const(0b11, 2)),
             req_port_o.data_we.eq(0),
             ptw_error_o.eq(0),
-            itlb_update_o.valid.eq(0)
+            itlb_update_o.valid.eq(0),
             dtlb_update_o.valid.eq(0),
 
             itlb_miss_o.eq(0),
@@ -220,10 +228,10 @@ class PTW:
                 with m.If(enable_translation_i & itlb_access_i & \
                           ~itlb_hit_i & ~dtlb_access_i):
                     pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
-                    m.d.sync += [ptw_pptr.eq(pptr)
+                    m.d.sync += [ptw_pptr.eq(pptr),
                                 is_instr_ptw.eq(1),
                                  vaddr.eq(itlb_vaddr_i),
-                                tlb_update_asid.eq(asid_i).
+                                tlb_update_asid.eq(asid_i),
                                 ]
                     m.d.comb += [itlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
@@ -231,9 +239,9 @@ class PTW:
                 with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
                             ~dtlb_hit_i):
                     pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
-                    m.d.sync += [ptw_pptr.eq(pptr)
+                    m.d.sync += [ptw_pptr.eq(pptr),
                                  vaddr.eq(dtlb_vaddr_i),
-                                 tlb_update_asid.eq(asid_i).
+                                 tlb_update_asid.eq(asid_i),
                                 ]
                     m.d.comb += [ dtlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
@@ -260,7 +268,7 @@ class PTW:
                     # -------------
                     # If pte.v = 0, or if pte.r = 0 and pte.w = 1,
                     # stop and raise a page-fault exception.
-                    with m.If (~pte.v | (~pte.r & pte.w))
+                    with m.If (~pte.v | (~pte.r & pte.w)):
                         m.next = "PROPAGATE_ERROR"
                     # -----------
                     # Valid PTE
@@ -357,7 +365,7 @@ class PTW:
 
             # wait for the rvalid before going back to IDLE
             with m.State("WAIT_RVALID"):
-                m.If (data_rvalid):
+                with m.If(data_rvalid):
                     m.next = "IDLE"
 
         # -------
