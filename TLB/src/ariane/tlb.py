@@ -266,12 +266,13 @@ class TLB:
         #-------------
         # Translation
         #-------------
+
+        # SV39 defines three levels of page tables
         m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
                       vpn1.eq(self.lu_vaddr_i[21:30]),
                       vpn2.eq(self.lu_vaddr_i[30:39]),
                     ]
 
-        # SV39 defines three levels of page tables
         tc = []
         for i in range(TLB_ENTRIES):
             tlc = TLBContent(self.pte_width)
