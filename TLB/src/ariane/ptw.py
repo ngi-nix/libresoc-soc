@@ -248,53 +248,52 @@ class PTW:
                                  dtlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
 
-            WAIT_GRANT: begin
+            with m.State("WAIT_GRANT"):
                 # send a request out
-                req_port_o.data_req = 1'b1;
+                m.d.comb += req_port_o.data_req.eq(1)
                 # wait for the WAIT_GRANT
-                if (req_port_i.data_gnt) begin
+                with m.If(req_port_i.data_gnt):
                     # send the tag valid signal one cycle later
-                    tag_valid_n = 1'b1;
-                    state_d     = PTE_LOOKUP;
-                end
-            end
+                    m.d.comb += tag_valid_n.eq(1)
+                    m.next = "PTE_LOOKUP"
 
-            PTE_LOOKUP: begin
+            with m.State("PTE_LOOKUP"):
                 # we wait for the valid signal
-                if (data_rvalid_q) begin
+                with m.If(data_rvalid_q):
 
                     # check if the global mapping bit is set
-                    if (pte.g)
-                        global_mapping_n = 1'b1;
+                    with m.If (pte.g):
+                        m.d.comb += global_mapping_n.eq(1)
 
                     # -------------
                     # Invalid PTE
                     # -------------
-                    # If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise a page-fault exception.
-                    if (!pte.v || (!pte.r && pte.w))
-                        state_d = PROPAGATE_ERROR;
+                    # If pte.v = 0, or if pte.r = 0 and pte.w = 1,
+                    # stop and raise a page-fault exception.
+                    with m.If (~pte.v | (~pte.r & pte.w))
+                        m.next = "PROPAGATE_ERROR"
                     # -----------
                     # Valid PTE
                     # -----------
-                    else begin
-                        state_d = IDLE;
+                    with m.Else():
+                        m.next = "IDLE"
                         # it is a valid PTE
                         # if pte.r = 1 or pte.x = 1 it is a valid PTE
-                        if (pte.r || pte.x) begin
+                        with m.If (pte.r | pte.x):
                             # Valid translation found (either 1G, 2M or 4K entry)
-                            if (is_instr_ptw_q) begin
+                            with m.If(is_instr_ptw_q):
                                 # ------------
                                 # Update ITLB
                                 # ------------
                                 # If page is not executable, we can directly raise an error. This
                                 # doesn't put a useless entry into the TLB. The same idea applies
                                 # to the access flag since we let the access flag be managed by SW.
-                                if (!pte.x || !pte.a)
-                                  state_d = PROPAGATE_ERROR;
-                                else
-                                  itlb_update_o.valid = 1'b1;
+                                with m.If (~pte.x | ~pte.a):
+                                    m.next = "IDLE"
+                                with m.Else():
+                                    m.d.comb += itlb_update_o.valid.eq(1)
 
-                            end else begin
+                            with m.Else():
                                 # ------------
                                 # Update DTLB
                                 # ------------
@@ -303,19 +302,17 @@ class PTW:
                                 # If page is not readable (there are no write-only pages)
                                 # we can directly raise an error. This doesn't put a useless
                                 # entry into the TLB.
-                                if (pte.a && (pte.r || (pte.x && mxr_i))) begin
-                                  dtlb_update_o.valid = 1'b1;
-                                end else begin
-                                  state_d   = PROPAGATE_ERROR;
-                                end
+                                with m.If(pte.a & (pte.r | (pte.x & mxr_i))):
+                                    m.d.comb += dtlb_update_o.valid.eq(1)
+                                with m.Else():
+                                    m.next = "PROPAGATE_ERROR"
                                 # Request is a store: perform some additional checks
                                 # If the request was a store and the page is not write-able, raise an error
                                 # the same applies if the dirty flag is not set
-                                if (lsu_is_store_i && (!pte.w || !pte.d)) begin
-                                    dtlb_update_o.valid = 1'b0;
-                                    state_d   = PROPAGATE_ERROR;
-                                end
-                            end
+                                with m.If (lsu_is_store_i & (~pte.w | ~pte.d)):
+                                    m.d.comb += dtlb_update_o.valid.eq(0)
+                                    m.next = "PROPAGATE_ERROR"
+
                             # check if the ppn is correctly aligned:
                             # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
                             # exception.
