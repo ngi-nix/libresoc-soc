@@ -98,8 +98,8 @@ class TLBContent:
         with m.If(vpn2_hit):
             # second level
             with m.If (tags.is_1G):
-                m.d.sync += self.lu_content_o.eq(content)
-                m.d.comb += [ self.lu_is_1G_o.eq(1),
+                m.d.comb += [ self.lu_content_o.eq(content),
+                              self.lu_is_1G_o.eq(1),
                               self.lu_hit_o.eq(1),
                             ]
             # not a giga page hit so check further
@@ -107,8 +107,8 @@ class TLBContent:
                 # this could be a 2 mega page hit or a 4 kB hit
                 # output accordingly
                 with m.If(vpn0_or_2M):
-                    m.d.sync += self.lu_content_o.eq(content)
-                    m.d.comb += [ self.lu_is_2M_o.eq(tags.is_2M),
+                    m.d.comb += [ self.lu_content_o.eq(content),
+                                  self.lu_is_2M_o.eq(tags.is_2M),
                                   self.lu_hit_o.eq(1),
                                 ]
 
@@ -116,8 +116,10 @@ class TLBContent:
         # Update and Flush
         # ------------------
 
+        # temporaries
         replace_valid = Signal(reset_less=True)
         m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en_i)
+
         with m.If (self.flush_i):
             # invalidate (flush) conditions: all if zero or just this ASID
             with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
