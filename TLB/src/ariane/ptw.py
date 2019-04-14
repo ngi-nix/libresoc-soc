@@ -122,6 +122,8 @@ class PTW:
     pte = PTE()
     assign pte = riscv::pte_t(data_rdata_q);
 
+    ptw_lvl_q = Signal(2, reset=LVL1)
+
     # is this an instruction page table walk?
     is_instr_ptw_q = Signal()
     is_instr_ptw_n = Signal()
@@ -137,8 +139,7 @@ class PTW:
     vaddr_q = Signal(64)
     vaddr_n = Signal(64)
     # 4 byte aligned physical pointer
-    ptw_pptr_q = Signal(56)
-    ptw_pptr_n = Signal(56)
+    ptw_pptr = Signal(56)
 
     end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
     m.d.comb += [
@@ -148,8 +149,8 @@ class PTW:
         ptw_active_o.eq(state_q != IDLE),
         walking_instr_o.eq(is_instr_ptw_q),
         # directly output the correct physical address
-        req_port_o.address_index.eq(ptw_pptr_q[0:DCACHE_INDEX_WIDTH]),
-        req_port_o.address_tag.eq(ptw_pptr_q[DCACHE_INDEX_WIDTH:end]),
+        req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
+        req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
         # we are never going to kill this request
         req_port_o.kill_req.eq(0),
         # we are never going to write with the HPTW
@@ -210,7 +211,6 @@ class PTW:
             dtlb_update_o.valid.eq(0),
             is_instr_ptw_n.eq(is_instr_ptw_q),
             ptw_lvl_n.eq(ptw_lvl_q),
-            ptw_pptr_n.eq(ptw_pptr_q),
             state_d.eq(state_q),
             global_mapping_n.eq(global_mapping_q),
             # input registers
@@ -232,8 +232,9 @@ class PTW:
                 with m.If(enable_translation_i & itlb_access_i & \
                           ~itlb_hit_i & ~dtlb_access_i):
                     pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
-                    m.d.comb += [ptw_pptr_n.eq(pptr),
-                                 is_instr_ptw_n.eq(1),
+                    m.d.sync += [ptw_pptr.eq(pptr)
+                                ]
+                    m.d.comb += [is_instr_ptw_n.eq(1),
                                  tlb_update_asid_n.eq(asid_i).
                                  vaddr_n.eq(itlb_vaddr_i),
                                  itlb_miss_o.eq(1)]
@@ -242,8 +243,9 @@ class PTW:
                 with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
                             ~dtlb_hit_i):
                     pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
-                    m.d.comb += [ptw_pptr_n.eq(pptr),
-                                 tlb_update_asid_n.eq(asid_i).
+                    m.d.sync += [ptw_pptr.eq(pptr)
+                                ]
+                    m.d.comb += [tlb_update_asid_n.eq(asid_i).
                                  vaddr_n.eq(dtlb_vaddr_i),
                                  dtlb_miss_o.eq(1)]
                     m.next = "WAIT_GRANT"
@@ -335,15 +337,17 @@ class PTW:
                                 # we are in the second level now
                                 pptr = Cat(Const(0, 3), dtlb_vaddr_i[21:30],
                                            pte.ppn)
+                                m.d.sync += [ptw_pptr.eq(pptr)
+                                            ]
                                 m.d.comb += [ptw_lvl_n.eq(LVL2),
-                                             ptw_pptr_n.eq(pptr)
                                             ]
                             with m.If(ptw_lvl_q == LVL2):
                                 # here we received a pointer to the third level
                                 pptr = Cat(Const(0, 3), dtlb_vaddr_i[12:21],
                                            pte.ppn)
+                                m.d.sync += [ptw_pptr.eq(pptr)
+                                            ]
                                 m.d.comb += [ptw_lvl_n.eq(LVL3),
-                                             ptw_pptr_n.eq(pptr)
                                             ]
                             m.next = "WAIT_GRANT"
 
@@ -366,43 +370,33 @@ class PTW:
         # -------
         # Flush
         # -------
-        # should we have flushed before we got an rvalid, wait for it until going back to IDLE
-        if (flush_i) begin
+        # should we have flushed before we got an rvalid,
+        # wait for it until going back to IDLE
+        with m.If (flush_i):
             # on a flush check whether we are
-            # 1. in the PTE Lookup check whether we still need to wait for an rvalid
+            # 1. in the PTE Lookup check whether we still need to wait
+            #    for an rvalid
             # 2. waiting for a grant, if so: wait for it
             # if not, go back to idle
-            if ((state_q == PTE_LOOKUP && !data_rvalid_q) || ((state_q == WAIT_GRANT) && req_port_i.data_gnt))
-                state_d = WAIT_RVALID;
-            else
-                state_d = IDLE;
-        end
-    end
+            with m.If (((state_q == PTE_LOOKUP) & ~data_rvalid_q) | \
+                       ((state_q == WAIT_GRANT) & req_port_i.data_gnt)):
+                m.next = "WAIT_RVALID"
+            with m.Else():
+                m.next = "IDLE"
 
+    m.d.sync += [data_rdata_q.eq(req_port_i.data_rdata),
+                 data_rvalid_q.eq(req_port_i.data_rvalid)
+                ]
     # sequential process
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
-            state_q            <= IDLE;
-            is_instr_ptw_q     <= 1'b0;
-            ptw_lvl_q          <= LVL1;
-            tag_valid_q        <= 1'b0;
-            tlb_update_asid_q  <= '0;
-            vaddr_q            <= '0;
-            ptw_pptr_q         <= '0;
-            global_mapping_q   <= 1'b0;
-            data_rdata_q       <= '0;
-            data_rvalid_q      <= 1'b0;
         end else begin
-            state_q            <= state_d;
-            ptw_pptr_q         <= ptw_pptr_n;
             is_instr_ptw_q     <= is_instr_ptw_n;
             ptw_lvl_q          <= ptw_lvl_n;
             tag_valid_q        <= tag_valid_n;
             tlb_update_asid_q  <= tlb_update_asid_n;
             vaddr_q            <= vaddr_n;
             global_mapping_q   <= global_mapping_n;
-            data_rdata_q       <= req_port_i.data_rdata;
-            data_rvalid_q      <= req_port_i.data_rvalid;
         end
     end
 
