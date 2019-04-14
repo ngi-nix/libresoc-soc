@@ -111,15 +111,15 @@ class TLBContent:
                                   self.lu_is_2M_o.eq(tags.is_2M),
                                   self.lu_hit_o.eq(1),
                                 ]
-
         # ------------------
-        # Update and Flush
+        # Update or Flush
         # ------------------
 
         # temporaries
         replace_valid = Signal(reset_less=True)
         m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en_i)
 
+        # flush
         with m.If (self.flush_i):
             # invalidate (flush) conditions: all if zero or just this ASID
             with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
@@ -149,6 +149,18 @@ class TLBContent:
 
 
 class PLRU:
+    """ PLRU - Pseudo Least Recently Used Replacement
+
+        PLRU-tree indexing:
+        lvl0        0
+                   / \
+                  /   \
+        lvl1     1     2
+                / \   / \
+        lvl2   3   4 5   6
+              / \ /\/\  /\
+             ... ... ... ...
+    """
     def __init__(self):
         self.lu_hit = Signal(TLB_ENTRIES)
         self.replace_en_o = Signal(TLB_ENTRIES)
@@ -157,22 +169,10 @@ class PLRU:
     def elaborate(self, platform):
         m = Module()
 
-        # -----------------------------------------------
-        # PLRU - Pseudo Least Recently Used Replacement
-        # -----------------------------------------------
-
+        # Tree (bit per entry)
         TLBSZ = 2*(TLB_ENTRIES-1)
         plru_tree = Signal(TLBSZ)
 
-        # The PLRU-tree indexing:
-        # lvl0        0
-        #            / \
-        #           /   \
-        # lvl1     1     2
-        #         / \   / \
-        # lvl2   3   4 5   6
-        #       / \ /\/\  /\
-        #      ... ... ... ...
         # Just predefine which nodes will be set/cleared
         # E.g. for a TLB with 8 entries, the for-loop is semantically
         # equivalent to the following pseudo-code:
