@@ -231,7 +231,7 @@ class PLRU:
                     en.append(plru)  # yes inverted (using bool())
             print ("plru", i, en)
             # boolean logic manipulation:
-            # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
+            # plru0 & plru1 & plru2 == ~(~plru0 | ~plru1 | ~plru2)
             m.d.comb += self.replace_en_o[i].eq(~Cat(*en).bool())
 
         return m
