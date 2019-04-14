@@ -56,7 +56,6 @@ class TLBContent:
         self.vpn2 = Signal(9)
         self.vpn1 = Signal(9)
         self.vpn0 = Signal(9)
-        self.lu_hit = Signal()     # to replacement logic
         self.replace_en = Signal() # replace the following entry,
                                    # set by replacement strategy
         # Lookup signals
@@ -72,7 +71,7 @@ class TLBContent:
         tags = TLBEntry()
         content = Signal(self.pte_width)
 
-        m.d.comb += self.lu_hit.eq(0)
+        m.d.comb += self.lu_hit_o.eq(0)
         # temporaries for 1st level match
         asid_ok = Signal(reset_less=True)
         vpn2_ok = Signal(reset_less=True)
@@ -99,7 +98,6 @@ class TLBContent:
                 m.d.sync += self.lu_content_o.eq(content)
                 m.d.comb += [ self.lu_is_1G_o.eq(1),
                               self.lu_hit_o.eq(1),
-                              self.lu_hit.eq(1),
                             ]
             # not a giga page hit so check further
             with m.Elif(vpn1_ok):
@@ -109,7 +107,6 @@ class TLBContent:
                     m.d.sync += self.lu_content_o.eq(content)
                     m.d.comb += [ self.lu_is_2M_o.eq(tags.is_2M),
                                   self.lu_hit_o.eq(1),
-                                  self.lu_hit.eq(1),
                                 ]
 
         # ------------------
@@ -189,7 +186,7 @@ class PLRU:
         LOG_TLB = int(log2(TLB_ENTRIES))
         for i in range(TLB_ENTRIES):
             # we got a hit so update the pointer as it was least recently used
-            hit = Signal()
+            hit = Signal(reset_less=True)
             m.d.comb += hit.eq(self.lu_hit[i] & self.lu_access_i)
             with m.If(hit):
                 # Set the nodes to the values we would expect
@@ -217,13 +214,13 @@ class PLRU:
         # the corresponding bit of the entry's index, this is
         # the next entry to replace.
         for i in range(TLB_ENTRIES):
-            en = Signal(LOG_TLB)
+            en = Signal(LOG_TLB, reset_less=True)
             for lvl in range(LOG_TLB):
                 idx_base = (1<<lvl)-1
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                 shift = LOG_TLB - lvl;
                 new_idx = (i >> (shift-1)) & 1;
-                plru = Signal()
+                plru = Signal(reset_less=True)
                 m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
@@ -294,11 +291,11 @@ class TLB:
 
         hits = []
         for i in range(TLB_ENTRIES):
-            hits.append(tc[i].lu_hit)
+            hits.append(tc[i].lu_hit_o)
         m.d.comb += hitsel.i.eq(Cat(*hits))
         idx = hitsel.o
 
-        active = Signal()
+        active = Signal(reset_less=True)
         m.d.comb += active.eq(~hitsel.n)
         with m.If(active):
             # active hit, send selected as output
