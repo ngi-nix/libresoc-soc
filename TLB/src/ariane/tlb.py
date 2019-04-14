@@ -169,7 +169,7 @@ module tlb #(
         # replace_en[2] = &plru_tree[~4, 1,~0]; #plru_tree[0,1,4]=={0,1,0}
         # replace_en[1] = &plru_tree[ 3,~1,~0]; #plru_tree[0,1,3]=={0,0,1}
         # replace_en[0] = &plru_tree[~3,~1,~0]; #plru_tree[0,1,3]=={0,0,0}
-        # For each entry traverse the tree. If every tree-node matches,
+        # For each entry traverse the tree. If every tree-node matches
         # the corresponding bit of the entry's index, this is
         # the next entry to replace.
         for i in range(TLB_ENTRIES):
@@ -180,13 +180,13 @@ module tlb #(
                 shift = LOG_TLB - lvl;
                 new_idx = (i >> (shift-1)) & 1;
                 plru = plru_tree[idx_base + (i>>shift)]
+                # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
                     en.append(~plru) # yes inverted (using bool())
                 else:
                     en.append(plru)  # yes inverted (using bool())
-            # this is equivalent to plru0 & plru1 & plru2 ...
-            # bool() is an *OR*, so invert individual items, OR, then invert,
-            # and it becomes an AND of the concatenated list of bits
+            # boolean logic manipluation:
+            # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
             m.d.sync += replace_en[i].eq(~Cat(*en).bool())
 
     #--------------
