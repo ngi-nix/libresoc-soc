@@ -354,19 +354,14 @@ class PTW:
                 # we've got a data WAIT_GRANT so tell the cache that the tag is valid
 
             # Propagate error to MMU/LSU
-            PROPAGATE_ERROR: begin
-                state_d     = IDLE;
-                ptw_error_o = 1'b1;
-            end
+            with m.State("PROPAGATE_ERROR"):
+                m.next = "IDLE"
+                m.d.comb += ptw_error_o.eq(1)
+
             # wait for the rvalid before going back to IDLE
-            WAIT_RVALID: begin
-                if (data_rvalid_q)
-                    state_d = IDLE;
-            end
-            default: begin
-                state_d = IDLE;
-            end
-        endcase
+            with m.State("WAIT_RVALID"):
+                m.If (data_rvalid_q):
+                    m.next = "IDLE"
 
         # -------
         # Flush
