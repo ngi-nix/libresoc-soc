@@ -56,8 +56,8 @@ class TLBContent:
         self.vpn2 = Signal(9)
         self.vpn1 = Signal(9)
         self.vpn0 = Signal(9)
-        self.replace_en = Signal() # replace the following entry,
-                                   # set by replacement strategy
+        self.replace_en_i = Signal() # replace the following entry,
+                                     # set by replacement strategy
         # Lookup signals
         self.lu_asid_i = Signal(ASID_WIDTH)
         self.lu_content_o = Signal(self.pte_width)
@@ -71,7 +71,10 @@ class TLBContent:
         tags = TLBEntry()
         content = Signal(self.pte_width)
 
-        m.d.comb += self.lu_hit_o.eq(0)
+        m.d.comb += [self.lu_hit_o.eq(0),
+                     self.lu_is_2M_o.eq(0),
+                     self.lu_is_1G_o.eq(0)]
+
         # temporaries for 1st level match
         asid_ok = Signal(reset_less=True)
         vpn2_ok = Signal(reset_less=True)
@@ -114,7 +117,7 @@ class TLBContent:
         # ------------------
 
         replace_valid = Signal(reset_less=True)
-        m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en)
+        m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en_i)
         with m.If (self.flush_i):
             # invalidate (flush) conditions: all if zero or just this ASID
             with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
@@ -134,7 +137,6 @@ class TLBContent:
                           # and content as well
                           content.eq(self.update_i.content.flatten())
                         ]
-
         return m
 
     def ports(self):
@@ -147,7 +149,7 @@ class TLBContent:
 class PLRU:
     def __init__(self):
         self.lu_hit = Signal(TLB_ENTRIES)
-        self.replace_en = Signal(TLB_ENTRIES)
+        self.replace_en_o = Signal(TLB_ENTRIES)
         self.lu_access_i = Signal()
 
     def elaborate(self, platform):
@@ -230,7 +232,7 @@ class PLRU:
             print ("plru", i, en)
             # boolean logic manipluation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
-            m.d.sync += self.replace_en[i].eq(~Cat(*en).bool())
+            m.d.comb += self.replace_en_o[i].eq(~Cat(*en).bool())
 
         return m
 
@@ -272,11 +274,12 @@ class TLB:
             setattr(m.submodules, "tc%d" % i, tlc)
             tc.append(tlc)
             # connect inputs
+            tlc.update_i = self.update_i     # saves a lot of graphviz links
             m.d.comb += [tlc.vpn0.eq(vpn0),
                          tlc.vpn1.eq(vpn1),
                          tlc.vpn2.eq(vpn2),
                          tlc.flush_i.eq(self.flush_i),
-                         tlc.update_i.eq(self.update_i),
+                         #tlc.update_i.eq(self.update_i),
                          tlc.lu_asid_i.eq(self.lu_asid_i)]
         tc = Array(tc)
 
@@ -285,7 +288,7 @@ class TLB:
         #--------------
 
         # use Encoder to select hit index
-        # XXX TODO: assert that there's only one valid entry
+        # XXX TODO: assert that there's only one valid entry (one lu_hit)
         hitsel = Encoder(TLB_ENTRIES)
         m.submodules.hitsel = hitsel
 
@@ -313,10 +316,11 @@ class TLB:
         m.submodules.plru = p
 
         # connect PLRU inputs/outputs
+        # XXX TODO: assert that there's only one valid entry (one replace_en)
         en = []
         for i in range(TLB_ENTRIES):
-            en.append(tc[i].replace_en)
-        m.d.comb += [Cat(*en).eq(p.replace_en), # output from PLRU into tags
+            en.append(tc[i].replace_en_i)
+        m.d.comb += [Cat(*en).eq(p.replace_en_o), # output from PLRU into tags
                      p.lu_hit.eq(hitsel.i),
                      p.lu_access_i.eq(self.lu_access_i)]
 
