@@ -190,28 +190,31 @@ class PTW:
         #-------------------
         # Page table walker
         #-------------------
-        # A virtual address va is translated into a physical address pa as follows:
+        # A virtual address va is translated into a physical address pa as
+        # follows:
         # 1. Let a be sptbr.ppn × PAGESIZE, and let i = LEVELS-1. (For Sv39,
         #    PAGESIZE=2^12 and LEVELS=3.)
-        # 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE. (For
-        #    Sv32, PTESIZE=4.)
-        # 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise an access
-        #    exception.
-        # 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to step 5.
-        #    Otherwise, this PTE is a pointer to the next level of the page table.
-        #    Let i=i-1. If i < 0, stop and raise an access exception. Otherwise, let
-        #    a = pte.ppn × PAGESIZE and go to step 2.
-        # 5. A leaf PTE has been found. Determine if the requested memory access
-        #    is allowed by the pte.r, pte.w, and pte.x bits. If not, stop and
-        #    raise an access exception. Otherwise, the translation is successful.
-        #    Set pte.a to 1, and, if the memory access is a store, set pte.d to 1.
+        # 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE.
+        #    (For Sv32, PTESIZE=4.)
+        # 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise an
+        #    access exception.
+        # 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to
+        #    step 5.  Otherwise, this PTE is a pointer to the next level of
+        #    the page table.
+        #    Let i=i-1. If i < 0, stop and raise an access exception.
+        #    Otherwise, let a = pte.ppn × PAGESIZE and go to step 2.
+        # 5. A leaf PTE has been found. Determine if the requested memory
+        #    access is allowed by the pte.r, pte.w, and pte.x bits. If not,
+        #    stop and raise an access exception. Otherwise, the translation is
+        #    successful.  Set pte.a to 1, and, if the memory access is a
+        #    store, set pte.d to 1.
         #    The translated physical address is given as follows:
         #      - pa.pgoff = va.pgoff.
         #      - If i > 0, then this is a superpage translation and
         #        pa.ppn[i-1:0] = va.vpn[i-1:0].
         #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
-        # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
-        #    stop and raise a page-fault exception.
+        # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned
+        #    superpage stop and raise a page-fault exception.
 
         m.d.sync += tag_valid.eq(0)
 
