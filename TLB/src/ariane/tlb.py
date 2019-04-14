@@ -300,7 +300,7 @@ class TLB:
         hits = []
         for i in range(TLB_ENTRIES):
             hits.append(tc[i].lu_hit_o)
-        m.d.comb += hitsel.i.eq(Cat(*hits))
+        m.d.comb += hitsel.i.eq(Cat(*hits)) # (goes into plru as well)
         idx = hitsel.o
 
         active = Signal(reset_less=True)
