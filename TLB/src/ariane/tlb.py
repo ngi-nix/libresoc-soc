@@ -198,7 +198,7 @@ class PLRU:
                     idx_base = (1<<lvl)-1
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                     shift = LOG_TLB - lvl;
-                    new_idx = Const(~((i >> (shift-1)) & 1), 1)
+                    new_idx = Const(~((i >> (shift-1)) & 1), (1, False))
                     print ("plru", i, lvl, hex(idx_base),
                                   idx_base + (i >> shift), shift, new_idx)
                     m.d.sync += plru_tree[idx_base + (i >> shift)].eq(new_idx)
