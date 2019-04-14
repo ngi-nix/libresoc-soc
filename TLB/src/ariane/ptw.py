@@ -147,7 +147,7 @@ class PTW:
         tag_valid = Signal()
         # register the ASID
         tlb_update_asid = Signal(ASID_WIDTH)
-        # register the VPN we need to walk, SV39 defines a 39 bit virtual address
+        # register VPN we need to walk, SV39 defines a 39 bit virtual addr
         vaddr = Signal(64)
         # 4 byte aligned physical pointer
         ptw_pptr = Signal(56)
