@@ -18,7 +18,7 @@
 import ariane_pkg::*;
 """
 
-from nmigen import Const, Signal
+from nmigen import Const, Signal, Cat
 from math import log
 
 DCACHE_SET_ASSOC = 8
@@ -45,7 +45,7 @@ class DCacheReqO:
         data_rvalid = Signal()
         data_rdata = Signal(64)
 
-ASID_WIDTH = 1
+ASID_WIDTH = 8
 
 class PTE: #(RecordObject):
     def __init__(self):
@@ -61,12 +61,11 @@ class PTE: #(RecordObject):
         self.r = Signal()
         self.v = Signal()
 
+    def flatten(self):
+        return Cat(*self.ports())
+
     def eq(self, x):
-        return [self.reserved.eq(x.reserved),
-                self.ppn.eq(x.ppn), self.rsw.eq(x.rsw),
-                self.d.eq(x.d), self.a.eq(x.a), self.g.eq(x.g),
-                self.u.eq(x.u), self.x.eq(x.x), self.w.eq(x.w),
-                self.r.eq(x.r), self.v.eq(x.v)]
+        return self.flatten().eq(x.flatten())
 
     def ports(self):
         return [self.reserved, self.ppn, self.rsw, self.d, self.a, self.g,

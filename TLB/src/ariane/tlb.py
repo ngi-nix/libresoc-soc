@@ -19,6 +19,7 @@ from math import log2
 from nmigen import Signal, Module, Cat, Const, Array
 from nmigen.cli import verilog, rtlil
 
+from ptw import TLBUpdate, PTE, ASID_WIDTH
 
 # SV39 defines three levels of page tables
 class TLBEntry:
@@ -32,9 +33,6 @@ class TLBEntry:
         self.valid = Signal()
 
 TLB_ENTRIES = 4
-ASID_WIDTH  = 1
-
-from ptw import TLBUpdate, PTE
 
 
 class TLB:
@@ -182,7 +180,8 @@ class TLB:
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                     shift = LOG_TLB - lvl;
                     new_idx = Const(~((i >> (shift-1)) & 1), 1)
-                    print ("plru", i, lvl, hex(idx_base), shift, new_idx)
+                    print ("plru", i, lvl, hex(idx_base),
+                                  idx_base + (i >> shift), shift, new_idx)
                     m.d.sync += plru_tree[idx_base + (i >> shift)].eq(new_idx)
 
         # Decode tree to write enable signals
@@ -210,9 +209,9 @@ class TLB:
                 m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
-                    en[lvl].eq(~plru) # yes inverted (using bool())
+                    m.d.comb += en[lvl].eq(~plru) # yes inverted (using bool())
                 else:
-                    en[lvl].eq(plru)  # yes inverted (using bool())
+                    m.d.comb += en[lvl].eq(plru)  # yes inverted (using bool())
             print ("plru", i, en)
             # boolean logic manipluation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
