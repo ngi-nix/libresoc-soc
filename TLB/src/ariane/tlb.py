@@ -74,17 +74,27 @@ class TLB:
 
         for i in range(TLB_ENTRIES):
             m.d.comb += lu_hit[i].eq(0)
-            # first level match, this may be a giga page,
-            # check the ASID flags as well
+            # temporaries for 1st level match
             asid_ok = Signal()
             vpn2_ok = Signal()
             tags_ok = Signal()
-            l2_hit = Signal()
+            vpn2_hit = Signal()
             m.d.comb += [tags_ok.eq(tags[i].valid),
                          asid_ok.eq(tags[i].asid == self.lu_asid_i),
                          vpn2_ok.eq(tags[i].vpn2 == vpn2),
-                         l2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
-            with m.If(l2_hit):
+                         vpn2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
+            # temporaries for 2nd level match
+            vpn1_ok = Signal()
+            tags_2M = Signal()
+            vpn0_ok = Signal()
+            vpn0_or_2M = Signal()
+            m.d.comb += [vpn1_ok.eq(vpn1 == tags[i].vpn1),
+                         tags_2M.eq(tags[i].is_2M),
+                         vpn0_ok.eq(vpn0 == tags[i].vpn0),
+                         vpn0_or_2M.eq(tags_2M | vpn0_ok)]
+            # first level match, this may be a giga page,
+            # check the ASID flags as well
+            with m.If(vpn2_hit):
                 # second level
                 with m.If (tags[i].is_1G):
                     m.d.sync += self.lu_content_o.eq(content[i])
@@ -93,10 +103,10 @@ class TLB:
                                   lu_hit[i].eq(1),
                                 ]
                 # not a giga page hit so check further
-                with m.Elif(vpn1 == tags[i].vpn1):
+                with m.Elif(vpn1_ok):
                     # this could be a 2 mega page hit or a 4 kB hit
                     # output accordingly
-                    with m.If(tags[i].is_2M | (vpn0 == tags[i].vpn0)):
+                    with m.If(vpn0_or_2M):
                         m.d.sync += self.lu_content_o.eq(content[i])
                         m.d.comb += [ self.lu_is_2M_o.eq(tags[i].is_2M),
                                       self.lu_hit_o.eq(1),
@@ -108,6 +118,8 @@ class TLB:
         # ------------------
 
         for i in range(TLB_ENTRIES):
+            replace_valid = Signal()
+            m.d.comb += replace_valid.eq(self.update_i.valid & replace_en[i])
             with m.If (self.flush_i):
                 # invalidate (flush) conditions: all if zero or just this ASID
                 with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
@@ -115,7 +127,7 @@ class TLB:
                     m.d.sync += tags[i].valid.eq(0)
 
             # normal replacement
-            with m.Elif(self.update_i.valid & replace_en[i]):
+            with m.Elif(replace_valid):
                 m.d.sync += [ # update tag array
                               tags[i].asid.eq(self.update_i.asid),
                               tags[i].vpn2.eq(self.update_i.vpn[18:27]),
@@ -161,7 +173,9 @@ class TLB:
         LOG_TLB = int(log2(TLB_ENTRIES))
         for i in range(TLB_ENTRIES):
             # we got a hit so update the pointer as it was least recently used
-            with m.If (lu_hit[i] & self.lu_access_i):
+            hit = Signal()
+            m.d.comb += hit.eq(lu_hit[i] & self.lu_access_i)
+            with m.If(hit):
                 # Set the nodes to the values we would expect
                 for lvl in range(LOG_TLB):
                     idx_base = (1<<lvl)-1
@@ -186,19 +200,19 @@ class TLB:
         # the corresponding bit of the entry's index, this is
         # the next entry to replace.
         for i in range(TLB_ENTRIES):
-            en = [Const(1)]
+            en = Signal(LOG_TLB)
             for lvl in range(LOG_TLB):
                 idx_base = (1<<lvl)-1
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                 shift = LOG_TLB - lvl;
                 new_idx = (i >> (shift-1)) & 1;
-                plru = Signal(1)
+                plru = Signal()
                 m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
-                    en.append(~plru) # yes inverted (using bool())
+                    en[lvl].eq(~plru) # yes inverted (using bool())
                 else:
-                    en.append(plru)  # yes inverted (using bool())
+                    en[lvl].eq(plru)  # yes inverted (using bool())
             print ("plru", i, en)
             # boolean logic manipluation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
