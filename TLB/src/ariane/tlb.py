@@ -22,7 +22,7 @@ from nmigen.lib.coding import Encoder
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH
 
-TLB_ENTRIES = 4
+TLB_ENTRIES = 8
 
 
 class TLBEntry:
@@ -216,7 +216,7 @@ class PLRU:
         # the corresponding bit of the entry's index, this is
         # the next entry to replace.
         for i in range(TLB_ENTRIES):
-            en = Signal(LOG_TLB, reset_less=True)
+            en = []
             for lvl in range(LOG_TLB):
                 idx_base = (1<<lvl)-1
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
@@ -226,11 +226,11 @@ class PLRU:
                 m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
-                    m.d.comb += en[lvl].eq(~plru) # yes inverted (using bool())
+                    en.append(~plru) # yes inverted (using bool())
                 else:
-                    m.d.comb += en[lvl].eq(plru)  # yes inverted (using bool())
+                    en.append(plru)  # yes inverted (using bool())
             print ("plru", i, en)
-            # boolean logic manipluation:
+            # boolean logic manipulation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
             m.d.comb += self.replace_en_o[i].eq(~Cat(*en).bool())
 
