@@ -316,42 +316,43 @@ class PTW:
                             # check if the ppn is correctly aligned:
                             # 6. If i > 0 and pa.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
                             # exception.
-                            if (ptw_lvl_q == LVL1 && pte.ppn[17:0] != '0) begin
-                                state_d             = PROPAGATE_ERROR;
-                                dtlb_update_o.valid = 1'b0;
-                                itlb_update_o.valid = 1'b0;
-                            end else if (ptw_lvl_q == LVL2 && pte.ppn[8:0] != '0) begin
-                                state_d             = PROPAGATE_ERROR;
-                                dtlb_update_o.valid = 1'b0;
-                                itlb_update_o.valid = 1'b0;
-                            end
+                            l1err = Signal()
+                            l2err = Signal()
+                            m.d.comb += [l2err.eq((ptw_lvl_q == LVL2) & \
+                                           pte.ppn[0:9] != Const(0, 9)),
+                                         l1err.eq((ptw_lvl_q == LVL1) & \
+                                           pte.ppn[0:18] != Const(0, 18))
+                                        ]
+                            with m.If(l1err | l2err):
+                                m.next = "PROPAGATE_ERROR"
+                                m.d.comb += [dtlb_update_o.valid.eq(0),
+                                             itlb_update_o.valid.eq(0)]
+
                         # this is a pointer to the next TLB level
-                        end else begin
+                        with m.Else():
                             # pointer to next level of page table
-                            if (ptw_lvl_q == LVL1) begin
+                            with m.If (ptw_lvl_q == LVL1):
                                 # we are in the second level now
-                                ptw_lvl_n  = LVL2;
-                                ptw_pptr_n = {pte.ppn, vaddr_q[29:21], 3'b0};
-                            end
-
-                            if (ptw_lvl_q == LVL2) begin
+                                pptr = Cat(Const(0, 3), dtlb_vaddr_i[21:30],
+                                           pte.ppn)
+                                m.d.comb += [ptw_lvl_n.eq(LVL2),
+                                             ptw_pptr_n.eq(pptr)
+                                            ]
+                            with m.If(ptw_lvl_q == LVL2):
                                 # here we received a pointer to the third level
-                                ptw_lvl_n  = LVL3;
-                                ptw_pptr_n = {pte.ppn, vaddr_q[20:12], 3'b0};
-                            end
+                                pptr = Cat(Const(0, 3), dtlb_vaddr_i[12:21],
+                                           pte.ppn)
+                                m.d.comb += [ptw_lvl_n.eq(LVL3),
+                                             ptw_pptr_n.eq(pptr)
+                                            ]
+                            m.next = "WAIT_GRANT"
 
-                            state_d = WAIT_GRANT;
-
-                            if (ptw_lvl_q == LVL3) begin
-                              # Should already be the last level page table => Error
-                              ptw_lvl_n   = LVL3;
-                              state_d = PROPAGATE_ERROR;
-                            end
-                        end
-                    end
-                end
+                            with m.If (ptw_lvl_q == LVL3):
+                                # Should already be the last level page table => Error
+                                m.d.comb += [ptw_lvl_n.eq(LVL3),
+                                m.next = "PROPAGATE_ERROR"
                 # we've got a data WAIT_GRANT so tell the cache that the tag is valid
-            end
+
             # Propagate error to MMU/LSU
             PROPAGATE_ERROR: begin
                 state_d     = IDLE;
