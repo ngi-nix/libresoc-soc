@@ -198,53 +198,55 @@ class PTW:
     #      - pa.ppn[LEVELS-1:i] = pte.ppn[LEVELS-1:i].
     always_comb begin : ptw
         # default assignments
-        # PTW memory interface
         m.d.comb += [
-        tag_valid_n.eq(0),
-        req_port_o.data_req.eq(0),
-        req_port_o.data_be.eq(Const(0xFF, 8))
-        req_port_o.data_size.eq(Const(0bb11, 2))
-        req_port_o.data_we.eq(0),
-        ptw_error_o.eq(0),
-        itlb_update_o.valid.eq(0)
-        dtlb_update_o.valid.eq(0),
-        is_instr_ptw_n.eq(is_instr_ptw_q),
-        ptw_lvl_n.eq(ptw_lvl_q),
-        ptw_pptr_n.eq(ptw_pptr_q),
-        state_d.eq(state_q),
-        global_mapping_n.eq(global_mapping_q),
-        # input registers
-        tlb_update_asid_n.eq(tlb_update_asid_q),
-        vaddr_n.eq(vaddr_q),
+            # PTW memory interface
+            tag_valid_n.eq(0),
+            req_port_o.data_req.eq(0),
+            req_port_o.data_be.eq(Const(0xFF, 8))
+            req_port_o.data_size.eq(Const(0bb11, 2))
+            req_port_o.data_we.eq(0),
+            ptw_error_o.eq(0),
+            itlb_update_o.valid.eq(0)
+            dtlb_update_o.valid.eq(0),
+            is_instr_ptw_n.eq(is_instr_ptw_q),
+            ptw_lvl_n.eq(ptw_lvl_q),
+            ptw_pptr_n.eq(ptw_pptr_q),
+            state_d.eq(state_q),
+            global_mapping_n.eq(global_mapping_q),
+            # input registers
+            tlb_update_asid_n.eq(tlb_update_asid_q),
+            vaddr_n.eq(vaddr_q),
 
-        itlb_miss_o.eq(0),
-        dtlb_miss_o.eq(0),
+            itlb_miss_o.eq(0),
+            dtlb_miss_o.eq(0),
         ]
 
-        case (state_q)
+        with m.FSM() as fsm:
 
-            IDLE: begin
+            with m.State("IDLE"):
                 # by default we start with the top-most page table
-                ptw_lvl_n        = LVL1;
-                global_mapping_n = 1'b0;
-                is_instr_ptw_n   = 1'b0;
+                m.d.comb += [ptw_lvl_n.eq(LVL1),
+                             global_mapping_n.eq(0),
+                             is_instr_ptw_n.eq(0)]
                 # if we got an ITLB miss
-                if (enable_translation_i & itlb_access_i & ~itlb_hit_i & ~dtlb_access_i) begin
-                    ptw_pptr_n          = {satp_ppn_i, itlb_vaddr_i[38:30], 3'b0};
-                    is_instr_ptw_n      = 1'b1;
-                    tlb_update_asid_n   = asid_i;
-                    vaddr_n             = itlb_vaddr_i;
-                    state_d             = WAIT_GRANT;
-                    itlb_miss_o         = 1'b1;
+                with m.If(enable_translation_i & itlb_access_i & \
+                          ~itlb_hit_i & ~dtlb_access_i):
+                    pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
+                    m.d.comb += [ptw_pptr_n.eq(pptr),
+                                 is_instr_ptw_n.eq(1),
+                                 tlb_update_asid_n.eq(asid_i).
+                                 vaddr_n.eq(itlb_vaddr_i),
+                                 itlb_miss_o.eq(1)]
+                    m.next = "WAIT_GRANT"
                 # we got an DTLB miss
-                end else if (en_ld_st_translation_i & dtlb_access_i & ~dtlb_hit_i) begin
-                    ptw_pptr_n          = {satp_ppn_i, dtlb_vaddr_i[38:30], 3'b0};
-                    tlb_update_asid_n   = asid_i;
-                    vaddr_n             = dtlb_vaddr_i;
-                    state_d             = WAIT_GRANT;
-                    dtlb_miss_o         = 1'b1;
-                end
-            end
+                with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
+                            ~dtlb_hit_i):
+                    pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
+                    m.d.comb += [ptw_pptr_n.eq(pptr),
+                                 tlb_update_asid_n.eq(asid_i).
+                                 vaddr_n.eq(dtlb_vaddr_i),
+                                 dtlb_miss_o.eq(1)]
+                    m.next = "WAIT_GRANT"
 
             WAIT_GRANT: begin
                 # send a request out
