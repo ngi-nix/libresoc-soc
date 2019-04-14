@@ -48,7 +48,8 @@ class TLBEntry:
 
 
 class TLBContent:
-    def __init__(self):
+    def __init__(self, pte_width):
+        self.pte_width = pte_width
         self.flush_i = Signal()  # Flush signal
         # Update TLB
         self.update_i = TLBUpdate()
@@ -60,7 +61,7 @@ class TLBContent:
                                    # set by replacement strategy
         # Lookup signals
         self.lu_asid_i = Signal(ASID_WIDTH)
-        self.lu_content_o = PTE()
+        self.lu_content_o = Signal(self.pte_width)
         self.lu_is_2M_o = Signal()
         self.lu_is_1G_o = Signal()
         self.lu_hit_o = Signal()
@@ -69,23 +70,23 @@ class TLBContent:
         m = Module()
 
         tags = TLBEntry()
-        content = PTE()
+        content = Signal(self.pte_width)
 
         m.d.comb += self.lu_hit.eq(0)
         # temporaries for 1st level match
-        asid_ok = Signal()
-        vpn2_ok = Signal()
-        tags_ok = Signal()
-        vpn2_hit = Signal()
+        asid_ok = Signal(reset_less=True)
+        vpn2_ok = Signal(reset_less=True)
+        tags_ok = Signal(reset_less=True)
+        vpn2_hit = Signal(reset_less=True)
         m.d.comb += [tags_ok.eq(tags.valid),
                      asid_ok.eq(tags.asid == self.lu_asid_i),
                      vpn2_ok.eq(tags.vpn2 == self.vpn2),
                      vpn2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
         # temporaries for 2nd level match
-        vpn1_ok = Signal()
-        tags_2M = Signal()
-        vpn0_ok = Signal()
-        vpn0_or_2M = Signal()
+        vpn1_ok = Signal(reset_less=True)
+        tags_2M = Signal(reset_less=True)
+        vpn0_ok = Signal(reset_less=True)
+        vpn0_or_2M = Signal(reset_less=True)
         m.d.comb += [vpn1_ok.eq(self.vpn1 == tags.vpn1),
                      tags_2M.eq(tags.is_2M),
                      vpn0_ok.eq(self.vpn0 == tags.vpn0),
@@ -115,7 +116,7 @@ class TLBContent:
         # Update and Flush
         # ------------------
 
-        replace_valid = Signal()
+        replace_valid = Signal(reset_less=True)
         m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en)
         with m.If (self.flush_i):
             # invalidate (flush) conditions: all if zero or just this ASID
@@ -134,7 +135,7 @@ class TLBContent:
                           tags.is_2M.eq(self.update_i.is_2M),
                           tags.valid.eq(1),
                           # and content as well
-                          content.eq(self.update_i.content)
+                          content.eq(self.update_i.content.flatten())
                         ]
 
         return m
@@ -146,69 +147,14 @@ class TLBContent:
                 ] + self.update_i.content.ports() + self.update_i.ports()
 
 
-class TLB:
+class PLRU:
     def __init__(self):
-        self.flush_i = Signal()  # Flush signal
-        # Update TLB
-        self.update_i = TLBUpdate()
-        # Lookup signals
+        self.lu_hit = Signal(TLB_ENTRIES)
+        self.replace_en = Signal(TLB_ENTRIES)
         self.lu_access_i = Signal()
-        self.lu_asid_i = Signal(ASID_WIDTH)
-        self.lu_vaddr_i = Signal(64)
-        self.lu_content_o = PTE()
-        self.lu_is_2M_o = Signal()
-        self.lu_is_1G_o = Signal()
-        self.lu_hit_o = Signal()
 
     def elaborate(self, platform):
         m = Module()
-
-        vpn2 = Signal(9)
-        vpn1 = Signal(9)
-        vpn0 = Signal(9)
-
-        #-------------
-        # Translation
-        #-------------
-        m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
-                      vpn1.eq(self.lu_vaddr_i[21:30]),
-                      vpn2.eq(self.lu_vaddr_i[30:39]),
-                    ]
-
-        # SV39 defines three levels of page tables
-        tc = []
-        for i in range(TLB_ENTRIES):
-            tlc = TLBContent()
-            setattr(m.submodules, "tc%d" % i, tlc)
-            tc.append(tlc)
-            m.d.comb += [tlc.vpn0.eq(vpn0),
-                         tlc.vpn1.eq(vpn1),
-                         tlc.vpn2.eq(vpn2),
-                         tlc.flush_i.eq(self.flush_i),
-                         tlc.update_i.eq(self.update_i),
-                         tlc.lu_asid_i.eq(self.lu_asid_i)
-                        ]
-
-        tc = Array(tc)
-
-        # use Encoder to select hit index
-        hitsel = Encoder(TLB_ENTRIES)
-        m.submodules += hitsel
-
-        hits = []
-        for i in range(TLB_ENTRIES):
-            hits.append(tc[i].lu_hit)
-        m.d.comb += hitsel.i.eq(Cat(*hits))
-        idx = hitsel.o
-
-        active = Signal()
-        m.d.comb += active.eq(~hitsel.n)
-        with m.If(active):
-            m.d.comb += [ self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
-                          self.lu_is_2M_o.eq(tc[idx].lu_is_2M_o),
-                          self.lu_hit_o.eq(1),
-                          self.lu_content_o.eq(tc[idx].lu_content_o)
-                        ]
 
         # -----------------------------------------------
         # PLRU - Pseudo Least Recently Used Replacement
@@ -244,7 +190,7 @@ class TLB:
         for i in range(TLB_ENTRIES):
             # we got a hit so update the pointer as it was least recently used
             hit = Signal()
-            m.d.comb += hit.eq(tc[i].lu_hit & self.lu_access_i)
+            m.d.comb += hit.eq(self.lu_hit[i] & self.lu_access_i)
             with m.If(hit):
                 # Set the nodes to the values we would expect
                 for lvl in range(LOG_TLB):
@@ -287,7 +233,95 @@ class TLB:
             print ("plru", i, en)
             # boolean logic manipluation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
-            m.d.sync += tc[i].replace_en.eq(~Cat(*en).bool())
+            m.d.sync += self.replace_en[i].eq(~Cat(*en).bool())
+
+        return m
+
+
+class TLB:
+    def __init__(self):
+        self.flush_i = Signal()  # Flush signal
+        # Lookup signals
+        self.lu_access_i = Signal()
+        self.lu_asid_i = Signal(ASID_WIDTH)
+        self.lu_vaddr_i = Signal(64)
+        self.lu_content_o = PTE()
+        self.lu_is_2M_o = Signal()
+        self.lu_is_1G_o = Signal()
+        self.lu_hit_o = Signal()
+        # Update TLB
+        self.pte_width = len(self.lu_content_o.flatten())
+        self.update_i = TLBUpdate()
+
+    def elaborate(self, platform):
+        m = Module()
+
+        vpn2 = Signal(9)
+        vpn1 = Signal(9)
+        vpn0 = Signal(9)
+
+        #-------------
+        # Translation
+        #-------------
+        m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
+                      vpn1.eq(self.lu_vaddr_i[21:30]),
+                      vpn2.eq(self.lu_vaddr_i[30:39]),
+                    ]
+
+        # SV39 defines three levels of page tables
+        tc = []
+        for i in range(TLB_ENTRIES):
+            tlc = TLBContent(self.pte_width)
+            setattr(m.submodules, "tc%d" % i, tlc)
+            tc.append(tlc)
+            # connect inputs
+            m.d.comb += [tlc.vpn0.eq(vpn0),
+                         tlc.vpn1.eq(vpn1),
+                         tlc.vpn2.eq(vpn2),
+                         tlc.flush_i.eq(self.flush_i),
+                         tlc.update_i.eq(self.update_i),
+                         tlc.lu_asid_i.eq(self.lu_asid_i)]
+        tc = Array(tc)
+
+        #--------------
+        # Select hit
+        #--------------
+
+        # use Encoder to select hit index
+        # XXX TODO: assert that there's only one valid entry
+        hitsel = Encoder(TLB_ENTRIES)
+        m.submodules.hitsel = hitsel
+
+        hits = []
+        for i in range(TLB_ENTRIES):
+            hits.append(tc[i].lu_hit)
+        m.d.comb += hitsel.i.eq(Cat(*hits))
+        idx = hitsel.o
+
+        active = Signal()
+        m.d.comb += active.eq(~hitsel.n)
+        with m.If(active):
+            # active hit, send selected as output
+            m.d.comb += [ self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
+                          self.lu_is_2M_o.eq(tc[idx].lu_is_2M_o),
+                          self.lu_hit_o.eq(1),
+                          self.lu_content_o.flatten().eq(tc[idx].lu_content_o),
+                        ]
+
+        #--------------
+        # PLRU.
+        #--------------
+
+        p = PLRU()
+        m.submodules.plru = p
+
+        # connect PLRU inputs/outputs
+        en = []
+        for i in range(TLB_ENTRIES):
+            en.append(tc[i].replace_en)
+        m.d.comb += [Cat(*en).eq(p.replace_en), # output from PLRU into tags
+                     p.lu_hit.eq(hitsel.i),
+                     p.lu_access_i.eq(self.lu_access_i)]
 
         #--------------
         # Sanity checks
