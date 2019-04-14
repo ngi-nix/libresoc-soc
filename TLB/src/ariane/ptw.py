@@ -19,6 +19,7 @@ import ariane_pkg::*;
 """
 
 from nmigen import Const, Signal, Cat
+from nmigen.hdl.ast import ArrayProxy
 from math import log
 
 DCACHE_SET_ASSOC = 8
@@ -65,7 +66,15 @@ class PTE: #(RecordObject):
         return Cat(*self.ports())
 
     def eq(self, x):
-        return self.flatten().eq(x.flatten())
+        if isinstance(x, ArrayProxy):
+            res = []
+            for o in self.ports():
+                i = getattr(x, o.name)
+                res.append(i)
+            x = Cat(*res)
+        else:
+            x = x.flatten()
+        return self.flatten().eq(x)
 
     def ports(self):
         return [self.reserved, self.ppn, self.rsw, self.d, self.a, self.g,
@@ -80,6 +89,12 @@ class TLBUpdate:
         self.vpn = Signal(27)
         self.asid = Signal(ASID_WIDTH)
         self.content = PTE()
+
+    def flatten(self):
+        return Cat(*self.ports())
+
+    def eq(self, x):
+        return self.flatten().eq(x.flatten())
 
     def ports(self):
         return [self.valid, self.is_2M, self.is_1G, self.vpn, self.asid] + \
