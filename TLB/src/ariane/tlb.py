@@ -217,6 +217,7 @@ class PLRU:
         # For each entry traverse the tree. If every tree-node matches
         # the corresponding bit of the entry's index, this is
         # the next entry to replace.
+        replace = []
         for i in range(TLB_ENTRIES):
             en = []
             for lvl in range(LOG_TLB):
@@ -234,7 +235,8 @@ class PLRU:
             print ("plru", i, en)
             # boolean logic manipulation:
             # plru0 & plru1 & plru2 == ~(~plru0 | ~plru1 | ~plru2)
-            m.d.comb += self.replace_en_o[i].eq(~Cat(*en).bool())
+            replace.append(~Cat(*en).bool())
+        m.d.comb += self.replace_en_o.eq(Cat(*replace))
 
         return m
 
