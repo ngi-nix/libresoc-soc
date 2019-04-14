@@ -76,9 +76,15 @@ class TLB:
             m.d.comb += lu_hit[i].eq(0)
             # first level match, this may be a giga page,
             # check the ASID flags as well
-            with m.If(tags[i].valid & \
-                      (tags[i].asid == self.lu_asid_i) &  \
-                      (tags[i].vpn2 == vpn2)):
+            asid_ok = Signal()
+            vpn2_ok = Signal()
+            tags_ok = Signal()
+            l2_hit = Signal()
+            m.d.comb += [tags_ok.eq(tags[i].valid),
+                         asid_ok.eq(tags[i].asid == self.lu_asid_i),
+                         vpn2_ok.eq(tags[i].vpn2 == vpn2),
+                         l2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
+            with m.If(l2_hit):
                 # second level
                 with m.If (tags[i].is_1G):
                     m.d.sync += self.lu_content_o.eq(content[i])
@@ -112,8 +118,8 @@ class TLB:
             with m.Elif(self.update_i.valid & replace_en[i]):
                 m.d.sync += [ # update tag array
                               tags[i].asid.eq(self.update_i.asid),
-                              tags[i].vpn2.eq(self.update_i.vpn [18:27]),
-                              tags[i].vpn1.eq(self.update_i.vpn [9:18]),
+                              tags[i].vpn2.eq(self.update_i.vpn[18:27]),
+                              tags[i].vpn1.eq(self.update_i.vpn[9:18]),
                               tags[i].vpn0.eq(self.update_i.vpn[0:9]),
                               tags[i].is_1G.eq(self.update_i.is_1G),
                               tags[i].is_2M.eq(self.update_i.is_2M),
@@ -161,7 +167,8 @@ class TLB:
                     idx_base = (1<<lvl)-1
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                     shift = LOG_TLB - lvl;
-                    new_idx = Const(~((i >> (shift-1)) & 1))
+                    new_idx = Const(~((i >> (shift-1)) & 1), 1)
+                    print ("plru", i, lvl, hex(idx_base), shift, new_idx)
                     m.d.sync += plru_tree[idx_base + (i >> shift)].eq(new_idx)
 
         # Decode tree to write enable signals
@@ -185,12 +192,14 @@ class TLB:
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                 shift = LOG_TLB - lvl;
                 new_idx = (i >> (shift-1)) & 1;
-                plru = plru_tree[idx_base + (i>>shift)]
+                plru = Signal(1)
+                m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
                     en.append(~plru) # yes inverted (using bool())
                 else:
                     en.append(plru)  # yes inverted (using bool())
+            print ("plru", i, en)
             # boolean logic manipluation:
             # plur0 & plru1 & plur2 == ~(~plru0 | ~plru1 | ~plru2)
             m.d.sync += replace_en[i].eq(~Cat(*en).bool())

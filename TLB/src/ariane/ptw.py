@@ -83,8 +83,8 @@ class TLBUpdate:
         self.content = PTE()
 
     def ports(self):
-        return [self.valid, self.is_2M, self.is_1G, self.vpn, self.asid,
-                self.content.ports()]
+        return [self.valid, self.is_2M, self.is_1G, self.vpn, self.asid] + \
+                self.content.ports()
 
 # SV39 defines three levels of page tables
 LVL1 = Const(0, 2)
