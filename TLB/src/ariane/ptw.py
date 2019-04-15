@@ -23,10 +23,13 @@ from nmigen.hdl.ast import ArrayProxy
 from nmigen.cli import verilog, rtlil
 from math import log2
 
+
 DCACHE_SET_ASSOC = 8
 CONFIG_L1D_SIZE =  32*1024
 DCACHE_INDEX_WIDTH = int(log2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC))
 DCACHE_TAG_WIDTH = 56 - DCACHE_INDEX_WIDTH
+
+ASID_WIDTH = 8
 
 
 class DCacheReqI:
@@ -57,8 +60,6 @@ class DCacheReqO:
     def ports(self):
         return [ self.data_gnt, self.data_rvalid, self.data_rdata]
 
-
-ASID_WIDTH = 8
 
 class PTE: #(RecordObject):
     def __init__(self):
@@ -182,7 +183,7 @@ class PTW:
         m.d.comb += pte.flatten().eq(data_rdata)
 
         # SV39 defines three levels of page tables
-        ptw_lvl = Signal(2) # default=0=LVL1
+        ptw_lvl = Signal(2) # default=0=LVL1 on reset (see above)
         ptw_lvl1 = Signal()
         ptw_lvl2 = Signal()
         ptw_lvl3 = Signal()
