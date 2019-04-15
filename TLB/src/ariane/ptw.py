@@ -283,23 +283,6 @@ class PTW:
             self.dtlb_miss_o.eq(0),
         ]
 
-        # temporaries
-        pte_rx = Signal(reset_less=True)
-        pte_exe = Signal(reset_less=True)
-        pte_inv = Signal(reset_less=True)
-        a = Signal(reset_less=True)
-        st_wd = Signal(reset_less=True)
-        m.d.comb += [pte_rx.eq(pte.r | pte.x),
-                    pte_exe.eq(~pte.x | ~pte.a),
-                    pte_inv.eq(~pte.v | (~pte.r & pte.w)),
-                    a.eq(pte.a & (pte.r | (pte.x & self.mxr_i))),
-                    st_wd.eq(self.lsu_is_store_i & (~pte.w | ~pte.d))]
-
-        l1err = Signal(reset_less=True)
-        l2err = Signal(reset_less=True)
-        m.d.comb += [l2err.eq((ptw_lvl2) & pte.ppn[0:9] != Const(0, 9)),
-                     l1err.eq((ptw_lvl1) & pte.ppn[0:18] != Const(0, 18)) ]
-
         # ------------
         # State Machine
         # ------------
@@ -311,119 +294,14 @@ class PTW:
                           ptw_pptr, vaddr, tlb_update_asid)
 
             with m.State("WAIT_GRANT"):
-                # send a request out
-                m.d.comb += self.req_port_o.data_req.eq(1)
-                # wait for the WAIT_GRANT
-                with m.If(self.req_port_i.data_gnt):
-                    # send the tag valid signal one cycle later
-                    m.d.sync += tag_valid.eq(1)
-                    # should we have flushed before we got an rvalid,
-                    # wait for it until going back to IDLE
-                    with m.If(self.flush_i):
-                        with m.If (~data_rvalid):
-                            m.next = "WAIT_RVALID"
-                        with m.Else():
-                            m.next = "IDLE"
-                    with m.Else():
-                        m.next = "PTE_LOOKUP"
+                self.grant(m, tag_valid, data_rvalid)
 
             with m.State("PTE_LOOKUP"):
                 # we wait for the valid signal
                 with m.If(data_rvalid):
-
-                    # check if the global mapping bit is set
-                    with m.If (pte.g):
-                        m.d.sync += global_mapping.eq(1)
-
-                    # -------------
-                    # Invalid PTE
-                    # -------------
-                    # If pte.v = 0, or if pte.r = 0 and pte.w = 1,
-                    # stop and raise a page-fault exception.
-                    with m.If (pte_inv):
-                        m.next = "PROPAGATE_ERROR"
-                    # -----------
-                    # Valid PTE
-                    # -----------
-                    with m.Else():
-                        m.next = "IDLE"
-                        # it is a valid PTE
-                        # if pte.r = 1 or pte.x = 1 it is a valid PTE
-                        with m.If (pte_rx):
-                            # Valid translation found (either 1G, 2M or 4K)
-                            with m.If(is_instr_ptw):
-                                # ------------
-                                # Update ITLB
-                                # ------------
-                                # If page is not executable, we can
-                                # directly raise an error. This
-                                # doesn't put a useless entry into
-                                # the TLB. The same idea applies
-                                # to the access flag since we let
-                                # the access flag be managed by SW.
-                                with m.If (pte_exe):
-                                    m.next = "IDLE"
-                                with m.Else():
-                                    m.d.comb += self.itlb_update_o.valid.eq(1)
-
-                            with m.Else():
-                                # ------------
-                                # Update DTLB
-                                # ------------
-                                # Check if the access flag has been set,
-                                # otherwise throw a page-fault
-                                # and let the software handle those bits.
-                                # If page is not readable (there are
-                                # no write-only pages)
-                                # we can directly raise an error. This
-                                # doesn't put a useless
-                                # entry into the TLB.
-                                with m.If(a):
-                                    m.d.comb += self.dtlb_update_o.valid.eq(1)
-                                with m.Else():
-                                    m.next = "PROPAGATE_ERROR"
-                                # Request is a store: perform some
-                                # additional checks
-                                # If the request was a store and the
-                                # page is not write-able, raise an error
-                                # the same applies if the dirty flag is not set
-                                with m.If (st_wd):
-                                    m.d.comb += self.dtlb_update_o.valid.eq(0)
-                                    m.next = "PROPAGATE_ERROR"
-
-                            # check if the ppn is correctly aligned: Case (6)
-                            with m.If(l1err | l2err):
-                                m.next = "PROPAGATE_ERROR"
-                                m.d.comb += [self.dtlb_update_o.valid.eq(0),
-                                             self.itlb_update_o.valid.eq(0)]
-
-                        # this is a pointer to the next TLB level
-                        with m.Else():
-                            # pointer to next level of page table
-                            with m.If (ptw_lvl1):
-                                # we are in the second level now
-                                pptr = Cat(Const(0, 3),
-                                           self.dtlb_vaddr_i[21:30],
-                                           pte.ppn)
-                                m.d.sync += [ptw_pptr.eq(pptr),
-                                            ptw_lvl.eq(LVL2)]
-                            with m.If(ptw_lvl2):
-                                # here we received a pointer to the third level
-                                pptr = Cat(Const(0, 3),
-                                           self.dtlb_vaddr_i[12:21],
-                                           pte.ppn)
-                                m.d.sync += [ptw_pptr.eq(pptr),
-                                            ptw_lvl.eq(LVL3)
-                                            ]
-                            self.set_grant_state(m)
-
-                            with m.If (ptw_lvl3):
-                                # Should already be the last level
-                                # page table => Error
-                                m.d.sync += ptw_lvl.eq(LVL3)
-                                m.next = "PROPAGATE_ERROR"
-                # we've got a data WAIT_GRANT so tell the
-                # cache that the tag is valid
+                    self.lookup(m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3,
+                                data_rvalid, global_mapping,
+                                is_instr_ptw, ptw_pptr)
 
             # Propagate error to MMU/LSU
             with m.State("PROPAGATE_ERROR"):
@@ -473,9 +351,9 @@ class PTW:
             pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39],
                        self.satp_ppn_i)
             m.d.sync += [ptw_pptr.eq(pptr),
-                        is_instr_ptw.eq(1),
+                         is_instr_ptw.eq(1),
                          vaddr.eq(self.itlb_vaddr_i),
-                        tlb_update_asid.eq(self.asid_i),
+                         tlb_update_asid.eq(self.asid_i),
                         ]
             self.set_grant_state(m)
 
@@ -488,6 +366,129 @@ class PTW:
                          tlb_update_asid.eq(self.asid_i),
                         ]
             self.set_grant_state(m)
+
+    def grant(self, m, tag_valid, data_rvalid):
+        # send a request out
+        m.d.comb += self.req_port_o.data_req.eq(1)
+        # wait for the WAIT_GRANT
+        with m.If(self.req_port_i.data_gnt):
+            # send the tag valid signal one cycle later
+            m.d.sync += tag_valid.eq(1)
+            # should we have flushed before we got an rvalid,
+            # wait for it until going back to IDLE
+            with m.If(self.flush_i):
+                with m.If (~data_rvalid):
+                    m.next = "WAIT_RVALID"
+                with m.Else():
+                    m.next = "IDLE"
+            with m.Else():
+                m.next = "PTE_LOOKUP"
+
+    def lookup(self, m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3,
+                            data_rvalid, global_mapping,
+                            is_instr_ptw, ptw_pptr):
+        # temporaries
+        pte_rx = Signal(reset_less=True)
+        pte_exe = Signal(reset_less=True)
+        pte_inv = Signal(reset_less=True)
+        a = Signal(reset_less=True)
+        st_wd = Signal(reset_less=True)
+        m.d.comb += [pte_rx.eq(pte.r | pte.x),
+                    pte_exe.eq(~pte.x | ~pte.a),
+                    pte_inv.eq(~pte.v | (~pte.r & pte.w)),
+                    a.eq(pte.a & (pte.r | (pte.x & self.mxr_i))),
+                    st_wd.eq(self.lsu_is_store_i & (~pte.w | ~pte.d))]
+
+        l1err = Signal(reset_less=True)
+        l2err = Signal(reset_less=True)
+        m.d.comb += [l2err.eq((ptw_lvl2) & pte.ppn[0:9] != Const(0, 9)),
+                     l1err.eq((ptw_lvl1) & pte.ppn[0:18] != Const(0, 18)) ]
+
+        # check if the global mapping bit is set
+        with m.If (pte.g):
+            m.d.sync += global_mapping.eq(1)
+
+        # -------------
+        # Invalid PTE
+        # -------------
+        # If pte.v = 0, or if pte.r = 0 and pte.w = 1,
+        # stop and raise a page-fault exception.
+        with m.If (pte_inv):
+            m.next = "PROPAGATE_ERROR"
+        # -----------
+        # Valid PTE
+        # -----------
+        with m.Else():
+            m.next = "IDLE"
+            # it is a valid PTE
+            # if pte.r = 1 or pte.x = 1 it is a valid PTE
+            with m.If (pte_rx):
+                # Valid translation found (either 1G, 2M or 4K)
+                with m.If(is_instr_ptw):
+                    # ------------
+                    # Update ITLB
+                    # ------------
+                    # If page not executable, we can directly raise error.
+                    # This doesn't put a useless entry into the TLB.
+                    # The same idea applies to the access flag since we let
+                    # the access flag be managed by SW.
+                    with m.If (pte_exe):
+                        m.next = "IDLE"
+                    with m.Else():
+                        m.d.comb += self.itlb_update_o.valid.eq(1)
+
+                with m.Else():
+                    # ------------
+                    # Update DTLB
+                    # ------------
+                    # Check if the access flag has been set, otherwise
+                    # throw page-fault and let software handle those bits.
+                    # If page not readable (there are no write-only pages)
+                    # directly raise an error. This doesn't put a useless
+                    # entry into the TLB.
+                    with m.If(a):
+                        m.d.comb += self.dtlb_update_o.valid.eq(1)
+                    with m.Else():
+                        m.next = "PROPAGATE_ERROR"
+                    # Request is a store: perform additional checks
+                    # If the request was a store and the page not
+                    # write-able, raise an error
+                    # the same applies if the dirty flag is not set
+                    with m.If (st_wd):
+                        m.d.comb += self.dtlb_update_o.valid.eq(0)
+                        m.next = "PROPAGATE_ERROR"
+
+                # check if the ppn is correctly aligned: Case (6)
+                with m.If(l1err | l2err):
+                    m.next = "PROPAGATE_ERROR"
+                    m.d.comb += [self.dtlb_update_o.valid.eq(0),
+                                 self.itlb_update_o.valid.eq(0)]
+
+            # this is a pointer to the next TLB level
+            with m.Else():
+                # pointer to next level of page table
+                with m.If (ptw_lvl1):
+                    # we are in the second level now
+                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[21:30], pte.ppn)
+                    m.d.sync += [ptw_pptr.eq(pptr),
+                                 ptw_lvl.eq(LVL2)
+                                ]
+                with m.If(ptw_lvl2):
+                    # here we received a pointer to the third level
+                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[12:21], pte.ppn)
+                    m.d.sync += [ptw_pptr.eq(pptr),
+                                 ptw_lvl.eq(LVL3)
+                                ]
+                self.set_grant_state(m)
+
+                with m.If (ptw_lvl3):
+                    # Should already be the last level
+                    # page table => Error
+                    m.d.sync += ptw_lvl.eq(LVL3)
+                    m.next = "PROPAGATE_ERROR"
+
+        # we've got a data WAIT_GRANT so tell the
+        # cache that the tag is valid
 
 
 if __name__ == '__main__':
