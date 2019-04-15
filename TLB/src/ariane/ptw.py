@@ -123,7 +123,7 @@ class PTW:
         self.flush_i = Signal() # flush everything, we need to do this because
         # actually everything we do is speculative at this stage
         # e.g.: there could be a CSR instruction that changes everything
-        self.ptw_active_o = Signal(reset=1)
+        self.ptw_active_o = Signal(reset=1)    # active if not IDLE
         self.walking_instr_o = Signal()        # set when walking for TLB
         self.ptw_error_o = Signal()            # set when an error occurred
         self.enable_translation_i = Signal()   # CSRs indicate to enable SV39
@@ -181,6 +181,7 @@ class PTW:
         pte = PTE()
         m.d.comb += pte.flatten().eq(data_rdata)
 
+        # SV39 defines three levels of page tables
         ptw_lvl = Signal(2) # default=0=LVL1
         ptw_lvl1 = Signal()
         ptw_lvl2 = Signal()
@@ -188,9 +189,6 @@ class PTW:
         m.d.comb += [ptw_lvl1.eq(ptw_lvl == LVL1),
                      ptw_lvl2.eq(ptw_lvl == LVL2),
                      ptw_lvl3.eq(ptw_lvl == LVL3)]
-
-        # used to continue checking flush conditions
-        wait_grant = Signal()
 
         # is this an instruction page table walk?
         is_instr_ptw = Signal()
@@ -214,9 +212,9 @@ class PTW:
             self.req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
             self.req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
             # we are never going to kill this request
-            self.req_port_o.kill_req.eq(0),
+            self.req_port_o.kill_req.eq(0),              # XXX assign comb?
             # we are never going to write with the HPTW
-            self.req_port_o.data_wdata.eq(Const(0, 64)),
+            self.req_port_o.data_wdata.eq(Const(0, 64)), # XXX assign comb?
             # -----------
             # TLB Update
             # -----------
@@ -236,10 +234,9 @@ class PTW:
             self.dtlb_update_o.content.eq(pte),
             self.dtlb_update_o.content.g.eq(global_mapping),
 
-        ]
-        m.d.comb += [
             self.req_port_o.tag_valid.eq(tag_valid),
         ]
+
         #-------------------
         # Page table walker
         #-------------------
@@ -289,10 +286,12 @@ class PTW:
         # temporaries
         pte_rx = Signal(reset_less=True)
         pte_exe = Signal(reset_less=True)
+        pte_inv = Signal(reset_less=True)
         a = Signal(reset_less=True)
         st_wd = Signal(reset_less=True)
         m.d.comb += [pte_rx.eq(pte.r | pte.x),
                     pte_exe.eq(~pte.x | ~pte.a),
+                    pte_inv.eq(~pte.v | (~pte.r & pte.w)),
                     a.eq(pte.a & (pte.r | (pte.x & self.mxr_i))),
                     st_wd.eq(self.lsu_is_store_i & (~pte.w | ~pte.d))]
 
@@ -312,7 +311,7 @@ class PTW:
                 m.d.sync += [is_instr_ptw.eq(0),
                              ptw_lvl.eq(LVL1),
                              global_mapping.eq(0),
-                             self.ptw_active_o.eq(1),
+                             self.ptw_active_o.eq(0), # deactive (IDLE)
                             ]
                 # work out itlb/dtlb miss
                 m.d.comb += self.itlb_miss_o.eq(self.enable_translation_i & \
@@ -356,7 +355,7 @@ class PTW:
                         with m.If (~data_rvalid):
                             m.next = "WAIT_RVALID"
                         with m.Else():
-                            m.next = "WAIT_RVALID"
+                            m.next = "IDLE"
                     with m.Else():
                         m.next = "PTE_LOOKUP"
 
@@ -373,7 +372,7 @@ class PTW:
                     # -------------
                     # If pte.v = 0, or if pte.r = 0 and pte.w = 1,
                     # stop and raise a page-fault exception.
-                    with m.If (~pte.v | (~pte.r & pte.w)):
+                    with m.If (pte_inv):
                         m.next = "PROPAGATE_ERROR"
                     # -----------
                     # Valid PTE
@@ -454,7 +453,6 @@ class PTW:
                                 # Should already be the last level
                                 # page table => Error
                                 m.d.sync += ptw_lvl.eq(LVL3)
-                                m.d.comb += wait_grant.eq(0)
                                 m.next = "PROPAGATE_ERROR"
                 # we've got a data WAIT_GRANT so tell the
                 # cache that the tag is valid
