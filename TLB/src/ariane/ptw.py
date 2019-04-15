@@ -18,14 +18,16 @@
 import ariane_pkg::*;
 """
 
-from nmigen import Const, Signal, Cat
+from nmigen import Const, Signal, Cat, Module
 from nmigen.hdl.ast import ArrayProxy
-from math import log
+from nmigen.cli import verilog, rtlil
+from math import log2
 
 DCACHE_SET_ASSOC = 8
 CONFIG_L1D_SIZE =  32*1024
-DCACHE_INDEX_WIDTH = int(log(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC))
+DCACHE_INDEX_WIDTH = int(log2(CONFIG_L1D_SIZE / DCACHE_SET_ASSOC))
 DCACHE_TAG_WIDTH = 56 - DCACHE_INDEX_WIDTH
+
 
 class DCacheReqI:
     def __init__(self):
@@ -39,12 +41,22 @@ class DCacheReqI:
         self.kill_req = Signal()
         self.tag_valid = Signal()
 
+    def ports(self):
+        return [self.address_index, self.address_tag,
+                self.data_wdata, self.data_req,
+                self.data_we, self.data_be, self.data_size,
+                self.kill_req, self.tag_valid,
+            ]
 
 class DCacheReqO:
     def __init__(self):
-        data_gnt = Signal()
-        data_rvalid = Signal()
-        data_rdata = Signal(64)
+        self.data_gnt = Signal()
+        self.data_rvalid = Signal()
+        self.data_rdata = Signal(64)
+
+    def ports(self):
+        return [ self.data_gnt, self.data_rvalid, self.data_rdata]
+
 
 ASID_WIDTH = 8
 
@@ -101,7 +113,7 @@ class TLBUpdate:
                 self.content.ports()
 
 # SV39 defines three levels of page tables
-LVL1 = Const(0, 2)
+LVL1 = Const(0, 2) # defined to 0 so that ptw_lvl default-resets to LVL1
 LVL2 = Const(1, 2)
 LVL3 = Const(2, 2)
 
@@ -111,49 +123,69 @@ class PTW:
         flush_i = Signal() # flush everything, we need to do this because
         # actually everything we do is speculative at this stage
         # e.g.: there could be a CSR instruction that changes everything
-        ptw_active_o = Signal()
-        walking_instr_o = Signal()        # set when walking for TLB
-        ptw_error_o = Signal()            # set when an error occurred
-        enable_translation_i = Signal()   # CSRs indicate to enable SV39
-        en_ld_st_translation_i = Signal() # enable VM translation for ld/st
+        self.ptw_active_o = Signal(reset=1)
+        self.walking_instr_o = Signal()        # set when walking for TLB
+        self.ptw_error_o = Signal()            # set when an error occurred
+        self.enable_translation_i = Signal()   # CSRs indicate to enable SV39
+        self.en_ld_st_translation_i = Signal() # enable VM translation for ld/st
 
-        lsu_is_store_i = Signal() ,       # this translation triggered by store
+        self.lsu_is_store_i = Signal() ,       # translation triggered by store
         # PTW memory interface
-        req_port_i = DCacheReqO()
-        req_port_o = DCacheReqI()
+        self.req_port_i = DCacheReqO()
+        self.req_port_o = DCacheReqI()
 
         # to TLBs, update logic
-        itlb_update_o = TLBUpdate()
-        dtlb_update_o = TLBUpdate()
+        self.itlb_update_o = TLBUpdate()
+        self.dtlb_update_o = TLBUpdate()
 
-        update_vaddr_o = Signal(39)
+        self.update_vaddr_o = Signal(39)
 
-        asid_i = Signal(ASID_WIDTH)
+        self.asid_i = Signal(ASID_WIDTH)
         # from TLBs
         # did we miss?
-        itlb_access_i = Signal()
-        itlb_hit_i = Signal()
-        itlb_vaddr_i = Signal(64)
+        self.itlb_access_i = Signal()
+        self.itlb_hit_i = Signal()
+        self.itlb_vaddr_i = Signal(64)
 
-        dtlb_access_i = Signal()
-        dtlb_hit_i = Signal()
-        dtlb_vaddr_i = Signal(64)
+        self.dtlb_access_i = Signal()
+        self.dtlb_hit_i = Signal()
+        self.dtlb_vaddr_i = Signal(64)
         # from CSR file
-        satp_ppn_i = Signal(44) # ppn from satp
-        mxr_i = Signal()
+        self.satp_ppn_i = Signal(44) # ppn from satp
+        self.mxr_i = Signal()
         # Performance counters
-        itlb_miss_o = Signal()
-        dtlb_miss_o = Signal()
+        self.itlb_miss_o = Signal()
+        self.dtlb_miss_o = Signal()
 
+    def ports(self):
+        return [self.ptw_active_o, self.walking_instr_o, self.ptw_error_o,
+                ]
+        return [
+                self.enable_translation_i, self.en_ld_st_translation_i,
+                self.lsu_is_store_i, self.req_port_i, self.req_port_o,
+                self.update_vaddr_o,
+                self.asid_i,
+                self.itlb_access_i, self.itlb_hit_i, self.itlb_vaddr_i,
+                self.dtlb_access_i, self.dtlb_hit_i, self.dtlb_vaddr_i,
+                self.satp_ppn_i, self.mxr_i,
+                self.itlb_miss_o, self.dtlb_miss_o
+            ] + self.itlb_update_o.ports() + self.dtlb_update_o.ports()
+
+    def elaborate(self, platform):
+        m = Module()
 
         # input registers
         data_rvalid = Signal()
         data_rdata = Signal(64)
 
         pte = PTE()
-        m.d.comb += pte.eq(data_rdata)
+        m.d.comb += pte.flatten().eq(data_rdata)
 
-        ptw_lvl = Signal(2, reset=LVL1)
+        ptw_lvl = Signal(2) # default=0=LVL1
+
+        # used to continue checking flush conditions
+        pte_lookup = Signal()
+        wait_grant = Signal()
 
         # is this an instruction page table walk?
         is_instr_ptw = Signal()
@@ -170,37 +202,38 @@ class PTW:
         end = DCACHE_INDEX_WIDTH + DCACHE_TAG_WIDTH
         m.d.sync += [
             # Assignments
-            update_vaddr_o.eq(vaddr),
+            self.update_vaddr_o.eq(vaddr),
 
-            ptw_active_o.eq(state != IDLE),
-            walking_instr_o.eq(is_instr_ptw),
+            self.walking_instr_o.eq(is_instr_ptw),
             # directly output the correct physical address
-            req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
-            req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
+            self.req_port_o.address_index.eq(ptw_pptr[0:DCACHE_INDEX_WIDTH]),
+            self.req_port_o.address_tag.eq(ptw_pptr[DCACHE_INDEX_WIDTH:end]),
             # we are never going to kill this request
-            req_port_o.kill_req.eq(0),
+            self.req_port_o.kill_req.eq(0),
             # we are never going to write with the HPTW
-            req_port_o.data_wdata.eq(Const(0, 64)),
+            self.req_port_o.data_wdata.eq(Const(0, 64)),
             # -----------
             # TLB Update
             # -----------
-            itlb_update_o.vpn.eq(vaddr[12:39]),
-            dtlb_update_o.vpn.eq(vaddr[12:39]),
+            self.itlb_update_o.vpn.eq(vaddr[12:39]),
+            self.dtlb_update_o.vpn.eq(vaddr[12:39]),
             # update the correct page table level
-            itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-            itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
-            dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-            dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+            self.itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+            self.itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+            self.dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
+            self.dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
             # output the correct ASID
-            itlb_update_o.asid.eq(tlb_update_asid),
-            dtlb_update_o.asid.eq(tlb_update_asid),
+            self.itlb_update_o.asid.eq(tlb_update_asid),
+            self.dtlb_update_o.asid.eq(tlb_update_asid),
             # set the global mapping bit
-            itlb_update_o.content.eq(pte | (global_mapping << 5)),
-            dtlb_update_o.content.eq(pte | (global_mapping << 5)),
+            self.itlb_update_o.content.eq(pte),
+            self.itlb_update_o.content.g.eq(global_mapping),
+            self.dtlb_update_o.content.eq(pte),
+            self.dtlb_update_o.content.g.eq(global_mapping),
 
         ]
         m.d.comb += [
-            req_port_o.tag_valid.eq(tag_valid),
+            self.req_port_o.tag_valid.eq(tag_valid),
         ]
         #-------------------
         # Page table walker
@@ -236,16 +269,16 @@ class PTW:
         # default assignments
         m.d.comb += [
             # PTW memory interface
-            req_port_o.data_req.eq(0),
-            req_port_o.data_be.eq(Const(0xFF, 8)),
-            req_port_o.data_size.eq(Const(0b11, 2)),
-            req_port_o.data_we.eq(0),
-            ptw_error_o.eq(0),
-            itlb_update_o.valid.eq(0),
-            dtlb_update_o.valid.eq(0),
+            self.req_port_o.data_req.eq(0),
+            self.req_port_o.data_be.eq(Const(0xFF, 8)),
+            self.req_port_o.data_size.eq(Const(0b11, 2)),
+            self.req_port_o.data_we.eq(0),
+            self.ptw_error_o.eq(0),
+            self.itlb_update_o.valid.eq(0),
+            self.dtlb_update_o.valid.eq(0),
 
-            itlb_miss_o.eq(0),
-            dtlb_miss_o.eq(0),
+            self.itlb_miss_o.eq(0),
+            self.dtlb_miss_o.eq(0),
         ]
 
         with m.FSM() as fsm:
@@ -255,36 +288,40 @@ class PTW:
                 m.d.sync += [is_instr_ptw.eq(0),
                              ptw_lvl.eq(LVL1),
                              global_mapping.eq(0),
+                             self.ptw_active_o.eq(1),
                             ]
                 # we got an ITLB miss?
-                with m.If(enable_translation_i & itlb_access_i & \
-                          ~itlb_hit_i & ~dtlb_access_i):
-                    pptr = Cat(Const(0, 3), itlb_vaddr_i[30:39], satp_ppn_i)
+                with m.If(self.enable_translation_i & self.itlb_access_i & \
+                          ~self.itlb_hit_i & ~self.dtlb_access_i):
+                    pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39], self.satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr),
                                 is_instr_ptw.eq(1),
-                                 vaddr.eq(itlb_vaddr_i),
-                                tlb_update_asid.eq(asid_i),
+                                 vaddr.eq(self.itlb_vaddr_i),
+                                tlb_update_asid.eq(self.asid_i),
                                 ]
-                    m.d.comb += [itlb_miss_o.eq(1)]
+                    m.d.comb += [self.itlb_miss_o.eq(1)]
+                    m.d.comb += wait_grant.eq(1)
                     m.next = "WAIT_GRANT"
                 # we got a DTLB miss?
-                with m.Elif(en_ld_st_translation_i & dtlb_access_i & \
-                            ~dtlb_hit_i):
-                    pptr = Cat(Const(0, 3), dtlb_vaddr_i[30:39], satp_ppn_i)
+                with m.Elif(self.en_ld_st_translation_i & self.dtlb_access_i & \
+                            ~self.dtlb_hit_i):
+                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39], self.satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr),
-                                 vaddr.eq(dtlb_vaddr_i),
-                                 tlb_update_asid.eq(asid_i),
+                                 vaddr.eq(self.dtlb_vaddr_i),
+                                 tlb_update_asid.eq(self.asid_i),
                                 ]
-                    m.d.comb += [ dtlb_miss_o.eq(1)]
+                    m.d.comb += [ self.dtlb_miss_o.eq(1)]
+                    m.d.comb += wait_grant.eq(1)
                     m.next = "WAIT_GRANT"
 
             with m.State("WAIT_GRANT"):
                 # send a request out
-                m.d.comb += req_port_o.data_req.eq(1)
+                m.d.comb += self.req_port_o.data_req.eq(1)
                 # wait for the WAIT_GRANT
-                with m.If(req_port_i.data_gnt):
+                with m.If(self.req_port_i.data_gnt):
                     # send the tag valid signal one cycle later
                     m.d.sync += tag_valid.eq(1)
+                    m.d.comb += pte_lookup.eq(1)
                     m.next = "PTE_LOOKUP"
 
             with m.State("PTE_LOOKUP"):
@@ -324,7 +361,7 @@ class PTW:
                                 with m.If (~pte.x | ~pte.a):
                                     m.next = "IDLE"
                                 with m.Else():
-                                    m.d.comb += itlb_update_o.valid.eq(1)
+                                    m.d.comb += self.itlb_update_o.valid.eq(1)
 
                             with m.Else():
                                 # ------------
@@ -338,8 +375,8 @@ class PTW:
                                 # we can directly raise an error. This
                                 # doesn't put a useless
                                 # entry into the TLB.
-                                with m.If(pte.a & (pte.r | (pte.x & mxr_i))):
-                                    m.d.comb += dtlb_update_o.valid.eq(1)
+                                with m.If(pte.a & (pte.r | (pte.x & self.mxr_i))):
+                                    m.d.comb += self.dtlb_update_o.valid.eq(1)
                                 with m.Else():
                                     m.next = "PROPAGATE_ERROR"
                                 # Request is a store: perform some
@@ -347,8 +384,8 @@ class PTW:
                                 # If the request was a store and the
                                 # page is not write-able, raise an error
                                 # the same applies if the dirty flag is not set
-                                with m.If (lsu_is_store_i & (~pte.w | ~pte.d)):
-                                    m.d.comb += dtlb_update_o.valid.eq(0)
+                                with m.If (self.lsu_is_store_i & (~pte.w | ~pte.d)):
+                                    m.d.comb += self.dtlb_update_o.valid.eq(0)
                                     m.next = "PROPAGATE_ERROR"
 
                             # check if the ppn is correctly aligned: Case (6)
@@ -361,31 +398,33 @@ class PTW:
                                         ]
                             with m.If(l1err | l2err):
                                 m.next = "PROPAGATE_ERROR"
-                                m.d.comb += [dtlb_update_o.valid.eq(0),
-                                             itlb_update_o.valid.eq(0)]
+                                m.d.comb += [self.dtlb_update_o.valid.eq(0),
+                                             self.itlb_update_o.valid.eq(0)]
 
                         # this is a pointer to the next TLB level
                         with m.Else():
                             # pointer to next level of page table
                             with m.If (ptw_lvl == LVL1):
                                 # we are in the second level now
-                                pptr = Cat(Const(0, 3), dtlb_vaddr_i[21:30],
+                                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[21:30],
                                            pte.ppn)
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL2)]
                             with m.If(ptw_lvl == LVL2):
                                 # here we received a pointer to the third level
-                                pptr = Cat(Const(0, 3), dtlb_vaddr_i[12:21],
+                                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[12:21],
                                            pte.ppn)
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL3)
                                             ]
                             m.next = "WAIT_GRANT"
+                            m.d.comb += wait_grant.eq(1)
 
                             with m.If (ptw_lvl == LVL3):
                                 # Should already be the last level
                                 # page table => Error
                                 m.d.sync += ptw_lvl.eq(LVL3)
+                                m.d.comb += wait_grant.eq(0)
                                 m.next = "PROPAGATE_ERROR"
                 # we've got a data WAIT_GRANT so tell the
                 # cache that the tag is valid
@@ -393,7 +432,7 @@ class PTW:
             # Propagate error to MMU/LSU
             with m.State("PROPAGATE_ERROR"):
                 m.next = "IDLE"
-                m.d.comb += ptw_error_o.eq(1)
+                m.d.comb += self.ptw_error_o.eq(1)
 
             # wait for the rvalid before going back to IDLE
             with m.State("WAIT_RVALID"):
@@ -411,23 +450,20 @@ class PTW:
             #    for an rvalid
             # 2. waiting for a grant, if so: wait for it
             # if not, go back to idle
-            with m.If (((state == PTE_LOOKUP) & ~data_rvalid) | \
-                       ((state == WAIT_GRANT) & req_port_i.data_gnt)):
+            with m.If ((pte_lookup & ~data_rvalid) | \
+                       (wait_grant & self.req_port_i.data_gnt)):
                 m.next = "WAIT_RVALID"
             with m.Else():
                 m.next = "IDLE"
 
-        m.d.sync += [data_rdata.eq(req_port_i.data_rdata),
-                     data_rvalid.eq(req_port_i.data_rvalid)
+        m.d.sync += [data_rdata.eq(self.req_port_i.data_rdata),
+                     data_rvalid.eq(self.req_port_i.data_rvalid)
                     ]
 
-"""
+        return m
+
 if __name__ == '__main__':
-    dut = PTE()
-    ports = [dut.p.i_valid, dut.n.i_ready,
-             dut.n.o_valid, dut.p.o_ready] + \
-             [dut.p.i_data] + [dut.n.o_data]
-    vl = rtlil.convert(dut, ports=ports)
-    with open("test_bufunbuf999.il", "w") as f:
+    ptw = PTW()
+    vl = rtlil.convert(ptw, ports=ptw.ports())
+    with open("test_pte.il", "w") as f:
         f.write(vl)
-"""
