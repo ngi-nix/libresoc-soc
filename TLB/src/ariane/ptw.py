@@ -307,40 +307,8 @@ class PTW:
         with m.FSM() as fsm:
 
             with m.State("IDLE"):
-                # by default we start with the top-most page table
-                m.d.sync += [is_instr_ptw.eq(0),
-                             ptw_lvl.eq(LVL1),
-                             global_mapping.eq(0),
-                             self.ptw_active_o.eq(0), # deactive (IDLE)
-                            ]
-                # work out itlb/dtlb miss
-                m.d.comb += self.itlb_miss_o.eq(self.enable_translation_i & \
-                                         self.itlb_access_i & \
-                                         ~self.itlb_hit_i & \
-                                         ~self.dtlb_access_i)
-                m.d.comb += self.dtlb_miss_o.eq(self.en_ld_st_translation_i & \
-                                                self.dtlb_access_i & \
-                                                ~self.dtlb_hit_i)
-                # we got an ITLB miss?
-                with m.If(self.itlb_miss_o):
-                    pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39],
-                               self.satp_ppn_i)
-                    m.d.sync += [ptw_pptr.eq(pptr),
-                                is_instr_ptw.eq(1),
-                                 vaddr.eq(self.itlb_vaddr_i),
-                                tlb_update_asid.eq(self.asid_i),
-                                ]
-                    self.set_grant_state(m)
-
-                # we got a DTLB miss?
-                with m.Elif(self.dtlb_miss_o):
-                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39],
-                               self.satp_ppn_i)
-                    m.d.sync += [ptw_pptr.eq(pptr),
-                                 vaddr.eq(self.dtlb_vaddr_i),
-                                 tlb_update_asid.eq(self.asid_i),
-                                ]
-                    self.set_grant_state(m)
+                self.idle(m, is_instr_ptw, ptw_lvl, global_mapping,
+                          ptw_pptr, vaddr, tlb_update_asid)
 
             with m.State("WAIT_GRANT"):
                 # send a request out
@@ -483,6 +451,43 @@ class PTW:
                 m.next = "IDLE"
         with m.Else():
             m.next = "WAIT_GRANT"
+
+    def idle(self, m, is_instr_ptw, ptw_lvl, global_mapping,
+                          ptw_pptr, vaddr, tlb_update_asid):
+        # by default we start with the top-most page table
+        m.d.sync += [is_instr_ptw.eq(0),
+                     ptw_lvl.eq(LVL1),
+                     global_mapping.eq(0),
+                     self.ptw_active_o.eq(0), # deactive (IDLE)
+                    ]
+        # work out itlb/dtlb miss
+        m.d.comb += self.itlb_miss_o.eq(self.enable_translation_i & \
+                                 self.itlb_access_i & \
+                                 ~self.itlb_hit_i & \
+                                 ~self.dtlb_access_i)
+        m.d.comb += self.dtlb_miss_o.eq(self.en_ld_st_translation_i & \
+                                        self.dtlb_access_i & \
+                                        ~self.dtlb_hit_i)
+        # we got an ITLB miss?
+        with m.If(self.itlb_miss_o):
+            pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39],
+                       self.satp_ppn_i)
+            m.d.sync += [ptw_pptr.eq(pptr),
+                        is_instr_ptw.eq(1),
+                         vaddr.eq(self.itlb_vaddr_i),
+                        tlb_update_asid.eq(self.asid_i),
+                        ]
+            self.set_grant_state(m)
+
+        # we got a DTLB miss?
+        with m.Elif(self.dtlb_miss_o):
+            pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39],
+                       self.satp_ppn_i)
+            m.d.sync += [ptw_pptr.eq(pptr),
+                         vaddr.eq(self.dtlb_vaddr_i),
+                         tlb_update_asid.eq(self.asid_i),
+                        ]
+            self.set_grant_state(m)
 
 
 if __name__ == '__main__':
