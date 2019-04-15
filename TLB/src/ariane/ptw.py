@@ -120,7 +120,7 @@ LVL3 = Const(2, 2)
 
 class PTW:
     def __init__(self):
-        flush_i = Signal() # flush everything, we need to do this because
+        self.flush_i = Signal() # flush everything, we need to do this because
         # actually everything we do is speculative at this stage
         # e.g.: there could be a CSR instruction that changes everything
         self.ptw_active_o = Signal(reset=1)
@@ -129,7 +129,7 @@ class PTW:
         self.enable_translation_i = Signal()   # CSRs indicate to enable SV39
         self.en_ld_st_translation_i = Signal() # enable VM translation for ld/st
 
-        self.lsu_is_store_i = Signal() ,       # translation triggered by store
+        self.lsu_is_store_i = Signal()       # translation triggered by store
         # PTW memory interface
         self.req_port_i = DCacheReqO()
         self.req_port_o = DCacheReqI()
@@ -184,7 +184,6 @@ class PTW:
         ptw_lvl = Signal(2) # default=0=LVL1
 
         # used to continue checking flush conditions
-        pte_lookup = Signal()
         wait_grant = Signal()
 
         # is this an instruction page table walk?
@@ -300,8 +299,7 @@ class PTW:
                                 tlb_update_asid.eq(self.asid_i),
                                 ]
                     m.d.comb += [self.itlb_miss_o.eq(1)]
-                    m.d.comb += wait_grant.eq(1)
-                    m.next = "WAIT_GRANT"
+                    self.set_grant_state(m)
                 # we got a DTLB miss?
                 with m.Elif(self.en_ld_st_translation_i & self.dtlb_access_i & \
                             ~self.dtlb_hit_i):
@@ -311,8 +309,7 @@ class PTW:
                                  tlb_update_asid.eq(self.asid_i),
                                 ]
                     m.d.comb += [ self.dtlb_miss_o.eq(1)]
-                    m.d.comb += wait_grant.eq(1)
-                    m.next = "WAIT_GRANT"
+                    self.set_grant_state(m)
 
             with m.State("WAIT_GRANT"):
                 # send a request out
@@ -321,8 +318,15 @@ class PTW:
                 with m.If(self.req_port_i.data_gnt):
                     # send the tag valid signal one cycle later
                     m.d.sync += tag_valid.eq(1)
-                    m.d.comb += pte_lookup.eq(1)
-                    m.next = "PTE_LOOKUP"
+                    # should we have flushed before we got an rvalid,
+                    # wait for it until going back to IDLE
+                    with m.If(self.flush_i):
+                        with m.If (~data_rvalid):
+                            m.next = "WAIT_RVALID"
+                        with m.Else():
+                            m.next = "WAIT_RVALID"
+                    with m.Else():
+                        m.next = "PTE_LOOKUP"
 
             with m.State("PTE_LOOKUP"):
                 # we wait for the valid signal
@@ -417,8 +421,7 @@ class PTW:
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL3)
                                             ]
-                            m.next = "WAIT_GRANT"
-                            m.d.comb += wait_grant.eq(1)
+                            self.set_grant_state(m)
 
                             with m.If (ptw_lvl == LVL3):
                                 # Should already be the last level
@@ -439,31 +442,26 @@ class PTW:
                 with m.If(data_rvalid):
                     m.next = "IDLE"
 
-        # -------
-        # Flush
-        # -------
-        # should we have flushed before we got an rvalid,
-        # wait for it until going back to IDLE
-        with m.If(flush_i):
-            # on a flush check whether we are
-            # 1. in the PTE Lookup check whether we still need to wait
-            #    for an rvalid
-            # 2. waiting for a grant, if so: wait for it
-            # if not, go back to idle
-            with m.If ((pte_lookup & ~data_rvalid) | \
-                       (wait_grant & self.req_port_i.data_gnt)):
-                m.next = "WAIT_RVALID"
-            with m.Else():
-                m.next = "IDLE"
-
         m.d.sync += [data_rdata.eq(self.req_port_i.data_rdata),
                      data_rvalid.eq(self.req_port_i.data_rvalid)
                     ]
 
         return m
 
+    def set_grant_state(self, m):
+        # should we have flushed before we got an rvalid,
+        # wait for it until going back to IDLE
+        with m.If(self.flush_i):
+            with m.If (self.req_port_i.data_gnt):
+                m.next = "WAIT_RVALID"
+            with m.Else():
+                m.next = "IDLE"
+        with m.Else():
+            m.next = "WAIT_GRANT"
+
+
 if __name__ == '__main__':
     ptw = PTW()
     vl = rtlil.convert(ptw, ports=ptw.ports())
-    with open("test_pte.il", "w") as f:
+    with open("test_ptw.il", "w") as f:
         f.write(vl)
