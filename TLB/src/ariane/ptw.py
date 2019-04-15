@@ -182,6 +182,12 @@ class PTW:
         m.d.comb += pte.flatten().eq(data_rdata)
 
         ptw_lvl = Signal(2) # default=0=LVL1
+        ptw_lvl1 = Signal()
+        ptw_lvl2 = Signal()
+        ptw_lvl3 = Signal()
+        m.d.comb += [ptw_lvl1.eq(ptw_lvl == LVL1),
+                     ptw_lvl2.eq(ptw_lvl == LVL2),
+                     ptw_lvl3.eq(ptw_lvl == LVL3)]
 
         # used to continue checking flush conditions
         wait_grant = Signal()
@@ -217,10 +223,10 @@ class PTW:
             self.itlb_update_o.vpn.eq(vaddr[12:39]),
             self.dtlb_update_o.vpn.eq(vaddr[12:39]),
             # update the correct page table level
-            self.itlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-            self.itlb_update_o.is_1G.eq(ptw_lvl == LVL1),
-            self.dtlb_update_o.is_2M.eq(ptw_lvl == LVL2),
-            self.dtlb_update_o.is_1G.eq(ptw_lvl == LVL1),
+            self.itlb_update_o.is_2M.eq(ptw_lvl2),
+            self.itlb_update_o.is_1G.eq(ptw_lvl1),
+            self.dtlb_update_o.is_2M.eq(ptw_lvl2),
+            self.dtlb_update_o.is_1G.eq(ptw_lvl1),
             # output the correct ASID
             self.itlb_update_o.asid.eq(tlb_update_asid),
             self.dtlb_update_o.asid.eq(tlb_update_asid),
@@ -279,6 +285,25 @@ class PTW:
             self.itlb_miss_o.eq(0),
             self.dtlb_miss_o.eq(0),
         ]
+
+        # temporaries
+        pte_rx = Signal(reset_less=True)
+        pte_exe = Signal(reset_less=True)
+        a = Signal(reset_less=True)
+        st_wd = Signal(reset_less=True)
+        m.d.comb += [pte_rx.eq(pte.r | pte.x),
+                    pte_exe.eq(~pte.x | ~pte.a),
+                    a.eq(pte.a & (pte.r | (pte.x & self.mxr_i))),
+                    st_wd.eq(self.lsu_is_store_i & (~pte.w | ~pte.d))]
+
+        l1err = Signal(reset_less=True)
+        l2err = Signal(reset_less=True)
+        m.d.comb += [l2err.eq((ptw_lvl2) & pte.ppn[0:9] != Const(0, 9)),
+                     l1err.eq((ptw_lvl1) & pte.ppn[0:18] != Const(0, 18)) ]
+
+        # ------------
+        # State Machine
+        # ------------
 
         with m.FSM() as fsm:
 
@@ -357,8 +382,8 @@ class PTW:
                         m.next = "IDLE"
                         # it is a valid PTE
                         # if pte.r = 1 or pte.x = 1 it is a valid PTE
-                        with m.If (pte.r | pte.x):
-                            # Valid translation found (either 1G, 2M or 4K entry)
+                        with m.If (pte_rx):
+                            # Valid translation found (either 1G, 2M or 4K)
                             with m.If(is_instr_ptw):
                                 # ------------
                                 # Update ITLB
@@ -369,7 +394,7 @@ class PTW:
                                 # the TLB. The same idea applies
                                 # to the access flag since we let
                                 # the access flag be managed by SW.
-                                with m.If (~pte.x | ~pte.a):
+                                with m.If (pte_exe):
                                     m.next = "IDLE"
                                 with m.Else():
                                     m.d.comb += self.itlb_update_o.valid.eq(1)
@@ -386,7 +411,7 @@ class PTW:
                                 # we can directly raise an error. This
                                 # doesn't put a useless
                                 # entry into the TLB.
-                                with m.If(pte.a & (pte.r | (pte.x & self.mxr_i))):
+                                with m.If(a):
                                     m.d.comb += self.dtlb_update_o.valid.eq(1)
                                 with m.Else():
                                     m.next = "PROPAGATE_ERROR"
@@ -395,18 +420,11 @@ class PTW:
                                 # If the request was a store and the
                                 # page is not write-able, raise an error
                                 # the same applies if the dirty flag is not set
-                                with m.If (self.lsu_is_store_i & (~pte.w | ~pte.d)):
+                                with m.If (st_wd):
                                     m.d.comb += self.dtlb_update_o.valid.eq(0)
                                     m.next = "PROPAGATE_ERROR"
 
                             # check if the ppn is correctly aligned: Case (6)
-                            l1err = Signal()
-                            l2err = Signal()
-                            m.d.comb += [l2err.eq((ptw_lvl == LVL2) & \
-                                           pte.ppn[0:9] != Const(0, 9)),
-                                         l1err.eq((ptw_lvl == LVL1) & \
-                                           pte.ppn[0:18] != Const(0, 18))
-                                        ]
                             with m.If(l1err | l2err):
                                 m.next = "PROPAGATE_ERROR"
                                 m.d.comb += [self.dtlb_update_o.valid.eq(0),
@@ -415,22 +433,24 @@ class PTW:
                         # this is a pointer to the next TLB level
                         with m.Else():
                             # pointer to next level of page table
-                            with m.If (ptw_lvl == LVL1):
+                            with m.If (ptw_lvl1):
                                 # we are in the second level now
-                                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[21:30],
+                                pptr = Cat(Const(0, 3),
+                                           self.dtlb_vaddr_i[21:30],
                                            pte.ppn)
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL2)]
-                            with m.If(ptw_lvl == LVL2):
+                            with m.If(ptw_lvl2):
                                 # here we received a pointer to the third level
-                                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[12:21],
+                                pptr = Cat(Const(0, 3),
+                                           self.dtlb_vaddr_i[12:21],
                                            pte.ppn)
                                 m.d.sync += [ptw_pptr.eq(pptr),
                                             ptw_lvl.eq(LVL3)
                                             ]
                             self.set_grant_state(m)
 
-                            with m.If (ptw_lvl == LVL3):
+                            with m.If (ptw_lvl3):
                                 # Should already be the last level
                                 # page table => Error
                                 m.d.sync += ptw_lvl.eq(LVL3)
