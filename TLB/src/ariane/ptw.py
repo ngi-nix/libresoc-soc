@@ -289,26 +289,33 @@ class PTW:
                              global_mapping.eq(0),
                              self.ptw_active_o.eq(1),
                             ]
+                # work out itlb/dtlb miss
+                m.d.comb += self.itlb_miss_o.eq(self.enable_translation_i & \
+                                         self.itlb_access_i & \
+                                         ~self.itlb_hit_i & \
+                                         ~self.dtlb_access_i)
+                m.d.comb += self.dtlb_miss_o.eq(self.en_ld_st_translation_i & \
+                                                self.dtlb_access_i & \
+                                                ~self.dtlb_hit_i)
                 # we got an ITLB miss?
-                with m.If(self.enable_translation_i & self.itlb_access_i & \
-                          ~self.itlb_hit_i & ~self.dtlb_access_i):
-                    pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39], self.satp_ppn_i)
+                with m.If(self.itlb_miss_o):
+                    pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39],
+                               self.satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr),
                                 is_instr_ptw.eq(1),
                                  vaddr.eq(self.itlb_vaddr_i),
                                 tlb_update_asid.eq(self.asid_i),
                                 ]
-                    m.d.comb += [self.itlb_miss_o.eq(1)]
                     self.set_grant_state(m)
+
                 # we got a DTLB miss?
-                with m.Elif(self.en_ld_st_translation_i & self.dtlb_access_i & \
-                            ~self.dtlb_hit_i):
-                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39], self.satp_ppn_i)
+                with m.Elif(self.dtlb_miss_o):
+                    pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39],
+                               self.satp_ppn_i)
                     m.d.sync += [ptw_pptr.eq(pptr),
                                  vaddr.eq(self.dtlb_vaddr_i),
                                  tlb_update_asid.eq(self.asid_i),
                                 ]
-                    m.d.comb += [ self.dtlb_miss_o.eq(1)]
                     self.set_grant_state(m)
 
             with m.State("WAIT_GRANT"):
