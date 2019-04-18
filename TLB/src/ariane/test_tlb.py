@@ -2,6 +2,10 @@ from nmigen.compat.sim import run_simulation
 
 from tlb import TLB
 
+def set_vaddr(addr):
+    yield dut.lu_vaddr_i.eq(addr)
+    yield dut.update_i.vpn.eq(addr>>12)
+
 
 def testbench(dut):
     yield dut.lu_access_i.eq(1)
@@ -18,21 +22,43 @@ def testbench(dut):
 
     yield
 
-    yield dut.lu_vaddr_i.eq(0x80000)
-    yield dut.update_i.vpn.eq(0x80000)
+    addr = 0x80000
+    yield from set_vaddr(addr)
     yield
 
-    yield dut.lu_vaddr_i.eq(0x280000)
-    yield dut.update_i.vpn.eq(0x280000)
+    addr = 0x90001
+    yield from set_vaddr(addr)
     yield
 
-    yield dut.lu_vaddr_i.eq(0x040000)
-    yield dut.update_i.vpn.eq(0x040000)
+    addr = 0x28000000
+    yield from set_vaddr(addr)
+    yield
+
+    addr = 0x28000001
+    yield from set_vaddr(addr)
+
+    addr = 0x28000001
+    yield from set_vaddr(addr)
+    yield
+
+    addr = 0x1000040000
+    yield from set_vaddr(addr)
+    yield
+
+    addr = 0x1000040001
+    yield from set_vaddr(addr)
     yield
 
     yield dut.update_i.is_1G.eq(1)
-    yield dut.lu_vaddr_i.eq(0x2040000)
-    yield dut.update_i.vpn.eq(0x02040000)
+    addr = 0x2040000
+    yield from set_vaddr(addr)
+    yield
+
+    yield dut.update_i.is_1G.eq(1)
+    addr = 0x2040001
+    yield from set_vaddr(addr)
+    yield
+
     yield
     
 
