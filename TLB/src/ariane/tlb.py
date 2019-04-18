@@ -22,7 +22,7 @@ from nmigen.lib.coding import Encoder
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH
 
-TLB_ENTRIES = 8
+TLB_ENTRIES = 4
 
 
 class TLBEntry:
