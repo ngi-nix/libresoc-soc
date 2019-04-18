@@ -14,6 +14,12 @@
 # Date: 21.4.2017
 # Description: Translation Lookaside Buffer, SV39
 #              fully set-associative
+
+Implementation in c++:
+https://raw.githubusercontent.com/Tony-Hu/TreePLRU/master/TreePLRU.cpp
+
+Text description:
+https://people.cs.clemson.edu/~mark/464/p_lru.txt
 """
 from math import log2
 from nmigen import Signal, Module, Cat, Const, Array
@@ -22,7 +28,7 @@ from nmigen.lib.coding import Encoder
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH
 
-TLB_ENTRIES = 4
+TLB_ENTRIES = 8
 
 
 class TLBEntry:

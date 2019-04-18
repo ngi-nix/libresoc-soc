@@ -29,6 +29,11 @@ def testbench(dut):
     yield dut.lu_vaddr_i.eq(0x040000)
     yield dut.update_i.vpn.eq(0x040000)
     yield
+
+    yield dut.update_i.is_1G.eq(1)
+    yield dut.lu_vaddr_i.eq(0x2040000)
+    yield dut.update_i.vpn.eq(0x02040000)
+    yield
     
 
 if __name__ == "__main__":
