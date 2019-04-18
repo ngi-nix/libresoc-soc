@@ -3,7 +3,7 @@
 #include <cmath>
 
 
-#define NWAY 8
+#define NWAY 4
 #define NLINE 256
 #define HIT 0
 #define MISS 1

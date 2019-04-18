@@ -231,8 +231,10 @@ class PLRU:
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                 shift = LOG_TLB - lvl;
                 new_idx = (i >> (shift-1)) & 1;
-                plru = Signal(reset_less=True)
-                m.d.comb += plru.eq(plru_tree[idx_base + (i>>shift)])
+                plru_idx = idx_base + (i>>shift)
+                plru = Signal(reset_less=True,
+                              name="plru-%d-%d-%d" % (i, lvl, plru_idx))
+                m.d.comb += plru.eq(plru_tree[plru_idx])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
                     en.append(~plru) # yes inverted (using bool())
