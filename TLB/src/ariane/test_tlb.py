@@ -10,11 +10,9 @@ def set_vaddr(addr):
 def testbench(dut):
     yield dut.lu_access_i.eq(1)
     yield dut.lu_asid_i.eq(1)
-    yield dut.lu_vaddr_i.eq(0x80000)
     yield dut.update_i.valid.eq(1)
     yield dut.update_i.is_1G.eq(0)
     yield dut.update_i.is_2M.eq(0)
-    yield dut.update_i.vpn.eq(0x80000)
     yield dut.update_i.asid.eq(1)
     yield dut.update_i.content.ppn.eq(0)
     yield dut.update_i.content.rsw.eq(0)
