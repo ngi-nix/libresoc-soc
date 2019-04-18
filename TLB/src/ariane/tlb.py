@@ -205,9 +205,10 @@ class PLRU:
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
                     shift = LOG_TLB - lvl;
                     new_idx = Const(~((i >> (shift-1)) & 1), (1, False))
+                    plru_idx = idx_base + (i >> shift)
                     print ("plru", i, lvl, hex(idx_base),
-                                  idx_base + (i >> shift), shift, new_idx)
-                    m.d.sync += plru_tree[idx_base + (i >> shift)].eq(new_idx)
+                                  plru_idx, shift, new_idx)
+                    m.d.sync += plru_tree[plru_idx].eq(new_idx)
 
         # Decode tree to write enable signals
         # Next for-loop basically creates the following logic for e.g.
