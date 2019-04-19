@@ -44,6 +44,41 @@ def testbench(dut):
     yield
     yield
 
+    addr = 0x4000000
+    yield dut.dtlb_vaddr_i.eq(addr)
+    yield dut.mxr_i.eq(0x1)
+    yield dut.req_port_i.data_gnt.eq(1)
+    yield dut.req_port_i.data_rvalid.eq(1)
+    yield dut.req_port_i.data_rdata.eq(0x82<<56 | addr<<2)#pte.flatten())
+
+    yield dut.en_ld_st_translation_i.eq(1)
+    yield dut.asid_i.eq(1)
+
+    yield dut.dtlb_access_i.eq(1)
+    yield dut.dtlb_hit_i.eq(0)
+    yield dut.dtlb_vaddr_i.eq(addr)
+
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+
+    yield dut.req_port_i.data_gnt.eq(0)
+    yield dut.dtlb_access_i.eq(1)
+    yield dut.dtlb_hit_i.eq(0)
+    yield dut.dtlb_vaddr_i.eq(0x400000011)
+
+    yield
+    yield dut.req_port_i.data_gnt.eq(1)
+    yield
+    yield
+    yield
+    yield
+
     yield
 
     
