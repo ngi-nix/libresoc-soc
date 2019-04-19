@@ -15,6 +15,7 @@ def testbench(dut):
     yield dut.req_port_i.data_rvalid.eq(1)
     yield dut.req_port_i.data_rdata.eq(0xc2<<56)#pte.flatten())
 
+    # data lookup
     yield dut.en_ld_st_translation_i.eq(1)
     yield dut.asid_i.eq(1)
 
@@ -44,6 +45,7 @@ def testbench(dut):
     yield
     yield
 
+    # data lookup, PTW levels 1-2-3
     addr = 0x4000000
     yield dut.dtlb_vaddr_i.eq(addr)
     yield dut.mxr_i.eq(0x1)
@@ -76,6 +78,38 @@ def testbench(dut):
     yield dut.req_port_i.data_gnt.eq(1)
     yield
     yield
+    yield
+    yield
+
+
+    # instruction lookup
+    yield dut.en_ld_st_translation_i.eq(0)
+    yield dut.enable_translation_i.eq(1)
+    yield dut.asid_i.eq(1)
+
+    yield dut.itlb_access_i.eq(1)
+    yield dut.itlb_hit_i.eq(0)
+    yield dut.itlb_vaddr_i.eq(0x800000)
+
+    yield
+    yield
+    yield
+
+    yield dut.itlb_access_i.eq(1)
+    yield dut.itlb_hit_i.eq(0)
+    yield dut.itlb_vaddr_i.eq(0x200000)
+
+    yield
+    yield
+    yield
+
+    yield dut.req_port_i.data_gnt.eq(0)
+    yield dut.itlb_access_i.eq(1)
+    yield dut.itlb_hit_i.eq(0)
+    yield dut.itlb_vaddr_i.eq(0x800011)
+
+    yield
+    yield dut.req_port_i.data_gnt.eq(1)
     yield
     yield
 
