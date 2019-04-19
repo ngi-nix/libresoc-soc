@@ -55,7 +55,7 @@ class DCacheReqO:
     def __init__(self):
         self.data_gnt = Signal()
         self.data_rvalid = Signal()
-        self.data_rdata = Signal(64)
+        self.data_rdata = Signal(64) # actually in PTE object format
 
     def ports(self):
         return [ self.data_gnt, self.data_rvalid, self.data_rdata]
@@ -112,6 +112,7 @@ class TLBUpdate:
     def ports(self):
         return [self.valid, self.is_2M, self.is_1G, self.vpn, self.asid] + \
                 self.content.ports()
+
 
 # SV39 defines three levels of page tables
 LVL1 = Const(0, 2) # defined to 0 so that ptw_lvl default-resets to LVL1
@@ -179,6 +180,8 @@ class PTW:
         data_rvalid = Signal()
         data_rdata = Signal(64)
 
+        # NOTE: pte decodes the incoming bit-field (data_rdata). data_rdata
+        # is spec'd in 64-bit binary-format: better to spec as Record?
         pte = PTE()
         m.d.comb += pte.flatten().eq(data_rdata)
 
