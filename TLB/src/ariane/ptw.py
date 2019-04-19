@@ -16,6 +16,13 @@
 
 /* verilator lint_off WIDTH */
 import ariane_pkg::*;
+
+see linux kernel source:
+
+* "arch/riscv/include/asm/page.h"
+* "arch/riscv/include/asm/mmu_context.h"
+* "arch/riscv/Kconfig" (CONFIG_PAGE_OFFSET)
+
 """
 
 from nmigen import Const, Signal, Cat, Module
