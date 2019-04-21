@@ -37,9 +37,8 @@ class SetAssociativeCache():
         self.data_end = self.data_start + data_size
         self.tag_start = self.data_end
         self.tag_end = self.tag_start + tag_size
-        cache_data = way_count + 1 # Bits required to represent LRU and active
         input_size = tag_size + data_size # Size of the input data
-        memory_width = input_size + cache_data # The width of the cache memory
+        memory_width = input_size + 1 # The width of the cache memory
         self.memory_array = Array(Memory(memory_width, set_count) for x in range(way_count)) # Memory Array
 
         self.way_count = way_count # The number of slots in one set
@@ -197,7 +196,6 @@ class SetAssociativeCache():
                     self.read(m)
                 with m.Case(SA_WR):
                     self.write(m)
-                    # What to do when there is no space
                     # Maybe catch multiple tags write here?
                     # TODO
         return m
