@@ -82,17 +82,17 @@ class DCacheReqO:
 
 class PTE: #(RecordObject):
     def __init__(self):
-        self.reserved = Signal(10)
-        self.ppn = Signal(44)
-        self.rsw = Signal(2)
-        self.d = Signal()
-        self.a = Signal()
-        self.g = Signal()
-        self.u = Signal()
-        self.x = Signal()
-        self.w = Signal()
-        self.r = Signal()
         self.v = Signal()
+        self.r = Signal()
+        self.w = Signal()
+        self.x = Signal()
+        self.u = Signal()
+        self.g = Signal()
+        self.a = Signal()
+        self.d = Signal()
+        self.rsw = Signal(2)
+        self.ppn = Signal(44)
+        self.reserved = Signal(10)
 
     def flatten(self):
         return Cat(*self.ports())
@@ -108,9 +108,23 @@ class PTE: #(RecordObject):
             x = x.flatten()
         return self.flatten().eq(x)
 
+    def __iter__(self):
+        """ order is critical so that flatten creates LSB to MSB
+        """
+        yield self.v
+        yield self.r
+        yield self.w
+        yield self.x
+        yield self.u
+        yield self.g
+        yield self.a
+        yield self.d
+        yield self.rsw
+        yield self.ppn
+        yield self.reserved
+
     def ports(self):
-        return [self.reserved, self.ppn, self.rsw, self.d, self.a, self.g,
-                self.u, self.x, self.w, self.r, self.v]
+        return list(self)
 
 
 class TLBUpdate:

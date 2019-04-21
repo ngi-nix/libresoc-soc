@@ -13,7 +13,7 @@ def testbench(dut):
 
     yield dut.req_port_i.data_gnt.eq(1)
     yield dut.req_port_i.data_rvalid.eq(1)
-    yield dut.req_port_i.data_rdata.eq(0xc2<<56)#pte.flatten())
+    yield dut.req_port_i.data_rdata.eq(0x43)#pte.flatten())
 
     # data lookup
     yield dut.en_ld_st_translation_i.eq(1)
@@ -51,7 +51,7 @@ def testbench(dut):
     yield dut.mxr_i.eq(0x1)
     yield dut.req_port_i.data_gnt.eq(1)
     yield dut.req_port_i.data_rvalid.eq(1)
-    yield dut.req_port_i.data_rdata.eq(0x82<<56 | addr<<2)#pte.flatten())
+    yield dut.req_port_i.data_rdata.eq(0x41 | (addr>>12)<<10)#pte.flatten())
 
     yield dut.en_ld_st_translation_i.eq(1)
     yield dut.asid_i.eq(1)
