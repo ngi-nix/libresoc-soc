@@ -19,7 +19,7 @@ import ariane_pkg::*;
 """
 
 from nmigen import Const, Signal, Cat, Module
-from ptw import DCacheReqI, DCacheReqO, TLBUpdate, PTE
+from ptw import DCacheReqI, DCacheReqO, TLBUpdate, PTE, PTW
 from tlb import TLB
 
 
@@ -172,33 +172,28 @@ class MMU:
                      dtlb_lu_hit.eq(d_tlb.lu_hit_o),
                     ]
 
-        ptw  #(
-            .ASID_WIDTH             ( ASID_WIDTH            )
-        ) i_ptw (
-            .clk_i                  ( clk_i                 ),
-            .rst_ni                 ( rst_ni                ),
-            .ptw_active_o           ( ptw_active            ),
-            .walking_instr_o        ( walking_instr         ),
-            .ptw_error_o            ( ptw_error             ),
-            .enable_translation_i   ( enable_translation_i  ),
+        # PTW
+        m.submodules.ptw = ptw = PTW(ASID_WIDTH)
+        m.d.comb += [ptw_active.eq(ptw.ptw_active_o),
+                     walking_instr.eq(ptw.walking_instr_o),
+                     ptw_error.eq(ptw.ptw_error_o),
+                     ptw.enable_translation_i.eq(enable_translation_i),
 
-            .update_vaddr_o         ( update_vaddr          ),
-            .itlb_update_o          ( update_ptw_itlb       ),
-            .dtlb_update_o          ( update_ptw_dtlb       ),
+                     update_vaddr.eq(ptw.update_vaddr_o),
+                     update_ptw_itlb.eq(ptw.itlb_update_o),
+                     update_ptw_dtlb.eq(ptw.dtlb_update_o),
 
-            .itlb_access_i          ( itlb_lu_access        ),
-            .itlb_hit_i             ( itlb_lu_hit           ),
-            .itlb_vaddr_i           ( icache_areq_i.fetch_vaddr         ),
+                     ptw.itlb_access_i.eq(itlb_lu_access),
+                     ptw.itlb_hit_i.eq(itlb_lu_hit),
+                     ptw.itlb_vaddr_i.eq(icache_areq_i.fetch_vaddr),
 
-            .dtlb_access_i          ( dtlb_lu_access        ),
-            .dtlb_hit_i             ( dtlb_lu_hit           ),
-            .dtlb_vaddr_i           ( lsu_vaddr_i           ),
+                     ptw.dtlb_access_i.eq(dtlb_lu_access),
+                     ptw.dtlb_hit_i.eq(dtlb_lu_hit),
+                     ptw.dtlb_vaddr_i.eq(lsu_vaddr_i),
 
-            .req_port_i            ( req_port_i             ),
-            .req_port_o            ( req_port_o             ),
-
-            .*
-         );
+                     ptw.req_port_i.eq(req_port_i),
+                     req_port_o.eq(ptw.req_port_o),
+                    ]
 
         # ila_1 i_ila_1 (
         #     .clk(clk_i), # input wire clk
