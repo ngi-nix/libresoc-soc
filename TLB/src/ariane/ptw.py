@@ -51,6 +51,12 @@ class DCacheReqI:
         self.kill_req = Signal()
         self.tag_valid = Signal()
 
+    def eq(self, inp):
+        res = []
+        for (o, i) in zip(self.ports(), inp.ports()):
+            res.append(o.eq(i))
+        return res
+
     def ports(self):
         return [self.address_index, self.address_tag,
                 self.data_wdata, self.data_req,
@@ -64,8 +70,14 @@ class DCacheReqO:
         self.data_rvalid = Signal()
         self.data_rdata = Signal(64) # actually in PTE object format
 
+    def eq(self, inp):
+        res = []
+        for (o, i) in zip(self.ports(), inp.ports()):
+            res.append(o.eq(i))
+        return res
+
     def ports(self):
-        return [ self.data_gnt, self.data_rvalid, self.data_rdata]
+        return [self.data_gnt, self.data_rvalid, self.data_rdata]
 
 
 class PTE: #(RecordObject):
