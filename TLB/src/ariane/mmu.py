@@ -231,10 +231,12 @@ class MMU:
         m.d.comb += icache_areq_o.fetch_exception.eq(0)
         # Check whether we are allowed to access this memory region
         # from a fetch perspective
+
+        # XXX TODO: use PermissionValidator instead [we like modules]
         m.d.comb += iaccess_err.eq(icache_areq_i.fetch_req & \
                                    (((priv_lvl_i == PRIV_LVL_U) & \
                                       ~itlb_content.u) | \
-                                   ((priv_lvl_i == :PRIV_LVL_S) & \
+                                   ((priv_lvl_i == PRIV_LVL_S) & \
                                     itlb_content.u)))
 
         # MMU enabled: address from TLB, request delayed until hit.
