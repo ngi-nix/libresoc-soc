@@ -125,6 +125,7 @@ class MMU:
         ptw_error = Signal()     # PTW threw an exception
 
         update_vaddr = Signal(39)
+        uaddr64 = Cat(update_vaddr, Const(0, 25)) # extend to 64bit with zeros
         update_ptw_itlb = TLBUpdate()
         update_ptw_dtlb = TLBUpdate()
 
@@ -144,7 +145,6 @@ class MMU:
         m.d.comb += [itlb_lu_access.eq(icache_areq_i.fetch_req),
                      dtlb_lu_access.eq(lsu_req_i)
                     ]
-
 
         # ITLB
         m.submodules.i_tlb = i_tlb = TLB(INSTR_TLB_ENTRIES, ASID_WIDTH)
@@ -218,174 +218,198 @@ class MMU:
         # Instruction Interface
         #-----------------------
         # The instruction interface is a simple request response interface
-        always_comb begin : instr_interface
-            # MMU disabled: just pass through
-            icache_areq_o.fetch_valid  = icache_areq_i.fetch_req;
-            icache_areq_o.fetch_paddr  = icache_areq_i.fetch_vaddr; # play through in case we disabled address translation
-            # two potential exception sources:
-            # 1. HPTW threw an exception -> signal with a page fault exception
-            # 2. We got an access error because of insufficient permissions -> throw an access exception
-            icache_areq_o.fetch_exception      = '0;
-            # Check whether we are allowed to access this memory region from a fetch perspective
-            iaccess_err   = icache_areq_i.fetch_req && (((priv_lvl_i == riscv::PRIV_LVL_U) && ~itlb_content.u)
-                                                     || ((priv_lvl_i == riscv::PRIV_LVL_S) && itlb_content.u));
 
-            # MMU enabled: address from TLB, request delayed until hit. Error when TLB
-            # hit and no access right or TLB hit and translated address not valid (e.g.
-            # AXI decode error), or when PTW performs walk due to ITLB miss and raises
-            # an error.
-            if (enable_translation_i) begin
-                # we work with SV39, so if VM is enabled, check that all bits [63:38] are equal
-                if (icache_areq_i.fetch_req && !((&icache_areq_i.fetch_vaddr[63:38]) == 1'b1 || (|icache_areq_i.fetch_vaddr[63:38]) == 1'b0)) begin
-                    icache_areq_o.fetch_exception = {riscv::INSTR_ACCESS_FAULT, icache_areq_i.fetch_vaddr, 1'b1};
-                end
+        # MMU disabled: just pass through
+        m.d.comb += [icache_areq_o.fetch_valid.eq(icache_areq_i.fetch_req),
+                     # play through in case we disabled address translation
+                     icache_areq_o.fetch_paddr.eq(icache_areq_i.fetch_vaddr)
+                    ]
+        # two potential exception sources:
+        # 1. HPTW threw an exception -> signal with a page fault exception
+        # 2. We got an access error because of insufficient permissions ->
+        #    throw an access exception
+        m.d.comb += icache_areq_o.fetch_exception.eq(0)
+        # Check whether we are allowed to access this memory region
+        # from a fetch perspective
+        m.d.comb += iaccess_err.eq(icache_areq_i.fetch_req & \
+                                   (((priv_lvl_i == PRIV_LVL_U) & \
+                                      ~itlb_content.u) | \
+                                   ((priv_lvl_i == :PRIV_LVL_S) & \
+                                    itlb_content.u)))
 
-                icache_areq_o.fetch_valid = 1'b0;
+        # MMU enabled: address from TLB, request delayed until hit.
+        # Error when TLB hit and no access right or TLB hit and
+        # translated address not valid (e.g.  AXI decode error),
+        # or when PTW performs walk due to ITLB miss and raises
+        # an error.
+        with m.If (self.enable_translation_i):
+            # we work with SV39, so if VM is enabled, check that
+            # all bits [63:38] are equal
+            with m.If (icache_areq_i.fetch_req & \
+                ~(((~icache_areq_i.fetch_vaddr[38:64]) == 0) | \
+                 (icache_areq_i.fetch_vaddr[38:64]) == 0)):
+                fe = icache_areq_o.fetch_exception
+                m.d.comb += [fe.cause.eq(INSTR_ACCESS_FAULT),
+                             fe.tval.eq(icache_areq_i.fetch_vaddr),
+                             fe.valid.eq(1)
+                            ]
 
-                # 4K page
-                icache_areq_o.fetch_paddr = {itlb_content.ppn, icache_areq_i.fetch_vaddr[11:0]};
-                # Mega page
-                if (itlb_is_2M) begin
-                    icache_areq_o.fetch_paddr[20:12] = icache_areq_i.fetch_vaddr[20:12];
-                end
-                # Giga page
-                if (itlb_is_1G) begin
-                    icache_areq_o.fetch_paddr[29:12] = icache_areq_i.fetch_vaddr[29:12];
-                end
+            m.d.comb += icache_areq_o.fetch_valid.eq(0)
 
-                # ---------
-                # ITLB Hit
-                # --------
-                # if we hit the ITLB output the request signal immediately
-                if (itlb_lu_hit) begin
-                    icache_areq_o.fetch_valid = icache_areq_i.fetch_req;
-                    # we got an access error
-                    if (iaccess_err) begin
-                        # throw a page fault
-                        icache_areq_o.fetch_exception = {riscv::INSTR_PAGE_FAULT, icache_areq_i.fetch_vaddr, 1'b1};
-                    end
-                end else
-                # ---------
-                # ITLB Miss
-                # ---------
-                # watch out for exceptions happening during walking the page table
-                if (ptw_active && walking_instr) begin
-                    icache_areq_o.fetch_valid = ptw_error;
-                    icache_areq_o.fetch_exception = {riscv::INSTR_PAGE_FAULT, {25'b0, update_vaddr}, 1'b1};
-                end
+            # 4K page
+            paddr = Signal.like(icache_areq_o.fetch_paddr)
+            paddr4k = Cat(icache_areq_i.fetch_vaddr[0:12], itlb_content.ppn)
+            m.d.comb += paddr.eq(paddr4k)
+            # Mega page
+            with m.If(itlb_is_2M):
+                m.d.comb += paddr[12:21].eq(icache_areq_i.fetch_vaddr[12:21])
             end
-        end
+            # Giga page
+            with m.If(itlb_is_1G):
+                m.d.comb += paddr[12:30].eq(icache_areq_i.fetch_vaddr[12:30])
+            m.d.comb += icache_areq_o.fetch_paddr.eq(paddr)
+
+            # ---------
+            # ITLB Hit
+            # --------
+            # if we hit the ITLB output the request signal immediately
+            with m.If(itlb_lu_hit):
+                m.d.comb += icache_areq_o.fetch_valid.eq(
+                                          icache_areq_i.fetch_req)
+                # we got an access error
+                with m.If (iaccess_err):
+                    # throw a page fault
+                    fe = icache_areq_o.fetch_exception
+                    m.d.comb += [fe.cause.eq(INSTR_ACCESS_FAULT),
+                                 fe.tval.eq(icache_areq_i.fetch_vaddr),
+                                 fe.valid.eq(1)
+                                ]
+            # ---------
+            # ITLB Miss
+            # ---------
+            # watch out for exceptions happening during walking the page table
+            with m.Elif(ptw_active & walking_instr):
+                m.d.comb += icache_areq_o.fetch_valid.eq(ptw_error)
+                fe = icache_areq_o.fetch_exception
+                m.d.comb += [fe.cause.eq(INSTR_PAGE_FAULT),
+                             fe.tval.eq(uaddr64),
+                             fe.valid.eq(1)
+                            ]
 
         #-----------------------
         # Data Interface
         #-----------------------
-        logic [63:0] lsu_vaddr_n,     lsu_vaddr_q;
-        riscv::pte_t dtlb_pte_n,      dtlb_pte_q;
-        exception_t  misaligned_ex_n, misaligned_ex_q;
-        logic        lsu_req_n,       lsu_req_q;
-        logic        lsu_is_store_n,  lsu_is_store_q;
-        logic        dtlb_hit_n,      dtlb_hit_q;
-        logic        dtlb_is_2M_n,    dtlb_is_2M_q;
-        logic        dtlb_is_1G_n,    dtlb_is_1G_q;
 
-        # check if we need to do translation or if we are always ready (e.g.: we are not translating anything)
-        assign lsu_dtlb_hit_o = (en_ld_st_translation_i) ? dtlb_lu_hit :  1'b1;
+        lsu_vaddr = Signal(64)
+        dtlb_pte = PTE()
+        misaligned_ex = RVException()
+        lsu_req = Signal()
+        lsu_is_store = Signal()
+        dtlb_hit = Signal()
+        dtlb_is_2M = Signal()
+        dtlb_is_1G = Signal()
 
-        # The data interface is simpler and only consists of a request/response interface
-        always_comb begin : data_interface
+        # check if we need to do translation or if we are always
+        # ready (e.g.: we are not translating anything)
+        m.d.comb += lsu_dtlb_hit_o.eq(Mux(en_ld_st_translation_i),
+                                          dtlb_lu_hit, 1)
+
+        # The data interface is simpler and only consists of a
+        # request/response interface
+        m.d.comb += [
             # save request and DTLB response
-            lsu_vaddr_n           = lsu_vaddr_i;
-            lsu_req_n             = lsu_req_i;
-            misaligned_ex_n       = misaligned_ex_i;
-            dtlb_pte_n            = dtlb_content;
-            dtlb_hit_n            = dtlb_lu_hit;
-            lsu_is_store_n        = lsu_is_store_i;
-            dtlb_is_2M_n          = dtlb_is_2M;
-            dtlb_is_1G_n          = dtlb_is_1G;
+            lsu_vaddr.eq(lsu_vaddr_i),
+            lsu_req.eq(lsu_req_i),
+            misaligned_ex.eq(misaligned_ex_i),
+            dtlb_pte.eq(dtlb_content),
+            dtlb_hit.eq(dtlb_lu_hit),
+            lsu_is_store.eq(lsu_is_store_i),
+            dtlb_is_2M.eq(dtlb_is_2M),
+            dtlb_is_1G.eq(dtlb_is_1G),
+        ]
+        m.d.sync += [
+            lsu_paddr_o.eq(lsu_vaddr),
+            lsu_valid_o.eq(lsu_req),
+            lsu_exception_o.eq(misaligned_ex),
+        ]
 
-            lsu_paddr_o           = lsu_vaddr_q;
-            lsu_valid_o           = lsu_req_q;
-            lsu_exception_o       = misaligned_ex_q;
-            # mute misaligned exceptions if there is no request otherwise they will throw accidental exceptions
-            misaligned_ex_n.valid = misaligned_ex_i.valid & lsu_req_i;
+        m.d.comb += [
+            # mute misaligned exceptions if there is no request
+            # otherwise they will throw accidental exceptions
+            misaligned_ex_n.valid.eq(misaligned_ex_i.valid & lsu_req_i),
 
-            # Check if the User flag is set, then we may only access it in supervisor mode
-            # if SUM is enabled
-            daccess_err = (ld_st_priv_lvl_i == riscv::PRIV_LVL_S && !sum_i && dtlb_pte_q.u) || # SUM is not set and we are trying to access a user page in supervisor mode
-                          (ld_st_priv_lvl_i == riscv::PRIV_LVL_U && !dtlb_pte_q.u);            # this is not a user page but we are in user mode and trying to access it
+            # Check if the User flag is set, then we may only
+            # access it in supervisor mode if SUM is enabled
+
+            daccess_err.eq(
+            # SUM is not set and we are trying to access a user
+            # page in supervisor mode
+                           ld_st_priv_lvl_i == PRIV_LVL_S & ~sum_i & \
+                           dtlb_pte_q.u) | \
+            # this is not a user page but we are in user mode and
+            # trying to access it
+                          (ld_st_priv_lvl_i == PRIV_LVL_U & ~dtlb_pte_q.u))
+
             # translation is enabled and no misaligned exception occurred
-            if (en_ld_st_translation_i && !misaligned_ex_q.valid) begin
-                lsu_valid_o = 1'b0;
+            with m.If(en_ld_st_translation_i & ~misaligned_ex_q.valid):
+                m.d.comb += lsu_valid_o.eq(0)
                 # 4K page
-                lsu_paddr_o = {dtlb_pte_q.ppn, lsu_vaddr_q[11:0]};
+                paddr = Signal.like(lsu_vaddr_q)
+                paddr4k = Cat(lsu_vaddr_q[0:12], itlb_content.ppn)
+                m.d.comb += paddr.eq(paddr4k)
                 # Mega page
-                if (dtlb_is_2M_q) begin
-                  lsu_paddr_o[20:12] = lsu_vaddr_q[20:12];
+                with m.If(dtlb_is_2M):
+                    m.d.comb += paddr[12:21].eq(lsu_vaddr_q[12:21])
                 end
                 # Giga page
-                if (dtlb_is_1G_q) begin
-                    lsu_paddr_o[29:12] = lsu_vaddr_q[29:12];
-                end
+                with m.If(dtlb_is_1G):
+                    m.d.comb += paddr[12:30].eq(lsu_vaddr_q[12:30])
+                m.d.comb += lsu_paddr_o.eq(paddr)
+
                 # ---------
                 # DTLB Hit
                 # --------
-                if (dtlb_hit_q && lsu_req_q) begin
-                    lsu_valid_o = 1'b1;
+                with m.If(dtlb_hit_q & lsu_req_q):
+                    m.d.comb += lsu_valid_o.eq(1)
                     # this is a store
-                    if (lsu_is_store_q) begin
-                        # check if the page is write-able and we are not violating privileges
+                    with m.If (lsu_is_store_q):
+                        # check if the page is write-able and
+                        # we are not violating privileges
                         # also check if the dirty flag is set
-                        if (!dtlb_pte_q.w || daccess_err || !dtlb_pte_q.d) begin
-                            lsu_exception_o = {riscv::STORE_PAGE_FAULT, lsu_vaddr_q, 1'b1};
-                        end
+                        with m.If(~dtlb_pte_q.w | daccess_err | ~dtlb_pte_q.d):
+                            le = lsu_exception_o
+                            m.d.comb += [le.cause.eq(STORE_PAGE_FAULT),
+                                         le.tval.eq(lsu_vaddr_q),
+                                         le.valid.eq(1)
+                                        ]
 
-                    # this is a load, check for sufficient access privileges - throw a page fault if necessary
-                    end else if (daccess_err) begin
-                        lsu_exception_o = {riscv::LOAD_PAGE_FAULT, lsu_vaddr_q, 1'b1};
-                    end
-                end else
-
+                    # this is a load, check for sufficient access
+                    # privileges - throw a page fault if necessary
+                    with m.Elif(daccess_err):
+                        le = lsu_exception_o
+                        m.d.comb += [le.cause.eq(LOAD_PAGE_FAULT),
+                                     le.tval.eq(lsu_vaddr_q),
+                                     le.valid.eq(1)
+                                    ]
                 # ---------
                 # DTLB Miss
                 # ---------
                 # watch out for exceptions
-                if (ptw_active && !walking_instr) begin
+                with m.Elif (ptw_active & ~walking_instr):
                     # page table walker threw an exception
-                    if (ptw_error) begin
+                    with m.If (ptw_error):
                         # an error makes the translation valid
-                        lsu_valid_o = 1'b1;
+                        m.d.comb += lsu_valid_o.eq(1)
                         # the page table walker can only throw page faults
-                        if (lsu_is_store_q) begin
-                            lsu_exception_o = {riscv::STORE_PAGE_FAULT, {25'b0, update_vaddr}, 1'b1};
-                        end else begin
-                            lsu_exception_o = {riscv::LOAD_PAGE_FAULT, {25'b0, update_vaddr}, 1'b1};
-                        end
-                    end
-                end
-            end
-        end
-        # ----------
-        # Registers
-        # ----------
-        always_ff @(posedge clk_i or negedge rst_ni) begin
-            if (~rst_ni) begin
-                lsu_vaddr_q      <= '0;
-                lsu_req_q        <= '0;
-                misaligned_ex_q  <= '0;
-                dtlb_pte_q       <= '0;
-                dtlb_hit_q       <= '0;
-                lsu_is_store_q   <= '0;
-                dtlb_is_2M_q     <= '0;
-                dtlb_is_1G_q     <= '0;
-            end else begin
-                lsu_vaddr_q      <=  lsu_vaddr_n;
-                lsu_req_q        <=  lsu_req_n;
-                misaligned_ex_q  <=  misaligned_ex_n;
-                dtlb_pte_q       <=  dtlb_pte_n;
-                dtlb_hit_q       <=  dtlb_hit_n;
-                lsu_is_store_q   <=  lsu_is_store_n;
-                dtlb_is_2M_q     <=  dtlb_is_2M_n;
-                dtlb_is_1G_q     <=  dtlb_is_1G_n;
-            end
-        end
-    endmodule
+                        with m.If (lsu_is_store_q):
+                            le = lsu_exception_o
+                            m.d.comb += [le.cause.eq(STORE_PAGE_FAULT),
+                                         le.tval.eq(uaddr64),
+                                         le.valid.eq(1)
+                                        ]
+                        with m.Else():
+                            m.d.comb += [le.cause.eq(LOAD_PAGE_FAULT),
+                                         le.tval.eq(uaddr64),
+                                         le.valid.eq(1)
+                                        ]
+
