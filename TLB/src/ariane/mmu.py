@@ -83,9 +83,13 @@ class ICacheReqO:
 
 
 class MMU:
-    def __init__(self, INSTR_TLB_ENTRIES = 4,
-                       DATA_TLB_ENTRIES  = 4,
-                       ASID_WIDTH        = 1):
+    def __init__(self, instr_tlb_entries = 4,
+                       data_tlb_entries  = 4,
+                       asid_width        = 1):
+        self.instr_tlb_entries = instr_tlb_entries
+        self.data_tlb_entries = data_tlb_entries
+        self.asid_width = asid_width
+
         self.flush_i = Signal()
         self.enable_translation_i = Signal()
         self.en_ld_st_translation_i = Signal() # enable VM translation for LD/ST
@@ -117,7 +121,7 @@ class MMU:
         self.mxr_i = Signal()
         # input logic flag_mprv_i,
         self.satp_ppn_i = Signal(44)
-        self.asid_i = Signal(ASID_WIDTH)
+        self.asid_i = Signal(self.asid_width)
         self.flush_tlb_i = Signal()
         # Performance counters
         self.itlb_miss_o = Signal()
@@ -137,8 +141,8 @@ class MMU:
 
         update_vaddr = Signal(39)
         uaddr64 = Cat(update_vaddr, Const(0, 25)) # extend to 64bit with zeros
-        update_ptw_itlb = TLBUpdate()
-        update_ptw_dtlb = TLBUpdate()
+        update_ptw_itlb = TLBUpdate(self.asid_width)
+        update_ptw_dtlb = TLBUpdate(self.asid_width)
 
         itlb_lu_access = Signal()
         itlb_content = PTE()
@@ -158,7 +162,8 @@ class MMU:
                     ]
 
         # ITLB
-        m.submodules.i_tlb = i_tlb = TLB()#INSTR_TLB_ENTRIES, ASID_WIDTH)
+        m.submodules.i_tlb = i_tlb = TLB(self.instr_tlb_entries,
+                                         self.asid_width)
         m.d.comb += [i_tlb.flush_i.eq(self.flush_tlb_i),
                      i_tlb.update_i.eq(update_ptw_itlb),
                      i_tlb.lu_access_i.eq(itlb_lu_access),
@@ -171,7 +176,8 @@ class MMU:
                     ]
 
         # DTLB
-        m.submodules.d_tlb = d_tlb = TLB() #DATA_TLB_ENTRIES, ASID_WIDTH)
+        m.submodules.d_tlb = d_tlb = TLB(self.data_tlb_entries,
+                                         self.asid_width)
         m.d.comb += [d_tlb.flush_i.eq(self.flush_tlb_i),
                      d_tlb.update_i.eq(update_ptw_dtlb),
                      d_tlb.lu_access_i.eq(dtlb_lu_access),
@@ -184,7 +190,7 @@ class MMU:
                     ]
 
         # PTW
-        m.submodules.ptw = ptw = PTW() #ASID_WIDTH)
+        m.submodules.ptw = ptw = PTW(self.asid_width)
         m.d.comb += [ptw_active.eq(ptw.ptw_active_o),
                      walking_instr.eq(ptw.walking_instr_o),
                      ptw_error.eq(ptw.ptw_error_o),

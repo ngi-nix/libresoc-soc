@@ -29,15 +29,15 @@ class TLBContent:
         self.pte_width = pte_width
         self.flush_i = Signal()  # Flush signal
         # Update TLB
-        self.update_i = TLBUpdate()
+        self.update_i = TLBUpdate(asid_width)
         self.vpn2 = Signal(9)
         self.vpn1 = Signal(9)
         self.vpn0 = Signal(9)
         self.replace_en_i = Signal() # replace the following entry,
                                      # set by replacement strategy
         # Lookup signals
-        self.lu_asid_i = Signal(self.asid_width)
-        self.lu_content_o = Signal(self.pte_width)
+        self.lu_asid_i = Signal(asid_width)
+        self.lu_content_o = Signal(pte_width)
         self.lu_is_2M_o = Signal()
         self.lu_is_1G_o = Signal()
         self.lu_hit_o = Signal()

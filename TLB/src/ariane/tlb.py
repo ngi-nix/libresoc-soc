@@ -33,11 +33,14 @@ from tlb_content import TLBContent
 TLB_ENTRIES = 8
 
 class TLB:
-    def __init__(self):
+    def __init__(self, tlb_entries=8, asid_width=8):
+        self.tlb_entries = tlb_entries
+        self.asid_width = asid_width
+
         self.flush_i = Signal()  # Flush signal
         # Lookup signals
         self.lu_access_i = Signal()
-        self.lu_asid_i = Signal(ASID_WIDTH)
+        self.lu_asid_i = Signal(self.asid_width)
         self.lu_vaddr_i = Signal(64)
         self.lu_content_o = PTE()
         self.lu_is_2M_o = Signal()
@@ -45,7 +48,7 @@ class TLB:
         self.lu_hit_o = Signal()
         # Update TLB
         self.pte_width = len(self.lu_content_o.flatten())
-        self.update_i = TLBUpdate()
+        self.update_i = TLBUpdate(asid_width)
 
     def elaborate(self, platform):
         m = Module()
@@ -65,8 +68,8 @@ class TLB:
                     ]
 
         tc = []
-        for i in range(TLB_ENTRIES):
-            tlc = TLBContent(self.pte_width, ASID_WIDTH)
+        for i in range(self.tlb_entries):
+            tlc = TLBContent(self.pte_width, self.asid_width)
             setattr(m.submodules, "tc%d" % i, tlc)
             tc.append(tlc)
             # connect inputs
@@ -85,11 +88,11 @@ class TLB:
 
         # use Encoder to select hit index
         # XXX TODO: assert that there's only one valid entry (one lu_hit)
-        hitsel = Encoder(TLB_ENTRIES)
+        hitsel = Encoder(self.tlb_entries)
         m.submodules.hitsel = hitsel
 
         hits = []
-        for i in range(TLB_ENTRIES):
+        for i in range(self.tlb_entries):
             hits.append(tc[i].lu_hit_o)
         m.d.comb += hitsel.i.eq(Cat(*hits)) # (goes into plru as well)
         idx = hitsel.o
@@ -108,13 +111,13 @@ class TLB:
         # PLRU.
         #--------------
 
-        p = PLRU(TLB_ENTRIES)
+        p = PLRU(self.tlb_entries)
         m.submodules.plru = p
 
         # connect PLRU inputs/outputs
         # XXX TODO: assert that there's only one valid entry (one replace_en)
         en = []
-        for i in range(TLB_ENTRIES):
+        for i in range(self.tlb_entries):
             en.append(tc[i].replace_en_i)
         m.d.comb += [Cat(*en).eq(p.replace_en_o), # output from PLRU into tags
                      p.lu_hit.eq(hitsel.i),
@@ -124,16 +127,16 @@ class TLB:
         # Sanity checks
         #--------------
 
-        assert (TLB_ENTRIES % 2 == 0) and (TLB_ENTRIES > 1), \
+        assert (self.tlb_entries % 2 == 0) and (self.tlb_entries > 1), \
             "TLB size must be a multiple of 2 and greater than 1"
-        assert (ASID_WIDTH >= 1), \
+        assert (self.asid_width >= 1), \
             "ASID width must be at least 1"
 
         return m
 
         """
         # Just for checking
-        function int countSetBits(logic[TLB_ENTRIES-1:0] vector);
+        function int countSetBits(logic[self.tlb_entries-1:0] vector);
           automatic int count = 0;
           foreach (vector[idx]) begin
             count += vector[idx];

@@ -128,12 +128,12 @@ class PTE: #(RecordObject):
 
 
 class TLBUpdate:
-    def __init__(self):
+    def __init__(self, asid_width):
         self.valid = Signal()      # valid flag
         self.is_2M = Signal()
         self.is_1G = Signal()
         self.vpn = Signal(27)
-        self.asid = Signal(ASID_WIDTH)
+        self.asid = Signal(asid_width)
         self.content = PTE()
 
     def flatten(self):
@@ -154,7 +154,9 @@ LVL3 = Const(2, 2)
 
 
 class PTW:
-    def __init__(self):
+    def __init__(self, asid_width=8):
+        self.asid_width = asid_width
+
         self.flush_i = Signal() # flush everything, we need to do this because
         # actually everything we do is speculative at this stage
         # e.g.: there could be a CSR instruction that changes everything
@@ -170,12 +172,12 @@ class PTW:
         self.req_port_o = DCacheReqI()
 
         # to TLBs, update logic
-        self.itlb_update_o = TLBUpdate()
-        self.dtlb_update_o = TLBUpdate()
+        self.itlb_update_o = TLBUpdate(asid_width)
+        self.dtlb_update_o = TLBUpdate(asid_width)
 
         self.update_vaddr_o = Signal(39)
 
-        self.asid_i = Signal(ASID_WIDTH)
+        self.asid_i = Signal(self.asid_width)
         # from TLBs
         # did we miss?
         self.itlb_access_i = Signal()
@@ -233,7 +235,7 @@ class PTW:
         # latched tag signal
         tag_valid = Signal()
         # register the ASID
-        tlb_update_asid = Signal(ASID_WIDTH)
+        tlb_update_asid = Signal(self.asid_width)
         # register VPN we need to walk, SV39 defines a 39 bit virtual addr
         vaddr = Signal(64)
         # 4 byte aligned physical pointer
