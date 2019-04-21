@@ -22,8 +22,8 @@ class PLRU:
         self.replace_en_o = Signal(entries)
         self.lu_access_i = Signal()
         # Tree (bit per entry)
-        TLBSZ = 2*(self.entries-1)
-        self.plru_tree = Signal(TLBSZ)
+        self.TLBSZ = 2*(self.entries-1)
+        self.plru_tree = Signal(self.TLBSZ)
 
     def elaborate(self, platform):
         m = Module()
