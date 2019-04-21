@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../src/ariane")
 
-from nmigen import Array, Memory, Module, Signal
+from nmigen import Array, Cat, Memory, Module, Signal
 from nmigen.compat.genlib import fsm
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
@@ -40,7 +40,7 @@ class SetAssociativeCache():
         cache_data = way_count + 1 # Bits required to represent LRU and active
         input_size = tag_size + data_size # Size of the input data
         memory_width = input_size + cache_data # The width of the cache memory
-        self.memory_array = Array(Memory(memory_width, set_count)) # Memory Array
+        self.memory_array = Array(Memory(memory_width, set_count) for x in range(way_count)) # Memory Array
 
         self.way_count = way_count # The number of slots in one set
         self.tag_size = tag_size  # The bit count of the tag
@@ -79,14 +79,14 @@ class SetAssociativeCache():
             read_port = self.memory_array[i].read_port()
             m.d.comb += read_port.addr.eq(self.cset)
             # Pull out active bit from data
-            data = self.read_port_array[i].data;
+            data = read_port.data;
             active_bit = data[self.active];
             # Validate given tag vs stored tag
             tag = data[self.tag_start:self.tag_end]
             tag_valid = self.tag == tag
             # An entry is only valid if the tags match AND
             # is marked as a valid entry
-            valid_vector.append(tag_valid & valid_bit)
+            valid_vector.append(tag_valid & active_bit)
 
         # Pass encoder the valid vector
         self.encoder.i.eq(Cat(*valid_vector))
@@ -171,9 +171,10 @@ class SetAssociativeCache():
     def elaborate(self, platform=None):
         m = Module()
 
-        for i in self.memory_array:
-            m.submodules += i.read_port()
-            m.submodules += i.write_port()
+        for i in range(len(self.memory_array)):
+            memory = self.memory_array[i]
+            m.submodules += memory.read_port()
+            m.submodules += memory.write_port()
 
         with m.If(self.enable):
             with m.Switch(self.command):
@@ -182,7 +183,8 @@ class SetAssociativeCache():
                     self.read(m)
                 # TODO
                 # Write to a given tag
-                # with m.Case(SA_WR):
+                with m.Case(SA_WR):
+                    self.write(m)
                     # Search for available space
                     # What to do when there is no space
                     # Maybe catch multiple tags write here?
@@ -195,6 +197,6 @@ class SetAssociativeCache():
 
 if __name__ == '__main__':
     sac = SetAssociativeCache(4, 4, 4, 4)
-    vl = rtlil.convert(sac, ports=sac.ports())
+    vl = rtlil.convert(sac, ports=None)
     with open("SetAssociativeCache.il", "w") as f:
         f.write(vl)
