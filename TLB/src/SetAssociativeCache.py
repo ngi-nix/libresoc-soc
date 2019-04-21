@@ -94,10 +94,15 @@ class SetAssociativeCache():
         # This is due to already verifying the tags
         # matched and the valid bit is high
         with m.If(self.encoder.single_match):
-            m.next = "FINISHED"
+            m.next = "FINISHED_READ"
             # Pull out data from the read port
-            read_port = self.memory_array[self.encoder.o].read_port()
-            data = read_port.data[self.data_start:self.data_end]
+            data = 0
+            with m.Switch(self.encoder.o):
+                for i in range(self.way_count):
+                    with m.Case(i):
+                        read_port = self.memory_array[i].read_port()
+                        data = read_port.data[self.data_start:self.data_end]
+
             m.d.comb += [
                 self.hit.eq(1),
                 self.multiple_hit.eq(0),
@@ -141,12 +146,12 @@ class SetAssociativeCache():
         and secondly it updates the LRU values.
         """
         with m.FSM() as fsm_read:
-            with m.State("SEARCH"):
+            with m.State("READY"):
                 m.d.comb += self.ready.eq(0)
                 # check_tags will set the state if the conditions are met
                 self.check_tags(m)
-            with m.State("FINISHED"):
-                m.next = "SEARCH"
+            with m.State("FINISHED_READ"):
+                m.next = "READY"
                 m.d.comb += self.ready.eq(1)
 
     def write_entry(self, m):
@@ -154,7 +159,12 @@ class SetAssociativeCache():
         m.d.comb += self.encoder.i.eq(lru_entry)
 
         with m.If(self.encoder.single_match):
-            write_port = self.memory_array[self.encoder.o].write_port()
+            write_port = self.memory_array[0].write_port()
+            with m.Switch(self.encoder.o):
+                for i in range(len(self.memory_array)):
+                    with m.Case(i):
+                        write_port = self.memory_array[i].write_port()
+
             m.d.comb += [
                 write_port.en.eq(1),
                 write_port.addr.eq(self.cset),
@@ -163,9 +173,13 @@ class SetAssociativeCache():
 
     def write(self, m):
         with m.FSM() as fsm_write:
-            with m.State("WRITE"):
+            with m.State("READY"):
                 m.d.comb += self.ready.eq(0)
                 self.write_entry(m)
+                m.next ="FINISHED_WRITE"
+            with m.State("FINISHED_WRITE"):
+                m.d.comb += self.ready.eq(1)
+                m.next = "READY"
 
 
     def elaborate(self, platform=None):
@@ -181,11 +195,8 @@ class SetAssociativeCache():
                 # Search all sets at a particular tag
                 with m.Case(SA_RD):
                     self.read(m)
-                # TODO
-                # Write to a given tag
                 with m.Case(SA_WR):
                     self.write(m)
-                    # Search for available space
                     # What to do when there is no space
                     # Maybe catch multiple tags write here?
                     # TODO
@@ -197,6 +208,6 @@ class SetAssociativeCache():
 
 if __name__ == '__main__':
     sac = SetAssociativeCache(4, 4, 4, 4)
-    vl = rtlil.convert(sac, ports=None)
+    vl = rtlil.convert(sac)
     with open("SetAssociativeCache.il", "w") as f:
         f.write(vl)
