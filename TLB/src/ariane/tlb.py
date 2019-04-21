@@ -27,228 +27,10 @@ from nmigen.cli import verilog, rtlil
 from nmigen.lib.coding import Encoder
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH
+from plru import PLRU
+from tlb_content import TLBContent
 
 TLB_ENTRIES = 8
-
-
-class TLBEntry:
-    def __init__(self):
-        self.asid = Signal(ASID_WIDTH)
-        # SV39 defines three levels of page tables
-        self.vpn0 = Signal(9)
-        self.vpn1 = Signal(9)
-        self.vpn2 = Signal(9)
-        self.is_2M = Signal()
-        self.is_1G = Signal()
-        self.valid = Signal()
-
-    def flatten(self):
-        return Cat(*self.ports())
-
-    def eq(self, x):
-        return self.flatten().eq(x.flatten())
-
-    def ports(self):
-        return [self.asid, self.vpn0, self.vpn1, self.vpn2,
-                self.is_2M, self.is_1G, self.valid]
-
-
-class TLBContent:
-    def __init__(self, pte_width):
-        self.pte_width = pte_width
-        self.flush_i = Signal()  # Flush signal
-        # Update TLB
-        self.update_i = TLBUpdate()
-        self.vpn2 = Signal(9)
-        self.vpn1 = Signal(9)
-        self.vpn0 = Signal(9)
-        self.replace_en_i = Signal() # replace the following entry,
-                                     # set by replacement strategy
-        # Lookup signals
-        self.lu_asid_i = Signal(ASID_WIDTH)
-        self.lu_content_o = Signal(self.pte_width)
-        self.lu_is_2M_o = Signal()
-        self.lu_is_1G_o = Signal()
-        self.lu_hit_o = Signal()
-
-    def elaborate(self, platform):
-        m = Module()
-
-        tags = TLBEntry()
-        content = Signal(self.pte_width)
-
-        m.d.comb += [self.lu_hit_o.eq(0),
-                     self.lu_is_2M_o.eq(0),
-                     self.lu_is_1G_o.eq(0)]
-
-        # temporaries for 1st level match
-        asid_ok = Signal(reset_less=True)
-        vpn2_ok = Signal(reset_less=True)
-        tags_ok = Signal(reset_less=True)
-        vpn2_hit = Signal(reset_less=True)
-        m.d.comb += [tags_ok.eq(tags.valid),
-                     asid_ok.eq(tags.asid == self.lu_asid_i),
-                     vpn2_ok.eq(tags.vpn2 == self.vpn2),
-                     vpn2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
-        # temporaries for 2nd level match
-        vpn1_ok = Signal(reset_less=True)
-        tags_2M = Signal(reset_less=True)
-        vpn0_ok = Signal(reset_less=True)
-        vpn0_or_2M = Signal(reset_less=True)
-        m.d.comb += [vpn1_ok.eq(self.vpn1 == tags.vpn1),
-                     tags_2M.eq(tags.is_2M),
-                     vpn0_ok.eq(self.vpn0 == tags.vpn0),
-                     vpn0_or_2M.eq(tags_2M | vpn0_ok)]
-        # first level match, this may be a giga page,
-        # check the ASID flags as well
-        with m.If(vpn2_hit):
-            # second level
-            with m.If (tags.is_1G):
-                m.d.comb += [ self.lu_content_o.eq(content),
-                              self.lu_is_1G_o.eq(1),
-                              self.lu_hit_o.eq(1),
-                            ]
-            # not a giga page hit so check further
-            with m.Elif(vpn1_ok):
-                # this could be a 2 mega page hit or a 4 kB hit
-                # output accordingly
-                with m.If(vpn0_or_2M):
-                    m.d.comb += [ self.lu_content_o.eq(content),
-                                  self.lu_is_2M_o.eq(tags.is_2M),
-                                  self.lu_hit_o.eq(1),
-                                ]
-        # ------------------
-        # Update or Flush
-        # ------------------
-
-        # temporaries
-        replace_valid = Signal(reset_less=True)
-        m.d.comb += replace_valid.eq(self.update_i.valid & self.replace_en_i)
-
-        # flush
-        with m.If (self.flush_i):
-            # invalidate (flush) conditions: all if zero or just this ASID
-            with m.If (self.lu_asid_i == Const(0, ASID_WIDTH) |
-                      (self.lu_asid_i == tags.asid)):
-                m.d.sync += tags.valid.eq(0)
-
-        # normal replacement
-        with m.Elif(replace_valid):
-            m.d.sync += [ # update tag array
-                          tags.asid.eq(self.update_i.asid),
-                          tags.vpn2.eq(self.update_i.vpn[18:27]),
-                          tags.vpn1.eq(self.update_i.vpn[9:18]),
-                          tags.vpn0.eq(self.update_i.vpn[0:9]),
-                          tags.is_1G.eq(self.update_i.is_1G),
-                          tags.is_2M.eq(self.update_i.is_2M),
-                          tags.valid.eq(1),
-                          # and content as well
-                          content.eq(self.update_i.content.flatten())
-                        ]
-        return m
-
-    def ports(self):
-        return [self.flush_i,
-                 self.lu_asid_i,
-                 self.lu_is_2M_o, self.lu_is_1G_o, self.lu_hit_o,
-                ] + self.update_i.content.ports() + self.update_i.ports()
-
-
-class PLRU:
-    """ PLRU - Pseudo Least Recently Used Replacement
-
-        PLRU-tree indexing:
-        lvl0        0
-                   / \
-                  /   \
-        lvl1     1     2
-                / \   / \
-        lvl2   3   4 5   6
-              / \ /\/\  /\
-             ... ... ... ...
-    """
-    def __init__(self):
-        self.lu_hit = Signal(TLB_ENTRIES)
-        self.replace_en_o = Signal(TLB_ENTRIES)
-        self.lu_access_i = Signal()
-
-    def elaborate(self, platform):
-        m = Module()
-
-        # Tree (bit per entry)
-        TLBSZ = 2*(TLB_ENTRIES-1)
-        plru_tree = Signal(TLBSZ)
-
-        # Just predefine which nodes will be set/cleared
-        # E.g. for a TLB with 8 entries, the for-loop is semantically
-        # equivalent to the following pseudo-code:
-        # unique case (1'b1)
-        # lu_hit[7]: plru_tree[0, 2, 6] = {1, 1, 1};
-        # lu_hit[6]: plru_tree[0, 2, 6] = {1, 1, 0};
-        # lu_hit[5]: plru_tree[0, 2, 5] = {1, 0, 1};
-        # lu_hit[4]: plru_tree[0, 2, 5] = {1, 0, 0};
-        # lu_hit[3]: plru_tree[0, 1, 4] = {0, 1, 1};
-        # lu_hit[2]: plru_tree[0, 1, 4] = {0, 1, 0};
-        # lu_hit[1]: plru_tree[0, 1, 3] = {0, 0, 1};
-        # lu_hit[0]: plru_tree[0, 1, 3] = {0, 0, 0};
-        # default: begin /* No hit */ end
-        # endcase
-        LOG_TLB = int(log2(TLB_ENTRIES))
-        for i in range(TLB_ENTRIES):
-            # we got a hit so update the pointer as it was least recently used
-            hit = Signal(reset_less=True)
-            m.d.comb += hit.eq(self.lu_hit[i] & self.lu_access_i)
-            with m.If(hit):
-                # Set the nodes to the values we would expect
-                for lvl in range(LOG_TLB):
-                    idx_base = (1<<lvl)-1
-                    # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-                    shift = LOG_TLB - lvl;
-                    new_idx = Const(~((i >> (shift-1)) & 1), (1, False))
-                    plru_idx = idx_base + (i >> shift)
-                    print ("plru", i, lvl, hex(idx_base),
-                                  plru_idx, shift, new_idx)
-                    m.d.sync += plru_tree[plru_idx].eq(new_idx)
-
-        # Decode tree to write enable signals
-        # Next for-loop basically creates the following logic for e.g.
-        # an 8 entry TLB (note: pseudo-code obviously):
-        # replace_en[7] = &plru_tree[ 6, 2, 0]; #plru_tree[0,2,6]=={1,1,1}
-        # replace_en[6] = &plru_tree[~6, 2, 0]; #plru_tree[0,2,6]=={1,1,0}
-        # replace_en[5] = &plru_tree[ 5,~2, 0]; #plru_tree[0,2,5]=={1,0,1}
-        # replace_en[4] = &plru_tree[~5,~2, 0]; #plru_tree[0,2,5]=={1,0,0}
-        # replace_en[3] = &plru_tree[ 4, 1,~0]; #plru_tree[0,1,4]=={0,1,1}
-        # replace_en[2] = &plru_tree[~4, 1,~0]; #plru_tree[0,1,4]=={0,1,0}
-        # replace_en[1] = &plru_tree[ 3,~1,~0]; #plru_tree[0,1,3]=={0,0,1}
-        # replace_en[0] = &plru_tree[~3,~1,~0]; #plru_tree[0,1,3]=={0,0,0}
-        # For each entry traverse the tree. If every tree-node matches
-        # the corresponding bit of the entry's index, this is
-        # the next entry to replace.
-        replace = []
-        for i in range(TLB_ENTRIES):
-            en = []
-            for lvl in range(LOG_TLB):
-                idx_base = (1<<lvl)-1
-                # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-                shift = LOG_TLB - lvl;
-                new_idx = (i >> (shift-1)) & 1;
-                plru_idx = idx_base + (i>>shift)
-                plru = Signal(reset_less=True,
-                              name="plru-%d-%d-%d" % (i, lvl, plru_idx))
-                m.d.comb += plru.eq(plru_tree[plru_idx])
-                # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
-                if new_idx:
-                    en.append(~plru) # yes inverted (using bool())
-                else:
-                    en.append(plru)  # yes inverted (using bool())
-            print ("plru", i, en)
-            # boolean logic manipulation:
-            # plru0 & plru1 & plru2 == ~(~plru0 | ~plru1 | ~plru2)
-            replace.append(~Cat(*en).bool())
-        m.d.comb += self.replace_en_o.eq(Cat(*replace))
-
-        return m
-
 
 class TLB:
     def __init__(self):
@@ -284,7 +66,7 @@ class TLB:
 
         tc = []
         for i in range(TLB_ENTRIES):
-            tlc = TLBContent(self.pte_width)
+            tlc = TLBContent(self.pte_width, ASID_WIDTH)
             setattr(m.submodules, "tc%d" % i, tlc)
             tc.append(tlc)
             # connect inputs
@@ -326,7 +108,7 @@ class TLB:
         # PLRU.
         #--------------
 
-        p = PLRU()
+        p = PLRU(TLB_ENTRIES)
         m.submodules.plru = p
 
         # connect PLRU inputs/outputs
