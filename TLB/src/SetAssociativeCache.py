@@ -1,8 +1,13 @@
+import sys
+sys.path.append("../src/ariane")
+
 from nmigen import Array, Memory, Module, Signal
 from nmigen.compat.genlib import fsm
 from nmigen.cli import main
+from nmigen.cli import verilog, rtlil
 
 from AddressEncoder import AddressEncoder
+from plru import PLRU
 
 SA_NA = "00" # no action (none)
 SA_RD = "01" # read
@@ -28,29 +33,23 @@ class SetAssociativeCache():
         """
         # Internals
         self.active = 0
-        self.lru_start = self.active + 1
-        self.lru_end = self.lru_start + way_count.bit_length()
-        self.data_start = self.lru_end
+        self.data_start = self.active + 1
         self.data_end = self.data_start + data_size
         self.tag_start = self.data_end
         self.tag_end = self.tag_start + tag_size
         cache_data = way_count + 1 # Bits required to represent LRU and active
         input_size = tag_size + data_size # Size of the input data
         memory_width = input_size + cache_data # The width of the cache memory
-        memory_array = Array(Memory(memory_width, entry_count)) # Memory Array
-        self.read_port_array = Array()  # Read port array from Memory Array
-        self.write_port_array = Array() # Write port array from Memory Array
-        # Populate read/write port arrays
-        for i in range(way_count):
-            mem = memory_array[i] # Memory being parsed
-            self.read_port_array.append(mem.read_port()) # Store read port
-            self.write_port_array.append(mem.write_port()) # Store write port
+        self.memory_array = Array(Memory(memory_width, set_count)) # Memory Array
 
         self.way_count = way_count # The number of slots in one set
         self.tag_size = tag_size  # The bit count of the tag
         self.data_size = data_size  # The bit count of the data to be stored
 
-        self.encoder = AddressEncoder(max=way_count) # Finds valid entries
+        self.encoder = AddressEncoder(way_count.bit_length()) # Finds valid entries
+
+        self.plru = PLRU(way_count) # Single block to handle plru calculations
+        self.plru_array = Array(Signal(self.plru.TLBSZ)) # PLRU data for each set
 
         # Input
         self.enable = Signal(1) # Whether the cache is enabled
@@ -77,10 +76,8 @@ class SetAssociativeCache():
         # Loop through memory to prep read/write ports and set valid_vector
         # value
         for i in range(self.way_count):
-            m.d.comb += [
-                self.write_port_array[i].addr.eq(self.cset),
-                self.read_port_array[i].addr.eq(self.cset)
-            ]
+            read_port = self.memory_array[i].read_port()
+            m.d.comb += read_port.addr.eq(self.cset)
             # Pull out active bit from data
             data = self.read_port_array[i].data;
             active_bit = data[self.active];
@@ -99,14 +96,14 @@ class SetAssociativeCache():
         with m.If(self.encoder.single_match):
             m.next = "FINISHED"
             # Pull out data from the read port
-            read_port = self.read_port_array[self.encoder.o]
+            read_port = self.memory_array[self.encoder.o].read_port()
             data = read_port.data[self.data_start:self.data_end]
             m.d.comb += [
                 self.hit.eq(1),
                 self.multiple_hit.eq(0),
                 self.data_o.eq(data)
             ]
-            self.update_set(m)
+            self.access_plru(m)
         # Oh no! Seal the gates! Multiple tags matched?!? kasd;ljkafdsj;k
         with m.Elif(self.encoder.multiple_match):
             m.d.comb += [
@@ -122,28 +119,20 @@ class SetAssociativeCache():
                 self.data_o.eq(0)
             ]
 
-    def update_set(self, m):
+    def access_plru(self, m):
         """
-        Update the LRU values for each way in the given set if the entry is
-        active.
+        An entry was accessed and the plru tree must now be updated
         """
-        # Go through all ways in the set
-        for i in range(self.way_count):
-            # Pull out read port for readability
-            read_port = self.read_port_array[i]
-            with m.If(read_port.data[0]):
-                # Pull out lru state for readability
-                lru_state = read_port.data[self.data_start:self.data_end]
-                # Pull out write port for readability
-                write_port = self.write_port_array[i]
-                # Enable write for the memory block
-                m.d.comb += write_port.en.eq(1)
-                with m.If(i == self.encoder.o):
-                    m.d.comb += write_port.data.eq(0)
-                with m.Elif(state < self.way_count):
-                    m.d.comb += write_port.data.eq(state + 1)
-                with m.Else():
-                    m.d.comb += write_port.data.eq(state)
+        # Pull out the set's entry being edited
+        plru_entry = self.plru_array[self.cset]
+        m.d.comb += [
+            # Set the plru data to the current state
+            self.plru.plru_tree.eq(plru_entry),
+            # Set what entry was just hit
+            self.plru.lu_hit.eq(self.encoder.o),
+            # Set that the cache was accessed
+            self.plru.lu_access_i.eq(1)
+        ]
 
     def read(self, m):
         """
@@ -151,7 +140,7 @@ class SetAssociativeCache():
         This takes two cycles to complete. First it checks for a valid tag
         and secondly it updates the LRU values.
         """
-        with m.FSM() as fsm:
+        with m.FSM() as fsm_read:
             with m.State("SEARCH"):
                 m.d.comb += self.ready.eq(0)
                 # check_tags will set the state if the conditions are met
@@ -160,10 +149,31 @@ class SetAssociativeCache():
                 m.next = "SEARCH"
                 m.d.comb += self.ready.eq(1)
 
+    def write_entry(self, m):
+        lru_entry = self.plru.replace_en_o
+        m.d.comb += self.encoder.i.eq(lru_entry)
+
+        with m.If(self.encoder.single_match):
+            write_port = self.memory_array[self.encoder.o].write_port()
+            m.d.comb += [
+                write_port.en.eq(1),
+                write_port.addr.eq(self.cset),
+                write_port.data.eq(Cat(self.data_i, self.tag))
+            ]
+
+    def write(self, m):
+        with m.FSM() as fsm_write:
+            with m.State("WRITE"):
+                m.d.comb += self.ready.eq(0)
+                self.write_entry(m)
+
+
     def elaborate(self, platform=None):
         m = Module()
-        m.submodules += self.read_port_array
-        m.submodules += self.write_port_array
+
+        for i in self.memory_array:
+            m.submodules += i.read_port()
+            m.submodules += i.write_port()
 
         with m.If(self.enable):
             with m.Switch(self.command):
@@ -178,3 +188,13 @@ class SetAssociativeCache():
                     # Maybe catch multiple tags write here?
                     # TODO
         return m
+
+    def ports():
+        return [self.enable, self.command, self.cset, self.tag, self.data_i,
+                self.ready, self.hit, self.multiple_hit, self.data_o]
+
+if __name__ == '__main__':
+    sac = SetAssociativeCache(4, 4, 4, 4)
+    vl = rtlil.convert(sac, ports=sac.ports())
+    with open("SetAssociativeCache.il", "w") as f:
+        f.write(vl)
