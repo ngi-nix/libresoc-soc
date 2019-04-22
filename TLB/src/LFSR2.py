@@ -58,7 +58,7 @@ LFSR_POLY_23 = LFSRPolynomial([23, 18, 0])
 LFSR_POLY_24 = LFSRPolynomial([24, 23, 22, 17, 0])
 
 
-class LFSR:
+class LFSR(LFSRPolynomial):
     """ implements a Linear Feedback Shift Register
     """
     def __init__(self, polynomial):
@@ -76,13 +76,10 @@ class LFSR:
             LFSRPolynomial is derived from set() it's ok:
             LFSRPolynomial(LFSRPolynomial(p)) == LFSRPolynomial(p)
         """
-        self.polynomial = LFSRPolynomial(polynomial)
+        LFSRPolynomial.__init__(self, polynomial)
+        self.width = self.max_exponent
         self.state = Signal(self.width, reset=1)
         self.enable = Signal(reset=1)
-
-    @property
-    def width(self):
-        return self.polynomial.max_exponent
 
     def elaborate(self, platform):
         m = Module()
@@ -92,7 +89,7 @@ class LFSR:
 
         # create XOR-bunch, select bits from state based on exponent
         feedback = Const(0) # doesn't do any harm starting from 0b0 (xor chain)
-        for exponent in self.polynomial:
+        for exponent in self:
             if exponent > 0: # don't have to skip, saves CPU cycles though
                 feedback ^= self.state[exponent - 1]
 
