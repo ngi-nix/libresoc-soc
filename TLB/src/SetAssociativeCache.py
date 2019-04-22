@@ -102,11 +102,8 @@ class SetAssociativeCache():
             m.next = "FINISHED_READ"
             # Pull out data from the read port
             data = 0
-            with m.Switch(self.encoder.o):
-                for i in range(self.way_count):
-                    with m.Case(i):
-                        read_port = self.read_array[i]
-                        data = read_port.data[self.data_start:self.data_end]
+            read_port = self.read_array[self.encoder.o]
+            data = read_port.data[self.data_start:self.data_end]
 
             m.d.comb += [
                 self.hit.eq(1),
