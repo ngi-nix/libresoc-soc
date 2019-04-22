@@ -1,17 +1,15 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
-from nmigen import Signal, Module, Elaboratable, Const
+from nmigen import Signal, Module, Const
 from typing import Iterable, FrozenSet, Optional, Iterator, Any, Union
-from typing_extensions import final
 from collections.abc import Set, Hashable
 
 
-@final
 class LFSRPolynomial(Set):
-    def __init__(self, exponents: Iterable[int] = ()):
+    def __init__(self, exponents):
         max_exponent = 0
 
-        def elements() -> Iterable[int]:
+        def elements():
             nonlocal max_exponent
             yield 0  # 0 is always required
             for exponent in exponents:
@@ -27,26 +25,26 @@ class LFSRPolynomial(Set):
         self.__max_exponent = max_exponent
 
     @property
-    def exponents(self) -> FrozenSet[int]:
+    def exponents(self):
         return self.__exponents
 
     @property
-    def max_exponent(self) -> int:
+    def max_exponent(self):
         return self.__max_exponent
 
-    def __hash__(self) -> int:
+    def __hash__(self):
         return hash(self.exponents)
 
-    def __contains__(self, x: Any) -> bool:
+    def __contains__(self, x):
         return x in self.exponents
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.exponents)
 
-    def __iter__(self) -> Iterator[int]:
+    def __iter__(self):
         return iter(self.exponents)
 
-    def __str__(self) -> str:
+    def __str__(self):
         exponents = list(self.exponents)
         exponents.sort(reverse=True)
         retval = ""
@@ -62,7 +60,7 @@ class LFSRPolynomial(Set):
                 retval += f"x^{i}"
         return retval
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         exponents = list(self.exponents)
         exponents.sort(reverse=True)
         return f"LFSRPolynomial({exponents!r})"
@@ -94,22 +92,21 @@ LFSR_POLY_23 = LFSRPolynomial([23, 18, 0])
 LFSR_POLY_24 = LFSRPolynomial([24, 23, 22, 17, 0])
 
 
-@final
-class LFSR(Elaboratable):
-    def __init__(self, polynomial: Union[Iterable[int], LFSRPolynomial]):
+class LFSR:
+    def __init__(self, polynomial):
         self.__polynomial = LFSRPolynomial(polynomial)
         self.state = Signal(self.width, reset=1)
         self.enable = Signal(1, reset=1)
 
     @property
-    def polynomial(self) -> LFSRPolynomial:
+    def polynomial(self):
         return self.__polynomial
 
     @property
-    def width(self) -> int:
+    def width(self):
         return self.polynomial.max_exponent
 
-    def elaborate(self, platform: Any) -> Module:
+    def elaborate(self, platform):
         m = Module()
         feedback: Value = Const(0)
         for exponent in self.polynomial:
@@ -121,3 +118,4 @@ class LFSR(Elaboratable):
                     self.state[0:self.width - 1])
                 m.d.sync += self.state[0].eq(feedback)
         return m
+
