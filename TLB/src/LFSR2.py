@@ -29,18 +29,15 @@ class LFSRPolynomial(frozenset):
     def __str__(self):
         exponents = list(self)
         exponents.sort(reverse=True)
-        retval = ""
-        separator = ""
+        retval = []
         for i in exponents:
-            retval += separator
-            separator = " + "
             if i == 0:
-                retval += "1"
+                retval.append("1")
             elif i == 1:
-                retval += "x"
+                retval.append("x")
             else:
-                retval += f"x^{i}"
-        return retval
+                retval.append(f"x^{i}")
+        return retval.join(" + ")
 
     def __repr__(self):
         exponents = list(self)
