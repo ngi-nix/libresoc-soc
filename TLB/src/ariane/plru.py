@@ -59,7 +59,7 @@ class PLRU:
                     plru_idx = idx_base + (i >> shift)
                     print ("plru", i, lvl, hex(idx_base),
                                   plru_idx, shift, new_idx)
-                    m.d.sync += self.plru_tree_o[plru_idx].eq(new_idx)
+                    m.d.comb += self.plru_tree_o[plru_idx].eq(new_idx)
 
         # Decode tree to write enable signals
         # Next for-loop basically creates the following logic for e.g.
