@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
-from ..src.LFSR import LFSR, LFSRPolynomial, LFSR_POLY_3
+from ..src.LFSR2 import LFSR, LFSRPolynomial, LFSR_POLY_3
 from nmigen.back.pysim import Simulator, Delay, Tick
 import unittest
 
@@ -28,8 +28,8 @@ class TestLFSR(unittest.TestCase):
         module = LFSR(LFSR_POLY_3)
         traces = [module.state, module.enable]
         with Simulator(module,
-                       vcd_file=open("Waveforms/test_LFSR.vcd", "w"),
-                       gtkw_file=open("Waveforms/test_LFSR.gtkw", "w"),
+                       vcd_file=open("Waveforms/test_LFSR2.vcd", "w"),
+                       gtkw_file=open("Waveforms/test_LFSR2.gtkw", "w"),
                        traces=traces) as sim:
             sim.add_clock(1e-6, 0.25e-6)
             delay = Delay(1e-7)
