@@ -92,7 +92,7 @@ class SetAssociativeCache():
         self.data_size = data_size  # The bit count of the data to be stored
 
         # Finds valid entries
-        self.encoder = AddressEncoder(way_count.bit_length())
+        self.encoder = AddressEncoder(way_count)
 
         self.plru = PLRU(way_count) # Single block to handle plru calculations
         self.plru_array = Array() # PLRU data on each set
