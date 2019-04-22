@@ -18,13 +18,17 @@ SA_RD = "01" # read
 SA_WR = "10" # write
 
 class MemorySet:
-    def __init__(self, memory_width, set_count, active,
-                       tag_start, tag_end, tag_size):
+    def __init__(self, data_size, tag_size, set_count, active):
         #self.memory_width = memory_width
         #self.set_count = set_count
-        self.tag_start = tag_start
-        self.tag_end = tag_end
+        input_size = tag_size + data_size # Size of the input data
+        self.data_start = active + 1
+        self.data_end = self.data_start + data_size
+        self.tag_start = self.data_end
+        self.tag_end = self.tag_start + tag_size
+        memory_width = input_size + 1 # The width of the cache memory
         self.active = active
+        # XXX TODO, use rd-enable and wr-enable?
         self.mem = Memory(memory_width, set_count)
         self.r = self.mem.read_port()
         self.w = self.mem.write_port()
@@ -32,17 +36,24 @@ class MemorySet:
         # inputs (address)
         self.cset = Signal(max=set_count)          # The set to be checked
         self.tag = Signal(tag_size)                # The tag to find
+        self.data_i = Signal(data_size)
 
         # outputs
         self.active_bit = Signal()
         self.tag_valid = Signal()
         self.valid = Signal()
+        self.data_o = Signal(data_size)
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.mem = self.mem
         m.submodules.r = self.r
         m.submodules.w = self.w
+
+        write_port = self.w
+        with m.If(write_port.en):
+            m.d.comb += write_port.addr.eq(self.cset)
+            m.d.comb += write_port.data.eq(Cat(1, self.data_i, self.tag))
 
         read_port = self.r
         m.d.comb += read_port.addr.eq(self.cset)
@@ -56,6 +67,8 @@ class MemorySet:
         # is marked as a valid entry
         m.d.comb += self.valid.eq(self.tag_valid & self.active_bit)
 
+        # output data: TODO, check rd-enable?
+        m.d.comb += self.data_o.eq(data[self.data_start:self.data_end])
         return m
 
 
@@ -78,17 +91,10 @@ class SetAssociativeCache():
         """
         # Internals
         active = 0
-        self.data_start = active + 1
-        self.data_end = self.data_start + data_size
-        self.tag_start = self.data_end
-        self.tag_end = self.tag_start + tag_size
-        input_size = tag_size + data_size # Size of the input data
-        memory_width = input_size + 1 # The width of the cache memory
         self.mem_array = Array() # memory array
 
         for i in range(way_count):
-            ms = MemorySet(memory_width, set_count, active,
-                           tag_size, self.tag_start, self.tag_end)
+            ms = MemorySet(data_size, tag_size, set_count, active)
             self.mem_array.append(ms)
 
         self.way_count = way_count  # The number of slots in one set
@@ -125,36 +131,31 @@ class SetAssociativeCache():
         # A zero denotes a way is invalid
         valid_vector = []
         # Loop through memory to prep read/write ports and set valid_vector
-        # value
         for i in range(self.way_count):
             valid_vector.append(self.mem_array[i].valid)
 
         # Pass encoder the valid vector
         m.d.comb += self.encoder.i.eq(Cat(*valid_vector))
+
         # Only one entry should be marked
         # This is due to already verifying the tags
         # matched and the valid bit is high
         with m.If(self.hit):
             m.next = "FINISHED_READ"
             # Pull out data from the read port
-            read_port = self.mem_array[self.encoder.o].r
-            data = read_port.data[self.data_start:self.data_end]
-            m.d.comb += [
-                self.data_o.eq(data)
-            ]
+            data = self.mem_array[self.encoder.o].data_o
+            m.d.comb += self.data_o.eq(data)
             self.access_plru(m)
+
         # Oh no! Seal the gates! Multiple tags matched?!? kasd;ljkafdsj;k
         with m.Elif(self.multiple_hit):
             # XXX TODO, m.next = "FINISHED_READ" ? otherwise stuck
-            m.d.comb += [
-                self.data_o.eq(0)
-            ]
+            m.d.comb += self.data_o.eq(0)
+
         # No tag matches means no data
         with m.Else():
             # XXX TODO, m.next = "FINISHED_READ" ? otherwise stuck
-            m.d.comb += [
-                self.data_o.eq(0)
-            ]
+            m.d.comb += self.data_o.eq(0)
 
     def access_plru(self, m):
         """ An entry was accessed and the plru tree must now be updated
@@ -197,8 +198,6 @@ class SetAssociativeCache():
             write_port = self.mem_array[self.encoder.o].w
             m.d.comb += [
                 write_port.en.eq(1),
-                write_port.addr.eq(self.cset),
-                write_port.data.eq(Cat(1, self.data_i, self.tag))
             ]
 
     def write(self, m):
@@ -231,6 +230,7 @@ class SetAssociativeCache():
         for mem in self.mem_array:
             m.d.comb += mem.cset.eq(self.cset)
             m.d.comb += mem.tag.eq(self.tag)
+            m.d.comb += mem.data_i.eq(self.data_i)
 
         with m.If(self.enable):
             with m.Switch(self.command):
