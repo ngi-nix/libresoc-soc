@@ -118,6 +118,7 @@ class LFSR:
 
         return m
 
+
 # example: Poly24
 if __name__ == '__main__':
     p24 = rtlil.convert(LFSR(LFSR_POLY_24))
