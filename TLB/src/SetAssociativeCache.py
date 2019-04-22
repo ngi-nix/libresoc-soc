@@ -169,15 +169,12 @@ class SetAssociativeCache():
         ]
 
         with m.If(self.encoder.single_match):
-            with m.Switch(self.encoder.o):
-                for i in range(len(self.write_array)):
-                    with m.Case(i):
-                        write_port = self.write_array[i]
-                        m.d.comb += [
-                            write_port.en.eq(1),
-                            write_port.addr.eq(self.cset),
-                            write_port.data.eq(Cat(1, self.data_i, self.tag))
-                        ]
+            write_port = self.write_array[self.encoder.o]
+            m.d.comb += [
+                write_port.en.eq(1),
+                write_port.addr.eq(self.cset),
+                write_port.data.eq(Cat(1, self.data_i, self.tag))
+            ]
 
     def write(self, m):
         with m.FSM() as fsm_write:
