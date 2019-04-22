@@ -3,7 +3,7 @@
 from nmigen import Signal, Module, Const
 
 
-class LFSRPolynomial(frozenset):
+class LFSRPolynomial(set):
     def __init__(self, exponents=()):
         max_exponent = 0
 
@@ -19,30 +19,28 @@ class LFSRPolynomial(frozenset):
                     max_exponent = exponent
                 if exponent != 0:
                     yield exponent
-        frozenset.__init__(self, elements())
+        set.__init__(self, elements())
         self.max_exponent = max_exponent
 
     @property
     def exponents(self):
-        return self
+        exponents = list(self) # get elements of set
+        exponents.sort(reverse=True)
+        return exponents
 
     def __str__(self):
-        exponents = list(self)
-        exponents.sort(reverse=True)
         retval = []
-        for i in exponents:
+        for i in self.exponents:
             if i == 0:
                 retval.append("1")
             elif i == 1:
                 retval.append("x")
             else:
                 retval.append(f"x^{i}")
-        return retval.join(" + ")
+        return " + ".join(retval)
 
     def __repr__(self):
-        exponents = list(self)
-        exponents.sort(reverse=True)
-        return f"LFSRPolynomial({exponents!r})"
+        return "LFSRPolynomial(%s)" % self.exponents
 
 
 # list of selected polynomials from https://web.archive.org/web/20190418121923/https://en.wikipedia.org/wiki/Linear-feedback_shift_register#Some_polynomials_for_maximal_LFSRs  # noqa
