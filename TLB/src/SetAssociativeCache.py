@@ -7,6 +7,10 @@ from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 
 from AddressEncoder import AddressEncoder
+
+# TODO: use a LFSR that advances continuously and picking the bottom
+# few bits from it to select which cache line to replace, instead of PLRU
+# http://bugs.libre-riscv.org/show_bug.cgi?id=71
 from plru import PLRU
 
 SA_NA = "00" # no action (none)
