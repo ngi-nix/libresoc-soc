@@ -4,3 +4,4 @@ WaveForms
 .*.sw?
 *.py?
 *.v
+.mypy_cache

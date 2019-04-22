@@ -1,0 +1,4 @@
+[submodule "nmigen-type-annotations"]
+	path = nmigen-type-annotations
+	url = https://salsa.debian.org/Kazan-team/nmigen-type-annotations.git
+	branch = master
