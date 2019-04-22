@@ -18,6 +18,7 @@ SA_NA = "00" # no action (none)
 SA_RD = "01" # read
 SA_WR = "10" # write
 
+
 class MemorySet:
     def __init__(self, data_size, tag_size, set_count, active):
         self.active = active
@@ -101,36 +102,38 @@ class SetAssociativeCache():
                     set/entry to write to.  otherwise, use a PLRU
         """
         # Internals
-        self.mem_array = Array() # memory array
         self.lfsr_mode = lfsr
-
-        for i in range(way_count):
-            ms = MemorySet(data_size, tag_size, set_count, active=0)
-            self.mem_array.append(ms)
-
         self.way_count = way_count  # The number of slots in one set
         self.tag_size = tag_size    # The bit count of the tag
         self.data_size = data_size  # The bit count of the data to be stored
 
+        # set up Memory array
+        self.mem_array = Array() # memory array
+        for i in range(way_count):
+            ms = MemorySet(data_size, tag_size, set_count, active=0)
+            self.mem_array.append(ms)
+
         # Finds valid entries
         self.encoder = AddressEncoder(way_count)
 
-        if not lfsr:
+        # setup PLRU or LFSR
+        if lfsr:
+            # LFSR mode
+            self.lfsr = LFSR(LFSR_POLY_24)
+        else:
+            # PLRU mode
             self.plru = PLRU(way_count) # One block to handle plru calculations
             self.plru_array = Array() # PLRU data on each set
             for i in range(set_count):
                 name="plru%d" % i
                 self.plru_array.append(Signal(self.plru.TLBSZ, name=name))
-        else:
-            # XXX TODO: LFSR mode
-            self.lfsr = LFSR(LFSR_POLY_24)
 
         # Input
         self.enable = Signal(1)   # Whether the cache is enabled
         self.command = Signal(2)  # 00=None, 01=Read, 10=Write (see SA_XX)
-        self.cset = Signal(max=set_count)          # The set to be checked
-        self.tag = Signal(tag_size)                # The tag to find
-        self.data_i = Signal(data_size) # The input data
+        self.cset = Signal(max=set_count)  # The set to be checked
+        self.tag = Signal(tag_size)        # The tag to find
+        self.data_i = Signal(data_size)    # The input data
 
         # Output
         self.ready = Signal(1) # 0 => Processing 1 => Ready for commands
