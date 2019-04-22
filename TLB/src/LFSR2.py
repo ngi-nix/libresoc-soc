@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
-from nmigen import Signal, Module, Const
+from nmigen import Signal, Module, Const, Cat
+from nmigen.cli import verilog, rtlil
 
 
 class LFSRPolynomial(set):
@@ -81,14 +82,18 @@ class LFSR:
 
     def elaborate(self, platform):
         m = Module()
-        feedback: Value = Const(0)
+        if self.width == 0:
+            return m
+        feedback = Const(0)
         for exponent in self.polynomial:
             if exponent > 0:
-                feedback = feedback ^ self.state[exponent - 1]
-        if self.width > 1:
-            with m.If(self.enable):
-                m.d.sync += self.state[1:self.width].eq(
-                    self.state[0:self.width - 1])
-                m.d.sync += self.state[0].eq(feedback)
+                feedback ^= self.state[exponent - 1]
+        with m.If(self.enable):
+            newstate = Cat(feedback, self.state[0:self.width - 1])
+            m.d.sync += self.state.eq(newstate)
         return m
 
+if __name__ == '__main__':
+    p24 = rtlil.convert(LFSR([24, 23, 22, 17, 0]))
+    with open("lfsr2_p24.il", "w") as f:
+        f.write(p24)
