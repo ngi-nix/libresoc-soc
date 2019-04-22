@@ -34,15 +34,13 @@ class MemorySet:
         self.w = self.mem.write_port()
 
         # inputs (address)
-        self.cset = Signal(max=set_count)          # The set to be checked
-        self.tag = Signal(tag_size)                # The tag to find
-        self.data_i = Signal(data_size)
+        self.cset = Signal(max=set_count)  # The set to be checked
+        self.tag = Signal(tag_size)        # The tag to find
+        self.data_i = Signal(data_size)    # Incoming data
 
         # outputs
-        self.active_bit = Signal()
-        self.tag_valid = Signal()
         self.valid = Signal()
-        self.data_o = Signal(data_size)
+        self.data_o = Signal(data_size)    # Outgoing data (excludes tag)
 
     def elaborate(self, platform):
         m = Module()
@@ -55,17 +53,21 @@ class MemorySet:
             m.d.comb += write_port.addr.eq(self.cset)
             m.d.comb += write_port.data.eq(Cat(1, self.data_i, self.tag))
 
+        # temporaries
+        active_bit = Signal()
+        tag_valid = Signal()
+
         read_port = self.r
         m.d.comb += read_port.addr.eq(self.cset)
         # Pull out active bit from data
         data = read_port.data
-        m.d.comb += self.active_bit.eq(data[self.active])
+        m.d.comb += active_bit.eq(data[self.active])
         # Validate given tag vs stored tag
         tag = data[self.tag_start:self.tag_end]
-        m.d.comb += self.tag_valid.eq(self.tag == tag)
+        m.d.comb += tag_valid.eq(self.tag == tag)
         # An entry is only valid if the tags match AND
         # is marked as a valid entry
-        m.d.comb += self.valid.eq(self.tag_valid & self.active_bit)
+        m.d.comb += self.valid.eq(tag_valid & active_bit)
 
         # output data: TODO, check rd-enable?
         m.d.comb += self.data_o.eq(data[self.data_start:self.data_end])
@@ -227,6 +229,7 @@ class SetAssociativeCache():
             self.multiple_hit.eq(self.encoder.multiple_match),
         ]
 
+        # connect incoming data/tag/cset(addr) to mem_array
         for mem in self.mem_array:
             write_port = mem.w
             m.d.comb += [mem.cset.eq(self.cset),
@@ -251,7 +254,7 @@ class SetAssociativeCache():
                 self.ready, self.hit, self.multiple_hit, self.data_o]
 
 if __name__ == '__main__':
-    sac = SetAssociativeCache(4, 4, 4, 4)
+    sac = SetAssociativeCache(4, 8, 4, 4)
     vl = rtlil.convert(sac)
     with open("SetAssociativeCache.il", "w") as f:
         f.write(vl)
