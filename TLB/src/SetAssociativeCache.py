@@ -197,9 +197,13 @@ class SetAssociativeCache():
 
     def write_entry(self, m):
         if not self.lfsr_mode:
-            plru_entry = self.plru_array[self.cset]
-            m.d.comb += self.plru.plru_tree.eq(plru_entry)
+            m.d.comb += [# set cset (mem address) into PLRU
+                         self.plru.plru_tree.eq(self.plru_array[self.cset]),
+                         # and connect plru to encoder for write
+                         self.encoder.i.eq(self.plru.replace_en_o)
+                        ]
 
+        # then if there is a match from the encoder, enable the selected write
         with m.If(self.encoder.single_match):
             write_port = self.mem_array[self.encoder.o].w
             m.d.comb += write_port.en.eq(1)
@@ -230,20 +234,29 @@ class SetAssociativeCache():
         for i, mem in enumerate(self.mem_array):
             setattr(m.submodules, "mem%d" % i, mem)
 
+
+        # ----
+        # select mode: PLRU connect to encoder, LFSR do... something
+        # ----
+
         if not self.lfsr_mode:
-            m.d.comb += [ # connect plru to encoder
-                          self.encoder.i.eq(self.plru.replace_en_o),
-                          # Set what entry was hit
+            m.d.comb += [ # Set what entry was hit
                           self.plru.lu_hit.eq(self.encoder.o),
                         ]
 
-        # do these all the time?
+        # ----
+        # connect hit/multiple hit to encoder output
+        # ----
+
         m.d.comb += [
             self.hit.eq(self.encoder.single_match),
             self.multiple_hit.eq(self.encoder.multiple_match),
         ]
 
+        # ----
         # connect incoming data/tag/cset(addr) to mem_array
+        # ----
+
         for mem in self.mem_array:
             write_port = mem.w
             m.d.comb += [mem.cset.eq(self.cset),
@@ -251,6 +264,9 @@ class SetAssociativeCache():
                          mem.data_i.eq(self.data_i),
                          write_port.en.eq(0), # default: disable write
                         ]
+        # ----
+        # FSM
+        # ----
 
         with m.If(self.enable):
             with m.Switch(self.command):
