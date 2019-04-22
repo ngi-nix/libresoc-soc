@@ -67,7 +67,9 @@ class SetAssociativeCache():
         self.encoder = AddressEncoder(way_count.bit_length())
 
         self.plru = PLRU(way_count) # Single block to handle plru calculations
-        self.plru_array = Array(Signal(self.plru.TLBSZ)) # PLRU data on each set
+        self.plru_array = Array() # PLRU data on each set
+        for i in range(set_count):
+            self.plru_array.append(Signal(self.plru.TLBSZ, name="plru%d" % i))
 
         # Input
         self.enable = Signal(1)   # Whether the cache is enabled
@@ -195,7 +197,8 @@ class SetAssociativeCache():
 
         m.submodules.PLRU = self.plru
         m.submodules.AddressEncoder = self.encoder
-        m.submodules += self.mem_array
+        for i, mem in enumerate(self.mem_array):
+            setattr(m.submodules, "mem%d" % i, mem)
 
         # do these all the time?
         m.d.comb += [
