@@ -14,18 +14,44 @@ SA_RD = "01" # read
 SA_WR = "10" # write
 
 class MemorySet:
-    def __init__(self, memory_width, set_count):
+    def __init__(self, memory_width, set_count, active,
+                       tag_start, tag_end, tag_size):
         #self.memory_width = memory_width
         #self.set_count = set_count
+        self.tag_start = tag_start
+        self.tag_end = tag_end
+        self.active = active
         self.mem = Memory(memory_width, set_count)
         self.r = self.mem.read_port()
         self.w = self.mem.write_port()
+
+        # inputs (address)
+        self.cset = Signal(max=set_count)          # The set to be checked
+        self.tag = Signal(tag_size)                # The tag to find
+
+        # outputs
+        self.active_bit = Signal()
+        self.tag_valid = Signal()
+        self.valid = Signal()
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.mem = self.mem
         m.submodules.r = self.r
         m.submodules.w = self.w
+
+        read_port = self.r
+        m.d.comb += read_port.addr.eq(self.cset)
+        # Pull out active bit from data
+        data = read_port.data
+        m.d.comb += self.active_bit.eq(data[self.active])
+        # Validate given tag vs stored tag
+        tag = data[self.tag_start:self.tag_end]
+        m.d.comb += self.tag_valid.eq(self.tag == tag)
+        # An entry is only valid if the tags match AND
+        # is marked as a valid entry
+        m.d.comb += self.valid.eq(self.tag_valid & self.active_bit)
+
         return m
 
 
@@ -47,8 +73,8 @@ class SetAssociativeCache():
                                   in one set
         """
         # Internals
-        self.active = 0
-        self.data_start = self.active + 1
+        active = 0
+        self.data_start = active + 1
         self.data_end = self.data_start + data_size
         self.tag_start = self.data_end
         self.tag_end = self.tag_start + tag_size
@@ -57,7 +83,9 @@ class SetAssociativeCache():
         self.mem_array = Array() # memory array
 
         for i in range(way_count):
-            self.mem_array.append(MemorySet(memory_width, set_count))
+            ms = MemorySet(memory_width, set_count, active,
+                           tag_size, self.tag_start, self.tag_end)
+            self.mem_array.append(ms)
 
         self.way_count = way_count  # The number of slots in one set
         self.tag_size = tag_size    # The bit count of the tag
@@ -95,20 +123,10 @@ class SetAssociativeCache():
         # Loop through memory to prep read/write ports and set valid_vector
         # value
         for i in range(self.way_count):
-            read_port = self.mem_array[i].r
-            m.d.comb += read_port.addr.eq(self.cset)
-            # Pull out active bit from data
-            data = read_port.data;
-            active_bit = data[self.active];
-            # Validate given tag vs stored tag
-            tag = data[self.tag_start:self.tag_end]
-            tag_valid = self.tag == tag
-            # An entry is only valid if the tags match AND
-            # is marked as a valid entry
-            valid_vector.append(tag_valid & active_bit)
+            valid_vector.append(self.mem_array[i].valid)
 
         # Pass encoder the valid vector
-        self.encoder.i.eq(Cat(*valid_vector))
+        m.d.comb += self.encoder.i.eq(Cat(*valid_vector))
         # Only one entry should be marked
         # This is due to already verifying the tags
         # matched and the valid bit is high
@@ -205,6 +223,10 @@ class SetAssociativeCache():
             self.hit.eq(self.encoder.single_match),
             self.multiple_hit.eq(self.encoder.multiple_match),
         ]
+
+        for mem in self.mem_array:
+            m.d.comb += mem.cset.eq(self.cset)
+            m.d.comb += mem.tag.eq(self.tag)
 
         with m.If(self.enable):
             with m.Switch(self.command):
