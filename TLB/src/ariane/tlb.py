@@ -20,6 +20,9 @@ https://raw.githubusercontent.com/Tony-Hu/TreePLRU/master/TreePLRU.cpp
 
 Text description:
 https://people.cs.clemson.edu/~mark/464/p_lru.txt
+
+Online simulator:
+http://www.ntu.edu.sg/home/smitha/ParaCache/Paracache/vm.html
 """
 from math import log2
 from nmigen import Signal, Module, Cat, Const, Array
