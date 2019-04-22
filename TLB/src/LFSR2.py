@@ -73,7 +73,7 @@ class LFSR:
     def __init__(self, polynomial):
         self.polynomial = LFSRPolynomial(polynomial)
         self.state = Signal(self.width, reset=1)
-        self.enable = Signal(1, reset=1)
+        self.enable = Signal(reset=1)
 
     @property
     def width(self):
