@@ -20,15 +20,13 @@ SA_WR = "10" # write
 
 class MemorySet:
     def __init__(self, data_size, tag_size, set_count, active):
-        #self.memory_width = memory_width
-        #self.set_count = set_count
+        self.active = active
         input_size = tag_size + data_size # Size of the input data
-        self.data_start = active + 1
-        self.data_end = self.data_start + data_size
-        self.tag_start = self.data_end
-        self.tag_end = self.tag_start + tag_size
         memory_width = input_size + 1 # The width of the cache memory
         self.active = active
+        self.data_size = data_size
+        self.tag_size = tag_size
+
         # XXX TODO, use rd-enable and wr-enable?
         self.mem = Memory(memory_width, set_count)
         self.r = self.mem.read_port()
@@ -49,29 +47,37 @@ class MemorySet:
         m.submodules.r = self.r
         m.submodules.w = self.w
 
-        write_port = self.w
-        with m.If(write_port.en):
-            m.d.comb += write_port.addr.eq(self.cset)
-            m.d.comb += write_port.data.eq(Cat(1, self.data_i, self.tag))
-
         # temporaries
         active_bit = Signal()
         tag_valid = Signal()
+        data_start = self.active + 1
+        data_end = data_start + self.data_size
+        tag_start = data_end
+        tag_end = tag_start + self.tag_size
 
+        # connect the read port address to the set/entry
         read_port = self.r
         m.d.comb += read_port.addr.eq(self.cset)
         # Pull out active bit from data
         data = read_port.data
         m.d.comb += active_bit.eq(data[self.active])
         # Validate given tag vs stored tag
-        tag = data[self.tag_start:self.tag_end]
+        tag = data[tag_start:tag_end]
         m.d.comb += tag_valid.eq(self.tag == tag)
         # An entry is only valid if the tags match AND
         # is marked as a valid entry
         m.d.comb += self.valid.eq(tag_valid & active_bit)
 
         # output data: TODO, check rd-enable?
-        m.d.comb += self.data_o.eq(data[self.data_start:self.data_end])
+        m.d.comb += self.data_o.eq(data[data_start:data_end])
+
+        # connect the write port addr to the set/entry (only if write enabled)
+        # (which is only done on a match, see SAC.write_entry below)
+        write_port = self.w
+        with m.If(write_port.en):
+            m.d.comb += write_port.addr.eq(self.cset)
+            m.d.comb += write_port.data.eq(Cat(1, self.data_i, self.tag))
+
         return m
 
 
@@ -91,6 +97,8 @@ class SetAssociativeCache():
             * set_count (number): The number of sets/entries in the cache
             * way_count (number): The number of slots a data can be stored
                                   in one set
+            * lfsr: if set, use an LFSR for (pseudo-randomly) selecting
+                    set/entry to write to.  otherwise, use a PLRU
         """
         # Internals
         self.mem_array = Array() # memory array
@@ -219,6 +227,10 @@ class SetAssociativeCache():
             m.d.comb += write_port.en.eq(1)
 
     def write(self, m):
+        """ Go through the write process of the cache.
+            This takes two cycles to complete. First it writes the entry,
+            and secondly it updates the PLRU (in plru mode)
+        """
         with m.FSM() as fsm_write:
             with m.State("READY"):
                 m.d.comb += self.ready.eq(0)
@@ -235,27 +247,29 @@ class SetAssociativeCache():
     def elaborate(self, platform=None):
         m = Module()
 
+        # ----
+        # set up Modules: AddressEncoder, LFSR/PLRU, Mem Array
+        # ----
+
+        m.submodules.AddressEncoder = self.encoder
         if self.lfsr_mode:
             m.submodules.LFSR = self.lfsr
         else:
             m.submodules.PLRU = self.plru
 
-        m.submodules.AddressEncoder = self.encoder
         for i, mem in enumerate(self.mem_array):
             setattr(m.submodules, "mem%d" % i, mem)
-
 
         # ----
         # select mode: PLRU connect to encoder, LFSR do... something
         # ----
 
         if not self.lfsr_mode:
-            m.d.comb += [ # Set what entry was hit
-                          self.plru.lu_hit.eq(self.encoder.o),
-                        ]
+            # Set what entry was hit
+            m.d.comb += self.plru.lu_hit.eq(self.encoder.o)
         else:
-            m.d.comb += [ self.lfsr.enable.eq(self.enable), # enable LFSR
-                        ]
+            # enable LFSR
+            m.d.comb += self.lfsr.enable.eq(self.enable)
 
         # ----
         # connect hit/multiple hit to encoder output
@@ -278,7 +292,7 @@ class SetAssociativeCache():
                          write_port.en.eq(0), # default: disable write
                         ]
         # ----
-        # FSM
+        # Commands: READ/WRITE/TODO
         # ----
 
         with m.If(self.enable):
@@ -290,6 +304,8 @@ class SetAssociativeCache():
                     self.write(m)
                     # Maybe catch multiple tags write here?
                     # TODO
+                # TODO: invalidate/flush, flush-all?
+
         return m
 
     def ports(self):
