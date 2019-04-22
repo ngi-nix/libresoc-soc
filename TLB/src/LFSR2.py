@@ -5,6 +5,8 @@ from nmigen.cli import verilog, rtlil
 
 
 class LFSRPolynomial(set):
+    """ implements a polynomial for use in LFSR
+    """
     def __init__(self, exponents=()):
         max_exponent = 0
 
@@ -71,7 +73,23 @@ LFSR_POLY_24 = LFSRPolynomial([24, 23, 22, 17, 0])
 
 
 class LFSR:
+    """ implements a Linear Feedback Shift Register
+    """
     def __init__(self, polynomial):
+        """ Inputs:
+            ------
+            :polynomial: the polynomial to feedback on.  may be a LFSRPolynomial
+                         instance or an iterable of ints (list/tuple/generator)
+            :enable:     enable (set LO to disable.  NOTE: defaults to HI)
+
+            Outputs:
+            -------
+            :state: the LFSR state.  length is taken from the polynomial
+
+            Note: if an LFSRPolynomial is passed in as the input, because
+            LFSRPolynomial is derived from set() it's ok:
+            LFSRPolynomial(LFSRPolynomial(p)) == LFSRPolynomial(p)
+        """
         self.polynomial = LFSRPolynomial(polynomial)
         self.state = Signal(self.width, reset=1)
         self.enable = Signal(reset=1)
@@ -82,18 +100,26 @@ class LFSR:
 
     def elaborate(self, platform):
         m = Module()
+        # do absolutely nothing if the polynomial is empty
         if self.width == 0:
             return m
-        feedback = Const(0)
+
+        # create XOR-bunch, select bits from state based on exponent
+        feedback = Const(0) # doesn't do any harm starting from 0b0 (xor chain)
         for exponent in self.polynomial:
-            if exponent > 0:
+            if exponent > 0: # don't have to skip, saves CPU cycles though
                 feedback ^= self.state[exponent - 1]
+
+        # if enabled, shift-and-feedback
         with m.If(self.enable):
+            # shift up lower bits by Cat'ing in a new bit zero (feedback)
             newstate = Cat(feedback, self.state[0:self.width - 1])
             m.d.sync += self.state.eq(newstate)
+
         return m
 
+# example: Poly24
 if __name__ == '__main__':
-    p24 = rtlil.convert(LFSR([24, 23, 22, 17, 0]))
+    p24 = rtlil.convert(LFSR(LFSR_POLY_24))
     with open("lfsr2_p24.il", "w") as f:
         f.write(p24)
