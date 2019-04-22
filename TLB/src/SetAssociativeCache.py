@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../src/ariane")
 
-from nmigen import Array, Cat, Memory, Module, Signal
+from nmigen import Array, Cat, Memory, Module, Signal, Mux
 from nmigen.compat.genlib import fsm
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
@@ -202,10 +202,20 @@ class SetAssociativeCache():
                          # and connect plru to encoder for write
                          self.encoder.i.eq(self.plru.replace_en_o)
                         ]
+            write_port = self.mem_array[self.encoder.o].w
+        else:
+            # use the LFSR to generate a random(ish) one of the mem array
+            lfsr_output = Signal(max=self.way_count)
+            lfsr_random = Signal(max=self.way_count)
+            m.d.comb += lfsr_output.eq(self.lfsr.state) # lose some bits
+            # address too big, limit to range of array
+            m.d.comb += lfsr_random.eq(Mux(lfsr_output > self.way_count,
+                                           lfsr_output - self.way_count,
+                                           lfsr_output))
+            write_port = self.mem_array[lfsr_random].w
 
         # then if there is a match from the encoder, enable the selected write
         with m.If(self.encoder.single_match):
-            write_port = self.mem_array[self.encoder.o].w
             m.d.comb += write_port.en.eq(1)
 
     def write(self, m):
@@ -242,6 +252,9 @@ class SetAssociativeCache():
         if not self.lfsr_mode:
             m.d.comb += [ # Set what entry was hit
                           self.plru.lu_hit.eq(self.encoder.o),
+                        ]
+        else:
+            m.d.comb += [ self.lfsr.enable.eq(self.enable), # enable LFSR
                         ]
 
         # ----
@@ -285,12 +298,12 @@ class SetAssociativeCache():
 
 
 if __name__ == '__main__':
-    sac = SetAssociativeCache(4, 8, 4, 4)
+    sac = SetAssociativeCache(4, 8, 4, 6)
     vl = rtlil.convert(sac, ports=sac.ports())
     with open("SetAssociativeCache.il", "w") as f:
         f.write(vl)
 
-    sac_lfsr = SetAssociativeCache(4, 8, 4, 4, True)
+    sac_lfsr = SetAssociativeCache(4, 8, 4, 6, True)
     vl = rtlil.convert(sac_lfsr, ports=sac_lfsr.ports())
     with open("SetAssociativeCacheLFSR.il", "w") as f:
         f.write(vl)
