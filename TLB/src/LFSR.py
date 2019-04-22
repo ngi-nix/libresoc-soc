@@ -70,7 +70,8 @@ class LFSR(LFSRPolynomial):
 
             Outputs:
             -------
-            :state: the LFSR state.  length is taken from the polynomial
+            :state: the LFSR state.  bitwidth is taken from the polynomial
+                    maximum exponent.
 
             Note: if an LFSRPolynomial is passed in as the input, because
             LFSRPolynomial is derived from set() it's ok:
@@ -95,7 +96,7 @@ class LFSR(LFSRPolynomial):
         # if enabled, shift-and-feedback
         with m.If(self.enable):
             # shift up lower bits by Cat'ing in a new bit zero (feedback)
-            newstate = Cat(feedback, self.state[0:self.max_exponent - 1])
+            newstate = Cat(feedback, self.state[:-1])
             m.d.sync += self.state.eq(newstate)
 
         return m
