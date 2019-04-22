@@ -76,7 +76,7 @@ class SetAssociativeCache():
         self.command = Signal(2)  # 00=None, 01=Read, 10=Write (see SA_XX)
         self.cset = Signal(max=set_count)          # The set to be checked
         self.tag = Signal(tag_size)                # The tag to find
-        self.data_i = Signal(data_size + tag_size) # The input data
+        self.data_i = Signal(input_size) # The input data
 
         # Output
         self.ready = Signal(1) # 0 => Processing 1 => Ready for commands
