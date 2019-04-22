@@ -112,6 +112,7 @@ class TLB:
         #--------------
 
         p = PLRU(self.tlb_entries)
+        plru_tree = Signal(p.TLBSZ)
         m.submodules.plru = p
 
         # connect PLRU inputs/outputs
@@ -121,7 +122,9 @@ class TLB:
             en.append(tc[i].replace_en_i)
         m.d.comb += [Cat(*en).eq(p.replace_en_o), # output from PLRU into tags
                      p.lu_hit.eq(hitsel.i),
-                     p.lu_access_i.eq(self.lu_access_i)]
+                     p.lu_access_i.eq(self.lu_access_i),
+                     p.plru_tree.eq(plru_tree)]
+        m.d.sync += plru_tree.eq(p.plru_tree_o)
 
         #--------------
         # Sanity checks
