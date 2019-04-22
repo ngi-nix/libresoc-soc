@@ -15,11 +15,11 @@ SA_WR = "10" # write
 
 class MemorySet:
     def __init__(self, memory_width, set_count):
+        #self.memory_width = memory_width
+        #self.set_count = set_count
         self.mem = Memory(memory_width, set_count)
         self.r = self.mem.read_port()
         self.w = self.mem.write_port()
-        #self.memory_width = memory_width
-        #self.set_count = set_count
 
     def elaborate(self, platform):
         m = Module()
@@ -59,33 +59,33 @@ class SetAssociativeCache():
         for i in range(way_count):
             self.mem_array.append(MemorySet(memory_width, set_count))
 
-        self.way_count = way_count # The number of slots in one set
-        self.tag_size = tag_size  # The bit count of the tag
+        self.way_count = way_count  # The number of slots in one set
+        self.tag_size = tag_size    # The bit count of the tag
         self.data_size = data_size  # The bit count of the data to be stored
 
-        self.encoder = AddressEncoder(way_count.bit_length()) # Finds valid entries
+        # Finds valid entries
+        self.encoder = AddressEncoder(way_count.bit_length())
 
         self.plru = PLRU(way_count) # Single block to handle plru calculations
-        self.plru_array = Array(Signal(self.plru.TLBSZ)) # PLRU data for each set
+        self.plru_array = Array(Signal(self.plru.TLBSZ)) # PLRU data on each set
 
         # Input
-        self.enable = Signal(1) # Whether the cache is enabled
+        self.enable = Signal(1)   # Whether the cache is enabled
         self.command = Signal(2)  # 00=None, 01=Read, 10=Write (see SA_XX)
-        self.cset = Signal(max=set_count) # The set to be checked
-        self.tag = Signal(tag_size) # The tag to find
+        self.cset = Signal(max=set_count)          # The set to be checked
+        self.tag = Signal(tag_size)                # The tag to find
         self.data_i = Signal(data_size + tag_size) # The input data
 
         # Output
         self.ready = Signal(1) # 0 => Processing 1 => Ready for commands
-        self.hit = Signal(1) # Tag matched one way in the given set
-        self.multiple_hit = Signal(1) # Tag matched many ways in the given set
+        self.hit = Signal(1)            # Tag matched one way in the given set
+        self.multiple_hit = Signal(1)   # Tag matched many ways in the given set
         self.data_o = Signal(data_size) # The data linked to the matched tag
 
     def check_tags(self, m):
-        """
-        Validate the tags in the selected set. If one and only one tag matches
-        set its state to zero and increment all others by one. We only advance
-        to the next state if a single hit is found.
+        """ Validate the tags in the selected set. If one and only one
+            tag matches set its state to zero and increment all others
+            by one. We only advance to next state if a single hit is found.
         """
         # Vector to store way valid results
         # A zero denotes a way is invalid
@@ -139,8 +139,7 @@ class SetAssociativeCache():
             ]
 
     def access_plru(self, m):
-        """
-        An entry was accessed and the plru tree must now be updated
+        """ An entry was accessed and the plru tree must now be updated
         """
         # Pull out the set's entry being edited
         plru_entry = self.plru_array[self.cset]
@@ -154,10 +153,9 @@ class SetAssociativeCache():
         ]
 
     def read(self, m):
-        """
-        Go through the read process of the cache.
-        This takes two cycles to complete. First it checks for a valid tag
-        and secondly it updates the LRU values.
+        """ Go through the read process of the cache.
+            This takes two cycles to complete. First it checks for a valid tag
+            and secondly it updates the LRU values.
         """
         with m.FSM() as fsm_read:
             with m.State("READY"):
