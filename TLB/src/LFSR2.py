@@ -77,14 +77,13 @@ class LFSR(LFSRPolynomial):
             LFSRPolynomial(LFSRPolynomial(p)) == LFSRPolynomial(p)
         """
         LFSRPolynomial.__init__(self, polynomial)
-        self.width = self.max_exponent
-        self.state = Signal(self.width, reset=1)
+        self.state = Signal(self.max_exponent, reset=1)
         self.enable = Signal(reset=1)
 
     def elaborate(self, platform):
         m = Module()
         # do absolutely nothing if the polynomial is empty (always has a zero)
-        if self.width <= 1:
+        if self.max_exponent <= 1:
             return m
 
         # create XOR-bunch, select bits from state based on exponent
@@ -96,7 +95,7 @@ class LFSR(LFSRPolynomial):
         # if enabled, shift-and-feedback
         with m.If(self.enable):
             # shift up lower bits by Cat'ing in a new bit zero (feedback)
-            newstate = Cat(feedback, self.state[0:self.width - 1])
+            newstate = Cat(feedback, self.state[0:self.max_exponent - 1])
             m.d.sync += self.state.eq(newstate)
 
         return m
