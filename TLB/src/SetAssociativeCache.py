@@ -110,31 +110,25 @@ class SetAssociativeCache():
         # Only one entry should be marked
         # This is due to already verifying the tags
         # matched and the valid bit is high
-        with m.If(self.encoder.single_match):
+        with m.If(self.hit):
             m.next = "FINISHED_READ"
             # Pull out data from the read port
-            data = 0
             read_port = self.mem_array[self.encoder.o].r
             data = read_port.data[self.data_start:self.data_end]
-
             m.d.comb += [
-                self.hit.eq(1),
-                self.multiple_hit.eq(0),
                 self.data_o.eq(data)
             ]
             self.access_plru(m)
         # Oh no! Seal the gates! Multiple tags matched?!? kasd;ljkafdsj;k
-        with m.Elif(self.encoder.multiple_match):
+        with m.Elif(self.multiple_hit):
+            # XXX TODO, m.next = "FINISHED_READ" ? otherwise stuck
             m.d.comb += [
-                self.hit.eq(0),
-                self.multiple_hit.eq(1),
                 self.data_o.eq(0)
             ]
         # No tag matches means no data
         with m.Else():
+            # XXX TODO, m.next = "FINISHED_READ" ? otherwise stuck
             m.d.comb += [
-                self.hit.eq(0),
-                self.multiple_hit.eq(0),
                 self.data_o.eq(0)
             ]
 
@@ -202,6 +196,12 @@ class SetAssociativeCache():
         m.submodules.PLRU = self.plru
         m.submodules.AddressEncoder = self.encoder
         m.submodules += self.mem_array
+
+        # do these all the time?
+        m.d.comb += [
+            self.hit.eq(self.encoder.single_match),
+            self.multiple_hit.eq(self.encoder.multiple_match),
+        ]
 
         with m.If(self.enable):
             with m.Switch(self.command):
