@@ -1,3 +1,8 @@
+"""
+
+Online simulator of 4-way set-associative cache:
+http://www.ntu.edu.sg/home/smitha/ParaCache/Paracache/sa4.html
+"""
 import sys
 sys.path.append("../src/ariane")
 
