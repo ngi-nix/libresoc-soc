@@ -8,12 +8,10 @@ class LFSRPolynomial(set):
     """ implements a polynomial for use in LFSR
     """
     def __init__(self, exponents=()):
-        exponents = set(exponents)
-        exponents.add(0) # must contain zero
         for e in exponents:
             assert isinstance(e, int), TypeError("%s must be an int" % repr(e))
             assert (e >= 0), ValueError("%d must not be negative" % e)
-        set.__init__(self, exponents)
+        set.__init__(self, set(exponents).union({0})) # must contain zero
 
     @property
     def max_exponent(self):
@@ -21,7 +19,7 @@ class LFSRPolynomial(set):
 
     @property
     def exponents(self):
-        exponents = list(self) # get elements of set
+        exponents = list(self) # get elements of set as a list
         exponents.sort(reverse=True)
         return exponents
 
