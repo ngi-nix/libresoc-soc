@@ -2,6 +2,9 @@
 
 Online simulator of 4-way set-associative cache:
 http://www.ntu.edu.sg/home/smitha/ParaCache/Paracache/sa4.html
+
+Python simulator of a N-way set-associative cache:
+https://github.com/vaskevich/CacheSim/blob/master/cachesim.py
 """
 import sys
 sys.path.append("../src/ariane")
