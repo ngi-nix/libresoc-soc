@@ -24,6 +24,7 @@ class PLRU:
         # Tree (bit per entry)
         self.TLBSZ = 2*(self.entries-1)
         self.plru_tree = Signal(self.TLBSZ)
+        self.plru_tree_o = Signal(self.TLBSZ)
 
     def elaborate(self, platform):
         m = Module()
@@ -58,7 +59,7 @@ class PLRU:
                     plru_idx = idx_base + (i >> shift)
                     print ("plru", i, lvl, hex(idx_base),
                                   plru_idx, shift, new_idx)
-                    m.d.sync += self.plru_tree[plru_idx].eq(new_idx)
+                    m.d.sync += self.plru_tree_o[plru_idx].eq(new_idx)
 
         # Decode tree to write enable signals
         # Next for-loop basically creates the following logic for e.g.
