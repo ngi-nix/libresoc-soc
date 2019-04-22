@@ -32,14 +32,8 @@ class LFSRPolynomial(set):
         return exponents
 
     def __str__(self):
-        retval = []
-        for i in self.exponents:
-            if i == 0:
-                retval.append("1")
-            elif i == 1:
-                retval.append("x")
-            else:
-                retval.append(f"x^{i}")
+        expd = {0: "1", 1: 'x', 2: "x^{}"} # case 2 isn't 2, it's min(i,2)
+        retval = map(lambda i: expd[min(i,2)].format(i), self.exponents)
         return " + ".join(retval)
 
     def __repr__(self):
