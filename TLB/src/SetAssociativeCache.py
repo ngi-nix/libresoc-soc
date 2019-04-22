@@ -39,7 +39,13 @@ class SetAssociativeCache():
         self.tag_end = self.tag_start + tag_size
         input_size = tag_size + data_size # Size of the input data
         memory_width = input_size + 1 # The width of the cache memory
-        self.memory_array = Array(Memory(memory_width, set_count) for x in range(way_count)) # Memory Array
+        memory_array = Array(Memory(memory_width, set_count) for x in range(way_count)) # Memory Array
+        self.read_array = Array()
+        self.write_array = Array()
+
+        for i in memory_array:
+            self.read_array.append(i.read_port())
+            self.write_array.append(i.write_port())
 
         self.way_count = way_count # The number of slots in one set
         self.tag_size = tag_size  # The bit count of the tag
@@ -75,7 +81,7 @@ class SetAssociativeCache():
         # Loop through memory to prep read/write ports and set valid_vector
         # value
         for i in range(self.way_count):
-            read_port = self.memory_array[i].read_port()
+            read_port = self.read_array[i]
             m.d.comb += read_port.addr.eq(self.cset)
             # Pull out active bit from data
             data = read_port.data;
@@ -99,7 +105,7 @@ class SetAssociativeCache():
             with m.Switch(self.encoder.o):
                 for i in range(self.way_count):
                     with m.Case(i):
-                        read_port = self.memory_array[i].read_port()
+                        read_port = self.read_array[i]
                         data = read_port.data[self.data_start:self.data_end]
 
             m.d.comb += [
@@ -152,23 +158,26 @@ class SetAssociativeCache():
             with m.State("FINISHED_READ"):
                 m.next = "READY"
                 m.d.comb += self.ready.eq(1)
+                m.d.sync += self.plru_array[self.cset].eq(self.plru.plru_tree_o)
 
     def write_entry(self, m):
         lru_entry = self.plru.replace_en_o
-        m.d.comb += self.encoder.i.eq(lru_entry)
+        plru_entry = self.plru_array[self.cset]
+        m.d.comb += [
+            self.plru.plru_tree.eq(plru_entry),
+            self.encoder.i.eq(lru_entry)
+        ]
 
         with m.If(self.encoder.single_match):
-            write_port = self.memory_array[0].write_port()
             with m.Switch(self.encoder.o):
-                for i in range(len(self.memory_array)):
+                for i in range(len(self.write_array)):
                     with m.Case(i):
-                        write_port = self.memory_array[i].write_port()
-
-            m.d.comb += [
-                write_port.en.eq(1),
-                write_port.addr.eq(self.cset),
-                write_port.data.eq(Cat(self.data_i, self.tag))
-            ]
+                        write_port = self.write_array[i]
+                        m.d.comb += [
+                            write_port.en.eq(1),
+                            write_port.addr.eq(self.cset),
+                            write_port.data.eq(Cat(1, self.data_i, self.tag))
+                        ]
 
     def write(self, m):
         with m.FSM() as fsm_write:
@@ -178,16 +187,18 @@ class SetAssociativeCache():
                 m.next ="FINISHED_WRITE"
             with m.State("FINISHED_WRITE"):
                 m.d.comb += self.ready.eq(1)
+                plru_entry = self.plru_array[self.cset]
+                m.d.sync += plru_entry.eq(self.plru.plru_tree_o)
                 m.next = "READY"
 
 
     def elaborate(self, platform=None):
         m = Module()
 
-        for i in range(len(self.memory_array)):
-            memory = self.memory_array[i]
-            m.submodules += memory.read_port()
-            m.submodules += memory.write_port()
+        m.submodules.PLRU = self.plru
+        m.submodules.AddressEncoder = self.encoder
+        m.submodules += self.read_array
+        m.submodules += self.write_array
 
         with m.If(self.enable):
             with m.Switch(self.command):
