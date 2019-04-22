@@ -13,6 +13,21 @@ SA_NA = "00" # no action (none)
 SA_RD = "01" # read
 SA_WR = "10" # write
 
+class MemorySet:
+    def __init__(self, memory_width, set_count):
+        self.mem = Memory(memory_width, set_count)
+        self.r = self.mem.read_port()
+        self.w = self.mem.write_port()
+        #self.memory_width = memory_width
+        #self.set_count = set_count
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.mem = self.mem
+        m.submodules.r = self.r
+        m.submodules.w = self.w
+        return m
+
 
 class SetAssociativeCache():
     """ Set Associative Cache Memory
@@ -39,13 +54,10 @@ class SetAssociativeCache():
         self.tag_end = self.tag_start + tag_size
         input_size = tag_size + data_size # Size of the input data
         memory_width = input_size + 1 # The width of the cache memory
-        memory_array = Array(Memory(memory_width, set_count) for x in range(way_count)) # Memory Array
-        self.read_array = Array()
-        self.write_array = Array()
+        self.mem_array = Array() # memory array
 
-        for i in memory_array:
-            self.read_array.append(i.read_port())
-            self.write_array.append(i.write_port())
+        for i in range(way_count):
+            self.mem_array.append(MemorySet(memory_width, set_count))
 
         self.way_count = way_count # The number of slots in one set
         self.tag_size = tag_size  # The bit count of the tag
@@ -81,7 +93,7 @@ class SetAssociativeCache():
         # Loop through memory to prep read/write ports and set valid_vector
         # value
         for i in range(self.way_count):
-            read_port = self.read_array[i]
+            read_port = self.mem_array[i].r
             m.d.comb += read_port.addr.eq(self.cset)
             # Pull out active bit from data
             data = read_port.data;
@@ -102,7 +114,7 @@ class SetAssociativeCache():
             m.next = "FINISHED_READ"
             # Pull out data from the read port
             data = 0
-            read_port = self.read_array[self.encoder.o]
+            read_port = self.mem_array[self.encoder.o].r
             data = read_port.data[self.data_start:self.data_end]
 
             m.d.comb += [
@@ -166,7 +178,7 @@ class SetAssociativeCache():
         ]
 
         with m.If(self.encoder.single_match):
-            write_port = self.write_array[self.encoder.o]
+            write_port = self.mem_array[self.encoder.o].w
             m.d.comb += [
                 write_port.en.eq(1),
                 write_port.addr.eq(self.cset),
@@ -191,8 +203,7 @@ class SetAssociativeCache():
 
         m.submodules.PLRU = self.plru
         m.submodules.AddressEncoder = self.encoder
-        m.submodules += self.read_array
-        m.submodules += self.write_array
+        m.submodules += self.mem_array
 
         with m.If(self.enable):
             with m.Switch(self.command):
