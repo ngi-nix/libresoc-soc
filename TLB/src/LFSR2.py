@@ -10,15 +10,15 @@ class LFSRPolynomial(set):
         def elements():
             nonlocal max_exponent
             yield 0  # 0 is always required
-            for exponent in exponents:
-                if not isinstance(exponent, int):
-                    raise TypeError()
-                if exponent < 0:
-                    raise ValueError()
-                if exponent > max_exponent:
-                    max_exponent = exponent
-                if exponent != 0:
-                    yield exponent
+            for e in exponents:
+                if not isinstance(e, int):
+                    raise TypeError("exponent %s must be an integer" % repr(e))
+                if e < 0:
+                    raise ValueError("exponent %d must not be negative" % e)
+                if e > max_exponent:
+                    max_exponent = e
+                if e != 0: # skip zeros
+                    yield e
         set.__init__(self, elements())
         self.max_exponent = max_exponent
 
