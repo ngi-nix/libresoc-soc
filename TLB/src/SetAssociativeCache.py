@@ -228,9 +228,12 @@ class SetAssociativeCache():
         ]
 
         for mem in self.mem_array:
-            m.d.comb += mem.cset.eq(self.cset)
-            m.d.comb += mem.tag.eq(self.tag)
-            m.d.comb += mem.data_i.eq(self.data_i)
+            write_port = mem.w
+            m.d.comb += [mem.cset.eq(self.cset),
+                         mem.tag.eq(self.tag),
+                         mem.data_i.eq(self.data_i),
+                         write_port.en.eq(0), # default: disable write
+                        ]
 
         with m.If(self.enable):
             with m.Switch(self.command):
