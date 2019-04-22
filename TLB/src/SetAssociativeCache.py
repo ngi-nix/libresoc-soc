@@ -12,6 +12,7 @@ from AddressEncoder import AddressEncoder
 # few bits from it to select which cache line to replace, instead of PLRU
 # http://bugs.libre-riscv.org/show_bug.cgi?id=71
 from plru import PLRU
+from LFSR2 import LFSR, LFSR_POLY_24
 
 SA_NA = "00" # no action (none)
 SA_RD = "01" # read
@@ -83,7 +84,7 @@ class SetAssociativeCache():
         while the ASID provides the tag (still to be decided).
 
     """
-    def __init__(self, tag_size, data_size, set_count, way_count):
+    def __init__(self, tag_size, data_size, set_count, way_count, lfsr=False):
         """ Arguments
             * tag_size (bits): The bit count of the tag
             * data_size (bits): The bit count of the data to be stored
@@ -92,11 +93,11 @@ class SetAssociativeCache():
                                   in one set
         """
         # Internals
-        active = 0
         self.mem_array = Array() # memory array
+        self.lfsr_mode = lfsr
 
         for i in range(way_count):
-            ms = MemorySet(data_size, tag_size, set_count, active)
+            ms = MemorySet(data_size, tag_size, set_count, active=0)
             self.mem_array.append(ms)
 
         self.way_count = way_count  # The number of slots in one set
@@ -106,10 +107,15 @@ class SetAssociativeCache():
         # Finds valid entries
         self.encoder = AddressEncoder(way_count)
 
-        self.plru = PLRU(way_count) # Single block to handle plru calculations
-        self.plru_array = Array() # PLRU data on each set
-        for i in range(set_count):
-            self.plru_array.append(Signal(self.plru.TLBSZ, name="plru%d" % i))
+        if not lfsr:
+            self.plru = PLRU(way_count) # One block to handle plru calculations
+            self.plru_array = Array() # PLRU data on each set
+            for i in range(set_count):
+                name="plru%d" % i
+                self.plru_array.append(Signal(self.plru.TLBSZ, name=name))
+        else:
+            # XXX TODO: LFSR mode
+            self.lfsr = LFSR(LFSR_POLY_24)
 
         # Input
         self.enable = Signal(1)   # Whether the cache is enabled
@@ -147,7 +153,8 @@ class SetAssociativeCache():
             # Pull out data from the read port
             data = self.mem_array[self.encoder.o].data_o
             m.d.comb += self.data_o.eq(data)
-            self.access_plru(m)
+            if not self.lfsr_mode:
+                self.access_plru(m)
 
         # Oh no! Seal the gates! Multiple tags matched?!? kasd;ljkafdsj;k
         with m.Elif(self.multiple_hit):
@@ -167,8 +174,6 @@ class SetAssociativeCache():
         m.d.comb += [
             # Set the plru data to the current state
             self.plru.plru_tree.eq(plru_entry),
-            # Set what entry was just hit
-            self.plru.lu_hit.eq(self.encoder.o),
             # Set that the cache was accessed
             self.plru.lu_access_i.eq(1)
         ]
@@ -186,21 +191,18 @@ class SetAssociativeCache():
             with m.State("FINISHED_READ"):
                 m.next = "READY"
                 m.d.comb += self.ready.eq(1)
-                m.d.sync += self.plru_array[self.cset].eq(self.plru.plru_tree_o)
+                if not self.lfsr_mode:
+                    plru_tree_o = self.plru.plru_tree_o
+                    m.d.sync += self.plru_array[self.cset].eq(plru_tree_o)
 
     def write_entry(self, m):
-        lru_entry = self.plru.replace_en_o
-        plru_entry = self.plru_array[self.cset]
-        m.d.comb += [
-            self.plru.plru_tree.eq(plru_entry),
-            self.encoder.i.eq(lru_entry)
-        ]
+        if not self.lfsr_mode:
+            plru_entry = self.plru_array[self.cset]
+            m.d.comb += self.plru.plru_tree.eq(plru_entry)
 
         with m.If(self.encoder.single_match):
             write_port = self.mem_array[self.encoder.o].w
-            m.d.comb += [
-                write_port.en.eq(1),
-            ]
+            m.d.comb += write_port.en.eq(1)
 
     def write(self, m):
         with m.FSM() as fsm_write:
@@ -210,18 +212,30 @@ class SetAssociativeCache():
                 m.next ="FINISHED_WRITE"
             with m.State("FINISHED_WRITE"):
                 m.d.comb += self.ready.eq(1)
-                plru_entry = self.plru_array[self.cset]
-                m.d.sync += plru_entry.eq(self.plru.plru_tree_o)
+                if not self.lfsr_mode:
+                    plru_entry = self.plru_array[self.cset]
+                    m.d.sync += plru_entry.eq(self.plru.plru_tree_o)
                 m.next = "READY"
 
 
     def elaborate(self, platform=None):
         m = Module()
 
-        m.submodules.PLRU = self.plru
+        if self.lfsr_mode:
+            m.submodules.LFSR = self.lfsr
+        else:
+            m.submodules.PLRU = self.plru
+
         m.submodules.AddressEncoder = self.encoder
         for i, mem in enumerate(self.mem_array):
             setattr(m.submodules, "mem%d" % i, mem)
+
+        if not self.lfsr_mode:
+            m.d.comb += [ # connect plru to encoder
+                          self.encoder.i.eq(self.plru.replace_en_o),
+                          # Set what entry was hit
+                          self.plru.lu_hit.eq(self.encoder.o),
+                        ]
 
         # do these all the time?
         m.d.comb += [
@@ -249,12 +263,18 @@ class SetAssociativeCache():
                     # TODO
         return m
 
-    def ports():
+    def ports(self):
         return [self.enable, self.command, self.cset, self.tag, self.data_i,
                 self.ready, self.hit, self.multiple_hit, self.data_o]
 
+
 if __name__ == '__main__':
     sac = SetAssociativeCache(4, 8, 4, 4)
-    vl = rtlil.convert(sac)
+    vl = rtlil.convert(sac, ports=sac.ports())
     with open("SetAssociativeCache.il", "w") as f:
+        f.write(vl)
+
+    sac_lfsr = SetAssociativeCache(4, 8, 4, 4, True)
+    vl = rtlil.convert(sac_lfsr, ports=sac_lfsr.ports())
+    with open("SetAssociativeCacheLFSR.il", "w") as f:
         f.write(vl)
