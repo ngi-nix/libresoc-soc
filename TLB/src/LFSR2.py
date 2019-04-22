@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
 from nmigen import Signal, Module, Const
-from typing import Iterable, FrozenSet, Optional, Iterator, Any, Union
-from collections.abc import Set, Hashable
 
 
-class LFSRPolynomial(Set):
-    def __init__(self, exponents):
+class LFSRPolynomial(frozenset):
+    def __init__(self, exponents=()):
         max_exponent = 0
 
         def elements():
@@ -21,31 +19,15 @@ class LFSRPolynomial(Set):
                     max_exponent = exponent
                 if exponent != 0:
                     yield exponent
-        self.__exponents = frozenset(elements())
-        self.__max_exponent = max_exponent
+        frozenset.__init__(self, elements())
+        self.max_exponent = max_exponent
 
     @property
     def exponents(self):
-        return self.__exponents
-
-    @property
-    def max_exponent(self):
-        return self.__max_exponent
-
-    def __hash__(self):
-        return hash(self.exponents)
-
-    def __contains__(self, x):
-        return x in self.exponents
-
-    def __len__(self):
-        return len(self.exponents)
-
-    def __iter__(self):
-        return iter(self.exponents)
+        return self
 
     def __str__(self):
-        exponents = list(self.exponents)
+        exponents = list(self)
         exponents.sort(reverse=True)
         retval = ""
         separator = ""
@@ -61,7 +43,7 @@ class LFSRPolynomial(Set):
         return retval
 
     def __repr__(self):
-        exponents = list(self.exponents)
+        exponents = list(self)
         exponents.sort(reverse=True)
         return f"LFSRPolynomial({exponents!r})"
 
