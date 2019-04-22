@@ -9,15 +9,14 @@ class LFSRPolynomial(set):
     """
     def __init__(self, exponents=()):
         self.max_exponent = 0
-        elements = [0] # 0 is always required
+        elements = {0} # 0 is always required
         for e in exponents:
             if not isinstance(e, int):
                 raise TypeError("exponent %s must be an integer" % repr(e))
             if e < 0:
                 raise ValueError("exponent %d must not be negative" % e)
             self.max_exponent = max(e, self.max_exponent)
-            if e != 0: # skip any zeros
-                elements.append(e)
+            elements.add(e) # uniquifies additions (it's a set!)
 
         set.__init__(self, elements)
 
@@ -90,8 +89,8 @@ class LFSR:
 
     def elaborate(self, platform):
         m = Module()
-        # do absolutely nothing if the polynomial is empty
-        if self.width == 0:
+        # do absolutely nothing if the polynomial is empty (always has a zero)
+        if self.width <= 1:
             return m
 
         # create XOR-bunch, select bits from state based on exponent
