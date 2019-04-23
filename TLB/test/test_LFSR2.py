@@ -3,7 +3,7 @@
 import sys
 sys.path.append("../src")
 sys.path.append("../../TestUtil")
-from LFSR2 import LFSR, LFSRPolynomial, LFSR_POLY_3
+from LFSR import LFSR, LFSRPolynomial, LFSR_POLY_3
 
 from nmigen.back.pysim import Simulator, Delay, Tick
 import unittest
