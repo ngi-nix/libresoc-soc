@@ -1,9 +1,9 @@
+from nmigen import Signal, Module, Cat, Const, Elaboratable
 from math import log2
-from nmigen import Signal, Module, Cat, Const
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH
 
-class PLRU:
+class PLRU(Elaboratable):
     """ PLRU - Pseudo Least Recently Used Replacement
 
         PLRU-tree indexing:

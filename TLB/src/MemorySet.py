@@ -1,8 +1,9 @@
-from nmigen import Cat, Memory, Module, Signal
+from nmigen import Cat, Memory, Module, Signal, Elaboratable
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 
-class MemorySet:
+
+class MemorySet(Elaboratable):
     def __init__(self, data_size, tag_size, set_count, active):
         self.active = active
         input_size = tag_size + data_size # Size of the input data

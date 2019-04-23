@@ -9,7 +9,7 @@ https://github.com/vaskevich/CacheSim/blob/master/cachesim.py
 import sys
 sys.path.append("../src/ariane")
 
-from nmigen import Array, Cat, Memory, Module, Signal, Mux
+from nmigen import Array, Cat, Memory, Module, Signal, Mux, Elaboratable
 from nmigen.compat.genlib import fsm
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
@@ -27,7 +27,8 @@ SA_NA = "00" # no action (none)
 SA_RD = "01" # read
 SA_WR = "10" # write
 
-class SetAssociativeCache():
+
+class SetAssociativeCache(Elaboratable):
     """ Set Associative Cache Memory
 
         The purpose of this module is to generate a memory cache given the
