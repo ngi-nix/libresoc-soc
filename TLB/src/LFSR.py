@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
-from nmigen import Signal, Module, Const, Cat
+from nmigen import Signal, Module, Const, Cat, Elaboratable
 from nmigen.cli import verilog, rtlil
 
 
@@ -58,7 +58,7 @@ LFSR_POLY_23 = LFSRPolynomial([23, 18, 0])
 LFSR_POLY_24 = LFSRPolynomial([24, 23, 22, 17, 0])
 
 
-class LFSR(LFSRPolynomial):
+class LFSR(LFSRPolynomial, Elaboratable):
     """ implements a Linear Feedback Shift Register
     """
     def __init__(self, polynomial):
