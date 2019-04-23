@@ -20,7 +20,7 @@ from AddressEncoder import AddressEncoder
 # few bits from it to select which cache line to replace, instead of PLRU
 # http://bugs.libre-riscv.org/show_bug.cgi?id=71
 from plru import PLRU
-from LFSR2 import LFSR, LFSR_POLY_24
+from LFSR import LFSR, LFSR_POLY_24
 
 SA_NA = "00" # no action (none)
 SA_RD = "01" # read
