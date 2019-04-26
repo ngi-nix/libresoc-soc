@@ -30,7 +30,7 @@ class AddressEncoder():
         self.single_match = Signal(1)
         self.multiple_match = Signal(1)
         self.o = Signal(max=width)
-        
+
     def elaborate(self, platform=None):
         m = Module()
 
@@ -43,7 +43,7 @@ class AddressEncoder():
             self.p_encoder.i.eq(self.i)
         ]
 
-        # Steps: 
+        # Steps:
         # 1. check if the input vector is non-zero
         # 2. if non-zero, check if single match or multiple match
         # 3. set output line to be lowest value address output
