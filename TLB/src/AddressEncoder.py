@@ -43,6 +43,11 @@ class AddressEncoder():
             self.p_encoder.i.eq(self.i)
         ]
 
+        # Steps: 
+        # 1. check if the input vector is non-zero
+        # 2. if non-zero, check if single match or multiple match
+        # 3. set output line to be lowest value address output
+
         # If the priority encoder recieves an input of 0
         # If n is 1 then the output is not valid
         with m.If(self.p_encoder.n):
