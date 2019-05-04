@@ -1,3 +1,7 @@
+import sys
+sys.path.append("../src")
+sys.path.append("../../../TestUtil")
+
 from nmigen.compat.sim import run_simulation
 
 from tlb import TLB
@@ -58,7 +62,7 @@ def testbench(dut):
     yield
 
     yield
-    
+
 
 if __name__ == "__main__":
     dut = TLB()

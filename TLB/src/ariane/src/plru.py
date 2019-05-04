@@ -1,4 +1,5 @@
-from nmigen import Signal, Module, Cat, Const, Elaboratable
+from nmigen import Signal, Module, Cat, Const
+from nmigen.hdl.ir import Elaboratable
 from math import log2
 
 from ptw import TLBUpdate, PTE, ASID_WIDTH

@@ -1,3 +1,7 @@
+import sys
+sys.path.append("../src")
+sys.path.append("../../../TestUtil")
+
 from nmigen.compat.sim import run_simulation
 
 from ptw import PTW, PTE
@@ -115,8 +119,9 @@ def testbench(dut):
 
     yield
 
-    
+
 
 if __name__ == "__main__":
     dut = PTW()
     run_simulation(dut, testbench(dut), vcd_name="test_ptw.vcd")
+    print("PTW Unit Test Success")
