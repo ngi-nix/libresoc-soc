@@ -27,7 +27,7 @@ class PLRU(Elaboratable):
         self.plru_tree = Signal(self.TLBSZ)
         self.plru_tree_o = Signal(self.TLBSZ)
 
-    def elaborate(self, platform):
+    def elaborate(self, platform=None):
         m = Module()
 
         # Just predefine which nodes will be set/cleared
@@ -100,3 +100,7 @@ class PLRU(Elaboratable):
         m.d.comb += self.replace_en_o.eq(Cat(*replace))
 
         return m
+
+    def ports(self):
+        return [self.entries, self.lu_hit, self.replace_en_o,
+                self.lu_access_i, self.plru_tree, self.plru_tree_o]
