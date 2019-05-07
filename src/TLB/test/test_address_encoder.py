@@ -1,12 +1,7 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
+from TLB.AddressEncoder import AddressEncoder
+from TestUtil.test_helper import assert_eq, assert_ne, assert_op
 
-from AddressEncoder import AddressEncoder
-
-from test_helper import assert_eq, assert_ne, assert_op
 
 # This function allows for the easy setting of values to the AddressEncoder
 # Arguments:
@@ -57,7 +52,7 @@ def check_all(dut, sm, mm, o, sm_op, mm_op, o_op):
     yield from check_multiple_match(dut, mm, mm_op)
     yield from check_output(dut, o, o_op)
 
-def testbench(dut):
+def tbench(dut):
     # Check invalid input
     in_val = 0b000
     single_match = 0
@@ -100,8 +95,11 @@ def testbench(dut):
     yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
-if __name__ == "__main__":
+def test_addr():
     dut = AddressEncoder(4)
-    run_simulation(dut, testbench(dut), 
+    run_simulation(dut, tbench(dut), 
                    vcd_name="Waveforms/test_address_encoder.vcd")
     print("AddressEncoder Unit Test Success")
+
+if __name__ == "__main__":
+    test_addr()
