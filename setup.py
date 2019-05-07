@@ -17,19 +17,19 @@ test_requires = [
 ]
 
 setup(
-    name='ieee754fpu',
+    name='soc',
     version=version,
-    description="A nmigen IEEE754 Floating-Point library",
+    description="A nmigen-based RISC-V Hybrid CPU / VPU / GPU",
     long_description=README + '\n\n' + NEWS,
     classifiers=[
         "Topic :: Software Development :: Libraries",
         "License :: OSI Approved :: LGPLv3+",
         "Programming Language :: Python :: 3",
     ],
-    keywords='nmigen ieee754',
+    keywords='nmigen ieee754 libre-riscv soc',
     author='Luke Kenneth Casson Leighton',
     author_email='lkcl@libre-riscv.org',
-    url='http://git.libre-riscv.org/?p=ieee754fpu',
+    url='http://git.libre-riscv.org/?p=soc',
     license='GPLv3+',
     packages=find_packages('src'),
     package_dir = {'': 'src'},
