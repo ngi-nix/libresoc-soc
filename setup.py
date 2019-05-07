@@ -10,6 +10,7 @@ version = '0.0.1'
 
 install_requires = [
     'sfpy',
+    'ieee754fpu',
 ]
 
 test_requires = [
