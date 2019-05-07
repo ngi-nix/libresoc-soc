@@ -7,6 +7,101 @@ from nmutil.iocontrol import RecordObject
 from math import log
 
 
+class Register(Elaboratable):
+    def __init__(self, width):
+        self.width = width
+        self._rdports = []
+        self._wrports = []
+
+    def read_port(self):
+        port = RecordObject([("ren", 1),
+                             ("data_o", self.width)])
+        self._rdports.append(port)
+        return port
+
+    def write_port(self):
+        port = RecordObject([("wen", 1),
+                             ("data_i", self.width)])
+        self._wrports.append(port)
+        return port
+
+    def elaborate(self, platform):
+        m = Module()
+        reg = Signal(self.width, name="reg")
+
+        # read ports. has write-through detection (returns data written)
+        for rp in self._rdports:
+            wr_detect = Signal(reset_less=False)
+            with m.If(rp.ren):
+                m.d.comb += wr_detect.eq(0)
+                for wp in self._wrports:
+                    with m.If(wp.wen):
+                        m.d.comb += rp.data_o.eq(wp.data_i)
+                        m.d.comb += wr_detect.eq(1)
+                with m.If(~wr_detect):
+                    m.d.comb += rp.data_o.eq(reg)
+
+        # write ports, don't allow write to address 0 (ignore it)
+        for wp in self._wrports:
+            with m.If(wp.wen):
+                m.d.sync += reg.eq(wp.data_i)
+
+        return m
+
+    def __iter__(self):
+        for p in self._rdports:
+            yield from p
+        for p in self._wrports:
+            yield from p
+
+    def ports(self):
+        res = list(self)
+
+
+class RegFileArray(Elaboratable):
+    """ an array-based register file (register having write-through capability)
+        that has no "address" decoder, instead it has individual write-en
+        and read-en signals (per port).
+    """
+    def __init__(self, width, depth):
+        self.width = width
+        self.depth = depth
+        self.regs = Array(Register(width) for _ in range(self.depth))
+        self._rdports = []
+        self._wrports = []
+
+    def read_port(self):
+        regs = []
+        for i in range(self.depth):
+            port = self.regs[i].read_port()
+            regs.append(port)
+        regs = Array(regs)
+        self._rdports.append(regs)
+        return regs
+
+    def write_port(self):
+        regs = []
+        for i in range(self.depth):
+            port = self.regs[i].write_port()
+            regs.append(port)
+        regs = Array(regs)
+        self._wrports.append(regs)
+        return regs
+
+    def elaborate(self, platform):
+        m = Module()
+        for i, reg in enumerate(self.regs):
+            setattr(m.submodules, "reg_%d" % i, reg)
+        return m
+
+    def __iter__(self):
+        for r in self.regs:
+            yield from r
+
+    def ports(self):
+        return list(self)
+
+
 class RegFile(Elaboratable):
     def __init__(self, width, depth):
         self.width = width
@@ -107,6 +202,17 @@ def test_regfile():
         f.write(vl)
 
     run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
+
+    dut = RegFileArray(32, 8)
+    rp = dut.read_port()
+    wp = dut.write_port()
+    ports=dut.ports()
+    print ("ports", ports)
+    vl = rtlil.convert(dut, ports=ports)
+    with open("test_regfile_array.il", "w") as f:
+        f.write(vl)
+
+    #run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
 
 if __name__ == '__main__':
     test_regfile()
