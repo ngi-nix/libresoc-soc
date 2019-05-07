@@ -1,6 +1,5 @@
 __pycache__
-/Waveforms/**
-**/*/Waveforms
+Waveforms
 *.vcd
 .*.sw?
 *.py?
