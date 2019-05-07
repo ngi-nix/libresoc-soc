@@ -7,3 +7,5 @@ __pycache__
 *.v
 .mypy_cache
 !**/Waveforms/.gitkeep
+*.egg-info
+*.il
