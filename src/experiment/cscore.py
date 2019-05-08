@@ -220,6 +220,8 @@ IADD = 0
 ISUB = 1
 
 def int_instr(dut, op, src1, src2, dest):
+    for i in range(len(dut.int_insn_i)):
+        yield dut.int_insn_i[i].eq(0)
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
@@ -243,11 +245,9 @@ def scoreboard_sim(dut):
     yield from int_instr(dut, IADD, 5, 2, 4)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield dut.int_insn_i[IADD].eq(0)
     yield from int_instr(dut, ISUB, 5, 2, 3)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield dut.int_insn_i[ISUB].eq(0)
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
