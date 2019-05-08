@@ -1,10 +1,12 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 
-from nmigen import Const, Array, Signal, Elaboratable, Module
+from nmigen import Cat, Const, Array, Signal, Elaboratable, Module
 from nmutil.iocontrol import RecordObject
 
 from math import log
+from functools import reduce
+import operator
 
 
 class Register(Elaboratable):
@@ -59,6 +61,17 @@ class Register(Elaboratable):
     def ports(self):
         res = list(self)
 
+def treereduce(tree):
+    #print ("treereduce", tree)
+    if not isinstance(tree, list):
+        return tree
+    if len(tree) == 1:
+        return tree[0].data_o
+    if len(tree) == 2:
+        return tree[0].data_o | tree[1].data_o
+    splitpoint = len(tree) // 2
+    return treereduce(tree[:splitpoint]) | treereduce(tree[splitpoint:])
+
 
 class RegFileArray(Elaboratable):
     """ an array-based register file (register having write-through capability)
@@ -78,8 +91,10 @@ class RegFileArray(Elaboratable):
             port = self.regs[i].read_port(name)
             regs.append(port)
         regs = Array(regs)
-        self._rdports.append(regs)
-        return regs
+        port = RecordObject([("ren", self.depth),
+                             ("data_o", self.width)], name)
+        self._rdports.append((regs, port))
+        return port
 
     def write_port(self, name=None):
         regs = []
@@ -87,13 +102,32 @@ class RegFileArray(Elaboratable):
             port = self.regs[i].write_port(name)
             regs.append(port)
         regs = Array(regs)
-        self._wrports.append(regs)
-        return regs
+        port = RecordObject([("wen", self.depth),
+                             ("data_i", self.width)])
+        self._wrports.append((regs, port))
+        return port
+
+    def _get_en_sig(self, port, typ):
+        wen = []
+        for p in port:
+            wen.append(p[typ])
+        return Cat(*wen)
 
     def elaborate(self, platform):
         m = Module()
         for i, reg in enumerate(self.regs):
             setattr(m.submodules, "reg_%d" % i, reg)
+
+        for (regs, p) in self._rdports:
+            #print (p)
+            m.d.comb += p.ren.eq(self._get_en_sig(regs, 'ren'))
+            ror = treereduce(list(regs))
+            m.d.comb += p.data_o.eq(ror)
+        for (regs, p) in self._wrports:
+            m.d.comb += p.wen.eq(self._get_en_sig(regs, 'wen'))
+            for r in regs:
+                m.d.comb += p.data_i.eq(r.data_i)
+
         return m
 
     def __iter__(self):
@@ -206,8 +240,8 @@ def test_regfile():
     run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
 
     dut = RegFileArray(32, 8)
-    rp = dut.read_port()
-    wp = dut.write_port()
+    rp = dut.read_port("read")
+    wp = dut.write_port("write")
     ports=dut.ports()
     print ("ports", ports)
     vl = rtlil.convert(dut, ports=ports)
