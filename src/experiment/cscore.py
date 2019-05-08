@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Array, Elaboratable
+from nmigen import Module, Signal, Array, Cat, Elaboratable
 
 from regfile.regfile import RegFileArray
 from scoreboard.fn_unit import IntFnUnit, FPFnUnit, LDFnUnit, STFnUnit
@@ -76,11 +76,31 @@ class Scoreboard(Elaboratable):
 
         # Global Pending Vectors (INT and FP)
         # NOTE: number of vectors is NOT same as number of FUs.
-        m.submodules.g_int_rd_pend_v = GlobalPending(self.rwid, int_rd_pend_v)
-        m.submodules.g_int_wr_pend_v = GlobalPending(self.rwid, int_wr_pend_v)
+        g_int_rd_pend_v = GlobalPending(self.rwid, int_rd_pend_v)
+        g_int_wr_pend_v = GlobalPending(self.rwid, int_wr_pend_v)
+        m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
+        m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
         # INT/FP Issue Unit
-        m.submodules.issueunit = IntFPIssueUnit(self.rwid, n_int_fus, n_fp_fus)
+        issueunit = IntFPIssueUnit(self.rwid, n_int_fus, n_fp_fus)
+        m.submodules.issueunit = issueunit
+
+        #---------
+        # ok start wiring things together...
+        # "now hear de word of de looord... dem bones dem bones dem dryy bones"
+        # https://www.youtube.com/watch?v=pYb8Wm6-QfA
+        #---------
+
+        # Issue Unit is where it starts.  connect global rd/wr pending vectors
+        m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+        # TODO: issueunit.f (FP)
+
+        # and int function issue array
+        fissue_l = []
+        for i, fu in enumerate(il):
+            fissue_l.append(fu.issue_i)
+            m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+
         return m
 
 
