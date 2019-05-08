@@ -45,6 +45,10 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += req_l.s.eq(self.go_rd_i)
         m.d.comb += req_l.r.eq(self.go_wr_i)
 
+        # XXX
+        # XXX NOTE: sync on req_rel_o and data_o due to simulation lock-up
+        # XXX
+
         # outputs
         m.d.comb += self.busy_o.eq(opc_l.qn) # busy out
         m.d.comb += self.req_rel_o.eq(req_l.qn & opc_l.q) # request release out

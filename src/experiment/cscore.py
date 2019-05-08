@@ -36,6 +36,8 @@ class Scoreboard(Elaboratable):
         self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
         self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
 
+        self.issue_o = Signal(reset_less=True) # instruction was accepted
+
     def elaborate(self, platform):
         m = Module()
 
@@ -67,7 +69,7 @@ class Scoreboard(Elaboratable):
         int_wr_pend_v = []
         for i, a in enumerate(int_alus):
             # set up Integer Function Unit, add to module (and python list)
-            fu = IntFnUnit(self.rwid, shadow_wid=0)
+            fu = IntFnUnit(self.n_regs, shadow_wid=0)
             setattr(m.submodules, "intfu%d" % i, fu)
             il.append(fu)
             # collate the read/write pending vectors (to go into global pending)
@@ -94,13 +96,13 @@ class Scoreboard(Elaboratable):
 
         # Global Pending Vectors (INT and FP)
         # NOTE: number of vectors is NOT same as number of FUs.
-        g_int_rd_pend_v = GlobalPending(self.rwid, int_rd_pend_v)
-        g_int_wr_pend_v = GlobalPending(self.rwid, int_wr_pend_v)
+        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
+        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
         m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
         m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
         # INT/FP Issue Unit
-        issueunit = IntFPIssueUnit(self.rwid, n_int_fus, n_fp_fus)
+        issueunit = IntFPIssueUnit(self.n_regs, n_int_fus, n_fp_fus)
         m.submodules.issueunit = issueunit
 
         #---------
@@ -115,7 +117,8 @@ class Scoreboard(Elaboratable):
         m.d.comb += [issueunit.i.store_i.eq(self.int_store_i),
                      issueunit.i.dest_i.eq(self.int_dest_i),
                      issueunit.i.src1_i.eq(self.int_src1_i),
-                     issueunit.i.src2_i.eq(self.int_src2_i)
+                     issueunit.i.src2_i.eq(self.int_src2_i),
+                     self.issue_o.eq(issueunit.issue_o)
                     ]
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
@@ -129,11 +132,12 @@ class Scoreboard(Elaboratable):
         for i, fu in enumerate(il):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
-            m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
-            m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
-            m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
-            m.d.comb += fu.src2_i.eq(issueunit.i.src2_i)
-            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
+            # XXX sync, so as to stop a simulation infinite loop
+            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.sync += fu.dest_i.eq(issueunit.i.dest_i)
+            m.d.sync += fu.src1_i.eq(issueunit.i.src1_i)
+            m.d.sync += fu.src2_i.eq(issueunit.i.src2_i)
+            m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
 
         #---------
         # connect Function Units
@@ -188,6 +192,11 @@ class Scoreboard(Elaboratable):
     def __iter__(self):
         yield from self.intregs
         yield from self.fpregs
+        yield self.int_store_i
+        yield self.int_dest_i
+        yield self.int_src1_i
+        yield self.int_src2_i
+        yield self.issue_o
         #yield from self.int_src1
         #yield from self.int_dest
         #yield from self.int_src1
@@ -206,13 +215,26 @@ def int_instr(dut, op, src1, src2, dest):
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
-    #yield dut.int_insn_i[op].eq(1)
+    yield dut.int_insn_i[op].eq(1)
 
+def print_reg(dut, rnum):
+    reg = yield dut.intregs.regs[5].reg
+    print ("reg %d: %x" % (rnum, reg))
 
 def scoreboard_sim(dut):
     for i in range(1, dut.n_regs):
         yield dut.intregs.regs[i].reg.eq(i)
-    yield from int_instr(dut, IADD, 1, 2, 5)
+    yield
+    yield from int_instr(dut, IADD, 4, 1, 5)
+    yield from print_reg(dut, 5)
+    yield
+    yield from print_reg(dut, 5)
+    yield
+    yield from print_reg(dut, 5)
+    yield
+    yield from print_reg(dut, 5)
+    yield
+    yield from print_reg(dut, 5)
     yield
 
 
