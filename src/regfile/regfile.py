@@ -13,15 +13,17 @@ class Register(Elaboratable):
         self._rdports = []
         self._wrports = []
 
-    def read_port(self):
+    def read_port(self, name=None):
         port = RecordObject([("ren", 1),
-                             ("data_o", self.width)])
+                             ("data_o", self.width)],
+                            name=name)
         self._rdports.append(port)
         return port
 
-    def write_port(self):
+    def write_port(self, name=None):
         port = RecordObject([("wen", 1),
-                             ("data_i", self.width)])
+                             ("data_i", self.width)],
+                            name=name)
         self._wrports.append(port)
         return port
 
@@ -70,19 +72,19 @@ class RegFileArray(Elaboratable):
         self._rdports = []
         self._wrports = []
 
-    def read_port(self):
+    def read_port(self, name=None):
         regs = []
         for i in range(self.depth):
-            port = self.regs[i].read_port()
+            port = self.regs[i].read_port(name)
             regs.append(port)
         regs = Array(regs)
         self._rdports.append(regs)
         return regs
 
-    def write_port(self):
+    def write_port(self, name=None):
         regs = []
         for i in range(self.depth):
-            port = self.regs[i].write_port()
+            port = self.regs[i].write_port(name)
             regs.append(port)
         regs = Array(regs)
         self._wrports.append(regs)

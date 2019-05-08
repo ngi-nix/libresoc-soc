@@ -4,7 +4,7 @@ from nmigen import Module, Signal, Cat, Array, Const, Record, Elaboratable
 from nmutil.latch import SRLatch
 from nmigen.lib.coding import Decoder
 
-from shadow_fn import ShadowFn
+from .shadow_fn import ShadowFn
 
 
 class IssueUnit(Elaboratable):
