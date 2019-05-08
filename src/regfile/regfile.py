@@ -31,7 +31,7 @@ class Register(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        reg = Signal(self.width, name="reg")
+        self.reg = reg = Signal(self.width, name="reg")
 
         # read ports. has write-through detection (returns data written)
         for rp in self._rdports:

@@ -199,28 +199,22 @@ class Scoreboard(Elaboratable):
     def ports(self):
         return list(self)
 
+IADD = 0
+ISUB = 1
+
+def int_instr(dut, op, src1, src2, dest):
+    yield dut.int_dest_i.eq(dest)
+    yield dut.int_src1_i.eq(src1)
+    yield dut.int_src2_i.eq(src2)
+    #yield dut.int_insn_i[op].eq(1)
+
 
 def scoreboard_sim(dut):
-    yield dut.dest_i.eq(1)
-    yield dut.issue_i.eq(1)
+    for i in range(1, dut.n_regs):
+        yield dut.intregs.regs[i].reg.eq(i)
+    yield from int_instr(dut, IADD, 1, 2, 5)
     yield
-    yield dut.issue_i.eq(0)
-    yield
-    yield dut.src1_i.eq(1)
-    yield dut.issue_i.eq(1)
-    yield
-    yield
-    yield
-    yield dut.issue_i.eq(0)
-    yield
-    yield dut.go_read_i.eq(1)
-    yield
-    yield dut.go_read_i.eq(0)
-    yield
-    yield dut.go_write_i.eq(1)
-    yield
-    yield dut.go_write_i.eq(0)
-    yield
+
 
 def test_scoreboard():
     dut = Scoreboard(32, 8)
@@ -229,6 +223,7 @@ def test_scoreboard():
         f.write(vl)
 
     run_simulation(dut, scoreboard_sim(dut), vcd_name='test_scoreboard.vcd')
+
 
 if __name__ == '__main__':
     test_scoreboard()
