@@ -69,13 +69,13 @@ def g_vec_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
+    yield dut.go_rd_i.eq(1)
     yield
-    yield dut.go_read_i.eq(0)
+    yield dut.go_rd_i.eq(0)
     yield
-    yield dut.go_write_i.eq(1)
+    yield dut.go_wr_i.eq(1)
     yield
-    yield dut.go_write_i.eq(0)
+    yield dut.go_wr_i.eq(0)
     yield
 
 def test_g_vec():

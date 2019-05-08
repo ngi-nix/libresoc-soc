@@ -14,8 +14,8 @@ class DependenceCell(Elaboratable):
         self.src2_i = Signal(reset_less=True)     # oper2 in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
 
-        self.go_write_i = Signal(reset_less=True) # Go Write in (left)
-        self.go_read_i = Signal(reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
+        self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
 
         # for Register File Select Lines (vertical)
         self.dest_rsel_o = Signal(reset_less=True)  # dest reg sel (bottom)
@@ -33,17 +33,17 @@ class DependenceCell(Elaboratable):
         m.submodules.src1_l = src1_l = SRLatch()
         m.submodules.src2_l = src2_l = SRLatch()
 
-        # destination latch: reset on go_write HI, set on dest and issue
+        # destination latch: reset on go_wr HI, set on dest and issue
         m.d.comb += dest_l.s.eq(self.issue_i & self.dest_i)
-        m.d.comb += dest_l.r.eq(self.go_write_i)
+        m.d.comb += dest_l.r.eq(self.go_wr_i)
 
-        # src1 latch: reset on go_read HI, set on src1_i and issue
+        # src1 latch: reset on go_rd HI, set on src1_i and issue
         m.d.comb += src1_l.s.eq(self.issue_i & self.src1_i)
-        m.d.comb += src1_l.r.eq(self.go_read_i)
+        m.d.comb += src1_l.r.eq(self.go_rd_i)
 
-        # src2 latch: reset on go_read HI, set on op2_i and issue
+        # src2 latch: reset on go_rd HI, set on op2_i and issue
         m.d.comb += src2_l.s.eq(self.issue_i & self.src2_i)
-        m.d.comb += src2_l.r.eq(self.go_read_i)
+        m.d.comb += src2_l.r.eq(self.go_rd_i)
 
         # FU "Forward Progress" (read out horizontally)
         m.d.comb += self.dest_fwd_o.eq(dest_l.qn & self.dest_i)
@@ -51,9 +51,9 @@ class DependenceCell(Elaboratable):
         m.d.comb += self.src2_fwd_o.eq(src2_l.qn & self.src2_i)
 
         # Register File Select (read out vertically)
-        m.d.comb += self.dest_rsel_o.eq(dest_l.qn & self.go_write_i)
-        m.d.comb += self.src1_rsel_o.eq(src1_l.qn & self.go_read_i)
-        m.d.comb += self.src2_rsel_o.eq(src2_l.qn & self.go_read_i)
+        m.d.comb += self.dest_rsel_o.eq(dest_l.qn & self.go_wr_i)
+        m.d.comb += self.src1_rsel_o.eq(src1_l.qn & self.go_rd_i)
+        m.d.comb += self.src2_rsel_o.eq(src2_l.qn & self.go_rd_i)
 
         return m
 
@@ -62,8 +62,8 @@ class DependenceCell(Elaboratable):
         yield self.src1_i
         yield self.src2_i
         yield self.issue_i
-        yield self.go_write_i
-        yield self.go_read_i
+        yield self.go_wr_i
+        yield self.go_rd_i
         yield self.dest_rsel_o
         yield self.src1_rsel_o
         yield self.src2_rsel_o
@@ -88,13 +88,13 @@ def dcell_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
+    yield dut.go_rd_i.eq(1)
     yield
-    yield dut.go_read_i.eq(0)
+    yield dut.go_rd_i.eq(0)
     yield
-    yield dut.go_write_i.eq(1)
+    yield dut.go_wr_i.eq(1)
     yield
-    yield dut.go_write_i.eq(0)
+    yield dut.go_wr_i.eq(0)
     yield
 
 def test_dcell():

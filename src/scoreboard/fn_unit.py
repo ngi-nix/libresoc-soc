@@ -50,8 +50,8 @@ class FnUnit(Elaboratable):
         self.src2_i = Signal(max=wid, reset_less=True) # oper2 R# in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
 
-        self.go_write_i = Signal(reset_less=True) # Go Write in (left)
-        self.go_read_i = Signal(reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
+        self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
         self.req_rel_i = Signal(reset_less=True)  # request release (left)
 
         self.g_xx_pend_i = Array(Signal(wid, reset_less=True, name="g_pend_i") \
@@ -124,13 +124,13 @@ class FnUnit(Elaboratable):
             m.d.comb += self.xx_pend_o[i].eq(0)  # initialise all array
             m.d.comb += self.writable_o[i].eq(0) # to zero
 
-        # go_write latch: reset on go_write HI, set on issue
+        # go_wr latch: reset on go_wr HI, set on issue
         m.d.comb += wr_l.s.eq(self.issue_i)
-        m.d.comb += wr_l.r.eq(self.go_write_i | recover)
+        m.d.comb += wr_l.r.eq(self.go_wr_i | recover)
 
-        # src1 latch: reset on go_read HI, set on issue
+        # src1 latch: reset on go_rd HI, set on issue
         m.d.comb += rd_l.s.eq(self.issue_i)
-        m.d.comb += rd_l.r.eq(self.go_read_i | recover)
+        m.d.comb += rd_l.r.eq(self.go_rd_i | recover)
 
         # dest decoder: write-pending out
         m.d.comb += dest_d.i.eq(self.dest_i)
@@ -166,8 +166,8 @@ class FnUnit(Elaboratable):
         yield self.src1_i
         yield self.src2_i
         yield self.issue_i
-        yield self.go_write_i
-        yield self.go_read_i
+        yield self.go_wr_i
+        yield self.go_rd_i
         yield self.req_rel_i
         yield from self.g_xx_pend_i
         yield self.g_wr_pend_i
@@ -296,13 +296,13 @@ def int_fn_unit_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
+    yield dut.go_rd_i.eq(1)
     yield
-    yield dut.go_read_i.eq(0)
+    yield dut.go_rd_i.eq(0)
     yield
-    yield dut.go_write_i.eq(1)
+    yield dut.go_wr_i.eq(1)
     yield
-    yield dut.go_write_i.eq(0)
+    yield dut.go_wr_i.eq(0)
     yield
 
 def test_int_fn_unit():

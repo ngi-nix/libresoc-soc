@@ -23,8 +23,8 @@ class FUFUDepMatrix(Elaboratable):
         self.wr_pend_i = Signal(n_fu_row, reset_less=True) # Wr pending (left)
         self.issue_i = Signal(n_fu_col, reset_less=True)    # Issue in (top)
 
-        self.go_write_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
-        self.go_read_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
+        self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
 
         # for Function Unit Readable/Writable (horizontal)
         self.readable_o = Signal(n_fu_col, reset_less=True) # readable (bot)
@@ -88,23 +88,23 @@ class FUFUDepMatrix(Elaboratable):
             m.d.comb += Cat(*issue_i).eq(self.issue_i)
 
         # ---
-        # connect Matrix go_read_i/go_write_i to module readable/writable
+        # connect Matrix go_rd_i/go_wr_i to module readable/writable
         # ---
         for x in range(self.n_fu_col):
-            go_read_i = []
-            go_write_i = []
+            go_rd_i = []
+            go_wr_i = []
             rd_pend_i = []
             wr_pend_i = []
             for y in range(self.n_fu_row):
                 dc = dm[x][y]
-                # accumulate cell rd_pend/wr_pend/go_read/go_write
+                # accumulate cell rd_pend/wr_pend/go_rd/go_wr
                 rd_pend_i.append(dc.rd_pend_i)
                 wr_pend_i.append(dc.wr_pend_i)
-                go_read_i.append(dc.go_read_i)
-                go_write_i.append(dc.go_write_i)
+                go_rd_i.append(dc.go_rd_i)
+                go_wr_i.append(dc.go_wr_i)
             # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*go_read_i).eq(self.go_read_i),
-                         Cat(*go_write_i).eq(self.go_write_i),
+            m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
+                         Cat(*go_wr_i).eq(self.go_wr_i),
                          Cat(*rd_pend_i).eq(self.rd_pend_i),
                          Cat(*wr_pend_i).eq(self.wr_pend_i),
                         ]
@@ -115,8 +115,8 @@ class FUFUDepMatrix(Elaboratable):
         yield self.rd_pend_i
         yield self.wr_pend_i
         yield self.issue_i
-        yield self.go_write_i
-        yield self.go_read_i
+        yield self.go_wr_i
+        yield self.go_rd_i
         yield self.readable_o
         yield self.writable_o
                 
@@ -136,13 +136,13 @@ def d_matrix_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
+    yield dut.go_rd_i.eq(1)
     yield
-    yield dut.go_read_i.eq(0)
+    yield dut.go_rd_i.eq(0)
     yield
-    yield dut.go_write_i.eq(1)
+    yield dut.go_wr_i.eq(1)
     yield
-    yield dut.go_write_i.eq(0)
+    yield dut.go_wr_i.eq(0)
     yield
 
 def test_fu_fu_matrix():

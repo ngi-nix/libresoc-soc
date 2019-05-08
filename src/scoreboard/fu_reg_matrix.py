@@ -36,8 +36,8 @@ class FURegDepMatrix(Elaboratable):
         self.src2_i = Signal(n_reg_col, reset_less=True)     # oper2 in (top)
         self.issue_i = Signal(n_reg_col, reset_less=True)    # Issue in (top)
 
-        self.go_write_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
-        self.go_read_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
+        self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
 
         # for Register File Select Lines (horizontal), per-reg
         self.dest_rsel_o = Signal(n_reg_col, reset_less=True) # dest reg (bot)
@@ -158,19 +158,19 @@ class FURegDepMatrix(Elaboratable):
                         ]
 
         # ---
-        # connect Dependency Matrix go_read_i/go_write_i to module go_rd/go_wr
+        # connect Dependency Matrix go_rd_i/go_wr_i to module go_rd/go_wr
         # ---
         for fu in range(self.n_fu_row):
-            go_read_i = []
-            go_write_i = []
+            go_rd_i = []
+            go_wr_i = []
             for rn in range(self.n_reg_col):
                 dc = dm[rn][fu]
                 # accumulate cell fwd outputs for dest/src1/src2 
-                go_read_i.append(dc.go_read_i)
-                go_write_i.append(dc.go_write_i)
+                go_rd_i.append(dc.go_rd_i)
+                go_wr_i.append(dc.go_wr_i)
             # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*go_read_i).eq(self.go_read_i),
-                         Cat(*go_write_i).eq(self.go_write_i),
+            m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
+                         Cat(*go_wr_i).eq(self.go_wr_i),
                         ]
 
         return m
@@ -180,8 +180,8 @@ class FURegDepMatrix(Elaboratable):
         yield self.src1_i
         yield self.src2_i
         yield self.issue_i
-        yield self.go_write_i
-        yield self.go_read_i
+        yield self.go_wr_i
+        yield self.go_rd_i
         yield self.dest_rsel_o
         yield self.src1_rsel_o
         yield self.src2_rsel_o
@@ -204,13 +204,13 @@ def d_matrix_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
+    yield dut.go_rd_i.eq(1)
     yield
-    yield dut.go_read_i.eq(0)
+    yield dut.go_rd_i.eq(0)
     yield
-    yield dut.go_write_i.eq(1)
+    yield dut.go_wr_i.eq(1)
     yield
-    yield dut.go_write_i.eq(0)
+    yield dut.go_wr_i.eq(0)
     yield
 
 def test_d_matrix():
