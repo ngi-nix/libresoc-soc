@@ -75,7 +75,7 @@ class Scoreboard(Elaboratable):
         # m.submodules.intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
 
         # Integer FU-Reg Dep Matrix
-        intregdeps = FUFUDepMatrix(self.n_regs, n_int_fus)
+        intregdeps = FURegDepMatrix(self.n_regs, n_int_fus)
         m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
@@ -138,7 +138,11 @@ class Scoreboard(Elaboratable):
         m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
         # TODO m.d.comb += il[1].req_rel_i.eq(sub.ready_o) # pipe out ready
 
-        #---------
+        # Connect INT Fn Unit global wr/rd pending
+        for fu in il:
+            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+
         # Connect Picker
         #---------
         # m.d.comb += intpick.req_rel_i[0].eq(add.ready_o) # pipe out ready
