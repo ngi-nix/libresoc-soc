@@ -33,13 +33,13 @@ class GlobalPending(Elaboratable):
         for v in fu_vecs:
             assert len(v) == dep, "FU Vector must be same width as regfile"
 
-        self.g_pend_o = Signal(wid, reset_less=True)  # global pending vector
+        self.g_pend_o = Signal(dep, reset_less=True)  # global pending vector
 
     def elaborate(self, platform):
         m = Module()
 
         pend_l = []
-        for i in range(self.reg_width): # per-register
+        for i in range(self.reg_dep): # per-register
             vec_bit_l = []
             for v in self.fu_vecs:
                 vec_bit_l.append(v[i])             # fu bit for same register
