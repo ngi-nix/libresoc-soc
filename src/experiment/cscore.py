@@ -140,12 +140,12 @@ class Scoreboard(Elaboratable):
         for i, fu in enumerate(il):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
-            # XXX sync, so as to stop a simulation infinite loop
             m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
             m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
             m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
             m.d.comb += fu.src2_i.eq(issueunit.i.src2_i)
-            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
+            # XXX sync, so as to stop a simulation infinite loop
+            m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
 
         #---------
         # connect Function Units
