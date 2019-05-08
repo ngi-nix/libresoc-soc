@@ -5,6 +5,7 @@ from nmigen import Module, Signal, Array, Elaboratable
 from regfile.regfile import RegFileArray
 from scoreboard.fn_unit import IntFnUnit, FPFnUnit, LDFnUnit, STFnUnit
 from scoreboard.fu_fu_matrix import FUFUDepMatrix
+from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IntFPIssueUnit
@@ -63,8 +64,12 @@ class Scoreboard(Elaboratable):
 
         n_fus = n_int_fus + n_fp_fus # plus FP FUs
 
-        # Integer FU Dep Matrix
+        # Integer FU-FU Dep Matrix
         m.submodules.intfudeps = intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
+
+        # Integer FU-Reg Dep Matrix
+        intregdeps = FUFUDepMatrix(self.n_regs, n_int_fus)
+        m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
         m.submodules.intpick1 = GroupPicker(2) # picks between add and sub
@@ -74,10 +79,8 @@ class Scoreboard(Elaboratable):
         m.submodules.g_int_rd_pend_v = GlobalPending(self.rwid, int_rd_pend_v)
         m.submodules.g_int_wr_pend_v = GlobalPending(self.rwid, int_wr_pend_v)
 
-        # Issue Unit
-        m.submodules.issueunit = IntFPIssueUnit(self.rwid,
-                                                n_int_fus,
-                                                n_fp_fus)
+        # INT/FP Issue Unit
+        m.submodules.issueunit = IntFPIssueUnit(self.rwid, n_int_fus, n_fp_fus)
         return m
 
 
