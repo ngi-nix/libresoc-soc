@@ -1,7 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Record, Elaboratable
-from nmutil.latch import SRLatch
 from nmigen.lib.coding import Decoder
 
 from .shadow_fn import ShadowFn
