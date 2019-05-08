@@ -165,11 +165,12 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
+        # XXX sync, again to avoid an infinite loop.  is it the right thing???
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
-        m.d.comb += intpick1.readable_i[0].eq(il[0].int_readable_o) # add rdable
+        m.d.sync += intpick1.readable_i[0].eq(il[0].int_readable_o) # add rdable
         m.d.comb += intpick1.writable_i[0].eq(il[0].int_writable_o) # add rdable
-        m.d.comb += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
+        m.d.sync += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
         m.d.comb += intpick1.writable_i[1].eq(il[1].int_writable_o) # sub rdable
 
         #---------
@@ -242,7 +243,7 @@ def scoreboard_sim(dut):
     yield from int_instr(dut, IADD, 4, 3, 5)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield from int_instr(dut, IADD, 5, 2, 4)
+    yield from int_instr(dut, IADD, 5, 2, 5)
     yield from print_reg(dut, [3,4,5])
     yield
     yield from int_instr(dut, ISUB, 5, 2, 3)
