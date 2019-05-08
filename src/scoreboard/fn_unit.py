@@ -79,7 +79,7 @@ class FnUnit(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         m.submodules.rd_l = rd_l = SRLatch(sync=False)
-        m.submodules.wr_l = wr_l = SRLatch(sync=False)
+        m.submodules.wr_l = wr_l = SRLatch(sync=True)
         m.submodules.dest_d = dest_d = Decoder(self.reg_width)
         m.submodules.src1_d = src1_d = Decoder(self.reg_width)
         m.submodules.src2_d = src2_d = Decoder(self.reg_width)

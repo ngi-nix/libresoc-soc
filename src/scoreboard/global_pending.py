@@ -11,7 +11,7 @@ class GlobalPending(Elaboratable):
         Pending.  Can be used for INT or FP Global Pending.
 
         Inputs:
-        * :wid:       register file width
+        * :dep:       register file depth
         * :fu_vecs:   a python list of function unit "pending" vectors, each
                       vector being a Signal of width equal to the reg file.
 
@@ -26,12 +26,12 @@ class GlobalPending(Elaboratable):
           on a particular register (extremely unusual), they must set a Const
           zero bit in the vector.
     """
-    def __init__(self, wid, fu_vecs):
-        self.reg_width = wid
+    def __init__(self, dep, fu_vecs):
+        self.reg_dep = dep
         # inputs
         self.fu_vecs = fu_vecs
         for v in fu_vecs:
-            assert len(v) == wid, "FU Vector must be same width as regfile"
+            assert len(v) == dep, "FU Vector must be same width as regfile"
 
         self.g_pend_o = Signal(wid, reset_less=True)  # global pending vector
 
