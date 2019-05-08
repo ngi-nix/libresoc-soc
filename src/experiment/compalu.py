@@ -57,7 +57,7 @@ class ComputationUnitNoDelay(Elaboratable):
             m.d.comb += self.alu.a.eq(self.src1_i)
             m.d.comb += self.alu.b.eq(self.src2_i)
 
-        with m.If(opc_l.q):
+        #with m.If(opc_l.q): # XXX operand type in at same time as src1/src2
             m.d.comb += self.alu.op.eq(self.oper_i)
 
         with m.If(req_l.qn):

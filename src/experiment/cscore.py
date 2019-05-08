@@ -64,7 +64,7 @@ class Scoreboard(Elaboratable):
         m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
 
         # Int FUs
-        il = []
+        if_l = []
         int_src1_pend_v = []
         int_src2_pend_v = []
         int_rd_pend_v = []
@@ -73,16 +73,16 @@ class Scoreboard(Elaboratable):
             # set up Integer Function Unit, add to module (and python list)
             fu = IntFnUnit(self.n_regs, shadow_wid=0)
             setattr(m.submodules, "intfu%d" % i, fu)
-            il.append(fu)
+            if_l.append(fu)
             # collate the read/write pending vectors (to go into global pending)
             int_src1_pend_v.append(fu.src1_pend_o)
             int_src2_pend_v.append(fu.src2_pend_o)
             int_rd_pend_v.append(fu.int_rd_pend_o)
             int_wr_pend_v.append(fu.int_wr_pend_o)
-        int_fus = Array(il)
+        int_fus = Array(if_l)
 
         # Count of number of FUs
-        n_int_fus = len(il)
+        n_int_fus = len(if_l)
         n_fp_fus = 0 # for now
 
         n_fus = n_int_fus + n_fp_fus # plus FP FUs
@@ -137,7 +137,7 @@ class Scoreboard(Elaboratable):
         # and int function issue / busy arrays, and dest/src1/src2
         fn_issue_l = []
         fn_busy_l = []
-        for i, fu in enumerate(il):
+        for i, fu in enumerate(if_l):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
             m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
@@ -151,27 +151,28 @@ class Scoreboard(Elaboratable):
         # connect Function Units
         #---------
 
-        # Group Picker... done manually for now.  TODO: cat array of pick sigs
-        m.d.comb += il[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
-        m.d.comb += il[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        # XXX sync, again to avoid an infinite loop.  is it the right thing???
 
-        m.d.comb += il[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
-        m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        # Group Picker... done manually for now.  TODO: cat array of pick sigs
+        m.d.sync += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
+        m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+
+        m.d.sync += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
+        m.d.comb += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
 
         # Connect INT Fn Unit global wr/rd pending
-        for fu in il:
+        for fu in if_l:
             m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
             m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
 
         # Connect Picker
         #---------
-        # XXX sync, again to avoid an infinite loop.  is it the right thing???
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
-        m.d.sync += intpick1.readable_i[0].eq(il[0].int_readable_o) # add rdable
-        m.d.comb += intpick1.writable_i[0].eq(il[0].int_writable_o) # add rdable
-        m.d.sync += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
-        m.d.comb += intpick1.writable_i[1].eq(il[1].int_writable_o) # sub rdable
+        m.d.comb += intpick1.readable_i[0].eq(if_l[0].int_readable_o) # add rd
+        m.d.comb += intpick1.writable_i[0].eq(if_l[0].int_writable_o) # add wr
+        m.d.comb += intpick1.readable_i[1].eq(if_l[1].int_readable_o) # sub rd
+        m.d.comb += intpick1.writable_i[1].eq(if_l[1].int_writable_o) # sub wr
 
         #---------
         # Connect Register File(s)
@@ -187,13 +188,13 @@ class Scoreboard(Elaboratable):
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(il[i].go_rd_i) # chained from intpick
-            m.d.comb += alu.go_wr_i.eq(il[i].go_wr_i) # chained from intpick
+            m.d.comb += alu.go_rd_i.eq(if_l[i].go_rd_i) # chained from intpick
+            m.d.comb += alu.go_wr_i.eq(if_l[i].go_wr_i) # chained from intpick
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
-            m.d.comb += il[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
+            m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
 
         return m
 
@@ -246,7 +247,7 @@ def scoreboard_sim(dut):
     yield from int_instr(dut, IADD, 5, 2, 5)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield from int_instr(dut, ISUB, 5, 2, 3)
+    yield from int_instr(dut, ISUB, 5, 1, 3)
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
