@@ -128,6 +128,12 @@ class Scoreboard(Elaboratable):
         # connect Function Units
         #---------
 
+        # Group Picker... done manually for now.  TODO: cat array of pick sigs
+        m.d.comb += il[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add
+        m.d.comb += il[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract
+        m.d.comb += il[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add
+        m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract
+
         return m
 
 

@@ -45,7 +45,7 @@ class GroupPicker(Elaboratable):
         # inputs
         self.readable_i = Signal(wid, reset_less=True) # readable in (top)
         self.writable_i = Signal(wid, reset_less=True) # writable in (top)
-        self.rel_req_i = Signal(wid, reset_less=True) # release request in (top)
+        self.req_rel_i = Signal(wid, reset_less=True) # release request in (top)
 
         # outputs
         self.go_rd_o = Signal(wid, reset_less=True)  # go read (bottom)
@@ -58,7 +58,7 @@ class GroupPicker(Elaboratable):
         m.submodules.wpick = wpick = PriorityPicker(self.gp_wid)
 
         # combine release (output ready signal) with writeable
-        m.d.comb += wpick.i.eq(self.writable_i & self.rel_req_i)
+        m.d.comb += wpick.i.eq(self.writable_i & self.req_rel_i)
         m.d.comb += self.go_wr_o.eq(wpick.o)
 
         m.d.comb += rpick.i.eq(self.readable_i)
@@ -69,7 +69,7 @@ class GroupPicker(Elaboratable):
     def __iter__(self):
         yield self.readable_i
         yield self.writable_i
-        yield self.rel_req_i
+        yield self.req_rel_i
         yield self.go_rd_o
         yield self.go_wr_o
                 
