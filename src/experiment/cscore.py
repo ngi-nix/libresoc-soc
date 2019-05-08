@@ -23,6 +23,12 @@ class Scoreboard(Elaboratable):
         self.rwid = rwid
         self.n_regs = n_regs
 
+        # inputs
+        self.int_store_i = Signal(reset_less=True) # instruction is a store
+        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
+        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
+        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+
         # Register Files
         self.intregs = RegFileArray(rwid, n_regs)
         self.int_dest = self.intregs.write_port("dest")
@@ -72,7 +78,8 @@ class Scoreboard(Elaboratable):
         m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
-        m.submodules.intpick1 = GroupPicker(2) # picks between add and sub
+        intpick1 = GroupPicker(2) # picks between add and sub
+        m.submodules.intpick1 = intpick1
 
         # Global Pending Vectors (INT and FP)
         # NOTE: number of vectors is NOT same as number of FUs.
@@ -91,15 +98,35 @@ class Scoreboard(Elaboratable):
         # https://www.youtube.com/watch?v=pYb8Wm6-QfA
         #---------
 
-        # Issue Unit is where it starts.  connect global rd/wr pending vectors
+        #---------
+        # Issue Unit is where it starts.  set up some in/outs for this module
+        #---------
+        m.d.comb += [issueunit.i.store_i.eq(self.int_store_i),
+                     issueunit.i.dest_i.eq(self.int_dest_i),
+                     issueunit.i.src1_i.eq(self.int_src1_i),
+                     issueunit.i.src2_i.eq(self.int_src2_i)
+                    ]
+        self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
+
+        # connect global rd/wr pending vectors
         m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
         # TODO: issueunit.f (FP)
 
-        # and int function issue array
+        # and int function issue / busy arrays, and dest/src1/src2
         fissue_l = []
+        fbusy_l = []
         for i, fu in enumerate(il):
             fissue_l.append(fu.issue_i)
+            fbusy_l.append(fu.busy_o)
             m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
+            m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
+            m.d.comb += fu.src2_i.eq(issueunit.i.src2_i)
+            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
+
+        #---------
+        # connect Function Units
+        #---------
 
         return m
 
@@ -114,7 +141,7 @@ class Scoreboard(Elaboratable):
         #yield from self.fp_dest
         #yield from self.fp_src1
         #yield from self.fp_src2
-                
+
     def ports(self):
         return list(self)
 
