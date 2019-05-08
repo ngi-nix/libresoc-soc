@@ -10,8 +10,9 @@ import operator
 
 
 class Register(Elaboratable):
-    def __init__(self, width):
+    def __init__(self, width, writethru=False):
         self.width = width
+        self.writethru = writethru
         self._rdports = []
         self._wrports = []
 
@@ -35,14 +36,17 @@ class Register(Elaboratable):
 
         # read ports. has write-through detection (returns data written)
         for rp in self._rdports:
-            wr_detect = Signal(reset_less=False)
             with m.If(rp.ren):
-                m.d.comb += wr_detect.eq(0)
-                for wp in self._wrports:
-                    with m.If(wp.wen):
-                        m.d.comb += rp.data_o.eq(wp.data_i)
-                        m.d.comb += wr_detect.eq(1)
-                with m.If(~wr_detect):
+                if self.writethru:
+                    wr_detect = Signal(reset_less=False)
+                    m.d.comb += wr_detect.eq(0)
+                    for wp in self._wrports:
+                        with m.If(wp.wen):
+                            m.d.comb += rp.data_o.eq(wp.data_i)
+                            m.d.comb += wr_detect.eq(1)
+                    with m.If(~wr_detect):
+                        m.d.comb += rp.data_o.eq(reg)
+                else:
                     m.d.comb += rp.data_o.eq(reg)
 
         # write ports, don't allow write to address 0 (ignore it)
