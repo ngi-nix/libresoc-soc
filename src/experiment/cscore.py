@@ -240,8 +240,14 @@ def scoreboard_sim(dut):
     yield from int_instr(dut, IADD, 4, 3, 5)
     yield from print_reg(dut, [3,4,5])
     yield
+    yield from int_instr(dut, IADD, 5, 2, 4)
     yield from print_reg(dut, [3,4,5])
     yield
+    yield dut.int_insn_i[IADD].eq(0)
+    yield from int_instr(dut, ISUB, 5, 2, 3)
+    yield from print_reg(dut, [3,4,5])
+    yield
+    yield dut.int_insn_i[ISUB].eq(0)
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
