@@ -41,6 +41,9 @@ class IssueUnit(Elaboratable):
         m = Module()
         m.submodules.dest_d = dest_d = Decoder(self.reg_width)
 
+        if self.n_insns == 0:
+            return m
+
         # temporaries
         waw_stall = Signal(reset_less=True)
         fu_stall = Signal(reset_less=True)
