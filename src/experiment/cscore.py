@@ -23,27 +23,30 @@ class Scoreboard(Elaboratable):
         self.rwid = rwid
         self.n_regs = n_regs
 
+        # Register Files
+        self.intregs = RegFileArray(rwid, n_regs)
+        self.fpregs = RegFileArray(rwid, n_regs)
+
         # inputs
         self.int_store_i = Signal(reset_less=True) # instruction is a store
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
         self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
         self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
 
-        # Register Files
-        self.intregs = RegFileArray(rwid, n_regs)
-        self.int_dest = self.intregs.write_port("dest")
-        self.int_src1 = self.intregs.read_port("src1")
-        self.int_src2 = self.intregs.read_port("src2")
-
-        self.fpregs = RegFileArray(rwid, n_regs)
-        self.fp_dest = self.fpregs.write_port("dest")
-        self.fp_src1 = self.fpregs.read_port("src1")
-        self.fp_src2 = self.fpregs.read_port("src2")
-
     def elaborate(self, platform):
         m = Module()
+
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
+
+        # register ports
+        int_dest = self.intregs.write_port("dest")
+        int_src1 = self.intregs.read_port("src1")
+        int_src2 = self.intregs.read_port("src2")
+
+        fp_dest = self.fpregs.write_port("dest")
+        fp_src1 = self.fpregs.read_port("src1")
+        fp_src2 = self.fpregs.read_port("src2")
 
         # Int ALUs
         m.submodules.adder = adder = Adder(self.rwid)
@@ -73,10 +76,9 @@ class Scoreboard(Elaboratable):
         # XXX replaced by array of FUs? *FnUnit
         # # Integer FU-FU Dep Matrix
         # m.submodules.intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
-
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(self.n_regs, n_int_fus)
-        m.submodules.intregdeps = intregdeps
+        # intregdeps = FURegDepMatrix(self.n_regs, n_int_fus)
+        # m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
         intpick1 = GroupPicker(2) # picks between add and sub
@@ -151,6 +153,13 @@ class Scoreboard(Elaboratable):
         m.d.comb += intpick1.writable_i[0].eq(il[0].int_writable_o) # add rdable
         m.d.comb += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
         m.d.comb += intpick1.writable_i[1].eq(il[1].int_writable_o) # sub rdable
+
+        #---------
+        # Connect Register File(s)
+        #---------
+        m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.comb += int_src1.ren.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.comb += int_src2.ren.eq(g_int_rd_pend_v.g_pend_o)
 
         return m
 
