@@ -47,8 +47,8 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs
         m.submodules.adder = adder = Adder(self.rwid)
-        m.submodules.subtractor = subtractor = Subtractor(self.rwid)
-        int_alus = [adder, subtractor]
+        m.submodules.subtractor = sub = Subtractor(self.rwid)
+        int_alus = [adder, sub]
 
         # Int FUs
         il = []
@@ -70,8 +70,9 @@ class Scoreboard(Elaboratable):
 
         n_fus = n_int_fus + n_fp_fus # plus FP FUs
 
-        # Integer FU-FU Dep Matrix
-        m.submodules.intfudeps = intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
+        # XXX replaced by array of FUs? *FnUnit
+        # # Integer FU-FU Dep Matrix
+        # m.submodules.intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
 
         # Integer FU-Reg Dep Matrix
         intregdeps = FUFUDepMatrix(self.n_regs, n_int_fus)
@@ -129,10 +130,23 @@ class Scoreboard(Elaboratable):
         #---------
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
-        m.d.comb += il[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add
-        m.d.comb += il[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract
-        m.d.comb += il[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add
-        m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract
+        m.d.comb += il[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
+        m.d.comb += il[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        # TODO m.d.comb += il[0].req_rel_i.eq(adder.ready_o) # pipe out ready
+
+        m.d.comb += il[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
+        m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        # TODO m.d.comb += il[1].req_rel_i.eq(sub.ready_o) # pipe out ready
+
+        #---------
+        # Connect Picker
+        #---------
+        # m.d.comb += intpick.req_rel_i[0].eq(add.ready_o) # pipe out ready
+        # m.d.comb += intpick.req_rel_i[1].eq(sub.ready_o) # pipe out ready
+        m.d.comb += intpick1.readable_i[0].eq(il[0].int_readable_o) # add rdable
+        m.d.comb += intpick1.writable_i[0].eq(il[0].int_writable_o) # add rdable
+        m.d.comb += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
+        m.d.comb += intpick1.writable_i[1].eq(il[1].int_writable_o) # sub rdable
 
         return m
 
