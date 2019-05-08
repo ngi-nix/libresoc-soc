@@ -3,8 +3,8 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat
 
 #from nmutil.latch import SRLatch
-from fu_dep_cell import FUDependenceCell
-from fu_picker_vec import FU_Pick_Vec
+from .fu_dep_cell import FUDependenceCell
+from .fu_picker_vec import FU_Pick_Vec
 
 """
 
