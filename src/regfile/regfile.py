@@ -120,13 +120,13 @@ class RegFileArray(Elaboratable):
 
         for (regs, p) in self._rdports:
             #print (p)
-            m.d.comb += p.ren.eq(self._get_en_sig(regs, 'ren'))
+            m.d.comb += self._get_en_sig(regs, 'ren').eq(p.ren)
             ror = treereduce(list(regs))
             m.d.comb += p.data_o.eq(ror)
         for (regs, p) in self._wrports:
-            m.d.comb += p.wen.eq(self._get_en_sig(regs, 'wen'))
+            m.d.comb += self._get_en_sig(regs, 'wen').eq(p.wen)
             for r in regs:
-                m.d.comb += p.data_i.eq(r.data_i)
+                m.d.comb += r.data_i.eq(p.data_i)
 
         return m
 
