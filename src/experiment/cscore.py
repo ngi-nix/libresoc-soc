@@ -65,6 +65,8 @@ class Scoreboard(Elaboratable):
 
         # Int FUs
         il = []
+        int_src1_pend_v = []
+        int_src2_pend_v = []
         int_rd_pend_v = []
         int_wr_pend_v = []
         for i, a in enumerate(int_alus):
@@ -73,6 +75,8 @@ class Scoreboard(Elaboratable):
             setattr(m.submodules, "intfu%d" % i, fu)
             il.append(fu)
             # collate the read/write pending vectors (to go into global pending)
+            int_src1_pend_v.append(fu.src1_pend_o)
+            int_src2_pend_v.append(fu.src2_pend_o)
             int_rd_pend_v.append(fu.int_rd_pend_o)
             int_wr_pend_v.append(fu.int_wr_pend_o)
         int_fus = Array(il)
@@ -96,8 +100,12 @@ class Scoreboard(Elaboratable):
 
         # Global Pending Vectors (INT and FP)
         # NOTE: number of vectors is NOT same as number of FUs.
+        g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
+        g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
         g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
         g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
+        m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
+        m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
         m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
         m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
@@ -168,8 +176,8 @@ class Scoreboard(Elaboratable):
         # Connect Register File(s)
         #---------
         m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
-        m.d.comb += int_src1.ren.eq(g_int_rd_pend_v.g_pend_o)
-        m.d.comb += int_src2.ren.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
+        m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
         # merge (OR) all integer FU / ALU outputs to a single value
         # bit of a hack: treereduce needs a list with an item named "dest_o"
@@ -217,24 +225,28 @@ def int_instr(dut, op, src1, src2, dest):
     yield dut.int_src2_i.eq(src2)
     yield dut.int_insn_i[op].eq(1)
 
-def print_reg(dut, rnum):
-    reg = yield dut.intregs.regs[5].reg
-    print ("reg %d: %x" % (rnum, reg))
+def print_reg(dut, rnums):
+    rs = []
+    for rnum in rnums:
+        reg = yield dut.intregs.regs[rnum].reg
+        rs.append("%x" % reg)
+    rnums = map(str, rnums)
+    print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 def scoreboard_sim(dut):
     for i in range(1, dut.n_regs):
         yield dut.intregs.regs[i].reg.eq(i)
     yield
-    yield from int_instr(dut, IADD, 4, 1, 5)
-    yield from print_reg(dut, 5)
+    yield from int_instr(dut, IADD, 4, 3, 5)
+    yield from print_reg(dut, [3,4,5])
     yield
-    yield from print_reg(dut, 5)
+    yield from print_reg(dut, [3,4,5])
     yield
-    yield from print_reg(dut, 5)
+    yield from print_reg(dut, [3,4,5])
     yield
-    yield from print_reg(dut, 5)
+    yield from print_reg(dut, [3,4,5])
     yield
-    yield from print_reg(dut, 5)
+    yield from print_reg(dut, [3,4,5])
     yield
 
 

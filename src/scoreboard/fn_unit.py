@@ -70,6 +70,8 @@ class FnUnit(Elaboratable):
                                for i in range(n_dests)) # writable out (right)
         self.busy_o = Signal(reset_less=True) # busy out (left)
 
+        self.src1_pend_o = Signal(wid, reset_less=True) # src1 pending
+        self.src2_pend_o = Signal(wid, reset_less=True) # src1 pending
         self.rd_pend_o = Signal(wid, reset_less=True) # rd pending (right)
         self.xx_pend_o = Array(Signal(wid, reset_less=True, name="pend_o") \
                                for i in range(n_dests))# wr pending (right)
@@ -143,6 +145,8 @@ class FnUnit(Elaboratable):
         m.d.comb += src1_d.n.eq(rd_l.qn) # decode is inverted
         m.d.comb += src2_d.i.eq(self.src2_i)
         m.d.comb += src2_d.n.eq(rd_l.qn) # decode is inverted
+        m.d.comb += self.src1_pend_o.eq(src1_d.o)
+        m.d.comb += self.src2_pend_o.eq(src2_d.o)
         m.d.comb += self.rd_pend_o.eq(src1_d.o | src2_d.o)
 
         # readable output signal
