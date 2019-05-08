@@ -1,8 +1,8 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Array, Cat, Elaboratable
+from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
-from regfile.regfile import RegFileArray
+from regfile.regfile import RegFileArray, treereduce
 from scoreboard.fn_unit import IntFnUnit, FPFnUnit, LDFnUnit, STFnUnit
 from scoreboard.fu_fu_matrix import FUFUDepMatrix
 from scoreboard.fu_reg_matrix import FURegDepMatrix
@@ -10,8 +10,11 @@ from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IntFPIssueUnit
 
+from compalu import ComputationUnitNoDelay
 
-from alu_hier import Adder, Subtractor
+from alu_hier import ALU
+from nmutil.latch import SRLatch
+
 
 class Scoreboard(Elaboratable):
     def __init__(self, rwid, n_regs):
@@ -49,9 +52,14 @@ class Scoreboard(Elaboratable):
         fp_src2 = self.fpregs.read_port("src2")
 
         # Int ALUs
-        m.submodules.adder = adder = Adder(self.rwid)
-        m.submodules.subtractor = sub = Subtractor(self.rwid)
-        int_alus = [adder, sub]
+        add = ALU(self.rwid)
+        sub = ALU(self.rwid)
+        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 1, add)
+        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 1, sub)
+        int_alus = [comp1, comp2]
+
+        m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
+        m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
 
         # Int FUs
         il = []
@@ -116,11 +124,11 @@ class Scoreboard(Elaboratable):
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        fissue_l = []
-        fbusy_l = []
+        fn_issue_l = []
+        fn_busy_l = []
         for i, fu in enumerate(il):
-            fissue_l.append(fu.issue_i)
-            fbusy_l.append(fu.busy_o)
+            fn_issue_l.append(fu.issue_i)
+            fn_busy_l.append(fu.busy_o)
             m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
             m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
             m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
@@ -134,11 +142,9 @@ class Scoreboard(Elaboratable):
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         m.d.comb += il[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
         m.d.comb += il[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
-        # TODO m.d.comb += il[0].req_rel_i.eq(adder.ready_o) # pipe out ready
 
         m.d.comb += il[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
         m.d.comb += il[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
-        # TODO m.d.comb += il[1].req_rel_i.eq(sub.ready_o) # pipe out ready
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in il:
@@ -147,8 +153,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        # m.d.comb += intpick.req_rel_i[0].eq(add.ready_o) # pipe out ready
-        # m.d.comb += intpick.req_rel_i[1].eq(sub.ready_o) # pipe out ready
+        m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
+        m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
         m.d.comb += intpick1.readable_i[0].eq(il[0].int_readable_o) # add rdable
         m.d.comb += intpick1.writable_i[0].eq(il[0].int_writable_o) # add rdable
         m.d.comb += intpick1.readable_i[1].eq(il[1].int_readable_o) # sub rdable
@@ -160,6 +166,21 @@ class Scoreboard(Elaboratable):
         m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
         m.d.comb += int_src1.ren.eq(g_int_rd_pend_v.g_pend_o)
         m.d.comb += int_src2.ren.eq(g_int_rd_pend_v.g_pend_o)
+
+        # merge (OR) all integer FU / ALU outputs to a single value
+        # bit of a hack: treereduce needs a list with an item named "dest_o"
+        dest_o = treereduce(int_alus)
+        m.d.comb += int_dest.data_i.eq(dest_o)
+
+        # connect ALUs
+        for i, alu in enumerate(int_alus):
+            m.d.comb += alu.go_rd_i.eq(il[i].go_rd_i) # chained from intpick
+            m.d.comb += alu.go_wr_i.eq(il[i].go_wr_i) # chained from intpick
+            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
+            #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
+            m.d.comb += alu.src1_i.eq(int_src1.data_o)
+            m.d.comb += alu.src2_i.eq(int_src2.data_o)
+            m.d.comb += il[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
 
         return m
 
