@@ -229,6 +229,36 @@ def regfile_sim(dut, rp, wp):
     data = yield rp.data_o
     print (data)
 
+def regfile_array_sim(dut, rp1, rp2, wp):
+    yield wp.data_i.eq(2)
+    yield wp.wen.eq(1<<1)
+    yield
+    yield wp.wen.eq(0)
+    yield rp1.ren.eq(1<<1)
+    yield
+    data = yield rp1.data_o
+    print (data)
+    assert data == 2
+
+    yield rp1.ren.eq(1<<5)
+    yield rp2.ren.eq(1<<1)
+    yield wp.wen.eq(1<<5)
+    yield wp.data_i.eq(6)
+    data = yield rp1.data_o
+    print (data)
+    yield
+    yield wp.wen.eq(0)
+    yield rp1.ren.eq(0)
+    yield rp2.ren.eq(0)
+    data1 = yield rp1.data_o
+    print (data1)
+    data2 = yield rp2.data_o
+    print (data2)
+    assert data1 == 6
+    yield
+    data = yield rp1.data_o
+    print (data)
+
 def test_regfile():
     dut = RegFile(32, 8)
     rp = dut.read_port()
@@ -240,7 +270,8 @@ def test_regfile():
     run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
 
     dut = RegFileArray(32, 8)
-    rp = dut.read_port("read")
+    rp1 = dut.read_port("read1")
+    rp2 = dut.read_port("read2")
     wp = dut.write_port("write")
     ports=dut.ports()
     print ("ports", ports)
@@ -248,7 +279,8 @@ def test_regfile():
     with open("test_regfile_array.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
+    run_simulation(dut, regfile_array_sim(dut, rp1, rp2, wp),
+                   vcd_name='test_regfile_array.vcd')
 
 if __name__ == '__main__':
     test_regfile()
