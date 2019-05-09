@@ -50,7 +50,7 @@ class IssueUnit(Elaboratable):
 
         # dest decoder: write-pending
         m.d.comb += dest_d.i.eq(self.dest_i)
-        m.d.comb += dest_d.n.eq(~self.store_i) # decode is inverted
+        m.d.comb += dest_d.n.eq(self.store_i) # decode is inverted
         m.d.comb += pend.eq(dest_d.o & self.g_wr_pend_i)
         m.d.comb += waw_stall.eq(pend.bool())
 
