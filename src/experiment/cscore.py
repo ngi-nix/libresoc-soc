@@ -142,12 +142,12 @@ class Scoreboard(Elaboratable):
         for i, fu in enumerate(if_l):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
-            m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
             m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
             m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
             m.d.comb += fu.src2_i.eq(issueunit.i.src2_i)
             # XXX sync, so as to stop a simulation infinite loop
-            m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
+            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
 
         #---------
         # connect Function Units
@@ -157,10 +157,10 @@ class Scoreboard(Elaboratable):
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         m.d.sync += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
-        m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        m.d.sync += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
 
         m.d.sync += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
-        m.d.comb += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        m.d.sync += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
@@ -179,7 +179,7 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.sync += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
         m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
         m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
@@ -232,9 +232,9 @@ class RegSim:
         src1 = self.regs[src1]
         src2 = self.regs[src2]
         if op == IADD:
-            val = (src1 + src2) & ((1<<(self.rwidth+1))-1)
+            val = (src1 + src2) & ((1<<(self.rwidth))-1)
         elif op == ISUB:
-            val = (src1 - src2) & ((1<<(self.rwidth+1))-1)
+            val = (src1 - src2) & ((1<<(self.rwidth))-1)
         self.regs[dest] = val
 
     def setval(self, dest, val):
@@ -274,47 +274,78 @@ def print_reg(dut, rnums):
 
 
 def scoreboard_sim(dut, alusim):
+    yield dut.int_store_i.eq(0)
+
     for i in range(1, dut.n_regs):
         yield dut.intregs.regs[i].reg.eq(i)
         alusim.setval(i, i)
 
-    yield from int_instr(dut, alusim, IADD, 4, 3, 5)
-    yield from print_reg(dut, [3,4,5])
-    yield
-    yield from int_instr(dut, alusim, IADD, 5, 2, 5)
-    yield from print_reg(dut, [3,4,5])
-    yield
-    yield from int_instr(dut, alusim, ISUB, 5, 1, 3)
-    yield from print_reg(dut, [3,4,5])
-    yield
-    for i in range(len(dut.int_insn_i)):
-        yield dut.int_insn_i[i].eq(0)
-    yield from print_reg(dut, [3,4,5])
-    yield
-    yield from print_reg(dut, [3,4,5])
-    yield
-    yield from print_reg(dut, [3,4,5])
-    yield
+    if False:
+        yield from int_instr(dut, alusim, IADD, 4, 3, 5)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from int_instr(dut, alusim, IADD, 5, 2, 5)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from int_instr(dut, alusim, ISUB, 5, 1, 3)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        for i in range(len(dut.int_insn_i)):
+            yield dut.int_insn_i[i].eq(0)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from print_reg(dut, [3,4,5])
+        yield
 
-    yield from alusim.check(dut)
+        yield from alusim.check(dut)
 
     for i in range(100):
-        src1 = randint(0, dut.n_regs-1)
-        src2 = randint(0, dut.n_regs-1)
-        dest = randint(1, dut.n_regs-1)
+        src1 = randint(1, dut.n_regs-1)
+        src2 = randint(1, dut.n_regs-1)
+        while True:
+            dest = randint(1, dut.n_regs-1)
+            break
+            if dest not in [src1, src2]:
+                break
+        #src1 = 7
+        #src2 = 7
+        dest = src2
+
         op = randint(0, 1)
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from print_reg(dut, [3,4,5])
+        for i in range(len(dut.int_insn_i)):
+            yield dut.int_insn_i[i].eq(0)
+        yield
         yield
 
-    for i in range(len(dut.int_insn_i)):
-        yield dut.int_insn_i[i].eq(0)
 
+    yield
+    yield from print_reg(dut, [3,4,5])
+    yield
+    yield from print_reg(dut, [3,4,5])
     yield
     yield
     yield
     yield
     yield from alusim.check(dut)
+
+
+def explore_groups(dut):
+    from nmigen.hdl.ir import Fragment
+    from nmigen.hdl.xfrm import LHSGroupAnalyzer
+
+    fragment = dut.elaborate(platform=None)
+    fr = Fragment.get(fragment, platform=None)
+
+    groups = LHSGroupAnalyzer()(fragment._statements)
+
+    print (groups)
 
 
 def test_scoreboard():

@@ -51,17 +51,26 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # outputs
         m.d.comb += self.busy_o.eq(opc_l.qn) # busy out
-        m.d.comb += self.req_rel_o.eq(req_l.qn & opc_l.q) # request release out
+        m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.qn) # request release out
 
         with m.If(src_l.q):
             m.d.comb += self.alu.a.eq(self.src1_i)
             m.d.comb += self.alu.b.eq(self.src2_i)
-
+        with m.Else():
+            m.d.comb += self.alu.a.eq(self.alu.a)
+            m.d.comb += self.alu.b.eq(self.alu.b)
         #with m.If(opc_l.q): # XXX operand type in at same time as src1/src2
             m.d.comb += self.alu.op.eq(self.oper_i)
 
-        with m.If(req_l.qn):
-            m.d.comb += self.data_o.eq(self.alu.o)
+        data_o = Signal(self.rwid, reset_less=True) # Dest register
+        data_r = Signal(self.rwid, reset_less=True) # Dest register
+        with m.If(req_l.q):
+            m.d.comb += data_o.eq(self.alu.o)
+            m.d.sync += data_r.eq(self.alu.o)
+        with m.Else():
+            m.d.comb += data_o.eq(data_r)
+        with m.If(self.go_wr_i):
+            m.d.comb += self.data_o.eq(data_o)
 
         return m
 
