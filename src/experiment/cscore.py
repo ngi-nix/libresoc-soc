@@ -15,6 +15,8 @@ from compalu import ComputationUnitNoDelay
 from alu_hier import ALU
 from nmutil.latch import SRLatch
 
+from random import randint
+
 
 class Scoreboard(Elaboratable):
     def __init__(self, rwid, n_regs):
@@ -221,13 +223,46 @@ class Scoreboard(Elaboratable):
 IADD = 0
 ISUB = 1
 
-def int_instr(dut, op, src1, src2, dest):
+class RegSim:
+    def __init__(self, rwidth, nregs):
+        self.rwidth = rwidth
+        self.regs = [0] * nregs
+
+    def op(self, op, src1, src2, dest):
+        src1 = self.regs[src1]
+        src2 = self.regs[src2]
+        if op == IADD:
+            val = (src1 + src2) & ((1<<(self.rwidth+1))-1)
+        elif op == ISUB:
+            val = (src1 - src2) & ((1<<(self.rwidth+1))-1)
+        self.regs[dest] = val
+
+    def setval(self, dest, val):
+        self.regs[dest] = val
+
+    def dump(self, dut):
+        for i, val in enumerate(self.regs):
+            reg = yield dut.intregs.regs[i].reg
+            okstr = "OK" if reg == val else "!ok"
+            print("reg %d expected %x received %x %s" % (i, val, reg, okstr))
+
+    def check(self, dut):
+        for i, val in enumerate(self.regs):
+            reg = yield dut.intregs.regs[i].reg
+            if reg != val:
+                print("reg %d expected %x received %x\n" % (i, val, reg))
+                yield from self.dump(dut)
+                assert False
+
+def int_instr(dut, alusim, op, src1, src2, dest):
     for i in range(len(dut.int_insn_i)):
         yield dut.int_insn_i[i].eq(0)
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
     yield dut.int_insn_i[op].eq(1)
+    alusim.op(op, src1, src2, dest)
+
 
 def print_reg(dut, rnums):
     rs = []
@@ -237,34 +272,60 @@ def print_reg(dut, rnums):
     rnums = map(str, rnums)
     print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
-def scoreboard_sim(dut):
+
+def scoreboard_sim(dut, alusim):
     for i in range(1, dut.n_regs):
         yield dut.intregs.regs[i].reg.eq(i)
-    yield
-    yield from int_instr(dut, IADD, 4, 3, 5)
+        alusim.setval(i, i)
+
+    yield from int_instr(dut, alusim, IADD, 4, 3, 5)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield from int_instr(dut, IADD, 5, 2, 5)
+    yield from int_instr(dut, alusim, IADD, 5, 2, 5)
     yield from print_reg(dut, [3,4,5])
     yield
-    yield from int_instr(dut, ISUB, 5, 1, 3)
+    yield from int_instr(dut, alusim, ISUB, 5, 1, 3)
+    yield from print_reg(dut, [3,4,5])
+    yield
+    for i in range(len(dut.int_insn_i)):
+        yield dut.int_insn_i[i].eq(0)
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
     yield
-    yield from print_reg(dut, [3,4,5])
+
+    yield from alusim.check(dut)
+
+    for i in range(100):
+        src1 = randint(0, dut.n_regs-1)
+        src2 = randint(0, dut.n_regs-1)
+        dest = randint(1, dut.n_regs-1)
+        op = randint(0, 1)
+        print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
+        yield from int_instr(dut, alusim, op, src1, src2, dest)
+        yield
+
+    for i in range(len(dut.int_insn_i)):
+        yield dut.int_insn_i[i].eq(0)
+
     yield
+    yield
+    yield
+    yield
+    yield from alusim.check(dut)
 
 
 def test_scoreboard():
     dut = Scoreboard(32, 8)
+    alusim = RegSim(32, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_scoreboard.vcd')
+    run_simulation(dut, scoreboard_sim(dut, alusim),
+                        vcd_name='test_scoreboard.vcd')
 
 
 if __name__ == '__main__':
