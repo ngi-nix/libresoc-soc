@@ -17,12 +17,13 @@ class PriorityPicker(Elaboratable):
 
         res = []
         for i in range(0, self.wid):
-            tmp = Signal(reset_less = True)
+            t = Signal(reset_less = True)
+            res.append(t)
             if i == 0:
-                m.d.comb += tmp.eq(self.i[0])
+                m.d.comb += t.eq(self.i[0])
             else:
-                m.d.comb += tmp.eq((~tmp) & self.i[i])
-            res.append(tmp)
+                m.d.comb += t.eq((~res[-2]) & self.i[i])
+            res.append(t)
         
         # we like Cat(*xxx).  turn lists into concatenated bits
         m.d.comb += self.o.eq(Cat(*res))
