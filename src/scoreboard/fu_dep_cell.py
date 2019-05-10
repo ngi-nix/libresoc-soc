@@ -22,8 +22,8 @@ class FUDependenceCell(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.rd_l = rd_l = SRLatch()
-        m.submodules.wr_l = wr_l = SRLatch()
+        m.submodules.rd_l = rd_l = SRLatch() # clock-sync'd
+        m.submodules.wr_l = wr_l = SRLatch() # clock-sync'd
 
         # write latch: reset on go_wr HI, set on write pending and issue
         m.d.comb += wr_l.s.eq(self.issue_i & self.wr_pend_i)
@@ -34,8 +34,8 @@ class FUDependenceCell(Elaboratable):
         m.d.comb += rd_l.r.eq(self.go_rd_i)
 
         # Read/Write Pending Latches (read out horizontally)
-        m.d.comb += self.wr_pend_o.eq(wr_l.qn)
-        m.d.comb += self.rd_pend_o.eq(rd_l.qn)
+        m.d.comb += self.wr_pend_o.eq(wr_l.q)
+        m.d.comb += self.rd_pend_o.eq(rd_l.q)
 
         return m
 

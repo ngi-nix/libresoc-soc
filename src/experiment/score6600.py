@@ -75,7 +75,7 @@ class Scoreboard(Elaboratable):
         intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(self.n_regs, n_int_fus)
+        intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
@@ -144,11 +144,11 @@ class Scoreboard(Elaboratable):
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         go_rd_i = intfudeps.go_rd_i
         go_wr_i = intfudeps.go_wr_i
-        m.d.comb += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
-        m.d.comb += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
+        m.d.sync += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
+        m.d.sync += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
 
-        m.d.comb += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
-        m.d.comb += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
+        m.d.sync += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
+        m.d.sync += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
 
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
 
@@ -190,10 +190,8 @@ class Scoreboard(Elaboratable):
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(intpick1.go_rd_o[i])
-            m.d.comb += alu.go_wr_i.eq(intpick1.go_wr_o[i])
-            #m.d.comb += alu.issue_i.eq(fn_issue_l[i])
-            #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
+            m.d.comb += alu.go_rd_i.eq(go_rd_i[i])
+            m.d.comb += alu.go_wr_i.eq(go_wr_i[i])
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
 
@@ -300,7 +298,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(100):
+    for i in range(4):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:

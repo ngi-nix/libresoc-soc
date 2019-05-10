@@ -29,9 +29,9 @@ class DependenceCell(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_l = dest_l = SRLatch()
-        m.submodules.src1_l = src1_l = SRLatch()
-        m.submodules.src2_l = src2_l = SRLatch()
+        m.submodules.dest_l = dest_l = SRLatch() # clock-sync'd
+        m.submodules.src1_l = src1_l = SRLatch() # clock-sync'd
+        m.submodules.src2_l = src2_l = SRLatch() # clock-sync'd
 
         # destination latch: reset on go_wr HI, set on dest and issue
         m.d.comb += dest_l.s.eq(self.issue_i & self.dest_i)
@@ -42,18 +42,18 @@ class DependenceCell(Elaboratable):
         m.d.comb += src1_l.r.eq(self.go_rd_i)
 
         # src2 latch: reset on go_rd HI, set on op2_i and issue
-        m.d.comb += src2_l.s.eq(self.issue_i & self.src2_i)
-        m.d.comb += src2_l.r.eq(self.go_rd_i)
+        m.d.sync += src2_l.s.eq(self.issue_i & self.src2_i)
+        m.d.sync += src2_l.r.eq(self.go_rd_i)
 
         # FU "Forward Progress" (read out horizontally)
-        m.d.comb += self.dest_fwd_o.eq(dest_l.qn & self.dest_i)
-        m.d.comb += self.src1_fwd_o.eq(src1_l.qn & self.src1_i)
-        m.d.comb += self.src2_fwd_o.eq(src2_l.qn & self.src2_i)
+        m.d.comb += self.dest_fwd_o.eq(dest_l.q & self.dest_i)
+        m.d.comb += self.src1_fwd_o.eq(src1_l.q & self.src1_i)
+        m.d.comb += self.src2_fwd_o.eq(src2_l.q & self.src2_i)
 
         # Register File Select (read out vertically)
-        m.d.comb += self.dest_rsel_o.eq(dest_l.qn & self.go_wr_i)
-        m.d.comb += self.src1_rsel_o.eq(src1_l.qn & self.go_rd_i)
-        m.d.comb += self.src2_rsel_o.eq(src2_l.qn & self.go_rd_i)
+        m.d.comb += self.dest_rsel_o.eq(dest_l.q & self.go_wr_i)
+        m.d.comb += self.src1_rsel_o.eq(src1_l.q & self.go_rd_i)
+        m.d.comb += self.src2_rsel_o.eq(src2_l.q & self.go_rd_i)
 
         return m
 
