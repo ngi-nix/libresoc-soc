@@ -47,6 +47,8 @@ class FURegDepMatrix(Elaboratable):
         # for Function Unit "forward progress" (vertical), per-FU
         self.wr_pend_o = Signal(n_fu_row, reset_less=True) # wr pending (right)
         self.rd_pend_o = Signal(n_fu_row, reset_less=True) # rd pending (right)
+        self.rd_src1_pend_o = Signal(n_fu_row, reset_less=True) # src1 pending
+        self.rd_src2_pend_o = Signal(n_fu_row, reset_less=True) # src2 pending
 
     def elaborate(self, platform):
         m = Module()
@@ -79,6 +81,8 @@ class FURegDepMatrix(Elaboratable):
         # ---
         wr_pend = []
         rd_pend = []
+        rd_src1_pend = []
+        rd_src2_pend = []
         for fu in range(self.n_fu_row):
             fup = fupend[fu]
             dest_fwd_o = []
@@ -98,10 +102,14 @@ class FURegDepMatrix(Elaboratable):
             # accumulate FU Vector outputs
             wr_pend.append(fup.reg_wr_pend_o)
             rd_pend.append(fup.reg_rd_pend_o)
+            src1_pend.append(fup.reg_rd_src1_pend_o)
+            src2_pend.append(fup.reg_rd_src2_pend_o)
 
         # ... and output them from this module (vertical, width=FUs)
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
         m.d.comb += self.rd_pend_o.eq(Cat(*rd_pend))
+        m.d.comb += self.rd_src1_pend_o.eq(Cat(*rd_src1_pend))
+        m.d.comb += self.rd_src2_pend_o.eq(Cat(*rd_src2_pend))
 
         # ---
         # connect Reg Selection vector

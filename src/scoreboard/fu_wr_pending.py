@@ -13,11 +13,15 @@ class FU_RW_Pend(Elaboratable):
 
         self.reg_wr_pend_o = Signal(reset_less=True)
         self.reg_rd_pend_o = Signal(reset_less=True)
+        self.reg_rd_src1_pend_o = Signal(reset_less=True)
+        self.reg_rd_src2_pend_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
-        srces = Cat(self.src1_fwd_i, self.src2_fwd_i)
         m.d.comb += self.reg_wr_pend_o.eq(self.dest_fwd_i.bool())
-        m.d.comb += self.reg_rd_pend_o.eq(srces.bool())
+        m.d.comb += self.reg_rd_src1_pend_o.eq(self.src1_fwd_i.bool())
+        m.d.comb += self.reg_rd_src2_pend_o.eq(self.src2_fwd_i.bool())
+        m.d.comb += self.reg_rd_pend_o.eq(self.reg_rd_src1_pend_o |
+                                          self.reg_rd_src2_pend_o)
         return m
 
