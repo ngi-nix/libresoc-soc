@@ -1,9 +1,10 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, Elaboratable
 from nmigen.cli import main
 
-from .PteEntry import PteEntry
+from TLB.PteEntry import PteEntry
 
-class PermissionValidator():
+
+class PermissionValidator(Elaboratable):
     """ The purpose of this Module is to check the Permissions of a given PTE
         against the requested access permissions.
 

@@ -1,7 +1,8 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, Elaboratable
 from nmigen.cli import main
 
-class PteEntry():
+
+class PteEntry(Elaboratable):
     """ The purpose of this Module is to  centralize the parsing of Page
         Table Entries (PTE) into one module to prevent common mistakes
         and duplication of code. The control bits are parsed out for

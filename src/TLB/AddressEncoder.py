@@ -1,7 +1,7 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, Elaboratable
 from nmigen.lib.coding import Encoder, PriorityEncoder
 
-class AddressEncoder():
+class AddressEncoder(Elaboratable):
     """Address Encoder
 
        The purpose of this module is to take in a vector and

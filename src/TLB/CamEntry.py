@@ -1,6 +1,7 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, Elaboratable
 
-class CamEntry:
+
+class CamEntry(Elaboratable):
     """ Content Addressable Memory (CAM) Entry
 
         The purpose of this module is to represent an entry within a CAM.

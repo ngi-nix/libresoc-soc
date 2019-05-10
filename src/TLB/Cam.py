@@ -1,4 +1,4 @@
-from nmigen import Array, Cat, Module, Signal
+from nmigen import Array, Cat, Module, Signal, Elaboratable
 from nmigen.lib.coding import Decoder
 from nmigen.cli import main #, verilog
 
@@ -6,7 +6,7 @@ from .CamEntry import CamEntry
 from .AddressEncoder import AddressEncoder
 
 
-class Cam():
+class Cam(Elaboratable):
     """ Content Addressable Memory (CAM)
 
         The purpose of this module is to quickly look up whether an
