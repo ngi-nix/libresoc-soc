@@ -118,32 +118,52 @@ class Scoreboard(Elaboratable):
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        fn_issue_l = []
         fn_busy_l = []
+        fn_issue_l = []
         for i, alu in enumerate(int_alus):
-            fn_issue_l.append(alu.issue_i)
             fn_busy_l.append(alu.busy_o)
+            fn_issue_l.append(issueunit.i.fn_issue_o[i])
 
-            #m.d.sync += alu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
+            # XXX sync, so as to stop a simulation infinite loop
+            m.d.comb += issueunit.i.busy_i[i].eq(alu.busy_o)
             #m.d.comb += alu.dest_i.eq(issueunit.i.dest_i)
             #m.d.comb += alu.src1_i.eq(issueunit.i.src1_i)
             #m.d.comb += alu.src2_i.eq(issueunit.i.src2_i)
-            # XXX sync, so as to stop a simulation infinite loop
-            #m.d.comb += issueunit.i.busy_i[i].eq(alu.busy_o)
             # NOTE: req_rel_o connected to picker, below.
 
+        fn_issue_o = Signal(len(fn_issue_l), reset_less=True)
+        m.d.comb += fn_issue_o.eq(Cat(*fn_issue_l))
         #---------
-        # connect Function Units
+        # connect fu-fu matrix
         #---------
 
-        # XXX sync, again to avoid an infinite loop.  is it the right thing???
+        m.d.comb += intfudeps.rd_pend_i.eq(g_int_rd_pend_v)
+        m.d.comb += intfudeps.wr_pend_i.eq(g_int_wr_pend_v)
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
-        #m.d.sync += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
-        #m.d.sync += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        go_rd_i = intfudeps.go_rd_i
+        go_wr_i = intfudeps.go_wr_i
+        m.d.comb += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
+        m.d.comb += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
 
-        #m.d.sync += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
-        #m.d.sync += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        m.d.comb += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
+        m.d.comb += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
+
+        m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
+
+        #---------
+        # connect fu-dep matrix
+        #---------
+        r_go_rd_i = intregdeps.go_rd_i
+        r_go_wr_i = intregdeps.go_wr_i
+        m.d.comb += r_go_rd_i.eq(go_rd_i)
+        m.d.comb += r_go_wr_i.eq(go_wr_i)
+
+        m.d.comb += intregdeps.dest_i.eq(regdecode.dest_o)
+        m.d.comb += intregdeps.src1_i.eq(regdecode.src1_o)
+        m.d.comb += intregdeps.src2_i.eq(regdecode.src2_o)
+        m.d.comb += intregdeps.issue_i.eq(fn_issue_o)
 
         # Connect Picker
         #---------
@@ -172,7 +192,7 @@ class Scoreboard(Elaboratable):
         for i, alu in enumerate(int_alus):
             m.d.comb += alu.go_rd_i.eq(intpick1.go_rd_o[i])
             m.d.comb += alu.go_wr_i.eq(intpick1.go_wr_o[i])
-            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
+            #m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
