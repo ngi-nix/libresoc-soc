@@ -1,7 +1,7 @@
 from nmigen import Module, Signal
 from nmigen.cli import main
 
-from PteEntry import PteEntry
+from .PteEntry import PteEntry
 
 class PermissionValidator():
     """ The purpose of this Module is to check the Permissions of a given PTE
