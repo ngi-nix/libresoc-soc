@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # See Notices.txt for copyright information
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-from LFSR import LFSR, LFSRPolynomial, LFSR_POLY_3
+from TLB.LFSR import LFSR, LFSRPolynomial, LFSR_POLY_3
 
 from nmigen.back.pysim import Simulator, Delay, Tick
 import unittest
@@ -70,3 +67,4 @@ class TestLFSR(unittest.TestCase):
 
             sim.add_process(async_process)
             sim.run()
+
