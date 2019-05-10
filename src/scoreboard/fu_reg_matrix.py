@@ -102,8 +102,8 @@ class FURegDepMatrix(Elaboratable):
             # accumulate FU Vector outputs
             wr_pend.append(fup.reg_wr_pend_o)
             rd_pend.append(fup.reg_rd_pend_o)
-            src1_pend.append(fup.reg_rd_src1_pend_o)
-            src2_pend.append(fup.reg_rd_src2_pend_o)
+            rd_src1_pend.append(fup.reg_rd_src1_pend_o)
+            rd_src2_pend.append(fup.reg_rd_src2_pend_o)
 
         # ... and output them from this module (vertical, width=FUs)
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
@@ -195,6 +195,8 @@ class FURegDepMatrix(Elaboratable):
         yield self.src2_rsel_o
         yield self.wr_pend_o
         yield self.rd_pend_o
+        yield self.rd_src1_pend_o
+        yield self.rd_src2_pend_o
                 
     def ports(self):
         return list(self)
