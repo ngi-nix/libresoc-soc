@@ -6,6 +6,56 @@ from nmigen.lib.coding import Decoder
 from .shadow_fn import ShadowFn
 
 
+class RegDecode(Elaboratable):
+    """ decodes registers into unary
+
+        Inputs
+
+        * :wid:         register file width
+    """
+    def __init__(self, wid):
+        self.reg_width = wid
+
+        # inputs
+        self.enable_i = Signal(reset_less=True) # enable decoders
+        self.dest_i = Signal(max=wid, reset_less=True) # Dest R# in
+        self.src1_i = Signal(max=wid, reset_less=True) # oper1 R# in
+        self.src2_i = Signal(max=wid, reset_less=True) # oper2 R# in
+
+        # outputs
+        self.dest_o = Signal(wid, reset_less=True) # Dest unary out
+        self.src1_o = Signal(wid, reset_less=True) # oper1 unary out
+        self.src2_o = Signal(wid, reset_less=True) # oper2 unary out
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.dest_d = dest_d = Decoder(self.reg_width)
+        m.submodules.src1_d = src1_d = Decoder(self.reg_width)
+        m.submodules.src2_d = src2_d = Decoder(self.reg_width)
+
+        # dest decoder: write-pending
+        for d, i, o in [(dest_d, self.dest_i, self.dest_o),
+                     (src1_d, self.src1_i, self.src1_o),
+                     (src2_d, self.src2_i, self.src2_o)]:
+            m.d.comb += d.i.eq(i)
+            m.d.comb += d.n.eq(~self.enable_i)
+            m.d.comb += o.eq(d.o)
+
+        return m
+
+    def __iter__(self):
+        yield self.enable_i
+        yield self.dest_i
+        yield self.src1_i
+        yield self.src2_i
+        yield self.dest_o
+        yield self.src1_o
+        yield self.src2_o
+
+    def ports(self):
+        return list(self)
+
+
 class IssueUnit(Elaboratable):
     """ implements 11.4.14 issue unit, p50
 
@@ -20,9 +70,7 @@ class IssueUnit(Elaboratable):
 
         # inputs
         self.store_i = Signal(reset_less=True) # instruction is a store
-        self.dest_i = Signal(max=wid, reset_less=True) # Dest R# in 
-        self.src1_i = Signal(max=wid, reset_less=True) # oper1 R# in
-        self.src2_i = Signal(max=wid, reset_less=True) # oper2 R# in
+        self.dest_i = Signal(wid, reset_less=True) # Dest R in (unary)
 
         self.g_wr_pend_i = Signal(wid, reset_less=True) # write pending vector
 
@@ -38,7 +86,6 @@ class IssueUnit(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_d = dest_d = Decoder(self.reg_width)
 
         if self.n_insns == 0:
             return m
@@ -49,9 +96,7 @@ class IssueUnit(Elaboratable):
         pend = Signal(self.reg_width, reset_less=True)
 
         # dest decoder: write-pending
-        m.d.comb += dest_d.i.eq(self.dest_i)
-        m.d.comb += dest_d.n.eq(self.store_i) # decode is inverted
-        m.d.comb += pend.eq(dest_d.o & self.g_wr_pend_i)
+        m.d.comb += pend.eq(self.dest_i & self.g_wr_pend_i & (~self.store_i))
         m.d.comb += waw_stall.eq(pend.bool())
 
         ib_l = []

@@ -8,7 +8,7 @@ from scoreboard.fu_fu_matrix import FUFUDepMatrix
 from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
-from scoreboard.issue_unit import IntFPIssueUnit
+from scoreboard.issue_unit import IntFPIssueUnit, RegDecode
 
 from compalu import ComputationUnitNoDelay
 
@@ -112,6 +112,8 @@ class Scoreboard(Elaboratable):
         m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
         # INT/FP Issue Unit
+        regdecode = RegDecode(self.n_regs)
+        m.submodules.regdecode = regdecode
         issueunit = IntFPIssueUnit(self.n_regs, n_int_fus, n_fp_fus)
         m.submodules.issueunit = issueunit
 
@@ -125,9 +127,11 @@ class Scoreboard(Elaboratable):
         # Issue Unit is where it starts.  set up some in/outs for this module
         #---------
         m.d.comb += [issueunit.i.store_i.eq(self.int_store_i),
-                     issueunit.i.dest_i.eq(self.int_dest_i),
-                     issueunit.i.src1_i.eq(self.int_src1_i),
-                     issueunit.i.src2_i.eq(self.int_src2_i),
+                     regdecode.dest_i.eq(self.int_dest_i),
+                     regdecode.src1_i.eq(self.int_src1_i),
+                     regdecode.src2_i.eq(self.int_src2_i),
+                     regdecode.enable_i.eq(1),
+                     issueunit.i.dest_i.eq(regdecode.dest_o),
                      self.issue_o.eq(issueunit.issue_o)
                     ]
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
@@ -143,9 +147,9 @@ class Scoreboard(Elaboratable):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
             m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
-            m.d.comb += fu.dest_i.eq(issueunit.i.dest_i)
-            m.d.comb += fu.src1_i.eq(issueunit.i.src1_i)
-            m.d.comb += fu.src2_i.eq(issueunit.i.src2_i)
+            m.d.comb += fu.dest_i.eq(self.int_dest_i)
+            m.d.comb += fu.src1_i.eq(self.int_src1_i)
+            m.d.comb += fu.src2_i.eq(self.int_src2_i)
             # XXX sync, so as to stop a simulation infinite loop
             m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
 
