@@ -1,12 +1,8 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
 
-from SetAssociativeCache import SetAssociativeCache
+from TLB.SetAssociativeCache import SetAssociativeCache
 
-from test_helper import assert_eq, assert_ne, assert_op
+from TestUtil.test_helper import assert_eq, assert_ne, assert_op
 
 def set_sac(dut, e, c, s, t, d):
     yield dut.enable.eq(e)
@@ -16,7 +12,7 @@ def set_sac(dut, e, c, s, t, d):
     yield dut.data_i.eq(d)
     yield
 
-def testbench(dut):
+def tbench(dut):
     enable = 1
     command = 2
     cset = 1
@@ -33,7 +29,10 @@ def testbench(dut):
     yield from set_sac(dut, enable, command, cset, tag, data)
     yield
 
-if __name__ == "__main__":
+def test_assoc_cache():
     dut = SetAssociativeCache(4, 4, 4, 4)
-    run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_set_associative_cache.vcd")
+    run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_set_associative_cache.vcd")
     print("Set Associative Cache Unit Test Success")
+
+if __name__ == "__main__":
+    test_assoc_cache()

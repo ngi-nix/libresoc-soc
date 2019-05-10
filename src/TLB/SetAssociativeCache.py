@@ -6,22 +6,20 @@ http://www.ntu.edu.sg/home/smitha/ParaCache/Paracache/sa4.html
 Python simulator of a N-way set-associative cache:
 https://github.com/vaskevich/CacheSim/blob/master/cachesim.py
 """
-import sys
-sys.path.append("ariane/src/")
 
 from nmigen import Array, Cat, Memory, Module, Signal, Mux, Elaboratable
 from nmigen.compat.genlib import fsm
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 
-from AddressEncoder import AddressEncoder
-from MemorySet import MemorySet
+from .AddressEncoder import AddressEncoder
+from .MemorySet import MemorySet
 
 # TODO: use a LFSR that advances continuously and picking the bottom
 # few bits from it to select which cache line to replace, instead of PLRU
 # http://bugs.libre-riscv.org/show_bug.cgi?id=71
-from plru import PLRU
-from LFSR import LFSR, LFSR_POLY_24
+from .ariane.plru import PLRU
+from .LFSR import LFSR, LFSR_POLY_24
 
 SA_NA = "00" # no action (none)
 SA_RD = "01" # read
