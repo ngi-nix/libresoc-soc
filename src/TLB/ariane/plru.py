@@ -2,7 +2,6 @@ from nmigen import Signal, Module, Cat, Const
 from nmigen.hdl.ir import Elaboratable
 from math import log2
 
-from .ptw import TLBUpdate, PTE, ASID_WIDTH
 
 class PLRU(Elaboratable):
     """ PLRU - Pseudo Least Recently Used Replacement
