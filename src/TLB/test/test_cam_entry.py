@@ -1,11 +1,7 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
 
-from test_helper import assert_eq, assert_ne, assert_op
-from CamEntry import CamEntry
+from TestUtil.test_helper import assert_eq, assert_ne, assert_op
+from TLB.CamEntry import CamEntry
 
 # This function allows for the easy setting of values to the Cam Entry
 # Arguments:
@@ -51,11 +47,11 @@ def check_all(dut, d, m, d_op, m_op):
     yield from check_data(dut, d, d_op)
     yield from check_match(dut, m, m_op)
 
-# This testbench goes through the paces of testing the CamEntry module
+# This tbench goes through the paces of testing the CamEntry module
 # It is done by writing and then reading various combinations of key/data pairs
 # and reading the results with varying keys to verify the resulting stored
 # data is correct.
-def testbench(dut):
+def tbench(dut):
     # Check write
     command = 2
     data = 1
@@ -102,7 +98,13 @@ def testbench(dut):
     # Extra clock cycle for waveform
     yield
 
-if __name__ == "__main__":
+
+def test_camentry():
     dut = CamEntry(4)
-    run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_cam_entry.vcd")
+    run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_cam_entry.vcd")
     print("CamEntry Unit Test Success")
+
+
+if __name__ == "__main__":
+    test_camentry()
+
