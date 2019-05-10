@@ -2,8 +2,9 @@ from nmigen import Array, Cat, Module, Signal
 from nmigen.lib.coding import Decoder
 from nmigen.cli import main #, verilog
 
-from CamEntry import CamEntry
-from AddressEncoder import AddressEncoder
+from .CamEntry import CamEntry
+from .AddressEncoder import AddressEncoder
+
 
 class Cam():
     """ Content Addressable Memory (CAM)

@@ -1,12 +1,8 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
 
-from Cam import Cam
+from TLB.Cam import Cam
 
-from test_helper import assert_eq, assert_ne, assert_op
+from TestUtil.test_helper import assert_eq, assert_ne, assert_op
 
 # This function allows for the easy setting of values to the Cam
 # Arguments:
@@ -63,7 +59,7 @@ def check_all(dut, mm, sm, ma, mm_op, sm_op, ma_op):
     yield from check_single_match(dut, sm, sm_op)
     yield from check_match_address(dut, ma, ma_op)
 
-def testbench(dut):
+def tbench(dut):
     # NA
     enable = 0
     write_enable = 0
@@ -201,7 +197,10 @@ def testbench(dut):
     yield
 
 
-if __name__ == "__main__":
+def test_cam():
     dut = Cam(4, 4)
-    run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_cam.vcd")
+    run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_cam.vcd")
     print("Cam Unit Test Success")
+
+if __name__ == "__main__":
+    test_cam()
