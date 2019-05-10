@@ -1,12 +1,8 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
 
-from PteEntry import PteEntry
+from TLB.PteEntry import PteEntry
 
-from test_helper import assert_op
+from TestUtil.test_helper import assert_op
 
 def set_entry(dut, i):
     yield dut.i.eq(i)
@@ -54,7 +50,7 @@ def check_all(dut, d, a, g, u, xwr, v, asid, pte):
     yield from check_pte(dut, pte, 0)
     yield from check_valid(dut, v, 0)
 
-def testbench(dut):
+def tbench(dut):
     # 80 bits represented. Ignore the MSB as it will be truncated
     # ASID is bits first 4 hex values (bits 64 - 78)
 
@@ -97,7 +93,10 @@ def testbench(dut):
     yield
 
 
-if __name__ == "__main__":
+def test_pteentry():
     dut = PteEntry(15, 64);
-    run_simulation(dut, testbench(dut), vcd_name="Waveforms/test_pte_entry.vcd")
+    run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_pte_entry.vcd")
     print("PteEntry Unit Test Success")
+
+if __name__ == "__main__":
+    test_pteentry()
