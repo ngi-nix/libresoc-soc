@@ -65,8 +65,26 @@ class Scoreboard(Elaboratable):
         m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
         m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
 
+        # Int FUs
+        if_l = []
+        int_src1_pend_v = []
+        int_src2_pend_v = []
+        int_rd_pend_v = []
+        int_wr_pend_v = []
+        for i, a in enumerate(int_alus):
+            # set up Integer Function Unit, add to module (and python list)
+            fu = IntFnUnit(self.n_regs, shadow_wid=0)
+            setattr(m.submodules, "intfu%d" % i, fu)
+            if_l.append(fu)
+            # collate the read/write pending vectors (to go into global pending)
+            int_src1_pend_v.append(fu.src1_pend_o)
+            int_src2_pend_v.append(fu.src2_pend_o)
+            int_rd_pend_v.append(fu.int_rd_pend_o)
+            int_wr_pend_v.append(fu.int_wr_pend_o)
+        int_fus = Array(if_l)
+
         # Count of number of FUs
-        n_int_fus = len(int_alus)
+        n_int_fus = len(if_l)
         n_fp_fus = 0 # for now
 
         n_fus = n_int_fus + n_fp_fus # plus FP FUs
@@ -83,10 +101,15 @@ class Scoreboard(Elaboratable):
         m.submodules.intpick1 = intpick1
 
         # Global Pending Vectors (INT and TODO FP)
-        g_int_src1_pend_v = intregdeps.rd_src2_pend_o
-        g_int_src2_pend_v = intregdeps.rd_src1_pend_o
-        g_int_rd_pend_v = intregdeps.rd_pend_o
-        g_int_wr_pend_v = intregdeps.wr_pend_o
+        # NOTE: number of vectors is NOT same as number of FUs.
+        g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
+        g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
+        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
+        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
+        m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
+        m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
+        m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
+        m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
@@ -114,32 +137,31 @@ class Scoreboard(Elaboratable):
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
         # connect global rd/wr pending vectors
-        m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v)
+        m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
         fn_busy_l = []
         fn_issue_l = []
         for i, alu in enumerate(int_alus):
-            fn_busy_l.append(alu.busy_o)
-            fn_issue_l.append(issueunit.i.fn_issue_o[i])
-
-            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
+            fn_issue_l.append(fu.issue_i)
+            fn_busy_l.append(fu.busy_o)
+            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.comb += fu.dest_i.eq(self.int_dest_i)
+            m.d.comb += fu.src1_i.eq(self.int_src1_i)
+            m.d.comb += fu.src2_i.eq(self.int_src2_i)
             # XXX sync, so as to stop a simulation infinite loop
-            m.d.comb += issueunit.i.busy_i[i].eq(alu.busy_o)
-            #m.d.comb += alu.dest_i.eq(issueunit.i.dest_i)
-            #m.d.comb += alu.src1_i.eq(issueunit.i.src1_i)
-            #m.d.comb += alu.src2_i.eq(issueunit.i.src2_i)
-            # NOTE: req_rel_o connected to picker, below.
+            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
 
         fn_issue_o = Signal(len(fn_issue_l), reset_less=True)
         m.d.comb += fn_issue_o.eq(Cat(*fn_issue_l))
+        #fn_issue_o = issueunit.i.fn_issue_o
         #---------
         # connect fu-fu matrix
         #---------
 
-        m.d.comb += intfudeps.rd_pend_i.eq(g_int_rd_pend_v)
-        m.d.comb += intfudeps.wr_pend_i.eq(g_int_wr_pend_v)
+        m.d.comb += intfudeps.rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.comb += intfudeps.wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         go_rd_i = intfudeps.go_rd_i
