@@ -42,8 +42,8 @@ class DependenceCell(Elaboratable):
         m.d.comb += src1_l.r.eq(self.go_rd_i)
 
         # src2 latch: reset on go_rd HI, set on op2_i and issue
-        m.d.sync += src2_l.s.eq(self.issue_i & self.src2_i)
-        m.d.sync += src2_l.r.eq(self.go_rd_i)
+        m.d.comb += src2_l.s.eq(self.issue_i & self.src2_i)
+        m.d.comb += src2_l.r.eq(self.go_rd_i)
 
         # FU "Forward Progress" (read out horizontally)
         m.d.comb += self.dest_fwd_o.eq(dest_l.q & self.dest_i)
