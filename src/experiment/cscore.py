@@ -305,7 +305,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(100):
+    for i in range(3):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:

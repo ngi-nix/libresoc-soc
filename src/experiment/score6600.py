@@ -306,11 +306,12 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        #src1 = 7
-        #src2 = 7
+        src1 = 1
+        src2 = 7
         dest = src2
 
         op = randint(0, 1)
+        op = 0
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])

@@ -2,7 +2,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable
 
-from nmutil.latch import SRLatch
+from nmutil.latch import SRLatch, latchregister
 
 
 class ComputationUnitNoDelay(Elaboratable):
@@ -53,22 +53,31 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += self.busy_o.eq(opc_l.qn) # busy out
         m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.qn) # request release out
 
-        with m.If(src_l.q):
-            m.d.comb += self.alu.a.eq(self.src1_i)
-            m.d.comb += self.alu.b.eq(self.src2_i)
-        with m.Else():
-            m.d.comb += self.alu.a.eq(self.alu.a)
-            m.d.comb += self.alu.b.eq(self.alu.b)
-        #with m.If(opc_l.q): # XXX operand type in at same time as src1/src2
+        # create a latch/register for src1/src2
+        latchregister(m, self.src1_i, self.alu.a, src_l.q)
+        latchregister(m, self.src2_i, self.alu.b, src_l.q)
+        with m.If(src_l.qn):
             m.d.comb += self.alu.op.eq(self.oper_i)
 
+        if False:
+            data_o = Signal(self.rwid, reset_less=True) # Dest register
+            data_r = Signal(self.rwid, reset_less=True) # Dest register
+            with m.If(req_l.q):
+                m.d.comb += data_o.eq(self.alu.o)
+                m.d.sync += data_r.eq(self.alu.o)
+            with m.Else():
+                m.d.comb += data_o.eq(data_r)
+            #with m.If(self.go_wr_i):
+                #m.d.comb += self.data_o.eq(data_o)
+
+
+        # create a latch/register for the operand
+        #latchregister(m, self.oper_i, self.alu.op, opc_l.q)
+
+        # and one for the output from the ALU
         data_o = Signal(self.rwid, reset_less=True) # Dest register
-        data_r = Signal(self.rwid, reset_less=True) # Dest register
-        with m.If(req_l.q):
-            m.d.comb += data_o.eq(self.alu.o)
-            m.d.sync += data_r.eq(self.alu.o)
-        with m.Else():
-            m.d.comb += data_o.eq(data_r)
+        latchregister(m, self.alu.o, data_o, req_l.q)
+
         with m.If(self.go_wr_i):
             m.d.comb += self.data_o.eq(data_o)
 
