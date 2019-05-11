@@ -164,15 +164,22 @@ class Scoreboard(Elaboratable):
         m.d.comb += intfudeps.wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
+        go_rd_o = intpick1.go_rd_o
+        go_wr_o = intpick1.go_wr_o
         go_rd_i = intfudeps.go_rd_i
         go_wr_i = intfudeps.go_wr_i
-        m.d.comb += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
-        m.d.comb += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
+        m.d.comb += go_rd_i[0].eq(go_rd_o[0]) # add rd
+        m.d.comb += go_wr_i[0].eq(go_wr_o[0]) # add wr
 
-        m.d.comb += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
-        m.d.comb += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
+        m.d.comb += go_rd_i[1].eq(go_rd_o[1]) # sub rd
+        m.d.comb += go_wr_i[1].eq(go_wr_o[1]) # sub wr
 
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
+
+        # Connect INT FU go_rd/wr
+        for i, fu in enumerate(if_l):
+            m.d.comb += fu.go_rd_i.eq(go_rd_o[i])
+            m.d.comb += fu.go_wr_i.eq(go_wr_o[i])
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
@@ -184,8 +191,8 @@ class Scoreboard(Elaboratable):
         #---------
         r_go_rd_i = intregdeps.go_rd_i
         r_go_wr_i = intregdeps.go_wr_i
-        m.d.comb += r_go_rd_i.eq(go_rd_i)
-        m.d.comb += r_go_wr_i.eq(go_wr_i)
+        m.d.comb += r_go_rd_i.eq(go_rd_o)
+        m.d.comb += r_go_wr_i.eq(go_wr_o)
 
         m.d.comb += intregdeps.dest_i.eq(regdecode.dest_o)
         m.d.comb += intregdeps.src1_i.eq(regdecode.src1_o)
@@ -194,8 +201,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
-        m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
+        m.d.sync += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
+        m.d.sync += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
         int_readable_o = intfudeps.readable_o
         int_writable_o = intfudeps.writable_o
         m.d.comb += intpick1.readable_i[0].eq(int_readable_o[0]) # add rd
@@ -217,12 +224,12 @@ class Scoreboard(Elaboratable):
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(if_l[i].go_rd_i)
-            m.d.comb += alu.go_wr_i.eq(if_l[i].go_wr_i)
+            m.d.comb += alu.go_rd_i.eq(go_rd_o[i])
+            m.d.comb += alu.go_wr_i.eq(go_wr_o[i])
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
-            m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
+            m.d.sync += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
 
         return m
 
@@ -327,7 +334,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(4):
+    for i in range(1):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -335,15 +342,16 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 1
-        src2 = 7
-        dest = src2
+        src1 = 3
+        src2 = 4
+        dest = 5
 
         op = randint(0, 1)
         op = 0
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
+        yield
         yield
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):

@@ -3,9 +3,9 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat
 
 #from nmutil.latch import SRLatch
-from .dependence_cell import DependenceCell
-from .fu_wr_pending import FU_RW_Pend
-from .reg_select import Reg_Rsv
+from scoreboard.dependence_cell import DependenceCell
+from scoreboard.fu_wr_pending import FU_RW_Pend
+from scoreboard.reg_select import Reg_Rsv
 
 """
 
