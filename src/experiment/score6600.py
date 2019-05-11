@@ -143,7 +143,7 @@ class Scoreboard(Elaboratable):
         # and int function issue / busy arrays, and dest/src1/src2
         fn_busy_l = []
         fn_issue_l = []
-        for i, alu in enumerate(int_alus):
+        for i, fu in enumerate(if_l):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
             m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
@@ -173,6 +173,11 @@ class Scoreboard(Elaboratable):
         m.d.sync += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
 
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
+
+        # Connect INT Fn Unit global wr/rd pending
+        for fu in if_l:
+            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
 
         #---------
         # connect fu-dep matrix
@@ -212,10 +217,12 @@ class Scoreboard(Elaboratable):
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(go_rd_i[i])
-            m.d.comb += alu.go_wr_i.eq(go_wr_i[i])
+            m.d.comb += alu.go_rd_i.eq(if_l[i].go_rd_i)
+            m.d.comb += alu.go_wr_i.eq(if_l[i].go_wr_i)
+            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
+            m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
 
         return m
 
