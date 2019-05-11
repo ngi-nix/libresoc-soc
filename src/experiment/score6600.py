@@ -146,12 +146,12 @@ class Scoreboard(Elaboratable):
         for i, fu in enumerate(if_l):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
-            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
             m.d.comb += fu.dest_i.eq(self.int_dest_i)
             m.d.comb += fu.src1_i.eq(self.int_src1_i)
             m.d.comb += fu.src2_i.eq(self.int_src2_i)
             # XXX sync, so as to stop a simulation infinite loop
-            m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
+            m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
 
         fn_issue_o = Signal(len(fn_issue_l), reset_less=True)
         m.d.comb += fn_issue_o.eq(Cat(*fn_issue_l))
@@ -313,6 +313,9 @@ def scoreboard_sim(dut, alusim):
         yield dut.intregs.regs[i].reg.eq(i)
         alusim.setval(i, i)
 
+    yield
+    yield
+
     if False:
         yield from int_instr(dut, alusim, IADD, 4, 3, 5)
         yield from print_reg(dut, [3,4,5])
@@ -343,8 +346,8 @@ def scoreboard_sim(dut, alusim):
             if dest not in [src1, src2]:
                 break
         src1 = 3
-        src2 = 4
-        dest = 5
+        src2 = 1
+        dest = 1
 
         op = randint(0, 1)
         op = 0
@@ -352,10 +355,10 @@ def scoreboard_sim(dut, alusim):
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
         yield
-        yield
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
+        yield
         yield
         yield
 

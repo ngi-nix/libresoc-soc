@@ -34,8 +34,8 @@ class FURegDepMatrix(Elaboratable):
         self.dest_i = Signal(n_reg_col, reset_less=True)     # Dest in (top)
         self.src1_i = Signal(n_reg_col, reset_less=True)     # oper1 in (top)
         self.src2_i = Signal(n_reg_col, reset_less=True)     # oper2 in (top)
-        self.issue_i = Signal(n_reg_col, reset_less=True)    # Issue in (top)
 
+        self.issue_i = Signal(n_fu_row, reset_less=True)    # Issue in (top)
         self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
 
@@ -146,39 +146,39 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
-        for rn in range(self.n_reg_col):
+        for fu in range(self.n_fu_row):
             dest_i = []
             src1_i = []
             src2_i = []
-            issue_i = []
-            for fu in range(self.n_fu_row):
+            for rn in range(self.n_reg_col):
                 dc = dm[rn][fu]
                 # accumulate cell inputs dest/src1/src2
                 dest_i.append(dc.dest_i)
                 src1_i.append(dc.src1_i)
                 src2_i.append(dc.src2_i)
-                issue_i.append(dc.issue_i)
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [Cat(*dest_i).eq(self.dest_i),
                          Cat(*src1_i).eq(self.src1_i),
                          Cat(*src2_i).eq(self.src2_i),
-                         Cat(*issue_i).eq(self.issue_i),
                         ]
 
         # ---
-        # connect Dependency Matrix go_rd_i/go_wr_i to module go_rd/go_wr
+        # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
         # ---
-        for fu in range(self.n_fu_row):
+        for rn in range(self.n_reg_col):
             go_rd_i = []
             go_wr_i = []
-            for rn in range(self.n_reg_col):
+            issue_i = []
+            for fu in range(self.n_fu_row):
                 dc = dm[rn][fu]
                 # accumulate cell fwd outputs for dest/src1/src2 
                 go_rd_i.append(dc.go_rd_i)
                 go_wr_i.append(dc.go_wr_i)
+                issue_i.append(dc.issue_i)
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
                          Cat(*go_wr_i).eq(self.go_wr_i),
+                         Cat(*issue_i).eq(self.issue_i),
                         ]
 
         return m
