@@ -166,11 +166,11 @@ class Scoreboard(Elaboratable):
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         go_rd_i = intfudeps.go_rd_i
         go_wr_i = intfudeps.go_wr_i
-        m.d.sync += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
-        m.d.sync += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
+        m.d.comb += go_rd_i[0].eq(intpick1.go_rd_o[0]) # add rd
+        m.d.comb += go_wr_i[0].eq(intpick1.go_wr_o[0]) # add wr
 
-        m.d.sync += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
-        m.d.sync += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
+        m.d.comb += go_rd_i[1].eq(intpick1.go_rd_o[1]) # sub rd
+        m.d.comb += go_wr_i[1].eq(intpick1.go_wr_o[1]) # sub wr
 
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
 
@@ -206,7 +206,7 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        m.d.sync += int_dest.wen.eq(intregdeps.dest_rsel_o)
+        m.d.comb += int_dest.wen.eq(intregdeps.dest_rsel_o)
         m.d.comb += int_src1.ren.eq(intregdeps.src1_rsel_o)
         m.d.comb += int_src2.ren.eq(intregdeps.src2_rsel_o)
 
