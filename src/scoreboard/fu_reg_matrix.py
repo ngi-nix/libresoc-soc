@@ -111,6 +111,8 @@ class FURegDepMatrix(Elaboratable):
         m.d.comb += self.rd_src1_pend_o.eq(Cat(*rd_src1_pend))
         m.d.comb += self.rd_src2_pend_o.eq(Cat(*rd_src2_pend))
 
+        print ("wr pend len", len(wr_pend))
+
         # ---
         # connect Reg Selection vector
         # ---
@@ -137,12 +139,14 @@ class FURegDepMatrix(Elaboratable):
             dest_rsel.append(rsv.dest_rsel_o)
             src1_rsel.append(rsv.src1_rsel_o)
             src2_rsel.append(rsv.src2_rsel_o)
+            print ("dest_rsel_rsv len", len(rsv.dest_rsel_o))
 
         # ... and output them from this module (horizontal, width=REGs)
         m.d.comb += self.dest_rsel_o.eq(Cat(*dest_rsel))
         m.d.comb += self.src1_rsel_o.eq(Cat(*src1_rsel))
         m.d.comb += self.src2_rsel_o.eq(Cat(*src2_rsel))
 
+        print ("dest rsel len", len(dest_rsel), self.dest_rsel_o)
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---

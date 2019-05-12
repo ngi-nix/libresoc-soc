@@ -146,10 +146,10 @@ class Scoreboard(Elaboratable):
         for i, fu in enumerate(if_l):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
-            m.d.comb += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
-            m.d.comb += fu.dest_i.eq(self.int_dest_i)
-            m.d.comb += fu.src1_i.eq(self.int_src1_i)
-            m.d.comb += fu.src2_i.eq(self.int_src2_i)
+            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
+            m.d.sync += fu.dest_i.eq(self.int_dest_i)
+            m.d.sync += fu.src1_i.eq(self.int_src1_i)
+            m.d.sync += fu.src2_i.eq(self.int_src2_i)
             # XXX sync, so as to stop a simulation infinite loop
             m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
 
@@ -213,6 +213,7 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
+        print ("intregdeps wen len", len(intregdeps.dest_rsel_o))
         m.d.comb += int_dest.wen.eq(intregdeps.dest_rsel_o)
         m.d.comb += int_src1.ren.eq(intregdeps.src1_rsel_o)
         m.d.comb += int_src2.ren.eq(intregdeps.src2_rsel_o)
@@ -345,7 +346,7 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 3
+        src1 = 4
         src2 = 1
         dest = 1
 
@@ -372,6 +373,7 @@ def scoreboard_sim(dut, alusim):
     yield
     yield
     yield from alusim.check(dut)
+    yield from alusim.dump(dut)
 
 
 def explore_groups(dut):
