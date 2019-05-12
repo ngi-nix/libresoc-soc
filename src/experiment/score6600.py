@@ -417,8 +417,8 @@ def scoreboard_sim(dut, alusim):
     yield dut.int_store_i.eq(0)
 
     for i in range(1, dut.n_regs):
-        yield dut.intregs.regs[i].reg.eq(i)
-        alusim.setval(i, i)
+        yield dut.intregs.regs[i].reg.eq(i*2)
+        alusim.setval(i, i*2)
 
     yield
     yield
@@ -452,8 +452,8 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 7
-        src2 = 1
+        src1 = 1
+        src2 = 4
         dest = 1
 
         op = randint(0, 1)
