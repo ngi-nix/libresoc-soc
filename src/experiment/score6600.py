@@ -77,6 +77,92 @@ class CompUnits(Elaboratable):
 
         return m
 
+class FunctionUnits(Elaboratable):
+
+    def __init__(self, n_regs, n_int_alus):
+        self.n_regs = n_regs
+        self.n_int_alus = n_int_alus
+
+        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
+        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
+        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+
+        self.req_rel_i = Signal(n_int_alus, reset_less = True)
+        self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
+        self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
+
+        self.go_rd_i = Signal(n_int_alus, reset_less=True)
+        self.go_wr_i = Signal(n_int_alus, reset_less=True)
+        self.req_rel_o = Signal(n_int_alus, reset_less=True)
+        self.fn_issue_i = Signal(n_int_alus, reset_less=True)
+        self.fn_busy_o = Signal(n_int_alus, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        # Int FUs
+        if_l = []
+        int_src1_pend_v = []
+        int_src2_pend_v = []
+        int_rd_pend_v = []
+        int_wr_pend_v = []
+        for i in range(self.n_int_alus):
+            # set up Integer Function Unit, add to module (and python list)
+            fu = IntFnUnit(self.n_regs, shadow_wid=0)
+            setattr(m.submodules, "intfu%d" % i, fu)
+            if_l.append(fu)
+            # collate the read/write pending vectors (to go into global pending)
+            int_src1_pend_v.append(fu.src1_pend_o)
+            int_src2_pend_v.append(fu.src2_pend_o)
+            int_rd_pend_v.append(fu.int_rd_pend_o)
+            int_wr_pend_v.append(fu.int_wr_pend_o)
+        int_fus = Array(if_l)
+
+        # Global Pending Vectors (INT and TODO FP)
+        # NOTE: number of vectors is NOT same as number of FUs.
+        g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
+        g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
+        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
+        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
+        m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
+        m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
+        m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
+        m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
+
+        m.d.comb += self.g_int_rd_pend_o.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.comb += self.g_int_wr_pend_o.eq(g_int_wr_pend_v.g_pend_o)
+
+        # Connect INT Fn Unit global wr/rd pending
+        for fu in if_l:
+            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+
+        # Connect function issue / busy arrays, and dest/src1/src2
+        fn_busy_l = []
+        fn_issue_l = []
+        req_rel_l = []
+        go_rd_l = []
+        go_wr_l = []
+        for i, fu in enumerate(if_l):
+            fn_issue_l.append(fu.issue_i)
+            fn_busy_l.append(fu.busy_o)
+            go_wr_l.append(fu.go_wr_i)
+            go_rd_l.append(fu.go_rd_i)
+            req_rel_l.append(fu.req_rel_i)
+
+            m.d.comb += fu.dest_i.eq(self.int_dest_i)
+            m.d.comb += fu.src1_i.eq(self.int_src1_i)
+            m.d.comb += fu.src2_i.eq(self.int_src2_i)
+
+        m.d.comb += Cat(*req_rel_l).eq(self.req_rel_i)
+        m.d.comb += Cat(*fn_issue_l).eq(self.fn_issue_i)
+        m.d.comb += self.fn_busy_o.eq(Cat(*fn_busy_l))
+        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
+
+
+        return m
+
 
 class Scoreboard(Elaboratable):
     def __init__(self, rwid, n_regs):
@@ -120,25 +206,10 @@ class Scoreboard(Elaboratable):
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
 
         # Int FUs
-        if_l = []
-        int_src1_pend_v = []
-        int_src2_pend_v = []
-        int_rd_pend_v = []
-        int_wr_pend_v = []
-        for i in range(n_int_alus):
-            # set up Integer Function Unit, add to module (and python list)
-            fu = IntFnUnit(self.n_regs, shadow_wid=0)
-            setattr(m.submodules, "intfu%d" % i, fu)
-            if_l.append(fu)
-            # collate the read/write pending vectors (to go into global pending)
-            int_src1_pend_v.append(fu.src1_pend_o)
-            int_src2_pend_v.append(fu.src2_pend_o)
-            int_rd_pend_v.append(fu.int_rd_pend_o)
-            int_wr_pend_v.append(fu.int_wr_pend_o)
-        int_fus = Array(if_l)
+        m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
 
         # Count of number of FUs
-        n_int_fus = len(if_l)
+        n_int_fus = n_int_alus
         n_fp_fus = 0 # for now
 
         n_fus = n_int_fus + n_fp_fus # plus FP FUs
@@ -153,17 +224,6 @@ class Scoreboard(Elaboratable):
         # Integer Priority Picker 1: Adder + Subtractor
         intpick1 = GroupPicker(2) # picks between add and sub
         m.submodules.intpick1 = intpick1
-
-        # Global Pending Vectors (INT and TODO FP)
-        # NOTE: number of vectors is NOT same as number of FUs.
-        g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
-        g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
-        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
-        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
-        m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
-        m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
-        m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
-        m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
@@ -191,31 +251,29 @@ class Scoreboard(Elaboratable):
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
         # connect global rd/wr pending vectors
-        m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.comb += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        fn_busy_l = []
-        fn_issue_l = []
-        for i, fu in enumerate(if_l):
-            fn_issue_l.append(fu.issue_i)
-            fn_busy_l.append(fu.busy_o)
-            m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
-            m.d.sync += fu.dest_i.eq(self.int_dest_i)
-            m.d.sync += fu.src1_i.eq(self.int_src1_i)
-            m.d.sync += fu.src2_i.eq(self.int_src2_i)
-            # XXX sync, so as to stop a simulation infinite loop
-            m.d.sync += issueunit.i.busy_i[i].eq(fu.busy_o)
+        m.d.sync += intfus.int_dest_i.eq(self.int_dest_i)
+        m.d.sync += intfus.int_src1_i.eq(self.int_src1_i)
+        m.d.sync += intfus.int_src2_i.eq(self.int_src2_i)
 
-        fn_issue_o = Signal(len(fn_issue_l), reset_less=True)
-        m.d.comb += fn_issue_o.eq(Cat(*fn_issue_l))
-        #fn_issue_o = issueunit.i.fn_issue_o
+        fn_issue_o = Signal(n_int_fus, reset_less=True)
+        for i in range(n_int_fus):
+            m.d.sync += fn_issue_o[i].eq(issueunit.i.fn_issue_o[i])
+
+        m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
+        # XXX sync, so as to stop a simulation infinite loop
+        for i in range(n_int_fus):
+            m.d.sync += issueunit.i.busy_i[i].eq(intfus.fn_busy_o[i])
+
         #---------
         # connect fu-fu matrix
         #---------
 
-        m.d.comb += intfudeps.rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
-        m.d.comb += intfudeps.wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.comb += intfudeps.rd_pend_i.eq(intfus.g_int_rd_pend_o)
+        m.d.comb += intfudeps.wr_pend_i.eq(intfus.g_int_wr_pend_o)
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         go_rd_o = intpick1.go_rd_o
@@ -231,14 +289,8 @@ class Scoreboard(Elaboratable):
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
 
         # Connect INT FU go_rd/wr
-        for i, fu in enumerate(if_l):
-            m.d.comb += fu.go_rd_i.eq(go_rd_o[i])
-            m.d.comb += fu.go_wr_i.eq(go_wr_o[i])
-
-        # Connect INT Fn Unit global wr/rd pending
-        for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
-            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.comb += intfus.go_rd_i.eq(go_rd_o)
+        m.d.comb += intfus.go_wr_i.eq(go_wr_o)
 
         #---------
         # connect fu-dep matrix
@@ -281,8 +333,10 @@ class Scoreboard(Elaboratable):
         for i in range(n_int_alus):
             m.d.comb += cu.go_rd_i[i].eq(go_rd_o[i])
             m.d.comb += cu.go_wr_i[i].eq(go_wr_o[i])
-            m.d.comb += cu.issue_i[i].eq(fn_issue_l[i])
-            m.d.sync += if_l[i].req_rel_i.eq(cu.req_rel_o[i]) # pipe out ready
+            m.d.comb += cu.issue_i[i].eq(fn_issue_o[i])
+
+        # Connect ALU request release to FUs
+        m.d.sync += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
 
         return m
 
@@ -398,7 +452,7 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 4
+        src1 = 7
         src2 = 1
         dest = 1
 
