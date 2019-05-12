@@ -255,13 +255,13 @@ class Scoreboard(Elaboratable):
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        m.d.sync += intfus.int_dest_i.eq(self.int_dest_i)
-        m.d.sync += intfus.int_src1_i.eq(self.int_src1_i)
-        m.d.sync += intfus.int_src2_i.eq(self.int_src2_i)
+        m.d.comb += intfus.int_dest_i.eq(self.int_dest_i)
+        m.d.comb += intfus.int_src1_i.eq(self.int_src1_i)
+        m.d.comb += intfus.int_src2_i.eq(self.int_src2_i)
 
         fn_issue_o = Signal(n_int_fus, reset_less=True)
         for i in range(n_int_fus):
-            m.d.sync += fn_issue_o[i].eq(issueunit.i.fn_issue_o[i])
+            m.d.comb += fn_issue_o[i].eq(issueunit.i.fn_issue_o[i])
 
         m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
         # XXX sync, so as to stop a simulation infinite loop
@@ -307,20 +307,20 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.sync += intpick1.req_rel_i[0].eq(cu.req_rel_o[0])
-        m.d.sync += intpick1.req_rel_i[1].eq(cu.req_rel_o[1])
+        m.d.comb += intpick1.req_rel_i[0].eq(cu.req_rel_o[0])
+        m.d.comb += intpick1.req_rel_i[1].eq(cu.req_rel_o[1])
         int_readable_o = intfudeps.readable_o
         int_writable_o = intfudeps.writable_o
-        m.d.comb += intpick1.readable_i[0].eq(int_readable_o[0]) # add rd
-        m.d.comb += intpick1.writable_i[0].eq(int_writable_o[0]) # add wr
-        m.d.comb += intpick1.readable_i[1].eq(int_readable_o[1]) # sub rd
-        m.d.comb += intpick1.writable_i[1].eq(int_writable_o[1]) # sub wr
+        m.d.sync += intpick1.readable_i[0].eq(int_readable_o[0]) # add rd
+        m.d.sync += intpick1.writable_i[0].eq(int_writable_o[0]) # add wr
+        m.d.sync += intpick1.readable_i[1].eq(int_readable_o[1]) # sub rd
+        m.d.sync += intpick1.writable_i[1].eq(int_writable_o[1]) # sub wr
 
         #---------
         # Connect Register File(s)
         #---------
         print ("intregdeps wen len", len(intregdeps.dest_rsel_o))
-        m.d.comb += int_dest.wen.eq(intregdeps.dest_rsel_o)
+        m.d.sync += int_dest.wen.eq(intregdeps.dest_rsel_o)
         m.d.comb += int_src1.ren.eq(intregdeps.src1_rsel_o)
         m.d.comb += int_src2.ren.eq(intregdeps.src2_rsel_o)
 
@@ -331,12 +331,12 @@ class Scoreboard(Elaboratable):
 
         # connect ALU Computation Units
         for i in range(n_int_alus):
-            m.d.comb += cu.go_rd_i[i].eq(go_rd_o[i])
-            m.d.comb += cu.go_wr_i[i].eq(go_wr_o[i])
-            m.d.comb += cu.issue_i[i].eq(fn_issue_o[i])
+            m.d.sync += cu.go_rd_i[i].eq(go_rd_o[i])
+            m.d.sync += cu.go_wr_i[i].eq(go_wr_o[i])
+            m.d.sync += cu.issue_i[i].eq(fn_issue_o[i])
 
         # Connect ALU request release to FUs
-        m.d.sync += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
+        m.d.comb += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
 
         return m
 
@@ -444,7 +444,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(1):
+    for i in range(5):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -452,9 +452,9 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 1
-        src2 = 4
-        dest = 1
+        #src1 = 7
+        #src2 = 4
+        #dest = 2
 
         op = randint(0, 1)
         op = 0
@@ -465,7 +465,6 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
-        yield
         yield
         yield
 
