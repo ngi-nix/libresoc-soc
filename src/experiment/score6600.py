@@ -17,6 +17,66 @@ from nmutil.latch import SRLatch
 
 from random import randint
 
+class CompUnits(Elaboratable):
+
+    def __init__(self, rwid, n_units):
+        """ Inputs:
+
+            * :rwid:   bit width of register file(s) - both FP and INT
+            * :n_units: number of ALUs
+        """
+        self.n_units = n_units
+        self.rwid = rwid
+
+        self.issue_i = Signal(n_units, reset_less=True)
+        self.go_rd_i = Signal(n_units, reset_less=True)
+        self.go_wr_i = Signal(n_units, reset_less=True)
+        self.req_rel_o = Signal(n_units, reset_less=True)
+
+        self.dest_o = Signal(rwid, reset_less=True)
+        self.src1_data_i = Signal(rwid, reset_less=True)
+        self.src2_data_i = Signal(rwid, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        # Int ALUs
+        add = ALU(self.rwid)
+        sub = ALU(self.rwid)
+        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 1, add)
+        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 1, sub)
+        int_alus = [comp1, comp2]
+
+        m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
+        m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
+
+        go_rd_l = []
+        go_wr_l = []
+        issue_l = []
+        req_rel_l = []
+        for alu in int_alus:
+            req_rel_l.append(alu.req_rel_o)
+            go_wr_l.append(alu.go_wr_i)
+            go_rd_l.append(alu.go_rd_i)
+            issue_l.append(alu.issue_i)
+        m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
+        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
+        m.d.comb += Cat(*issue_l).eq(self.issue_i)
+
+        # connect data register input/output
+
+        # merge (OR) all integer FU / ALU outputs to a single value
+        # bit of a hack: treereduce needs a list with an item named "dest_o"
+        dest_o = treereduce(int_alus)
+        m.d.comb += self.dest_o.eq(dest_o)
+
+        for i, alu in enumerate(int_alus):
+            m.d.comb += alu.src1_i.eq(self.src1_data_i)
+            m.d.comb += alu.src2_i.eq(self.src2_data_i)
+
+        return m
+
 
 class Scoreboard(Elaboratable):
     def __init__(self, rwid, n_regs):
@@ -55,15 +115,9 @@ class Scoreboard(Elaboratable):
         fp_src1 = self.fpregs.read_port("src1")
         fp_src2 = self.fpregs.read_port("src2")
 
-        # Int ALUs
-        add = ALU(self.rwid)
-        sub = ALU(self.rwid)
-        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 1, add)
-        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 1, sub)
-        int_alus = [comp1, comp2]
-
-        m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
-        m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
+        # Int ALUs and Comp Units
+        n_int_alus = 2
+        m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
 
         # Int FUs
         if_l = []
@@ -71,7 +125,7 @@ class Scoreboard(Elaboratable):
         int_src2_pend_v = []
         int_rd_pend_v = []
         int_wr_pend_v = []
-        for i, a in enumerate(int_alus):
+        for i in range(n_int_alus):
             # set up Integer Function Unit, add to module (and python list)
             fu = IntFnUnit(self.n_regs, shadow_wid=0)
             setattr(m.submodules, "intfu%d" % i, fu)
@@ -201,8 +255,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.sync += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
-        m.d.sync += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
+        m.d.sync += intpick1.req_rel_i[0].eq(cu.req_rel_o[0])
+        m.d.sync += intpick1.req_rel_i[1].eq(cu.req_rel_o[1])
         int_readable_o = intfudeps.readable_o
         int_writable_o = intfudeps.writable_o
         m.d.comb += intpick1.readable_i[0].eq(int_readable_o[0]) # add rd
@@ -218,19 +272,17 @@ class Scoreboard(Elaboratable):
         m.d.comb += int_src1.ren.eq(intregdeps.src1_rsel_o)
         m.d.comb += int_src2.ren.eq(intregdeps.src2_rsel_o)
 
-        # merge (OR) all integer FU / ALU outputs to a single value
-        # bit of a hack: treereduce needs a list with an item named "dest_o"
-        dest_o = treereduce(int_alus)
-        m.d.comb += int_dest.data_i.eq(dest_o)
+        # connect ALUs to regfule
+        m.d.comb += int_dest.data_i.eq(cu.dest_o)
+        m.d.comb += cu.src1_data_i.eq(int_src1.data_o)
+        m.d.comb += cu.src2_data_i.eq(int_src2.data_o)
 
-        # connect ALUs
-        for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(go_rd_o[i])
-            m.d.comb += alu.go_wr_i.eq(go_wr_o[i])
-            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
-            m.d.comb += alu.src1_i.eq(int_src1.data_o)
-            m.d.comb += alu.src2_i.eq(int_src2.data_o)
-            m.d.sync += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
+        # connect ALU Computation Units
+        for i in range(n_int_alus):
+            m.d.comb += cu.go_rd_i[i].eq(go_rd_o[i])
+            m.d.comb += cu.go_wr_i[i].eq(go_wr_o[i])
+            m.d.comb += cu.issue_i[i].eq(fn_issue_l[i])
+            m.d.sync += if_l[i].req_rel_i.eq(cu.req_rel_o[i]) # pipe out ready
 
         return m
 
