@@ -33,7 +33,7 @@ class ComputationUnitNoDelay(Elaboratable):
         # is in effect a "3-way revolving door".  At no time may all 3
         # latches be set at the same time.
 
-        # opcode latch (not using go_rd_i)
+        # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.comb += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
         m.d.comb += opc_l.r.eq(self.go_wr_i) # XXX NOTE: INVERTED FROM book!
 

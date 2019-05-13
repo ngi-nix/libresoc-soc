@@ -256,8 +256,8 @@ class Scoreboard(Elaboratable):
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
         int_writable_o = intfus.writable_o
-        m.d.sync += intpick1.readable_i[0:2].eq(int_readable_o[0:2])
-        m.d.sync += intpick1.writable_i[0:2].eq(int_writable_o[0:2])
+        m.d.comb += intpick1.readable_i[0:2].eq(int_readable_o[0:2])
+        m.d.comb += intpick1.writable_i[0:2].eq(int_writable_o[0:2])
 
         #---------
         # Connect Register File(s)
