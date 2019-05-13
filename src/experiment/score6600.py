@@ -277,11 +277,8 @@ class Scoreboard(Elaboratable):
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfudeps.go_rd_i
         go_wr_i = intfudeps.go_wr_i
-        m.d.comb += go_rd_i[0].eq(go_rd_o[0]) # add rd
-        m.d.comb += go_wr_i[0].eq(go_wr_o[0]) # add wr
-
-        m.d.comb += go_rd_i[1].eq(go_rd_o[1]) # sub rd
-        m.d.comb += go_wr_i[1].eq(go_wr_o[1]) # sub wr
+        m.d.comb += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
+        m.d.comb += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
 
         m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
 
@@ -413,9 +410,6 @@ def scoreboard_sim(dut, alusim):
         yield dut.intregs.regs[i].reg.eq(i*2)
         alusim.setval(i, i*2)
 
-    yield
-    yield
-
     if False:
         yield from int_instr(dut, alusim, IADD, 4, 3, 5)
         yield from print_reg(dut, [3,4,5])
@@ -437,7 +431,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(5):
+    for i in range(1):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -458,6 +452,7 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
+        yield
         yield
 
 

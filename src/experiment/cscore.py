@@ -305,7 +305,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(10):
+    for i in range(5):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -325,6 +325,7 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
+        yield
         yield
         yield
 
