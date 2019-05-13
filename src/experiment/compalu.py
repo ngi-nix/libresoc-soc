@@ -56,23 +56,11 @@ class ComputationUnitNoDelay(Elaboratable):
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
         latchregister(m, self.src2_i, self.alu.b, src_l.q)
-        with m.If(src_l.qn):
-            m.d.comb += self.alu.op.eq(self.oper_i)
-
-        if False:
-            data_o = Signal(self.rwid, reset_less=True) # Dest register
-            data_r = Signal(self.rwid, reset_less=True) # Dest register
-            with m.If(req_l.q):
-                m.d.comb += data_o.eq(self.alu.o)
-                m.d.sync += data_r.eq(self.alu.o)
-            with m.Else():
-                m.d.comb += data_o.eq(data_r)
-            #with m.If(self.go_wr_i):
-                #m.d.comb += self.data_o.eq(data_o)
-
+        #with m.If(src_l.qn):
+        #    m.d.comb += self.alu.op.eq(self.oper_i)
 
         # create a latch/register for the operand
-        #latchregister(m, self.oper_i, self.alu.op, opc_l.q)
+        latchregister(m, self.oper_i, self.alu.op, opc_l.q)
 
         # and one for the output from the ALU
         data_o = Signal(self.rwid, reset_less=True) # Dest register
