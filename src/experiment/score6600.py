@@ -129,13 +129,13 @@ class FunctionUnits(Elaboratable):
         m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
         m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
 
-        m.d.comb += self.g_int_rd_pend_o.eq(g_int_rd_pend_v.g_pend_o)
-        m.d.comb += self.g_int_wr_pend_o.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.sync += self.g_int_rd_pend_o.eq(g_int_rd_pend_v.g_pend_o)
+        m.d.sync += self.g_int_wr_pend_o.eq(g_int_wr_pend_v.g_pend_o)
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
-            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_wr_pend_i.eq(self.g_int_wr_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(self.g_int_rd_pend_o)
 
         # Connect function issue / busy arrays, and dest/src1/src2
         fn_busy_l = []
