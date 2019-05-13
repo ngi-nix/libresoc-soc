@@ -326,7 +326,7 @@ class Scoreboard(Elaboratable):
         m.d.sync += cu.issue_i[0:2].eq(fn_issue_o[0:2])
 
         # Connect ALU request release to FUs
-        m.d.comb += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
+        m.d.sync += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
 
         return m
 
