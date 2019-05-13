@@ -69,16 +69,16 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         for x in range(self.n_fu_col):
             fu = fur[x]
-            rd_pend_o = []
-            wr_pend_o = []
+            rd_wait_o = []
+            wr_wait_o = []
             for y in range(self.n_fu_row):
                 dc = dm[x][y]
                 # accumulate cell outputs rd/wr-pending
-                rd_pend_o.append(dc.rd_pend_o)
-                wr_pend_o.append(dc.wr_pend_o)
+                rd_wait_o.append(dc.rd_wait_o)
+                wr_wait_o.append(dc.wr_wait_o)
             # connect cell reg-select outputs to Reg Vector In
-            m.d.comb += [fu.rd_pend_i.eq(Cat(*rd_pend_o)),
-                         fu.wr_pend_i.eq(Cat(*wr_pend_o)),
+            m.d.comb += [fu.rd_pend_i.eq(Cat(*rd_wait_o)),
+                         fu.wr_pend_i.eq(Cat(*wr_wait_o)),
                         ]
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i

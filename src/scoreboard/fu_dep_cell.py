@@ -16,16 +16,16 @@ class FUDependenceCell(Elaboratable):
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
 
-        # outputs (latched rd/wr pend)
-        self.rd_pend_o = Signal(reset_less=True)   # read pending out (right)
-        self.wr_pend_o = Signal(reset_less=True)   # write pending out (right)
+        # outputs (latched rd/wr wait)
+        self.rd_wait_o = Signal(reset_less=True)   # read waiting out (right)
+        self.wr_wait_o = Signal(reset_less=True)   # write waiting out (right)
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.rd_l = rd_l = SRLatch() # clock-sync'd
         m.submodules.wr_l = wr_l = SRLatch() # clock-sync'd
 
-        # write latch: reset on go_wr HI, set on write pending and issue
+        # write latch: reset on go_wr HI, set on write waiting and issue
         m.d.comb += wr_l.s.eq(self.issue_i & self.wr_pend_i)
         m.d.comb += wr_l.r.eq(self.go_wr_i)
 
@@ -34,8 +34,8 @@ class FUDependenceCell(Elaboratable):
         m.d.comb += rd_l.r.eq(self.go_rd_i)
 
         # Read/Write Pending Latches (read out horizontally)
-        m.d.comb += self.wr_pend_o.eq(wr_l.q)
-        m.d.comb += self.rd_pend_o.eq(rd_l.q)
+        m.d.comb += self.wr_wait_o.eq(wr_l.q)
+        m.d.comb += self.rd_wait_o.eq(rd_l.q)
 
         return m
 
@@ -45,8 +45,8 @@ class FUDependenceCell(Elaboratable):
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
-        yield self.rd_pend_o
-        yield self.wr_pend_o
+        yield self.rd_wait_o
+        yield self.wr_wait_o
                 
     def ports(self):
         return list(self)
