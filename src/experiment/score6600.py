@@ -459,7 +459,6 @@ def scoreboard_sim(dut, alusim):
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
         yield
-        yield
 
 
     yield

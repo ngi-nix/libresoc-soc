@@ -1,8 +1,9 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Elaboratable
-from nmutil.latch import SRLatch
 from nmigen.lib.coding import Decoder
+
+from nmutil.latch import SRLatch, latchregister
 
 from .shadow_fn import ShadowFn
 
@@ -134,16 +135,24 @@ class FnUnit(Elaboratable):
         m.d.comb += rd_l.s.eq(self.issue_i)
         m.d.comb += rd_l.r.eq(self.go_rd_i | recover)
 
-        # dest decoder: write-pending out
-        m.d.comb += dest_d.i.eq(self.dest_i)
+        # latch/registers for dest / src1 / src2
+        dest_r = Signal(max=self.reg_width, reset_less=True)
+        src1_r = Signal(max=self.reg_width, reset_less=True)
+        src2_r = Signal(max=self.reg_width, reset_less=True)
+        latchregister(m, self.dest_i, dest_r, wr_l.qn)
+        latchregister(m, self.src1_i, src1_r, wr_l.qn)
+        latchregister(m, self.src2_i, src2_r, wr_l.qn)
+
+        # dest decoder (use dest reg as input): write-pending out
+        m.d.comb += dest_d.i.eq(dest_r)
         m.d.comb += dest_d.n.eq(wr_l.qn) # decode is inverted
         m.d.comb += self.busy_o.eq(wr_l.q) # busy if set
         m.d.comb += xx_pend_o.eq(dest_d.o)
 
-        # src1/src2 decoder: read-pending out
-        m.d.comb += src1_d.i.eq(self.src1_i)
+        # src1/src2 decoder (use src1/2 regs as input): read-pending out
+        m.d.comb += src1_d.i.eq(src1_r)
         m.d.comb += src1_d.n.eq(rd_l.qn) # decode is inverted
-        m.d.comb += src2_d.i.eq(self.src2_i)
+        m.d.comb += src2_d.i.eq(src2_r)
         m.d.comb += src2_d.n.eq(rd_l.qn) # decode is inverted
         m.d.comb += self.src1_pend_o.eq(src1_d.o)
         m.d.comb += self.src2_pend_o.eq(src2_d.o)
