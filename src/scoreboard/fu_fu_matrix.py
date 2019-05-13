@@ -56,6 +56,19 @@ class FUFUDepMatrix(Elaboratable):
         writable = []
         for x in range(self.n_fu_col):
             fu = fur[x]
+            # accumulate Readable/Writable Vector outputs
+            readable.append(fu.readable_o)
+            writable.append(fu.writable_o)
+
+        # ... and output them from this module (horizontal, width=REGs)
+        m.d.comb += self.readable_o.eq(Cat(*readable))
+        m.d.comb += self.writable_o.eq(Cat(*writable))
+
+        # ---
+        # connect FU Pending
+        # ---
+        for x in range(self.n_fu_col):
+            fu = fur[x]
             rd_pend_o = []
             wr_pend_o = []
             for y in range(self.n_fu_row):
@@ -67,14 +80,6 @@ class FUFUDepMatrix(Elaboratable):
             m.d.comb += [fu.rd_pend_i.eq(Cat(*rd_pend_o)),
                          fu.wr_pend_i.eq(Cat(*wr_pend_o)),
                         ]
-            # accumulate Readable/Writable Vector outputs
-            readable.append(fu.readable_o)
-            writable.append(fu.writable_o)
-
-        # ... and output them from this module (horizontal, width=REGs)
-        m.d.comb += self.readable_o.eq(Cat(*readable))
-        m.d.comb += self.writable_o.eq(Cat(*writable))
-
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
