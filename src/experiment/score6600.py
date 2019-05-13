@@ -259,14 +259,11 @@ class Scoreboard(Elaboratable):
         m.d.comb += intfus.int_src1_i.eq(self.int_src1_i)
         m.d.comb += intfus.int_src2_i.eq(self.int_src2_i)
 
-        fn_issue_o = Signal(n_int_fus, reset_less=True)
-        for i in range(n_int_fus):
-            m.d.comb += fn_issue_o[i].eq(issueunit.i.fn_issue_o[i])
+        fn_issue_o = issueunit.i.fn_issue_o
 
         m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
         # XXX sync, so as to stop a simulation infinite loop
-        for i in range(n_int_fus):
-            m.d.sync += issueunit.i.busy_i[i].eq(intfus.fn_busy_o[i])
+        m.d.sync += issueunit.i.busy_i.eq(intfus.fn_busy_o)
 
         #---------
         # connect fu-fu matrix
@@ -307,14 +304,11 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.comb += intpick1.req_rel_i[0].eq(cu.req_rel_o[0])
-        m.d.comb += intpick1.req_rel_i[1].eq(cu.req_rel_o[1])
+        m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfudeps.readable_o
         int_writable_o = intfudeps.writable_o
-        m.d.sync += intpick1.readable_i[0].eq(int_readable_o[0]) # add rd
-        m.d.sync += intpick1.writable_i[0].eq(int_writable_o[0]) # add wr
-        m.d.sync += intpick1.readable_i[1].eq(int_readable_o[1]) # sub rd
-        m.d.sync += intpick1.writable_i[1].eq(int_writable_o[1]) # sub wr
+        m.d.sync += intpick1.readable_i[0:2].eq(int_readable_o[0:2])
+        m.d.sync += intpick1.writable_i[0:2].eq(int_writable_o[0:2])
 
         #---------
         # Connect Register File(s)
@@ -330,10 +324,9 @@ class Scoreboard(Elaboratable):
         m.d.comb += cu.src2_data_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        for i in range(n_int_alus):
-            m.d.sync += cu.go_rd_i[i].eq(go_rd_o[i])
-            m.d.sync += cu.go_wr_i[i].eq(go_wr_o[i])
-            m.d.sync += cu.issue_i[i].eq(fn_issue_o[i])
+        m.d.sync += cu.go_rd_i[0:2].eq(go_rd_o[0:2])
+        m.d.sync += cu.go_wr_i[0:2].eq(go_wr_o[0:2])
+        m.d.sync += cu.issue_i[0:2].eq(fn_issue_o[0:2])
 
         # Connect ALU request release to FUs
         m.d.comb += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready

@@ -75,12 +75,10 @@ class IssueUnit(Elaboratable):
         self.g_wr_pend_i = Signal(wid, reset_less=True) # write pending vector
 
         self.insn_i = Signal(n_insns, reset_less=True, name="insn_i")
-        self.busy_i = Array(Signal(reset_less=True, name="busy_i") \
-                               for i in range(n_insns))
+        self.busy_i = Signal(n_insns, reset_less=True, name="busy_i")
 
         # outputs
-        self.fn_issue_o = Array(Signal(reset_less=True, name="fn_issue_o") \
-                               for i in range(n_insns))
+        self.fn_issue_o = Signal(n_insns, reset_less=True, name="fn_issue_o")
         self.g_issue_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
