@@ -74,8 +74,7 @@ class IssueUnit(Elaboratable):
 
         self.g_wr_pend_i = Signal(wid, reset_less=True) # write pending vector
 
-        self.insn_i = Array(Signal(reset_less=True, name="insn_i") \
-                               for i in range(n_insns))
+        self.insn_i = Signal(n_insns, reset_less=True, name="insn_i")
         self.busy_i = Array(Signal(reset_less=True, name="busy_i") \
                                for i in range(n_insns))
 
