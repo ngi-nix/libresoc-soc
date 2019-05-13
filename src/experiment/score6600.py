@@ -31,6 +31,7 @@ class CompUnits(Elaboratable):
         self.issue_i = Signal(n_units, reset_less=True)
         self.go_rd_i = Signal(n_units, reset_less=True)
         self.go_wr_i = Signal(n_units, reset_less=True)
+        self.busy_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
 
         self.dest_o = Signal(rwid, reset_less=True)
@@ -53,13 +54,16 @@ class CompUnits(Elaboratable):
         go_rd_l = []
         go_wr_l = []
         issue_l = []
+        busy_l = []
         req_rel_l = []
         for alu in int_alus:
             req_rel_l.append(alu.req_rel_o)
             go_wr_l.append(alu.go_wr_i)
             go_rd_l.append(alu.go_rd_i)
             issue_l.append(alu.issue_i)
+            busy_l.append(alu.busy_o)
         m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
+        m.d.comb += self.busy_o.eq(Cat(*busy_l))
         m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
         m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
         m.d.comb += Cat(*issue_l).eq(self.issue_i)
@@ -77,89 +81,68 @@ class CompUnits(Elaboratable):
 
         return m
 
+
 class FunctionUnits(Elaboratable):
 
     def __init__(self, n_regs, n_int_alus):
         self.n_regs = n_regs
         self.n_int_alus = n_int_alus
 
-        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
-        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
-        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+        self.dest_i = Signal(n_regs, reset_less=True) # Dest R# in
+        self.src1_i = Signal(n_regs, reset_less=True) # oper1 R# in
+        self.src2_i = Signal(n_regs, reset_less=True) # oper2 R# in
+
+        self.dest_rsel_o = Signal(n_regs, reset_less=True) # dest reg (bot)
+        self.src1_rsel_o = Signal(n_regs, reset_less=True) # src1 reg (bot)
+        self.src2_rsel_o = Signal(n_regs, reset_less=True) # src2 reg (bot)
 
         self.req_rel_i = Signal(n_int_alus, reset_less = True)
         self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
         self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
+        self.readable_o = Signal(n_int_alus, reset_less=True)
+        self.writable_o = Signal(n_int_alus, reset_less=True)
 
         self.go_rd_i = Signal(n_int_alus, reset_less=True)
         self.go_wr_i = Signal(n_int_alus, reset_less=True)
         self.req_rel_o = Signal(n_int_alus, reset_less=True)
         self.fn_issue_i = Signal(n_int_alus, reset_less=True)
-        self.fn_busy_o = Signal(n_int_alus, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
 
-        # Int FUs
-        if_l = []
-        int_src1_pend_v = []
-        int_src2_pend_v = []
-        int_rd_pend_v = []
-        int_wr_pend_v = []
-        for i in range(self.n_int_alus):
-            # set up Integer Function Unit, add to module (and python list)
-            fu = IntFnUnit(self.n_regs, shadow_wid=0)
-            setattr(m.submodules, "intfu%d" % i, fu)
-            if_l.append(fu)
-            # collate the read/write pending vectors (to go into global pending)
-            int_src1_pend_v.append(fu.src1_pend_o)
-            int_src2_pend_v.append(fu.src2_pend_o)
-            int_rd_pend_v.append(fu.int_rd_pend_o)
-            int_wr_pend_v.append(fu.int_wr_pend_o)
-        int_fus = Array(if_l)
+        n_int_fus = self.n_int_alus
 
-        # Global Pending Vectors (INT and TODO FP)
-        # NOTE: number of vectors is NOT same as number of FUs.
-        g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
-        g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
-        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
-        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
-        m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
-        m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
-        m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
-        m.submodules.g_int_wr_pend_v = g_int_wr_pend_v
+        # Integer FU-FU Dep Matrix
+        intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
+        m.submodules.intfudeps = intfudeps
+        # Integer FU-Reg Dep Matrix
+        intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
+        m.submodules.intregdeps = intregdeps
 
-        m.d.sync += self.g_int_rd_pend_o.eq(g_int_rd_pend_v.g_pend_o)
-        m.d.sync += self.g_int_wr_pend_o.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
+        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
 
-        # Connect INT Fn Unit global wr/rd pending
-        for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(self.g_int_wr_pend_o)
-            m.d.comb += fu.g_int_rd_pend_i.eq(self.g_int_rd_pend_o)
+        m.d.sync += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
+        m.d.sync += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
 
-        # Connect function issue / busy arrays, and dest/src1/src2
-        fn_busy_l = []
-        fn_issue_l = []
-        req_rel_l = []
-        go_rd_l = []
-        go_wr_l = []
-        for i, fu in enumerate(if_l):
-            fn_issue_l.append(fu.issue_i)
-            fn_busy_l.append(fu.busy_o)
-            go_wr_l.append(fu.go_wr_i)
-            go_rd_l.append(fu.go_rd_i)
-            req_rel_l.append(fu.req_rel_i)
+        m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
+        m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
+        m.d.comb += intfudeps.go_wr_i.eq(self.go_wr_i)
+        m.d.comb += self.readable_o.eq(intfudeps.readable_o)
+        m.d.comb += self.writable_o.eq(intfudeps.writable_o)
 
-            m.d.comb += fu.dest_i.eq(self.int_dest_i)
-            m.d.comb += fu.src1_i.eq(self.int_src1_i)
-            m.d.comb += fu.src2_i.eq(self.int_src2_i)
+        # Connect function issue / arrays, and dest/src1/src2
+        m.d.comb += intregdeps.dest_i.eq(self.dest_i)
+        m.d.comb += intregdeps.src1_i.eq(self.src1_i)
+        m.d.comb += intregdeps.src2_i.eq(self.src2_i)
 
-        m.d.comb += Cat(*req_rel_l).eq(self.req_rel_i)
-        m.d.comb += Cat(*fn_issue_l).eq(self.fn_issue_i)
-        m.d.comb += self.fn_busy_o.eq(Cat(*fn_busy_l))
-        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
-        m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
+        m.d.comb += intregdeps.go_rd_i.eq(self.go_rd_i)
+        m.d.comb += intregdeps.go_wr_i.eq(self.go_wr_i)
+        m.d.comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
+        m.d.comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o)
+        m.d.comb += self.src1_rsel_o.eq(intregdeps.src1_rsel_o)
+        m.d.comb += self.src2_rsel_o.eq(intregdeps.src2_rsel_o)
 
         return m
 
@@ -212,15 +195,6 @@ class Scoreboard(Elaboratable):
         n_int_fus = n_int_alus
         n_fp_fus = 0 # for now
 
-        n_fus = n_int_fus + n_fp_fus # plus FP FUs
-
-        # Integer FU-FU Dep Matrix
-        intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
-        m.submodules.intfudeps = intfudeps
-        # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
-        m.submodules.intregdeps = intregdeps
-
         # Integer Priority Picker 1: Adder + Subtractor
         intpick1 = GroupPicker(2) # picks between add and sub
         m.submodules.intpick1 = intpick1
@@ -255,65 +229,43 @@ class Scoreboard(Elaboratable):
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        m.d.comb += intfus.int_dest_i.eq(self.int_dest_i)
-        m.d.comb += intfus.int_src1_i.eq(self.int_src1_i)
-        m.d.comb += intfus.int_src2_i.eq(self.int_src2_i)
+        m.d.comb += intfus.dest_i.eq(regdecode.dest_o)
+        m.d.comb += intfus.src1_i.eq(regdecode.src1_o)
+        m.d.comb += intfus.src2_i.eq(regdecode.src2_o)
 
         fn_issue_o = issueunit.i.fn_issue_o
 
         m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
         # XXX sync, so as to stop a simulation infinite loop
-        m.d.sync += issueunit.i.busy_i.eq(intfus.fn_busy_o)
+        m.d.sync += issueunit.i.busy_i.eq(cu.busy_o)
 
         #---------
         # connect fu-fu matrix
         #---------
 
-        m.d.comb += intfudeps.rd_pend_i.eq(intfus.g_int_rd_pend_o)
-        m.d.comb += intfudeps.wr_pend_i.eq(intfus.g_int_wr_pend_o)
-
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         go_rd_o = intpick1.go_rd_o
         go_wr_o = intpick1.go_wr_o
-        go_rd_i = intfudeps.go_rd_i
-        go_wr_i = intfudeps.go_wr_i
+        go_rd_i = intfus.go_rd_i
+        go_wr_i = intfus.go_wr_i
         m.d.comb += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
         m.d.comb += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
-
-        m.d.comb += intfudeps.issue_i.eq(fn_issue_o)
-
-        # Connect INT FU go_rd/wr
-        m.d.comb += intfus.go_rd_i.eq(go_rd_o)
-        m.d.comb += intfus.go_wr_i.eq(go_wr_o)
-
-        #---------
-        # connect fu-dep matrix
-        #---------
-        r_go_rd_i = intregdeps.go_rd_i
-        r_go_wr_i = intregdeps.go_wr_i
-        m.d.comb += r_go_rd_i.eq(go_rd_o)
-        m.d.comb += r_go_wr_i.eq(go_wr_o)
-
-        m.d.comb += intregdeps.dest_i.eq(regdecode.dest_o)
-        m.d.comb += intregdeps.src1_i.eq(regdecode.src1_o)
-        m.d.comb += intregdeps.src2_i.eq(regdecode.src2_o)
-        m.d.comb += intregdeps.issue_i.eq(fn_issue_o)
 
         # Connect Picker
         #---------
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
-        int_readable_o = intfudeps.readable_o
-        int_writable_o = intfudeps.writable_o
+        int_readable_o = intfus.readable_o
+        int_writable_o = intfus.writable_o
         m.d.sync += intpick1.readable_i[0:2].eq(int_readable_o[0:2])
         m.d.sync += intpick1.writable_i[0:2].eq(int_writable_o[0:2])
 
         #---------
         # Connect Register File(s)
         #---------
-        print ("intregdeps wen len", len(intregdeps.dest_rsel_o))
-        m.d.sync += int_dest.wen.eq(intregdeps.dest_rsel_o)
-        m.d.comb += int_src1.ren.eq(intregdeps.src1_rsel_o)
-        m.d.comb += int_src2.ren.eq(intregdeps.src2_rsel_o)
+        print ("intregdeps wen len", len(intfus.dest_rsel_o))
+        m.d.sync += int_dest.wen.eq(intfus.dest_rsel_o)
+        m.d.comb += int_src1.ren.eq(intfus.src1_rsel_o)
+        m.d.comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
         # connect ALUs to regfule
         m.d.comb += int_dest.data_i.eq(cu.dest_o)
@@ -324,9 +276,6 @@ class Scoreboard(Elaboratable):
         m.d.sync += cu.go_rd_i[0:2].eq(go_rd_o[0:2])
         m.d.sync += cu.go_wr_i[0:2].eq(go_wr_o[0:2])
         m.d.sync += cu.issue_i[0:2].eq(fn_issue_o[0:2])
-
-        # Connect ALU request release to FUs
-        m.d.sync += intfus.req_rel_i.eq(cu.req_rel_o) # pipe out ready
 
         return m
 
@@ -431,7 +380,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(1):
+    for i in range(5):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:

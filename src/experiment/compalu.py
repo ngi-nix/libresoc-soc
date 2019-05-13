@@ -34,8 +34,8 @@ class ComputationUnitNoDelay(Elaboratable):
         # latches be set at the same time.
 
         # opcode latch (not using go_rd_i)
-        m.d.comb += opc_l.s.eq(self.go_wr_i)
-        m.d.comb += opc_l.r.eq(self.issue_i)
+        m.d.comb += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
+        m.d.comb += opc_l.r.eq(self.go_wr_i) # XXX NOTE: INVERTED FROM book!
 
         # src operand latch (not using go_wr_i)
         m.d.comb += src_l.s.eq(self.issue_i)
@@ -50,8 +50,8 @@ class ComputationUnitNoDelay(Elaboratable):
         # XXX
 
         # outputs
-        m.d.comb += self.busy_o.eq(opc_l.qn) # busy out
-        m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.qn) # request release out
+        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
+        m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # request release out
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
