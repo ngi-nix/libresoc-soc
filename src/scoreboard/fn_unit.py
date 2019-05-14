@@ -139,9 +139,10 @@ class FnUnit(Elaboratable):
         dest_r = Signal(max=self.reg_width, reset_less=True)
         src1_r = Signal(max=self.reg_width, reset_less=True)
         src2_r = Signal(max=self.reg_width, reset_less=True)
-        latchregister(m, self.dest_i, dest_r, wr_l.qn)
-        latchregister(m, self.src1_i, src1_r, wr_l.qn)
-        latchregister(m, self.src2_i, src2_r, wr_l.qn)
+        # XXX latch based on *issue* rather than !latch (as in book)
+        latchregister(m, self.dest_i, dest_r, self.issue_i) #wr_l.qn)
+        latchregister(m, self.src1_i, src1_r, self.issue_i) #wr_l.qn)
+        latchregister(m, self.src2_i, src2_r, self.issue_i) #wr_l.qn)
 
         # dest decoder (use dest reg as input): write-pending out
         m.d.comb += dest_d.i.eq(dest_r)
