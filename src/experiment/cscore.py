@@ -305,7 +305,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(1):
+    for i in range(20):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -313,12 +313,12 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 2
-        src2 = 2
-        dest = 2
+        #src1 = 2
+        #src2 = 3
+        #dest = 2 
 
         op = randint(0, 1)
-        op = 0
+        #op = 1
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
@@ -326,7 +326,6 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
-        yield
         yield
         yield
 
