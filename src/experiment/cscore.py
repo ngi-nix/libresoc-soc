@@ -168,8 +168,8 @@ class Scoreboard(Elaboratable):
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
-            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+            m.d.sync += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.sync += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
 
         # Connect Picker
         #---------
@@ -305,7 +305,7 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for i in range(20):
+    for i in range(2):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         while True:
@@ -313,12 +313,20 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
+        if i == 0:
+            src1 = 6
+            src2 = 6
+            dest = 1
+        else:
+            src1 = 1
+            src2 = 7
+            dest = 1
         #src1 = 2
         #src2 = 3
         #dest = 2 
 
         op = randint(0, 1)
-        #op = 1
+        op = i
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
@@ -327,13 +335,19 @@ def scoreboard_sim(dut, alusim):
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
         yield
-        yield
+        while True:
+            issue_o = yield dut.issue_o
+            if issue_o:
+                break
+            yield
 
 
     yield
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
+    yield
+    yield
     yield
     yield
     yield
