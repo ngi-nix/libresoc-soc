@@ -122,8 +122,8 @@ class FunctionUnits(Elaboratable):
         m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
         m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
 
-        m.d.sync += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
-        m.d.sync += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
+        m.d.comb += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
+        m.d.comb += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
 
         m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
         m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
@@ -359,6 +359,8 @@ def scoreboard_sim(dut, alusim):
         yield dut.intregs.regs[i].reg.eq(i*2)
         alusim.setval(i, i*2)
 
+    yield
+
     if False:
         yield from int_instr(dut, alusim, IADD, 4, 3, 5)
         yield from print_reg(dut, [3,4,5])
@@ -388,9 +390,9 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        #src1 = 7
-        #src2 = 4
-        #dest = 2
+        src1 = 1
+        src2 = 1
+        dest = 2
 
         op = randint(0, 1)
         op = 0
