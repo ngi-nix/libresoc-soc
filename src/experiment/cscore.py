@@ -194,8 +194,8 @@ class Scoreboard(Elaboratable):
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.go_rd_i.eq(if_l[i].go_rd_i) # chained from intpick
-            m.d.comb += alu.go_wr_i.eq(if_l[i].go_wr_i) # chained from intpick
+            m.d.sync += alu.go_rd_i.eq(intpick1.go_rd_o[i])
+            m.d.sync += alu.go_wr_i.eq(intpick1.go_wr_o[i])
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
@@ -305,31 +305,29 @@ def scoreboard_sim(dut, alusim):
 
         yield from alusim.check(dut)
 
-    for j in range(10):
-        for i in range(2):
-            src1 = randint(1, dut.n_regs-1)
-            src2 = randint(1, dut.n_regs-1)
-            while True:
-                dest = randint(1, dut.n_regs-1)
+    for i in range(1):
+        src1 = randint(1, dut.n_regs-1)
+        src2 = randint(1, dut.n_regs-1)
+        while True:
+            dest = randint(1, dut.n_regs-1)
+            break
+            if dest not in [src1, src2]:
                 break
-                if dest not in [src1, src2]:
-                    break
-            #src1 = 7
-            #src2 = 7
-            dest = src2
+        src1 = 2
+        src2 = 2
+        dest = 2
 
-            op = randint(0, 1)
-            op = i
-            print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
-            yield from int_instr(dut, alusim, op, src1, src2, dest)
-            yield from print_reg(dut, [3,4,5])
-            yield
-            yield from print_reg(dut, [3,4,5])
-            for i in range(len(dut.int_insn_i)):
-                yield dut.int_insn_i[i].eq(0)
-            yield
-            yield
-
+        op = randint(0, 1)
+        op = 0
+        print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
+        yield from int_instr(dut, alusim, op, src1, src2, dest)
+        yield from print_reg(dut, [3,4,5])
+        yield
+        yield from print_reg(dut, [3,4,5])
+        for i in range(len(dut.int_insn_i)):
+            yield dut.int_insn_i[i].eq(0)
+        yield
+        yield
         yield
 
 
