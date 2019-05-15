@@ -10,7 +10,7 @@ import operator
 
 
 class Register(Elaboratable):
-    def __init__(self, width, writethru=True):
+    def __init__(self, width, writethru=False):
         self.width = width
         self.writethru = writethru
         self._rdports = []

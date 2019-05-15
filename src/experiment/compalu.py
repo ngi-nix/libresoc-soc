@@ -10,6 +10,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.rwid = rwid
         self.alu = alu
 
+        self.counter = Signal(3)
         self.go_rd_i = Signal(reset_less=True) # go read in
         self.go_wr_i = Signal(reset_less=True) # go write in
         self.issue_i = Signal(reset_less=True) # fn issue in
@@ -51,7 +52,13 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # outputs
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
-        m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # request release out
+
+        with m.If(self.go_rd_i):
+            m.d.sync += self.counter.eq(1)
+        with m.If(self.counter > 0):
+            m.d.sync += self.counter.eq(self.counter - 1)
+        with m.If(self.counter == 1):
+            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # req release out
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)

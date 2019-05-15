@@ -126,6 +126,7 @@ class FnUnit(Elaboratable):
         for i in range(self.n_dests):
             m.d.comb += self.xx_pend_o[i].eq(0)  # initialise all array
             m.d.comb += self.writable_o[i].eq(0) # to zero
+            m.d.comb += self.readable_o[i].eq(0) # to zero
 
         # go_wr latch: reset on go_wr HI, set on issue
         m.d.comb += wr_l.s.eq(self.issue_i)
@@ -161,8 +162,10 @@ class FnUnit(Elaboratable):
 
         # readable output signal
         g_rd = Signal(self.reg_width, reset_less=True)
+        ro = Signal(reset_less=True)
         m.d.comb += g_rd.eq((~self.g_wr_pend_i) & self.rd_pend_o)
-        m.d.comb += self.readable_o.eq(g_rd.bool())
+        m.d.comb += ro.eq(g_rd.bool())
+        m.d.comb += self.readable_o.eq(ro)
 
         # writable output signal
         g_wr_v = Signal(self.reg_width, reset_less=True)

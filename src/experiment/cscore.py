@@ -335,6 +335,8 @@ def scoreboard_sim(dut, alusim):
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
         yield
+        yield
+        yield
         while True:
             issue_o = yield dut.issue_o
             if issue_o:
@@ -342,6 +344,10 @@ def scoreboard_sim(dut, alusim):
             yield
 
 
+    yield
+    yield from print_reg(dut, [3,4,5])
+    yield
+    yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
     yield

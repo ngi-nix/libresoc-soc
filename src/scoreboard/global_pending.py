@@ -25,10 +25,11 @@ class GlobalPending(Elaboratable):
           on a particular register (extremely unusual), they must set a Const
           zero bit in the vector.
     """
-    def __init__(self, dep, fu_vecs):
+    def __init__(self, dep, fu_vecs, sync=False):
         self.reg_dep = dep
         # inputs
         self.fu_vecs = fu_vecs
+        self.sync = sync
         for v in fu_vecs:
             assert len(v) == dep, "FU Vector must be same width as regfile"
 
@@ -43,7 +44,10 @@ class GlobalPending(Elaboratable):
             for v in self.fu_vecs:
                 vec_bit_l.append(v[i])             # fu bit for same register
             pend_l.append(Cat(*vec_bit_l).bool())  # OR all bits for same reg
-        m.d.comb += self.g_pend_o.eq(Cat(*pend_l)) # merge all OR'd bits
+        if self.sync:
+            m.d.sync += self.g_pend_o.eq(Cat(*pend_l)) # merge all OR'd bits
+        else:
+            m.d.comb += self.g_pend_o.eq(Cat(*pend_l)) # merge all OR'd bits
 
         return m
 
