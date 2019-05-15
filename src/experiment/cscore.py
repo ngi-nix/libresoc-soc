@@ -104,8 +104,8 @@ class Scoreboard(Elaboratable):
         # NOTE: number of vectors is NOT same as number of FUs.
         g_int_src1_pend_v = GlobalPending(self.n_regs, int_src1_pend_v)
         g_int_src2_pend_v = GlobalPending(self.n_regs, int_src2_pend_v)
-        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v)
-        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v)
+        g_int_rd_pend_v = GlobalPending(self.n_regs, int_rd_pend_v, True)
+        g_int_wr_pend_v = GlobalPending(self.n_regs, int_wr_pend_v, True)
         m.submodules.g_int_src1_pend_v = g_int_src1_pend_v
         m.submodules.g_int_src2_pend_v = g_int_src2_pend_v
         m.submodules.g_int_rd_pend_v = g_int_rd_pend_v
@@ -168,8 +168,8 @@ class Scoreboard(Elaboratable):
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.sync += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
-            m.d.sync += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
 
         # Connect Picker
         #---------
@@ -183,7 +183,7 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        m.d.sync += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
         m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
         m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
@@ -318,9 +318,9 @@ def scoreboard_sim(dut, alusim):
             src2 = 6
             dest = 1
         else:
-            src1 = 1
+            src1 = 3
             src2 = 7
-            dest = 1
+            dest = 2
         #src1 = 2
         #src2 = 3
         #dest = 2 
@@ -334,7 +334,6 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [3,4,5])
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
-        yield
         yield
         yield
         yield
