@@ -337,6 +337,7 @@ def scoreboard_sim(dut, alusim):
         yield
         yield
         yield
+        yield
         while True:
             issue_o = yield dut.issue_o
             if issue_o:

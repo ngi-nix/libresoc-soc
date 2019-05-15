@@ -54,7 +54,7 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
 
         with m.If(self.go_rd_i):
-            m.d.sync += self.counter.eq(1)
+            m.d.sync += self.counter.eq(2)
         with m.If(self.counter > 0):
             m.d.sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
