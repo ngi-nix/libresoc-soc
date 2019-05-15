@@ -326,7 +326,7 @@ def scoreboard_sim(dut, alusim):
         #dest = 2 
 
         op = randint(0, 1)
-        op = i
+        op = 0
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
