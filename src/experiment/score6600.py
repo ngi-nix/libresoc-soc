@@ -125,9 +125,9 @@ class FunctionUnits(Elaboratable):
         m.d.comb += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
         m.d.comb += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
 
-        m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
-        m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
-        m.d.comb += intfudeps.go_wr_i.eq(self.go_wr_i)
+        m.d.sync += intfudeps.issue_i.eq(self.fn_issue_i)
+        m.d.sync += intfudeps.go_rd_i.eq(self.go_rd_i)
+        m.d.sync += intfudeps.go_wr_i.eq(self.go_wr_i)
         m.d.comb += self.readable_o.eq(intfudeps.readable_o)
         m.d.comb += self.writable_o.eq(intfudeps.writable_o)
 
@@ -253,6 +253,7 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
+        m.d.sync += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
         int_writable_o = intfus.writable_o
@@ -390,12 +391,12 @@ def scoreboard_sim(dut, alusim):
             break
             if dest not in [src1, src2]:
                 break
-        src1 = 1
-        src2 = 1
-        dest = 2
+        #src1 = 2
+        #src2 = 3
+        #dest = 2
 
         op = randint(0, 1)
-        op = 0
+        #op = i % 2
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
