@@ -147,9 +147,9 @@ class Scoreboard(Elaboratable):
             fn_issue_l.append(fu.issue_i)
             fn_busy_l.append(fu.busy_o)
             m.d.sync += fu.issue_i.eq(issueunit.i.fn_issue_o[i])
-            m.d.comb += fu.dest_i.eq(self.int_dest_i)
-            m.d.comb += fu.src1_i.eq(self.int_src1_i)
-            m.d.comb += fu.src2_i.eq(self.int_src2_i)
+            m.d.sync += fu.dest_i.eq(self.int_dest_i)
+            m.d.sync += fu.src1_i.eq(self.int_src1_i)
+            m.d.sync += fu.src2_i.eq(self.int_src2_i)
             # XXX sync, so as to stop a simulation infinite loop
             m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
 
@@ -186,6 +186,7 @@ class Scoreboard(Elaboratable):
         with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
             m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
         #with m.If(intpick1.go_rd_o):
+        #with m.If(if_l[0].go_rd_i | if_l[1].go_rd_i):
         m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
         m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
@@ -342,7 +343,7 @@ def scoreboard_sim(dut, alusim):
                 dest = 7
 
             #op = (i+1) % 2
-            op = 0
+            op = i
 
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
