@@ -362,51 +362,49 @@ def scoreboard_sim(dut, alusim):
 
     yield
 
+    instrs = []
     if False:
-        yield from int_instr(dut, alusim, IADD, 4, 3, 5)
-        yield from print_reg(dut, [3,4,5])
-        yield
-        yield from int_instr(dut, alusim, IADD, 5, 2, 5)
-        yield from print_reg(dut, [3,4,5])
-        yield
-        yield from int_instr(dut, alusim, ISUB, 5, 1, 3)
-        yield from print_reg(dut, [3,4,5])
-        yield
-        for i in range(len(dut.int_insn_i)):
-            yield dut.int_insn_i[i].eq(0)
-        yield from print_reg(dut, [3,4,5])
-        yield
-        yield from print_reg(dut, [3,4,5])
-        yield
-        yield from print_reg(dut, [3,4,5])
-        yield
-
-        yield from alusim.check(dut)
-
-    for i in range(5):
-        src1 = randint(1, dut.n_regs-1)
-        src2 = randint(1, dut.n_regs-1)
-        while True:
-            dest = randint(1, dut.n_regs-1)
-            break
-            if dest not in [src1, src2]:
+        for i in range(2):
+            src1 = randint(1, dut.n_regs-1)
+            src2 = randint(1, dut.n_regs-1)
+            while True:
+                dest = randint(1, dut.n_regs-1)
                 break
-        #src1 = 2
-        #src2 = 3
-        #dest = 2
+                if dest not in [src1, src2]:
+                    break
+            #src1 = 2
+            #src2 = 3
+            #dest = 2
 
-        op = randint(0, 1)
-        #op = i % 2
-        print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
+            op = randint(0, 1)
+            op = i % 2
+        instrs.append((src1, src2, dest, op))
+
+    if False:
+        instrs.append((2, 3, 3, 0))
+        instrs.append((5, 3, 3, 1))
+
+    if True:
+        instrs.append((7, 2, 6, 1))
+        instrs.append((3, 7, 1, 1))
+        instrs.append((2, 2, 3, 1))
+
+    for i, (src1, src2, dest, op) in enumerate(instrs):
+
+        print ("instr %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
-        yield
-        yield from print_reg(dut, [3,4,5])
-        for i in range(len(dut.int_insn_i)):
-            yield dut.int_insn_i[i].eq(0)
-        yield
-        yield
-
+        while True:
+            yield
+            issue_o = yield dut.issue_o
+            if issue_o:
+                yield from print_reg(dut, [3,4,5])
+                for i in range(len(dut.int_insn_i)):
+                    yield dut.int_insn_i[i].eq(0)
+                break
+            print ("busy",)
+            yield from print_reg(dut, [3,4,5])
+            yield
 
     yield
     yield from print_reg(dut, [3,4,5])
