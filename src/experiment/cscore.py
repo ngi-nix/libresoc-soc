@@ -342,7 +342,7 @@ def scoreboard_sim(dut, alusim):
             else:
                 src1 = 5
                 src2 = 3
-                dest = 7
+                dest = 4
 
             #op = (i+1) % 2
             op = i
