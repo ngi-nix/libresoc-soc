@@ -173,6 +173,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
+        m.d.comb += intpick1.go_rd_i[0].eq(~if_l[0].go_rd_i)
+        m.d.comb += intpick1.go_rd_i[1].eq(~if_l[1].go_rd_i)
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
         m.d.comb += intpick1.readable_i[0].eq(if_l[0].int_readable_o) # add rd
