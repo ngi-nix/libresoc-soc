@@ -47,6 +47,7 @@ class GroupPicker(Elaboratable):
         # inputs
         self.readable_i = Signal(wid, reset_less=True) # readable in (top)
         self.writable_i = Signal(wid, reset_less=True) # writable in (top)
+        self.go_rd_i = Signal(wid, reset_less=True)   # go read in (top)
         self.req_rel_i = Signal(wid, reset_less=True) # release request in (top)
 
         # outputs
@@ -63,7 +64,7 @@ class GroupPicker(Elaboratable):
         m.d.comb += wpick.i.eq(self.writable_i & self.req_rel_i)
         m.d.comb += self.go_wr_o.eq(wpick.o)
 
-        m.d.comb += rpick.i.eq(self.readable_i)
+        m.d.comb += rpick.i.eq(self.readable_i & self.go_rd_i)
         m.d.comb += self.go_rd_o.eq(rpick.o)
 
         return m
