@@ -183,7 +183,9 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
+            m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        #with m.If(intpick1.go_rd_o):
         m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
         m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
@@ -315,7 +317,7 @@ def scoreboard_sim(dut, alusim):
                 break
         op = randint(0, 1)
         if False:
-            if i == 0:
+            if i % 2 == 0:
                 src1 = 6
                 src2 = 6
                 dest = 1
@@ -329,20 +331,33 @@ def scoreboard_sim(dut, alusim):
 
             op = i
 
+        if True:
+            if i == 0:
+                src1 = 2
+                src2 = 3
+                dest = 3
+            else:
+                src1 = 5
+                src2 = 4
+                dest = 7
+
+            #op = (i+1) % 2
+            op = 0
+
         print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield from print_reg(dut, [3,4,5])
-        yield
         while True:
+            yield
             issue_o = yield dut.issue_o
             if issue_o:
+                yield from print_reg(dut, [3,4,5])
+                for i in range(len(dut.int_insn_i)):
+                    yield dut.int_insn_i[i].eq(0)
+                yield
                 break
             print ("busy",)
             yield from print_reg(dut, [3,4,5])
-            yield
-        yield from print_reg(dut, [3,4,5])
-        for i in range(len(dut.int_insn_i)):
-            yield dut.int_insn_i[i].eq(0)
 
 
     yield
@@ -353,6 +368,9 @@ def scoreboard_sim(dut, alusim):
     yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
+    yield
+    yield
+    yield
     yield
     yield
     yield
@@ -360,6 +378,7 @@ def scoreboard_sim(dut, alusim):
     yield
     yield
     yield from alusim.check(dut)
+    yield from alusim.dump(dut)
 
 
 def explore_groups(dut):

@@ -53,11 +53,11 @@ class ComputationUnitNoDelay(Elaboratable):
         # outputs
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
 
-        with m.If(self.go_rd_i):
-            m.d.sync += self.counter.eq(2)
+        with m.If(src_l.q & (self.counter == 0)):
+            m.d.sync += self.counter.eq(3)
         with m.If(self.counter > 0):
             m.d.sync += self.counter.eq(self.counter - 1)
-        with m.If(self.counter == 1):
+        with m.If((self.counter == 1) | (self.counter == 0)):
             m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # req release out
 
         # create a latch/register for src1/src2
