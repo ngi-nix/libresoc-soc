@@ -171,7 +171,7 @@ class FnUnit(Elaboratable):
         g_wr_v = Signal(self.reg_width, reset_less=True)
         g_wr = Signal(reset_less=True)
         wo = Signal(reset_less=True)
-        m.d.comb += g_wr_v.eq(g_pend_i & xx_pend_o)
+        m.d.comb += g_wr_v.eq(g_pend_i & xx_pend_o & self.rd_pend_o)
         m.d.comb += g_wr.eq(~g_wr_v.bool())
         m.d.comb += wo.eq(g_wr & rd_l.qn & self.req_rel_i & shadown)
         m.d.comb += writable_o.eq(wo)

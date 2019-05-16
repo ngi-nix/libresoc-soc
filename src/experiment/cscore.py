@@ -131,9 +131,9 @@ class Scoreboard(Elaboratable):
                      regdecode.src1_i.eq(self.int_src1_i),
                      regdecode.src2_i.eq(self.int_src2_i),
                      regdecode.enable_i.eq(1),
-                     issueunit.i.dest_i.eq(regdecode.dest_o),
                      self.issue_o.eq(issueunit.issue_o)
                     ]
+        m.d.sync += issueunit.i.dest_i.eq(regdecode.dest_o),
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
         # connect global rd/wr pending vectors
@@ -339,7 +339,7 @@ def scoreboard_sim(dut, alusim):
                 dest = 3
             else:
                 src1 = 5
-                src2 = 4
+                src2 = 3
                 dest = 7
 
             #op = (i+1) % 2
@@ -355,7 +355,6 @@ def scoreboard_sim(dut, alusim):
                 yield from print_reg(dut, [3,4,5])
                 for i in range(len(dut.int_insn_i)):
                     yield dut.int_insn_i[i].eq(0)
-                yield
                 break
             print ("busy",)
             yield from print_reg(dut, [3,4,5])
@@ -395,8 +394,8 @@ def explore_groups(dut):
 
 
 def test_scoreboard():
-    dut = Scoreboard(32, 8)
-    alusim = RegSim(32, 8)
+    dut = Scoreboard(16, 8)
+    alusim = RegSim(16, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard.il", "w") as f:
         f.write(vl)
