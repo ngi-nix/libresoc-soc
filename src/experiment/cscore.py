@@ -181,8 +181,8 @@ class Scoreboard(Elaboratable):
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(intfu_wr_pend_v)
-            m.d.comb += fu.g_int_rd_pend_i.eq(intfu_rd_pend_v)
+            m.d.comb += fu.g_int_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
+            m.d.comb += fu.g_int_rd_pend_i.eq(g_int_rd_pend_v.g_pend_o)
 
         # Connect FU-FU Matrix, NOTE: FN Units readable/writable considered
         # to be unit "read-pending / write-pending"
