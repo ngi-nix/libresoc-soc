@@ -29,9 +29,9 @@ class DependenceCell(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_l = dest_l = SRLatch() # clock-sync'd
-        m.submodules.src1_l = src1_l = SRLatch() # clock-sync'd
-        m.submodules.src2_l = src2_l = SRLatch() # clock-sync'd
+        m.submodules.dest_l = dest_l = SRLatch(sync=False) # clock-sync'd
+        m.submodules.src1_l = src1_l = SRLatch(sync=False) # clock-sync'd
+        m.submodules.src2_l = src2_l = SRLatch(sync=False) # clock-sync'd
 
         # destination latch: reset on go_wr HI, set on dest and issue
         m.d.comb += dest_l.s.eq(self.issue_i & self.dest_i)
@@ -153,11 +153,11 @@ class DependencyRow(Elaboratable):
         # ---
         # connect Reg Selection vector
         # ---
+        dest_rsel_o = []
+        src1_rsel_o = []
+        src2_rsel_o = []
         for rn in range(self.n_reg_col):
             dc = rcell[rn]
-            dest_rsel_o = []
-            src1_rsel_o = []
-            src2_rsel_o = []
             # accumulate cell reg-select outputs dest/src1/src2
             dest_rsel_o.append(dc.dest_rsel_o)
             src1_rsel_o.append(dc.src1_rsel_o)
@@ -168,6 +168,23 @@ class DependencyRow(Elaboratable):
         m.d.comb += self.src2_rsel_o.eq(Cat(*src2_rsel_o))
 
         return m
+
+    def __iter__(self):
+        yield self.dest_i
+        yield self.src1_i
+        yield self.src2_i
+        yield self.issue_i
+        yield self.go_wr_i
+        yield self.go_rd_i
+        yield self.dest_rsel_o
+        yield self.src1_rsel_o
+        yield self.src2_rsel_o
+        yield self.dest_fwd_o
+        yield self.src1_fwd_o
+        yield self.src2_fwd_o
+
+    def ports(self):
+        return list(self)
 
 
 def dcell_sim(dut):
@@ -193,6 +210,11 @@ def dcell_sim(dut):
     yield
 
 def test_dcell():
+    dut = DependencyRow(4)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_drow.il", "w") as f:
+        f.write(vl)
+
     dut = DependenceCell()
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_dcell.il", "w") as f:
