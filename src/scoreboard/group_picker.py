@@ -64,7 +64,7 @@ class GroupPicker(Elaboratable):
         m.d.comb += wpick.i.eq(self.writable_i & self.req_rel_i)
         m.d.comb += self.go_wr_o.eq(wpick.o)
 
-        m.d.comb += rpick.i.eq(self.readable_i & self.go_rd_i)
+        m.d.comb += rpick.i.eq(self.readable_i) #& self.go_rd_i)
         m.d.comb += self.go_rd_o.eq(rpick.o)
 
         return m

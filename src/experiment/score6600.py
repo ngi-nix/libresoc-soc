@@ -119,11 +119,11 @@ class FunctionUnits(Elaboratable):
         intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
-        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
-        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
+        m.d.sync += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
+        m.d.sync += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
 
-        m.d.comb += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
-        m.d.comb += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
+        m.d.sync += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
+        m.d.sync += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
 
         m.d.sync += intfudeps.issue_i.eq(self.fn_issue_i)
         m.d.sync += intfudeps.go_rd_i.eq(self.go_rd_i)
@@ -248,12 +248,12 @@ class Scoreboard(Elaboratable):
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
-        m.d.comb += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
-        m.d.comb += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
+        m.d.sync += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
+        m.d.sync += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
 
         # Connect Picker
         #---------
-        m.d.sync += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
+        m.d.comb += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
         int_writable_o = intfus.writable_o
@@ -264,7 +264,7 @@ class Scoreboard(Elaboratable):
         # Connect Register File(s)
         #---------
         print ("intregdeps wen len", len(intfus.dest_rsel_o))
-        m.d.sync += int_dest.wen.eq(intfus.dest_rsel_o)
+        m.d.comb += int_dest.wen.eq(intfus.dest_rsel_o)
         m.d.comb += int_src1.ren.eq(intfus.src1_rsel_o)
         m.d.comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
@@ -387,7 +387,7 @@ def scoreboard_sim(dut, alusim):
     if True:
         instrs.append((7, 2, 6, 1))
         instrs.append((3, 7, 1, 1))
-        instrs.append((2, 2, 3, 1))
+        #instrs.append((2, 2, 3, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
