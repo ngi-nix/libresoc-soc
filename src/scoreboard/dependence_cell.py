@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable
+from nmigen import Module, Signal, Elaboratable, Array
 from nmutil.latch import SRLatch
 
 
@@ -73,6 +73,18 @@ class DependenceCell(Elaboratable):
                 
     def ports(self):
         return list(self)
+
+
+class DependencyRow(Elaboratable):
+    def __init__(self, n_reg_col):
+        self.n_reg_col = n_reg_col
+        self.rcell = Array(DependenceCell() for f in range(self.n_reg_col))
+
+    def elaborate(self, platform):
+        m = Module()
+        for rn in range(self.n_reg_col):
+            setattr(m.submodules, "dm_r%d" % rn, self.rcell[rn])
+        return m
 
 
 def dcell_sim(dut):

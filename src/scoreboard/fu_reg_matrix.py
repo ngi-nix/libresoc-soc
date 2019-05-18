@@ -3,7 +3,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat
 
 #from nmutil.latch import SRLatch
-from scoreboard.dependence_cell import DependenceCell
+from scoreboard.dependence_cell import DependencyRow
 from scoreboard.fu_wr_pending import FU_RW_Pend
 from scoreboard.reg_select import Reg_Rsv
 
@@ -56,11 +56,9 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # matrix of dependency cells
         # ---
-        dm = Array(Array(DependenceCell() for r in range(self.n_fu_row)) \
-                                          for f in range(self.n_reg_col))
-        for rn in range(self.n_reg_col):
-            for fu in range(self.n_fu_row):
-                setattr(m.submodules, "dm_r%d_fu%d" % (rn, fu), dm[rn][fu])
+        dm = Array(DependencyRow(self.n_reg_col) for r in range(self.n_fu_row))
+        for fu in range(self.n_fu_row):
+            setattr(m.submodules, "dr_fu%d" % fu, dm[fu])
 
         # ---
         # array of Function Unit Pending vectors
@@ -89,7 +87,7 @@ class FURegDepMatrix(Elaboratable):
             src1_fwd_o = []
             src2_fwd_o = []
             for rn in range(self.n_reg_col):
-                dc = dm[rn][fu]
+                dc = dm[fu].rcell[rn]
                 # accumulate cell fwd outputs for dest/src1/src2 
                 dest_fwd_o.append(dc.dest_fwd_o)
                 src1_fwd_o.append(dc.src1_fwd_o)
@@ -125,7 +123,7 @@ class FURegDepMatrix(Elaboratable):
             src1_rsel_o = []
             src2_rsel_o = []
             for fu in range(self.n_fu_row):
-                dc = dm[rn][fu]
+                dc = dm[fu].rcell[rn]
                 # accumulate cell reg-select outputs dest/src1/src2
                 dest_rsel_o.append(dc.dest_rsel_o)
                 src1_rsel_o.append(dc.src1_rsel_o)
@@ -155,7 +153,7 @@ class FURegDepMatrix(Elaboratable):
             src1_i = []
             src2_i = []
             for rn in range(self.n_reg_col):
-                dc = dm[rn][fu]
+                dc = dm[fu].rcell[rn]
                 # accumulate cell inputs dest/src1/src2
                 dest_i.append(dc.dest_i)
                 src1_i.append(dc.src1_i)
@@ -174,7 +172,7 @@ class FURegDepMatrix(Elaboratable):
             go_wr_i = []
             issue_i = []
             for fu in range(self.n_fu_row):
-                dc = dm[rn][fu]
+                dc = dm[fu].rcell[rn]
                 # accumulate cell fwd outputs for dest/src1/src2 
                 go_rd_i.append(dc.go_rd_i)
                 go_wr_i.append(dc.go_wr_i)
