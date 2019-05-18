@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable, Array
+from nmigen import Module, Signal, Elaboratable, Array, Cat
 from nmutil.latch import SRLatch
 
 
@@ -78,12 +78,68 @@ class DependenceCell(Elaboratable):
 class DependencyRow(Elaboratable):
     def __init__(self, n_reg_col):
         self.n_reg_col = n_reg_col
-        self.rcell = Array(DependenceCell() for f in range(self.n_reg_col))
+
+        # ----
+        # fields all match DependencyCell precisely
+
+        self.dest_i = Signal(n_reg_col, reset_less=True)
+        self.src1_i = Signal(n_reg_col, reset_less=True)
+        self.src2_i = Signal(n_reg_col, reset_less=True)
+        self.issue_i = Signal(n_reg_col, reset_less=True)
+
+        self.go_wr_i = Signal(n_reg_col, reset_less=True)
+        self.go_rd_i = Signal(n_reg_col, reset_less=True)
+
+        self.dest_rsel_o = Signal(n_reg_col, reset_less=True)
+        self.src1_rsel_o = Signal(n_reg_col, reset_less=True)
+        self.src2_rsel_o = Signal(n_reg_col, reset_less=True)
+
+        self.dest_fwd_o = Signal(n_reg_col, reset_less=True)
+        self.src1_fwd_o = Signal(n_reg_col, reset_less=True)
+        self.src2_fwd_o = Signal(n_reg_col, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
+        rcell = Array(DependenceCell() for f in range(self.n_reg_col))
         for rn in range(self.n_reg_col):
-            setattr(m.submodules, "dm_r%d" % rn, self.rcell[rn])
+            setattr(m.submodules, "dm_r%d" % rn, rcell[rn])
+
+        # ---
+        # connect Dep dest/src to module dest/src
+        # ---
+        dest_i = []
+        src1_i = []
+        src2_i = []
+        for rn in range(self.n_reg_col):
+            dc = rcell[rn]
+            # accumulate cell inputs dest/src1/src2
+            dest_i.append(dc.dest_i)
+            src1_i.append(dc.src1_i)
+            src2_i.append(dc.src2_i)
+        # wire up inputs from module to row cell inputs (Cat is gooood)
+        m.d.comb += [Cat(*dest_i).eq(self.dest_i),
+                     Cat(*src1_i).eq(self.src1_i),
+                     Cat(*src2_i).eq(self.src2_i),
+                    ]
+
+        # ---
+        # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
+        # ---
+        go_rd_i = []
+        go_wr_i = []
+        issue_i = []
+        for rn in range(self.n_reg_col):
+            dc = rcell[rn]
+            # accumulate cell outputs for issue/go_rd/go_wr
+            go_rd_i.append(dc.go_rd_i)
+            go_wr_i.append(dc.go_wr_i)
+            issue_i.append(dc.issue_i)
+        # wire up inputs from module to row cell inputs (Cat is gooood)
+        m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
+                     Cat(*go_wr_i).eq(self.go_wr_i),
+                     Cat(*issue_i).eq(self.issue_i),
+                    ]
+
         return m
 
 

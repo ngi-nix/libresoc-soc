@@ -82,16 +82,16 @@ class FURegDepMatrix(Elaboratable):
         rd_src1_pend = []
         rd_src2_pend = []
         for fu in range(self.n_fu_row):
+            dc = dm[fu]
             fup = fupend[fu]
             dest_fwd_o = []
             src1_fwd_o = []
             src2_fwd_o = []
             for rn in range(self.n_reg_col):
-                dc = dm[fu].rcell[rn]
                 # accumulate cell fwd outputs for dest/src1/src2 
-                dest_fwd_o.append(dc.dest_fwd_o)
-                src1_fwd_o.append(dc.src1_fwd_o)
-                src2_fwd_o.append(dc.src2_fwd_o)
+                dest_fwd_o.append(dc.dest_fwd_o[rn])
+                src1_fwd_o.append(dc.src1_fwd_o[rn])
+                src2_fwd_o.append(dc.src2_fwd_o[rn])
             # connect cell fwd outputs to FU Vector in [Cat is gooood]
             m.d.comb += [fup.dest_fwd_i.eq(Cat(*dest_fwd_o)),
                          fup.src1_fwd_i.eq(Cat(*src1_fwd_o)),
@@ -123,11 +123,11 @@ class FURegDepMatrix(Elaboratable):
             src1_rsel_o = []
             src2_rsel_o = []
             for fu in range(self.n_fu_row):
-                dc = dm[fu].rcell[rn]
+                dc = dm[fu]
                 # accumulate cell reg-select outputs dest/src1/src2
-                dest_rsel_o.append(dc.dest_rsel_o)
-                src1_rsel_o.append(dc.src1_rsel_o)
-                src2_rsel_o.append(dc.src2_rsel_o)
+                dest_rsel_o.append(dc.dest_rsel_o[rn])
+                src1_rsel_o.append(dc.src1_rsel_o[rn])
+                src2_rsel_o.append(dc.src2_rsel_o[rn])
             # connect cell reg-select outputs to Reg Vector In
             m.d.comb += [rsv.dest_rsel_i.eq(Cat(*dest_rsel_o)),
                          rsv.src1_rsel_i.eq(Cat(*src1_rsel_o)),
@@ -149,15 +149,15 @@ class FURegDepMatrix(Elaboratable):
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
         for fu in range(self.n_fu_row):
+            dc = dm[fu]
             dest_i = []
             src1_i = []
             src2_i = []
             for rn in range(self.n_reg_col):
-                dc = dm[fu].rcell[rn]
                 # accumulate cell inputs dest/src1/src2
-                dest_i.append(dc.dest_i)
-                src1_i.append(dc.src1_i)
-                src2_i.append(dc.src2_i)
+                dest_i.append(dc.dest_i[rn])
+                src1_i.append(dc.src1_i[rn])
+                src2_i.append(dc.src2_i[rn])
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [Cat(*dest_i).eq(self.dest_i),
                          Cat(*src1_i).eq(self.src1_i),
@@ -172,11 +172,11 @@ class FURegDepMatrix(Elaboratable):
             go_wr_i = []
             issue_i = []
             for fu in range(self.n_fu_row):
-                dc = dm[fu].rcell[rn]
+                dc = dm[fu]
                 # accumulate cell fwd outputs for dest/src1/src2 
-                go_rd_i.append(dc.go_rd_i)
-                go_wr_i.append(dc.go_wr_i)
-                issue_i.append(dc.issue_i)
+                go_rd_i.append(dc.go_rd_i[rn])
+                go_wr_i.append(dc.go_wr_i[rn])
+                issue_i.append(dc.issue_i[rn])
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
                          Cat(*go_wr_i).eq(self.go_wr_i),
