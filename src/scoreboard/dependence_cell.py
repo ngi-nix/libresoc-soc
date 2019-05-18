@@ -70,7 +70,7 @@ class DependenceCell(Elaboratable):
         yield self.dest_fwd_o
         yield self.src1_fwd_o
         yield self.src2_fwd_o
-                
+
     def ports(self):
         return list(self)
 
@@ -139,6 +139,41 @@ class DependencyRow(Elaboratable):
                      Cat(*go_wr_i).eq(self.go_wr_i),
                      Cat(*issue_i).eq(self.issue_i),
                     ]
+
+        # ---
+        # connect Function Unit vector
+        # ---
+        dest_fwd_o = []
+        src1_fwd_o = []
+        src2_fwd_o = []
+        for rn in range(self.n_reg_col):
+            dc = rcell[rn]
+            # accumulate cell fwd outputs for dest/src1/src2
+            dest_fwd_o.append(dc.dest_fwd_o)
+            src1_fwd_o.append(dc.src1_fwd_o)
+            src2_fwd_o.append(dc.src2_fwd_o)
+        # connect cell fwd outputs to FU Vector Out [Cat is gooood]
+        m.d.comb += [self.dest_fwd_o.eq(Cat(*dest_fwd_o)),
+                     self.src1_fwd_o.eq(Cat(*src1_fwd_o)),
+                     self.src2_fwd_o.eq(Cat(*src2_fwd_o))
+                    ]
+
+        # ---
+        # connect Reg Selection vector
+        # ---
+        for rn in range(self.n_reg_col):
+            dc = rcell[rn]
+            dest_rsel_o = []
+            src1_rsel_o = []
+            src2_rsel_o = []
+            # accumulate cell reg-select outputs dest/src1/src2
+            dest_rsel_o.append(dc.dest_rsel_o)
+            src1_rsel_o.append(dc.src1_rsel_o)
+            src2_rsel_o.append(dc.src2_rsel_o)
+        # connect cell reg-select outputs to Reg Vector Out
+        m.d.comb += self.dest_rsel_o.eq(Cat(*dest_rsel_o))
+        m.d.comb += self.src1_rsel_o.eq(Cat(*src1_rsel_o))
+        m.d.comb += self.src2_rsel_o.eq(Cat(*src2_rsel_o))
 
         return m
 
