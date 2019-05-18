@@ -12,9 +12,9 @@ from scoreboard.reg_select import Reg_Rsv
  6600 Dependency Table Matrix inputs / outputs
  ---------------------------------------------
 
-                d s1 s2 i  d s1 s2 i  d s1 s2 i  d s1 s2 i 
-                | |   | |  | |   | |  | |   | |  | |   | | 
-                v v   v v  v v   v v  v v   v v  v v   v v 
+                d s1 s2 i  d s1 s2 i  d s1 s2 i  d s1 s2 i
+                | |   | |  | |   | |  | |   | |  | |   | |
+                v v   v v  v v   v v  v v   v v  v v   v v
  go_rd/go_wr -> dm-r0-fu0  dm-r1-fu0  dm-r2-fu0  dm-r3-fu0 -> wr/rd-pend
  go_rd/go_wr -> dm-r0-fu1  dm-r1-fu1  dm-r2-fu1  dm-r3-fu1 -> wr/rd-pend
  go_rd/go_wr -> dm-r0-fu2  dm-r1-fu2  dm-r2-fu2  dm-r3-fu2 -> wr/rd-pend
@@ -88,7 +88,7 @@ class FURegDepMatrix(Elaboratable):
             src1_fwd_o = []
             src2_fwd_o = []
             for rn in range(self.n_reg_col):
-                # accumulate cell fwd outputs for dest/src1/src2 
+                # accumulate cell fwd outputs for dest/src1/src2
                 dest_fwd_o.append(dc.dest_fwd_o[rn])
                 src1_fwd_o.append(dc.src1_fwd_o[rn])
                 src2_fwd_o.append(dc.src2_fwd_o[rn])
@@ -150,21 +150,20 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
         # ---
-        for rn in range(self.n_reg_col):
-            go_rd_i = []
-            go_wr_i = []
-            issue_i = []
-            for fu in range(self.n_fu_row):
-                dc = dm[fu]
-                # accumulate cell fwd outputs for dest/src1/src2 
-                go_rd_i.append(dc.go_rd_i[rn])
-                go_wr_i.append(dc.go_wr_i[rn])
-                issue_i.append(dc.issue_i[rn])
-            # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
-                         Cat(*go_wr_i).eq(self.go_wr_i),
-                         Cat(*issue_i).eq(self.issue_i),
-                        ]
+        go_rd_i = []
+        go_wr_i = []
+        issue_i = []
+        for fu in range(self.n_fu_row):
+            dc = dm[fu]
+            # accumulate cell fwd outputs for dest/src1/src2
+            go_rd_i.append(dc.go_rd_i)
+            go_wr_i.append(dc.go_wr_i)
+            issue_i.append(dc.issue_i)
+        # wire up inputs from module to row cell inputs (Cat is gooood)
+        m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
+                     Cat(*go_wr_i).eq(self.go_wr_i),
+                     Cat(*issue_i).eq(self.issue_i),
+                    ]
 
         return m
 
@@ -182,7 +181,7 @@ class FURegDepMatrix(Elaboratable):
         yield self.rd_pend_o
         yield self.rd_src1_pend_o
         yield self.rd_src2_pend_o
-                
+
     def ports(self):
         return list(self)
 

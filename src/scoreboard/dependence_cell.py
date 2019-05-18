@@ -85,10 +85,10 @@ class DependencyRow(Elaboratable):
         self.dest_i = Signal(n_reg_col, reset_less=True)
         self.src1_i = Signal(n_reg_col, reset_less=True)
         self.src2_i = Signal(n_reg_col, reset_less=True)
-        self.issue_i = Signal(n_reg_col, reset_less=True)
 
-        self.go_wr_i = Signal(n_reg_col, reset_less=True)
-        self.go_rd_i = Signal(n_reg_col, reset_less=True)
+        self.issue_i = Signal(reset_less=True)
+        self.go_wr_i = Signal(reset_less=True)
+        self.go_rd_i = Signal(reset_less=True)
 
         self.dest_rsel_o = Signal(n_reg_col, reset_less=True)
         self.src1_rsel_o = Signal(n_reg_col, reset_less=True)
@@ -125,19 +125,11 @@ class DependencyRow(Elaboratable):
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
         # ---
-        go_rd_i = []
-        go_wr_i = []
-        issue_i = []
         for rn in range(self.n_reg_col):
             dc = rcell[rn]
-            # accumulate cell outputs for issue/go_rd/go_wr
-            go_rd_i.append(dc.go_rd_i)
-            go_wr_i.append(dc.go_wr_i)
-            issue_i.append(dc.issue_i)
-        # wire up inputs from module to row cell inputs (Cat is gooood)
-        m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
-                     Cat(*go_wr_i).eq(self.go_wr_i),
-                     Cat(*issue_i).eq(self.issue_i),
+            m.d.comb += [dc.go_rd_i.eq(self.go_rd_i),
+                         dc.go_wr_i.eq(self.go_wr_i),
+                         dc.issue_i.eq(self.issue_i),
                     ]
 
         # ---
