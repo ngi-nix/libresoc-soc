@@ -176,8 +176,8 @@ class Scoreboard(Elaboratable):
         for i in range(n_int_fus):
             #m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_rd_pend_o.bool())
             #m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_wr_pend_o.bool())
-            m.d.sync += intfu_rd_pend_v[i].eq(if_l[i].int_readable_o)
-            m.d.sync += intfu_wr_pend_v[i].eq(if_l[i].int_writable_o)
+            m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_readable_o)
+            m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_writable_o)
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
