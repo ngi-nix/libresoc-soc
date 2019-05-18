@@ -174,15 +174,15 @@ class Scoreboard(Elaboratable):
         intfu_rd_pend_v = Signal(n_int_fus, reset_less = True)
         intfu_wr_pend_v = Signal(n_int_fus, reset_less = True)
         for i in range(n_int_fus):
-            m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_rd_pend_o.bool())
-            m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_wr_pend_o.bool())
-            #m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_readable_o)
-            #m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_writable_o)
+            #m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_rd_pend_o.bool())
+            #m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_wr_pend_o.bool())
+            m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_readable_o)
+            m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_writable_o)
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.comb += fu.g_int_wr_pend_i.eq(intfu_wr_pend_v)
-            m.d.comb += fu.g_int_rd_pend_i.eq(intfu_rd_pend_v)
+            m.d.sync += fu.g_int_wr_pend_i.eq(intfu_wr_pend_v)
+            m.d.sync += fu.g_int_rd_pend_i.eq(intfu_rd_pend_v)
 
         # Connect FU-FU Matrix, NOTE: FN Units readable/writable considered
         # to be unit "read-pending / write-pending"

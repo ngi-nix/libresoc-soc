@@ -164,8 +164,8 @@ class FnUnit(Elaboratable):
         g_rd = Signal(self.reg_width, reset_less=True)
         ro = Signal(reset_less=True)
         m.d.comb += g_rd.eq(self.g_wr_pend_i & self.rd_pend_o)
-        m.d.comb += ro.eq(~g_rd.bool())
-        m.d.comb += self.readable_o.eq(ro & rd_l.q)
+        m.d.comb += ro.eq(~g_rd.bool() & rd_l.q)
+        m.d.comb += self.readable_o.eq(ro)
 
         # writable output signal
         g_wr_v = Signal(self.reg_width, reset_less=True)
@@ -173,7 +173,7 @@ class FnUnit(Elaboratable):
         wo = Signal(reset_less=True)
         m.d.comb += g_wr_v.eq(g_pend_i & xx_pend_o)
         m.d.comb += g_wr.eq(~g_wr_v.bool())
-        m.d.comb += wo.eq(g_wr & rd_l.qn & self.req_rel_i & shadown)
+        m.d.comb += wo.eq(g_wr & rd_l.q & shadown)
         m.d.comb += writable_o.eq(wo)
 
         return m
