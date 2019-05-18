@@ -181,8 +181,8 @@ class Scoreboard(Elaboratable):
 
         # Connect INT Fn Unit global wr/rd pending
         for fu in if_l:
-            m.d.sync += fu.g_int_wr_pend_i.eq(intfu_wr_pend_v)
-            m.d.sync += fu.g_int_rd_pend_i.eq(intfu_rd_pend_v)
+            m.d.comb += fu.g_int_wr_pend_i.eq(intfu_wr_pend_v)
+            m.d.comb += fu.g_int_rd_pend_i.eq(intfu_rd_pend_v)
 
         # Connect FU-FU Matrix, NOTE: FN Units readable/writable considered
         # to be unit "read-pending / write-pending"
@@ -190,8 +190,8 @@ class Scoreboard(Elaboratable):
         m.d.comb += intfudeps.wr_pend_i.eq(intfu_wr_pend_v)
         m.d.sync += intfudeps.issue_i.eq(issueunit.i.fn_issue_o)
         for i in range(n_int_fus):
-            m.d.comb += intfudeps.go_rd_i[i].eq(intpick1.go_rd_o[i])
-            m.d.comb += intfudeps.go_wr_i[i].eq(intpick1.go_wr_o[i])
+            m.d.sync += intfudeps.go_rd_i[i].eq(intpick1.go_rd_o[i])
+            m.d.sync += intfudeps.go_wr_i[i].eq(intpick1.go_wr_o[i])
 
         # Connect Picker (note connection to FU-FU)
         #---------
@@ -201,10 +201,10 @@ class Scoreboard(Elaboratable):
         m.d.comb += intpick1.go_rd_i[1].eq(~if_l[1].go_rd_i)
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
-        m.d.sync += intpick1.readable_i[0].eq(readable_o[0]) # add rd
-        m.d.sync += intpick1.writable_i[0].eq(writable_o[0]) # add wr
-        m.d.sync += intpick1.readable_i[1].eq(readable_o[1]) # sub rd
-        m.d.sync += intpick1.writable_i[1].eq(writable_o[1]) # sub wr
+        m.d.comb += intpick1.readable_i[0].eq(readable_o[0]) # add rd
+        m.d.comb += intpick1.writable_i[0].eq(writable_o[0]) # add wr
+        m.d.comb += intpick1.readable_i[1].eq(readable_o[1]) # sub rd
+        m.d.comb += intpick1.writable_i[1].eq(writable_o[1]) # sub wr
 
         #---------
         # Connect Register File(s)
@@ -225,7 +225,7 @@ class Scoreboard(Elaboratable):
         for i, alu in enumerate(int_alus):
             m.d.sync += alu.go_rd_i.eq(intpick1.go_rd_o[i])
             m.d.sync += alu.go_wr_i.eq(intpick1.go_wr_o[i])
-            m.d.sync += alu.issue_i.eq(fn_issue_l[i])
+            m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
