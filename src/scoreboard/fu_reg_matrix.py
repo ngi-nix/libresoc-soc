@@ -119,19 +119,10 @@ class FURegDepMatrix(Elaboratable):
         src2_rsel = []
         for rn in range(self.n_reg_col):
             rsv = regrsv[rn]
-            dest_rsel_o = []
-            src1_rsel_o = []
-            src2_rsel_o = []
-            for fu in range(self.n_fu_row):
-                dc = dm[fu]
-                # accumulate cell reg-select outputs dest/src1/src2
-                dest_rsel_o.append(dc.dest_rsel_o[rn])
-                src1_rsel_o.append(dc.src1_rsel_o[rn])
-                src2_rsel_o.append(dc.src2_rsel_o[rn])
             # connect cell reg-select outputs to Reg Vector In
-            m.d.comb += [rsv.dest_rsel_i.eq(Cat(*dest_rsel_o)),
-                         rsv.src1_rsel_i.eq(Cat(*src1_rsel_o)),
-                         rsv.src2_rsel_i.eq(Cat(*src2_rsel_o)),
+            m.d.comb += [rsv.dest_rsel_i.eq(dc.dest_rsel_o),
+                         rsv.src1_rsel_i.eq(dc.src1_rsel_o),
+                         rsv.src2_rsel_i.eq(dc.src2_rsel_o),
                         ]
             # accumulate Reg-Sel Vector outputs
             dest_rsel.append(rsv.dest_rsel_o)
@@ -150,18 +141,10 @@ class FURegDepMatrix(Elaboratable):
         # ---
         for fu in range(self.n_fu_row):
             dc = dm[fu]
-            dest_i = []
-            src1_i = []
-            src2_i = []
-            for rn in range(self.n_reg_col):
-                # accumulate cell inputs dest/src1/src2
-                dest_i.append(dc.dest_i[rn])
-                src1_i.append(dc.src1_i[rn])
-                src2_i.append(dc.src2_i[rn])
             # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*dest_i).eq(self.dest_i),
-                         Cat(*src1_i).eq(self.src1_i),
-                         Cat(*src2_i).eq(self.src2_i),
+            m.d.comb += [dc.dest_i.eq(self.dest_i),
+                         dc.src1_i.eq(self.src1_i),
+                         dc.src2_i.eq(self.src2_i),
                         ]
 
         # ---

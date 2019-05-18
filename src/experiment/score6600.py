@@ -378,6 +378,7 @@ def scoreboard_sim(dut, alusim):
 
             op = randint(0, 1)
             op = i % 2
+            op = 0
         instrs.append((src1, src2, dest, op))
 
     if False:
