@@ -242,7 +242,7 @@ class Scoreboard(Elaboratable):
 
         m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
         # XXX sync, so as to stop a simulation infinite loop
-        m.d.sync += issueunit.i.busy_i.eq(cu.busy_o)
+        m.d.comb += issueunit.i.busy_i.eq(cu.busy_o)
 
         #---------
         # connect fu-fu matrix
@@ -393,25 +393,25 @@ def scoreboard_sim(dut, alusim):
 
     if True:
         instrs.append((1, 1, 2, 0))
-        #instrs.append((2, 7, 1, 1))
+        instrs.append((3, 7, 4, 1))
         #instrs.append((2, 2, 3, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
         print ("instr %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
-        yield from print_reg(dut, [1,2,3])
+        yield
         while True:
-            yield
             issue_o = yield dut.issue_o
             if issue_o:
-                yield from print_reg(dut, [1,2,3])
                 for i in range(len(dut.int_insn_i)):
                     yield dut.int_insn_i[i].eq(0)
                     yield dut.reg_enable_i.eq(0)
                 break
             print ("busy",)
             yield from print_reg(dut, [1,2,3])
+            yield
+        yield from print_reg(dut, [1,2,3])
 
     yield
     yield from print_reg(dut, [1,2,3])
