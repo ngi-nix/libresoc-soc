@@ -34,7 +34,7 @@ class PriorityPicker(Elaboratable):
     def __iter__(self):
         yield self.i
         yield self.o
- 
+
     def ports(self):
         return list(self)
 
@@ -47,7 +47,7 @@ class GroupPicker(Elaboratable):
         # inputs
         self.readable_i = Signal(wid, reset_less=True) # readable in (top)
         self.writable_i = Signal(wid, reset_less=True) # writable in (top)
-        self.go_rd_i = Signal(wid, reset_less=True)   # go read in (top)
+        self.rd_rel_i = Signal(wid, reset_less=True)   # go read in (top)
         self.req_rel_i = Signal(wid, reset_less=True) # release request in (top)
 
         # outputs
@@ -64,7 +64,7 @@ class GroupPicker(Elaboratable):
         m.d.comb += wpick.i.eq(self.writable_i & self.req_rel_i)
         m.d.comb += self.go_wr_o.eq(wpick.o)
 
-        m.d.comb += rpick.i.eq(self.readable_i) #& self.go_rd_i)
+        m.d.comb += rpick.i.eq(self.readable_i & self.rd_rel_i)
         m.d.comb += self.go_rd_o.eq(rpick.o)
 
         return m
@@ -93,9 +93,9 @@ def grp_pick_sim(dut):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(1)
+    yield dut.rd_rel_i.eq(1)
     yield
-    yield dut.go_rd_i.eq(0)
+    yield dut.rd_rel_i.eq(0)
     yield
     yield dut.go_wr_i.eq(1)
     yield

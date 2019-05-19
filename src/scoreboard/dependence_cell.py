@@ -36,7 +36,7 @@ class DepCell(Elaboratable):
         m.d.comb += self.fwd_o.eq((cq | l.q) & self.reg_i)
 
         # Register Select. Activated on go read/write and *current* latch set
-        m.d.comb += self.rsel_o.eq(cq & self.go_i)
+        m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
 
         return m
 
@@ -76,31 +76,31 @@ class DependenceCell(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_l = dest_l = SRLatch(sync=False) # clock-sync'd
-        m.submodules.src1_l = src1_l = SRLatch(sync=False) # clock-sync'd
-        m.submodules.src2_l = src2_l = SRLatch(sync=False) # clock-sync'd
+        m.submodules.dest_c = dest_c = DepCell()
+        m.submodules.src1_c = src1_c = DepCell()
+        m.submodules.src2_c = src2_c = DepCell()
 
-        # destination latch: reset on go_wr HI, set on dest and issue
-        m.d.comb += dest_l.s.eq(self.issue_i & self.dest_i)
-        m.d.comb += dest_l.r.eq(self.go_wr_i)
+        # connect issue
+        for c in [dest_c, src1_c, src2_c]:
+            m.d.comb += c.issue_i.eq(self.issue_i)
+        
+        # connect go_rd / go_wr (dest->wr, src->rd)
+        m.d.comb += dest_c.go_i.eq(self.go_wr_i)
+        m.d.comb += src1_c.go_i.eq(self.go_rd_i)
+        m.d.comb += src2_c.go_i.eq(self.go_rd_i)
 
-        # src1 latch: reset on go_rd HI, set on src1_i and issue
-        m.d.comb += src1_l.s.eq(self.issue_i & self.src1_i)
-        m.d.comb += src1_l.r.eq(self.go_rd_i)
+        # connect input reg bit (unary)
+        for c, reg in [(dest_c, self.dest_i),
+                       (src1_c, self.src1_i),
+                       (src2_c, self.src2_i)]:
+            m.d.comb += c.reg_i.eq(reg)
 
-        # src2 latch: reset on go_rd HI, set on op2_i and issue
-        m.d.comb += src2_l.s.eq(self.issue_i & self.src2_i)
-        m.d.comb += src2_l.r.eq(self.go_rd_i)
-
-        # FU "Forward Progress" (read out vertically)
-        m.d.comb += self.dest_fwd_o.eq(dest_l.q & self.dest_i)
-        m.d.comb += self.src1_fwd_o.eq(src1_l.q & self.src1_i)
-        m.d.comb += self.src2_fwd_o.eq(src2_l.q & self.src2_i)
-
-        # Register File Select (read out horizontally)
-        m.d.sync += self.dest_rsel_o.eq(dest_l.q & ~self.go_wr_i)
-        m.d.sync += self.src1_rsel_o.eq(src1_l.q & ~self.go_rd_i)
-        m.d.sync += self.src2_rsel_o.eq(src2_l.q & ~self.go_rd_i)
+        # connect fwd / reg-sel outputs
+        for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
+                             (src1_c, self.src1_fwd_o, self.src1_rsel_o),
+                             (src2_c, self.src2_fwd_o, self.src2_rsel_o)]:
+            m.d.comb += fwd.eq(c.fwd_o)
+            m.d.comb += rsel.eq(c.rsel_o)
 
         return m
 

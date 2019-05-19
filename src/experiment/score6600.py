@@ -253,8 +253,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        #m.d.comb += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
-        m.d.comb += intpick1.go_rd_i[0:2].eq(cu.req_rel_o[0:2])
+        m.d.comb += intpick1.rd_rel_i[0:2].eq(~go_rd_i[0:2] & cu.busy_o[0:2])
+        #m.d.comb += intpick1.go_rd_i[0:2].eq(cu.req_rel_o[0:2])
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
         int_writable_o = intfus.writable_o
@@ -388,7 +388,7 @@ def scoreboard_sim(dut, alusim):
 
     if True:
         instrs.append((1, 1, 2, 0))
-        instrs.append((3, 7, 1, 1))
+        #instrs.append((2, 7, 1, 1))
         #instrs.append((2, 2, 3, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
@@ -408,6 +408,10 @@ def scoreboard_sim(dut, alusim):
             yield from print_reg(dut, [3,4,5])
             yield
 
+    yield
+    yield from print_reg(dut, [3,4,5])
+    yield
+    yield from print_reg(dut, [3,4,5])
     yield
     yield from print_reg(dut, [3,4,5])
     yield
