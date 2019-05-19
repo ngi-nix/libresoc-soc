@@ -111,6 +111,7 @@ class IssueUnit(Elaboratable):
         yield self.dest_i
         yield self.src1_i
         yield self.src2_i
+        yield self.reg_enable_i
         yield self.g_wr_pend_i
         yield from self.insn_i
         yield from self.busy_i
@@ -128,10 +129,10 @@ class IntFPIssueUnit(Elaboratable):
         self.issue_o = Signal(reset_less=True)
 
         # some renames
-        self.int_write_pending_i = self.i.g_wr_pend_i
-        self.fp_write_pending_i = self.f.g_wr_pend_i
-        self.int_write_pending_i.name = 'int_write_pending_i'
-        self.fp_write_pending_i.name = 'fp_write_pending_i'
+        self.int_wr_pend_i = self.i.g_wr_pend_i
+        self.fp_wr_pend_i = self.f.g_wr_pend_i
+        self.int_wr_pend_i.name = 'int_wr_pend_i'
+        self.fp_wr_pend_i.name = 'fp_wr_pend_i'
 
     def elaborate(self, platform):
         m = Module()

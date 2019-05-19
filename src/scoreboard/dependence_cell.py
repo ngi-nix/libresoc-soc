@@ -33,7 +33,7 @@ class DepCell(Elaboratable):
         m.d.comb += l.r.eq(self.go_i)
 
         # Function Unit "Forward Progress".
-        m.d.comb += self.fwd_o.eq((cq | l.q) & self.reg_i)
+        m.d.comb += self.fwd_o.eq((l.q) & self.reg_i & ~self.issue_i)
 
         # Register Select. Activated on go read/write and *current* latch set
         m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
@@ -83,7 +83,7 @@ class DependenceCell(Elaboratable):
         # connect issue
         for c in [dest_c, src1_c, src2_c]:
             m.d.comb += c.issue_i.eq(self.issue_i)
-        
+
         # connect go_rd / go_wr (dest->wr, src->rd)
         m.d.comb += dest_c.go_i.eq(self.go_wr_i)
         m.d.comb += src1_c.go_i.eq(self.go_rd_i)

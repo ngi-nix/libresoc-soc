@@ -21,6 +21,7 @@ class ComputationUnitNoDelay(Elaboratable):
 
         self.busy_o = Signal(reset_less=True) # fn busy out
         self.data_o = Signal(rwid, reset_less=True) # Dest out
+        self.rd_rel_o = Signal(reset_less=True) # release src1/src2 request
         self.req_rel_o = Signal(reset_less=True) # release request out (valid_o)
 
     def elaborate(self, platform):
@@ -52,6 +53,7 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # outputs
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
+        m.d.comb += self.rd_rel_o.eq(src_l.q & opc_l.q) # src1/src2 req rel
 
         with m.If(req_l.qn & opc_l.q & (self.counter == 0)):
             m.d.sync += self.counter.eq(3)

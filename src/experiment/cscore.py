@@ -197,8 +197,8 @@ class Scoreboard(Elaboratable):
         #---------
         readable_o = intfudeps.readable_o
         writable_o = intfudeps.writable_o
-        m.d.comb += intpick1.go_rd_i[0].eq(~if_l[0].go_rd_i)
-        m.d.comb += intpick1.go_rd_i[1].eq(~if_l[1].go_rd_i)
+        m.d.comb += intpick1.rd_rel_i[0].eq(fn_busy_l[0])
+        m.d.comb += intpick1.rd_rel_i[1].eq(fn_busy_l[1])
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
         m.d.comb += intpick1.readable_i[0].eq(readable_o[0]) # add rd

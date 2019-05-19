@@ -32,6 +32,7 @@ class CompUnits(Elaboratable):
         self.go_rd_i = Signal(n_units, reset_less=True)
         self.go_wr_i = Signal(n_units, reset_less=True)
         self.busy_o = Signal(n_units, reset_less=True)
+        self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
 
         self.dest_o = Signal(rwid, reset_less=True)
@@ -56,12 +57,15 @@ class CompUnits(Elaboratable):
         issue_l = []
         busy_l = []
         req_rel_l = []
+        rd_rel_l = []
         for alu in int_alus:
             req_rel_l.append(alu.req_rel_o)
+            rd_rel_l.append(alu.rd_rel_o)
             go_wr_l.append(alu.go_wr_i)
             go_rd_l.append(alu.go_rd_i)
             issue_l.append(alu.issue_i)
             busy_l.append(alu.busy_o)
+        m.d.comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
         m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
         m.d.comb += self.busy_o.eq(Cat(*busy_l))
         m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
@@ -166,6 +170,7 @@ class Scoreboard(Elaboratable):
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
         self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
         self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+        self.reg_enable_i = Signal(reset_less=True) # enable reg decode
 
         self.issue_o = Signal(reset_less=True) # instruction was accepted
 
@@ -218,7 +223,7 @@ class Scoreboard(Elaboratable):
                      regdecode.dest_i.eq(self.int_dest_i),
                      regdecode.src1_i.eq(self.int_src1_i),
                      regdecode.src2_i.eq(self.int_src2_i),
-                     regdecode.enable_i.eq(1),
+                     regdecode.enable_i.eq(self.reg_enable_i),
                      issueunit.i.dest_i.eq(regdecode.dest_o),
                      self.issue_o.eq(issueunit.issue_o)
                     ]
@@ -253,7 +258,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.comb += intpick1.rd_rel_i[0:2].eq(~go_rd_i[0:2] & cu.busy_o[0:2])
+        #m.d.comb += intpick1.rd_rel_i[0:2].eq(~go_rd_i[0:2] & cu.busy_o[0:2])
+        m.d.comb += intpick1.rd_rel_i[0:2].eq(cu.rd_rel_o[0:2])
         #m.d.comb += intpick1.go_rd_i[0:2].eq(cu.req_rel_o[0:2])
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
@@ -342,6 +348,7 @@ def int_instr(dut, alusim, op, src1, src2, dest):
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
     yield dut.int_insn_i[op].eq(1)
+    yield dut.reg_enable_i.eq(1)
     alusim.op(op, src1, src2, dest)
 
 
@@ -360,8 +367,6 @@ def scoreboard_sim(dut, alusim):
     for i in range(1, dut.n_regs):
         yield dut.intregs.regs[i].reg.eq(4+i*2)
         alusim.setval(i, 4+i*2)
-
-    yield
 
     instrs = []
     if False:
@@ -403,10 +408,10 @@ def scoreboard_sim(dut, alusim):
                 yield from print_reg(dut, [3,4,5])
                 for i in range(len(dut.int_insn_i)):
                     yield dut.int_insn_i[i].eq(0)
+                    yield dut.reg_enable_i.eq(0)
                 break
             print ("busy",)
             yield from print_reg(dut, [3,4,5])
-            yield
 
     yield
     yield from print_reg(dut, [3,4,5])
