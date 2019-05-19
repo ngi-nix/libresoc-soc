@@ -119,15 +119,15 @@ class FunctionUnits(Elaboratable):
         intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
-        m.d.sync += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
-        m.d.sync += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
+        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
+        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
 
-        m.d.sync += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
-        m.d.sync += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
+        m.d.comb += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
+        m.d.comb += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
 
-        m.d.sync += intfudeps.issue_i.eq(self.fn_issue_i)
-        m.d.sync += intfudeps.go_rd_i.eq(self.go_rd_i)
-        m.d.sync += intfudeps.go_wr_i.eq(self.go_wr_i)
+        m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
+        m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
+        m.d.comb += intfudeps.go_wr_i.eq(self.go_wr_i)
         m.d.comb += self.readable_o.eq(intfudeps.readable_o)
         m.d.comb += self.writable_o.eq(intfudeps.writable_o)
 
@@ -253,7 +253,8 @@ class Scoreboard(Elaboratable):
 
         # Connect Picker
         #---------
-        m.d.comb += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
+        #m.d.comb += intpick1.go_rd_i[0:2].eq(~go_rd_i[0:2])
+        m.d.comb += intpick1.go_rd_i[0:2].eq(cu.req_rel_o[0:2])
         m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
         int_readable_o = intfus.readable_o
         int_writable_o = intfus.writable_o
@@ -357,8 +358,8 @@ def scoreboard_sim(dut, alusim):
     yield dut.int_store_i.eq(0)
 
     for i in range(1, dut.n_regs):
-        yield dut.intregs.regs[i].reg.eq(i*2)
-        alusim.setval(i, i*2)
+        yield dut.intregs.regs[i].reg.eq(4+i*2)
+        alusim.setval(i, 4+i*2)
 
     yield
 
@@ -386,7 +387,7 @@ def scoreboard_sim(dut, alusim):
         instrs.append((5, 3, 3, 1))
 
     if True:
-        instrs.append((7, 2, 6, 1))
+        instrs.append((1, 1, 2, 0))
         instrs.append((3, 7, 1, 1))
         #instrs.append((2, 2, 3, 1))
 
@@ -432,8 +433,8 @@ def explore_groups(dut):
 
 
 def test_scoreboard():
-    dut = Scoreboard(32, 8)
-    alusim = RegSim(32, 8)
+    dut = Scoreboard(16, 8)
+    alusim = RegSim(16, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
         f.write(vl)

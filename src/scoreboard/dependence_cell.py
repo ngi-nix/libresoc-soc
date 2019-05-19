@@ -51,9 +51,9 @@ class DependenceCell(Elaboratable):
         m.d.comb += self.src2_fwd_o.eq(src2_l.q & self.go_rd_i)
 
         # Register File Select (read out vertically)
-        m.d.comb += self.dest_rsel_o.eq(dest_l.q & self.dest_i)
-        m.d.comb += self.src1_rsel_o.eq(src1_l.q & self.src1_i)
-        m.d.comb += self.src2_rsel_o.eq(src2_l.q & self.src2_i)
+        m.d.sync += self.dest_rsel_o.eq(dest_l.q & self.dest_i)
+        m.d.sync += self.src1_rsel_o.eq(src1_l.q & self.src1_i)
+        m.d.sync += self.src2_rsel_o.eq(src2_l.q & self.src2_i)
 
         return m
 
