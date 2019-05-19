@@ -4,6 +4,49 @@ from nmigen import Module, Signal, Elaboratable, Array, Cat
 from nmutil.latch import SRLatch
 
 
+class DepCell(Elaboratable):
+    """ implements 11.4.7 mitch alsup dependence cell, p27
+        adjusted to be clock-sync'd on rising edge only.
+        mitch design (as does 6600) requires alternating rising/falling clock
+    """
+    def __init__(self):
+        # inputs
+        self.reg_i = Signal(reset_less=True)     # reg bit in (top)
+        self.issue_i = Signal(reset_less=True)    # Issue in (top)
+        self.go_i = Signal(reset_less=True)  # Go read/write in (left)
+
+        # for Register File Select Lines (vertical)
+        self.rsel_o = Signal(reset_less=True)  # reg sel (bottom)
+        # for Function Unit "forward progress" (horizontal)
+        self.fwd_o = Signal(reset_less=True)   # FU forard progress (right)
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.l = l = SRLatch(sync=False) # async latch
+
+        # reset on go HI, set on dest and issue
+        m.d.comb += dest_l.s.eq(self.issue_i & self.reg_i)
+        m.d.comb += dest_l.r.eq(self.go_i)
+
+        # FU "Forward Progress" (read out horizontally)
+        m.d.sync += self.fwdl_o.eq(l.q & self.reg_i)
+
+        # Register File Select (read out vertically)
+        m.d.comb += self.rselo.eq(l.q & self.go_i)
+
+        return m
+
+    def __iter__(self):
+        yield self.regt_i
+        yield self.issue_i
+        yield self.go_i
+        yield self.rsel_o
+        yield self.fwd_o
+
+    def ports(self):
+        return list(self)
+
+
 class DependenceCell(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
     """
