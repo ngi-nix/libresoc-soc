@@ -253,8 +253,8 @@ class Scoreboard(Elaboratable):
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
-        m.d.sync += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
-        m.d.sync += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
+        m.d.comb += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
+        m.d.comb += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
 
         # Connect Picker
         #---------
@@ -281,9 +281,9 @@ class Scoreboard(Elaboratable):
         m.d.comb += cu.src2_data_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        m.d.sync += cu.go_rd_i[0:2].eq(go_rd_o[0:2])
-        m.d.sync += cu.go_wr_i[0:2].eq(go_wr_o[0:2])
-        m.d.sync += cu.issue_i[0:2].eq(fn_issue_o[0:2])
+        m.d.comb += cu.go_rd_i[0:2].eq(go_rd_o[0:2])
+        m.d.comb += cu.go_wr_i[0:2].eq(go_wr_o[0:2])
+        m.d.comb += cu.issue_i[0:2].eq(fn_issue_o[0:2])
 
         return m
 
@@ -400,27 +400,27 @@ def scoreboard_sim(dut, alusim):
 
         print ("instr %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [1,2,3])
         while True:
             yield
             issue_o = yield dut.issue_o
             if issue_o:
-                yield from print_reg(dut, [3,4,5])
+                yield from print_reg(dut, [1,2,3])
                 for i in range(len(dut.int_insn_i)):
                     yield dut.int_insn_i[i].eq(0)
                     yield dut.reg_enable_i.eq(0)
                 break
             print ("busy",)
-            yield from print_reg(dut, [3,4,5])
+            yield from print_reg(dut, [1,2,3])
 
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [1,2,3])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [1,2,3])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [1,2,3])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [1,2,3])
     yield
     yield
     yield

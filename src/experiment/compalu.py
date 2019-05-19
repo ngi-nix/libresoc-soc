@@ -36,16 +36,16 @@ class ComputationUnitNoDelay(Elaboratable):
         # latches be set at the same time.
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
-        m.d.comb += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
-        m.d.comb += opc_l.r.eq(self.go_wr_i) # XXX NOTE: INVERTED FROM book!
+        m.d.sync += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
+        m.d.sync += opc_l.r.eq(self.go_wr_i) # XXX NOTE: INVERTED FROM book!
 
         # src operand latch (not using go_wr_i)
-        m.d.comb += src_l.s.eq(self.issue_i)
-        m.d.comb += src_l.r.eq(self.go_rd_i)
+        m.d.sync += src_l.s.eq(self.issue_i)
+        m.d.sync += src_l.r.eq(self.go_rd_i)
 
         # dest operand latch (not using issue_i)
-        m.d.comb += req_l.s.eq(self.go_rd_i)
-        m.d.comb += req_l.r.eq(self.go_wr_i)
+        m.d.sync += req_l.s.eq(self.go_rd_i)
+        m.d.sync += req_l.r.eq(self.go_wr_i)
 
         # XXX
         # XXX NOTE: sync on req_rel_o and data_o due to simulation lock-up
