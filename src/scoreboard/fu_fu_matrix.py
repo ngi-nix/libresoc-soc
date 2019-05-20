@@ -68,7 +68,7 @@ class FUFUDepMatrix(Elaboratable):
         # connect FU Pending
         # ---
         for y in range(self.n_fu_row):
-            fu = fur[x]
+            fu = fur[y]
             rd_wait_o = []
             wr_wait_o = []
             for x in range(self.n_fu_col):
