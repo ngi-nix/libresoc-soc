@@ -415,7 +415,6 @@ def scoreboard_sim(dut, alusim):
         yield
         yield
         yield
-        yield
 
     yield
     yield from print_reg(dut, [1,2,3])
