@@ -3,6 +3,44 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable
 from nmutil.latch import SRLatch
 
+class DepCell(Elaboratable):
+    """ FU Dependency Cell
+    """
+    def __init__(self):
+        # inputs
+        self.pend_i = Signal(reset_less=True)    # pending bit in (left)
+        self.issue_i = Signal(reset_less=True)   # Issue in (top)
+        self.go_i = Signal(reset_less=True)      # Go read/write in (left)
+
+        # wait
+        self.wait_o = Signal(reset_less=True)  # wait out (right)
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.l = l = SRLatch(sync=False) # async latch
+
+        # record current version of q in a sync'd register
+        cq = Signal() # resets to 0
+        m.d.sync += cq.eq(l.q)
+
+        # reset on go HI, set on dest and issue
+        m.d.comb += l.s.eq(self.issue_i & self.pend_i)
+        m.d.comb += l.r.eq(self.go_i)
+
+        # wait out
+        m.d.comb += self.wait_o.eq((cq | l.q) & ~self.issue_i)
+
+        return m
+
+    def __iter__(self):
+        yield self.pend_i
+        yield self.issue_i
+        yield self.go_i
+        yield self.wait_o
+
+    def ports(self):
+        return list(self)
+
 
 class FUDependenceCell(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
@@ -22,20 +60,24 @@ class FUDependenceCell(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.rd_l = rd_l = SRLatch(sync=False) # clock-sync'd
-        m.submodules.wr_l = wr_l = SRLatch(sync=False) # clock-sync'd
+        m.submodules.rd_c = rd_c = DepCell()
+        m.submodules.wr_c = wr_c = DepCell()
 
-        # write latch: reset on go_wr HI, set on write waiting and issue
-        m.d.comb += wr_l.s.eq(self.issue_i & self.wr_pend_i)
-        m.d.comb += wr_l.r.eq(self.go_wr_i)
+        # connect issue
+        for c in [rd_c, wr_c]:
+            m.d.comb += c.issue_i.eq(self.issue_i)
 
-        # read latch: reset on go_rd HI, set on read pending and issue
-        m.d.comb += rd_l.s.eq(self.issue_i & self.rd_pend_i)
-        m.d.comb += rd_l.r.eq(self.go_rd_i)
+        # connect go_rd / go_wr 
+        m.d.comb += wr_c.go_i.eq(self.go_wr_i)
+        m.d.comb += rd_c.go_i.eq(self.go_rd_i)
 
-        # Read/Write Pending Latches (read out horizontally)
-        m.d.comb += self.wr_wait_o.eq(wr_l.q)
-        m.d.comb += self.rd_wait_o.eq(rd_l.q)
+        # connect pend_i
+        m.d.comb += wr_c.go_i.eq(self.wr_pend_i)
+        m.d.comb += rd_c.go_i.eq(self.rd_pend_i)
+
+        # connect output
+        m.d.comb += self.wr_wait_o.eq(wr_c.wait_o)
+        m.d.comb += self.rd_wait_o.eq(rd_c.wait_o)
 
         return m
 
