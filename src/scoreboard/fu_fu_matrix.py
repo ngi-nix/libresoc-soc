@@ -61,8 +61,8 @@ class FUFUDepMatrix(Elaboratable):
             writable.append(fu.writable_o)
 
         # ... and output them from this module (horizontal, width=REGs)
-        m.d.comb += self.readable_o.eq(Cat(*readable))
-        m.d.comb += self.writable_o.eq(Cat(*writable))
+        m.d.comb += self.readable_o.eq(Cat(*writable))
+        m.d.comb += self.writable_o.eq(Cat(*readable))
 
         # ---
         # connect FU Pending
@@ -95,10 +95,10 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         # connect Matrix go_rd_i/go_wr_i to module readable/writable
         # ---
-        for x in range(self.n_fu_col):
+        for y in range(self.n_fu_row):
             go_rd_i = []
             go_wr_i = []
-            for y in range(self.n_fu_row):
+            for x in range(self.n_fu_col):
                 dc = dm[x][y]
                 # accumulate cell go_rd/go_wr
                 go_rd_i.append(dc.go_rd_i)
@@ -111,10 +111,10 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         # connect Matrix pending
         # ---
-        for y in range(self.n_fu_row):
+        for x in range(self.n_fu_col):
             rd_pend_i = []
             wr_pend_i = []
-            for x in range(self.n_fu_col):
+            for y in range(self.n_fu_row):
                 dc = dm[x][y]
                 # accumulate cell rd_pend/wr_pend/go_rd/go_wr
                 rd_pend_i.append(dc.rd_pend_i)
