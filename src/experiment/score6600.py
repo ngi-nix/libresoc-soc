@@ -392,8 +392,8 @@ def scoreboard_sim(dut, alusim):
         instrs.append((5, 3, 3, 1))
 
     if True:
-        instrs.append((1, 1, 2, 0))
-        instrs.append((3, 7, 4, 1))
+        instrs.append((1, 1, 2, 1))
+        instrs.append((1, 2, 2, 0))
         #instrs.append((2, 2, 3, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
@@ -412,6 +412,10 @@ def scoreboard_sim(dut, alusim):
             yield from print_reg(dut, [1,2,3])
             yield
         yield from print_reg(dut, [1,2,3])
+        yield
+        yield
+        yield
+        yield
 
     yield
     yield from print_reg(dut, [1,2,3])

@@ -8,12 +8,29 @@ class DepCell(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
         adjusted to be clock-sync'd on rising edge only.
         mitch design (as does 6600) requires alternating rising/falling clock
+
+        * SET mode: issue_i HI, go_i LO, reg_i HI - register is captured
+                                                  - FWD is DISABLED (~issue_i)
+                                                  - RSEL DISABLED
+        * QRY mode: issue_i LO, go_i LO, haz_i HI - FWD is ASSERTED
+                                         reg_i HI - ignored
+        * GO mode : issue_i LO, go_i HI           - RSEL is ASSERTED
+                                         haz_i HI - FWD still can be ASSERTED
+
+        FWD assertion (hazard protection) therefore still occurs in both
+        Query and Go Modes, for this cycle, due to the cq register
+
+        GO mode works for one cycle, again due to the cq register capturing
+        the latch output.  Without the cq register, the SR Latch (which is
+        asynchronous) would be reset at the exact moment that GO was requested,
+        and the RSEL would be garbage.
     """
     def __init__(self):
         # inputs
         self.reg_i = Signal(reset_less=True)     # reg bit in (top)
-        self.issue_i = Signal(reset_less=True)    # Issue in (top)
-        self.go_i = Signal(reset_less=True)  # Go read/write in (left)
+        self.issue_i = Signal(reset_less=True)   # Issue in (top)
+        self.hazard_i = Signal(reset_less=True)  # to check hazard
+        self.go_i = Signal(reset_less=True)      # Go read/write in (left)
 
         # for Register File Select Lines (vertical)
         self.rsel_o = Signal(reset_less=True)  # reg sel (bottom)
@@ -33,7 +50,7 @@ class DepCell(Elaboratable):
         m.d.comb += l.r.eq(self.go_i)
 
         # Function Unit "Forward Progress".
-        m.d.comb += self.fwd_o.eq((cq | l.q) & self.reg_i & ~self.issue_i)
+        m.d.comb += self.fwd_o.eq((cq | l.q) & self.hazard_i & ~self.issue_i)
 
         # Register Select. Activated on go read/write and *current* latch set
         m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
@@ -41,7 +58,8 @@ class DepCell(Elaboratable):
         return m
 
     def __iter__(self):
-        yield self.regt_i
+        yield self.reg_i
+        yield self.hazard_i
         yield self.issue_i
         yield self.go_i
         yield self.rsel_o
@@ -94,6 +112,13 @@ class DependenceCell(Elaboratable):
                        (src1_c, self.src1_i),
                        (src2_c, self.src2_i)]:
             m.d.comb += c.reg_i.eq(reg)
+
+        # connect up hazard checks: read-after-write and write-after-read
+        srcactive = Signal(reset_less=True)
+        m.d.comb += srcactive.eq(self.src1_i | self.src2_i)
+        m.d.comb += dest_c.hazard_i.eq(srcactive) # read-after-write
+        m.d.comb += src1_c.hazard_i.eq(self.dest_i) # write-after-read
+        m.d.comb += src2_c.hazard_i.eq(self.dest_i) # write-after-read
 
         # connect fwd / reg-sel outputs
         for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
