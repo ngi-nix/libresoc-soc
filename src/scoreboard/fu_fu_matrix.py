@@ -81,11 +81,11 @@ class FUFUDepMatrix(Elaboratable):
                          fu.wr_pend_i.eq(Cat(*wr_wait_o)),
                         ]
         # ---
-        # connect Dependency Matrix issue to module issue
+        # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
-        for y in range(self.n_fu_row):
+        for x in range(self.n_fu_col):
             issue_i = []
-            for x in range(self.n_fu_col):
+            for y in range(self.n_fu_row):
                 dc = dm[x][y]
                 # accumulate cell inputs issue
                 issue_i.append(dc.issue_i)
@@ -111,10 +111,10 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         # connect Matrix pending
         # ---
-        for x in range(self.n_fu_col):
+        for y in range(self.n_fu_row):
             rd_pend_i = []
             wr_pend_i = []
-            for y in range(self.n_fu_row):
+            for x in range(self.n_fu_col):
                 dc = dm[x][y]
                 # accumulate cell rd_pend/wr_pend/go_rd/go_wr
                 rd_pend_i.append(dc.rd_pend_i)

@@ -3,6 +3,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable
 from nmutil.latch import SRLatch
 
+
 class DepCell(Elaboratable):
     """ FU Dependency Cell
     """
@@ -72,8 +73,8 @@ class FUDependenceCell(Elaboratable):
         m.d.comb += rd_c.go_i.eq(self.go_rd_i)
 
         # connect pend_i
-        m.d.comb += wr_c.go_i.eq(self.wr_pend_i)
-        m.d.comb += rd_c.go_i.eq(self.rd_pend_i)
+        m.d.comb += wr_c.pend_i.eq(self.wr_pend_i)
+        m.d.comb += rd_c.pend_i.eq(self.rd_pend_i)
 
         # connect output
         m.d.comb += self.wr_wait_o.eq(wr_c.wait_o)

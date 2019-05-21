@@ -96,13 +96,14 @@ class FunctionUnits(Elaboratable):
         self.src1_i = Signal(n_regs, reset_less=True) # oper1 R# in
         self.src2_i = Signal(n_regs, reset_less=True) # oper2 R# in
 
+        self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
+        self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
+
         self.dest_rsel_o = Signal(n_regs, reset_less=True) # dest reg (bot)
         self.src1_rsel_o = Signal(n_regs, reset_less=True) # src1 reg (bot)
         self.src2_rsel_o = Signal(n_regs, reset_less=True) # src2 reg (bot)
 
         self.req_rel_i = Signal(n_int_alus, reset_less = True)
-        self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
-        self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
         self.readable_o = Signal(n_int_alus, reset_less=True)
         self.writable_o = Signal(n_int_alus, reset_less=True)
 
@@ -123,11 +124,14 @@ class FunctionUnits(Elaboratable):
         intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
-        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_pend_o)
-        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_pend_o)
+        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_rsel_o)
+        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_rsel_o)
 
-        m.d.comb += intfudeps.rd_pend_i.eq(self.g_int_rd_pend_o)
-        m.d.comb += intfudeps.wr_pend_i.eq(self.g_int_wr_pend_o)
+        m.d.comb += intregdeps.rd_pend_i.eq(intregdeps.rd_rsel_o)
+        m.d.comb += intregdeps.wr_pend_i.eq(intregdeps.wr_rsel_o)
+
+        m.d.comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
+        m.d.comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)
 
         m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
         m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
@@ -392,8 +396,8 @@ def scoreboard_sim(dut, alusim):
         instrs.append((5, 3, 3, 1))
 
     if True:
-        instrs.append((1, 1, 2, 1))
-        instrs.append((1, 2, 2, 0))
+        instrs.append((5, 6, 2, 1))
+        instrs.append((2, 2, 4, 0))
         #instrs.append((2, 2, 3, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
@@ -412,6 +416,9 @@ def scoreboard_sim(dut, alusim):
             yield from print_reg(dut, [1,2,3])
             yield
         yield from print_reg(dut, [1,2,3])
+        yield
+        yield
+        yield
 
     yield
     yield from print_reg(dut, [1,2,3])

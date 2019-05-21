@@ -164,11 +164,11 @@ class Scoreboard(Elaboratable):
         # XXX sync, again to avoid an infinite loop.  is it the right thing???
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
-        m.d.sync += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
-        m.d.sync += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        m.d.comb += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
+        m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
 
-        m.d.sync += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
-        m.d.sync += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        m.d.comb += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
+        m.d.comb += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
 
         # create read-pending FU-FU vectors
         intfu_rd_pend_v = Signal(n_int_fus, reset_less = True)
@@ -188,17 +188,17 @@ class Scoreboard(Elaboratable):
         # to be unit "read-pending / write-pending"
         m.d.comb += intfudeps.rd_pend_i.eq(intfu_rd_pend_v)
         m.d.comb += intfudeps.wr_pend_i.eq(intfu_wr_pend_v)
-        m.d.sync += intfudeps.issue_i.eq(issueunit.i.fn_issue_o)
+        m.d.comb += intfudeps.issue_i.eq(issueunit.i.fn_issue_o)
         for i in range(n_int_fus):
-            m.d.sync += intfudeps.go_rd_i[i].eq(intpick1.go_rd_o[i])
-            m.d.sync += intfudeps.go_wr_i[i].eq(intpick1.go_wr_o[i])
+            m.d.comb += intfudeps.go_rd_i[i].eq(intpick1.go_rd_o[i])
+            m.d.comb += intfudeps.go_wr_i[i].eq(intpick1.go_wr_o[i])
 
         # Connect Picker (note connection to FU-FU)
         #---------
         readable_o = intfudeps.readable_o
         writable_o = intfudeps.writable_o
-        m.d.comb += intpick1.rd_rel_i[0].eq(fn_busy_l[0])
-        m.d.comb += intpick1.rd_rel_i[1].eq(fn_busy_l[1])
+        m.d.comb += intpick1.rd_rel_i[0].eq(int_alus[0].rd_rel_o)
+        m.d.comb += intpick1.rd_rel_i[1].eq(int_alus[1].rd_rel_o)
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
         m.d.comb += intpick1.readable_i[0].eq(readable_o[0]) # add rd
@@ -209,22 +209,22 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
-            m.d.comb += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
+        #with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
+        m.d.sync += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
         #with m.If(intpick1.go_rd_o):
         #with m.If(if_l[0].go_rd_i | if_l[1].go_rd_i):
-        m.d.comb += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
-        m.d.comb += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
+        m.d.sync += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
+        m.d.sync += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
         # merge (OR) all integer FU / ALU outputs to a single value
         # bit of a hack: treereduce needs a list with an item named "dest_o"
         dest_o = treereduce(int_alus)
-        m.d.comb += int_dest.data_i.eq(dest_o)
+        m.d.sync += int_dest.data_i.eq(dest_o)
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
-            m.d.sync += alu.go_rd_i.eq(intpick1.go_rd_o[i])
-            m.d.sync += alu.go_wr_i.eq(intpick1.go_wr_o[i])
+            m.d.comb += alu.go_rd_i.eq(intpick1.go_rd_o[i])
+            m.d.comb += alu.go_wr_i.eq(intpick1.go_wr_o[i])
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
@@ -384,7 +384,6 @@ def scoreboard_sim(dut, alusim):
                 break
             print ("busy",)
             yield from print_reg(dut, [3,4,5])
-        yield
         yield
         yield
         yield
