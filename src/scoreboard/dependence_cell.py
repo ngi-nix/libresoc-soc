@@ -31,6 +31,7 @@ class DepCell(Elaboratable):
         self.issue_i = Signal(reset_less=True)   # Issue in (top)
         self.hazard_i = Signal(reset_less=True)  # to check hazard
         self.go_i = Signal(reset_less=True)      # Go read/write in (left)
+        self.q_o = Signal(reset_less=True)       # Latch out (register active)
 
         # for Register File Select Lines (vertical)
         self.rsel_o = Signal(reset_less=True)  # reg sel (bottom)
@@ -55,6 +56,8 @@ class DepCell(Elaboratable):
         # Register Select. Activated on go read/write and *current* latch set
         m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
 
+        m.d.comb += self.q_o.eq(cq | l.q)
+
         return m
 
     def __iter__(self):
@@ -62,6 +65,7 @@ class DepCell(Elaboratable):
         yield self.hazard_i
         yield self.issue_i
         yield self.go_i
+        yield self.q_o
         yield self.rsel_o
         yield self.fwd_o
 
@@ -78,6 +82,11 @@ class DependenceCell(Elaboratable):
         self.src1_i = Signal(reset_less=True)     # oper1 in (top)
         self.src2_i = Signal(reset_less=True)     # oper2 in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
+
+        self.rd_pend_i = Signal(reset_less=True) # Read pending in (top)
+        self.wr_pend_i = Signal(reset_less=True) # Write pending in (top)
+        self.rd_rsel_o = Signal(reset_less=True) # Read pending out (bottom)
+        self.wr_rsel_o = Signal(reset_less=True) # Write pending out (bottom)
 
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
@@ -114,11 +123,9 @@ class DependenceCell(Elaboratable):
             m.d.comb += c.reg_i.eq(reg)
 
         # connect up hazard checks: read-after-write and write-after-read
-        srcactive = Signal(reset_less=True)
-        m.d.comb += srcactive.eq(self.src1_i | self.src2_i)
-        m.d.comb += dest_c.hazard_i.eq(srcactive) # read-after-write
-        m.d.comb += src1_c.hazard_i.eq(self.dest_i) # write-after-read
-        m.d.comb += src2_c.hazard_i.eq(self.dest_i) # write-after-read
+        m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
+        m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+        m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
 
         # connect fwd / reg-sel outputs
         for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
@@ -127,12 +134,19 @@ class DependenceCell(Elaboratable):
             m.d.comb += fwd.eq(c.fwd_o)
             m.d.comb += rsel.eq(c.rsel_o)
 
+        # to be accumulated to indicate if register is in use (globally)
+        # after ORing, is fed back in to rd_pend_i / wr_pend_i
+        m.d.comb += self.rd_rsel_o.eq(src1_c.q_o | src2_c.q_o)
+        m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
+
         return m
 
     def __iter__(self):
         yield self.dest_i
         yield self.src1_i
         yield self.src2_i
+        yield self.rd_pend_i
+        yield self.wr_pend_i
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
@@ -158,6 +172,12 @@ class DependencyRow(Elaboratable):
         self.src1_i = Signal(n_reg_col, reset_less=True)
         self.src2_i = Signal(n_reg_col, reset_less=True)
 
+        self.rd_pend_i = Signal(n_reg_col, reset_less=True)
+        self.wr_pend_i = Signal(n_reg_col, reset_less=True)
+
+        self.rd_rsel_o = Signal(n_reg_col, reset_less=True)
+        self.wr_rsel_o = Signal(n_reg_col, reset_less=True)
+
         self.issue_i = Signal(reset_less=True)
         self.go_wr_i = Signal(reset_less=True)
         self.go_rd_i = Signal(reset_less=True)
@@ -179,12 +199,20 @@ class DependencyRow(Elaboratable):
         # ---
         # connect Dep dest/src to module dest/src
         # ---
+        rd_pend_i = []
+        wr_pend_i = []
+        rd_rsel_o = []
+        wr_rsel_o = []
         dest_i = []
         src1_i = []
         src2_i = []
         for rn in range(self.n_reg_col):
             dc = rcell[rn]
             # accumulate cell inputs dest/src1/src2
+            rd_pend_i.append(dc.rd_pend_i)
+            wr_pend_i.append(dc.wr_pend_i)
+            rd_rsel_o.append(dc.rd_rsel_o)
+            wr_rsel_o.append(dc.wr_rsel_o)
             dest_i.append(dc.dest_i)
             src1_i.append(dc.src1_i)
             src2_i.append(dc.src2_i)
@@ -192,6 +220,10 @@ class DependencyRow(Elaboratable):
         m.d.comb += [Cat(*dest_i).eq(self.dest_i),
                      Cat(*src1_i).eq(self.src1_i),
                      Cat(*src2_i).eq(self.src2_i),
+                     Cat(*rd_pend_i).eq(self.rd_pend_i),
+                     Cat(*wr_pend_i).eq(self.wr_pend_i),
+                     self.rd_rsel_o.eq(Cat(*rd_rsel_o)),
+                     self.wr_rsel_o.eq(Cat(*wr_rsel_o)),
                     ]
 
         # ---

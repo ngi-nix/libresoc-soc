@@ -35,6 +35,12 @@ class FURegDepMatrix(Elaboratable):
         self.src1_i = Signal(n_reg_col, reset_less=True)     # oper1 in (top)
         self.src2_i = Signal(n_reg_col, reset_less=True)     # oper2 in (top)
 
+        # Register "Global" vectors for determining RaW and WaR hazards
+        self.wr_pend_i = Signal(n_reg_col, reset_less=True) # wr pending (top)
+        self.rd_pend_i = Signal(n_reg_col, reset_less=True) # rd pending (top)
+        self.wr_rsel_o = Signal(n_reg_col, reset_less=True) # wr pending (bot)
+        self.rd_rsel_o = Signal(n_reg_col, reset_less=True) # rd pending (bot)
+
         self.issue_i = Signal(n_fu_row, reset_less=True)    # Issue in (top)
         self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
@@ -154,7 +160,25 @@ class FURegDepMatrix(Elaboratable):
             m.d.comb += [dc.dest_i.eq(self.dest_i),
                          dc.src1_i.eq(self.src1_i),
                          dc.src2_i.eq(self.src2_i),
+                         dc.rd_pend_i.eq(self.rd_pend_i),
+                         dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
+
+        # accumulate and OR rsel bits (should be done in a separate module)
+        rd_pend_v = []
+        wr_pend_v = []
+        for rn in range(self.n_reg_col):
+            rd_l = []
+            wr_l = []
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                rd_l.append(dc.rd_rsel_o[rn])
+                wr_l.append(dc.wr_rsel_o[rn])
+            rd_pend_v.append(Cat(*rd_l).bool())
+            wr_pend_v.append(Cat(*wr_l).bool())
+
+        m.d.comb += self.rd_rsel_o.eq(Cat(*rd_pend_v))
+        m.d.comb += self.wr_rsel_o.eq(Cat(*wr_pend_v))
 
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
@@ -188,6 +212,10 @@ class FURegDepMatrix(Elaboratable):
         yield self.src2_rsel_o
         yield self.wr_pend_o
         yield self.rd_pend_o
+        yield self.wr_pend_i
+        yield self.rd_pend_i
+        yield self.wr_rsel_o
+        yield self.rd_rsel_o
         yield self.rd_src1_pend_o
         yield self.rd_src2_pend_o
 
