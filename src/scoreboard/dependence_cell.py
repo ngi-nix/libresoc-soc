@@ -51,7 +51,7 @@ class DepCell(Elaboratable):
         m.d.comb += l.r.eq(self.go_i)
 
         # Function Unit "Forward Progress".
-        m.d.comb += self.fwd_o.eq((cq | l.q) & self.hazard_i & ~self.issue_i)
+        m.d.comb += self.fwd_o.eq((l.q) & self.hazard_i)# & ~self.issue_i)
 
         # Register Select. Activated on go read/write and *current* latch set
         m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
