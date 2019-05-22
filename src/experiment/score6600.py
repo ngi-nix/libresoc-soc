@@ -390,12 +390,13 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
-            for i in range(5):
+        if False:
+            for i in range(10):
                 src1 = randint(1, dut.n_regs-1)
                 src2 = randint(1, dut.n_regs-1)
                 while True:
                     dest = randint(1, dut.n_regs-1)
+                    break
                     if dest not in [src1, src2]:
                         break
                 #src1 = 2
@@ -438,6 +439,34 @@ def scoreboard_sim(dut, alusim):
             # Write-after-Write Hazard
             instrs.append( (3, 6, 7, 2) )
             instrs.append( (4, 4, 7, 1) )
+
+        if False:
+            # self-read/write-after-write followed by Read-after-Write
+            instrs.append((1, 1, 1, 1))
+            instrs.append((1, 5, 3, 0))
+
+        if False:
+            # Read-after-Write followed by self-read-after-write
+            instrs.append((5, 6, 1, 2))
+            instrs.append((1, 1, 1, 1))
+
+        if False:
+            # self-read-write sandwich
+            instrs.append((5, 6, 1, 2))
+            instrs.append((1, 1, 1, 1))
+            instrs.append((1, 5, 3, 0))
+
+        if True:
+            instrs.append( (7, 1, 2, 0) )
+            instrs.append( (1, 1, 4, 2) )
+            instrs.append( (2, 3, 2, 2) )
+            instrs.append( (5, 3, 1, 0) )
+            instrs.append( (7, 3, 5, 2) )
+            instrs.append( (1, 2, 6, 2) )
+            instrs.append( (5, 2, 5, 2) )
+            instrs.append( (2, 2, 3, 0) )
+            instrs.append( (4, 2, 2, 1) )
+            instrs.append( (2, 4, 6, 1) )
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, (src1, src2, dest, op) in enumerate(instrs):

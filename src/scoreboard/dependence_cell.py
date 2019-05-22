@@ -129,10 +129,10 @@ class DependenceCell(Elaboratable):
                                   (self.dest_i & self.src2_i))
 
         # connect up hazard checks: read-after-write and write-after-read
+        m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
         with m.If(~selfhazard):
-            m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
-        m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
-        m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+            m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+            m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
 
         # connect fwd / reg-sel outputs
         for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
@@ -144,8 +144,8 @@ class DependenceCell(Elaboratable):
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to rd_pend_i / wr_pend_i
         m.d.comb += self.rd_rsel_o.eq(src1_c.q_o | src2_c.q_o)
-        with m.If(~selfhazard):
-            m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
+        #with m.If(~selfhazard):
+        m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
 
         return m
 
