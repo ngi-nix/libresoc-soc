@@ -327,17 +327,18 @@ class RegSim:
         self.regs = [0] * nregs
 
     def op(self, op, src1, src2, dest):
+        maxbits = (1 << self.rwidth) - 1
         src1 = self.regs[src1]
         src2 = self.regs[src2]
         if op == IADD:
-            val = (src1 + src2)
+            val = src1 + src2
         elif op == ISUB:
-            val = (src1 - src2)
+            val = src1 - src2
         elif op == IMUL:
-            val = (src1 * src2)
+            val = src1 * src2
         elif op == ISHF:
-            val = (src1 << (src2 & self.rwidth))
-        val &= ((1<<(self.rwidth))-1)
+            val = src1 >> (src2 & maxbits)
+        val &= maxbits
         self.regs[dest] = val
 
     def setval(self, dest, val):
@@ -391,7 +392,7 @@ def scoreboard_sim(dut, alusim):
         # create some instructions (some random, some regression tests)
         instrs = []
         if True:
-            for i in range(20):
+            for i in range(10):
                 src1 = randint(1, dut.n_regs-1)
                 src2 = randint(1, dut.n_regs-1)
                 while True:
@@ -403,7 +404,7 @@ def scoreboard_sim(dut, alusim):
                 #src2 = 3
                 #dest = 2
 
-                op = randint(0, 2)
+                op = randint(0, 3)
                 #op = i % 2
                 #op = 0
 

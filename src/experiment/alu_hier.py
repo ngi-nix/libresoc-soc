@@ -1,4 +1,4 @@
-from nmigen import Elaboratable, Signal, Module
+from nmigen import Elaboratable, Signal, Module, Const
 from nmigen.cli import main
 
 
@@ -40,13 +40,16 @@ class Multiplier(Elaboratable):
 
 class Shifter(Elaboratable):
     def __init__(self, width):
+        self.width = width
         self.a   = Signal(width)
-        self.b   = Signal(max=width)
+        self.b   = Signal(width)
         self.o   = Signal(width)
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += self.o.eq(self.a << self.b)
+        btrunc = Signal(self.width)
+        m.d.comb += btrunc.eq(self.b & Const((1<<self.width)-1))
+        m.d.comb += self.o.eq(self.a >> btrunc)
         return m
 
 
