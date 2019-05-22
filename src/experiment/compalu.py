@@ -10,7 +10,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.rwid = rwid
         self.alu = alu
 
-        self.counter = Signal(3)
+        self.counter = Signal(4)
         self.go_rd_i = Signal(reset_less=True) # go read in
         self.go_wr_i = Signal(reset_less=True) # go write in
         self.issue_i = Signal(reset_less=True) # fn issue in
@@ -56,7 +56,12 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += self.rd_rel_o.eq(src_l.q & opc_l.q) # src1/src2 req rel
 
         with m.If(req_l.qn & opc_l.q & (self.counter == 0)):
-            m.d.sync += self.counter.eq(3)
+            with m.If(self.oper_i == 2): # MUL, to take 5 instructions
+                m.d.sync += self.counter.eq(5)
+            with m.Elif(self.oper_i == 3): # SHIFT to take 7
+                m.d.sync += self.counter.eq(7)
+            with m.Else(): # ADD/SUB to take 2
+                m.d.sync += self.counter.eq(2)
         with m.If(self.counter > 0):
             m.d.sync += self.counter.eq(self.counter - 1)
         with m.If((self.counter == 1) | (self.counter == 0)):
