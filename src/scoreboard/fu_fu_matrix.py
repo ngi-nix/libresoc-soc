@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable, Array, Cat
+from nmigen import Module, Signal, Elaboratable, Array, Cat, Const
 
 #from nmutil.latch import SRLatch
 from .fu_dep_cell import FUDependenceCell
@@ -115,6 +115,12 @@ class FUFUDepMatrix(Elaboratable):
             rd_pend_i = []
             wr_pend_i = []
             for x in range(self.n_fu_col):
+                if x == y: # ignore hazards on the diagonal: self-against-self
+                    dummyrd = Signal(reset_less=True)
+                    dummywr = Signal(reset_less=True)
+                    rd_pend_i.append(dummyrd)
+                    wr_pend_i.append(dummywr)
+                    continue
                 dc = dm[x][y]
                 # accumulate cell rd_pend/wr_pend/go_rd/go_wr
                 rd_pend_i.append(dc.rd_pend_i)

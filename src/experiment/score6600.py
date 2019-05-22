@@ -381,7 +381,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(0)
 
-    for i in range(1):
+    for i in range(100):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -390,8 +390,8 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
-            for i in range(10):
+        if True:
+            for i in range(20):
                 src1 = randint(1, dut.n_regs-1)
                 src2 = randint(1, dut.n_regs-1)
                 while True:
@@ -456,17 +456,11 @@ def scoreboard_sim(dut, alusim):
             instrs.append((1, 1, 1, 1))
             instrs.append((1, 5, 3, 0))
 
-        if True:
-            instrs.append( (7, 1, 2, 0) )
-            instrs.append( (1, 1, 4, 2) )
-            instrs.append( (2, 3, 2, 2) )
-            instrs.append( (5, 3, 1, 0) )
-            instrs.append( (7, 3, 5, 2) )
-            instrs.append( (1, 2, 6, 2) )
+        if False:
+            # very weird failure
             instrs.append( (5, 2, 5, 2) )
-            instrs.append( (2, 2, 3, 0) )
+            instrs.append( (2, 6, 3, 0) )
             instrs.append( (4, 2, 2, 1) )
-            instrs.append( (2, 4, 6, 1) )
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, (src1, src2, dest, op) in enumerate(instrs):

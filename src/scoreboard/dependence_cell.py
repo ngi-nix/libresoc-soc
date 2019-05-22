@@ -130,9 +130,8 @@ class DependenceCell(Elaboratable):
 
         # connect up hazard checks: read-after-write and write-after-read
         m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
-        with m.If(~selfhazard):
-            m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
-            m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+        m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+        m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
 
         # connect fwd / reg-sel outputs
         for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
