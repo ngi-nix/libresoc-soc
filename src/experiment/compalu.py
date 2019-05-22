@@ -4,6 +4,39 @@ from nmigen import Module, Signal, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
 
+""" Computation Unit (aka "ALU Manager").
+
+    This module runs a "revolving door" set of three latches, based on
+    * Issue
+    * Go_Read
+    * Go_Write
+    where one of them cannot be set on any given cycle.
+    (Note however that opc_l has been inverted (and qn used), due to SRLatch
+     default reset state being "0" rather than "1")
+
+    * When issue is first raised, a busy signal is sent out.
+      The src1 and src2 registers and the operand can be latched in
+      at this point
+
+    * Read request is set, which is ackowledged through the Scoreboard
+      to the priority picker, which generates (one and only one) Go_Read
+      at a time.  One of those will (eventually) be this Computation Unit.
+
+    * Once Go_Read is set, the src1/src2/operand latch door shuts (locking
+      src1/src2/operand in place), and the ALU is told to proceed.
+
+    * As this is currently a "demo" unit, a countdown timer is activated
+      to simulate an ALU "pipeline", which activates "write request release",
+      and the ALU's output is captured into a temporary register.
+
+    * Write request release will go through a similar process as Read request,
+      resulting (eventually) in Go_Write being asserted.
+
+    * When Go_Write is asserted, two things happen: (1) the data in the temp
+      register is placed combinatorially onto the output, and (2) the
+      req_l latch is cleared, busy is dropped, and the Comp Unit is back
+      through its revolving door to do another task.
+"""
 
 class ComputationUnitNoDelay(Elaboratable):
     def __init__(self, rwid, opwid, alu):
@@ -55,6 +88,8 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
         m.d.comb += self.rd_rel_o.eq(src_l.q & opc_l.q) # src1/src2 req rel
 
+        with m.If(opc_l.qn):
+            m.d.sync += self.counter.eq(0)
         with m.If(req_l.qn & opc_l.q & (self.counter == 0)):
             with m.If(self.oper_i == 2): # MUL, to take 5 instructions
                 m.d.sync += self.counter.eq(5)
@@ -62,9 +97,9 @@ class ComputationUnitNoDelay(Elaboratable):
                 m.d.sync += self.counter.eq(7)
             with m.Else(): # ADD/SUB to take 2
                 m.d.sync += self.counter.eq(2)
-        with m.If(self.counter > 0):
+        with m.If(self.counter > 1):
             m.d.sync += self.counter.eq(self.counter - 1)
-        with m.If((self.counter == 1) | (self.counter == 0)):
+        with m.If(self.counter == 1):
             m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # req release out
 
         # create a latch/register for src1/src2
@@ -77,11 +112,11 @@ class ComputationUnitNoDelay(Elaboratable):
         latchregister(m, self.oper_i, self.alu.op, src_l.q)
 
         # and one for the output from the ALU
-        data_o = Signal(self.rwid, reset_less=True) # Dest register
-        latchregister(m, self.alu.o, data_o, req_l.q)
+        data_r = Signal(self.rwid, reset_less=True) # Dest register
+        latchregister(m, self.alu.o, data_r, req_l.q)
 
         with m.If(self.go_wr_i):
-            m.d.comb += self.data_o.eq(data_o)
+            m.d.comb += self.data_o.eq(data_r)
 
         return m
 
