@@ -122,8 +122,15 @@ class DependenceCell(Elaboratable):
                        (src2_c, self.src2_i)]:
             m.d.comb += c.reg_i.eq(reg)
 
+        # wark-wark: yes, writing to the same reg you are reading is *NOT*
+        # a write-after-read hazard.
+        selfhazard = Signal(reset_less=False)
+        m.d.comb += selfhazard.eq((self.dest_i & self.src1_i) |
+                                  (self.dest_i & self.src2_i))
+
         # connect up hazard checks: read-after-write and write-after-read
-        m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
+        with m.If(~selfhazard):
+            m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
         m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
         m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
 
@@ -137,7 +144,8 @@ class DependenceCell(Elaboratable):
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to rd_pend_i / wr_pend_i
         m.d.comb += self.rd_rsel_o.eq(src1_c.q_o | src2_c.q_o)
-        m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
+        with m.If(~selfhazard):
+            m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
 
         return m
 

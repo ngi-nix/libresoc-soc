@@ -374,12 +374,11 @@ def scoreboard_sim(dut, alusim):
 
     instrs = []
     if False:
-        for i in range(2):
+        for i in range(50):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
             while True:
                 dest = randint(1, dut.n_regs-1)
-                break
                 if dest not in [src1, src2]:
                     break
             #src1 = 2
@@ -387,18 +386,32 @@ def scoreboard_sim(dut, alusim):
             #dest = 2
 
             op = randint(0, 1)
-            op = i % 2
-            op = 0
-        instrs.append((src1, src2, dest, op))
+            #op = i % 2
+            #op = 0
+
+            instrs.append((src1, src2, dest, op))
 
     if False:
         instrs.append((2, 3, 3, 0))
         instrs.append((5, 3, 3, 1))
 
-    if True:
+    if False:
         instrs.append((5, 6, 2, 1))
         instrs.append((2, 2, 4, 0))
         #instrs.append((2, 2, 3, 1))
+
+    if False:
+        instrs.append((2, 1, 2, 0))
+
+    if False:
+        instrs.append((2, 6, 2, 1))
+        instrs.append((2, 1, 2, 0))
+
+    if True:
+        instrs.append((1, 4, 7, 1))
+        instrs.append((7, 1, 5, 0))
+        instrs.append((4, 3, 1, 1))
+        instrs.append((6, 5, 7, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
