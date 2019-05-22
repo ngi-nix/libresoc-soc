@@ -378,88 +378,97 @@ def print_reg(dut, rnums):
 
 
 def scoreboard_sim(dut, alusim):
+
     yield dut.int_store_i.eq(0)
 
-    for i in range(1, dut.n_regs):
-        yield dut.intregs.regs[i].reg.eq(31+i*3)
-        alusim.setval(i, 31+i*3)
+    for i in range(1):
 
-    instrs = []
-    if False:
-        for i in range(50):
-            src1 = randint(1, dut.n_regs-1)
-            src2 = randint(1, dut.n_regs-1)
+        # set random values in the registers
+        for i in range(1, dut.n_regs):
+            yield dut.intregs.regs[i].reg.eq(31+i*3)
+            alusim.setval(i, 31+i*3)
+
+        # create some instructions (some random, some regression tests)
+        instrs = []
+        if True:
+            for i in range(5):
+                src1 = randint(1, dut.n_regs-1)
+                src2 = randint(1, dut.n_regs-1)
+                while True:
+                    dest = randint(1, dut.n_regs-1)
+                    if dest not in [src1, src2]:
+                        break
+                #src1 = 2
+                #src2 = 3
+                #dest = 2
+
+                op = randint(0, 2)
+                #op = i % 2
+                #op = 0
+
+                instrs.append((src1, src2, dest, op))
+
+        if False:
+            instrs.append((2, 3, 3, 0))
+            instrs.append((5, 3, 3, 1))
+
+        if False:
+            instrs.append((5, 6, 2, 1))
+            instrs.append((2, 2, 4, 0))
+            #instrs.append((2, 2, 3, 1))
+
+        if False:
+            instrs.append((2, 1, 2, 3))
+
+        if False:
+            instrs.append((2, 6, 2, 1))
+            instrs.append((2, 1, 2, 0))
+
+        if False:
+            instrs.append((1, 2, 7, 2))
+            instrs.append((7, 1, 5, 0))
+            instrs.append((4, 4, 1, 1))
+
+        if False:
+            instrs.append((5, 6, 2, 2))
+            instrs.append((1, 1, 4, 1))
+            instrs.append((6, 5, 3, 0))
+
+        if False:
+            # Write-after-Write Hazard
+            instrs.append( (3, 6, 7, 2) )
+            instrs.append( (4, 4, 7, 1) )
+
+        # issue instruction(s), wait for issue to be free before proceeding
+        for i, (src1, src2, dest, op) in enumerate(instrs):
+
+            print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
+            yield from int_instr(dut, alusim, op, src1, src2, dest)
+            yield
             while True:
-                dest = randint(1, dut.n_regs-1)
-                if dest not in [src1, src2]:
+                issue_o = yield dut.issue_o
+                if issue_o:
+                    for i in range(len(dut.int_insn_i)):
+                        yield dut.int_insn_i[i].eq(0)
+                        yield dut.reg_enable_i.eq(0)
                     break
-            #src1 = 2
-            #src2 = 3
-            #dest = 2
+                #print ("busy",)
+                #yield from print_reg(dut, [1,2,3])
+                yield
+            #yield from print_reg(dut, [1,2,3])
 
-            op = randint(0, 2)
-            #op = i % 2
-            #op = 0
-
-            instrs.append((src1, src2, dest, op))
-
-    if False:
-        instrs.append((2, 3, 3, 0))
-        instrs.append((5, 3, 3, 1))
-
-    if False:
-        instrs.append((5, 6, 2, 1))
-        instrs.append((2, 2, 4, 0))
-        #instrs.append((2, 2, 3, 1))
-
-    if False:
-        instrs.append((2, 1, 2, 3))
-
-    if False:
-        instrs.append((2, 6, 2, 1))
-        instrs.append((2, 1, 2, 0))
-
-    if False:
-        instrs.append((1, 2, 7, 2))
-        instrs.append((7, 1, 5, 0))
-        instrs.append((4, 4, 1, 1))
-
-    if False:
-        instrs.append((5, 6, 2, 2))
-        instrs.append((1, 1, 4, 1))
-        instrs.append((6, 5, 3, 0))
-
-    if True:
-        # Write-after-Write Hazard
-        instrs.append( (3, 6, 7, 2) )
-        instrs.append( (4, 4, 7, 1) )
-
-    for i, (src1, src2, dest, op) in enumerate(instrs):
-
-        print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
-        yield from int_instr(dut, alusim, op, src1, src2, dest)
+        # wait for all instructions to stop before checking
         yield
         while True:
-            issue_o = yield dut.issue_o
-            if issue_o:
-                for i in range(len(dut.int_insn_i)):
-                    yield dut.int_insn_i[i].eq(0)
-                    yield dut.reg_enable_i.eq(0)
+            busy_o = yield dut.busy_o
+            if not busy_o:
                 break
-            #print ("busy",)
-            #yield from print_reg(dut, [1,2,3])
+            print ("busy",)
             yield
-        #yield from print_reg(dut, [1,2,3])
 
-    yield
-    while True:
-        busy_o = yield dut.busy_o
-        if not busy_o:
-            break
-        print ("busy",)
-        yield
-    yield from alusim.check(dut)
-    yield from alusim.dump(dut)
+        # check status
+        yield from alusim.check(dut)
+        yield from alusim.dump(dut)
 
 
 def explore_groups(dut):
