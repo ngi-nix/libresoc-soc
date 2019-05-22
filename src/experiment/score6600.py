@@ -373,8 +373,8 @@ def scoreboard_sim(dut, alusim):
         alusim.setval(i, 4+i*2)
 
     instrs = []
-    if False:
-        for i in range(50):
+    if True:
+        for i in range(5):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
             while True:
@@ -407,11 +407,10 @@ def scoreboard_sim(dut, alusim):
         instrs.append((2, 6, 2, 1))
         instrs.append((2, 1, 2, 0))
 
-    if True:
-        instrs.append((1, 4, 7, 1))
+    if False:
+        instrs.append((1, 2, 7, 1))
         instrs.append((7, 1, 5, 0))
-        instrs.append((4, 3, 1, 1))
-        instrs.append((6, 5, 7, 1))
+        instrs.append((4, 4, 1, 1))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
@@ -429,7 +428,6 @@ def scoreboard_sim(dut, alusim):
             yield from print_reg(dut, [1,2,3])
             yield
         yield from print_reg(dut, [1,2,3])
-        yield
 
     yield
     yield from print_reg(dut, [1,2,3])
