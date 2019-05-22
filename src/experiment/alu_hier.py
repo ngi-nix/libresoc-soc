@@ -26,30 +26,63 @@ class Subtractor(Elaboratable):
         return m
 
 
-class ALU(Elaboratable):
+class Multiplier(Elaboratable):
     def __init__(self, width):
-        self.op  = Signal()
         self.a   = Signal(width)
         self.b   = Signal(width)
         self.o   = Signal(width)
 
-        self.add = Adder(width)
-        self.sub = Subtractor(width)
+    def elaborate(self, platform):
+        m = Module()
+        m.d.comb += self.o.eq(self.a * self.b)
+        return m
+
+
+class Shifter(Elaboratable):
+    def __init__(self, width):
+        self.a   = Signal(width)
+        self.b   = Signal(max=width)
+        self.o   = Signal(width)
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.add = self.add
-        m.submodules.sub = self.sub
-        m.d.comb += [
-            self.add.a.eq(self.a),
-            self.sub.a.eq(self.a),
-            self.add.b.eq(self.b),
-            self.sub.b.eq(self.b),
-        ]
-        with m.If(self.op):
-            m.d.comb += self.o.eq(self.sub.o)
-        with m.Else():
-            m.d.comb += self.o.eq(self.add.o)
+        m.d.comb += self.o.eq(self.a << self.b)
+        return m
+
+
+class ALU(Elaboratable):
+    def __init__(self, width):
+        self.op  = Signal(2)
+        self.a   = Signal(width)
+        self.b   = Signal(width)
+        self.o   = Signal(width)
+        self.width = width
+
+    def elaborate(self, platform):
+        m = Module()
+        add = Adder(self.width)
+        sub = Subtractor(self.width)
+        mul = Multiplier(self.width)
+        shf = Shifter(self.width)
+
+        m.submodules.add = add
+        m.submodules.sub = sub
+        m.submodules.mul = mul
+        m.submodules.shf = shf
+        for mod in [add, sub, mul, shf]:
+            m.d.comb += [
+                mod.a.eq(self.a),
+                mod.b.eq(self.b),
+            ]
+        with m.Switch(self.op):
+            with m.Case(0):
+                m.d.comb += self.o.eq(add.o)
+            with m.Case(1):
+                m.d.comb += self.o.eq(sub.o)
+            with m.Case(2):
+                m.d.comb += self.o.eq(mul.o)
+            with m.Case(3):
+                m.d.comb += self.o.eq(shf.o)
         return m
 
 
