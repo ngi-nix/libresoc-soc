@@ -15,7 +15,12 @@ class FU_Pick_Vec(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += self.readable_o.eq(~self.rd_pend_i.bool())
-        m.d.comb += self.writable_o.eq(~self.wr_pend_i.bool())
+
+        # Readable if there are no writes pending
+        m.d.comb += self.readable_o.eq(~self.wr_pend_i.bool())
+
+        # Writable if there are no reads pending
+        m.d.comb += self.writable_o.eq(~self.rd_pend_i.bool())
+
         return m
 

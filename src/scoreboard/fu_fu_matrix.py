@@ -61,8 +61,8 @@ class FUFUDepMatrix(Elaboratable):
             writable.append(fu.writable_o)
 
         # ... and output them from this module (horizontal, width=REGs)
-        m.d.comb += self.readable_o.eq(Cat(*writable))
-        m.d.comb += self.writable_o.eq(Cat(*readable))
+        m.d.comb += self.readable_o.eq(Cat(*readable))
+        m.d.comb += self.writable_o.eq(Cat(*writable))
 
         # ---
         # connect FU Pending

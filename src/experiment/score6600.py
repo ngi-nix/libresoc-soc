@@ -382,7 +382,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(0)
 
-    for i in range(100):
+    for i in range(500):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -392,7 +392,7 @@ def scoreboard_sim(dut, alusim):
         # create some instructions (some random, some regression tests)
         instrs = []
         if True:
-            for i in range(10):
+            for i in range(20):
                 src1 = randint(1, dut.n_regs-1)
                 src2 = randint(1, dut.n_regs-1)
                 while True:
