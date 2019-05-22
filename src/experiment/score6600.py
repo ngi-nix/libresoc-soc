@@ -45,12 +45,18 @@ class CompUnits(Elaboratable):
         # Int ALUs
         add = ALU(self.rwid)
         sub = ALU(self.rwid)
+        mul = ALU(self.rwid)
+        shf = ALU(self.rwid)
         m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 2, add)
         m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
-        int_alus = [comp1, comp2]
+        m.submodules.comp3 = comp3 = ComputationUnitNoDelay(self.rwid, 2, mul)
+        m.submodules.comp4 = comp4 = ComputationUnitNoDelay(self.rwid, 2, shf)
+        int_alus = [comp1, comp2, comp3, comp4]
 
-        m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
-        m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
+        m.d.comb += comp1.oper_i.eq(Const(0, 2)) # op=add
+        m.d.comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
+        m.d.comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
+        m.d.comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
 
         go_rd_l = []
         go_wr_l = []
@@ -194,7 +200,7 @@ class Scoreboard(Elaboratable):
         fp_src2 = self.fpregs.read_port("src2")
 
         # Int ALUs and Comp Units
-        n_int_alus = 2
+        n_int_alus = 4
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
 
         # Int FUs
@@ -205,7 +211,7 @@ class Scoreboard(Elaboratable):
         n_fp_fus = 0 # for now
 
         # Integer Priority Picker 1: Adder + Subtractor
-        intpick1 = GroupPicker(2) # picks between add and sub
+        intpick1 = GroupPicker(n_int_fus) # picks between add, sub, mul and shf
         m.submodules.intpick1 = intpick1
 
         # INT/FP Issue Unit
@@ -257,19 +263,17 @@ class Scoreboard(Elaboratable):
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
-        m.d.comb += go_rd_i[0:2].eq(go_rd_o[0:2]) # add rd
-        m.d.comb += go_wr_i[0:2].eq(go_wr_o[0:2]) # add wr
+        m.d.comb += go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus]) # rd
+        m.d.comb += go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus]) # wr
 
         # Connect Picker
         #---------
-        #m.d.comb += intpick1.rd_rel_i[0:2].eq(~go_rd_i[0:2] & cu.busy_o[0:2])
-        m.d.comb += intpick1.rd_rel_i[0:2].eq(cu.rd_rel_o[0:2])
-        #m.d.comb += intpick1.go_rd_i[0:2].eq(cu.req_rel_o[0:2])
-        m.d.comb += intpick1.req_rel_i[0:2].eq(cu.req_rel_o[0:2])
-        int_readable_o = intfus.readable_o
-        int_writable_o = intfus.writable_o
-        m.d.comb += intpick1.readable_i[0:2].eq(int_readable_o[0:2])
-        m.d.comb += intpick1.writable_i[0:2].eq(int_writable_o[0:2])
+        m.d.comb += intpick1.rd_rel_i[0:n_int_fus].eq(cu.rd_rel_o[0:n_int_fus])
+        m.d.comb += intpick1.req_rel_i[0:n_int_fus].eq(cu.req_rel_o[0:n_int_fus])
+        int_rd_o = intfus.readable_o
+        int_wr_o = intfus.writable_o
+        m.d.comb += intpick1.readable_i[0:n_int_fus].eq(int_rd_o[0:n_int_fus])
+        m.d.comb += intpick1.writable_i[0:n_int_fus].eq(int_wr_o[0:n_int_fus])
 
         #---------
         # Connect Register File(s)
@@ -285,9 +289,9 @@ class Scoreboard(Elaboratable):
         m.d.comb += cu.src2_data_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        m.d.comb += cu.go_rd_i[0:2].eq(go_rd_o[0:2])
-        m.d.comb += cu.go_wr_i[0:2].eq(go_wr_o[0:2])
-        m.d.comb += cu.issue_i[0:2].eq(fn_issue_o[0:2])
+        m.d.comb += cu.go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus])
+        m.d.comb += cu.go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
+        m.d.comb += cu.issue_i[0:n_int_fus].eq(fn_issue_o[0:n_int_fus])
 
         return m
 
@@ -381,7 +385,7 @@ def scoreboard_sim(dut, alusim):
 
     instrs = []
     if True:
-        for i in range(5):
+        for i in range(200):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
             while True:
@@ -392,7 +396,7 @@ def scoreboard_sim(dut, alusim):
             #src2 = 3
             #dest = 2
 
-            op = randint(0, 1)
+            op = randint(0, 2)
             #op = i % 2
             #op = 0
 
@@ -408,16 +412,21 @@ def scoreboard_sim(dut, alusim):
         #instrs.append((2, 2, 3, 1))
 
     if False:
-        instrs.append((2, 1, 2, 0))
+        instrs.append((2, 1, 2, 3))
 
     if False:
         instrs.append((2, 6, 2, 1))
         instrs.append((2, 1, 2, 0))
 
     if False:
-        instrs.append((1, 2, 7, 1))
+        instrs.append((1, 2, 7, 2))
         instrs.append((7, 1, 5, 0))
         instrs.append((4, 4, 1, 1))
+
+    if False:
+        instrs.append((5, 6, 2, 2))
+        instrs.append((1, 1, 4, 1))
+        instrs.append((6, 5, 3, 0))
 
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
