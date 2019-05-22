@@ -240,8 +240,8 @@ class Scoreboard(Elaboratable):
                     ]
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
-        # connect global rd/wr pending vectors
-        m.d.comb += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
+        # connect global rd/wr pending vector (for WaW detection)
+        m.d.sync += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
@@ -385,7 +385,7 @@ def scoreboard_sim(dut, alusim):
         alusim.setval(i, 31+i*3)
 
     instrs = []
-    if True:
+    if False:
         for i in range(50):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
@@ -429,9 +429,14 @@ def scoreboard_sim(dut, alusim):
         instrs.append((1, 1, 4, 1))
         instrs.append((6, 5, 3, 0))
 
+    if True:
+        # Write-after-Write Hazard
+        instrs.append( (3, 6, 7, 2) )
+        instrs.append( (4, 4, 7, 1) )
+
     for i, (src1, src2, dest, op) in enumerate(instrs):
 
-        print ("instr %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
+        print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
         yield
         while True:
@@ -441,10 +446,10 @@ def scoreboard_sim(dut, alusim):
                     yield dut.int_insn_i[i].eq(0)
                     yield dut.reg_enable_i.eq(0)
                 break
-            print ("busy",)
-            yield from print_reg(dut, [1,2,3])
+            #print ("busy",)
+            #yield from print_reg(dut, [1,2,3])
             yield
-        yield from print_reg(dut, [1,2,3])
+        #yield from print_reg(dut, [1,2,3])
 
     yield
     while True:

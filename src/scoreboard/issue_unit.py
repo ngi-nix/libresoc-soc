@@ -93,8 +93,8 @@ class IssueUnit(Elaboratable):
         pend = Signal(self.reg_width, reset_less=True)
 
         # dest decoder: write-pending
-        m.d.comb += pend.eq(self.dest_i & self.g_wr_pend_i & (~self.store_i))
-        m.d.comb += waw_stall.eq(pend.bool())
+        m.d.comb += pend.eq(self.dest_i & self.g_wr_pend_i)
+        m.d.comb += waw_stall.eq(pend.bool() & (~self.store_i))
 
         ib_l = []
         for i in range(self.n_insns):
