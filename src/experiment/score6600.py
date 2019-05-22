@@ -183,6 +183,7 @@ class Scoreboard(Elaboratable):
         self.reg_enable_i = Signal(reset_less=True) # enable reg decode
 
         self.issue_o = Signal(reset_less=True) # instruction was accepted
+        self.busy_o = Signal(reset_less=True) # at least one CU is busy
 
     def elaborate(self, platform):
         m = Module()
@@ -251,8 +252,8 @@ class Scoreboard(Elaboratable):
         fn_issue_o = issueunit.i.fn_issue_o
 
         m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
-        # XXX sync, so as to stop a simulation infinite loop
         m.d.comb += issueunit.i.busy_i.eq(cu.busy_o)
+        m.d.comb += self.busy_o.eq(cu.busy_o.bool())
 
         #---------
         # connect fu-fu matrix
@@ -380,12 +381,12 @@ def scoreboard_sim(dut, alusim):
     yield dut.int_store_i.eq(0)
 
     for i in range(1, dut.n_regs):
-        yield dut.intregs.regs[i].reg.eq(4+i*2)
-        alusim.setval(i, 4+i*2)
+        yield dut.intregs.regs[i].reg.eq(31+i*3)
+        alusim.setval(i, 31+i*3)
 
     instrs = []
     if True:
-        for i in range(200):
+        for i in range(50):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
             while True:
@@ -446,17 +447,12 @@ def scoreboard_sim(dut, alusim):
         yield from print_reg(dut, [1,2,3])
 
     yield
-    yield from print_reg(dut, [1,2,3])
-    yield
-    yield from print_reg(dut, [1,2,3])
-    yield
-    yield from print_reg(dut, [1,2,3])
-    yield
-    yield from print_reg(dut, [1,2,3])
-    yield
-    yield
-    yield
-    yield
+    while True:
+        busy_o = yield dut.busy_o
+        if not busy_o:
+            break
+        print ("busy",)
+        yield
     yield from alusim.check(dut)
     yield from alusim.dump(dut)
 
