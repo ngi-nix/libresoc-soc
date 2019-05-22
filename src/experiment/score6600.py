@@ -45,8 +45,8 @@ class CompUnits(Elaboratable):
         # Int ALUs
         add = ALU(self.rwid)
         sub = ALU(self.rwid)
-        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 1, add)
-        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 1, sub)
+        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 2, add)
+        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
         int_alus = [comp1, comp2]
 
         m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
@@ -313,6 +313,8 @@ class Scoreboard(Elaboratable):
 
 IADD = 0
 ISUB = 1
+IMUL = 2
+ISHF = 3
 
 class RegSim:
     def __init__(self, rwidth, nregs):
@@ -323,9 +325,14 @@ class RegSim:
         src1 = self.regs[src1]
         src2 = self.regs[src2]
         if op == IADD:
-            val = (src1 + src2) & ((1<<(self.rwidth))-1)
+            val = (src1 + src2)
         elif op == ISUB:
-            val = (src1 - src2) & ((1<<(self.rwidth))-1)
+            val = (src1 - src2)
+        elif op == IMUL:
+            val = (src1 * src2)
+        elif op == ISHF:
+            val = (src1 << (src2 & self.rwidth))
+        val &= ((1<<(self.rwidth))-1)
         self.regs[dest] = val
 
     def setval(self, dest, val):
