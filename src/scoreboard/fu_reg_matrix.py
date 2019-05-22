@@ -6,6 +6,7 @@ from nmigen import Module, Signal, Elaboratable, Array, Cat
 from scoreboard.dependence_cell import DependencyRow
 from scoreboard.fu_wr_pending import FU_RW_Pend
 from scoreboard.reg_select import Reg_Rsv
+from scoreboard.global_pending import GlobalPending
 
 """
 
@@ -115,8 +116,6 @@ class FURegDepMatrix(Elaboratable):
         m.d.comb += self.rd_src1_pend_o.eq(Cat(*rd_src1_pend))
         m.d.comb += self.rd_src2_pend_o.eq(Cat(*rd_src2_pend))
 
-        print ("wr pend len", len(wr_pend))
-
         # ---
         # connect Reg Selection vector
         # ---
@@ -143,14 +142,12 @@ class FURegDepMatrix(Elaboratable):
             dest_rsel.append(rsv.dest_rsel_o)
             src1_rsel.append(rsv.src1_rsel_o)
             src2_rsel.append(rsv.src2_rsel_o)
-            print ("dest_rsel_rsv len", len(rsv.dest_rsel_o))
 
         # ... and output them from this module (horizontal, width=REGs)
         m.d.comb += self.dest_rsel_o.eq(Cat(*dest_rsel))
         m.d.comb += self.src1_rsel_o.eq(Cat(*src1_rsel))
         m.d.comb += self.src2_rsel_o.eq(Cat(*src2_rsel))
 
-        print ("dest rsel len", len(dest_rsel), self.dest_rsel_o)
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
@@ -164,21 +161,20 @@ class FURegDepMatrix(Elaboratable):
                          dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
 
-        # accumulate and OR rsel bits (should be done in a separate module)
+        # accumulate rsel bits into read/write pending vectors.
         rd_pend_v = []
         wr_pend_v = []
-        for rn in range(self.n_reg_col):
-            rd_l = []
-            wr_l = []
-            for fu in range(self.n_fu_row):
-                dc = dm[fu]
-                rd_l.append(dc.rd_rsel_o[rn])
-                wr_l.append(dc.wr_rsel_o[rn])
-            rd_pend_v.append(Cat(*rd_l).bool())
-            wr_pend_v.append(Cat(*wr_l).bool())
+        for fu in range(self.n_fu_row):
+            dc = dm[fu]
+            rd_pend_v.append(dc.rd_rsel_o)
+            wr_pend_v.append(dc.wr_rsel_o)
+        rd_v = GlobalPending(self.n_reg_col, rd_pend_v)
+        wr_v = GlobalPending(self.n_reg_col, wr_pend_v)
+        m.submodules.rd_v = rd_v
+        m.submodules.wr_v = wr_v
 
-        m.d.comb += self.rd_rsel_o.eq(Cat(*rd_pend_v))
-        m.d.comb += self.wr_rsel_o.eq(Cat(*wr_pend_v))
+        m.d.comb += self.rd_rsel_o.eq(rd_v.g_pend_o)
+        m.d.comb += self.wr_rsel_o.eq(wr_v.g_pend_o)
 
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
