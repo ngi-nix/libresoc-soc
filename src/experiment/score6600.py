@@ -293,6 +293,22 @@ class Scoreboard(Elaboratable):
         m.d.comb += intpick1.writable_i[0:n_int_fus].eq(int_wr_o[0:n_int_fus])
 
         #---------
+        # Shadow Matrix
+        #---------
+
+        m.d.comb += shadows.issue_i.eq(fn_issue_o)
+        # these are explained in ShadowMatrix docstring, and are to be
+        # connected to the FUReg and FUFU Matrices, to get them to reset
+        # NOTE: do NOT connect these to the Computation Units.  The CUs need to
+        # do something slightly different (due to the revolving-door SRLatches)
+        m.d.comb += go_rd_rst.eq(go_rd_o | shadows.go_die_o)
+        m.d.comb += go_wr_rst.eq(go_wr_o | shadows.go_die_o)
+
+        # connect shadows / go_dies to Computation Units
+        m.d.comb += cu.shadown_i[0:n_int_fus].eq(shadows.shadown_o[0:n_int_fus])
+        m.d.comb += cu.go_die_i[0:n_int_fus].eq(shadows.go_die_o[0:n_int_fus])
+
+        #---------
         # Connect Register File(s)
         #---------
         print ("intregdeps wen len", len(intfus.dest_rsel_o))
