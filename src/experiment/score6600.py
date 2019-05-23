@@ -275,13 +275,14 @@ class Scoreboard(Elaboratable):
         # connect fu-fu matrix
         #---------
 
-        # Group Picker... done manually for now.  TODO: cat array of pick sigs
+        # Group Picker... done manually for now.
         go_rd_o = intpick1.go_rd_o
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
-        m.d.comb += go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus]) # rd
-        m.d.comb += go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus]) # wr
+        # NOTE: connect to the shadowed versions so that they can "die" (reset)
+        m.d.comb += go_rd_i[0:n_int_fus].eq(go_rd_rst[0:n_int_fus]) # rd
+        m.d.comb += go_wr_i[0:n_int_fus].eq(go_wr_rst[0:n_int_fus]) # wr
 
         # Connect Picker
         #---------
