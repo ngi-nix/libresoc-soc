@@ -16,23 +16,10 @@ class Shadow(Elaboratable):
         (once the predicate is known, which it may not be at instruction issue)
 
         Inputs
-
-        * :wid:         register file width
         * :shadow_wid:  number of shadow/fail/good/go_die sets
-        * :n_dests:     number of destination regfile(s) (index: rfile_sel_i)
-        * :wr_pend:     if true, writable observes the g_wr_pend_i vector
-                        otherwise observes g_rd_pend_i
 
         notes:
-
-        * dest_i / src1_i / src2_i are in *binary*, whereas...
-        * ...g_rd_pend_i / g_wr_pend_i and rd_pend_o / wr_pend_o are UNARY
-        * req_rel_i (request release) is the direct equivalent of pipeline
-                    "output valid" (valid_o)
-        * recover is a local python variable (actually go_die_o)
         * when shadow_wid = 0, recover and shadown are Consts (i.e. do nothing)
-        * wr_pend is set False for the majority of uses: however for
-          use in a STORE Function Unit it is set to True
     """
     def __init__(self, shadow_wid=0):
         self.shadow_wid = shadow_wid
@@ -94,6 +81,88 @@ class Shadow(Elaboratable):
         return list(self)
 
 
+class ShadowMatrix(Elaboratable):
+    """ Matrix of Shadow Functions.  One per FU.
+
+        Inputs
+        * :n_fus:       register file width
+        * :shadow_wid:  number of shadow/fail/good/go_die sets
+
+        Notes:
+
+        * Shadow enable/fail/good are all connected to all Shadow Functions
+          (incoming at the top)
+
+        * Output is an array of "shadow active" (schroedinger wires: neither
+          alive nor dead) and an array of "go die" signals, one per FU.
+
+        * the shadown must be connected to the Computation Unit's
+          write release request, preventing it (ANDing) from firing
+          (and thus preventing Writable.  this by the way being the
+           whole point of having the Shadow Matrix...)
+
+        * go_die_o must be connected to *both* the Computation Unit's
+          src-operand and result-operand latch resets, causing both
+          of them to reset.
+
+        * go_die_o also needs to be wired into the Dependency and Function
+          Unit Matrices by way of over-enabling (ORing) into Go_Read and
+          Go_Write, resetting every cell that is required to "die"
+    """
+    def __init__(self, n_fus, shadow_wid=0):
+        self.n_fus = n_fus
+        self.shadow_wid = shadow_wid
+
+        # inputs
+        self.issue_i = Signal(n_fus, reset_less=True)
+        self.shadow_i = Signal(shadow_wid, reset_less=True)
+        self.s_fail_i = Signal(shadow_wid, reset_less=True)
+        self.s_good_i = Signal(shadow_wid, reset_less=True)
+
+        # outputs
+        self.go_die_o = Signal(n_fus, reset_less=True)
+        self.shadown_o = Signal(n_fus, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        shadows = []
+        for i in range(self.n_fus):
+            sh = Shadow(self.shadow_wid)
+            setattr(m.submodules, "sh%d" % i, sh)
+            shadows.append(sh)
+
+        # connect shadow/fail/good to all shadows
+        for l in shadows:
+            m.d.comb += l.s_fail_i.eq(self.s_fail_i)
+            m.d.comb += l.s_good_i.eq(self.s_good_i)
+            m.d.comb += l.shadow_i.eq(self.shadow_i)
+
+        # connect all shadow outputs and issue input
+        issue_l = []
+        sho_l = []
+        rec_l = []
+        for l in shadows:
+            issue_l.append(l.issue_i)
+            sho_l.append(l.shadown_o)
+            rec_l.append(l.go_die_o)
+        m.d.comb += Cat(*issue_l).eq(self.issue_i)
+        m.d.comb += self.shadown_o.eq(Cat(*sho_l))
+        m.d.comb += self.go_die_o.eq(Cat(*rec_l))
+
+        return m
+
+    def __iter__(self):
+        yield self.issue_i
+        yield self.shadow_i
+        yield self.s_fail_i
+        yield self.s_good_i
+        yield self.go_die_o
+        yield self.shadown_o
+
+    def ports(self):
+        return list(self)
+
+
 def shadow_sim(dut):
     yield dut.dest_i.eq(1)
     yield dut.issue_i.eq(1)
@@ -117,7 +186,7 @@ def shadow_sim(dut):
     yield
 
 def test_shadow():
-    dut = Shadow(2)
+    dut = ShadowMatrix(4, 2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_shadow.il", "w") as f:
         f.write(vl)
