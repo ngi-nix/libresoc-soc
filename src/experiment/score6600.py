@@ -9,7 +9,7 @@ from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IntFPIssueUnit, RegDecode
-from scoreboard.shadow import ShadowMatrix
+from scoreboard.shadow import ShadowMatrix, WaWGrid
 
 from compalu import ComputationUnitNoDelay
 
@@ -127,6 +127,8 @@ class FunctionUnits(Elaboratable):
         self.req_rel_o = Signal(n_int_alus, reset_less=True)
         self.fn_issue_i = Signal(n_int_alus, reset_less=True)
 
+        # Note: FURegs wr_pend_o is also outputted from here, for use in WaWGrid
+
     def elaborate(self, platform):
         m = Module()
 
@@ -147,6 +149,7 @@ class FunctionUnits(Elaboratable):
 
         m.d.comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
         m.d.comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)
+        self.wr_pend_o = intregdeps.wr_pend_o # also output for use in WaWGrid
 
         m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
         m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
@@ -238,6 +241,13 @@ class Scoreboard(Elaboratable):
         go_rd_rst = Signal(n_int_fus, reset_less=True)
         go_wr_rst = Signal(n_int_fus, reset_less=True)
 
+        # Write-after-Write grid: selects one shadow to enable, based
+        # on which unit(s) have writes pending and the current instruction
+        # also needing to write
+        m.submodules.wawgrid = wawgrid = WaWGrid(n_int_fus, n_int_fus)
+        busy_prev = Signal(n_int_fus)
+        busy_curr = Signal(n_int_fus)
+
         #---------
         # ok start wiring things together...
         # "now hear de word of de looord... dem bones dem bones dem dryy bones"
@@ -314,6 +324,14 @@ class Scoreboard(Elaboratable):
         # instruction-order linked-list-like arrangement, using a bit-matrix
         # (instead of e.g. a ring buffer).
         # XXX TODO
+
+        # when written, the shadow can be cancelled (and was good)
+        m.d.comb += shadows.s_good_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
+
+        # work out the current-activated busy unit (by recording the old one)
+        with m.If(self.issue_o): # only update busy_prev if instruction issued
+            m.d.sync += busy_prev.eq(cu.busy_o)
+        m.d.comb += busy_curr.eq(~busy_prev & cu.busy_o)
 
         #---------
         # Connect Register File(s)

@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Cat, Array, Const, Elaboratable
+from nmigen import Module, Signal, Cat, Array, Const, Elaboratable, Repl
 from nmigen.lib.coding import Decoder
 
 from nmutil.latch import SRLatch, latchregister
@@ -161,6 +161,28 @@ class ShadowMatrix(Elaboratable):
 
     def ports(self):
         return list(self)
+
+
+class WaWGrid(Elaboratable):
+    """ An NxM grid-selector which raises a 2D bit selected by N and M
+    """
+
+    def __init__(self, n_fus, shadow_wid):
+        self.n_fus = n_fus
+        self.shadow_wid = shadow_wid
+
+        self.shadow_i = Signal(shadow_wid, reset_less=True)
+        self.fu_i = Signal(n_fus, reset_less=True)
+
+        self.waw_o = Array(Signal(shadow_wid, name="waw_o", reset_less=True) \
+                            for f in range(n_fus))
+
+    def elaborate(self, platform):
+        m = Module()
+        for i in range(self.n_fus):
+            v = Repl(self.fu_i[i], self.shadow_wid)
+            m.d.comb += self.waw_o[i].eq(v & self.shadow_i)
+        return m
 
 
 def shadow_sim(dut):
