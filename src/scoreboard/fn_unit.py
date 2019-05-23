@@ -5,7 +5,7 @@ from nmigen.lib.coding import Decoder
 
 from nmutil.latch import SRLatch, latchregister
 
-from .shadow_fn import ShadowFn
+from scoreboard.shadow import Shadow
 
 
 class FnUnit(Elaboratable):
@@ -84,39 +84,16 @@ class FnUnit(Elaboratable):
         m.submodules.dest_d = dest_d = Decoder(self.reg_width)
         m.submodules.src1_d = src1_d = Decoder(self.reg_width)
         m.submodules.src2_d = src2_d = Decoder(self.reg_width)
-        s_latches = []
-        for i in range(self.shadow_wid):
-            sh = ShadowFn()
-            setattr(m.submodules, "shadow%d" % i, sh)
-            s_latches.append(sh)
 
         # shadow / recover (optional: shadow_wid > 0)
+        m.submodules.shadow = shadow = Shadow(self.shadow_wid)
         if self.shadow_wid:
-            recover = self.go_die_o
-            shadown = Signal(reset_less=True)
-            i_l = []
-            fail_l = []
-            good_l = []
-            shi_l = []
-            sho_l = []
-            rec_l = []
-            # get list of latch signals. really must be a better way to do this
-            for l in s_latches:
-                i_l.append(l.issue_i)
-                shi_l.append(l.shadow_i)
-                fail_l.append(l.s_fail_i)
-                good_l.append(l.s_good_i)
-                sho_l.append(l.shadow_o)
-                rec_l.append(l.recover_o)
-            m.d.comb += Cat(*i_l).eq(self.issue_i)
-            m.d.comb += Cat(*fail_l).eq(self.s_fail_i)
-            m.d.comb += Cat(*good_l).eq(self.s_good_i)
-            m.d.comb += Cat(*shi_l).eq(self.shadow_i)
-            m.d.comb += shadown.eq(~(Cat(*sho_l).bool()))
-            m.d.comb += recover.eq(Cat(*rec_l).bool())
-        else:
-            shadown = Const(1)
-            recover = Const(0)
+            m.d.comb += shadow.issue_i.eq(self.issue_i)
+            m.d.comb += shadow.s_fail_i.eq(self.s_fail_i)
+            m.d.comb += shadow.s_good_i.eq(self.s_good_i)
+            m.d.comb += shadow.shadow_i.eq(self.shadow_i)
+        shadown = shadow.shadown_o
+        recover = shadow.go_die_o
 
         # selector
         xx_pend_o = self.xx_pend_o[self.rfile_sel_i]
@@ -126,7 +103,7 @@ class FnUnit(Elaboratable):
         for i in range(self.n_dests):
             m.d.comb += self.xx_pend_o[i].eq(0)  # initialise all array
             m.d.comb += self.writable_o[i].eq(0) # to zero
-            m.d.comb += self.readable_o[i].eq(0) # to zero
+        m.d.comb += self.readable_o.eq(0) # to zero
 
         # go_wr latch: reset on go_wr HI, set on issue
         m.d.comb += wr_l.s.eq(self.issue_i)
