@@ -69,10 +69,8 @@ class ComputationUnitNoDelay(Elaboratable):
         # shadow/go_die
         reset_w = Signal(reset_less=True)
         reset_r = Signal(reset_less=True)
-        #m.d.comb += reset_w.eq(self.go_wr_i)# | self.go_die_i)
-        #m.d.comb += reset_r.eq(self.go_rd_i)# | self.go_die_i)
-        reset_w = self.go_wr_i
-        reset_r = self.go_rd_i
+        m.d.comb += reset_w.eq(self.go_wr_i | self.go_die_i)
+        m.d.comb += reset_r.eq(self.go_rd_i | self.go_die_i)
 
         # This is fascinating and very important to observe that this
         # is in effect a "3-way revolving door".  At no time may all 3
@@ -98,6 +96,8 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
         m.d.comb += self.rd_rel_o.eq(src_l.q & opc_l.q) # src1/src2 req rel
 
+        # the counter is just for demo purposes, to get the ALUs of different
+        # types to take arbitrary completion times
         with m.If(opc_l.qn):
             m.d.sync += self.counter.eq(0)
         with m.If(req_l.qn & opc_l.q & (self.counter == 0)):
@@ -111,7 +111,7 @@ class ComputationUnitNoDelay(Elaboratable):
             m.d.sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
             # write req release out.  waits until shadow is dropped.
-            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q)# & self.shadown_i)
+            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q & self.shadown_i)
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
