@@ -9,6 +9,7 @@ from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IntFPIssueUnit, RegDecode
+from scoreboard.shadow import ShadowMatrix
 
 from compalu import ComputationUnitNoDelay
 
@@ -31,6 +32,8 @@ class CompUnits(Elaboratable):
         self.issue_i = Signal(n_units, reset_less=True)
         self.go_rd_i = Signal(n_units, reset_less=True)
         self.go_wr_i = Signal(n_units, reset_less=True)
+        self.shadown_i = Signal(n_units, reset_less=True)
+        self.go_die_i = Signal(n_units, reset_less=True)
         self.busy_o = Signal(n_units, reset_less=True)
         self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
@@ -64,9 +67,13 @@ class CompUnits(Elaboratable):
         busy_l = []
         req_rel_l = []
         rd_rel_l = []
+        shadow_l = []
+        godie_l = []
         for alu in int_alus:
             req_rel_l.append(alu.req_rel_o)
             rd_rel_l.append(alu.rd_rel_o)
+            shadow_l.append(alu.shadown_i)
+            godie_l.append(alu.go_die_i)
             go_wr_l.append(alu.go_wr_i)
             go_rd_l.append(alu.go_rd_i)
             issue_l.append(alu.issue_i)
@@ -74,7 +81,8 @@ class CompUnits(Elaboratable):
         m.d.comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
         m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
         m.d.comb += self.busy_o.eq(Cat(*busy_l))
-        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        #m.d.comb += Cat(*godie_l).eq(self.go_die_i)
+        #m.d.comb += Cat(*shadow_l).eq(self.shadown_i)
         m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
         m.d.comb += Cat(*issue_l).eq(self.issue_i)
 
@@ -203,6 +211,7 @@ class Scoreboard(Elaboratable):
         # Int ALUs and Comp Units
         n_int_alus = 4
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
+        m.d.comb += cu.shadown_i.eq(-1)
 
         # Int FUs
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
@@ -220,6 +229,11 @@ class Scoreboard(Elaboratable):
         m.submodules.regdecode = regdecode
         issueunit = IntFPIssueUnit(self.n_regs, n_int_fus, n_fp_fus)
         m.submodules.issueunit = issueunit
+
+        # Shadow Matrix.  currently only 1 branch
+        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, 1)
+        go_rd_rst = Signal(n_int_fus, reset_less=True)
+        go_wr_rst = Signal(n_int_fus, reset_less=True)
 
         #---------
         # ok start wiring things together...
@@ -382,11 +396,12 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(0)
 
-    for i in range(1000):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
-            val = randint(0, (1<<alusim.rwidth)-1) # 31+i*3
+            val = 31+i*3
+            val = randint(0, (1<<alusim.rwidth)-1)
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
