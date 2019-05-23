@@ -47,6 +47,8 @@ class ComputationUnitNoDelay(Elaboratable):
         self.go_rd_i = Signal(reset_less=True) # go read in
         self.go_wr_i = Signal(reset_less=True) # go write in
         self.issue_i = Signal(reset_less=True) # fn issue in
+        self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
+        self.go_die_i = Signal(reset_less=True) # go die (reset)
 
         self.oper_i = Signal(opwid, reset_less=True) # opcode in
         self.src1_i = Signal(rwid, reset_less=True) # oper1 in
@@ -64,21 +66,27 @@ class ComputationUnitNoDelay(Elaboratable):
         m.submodules.opc_l = opc_l = SRLatch(sync=False)
         m.submodules.req_l = req_l = SRLatch(sync=False)
 
+        # shadow/go_die
+        reset_w = Signal(reset_less=True)
+        reset_r = Signal(reset_less=True)
+        m.d.comb += reset_w.eq(self.go_wr_i | self.go_die_i)
+        m.d.comb += reset_r.eq(self.go_rd_i | self.go_die_i)
+
         # This is fascinating and very important to observe that this
         # is in effect a "3-way revolving door".  At no time may all 3
         # latches be set at the same time.
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
-        m.d.sync += opc_l.r.eq(self.go_wr_i) # XXX NOTE: INVERTED FROM book!
+        m.d.sync += opc_l.r.eq(reset_w)      # XXX NOTE: INVERTED FROM book!
 
         # src operand latch (not using go_wr_i)
         m.d.sync += src_l.s.eq(self.issue_i)
-        m.d.sync += src_l.r.eq(self.go_rd_i)
+        m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
         m.d.sync += req_l.s.eq(self.go_rd_i)
-        m.d.sync += req_l.r.eq(self.go_wr_i)
+        m.d.sync += req_l.r.eq(reset_w)
 
         # XXX
         # XXX NOTE: sync on req_rel_o and data_o due to simulation lock-up
@@ -100,7 +108,8 @@ class ComputationUnitNoDelay(Elaboratable):
         with m.If(self.counter > 1):
             m.d.sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
-            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q) # req release out
+            # write req release out.  waits until shadow is dropped.
+            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q & self.shadown_i)
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
