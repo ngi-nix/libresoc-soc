@@ -215,7 +215,6 @@ class Scoreboard(Elaboratable):
         # Int ALUs and Comp Units
         n_int_alus = 4
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
-        m.d.comb += cu.shadown_i.eq(-1)
         m.d.comb += cu.go_die_i.eq(0)
 
         # Int FUs
@@ -247,6 +246,7 @@ class Scoreboard(Elaboratable):
         m.submodules.wawgrid = wawgrid = WaWGrid(n_int_fus, n_int_fus)
         busy_prev = Signal(n_int_fus)
         busy_curr = Signal(n_int_fus)
+        busy_prevbit = Signal(n_int_fus)
 
         #---------
         # ok start wiring things together...
@@ -331,6 +331,16 @@ class Scoreboard(Elaboratable):
         # work out the current-activated busy unit (by recording the old one)
         m.d.sync += busy_prev.eq(cu.busy_o)
         m.d.comb += busy_curr.eq(~busy_prev & cu.busy_o)
+
+        # now the "2D-bit-array-linked-list" can be created, with the
+        # relationships of the previous and current instruction.
+        # *previous* instruction (busy_prev) shadows *current* instruction
+        #m.d.comb += wawgrid.shadow_i.eq(cu.busy_o & ~fn_issue_o)
+        #m.d.comb += wawgrid.fu_i.eq(fn_issue_o)
+
+        # and now we can connect the wawgrid to the shadow matrix.  whewww
+        for i in range(n_int_fus):
+            m.d.comb += shadows.shadow_i[i].eq(wawgrid.waw_o[i])
 
         #---------
         # Connect Register File(s)
@@ -438,7 +448,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(0)
 
-    for i in range(1):
+    for i in range(10):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
