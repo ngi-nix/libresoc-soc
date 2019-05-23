@@ -81,8 +81,9 @@ class CompUnits(Elaboratable):
         m.d.comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
         m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
         m.d.comb += self.busy_o.eq(Cat(*busy_l))
-        #m.d.comb += Cat(*godie_l).eq(self.go_die_i)
-        #m.d.comb += Cat(*shadow_l).eq(self.shadown_i)
+        m.d.comb += Cat(*godie_l).eq(self.go_die_i)
+        m.d.comb += Cat(*shadow_l).eq(self.shadown_i)
+        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
         m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
         m.d.comb += Cat(*issue_l).eq(self.issue_i)
 
@@ -212,6 +213,7 @@ class Scoreboard(Elaboratable):
         n_int_alus = 4
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
         m.d.comb += cu.shadown_i.eq(-1)
+        m.d.comb += cu.go_die_i.eq(0)
 
         # Int FUs
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
