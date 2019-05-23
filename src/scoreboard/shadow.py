@@ -117,10 +117,8 @@ class ShadowMatrix(Elaboratable):
         self.issue_i = Signal(n_fus, reset_less=True)
         self.shadow_i = Array(Signal(shadow_wid, name="sh_i", reset_less=True) \
                             for f in range(n_fus))
-        self.s_fail_i = Array(Signal(shadow_wid, name="f_i", reset_less=True) \
-                            for f in range(n_fus))
-        self.s_good_i = Array(Signal(shadow_wid, name="g_i", reset_less=True) \
-                            for f in range(n_fus))
+        self.s_fail_i = Signal(shadow_wid, reset_less=True)
+        self.s_good_i = Signal(shadow_wid, reset_less=True)
 
         # outputs
         self.go_die_o = Signal(n_fus, reset_less=True)
@@ -134,8 +132,9 @@ class ShadowMatrix(Elaboratable):
             setattr(m.submodules, "sh%d" % i, sh)
             shadows.append(sh)
             # connect shadow/fail/good to all shadows
-            m.d.comb += sh.s_fail_i.eq(self.s_fail_i[i])
-            m.d.comb += sh.s_good_i.eq(self.s_good_i[i])
+            m.d.comb += sh.s_fail_i.eq(self.s_fail_i)
+            m.d.comb += sh.s_good_i.eq(self.s_good_i)
+            # this one is the matrix (shadow enables)
             m.d.comb += sh.shadow_i.eq(self.shadow_i[i])
 
         # connect all shadow outputs and issue input
@@ -155,8 +154,8 @@ class ShadowMatrix(Elaboratable):
     def __iter__(self):
         yield self.issue_i
         yield from self.shadow_i
-        yield from self.s_fail_i
-        yield from self.s_good_i
+        yield self.s_fail_i
+        yield self.s_good_i
         yield self.go_die_o
         yield self.shadown_o
 
