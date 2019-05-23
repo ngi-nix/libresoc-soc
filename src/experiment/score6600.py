@@ -329,8 +329,7 @@ class Scoreboard(Elaboratable):
         m.d.comb += shadows.s_good_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
 
         # work out the current-activated busy unit (by recording the old one)
-        with m.If(self.issue_o): # only update busy_prev if instruction issued
-            m.d.sync += busy_prev.eq(cu.busy_o)
+        m.d.sync += busy_prev.eq(cu.busy_o)
         m.d.comb += busy_curr.eq(~busy_prev & cu.busy_o)
 
         #---------
