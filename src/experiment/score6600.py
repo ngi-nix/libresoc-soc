@@ -232,8 +232,9 @@ class Scoreboard(Elaboratable):
         issueunit = IntFPIssueUnit(self.n_regs, n_int_fus, n_fp_fus)
         m.submodules.issueunit = issueunit
 
-        # Shadow Matrix.  currently only 1 branch
-        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, 1)
+        # Shadow Matrix.  currently n_int_fus shadows, to be used for
+        # write-after-write hazards
+        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus)
         go_rd_rst = Signal(n_int_fus, reset_less=True)
         go_wr_rst = Signal(n_int_fus, reset_less=True)
 
@@ -308,6 +309,11 @@ class Scoreboard(Elaboratable):
         # connect shadows / go_dies to Computation Units
         m.d.comb += cu.shadown_i[0:n_int_fus].eq(shadows.shadown_o[0:n_int_fus])
         m.d.comb += cu.go_die_i[0:n_int_fus].eq(shadows.go_die_o[0:n_int_fus])
+
+        # ok connect first n_int_fu shadows to busy lines, to create an
+        # instruction-order linked-list-like arrangement, using a bit-matrix
+        # (instead of e.g. a ring buffer).
+        # XXX TODO
 
         #---------
         # Connect Register File(s)
