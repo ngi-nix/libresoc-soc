@@ -23,10 +23,13 @@ class ShadowFn(Elaboratable):
         m = Module()
         m.submodules.sl = sl = SRLatch(sync=False)
 
-        m.d.comb += sl.s.eq(self.shadow_i & self.issue_i)
+        cq = Signal() # resets to 0
+        m.d.sync += cq.eq(sl.q)
+
+        m.d.comb += sl.s.eq(self.shadow_i & self.issue_i & ~self.s_good_i)
         m.d.comb += sl.r.eq(self.s_good_i)
-        m.d.comb += self.recover_o.eq(sl.q & self.s_fail_i)
-        m.d.comb += self.shadow_o.eq(sl.q)
+        m.d.comb += self.recover_o.eq((cq | sl.q) & self.s_fail_i)
+        m.d.comb += self.shadow_o.eq((cq | sl.q))
 
         return m
 

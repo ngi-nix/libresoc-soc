@@ -59,7 +59,7 @@ class Shadow(Elaboratable):
                 good_l.append(l.s_good_i)
                 sho_l.append(l.shadow_o)
                 rec_l.append(l.recover_o)
-            m.d.comb += Cat(*i_l).eq(self.issue_i)
+            m.d.comb += Cat(*i_l).eq(Repl(self.issue_i, self.shadow_wid))
             m.d.comb += Cat(*fail_l).eq(self.s_fail_i)
             m.d.comb += Cat(*good_l).eq(self.s_good_i)
             m.d.comb += Cat(*shi_l).eq(self.shadow_i)

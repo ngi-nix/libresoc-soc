@@ -244,9 +244,7 @@ class Scoreboard(Elaboratable):
         # on which unit(s) have writes pending and the current instruction
         # also needing to write
         m.submodules.wawgrid = wawgrid = WaWGrid(n_int_fus, n_int_fus)
-        busy_prev = Signal(n_int_fus)
-        busy_curr = Signal(n_int_fus)
-        busy_prevbit = Signal(n_int_fus)
+        fn_issue_prev = Signal(n_int_fus)
 
         #---------
         # ok start wiring things together...
@@ -329,18 +327,20 @@ class Scoreboard(Elaboratable):
         m.d.comb += shadows.s_good_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
 
         # work out the current-activated busy unit (by recording the old one)
-        m.d.sync += busy_prev.eq(cu.busy_o)
-        m.d.comb += busy_curr.eq(~busy_prev & cu.busy_o)
+        with m.If(fn_issue_o): # only update prev bit if instruction issued
+            m.d.sync += fn_issue_prev.eq(fn_issue_o)
 
         # now the "2D-bit-array-linked-list" can be created, with the
         # relationships of the previous and current instruction.
-        # *previous* instruction (busy_prev) shadows *current* instruction
-        #m.d.comb += wawgrid.shadow_i.eq(cu.busy_o & ~fn_issue_o)
+        # *previous* instruction shadows *current* instruction
+        #m.d.comb += wawgrid.shadow_i.eq(fn_issue_prev & cu.busy_o & ~fn_issue_o)
         #m.d.comb += wawgrid.fu_i.eq(fn_issue_o)
 
         # and now we can connect the wawgrid to the shadow matrix.  whewww
         for i in range(n_int_fus):
-            m.d.comb += shadows.shadow_i[i].eq(wawgrid.waw_o[i])
+            m.d.comb += shadows.shadow_i[i].eq(\
+                        ~fn_issue_o & fn_issue_prev & cu.busy_o)
+            #m.d.comb += shadows.shadow_i[i].eq(wawgrid.waw_o[i])
 
         #---------
         # Connect Register File(s)
@@ -446,9 +446,9 @@ def print_reg(dut, rnums):
 
 def scoreboard_sim(dut, alusim):
 
-    yield dut.int_store_i.eq(0)
+    yield dut.int_store_i.eq(1)
 
-    for i in range(10):
+    for i in range(20):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
