@@ -603,7 +603,7 @@ def scoreboard_sim(dut, alusim):
                 #src2 = 3
                 #dest = 2
 
-                op = randint(0, 3)
+                op = randint(0, 7)
                 #op = i % 2
                 #op = 0
 
