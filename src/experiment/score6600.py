@@ -56,6 +56,8 @@ class CompUnits(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
 
         # Int ALUs
         add = ALU(self.rwid)
@@ -71,11 +73,11 @@ class CompUnits(Elaboratable):
         m.submodules.br1 = br1 = self.br1
         int_alus = [comp1, comp2, comp3, comp4, br1]
 
-        m.d.comb += comp1.oper_i.eq(Const(0, 2)) # op=add
-        m.d.comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
-        m.d.comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
-        m.d.comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
-        m.d.comb += br1.oper_i.eq(Const(0, 2)) # op=bgt
+        comb += comp1.oper_i.eq(Const(0, 2)) # op=add
+        comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
+        comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
+        comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
+        comb += br1.oper_i.eq(Const(0, 2)) # op=bgt
 
         go_rd_l = []
         go_wr_l = []
@@ -94,25 +96,25 @@ class CompUnits(Elaboratable):
             go_rd_l.append(alu.go_rd_i)
             issue_l.append(alu.issue_i)
             busy_l.append(alu.busy_o)
-        m.d.comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
-        m.d.comb += self.req_rel_o.eq(Cat(*req_rel_l))
-        m.d.comb += self.busy_o.eq(Cat(*busy_l))
-        m.d.comb += Cat(*godie_l).eq(self.go_die_i)
-        m.d.comb += Cat(*shadow_l).eq(self.shadown_i)
-        m.d.comb += Cat(*go_wr_l).eq(self.go_wr_i)
-        m.d.comb += Cat(*go_rd_l).eq(self.go_rd_i)
-        m.d.comb += Cat(*issue_l).eq(self.issue_i)
+        comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
+        comb += self.req_rel_o.eq(Cat(*req_rel_l))
+        comb += self.busy_o.eq(Cat(*busy_l))
+        comb += Cat(*godie_l).eq(self.go_die_i)
+        comb += Cat(*shadow_l).eq(self.shadown_i)
+        comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        comb += Cat(*go_rd_l).eq(self.go_rd_i)
+        comb += Cat(*issue_l).eq(self.issue_i)
 
         # connect data register input/output
 
         # merge (OR) all integer FU / ALU outputs to a single value
         # bit of a hack: treereduce needs a list with an item named "dest_o"
         dest_o = treereduce(int_alus)
-        m.d.comb += self.dest_o.eq(dest_o)
+        comb += self.dest_o.eq(dest_o)
 
         for i, alu in enumerate(int_alus):
-            m.d.comb += alu.src1_i.eq(self.src1_data_i)
-            m.d.comb += alu.src2_i.eq(self.src2_data_i)
+            comb += alu.src1_i.eq(self.src1_data_i)
+            comb += alu.src2_i.eq(self.src2_data_i)
 
         return m
 
@@ -147,6 +149,8 @@ class FunctionUnits(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
 
         n_int_fus = self.n_int_alus
 
@@ -157,34 +161,34 @@ class FunctionUnits(Elaboratable):
         intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
-        m.d.comb += self.g_int_rd_pend_o.eq(intregdeps.rd_rsel_o)
-        m.d.comb += self.g_int_wr_pend_o.eq(intregdeps.wr_rsel_o)
+        comb += self.g_int_rd_pend_o.eq(intregdeps.rd_rsel_o)
+        comb += self.g_int_wr_pend_o.eq(intregdeps.wr_rsel_o)
 
-        m.d.comb += intregdeps.rd_pend_i.eq(intregdeps.rd_rsel_o)
-        m.d.comb += intregdeps.wr_pend_i.eq(intregdeps.wr_rsel_o)
+        comb += intregdeps.rd_pend_i.eq(intregdeps.rd_rsel_o)
+        comb += intregdeps.wr_pend_i.eq(intregdeps.wr_rsel_o)
 
-        m.d.comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
-        m.d.comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)
+        comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
+        comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)
         self.wr_pend_o = intregdeps.wr_pend_o # also output for use in WaWGrid
 
-        m.d.comb += intfudeps.issue_i.eq(self.fn_issue_i)
-        m.d.comb += intfudeps.go_rd_i.eq(self.go_rd_i)
-        m.d.comb += intfudeps.go_wr_i.eq(self.go_wr_i)
-        m.d.comb += self.readable_o.eq(intfudeps.readable_o)
-        m.d.comb += self.writable_o.eq(intfudeps.writable_o)
+        comb += intfudeps.issue_i.eq(self.fn_issue_i)
+        comb += intfudeps.go_rd_i.eq(self.go_rd_i)
+        comb += intfudeps.go_wr_i.eq(self.go_wr_i)
+        comb += self.readable_o.eq(intfudeps.readable_o)
+        comb += self.writable_o.eq(intfudeps.writable_o)
 
         # Connect function issue / arrays, and dest/src1/src2
-        m.d.comb += intregdeps.dest_i.eq(self.dest_i)
-        m.d.comb += intregdeps.src1_i.eq(self.src1_i)
-        m.d.comb += intregdeps.src2_i.eq(self.src2_i)
+        comb += intregdeps.dest_i.eq(self.dest_i)
+        comb += intregdeps.src1_i.eq(self.src1_i)
+        comb += intregdeps.src2_i.eq(self.src2_i)
 
-        m.d.comb += intregdeps.go_rd_i.eq(self.go_rd_i)
-        m.d.comb += intregdeps.go_wr_i.eq(self.go_wr_i)
-        m.d.comb += intregdeps.issue_i.eq(self.fn_issue_i)
+        comb += intregdeps.go_rd_i.eq(self.go_rd_i)
+        comb += intregdeps.go_wr_i.eq(self.go_wr_i)
+        comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
-        m.d.comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o)
-        m.d.comb += self.src1_rsel_o.eq(intregdeps.src1_rsel_o)
-        m.d.comb += self.src2_rsel_o.eq(intregdeps.src2_rsel_o)
+        comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o)
+        comb += self.src1_rsel_o.eq(intregdeps.src1_rsel_o)
+        comb += self.src2_rsel_o.eq(intregdeps.src2_rsel_o)
 
         return m
 
@@ -224,14 +228,16 @@ class Scoreboard(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
 
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
 
         # dummy values
-        m.d.sync += self.branch_succ_i.eq(Const(0))
-        m.d.sync += self.branch_fail_i.eq(Const(0))
-        m.d.sync += self.branch_direction_o.eq(Const(0))
+        sync += self.branch_succ_i.eq(Const(0))
+        sync += self.branch_fail_i.eq(Const(0))
+        sync += self.branch_direction_o.eq(Const(0))
 
         # register ports
         int_dest = self.intregs.write_port("dest")
@@ -245,7 +251,7 @@ class Scoreboard(Elaboratable):
         # Int ALUs and Comp Units
         n_int_alus = 5
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
-        m.d.comb += cu.go_die_i.eq(0)
+        comb += cu.go_die_i.eq(0)
         bgt = cu.bgt # get at the branch computation unit
 
         # Int FUs
@@ -291,7 +297,7 @@ class Scoreboard(Elaboratable):
         #---------
         # Issue Unit is where it starts.  set up some in/outs for this module
         #---------
-        m.d.comb += [issueunit.i.store_i.eq(self.int_store_i),
+        comb += [issueunit.i.store_i.eq(self.int_store_i),
                      regdecode.dest_i.eq(self.int_dest_i),
                      regdecode.src1_i.eq(self.int_src1_i),
                      regdecode.src2_i.eq(self.int_src2_i),
@@ -302,19 +308,19 @@ class Scoreboard(Elaboratable):
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
         # connect global rd/wr pending vector (for WaW detection)
-        m.d.sync += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
+        sync += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        m.d.comb += intfus.dest_i.eq(regdecode.dest_o)
-        m.d.comb += intfus.src1_i.eq(regdecode.src1_o)
-        m.d.comb += intfus.src2_i.eq(regdecode.src2_o)
+        comb += intfus.dest_i.eq(regdecode.dest_o)
+        comb += intfus.src1_i.eq(regdecode.src1_o)
+        comb += intfus.src2_i.eq(regdecode.src2_o)
 
         fn_issue_o = issueunit.i.fn_issue_o
 
-        m.d.comb += intfus.fn_issue_i.eq(fn_issue_o)
-        m.d.comb += issueunit.i.busy_i.eq(cu.busy_o)
-        m.d.comb += self.busy_o.eq(cu.busy_o.bool())
+        comb += intfus.fn_issue_i.eq(fn_issue_o)
+        comb += issueunit.i.busy_i.eq(cu.busy_o)
+        comb += self.busy_o.eq(cu.busy_o.bool())
 
         #---------
         # connect fu-fu matrix
@@ -326,36 +332,36 @@ class Scoreboard(Elaboratable):
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        m.d.comb += go_rd_i[0:n_int_fus].eq(go_rd_rst[0:n_int_fus]) # rd
-        m.d.comb += go_wr_i[0:n_int_fus].eq(go_wr_rst[0:n_int_fus]) # wr
+        comb += go_rd_i[0:n_int_fus].eq(go_rd_rst[0:n_int_fus]) # rd
+        comb += go_wr_i[0:n_int_fus].eq(go_wr_rst[0:n_int_fus]) # wr
 
         # Connect Picker
         #---------
-        m.d.comb += intpick1.rd_rel_i[0:n_int_fus].eq(cu.rd_rel_o[0:n_int_fus])
-        m.d.comb += intpick1.req_rel_i[0:n_int_fus].eq(cu.req_rel_o[0:n_int_fus])
+        comb += intpick1.rd_rel_i[0:n_int_fus].eq(cu.rd_rel_o[0:n_int_fus])
+        comb += intpick1.req_rel_i[0:n_int_fus].eq(cu.req_rel_o[0:n_int_fus])
         int_rd_o = intfus.readable_o
         int_wr_o = intfus.writable_o
-        m.d.comb += intpick1.readable_i[0:n_int_fus].eq(int_rd_o[0:n_int_fus])
-        m.d.comb += intpick1.writable_i[0:n_int_fus].eq(int_wr_o[0:n_int_fus])
+        comb += intpick1.readable_i[0:n_int_fus].eq(int_rd_o[0:n_int_fus])
+        comb += intpick1.writable_i[0:n_int_fus].eq(int_wr_o[0:n_int_fus])
 
         #---------
         # Shadow Matrix
         #---------
 
-        m.d.comb += shadows.issue_i.eq(fn_issue_o)
+        comb += shadows.issue_i.eq(fn_issue_o)
         # these are explained in ShadowMatrix docstring, and are to be
         # connected to the FUReg and FUFU Matrices, to get them to reset
         # NOTE: do NOT connect these to the Computation Units.  The CUs need to
         # do something slightly different (due to the revolving-door SRLatches)
-        m.d.comb += go_rd_rst.eq(go_rd_o | shadows.go_die_o)
-        m.d.comb += go_wr_rst.eq(go_wr_o | shadows.go_die_o)
+        comb += go_rd_rst.eq(go_rd_o | shadows.go_die_o)
+        comb += go_wr_rst.eq(go_wr_o | shadows.go_die_o)
 
         #---------
         # NOTE; this setup is for the instruction order preservation...
 
         # connect shadows / go_dies to Computation Units
-        m.d.comb += cu.shadown_i[0:n_int_fus].eq(shadows.shadown_o[0:n_int_fus])
-        m.d.comb += cu.go_die_i[0:n_int_fus].eq(shadows.go_die_o[0:n_int_fus])
+        comb += cu.shadown_i[0:n_int_fus].eq(shadows.shadown_o[0:n_int_fus])
+        comb += cu.go_die_i[0:n_int_fus].eq(shadows.go_die_o[0:n_int_fus])
 
         # ok connect first n_int_fu shadows to busy lines, to create an
         # instruction-order linked-list-like arrangement, using a bit-matrix
@@ -363,60 +369,60 @@ class Scoreboard(Elaboratable):
         # XXX TODO
 
         # when written, the shadow can be cancelled (and was good)
-        m.d.comb += shadows.s_good_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
+        comb += shadows.s_good_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
 
         # work out the current-activated busy unit (by recording the old one)
         with m.If(fn_issue_o): # only update prev bit if instruction issued
-            m.d.sync += fn_issue_prev.eq(fn_issue_o)
+            sync += fn_issue_prev.eq(fn_issue_o)
 
         # *previous* instruction shadows *current* instruction, and, obviously,
         # if the previous is completed (!busy) don't cast the shadow!
-        m.d.comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
+        comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
         for i in range(n_int_fus):
-            m.d.comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
+            comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
 
         #---------
         # ... and this is for branch speculation.  it uses the extra bit
         # tacked onto the ShadowMatrix (hence shadow_wid=n_int_fus+1)
         # only needs to set shadow_i, s_fail_i and s_good_i
 
-        m.d.comb += shadows.s_good_i[n_int_fus].eq(bspec.good_o[i])
-        m.d.comb += shadows.s_fail_i[n_int_fus].eq(bspec.fail_o[i])
+        comb += shadows.s_good_i[n_int_fus].eq(bspec.good_o[i])
+        comb += shadows.s_fail_i[n_int_fus].eq(bspec.fail_o[i])
 
         with m.If(self.branch_succ_i | self.branch_fail_i):
             for i in range(n_int_fus):
-                m.d.comb +=  shadows.shadow_i[i][n_int_fus].eq(1)
+                comb +=  shadows.shadow_i[i][n_int_fus].eq(1)
 
         # finally, we need an indicator to the test infrastructure as to
         # whether the branch succeeded or failed, plus, link up to the
         # "recorder" of whether the instruction was under shadow or not
 
-        m.d.comb += bspec.issue_i.eq(fn_issue_o)
-        m.d.comb += bspec.good_i.eq(self.branch_succ_i)
-        m.d.comb += bspec.fail_i.eq(self.branch_fail_i)
+        comb += bspec.issue_i.eq(fn_issue_o)
+        comb += bspec.good_i.eq(self.branch_succ_i)
+        comb += bspec.fail_i.eq(self.branch_fail_i)
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
         with m.If(cu.br1.go_wr_i):
-            m.d.sync += self.branch_direction_o.eq(cu.br1.data_o+Const(1, 2))
-            m.d.comb += bspec.branch_i.eq(1)
+            sync += self.branch_direction_o.eq(cu.br1.data_o+Const(1, 2))
+            comb += bspec.branch_i.eq(1)
 
         #---------
         # Connect Register File(s)
         #---------
         print ("intregdeps wen len", len(intfus.dest_rsel_o))
-        m.d.comb += int_dest.wen.eq(intfus.dest_rsel_o)
-        m.d.comb += int_src1.ren.eq(intfus.src1_rsel_o)
-        m.d.comb += int_src2.ren.eq(intfus.src2_rsel_o)
+        comb += int_dest.wen.eq(intfus.dest_rsel_o)
+        comb += int_src1.ren.eq(intfus.src1_rsel_o)
+        comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
         # connect ALUs to regfule
-        m.d.comb += int_dest.data_i.eq(cu.dest_o)
-        m.d.comb += cu.src1_data_i.eq(int_src1.data_o)
-        m.d.comb += cu.src2_data_i.eq(int_src2.data_o)
+        comb += int_dest.data_i.eq(cu.dest_o)
+        comb += cu.src1_data_i.eq(int_src1.data_o)
+        comb += cu.src2_data_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        m.d.comb += cu.go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus])
-        m.d.comb += cu.go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
-        m.d.comb += cu.issue_i[0:n_int_fus].eq(fn_issue_o[0:n_int_fus])
+        comb += cu.go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus])
+        comb += cu.go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
+        comb += cu.issue_i[0:n_int_fus].eq(fn_issue_o[0:n_int_fus])
 
         return m
 
