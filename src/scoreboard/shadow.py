@@ -166,6 +166,68 @@ class ShadowMatrix(Elaboratable):
         return list(self)
 
 
+class BranchSpeculationRecord(Elaboratable):
+    """ A record of which function units will be cancelled and which
+        allowed to proceed, on a branch.
+
+        Whilst the input is a pair that says whether the instruction is
+        under the "success" branch shadow (good_i) or the "fail" shadow
+        (fail_i path), when the branch result is known, the "good" path
+        must be cancelled if "fail" occurred, and the "fail" path cancelled
+        if "good" occurred.
+
+        therefore, use "good|~fail" and "fail|~good" respectively as
+        output.
+    """
+
+    def __init__(self, n_fus):
+        self.n_fus = n_fus
+
+        # inputs
+        self.issue_i = Signal(n_fus, reset_less=True)
+        self.good_i = Signal(n_fus, reset_less=True)
+        self.fail_i = Signal(n_fus, reset_less=True)
+        self.branch_i = Signal(reset_less=True)
+
+        # outputs
+        self.good_o = Signal(n_fus, reset_less=True)
+        self.fail_o = Signal(n_fus, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        good_r = Signal(self.n_fus)
+        fail_r = Signal(self.n_fus)
+
+        # sigh, there's a way to do this without if statements, as pure
+        # ANDing and ORing...
+        for i in range(self.n_fus):
+            with m.If(self.branch_i):
+                m.d.sync += good_r[i].eq(0) # might be set if issue set as well
+                m.d.sync += fail_r[i].eq(0) # might be set if issue set as well
+            with m.If(self.issue_i[i]):
+                m.d.sync += good_r[i].eq(self.good_i[i])
+                m.d.sync += fail_r[i].eq(self.fail_i[i])
+
+        with m.If(self.branch_i):
+            m.d.comb += self.good_o.eq(good_r | ~fail_r)
+            m.d.comb += self.fail_o.eq(fail_r | ~good_r)
+
+        return m
+
+    def __iter__(self):
+        yield self.issue_i
+        yield self.good_i
+        yield self.fail_i
+        yield self.branch_i
+        yield self.good_o
+        yield self.fail_o
+
+    def ports(self):
+        return list(self)
+
+
+
 class WaWGrid(Elaboratable):
     """ An NxM grid-selector which raises a 2D bit selected by N and M
     """
@@ -214,6 +276,11 @@ def test_shadow():
     dut = ShadowMatrix(4, 2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_shadow.il", "w") as f:
+        f.write(vl)
+
+    dut = BranchSpeculationRecord(4)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_branchspecrecord.il", "w") as f:
         f.write(vl)
 
     run_simulation(dut, shadow_sim(dut), vcd_name='test_shadow.vcd')
