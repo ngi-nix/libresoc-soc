@@ -18,6 +18,7 @@ from nmutil.latch import SRLatch
 
 from random import randint
 
+
 class CompUnits(Elaboratable):
 
     def __init__(self, rwid, n_units):
@@ -194,14 +195,28 @@ class Scoreboard(Elaboratable):
         self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
         self.reg_enable_i = Signal(reset_less=True) # enable reg decode
 
+        # outputs
         self.issue_o = Signal(reset_less=True) # instruction was accepted
         self.busy_o = Signal(reset_less=True) # at least one CU is busy
+
+        # for branch speculation experiment.  branch_direction = 0 if
+        # the branch hasn't been met yet.  1 indicates "success", 2 is "fail"
+        # branch_succ and branch_fail are requests to have the current
+        # instruction be dependent on the branch unit "shadow" capability.
+        self.branch_succ_i = Signal(reset_less=True)
+        self.branch_fail_i = Signal(reset_less=True)
+        self.branch_direction_o = Signal(2, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
 
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
+
+        # dummy values
+        m.d.sync += self.branch_succ_i.eq(Const(0))
+        m.d.sync += self.branch_fail_i.eq(Const(0))
+        m.d.sync += self.branch_direction_o.eq(Const(0))
 
         # register ports
         int_dest = self.intregs.write_port("dest")
@@ -363,13 +378,9 @@ class Scoreboard(Elaboratable):
         yield self.int_src1_i
         yield self.int_src2_i
         yield self.issue_o
-        #yield from self.int_src1
-        #yield from self.int_dest
-        #yield from self.int_src1
-        #yield from self.int_src2
-        #yield from self.fp_dest
-        #yield from self.fp_src1
-        #yield from self.fp_src2
+        yield self.branch_succ_i
+        yield self.branch_fail_i
+        yield self.branch_direction_o
 
     def ports(self):
         return list(self)
@@ -378,6 +389,10 @@ IADD = 0
 ISUB = 1
 IMUL = 2
 ISHF = 3
+IBGE = 4
+IBLT = 5
+IBEQ = 6
+IBNE = 7
 
 class RegSim:
     def __init__(self, rwidth, nregs):
@@ -396,6 +411,14 @@ class RegSim:
             val = src1 * src2
         elif op == ISHF:
             val = src1 >> (src2 & maxbits)
+        elif op == IBGE:
+            val = int(src1 > src2)
+        elif op == IBLT:
+            val = int(src1 < src2)
+        elif op == IBEQ:
+            val = int(src1 == src2)
+        elif op == IBNE:
+            val = int(src1 != src2)
         val &= maxbits
         self.regs[dest] = val
 
@@ -416,7 +439,7 @@ class RegSim:
                 yield from self.dump(dut)
                 assert False
 
-def int_instr(dut, op, src1, src2, dest):
+def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
     for i in range(len(dut.int_insn_i)):
         yield dut.int_insn_i[i].eq(0)
     yield dut.int_dest_i.eq(dest)
@@ -424,6 +447,11 @@ def int_instr(dut, op, src1, src2, dest):
     yield dut.int_src2_i.eq(src2)
     yield dut.int_insn_i[op].eq(1)
     yield dut.reg_enable_i.eq(1)
+
+    # these indicate that the instruction is to be made shadow-dependent on
+    # (either) branch success or branch fail
+    yield dut.branch_fail_i.eq(branch_fail)
+    yield dut.branch_succ_i.eq(branch_success)
 
 
 def print_reg(dut, rnums):
@@ -435,7 +463,7 @@ def print_reg(dut, rnums):
     print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 
-def create_random_ops(n_ops):
+def create_random_ops(n_ops, shadowing=False):
     insts = []
     for i in range(n_ops):
         src1 = randint(1, dut.n_regs-1)
@@ -443,7 +471,10 @@ def create_random_ops(n_ops):
         dest = randint(1, dut.n_regs-1)
         op = randint(0, 3)
 
-        instrs.append((src1, src2, dest, op))
+        if shadowing:
+            instrs.append((src1, src2, dest, op, (False, False)))
+        else:
+            instrs.append((src1, src2, dest, op))
     return insts
 
 
@@ -492,20 +523,52 @@ def scoreboard_branch_sim(dut, alusim):
         branch_ok = create_random_ops(5)
         branch_fail = create_random_ops(5)
 
-        insts.append((src1, src2, (branch_ok, branch_fail), op))
+        insts.append((src1, src2, (branch_ok, branch_fail), op, (0, 0)))
 
-        # issue instruction(s), wait for issue to be free before proceeding
-        for i, (src1, src2, dest, op) in enumerate(instrs):
-
+        # issue instruction(s)
+        i = -1
+        instrs = insts
+        branch_direction = 0
+        while instrs:
+            i += 1
+            (src1, src2, dest, op, (shadow_on, shadow_off)) = insts.pop()
+            if branch_direction == 1 and shadow_off:
+                continue # branch was "success" and this is a "failed"... skip
+            if branch_direction == 2 and shadow_on:
+                continue # branch was "fail" and this is a "success"... skip
+            is_branch = op >= 4
+            if is_branch:
+                branch_ok, branch_fail = dest
+                dest = None
+                # ok zip up the branch success / fail instructions and
+                # drop them into the queue, one marked "to have branch success"
+                # the other to be marked shadow branch "fail".
+                # one out of each of these will be cancelled
+                for ok, fl in zip(branch_ok, branch_fail):
+                    instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
+                    instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
-            alusim.op(op, src1, src2, dest)
-            yield from int_instr(dut, op, src1, src2, dest)
+            yield from int_instr(dut, op, src1, src2, dest,
+                  shadow_on, shadow_off)
             yield
             yield from wait_for_issue(dut)
+            branch_direction = dut.branch_direction_o # which way branch went
 
         # wait for all instructions to stop before checking
         yield
         yield from wait_for_busy_clear(dut)
+
+        for (src1, src2, dest, op, (shadow_on, shadow_off)) in insts:
+            is_branch = op >= 4
+            if is_branch:
+                branch_ok, branch_fail = dest
+                dest = None
+            branch_res = alusim.op(op, src1, src2, dest)
+            if is_branch:
+                if branch_res:
+                    insts.append(branch_ok)
+                else:
+                    insts.append(branch_fail)
 
         # check status
         yield from alusim.check(dut)
@@ -604,7 +667,7 @@ def scoreboard_sim(dut, alusim):
 
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
             alusim.op(op, src1, src2, dest)
-            yield from int_instr(dut, op, src1, src2, dest)
+            yield from int_instr(dut, op, src1, src2, dest, 0, 0)
             yield
             yield from wait_for_issue(dut)
 
