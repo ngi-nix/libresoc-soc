@@ -9,7 +9,7 @@ from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IntFPIssueUnit, RegDecode
-from scoreboard.shadow import ShadowMatrix, WaWGrid
+from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 
 from compalu import ComputationUnitNoDelay
 
@@ -51,8 +51,9 @@ class CompUnits(Elaboratable):
         self.src1_data_i = Signal(rwid, reset_less=True)
         self.src2_data_i = Signal(rwid, reset_less=True)
 
-        # Branch ALU
+        # Branch ALU and CU
         self.bgt = BranchALU(self.rwid)
+        self.br1 = ComputationUnitNoDelay(self.rwid, 2, self.bgt)
 
     def elaborate(self, platform):
         m = Module()
@@ -68,7 +69,7 @@ class CompUnits(Elaboratable):
         m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
         m.submodules.comp3 = comp3 = ComputationUnitNoDelay(self.rwid, 2, mul)
         m.submodules.comp4 = comp4 = ComputationUnitNoDelay(self.rwid, 2, shf)
-        m.submodules.br1 = br1 = ComputationUnitNoDelay(self.rwid, 2, bgt)
+        m.submodules.br1 = br1 = self.br1
         int_alus = [comp1, comp2, comp3, comp4, br1]
 
         m.d.comb += comp1.oper_i.eq(Const(0, 2)) # op=add
@@ -269,12 +270,18 @@ class Scoreboard(Elaboratable):
         # write-after-write hazards.  NOTE: there is one extra for branches,
         # so the shadow width is increased by 1
         m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus+1)
+
         # combined go_rd/wr + go_die (go_die used to reset latches)
         go_rd_rst = Signal(n_int_fus, reset_less=True)
         go_wr_rst = Signal(n_int_fus, reset_less=True)
         # record previous instruction to cast shadow on current instruction
         fn_issue_prev = Signal(n_int_fus)
         prev_shadow = Signal(n_int_fus)
+
+        # Branch Speculation recorder.  tracks the success/fail state as
+        # each instruction is issued, so that when the branch occurs the
+        # allow/cancel can be issued as appropriate.
+        m.submodules.specrec = bspec = BranchSpeculationRecord(n_int_fus)
 
         #---------
         # ok start wiring things together...
@@ -344,6 +351,9 @@ class Scoreboard(Elaboratable):
         m.d.comb += go_rd_rst.eq(go_rd_o | shadows.go_die_o)
         m.d.comb += go_wr_rst.eq(go_wr_o | shadows.go_die_o)
 
+        #---------
+        # NOTE; this setup is for the instruction order preservation...
+
         # connect shadows / go_dies to Computation Units
         m.d.comb += cu.shadown_i[0:n_int_fus].eq(shadows.shadown_o[0:n_int_fus])
         m.d.comb += cu.go_die_i[0:n_int_fus].eq(shadows.go_die_o[0:n_int_fus])
@@ -365,6 +375,31 @@ class Scoreboard(Elaboratable):
         m.d.comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
         for i in range(n_int_fus):
             m.d.comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
+
+        #---------
+        # ... and this is for branch speculation.  it uses the extra bit
+        # tacked onto the ShadowMatrix (hence shadow_wid=n_int_fus+1)
+        # only needs to set shadow_i, s_fail_i and s_good_i
+
+        m.d.comb += shadows.s_good_i[n_int_fus].eq(bspec.good_o[i])
+        m.d.comb += shadows.s_fail_i[n_int_fus].eq(bspec.fail_o[i])
+
+        with m.If(self.branch_succ_i | self.branch_fail_i):
+            for i in range(n_int_fus):
+                m.d.comb +=  shadows.shadow_i[i][n_int_fus].eq(1)
+
+        # finally, we need an indicator to the test infrastructure as to
+        # whether the branch succeeded or failed, plus, link up to the
+        # "recorder" of whether the instruction was under shadow or not
+
+        m.d.comb += bspec.issue_i.eq(fn_issue_o)
+        m.d.comb += bspec.good_i.eq(self.branch_succ_i)
+        m.d.comb += bspec.fail_i.eq(self.branch_fail_i)
+        # branch is active (TODO: a better signal: this is over-using the
+        # go_write signal - actually the branch should not be "writing")
+        with m.If(cu.br1.go_wr_i):
+            m.d.sync += self.branch_direction_o.eq(cu.br1.data_o+Const(1, 2))
+            m.d.comb += bspec.branch_i.eq(1)
 
         #---------
         # Connect Register File(s)

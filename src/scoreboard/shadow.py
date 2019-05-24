@@ -203,15 +203,14 @@ class BranchSpeculationRecord(Elaboratable):
         # ANDing and ORing...
         for i in range(self.n_fus):
             with m.If(self.branch_i):
+                with m.If(good_r[i] | fail_r[i]):
+                    m.d.comb += self.good_o[i].eq(good_r[i] | ~fail_r[i])
+                    m.d.comb += self.fail_o[i].eq(fail_r[i] | ~good_r[i])
                 m.d.sync += good_r[i].eq(0) # might be set if issue set as well
                 m.d.sync += fail_r[i].eq(0) # might be set if issue set as well
             with m.If(self.issue_i[i]):
                 m.d.sync += good_r[i].eq(self.good_i[i])
                 m.d.sync += fail_r[i].eq(self.fail_i[i])
-
-        with m.If(self.branch_i):
-            m.d.comb += self.good_o.eq(good_r | ~fail_r)
-            m.d.comb += self.fail_o.eq(fail_r | ~good_r)
 
         return m
 
