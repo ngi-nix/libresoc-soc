@@ -680,18 +680,6 @@ def scoreboard_sim(dut, alusim):
         yield from alusim.dump(dut)
 
 
-def explore_groups(dut):
-    from nmigen.hdl.ir import Fragment
-    from nmigen.hdl.xfrm import LHSGroupAnalyzer
-
-    fragment = dut.elaborate(platform=None)
-    fr = Fragment.get(fragment, platform=None)
-
-    groups = LHSGroupAnalyzer()(fragment._statements)
-
-    print (groups)
-
-
 def test_scoreboard():
     dut = Scoreboard(16, 8)
     alusim = RegSim(16, 8)
