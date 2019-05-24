@@ -447,6 +447,28 @@ def create_random_ops(n_ops):
     return insts
 
 
+def wait_for_busy_clear(dut):
+    while True:
+        busy_o = yield dut.busy_o
+        if not busy_o:
+            break
+        print ("busy",)
+        yield
+
+
+def wait_for_issue(dut):
+    while True:
+        issue_o = yield dut.issue_o
+        if issue_o:
+            for i in range(len(dut.int_insn_i)):
+                yield dut.int_insn_i[i].eq(0)
+                yield dut.reg_enable_i.eq(0)
+            break
+        #print ("busy",)
+        #yield from print_reg(dut, [1,2,3])
+        yield
+    #yield from print_reg(dut, [1,2,3])
+
 def scoreboard_branch_sim(dut, alusim):
 
     yield dut.int_store_i.eq(1)
@@ -479,26 +501,11 @@ def scoreboard_branch_sim(dut, alusim):
             alusim.op(op, src1, src2, dest)
             yield from int_instr(dut, op, src1, src2, dest)
             yield
-            while True:
-                issue_o = yield dut.issue_o
-                if issue_o:
-                    for i in range(len(dut.int_insn_i)):
-                        yield dut.int_insn_i[i].eq(0)
-                        yield dut.reg_enable_i.eq(0)
-                    break
-                #print ("busy",)
-                #yield from print_reg(dut, [1,2,3])
-                yield
-            #yield from print_reg(dut, [1,2,3])
+            yield from wait_for_issue(dut)
 
         # wait for all instructions to stop before checking
         yield
-        while True:
-            busy_o = yield dut.busy_o
-            if not busy_o:
-                break
-            print ("busy",)
-            yield
+        yield from wait_for_busy_clear(dut)
 
         # check status
         yield from alusim.check(dut)
@@ -599,26 +606,11 @@ def scoreboard_sim(dut, alusim):
             alusim.op(op, src1, src2, dest)
             yield from int_instr(dut, op, src1, src2, dest)
             yield
-            while True:
-                issue_o = yield dut.issue_o
-                if issue_o:
-                    for i in range(len(dut.int_insn_i)):
-                        yield dut.int_insn_i[i].eq(0)
-                        yield dut.reg_enable_i.eq(0)
-                    break
-                #print ("busy",)
-                #yield from print_reg(dut, [1,2,3])
-                yield
-            #yield from print_reg(dut, [1,2,3])
+            yield from wait_for_issue(dut)
 
         # wait for all instructions to stop before checking
         yield
-        while True:
-            busy_o = yield dut.busy_o
-            if not busy_o:
-                break
-            print ("busy",)
-            yield
+        yield from wait_for_busy_clear(dut)
 
         # check status
         yield from alusim.check(dut)
