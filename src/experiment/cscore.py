@@ -161,8 +161,6 @@ class Scoreboard(Elaboratable):
         # connect Function Units
         #---------
 
-        # XXX sync, again to avoid an infinite loop.  is it the right thing???
-
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
         m.d.comb += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
         m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr

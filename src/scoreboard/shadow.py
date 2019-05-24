@@ -25,13 +25,16 @@ class Shadow(Elaboratable):
         self.shadow_wid = shadow_wid
 
         if shadow_wid:
+            # inputs
             self.issue_i = Signal(reset_less=True)
             self.shadow_i = Signal(shadow_wid, reset_less=True)
             self.s_fail_i = Signal(shadow_wid, reset_less=True)
             self.s_good_i = Signal(shadow_wid, reset_less=True)
+            # outputs
             self.go_die_o = Signal(reset_less=True)
             self.shadown_o = Signal(reset_less=True)
         else:
+            # outputs when no shadowing needed
             self.shadown_o = Const(1)
             self.go_die_o = Const(0)
 

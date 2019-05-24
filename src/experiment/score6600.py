@@ -237,14 +237,12 @@ class Scoreboard(Elaboratable):
         # Shadow Matrix.  currently n_int_fus shadows, to be used for
         # write-after-write hazards
         m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus)
+        # combined go_rd/wr + go_die (go_die used to reset latches)
         go_rd_rst = Signal(n_int_fus, reset_less=True)
         go_wr_rst = Signal(n_int_fus, reset_less=True)
-
-        # Write-after-Write grid: selects one shadow to enable, based
-        # on which unit(s) have writes pending and the current instruction
-        # also needing to write
-        m.submodules.wawgrid = wawgrid = WaWGrid(n_int_fus, n_int_fus)
+        # record previous instruction to cast shadow on current instruction
         fn_issue_prev = Signal(n_int_fus)
+        prev_shadow = Signal(n_int_fus)
 
         #---------
         # ok start wiring things together...
@@ -330,17 +328,11 @@ class Scoreboard(Elaboratable):
         with m.If(fn_issue_o): # only update prev bit if instruction issued
             m.d.sync += fn_issue_prev.eq(fn_issue_o)
 
-        # now the "2D-bit-array-linked-list" can be created, with the
-        # relationships of the previous and current instruction.
-        # *previous* instruction shadows *current* instruction
-        #m.d.comb += wawgrid.shadow_i.eq(fn_issue_prev & cu.busy_o & ~fn_issue_o)
-        #m.d.comb += wawgrid.fu_i.eq(fn_issue_o)
-
-        # and now we can connect the wawgrid to the shadow matrix.  whewww
+        # *previous* instruction shadows *current* instruction, and, obviously,
+        # if the previous is completed (!busy) don't cast the shadow!
+        m.d.comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
         for i in range(n_int_fus):
-            m.d.comb += shadows.shadow_i[i].eq(\
-                        ~fn_issue_o & fn_issue_prev & cu.busy_o)
-            #m.d.comb += shadows.shadow_i[i].eq(wawgrid.waw_o[i])
+            m.d.comb += shadows.shadow_i[i].eq(prev_shadow)
 
         #---------
         # Connect Register File(s)
@@ -448,7 +440,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(1)
 
-    for i in range(20):
+    for i in range(2):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
