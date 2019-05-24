@@ -416,7 +416,7 @@ class RegSim:
                 yield from self.dump(dut)
                 assert False
 
-def int_instr(dut, alusim, op, src1, src2, dest):
+def int_instr(dut, op, src1, src2, dest):
     for i in range(len(dut.int_insn_i)):
         yield dut.int_insn_i[i].eq(0)
     yield dut.int_dest_i.eq(dest)
@@ -424,7 +424,6 @@ def int_instr(dut, alusim, op, src1, src2, dest):
     yield dut.int_src2_i.eq(src2)
     yield dut.int_insn_i[op].eq(1)
     yield dut.reg_enable_i.eq(1)
-    alusim.op(op, src1, src2, dest)
 
 
 def print_reg(dut, rnums):
@@ -434,6 +433,76 @@ def print_reg(dut, rnums):
         rs.append("%x" % reg)
     rnums = map(str, rnums)
     print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
+
+
+def create_random_ops(n_ops):
+    insts = []
+    for i in range(n_ops):
+        src1 = randint(1, dut.n_regs-1)
+        src2 = randint(1, dut.n_regs-1)
+        dest = randint(1, dut.n_regs-1)
+        op = randint(0, 3)
+
+        instrs.append((src1, src2, dest, op))
+    return insts
+
+
+def scoreboard_branch_sim(dut, alusim):
+
+    yield dut.int_store_i.eq(1)
+
+    for i in range(2):
+
+        # set random values in the registers
+        for i in range(1, dut.n_regs):
+            val = 31+i*3
+            val = randint(0, (1<<alusim.rwidth)-1)
+            yield dut.intregs.regs[i].reg.eq(val)
+            alusim.setval(i, val)
+
+        # create some instructions: branches create a tree
+        insts = create_random_ops(5)
+
+        src1 = randint(1, dut.n_regs-1)
+        src2 = randint(1, dut.n_regs-1)
+        op = randint(4, 7)
+
+        branch_ok = create_random_ops(5)
+        branch_fail = create_random_ops(5)
+
+        insts.append((src1, src2, (branch_ok, branch_fail), op))
+
+        # issue instruction(s), wait for issue to be free before proceeding
+        for i, (src1, src2, dest, op) in enumerate(instrs):
+
+            print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
+            alusim.op(op, src1, src2, dest)
+            yield from int_instr(dut, op, src1, src2, dest)
+            yield
+            while True:
+                issue_o = yield dut.issue_o
+                if issue_o:
+                    for i in range(len(dut.int_insn_i)):
+                        yield dut.int_insn_i[i].eq(0)
+                        yield dut.reg_enable_i.eq(0)
+                    break
+                #print ("busy",)
+                #yield from print_reg(dut, [1,2,3])
+                yield
+            #yield from print_reg(dut, [1,2,3])
+
+        # wait for all instructions to stop before checking
+        yield
+        while True:
+            busy_o = yield dut.busy_o
+            if not busy_o:
+                break
+            print ("busy",)
+            yield
+
+        # check status
+        yield from alusim.check(dut)
+        yield from alusim.dump(dut)
 
 
 def scoreboard_sim(dut, alusim):
@@ -527,7 +596,8 @@ def scoreboard_sim(dut, alusim):
         for i, (src1, src2, dest, op) in enumerate(instrs):
 
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
-            yield from int_instr(dut, alusim, op, src1, src2, dest)
+            alusim.op(op, src1, src2, dest)
+            yield from int_instr(dut, op, src1, src2, dest)
             yield
             while True:
                 issue_o = yield dut.issue_o
