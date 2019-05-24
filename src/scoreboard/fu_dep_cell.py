@@ -20,16 +20,12 @@ class DepCell(Elaboratable):
         m = Module()
         m.submodules.l = l = SRLatch(sync=False) # async latch
 
-        # record current version of q in a sync'd register
-        cq = Signal() # resets to 0
-        m.d.sync += cq.eq(l.q)
-
         # reset on go HI, set on dest and issue
         m.d.comb += l.s.eq(self.issue_i & self.pend_i)
         m.d.comb += l.r.eq(self.go_i)
 
         # wait out
-        m.d.comb += self.wait_o.eq((cq | l.q) & ~self.issue_i)
+        m.d.comb += self.wait_o.eq(l.qlq & ~self.issue_i)
 
         return m
 

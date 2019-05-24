@@ -42,10 +42,6 @@ class DepCell(Elaboratable):
         m = Module()
         m.submodules.l = l = SRLatch(sync=False) # async latch
 
-        # record current version of q in a sync'd register
-        cq = Signal() # resets to 0
-        m.d.sync += cq.eq(l.q)
-
         # reset on go HI, set on dest and issue
         m.d.comb += l.s.eq(self.issue_i & self.reg_i)
         m.d.comb += l.r.eq(self.go_i)
@@ -54,9 +50,8 @@ class DepCell(Elaboratable):
         m.d.comb += self.fwd_o.eq((l.q) & self.hazard_i) # & ~self.issue_i)
 
         # Register Select. Activated on go read/write and *current* latch set
-        m.d.comb += self.rsel_o.eq((cq | l.q) & self.go_i)
-
-        m.d.comb += self.q_o.eq(cq | l.q)
+        m.d.comb += self.q_o.eq(l.qlq)
+        m.d.comb += self.rsel_o.eq(self.q_o & self.go_i)
 
         return m
 

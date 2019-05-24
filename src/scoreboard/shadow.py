@@ -3,8 +3,6 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Elaboratable, Repl
 from nmigen.lib.coding import Decoder
 
-from nmutil.latch import SRLatch, latchregister
-
 from scoreboard.shadow_fn import ShadowFn
 
 
