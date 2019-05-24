@@ -26,22 +26,33 @@ class CompUnits(Elaboratable):
 
             * :rwid:   bit width of register file(s) - both FP and INT
             * :n_units: number of ALUs
+
+            Note: bgt unit is returned so that a shadow unit can be created
+            for it
+
         """
         self.n_units = n_units
         self.rwid = rwid
 
+        # inputs
         self.issue_i = Signal(n_units, reset_less=True)
         self.go_rd_i = Signal(n_units, reset_less=True)
         self.go_wr_i = Signal(n_units, reset_less=True)
         self.shadown_i = Signal(n_units, reset_less=True)
         self.go_die_i = Signal(n_units, reset_less=True)
+
+        # outputs
         self.busy_o = Signal(n_units, reset_less=True)
         self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
 
+        # in/out register data (note: not register#, actual data)
         self.dest_o = Signal(rwid, reset_less=True)
         self.src1_data_i = Signal(rwid, reset_less=True)
         self.src2_data_i = Signal(rwid, reset_less=True)
+
+        # Branch ALU
+        self.bgt = BranchALU(self.rwid)
 
     def elaborate(self, platform):
         m = Module()
@@ -51,8 +62,7 @@ class CompUnits(Elaboratable):
         sub = ALU(self.rwid)
         mul = ALU(self.rwid)
         shf = ALU(self.rwid)
-        # Branch ALU
-        bgt = BranchALU(self.rwid)
+        bgt = self.bgt
 
         m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 2, add)
         m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
@@ -236,6 +246,7 @@ class Scoreboard(Elaboratable):
         n_int_alus = 5
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
         m.d.comb += cu.go_die_i.eq(0)
+        bgt = cu.bgt # get at the branch computation unit
 
         # Int FUs
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
@@ -255,8 +266,9 @@ class Scoreboard(Elaboratable):
         m.submodules.issueunit = issueunit
 
         # Shadow Matrix.  currently n_int_fus shadows, to be used for
-        # write-after-write hazards
-        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus)
+        # write-after-write hazards.  NOTE: there is one extra for branches,
+        # so the shadow width is increased by 1
+        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus+1)
         # combined go_rd/wr + go_die (go_die used to reset latches)
         go_rd_rst = Signal(n_int_fus, reset_less=True)
         go_wr_rst = Signal(n_int_fus, reset_less=True)
@@ -352,7 +364,7 @@ class Scoreboard(Elaboratable):
         # if the previous is completed (!busy) don't cast the shadow!
         m.d.comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
         for i in range(n_int_fus):
-            m.d.comb += shadows.shadow_i[i].eq(prev_shadow)
+            m.d.comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
 
         #---------
         # Connect Register File(s)
