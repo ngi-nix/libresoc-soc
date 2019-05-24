@@ -18,7 +18,7 @@ from nmutil.latch import SRLatch, latchregister
       The src1 and src2 registers and the operand can be latched in
       at this point
 
-    * Read request is set, which is ackowledged through the Scoreboard
+    * Read request is set, which is acknowledged through the Scoreboard
       to the priority picker, which generates (one and only one) Go_Read
       at a time.  One of those will (eventually) be this Computation Unit.
 
