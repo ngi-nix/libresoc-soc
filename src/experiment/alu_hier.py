@@ -1,5 +1,8 @@
 from nmigen import Elaboratable, Signal, Module, Const
 from nmigen.cli import main
+from nmigen.cli import verilog, rtlil
+
+import operator
 
 
 class Adder(Elaboratable):
@@ -78,17 +81,82 @@ class ALU(Elaboratable):
                 mod.b.eq(self.b),
             ]
         with m.Switch(self.op):
-            with m.Case(0):
-                m.d.comb += self.o.eq(add.o)
-            with m.Case(1):
-                m.d.comb += self.o.eq(sub.o)
-            with m.Case(2):
-                m.d.comb += self.o.eq(mul.o)
-            with m.Case(3):
-                m.d.comb += self.o.eq(shf.o)
+            for i, mod in enumerate([add, sub, mul, shf]):
+                with m.Case(i):
+                    m.d.comb += self.o.eq(mod.o)
         return m
+
+    def __iter__(self):
+        yield self.op
+        yield self.a
+        yield self.b
+        yield self.o
+
+    def ports(self):
+        return list(self)
+
+
+class BranchOp(Elaboratable):
+    def __init__(self, width, op):
+        self.a   = Signal(width)
+        self.b   = Signal(width)
+        self.o   = Signal(width)
+        self.op = op
+
+    def elaborate(self, platform):
+        m = Module()
+        m.d.comb += self.o.eq(self.op(self.a, self.b))
+        return m
+
+
+class BranchALU(Elaboratable):
+    def __init__(self, width):
+        self.op  = Signal(2)
+        self.a   = Signal(width)
+        self.b   = Signal(width)
+        self.o   = Signal(width)
+        self.width = width
+
+    def elaborate(self, platform):
+        m = Module()
+        bge = BranchOp(self.width, operator.ge)
+        blt = BranchOp(self.width, operator.lt)
+        beq = BranchOp(self.width, operator.eq)
+        bne = BranchOp(self.width, operator.ne)
+
+        m.submodules.bge = bge
+        m.submodules.blt = blt
+        m.submodules.beq = beq
+        m.submodules.bne = bne
+        for mod in [bge, blt, beq, bne]:
+            m.d.comb += [
+                mod.a.eq(self.a),
+                mod.b.eq(self.b),
+            ]
+        with m.Switch(self.op):
+            for i, mod in enumerate([bge, blt, beq, bne]):
+                with m.Case(i):
+                    m.d.comb += self.o.eq(mod.o)
+        return m
+
+    def __iter__(self):
+        yield self.op
+        yield self.a
+        yield self.b
+        yield self.o
+
+    def ports(self):
+        return list(self)
 
 
 if __name__ == "__main__":
     alu = ALU(width=16)
-    main(alu, ports=[alu.op, alu.a, alu.b, alu.o])
+    vl = rtlil.convert(alu, ports=alu.ports())
+    with open("test_alu.il", "w") as f:
+        f.write(vl)
+
+    alu = BranchALU(width=16)
+    vl = rtlil.convert(alu, ports=alu.ports())
+    with open("test_branch_alu.il", "w") as f:
+        f.write(vl)
+
