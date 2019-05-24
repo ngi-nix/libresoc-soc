@@ -234,11 +234,6 @@ class Scoreboard(Elaboratable):
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
 
-        # dummy values
-        sync += self.branch_succ_i.eq(Const(0))
-        sync += self.branch_fail_i.eq(Const(0))
-        sync += self.branch_direction_o.eq(Const(0))
-
         # register ports
         int_dest = self.intregs.write_port("dest")
         int_src1 = self.intregs.read_port("src1")
