@@ -105,6 +105,8 @@ class ComputationUnitNoDelay(Elaboratable):
                 m.d.sync += self.counter.eq(5)
             with m.Elif(self.oper_i == 3): # SHIFT to take 7
                 m.d.sync += self.counter.eq(7)
+            with m.Elif(counter >= 4): # Branches to take 6 (to test shadow)
+                m.d.sync += self.counter.eq(6)
             with m.Else(): # ADD/SUB to take 2
                 m.d.sync += self.counter.eq(2)
         with m.If(self.counter > 1):
