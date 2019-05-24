@@ -515,18 +515,18 @@ def print_reg(dut, rnums):
     print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 
-def create_random_ops(n_ops, shadowing=False):
+def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
     insts = []
     for i in range(n_ops):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         dest = randint(1, dut.n_regs-1)
-        op = randint(0, 3)
+        op = randint(0, max_opnums)
 
         if shadowing:
-            instrs.append((src1, src2, dest, op, (False, False)))
+            insts.append((src1, src2, dest, op, (False, False)))
         else:
-            instrs.append((src1, src2, dest, op))
+            insts.append((src1, src2, dest, op))
     return insts
 
 
@@ -566,14 +566,14 @@ def scoreboard_branch_sim(dut, alusim):
             alusim.setval(i, val)
 
         # create some instructions: branches create a tree
-        insts = create_random_ops(5)
+        insts = create_random_ops(dut, 5)
 
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
         op = randint(4, 7)
 
-        branch_ok = create_random_ops(5)
-        branch_fail = create_random_ops(5)
+        branch_ok = create_random_ops(dut, 5)
+        branch_fail = create_random_ops(dut, 5)
 
         insts.append((src1, src2, (branch_ok, branch_fail), op, (0, 0)))
 
@@ -643,23 +643,7 @@ def scoreboard_sim(dut, alusim):
         # create some instructions (some random, some regression tests)
         instrs = []
         if True:
-            for i in range(10):
-                src1 = randint(1, dut.n_regs-1)
-                src2 = randint(1, dut.n_regs-1)
-                while True:
-                    dest = randint(1, dut.n_regs-1)
-                    break
-                    if dest not in [src1, src2]:
-                        break
-                #src1 = 2
-                #src2 = 3
-                #dest = 2
-
-                op = randint(0, 4)
-                #op = i % 2
-                #op = 0
-
-                instrs.append((src1, src2, dest, op))
+            instrs = create_random_ops(dut, 10, False, 4)
 
         if False:
             instrs.append((2, 3, 3, 0))
