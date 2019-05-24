@@ -27,7 +27,7 @@ class ShadowFn(Elaboratable):
         m.d.sync += cq.eq(sl.q)
 
         m.d.comb += sl.s.eq(self.shadow_i & self.issue_i & ~self.s_good_i)
-        m.d.comb += sl.r.eq(self.s_good_i)
+        m.d.comb += sl.r.eq(self.s_good_i | (self.issue_i & ~self.shadow_i))
         m.d.comb += self.recover_o.eq((cq | sl.q) & self.s_fail_i)
         m.d.comb += self.shadow_o.eq((cq | sl.q))
 
