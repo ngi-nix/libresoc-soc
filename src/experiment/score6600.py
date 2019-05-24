@@ -13,7 +13,7 @@ from scoreboard.shadow import ShadowMatrix, WaWGrid
 
 from compalu import ComputationUnitNoDelay
 
-from alu_hier import ALU
+from alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
 
 from random import randint
@@ -51,16 +51,21 @@ class CompUnits(Elaboratable):
         sub = ALU(self.rwid)
         mul = ALU(self.rwid)
         shf = ALU(self.rwid)
+        # Branch ALU
+        bgt = BranchALU(self.rwid)
+
         m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 2, add)
         m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
         m.submodules.comp3 = comp3 = ComputationUnitNoDelay(self.rwid, 2, mul)
         m.submodules.comp4 = comp4 = ComputationUnitNoDelay(self.rwid, 2, shf)
-        int_alus = [comp1, comp2, comp3, comp4]
+        m.submodules.br1 = br1 = ComputationUnitNoDelay(self.rwid, 2, bgt)
+        int_alus = [comp1, comp2, comp3, comp4, br1]
 
         m.d.comb += comp1.oper_i.eq(Const(0, 2)) # op=add
         m.d.comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
         m.d.comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
         m.d.comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
+        m.d.comb += br1.oper_i.eq(Const(0, 2)) # op=bgt
 
         go_rd_l = []
         go_wr_l = []
@@ -228,7 +233,7 @@ class Scoreboard(Elaboratable):
         fp_src2 = self.fpregs.read_port("src2")
 
         # Int ALUs and Comp Units
-        n_int_alus = 4
+        n_int_alus = 5
         m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
         m.d.comb += cu.go_die_i.eq(0)
 
@@ -389,7 +394,7 @@ IADD = 0
 ISUB = 1
 IMUL = 2
 ISHF = 3
-IBGE = 4
+IBGT = 4
 IBLT = 5
 IBEQ = 6
 IBNE = 7
@@ -401,8 +406,8 @@ class RegSim:
 
     def op(self, op, src1, src2, dest):
         maxbits = (1 << self.rwidth) - 1
-        src1 = self.regs[src1]
-        src2 = self.regs[src2]
+        src1 = self.regs[src1] & maxbits
+        src2 = self.regs[src2] & maxbits
         if op == IADD:
             val = src1 + src2
         elif op == ISUB:
@@ -411,7 +416,7 @@ class RegSim:
             val = src1 * src2
         elif op == ISHF:
             val = src1 >> (src2 & maxbits)
-        elif op == IBGE:
+        elif op == IBGT:
             val = int(src1 > src2)
         elif op == IBLT:
             val = int(src1 < src2)
@@ -579,7 +584,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(1)
 
-    for i in range(2):
+    for i in range(20):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -603,7 +608,7 @@ def scoreboard_sim(dut, alusim):
                 #src2 = 3
                 #dest = 2
 
-                op = randint(0, 7)
+                op = randint(0, 4)
                 #op = i % 2
                 #op = 0
 

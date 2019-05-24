@@ -1,4 +1,4 @@
-from nmigen import Elaboratable, Signal, Module, Const
+from nmigen import Elaboratable, Signal, Module, Const, Mux
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 
@@ -105,7 +105,7 @@ class BranchOp(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += self.o.eq(self.op(self.a, self.b))
+        m.d.comb += self.o.eq(Mux(self.op(self.a, self.b), 1, 0))
         return m
 
 
@@ -119,22 +119,22 @@ class BranchALU(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        bge = BranchOp(self.width, operator.ge)
+        bgt = BranchOp(self.width, operator.gt)
         blt = BranchOp(self.width, operator.lt)
         beq = BranchOp(self.width, operator.eq)
         bne = BranchOp(self.width, operator.ne)
 
-        m.submodules.bge = bge
+        m.submodules.bgt = bgt
         m.submodules.blt = blt
         m.submodules.beq = beq
         m.submodules.bne = bne
-        for mod in [bge, blt, beq, bne]:
+        for mod in [bgt, blt, beq, bne]:
             m.d.comb += [
                 mod.a.eq(self.a),
                 mod.b.eq(self.b),
             ]
         with m.Switch(self.op):
-            for i, mod in enumerate([bge, blt, beq, bne]):
+            for i, mod in enumerate([bgt, blt, beq, bne]):
                 with m.Case(i):
                     m.d.comb += self.o.eq(mod.o)
         return m
