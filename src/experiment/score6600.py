@@ -3,7 +3,6 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
 from regfile.regfile import RegFileArray, treereduce
-from scoreboard.fn_unit import IntFnUnit, FPFnUnit, LDFnUnit, STFnUnit
 from scoreboard.fu_fu_matrix import FUFUDepMatrix
 from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
