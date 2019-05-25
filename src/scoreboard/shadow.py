@@ -207,23 +207,14 @@ class BranchSpeculationRecord(Elaboratable):
                 m.d.sync += good_r[i].eq(good_r[i] | self.good_i[i])
                 m.d.sync += fail_r[i].eq(fail_r[i] | self.fail_i[i])
             with m.If(self.br_i):
-                # we expected fail, return OK that fail was EXPECTED... OR...
-                # we expected good, return OK that good was EXPECTED
-                good = Signal(reset_less=True)
-                fail = Signal(reset_less=True)
-                with m.If(self.br_ok_i):
-                    m.d.comb += good.eq(good_r[i])
-                    m.d.comb += fail.eq(fail_r[i])
-                with m.Else():
-                    m.d.comb += good.eq(~good_r[i])
-                    m.d.comb += fail.eq(~fail_r[i])
-                # ... but only set these where a good or fail *is* expected...
                 with m.If(good_r[i]):
+                    # we expected good, return OK that good was EXPECTED
                     m.d.comb += self.match_g_o[i].eq(self.br_ok_i)
                     m.d.comb += self.match_f_o[i].eq(~self.br_ok_i)
                 with m.If(fail_r[i]):
-                    m.d.comb += self.match_f_o[i].eq(~self.br_ok_i)
-                    m.d.comb += self.match_g_o[i].eq(self.br_ok_i)
+                    # we expected fail, return OK that fail was EXPECTED
+                    m.d.comb += self.match_g_o[i].eq(~self.br_ok_i)
+                    m.d.comb += self.match_f_o[i].eq(self.br_ok_i)
                 m.d.sync += good_r[i].eq(0) # might be set if issue set as well
                 m.d.sync += fail_r[i].eq(0) # might be set if issue set as well
 

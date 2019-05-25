@@ -16,6 +16,7 @@ from alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
 
 from random import randint, seed
+from copy import deepcopy
 
 
 class CompUnits(Elaboratable):
@@ -392,7 +393,9 @@ class Scoreboard(Elaboratable):
 
         # instruction being issued (fn_issue_o) has a shadow cast by the branch
         with m.If(self.branch_succ_i | self.branch_fail_i):
-            comb += bshadow.shadow_i[fn_issue_o][0].eq(1)
+            for i in range(n_int_fus):
+                with m.If(fn_issue_o & (Const(1<<i))):
+                    comb += bshadow.shadow_i[i][0].eq(1)
 
         # finally, we need an indicator to the test infrastructure as to
         # whether the branch succeeded or failed, plus, link up to the
@@ -490,9 +493,11 @@ class RegSim:
         elif op == IBNE:
             val = int(src1 != src2)
         val &= maxbits
-        self.regs[dest] = val
+        self.setval(dest, val)
+        return val
 
     def setval(self, dest, val):
+        print ("sim setval", dest, hex(val))
         self.regs[dest] = val
 
     def dump(self, dut):
@@ -576,7 +581,7 @@ def scoreboard_branch_sim(dut, alusim):
 
     yield dut.int_store_i.eq(1)
 
-    for i in range(2):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -586,7 +591,7 @@ def scoreboard_branch_sim(dut, alusim):
             alusim.setval(i, val)
 
         # create some instructions: branches create a tree
-        insts = create_random_ops(dut, 1, True)
+        insts = create_random_ops(dut, 0, True)
 
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
@@ -598,13 +603,15 @@ def scoreboard_branch_sim(dut, alusim):
 
         insts.append((src1, src2, (branch_ok, branch_fail), op, (0, 0)))
 
+        siminsts = deepcopy(insts)
+
         # issue instruction(s)
         i = -1
         instrs = insts
         branch_direction = 0
         while instrs:
             i += 1
-            (src1, src2, dest, op, (shadow_on, shadow_off)) = insts.pop()
+            (src1, src2, dest, op, (shadow_on, shadow_off)) = insts.pop(0)
             if branch_direction == 1 and shadow_off:
                 continue # branch was "success" and this is a "failed"... skip
             if branch_direction == 2 and shadow_on:
@@ -612,7 +619,7 @@ def scoreboard_branch_sim(dut, alusim):
             is_branch = op >= 4
             if is_branch:
                 branch_ok, branch_fail = dest
-                dest = -1
+                dest = src2
                 # ok zip up the branch success / fail instructions and
                 # drop them into the queue, one marked "to have branch success"
                 # the other to be marked shadow branch "fail".
@@ -620,9 +627,10 @@ def scoreboard_branch_sim(dut, alusim):
                 for ok, fl in zip(branch_ok, branch_fail):
                     instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
                     instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
-            print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
+            print ("instr %d: (%d, %d, %d, %d, %d, %d)" % \
+                            (i, src1, src2, dest, op, shadow_on, shadow_off))
             yield from int_instr(dut, op, src1, src2, dest,
-                  shadow_on, shadow_off)
+                                 shadow_on, shadow_off)
             yield
             yield from wait_for_issue(dut)
             branch_direction = yield dut.branch_direction_o # way branch went
@@ -631,17 +639,20 @@ def scoreboard_branch_sim(dut, alusim):
         yield
         yield from wait_for_busy_clear(dut)
 
-        for (src1, src2, dest, op, (shadow_on, shadow_off)) in insts:
+        i = -1
+        for (src1, src2, dest, op, (shadow_on, shadow_off)) in siminsts:
+            i += 1
             is_branch = op >= 4
             if is_branch:
                 branch_ok, branch_fail = dest
-                dest = None
+                dest = src2
+            print ("sim %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
             branch_res = alusim.op(op, src1, src2, dest)
             if is_branch:
                 if branch_res:
-                    insts.append(branch_ok)
+                    siminsts += branch_ok
                 else:
-                    insts.append(branch_fail)
+                    siminsts += branch_fail
 
         # check status
         yield from alusim.check(dut)
