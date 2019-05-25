@@ -12,6 +12,7 @@ class DepCell(Elaboratable):
         self.pend_i = Signal(reset_less=True)    # pending bit in (left)
         self.issue_i = Signal(reset_less=True)   # Issue in (top)
         self.go_i = Signal(reset_less=True)      # Go read/write in (left)
+        self.die_i = Signal(reset_less=True)     # Go die in (left)
 
         # wait
         self.wait_o = Signal(reset_less=True)  # wait out (right)
@@ -22,7 +23,7 @@ class DepCell(Elaboratable):
 
         # reset on go HI, set on dest and issue
         m.d.comb += l.s.eq(self.issue_i & self.pend_i)
-        m.d.comb += l.r.eq(self.go_i)
+        m.d.comb += l.r.eq(self.go_i | self.die_i)
 
         # wait out
         m.d.comb += self.wait_o.eq(l.qlq & ~self.issue_i)
@@ -33,6 +34,7 @@ class DepCell(Elaboratable):
         yield self.pend_i
         yield self.issue_i
         yield self.go_i
+        yield self.die_i
         yield self.wait_o
 
     def ports(self):
@@ -50,6 +52,7 @@ class FUDependenceCell(Elaboratable):
 
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
+        self.go_die_i = Signal(reset_less=True) # Go Die in (left)
 
         # outputs (latched rd/wr wait)
         self.rd_wait_o = Signal(reset_less=True)   # read waiting out (right)
@@ -63,6 +66,7 @@ class FUDependenceCell(Elaboratable):
         # connect issue
         for c in [rd_c, wr_c]:
             m.d.comb += c.issue_i.eq(self.issue_i)
+            m.d.comb += c.die_i.eq(self.go_die_i)
 
         # connect go_rd / go_wr 
         m.d.comb += wr_c.go_i.eq(self.go_wr_i)
@@ -84,6 +88,7 @@ class FUDependenceCell(Elaboratable):
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
+        yield self.go_die_i
         yield self.rd_wait_o
         yield self.wr_wait_o
                 

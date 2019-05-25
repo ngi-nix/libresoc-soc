@@ -25,6 +25,7 @@ class FUFUDepMatrix(Elaboratable):
 
         self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
+        self.go_die_i = Signal(n_fu_row, reset_less=True) # Go Die in (left)
 
         # for Function Unit Readable/Writable (horizontal)
         self.readable_o = Signal(n_fu_col, reset_less=True) # readable (bot)
@@ -98,14 +99,17 @@ class FUFUDepMatrix(Elaboratable):
         for y in range(self.n_fu_row):
             go_rd_i = []
             go_wr_i = []
+            go_die_i = []
             for x in range(self.n_fu_col):
                 dc = dm[x][y]
                 # accumulate cell go_rd/go_wr
                 go_rd_i.append(dc.go_rd_i)
                 go_wr_i.append(dc.go_wr_i)
+                go_die_i.append(dc.go_die_i)
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
                          Cat(*go_wr_i).eq(self.go_wr_i),
+                         Cat(*go_die_i).eq(self.go_die_i),
                         ]
 
         # ---

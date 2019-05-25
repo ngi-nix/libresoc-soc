@@ -42,9 +42,10 @@ class FURegDepMatrix(Elaboratable):
         self.wr_rsel_o = Signal(n_reg_col, reset_less=True) # wr pending (bot)
         self.rd_rsel_o = Signal(n_reg_col, reset_less=True) # rd pending (bot)
 
-        self.issue_i = Signal(n_fu_row, reset_less=True)    # Issue in (top)
-        self.go_wr_i = Signal(n_fu_row, reset_less=True) # Go Write in (left)
+        self.issue_i = Signal(n_fu_row, reset_less=True)  # Issue in (top)
+        self.go_wr_i = Signal(n_fu_row, reset_less=True)  # Go Write in (left)
         self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
+        self.go_die_i = Signal(n_fu_row, reset_less=True) # Go Die in (left)
 
         # for Register File Select Lines (horizontal), per-reg
         self.dest_rsel_o = Signal(n_reg_col, reset_less=True) # dest reg (bot)
@@ -181,16 +182,19 @@ class FURegDepMatrix(Elaboratable):
         # ---
         go_rd_i = []
         go_wr_i = []
+        go_die_i = []
         issue_i = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
             # accumulate cell fwd outputs for dest/src1/src2
             go_rd_i.append(dc.go_rd_i)
             go_wr_i.append(dc.go_wr_i)
+            go_die_i.append(dc.go_die_i)
             issue_i.append(dc.issue_i)
         # wire up inputs from module to row cell inputs (Cat is gooood)
         m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
                      Cat(*go_wr_i).eq(self.go_wr_i),
+                     Cat(*go_die_i).eq(self.go_die_i),
                      Cat(*issue_i).eq(self.issue_i),
                     ]
 
@@ -203,6 +207,7 @@ class FURegDepMatrix(Elaboratable):
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
+        yield self.go_die_i
         yield self.dest_rsel_o
         yield self.src1_rsel_o
         yield self.src2_rsel_o

@@ -31,6 +31,7 @@ class DepCell(Elaboratable):
         self.issue_i = Signal(reset_less=True)   # Issue in (top)
         self.hazard_i = Signal(reset_less=True)  # to check hazard
         self.go_i = Signal(reset_less=True)      # Go read/write in (left)
+        self.die_i = Signal(reset_less=True)     # Die in (left)
         self.q_o = Signal(reset_less=True)       # Latch out (register active)
 
         # for Register File Select Lines (vertical)
@@ -44,14 +45,14 @@ class DepCell(Elaboratable):
 
         # reset on go HI, set on dest and issue
         m.d.comb += l.s.eq(self.issue_i & self.reg_i)
-        m.d.comb += l.r.eq(self.go_i)
+        m.d.comb += l.r.eq(self.go_i | self.die_i)
 
         # Function Unit "Forward Progress".
         m.d.comb += self.fwd_o.eq((l.q) & self.hazard_i) # & ~self.issue_i)
 
         # Register Select. Activated on go read/write and *current* latch set
         m.d.comb += self.q_o.eq(l.qlq)
-        m.d.comb += self.rsel_o.eq(self.q_o & self.go_i)
+        m.d.comb += self.rsel_o.eq(l.qlq & self.go_i)
 
         return m
 
@@ -60,6 +61,7 @@ class DepCell(Elaboratable):
         yield self.hazard_i
         yield self.issue_i
         yield self.go_i
+        yield self.die_i
         yield self.q_o
         yield self.rsel_o
         yield self.fwd_o
@@ -85,6 +87,7 @@ class DependenceCell(Elaboratable):
 
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
+        self.go_die_i = Signal(reset_less=True) # Go Die in (left)
 
         # for Register File Select Lines (vertical)
         self.dest_rsel_o = Signal(reset_less=True)  # dest reg sel (bottom)
@@ -102,9 +105,10 @@ class DependenceCell(Elaboratable):
         m.submodules.src1_c = src1_c = DepCell()
         m.submodules.src2_c = src2_c = DepCell()
 
-        # connect issue
+        # connect issue and die
         for c in [dest_c, src1_c, src2_c]:
             m.d.comb += c.issue_i.eq(self.issue_i)
+            m.d.comb += c.die_i.eq(self.go_die_i)
 
         # connect go_rd / go_wr (dest->wr, src->rd)
         m.d.comb += dest_c.go_i.eq(self.go_wr_i)
@@ -152,6 +156,7 @@ class DependenceCell(Elaboratable):
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
+        yield self.go_die_i
         yield self.dest_rsel_o
         yield self.src1_rsel_o
         yield self.src2_rsel_o
@@ -183,6 +188,7 @@ class DependencyRow(Elaboratable):
         self.issue_i = Signal(reset_less=True)
         self.go_wr_i = Signal(reset_less=True)
         self.go_rd_i = Signal(reset_less=True)
+        self.go_die_i = Signal(reset_less=True)
 
         self.dest_rsel_o = Signal(n_reg_col, reset_less=True)
         self.src1_rsel_o = Signal(n_reg_col, reset_less=True)
@@ -229,13 +235,14 @@ class DependencyRow(Elaboratable):
                     ]
 
         # ---
-        # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
+        # connect Dep die/issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
         # ---
         for rn in range(self.n_reg_col):
             dc = rcell[rn]
             m.d.comb += [dc.go_rd_i.eq(self.go_rd_i),
                          dc.go_wr_i.eq(self.go_wr_i),
                          dc.issue_i.eq(self.issue_i),
+                         dc.go_die_i.eq(self.go_die_i),
                     ]
 
         # ---
@@ -282,6 +289,7 @@ class DependencyRow(Elaboratable):
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
+        yield self.go_die_i
         yield self.dest_rsel_o
         yield self.src1_rsel_o
         yield self.src2_rsel_o

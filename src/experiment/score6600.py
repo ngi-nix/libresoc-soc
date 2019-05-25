@@ -143,6 +143,7 @@ class FunctionUnits(Elaboratable):
 
         self.go_rd_i = Signal(n_int_alus, reset_less=True)
         self.go_wr_i = Signal(n_int_alus, reset_less=True)
+        self.go_die_i = Signal(n_int_alus, reset_less=True)
         self.req_rel_o = Signal(n_int_alus, reset_less=True)
         self.fn_issue_i = Signal(n_int_alus, reset_less=True)
 
@@ -175,6 +176,7 @@ class FunctionUnits(Elaboratable):
         comb += intfudeps.issue_i.eq(self.fn_issue_i)
         comb += intfudeps.go_rd_i.eq(self.go_rd_i)
         comb += intfudeps.go_wr_i.eq(self.go_wr_i)
+        comb += intfudeps.go_die_i.eq(self.go_die_i)
         comb += self.readable_o.eq(intfudeps.readable_o)
         comb += self.writable_o.eq(intfudeps.writable_o)
 
@@ -185,6 +187,7 @@ class FunctionUnits(Elaboratable):
 
         comb += intregdeps.go_rd_i.eq(self.go_rd_i)
         comb += intregdeps.go_wr_i.eq(self.go_wr_i)
+        comb += intregdeps.go_die_i.eq(self.go_die_i)
         comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
         comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o)
@@ -273,9 +276,6 @@ class Scoreboard(Elaboratable):
         m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus)
         m.submodules.bshadow = bshadow = ShadowMatrix(n_int_fus, 1)
 
-        # combined go_rd/wr + go_die (go_die used to reset latches)
-        go_rd_rst = Signal(n_int_fus, reset_less=True)
-        go_wr_rst = Signal(n_int_fus, reset_less=True)
         # record previous instruction to cast shadow on current instruction
         fn_issue_prev = Signal(n_int_fus)
         prev_shadow = Signal(n_int_fus)
@@ -320,6 +320,17 @@ class Scoreboard(Elaboratable):
         comb += self.busy_o.eq(cu.busy_o.bool())
 
         #---------
+        # merge shadow matrices outputs
+        #---------
+        
+        # these are explained in ShadowMatrix docstring, and are to be
+        # connected to the FUReg and FUFU Matrices, to get them to reset
+        anydie = Signal(n_int_fus, reset_less=True)
+        allshadown = Signal(n_int_fus, reset_less=True)
+        comb += allshadown.eq(shadows.shadown_o & bshadow.shadown_o)
+        comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
+
+        #---------
         # connect fu-fu matrix
         #---------
 
@@ -328,9 +339,11 @@ class Scoreboard(Elaboratable):
         go_wr_o = intpick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
+        go_die_i = intfus.go_die_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        comb += go_rd_i[0:n_int_fus].eq(go_rd_rst[0:n_int_fus]) # rd
-        comb += go_wr_i[0:n_int_fus].eq(go_wr_rst[0:n_int_fus]) # wr
+        comb += go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus]) # rd
+        comb += go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus]) # wr
+        comb += go_die_i[0:n_int_fus].eq(anydie[0:n_int_fus]) # die
 
         # Connect Picker
         #---------
@@ -346,17 +359,6 @@ class Scoreboard(Elaboratable):
         #---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
-        # these are explained in ShadowMatrix docstring, and are to be
-        # connected to the FUReg and FUFU Matrices, to get them to reset
-        # NOTE: do NOT connect these to the Computation Units.  The CUs need to
-        # do something slightly different (due to the revolving-door SRLatches)
-        anydie = Signal(n_int_fus, reset_less=True)
-        allshadown = Signal(n_int_fus, reset_less=True)
-        comb += allshadown.eq(shadows.shadown_o & bshadow.shadown_o)
-        comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
-        comb += go_rd_rst.eq(go_rd_o | anydie)
-        comb += go_wr_rst.eq(go_wr_o | anydie)
-
         #---------
         # NOTE; this setup is for the instruction order preservation...
 
