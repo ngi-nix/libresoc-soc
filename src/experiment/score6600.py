@@ -53,7 +53,7 @@ class CompUnits(Elaboratable):
 
         # Branch ALU and CU
         self.bgt = BranchALU(self.rwid)
-        self.br1 = ComputationUnitNoDelay(self.rwid, 2, self.bgt)
+        self.br1 = ComputationUnitNoDelay(self.rwid, 3, self.bgt)
 
     def elaborate(self, platform):
         m = Module()
@@ -78,7 +78,7 @@ class CompUnits(Elaboratable):
         comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
         comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
         comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
-        comb += br1.oper_i.eq(Const(0, 2)) # op=bgt
+        comb += br1.oper_i.eq(Const(4, 3)) # op=bgt
 
         go_rd_l = []
         go_wr_l = []
