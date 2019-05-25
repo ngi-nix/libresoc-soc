@@ -118,9 +118,10 @@ class ShadowMatrix(Elaboratable):
         self.issue_i = Signal(n_fus, reset_less=True)
         self.shadow_i = Array(Signal(shadow_wid, name="sh_i", reset_less=True) \
                             for f in range(n_fus))
-        self.s_fail_i = Signal(shadow_wid, reset_less=True)
-        self.s_good_i = Signal(shadow_wid, reset_less=True)
-
+        self.s_fail_i = Array(Signal(shadow_wid, name="fl_i", reset_less=True) \
+                            for f in range(n_fus))
+        self.s_good_i = Array(Signal(shadow_wid, name="gd_i", reset_less=True) \
+                            for f in range(n_fus))
         # outputs
         self.go_die_o = Signal(n_fus, reset_less=True)
         self.shadown_o = Signal(n_fus, reset_less=True)
@@ -133,8 +134,8 @@ class ShadowMatrix(Elaboratable):
             setattr(m.submodules, "sh%d" % i, sh)
             shadows.append(sh)
             # connect shadow/fail/good to all shadows
-            m.d.comb += sh.s_fail_i.eq(self.s_fail_i)
-            m.d.comb += sh.s_good_i.eq(self.s_good_i)
+            m.d.comb += sh.s_fail_i.eq(self.s_fail_i[i])
+            m.d.comb += sh.s_good_i.eq(self.s_good_i[i])
             # this one is the matrix (shadow enables)
             m.d.comb += sh.shadow_i.eq(self.shadow_i[i])
 
@@ -155,8 +156,8 @@ class ShadowMatrix(Elaboratable):
     def __iter__(self):
         yield self.issue_i
         yield from self.shadow_i
-        yield self.s_fail_i
-        yield self.s_good_i
+        yield from self.s_fail_i
+        yield from self.s_good_i
         yield self.go_die_o
         yield self.shadown_o
 
@@ -182,44 +183,54 @@ class BranchSpeculationRecord(Elaboratable):
         self.n_fus = n_fus
 
         # inputs: record *expected* status
-        self.issue_i = Signal(reset_less=True)
-        self.good_i = Signal(reset_less=True)
-        self.fail_i = Signal(reset_less=True)
+        self.active_i = Signal(reset_less=True)
+        self.good_i = Signal(n_fus, reset_less=True)
+        self.fail_i = Signal(n_fus, reset_less=True)
 
         # inputs: status of branch (when result was known)
         self.br_i = Signal(reset_less=True)
-        self.br_good_i = Signal(reset_less=True)
-        self.br_fail_i = Signal(reset_less=True)
+        self.br_ok_i = Signal(reset_less=True)
 
         # outputs: true if the *expected* outcome matched the *actual* outcome
-        self.matched_o = Signal(reset_less=True)
+        self.match_f_o = Signal(n_fus, reset_less=True)
+        self.match_g_o = Signal(n_fus, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
 
         # registers to record *expected* status
-        good_r = Signal()
-        fail_r = Signal()
+        good_r = Signal(self.n_fus)
+        fail_r = Signal(self.n_fus)
 
-        with m.If(self.br_i):
-            # we expected fail, return OK that fail was EXPECTED... OR...
-            # we expected good, return OK that good was EXPECTED
-            success = Signal(reset_less=True)
-            m.d.comb += success.eq((good_r & self.br_good_i) | \
-                                   (fail_r & self.br_fail_i) )
-            # ... but only set these where a good or fail *is* expected...
-            with m.If(good_r | fail_r):
-                m.d.comb += self.matched_o.eq(success)
-            m.d.sync += good_r.eq(0) # might be set if issue set as well
-            m.d.sync += fail_r.eq(0) # might be set if issue set as well
-        with m.If(self.issue_i):
-            m.d.sync += good_r.eq(good_r | self.good_i)
-            m.d.sync += fail_r.eq(fail_r | self.fail_i)
+        for i in range(self.n_fus):
+            with m.If(self.active_i):
+                m.d.sync += good_r[i].eq(good_r[i] | self.good_i[i])
+                m.d.sync += fail_r[i].eq(fail_r[i] | self.fail_i[i])
+            with m.If(self.br_i):
+                # we expected fail, return OK that fail was EXPECTED... OR...
+                # we expected good, return OK that good was EXPECTED
+                good = Signal(reset_less=True)
+                fail = Signal(reset_less=True)
+                with m.If(self.br_ok_i):
+                    m.d.comb += good.eq(good_r[i])
+                    m.d.comb += fail.eq(fail_r[i])
+                with m.Else():
+                    m.d.comb += good.eq(~good_r[i])
+                    m.d.comb += fail.eq(~fail_r[i])
+                # ... but only set these where a good or fail *is* expected...
+                with m.If(good_r[i]):
+                    m.d.comb += self.match_g_o[i].eq(self.br_ok_i)
+                    m.d.comb += self.match_f_o[i].eq(~self.br_ok_i)
+                with m.If(fail_r[i]):
+                    m.d.comb += self.match_f_o[i].eq(~self.br_ok_i)
+                    m.d.comb += self.match_g_o[i].eq(self.br_ok_i)
+                m.d.sync += good_r[i].eq(0) # might be set if issue set as well
+                m.d.sync += fail_r[i].eq(0) # might be set if issue set as well
 
         return m
 
     def __iter__(self):
-        yield self.issue_i
+        yield self.active_i
         yield self.good_i
         yield self.fail_i
         yield self.br_i
