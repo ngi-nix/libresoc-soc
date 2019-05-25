@@ -181,34 +181,40 @@ class BranchSpeculationRecord(Elaboratable):
     def __init__(self, n_fus):
         self.n_fus = n_fus
 
-        # inputs
-        self.issue_i = Signal(n_fus, reset_less=True)
-        self.good_i = Signal(n_fus, reset_less=True)
-        self.fail_i = Signal(n_fus, reset_less=True)
-        self.branch_i = Signal(reset_less=True)
+        # inputs: record *expected* status
+        self.issue_i = Signal(reset_less=True)
+        self.good_i = Signal(reset_less=True)
+        self.fail_i = Signal(reset_less=True)
 
-        # outputs
-        self.good_o = Signal(n_fus, reset_less=True)
-        self.fail_o = Signal(n_fus, reset_less=True)
+        # inputs: status of branch (when result was known)
+        self.br_i = Signal(reset_less=True)
+        self.br_good_i = Signal(reset_less=True)
+        self.br_fail_i = Signal(reset_less=True)
+
+        # outputs: true if the *expected* outcome matched the *actual* outcome
+        self.matched_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
 
-        good_r = Signal(self.n_fus)
-        fail_r = Signal(self.n_fus)
+        # registers to record *expected* status
+        good_r = Signal()
+        fail_r = Signal()
 
-        # sigh, there's a way to do this without if statements, as pure
-        # ANDing and ORing...
-        for i in range(self.n_fus):
-            with m.If(self.branch_i):
-                with m.If(good_r[i] | fail_r[i]):
-                    m.d.comb += self.good_o[i].eq(good_r[i] | ~fail_r[i])
-                    m.d.comb += self.fail_o[i].eq(fail_r[i] | ~good_r[i])
-                m.d.sync += good_r[i].eq(0) # might be set if issue set as well
-                m.d.sync += fail_r[i].eq(0) # might be set if issue set as well
-            with m.If(self.issue_i[i]):
-                m.d.sync += good_r[i].eq(self.good_i[i])
-                m.d.sync += fail_r[i].eq(self.fail_i[i])
+        with m.If(self.br_i):
+            # we expected fail, return OK that fail was EXPECTED... OR...
+            # we expected good, return OK that good was EXPECTED
+            success = Signal(reset_less=True)
+            m.d.comb += success.eq((good_r & self.br_good_i) | \
+                                   (fail_r & self.br_fail_i) )
+            # ... but only set these where a good or fail *is* expected...
+            with m.If(good_r | fail_r):
+                m.d.comb += self.matched_o.eq(success)
+            m.d.sync += good_r.eq(0) # might be set if issue set as well
+            m.d.sync += fail_r.eq(0) # might be set if issue set as well
+        with m.If(self.issue_i):
+            m.d.sync += good_r.eq(good_r | self.good_i)
+            m.d.sync += fail_r.eq(fail_r | self.fail_i)
 
         return m
 
@@ -216,7 +222,9 @@ class BranchSpeculationRecord(Elaboratable):
         yield self.issue_i
         yield self.good_i
         yield self.fail_i
-        yield self.branch_i
+        yield self.br_i
+        yield self.br_good_i
+        yield self.br_fail_i
         yield self.good_o
         yield self.fail_o
 

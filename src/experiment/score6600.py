@@ -381,25 +381,33 @@ class Scoreboard(Elaboratable):
         # tacked onto the ShadowMatrix (hence shadow_wid=n_int_fus+1)
         # only needs to set shadow_i, s_fail_i and s_good_i
 
-        comb += shadows.s_good_i[n_int_fus].eq(bspec.good_o[i])
-        comb += shadows.s_fail_i[n_int_fus].eq(bspec.fail_o[i])
-
         with m.If(self.branch_succ_i | self.branch_fail_i):
-            for i in range(n_int_fus):
-                comb +=  shadows.shadow_i[i][n_int_fus].eq(1)
+            comb +=  shadows.shadow_i[fn_issue_o][n_int_fus].eq(1)
 
         # finally, we need an indicator to the test infrastructure as to
         # whether the branch succeeded or failed, plus, link up to the
         # "recorder" of whether the instruction was under shadow or not
 
-        comb += bspec.issue_i.eq(fn_issue_o)
+        with m.If(cu.br1.issue_i):
+            sync += bspec.issue_i.eq(1)
         comb += bspec.good_i.eq(self.branch_succ_i)
         comb += bspec.fail_i.eq(self.branch_fail_i)
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
         with m.If(cu.br1.go_wr_i):
             sync += self.branch_direction_o.eq(cu.br1.data_o+Const(1, 2))
-            comb += bspec.branch_i.eq(1)
+            sync += bspec.issue_i.eq(0)
+            comb += bspec.br_i.eq(1)
+            # branch occurs if data == 1, failed if data == 0
+            br_good = Signal(reset_less=True)
+            comb += br_good.eq(cu.br1.data_o == 1)
+            comb += bspec.br_good_i.eq(br_good)
+            comb += bspec.br_fail_i.eq(~br_good)
+            # the *expected* direction of the branch matched against *actual*
+            comb += shadows.s_good_i[n_int_fus].eq(bspec.matched_o)
+            # ... or it didn't
+            comb += shadows.s_fail_i[n_int_fus].eq(~bspec.matched_o)
+
 
         #---------
         # Connect Register File(s)
@@ -631,7 +639,7 @@ def scoreboard_sim(dut, alusim):
 
     yield dut.int_store_i.eq(1)
 
-    for i in range(20):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -642,7 +650,7 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 10, False, 4)
 
         if False:
@@ -698,12 +706,21 @@ def scoreboard_sim(dut, alusim):
             instrs.append( (2, 6, 3, 0) )
             instrs.append( (4, 2, 2, 1) )
 
+        if True:
+            v1 = 6
+            yield dut.intregs.regs[5].reg.eq(v1)
+            alusim.setval(5, v1)
+            yield dut.intregs.regs[3].reg.eq(5)
+            alusim.setval(3, 5)
+            instrs.append((5, 3, 3, 4, (0, 0)))
+            instrs.append((4, 2, 1, 2, (1, 0)))
+
         # issue instruction(s), wait for issue to be free before proceeding
-        for i, (src1, src2, dest, op) in enumerate(instrs):
+        for i, (src1, src2, dest, op, (br_ok, br_fail)) in enumerate(instrs):
 
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
             alusim.op(op, src1, src2, dest)
-            yield from int_instr(dut, op, src1, src2, dest, 0, 0)
+            yield from int_instr(dut, op, src1, src2, dest, br_ok, br_fail)
             yield
             yield from wait_for_issue(dut)
 
