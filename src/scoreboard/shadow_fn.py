@@ -12,6 +12,7 @@ class ShadowFn(Elaboratable):
         # inputs
         self.issue_i = Signal(reset_less=True)
         self.shadow_i  = Signal(reset_less=True)
+        self.reset_i  = Signal(reset_less=True)
         self.s_fail_i  = Signal(reset_less=True)
         self.s_good_i  = Signal(reset_less=True)
 
@@ -23,8 +24,13 @@ class ShadowFn(Elaboratable):
         m = Module()
         m.submodules.sl = sl = SRLatch(sync=False)
 
-        m.d.comb += sl.s.eq(self.shadow_i & self.issue_i & ~self.s_good_i)
-        m.d.comb += sl.r.eq(self.s_good_i | (self.issue_i & ~self.shadow_i))
+        #reset_r = Signal()
+        #m.d.sync += reset_r.eq(self.s_good_i | self.s_fail_i)
+
+        m.d.comb += sl.s.eq(self.shadow_i & self.issue_i & \
+                            ~self.s_good_i & ~self.reset_i)
+        m.d.comb += sl.r.eq(self.reset_i | self.s_good_i | \
+                            (self.issue_i & ~self.shadow_i))
         m.d.comb += self.recover_o.eq(sl.qlq & self.s_fail_i)
         m.d.comb += self.shadow_o.eq(sl.qlq)
 
@@ -32,6 +38,7 @@ class ShadowFn(Elaboratable):
 
     def __iter__(self):
         yield self.issue_i
+        yield self.s_reset_i
         yield self.shadow_i
         yield self.s_fail_i
         yield self.s_good_i

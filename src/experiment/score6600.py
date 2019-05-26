@@ -327,8 +327,10 @@ class Scoreboard(Elaboratable):
         # connected to the FUReg and FUFU Matrices, to get them to reset
         anydie = Signal(n_int_fus, reset_less=True)
         allshadown = Signal(n_int_fus, reset_less=True)
+        shreset = Signal(n_int_fus, reset_less=True)
         comb += allshadown.eq(shadows.shadown_o & bshadow.shadown_o)
         comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
+        comb += shreset.eq(bspec.match_g_o | bspec.match_f_o)
 
         #---------
         # connect fu-fu matrix
@@ -359,6 +361,7 @@ class Scoreboard(Elaboratable):
         #---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
+        comb += shadows.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
         #---------
         # NOTE; this setup is for the instruction order preservation...
 
@@ -392,6 +395,7 @@ class Scoreboard(Elaboratable):
 
         # issue captures shadow_i (if enabled)
         comb += bshadow.issue_i.eq(fn_issue_o)
+        comb += bshadow.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
 
         # instruction being issued (fn_issue_o) has a shadow cast by the branch
         with m.If(self.branch_succ_i | self.branch_fail_i):
@@ -406,9 +410,9 @@ class Scoreboard(Elaboratable):
         with m.If(cu.br1.issue_i):
             sync += bspec.active_i.eq(1)
         with m.If(self.branch_succ_i):
-            comb += bspec.good_i.eq(fn_issue_o & 0xf)
+            comb += bspec.good_i.eq(fn_issue_o & 0x1f)
         with m.If(self.branch_fail_i):
-            comb += bspec.fail_i.eq(fn_issue_o & 0xf)
+            comb += bspec.fail_i.eq(fn_issue_o & 0x1f)
 
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
@@ -594,6 +598,8 @@ def scoreboard_branch_sim(dut, alusim):
 
         # create some instructions: branches create a tree
         insts = create_random_ops(dut, 0, True)
+        #insts.append((6, 6, 1, 2, (0, 0)))
+        insts.append((4, 3, 3, 0, (0, 0)))
 
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
@@ -629,7 +635,7 @@ def scoreboard_branch_sim(dut, alusim):
                 for ok, fl in zip(branch_ok, branch_fail):
                     instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
                     instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
-            print ("instr %d: (%d, %d, %d, %d, %d, %d)" % \
+            print ("instr %d: (%d, %d, %d, %d, (%d, %d))" % \
                             (i, src1, src2, dest, op, shadow_on, shadow_off))
             yield from int_instr(dut, op, src1, src2, dest,
                                  shadow_on, shadow_off)

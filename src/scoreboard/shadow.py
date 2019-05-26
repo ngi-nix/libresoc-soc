@@ -25,6 +25,7 @@ class Shadow(Elaboratable):
         if shadow_wid:
             # inputs
             self.issue_i = Signal(reset_less=True)
+            self.reset_i = Signal(reset_less=True)
             self.shadow_i = Signal(shadow_wid, reset_less=True)
             self.s_fail_i = Signal(shadow_wid, reset_less=True)
             self.s_good_i = Signal(shadow_wid, reset_less=True)
@@ -47,6 +48,7 @@ class Shadow(Elaboratable):
         # shadow / recover (optional: shadow_wid > 0)
         if self.shadow_wid:
             i_l = []
+            d_l = []
             fail_l = []
             good_l = []
             shi_l = []
@@ -55,12 +57,14 @@ class Shadow(Elaboratable):
             # get list of latch signals. really must be a better way to do this
             for l in s_latches:
                 i_l.append(l.issue_i)
+                d_l.append(l.reset_i)
                 shi_l.append(l.shadow_i)
                 fail_l.append(l.s_fail_i)
                 good_l.append(l.s_good_i)
                 sho_l.append(l.shadow_o)
                 rec_l.append(l.recover_o)
             m.d.comb += Cat(*i_l).eq(Repl(self.issue_i, self.shadow_wid))
+            m.d.comb += Cat(*d_l).eq(Repl(self.reset_i, self.shadow_wid))
             m.d.comb += Cat(*fail_l).eq(self.s_fail_i)
             m.d.comb += Cat(*good_l).eq(self.s_good_i)
             m.d.comb += Cat(*shi_l).eq(self.shadow_i)
@@ -71,6 +75,7 @@ class Shadow(Elaboratable):
 
     def __iter__(self):
         if self.shadow_wid:
+            yield self.reset_i
             yield self.issue_i
             yield self.shadow_i
             yield self.s_fail_i
@@ -116,6 +121,7 @@ class ShadowMatrix(Elaboratable):
 
         # inputs
         self.issue_i = Signal(n_fus, reset_less=True)
+        self.reset_i = Signal(n_fus, reset_less=True)
         self.shadow_i = Array(Signal(shadow_wid, name="sh_i", reset_less=True) \
                             for f in range(n_fus))
         self.s_fail_i = Array(Signal(shadow_wid, name="fl_i", reset_less=True) \
@@ -141,13 +147,16 @@ class ShadowMatrix(Elaboratable):
 
         # connect all shadow outputs and issue input
         issue_l = []
+        reset_l = []
         sho_l = []
         rec_l = []
         for l in shadows:
             issue_l.append(l.issue_i)
+            reset_l.append(l.reset_i)
             sho_l.append(l.shadown_o)
             rec_l.append(l.go_die_o)
         m.d.comb += Cat(*issue_l).eq(self.issue_i)
+        m.d.comb += Cat(*reset_l).eq(self.reset_i)
         m.d.comb += self.shadown_o.eq(Cat(*sho_l))
         m.d.comb += self.go_die_o.eq(Cat(*rec_l))
 
@@ -155,6 +164,7 @@ class ShadowMatrix(Elaboratable):
 
     def __iter__(self):
         yield self.issue_i
+        yield self.reset_i
         yield from self.shadow_i
         yield from self.s_fail_i
         yield from self.s_good_i
