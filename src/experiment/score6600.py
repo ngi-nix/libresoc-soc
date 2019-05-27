@@ -273,8 +273,8 @@ class Scoreboard(Elaboratable):
         # Shadow Matrix.  currently n_int_fus shadows, to be used for
         # write-after-write hazards.  NOTE: there is one extra for branches,
         # so the shadow width is increased by 1
-        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus)
-        m.submodules.bshadow = bshadow = ShadowMatrix(n_int_fus, 1)
+        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus, True)
+        m.submodules.bshadow = bshadow = ShadowMatrix(n_int_fus, 1, False)
 
         # record previous instruction to cast shadow on current instruction
         fn_issue_prev = Signal(n_int_fus)
@@ -361,7 +361,8 @@ class Scoreboard(Elaboratable):
         #---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
-        comb += shadows.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
+        #comb += shadows.reset_i[0:n_int_fus].eq(bshadow.go_die_o[0:n_int_fus])
+        comb += shadows.reset_i[0:n_int_fus].eq(bshadow.go_die_o[0:n_int_fus])
         #---------
         # NOTE; this setup is for the instruction order preservation...
 
@@ -384,7 +385,7 @@ class Scoreboard(Elaboratable):
 
         # *previous* instruction shadows *current* instruction, and, obviously,
         # if the previous is completed (!busy) don't cast the shadow!
-        comb += prev_shadow.eq(~fn_issue_o & fn_issue_prev & cu.busy_o)
+        comb += prev_shadow.eq(~fn_issue_o & cu.busy_o)
         for i in range(n_int_fus):
             comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
 
@@ -394,11 +395,14 @@ class Scoreboard(Elaboratable):
         # only needs to set shadow_i, s_fail_i and s_good_i
 
         # issue captures shadow_i (if enabled)
-        comb += bshadow.issue_i.eq(fn_issue_o)
         comb += bshadow.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
 
+        bactive = Signal(reset_less=True)
+        comb += bactive.eq((bspec.active_i | cu.br1.issue_i) & ~cu.br1.go_wr_i)
+
         # instruction being issued (fn_issue_o) has a shadow cast by the branch
-        with m.If(self.branch_succ_i | self.branch_fail_i):
+        with m.If(bactive & (self.branch_succ_i | self.branch_fail_i)):
+            comb += bshadow.issue_i.eq(fn_issue_o)
             for i in range(n_int_fus):
                 with m.If(fn_issue_o & (Const(1<<i))):
                     comb += bshadow.shadow_i[i][0].eq(1)
@@ -583,11 +587,17 @@ def wait_for_issue(dut):
 
 def scoreboard_branch_sim(dut, alusim):
 
-    seed(0)
+    iseed = 3
 
     yield dut.int_store_i.eq(1)
 
     for i in range(1):
+
+        print ("rseed", iseed)
+        seed(iseed)
+        iseed += 1
+
+        yield dut.branch_direction_o.eq(0)
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -596,20 +606,32 @@ def scoreboard_branch_sim(dut, alusim):
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
-        # create some instructions: branches create a tree
-        insts = create_random_ops(dut, 0, True)
-        #insts.append((6, 6, 1, 2, (0, 0)))
-        insts.append((4, 3, 3, 0, (0, 0)))
+        if False:
+            # create some instructions: branches create a tree
+            insts = create_random_ops(dut, 1, True, 1)
+            #insts.append((6, 6, 1, 2, (0, 0)))
+            #insts.append((4, 3, 3, 0, (0, 0)))
 
-        src1 = randint(1, dut.n_regs-1)
-        src2 = randint(1, dut.n_regs-1)
-        #op = randint(4, 7)
-        op = 4 # only BGT at the moment
+            src1 = randint(1, dut.n_regs-1)
+            src2 = randint(1, dut.n_regs-1)
+            #op = randint(4, 7)
+            op = 4 # only BGT at the moment
 
-        branch_ok = create_random_ops(dut, 1, True)
-        branch_fail = create_random_ops(dut, 1, True)
+            branch_ok = create_random_ops(dut, 1, True, 1)
+            branch_fail = create_random_ops(dut, 1, True, 1)
 
-        insts.append((src1, src2, (branch_ok, branch_fail), op, (0, 0)))
+            insts.append((src1, src2, (branch_ok, branch_fail), op, (0, 0)))
+
+        if True:
+            insts = []
+            #insts.append( (3, 5, 2, 0, (0, 0)) )
+            branch_ok = []
+            branch_fail = []
+            branch_ok.append  ( (5, 7, 5, 1, (1, 0)) )
+            #branch_ok.append( None )
+            branch_fail.append( (1, 1, 2, 0, (0, 1)) )
+            #branch_fail.append( None )
+            insts.append( (6, 4, (branch_ok, branch_fail), 4, (0, 0)) )
 
         siminsts = deepcopy(insts)
 
@@ -618,12 +640,20 @@ def scoreboard_branch_sim(dut, alusim):
         instrs = insts
         branch_direction = 0
         while instrs:
+            yield
+            yield
             i += 1
+            branch_direction = yield dut.branch_direction_o # way branch went
             (src1, src2, dest, op, (shadow_on, shadow_off)) = insts.pop(0)
-            if branch_direction == 1 and shadow_off:
+            if branch_direction == 1 and shadow_on:
+                print ("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
                 continue # branch was "success" and this is a "failed"... skip
-            if branch_direction == 2 and shadow_on:
+            if branch_direction == 2 and shadow_off:
+                print ("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
                 continue # branch was "fail" and this is a "success"... skip
+            if branch_direction != 0:
+                shadow_on = 0
+                shadow_off = 0
             is_branch = op >= 4
             if is_branch:
                 branch_ok, branch_fail = dest
@@ -633,28 +663,34 @@ def scoreboard_branch_sim(dut, alusim):
                 # the other to be marked shadow branch "fail".
                 # one out of each of these will be cancelled
                 for ok, fl in zip(branch_ok, branch_fail):
-                    instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
-                    instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
+                    if ok:
+                        instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
+                    if fl:
+                        instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
             print ("instr %d: (%d, %d, %d, %d, (%d, %d))" % \
                             (i, src1, src2, dest, op, shadow_on, shadow_off))
             yield from int_instr(dut, op, src1, src2, dest,
                                  shadow_on, shadow_off)
             yield
             yield from wait_for_issue(dut)
-            branch_direction = yield dut.branch_direction_o # way branch went
 
         # wait for all instructions to stop before checking
         yield
         yield from wait_for_busy_clear(dut)
 
         i = -1
-        for (src1, src2, dest, op, (shadow_on, shadow_off)) in siminsts:
+        while siminsts:
+            instr = siminsts.pop(0)
+            if instr is None:
+                continue
+            (src1, src2, dest, op, (shadow_on, shadow_off)) = instr
             i += 1
             is_branch = op >= 4
             if is_branch:
                 branch_ok, branch_fail = dest
                 dest = src2
-            print ("sim %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
+            print ("sim %d: (%d, %d, %d, %d, (%d, %d))" % \
+                            (i, src1, src2, dest, op, shadow_on, shadow_off))
             branch_res = alusim.op(op, src1, src2, dest)
             if is_branch:
                 if branch_res:
@@ -669,6 +705,8 @@ def scoreboard_branch_sim(dut, alusim):
 
 def scoreboard_sim(dut, alusim):
 
+    seed(0)
+
     yield dut.int_store_i.eq(1)
 
     for i in range(1):
@@ -682,7 +720,7 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 10, True, 4)
 
         if False:
@@ -756,6 +794,17 @@ def scoreboard_sim(dut, alusim):
             instrs.append((5, 3, 3, 4, (0, 0)))
             instrs.append((4, 2, 1, 2, (1, 0)))
 
+        if True:
+            instrs.append( (4, 3, 5, 1, (0, 0)) )
+            instrs.append( (5, 2, 3, 1, (0, 0)) )
+            instrs.append( (7, 1, 5, 2, (0, 0)) )
+            instrs.append( (5, 6, 6, 4, (0, 0)) )
+            instrs.append( (7, 5, 2, 2, (1, 0)) )
+            instrs.append( (1, 7, 5, 0, (0, 1)) )
+            instrs.append( (1, 6, 1, 2, (1, 0)) )
+            instrs.append( (1, 6, 7, 3, (0, 0)) )
+            instrs.append( (6, 7, 7, 0, (0, 0)) )
+
         # issue instruction(s), wait for issue to be free before proceeding
         for i, (src1, src2, dest, op, (br_ok, br_fail)) in enumerate(instrs):
 
@@ -781,11 +830,11 @@ def test_scoreboard():
     with open("test_scoreboard6600.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, scoreboard_sim(dut, alusim),
-    #                    vcd_name='test_scoreboard6600.vcd')
-
-    run_simulation(dut, scoreboard_branch_sim(dut, alusim),
+    run_simulation(dut, scoreboard_sim(dut, alusim),
                         vcd_name='test_scoreboard6600.vcd')
+
+    #run_simulation(dut, scoreboard_branch_sim(dut, alusim),
+    #                    vcd_name='test_scoreboard6600.vcd')
 
 
 if __name__ == '__main__':

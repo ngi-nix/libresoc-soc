@@ -19,8 +19,9 @@ class Shadow(Elaboratable):
         notes:
         * when shadow_wid = 0, recover and shadown are Consts (i.e. do nothing)
     """
-    def __init__(self, shadow_wid=0):
+    def __init__(self, shadow_wid=0, syncreset=False):
         self.shadow_wid = shadow_wid
+        self.syncreset = syncreset
 
         if shadow_wid:
             # inputs
@@ -41,7 +42,7 @@ class Shadow(Elaboratable):
         m = Module()
         s_latches = []
         for i in range(self.shadow_wid):
-            sh = ShadowFn()
+            sh = ShadowFn(self.syncreset)
             setattr(m.submodules, "shadow%d" % i, sh)
             s_latches.append(sh)
 
@@ -115,7 +116,8 @@ class ShadowMatrix(Elaboratable):
           Unit Matrices by way of over-enabling (ORing) into Go_Read and
           Go_Write, resetting every cell that is required to "die"
     """
-    def __init__(self, n_fus, shadow_wid=0):
+    def __init__(self, n_fus, shadow_wid=0, syncreset=False):
+        self.syncreset = syncreset
         self.n_fus = n_fus
         self.shadow_wid = shadow_wid
 
@@ -136,7 +138,7 @@ class ShadowMatrix(Elaboratable):
         m = Module()
         shadows = []
         for i in range(self.n_fus):
-            sh = Shadow(self.shadow_wid)
+            sh = Shadow(self.shadow_wid, self.syncreset)
             setattr(m.submodules, "sh%d" % i, sh)
             shadows.append(sh)
             # connect shadow/fail/good to all shadows

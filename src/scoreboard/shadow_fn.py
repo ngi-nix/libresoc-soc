@@ -7,7 +7,9 @@ from nmutil.latch import SRLatch
 class ShadowFn(Elaboratable):
     """ implements shadowing 11.5.1, p55, just the individual shadow function
     """
-    def __init__(self):
+    def __init__(self, syncreset=False):
+
+        self.syncreset = syncreset
 
         # inputs
         self.issue_i = Signal(reset_less=True)
@@ -24,12 +26,15 @@ class ShadowFn(Elaboratable):
         m = Module()
         m.submodules.sl = sl = SRLatch(sync=False)
 
-        #reset_r = Signal()
-        #m.d.sync += reset_r.eq(self.s_good_i | self.s_fail_i)
+        reset_r = Signal()
+        if self.syncreset:
+            m.d.comb += reset_r.eq(self.s_good_i | self.s_fail_i | self.reset_i)
+        else:
+            m.d.comb += reset_r.eq(self.s_good_i | self.s_fail_i | self.reset_i)
 
         m.d.comb += sl.s.eq(self.shadow_i & self.issue_i & \
-                            ~self.s_good_i & ~self.reset_i)
-        m.d.comb += sl.r.eq(self.reset_i | self.s_good_i | \
+                            ~self.s_good_i & ~reset_r)
+        m.d.comb += sl.r.eq(self.reset_i | reset_r | self.s_good_i | \
                             (self.issue_i & ~self.shadow_i))
         m.d.comb += self.recover_o.eq(sl.qlq & self.s_fail_i)
         m.d.comb += self.shadow_o.eq(sl.qlq)
