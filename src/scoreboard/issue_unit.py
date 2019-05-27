@@ -68,7 +68,7 @@ class IssueUnitGroup(Elaboratable):
         busy_i is a vector of signals that indicate, in this cycle, which
         of the units are currently busy.
 
-        g_issue_o indicates whether it is "safe to proceed" i.e. whether
+        busy_o indicates whether it is "safe to proceed" i.e. whether
         there is a unit here that can *be* issued an instruction
 
         fn_issue_o indicates, out of the available (non-busy) units,
@@ -89,7 +89,7 @@ class IssueUnitGroup(Elaboratable):
 
         # outputs
         self.fn_issue_o = Signal(n_insns, reset_less=True, name="fn_issue_o")
-        self.g_issue_o = Signal(reset_less=True)
+        self.busy_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
@@ -108,7 +108,7 @@ class IssueUnitGroup(Elaboratable):
         m.d.comb += pick.i.eq(~self.busy_i & allissue)
 
         # "Safe to issue" condition is basically when all units are not busy
-        m.d.comb += self.g_issue_o.eq((self.busy_i != all1))
+        m.d.comb += self.g_issue_o.eq((self.busy_i == all1))
 
         # Picker only raises one signal, therefore it's also the fn_issue
         m.d.comb += self.fn_issue_o.eq(pick.o)
@@ -130,19 +130,12 @@ class IssueUnit(Elaboratable):
 
         Inputs
 
-        * :wid:         register file width
         * :n_insns:     number of instructions in this issue unit.
     """
-    def __init__(self, wid, n_insns):
-        self.reg_width = wid
+    def __init__(self, n_insns):
         self.n_insns = n_insns
 
         # inputs
-        self.store_i = Signal(reset_less=True) # instruction is a store
-        self.dest_i = Signal(wid, reset_less=True) # Dest R in (unary)
-
-        self.g_wr_pend_i = Signal(wid, reset_less=True) # write pending vector
-
         self.insn_i = Signal(n_insns, reset_less=True, name="insn_i")
         self.busy_i = Signal(n_insns, reset_less=True, name="busy_i")
 
@@ -157,34 +150,22 @@ class IssueUnit(Elaboratable):
             return m
 
         # temporaries
-        waw_stall = Signal(reset_less=True)
         fu_stall = Signal(reset_less=True)
-        pend = Signal(self.reg_width, reset_less=True)
-
-        # dest decoder: write-pending
-        m.d.comb += pend.eq(self.dest_i & self.g_wr_pend_i)
-        m.d.comb += waw_stall.eq(pend.bool() & (~self.store_i))
 
         ib_l = []
         for i in range(self.n_insns):
             ib_l.append(self.insn_i[i] & self.busy_i[i])
         m.d.comb += fu_stall.eq(Cat(*ib_l).bool())
-        m.d.comb += self.g_issue_o.eq(~(waw_stall | fu_stall))
+        m.d.comb += self.g_issue_o.eq(~(fu_stall))
         for i in range(self.n_insns):
             m.d.comb += self.fn_issue_o[i].eq(self.g_issue_o & self.insn_i[i])
 
         return m
 
     def __iter__(self):
-        yield self.store_i
-        yield self.dest_i
-        yield self.src1_i
-        yield self.src2_i
-        yield self.reg_enable_i
-        yield self.g_wr_pend_i
-        yield from self.insn_i
-        yield from self.busy_i
-        yield from self.fn_issue_o
+        yield self.insn_i
+        yield self.busy_i
+        yield self.fn_issue_o
         yield self.g_issue_o
 
     def ports(self):
@@ -192,16 +173,10 @@ class IssueUnit(Elaboratable):
 
 
 class IntFPIssueUnit(Elaboratable):
-    def __init__(self, wid, n_int_insns, n_fp_insns):
-        self.i = IssueUnit(wid, n_int_insns)
-        self.f = IssueUnit(wid, n_fp_insns)
+    def __init__(self, n_int_insns, n_fp_insns):
+        self.i = IssueUnit(n_int_insns)
+        self.f = IssueUnit(n_fp_insns)
         self.issue_o = Signal(reset_less=True)
-
-        # some renames
-        self.int_wr_pend_i = self.i.g_wr_pend_i
-        self.fp_wr_pend_i = self.f.g_wr_pend_i
-        self.int_wr_pend_i.name = 'int_wr_pend_i'
-        self.fp_wr_pend_i.name = 'fp_wr_pend_i'
 
     def elaborate(self, platform):
         m = Module()

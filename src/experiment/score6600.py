@@ -212,7 +212,6 @@ class Scoreboard(Elaboratable):
         self.fpregs = RegFileArray(rwid, n_regs)
 
         # inputs
-        self.int_store_i = Signal(reset_less=True) # instruction is a store
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
         self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
         self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
@@ -267,7 +266,7 @@ class Scoreboard(Elaboratable):
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        issueunit = IntFPIssueUnit(self.n_regs, n_int_fus, n_fp_fus)
+        issueunit = IntFPIssueUnit(n_int_fus, n_fp_fus)
         m.submodules.issueunit = issueunit
 
         # Shadow Matrix.  currently n_int_fus shadows, to be used for
@@ -294,18 +293,14 @@ class Scoreboard(Elaboratable):
         #---------
         # Issue Unit is where it starts.  set up some in/outs for this module
         #---------
-        comb += [issueunit.i.store_i.eq(self.int_store_i),
-                     regdecode.dest_i.eq(self.int_dest_i),
+        comb += [    regdecode.dest_i.eq(self.int_dest_i),
                      regdecode.src1_i.eq(self.int_src1_i),
                      regdecode.src2_i.eq(self.int_src2_i),
                      regdecode.enable_i.eq(self.reg_enable_i),
-                     issueunit.i.dest_i.eq(regdecode.dest_o),
                      self.issue_o.eq(issueunit.issue_o)
                     ]
         self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
 
-        # connect global rd/wr pending vector (for WaW detection)
-        sync += issueunit.i.g_wr_pend_i.eq(intfus.g_int_wr_pend_o)
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
@@ -456,7 +451,6 @@ class Scoreboard(Elaboratable):
     def __iter__(self):
         yield from self.intregs
         yield from self.fpregs
-        yield self.int_store_i
         yield self.int_dest_i
         yield self.int_src1_i
         yield self.int_src2_i
@@ -589,8 +583,6 @@ def scoreboard_branch_sim(dut, alusim):
 
     iseed = 3
 
-    yield dut.int_store_i.eq(1)
-
     for i in range(1):
 
         print ("rseed", iseed)
@@ -707,9 +699,7 @@ def scoreboard_sim(dut, alusim):
 
     seed(0)
 
-    yield dut.int_store_i.eq(1)
-
-    for i in range(1):
+    for i in range(20):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -720,7 +710,7 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
+        if True:
             instrs = create_random_ops(dut, 10, True, 4)
 
         if False:
@@ -794,7 +784,7 @@ def scoreboard_sim(dut, alusim):
             instrs.append((5, 3, 3, 4, (0, 0)))
             instrs.append((4, 2, 1, 2, (1, 0)))
 
-        if True:
+        if False:
             instrs.append( (4, 3, 5, 1, (0, 0)) )
             instrs.append( (5, 2, 3, 1, (0, 0)) )
             instrs.append( (7, 1, 5, 2, (0, 0)) )
