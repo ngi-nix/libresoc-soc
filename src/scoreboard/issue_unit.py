@@ -1,9 +1,9 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Cat, Array, Const, Record, Elaboratable
+from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
 from nmigen.lib.coding import Decoder
 
-from .shadow_fn import ShadowFn
+from scoreboard.group_picker import PriorityPicker
 
 
 class RegDecode(Elaboratable):
@@ -51,6 +51,75 @@ class RegDecode(Elaboratable):
         yield self.dest_o
         yield self.src1_o
         yield self.src2_o
+
+    def ports(self):
+        return list(self)
+
+
+class IssueUnitGroup(Elaboratable):
+    """ Manages a batch of Computation Units all of which can do the same task
+
+        A priority picker will allocate one instruction in this cycle based
+        on whether the others are busy.
+
+        insn_i indicates to this module that there is an instruction to be
+        issued which this group can handle
+
+        busy_i is a vector of signals that indicate, in this cycle, which
+        of the units are currently busy.
+
+        g_issue_o indicates whether it is "safe to proceed" i.e. whether
+        there is a unit here that can *be* issued an instruction
+
+        fn_issue_o indicates, out of the available (non-busy) units,
+        which one may be selected
+    """
+    def __init__(self, n_insns):
+        """ Set up inputs and outputs for the Group
+
+            Input Parameters
+
+            * :n_insns:     number of instructions in this issue unit.
+        """
+        self.n_insns = n_insns
+
+        # inputs
+        self.insn_i = Signal(reset_less=True, name="insn_i")
+        self.busy_i = Signal(n_insns, reset_less=True, name="busy_i")
+
+        # outputs
+        self.fn_issue_o = Signal(n_insns, reset_less=True, name="fn_issue_o")
+        self.g_issue_o = Signal(reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        if self.n_insns == 0:
+            return m
+
+        m.submodules.pick = pick = PriorityPicker(self.n_insns)
+
+        # temporaries
+        allissue = Signal(self.n_insns, reset_less=True)
+        all1 = Const(-1, self.n_insns)
+
+        m.d.comb += allissue.eq(Repl(self.insn_i, self.n_insns))
+        # Pick one (and only one) of the units to proceed in this cycle
+        m.d.comb += pick.i.eq(~self.busy_i & allissue)
+
+        # "Safe to issue" condition is basically when all units are not busy
+        m.d.comb += self.g_issue_o.eq((self.busy_i != all1))
+
+        # Picker only raises one signal, therefore it's also the fn_issue
+        m.d.comb += self.fn_issue_o.eq(pick.o)
+
+        return m
+
+    def __iter__(self):
+        yield self.insn_i
+        yield self.busy_i
+        yield self.fn_issue_o
+        yield self.g_issue_o
 
     def ports(self):
         return list(self)
@@ -172,6 +241,11 @@ def issue_unit_sim(dut):
     yield
 
 def test_issue_unit():
+    dut = IssueUnitGroup(3)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_issue_unit_group.il", "w") as f:
+        f.write(vl)
+
     dut = IssueUnit(32, 3)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_issue_unit.il", "w") as f:
