@@ -122,7 +122,7 @@ class ComputationUnitNoDelay(Elaboratable):
         #    m.d.comb += self.alu.op.eq(self.oper_i)
 
         # create a latch/register for the operand
-        latchregister(m, self.oper_i, self.alu.op, opc_l.qn)
+        latchregister(m, self.oper_i, self.alu.op, self.issue_i)
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True) # Dest register
