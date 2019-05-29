@@ -7,19 +7,20 @@ from nmutil.latch import SRLatch
 class DepCell(Elaboratable):
     """ FU Dependency Cell
     """
-    def __init__(self):
+    def __init__(self, llen=1):
+        self.llen = llen
         # inputs
-        self.pend_i = Signal(reset_less=True)    # pending bit in (left)
-        self.issue_i = Signal(reset_less=True)   # Issue in (top)
-        self.go_i = Signal(reset_less=True)      # Go read/write in (left)
-        self.die_i = Signal(reset_less=True)     # Go die in (left)
+        self.pend_i = Signal(llen, reset_less=True)    # pending bit in (left)
+        self.issue_i = Signal(llen, reset_less=True)   # Issue in (top)
+        self.go_i = Signal(llen, reset_less=True)      # Go read/write in (left)
+        self.die_i = Signal(llen, reset_less=True)     # Go die in (left)
 
         # wait
-        self.wait_o = Signal(reset_less=True)  # wait out (right)
+        self.wait_o = Signal(llen, reset_less=True)  # wait out (right)
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.l = l = SRLatch(sync=False) # async latch
+        m.submodules.l = l = SRLatch(sync=False, llen=self.llen) # async latch
 
         # reset on go HI, set on dest and issue
         m.d.comb += l.s.eq(self.issue_i & self.pend_i)
@@ -44,24 +45,25 @@ class DepCell(Elaboratable):
 class FUDependenceCell(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
     """
-    def __init__(self):
+    def __init__(self, n_fu=1):
+        self.n_fu = n_fu
         # inputs
-        self.rd_pend_i = Signal(reset_less=True)     # read pending in (left)
-        self.wr_pend_i = Signal(reset_less=True)     # write pending in (left)
-        self.issue_i = Signal(reset_less=True)    # Issue in (top)
+        self.rd_pend_i = Signal(n_fu, reset_less=True) # read pend in (left)
+        self.wr_pend_i = Signal(n_fu, reset_less=True) # write pend in (left)
+        self.issue_i = Signal(n_fu, reset_less=True)    # Issue in (top)
 
-        self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
-        self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
-        self.go_die_i = Signal(reset_less=True) # Go Die in (left)
+        self.go_wr_i = Signal(n_fu, reset_less=True) # Go Write in (left)
+        self.go_rd_i = Signal(n_fu, reset_less=True)  # Go Read in (left)
+        self.go_die_i = Signal(n_fu, reset_less=True) # Go Die in (left)
 
         # outputs (latched rd/wr wait)
-        self.rd_wait_o = Signal(reset_less=True)   # read waiting out (right)
-        self.wr_wait_o = Signal(reset_less=True)   # write waiting out (right)
+        self.rd_wait_o = Signal(n_fu, reset_less=True) # read wait out (right)
+        self.wr_wait_o = Signal(n_fu, reset_less=True) # write wait out (right)
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.rd_c = rd_c = DepCell()
-        m.submodules.wr_c = wr_c = DepCell()
+        m.submodules.rd_c = rd_c = DepCell(self.n_fu)
+        m.submodules.wr_c = wr_c = DepCell(self.n_fu)
 
         # connect issue
         for c in [rd_c, wr_c]:
