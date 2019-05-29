@@ -612,7 +612,7 @@ def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
-    if (op & 0x30) != 0: # branch
+    if (op & (0x3<<2)) != 0: # branch
         yield dut.br_insn_i.eq(1)
         yield dut.br_oper_i.eq(Const(op & 0x3, 2))
     else:
@@ -808,11 +808,7 @@ def scoreboard_sim(dut, alusim):
         # create some instructions (some random, some regression tests)
         instrs = []
         if True:
-            instrs = create_random_ops(dut, 10, True, 3)
-
-        if False:
-            instrs.append( (4, 3, 5, 1, (0, 0)) )
-            instrs.append( (5, 2, 3, 4, (0, 0)) )
+            instrs = create_random_ops(dut, 10, True, 4)
 
         if False:
             instrs.append((2, 3, 3, 0, (0, 0)))
