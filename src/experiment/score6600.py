@@ -717,11 +717,11 @@ def scoreboard_branch_sim(dut, alusim):
 
         if True:
             insts = []
-            #insts.append( (3, 5, 2, 0, (0, 0)) )
+            insts.append( (3, 5, 2, 0, (0, 0)) )
             branch_ok = []
             branch_fail = []
-            branch_ok.append  ( (5, 7, 5, 1, (1, 0)) )
-            #branch_ok.append( None )
+            #branch_ok.append  ( (5, 7, 5, 1, (1, 0)) )
+            branch_ok.append( None )
             branch_fail.append( (1, 1, 2, 0, (0, 1)) )
             #branch_fail.append( None )
             insts.append( (6, 4, (branch_ok, branch_fail), 4, (0, 0)) )

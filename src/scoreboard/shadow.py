@@ -6,88 +6,6 @@ from nmigen.lib.coding import Decoder
 from scoreboard.shadow_fn import ShadowFn
 
 
-class Shadow(Elaboratable):
-    """ implements shadowing 11.5.1, p55
-
-        shadowing can be used for branches as well as exceptions (interrupts),
-        load/store hold (exceptions again), and vector-element predication
-        (once the predicate is known, which it may not be at instruction issue)
-
-        Inputs
-        * :shadow_wid:  number of shadow/fail/good/go_die sets
-
-        notes:
-        * when shadow_wid = 0, recover and shadown are Consts (i.e. do nothing)
-    """
-    def __init__(self, shadow_wid=0, syncreset=False):
-        self.shadow_wid = shadow_wid
-        self.syncreset = syncreset
-
-        if shadow_wid:
-            # inputs
-            self.issue_i = Signal(reset_less=True)
-            self.reset_i = Signal(reset_less=True)
-            self.shadow_i = Signal(shadow_wid, reset_less=True)
-            self.s_fail_i = Signal(shadow_wid, reset_less=True)
-            self.s_good_i = Signal(shadow_wid, reset_less=True)
-            # outputs
-            self.go_die_o = Signal(reset_less=True)
-            self.shadown_o = Signal(reset_less=True)
-        else:
-            # outputs when no shadowing needed
-            self.shadown_o = Const(1)
-            self.go_die_o = Const(0)
-
-    def elaborate(self, platform):
-        m = Module()
-        s_latches = []
-        for i in range(self.shadow_wid):
-            sh = ShadowFn(self.syncreset)
-            setattr(m.submodules, "shadow%d" % i, sh)
-            s_latches.append(sh)
-
-        # shadow / recover (optional: shadow_wid > 0)
-        if self.shadow_wid:
-            i_l = []
-            d_l = []
-            fail_l = []
-            good_l = []
-            shi_l = []
-            sho_l = []
-            rec_l = []
-            # get list of latch signals. really must be a better way to do this
-            for l in s_latches:
-                i_l.append(l.issue_i)
-                d_l.append(l.reset_i)
-                shi_l.append(l.shadow_i)
-                fail_l.append(l.s_fail_i)
-                good_l.append(l.s_good_i)
-                sho_l.append(l.shadow_o)
-                rec_l.append(l.recover_o)
-            m.d.comb += Cat(*i_l).eq(Repl(self.issue_i, self.shadow_wid))
-            m.d.comb += Cat(*d_l).eq(Repl(self.reset_i, self.shadow_wid))
-            m.d.comb += Cat(*fail_l).eq(self.s_fail_i)
-            m.d.comb += Cat(*good_l).eq(self.s_good_i)
-            m.d.comb += Cat(*shi_l).eq(self.shadow_i)
-            m.d.comb += self.shadown_o.eq(~(Cat(*sho_l).bool()))
-            m.d.comb += self.go_die_o.eq(Cat(*rec_l).bool())
-
-        return m
-
-    def __iter__(self):
-        if self.shadow_wid:
-            yield self.reset_i
-            yield self.issue_i
-            yield self.shadow_i
-            yield self.s_fail_i
-            yield self.s_good_i
-        yield self.go_die_o
-        yield self.shadown_o
-
-    def ports(self):
-        return list(self)
-
-
 class ShadowMatrix(Elaboratable):
     """ Matrix of Shadow Functions.  One per FU.
 
@@ -138,7 +56,7 @@ class ShadowMatrix(Elaboratable):
         m = Module()
         shadows = []
         for i in range(self.n_fus):
-            sh = Shadow(self.shadow_wid, self.syncreset)
+            sh = ShadowFn(self.shadow_wid, self.syncreset)
             setattr(m.submodules, "sh%d" % i, sh)
             shadows.append(sh)
             # connect shadow/fail/good to all shadows
