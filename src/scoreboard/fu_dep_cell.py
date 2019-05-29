@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable
+from nmigen import Module, Signal, Const, Elaboratable
 from nmutil.latch import SRLatch
 
 
@@ -45,8 +45,9 @@ class DepCell(Elaboratable):
 class FUDependenceCell(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
     """
-    def __init__(self, n_fu=1):
+    def __init__(self, dummy, n_fu=1):
         self.n_fu = n_fu
+        self.dummy = Const(~(1<<dummy), n_fu)
         # inputs
         self.rd_pend_i = Signal(n_fu, reset_less=True) # read pend in (left)
         self.wr_pend_i = Signal(n_fu, reset_less=True) # write pend in (left)
@@ -75,8 +76,8 @@ class FUDependenceCell(Elaboratable):
         m.d.comb += rd_c.go_i.eq(self.go_rd_i)
 
         # connect pend_i
-        m.d.comb += wr_c.pend_i.eq(self.wr_pend_i)
-        m.d.comb += rd_c.pend_i.eq(self.rd_pend_i)
+        m.d.comb += wr_c.pend_i.eq(self.wr_pend_i & self.dummy)
+        m.d.comb += rd_c.pend_i.eq(self.rd_pend_i & self.dummy)
 
         # connect output
         m.d.comb += self.wr_wait_o.eq(wr_c.wait_o)

@@ -37,10 +37,10 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         # matrix of dependency cells
         # ---
-        dm = Array(FUDependenceCell(self.n_fu_row) \
-                                            for f in range(self.n_fu_col))
-        for x in range(self.n_fu_col):
-                setattr(m.submodules, "dm%d" % x, dm[x])
+        dm = Array(FUDependenceCell(f, self.n_fu_col) \
+                                            for f in range(self.n_fu_row))
+        for y in range(self.n_fu_row):
+                setattr(m.submodules, "dm%d" % y, dm[y])
 
         # ---
         # array of Function Unit Readable/Writable: row-length, horizontal
@@ -68,71 +68,44 @@ class FUFUDepMatrix(Elaboratable):
         # connect FU Pending
         # ---
         for y in range(self.n_fu_row):
+            dc = dm[y]
             fu = fur[y]
-            rd_wait_o = []
-            wr_wait_o = []
-            for x in range(self.n_fu_col):
-                dc = dm[x]
-                # accumulate cell outputs rd/wr-pending
-                rd_wait_o.append(dc.rd_wait_o[y])
-                wr_wait_o.append(dc.wr_wait_o[y])
             # connect cell reg-select outputs to Reg Vector In
-            m.d.comb += [fu.rd_pend_i.eq(Cat(*rd_wait_o)),
-                         fu.wr_pend_i.eq(Cat(*wr_wait_o)),
+            m.d.comb += [fu.rd_pend_i.eq(dc.rd_wait_o),
+                         fu.wr_pend_i.eq(dc.wr_wait_o),
                         ]
 
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
         # ---
         for x in range(self.n_fu_col):
-            dc = dm[x]
             issue_i = []
             for y in range(self.n_fu_row):
+                dc = dm[y]
                 # accumulate cell inputs issue
-                issue_i.append(dc.issue_i[y])
-            # wire up inputs from module to row cell inputs (Cat is gooood)
+                issue_i.append(dc.issue_i[x])
+            # wire up inputs from module to row cell inputs
             m.d.comb += Cat(*issue_i).eq(self.issue_i)
 
         # ---
         # connect Matrix go_rd_i/go_wr_i to module readable/writable
         # ---
         for y in range(self.n_fu_row):
-            go_rd_i = []
-            go_wr_i = []
-            go_die_i = []
-            for x in range(self.n_fu_col):
-                dc = dm[x]
-                # accumulate cell go_rd/go_wr
-                go_rd_i.append(dc.go_rd_i[y])
-                go_wr_i.append(dc.go_wr_i[y])
-                go_die_i.append(dc.go_die_i[y])
-            # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
-                         Cat(*go_wr_i).eq(self.go_wr_i),
-                         Cat(*go_die_i).eq(self.go_die_i),
+            dc = dm[y]
+            # wire up inputs from module to row cell inputs
+            m.d.comb += [dc.go_rd_i.eq(self.go_rd_i),
+                         dc.go_wr_i.eq(self.go_wr_i),
+                         dc.go_die_i.eq(self.go_die_i),
                         ]
-
 
         # ---
         # connect Matrix pending
         # ---
         for y in range(self.n_fu_row):
-            rd_pend_i = []
-            wr_pend_i = []
-            for x in range(self.n_fu_col):
-                dc = dm[x]
-                if x == y: # ignore hazards on the diagonal: self-against-self
-                    dummyrd = Signal(reset_less=True)
-                    dummywr = Signal(reset_less=True)
-                    rd_pend_i.append(dummyrd)
-                    wr_pend_i.append(dummywr)
-                    continue
-                # accumulate cell rd_pend/wr_pend/go_rd/go_wr
-                rd_pend_i.append(dc.rd_pend_i[y])
-                wr_pend_i.append(dc.wr_pend_i[y])
-            # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += [Cat(*rd_pend_i).eq(self.rd_pend_i),
-                         Cat(*wr_pend_i).eq(self.wr_pend_i),
+            dc = dm[y]
+            # wire up inputs from module to row cell inputs
+            m.d.comb += [dc.rd_pend_i.eq(self.rd_pend_i),
+                         dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
 
         return m
