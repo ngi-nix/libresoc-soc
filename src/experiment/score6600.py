@@ -19,20 +19,30 @@ from random import randint, seed
 from copy import deepcopy
 
 
-class CompUnits(Elaboratable):
+class CompUnitsBase(Elaboratable):
+    """ Computation Unit Base class.
 
-    def __init__(self, rwid, n_units):
+        Amazingly, this class works recursively.  It's supposed to just
+        look after some ALUs (that can handle the same operations),
+        grouping them together, however it turns out that the same code
+        can also group *groups* of Computation Units together as well.
+    """
+    def __init__(self, rwid, units):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
-            * :n_units: number of ALUs
-
-            Note: bgt unit is returned so that a shadow unit can be created
-            for it
-
+            * :units: sequence of ALUs (or CompUnitsBase derivatives)
         """
-        self.n_units = n_units
+        self.units = units
         self.rwid = rwid
+        if units and isinstance(units[0], CompUnitsBase):
+            self.n_units = 0
+            for u in self.units:
+                self.n_units += u.n_units
+        else:
+            self.n_units = len(units)
+
+        n_units = self.n_units
 
         # inputs
         self.issue_i = Signal(n_units, reset_less=True)
@@ -47,38 +57,17 @@ class CompUnits(Elaboratable):
         self.req_rel_o = Signal(n_units, reset_less=True)
 
         # in/out register data (note: not register#, actual data)
-        self.dest_o = Signal(rwid, reset_less=True)
-        self.src1_data_i = Signal(rwid, reset_less=True)
-        self.src2_data_i = Signal(rwid, reset_less=True)
-
-        # Branch ALU and CU
-        self.bgt = BranchALU(self.rwid)
-        self.br1 = ComputationUnitNoDelay(self.rwid, 3, self.bgt)
+        self.data_o = Signal(rwid, reset_less=True)
+        self.src1_i = Signal(rwid, reset_less=True)
+        self.src2_i = Signal(rwid, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        sync = m.d.sync
 
-        # Int ALUs
-        add = ALU(self.rwid)
-        sub = ALU(self.rwid)
-        mul = ALU(self.rwid)
-        shf = ALU(self.rwid)
-        bgt = self.bgt
-
-        m.submodules.comp1 = comp1 = ComputationUnitNoDelay(self.rwid, 2, add)
-        m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 2, sub)
-        m.submodules.comp3 = comp3 = ComputationUnitNoDelay(self.rwid, 2, mul)
-        m.submodules.comp4 = comp4 = ComputationUnitNoDelay(self.rwid, 2, shf)
-        m.submodules.br1 = br1 = self.br1
-        int_alus = [comp1, comp2, comp3, comp4, br1]
-
-        comb += comp1.oper_i.eq(Const(0, 2)) # op=add
-        comb += comp2.oper_i.eq(Const(1, 2)) # op=sub
-        comb += comp3.oper_i.eq(Const(2, 2)) # op=mul
-        comb += comp4.oper_i.eq(Const(3, 2)) # op=shf
-        comb += br1.oper_i.eq(Const(4, 3)) # op=bgt
+        for i, alu in enumerate(self.units):
+            print ("elaborate comp%d" % i, self, alu)
+            setattr(m.submodules, "comp%d" % i, alu)
 
         go_rd_l = []
         go_wr_l = []
@@ -88,7 +77,7 @@ class CompUnits(Elaboratable):
         rd_rel_l = []
         shadow_l = []
         godie_l = []
-        for alu in int_alus:
+        for alu in self.units:
             req_rel_l.append(alu.req_rel_o)
             rd_rel_l.append(alu.rd_rel_o)
             shadow_l.append(alu.shadown_i)
@@ -109,13 +98,80 @@ class CompUnits(Elaboratable):
         # connect data register input/output
 
         # merge (OR) all integer FU / ALU outputs to a single value
-        # bit of a hack: treereduce needs a list with an item named "dest_o"
-        dest_o = treereduce(int_alus)
-        comb += self.dest_o.eq(dest_o)
+        # bit of a hack: treereduce needs a list with an item named "data_o"
+        if self.units:
+            data_o = treereduce(self.units)
+            comb += self.data_o.eq(data_o)
 
-        for i, alu in enumerate(int_alus):
-            comb += alu.src1_i.eq(self.src1_data_i)
-            comb += alu.src2_i.eq(self.src2_data_i)
+        for i, alu in enumerate(self.units):
+            comb += alu.src1_i.eq(self.src1_i)
+            comb += alu.src2_i.eq(self.src2_i)
+
+        return m
+
+
+class CompUnitALUs(CompUnitsBase):
+
+    def __init__(self, rwid):
+        """ Inputs:
+
+            * :rwid:   bit width of register file(s) - both FP and INT
+        """
+
+        # Int ALUs
+        add = ALU(rwid)
+        sub = ALU(rwid)
+        mul = ALU(rwid)
+        shf = ALU(rwid)
+
+        units = []
+        for alu in [add, sub, mul, shf]:
+            units.append(ComputationUnitNoDelay(rwid, 2, alu))
+
+        print ("alu units", units)
+        CompUnitsBase.__init__(self, rwid, units)
+        print ("alu base init done")
+
+    def elaborate(self, platform):
+        print ("alu elaborate start")
+        m = CompUnitsBase.elaborate(self, platform)
+        print ("alu elaborate done")
+        comb = m.d.comb
+
+        comb += self.units[0].oper_i.eq(Const(0, 2)) # op=add
+        comb += self.units[1].oper_i.eq(Const(1, 2)) # op=sub
+        comb += self.units[2].oper_i.eq(Const(2, 2)) # op=mul
+        comb += self.units[3].oper_i.eq(Const(3, 2)) # op=shf
+
+        return m
+
+
+class CompUnitBR(CompUnitsBase):
+
+    def __init__(self, rwid):
+        """ Inputs:
+
+            * :rwid:   bit width of register file(s) - both FP and INT
+
+            Note: bgt unit is returned so that a shadow unit can be created
+            for it
+
+        """
+
+        # Branch ALU and CU
+        self.bgt = BranchALU(rwid)
+        self.br1 = ComputationUnitNoDelay(rwid, 3, self.bgt)
+        print ("br units", [self.br1])
+        CompUnitsBase.__init__(self, rwid, [self.br1])
+        print ("br base init done")
+
+    def elaborate(self, platform):
+        print ("br elaborate start")
+        m = CompUnitsBase.elaborate(self, platform)
+        print ("br elaborate done")
+        comb = m.d.comb
+
+        comb += self.br1.oper_i.eq(Const(4, 3)) # op=bgt
 
         return m
 
@@ -248,9 +304,11 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs and Comp Units
         n_int_alus = 5
-        m.submodules.cu = cu = CompUnits(self.rwid, n_int_alus)
-        comb += cu.go_die_i.eq(0)
-        bgt = cu.bgt # get at the branch computation unit
+        cua = CompUnitALUs(self.rwid)
+        cub = CompUnitBR(self.rwid)
+        m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
+        bgt = cub.bgt # get at the branch computation unit
+        br1 = cub.br1
 
         # Int FUs
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
@@ -393,7 +451,7 @@ class Scoreboard(Elaboratable):
         comb += bshadow.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
 
         bactive = Signal(reset_less=True)
-        comb += bactive.eq((bspec.active_i | cu.br1.issue_i) & ~cu.br1.go_wr_i)
+        comb += bactive.eq((bspec.active_i | br1.issue_i) & ~br1.go_wr_i)
 
         # instruction being issued (fn_issue_o) has a shadow cast by the branch
         with m.If(bactive & (self.branch_succ_i | self.branch_fail_i)):
@@ -406,7 +464,7 @@ class Scoreboard(Elaboratable):
         # whether the branch succeeded or failed, plus, link up to the
         # "recorder" of whether the instruction was under shadow or not
 
-        with m.If(cu.br1.issue_i):
+        with m.If(br1.issue_i):
             sync += bspec.active_i.eq(1)
         with m.If(self.branch_succ_i):
             comb += bspec.good_i.eq(fn_issue_o & 0x1f)
@@ -415,12 +473,12 @@ class Scoreboard(Elaboratable):
 
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
-        with m.If(cu.br1.go_wr_i):
-            sync += self.branch_direction_o.eq(cu.br1.data_o+Const(1, 2))
+        with m.If(br1.go_wr_i):
+            sync += self.branch_direction_o.eq(br1.data_o+Const(1, 2))
             sync += bspec.active_i.eq(0)
             comb += bspec.br_i.eq(1)
             # branch occurs if data == 1, failed if data == 0
-            comb += bspec.br_ok_i.eq(cu.br1.data_o == 1)
+            comb += bspec.br_ok_i.eq(br1.data_o == 1)
             for i in range(n_int_fus):
                 # *expected* direction of the branch matched against *actual*
                 comb += bshadow.s_good_i[i][0].eq(bspec.match_g_o[i])
@@ -436,9 +494,9 @@ class Scoreboard(Elaboratable):
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
         # connect ALUs to regfule
-        comb += int_dest.data_i.eq(cu.dest_o)
-        comb += cu.src1_data_i.eq(int_src1.data_o)
-        comb += cu.src2_data_i.eq(int_src2.data_o)
+        comb += int_dest.data_i.eq(cu.data_o)
+        comb += cu.src1_i.eq(int_src1.data_o)
+        comb += cu.src2_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
         comb += cu.go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus])
