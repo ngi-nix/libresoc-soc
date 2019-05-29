@@ -349,7 +349,7 @@ class Scoreboard(Elaboratable):
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        aluissue = IssueUnitGroup(n_intfus)
+        aluissue = IssueUnitGroup(4)
         brissue = IssueUnitGroup(1)
         issueunit = IssueUnitArray([aluissue, brissue])
         m.submodules.issueunit = issueunit
@@ -795,7 +795,7 @@ def scoreboard_sim(dut, alusim):
 
     seed(0)
 
-    for i in range(1):
+    for i in range(20):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -807,12 +807,19 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
-            instrs = create_random_ops(dut, 10, True, 4)
-
         if True:
+            instrs = create_random_ops(dut, 10, True, 3)
+
+        if False:
+            instrs.append( (4, 3, 5, 1, (0, 0)) )
+            instrs.append( (5, 2, 3, 4, (0, 0)) )
+
+        if False:
             instrs.append((2, 3, 3, 0, (0, 0)))
-            instrs.append((5, 4, 4, 1, (0, 0)))
+            instrs.append((5, 3, 3, 1, (0, 0)))
+            instrs.append((3, 5, 5, 2, (0, 0)))
+            instrs.append((5, 3, 3, 3, (0, 0)))
+            instrs.append((3, 5, 5, 0, (0, 0)))
 
         if False:
             instrs.append((5, 6, 2, 1))

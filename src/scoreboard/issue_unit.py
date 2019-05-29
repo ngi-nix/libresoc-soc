@@ -101,17 +101,16 @@ class IssueUnitGroup(Elaboratable):
 
         # temporaries
         allissue = Signal(self.n_insns, reset_less=True)
-        all1 = Const(-1, self.n_insns)
 
         m.d.comb += allissue.eq(Repl(self.insn_i, self.n_insns))
         # Pick one (and only one) of the units to proceed in this cycle
         m.d.comb += pick.i.eq(~self.busy_i & allissue)
 
         # "Safe to issue" condition is basically when all units are not busy
-        m.d.comb += self.busy_o.eq((self.busy_i == all1))
+        m.d.comb += self.busy_o.eq(~((~self.busy_i).bool()))
 
         # Picker only raises one signal, therefore it's also the fn_issue
-        m.d.comb += self.fn_issue_o.eq(pick.o)
+        m.d.comb += self.fn_issue_o.eq(pick.o & Repl(~self.busy_o, self.n_insns))
 
         return m
 
@@ -151,9 +150,9 @@ class IssueUnitArray(Elaboratable):
         fn_issue_o = []
         for u in self.units:
             busy_i.append(u.busy_i)
-            g_issue_o.append(~u.busy_o)
+            g_issue_o.append(u.busy_o)
             fn_issue_o.append(u.fn_issue_o)
-        m.d.comb += self.issue_o.eq(Cat(*g_issue_o).bool())
+        m.d.comb += self.issue_o.eq(~(Cat(*g_issue_o).bool()))
         m.d.comb += self.fn_issue_o.eq(Cat(*fn_issue_o))
         m.d.comb += Cat(*busy_i).eq(self.busy_i)
 
