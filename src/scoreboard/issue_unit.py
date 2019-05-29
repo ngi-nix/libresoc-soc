@@ -108,7 +108,7 @@ class IssueUnitGroup(Elaboratable):
         m.d.comb += pick.i.eq(~self.busy_i & allissue)
 
         # "Safe to issue" condition is basically when all units are not busy
-        m.d.comb += self.g_issue_o.eq((self.busy_i == all1))
+        m.d.comb += self.busy_o.eq((self.busy_i == all1))
 
         # Picker only raises one signal, therefore it's also the fn_issue
         m.d.comb += self.fn_issue_o.eq(pick.o)
@@ -123,6 +123,48 @@ class IssueUnitGroup(Elaboratable):
 
     def ports(self):
         return list(self)
+
+
+class IssueUnitArray(Elaboratable):
+    """ Convenience module that amalgamates the issue and busy signals
+
+        unit issue_i is to be set externally, at the same time as the
+        ALU group oper_i
+    """
+    def __init__(self, units):
+        self.units = units
+        self.issue_o = Signal(reset_less=True)
+        n_insns = 0
+        for u in self.units:
+            n_insns += len(u.fn_issue_o)
+        self.busy_i = Signal(n_insns, reset_less=True)
+        self.fn_issue_o = Signal(n_insns, reset_less=True)
+        self.n_insns = n_insns
+
+    def elaborate(self, platform):
+        m = Module()
+        for i, u in enumerate(self.units):
+            setattr(m.submodules, "issue%d" % i, u)
+
+        g_issue_o = []
+        busy_i = []
+        fn_issue_o = []
+        for u in self.units:
+            busy_i.append(u.busy_i)
+            g_issue_o.append(~u.busy_o)
+            fn_issue_o.append(u.fn_issue_o)
+        m.d.comb += self.issue_o.eq(Cat(*g_issue_o).bool())
+        m.d.comb += self.fn_issue_o.eq(Cat(*fn_issue_o))
+        m.d.comb += Cat(*busy_i).eq(self.busy_i)
+
+        return m
+
+    def ports(self):
+        yield self.busy_i
+        yield self.issue_o
+        yield self.fn_issue_o
+        yield from self.units
+
 
 
 class IssueUnit(Elaboratable):

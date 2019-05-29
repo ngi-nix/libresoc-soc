@@ -7,7 +7,7 @@ from scoreboard.fu_fu_matrix import FUFUDepMatrix
 from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
-from scoreboard.issue_unit import IntFPIssueUnit, RegDecode
+from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 
 from compalu import ComputationUnitNoDelay
@@ -52,6 +52,7 @@ class CompUnitsBase(Elaboratable):
         """
         self.units = units
         self.rwid = rwid
+        self.rwid = rwid
         if units and isinstance(units[0], CompUnitsBase):
             self.n_units = 0
             for u in self.units:
@@ -77,13 +78,13 @@ class CompUnitsBase(Elaboratable):
         self.data_o = Signal(rwid, reset_less=True)
         self.src1_i = Signal(rwid, reset_less=True)
         self.src2_i = Signal(rwid, reset_less=True)
+        # input operand
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
         for i, alu in enumerate(self.units):
-            print ("elaborate comp%d" % i, self, alu)
             setattr(m.submodules, "comp%d" % i, alu)
 
         go_rd_l = []
@@ -129,11 +130,16 @@ class CompUnitsBase(Elaboratable):
 
 class CompUnitALUs(CompUnitsBase):
 
-    def __init__(self, rwid):
+    def __init__(self, rwid, opwid):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
+            * :opwid:  operand bit width
         """
+        self.opwid = opwid
+
+        # inputs
+        self.oper_i = Signal(opwid, reset_less=True)
 
         # Int ALUs
         add = ALU(rwid)
@@ -145,50 +151,52 @@ class CompUnitALUs(CompUnitsBase):
         for alu in [add, sub, mul, shf]:
             units.append(ComputationUnitNoDelay(rwid, 2, alu))
 
-        print ("alu units", units)
         CompUnitsBase.__init__(self, rwid, units)
-        print ("alu base init done")
 
     def elaborate(self, platform):
-        print ("alu elaborate start")
         m = CompUnitsBase.elaborate(self, platform)
-        print ("alu elaborate done")
         comb = m.d.comb
 
-        comb += self.units[0].oper_i.eq(Const(0, 2)) # op=add
-        comb += self.units[1].oper_i.eq(Const(1, 2)) # op=sub
-        comb += self.units[2].oper_i.eq(Const(2, 2)) # op=mul
-        comb += self.units[3].oper_i.eq(Const(3, 2)) # op=shf
+        # hand the same operation to all units
+        for alu in self.units:
+            comb += alu.oper_i.eq(self.oper_i)
+        #comb += self.units[0].oper_i.eq(Const(0, 2)) # op=add
+        #comb += self.units[1].oper_i.eq(Const(1, 2)) # op=sub
+        #comb += self.units[2].oper_i.eq(Const(2, 2)) # op=mul
+        #comb += self.units[3].oper_i.eq(Const(3, 2)) # op=shf
 
         return m
 
 
 class CompUnitBR(CompUnitsBase):
 
-    def __init__(self, rwid):
+    def __init__(self, rwid, opwid):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
+            * :opwid:  operand bit width
 
             Note: bgt unit is returned so that a shadow unit can be created
             for it
-
         """
+        self.opwid = opwid
+
+        # inputs
+        self.oper_i = Signal(opwid, reset_less=True)
 
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
         self.br1 = ComputationUnitNoDelay(rwid, 3, self.bgt)
-        print ("br units", [self.br1])
         CompUnitsBase.__init__(self, rwid, [self.br1])
-        print ("br base init done")
 
     def elaborate(self, platform):
-        print ("br elaborate start")
         m = CompUnitsBase.elaborate(self, platform)
-        print ("br elaborate done")
         comb = m.d.comb
 
-        comb += self.br1.oper_i.eq(Const(4, 3)) # op=bgt
+        # hand the same operation to all units
+        for alu in self.units:
+            comb += alu.oper_i.eq(self.oper_i)
+        #comb += self.br1.oper_i.eq(Const(4, 3)) # op=bgt
 
         return m
 
@@ -227,13 +235,13 @@ class FunctionUnits(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        n_int_fus = self.n_int_alus
+        n_intfus = self.n_int_alus
 
         # Integer FU-FU Dep Matrix
-        intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
+        intfudeps = FUFUDepMatrix(n_intfus, n_intfus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_int_fus, self.n_regs)
+        intregdeps = FURegDepMatrix(n_intfus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
         comb += self.g_int_rd_pend_o.eq(intregdeps.rd_rsel_o)
@@ -321,8 +329,8 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs and Comp Units
         n_int_alus = 5
-        cua = CompUnitALUs(self.rwid)
-        cub = CompUnitBR(self.rwid)
+        cua = CompUnitALUs(self.rwid, 2)
+        cub = CompUnitBR(self.rwid, 2)
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
         bgt = cub.bgt # get at the branch computation unit
         br1 = cub.br1
@@ -331,33 +339,35 @@ class Scoreboard(Elaboratable):
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
 
         # Count of number of FUs
-        n_int_fus = n_int_alus
+        n_intfus = n_int_alus
         n_fp_fus = 0 # for now
 
         # Integer Priority Picker 1: Adder + Subtractor
-        intpick1 = GroupPicker(n_int_fus) # picks between add, sub, mul and shf
+        intpick1 = GroupPicker(n_intfus) # picks between add, sub, mul and shf
         m.submodules.intpick1 = intpick1
 
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        issueunit = IntFPIssueUnit(n_int_fus, n_fp_fus)
+        aluissue = IssueUnitGroup(n_intfus)
+        brissue = IssueUnitGroup(1)
+        issueunit = IssueUnitArray([aluissue, brissue])
         m.submodules.issueunit = issueunit
 
-        # Shadow Matrix.  currently n_int_fus shadows, to be used for
+        # Shadow Matrix.  currently n_intfus shadows, to be used for
         # write-after-write hazards.  NOTE: there is one extra for branches,
         # so the shadow width is increased by 1
-        m.submodules.shadows = shadows = ShadowMatrix(n_int_fus, n_int_fus, True)
-        m.submodules.bshadow = bshadow = ShadowMatrix(n_int_fus, 1, False)
+        m.submodules.shadows = shadows = ShadowMatrix(n_intfus, n_intfus, True)
+        m.submodules.bshadow = bshadow = ShadowMatrix(n_intfus, 1, False)
 
         # record previous instruction to cast shadow on current instruction
-        fn_issue_prev = Signal(n_int_fus)
-        prev_shadow = Signal(n_int_fus)
+        fn_issue_prev = Signal(n_intfus)
+        prev_shadow = Signal(n_intfus)
 
         # Branch Speculation recorder.  tracks the success/fail state as
         # each instruction is issued, so that when the branch occurs the
         # allow/cancel can be issued as appropriate.
-        m.submodules.specrec = bspec = BranchSpeculationRecord(n_int_fus)
+        m.submodules.specrec = bspec = BranchSpeculationRecord(n_intfus)
 
         #---------
         # ok start wiring things together...
@@ -374,7 +384,12 @@ class Scoreboard(Elaboratable):
                      regdecode.enable_i.eq(self.reg_enable_i),
                      self.issue_o.eq(issueunit.issue_o)
                     ]
-        self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
+
+        # take these to outside (for testing)
+        self.alu_insn_i = aluissue.insn_i # enabled by instruction decode
+        self.br_insn_i = brissue.insn_i # enabled by instruction decode
+        self.alu_oper_i = cua.oper_i
+        self.br_oper_i = cub.oper_i
 
         # TODO: issueunit.f (FP)
 
@@ -383,21 +398,21 @@ class Scoreboard(Elaboratable):
         comb += intfus.src1_i.eq(regdecode.src1_o)
         comb += intfus.src2_i.eq(regdecode.src2_o)
 
-        fn_issue_o = issueunit.i.fn_issue_o
+        fn_issue_o = issueunit.fn_issue_o
 
         comb += intfus.fn_issue_i.eq(fn_issue_o)
-        comb += issueunit.i.busy_i.eq(cu.busy_o)
+        comb += issueunit.busy_i.eq(cu.busy_o)
         comb += self.busy_o.eq(cu.busy_o.bool())
 
         #---------
         # merge shadow matrices outputs
         #---------
-        
+
         # these are explained in ShadowMatrix docstring, and are to be
         # connected to the FUReg and FUFU Matrices, to get them to reset
-        anydie = Signal(n_int_fus, reset_less=True)
-        allshadown = Signal(n_int_fus, reset_less=True)
-        shreset = Signal(n_int_fus, reset_less=True)
+        anydie = Signal(n_intfus, reset_less=True)
+        allshadown = Signal(n_intfus, reset_less=True)
+        shreset = Signal(n_intfus, reset_less=True)
         comb += allshadown.eq(shadows.shadown_o & bshadow.shadown_o)
         comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
         comb += shreset.eq(bspec.match_g_o | bspec.match_f_o)
@@ -413,32 +428,32 @@ class Scoreboard(Elaboratable):
         go_wr_i = intfus.go_wr_i
         go_die_i = intfus.go_die_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        comb += go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus]) # rd
-        comb += go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus]) # wr
-        comb += go_die_i[0:n_int_fus].eq(anydie[0:n_int_fus]) # die
+        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus]) # rd
+        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus]) # wr
+        comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus]) # die
 
         # Connect Picker
         #---------
-        comb += intpick1.rd_rel_i[0:n_int_fus].eq(cu.rd_rel_o[0:n_int_fus])
-        comb += intpick1.req_rel_i[0:n_int_fus].eq(cu.req_rel_o[0:n_int_fus])
+        comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
+        comb += intpick1.req_rel_i[0:n_intfus].eq(cu.req_rel_o[0:n_intfus])
         int_rd_o = intfus.readable_o
         int_wr_o = intfus.writable_o
-        comb += intpick1.readable_i[0:n_int_fus].eq(int_rd_o[0:n_int_fus])
-        comb += intpick1.writable_i[0:n_int_fus].eq(int_wr_o[0:n_int_fus])
+        comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])
+        comb += intpick1.writable_i[0:n_intfus].eq(int_wr_o[0:n_intfus])
 
         #---------
         # Shadow Matrix
         #---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
-        #comb += shadows.reset_i[0:n_int_fus].eq(bshadow.go_die_o[0:n_int_fus])
-        comb += shadows.reset_i[0:n_int_fus].eq(bshadow.go_die_o[0:n_int_fus])
+        #comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
+        comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
         #---------
         # NOTE; this setup is for the instruction order preservation...
 
         # connect shadows / go_dies to Computation Units
-        comb += cu.shadown_i[0:n_int_fus].eq(allshadown)
-        comb += cu.go_die_i[0:n_int_fus].eq(anydie)
+        comb += cu.shadown_i[0:n_intfus].eq(allshadown)
+        comb += cu.go_die_i[0:n_intfus].eq(anydie)
 
         # ok connect first n_int_fu shadows to busy lines, to create an
         # instruction-order linked-list-like arrangement, using a bit-matrix
@@ -446,8 +461,8 @@ class Scoreboard(Elaboratable):
         # XXX TODO
 
         # when written, the shadow can be cancelled (and was good)
-        for i in range(n_int_fus):
-            comb += shadows.s_good_i[i][0:n_int_fus].eq(go_wr_o[0:n_int_fus])
+        for i in range(n_intfus):
+            comb += shadows.s_good_i[i][0:n_intfus].eq(go_wr_o[0:n_intfus])
 
         # work out the current-activated busy unit (by recording the old one)
         with m.If(fn_issue_o): # only update prev bit if instruction issued
@@ -456,16 +471,16 @@ class Scoreboard(Elaboratable):
         # *previous* instruction shadows *current* instruction, and, obviously,
         # if the previous is completed (!busy) don't cast the shadow!
         comb += prev_shadow.eq(~fn_issue_o & cu.busy_o)
-        for i in range(n_int_fus):
-            comb += shadows.shadow_i[i][0:n_int_fus].eq(prev_shadow)
+        for i in range(n_intfus):
+            comb += shadows.shadow_i[i][0:n_intfus].eq(prev_shadow)
 
         #---------
         # ... and this is for branch speculation.  it uses the extra bit
-        # tacked onto the ShadowMatrix (hence shadow_wid=n_int_fus+1)
+        # tacked onto the ShadowMatrix (hence shadow_wid=n_intfus+1)
         # only needs to set shadow_i, s_fail_i and s_good_i
 
         # issue captures shadow_i (if enabled)
-        comb += bshadow.reset_i[0:n_int_fus].eq(shreset[0:n_int_fus])
+        comb += bshadow.reset_i[0:n_intfus].eq(shreset[0:n_intfus])
 
         bactive = Signal(reset_less=True)
         comb += bactive.eq((bspec.active_i | br1.issue_i) & ~br1.go_wr_i)
@@ -473,7 +488,7 @@ class Scoreboard(Elaboratable):
         # instruction being issued (fn_issue_o) has a shadow cast by the branch
         with m.If(bactive & (self.branch_succ_i | self.branch_fail_i)):
             comb += bshadow.issue_i.eq(fn_issue_o)
-            for i in range(n_int_fus):
+            for i in range(n_intfus):
                 with m.If(fn_issue_o & (Const(1<<i))):
                     comb += bshadow.shadow_i[i][0].eq(1)
 
@@ -496,7 +511,7 @@ class Scoreboard(Elaboratable):
             comb += bspec.br_i.eq(1)
             # branch occurs if data == 1, failed if data == 0
             comb += bspec.br_ok_i.eq(br1.data_o == 1)
-            for i in range(n_int_fus):
+            for i in range(n_intfus):
                 # *expected* direction of the branch matched against *actual*
                 comb += bshadow.s_good_i[i][0].eq(bspec.match_g_o[i])
                 # ... or it didn't
@@ -505,7 +520,6 @@ class Scoreboard(Elaboratable):
         #---------
         # Connect Register File(s)
         #---------
-        print ("intregdeps wen len", len(intfus.dest_rsel_o))
         comb += int_dest.wen.eq(intfus.dest_rsel_o)
         comb += int_src1.ren.eq(intfus.src1_rsel_o)
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
@@ -516,9 +530,9 @@ class Scoreboard(Elaboratable):
         comb += cu.src2_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        comb += cu.go_rd_i[0:n_int_fus].eq(go_rd_o[0:n_int_fus])
-        comb += cu.go_wr_i[0:n_int_fus].eq(go_wr_o[0:n_int_fus])
-        comb += cu.issue_i[0:n_int_fus].eq(fn_issue_o[0:n_int_fus])
+        comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
+        comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
+        comb += cu.issue_i[0:n_intfus].eq(fn_issue_o[0:n_intfus])
 
         return m
 
@@ -594,12 +608,16 @@ class RegSim:
                 assert False
 
 def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
-    for i in range(len(dut.int_insn_i)):
-        yield dut.int_insn_i[i].eq(0)
+    yield from disable_issue(dut)
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
-    yield dut.int_insn_i[op].eq(1)
+    if (op & 0x30) != 0: # branch
+        yield dut.br_insn_i.eq(1)
+        yield dut.br_oper_i.eq(Const(op & 0x3, 2))
+    else:
+        yield dut.alu_insn_i.eq(1)
+        yield dut.alu_oper_i.eq(Const(op & 0x3, 2))
     yield dut.reg_enable_i.eq(1)
 
     # these indicate that the instruction is to be made shadow-dependent on
@@ -640,14 +658,17 @@ def wait_for_busy_clear(dut):
         print ("busy",)
         yield
 
+def disable_issue(dut):
+    yield dut.alu_insn_i.eq(0)
+    yield dut.br_insn_i.eq(0)
+
 
 def wait_for_issue(dut):
     while True:
         issue_o = yield dut.issue_o
         if issue_o:
-            for i in range(len(dut.int_insn_i)):
-                yield dut.int_insn_i[i].eq(0)
-                yield dut.reg_enable_i.eq(0)
+            yield from disable_issue(dut)
+            yield dut.reg_enable_i.eq(0)
             break
         #print ("busy",)
         #yield from print_reg(dut, [1,2,3])
@@ -774,23 +795,24 @@ def scoreboard_sim(dut, alusim):
 
     seed(0)
 
-    for i in range(20):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
-            val = 31+i*3
             val = randint(0, (1<<alusim.rwidth)-1)
+            #val = 31+i*3
+            val = i
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 10, True, 4)
 
-        if False:
-            instrs.append((2, 3, 3, 0))
-            instrs.append((5, 3, 3, 1))
+        if True:
+            instrs.append((2, 3, 3, 0, (0, 0)))
+            instrs.append((5, 4, 4, 1, (0, 0)))
 
         if False:
             instrs.append((5, 6, 2, 1))
