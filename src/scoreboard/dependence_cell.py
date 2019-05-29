@@ -4,7 +4,7 @@ from nmigen import Module, Signal, Elaboratable, Array, Cat, Repl
 from nmutil.latch import SRLatch
 
 
-class DepCell(Elaboratable):
+class DependencyRow(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
         adjusted to be clock-sync'd on rising edge only.
         mitch design (as does 6600) requires alternating rising/falling clock
@@ -24,55 +24,6 @@ class DepCell(Elaboratable):
         the latch output.  Without the cq register, the SR Latch (which is
         asynchronous) would be reset at the exact moment that GO was requested,
         and the RSEL would be garbage.
-    """
-    def __init__(self, llen):
-        self.llen = llen
-        # inputs
-        self.reg_i = Signal(llen, reset_less=True)     # reg bit in (top)
-        self.issue_i = Signal(reset_less=True)   # Issue in (top)
-        self.hazard_i = Signal(llen, reset_less=True)  # to check hazard
-        self.go_i = Signal(reset_less=True)      # Go read/write in (left)
-        self.die_i = Signal(reset_less=True)     # Die in (left)
-        self.q_o = Signal(llen, reset_less=True)       # Latch out (reg active)
-
-        # for Register File Select Lines (vertical)
-        self.rsel_o = Signal(llen, reset_less=True)  # reg sel (bottom)
-        # for Function Unit "forward progress" (horizontal)
-        self.fwd_o = Signal(llen, reset_less=True)   # FU forard progress (right)
-
-    def elaborate(self, platform):
-        m = Module()
-        m.submodules.l = l = SRLatch(sync=False, llen=self.llen) # async latch
-
-        # reset on go HI, set on dest and issue
-        m.d.comb += l.s.eq(Repl(self.issue_i, self.llen) & self.reg_i)
-        m.d.comb += l.r.eq(Repl(self.go_i | self.die_i, self.llen))
-
-        # Function Unit "Forward Progress".
-        m.d.comb += self.fwd_o.eq((l.q) & self.hazard_i) # & ~self.issue_i)
-
-        # Register Select. Activated on go read/write and *current* latch set
-        m.d.comb += self.q_o.eq(l.qlq)
-        m.d.comb += self.rsel_o.eq(l.qlq & Repl(self.go_i, self.llen))
-
-        return m
-
-    def __iter__(self):
-        yield self.reg_i
-        yield self.hazard_i
-        yield self.issue_i
-        yield self.go_i
-        yield self.die_i
-        yield self.q_o
-        yield self.rsel_o
-        yield self.fwd_o
-
-    def ports(self):
-        return list(self)
-
-
-class DependencyRow(Elaboratable):
-    """ implements 11.4.7 mitch alsup dependence cell, p27
     """
     def __init__(self, n_reg):
         self.n_reg = n_reg
@@ -103,49 +54,41 @@ class DependencyRow(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_c = dest_c = DepCell(self.n_reg)
-        m.submodules.src1_c = src1_c = DepCell(self.n_reg)
-        m.submodules.src2_c = src2_c = DepCell(self.n_reg)
-
-        # connect issue and die
-        for c in [dest_c, src1_c, src2_c]:
-            m.d.comb += c.issue_i.eq(self.issue_i)
-            m.d.comb += c.die_i.eq(self.go_die_i)
+        m.submodules.dest_c = dest_c = SRLatch(sync=False, llen=self.n_reg)
+        m.submodules.src1_c = src1_c = SRLatch(sync=False, llen=self.n_reg)
+        m.submodules.src2_c = src2_c = SRLatch(sync=False, llen=self.n_reg)
 
         # connect go_rd / go_wr (dest->wr, src->rd)
-        m.d.comb += dest_c.go_i.eq(self.go_wr_i)
-        m.d.comb += src1_c.go_i.eq(self.go_rd_i)
-        m.d.comb += src2_c.go_i.eq(self.go_rd_i)
+        wr_die = Signal(reset_less=True)
+        rd_die = Signal(reset_less=True)
+        m.d.comb += wr_die.eq(self.go_wr_i | self.go_die_i)
+        m.d.comb += rd_die.eq(self.go_rd_i | self.go_die_i)
+        m.d.comb += dest_c.r.eq(Repl(wr_die, self.n_reg))
+        m.d.comb += src1_c.r.eq(Repl(rd_die, self.n_reg))
+        m.d.comb += src2_c.r.eq(Repl(rd_die, self.n_reg))
 
         # connect input reg bit (unary)
-        for c, reg in [(dest_c, self.dest_i),
-                       (src1_c, self.src1_i),
-                       (src2_c, self.src2_i)]:
-            m.d.comb += c.reg_i.eq(reg)
-
-        # wark-wark: yes, writing to the same reg you are reading is *NOT*
-        # a write-after-read hazard.
-        selfhazard = Signal(self.n_reg, reset_less=False)
-        m.d.comb += selfhazard.eq((self.dest_i & self.src1_i) |
-                                  (self.dest_i & self.src2_i))
+        i_ext = Repl(self.issue_i, self.n_reg)
+        m.d.comb += dest_c.s.eq(i_ext & self.dest_i)
+        m.d.comb += src1_c.s.eq(i_ext & self.src1_i)
+        m.d.comb += src2_c.s.eq(i_ext & self.src2_i)
 
         # connect up hazard checks: read-after-write and write-after-read
-        m.d.comb += dest_c.hazard_i.eq(self.rd_pend_i) # read-after-write
-        m.d.comb += src1_c.hazard_i.eq(self.wr_pend_i) # write-after-read
-        m.d.comb += src2_c.hazard_i.eq(self.wr_pend_i) # write-after-read
+        m.d.comb += self.dest_fwd_o.eq(dest_c.q & self.rd_pend_i)
+        m.d.comb += self.src1_fwd_o.eq(src1_c.q & self.wr_pend_i)
+        m.d.comb += self.src2_fwd_o.eq(src2_c.q & self.wr_pend_i)
 
-        # connect fwd / reg-sel outputs
-        for c, fwd, rsel in [(dest_c, self.dest_fwd_o, self.dest_rsel_o),
-                             (src1_c, self.src1_fwd_o, self.src1_rsel_o),
-                             (src2_c, self.src2_fwd_o, self.src2_rsel_o)]:
-            m.d.comb += fwd.eq(c.fwd_o)
-            m.d.comb += rsel.eq(c.rsel_o)
+        # connect reg-sel outputs
+        rd_ext = Repl(self.go_rd_i, self.n_reg)
+        wr_ext = Repl(self.go_wr_i, self.n_reg)
+        m.d.comb += self.dest_rsel_o.eq(dest_c.qlq & wr_ext)
+        m.d.comb += self.src1_rsel_o.eq(src1_c.qlq & rd_ext)
+        m.d.comb += self.src2_rsel_o.eq(src2_c.qlq & rd_ext)
 
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to rd_pend_i / wr_pend_i
-        m.d.comb += self.rd_rsel_o.eq(src1_c.q_o | src2_c.q_o)
-        #with m.If(~selfhazard):
-        m.d.comb += self.wr_rsel_o.eq(dest_c.q_o)
+        m.d.comb += self.rd_rsel_o.eq(src1_c.qlq | src2_c.qlq)
+        m.d.comb += self.wr_rsel_o.eq(dest_c.qlq)
 
         return m
 
