@@ -2,7 +2,6 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat
 
-#from nmutil.latch import SRLatch
 from scoreboard.dependence_cell import DependencyRow
 from scoreboard.fu_wr_pending import FU_RW_Pend
 from scoreboard.reg_select import Reg_Rsv
