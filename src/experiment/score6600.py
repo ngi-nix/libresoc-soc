@@ -386,8 +386,8 @@ class Scoreboard(Elaboratable):
                     ]
 
         # take these to outside (for testing)
-        self.alu_insn_i = aluissue.insn_i # enabled by instruction decode
-        self.br_insn_i = brissue.insn_i # enabled by instruction decode
+        self.aluissue = aluissue
+        self.brissue = brissue
         self.alu_oper_i = cua.oper_i
         self.br_oper_i = cub.oper_i
 
@@ -613,17 +613,22 @@ def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
     if (op & (0x3<<2)) != 0: # branch
-        yield dut.br_insn_i.eq(1)
+        yield dut.brissue.insn_i.eq(1)
         yield dut.br_oper_i.eq(Const(op & 0x3, 2))
+        dut_issue = dut.brissue
     else:
-        yield dut.alu_insn_i.eq(1)
+        yield dut.aluissue.insn_i.eq(1)
         yield dut.alu_oper_i.eq(Const(op & 0x3, 2))
+        dut_issue = dut.aluissue
     yield dut.reg_enable_i.eq(1)
 
     # these indicate that the instruction is to be made shadow-dependent on
     # (either) branch success or branch fail
     yield dut.branch_fail_i.eq(branch_fail)
     yield dut.branch_succ_i.eq(branch_success)
+
+    yield
+    yield from wait_for_issue(dut, dut_issue)
 
 
 def print_reg(dut, rnums):
@@ -659,18 +664,18 @@ def wait_for_busy_clear(dut):
         yield
 
 def disable_issue(dut):
-    yield dut.alu_insn_i.eq(0)
-    yield dut.br_insn_i.eq(0)
+    yield dut.aluissue.insn_i.eq(0)
+    yield dut.brissue.insn_i.eq(0)
 
 
-def wait_for_issue(dut):
+def wait_for_issue(dut, dut_issue):
     while True:
-        issue_o = yield dut.issue_o
+        issue_o = yield dut_issue.fn_issue_o
         if issue_o:
             yield from disable_issue(dut)
             yield dut.reg_enable_i.eq(0)
             break
-        #print ("busy",)
+        print ("busy",)
         #yield from print_reg(dut, [1,2,3])
         yield
     #yield from print_reg(dut, [1,2,3])
@@ -759,8 +764,6 @@ def scoreboard_branch_sim(dut, alusim):
                             (i, src1, src2, dest, op, shadow_on, shadow_off))
             yield from int_instr(dut, op, src1, src2, dest,
                                  shadow_on, shadow_off)
-            yield
-            yield from wait_for_issue(dut)
 
         # wait for all instructions to stop before checking
         yield
@@ -809,6 +812,12 @@ def scoreboard_sim(dut, alusim):
         instrs = []
         if True:
             instrs = create_random_ops(dut, 10, True, 4)
+
+        if False:
+            instrs.append( (7, 3, 2, 4, (0, 0)) )
+            instrs.append( (7, 6, 6, 2, (0, 0)) )
+            instrs.append( (1, 7, 2, 2, (0, 0)) )
+
 
         if False:
             instrs.append((2, 3, 3, 0, (0, 0)))
@@ -901,8 +910,6 @@ def scoreboard_sim(dut, alusim):
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
             alusim.op(op, src1, src2, dest)
             yield from int_instr(dut, op, src1, src2, dest, br_ok, br_fail)
-            yield
-            yield from wait_for_issue(dut)
 
         # wait for all instructions to stop before checking
         yield
