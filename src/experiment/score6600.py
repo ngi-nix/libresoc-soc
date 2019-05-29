@@ -804,7 +804,7 @@ def scoreboard_sim(dut, alusim):
         for i in range(1, dut.n_regs):
             val = randint(0, (1<<alusim.rwidth)-1)
             #val = 31+i*3
-            val = i
+            #val = i
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
