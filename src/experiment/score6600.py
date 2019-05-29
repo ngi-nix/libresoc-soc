@@ -26,6 +26,23 @@ class CompUnitsBase(Elaboratable):
         look after some ALUs (that can handle the same operations),
         grouping them together, however it turns out that the same code
         can also group *groups* of Computation Units together as well.
+
+        Basically it was intended just to concatenate the ALU's issue,
+        go_rd etc. signals together, which start out as bits and become
+        sequences.  Turns out that the same trick works just as well
+        on Computation Units!
+
+        So this class may be used recursively to present a top-level
+        sequential concatenation of all the signals in and out of
+        ALUs, whilst at the same time making it convenient to group
+        ALUs together.
+
+        At the lower level, the intent is that groups of (identical)
+        ALUs may be passed the same operation.  Even beyond that,
+        the intent is that that group of (identical) ALUs actually
+        share the *same pipeline* and as such become a "Concurrent
+        Computation Unit" as defined by Mitch Alsup (see section
+        11.4.9.3)
     """
     def __init__(self, rwid, units):
         """ Inputs:
