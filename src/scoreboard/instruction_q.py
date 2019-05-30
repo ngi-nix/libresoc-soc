@@ -38,6 +38,7 @@ class InstructionQ(Elaboratable):
             * :iqlen:       instruction queue length
             * :n_in:        max number of instructions allowed "in"
         """
+        self.iqlen = iqlen
         self.reg_width = wid
         self.opwid = opwid
         self.n_in = n_in
@@ -52,7 +53,10 @@ class InstructionQ(Elaboratable):
         self.n_sub_o = Signal(max=n_out) # number of instructions removed
 
         self.qsz = shape(self.data_o[0])[0]
-        self.q = Signal(iqlen * self.qsz)
+        q = []
+        for i in range(iqlen):
+            q.append(Signal(self.qsz, name="q%d" % i))
+        self.q = Array(q)
         self.qlen_o = Signal(max=iqlen)
 
     def elaborate(self, platform):
@@ -60,8 +64,8 @@ class InstructionQ(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        iqlen = len(self.q)
-        mqlen = Const(iqlen, iqlen*2)
+        iqlen = self.iqlen
+        mqlen = Const(iqlen, iqlen+1)
 
         start_copy = Signal(max=iqlen*2)
         end_copy = Signal(max=iqlen*2)
@@ -74,23 +78,33 @@ class InstructionQ(Elaboratable):
 
         # work out the start and end of where data can be written
         comb += start_copy.eq(self.qlen_o - self.n_sub_o)
-        comb += end_copy.eq(start_copy + self.p_add_i - 1)
-        comb += self.p_ready_o.eq(end_copy < self.qlen_o) # ready if room exists
+        comb += end_copy.eq(start_copy + self.p_add_i)
+        comb += self.p_ready_o.eq((end_copy < self.qlen_o) & self.p_add_i)
 
         # put q (flattened) into output
         for i in range(self.n_out):
-            comb += cat(self.data_o[i]).eq(self.q[i*self.qsz:(i+1)*self.qsz])
+            comb += cat(self.data_o[i]).eq(self.q[i])
 
         # this is going to be _so_ expensive in terms of gates... *sigh*...
         with m.If(self.p_ready_o):
-            qsz = Signal(max=iqlen * self.qsz)
-            comb += qsz.eq(self.n_sub_o * Const(self.qsz, len(qsz)))
-            sync += self.q.eq(self.q >> qsz)
+            for i in range(iqlen-1):
+                cfrom = Signal(max=iqlen*2)
+                cto = Signal(max=iqlen*2)
+                comb += cfrom.eq(Const(i, iqlen+1) + start_copy)
+                comb += cto.eq(Const(i, iqlen+1) + end_copy)
+                with m.If((cfrom < mqlen) & (cto < mqlen)):
+                    sync += self.q[cto].eq(self.q[cfrom])
+
+        for i in range(self.n_in):
+            with m.If(self.p_add_i < i):
+                idx = Signal(max=iqlen)
+                comb += idx.eq(start_copy + i)
+                sync += self.q[idx].eq(cat(self.data_i[i]))
 
         return m
 
     def __iter__(self):
-        yield self.q
+        yield from self.q
 
         yield self.p_ready_o
         for o in self.data_i:
