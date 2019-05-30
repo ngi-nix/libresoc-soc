@@ -91,9 +91,9 @@ class InstructionQ(Elaboratable):
                 comb += self.n_sub_o.eq(self.n_sub_i)
 
         # work out how many new items are going to be in the queue
-        comb += left.eq(self.qlen_o - self.n_sub_o)
+        comb += left.eq(self.qlen_o )#- self.n_sub_o)
         comb += spare.eq(mqlen - self.p_add_i)
-        comb += qmaxed.eq(left < spare)
+        comb += qmaxed.eq(left <= spare)
         comb += self.p_ready_o.eq(qmaxed & (self.p_add_i != 0))
 
         # put q (flattened) into output

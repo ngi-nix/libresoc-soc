@@ -35,10 +35,10 @@ class IQSim:
                 o_p_ready = yield self.dut.p_ready_o
 
             yield
+            yield self.dut.p_add_i.eq(0)
 
             print ("send", len(self.iq), i, sendlen)
 
-            yield self.dut.p_add_i.eq(0)
             # wait random period of time before queueing another value
             for j in range(randint(0, 3)):
                 yield
@@ -62,6 +62,9 @@ class IQSim:
 
     def rcv(self):
         i = 0
+        yield
+        yield
+        yield
         while i < len(self.iq):
             rcvlen = randint(1, self.n_out)
             #print ("outreq", rcvlen)
@@ -92,7 +95,7 @@ def test_iq():
     wid = 8
     opwid = 4
     qlen = 5
-    n_in = 2
+    n_in = 3
     n_out = 3
     dut = InstructionQ(wid, opwid, qlen, n_in, n_out)
     insns = mk_insns(10, wid, opwid)
