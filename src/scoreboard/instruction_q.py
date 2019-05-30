@@ -2,7 +2,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
 from nmutil.iocontrol import RecordObject
-from nmutil.nmoperator import eq
+from nmutil.nmoperator import eq, shape, cat
 
 
 class Instruction(RecordObject):
@@ -43,9 +43,6 @@ class InstructionQ(Elaboratable):
         self.n_in = n_in
         self.n_out = n_out
 
-        self.q = Instruction.nq(iqlen, "i", wid, opwid)
-        self.qlen_o = Signal(max=iqlen)
-
         self.p_add_i = Signal(max=n_in) # instructions to add (from data_i)
         self.p_ready_o = Signal() # instructions were added
         self.data_i = Instruction.nq(n_in, "data_i", wid, opwid)
@@ -53,6 +50,10 @@ class InstructionQ(Elaboratable):
         self.data_o = Instruction.nq(n_out, "data_o", wid, opwid)
         self.n_sub_i = Signal(max=n_out) # number of instructions to remove
         self.n_sub_o = Signal(max=n_out) # number of instructions removed
+
+        self.qsz = shape(self.data_o[0])[0]
+        self.q = Signal(iqlen * self.qsz)
+        self.qlen_o = Signal(max=iqlen)
 
     def elaborate(self, platform):
         m = Module()
@@ -76,25 +77,20 @@ class InstructionQ(Elaboratable):
         comb += end_copy.eq(start_copy + self.p_add_i - 1)
         comb += self.p_ready_o.eq(end_copy < self.qlen_o) # ready if room exists
 
+        # put q (flattened) into output
+        for i in range(self.n_out):
+            comb += cat(self.data_o[i]).eq(self.q[i*self.qsz:(i+1)*self.qsz])
+
         # this is going to be _so_ expensive in terms of gates... *sigh*...
         with m.If(self.p_ready_o):
-            for i in range(iqlen):
-                cfrom = Signal(max=iqlen*2)
-                cto = Signal(max=iqlen*2)
-                comb += cfrom.eq(Const(i, iqlen+1) + start_copy)
-                comb += cto.eq(Const(i, iqlen+1) + end_copy)
-                with m.If((cfrom < mqlen) & (cto < mqlen)):
-                    sync += self.q[cto].oper_i.eq(self.q[cfrom].oper_i)
-                    sync += self.q[cto].dest_i.eq(self.q[cfrom].dest_i)
-                    sync += self.q[cto].src1_i.eq(self.q[cfrom].src1_i)
-                    sync += self.q[cto].src2_i.eq(self.q[cfrom].src2_i)
+            qsz = Signal(max=iqlen * self.qsz)
+            comb += qsz.eq(self.n_sub_o * Const(self.qsz, len(qsz)))
+            sync += self.q.eq(self.q >> qsz)
 
         return m
 
     def __iter__(self):
-        for o in self.q:
-            yield from list(o)
-        yield self.qlen_o
+        yield self.q
 
         yield self.p_ready_o
         for o in self.data_i:
