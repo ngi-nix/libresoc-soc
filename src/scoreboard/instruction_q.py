@@ -1,3 +1,5 @@
+from math import log
+
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
@@ -24,9 +26,11 @@ class Instruction(RecordObject):
 class InstructionQ(Elaboratable):
     """ contains a queue of (part-decoded) instructions.
 
-        it is expected that the user of this queue will simply
-        inspect the queue contents directly, indicating at the start
-        of each clock cycle how many need to be removed.
+        output is copied combinatorially from the front of the queue,
+        for easy access on the clock cycle.  only "n_in" instructions
+        are made available this way
+
+        input and shifting occurs on sync.
     """
     def __init__(self, wid, opwid, iqlen, n_in, n_out):
         """ constructor
@@ -43,21 +47,22 @@ class InstructionQ(Elaboratable):
         self.opwid = opwid
         self.n_in = n_in
         self.n_out = n_out
+        mqbits = (int(log(iqlen) / log(2))+2, False)
 
-        self.p_add_i = Signal(max=n_in) # instructions to add (from data_i)
+        self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
         self.p_ready_o = Signal() # instructions were added
         self.data_i = Instruction.nq(n_in, "data_i", wid, opwid)
         
         self.data_o = Instruction.nq(n_out, "data_o", wid, opwid)
-        self.n_sub_i = Signal(max=n_out) # number of instructions to remove
-        self.n_sub_o = Signal(max=n_out) # number of instructions removed
+        self.n_sub_i = Signal(mqbits) # number of instructions to remove
+        self.n_sub_o = Signal(mqbits) # number of instructions removed
 
         self.qsz = shape(self.data_o[0])[0]
         q = []
         for i in range(iqlen):
             q.append(Signal(self.qsz, name="q%d" % i))
         self.q = Array(q)
-        self.qlen_o = Signal(max=iqlen)
+        self.qlen_o = Signal(mqbits)
 
     def elaborate(self, platform):
         m = Module()
@@ -65,41 +70,58 @@ class InstructionQ(Elaboratable):
         sync = m.d.sync
 
         iqlen = self.iqlen
-        mqlen = Const(iqlen, iqlen+1)
+        mqbits = int(log(iqlen) / log(2))
 
-        start_copy = Signal(max=iqlen*2)
-        end_copy = Signal(max=iqlen*2)
+        left = Signal((mqbits+2, False))
+        spare = Signal((mqbits+2, False))
+        qmaxed = Signal()
+
+        start_q = Signal(mqbits)
+        end_q = Signal(mqbits)
+        mqlen = Const(iqlen, (len(left), False))
+        print ("mqlen", mqlen)
 
         # work out how many can be subtracted from the queue
-        with m.If(self.n_sub_i >= self.qlen_o):
-            comb += self.n_sub_o.eq(self.qlen_o)
-        with m.Elif(self.n_sub_i):
-            comb += self.n_sub_o.eq(self.n_sub_i)
+        with m.If(self.n_sub_i):
+            qinmax = Signal()
+            comb += qinmax.eq(self.n_sub_i > self.qlen_o)
+            with m.If(qinmax):
+                comb += self.n_sub_o.eq(self.qlen_o)
+            with m.Else():
+                comb += self.n_sub_o.eq(self.n_sub_i)
 
-        # work out the start and end of where data can be written
-        comb += start_copy.eq(self.qlen_o - self.n_sub_o)
-        comb += end_copy.eq(start_copy + self.p_add_i)
-        comb += self.p_ready_o.eq((end_copy < self.qlen_o) & self.p_add_i)
+        # work out how many new items are going to be in the queue
+        comb += left.eq(self.qlen_o - self.n_sub_o)
+        comb += spare.eq(mqlen - self.p_add_i)
+        comb += qmaxed.eq(left < spare)
+        comb += self.p_ready_o.eq(qmaxed & (self.p_add_i != 0))
 
         # put q (flattened) into output
         for i in range(self.n_out):
-            comb += cat(self.data_o[i]).eq(self.q[i])
+            opos = Signal(mqbits)
+            comb += opos.eq(end_q + i - self.n_out) # end hasn't moved yet
+            comb += cat(self.data_o[i]).eq(self.q[opos])
 
-        # this is going to be _so_ expensive in terms of gates... *sigh*...
+        with m.If(self.n_sub_o):
+            # ok now the end's moved
+            sync += end_q.eq(end_q + self.n_sub_o)
+
         with m.If(self.p_ready_o):
-            for i in range(iqlen-1):
-                cfrom = Signal(max=iqlen*2)
-                cto = Signal(max=iqlen*2)
-                comb += cfrom.eq(Const(i, iqlen+1) + start_copy)
-                comb += cto.eq(Const(i, iqlen+1) + end_copy)
-                with m.If((cfrom < mqlen) & (cto < mqlen)):
-                    sync += self.q[cto].eq(self.q[cfrom])
+            # copy in the input... insanely gate-costly... *sigh*...
+            for i in range(self.n_in):
+                with m.If(self.p_add_i > Const(i, len(self.p_add_i))):
+                    ipos = Signal(mqbits)
+                    comb += ipos.eq(start_q + i) # should roll round
+                    sync += self.q[ipos].eq(cat(self.data_i[i]))
+            sync += start_q.eq(start_q + self.p_add_i)
 
-        for i in range(self.n_in):
-            with m.If(self.p_add_i < i):
-                idx = Signal(max=iqlen)
-                comb += idx.eq(start_copy + i)
-                sync += self.q[idx].eq(cat(self.data_i[i]))
+        with m.If(self.p_ready_o):
+            # update the queue length
+            add2 = Signal(mqbits+1)
+            comb += add2.eq(self.qlen_o + self.p_add_i)
+            sync += self.qlen_o.eq(add2 - self.n_sub_o)
+        with m.Else():
+            sync += self.qlen_o.eq(self.qlen_o - self.n_sub_o)
 
         return m
 
