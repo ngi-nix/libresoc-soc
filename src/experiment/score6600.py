@@ -607,26 +607,12 @@ class IssueToScoreboard(Elaboratable):
 
         with m.If(wait_issue_br | wait_issue_alu):
             # set instruction pop length to 1 if the unit accepted
-            # also tell the unit-group to stop accepting the instruction
-            # and disable the regfile
             with m.If(wait_issue_br & (sc.brissue.fn_issue_o != 0)):
                 with m.If(iq.qlen_o != 0):
                     comb += iq.n_sub_i.eq(1)
-                comb += wait_issue_br.eq(0)
-                comb += sc.brissue.insn_i.eq(0)
-                comb += sc.int_dest_i.eq(0)
-                comb += sc.int_src1_i.eq(0)
-                comb += sc.int_src2_i.eq(0)
-                comb += sc.reg_enable_i.eq(0)
             with m.If(wait_issue_alu & (sc.aluissue.fn_issue_o != 0)):
                 with m.If(iq.qlen_o != 0):
                     comb += iq.n_sub_i.eq(1)
-                comb += wait_issue_alu.eq(0)
-                comb += sc.aluissue.insn_i.eq(0)
-                comb += sc.int_dest_i.eq(0)
-                comb += sc.int_src1_i.eq(0)
-                comb += sc.int_src2_i.eq(0)
-                comb += sc.reg_enable_i.eq(0)
 
         # see if some instruction(s) are here.  note that this is
         # "inspecting" the in-place queue.  note also that on the
