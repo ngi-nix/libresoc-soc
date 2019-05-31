@@ -102,9 +102,9 @@ def mk_insns(n_insns, wid, opwid):
 def test_iq():
     wid = 8
     opwid = 4
-    qlen = 4
-    n_in = 2
-    n_out = 3
+    qlen = 2
+    n_in = 1
+    n_out = 1
     dut = InstructionQ(wid, opwid, qlen, n_in, n_out)
     insns = mk_insns(1000, wid, opwid)
 

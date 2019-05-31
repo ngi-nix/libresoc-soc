@@ -9,14 +9,17 @@ from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
+from scoreboard.instruction_q import Instruction, InstructionQ
 
 from compalu import ComputationUnitNoDelay
 
 from alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
+from nmutil.nmoperator import eq
 
 from random import randint, seed
 from copy import deepcopy
+from math import log
 
 
 class CompUnitsBase(Elaboratable):
@@ -292,6 +295,13 @@ class Scoreboard(Elaboratable):
         self.intregs = RegFileArray(rwid, n_regs)
         self.fpregs = RegFileArray(rwid, n_regs)
 
+        # issue q needs to get at these
+        self.aluissue = IssueUnitGroup(4)
+        self.brissue = IssueUnitGroup(1)
+        # and these
+        self.alu_oper_i = Signal(4, reset_less=True)
+        self.br_oper_i = Signal(4, reset_less=True)
+
         # inputs
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
         self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
@@ -349,9 +359,7 @@ class Scoreboard(Elaboratable):
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        aluissue = IssueUnitGroup(4)
-        brissue = IssueUnitGroup(1)
-        issueunit = IssueUnitArray([aluissue, brissue])
+        issueunit = IssueUnitArray([self.aluissue, self.brissue])
         m.submodules.issueunit = issueunit
 
         # Shadow Matrix.  currently n_intfus shadows, to be used for
@@ -385,11 +393,9 @@ class Scoreboard(Elaboratable):
                      self.issue_o.eq(issueunit.issue_o)
                     ]
 
-        # take these to outside (for testing)
-        self.aluissue = aluissue
-        self.brissue = brissue
-        self.alu_oper_i = cua.oper_i
-        self.br_oper_i = cub.oper_i
+        # take these to outside (issue needs them)
+        comb += cua.oper_i.eq(self.alu_oper_i)
+        comb += cub.oper_i.eq(self.br_oper_i)
 
         # TODO: issueunit.f (FP)
 
@@ -536,7 +542,6 @@ class Scoreboard(Elaboratable):
 
         return m
 
-
     def __iter__(self):
         yield from self.intregs
         yield from self.fpregs
@@ -547,6 +552,123 @@ class Scoreboard(Elaboratable):
         yield self.branch_succ_i
         yield self.branch_fail_i
         yield self.branch_direction_o
+
+    def ports(self):
+        return list(self)
+
+class IssueToScoreboard(Elaboratable):
+
+    def __init__(self, qlen, n_in, n_out, rwid, opwid, n_regs):
+        self.qlen = qlen
+        self.n_in = n_in
+        self.n_out = n_out
+        self.rwid = rwid
+        self.opw = opwid
+        self.n_regs = n_regs
+
+        mqbits = (int(log(qlen) / log(2))+2, False)
+        self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
+        self.p_ready_o = Signal() # instructions were added
+        self.data_i = Instruction.nq(n_in, "data_i", rwid, opwid)
+
+        self.busy_o = Signal(reset_less=True) # at least one CU is busy
+        self.qlen_o = Signal(mqbits, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
+
+        iq = InstructionQ(self.rwid, self.opw, self.qlen, self.n_in, self.n_out)
+        sc = Scoreboard(self.rwid, self.n_regs)
+        m.submodules.iq = iq
+        m.submodules.sc = sc
+
+        # get at the regfile for testing
+        self.intregs = sc.intregs
+
+        # and the "busy" signal and instruction queue length
+        comb += self.busy_o.eq(sc.busy_o)
+        comb += self.qlen_o.eq(iq.qlen_o)
+
+        # link up instruction queue
+        comb += iq.p_add_i.eq(self.p_add_i)
+        comb += self.p_ready_o.eq(iq.p_ready_o)
+        for i in range(self.n_in):
+            comb += eq(iq.data_i[i], self.data_i[i])
+
+        # take instruction and process it.  note that it's possible to
+        # "inspect" the queue contents *without* actually removing the
+        # items.  items are only removed when the
+
+        # in "waiting" state
+        wait_issue_br = Signal()
+        wait_issue_alu = Signal()
+
+        with m.If(wait_issue_br | wait_issue_alu):
+            # set instruction pop length to 1 if the unit accepted
+            # also tell the unit-group to stop accepting the instruction
+            # and disable the regfile
+            with m.If(wait_issue_br & (sc.brissue.fn_issue_o != 0)):
+                with m.If(iq.qlen_o != 0):
+                    comb += iq.n_sub_i.eq(1)
+                comb += wait_issue_br.eq(0)
+                comb += sc.brissue.insn_i.eq(0)
+                comb += sc.int_dest_i.eq(0)
+                comb += sc.int_src1_i.eq(0)
+                comb += sc.int_src2_i.eq(0)
+                comb += sc.reg_enable_i.eq(0)
+            with m.If(wait_issue_alu & (sc.aluissue.fn_issue_o != 0)):
+                with m.If(iq.qlen_o != 0):
+                    comb += iq.n_sub_i.eq(1)
+                comb += wait_issue_alu.eq(0)
+                comb += sc.aluissue.insn_i.eq(0)
+                comb += sc.int_dest_i.eq(0)
+                comb += sc.int_src1_i.eq(0)
+                comb += sc.int_src2_i.eq(0)
+                comb += sc.reg_enable_i.eq(0)
+
+        # see if some instruction(s) are here.  note that this is
+        # "inspecting" the in-place queue.  note also that on the
+        # cycle following "waiting" for fn_issue_o to be set, the
+        # "resetting" done above (insn_i=0) could be re-ASSERTed.
+        with m.If(iq.qlen_o != 0):
+            # get the operands and operation
+            dest = iq.data_o[0].dest_i
+            src1 = iq.data_o[0].src1_i
+            src2 = iq.data_o[0].src2_i
+            op = iq.data_o[0].oper_i
+
+            # set the src/dest regs
+            comb += sc.int_dest_i.eq(dest)
+            comb += sc.int_src1_i.eq(src1)
+            comb += sc.int_src2_i.eq(src2)
+            comb += sc.reg_enable_i.eq(1) # enable the regfile
+
+            # choose a Function-Unit-Group
+            with m.If((op & (0x3<<2)) != 0): # branch
+                comb += sc.brissue.insn_i.eq(1)
+                comb += sc.br_oper_i.eq(op & 0x3)
+                comb += wait_issue_br.eq(1)
+            with m.Else():                   # alu
+                comb += sc.aluissue.insn_i.eq(1)
+                comb += sc.alu_oper_i.eq(op & 0x3)
+                comb += wait_issue_alu.eq(1)
+
+            # XXX TODO
+            # these indicate that the instruction is to be made
+            # shadow-dependent on
+            # (either) branch success or branch fail
+            #yield sc.branch_fail_i.eq(branch_fail)
+            #yield sc.branch_succ_i.eq(branch_success)
+
+        return m
+
+    def __iter__(self):
+        yield self.p_ready_o
+        for o in self.data_i:
+            yield from list(o)
+        yield self.p_add_i
 
     def ports(self):
         return list(self)
@@ -606,6 +728,24 @@ class RegSim:
                 print("reg %d expected %x received %x\n" % (i, val, reg))
                 yield from self.dump(dut)
                 assert False
+
+def instr_q(dut, op, src1, src2, dest, branch_success, branch_fail):
+    instrs = [{'oper_i': op, 'dest_i': dest, 'src1_i': src1, 'src2_i': src2}]
+
+    sendlen = 1
+    for idx in range(sendlen):
+        yield from eq(dut.data_i[idx], instrs[idx])
+        di = yield dut.data_i[idx]
+        print ("senddata %d %x" % (idx, di))
+    yield dut.p_add_i.eq(sendlen)
+    yield
+    o_p_ready = yield dut.p_ready_o
+    while not o_p_ready:
+        yield
+        o_p_ready = yield dut.p_ready_o
+
+    yield dut.p_add_i.eq(0)
+
 
 def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
     yield from disable_issue(dut)
@@ -796,9 +936,9 @@ def scoreboard_branch_sim(dut, alusim):
 
 def scoreboard_sim(dut, alusim):
 
-    seed(0)
+    #seed(2)
 
-    for i in range(20):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -811,7 +951,7 @@ def scoreboard_sim(dut, alusim):
         # create some instructions (some random, some regression tests)
         instrs = []
         if True:
-            instrs = create_random_ops(dut, 10, True, 4)
+            instrs = create_random_ops(dut, 15, True, 3)
 
         if False:
             instrs.append( (7, 3, 2, 4, (0, 0)) )
@@ -909,9 +1049,17 @@ def scoreboard_sim(dut, alusim):
 
             print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
             alusim.op(op, src1, src2, dest)
-            yield from int_instr(dut, op, src1, src2, dest, br_ok, br_fail)
+            yield from instr_q(dut, op, src1, src2, dest, br_ok, br_fail)
 
         # wait for all instructions to stop before checking
+        while True:
+            iqlen = yield dut.qlen_o
+            if iqlen == 0:
+                break
+            yield
+        yield
+        yield
+        yield
         yield
         yield from wait_for_busy_clear(dut)
 
@@ -921,7 +1069,7 @@ def scoreboard_sim(dut, alusim):
 
 
 def test_scoreboard():
-    dut = Scoreboard(16, 8)
+    dut = IssueToScoreboard(2, 1, 1, 16, 8, 8)
     alusim = RegSim(16, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
