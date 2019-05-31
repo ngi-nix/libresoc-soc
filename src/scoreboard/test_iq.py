@@ -22,19 +22,22 @@ class IQSim:
         i = 0
         while i < len(self.iq):
             sendlen = randint(1, self.n_in)
-            print (sendlen)
+            sendlen = 1
             sendlen = min(len(self.iq) - i, sendlen)
-            print (len(self.iq)-i, sendlen)
+            print ("sendlen", len(self.iq)-i, sendlen)
             for idx in range(sendlen):
                 instr = self.iq[i+idx]
                 yield from eq(self.dut.data_i[idx], instr)
+                di = yield self.dut.data_i[idx]#.src1_i
+                print ("senddata %d %x" % ((i+idx), di))
+                self.oq.append(di)
             yield self.dut.p_add_i.eq(sendlen)
+            yield
             o_p_ready = yield self.dut.p_ready_o
             while not o_p_ready:
                 yield
                 o_p_ready = yield self.dut.p_ready_o
 
-            yield
             yield self.dut.p_add_i.eq(0)
 
             print ("send", len(self.iq), i, sendlen)
@@ -70,11 +73,16 @@ class IQSim:
             #print ("outreq", rcvlen)
             yield self.dut.n_sub_i.eq(rcvlen)
             n_sub_o = yield self.dut.n_sub_o
+            print ("recv", n_sub_o)
+            for j in range(n_sub_o):
+                r = yield self.dut.data_o[j]#.src1_i
+                print ("recvdata %x %s" % (r, repr(self.iq[i+j])))
+                assert r == self.oq[i+j]
             yield
             if n_sub_o == 0:
                 continue
+            yield self.dut.n_sub_i.eq(0)
 
-            print ("recv", n_sub_o)
             i += n_sub_o
 
         print ("recv ended")
@@ -94,11 +102,11 @@ def mk_insns(n_insns, wid, opwid):
 def test_iq():
     wid = 8
     opwid = 4
-    qlen = 5
-    n_in = 3
+    qlen = 4
+    n_in = 2
     n_out = 3
     dut = InstructionQ(wid, opwid, qlen, n_in, n_out)
-    insns = mk_insns(10, wid, opwid)
+    insns = mk_insns(1000, wid, opwid)
 
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_iq.il", "w") as f:

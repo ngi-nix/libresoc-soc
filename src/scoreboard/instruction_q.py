@@ -99,7 +99,7 @@ class InstructionQ(Elaboratable):
         # put q (flattened) into output
         for i in range(self.n_out):
             opos = Signal(mqbits)
-            comb += opos.eq(end_q + i - self.n_out) # end hasn't moved yet
+            comb += opos.eq(end_q + i)
             comb += cat(self.data_o[i]).eq(self.q[opos])
 
         with m.If(self.n_sub_o):
