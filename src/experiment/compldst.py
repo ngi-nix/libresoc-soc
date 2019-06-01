@@ -82,6 +82,9 @@ class LDSTCompUnit(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
+
         m.submodules.alu = self.alu
         m.submodules.src_l = src_l = SRLatch(sync=False)
         m.submodules.opc_l = opc_l = SRLatch(sync=False)
@@ -95,13 +98,13 @@ class LDSTCompUnit(Elaboratable):
         reset_a = Signal(reset_less=True)
         reset_s = Signal(reset_less=True)
         reset_r = Signal(reset_less=True)
-        m.d.comb += reset_b.eq(self.go_st_i | self.go_wr_i | self.go_die_i)
-        m.d.comb += reset_w.eq(self.go_wr_i | self.go_die_i)
-        m.d.comb += reset_s.eq(self.go_st_i | self.go_die_i)
-        m.d.comb += reset_r.eq(self.go_rd_i | self.go_die_i)
+        comb += reset_b.eq(self.go_st_i | self.go_wr_i | self.go_die_i)
+        comb += reset_w.eq(self.go_wr_i | self.go_die_i)
+        comb += reset_s.eq(self.go_st_i | self.go_die_i)
+        comb += reset_r.eq(self.go_rd_i | self.go_die_i)
         # this one is slightly different, issue_alu_i selects go_wr_i)
         a_sel = Mux(self.isalu_i, self.go_wr_i, self.go_ad_i )
-        m.d.comb += reset_a.eq(a_sel| self.go_die_i)
+        comb += reset_a.eq(a_sel| self.go_die_i)
 
         # opcode decode
         op_alu = Signal(reset_less=True)
@@ -110,13 +113,13 @@ class LDSTCompUnit(Elaboratable):
         op_ldst = Signal(reset_less=True)
         op_is_imm = Signal(reset_less=True)
 
-        m.d.comb += op_alu.eq(self.oper_i[0])
-        m.d.comb += op_is_imm.eq(self.oper_i[1])
-        m.d.comb += op_is_ld.eq(self.oper_i[2])
-        m.d.comb += op_is_st.eq(self.oper_i[3])
-        m.d.comb += op_ldst.eq(op_is_ld | op_is_st)
-        m.d.comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
-        m.d.comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
+        comb += op_alu.eq(self.oper_i[0])
+        comb += op_is_imm.eq(self.oper_i[1])
+        comb += op_is_ld.eq(self.oper_i[2])
+        comb += op_is_st.eq(self.oper_i[3])
+        comb += op_ldst.eq(op_is_ld | op_is_st)
+        comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
+        comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
 
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
@@ -124,67 +127,67 @@ class LDSTCompUnit(Elaboratable):
 
         # issue can be either issue_i or issue_alu_i (isalu_i)
         issue_i = Signal(reset_less=True)
-        m.d.comb += issue_i.eq(self.issue_i | self.isalu_i)
+        comb += issue_i.eq(self.issue_i | self.isalu_i)
 
         # Ripple-down the latches, each one set cancels the previous.
         # NOTE: use sync to stop combinatorial loops.
 
         # opcode latch - inverted so that busy resets to 0
-        m.d.sync += opc_l.s.eq(issue_i) # XXX NOTE: INVERTED FROM book!
-        m.d.sync += opc_l.r.eq(reset_b) # XXX NOTE: INVERTED FROM book!
+        syncomb += opc_l.s.eq(issue_i) # XXX NOTE: INVERTED FROM book!
+        syncomb += opc_l.r.eq(reset_b) # XXX NOTE: INVERTED FROM book!
 
         # src operand latch
-        m.d.sync += src_l.s.eq(issue_i)
-        m.d.sync += src_l.r.eq(reset_r)
+        syncomb += src_l.s.eq(issue_i)
+        syncomb += src_l.r.eq(reset_r)
 
         # addr latch
-        m.d.sync += adr_l.s.eq(self.go_rd_i)
-        m.d.sync += adr_l.r.eq(reset_a)
+        syncomb += adr_l.s.eq(self.go_rd_i)
+        syncomb += adr_l.r.eq(reset_a)
 
         # dest operand latch
-        m.d.sync += req_l.s.eq(self.go_ad_i)
-        m.d.sync += req_l.r.eq(reset_w)
+        syncomb += req_l.s.eq(self.go_ad_i)
+        syncomb += req_l.r.eq(reset_w)
 
         # store latch
-        m.d.sync += sto_l.s.eq(self.go_ad_i)
-        m.d.sync += sto_l.r.eq(reset_s)
+        syncomb += sto_l.s.eq(self.go_ad_i)
+        syncomb += sto_l.r.eq(reset_s)
 
         # outputs: busy and release signals
         busy_o = self.busy_o
-        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
-        m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
-        m.d.comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
+        comb += self.busy_o.eq(opc_l.q) # busy out
+        comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
+        comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
 
         # address release only happens on LD/ST, and is shadowed.
-        m.d.comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadownn_i)
+        comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadownn_i)
 
         # request release enabled based on if op is a LD/ST or a plain ALU
         # if op is a LD/ST, req_rel activates from the *address* latch
         # if op is ADD/SUB, req_rel activates from the *dest* latch
         wr_q = Signal(reset_less=True)
-        m.d.comb += wr_q.eq(Mux(op_ldst, adr_l.q, req_l.q))
+        comb += wr_q.eq(Mux(op_ldst, adr_l.q, req_l.q))
 
         # the counter is just for demo purposes, to get the ALUs of different
         # types to take arbitrary completion times
         with m.If(opc_l.qn):
-            m.d.sync += self.counter.eq(0) # reset counter when not busy
+            syncomb += self.counter.eq(0) # reset counter when not busy
         with m.If(req_l.qn & busy_o & (self.counter == 0)):
             with m.If(self.oper_i == 2): # MUL, to take 5 instructions
-                m.d.sync += self.counter.eq(5)
+                syncomb += self.counter.eq(5)
             with m.Elif(self.oper_i == 3): # SHIFT to take 7
-                m.d.sync += self.counter.eq(7)
+                syncomb += self.counter.eq(7)
             with m.Else(): # ADD/SUB to take 2
-                m.d.sync += self.counter.eq(2)
+                syncomb += self.counter.eq(2)
         with m.If(self.counter > 1):
-            m.d.sync += self.counter.eq(self.counter - 1)
+            syncomb += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
             # write req release out.  waits until shadow is dropped.
-            m.d.comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
+            comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
-        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
+        comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
+        comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
 
         # create a latch/register for src1/src2 (include immediate select)
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
@@ -198,7 +201,7 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, self.alu.o, data_r, req_l.q)
 
         with m.If(self.go_wr_i):
-            m.d.comb += self.data_o.eq(data_r)
+            comb += self.data_o.eq(data_r)
 
         return m
 
