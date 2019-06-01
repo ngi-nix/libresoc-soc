@@ -7,42 +7,50 @@ Relevant bugreports:
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable
+from nmigen import Module, Signal, Repl, Elaboratable
 from nmutil.latch import SRLatch
 
 
 class LDSTDepCell(Elaboratable):
     """ implements 11.4.12 mitch alsup load/store dependence cell, p45
     """
-    def __init__(self):
+    def __init__(self, n_ls=1):
+        self.n_ls = n_ls
         # inputs
-        self.load_i = Signal(reset_less=True)     # load pending in (top)
-        self.stor_i = Signal(reset_less=True)     # store pending in (top)
+        self.load_i = Signal(n_ls, reset_less=True)     # load pend in (top)
+        self.stor_i = Signal(n_ls, reset_less=True)     # store pend in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
+        self.go_die_i = Signal(reset_less=True)    # Issue in (top)
 
-        self.load_hit_i = Signal(reset_less=True) # load hit in (right)
-        self.stwd_hit_i = Signal(reset_less=True) # store w/ data hit in (right)
+        # load / store hit - basically connect these to go_wr from LD/STCompUnit
+        # LD.go_wr -> load_hit_i, ST.go_wr -> stwd_hit_i.
+        self.load_hit_i = Signal(n_ls, reset_less=True) # ld hit in (right)
+        self.stwd_hit_i = Signal(n_ls, reset_less=True) # st w/ hit in (right)
 
         # outputs (latched rd/wr pend)
-        self.ld_hold_st_o = Signal(reset_less=True) # load holds st out (left)
-        self.st_hold_ld_o = Signal(reset_less=True) # st holds load out (left)
+        self.ld_hold_st_o = Signal(n_ls, reset_less=True) # ld holds st out (l)
+        self.st_hold_ld_o = Signal(n_ls, reset_less=True) # st holds ld out (l)
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.war_l = war_l = SRLatch(sync=False) # WriteAfterRead Latch
-        m.submodules.raw_l = raw_l = SRLatch(sync=False) # ReadAfterWrite Latch
+        m.submodules.war_l = war_l = SRLatch(sync=False, llen=self.n_ls) # WaR
+        m.submodules.raw_l = raw_l = SRLatch(sync=False, llen=self.n_ls) # RaW
+
+        # temporaries (repeat-extend)
+        issue = Repl(self.issue_i, self.n_ls)
+        die = Repl(self.go_die_i, self.n_ls)
 
         # issue & store & load - used for both WAR and RAW Setting
         i_s_l = Signal(reset_less=True)
-        m.d.comb += i_s_l.eq(self.issue_i & self.stor_i & self.load_i)
+        m.d.comb += i_s_l.eq(issue & self.stor_i & self.load_i)
 
         # write after read latch: loads block stores
         m.d.comb += war_l.s.eq(i_s_l)
-        m.d.comb += war_l.r.eq(self.load_i) # reset on LD
+        m.d.comb += war_l.r.eq(die | self.load_i) # reset on LD
 
         # read after write latch: stores block loads
         m.d.comb += raw_l.s.eq(i_s_l)
-        m.d.comb += raw_l.r.eq(self.stor_i) # reset on ST
+        m.d.comb += raw_l.r.eq(die | self.stor_i) # reset on ST
 
         # Hold results (read out horizontally, accumulate in OR fashion)
         m.d.comb += self.ld_hold_st_o.eq(war_l.qn & self.load_hit_i)
@@ -58,7 +66,7 @@ class LDSTDepCell(Elaboratable):
         yield self.stwd_hit_i
         yield self.ld_hold_st_o
         yield self.st_hold_ld_o
-                
+
     def ports(self):
         return list(self)
 
