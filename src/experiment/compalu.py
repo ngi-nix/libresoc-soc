@@ -93,14 +93,15 @@ class ComputationUnitNoDelay(Elaboratable):
         # XXX
 
         # outputs
-        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
-        m.d.comb += self.rd_rel_o.eq(src_l.q & opc_l.q) # src1/src2 req rel
+        busy_o = self.busy_o
+        m.d.comb += busy_o.eq(opc_l.q) # busy out
+        m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
 
         # the counter is just for demo purposes, to get the ALUs of different
         # types to take arbitrary completion times
         with m.If(opc_l.qn):
             m.d.sync += self.counter.eq(0)
-        with m.If(req_l.qn & opc_l.q & (self.counter == 0)):
+        with m.If(req_l.qn & busy_o & (self.counter == 0)):
             with m.If(self.oper_i == 2): # MUL, to take 5 instructions
                 m.d.sync += self.counter.eq(5)
             with m.Elif(self.oper_i == 3): # SHIFT to take 7
@@ -113,7 +114,7 @@ class ComputationUnitNoDelay(Elaboratable):
             m.d.sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
             # write req release out.  waits until shadow is dropped.
-            m.d.comb += self.req_rel_o.eq(req_l.q & opc_l.q & self.shadown_i)
+            m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
