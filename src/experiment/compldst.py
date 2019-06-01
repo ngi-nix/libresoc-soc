@@ -149,12 +149,14 @@ class LDSTCompUnit(Elaboratable):
         m.d.sync += sto_l.s.eq(self.go_ad_i)
         m.d.sync += sto_l.r.eq(reset_s)
 
-        # outputs
+        # outputs: busy and release signals
         busy_o = self.busy_o
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
         m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
-        m.d.comb += self.adr_rel_o.eq(adr_l.q & ~op_ldst & busy_o)
         m.d.comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
+
+        # address release only happens on LD/ST, and is shadowed.
+        m.d.comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadownn_i)
 
         # request release enabled based on if op is a LD/ST or a plain ALU
         # if op is a LD/ST, req_rel activates from the *address* latch
