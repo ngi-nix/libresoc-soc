@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable
+from nmigen import Module, Signal, Mux, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
 
@@ -36,10 +36,16 @@ from nmutil.latch import SRLatch, latchregister
       register is placed combinatorially onto the output, and (2) the
       req_l latch is cleared, busy is dropped, and the Comp Unit is back
       through its revolving door to do another task.
+
+    Notes on oper_i:
+
+    * bits[0:2] are for the ALU, add=0, sub=1, shift=2, mul=3
+    * bit[2] are the immediate (bit[2]=1 == immediate mode)
 """
 
 class ComputationUnitNoDelay(Elaboratable):
     def __init__(self, rwid, opwid, alu):
+        self.opwid = opwid
         self.rwid = rwid
         self.alu = alu
 
@@ -89,11 +95,38 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.sync += req_l.s.eq(self.go_rd_i)
         m.d.sync += req_l.r.eq(reset_w)
 
-        # XXX
-        # XXX NOTE: sync on req_rel_o and data_o due to simulation lock-up
-        # XXX
 
+        # create a latch/register for the operand
+        oper_r = Signal(self.opwid+1, reset_less=True) # opcode reg
+        latchregister(m, self.oper_i, oper_r, self.issue_i)
+
+        # and one for the output from the ALU
+        data_r = Signal(self.rwid, reset_less=True) # Dest register
+        latchregister(m, self.alu.o, data_r, req_l.q)
+
+        # get the top 2 bits for the ALU
+        m.d.comb += self.alu.op.eq(oper_r[0:2])
+
+        # 3rd bit is whether this is an immediate or not
+        op_is_imm = Signal(reset_less=True)
+        m.d.comb += op_is_imm.eq(oper_r[2])
+
+        # select immediate if opcode says so.  however also change the latch
+        # to trigger *from* the opcode latch instead.
+        src2_or_imm = Signal(self.rwid, reset_less=True)
+        src_sel = Signal(reset_less=True)
+        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
+
+        # create a latch/register for src1/src2
+        latchregister(m, self.src1_i, self.alu.a, src_l.q)
+        latchregister(m, src2_or_imm, self.alu.b, src_sel)
+
+        # -----
         # outputs
+        # -----
+
+        # all request signals gated by busy_o.  prevents picker problems
         busy_o = self.busy_o
         m.d.comb += busy_o.eq(opc_l.q) # busy out
         m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
@@ -117,21 +150,29 @@ class ComputationUnitNoDelay(Elaboratable):
             # write req release out.  waits until shadow is dropped.
             m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
 
-        # create a latch/register for src1/src2
-        latchregister(m, self.src1_i, self.alu.a, src_l.q)
-        latchregister(m, self.src2_i, self.alu.b, src_l.q)
-
-        # create a latch/register for the operand
-        latchregister(m, self.oper_i, self.alu.op, self.issue_i)
-
-        # and one for the output from the ALU
-        data_r = Signal(self.rwid, reset_less=True) # Dest register
-        latchregister(m, self.alu.o, data_r, req_l.q)
-
         with m.If(self.go_wr_i):
             m.d.comb += self.data_o.eq(data_r)
 
         return m
+
+    def __iter__(self):
+        yield self.go_rd_i
+        yield self.go_wr_i
+        yield self.issue_i
+        yield self.shadown_i
+        yield self.go_die_i
+        yield self.oper_i
+        yield self.imm_i
+        yield self.src1_i
+        yield self.src2_i
+        yield self.busy_o
+        yield self.rd_rel_o
+        yield self.req_rel_o
+        yield self.data_o
+
+    def ports(self):
+        return list(self)
+
 
 def scoreboard_sim(dut):
     yield dut.dest_i.eq(1)
@@ -156,12 +197,14 @@ def scoreboard_sim(dut):
     yield
 
 def test_scoreboard():
-    dut = Scoreboard(32, 8)
+    from alu_hier import ALU
+    alu = ALU(16)
+    dut = ComputationUnitNoDelay(16, 8, alu)
     vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_scoreboard.il", "w") as f:
+    with open("test_compalu.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_scoreboard.vcd')
+    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
 
 if __name__ == '__main__':
     test_scoreboard()
