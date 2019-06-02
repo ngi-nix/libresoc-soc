@@ -1,6 +1,15 @@
 """ Mitch Alsup 6600-style LD/ST scoreboard Dependency Cell
 
+Relevant comments (p45-46):
+
+* If there are no WAR dependencies on a Load instruction with a computed
+  address it can assert Bank_Addressable and Translate_Addressable.
+
+* If there are no RAW dependencies on a Store instruction with both a
+  write permission and store data present it can assert Bank_Addressable
+
 Relevant bugreports:
+
 * http://bugs.libre-riscv.org/show_bug.cgi?id=81
 
 """
@@ -28,8 +37,8 @@ class LDSTDepCell(Elaboratable):
         self.stwd_hit_i = Signal(n_ls, reset_less=True) # st w/ hit in (right)
 
         # outputs (latched rd/wr pend)
-        self.ld_hold_st_o = Signal(n_ls, reset_less=True) # ld holds st out (l)
-        self.st_hold_ld_o = Signal(n_ls, reset_less=True) # st holds ld out (l)
+        self.ld_hold_st_o = Signal(reset_less=True) # ld holds st out (l)
+        self.st_hold_ld_o = Signal(reset_less=True) # st holds ld out (l)
 
     def elaborate(self, platform):
         m = Module()
@@ -41,7 +50,7 @@ class LDSTDepCell(Elaboratable):
         die = Repl(self.go_die_i, self.n_ls)
 
         # issue & store & load - used for both WAR and RAW Setting
-        i_s_l = Signal(reset_less=True)
+        i_s_l = Signal(self.n_ls, reset_less=True)
         m.d.comb += i_s_l.eq(issue & self.stor_i & self.load_i)
 
         # write after read latch: loads block stores
@@ -53,8 +62,8 @@ class LDSTDepCell(Elaboratable):
         m.d.comb += raw_l.r.eq(die | self.stor_i) # reset on ST
 
         # Hold results (read out horizontally, accumulate in OR fashion)
-        m.d.comb += self.ld_hold_st_o.eq(war_l.qn & self.load_hit_i)
-        m.d.comb += self.st_hold_ld_o.eq(raw_l.qn & self.stwd_hit_i)
+        m.d.comb += self.ld_hold_st_o.eq((war_l.qn & self.load_hit_i).bool())
+        m.d.comb += self.st_hold_ld_o.eq((raw_l.qn & self.stwd_hit_i).bool())
 
         return m
 

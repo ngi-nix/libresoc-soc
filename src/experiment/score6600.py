@@ -22,6 +22,29 @@ from copy import deepcopy
 from math import log
 
 
+class Memory(Elaboratable):
+    def __init__(self, regwid, addrw):
+        depth = (1<<addrw) / (regwid/8)
+        self.adr   = Signal(addrw)
+        self.dat_r = Signal(regwid)
+        self.dat_w = Signal(regwid)
+        self.we    = Signal()
+        self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.rdport = rdport = self.mem.read_port()
+        m.submodules.wrport = wrport = self.mem.write_port()
+        m.d.comb += [
+            rdport.addr.eq(self.adr[2:]),
+            self.dat_r.eq(rdport.data),
+            wrport.addr.eq(self.adr),
+            wrport.data.eq(self.dat_w),
+            wrport.en.eq(self.we),
+        ]
+        return m
+
+
 class CompUnitsBase(Elaboratable):
     """ Computation Unit Base class.
 
