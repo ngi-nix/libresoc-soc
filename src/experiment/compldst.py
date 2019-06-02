@@ -133,24 +133,24 @@ class LDSTCompUnit(Elaboratable):
         # NOTE: use sync to stop combinatorial loops.
 
         # opcode latch - inverted so that busy resets to 0
-        syncomb += opc_l.s.eq(issue_i) # XXX NOTE: INVERTED FROM book!
-        syncomb += opc_l.r.eq(reset_b) # XXX NOTE: INVERTED FROM book!
+        sync += opc_l.s.eq(issue_i) # XXX NOTE: INVERTED FROM book!
+        sync += opc_l.r.eq(reset_b) # XXX NOTE: INVERTED FROM book!
 
         # src operand latch
-        syncomb += src_l.s.eq(issue_i)
-        syncomb += src_l.r.eq(reset_r)
+        sync += src_l.s.eq(issue_i)
+        sync += src_l.r.eq(reset_r)
 
         # addr latch
-        syncomb += adr_l.s.eq(self.go_rd_i)
-        syncomb += adr_l.r.eq(reset_a)
+        sync += adr_l.s.eq(self.go_rd_i)
+        sync += adr_l.r.eq(reset_a)
 
         # dest operand latch
-        syncomb += req_l.s.eq(self.go_ad_i)
-        syncomb += req_l.r.eq(reset_w)
+        sync += req_l.s.eq(self.go_ad_i)
+        sync += req_l.r.eq(reset_w)
 
         # store latch
-        syncomb += sto_l.s.eq(self.go_ad_i)
-        syncomb += sto_l.r.eq(reset_s)
+        sync += sto_l.s.eq(self.go_ad_i)
+        sync += sto_l.r.eq(reset_s)
 
         # outputs: busy and release signals
         busy_o = self.busy_o
@@ -170,16 +170,16 @@ class LDSTCompUnit(Elaboratable):
         # the counter is just for demo purposes, to get the ALUs of different
         # types to take arbitrary completion times
         with m.If(opc_l.qn):
-            syncomb += self.counter.eq(0) # reset counter when not busy
+            sync += self.counter.eq(0) # reset counter when not busy
         with m.If(req_l.qn & busy_o & (self.counter == 0)):
             with m.If(self.oper_i == 2): # MUL, to take 5 instructions
-                syncomb += self.counter.eq(5)
+                sync += self.counter.eq(5)
             with m.Elif(self.oper_i == 3): # SHIFT to take 7
-                syncomb += self.counter.eq(7)
+                sync += self.counter.eq(7)
             with m.Else(): # ADD/SUB to take 2
-                syncomb += self.counter.eq(2)
+                sync += self.counter.eq(2)
         with m.If(self.counter > 1):
-            syncomb += self.counter.eq(self.counter - 1)
+            sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
             # write req release out.  waits until shadow is dropped.
             comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
