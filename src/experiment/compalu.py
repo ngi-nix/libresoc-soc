@@ -120,8 +120,6 @@ class ComputationUnitNoDelay(Elaboratable):
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
         latchregister(m, self.src2_i, self.alu.b, src_l.q)
-        #with m.If(src_l.qn):
-        #    m.d.comb += self.alu.op.eq(self.oper_i)
 
         # create a latch/register for the operand
         latchregister(m, self.oper_i, self.alu.op, self.issue_i)
