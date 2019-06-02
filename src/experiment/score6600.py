@@ -201,10 +201,6 @@ class CompUnitALUs(CompUnitsBase):
         # hand the same operation to all units
         for alu in self.units:
             comb += alu.oper_i.eq(self.oper_i)
-        #comb += self.units[0].oper_i.eq(Const(0, 2)) # op=add
-        #comb += self.units[1].oper_i.eq(Const(1, 2)) # op=sub
-        #comb += self.units[2].oper_i.eq(Const(2, 2)) # op=mul
-        #comb += self.units[3].oper_i.eq(Const(3, 2)) # op=shf
 
         return m
 
@@ -237,7 +233,6 @@ class CompUnitBR(CompUnitsBase):
         # hand the same operation to all units
         for alu in self.units:
             comb += alu.oper_i.eq(self.oper_i)
-        #comb += self.br1.oper_i.eq(Const(4, 3)) # op=bgt
 
         return m
 
@@ -810,7 +805,7 @@ def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
         src2 = randint(1, dut.n_regs-1)
         dest = randint(1, dut.n_regs-1)
         op = randint(0, max_opnums)
-        opi = 0 # if randint(0, 3) else 1 # set true if random is nonzero
+        opi = 0 if randint(0, 3) else 1 # set true if random is nonzero
 
         if shadowing:
             insts.append((src1, src2, dest, op, opi, (0, 0)))
