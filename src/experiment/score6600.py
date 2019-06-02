@@ -24,7 +24,8 @@ from math import log
 
 class Memory(Elaboratable):
     def __init__(self, regwid, addrw):
-        depth = (1<<addrw) / (regwid/8)
+        self.ddepth = regwid/8
+        depth = (1<<addrw) / self.ddepth
         self.adr   = Signal(addrw)
         self.dat_r = Signal(regwid)
         self.dat_w = Signal(regwid)
@@ -36,13 +37,27 @@ class Memory(Elaboratable):
         m.submodules.rdport = rdport = self.mem.read_port()
         m.submodules.wrport = wrport = self.mem.write_port()
         m.d.comb += [
-            rdport.addr.eq(self.adr[2:]),
+            rdport.addr.eq(self.adr[self.ddepth:]), # ignore low bits
             self.dat_r.eq(rdport.data),
             wrport.addr.eq(self.adr),
             wrport.data.eq(self.dat_w),
             wrport.en.eq(self.we),
         ]
         return m
+
+
+class MemSim:
+    def __init__(self, regwid, addrw):
+        self.regwid = regwid
+        self.ddepth = regwid//8
+        depth = (1<<addrw) // self.ddepth
+        self.mem = list(range(0, depth))
+
+    def ld(self, addr):
+        return self.mem[addr>>self.ddepth]
+
+    def st(self, addr, data):
+        self.mem[addr>>self.ddepth] = data & ((1<<self.regwid)-1)
 
 
 class CompUnitsBase(Elaboratable):
@@ -392,7 +407,6 @@ class Scoreboard(Elaboratable):
         m.submodules.bshadow = bshadow = ShadowMatrix(n_intfus, 1, False)
 
         # record previous instruction to cast shadow on current instruction
-        fn_issue_prev = Signal(n_intfus)
         prev_shadow = Signal(n_intfus)
 
         # Branch Speculation recorder.  tracks the success/fail state as
@@ -492,10 +506,6 @@ class Scoreboard(Elaboratable):
         # when written, the shadow can be cancelled (and was good)
         for i in range(n_intfus):
             comb += shadows.s_good_i[i][0:n_intfus].eq(go_wr_o[0:n_intfus])
-
-        # work out the current-activated busy unit (by recording the old one)
-        with m.If(fn_issue_o): # only update prev bit if instruction issued
-            sync += fn_issue_prev.eq(fn_issue_o)
 
         # *previous* instruction shadows *current* instruction, and, obviously,
         # if the previous is completed (!busy) don't cast the shadow!
@@ -681,6 +691,7 @@ class IssueToScoreboard(Elaboratable):
 
     def ports(self):
         return list(self)
+
 
 IADD = 0
 ISUB = 1
@@ -1080,6 +1091,7 @@ def scoreboard_sim(dut, alusim):
 def test_scoreboard():
     dut = IssueToScoreboard(2, 1, 1, 16, 8, 8)
     alusim = RegSim(16, 8)
+    memsim = MemSim(16, 16)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
         f.write(vl)
