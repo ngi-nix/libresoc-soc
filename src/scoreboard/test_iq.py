@@ -92,10 +92,12 @@ def mk_insns(n_insns, wid, opwid):
     res = []
     for i in range(n_insns):
         op1 = randint(0, (1<<wid)-1)
+        opi = randint(0, 1)
         op2 = randint(0, (1<<wid)-1)
         dst = randint(0, (1<<wid)-1)
         oper = randint(0, (1<<opwid)-1)
-        res.append({'oper_i': oper, 'dest_i': dst, 'src1_i': op1, 'src2_i': op2})
+        res.append({'oper_i': oper, 'opim_i': opi, 'dest_i': dst,
+                    'src1_i': op1, 'src2_i': op2})
     return res
 
 
