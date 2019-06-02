@@ -181,6 +181,7 @@ class CompUnitALUs(CompUnitsBase):
 
         # inputs
         self.oper_i = Signal(opwid, reset_less=True)
+        self.imm_i = Signal(rwid, reset_less=True)
 
         # Int ALUs
         add = ALU(rwid)
@@ -201,7 +202,8 @@ class CompUnitALUs(CompUnitsBase):
 
         # hand the same operation to all units, only lower 2 bits though
         for alu in self.units:
-            comb += alu.oper_i[0:2].eq(self.oper_i)
+            comb += alu.oper_i[0:3].eq(self.oper_i)
+            comb += alu.imm_i.eq(self.imm_i)
 
         return m
 
@@ -334,6 +336,7 @@ class Scoreboard(Elaboratable):
         self.brissue = IssueUnitGroup(1)
         # and these
         self.alu_oper_i = Signal(4, reset_less=True)
+        self.alu_imm_i = Signal(rwid, reset_less=True)
         self.br_oper_i = Signal(4, reset_less=True)
 
         # inputs
@@ -428,6 +431,7 @@ class Scoreboard(Elaboratable):
 
         # take these to outside (issue needs them)
         comb += cua.oper_i.eq(self.alu_oper_i)
+        comb += cua.imm_i.eq(self.alu_imm_i)
         comb += cub.oper_i.eq(self.br_oper_i)
 
         # TODO: issueunit.f (FP)
@@ -650,6 +654,7 @@ class IssueToScoreboard(Elaboratable):
         # "resetting" done above (insn_i=0) could be re-ASSERTed.
         with m.If(iq.qlen_o != 0):
             # get the operands and operation
+            imm = iq.data_o[0].imm_i
             dest = iq.data_o[0].dest_i
             src1 = iq.data_o[0].src1_i
             src2 = iq.data_o[0].src2_i
@@ -669,7 +674,8 @@ class IssueToScoreboard(Elaboratable):
                 comb += wait_issue_br.eq(1)
             with m.Else():                   # alu
                 comb += sc.aluissue.insn_i.eq(1)
-                comb += sc.alu_oper_i.eq(Cat(op & 0x3, opi))
+                comb += sc.alu_oper_i.eq(Cat(op[0:2], opi))
+                comb += sc.alu_imm_i.eq(imm)
                 comb += wait_issue_alu.eq(1)
 
             # XXX TODO
@@ -705,10 +711,12 @@ class RegSim:
         self.rwidth = rwidth
         self.regs = [0] * nregs
 
-    def op(self, op, op_imm, src1, src2, dest):
+    def op(self, op, op_imm, imm, src1, src2, dest):
         maxbits = (1 << self.rwidth) - 1
         src1 = self.regs[src1] & maxbits
-        if not op_imm: # put op in src2
+        if op_imm:
+            src2 = imm
+        else:
             src2 = self.regs[src2] & maxbits
         if op == IADD:
             val = src1 + src2
@@ -748,8 +756,9 @@ class RegSim:
                 yield from self.dump(dut)
                 assert False
 
-def instr_q(dut, op, op_imm, src1, src2, dest, branch_success, branch_fail):
-    instrs = [{'oper_i': op, 'dest_i': dest, 'opim_i': op_imm,
+def instr_q(dut, op, op_imm, imm, src1, src2, dest,
+            branch_success, branch_fail):
+    instrs = [{'oper_i': op, 'dest_i': dest, 'imm_i': imm, 'opim_i': op_imm,
                'src1_i': src1, 'src2_i': src2}]
 
     sendlen = 1
@@ -767,7 +776,7 @@ def instr_q(dut, op, op_imm, src1, src2, dest, branch_success, branch_fail):
     yield dut.p_add_i.eq(0)
 
 
-def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
+def int_instr(dut, op, imm, src1, src2, dest, branch_success, branch_fail):
     yield from disable_issue(dut)
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
@@ -779,6 +788,7 @@ def int_instr(dut, op, src1, src2, dest, branch_success, branch_fail):
     else:
         yield dut.aluissue.insn_i.eq(1)
         yield dut.alu_oper_i.eq(Const(op & 0x3, 2))
+        yield dut.alu_imm_i.eq(imm)
         dut_issue = dut.aluissue
     yield dut.reg_enable_i.eq(1)
 
@@ -805,14 +815,15 @@ def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
     for i in range(n_ops):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
+        imm = randint(1, (1<<dut.rwid)-1)
         dest = randint(1, dut.n_regs-1)
         op = randint(0, max_opnums)
         opi = 0 if randint(0, 3) else 1 # set true if random is nonzero
 
         if shadowing:
-            insts.append((src1, src2, dest, op, opi, (0, 0)))
+            insts.append((src1, src2, dest, op, opi, imm, (0, 0)))
         else:
-            insts.append((src1, src2, dest, op, opi))
+            insts.append((src1, src2, dest, op, opi, imm))
     return insts
 
 
@@ -971,8 +982,11 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 15, True, 3)
+
+        if True:
+            instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
 
         if False:
             instrs.append( (7, 3, 2, 4, (0, 0)) )
@@ -1067,11 +1081,13 @@ def scoreboard_sim(dut, alusim):
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
-            src1, src2, dest, op, opi, (br_ok, br_fail) = instr
+            src1, src2, dest, op, opi, imm, (br_ok, br_fail) = instr
 
-            print ("instr %d: (%d, %d, %d, %d)" % (i, src1, src2, dest, op))
-            alusim.op(op, opi, src1, src2, dest)
-            yield from instr_q(dut, op, opi, src1, src2, dest, br_ok, br_fail)
+            print ("instr %d: (%d, %d, %d, %d, %d, %d)" % \
+                    (i, src1, src2, dest, op, opi, imm))
+            alusim.op(op, opi, imm, src1, src2, dest)
+            yield from instr_q(dut, op, opi, imm, src1, src2, dest,
+                               br_ok, br_fail)
 
         # wait for all instructions to stop before checking
         while True:
