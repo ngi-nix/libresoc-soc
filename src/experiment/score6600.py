@@ -818,7 +818,7 @@ def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
         imm = randint(1, (1<<dut.rwid)-1)
         dest = randint(1, dut.n_regs-1)
         op = randint(0, max_opnums)
-        opi = 0 if randint(0, 3) else 1 # set true if random is nonzero
+        opi = 0 if randint(0, 2) else 1 # set true if random is nonzero
 
         if shadowing:
             insts.append((src1, src2, dest, op, opi, imm, (0, 0)))
@@ -982,10 +982,10 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
+        if True:
             instrs = create_random_ops(dut, 15, True, 3)
 
-        if True:
+        if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
 
         if False:
