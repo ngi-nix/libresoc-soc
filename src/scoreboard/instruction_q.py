@@ -12,6 +12,7 @@ class Instruction(RecordObject):
         RecordObject.__init__(self, name=name)
         self.oper_i = Signal(opwid, reset_less=True)
         self.opim_i = Signal(1, reset_less=True) # src2 is an immediate
+        self.imm_i = Signal(wid, reset_less=True)
         self.dest_i = Signal(wid, reset_less=True)
         self.src1_i = Signal(wid, reset_less=True)
         self.src2_i = Signal(wid, reset_less=True)

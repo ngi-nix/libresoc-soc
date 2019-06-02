@@ -190,7 +190,8 @@ class CompUnitALUs(CompUnitsBase):
 
         units = []
         for alu in [add, sub, mul, shf]:
-            units.append(ComputationUnitNoDelay(rwid, 2, alu))
+            aluopwid = 3 # extra bit for immediate mode
+            units.append(ComputationUnitNoDelay(rwid, aluopwid, alu))
 
         CompUnitsBase.__init__(self, rwid, units)
 
@@ -198,9 +199,9 @@ class CompUnitALUs(CompUnitsBase):
         m = CompUnitsBase.elaborate(self, platform)
         comb = m.d.comb
 
-        # hand the same operation to all units
+        # hand the same operation to all units, only lower 2 bits though
         for alu in self.units:
-            comb += alu.oper_i.eq(self.oper_i)
+            comb += alu.oper_i[0:2].eq(self.oper_i)
 
         return m
 
@@ -372,7 +373,7 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs and Comp Units
         n_int_alus = 5
-        cua = CompUnitALUs(self.rwid, 2)
+        cua = CompUnitALUs(self.rwid, 3)
         cub = CompUnitBR(self.rwid, 2)
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
         bgt = cub.bgt # get at the branch computation unit
@@ -653,6 +654,7 @@ class IssueToScoreboard(Elaboratable):
             src1 = iq.data_o[0].src1_i
             src2 = iq.data_o[0].src2_i
             op = iq.data_o[0].oper_i
+            opi = iq.data_o[0].opim_i # immediate set
 
             # set the src/dest regs
             comb += sc.int_dest_i.eq(dest)
@@ -667,7 +669,7 @@ class IssueToScoreboard(Elaboratable):
                 comb += wait_issue_br.eq(1)
             with m.Else():                   # alu
                 comb += sc.aluissue.insn_i.eq(1)
-                comb += sc.alu_oper_i.eq(op & 0x3)
+                comb += sc.alu_oper_i.eq(Cat(op & 0x3, opi))
                 comb += wait_issue_alu.eq(1)
 
             # XXX TODO
