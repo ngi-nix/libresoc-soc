@@ -51,6 +51,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.go_die_i = Signal() # go die (reset)
 
         self.oper_i = Signal(opwid, reset_less=True) # opcode in
+        self.imm_i = Signal(rwid, reset_less=True) # immediate in
         self.src1_i = Signal(rwid, reset_less=True) # oper1 in
         self.src2_i = Signal(rwid, reset_less=True) # oper2 in
 
@@ -102,11 +103,11 @@ class ComputationUnitNoDelay(Elaboratable):
         with m.If(opc_l.qn):
             m.d.sync += self.counter.eq(0)
         with m.If(req_l.qn & busy_o & (self.counter == 0)):
-            with m.If(self.oper_i == 2): # MUL, to take 5 instructions
+            with m.If(self.alu.op == 2): # MUL, to take 5 instructions
                 m.d.sync += self.counter.eq(5)
-            with m.Elif(self.oper_i == 3): # SHIFT to take 7
+            with m.Elif(self.alu.op == 3): # SHIFT to take 7
                 m.d.sync += self.counter.eq(7)
-            with m.Elif(self.oper_i >= 4): # Branches take 6 (to test shadow)
+            with m.Elif(self.alu.op >= 4): # Branches take 6 (to test shadow)
                 m.d.sync += self.counter.eq(6)
             with m.Else(): # ADD/SUB to take 2
                 m.d.sync += self.counter.eq(2)

@@ -172,12 +172,7 @@ class LDSTCompUnit(Elaboratable):
         with m.If(opc_l.qn):
             sync += self.counter.eq(0) # reset counter when not busy
         with m.If(req_l.qn & busy_o & (self.counter == 0)):
-            with m.If(self.oper_i == 2): # MUL, to take 5 instructions
-                sync += self.counter.eq(5)
-            with m.Elif(self.oper_i == 3): # SHIFT to take 7
-                sync += self.counter.eq(7)
-            with m.Else(): # ADD/SUB to take 2
-                sync += self.counter.eq(2)
+            sync += self.counter.eq(2) # take 2 (fake) cycles to respond
         with m.If(self.counter > 1):
             sync += self.counter.eq(self.counter - 1)
         with m.If(self.counter == 1):
