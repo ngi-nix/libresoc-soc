@@ -12,7 +12,21 @@ Relevant comments (p45-46):
   write permission and store data present it can assert Bank_Addressable
 
 Relevant bugreports:
+
 * http://bugs.libre-riscv.org/show_bug.cgi?id=81
+
+Notes:
+
+* Load Hit (or Store Hit with Data) are asserted by the LD/ST Computation
+  Unit when it has data and address ready
+
+* Asserting the ld_hit_i (or stwd_hit_i) *requires* that the output be
+  captured or at least taken into consideration for the next LD/STs
+  *right then*.  Failure to observe the xx_hold_xx_o *will* result in
+  data corruption, as they are *only* asserted if xx_hit_i is asserted
+
+* The hold signals still have to go through "maybe address clashes"
+  detection, they cannot just be used as-is to stop a LD/ST.
 
 """
 
@@ -41,21 +55,21 @@ class LDSTDepMatrix(Elaboratable):
         self.stwd_hit_i = Signal(n_ldst, reset_less=True) # store w/data hit in
 
         # outputs
-        self.ld_hold_st_o = Signal(reset_less=True) # load holds st out
-        self.st_hold_ld_o = Signal(reset_less=True) # st holds load out
+        self.ld_hold_st_o = Signal(n_ldst, reset_less=True) # load holds st out
+        self.st_hold_ld_o = Signal(n_ldst, reset_less=True) # st holds load out
 
     def elaborate(self, platform):
         m = Module()
 
         # ---
-        # matrix of dependency cells
+        # matrix of dependency cells.  actually, LDSTDepCell is a row, now
         # ---
-        dm = Array(LDSTDepCell() for f in range(self.n_ldst))
+        dm = Array(LDSTDepCell(self.n_ldst) for f in range(self.n_ldst))
         for fu in range(self.n_ldst):
             setattr(m.submodules, "dm_fu%d" % (fu), dm[fu])
 
         # ---
-        # connect Function Unit vector
+        # connect Function Unit vector, all horizontal
         # ---
         lhs_l = []
         shl_l = []
@@ -66,26 +80,39 @@ class LDSTDepMatrix(Elaboratable):
         sh_l = []
         for fu in range(self.n_ldst):
             dc = dm[fu]
-            # accumulate load-hold-store / store-hold-load bits
+            # accumulate load-hold-store / store-hold-load bits (horizontal)
             lhs_l.append(dc.ld_hold_st_o)
             shl_l.append(dc.st_hold_ld_o)
             # accumulate inputs (for Cat'ing later) - TODO: must be a better way
-            load_l.append(dc.load_i)
-            stor_l.append(dc.stor_i)
+            load_l.append(dc.load_h_i)
+            stor_l.append(dc.stor_h_i)
             issue_l.append(dc.issue_i)
-            lh_l.append(dc.load_hit_i)
-            sh_l.append(dc.stwd_hit_i)
+
+            # load-hit and store-with-data-hit go in vertically (top)
+            m.d.comb += [dc.load_hit_i.eq(self.load_hit_i),
+                         dc.stwd_hit_i.eq(self.stwd_hit_i)
+                        ]
 
         # connect cell inputs using Cat(*list_of_stuff)
         m.d.comb += [Cat(*load_l).eq(self.load_i),
                      Cat(*stor_l).eq(self.stor_i),
                      Cat(*issue_l).eq(self.issue_i),
-                     Cat(*lh_l).eq(self.load_hit_i),
-                     Cat(*sh_l).eq(self.stwd_hit_i),
                     ]
-        # set the load-hold-store / store-hold-load OR-accumulated outputs
-        m.d.comb += self.ld_hold_st_o.eq(Cat(*lhs_l).bool())
-        m.d.comb += self.st_hold_ld_o.eq(Cat(*shl_l).bool())
+        # connect the load-hold-store / store-hold-load OR-accumulated outputs
+        m.d.comb += self.ld_hold_st_o.eq(Cat(*lhs_l))
+        m.d.comb += self.st_hold_ld_o.eq(Cat(*shl_l))
+
+        # the load/store input also needs to be connected to "top" (vertically)
+        for fu in range(self.n_ldst):
+            load_v_l = []
+            stor_v_l = []
+            for fux in range(self.n_ldst):
+                dc = dm[fux]
+                load_v_l.append(dc.load_v_i[fu])
+                stor_v_l.append(dc.stor_v_i[fu])
+            m.d.comb += [Cat(*load_v_l).eq(self.load_i),
+                         Cat(*stor_v_l).eq(self.stor_i),
+                        ]
 
         return m
 
