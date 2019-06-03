@@ -223,10 +223,12 @@ class CompUnitBR(CompUnitsBase):
 
         # inputs
         self.oper_i = Signal(opwid, reset_less=True)
+        self.imm_i = Signal(rwid, reset_less=True)
 
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
-        self.br1 = ComputationUnitNoDelay(rwid, 3, self.bgt)
+        aluopwid = 3 # extra bit for immediate mode
+        self.br1 = ComputationUnitNoDelay(rwid, aluopwid, self.bgt)
         CompUnitsBase.__init__(self, rwid, [self.br1])
 
     def elaborate(self, platform):
@@ -236,6 +238,7 @@ class CompUnitBR(CompUnitsBase):
         # hand the same operation to all units
         for alu in self.units:
             comb += alu.oper_i.eq(self.oper_i)
+            comb += alu.imm_i.eq(self.imm_i)
 
         return m
 
@@ -338,6 +341,7 @@ class Scoreboard(Elaboratable):
         self.alu_oper_i = Signal(4, reset_less=True)
         self.alu_imm_i = Signal(rwid, reset_less=True)
         self.br_oper_i = Signal(4, reset_less=True)
+        self.br_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
@@ -377,7 +381,7 @@ class Scoreboard(Elaboratable):
         # Int ALUs and Comp Units
         n_int_alus = 5
         cua = CompUnitALUs(self.rwid, 3)
-        cub = CompUnitBR(self.rwid, 2)
+        cub = CompUnitBR(self.rwid, 3)
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
         bgt = cub.bgt # get at the branch computation unit
         br1 = cub.br1
@@ -433,6 +437,7 @@ class Scoreboard(Elaboratable):
         comb += cua.oper_i.eq(self.alu_oper_i)
         comb += cua.imm_i.eq(self.alu_imm_i)
         comb += cub.oper_i.eq(self.br_oper_i)
+        comb += cub.imm_i.eq(self.br_imm_i)
 
         # TODO: issueunit.f (FP)
 
@@ -670,7 +675,8 @@ class IssueToScoreboard(Elaboratable):
             # choose a Function-Unit-Group
             with m.If((op & (0x3<<2)) != 0): # branch
                 comb += sc.brissue.insn_i.eq(1)
-                comb += sc.br_oper_i.eq(op & 0x3)
+                comb += sc.br_oper_i.eq(Cat(op[0:2], opi))
+                comb += sc.br_imm_i.eq(imm)
                 comb += wait_issue_br.eq(1)
             with m.Else():                   # alu
                 comb += sc.aluissue.insn_i.eq(1)
@@ -784,6 +790,7 @@ def int_instr(dut, op, imm, src1, src2, dest, branch_success, branch_fail):
     if (op & (0x3<<2)) != 0: # branch
         yield dut.brissue.insn_i.eq(1)
         yield dut.br_oper_i.eq(Const(op & 0x3, 2))
+        yield dut.br_imm_i.eq(imm)
         dut_issue = dut.brissue
     else:
         yield dut.aluissue.insn_i.eq(1)
