@@ -968,7 +968,7 @@ def scoreboard_branch_sim(dut, alusim):
 
 def scoreboard_sim(dut, alusim):
 
-    #seed(2)
+    seed(0)
 
     for i in range(1):
 
@@ -982,8 +982,8 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
-            instrs = create_random_ops(dut, 15, True, 3)
+        if False:
+            instrs = create_random_ops(dut, 15, True, 4)
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
@@ -993,13 +993,17 @@ def scoreboard_sim(dut, alusim):
             instrs.append( (7, 6, 6, 2, (0, 0)) )
             instrs.append( (1, 7, 2, 2, (0, 0)) )
 
-
         if False:
-            instrs.append((2, 3, 3, 0, (0, 0)))
-            instrs.append((5, 3, 3, 1, (0, 0)))
-            instrs.append((3, 5, 5, 2, (0, 0)))
-            instrs.append((5, 3, 3, 3, (0, 0)))
-            instrs.append((3, 5, 5, 0, (0, 0)))
+            instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
+            instrs.append((5, 3, 3, 1, 0, 0, (0, 0)))
+            instrs.append((3, 5, 5, 2, 0, 0, (0, 0)))
+            instrs.append((5, 3, 3, 3, 0, 0, (0, 0)))
+            instrs.append((3, 5, 5, 0, 0, 0, (0, 0)))
+
+        if True:
+            instrs.append( (3, 3, 4, 0, 0, 13979, (0, 0)))
+            instrs.append( (6, 4, 1, 2, 0, 40976, (0, 0)))
+            instrs.append( (1, 4, 7, 4, 1, 23652, (0, 0)))
 
         if False:
             instrs.append((5, 6, 2, 1))

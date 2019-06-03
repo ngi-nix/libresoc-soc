@@ -131,25 +131,22 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.comb += busy_o.eq(opc_l.q) # busy out
         m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
 
-        # the counter is just for demo purposes, to get the ALUs of different
-        # types to take arbitrary completion times
-        with m.If(opc_l.qn):
-            m.d.sync += self.counter.eq(0)
-        with m.If(req_l.qn & busy_o & (self.counter == 0)):
-            with m.If(self.alu.op == 2): # MUL, to take 5 instructions
-                m.d.sync += self.counter.eq(5)
-            with m.Elif(self.alu.op == 3): # SHIFT to take 7
-                m.d.sync += self.counter.eq(7)
-            with m.Elif(self.alu.op >= 4): # Branches take 6 (to test shadow)
-                m.d.sync += self.counter.eq(6)
-            with m.Else(): # ADD/SUB to take 2
-                m.d.sync += self.counter.eq(2)
-        with m.If(self.counter > 1):
-            m.d.sync += self.counter.eq(self.counter - 1)
-        with m.If(self.counter == 1):
-            # write req release out.  waits until shadow is dropped.
-            m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
+        # on a go_read, tell the ALU we're accepting data.
+        # NOTE: this spells TROUBLE if the ALU isn't ready!
+        # go_read is only valid for one clock!
+        with m.If(self.go_rd_i):                     # src operands ready, GO!
+            with m.If(~self.alu.p_ready_o):          # no ACK yet
+                m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
+        # only proceed if ALU says its output is valid
+        with m.If(self.alu.n_valid_o):
+            # when ALU ready, write req release out. waits for shadow
+            m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
+            # when output latch is ready, and ALU says ready, accept ALU output
+            with m.If(self.req_rel_o):
+                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
+
+        # output the data from the latch on go_write
         with m.If(self.go_wr_i):
             m.d.comb += self.data_o.eq(data_r)
 
