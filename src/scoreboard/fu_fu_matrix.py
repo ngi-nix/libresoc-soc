@@ -53,8 +53,8 @@ class FUFUDepMatrix(Elaboratable):
         # ---
         readable = []
         writable = []
-        for x in range(self.n_fu_col):
-            fu = fur[x]
+        for y in range(self.n_fu_row):
+            fu = fur[y]
             # accumulate Readable/Writable Vector outputs
             readable.append(fu.readable_o)
             writable.append(fu.writable_o)
