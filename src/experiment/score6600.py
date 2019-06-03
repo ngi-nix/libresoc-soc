@@ -977,7 +977,7 @@ def scoreboard_sim(dut, alusim):
 
     seed(0)
 
-    for i in range(1):
+    for i in range(50):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
@@ -989,7 +989,7 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
+        if True:
             instrs = create_random_ops(dut, 15, True, 4)
 
         if False:
@@ -1007,7 +1007,7 @@ def scoreboard_sim(dut, alusim):
             instrs.append((5, 3, 3, 3, 0, 0, (0, 0)))
             instrs.append((3, 5, 5, 0, 0, 0, (0, 0)))
 
-        if True:
+        if False:
             instrs.append( (3, 3, 4, 0, 0, 13979, (0, 0)))
             instrs.append( (6, 4, 1, 2, 0, 40976, (0, 0)))
             instrs.append( (1, 4, 7, 4, 1, 23652, (0, 0)))
