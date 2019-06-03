@@ -13,6 +13,12 @@ to do is cover the cases that are *definitely* matches (by checking 11
 bits or so), and if a few opportunities for parallel LD/STs are missed
 because the top (or bottom) bits weren't checked, so what: all that
 happens is: the mis-matched addresses are LD/STd on single-cycles. Big Deal.
+
+However, if we wanted to enhance this algorithm (without using a CAM and
+without using expensive comparators) probably the best way to do so would
+be to turn the last 16 bits into a byte-level bitmap.  LD/ST on a byte
+would have 1 of the 16 bits set.  LD/ST on a DWORD would have 8 of the 16
+bits set (offset if the LD/ST was misaligned).  TODO.
 """
 
 from nmigen.compat.sim import run_simulation
