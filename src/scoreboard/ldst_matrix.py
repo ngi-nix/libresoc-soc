@@ -47,8 +47,8 @@ class LDSTDepMatrix(Elaboratable):
     """
     def __init__(self, n_ldst):
         self.n_ldst = n_ldst                  # X and Y (FUs)
-        self.load_i = Signal(n_ldst, reset_less=True)  # load pending in
-        self.stor_i = Signal(n_ldst, reset_less=True)  # store pending in
+        self.ld_pend_i = Signal(n_ldst, reset_less=True)  # load pending in
+        self.st_pend_i = Signal(n_ldst, reset_less=True)  # store pending in
         self.issue_i = Signal(n_ldst, reset_less=True) # Issue in
 
         self.load_hit_i = Signal(n_ldst, reset_less=True) # load hit in
@@ -94,8 +94,8 @@ class LDSTDepMatrix(Elaboratable):
                         ]
 
         # connect cell inputs using Cat(*list_of_stuff)
-        m.d.comb += [Cat(*load_l).eq(self.load_i),
-                     Cat(*stor_l).eq(self.stor_i),
+        m.d.comb += [Cat(*load_l).eq(self.ld_pend_i),
+                     Cat(*stor_l).eq(self.st_pend_i),
                      Cat(*issue_l).eq(self.issue_i),
                     ]
         # connect the load-hold-store / store-hold-load OR-accumulated outputs
@@ -110,15 +110,15 @@ class LDSTDepMatrix(Elaboratable):
                 dc = dm[fux]
                 load_v_l.append(dc.load_v_i[fu])
                 stor_v_l.append(dc.stor_v_i[fu])
-            m.d.comb += [Cat(*load_v_l).eq(self.load_i),
-                         Cat(*stor_v_l).eq(self.stor_i),
+            m.d.comb += [Cat(*load_v_l).eq(self.ld_pend_i),
+                         Cat(*stor_v_l).eq(self.st_pend_i),
                         ]
 
         return m
 
     def __iter__(self):
-        yield self.load_i
-        yield self.stor_i
+        yield self.ld_pend_i
+        yield self.st_pend_i
         yield self.issue_i
         yield self.load_hit_i
         yield self.stwd_hit_i
