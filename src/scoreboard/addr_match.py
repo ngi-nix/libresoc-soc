@@ -19,6 +19,13 @@ without using expensive comparators) probably the best way to do so would
 be to turn the last 16 bits into a byte-level bitmap.  LD/ST on a byte
 would have 1 of the 16 bits set.  LD/ST on a DWORD would have 8 of the 16
 bits set (offset if the LD/ST was misaligned).  TODO.
+
+Notes:
+
+> I have used bits <11:6> as they are not translated (4KB pages)
+> and larger than a cache line (64 bytes).
+> I have used bits <11:4> when the L1 cache was QuadW sized and
+> the L2 cache was Line sized.
 """
 
 from nmigen.compat.sim import run_simulation
