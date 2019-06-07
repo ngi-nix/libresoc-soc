@@ -286,11 +286,11 @@ class FunctionUnits(Elaboratable):
         intregdeps = FURegDepMatrix(n_intfus, self.n_regs)
         m.submodules.intregdeps = intregdeps
 
-        comb += self.g_int_rd_pend_o.eq(intregdeps.rd_rsel_o)
-        comb += self.g_int_wr_pend_o.eq(intregdeps.wr_rsel_o)
+        comb += self.g_int_rd_pend_o.eq(intregdeps.v_rd_rsel_o)
+        comb += self.g_int_wr_pend_o.eq(intregdeps.v_wr_rsel_o)
 
-        comb += intregdeps.rd_pend_i.eq(intregdeps.rd_rsel_o)
-        comb += intregdeps.wr_pend_i.eq(intregdeps.wr_rsel_o)
+        comb += intregdeps.rd_pend_i.eq(intregdeps.v_rd_rsel_o)
+        comb += intregdeps.wr_pend_i.eq(intregdeps.v_wr_rsel_o)
 
         comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
         comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)

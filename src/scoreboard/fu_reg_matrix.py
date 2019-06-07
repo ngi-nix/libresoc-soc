@@ -38,8 +38,8 @@ class FURegDepMatrix(Elaboratable):
         # Register "Global" vectors for determining RaW and WaR hazards
         self.wr_pend_i = Signal(n_reg_col, reset_less=True) # wr pending (top)
         self.rd_pend_i = Signal(n_reg_col, reset_less=True) # rd pending (top)
-        self.wr_rsel_o = Signal(n_reg_col, reset_less=True) # wr pending (bot)
-        self.rd_rsel_o = Signal(n_reg_col, reset_less=True) # rd pending (bot)
+        self.v_wr_rsel_o = Signal(n_reg_col, reset_less=True) # wr pending (bot)
+        self.v_rd_rsel_o = Signal(n_reg_col, reset_less=True) # rd pending (bot)
 
         self.issue_i = Signal(n_fu_row, reset_less=True)  # Issue in (top)
         self.go_wr_i = Signal(n_fu_row, reset_less=True)  # Go Write in (left)
@@ -173,8 +173,8 @@ class FURegDepMatrix(Elaboratable):
         m.submodules.rd_v = rd_v
         m.submodules.wr_v = wr_v
 
-        m.d.comb += self.rd_rsel_o.eq(rd_v.g_pend_o)
-        m.d.comb += self.wr_rsel_o.eq(wr_v.g_pend_o)
+        m.d.comb += self.v_rd_rsel_o.eq(rd_v.g_pend_o)
+        m.d.comb += self.v_wr_rsel_o.eq(wr_v.g_pend_o)
 
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
@@ -214,8 +214,8 @@ class FURegDepMatrix(Elaboratable):
         yield self.rd_pend_o
         yield self.wr_pend_i
         yield self.rd_pend_i
-        yield self.wr_rsel_o
-        yield self.rd_rsel_o
+        yield self.v_wr_rsel_o
+        yield self.v_rd_rsel_o
         yield self.rd_src1_pend_o
         yield self.rd_src2_pend_o
 
