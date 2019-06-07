@@ -166,8 +166,8 @@ class FURegDepMatrix(Elaboratable):
         wr_pend_v = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
-            rd_pend_v.append(dc.rd_rsel_o)
-            wr_pend_v.append(dc.wr_rsel_o)
+            rd_pend_v.append(dc.v_rd_rsel_o)
+            wr_pend_v.append(dc.v_wr_rsel_o)
         rd_v = GlobalPending(self.n_reg_col, rd_pend_v)
         wr_v = GlobalPending(self.n_reg_col, wr_pend_v)
         m.submodules.rd_v = rd_v

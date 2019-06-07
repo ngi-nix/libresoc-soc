@@ -35,8 +35,8 @@ class DependencyRow(Elaboratable):
 
         self.rd_pend_i = Signal(n_reg, reset_less=True) # Read pend in (top)
         self.wr_pend_i = Signal(n_reg, reset_less=True) # Write pend in (top)
-        self.rd_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
-        self.wr_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
+        self.v_rd_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
+        self.v_wr_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
 
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
@@ -87,8 +87,8 @@ class DependencyRow(Elaboratable):
 
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to rd_pend_i / wr_pend_i
-        m.d.comb += self.rd_rsel_o.eq(src1_c.qlq | src2_c.qlq)
-        m.d.comb += self.wr_rsel_o.eq(dest_c.qlq)
+        m.d.comb += self.v_rd_rsel_o.eq(src1_c.qlq | src2_c.qlq)
+        m.d.comb += self.v_wr_rsel_o.eq(dest_c.qlq)
 
         return m
 
