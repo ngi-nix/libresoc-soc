@@ -641,11 +641,28 @@ def test_scoreboard():
     #                    vcd_name='test_scoreboard6600.vcd')
 
 
+def mem_sim(dut):
+    yield dut.ld_i.eq(0x1)
+    yield dut.fn_issue_i.eq(0x1)
+    yield
+    yield dut.st_i.eq(0x2)
+    yield dut.fn_issue_i.eq(0x2)
+    yield
+    yield dut.fn_issue_i.eq(0x0)
+    yield
+
+    yield dut.stwd_hit_i.eq(0x2)
+    yield
+
+
 def test_mem_fus():
     dut = MemFunctionUnits(4)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_mem_fus.il", "w") as f:
         f.write(vl)
+
+    run_simulation(dut, mem_sim(dut),
+                        vcd_name='test_mem_fus.vcd')
 
 
 if __name__ == '__main__':
