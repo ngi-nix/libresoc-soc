@@ -11,6 +11,8 @@
 # Author: Florian Zaruba, ETH Zurich
 # Date: 12.11.2017
 # Description: Handles cache misses.
+from nmigen.lib.coding import Encoder, PriorityEncoder
+
 
 # --------------
 # MISS Handler
@@ -71,49 +73,51 @@ class CLBE:
 """
 
 class MissHandler(Elaboratable):
-    def __init__(self,
-    self.flush_i = Signal() # flush request
-    self.flush_ack_o = Signal()  # acknowledge successful flush
-    self.miss_o = Signal()
-    self.busy_i = Signal()       # dcache is busy with something
+    def __init__(self, NR_PORTS):
+        self.NR_PORTS = NR_PORTS
+        self.pwid = pwid = ceil(log(NR_PORTS) / log(2))
+        self.flush_i = Signal()      # flush request
+        self.flush_ack_o = Signal()  # acknowledge successful flush
+        self.miss_o = Signal()
+        self.busy_i = Signal()       # dcache is busy with something
 
-    # Bypass or miss
-    self.miss_req_i = Array(MissReq(name="missreq") for i in range(NR_PORTS))
-    # Bypass handling
-    bypass_gnt_o = Signal(NR_PORTS)
-    bypass_valid_o = Signal(NR_PORTS)
-    self.bypass_data_o = Array(Signal(name="bdata_o", 64) \
-                                for i in range(NR_PORTS))
+        # Bypass or miss
+        self.miss_req_i = Array(MissReq(name="missreq") for i in range(NR_PORTS))
+        # Bypass handling
+        self.bypass_gnt_o = Signal(NR_PORTS)
+        self.bypass_valid_o = Signal(NR_PORTS)
+        self.bypass_data_o = Array(Signal(name="bdata_o", 64) \
+                                    for i in range(NR_PORTS))
 
-    # AXI port
-    output ariane_axi::req_t                            axi_bypass_o,
-    input  ariane_axi::resp_t                           axi_bypass_i,
+        # AXI port
+        output ariane_axi::req_t                            axi_bypass_o,
+        input  ariane_axi::resp_t                           axi_bypass_i,
 
-    # Miss handling (~> cacheline refill)
-    miss_gnt_o = Signal(NR_PORTS)
-    active_serving_o = Signal(NR_PORTS)
+        # Miss handling (~> cacheline refill)
+        self.miss_gnt_o = Signal(NR_PORTS)
+        self.active_serving_o = Signal(NR_PORTS)
 
-    critical_word_o = Signal(64)
-    critical_word_valid_o = Signal()
-    output ariane_axi::req_t                            axi_data_o,
-    input  ariane_axi::resp_t                           axi_data_i,
+        self.critical_word_o = Signal(64)
+        self.critical_word_valid_o = Signal()
+        output ariane_axi::req_t                            axi_data_o,
+        input  ariane_axi::resp_t                           axi_data_i,
 
-    self.mshr_addr_i = Array(Signal(name="bdata_o", 56) \
-                                for i in range(NR_PORTS))
-    mshr_addr_matches_o = Signal(NR_PORTS)
-    mshr_index_matches_o = Signal(NR_PORTS)
+        self.mshr_addr_i = Array(Signal(name="bdata_o", 56) \
+                                    for i in range(NR_PORTS))
+        self.mshr_addr_matches_o = Signal(NR_PORTS)
+        self.mshr_index_matches_o = Signal(NR_PORTS)
 
-    # AMO
-    amo_req_i = AMOReq()
-    amo_resp_o = AMOResp()
-    # Port to SRAMs, for refill and eviction
-    req_o = Signal(DCACHE_SET_ASSOC)
-    addr_o = Signal(DCACHE_INDEX_WIDTH) # address into cache array
-    data_o = CacheLine()
-    be_o = CLBE()
-    self.data_i = Array(CacheLine() \
-                                for i in range(DCACHE_SET_ASSOC))
-    we_o = Signal()
+        # AMO
+        self.amo_req_i = AMOReq()
+        self.amo_resp_o = AMOResp()
+        # Port to SRAMs, for refill and eviction
+        self.req_o = Signal(DCACHE_SET_ASSOC)
+        self.addr_o = Signal(DCACHE_INDEX_WIDTH) # address into cache array
+        self.data_o = CacheLine()
+        self.be_o = CLBE()
+        self.data_i = Array(CacheLine() \
+                                    for i in range(DCACHE_SET_ASSOC))
+        self.we_o = Signal()
 
     def elaborate(self, platform):
         # Registers
@@ -125,34 +129,42 @@ class MissHandler(Elaboratable):
 
         logic serve_amo_d, serve_amo_q;
         # Request from one FSM
-        logic [NR_PORTS-1:0]                    miss_req_valid;
-        logic [NR_PORTS-1:0]                    miss_req_bypass;
-        logic [NR_PORTS-1:0][63:0]              miss_req_addr;
-        logic [NR_PORTS-1:0][63:0]              miss_req_wdata;
-        logic [NR_PORTS-1:0]                    miss_req_we;
-        logic [NR_PORTS-1:0][7:0]               miss_req_be;
-        logic [NR_PORTS-1:0][1:0]               miss_req_size;
+        miss_req_valid = Signal(self.NR_PORTS)
+        miss_req_bypass = Signal(self.NR_PORTS)
+        miss_req_addr = Array(Signal(name="miss_req_addr", 64) \
+                                    for i in range(NR_PORTS))
+        miss_req_wdata = Array(Signal(name="miss_req_wdata", 64) \
+                                    for i in range(NR_PORTS))
+        miss_req_we = Signal(self.NR_PORTS)
+        miss_req_be = Array(Signal(name="miss_req_be", 8) \
+                                    for i in range(NR_PORTS))
+        miss_req_size = Array(Signal(name="miss_req_size", 2) \
+                                    for i in range(NR_PORTS))
 
         # Cache Line Refill <-> AXI
-        logic                                    req_fsm_miss_valid;
-        logic [63:0]                             req_fsm_miss_addr;
-        logic [DCACHE_LINE_WIDTH-1:0]            req_fsm_miss_wdata;
-        logic                                    req_fsm_miss_we;
-        logic [(DCACHE_LINE_WIDTH/8)-1:0]        req_fsm_miss_be;
+        req_fsm_miss_valid = Signal()
+        req_fsm_miss_addr = Signal(64)
+        req_fsm_miss_wdata = Signal(DCACHE_LINE_WIDTH)
+        req_fsm_miss_we = Signal()
+        req_fsm_miss_be = Signal(DCACHE_LINE_WIDTH//8)
         ariane_axi::ad_req_t                     req_fsm_miss_req;
-        logic [1:0]                              req_fsm_miss_size;
+        req_fsm_miss_size = Signal(2)
 
-        logic                                    gnt_miss_fsm;
-        logic                                    valid_miss_fsm;
-        logic [(DCACHE_LINE_WIDTH/64)-1:0][63:0] data_miss_fsm;
+        gnt_miss_fsm = Signal()
+        valid_miss_fsm = Signal()
+        nmiss = DCACHE_LINE_WIDTH//64
+        data_miss_fsm = Array(Signal(name="data_miss_fsm", 64) \
+                                    for i in range(nmiss))
 
         # Cache Management <-> LFSR
-        logic                                  lfsr_enable;
-        logic [DCACHE_SET_ASSOC-1:0]           lfsr_oh;
-        logic [$clog2(DCACHE_SET_ASSOC-1)-1:0] lfsr_bin;
+        lfsr_enable = Signal()
+        lfsr_oh = Signal(DCACHE_SET_ASSOC)
+        lfsr_bin = Signal($clog2(DCACHE_SET_ASSOC-1))
         # AMOs
         ariane_pkg::amo_t amo_op;
-        logic [63:0] amo_operand_a, amo_operand_b, amo_result_o;
+        amo_operand_a = Signal(64)
+        amo_operand_b = Signal(64)
+        amo_result_o = Signal(64)
 
         struct packed {
             logic [63:3] address;
@@ -514,48 +526,45 @@ class MissHandler(Elaboratable):
         # Bypass Arbiter
         # ----------------------
         # Connection Arbiter <-> AXI
-        logic                        req_fsm_bypass_valid;
-        logic [63:0]                 req_fsm_bypass_addr;
-        logic [63:0]                 req_fsm_bypass_wdata;
-        logic                        req_fsm_bypass_we;
-        logic [7:0]                  req_fsm_bypass_be;
-        logic [1:0]                  req_fsm_bypass_size;
-        logic                        gnt_bypass_fsm;
-        logic                        valid_bypass_fsm;
-        logic [63:0]                 data_bypass_fsm;
+        req_fsm_bypass_valid = Signal()
+        req_fsm_bypass_addr = Signal(64)
+        req_fsm_bypass_wdata = Signal(64)
+        req_fsm_bypass_we = Signal()
+        req_fsm_bypass_be = Signal(8)
+        req_fsm_bypass_size = Signal(2)
+        gnt_bypass_fsm = Signal()
+        valid_bypass_fsm = Signal()
+        data_bypass_fsm = Signal(64)
         logic [$clog2(NR_PORTS)-1:0] id_fsm_bypass;
         logic [3:0]                  id_bypass_fsm;
         logic [3:0]                  gnt_id_bypass_fsm;
 
-        arbiter #(
-            .NR_PORTS       ( NR_PORTS                                 ),
-            .DATA_WIDTH     ( 64                                       )
-        ) i_bypass_arbiter (
+        i_bypass_arbiter = ib = AXIArbiter( NR_PORTS, 64)
+        comb += [
             # Master Side
-            .data_req_i     ( miss_req_valid & miss_req_bypass         ),
-            .address_i      ( miss_req_addr                            ),
-            .data_wdata_i   ( miss_req_wdata                           ),
-            .data_we_i      ( miss_req_we                              ),
-            .data_be_i      ( miss_req_be                              ),
-            .data_size_i    ( miss_req_size                            ),
-            .data_gnt_o     ( bypass_gnt_o                             ),
-            .data_rvalid_o  ( bypass_valid_o                           ),
-            .data_rdata_o   ( bypass_data_o                            ),
+            ib.data_req_i     .eq( miss_req_valid & miss_req_bypass         ),
+            ib.address_i      .eq( miss_req_addr                            ),
+            ib.data_wdata_i   .eq( miss_req_wdata                           ),
+            ib.data_we_i      .eq( miss_req_we                              ),
+            ib.data_be_i      .eq( miss_req_be                              ),
+            ib.data_size_i    .eq( miss_req_size                            ),
+            ib.data_gnt_o     .eq( bypass_gnt_o                             ),
+            ib.data_rvalid_o  .eq( bypass_valid_o                           ),
+            ib.data_rdata_o   .eq( bypass_data_o                            ),
             # Slave Sid
-            .id_i           ( id_bypass_fsm[$clog2(NR_PORTS)-1:0]      ),
-            .id_o           ( id_fsm_bypass                            ),
-            .gnt_id_i       ( gnt_id_bypass_fsm[$clog2(NR_PORTS)-1:0]  ),
-            .address_o      ( req_fsm_bypass_addr                      ),
-            .data_wdata_o   ( req_fsm_bypass_wdata                     ),
-            .data_req_o     ( req_fsm_bypass_valid                     ),
-            .data_we_o      ( req_fsm_bypass_we                        ),
-            .data_be_o      ( req_fsm_bypass_be                        ),
-            .data_size_o    ( req_fsm_bypass_size                      ),
-            .data_gnt_i     ( gnt_bypass_fsm                           ),
-            .data_rvalid_i  ( valid_bypass_fsm                         ),
-            .data_rdata_i   ( data_bypass_fsm                          ),
-            .*
-        );
+            ib.id_i           .eq( id_bypass_fsm[$clog2(NR_PORTS)-1:0]      ),
+            ib.id_o           .eq( id_fsm_bypass                            ),
+            ib.gnt_id_i       .eq( gnt_id_bypass_fsm[$clog2(NR_PORTS)-1:0]  ),
+            ib.address_o      .eq( req_fsm_bypass_addr                      ),
+            ib.data_wdata_o   .eq( req_fsm_bypass_wdata                     ),
+            ib.data_req_o     .eq( req_fsm_bypass_valid                     ),
+            ib.data_we_o      .eq( req_fsm_bypass_we                        ),
+            ib.data_be_o      .eq( req_fsm_bypass_be                        ),
+            ib.data_size_o    .eq( req_fsm_bypass_size                      ),
+            ib.data_gnt_i     .eq( gnt_bypass_fsm                           ),
+            ib.data_rvalid_i  .eq( valid_bypass_fsm                         ),
+            ib.data_rdata_i   .eq( data_bypass_fsm                          ),
+        ]
 
         axi_adapter #(
             .DATA_WIDTH            ( 64                 ),
@@ -655,6 +664,8 @@ class MissHandler(Elaboratable):
     #
 class AXIArbiter:
     def __init__(self, NR_PORTS   = 3, DATA_WIDTH = 64):
+        self.NR_PORTS = NR_PORTS
+        self.DATA_WIDTH = DATA_WIDTH
         self.pwid = pwid = ceil(log(NR_PORTS) / log(2))
         rst_ni = ResetSignal() # Asynchronous reset active low
         # master ports
@@ -690,7 +701,7 @@ class AXIArbiter:
     def elaborate(self, platform):
         #enum logic [1:0] { IDLE, REQ, SERVING } state_d, state_q;
 
-        class Packed:
+        class Packet:
             def __init__(self, pwid, DATA_WIDTH):
                 self.id = Signal(pwid)
                 self.address = Signal(64)
@@ -700,50 +711,56 @@ class AXIArbiter:
                 self.we = Signal()
 
         request_index = Signal(self.pwid)
+        req_q = Packet(self.pwid, self.DATA_WIDTH)
+        req_d = Packet(self.pwid, self.DATA_WIDTH)
+
+        # request register
+        sync += req_q.eq(req_d)
 
         # request port
-        sync += address_o                .eq(req_q.address)
-        sync += data_wdata_o             .eq(req_q.data)
-        sync += data_be_o                .eq(req_q.be)
-        sync += data_size_o              .eq(req_q.size)
-        sync += data_we_o                .eq(req_q.we)
-        sync += id_o                     .eq(req_q.id)
-        comb += data_gnt_o               .eq(0)
+        comb += self.address_o             .eq(req_q.address)
+        comb += self.data_wdata_o          .eq(req_q.data)
+        comb += self.data_be_o             .eq(req_q.be)
+        comb += self.data_size_o           .eq(req_q.size)
+        comb += self.data_we_o             .eq(req_q.we)
+        comb += self.id_o                  .eq(req_q.id)
+        comb += self.data_gnt_o            .eq(0)
         # read port
-        comb += data_rvalid_o            .eq(0)
-        comb += data_rdata_o             .eq(0)
-        comb += data_rdata_o[req_q.id]   .eq(data_rdata_i)
+        comb += self.data_rvalid_o         .eq(0)
+        comb += self.data_rdata_o          .eq(0)
+        comb += self.data_rdata_o[req_q.id].eq(data_rdata_i)
+
+        m.submodules.pp = pp = PriorityEncoder(self.NR_PORTS)
+        comb += pp.i.eq(self.data_req_i) # select one request (priority-based)
+        comb += request_index.eq(pp.o)
 
         with m.Switch("state") as s:
 
             with m.Case("IDLE"):
-                # wait for incoming requests
-                for (int unsigned i = 0; i < NR_PORTS; i++) begin
-                    if (data_req_i[i] == 0b1) begin
-                        comb += data_req_o   .eq(data_req_i[i])
-                        comb += data_gnt_o[i].eq(data_req_i[i])
-                        comb += request_index.eq(i[$bits(request_index)-1:0])
-                        # save the request
-                        comb += req_d.address.eq(address_i[i])
-                        sync += req_d.id.eq(i[$bits(req_q.id)-1:0])
-                        comb += req_d.data.eq(data_wdata_i[i])
-                        comb += req_d.size.eq(data_size_i[i])
-                        comb += req_d.be.eq(data_be_i[i])
-                        comb += req_d.we.eq(data_we_i[i])
-                        m.next = "SERVING"
-                        break; # break here as this is a priority select
+                # wait for incoming requests (priority encoder data_req_i)
+                with m.If(~pp.n): # one output valid from encoder
+                    comb += self.data_req_o   .eq(self.data_req_i[i])
+                    comb += self.data_gnt_o[i].eq(self.data_req_i[i])
+                    # save the request
+                    comb += req_d.address.eq(self.address_i[i])
+                    comb += req_d.id.eq(request_index)
+                    comb += req_d.data.eq(self.data_wdata_i[i])
+                    comb += req_d.size.eq(self.data_size_i[i])
+                    comb += req_d.be.eq(self.data_be_i[i])
+                    comb += req_d.we.eq(self.data_we_i[i])
+                    m.next = "SERVING"
 
-                comb += address_o    .eq(address_i[request_index])
-                comb += data_wdata_o .eq(data_wdata_i[request_index])
-                comb += data_be_o    .eq(data_be_i[request_index])
-                comb += data_size_o  .eq(data_size_i[request_index])
-                comb += data_we_o    .eq(data_we_i[request_index])
-                comb += id_o         .eq(request_index)
+                comb += self.address_o    .eq(self.address_i[request_index])
+                comb += self.data_wdata_o .eq(self.data_wdata_i[request_index])
+                comb += self.data_be_o    .eq(self.data_be_i[request_index])
+                comb += self.data_size_o  .eq(self.data_size_i[request_index])
+                comb += self.data_we_o    .eq(self.data_we_i[request_index])
+                comb += self.id_o         .eq(request_index)
 
             with m.Case("SERVING"):
-                comb += data_req_o.eq(0b1)
-                with m.If (data_rvalid_i:
-                    comb += data_rvalid_o[req_q.id].eq(0b1)
+                comb += self.data_req_o.eq(1)
+                with m.If (self.data_rvalid_i):
+                    comb += self.data_rvalid_o[req_q.id].eq(1)
                     m.next = "IDLE"
 
         # ------------
