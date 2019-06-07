@@ -50,6 +50,7 @@ class LDSTDepMatrix(Elaboratable):
         self.ld_pend_i = Signal(n_ldst, reset_less=True)  # load pending in
         self.st_pend_i = Signal(n_ldst, reset_less=True)  # store pending in
         self.issue_i = Signal(n_ldst, reset_less=True) # Issue in
+        self.go_die_i = Signal(n_ldst, reset_less=True) # Die/Reset in
 
         self.load_hit_i = Signal(n_ldst, reset_less=True) # load hit in
         self.stwd_hit_i = Signal(n_ldst, reset_less=True) # store w/data hit in
@@ -76,6 +77,7 @@ class LDSTDepMatrix(Elaboratable):
         load_l = []
         stor_l = []
         issue_l = []
+        go_die_l = []
         lh_l = []
         sh_l = []
         for fu in range(self.n_ldst):
@@ -87,6 +89,7 @@ class LDSTDepMatrix(Elaboratable):
             load_l.append(dc.load_h_i)
             stor_l.append(dc.stor_h_i)
             issue_l.append(dc.issue_i)
+            go_die_l.append(dc.go_die_i)
 
             # load-hit and store-with-data-hit go in vertically (top)
             m.d.comb += [dc.load_hit_i.eq(self.load_hit_i),
@@ -97,6 +100,7 @@ class LDSTDepMatrix(Elaboratable):
         m.d.comb += [Cat(*load_l).eq(self.ld_pend_i),
                      Cat(*stor_l).eq(self.st_pend_i),
                      Cat(*issue_l).eq(self.issue_i),
+                     Cat(*go_die_l).eq(self.go_die_i),
                     ]
         # connect the load-hold-store / store-hold-load OR-accumulated outputs
         m.d.comb += self.ld_hold_st_o.eq(Cat(*lhs_l))
@@ -120,6 +124,7 @@ class LDSTDepMatrix(Elaboratable):
         yield self.ld_pend_i
         yield self.st_pend_i
         yield self.issue_i
+        yield self.go_die_i
         yield self.load_hit_i
         yield self.stwd_hit_i
         yield self.ld_hold_st_o

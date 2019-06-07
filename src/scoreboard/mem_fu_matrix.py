@@ -23,8 +23,8 @@ class MemFUDepMatrix(Elaboratable):
         # Register "Global" vectors for determining RaW and WaR hazards
         self.ld_pend_i = Signal(n_reg_col, reset_less=True) # ld pending (top)
         self.st_pend_i = Signal(n_reg_col, reset_less=True) # st pending (top)
-        self.ld_rsel_o = Signal(n_reg_col, reset_less=True) # ld pending (bot)
-        self.st_rsel_o = Signal(n_reg_col, reset_less=True) # st pending (bot)
+        self.v_ld_rsel_o = Signal(n_reg_col, reset_less=True) # ld pending (bot)
+        self.v_st_rsel_o = Signal(n_reg_col, reset_less=True) # st pending (bot)
 
         self.issue_i = Signal(n_fu_row, reset_less=True)  # Issue in (top)
         self.go_ld_i = Signal(n_fu_row, reset_less=True)  # Go LOAD in (left)
@@ -139,8 +139,8 @@ class MemFUDepMatrix(Elaboratable):
         m.submodules.st_v = st_v
         m.submodules.ld_v = ld_v
 
-        m.d.comb += self.st_rsel_o.eq(st_v.g_pend_o)
-        m.d.comb += self.ld_rsel_o.eq(ld_v.g_pend_o)
+        m.d.comb += self.v_st_rsel_o.eq(st_v.g_pend_o)
+        m.d.comb += self.v_ld_rsel_o.eq(ld_v.g_pend_o)
 
         # ---
         # connect Dep issue_i/go_st_i/go_ld_i to module issue_i/go_rd/go_wr
