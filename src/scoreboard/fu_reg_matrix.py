@@ -90,7 +90,8 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # array of Register Reservation vectors
         # ---
-        regrsv = Array(Reg_Rsv(self.n_fu_row) for r in range(self.n_reg_col))
+        regrsv = Array(Reg_Rsv(self.n_fu_row, self.n_src) \
+                        for r in range(self.n_reg_col))
         for rn in range(self.n_reg_col):
             setattr(m.submodules, "rr_r%d" % (rn), regrsv[rn])
 
@@ -117,6 +118,7 @@ class FURegDepMatrix(Elaboratable):
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
         m.d.comb += self.rd_pend_o.eq(Cat(*rd_pend))
 
+        # same for src
         for i in range(self.n_src):
             rd_src_pend = []
             for fu in range(self.n_fu_row):
@@ -138,33 +140,39 @@ class FURegDepMatrix(Elaboratable):
         # connect Reg Selection vector
         # ---
         dest_rsel = []
-        src1_rsel = []
-        src2_rsel = []
         for rn in range(self.n_reg_col):
             rsv = regrsv[rn]
             dest_rsel_o = []
-            src1_rsel_o = []
-            src2_rsel_o = []
             for fu in range(self.n_fu_row):
                 dc = dm[fu]
                 # accumulate cell reg-select outputs dest/src1/src2
                 dest_rsel_o.append(dc.dest_rsel_o[rn])
-                src1_rsel_o.append(dc.src_rsel_o[0][rn])
-                src2_rsel_o.append(dc.src_rsel_o[1][rn])
             # connect cell reg-select outputs to Reg Vector In
-            m.d.comb += [rsv.dest_rsel_i.eq(Cat(*dest_rsel_o)),
-                         rsv.src1_rsel_i.eq(Cat(*src1_rsel_o)),
-                         rsv.src2_rsel_i.eq(Cat(*src2_rsel_o)),
-                        ]
+            m.d.comb += rsv.dest_rsel_i.eq(Cat(*dest_rsel_o)),
+
             # accumulate Reg-Sel Vector outputs
             dest_rsel.append(rsv.dest_rsel_o)
-            src1_rsel.append(rsv.src1_rsel_o)
-            src2_rsel.append(rsv.src2_rsel_o)
 
         # ... and output them from this module (horizontal, width=REGs)
         m.d.comb += self.dest_rsel_o.eq(Cat(*dest_rsel))
-        m.d.comb += self.src_rsel_o[0].eq(Cat(*src1_rsel))
-        m.d.comb += self.src_rsel_o[1].eq(Cat(*src2_rsel))
+
+        # same for src
+        for i in range(self.n_src):
+            src_rsel = []
+            for rn in range(self.n_reg_col):
+                rsv = regrsv[rn]
+                src_rsel_o = []
+                for fu in range(self.n_fu_row):
+                    dc = dm[fu]
+                    # accumulate cell reg-select outputs dest/src1/src2
+                    src_rsel_o.append(dc.src_rsel_o[i][rn])
+                # connect cell reg-select outputs to Reg Vector In
+                m.d.comb += rsv.src_rsel_i[i].eq(Cat(*src_rsel_o)),
+                # accumulate Reg-Sel Vector outputs
+                src_rsel.append(rsv.src_rsel_o[i])
+
+            # ... and output them from this module (horizontal, width=REGs)
+            m.d.comb += self.src_rsel_o[i].eq(Cat(*src_rsel))
 
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
