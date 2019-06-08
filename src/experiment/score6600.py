@@ -260,14 +260,12 @@ class FunctionUnits(Elaboratable):
         self.src1_rsel_o = Signal(n_regs, reset_less=True) # src1 reg (bot)
         self.src2_rsel_o = Signal(n_regs, reset_less=True) # src2 reg (bot)
 
-        self.req_rel_i = Signal(n_int_alus, reset_less = True)
         self.readable_o = Signal(n_int_alus, reset_less=True)
         self.writable_o = Signal(n_int_alus, reset_less=True)
 
         self.go_rd_i = Signal(n_int_alus, reset_less=True)
         self.go_wr_i = Signal(n_int_alus, reset_less=True)
         self.go_die_i = Signal(n_int_alus, reset_less=True)
-        self.req_rel_o = Signal(n_int_alus, reset_less=True)
         self.fn_issue_i = Signal(n_int_alus, reset_less=True)
 
         # Note: FURegs wr_pend_o is also outputted from here, for use in WaWGrid
