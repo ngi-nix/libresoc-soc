@@ -4,7 +4,7 @@ from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
 from regfile.regfile import RegFileArray, treereduce
 from scoreboard.ldst_matrix import LDSTDepMatrix
-from scoreboard.mem_fu_matrix import MemFUDepMatrix
+from scoreboard.fu_mem_matrix import FUMemDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
@@ -67,15 +67,15 @@ class MemFunctionUnits(Elaboratable):
         self.load_hit_i = Signal(n_int_alus, reset_less=True) # Load Hit
         self.stwd_hit_i = Signal(n_int_alus, reset_less=True) # Store Hit
 
-        self.g_int_st_pend_o = Signal(n_int_alus, reset_less=True)
-        self.g_int_ld_pend_o = Signal(n_int_alus, reset_less=True)
+        #self.g_int_st_pend_o = Signal(n_int_alus, reset_less=True)
+        #self.g_int_ld_pend_o = Signal(n_int_alus, reset_less=True)
 
-        self.ld_rsel_o = Signal(n_int_alus, reset_less=True) # dest reg (bot)
-        self.st_rsel_o = Signal(n_int_alus, reset_less=True) # src1 reg (bot)
+        #self.ld_rsel_o = Signal(n_int_alus, reset_less=True) # dest reg (bot)
+        #self.st_rsel_o = Signal(n_int_alus, reset_less=True) # src1 reg (bot)
 
         self.req_rel_i = Signal(n_int_alus, reset_less = True)
-        self.ld_hold_st_o = Signal(n_int_alus, reset_less=True)
-        self.st_hold_ld_o = Signal(n_int_alus, reset_less=True)
+        self.loadable_o = Signal(n_int_alus, reset_less=True)
+        self.storable_o = Signal(n_int_alus, reset_less=True)
 
         self.go_st_i = Signal(n_int_alus, reset_less=True)
         self.go_ld_i = Signal(n_int_alus, reset_less=True)
@@ -92,54 +92,56 @@ class MemFunctionUnits(Elaboratable):
 
         n_intfus = self.n_int_alus
 
-        # Integer FU-FU Dep Matrix
+        # Integer LD/ST Dep Matrix
         ldstdeps = LDSTDepMatrix(n_intfus)
         m.submodules.ldstdeps = ldstdeps
-        # Integer FU-Reg Dep Matrix
-        memfudeps = MemFUDepMatrix(n_intfus, n_intfus)
-        m.submodules.memfudeps = memfudeps
+        # Integer FU-Mem Dep Matrix
+        fumemdeps = FUMemDepMatrix(n_intfus, n_intfus)
+        m.submodules.fumemdeps = fumemdeps
 
-        comb += self.g_int_st_pend_o.eq(memfudeps.v_st_rsel_o)
-        comb += self.g_int_ld_pend_o.eq(memfudeps.v_ld_rsel_o)
+        #comb += self.g_int_st_pend_o.eq(fumemdeps.v_st_rsel_o)
+        #comb += self.g_int_ld_pend_o.eq(fumemdeps.v_ld_rsel_o)
 
-        comb += memfudeps.st_pend_i.eq(memfudeps.v_st_rsel_o)
-        comb += memfudeps.ld_pend_i.eq(memfudeps.v_ld_rsel_o)
+        #comb += fumemdeps.st_pend_i.eq(fumemdeps.v_st_rsel_o)
+        #comb += fumemdeps.ld_pend_i.eq(fumemdeps.v_ld_rsel_o)
 
-        comb += ldstdeps.st_pend_i.eq(memfudeps.st_pend_o)
-        comb += ldstdeps.ld_pend_i.eq(memfudeps.ld_pend_o)
-        self.ld_pend_o = memfudeps.ld_pend_o # also output for use in WaWGrid
+        #comb += ldstdeps.st_pend_i.eq(fumemdeps.st_pend_o)
+        #comb += ldstdeps.ld_pend_i.eq(fumemdeps.ld_pend_o)
+        #self.ld_pend_o = fumemdeps.ld_pend_o # also output for use in WaWGrid
 
+        comb += ldstdeps.ld_pend_i.eq(self.ld_i)
+        comb += ldstdeps.st_pend_i.eq(self.st_i)
         comb += ldstdeps.issue_i.eq(self.fn_issue_i)
         comb += ldstdeps.load_hit_i.eq(self.load_hit_i)
         comb += ldstdeps.stwd_hit_i.eq(self.stwd_hit_i)
         comb += ldstdeps.go_die_i.eq(self.go_die_i)
-        comb += self.ld_hold_st_o.eq(ldstdeps.ld_hold_st_o)
-        comb += self.st_hold_ld_o.eq(ldstdeps.st_hold_ld_o)
+        comb += self.storable_o.eq(fumemdeps.storable_o)
+        comb += self.loadable_o.eq(fumemdeps.loadable_o)
+        comb += fumemdeps.ld_pend_i.eq(ldstdeps.ld_hold_st_o)
+        comb += fumemdeps.st_pend_i.eq(ldstdeps.st_hold_ld_o)
 
         # Connect function issue / arrays, and dest/src1/src2
-        comb += memfudeps.ld_i.eq(self.ld_i)
-        comb += memfudeps.st_i.eq(self.st_i)
 
-        comb += memfudeps.go_st_i.eq(self.go_st_i)
-        comb += memfudeps.go_ld_i.eq(self.go_ld_i)
-        comb += memfudeps.go_die_i.eq(self.go_die_i)
-        comb += memfudeps.issue_i.eq(self.fn_issue_i)
+        comb += fumemdeps.go_st_i.eq(self.go_st_i)
+        comb += fumemdeps.go_ld_i.eq(self.go_ld_i)
+        comb += fumemdeps.go_die_i.eq(self.go_die_i)
+        comb += fumemdeps.issue_i.eq(self.fn_issue_i)
 
-        comb += self.ld_rsel_o.eq(memfudeps.ld_rsel_o)
-        comb += self.st_rsel_o.eq(memfudeps.st_rsel_o)
+        #comb += self.ld_rsel_o.eq(fumemdeps.ld_rsel_o)
+        #comb += self.st_rsel_o.eq(fumemdeps.st_rsel_o)
 
         return m
 
     def __iter__(self):
         yield self.ld_i
         yield self.st_i
-        yield self.g_int_st_pend_o
-        yield self.g_int_ld_pend_o
-        yield self.ld_rsel_o
-        yield self.st_rsel_o
+        #yield self.g_int_st_pend_o
+        #yield self.g_int_ld_pend_o
+        #yield self.ld_rsel_o
+        #yield self.st_rsel_o
         yield self.req_rel_i
-        yield self.ld_hold_st_o
-        yield self.st_hold_ld_o
+        yield self.loadable_o
+        yield self.storable_o
         yield self.load_hit_i
         yield self.stwd_hit_i
         yield self.go_st_i
@@ -653,7 +655,7 @@ def mem_sim(dut):
     yield dut.fn_issue_i.eq(0x0)
     yield
 
-    yield dut.stwd_hit_i.eq(0x2)
+    yield dut.load_hit_i.eq(0x2)
     yield
 
 
