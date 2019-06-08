@@ -2,7 +2,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat, Repl
 from nmutil.latch import SRLatch
-
+from functools import reduce
+from operator import or_
 
 class DependencyRow(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
@@ -102,7 +103,7 @@ class DependencyRow(Elaboratable):
         src_q = []
         for i in range(self.n_src):
             src_q.append(src_c[i].qlq)
-        m.d.comb += self.v_rd_rsel_o.eq(Cat(*src_q).bool())
+        m.d.comb += self.v_rd_rsel_o.eq(reduce(or_, src_q))
         m.d.comb += self.v_wr_rsel_o.eq(dest_c.qlq)
 
         return m
