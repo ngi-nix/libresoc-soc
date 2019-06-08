@@ -58,25 +58,25 @@ class MemSim:
 
 class MemFunctionUnits(Elaboratable):
 
-    def __init__(self, n_int_alus):
-        self.n_int_alus = n_int_alus
+    def __init__(self, n_ldsts):
+        self.n_ldsts = n_ldsts
 
-        self.st_i = Signal(n_int_alus, reset_less=True) # Dest R# in
-        self.ld_i = Signal(n_int_alus, reset_less=True) # oper1 R# in
+        self.st_i = Signal(n_ldsts, reset_less=True) # Dest R# in
+        self.ld_i = Signal(n_ldsts, reset_less=True) # oper1 R# in
 
-        self.g_int_ld_pend_o = Signal(n_int_alus, reset_less=True)
-        self.g_int_st_pend_o = Signal(n_int_alus, reset_less=True)
+        self.g_int_ld_pend_o = Signal(n_ldsts, reset_less=True)
+        self.g_int_st_pend_o = Signal(n_ldsts, reset_less=True)
 
-        self.st_rsel_o = Signal(n_int_alus, reset_less=True) # dest reg (bot)
-        self.ld_rsel_o = Signal(n_int_alus, reset_less=True) # src1 reg (bot)
+        self.st_rsel_o = Signal(n_ldsts, reset_less=True) # dest reg (bot)
+        self.ld_rsel_o = Signal(n_ldsts, reset_less=True) # src1 reg (bot)
 
-        self.loadable_o = Signal(n_int_alus, reset_less=True)
-        self.storable_o = Signal(n_int_alus, reset_less=True)
+        self.loadable_o = Signal(n_ldsts, reset_less=True)
+        self.storable_o = Signal(n_ldsts, reset_less=True)
 
-        self.go_ld_i = Signal(n_int_alus, reset_less=True)
-        self.go_st_i = Signal(n_int_alus, reset_less=True)
-        self.go_die_i = Signal(n_int_alus, reset_less=True)
-        self.fn_issue_i = Signal(n_int_alus, reset_less=True)
+        self.go_ld_i = Signal(n_ldsts, reset_less=True)
+        self.go_st_i = Signal(n_ldsts, reset_less=True)
+        self.go_die_i = Signal(n_ldsts, reset_less=True)
+        self.fn_issue_i = Signal(n_ldsts, reset_less=True)
 
         # Note: FURegs st_pend_o is also outputted from here, for use in WaWGrid
 
@@ -85,15 +85,16 @@ class MemFunctionUnits(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        n_intfus = self.n_int_alus
+        n_fus = self.n_ldsts
 
         # Integer FU-FU Dep Matrix
-        intfudeps = FUFUDepMatrix(n_intfus, n_intfus)
+        intfudeps = FUFUDepMatrix(n_fus, n_fus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_intfus, n_intfus, 1)
+        intregdeps = FURegDepMatrix(n_fus, n_fus, 1)
         m.submodules.intregdeps = intregdeps
 
+        # connect fureg matrix as a mem system
         comb += self.g_int_ld_pend_o.eq(intregdeps.v_rd_rsel_o)
         comb += self.g_int_st_pend_o.eq(intregdeps.v_wr_rsel_o)
 
