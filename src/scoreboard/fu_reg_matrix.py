@@ -99,35 +99,40 @@ class FURegDepMatrix(Elaboratable):
         # ---
         wr_pend = []
         rd_pend = []
-        rd_src1_pend = []
-        rd_src2_pend = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
             fup = fupend[fu]
             dest_fwd_o = []
-            src1_fwd_o = []
-            src2_fwd_o = []
             for rn in range(self.n_reg_col):
                 # accumulate cell fwd outputs for dest/src1/src2
                 dest_fwd_o.append(dc.dest_fwd_o[rn])
-                src1_fwd_o.append(dc.src_fwd_o[0][rn])
-                src2_fwd_o.append(dc.src_fwd_o[1][rn])
             # connect cell fwd outputs to FU Vector in [Cat is gooood]
             m.d.comb += [fup.dest_fwd_i.eq(Cat(*dest_fwd_o)),
-                         fup.src_fwd_i[0].eq(Cat(*src1_fwd_o)),
-                         fup.src_fwd_i[1].eq(Cat(*src2_fwd_o))
                         ]
             # accumulate FU Vector outputs
             wr_pend.append(fup.reg_wr_pend_o)
             rd_pend.append(fup.reg_rd_pend_o)
-            rd_src1_pend.append(fup.reg_rd_src_pend_o[0])
-            rd_src2_pend.append(fup.reg_rd_src_pend_o[1])
 
         # ... and output them from this module (vertical, width=FUs)
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
         m.d.comb += self.rd_pend_o.eq(Cat(*rd_pend))
-        m.d.comb += self.rd_src_pend_o[0].eq(Cat(*rd_src1_pend))
-        m.d.comb += self.rd_src_pend_o[1].eq(Cat(*rd_src2_pend))
+
+        for i in range(self.n_src):
+            rd_src_pend = []
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                fup = fupend[fu]
+                src_fwd_o = []
+                for rn in range(self.n_reg_col):
+                    # accumulate cell fwd outputs for dest/src1/src2
+                    src_fwd_o.append(dc.src_fwd_o[i][rn])
+                # connect cell fwd outputs to FU Vector in [Cat is gooood]
+                m.d.comb += [fup.src_fwd_i[i].eq(Cat(*src_fwd_o)),
+                            ]
+                # accumulate FU Vector outputs
+                rd_src_pend.append(fup.reg_rd_src_pend_o[i])
+            # ... and output them from this module (vertical, width=FUs)
+            m.d.comb += self.rd_src_pend_o[i].eq(Cat(*rd_src_pend))
 
         # ---
         # connect Reg Selection vector
