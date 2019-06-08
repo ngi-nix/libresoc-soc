@@ -181,11 +181,15 @@ class FURegDepMatrix(Elaboratable):
             dc = dm[fu]
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [dc.dest_i.eq(self.dest_i),
-                         dc.src_i[0].eq(self.src_i[0]),
-                         dc.src_i[1].eq(self.src_i[1]),
                          dc.rd_pend_i.eq(self.rd_pend_i),
                          dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
+        # same for src
+        for i in range(self.n_src):
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                # wire up inputs from module to row cell inputs (Cat is gooood)
+                m.d.comb += dc.src_i[i].eq(self.src_i[i])
 
         # accumulate rsel bits into read/write pending vectors.
         rd_pend_v = []
