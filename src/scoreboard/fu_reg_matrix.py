@@ -37,12 +37,12 @@ class FURegDepMatrix(Elaboratable):
         src = []
         rsel = []
         for i in range(n_src):
-            j = i + 1 # name numbering to match src1/src2 
+            j = i + 1 # name numbering to match src1/src2
             src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
             rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
         pend = []
         for i in range(nf):
-            j = i + 1 # name numbering to match src1/src2 
+            j = i + 1 # name numbering to match src1/src2
             pend.append(Signal(nf, name="rd_src%d_pend_o" % j, reset_less=True))
 
         self.dest_i = Signal(n_reg_col, reset_less=True)     # Dest in (top)
@@ -74,7 +74,7 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # matrix of dependency cells
         # ---
-        dm = Array(DependencyRow(self.n_reg_col, 2) \
+        dm = Array(DependencyRow(self.n_reg_col, self.n_src) \
                     for r in range(self.n_fu_row))
         for fu in range(self.n_fu_row):
             setattr(m.submodules, "dr_fu%d" % fu, dm[fu])
@@ -82,7 +82,8 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # array of Function Unit Pending vectors
         # ---
-        fupend = Array(FU_RW_Pend(self.n_reg_col) for f in range(self.n_fu_row))
+        fupend = Array(FU_RW_Pend(self.n_reg_col, self.n_src) \
+                        for f in range(self.n_fu_row))
         for fu in range(self.n_fu_row):
             setattr(m.submodules, "fu_fu%d" % (fu), fupend[fu])
 
@@ -113,14 +114,14 @@ class FURegDepMatrix(Elaboratable):
                 src2_fwd_o.append(dc.src_fwd_o[1][rn])
             # connect cell fwd outputs to FU Vector in [Cat is gooood]
             m.d.comb += [fup.dest_fwd_i.eq(Cat(*dest_fwd_o)),
-                         fup.src1_fwd_i.eq(Cat(*src1_fwd_o)),
-                         fup.src2_fwd_i.eq(Cat(*src2_fwd_o))
+                         fup.src_fwd_i[0].eq(Cat(*src1_fwd_o)),
+                         fup.src_fwd_i[1].eq(Cat(*src2_fwd_o))
                         ]
             # accumulate FU Vector outputs
             wr_pend.append(fup.reg_wr_pend_o)
             rd_pend.append(fup.reg_rd_pend_o)
-            rd_src1_pend.append(fup.reg_rd_src1_pend_o)
-            rd_src2_pend.append(fup.reg_rd_src2_pend_o)
+            rd_src1_pend.append(fup.reg_rd_src_pend_o[0])
+            rd_src2_pend.append(fup.reg_rd_src_pend_o[1])
 
         # ... and output them from this module (vertical, width=FUs)
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
