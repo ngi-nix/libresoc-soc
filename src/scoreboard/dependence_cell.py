@@ -5,6 +5,7 @@ from nmutil.latch import SRLatch
 from functools import reduce
 from operator import or_
 
+
 class DependencyRow(Elaboratable):
     """ implements 11.4.7 mitch alsup dependence cell, p27
         adjusted to be clock-sync'd on rising edge only.
