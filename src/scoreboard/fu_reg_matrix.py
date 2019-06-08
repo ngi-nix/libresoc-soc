@@ -28,12 +28,25 @@ from scoreboard.global_pending import GlobalPending
 class FURegDepMatrix(Elaboratable):
     """ implements 11.4.7 mitch alsup FU-to-Reg Dependency Matrix, p26
     """
-    def __init__(self, n_fu_row, n_reg_col):
-        self.n_fu_row = n_fu_row                  # Y (FUs)   ^v
-        self.n_reg_col = n_reg_col                # X (Regs)  <>
+    def __init__(self, n_fu_row, n_reg_col, n_src):
+        self.n_src = n_src
+        self.n_fu_row = nf = n_fu_row      # Y (FUs)   ^v
+        self.n_reg_col = n_reg = n_reg_col   # X (Regs)  <>
+
+        # arrays
+        src = []
+        rsel = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2 
+            src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
+            rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
+        pend = []
+        for i in range(nf):
+            j = i + 1 # name numbering to match src1/src2 
+            pend.append(Signal(nf, name="rd_src%d_pend_o" % j, reset_less=True))
+
         self.dest_i = Signal(n_reg_col, reset_less=True)     # Dest in (top)
-        self.src1_i = Signal(n_reg_col, reset_less=True)     # oper1 in (top)
-        self.src2_i = Signal(n_reg_col, reset_less=True)     # oper2 in (top)
+        self.src_i = Array(src)                              # oper in (top)
 
         # Register "Global" vectors for determining RaW and WaR hazards
         self.wr_pend_i = Signal(n_reg_col, reset_less=True) # wr pending (top)
@@ -48,14 +61,12 @@ class FURegDepMatrix(Elaboratable):
 
         # for Register File Select Lines (horizontal), per-reg
         self.dest_rsel_o = Signal(n_reg_col, reset_less=True) # dest reg (bot)
-        self.src1_rsel_o = Signal(n_reg_col, reset_less=True) # src1 reg (bot)
-        self.src2_rsel_o = Signal(n_reg_col, reset_less=True) # src2 reg (bot)
+        self.src_rsel_o = Array(rsel)                         # src reg (bot)
 
         # for Function Unit "forward progress" (vertical), per-FU
         self.wr_pend_o = Signal(n_fu_row, reset_less=True) # wr pending (right)
         self.rd_pend_o = Signal(n_fu_row, reset_less=True) # rd pending (right)
-        self.rd_src1_pend_o = Signal(n_fu_row, reset_less=True) # src1 pending
-        self.rd_src2_pend_o = Signal(n_fu_row, reset_less=True) # src2 pending
+        self.rd_src_pend_o = Array(pend) # src1 pending
 
     def elaborate(self, platform):
         m = Module()
@@ -114,8 +125,8 @@ class FURegDepMatrix(Elaboratable):
         # ... and output them from this module (vertical, width=FUs)
         m.d.comb += self.wr_pend_o.eq(Cat(*wr_pend))
         m.d.comb += self.rd_pend_o.eq(Cat(*rd_pend))
-        m.d.comb += self.rd_src1_pend_o.eq(Cat(*rd_src1_pend))
-        m.d.comb += self.rd_src2_pend_o.eq(Cat(*rd_src2_pend))
+        m.d.comb += self.rd_src_pend_o[0].eq(Cat(*rd_src1_pend))
+        m.d.comb += self.rd_src_pend_o[1].eq(Cat(*rd_src2_pend))
 
         # ---
         # connect Reg Selection vector
@@ -146,8 +157,8 @@ class FURegDepMatrix(Elaboratable):
 
         # ... and output them from this module (horizontal, width=REGs)
         m.d.comb += self.dest_rsel_o.eq(Cat(*dest_rsel))
-        m.d.comb += self.src1_rsel_o.eq(Cat(*src1_rsel))
-        m.d.comb += self.src2_rsel_o.eq(Cat(*src2_rsel))
+        m.d.comb += self.src_rsel_o[0].eq(Cat(*src1_rsel))
+        m.d.comb += self.src_rsel_o[1].eq(Cat(*src2_rsel))
 
         # ---
         # connect Dependency Matrix dest/src1/src2/issue to module d/s/s/i
@@ -156,8 +167,8 @@ class FURegDepMatrix(Elaboratable):
             dc = dm[fu]
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [dc.dest_i.eq(self.dest_i),
-                         dc.src_i[0].eq(self.src1_i),
-                         dc.src_i[1].eq(self.src2_i),
+                         dc.src_i[0].eq(self.src_i[0]),
+                         dc.src_i[1].eq(self.src_i[1]),
                          dc.rd_pend_i.eq(self.rd_pend_i),
                          dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
@@ -202,23 +213,20 @@ class FURegDepMatrix(Elaboratable):
 
     def __iter__(self):
         yield self.dest_i
-        yield self.src1_i
-        yield self.src2_i
+        yield from self.src_i
         yield self.issue_i
         yield self.go_wr_i
         yield self.go_rd_i
         yield self.go_die_i
         yield self.dest_rsel_o
-        yield self.src1_rsel_o
-        yield self.src2_rsel_o
+        yield from self.src_rsel_o
         yield self.wr_pend_o
         yield self.rd_pend_o
         yield self.wr_pend_i
         yield self.rd_pend_i
         yield self.v_wr_rsel_o
         yield self.v_rd_rsel_o
-        yield self.rd_src1_pend_o
-        yield self.rd_src2_pend_o
+        yield from self.rd_src_pend_o
 
     def ports(self):
         return list(self)
@@ -246,7 +254,7 @@ def d_matrix_sim(dut):
     yield
 
 def test_d_matrix():
-    dut = FURegDepMatrix(n_fu_row=3, n_reg_col=4)
+    dut = FURegDepMatrix(n_fu_row=3, n_reg_col=4, n_src=2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_fu_reg_matrix.il", "w") as f:
         f.write(vl)

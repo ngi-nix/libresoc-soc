@@ -283,7 +283,7 @@ class FunctionUnits(Elaboratable):
         intfudeps = FUFUDepMatrix(n_intfus, n_intfus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_intfus, self.n_regs)
+        intregdeps = FURegDepMatrix(n_intfus, self.n_regs, 2)
         m.submodules.intregdeps = intregdeps
 
         comb += self.g_int_rd_pend_o.eq(intregdeps.v_rd_rsel_o)
@@ -305,8 +305,8 @@ class FunctionUnits(Elaboratable):
 
         # Connect function issue / arrays, and dest/src1/src2
         comb += intregdeps.dest_i.eq(self.dest_i)
-        comb += intregdeps.src1_i.eq(self.src1_i)
-        comb += intregdeps.src2_i.eq(self.src2_i)
+        comb += intregdeps.src_i[0].eq(self.src1_i)
+        comb += intregdeps.src_i[1].eq(self.src2_i)
 
         comb += intregdeps.go_rd_i.eq(self.go_rd_i)
         comb += intregdeps.go_wr_i.eq(self.go_wr_i)
@@ -314,8 +314,8 @@ class FunctionUnits(Elaboratable):
         comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
         comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o)
-        comb += self.src1_rsel_o.eq(intregdeps.src1_rsel_o)
-        comb += self.src2_rsel_o.eq(intregdeps.src2_rsel_o)
+        comb += self.src1_rsel_o.eq(intregdeps.src_rsel_o[0])
+        comb += self.src2_rsel_o.eq(intregdeps.src_rsel_o[1])
 
         return m
 
