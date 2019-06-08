@@ -132,8 +132,8 @@ class MemFUDepMatrix(Elaboratable):
         ld_pend_v = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
-            st_pend_v.append(dc.st_rsel_o)
-            ld_pend_v.append(dc.ld_rsel_o)
+            st_pend_v.append(dc.v_st_rsel_o)
+            ld_pend_v.append(dc.v_ld_rsel_o)
         st_v = GlobalPending(self.n_reg_col, st_pend_v)
         ld_v = GlobalPending(self.n_reg_col, ld_pend_v)
         m.submodules.st_v = st_v

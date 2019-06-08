@@ -645,9 +645,11 @@ def mem_sim(dut):
     yield dut.ld_i.eq(0x1)
     yield dut.fn_issue_i.eq(0x1)
     yield
+    yield dut.ld_i.eq(0x0)
     yield dut.st_i.eq(0x2)
     yield dut.fn_issue_i.eq(0x2)
     yield
+    yield dut.st_i.eq(0x0)
     yield dut.fn_issue_i.eq(0x0)
     yield
 

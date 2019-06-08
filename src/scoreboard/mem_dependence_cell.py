@@ -16,8 +16,8 @@ class MemDepRow(Elaboratable):
 
         self.st_pend_i = Signal(n_reg, reset_less=True) # Read pend in (top)
         self.ld_pend_i = Signal(n_reg, reset_less=True) # Write pend in (top)
-        self.st_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
-        self.ld_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
+        self.v_st_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
+        self.v_ld_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
 
         self.go_ld_i = Signal(reset_less=True) # Go Write in (left)
         self.go_st_i = Signal(reset_less=True)  # Go Read in (left)
@@ -61,8 +61,8 @@ class MemDepRow(Elaboratable):
 
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to st_pend_i / ld_pend_i
-        m.d.comb += self.st_rsel_o.eq(st_c.qlq)
-        m.d.comb += self.ld_rsel_o.eq(ld_c.qlq)
+        m.d.comb += self.v_st_rsel_o.eq(st_c.qlq)
+        m.d.comb += self.v_ld_rsel_o.eq(ld_c.qlq)
 
         return m
 
@@ -75,6 +75,8 @@ class MemDepRow(Elaboratable):
         yield self.go_ld_i
         yield self.go_st_i
         yield self.go_die_i
+        yield self.v_ld_rsel_o
+        yield self.v_st_rsel_o
         yield self.ld_rsel_o
         yield self.st_rsel_o
         yield self.ld_fwd_o
