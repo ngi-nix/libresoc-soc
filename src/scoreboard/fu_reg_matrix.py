@@ -63,7 +63,8 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # matrix of dependency cells
         # ---
-        dm = Array(DependencyRow(self.n_reg_col) for r in range(self.n_fu_row))
+        dm = Array(DependencyRow(self.n_reg_col, 2) \
+                    for r in range(self.n_fu_row))
         for fu in range(self.n_fu_row):
             setattr(m.submodules, "dr_fu%d" % fu, dm[fu])
 
@@ -97,8 +98,8 @@ class FURegDepMatrix(Elaboratable):
             for rn in range(self.n_reg_col):
                 # accumulate cell fwd outputs for dest/src1/src2
                 dest_fwd_o.append(dc.dest_fwd_o[rn])
-                src1_fwd_o.append(dc.src1_fwd_o[rn])
-                src2_fwd_o.append(dc.src2_fwd_o[rn])
+                src1_fwd_o.append(dc.src_fwd_o[0][rn])
+                src2_fwd_o.append(dc.src_fwd_o[1][rn])
             # connect cell fwd outputs to FU Vector in [Cat is gooood]
             m.d.comb += [fup.dest_fwd_i.eq(Cat(*dest_fwd_o)),
                          fup.src1_fwd_i.eq(Cat(*src1_fwd_o)),
@@ -131,8 +132,8 @@ class FURegDepMatrix(Elaboratable):
                 dc = dm[fu]
                 # accumulate cell reg-select outputs dest/src1/src2
                 dest_rsel_o.append(dc.dest_rsel_o[rn])
-                src1_rsel_o.append(dc.src1_rsel_o[rn])
-                src2_rsel_o.append(dc.src2_rsel_o[rn])
+                src1_rsel_o.append(dc.src_rsel_o[0][rn])
+                src2_rsel_o.append(dc.src_rsel_o[1][rn])
             # connect cell reg-select outputs to Reg Vector In
             m.d.comb += [rsv.dest_rsel_i.eq(Cat(*dest_rsel_o)),
                          rsv.src1_rsel_i.eq(Cat(*src1_rsel_o)),
@@ -155,8 +156,8 @@ class FURegDepMatrix(Elaboratable):
             dc = dm[fu]
             # wire up inputs from module to row cell inputs (Cat is gooood)
             m.d.comb += [dc.dest_i.eq(self.dest_i),
-                         dc.src1_i.eq(self.src1_i),
-                         dc.src2_i.eq(self.src2_i),
+                         dc.src_i[0].eq(self.src1_i),
+                         dc.src_i[1].eq(self.src2_i),
                          dc.rd_pend_i.eq(self.rd_pend_i),
                          dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
