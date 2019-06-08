@@ -25,12 +25,22 @@ class DependencyRow(Elaboratable):
         asynchronous) would be reset at the exact moment that GO was requested,
         and the RSEL would be garbage.
     """
-    def __init__(self, n_reg):
+    def __init__(self, n_reg, n_src):
         self.n_reg = n_reg
+        self.n_src = n_src
+        # arrays
+        src = []
+        rsel = []
+        fwd = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
+            rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
+            fwd.append(Signal(n_reg, name="src%d_fwd_o" % j, reset_less=True))
+
         # inputs
         self.dest_i = Signal(n_reg, reset_less=True)     # Dest in (top)
-        self.src1_i = Signal(n_reg, reset_less=True)     # oper1 in (top)
-        self.src2_i = Signal(n_reg, reset_less=True)     # oper2 in (top)
+        self.src_i = Array(src)     # operands in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
 
         self.rd_pend_i = Signal(n_reg, reset_less=True) # Read pend in (top)
@@ -44,19 +54,21 @@ class DependencyRow(Elaboratable):
 
         # for Register File Select Lines (vertical)
         self.dest_rsel_o = Signal(n_reg, reset_less=True)  # dest reg sel (bot)
-        self.src1_rsel_o = Signal(n_reg, reset_less=True)  # src1 reg sel (bot)
+        self.src_rsel_o = Array(rsel)   # src reg sel (bot)
         self.src2_rsel_o = Signal(n_reg, reset_less=True)  # src2 reg sel (bot)
 
         # for Function Unit "forward progress" (horizontal)
         self.dest_fwd_o = Signal(n_reg, reset_less=True)   # dest FU fw (right)
-        self.src1_fwd_o = Signal(n_reg, reset_less=True)   # src1 FU fw (right)
-        self.src2_fwd_o = Signal(n_reg, reset_less=True)   # src2 FU fw (right)
+        self.src_fwd_o = Array(fwd)    # src FU fw (right)
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.dest_c = dest_c = SRLatch(sync=False, llen=self.n_reg)
-        m.submodules.src1_c = src1_c = SRLatch(sync=False, llen=self.n_reg)
-        m.submodules.src2_c = src2_c = SRLatch(sync=False, llen=self.n_reg)
+        src_c = []
+        for i in range(self.n_src):
+            src_l = SRLatch(sync=False, llen=self.n_reg)
+            setattr(m.submodules, "src%d_c" % (i+1), src_l)
+            src_c.append(src_l)
 
         # connect go_rd / go_wr (dest->wr, src->rd)
         wr_die = Signal(reset_less=True)
@@ -64,38 +76,40 @@ class DependencyRow(Elaboratable):
         m.d.comb += wr_die.eq(self.go_wr_i | self.go_die_i)
         m.d.comb += rd_die.eq(self.go_rd_i | self.go_die_i)
         m.d.comb += dest_c.r.eq(Repl(wr_die, self.n_reg))
-        m.d.comb += src1_c.r.eq(Repl(rd_die, self.n_reg))
-        m.d.comb += src2_c.r.eq(Repl(rd_die, self.n_reg))
+        for i in range(self.n_src):
+            m.d.comb += src_c[i].r.eq(Repl(rd_die, self.n_reg))
 
         # connect input reg bit (unary)
         i_ext = Repl(self.issue_i, self.n_reg)
         m.d.comb += dest_c.s.eq(i_ext & self.dest_i)
-        m.d.comb += src1_c.s.eq(i_ext & self.src1_i)
-        m.d.comb += src2_c.s.eq(i_ext & self.src2_i)
+        for i in range(self.n_src):
+            m.d.comb += src_c[i].s.eq(i_ext & self.src_i[i])
 
         # connect up hazard checks: read-after-write and write-after-read
         m.d.comb += self.dest_fwd_o.eq(dest_c.q & self.rd_pend_i)
-        m.d.comb += self.src1_fwd_o.eq(src1_c.q & self.wr_pend_i)
-        m.d.comb += self.src2_fwd_o.eq(src2_c.q & self.wr_pend_i)
+        for i in range(self.n_src):
+            m.d.comb += self.src_fwd_o[i].eq(src_c[i].q & self.wr_pend_i)
 
         # connect reg-sel outputs
         rd_ext = Repl(self.go_rd_i, self.n_reg)
         wr_ext = Repl(self.go_wr_i, self.n_reg)
         m.d.comb += self.dest_rsel_o.eq(dest_c.qlq & wr_ext)
-        m.d.comb += self.src1_rsel_o.eq(src1_c.qlq & rd_ext)
-        m.d.comb += self.src2_rsel_o.eq(src2_c.qlq & rd_ext)
+        for i in range(self.n_src):
+            m.d.comb += self.src_rsel_o[i].eq(src_c[i].qlq & rd_ext)
 
         # to be accumulated to indicate if register is in use (globally)
         # after ORing, is fed back in to rd_pend_i / wr_pend_i
-        m.d.comb += self.v_rd_rsel_o.eq(src1_c.qlq | src2_c.qlq)
+        src_q = []
+        for i in range(self.n_src):
+            src_q.append(src_c[i].qlq)
+        m.d.comb += self.v_rd_rsel_o.eq(Cat(*src_q).bool())
         m.d.comb += self.v_wr_rsel_o.eq(dest_c.qlq)
 
         return m
 
     def __iter__(self):
         yield self.dest_i
-        yield self.src1_i
-        yield self.src2_i
+        yield from self.src_i
         yield self.rd_pend_i
         yield self.wr_pend_i
         yield self.issue_i
@@ -103,11 +117,9 @@ class DependencyRow(Elaboratable):
         yield self.go_rd_i
         yield self.go_die_i
         yield self.dest_rsel_o
-        yield self.src1_rsel_o
-        yield self.src2_rsel_o
+        yield from self.src_rsel_o
         yield self.dest_fwd_o
-        yield self.src1_fwd_o
-        yield self.src2_fwd_o
+        yield from self.src_fwd_o
 
     def ports(self):
         return list(self)
@@ -136,7 +148,7 @@ def dcell_sim(dut):
     yield
 
 def test_dcell():
-    dut = DependencyRow(4)
+    dut = DependencyRow(4, 2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_drow.il", "w") as f:
         f.write(vl)
