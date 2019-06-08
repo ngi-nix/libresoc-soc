@@ -74,8 +74,6 @@ class LDSTDepMatrix(Elaboratable):
         # ---
         lhs_l = []
         shl_l = []
-        load_l = []
-        stor_l = []
         issue_l = []
         go_die_l = []
         lh_l = []
@@ -86,20 +84,18 @@ class LDSTDepMatrix(Elaboratable):
             lhs_l.append(dc.ld_hold_st_o)
             shl_l.append(dc.st_hold_ld_o)
             # accumulate inputs (for Cat'ing later) - TODO: must be a better way
-            load_l.append(dc.load_h_i)
-            stor_l.append(dc.stor_h_i)
             issue_l.append(dc.issue_i)
             go_die_l.append(dc.go_die_i)
 
             # load-hit and store-with-data-hit go in vertically (top)
             m.d.comb += [dc.load_hit_i.eq(self.load_hit_i),
-                         dc.stwd_hit_i.eq(self.stwd_hit_i)
+                         dc.stwd_hit_i.eq(self.stwd_hit_i),
+                         dc.load_v_i.eq(self.ld_pend_i),
+                         dc.stor_v_i.eq(self.st_pend_i),
                         ]
 
         # connect cell inputs using Cat(*list_of_stuff)
-        m.d.comb += [Cat(*load_l).eq(self.ld_pend_i),
-                     Cat(*stor_l).eq(self.st_pend_i),
-                     Cat(*issue_l).eq(self.issue_i),
+        m.d.comb += [Cat(*issue_l).eq(self.issue_i),
                      Cat(*go_die_l).eq(self.go_die_i),
                     ]
         # connect the load-hold-store / store-hold-load OR-accumulated outputs
@@ -108,14 +104,14 @@ class LDSTDepMatrix(Elaboratable):
 
         # the load/store input also needs to be connected to "top" (vertically)
         for fu in range(self.n_ldst):
-            load_v_l = []
-            stor_v_l = []
+            load_h_l = []
+            stor_h_l = []
             for fux in range(self.n_ldst):
                 dc = dm[fux]
-                load_v_l.append(dc.load_v_i[fu])
-                stor_v_l.append(dc.stor_v_i[fu])
-            m.d.comb += [Cat(*load_v_l).eq(self.ld_pend_i),
-                         Cat(*stor_v_l).eq(self.st_pend_i),
+                load_h_l.append(dc.load_h_i)
+                stor_h_l.append(dc.stor_h_i)
+            m.d.comb += [Cat(*load_h_l).eq(self.ld_pend_i),
+                         Cat(*stor_h_l).eq(self.st_pend_i),
                         ]
 
         return m

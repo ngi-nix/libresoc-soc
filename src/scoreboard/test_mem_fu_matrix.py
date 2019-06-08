@@ -122,8 +122,8 @@ class MemFunctionUnits(Elaboratable):
 
         # Connect function issue / arrays, and dest/src1/src2
 
-        comb += fumemdeps.go_st_i.eq(self.go_st_i)
-        comb += fumemdeps.go_ld_i.eq(self.go_ld_i)
+        comb += fumemdeps.go_st_i.eq(self.stwd_hit_i)
+        comb += fumemdeps.go_ld_i.eq(self.load_hit_i)
         comb += fumemdeps.go_die_i.eq(self.go_die_i)
         comb += fumemdeps.issue_i.eq(self.fn_issue_i)
 
@@ -647,20 +647,26 @@ def mem_sim(dut):
     yield dut.ld_i.eq(0x1)
     yield dut.fn_issue_i.eq(0x1)
     yield
-    yield dut.ld_i.eq(0x0)
+    #yield dut.ld_i.eq(0x0)
     yield dut.st_i.eq(0x2)
     yield dut.fn_issue_i.eq(0x2)
     yield
-    yield dut.st_i.eq(0x0)
+    #yield dut.st_i.eq(0x0)
     yield dut.fn_issue_i.eq(0x0)
     yield
 
-    yield dut.load_hit_i.eq(0x2)
+    yield dut.load_hit_i.eq(0x1)
+    yield
+    yield dut.load_hit_i.eq(0x0)
+    yield
+    yield dut.stwd_hit_i.eq(0x2)
+    yield
+    yield dut.stwd_hit_i.eq(0x0)
     yield
 
 
 def test_mem_fus():
-    dut = MemFunctionUnits(4)
+    dut = MemFunctionUnits(3)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_mem_fus.il", "w") as f:
         f.write(vl)
