@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable, Array, Cat
+from nmigen import Module, Signal, Elaboratable, Array, Cat, Repl
 
 from scoreboard.dependence_cell import DependencyRow
 from scoreboard.fu_wr_pending import FU_RW_Pend
@@ -28,7 +28,7 @@ from scoreboard.global_pending import GlobalPending
 class FURegDepMatrix(Elaboratable):
     """ implements 11.4.7 mitch alsup FU-to-Reg Dependency Matrix, p26
     """
-    def __init__(self, n_fu_row, n_reg_col, n_src):
+    def __init__(self, n_fu_row, n_reg_col, n_src, cancel=None):
         self.n_src = n_src
         self.n_fu_row = nf = n_fu_row      # Y (FUs)   ^v
         self.n_reg_col = n_reg = n_reg_col   # X (Regs)  <>
@@ -47,6 +47,9 @@ class FURegDepMatrix(Elaboratable):
 
         self.dest_i = Signal(n_reg_col, reset_less=True)     # Dest in (top)
         self.src_i = Array(src)                              # oper in (top)
+
+        # cancellation array (from Address Matching), ties in with go_die_i
+        self.cancel = cancel
 
         # Register "Global" vectors for determining RaW and WaR hazards
         self.wr_pend_i = Signal(n_reg_col, reset_less=True) # wr pending (top)
@@ -70,11 +73,15 @@ class FURegDepMatrix(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        return self._elaborate(m, platform)
+
+    def _elaborate(self, m, platform):
 
         # ---
         # matrix of dependency cells
         # ---
-        dm = Array(DependencyRow(self.n_reg_col, self.n_src) \
+        cancel_mode = self.cancel is not None
+        dm = Array(DependencyRow(self.n_reg_col, self.n_src, cancel_mode) \
                     for r in range(self.n_fu_row))
         for fu in range(self.n_fu_row):
             setattr(m.submodules, "dr_fu%d" % fu, dm[fu])
@@ -211,22 +218,36 @@ class FURegDepMatrix(Elaboratable):
         # ---
         go_rd_i = []
         go_wr_i = []
-        go_die_i = []
         issue_i = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
             # accumulate cell fwd outputs for dest/src1/src2
             go_rd_i.append(dc.go_rd_i)
             go_wr_i.append(dc.go_wr_i)
-            go_die_i.append(dc.go_die_i)
             issue_i.append(dc.issue_i)
         # wire up inputs from module to row cell inputs (Cat is gooood)
         m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
                      Cat(*go_wr_i).eq(self.go_wr_i),
-                     Cat(*go_die_i).eq(self.go_die_i),
                      Cat(*issue_i).eq(self.issue_i),
                     ]
 
+        # ---
+        # connect Dep go_die_i
+        # ---
+        if cancel_mode:
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                go_die = Repl(self.go_die_i[fu], self.n_fu_row)
+                go_die = go_die | self.cancel[fu]
+                m.d.comb += dc.go_die_i.eq(go_die)
+        else:
+            go_die_i = []
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                # accumulate cell fwd outputs for dest/src1/src2
+                go_die_i.append(dc.go_die_i)
+            # wire up inputs from module to row cell inputs (Cat is gooood)
+            m.d.comb += Cat(*go_die_i).eq(self.go_die_i)
         return m
 
     def __iter__(self):

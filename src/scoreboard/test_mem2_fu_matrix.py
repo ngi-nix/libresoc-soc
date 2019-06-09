@@ -9,6 +9,7 @@ from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
+from scoreboard.addr_match import PartialAddrMatch
 
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
@@ -56,6 +57,21 @@ class MemSim:
         self.mem[addr>>self.ddepth] = data & ((1<<self.regwid)-1)
 
 
+class FUMemMatchMatrix(FURegDepMatrix, PartialAddrMatch):
+    """ implement a FU-Regs overload with memory-address matching
+    """
+    def __init__(self, n_fu, addrbitwid):
+        PartialAddrMatch.__init__(self, n_fu, addrbitwid)
+        FURegDepMatrix.__init__(self, n_fu, n_fu, 1, self.addr_match_o)
+
+    def elaborate(self, platform):
+        m = Module()
+        FURegDepMatrix._elaborate(self, m, platform)
+        PartialAddrMatch._elaborate(self, m, platform)
+
+        return m
+
+
 class MemFunctionUnits(Elaboratable):
 
     def __init__(self, n_ldsts):
@@ -91,8 +107,13 @@ class MemFunctionUnits(Elaboratable):
         intfudeps = FUFUDepMatrix(n_fus, n_fus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_fus, n_fus, 1)
+        intregdeps = FUMemMatchMatrix(n_fus, 11)
         m.submodules.intregdeps = intregdeps
+
+        # ok, because we do not know in advance what the AGEN (address gen)
+        # is, we have to make a transitive dependency set.  i.e. the LD
+        # (or ST) being requested now must depend on ALL prior LDs *AND* STs.
+        # these get dropped very rapidly once AGEN is carried out.
 
         # connect fureg matrix as a mem system
         comb += self.g_int_ld_pend_o.eq(intregdeps.v_rd_rsel_o)

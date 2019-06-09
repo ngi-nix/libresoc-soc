@@ -52,6 +52,9 @@ class PartialAddrMatch(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        return self._elaborate(m, platform)
+
+    def _elaborate(self, m, platform):
         comb = m.d.comb
         sync = m.d.sync
 

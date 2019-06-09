@@ -27,7 +27,8 @@ class DependencyRow(Elaboratable):
         asynchronous) would be reset at the exact moment that GO was requested,
         and the RSEL would be garbage.
     """
-    def __init__(self, n_reg, n_src):
+    def __init__(self, n_reg, n_src, cancel_mode=False):
+        self.cancel_mode = cancel_mode
         self.n_reg = n_reg
         self.n_src = n_src
         # arrays
@@ -52,7 +53,10 @@ class DependencyRow(Elaboratable):
 
         self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
-        self.go_die_i = Signal(reset_less=True) # Go Die in (left)
+        if self.cancel_mode:
+            self.go_die_i = Signal(n_reg, reset_less=True) # Go Die in (left)
+        else:
+            self.go_die_i = Signal(reset_less=True) # Go Die in (left)
 
         # for Register File Select Lines (vertical)
         self.dest_rsel_o = Signal(n_reg, reset_less=True)  # dest reg sel (bot)
@@ -73,13 +77,17 @@ class DependencyRow(Elaboratable):
             src_c.append(src_l)
 
         # connect go_rd / go_wr (dest->wr, src->rd)
-        wr_die = Signal(reset_less=True)
-        rd_die = Signal(reset_less=True)
-        m.d.comb += wr_die.eq(self.go_wr_i | self.go_die_i)
-        m.d.comb += rd_die.eq(self.go_rd_i | self.go_die_i)
-        m.d.comb += dest_c.r.eq(Repl(wr_die, self.n_reg))
+        wr_die = Signal(self.n_reg, reset_less=True)
+        rd_die = Signal(self.n_reg, reset_less=True)
+        if self.cancel_mode:
+            go_die = self.go_die_i
+        else:
+            go_die = Repl(self.go_die_i, self.n_reg)
+        m.d.comb += wr_die.eq(Repl(self.go_wr_i, self.n_reg) | go_die)
+        m.d.comb += rd_die.eq(Repl(self.go_rd_i, self.n_reg) | go_die)
+        m.d.comb += dest_c.r.eq(wr_die)
         for i in range(self.n_src):
-            m.d.comb += src_c[i].r.eq(Repl(rd_die, self.n_reg))
+            m.d.comb += src_c[i].r.eq(rd_die)
 
         # connect input reg bit (unary)
         i_ext = Repl(self.issue_i, self.n_reg)
@@ -150,7 +158,7 @@ def dcell_sim(dut):
     yield
 
 def test_dcell():
-    dut = DependencyRow(4, 2)
+    dut = DependencyRow(4, 2, True)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_drow.il", "w") as f:
         f.write(vl)
