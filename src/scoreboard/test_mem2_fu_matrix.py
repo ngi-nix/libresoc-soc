@@ -66,16 +66,17 @@ class FUMemMatchMatrix(FURegDepMatrix, PartialAddrMatch):
 
     def elaborate(self, platform):
         m = Module()
-        FURegDepMatrix._elaborate(self, m, platform)
         PartialAddrMatch._elaborate(self, m, platform)
+        FURegDepMatrix._elaborate(self, m, platform)
 
         return m
 
 
 class MemFunctionUnits(Elaboratable):
 
-    def __init__(self, n_ldsts):
+    def __init__(self, n_ldsts, addrbitwid):
         self.n_ldsts = n_ldsts
+        self.bitwid = addrbitwid
 
         self.st_i = Signal(n_ldsts, reset_less=True) # Dest R# in
         self.ld_i = Signal(n_ldsts, reset_less=True) # oper1 R# in
@@ -94,6 +95,12 @@ class MemFunctionUnits(Elaboratable):
         self.go_die_i = Signal(n_ldsts, reset_less=True)
         self.fn_issue_i = Signal(n_ldsts, reset_less=True)
 
+        # address matching
+        self.addrs_i = Array(Signal(self.bitwid, name="addrs_i%d" % i) \
+                             for i in range(n_ldsts))
+        self.addr_we_i = Signal(n_ldsts) # write-enable for incoming address
+        self.addr_en_i = Signal(n_ldsts) # address activated (0 == ignore)
+
         # Note: FURegs st_pend_o is also outputted from here, for use in WaWGrid
 
     def elaborate(self, platform):
@@ -107,13 +114,14 @@ class MemFunctionUnits(Elaboratable):
         intfudeps = FUFUDepMatrix(n_fus, n_fus)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FUMemMatchMatrix(n_fus, 11)
+        intregdeps = FUMemMatchMatrix(n_fus, self.bitwid)
         m.submodules.intregdeps = intregdeps
 
         # ok, because we do not know in advance what the AGEN (address gen)
         # is, we have to make a transitive dependency set.  i.e. the LD
         # (or ST) being requested now must depend on ALL prior LDs *AND* STs.
         # these get dropped very rapidly once AGEN is carried out.
+        # XXX TODO
 
         # connect fureg matrix as a mem system
         comb += self.g_int_ld_pend_o.eq(intregdeps.v_rd_rsel_o)
@@ -145,6 +153,12 @@ class MemFunctionUnits(Elaboratable):
         comb += self.st_rsel_o.eq(intregdeps.dest_rsel_o)
         comb += self.ld_rsel_o.eq(intregdeps.src_rsel_o[0])
 
+        # connect address matching: these get connected to the Addr CUs
+        for i in range(self.n_ldsts):
+            comb += intregdeps.addrs_i[i].eq(self.addrs_i[i])
+        comb += intregdeps.addr_we_i.eq(self.addr_we_i)
+        comb += intregdeps.addr_en_i.eq(self.addr_en_i)
+
         return m
 
     def __iter__(self):
@@ -160,6 +174,9 @@ class MemFunctionUnits(Elaboratable):
         yield self.go_ld_i
         yield self.go_die_i
         yield self.fn_issue_i
+        yield from self.addrs_i
+        yield self.addr_we_i
+        yield self.addr_en_i
 
     def ports(self):
         return list(self)
@@ -666,6 +683,13 @@ def mem_sim(dut):
     yield dut.fn_issue_i.eq(0x0)
     yield
 
+    yield dut.addrs_i[0].eq(0x012)
+    yield dut.addrs_i[1].eq(0x012)
+    yield dut.addrs_i[2].eq(0x010)
+    yield dut.addr_en_i.eq(0x3)
+    yield
+    yield dut.addr_we_i.eq(0x3)
+    yield
     yield dut.go_ld_i.eq(0x1)
     yield
     yield dut.go_ld_i.eq(0x0)
@@ -677,7 +701,7 @@ def mem_sim(dut):
 
 
 def test_mem_fus():
-    dut = MemFunctionUnits(3)
+    dut = MemFunctionUnits(3, 11)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_mem_fus.il", "w") as f:
         f.write(vl)
