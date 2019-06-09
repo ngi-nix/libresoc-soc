@@ -32,6 +32,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Const, Array, Cat, Elaboratable
 
+from nmutil.latch import latchregister
+
 
 class PartialAddrMatch(Elaboratable):
     """A partial address matcher
@@ -45,7 +47,8 @@ class PartialAddrMatch(Elaboratable):
         self.addr_en_i = Signal(n_adr) # address activated (0 == ignore)
 
         # output
-        self.addr_match_o = Signal(n_adr)
+        self.addr_match_o = Array(Signal(n_adr, name="match_o") \
+                                  for i in range(n_adr))
 
     def elaborate(self, platform):
         m = Module()
@@ -53,13 +56,12 @@ class PartialAddrMatch(Elaboratable):
         sync = m.d.sync
 
         addrs_r = Array(Signal(self.bitwid, "a_r") for i in range(self.n_adr))
-        addr_en_r = Signal(self.n_adr)
+        ae_r = Signal(self.n_adr)
 
         # copy in addresses (and "enable" signals)
         for i in range(self.n_adr):
-            with m.If(self.addr_we_i[i]):
-                sync += addrs_r[i].eq(self.addrs_i[i])
-                sync += addr_en_r[i].eq(self.addr_en_i[i])
+            latchregister(m, self.addrs_i[i], addrs_r[i], self.addr_we_i[i])
+            latchregister(m, self.addr_en_i[i], ae_r[i], self.addr_we_i[i])
 
         # is there a clash, yes/no
         for i in range(self.n_adr):
@@ -69,7 +71,7 @@ class PartialAddrMatch(Elaboratable):
                     match.append(Const(0)) # don't match against self!
                 else:
                     match.append(addrs_r[i] == addrs_r[j])
-            comb += self.addr_match_o.eq(Cat(*match).bool() & addr_en_r)
+            comb += self.addr_match_o[i].eq(Cat(*match) & ae_r)
             
         return m
 
@@ -77,7 +79,7 @@ class PartialAddrMatch(Elaboratable):
         yield from self.addrs_i
         yield self.addr_we_i
         yield self.addr_en_i
-        yield self.addr_match_o
+        yield from self.addr_match_o
 
     def ports(self):
         return list(self)
