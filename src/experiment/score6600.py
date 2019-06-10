@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
+from nmigen import Module, Const, Signal, Array, Cat, Elaboratable, Memory
 
 from regfile.regfile import RegFileArray, treereduce
 from scoreboard.fu_fu_matrix import FUFUDepMatrix
@@ -24,10 +24,10 @@ from copy import deepcopy
 from math import log
 
 
-class Memory(Elaboratable):
+class TestMemory(Elaboratable):
     def __init__(self, regwid, addrw):
-        self.ddepth = regwid/8
-        depth = (1<<addrw) / self.ddepth
+        self.ddepth = 1 # regwid //8
+        depth = (1<<addrw) // self.ddepth
         self.adr   = Signal(addrw)
         self.dat_r = Signal(regwid)
         self.dat_w = Signal(regwid)
@@ -51,7 +51,7 @@ class Memory(Elaboratable):
 class MemSim:
     def __init__(self, regwid, addrw):
         self.regwid = regwid
-        self.ddepth = regwid//8
+        self.ddepth = 1 # regwid//8
         depth = (1<<addrw) // self.ddepth
         self.mem = list(range(0, depth))
 
@@ -462,7 +462,7 @@ class Scoreboard(Elaboratable):
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
 
         # Memory FUs
-        m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 11)
+        m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 5)
 
         # Count of number of FUs
         n_intfus = n_int_alus
@@ -695,8 +695,10 @@ class IssueToScoreboard(Elaboratable):
 
         iq = InstructionQ(self.rwid, self.opw, self.qlen, self.n_in, self.n_out)
         sc = Scoreboard(self.rwid, self.n_regs)
+        mem = TestMemory(self.rwid, 8) # not too big, takes too long
         m.submodules.iq = iq
         m.submodules.sc = sc
+        m.submodules.mem = mem
 
         # get at the regfile for testing
         self.intregs = sc.intregs
@@ -1052,7 +1054,7 @@ def scoreboard_sim(dut, alusim):
 
     seed(0)
 
-    for i in range(50):
+    for i in range(1):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
