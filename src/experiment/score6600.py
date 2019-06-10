@@ -401,7 +401,7 @@ class Scoreboard(Elaboratable):
         self.fpregs = RegFileArray(rwid, n_regs)
 
         # issue q needs to get at these
-        self.aluissue = IssueUnitGroup(4)
+        self.aluissue = IssueUnitGroup(2)
         self.brissue = IssueUnitGroup(1)
         self.lsissue = IssueUnitGroup(1)
         # and these
@@ -449,7 +449,7 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs and BR ALUs
         n_int_alus = 5
-        cua = CompUnitALUs(self.rwid, 3, n_alus=2)
+        cua = CompUnitALUs(self.rwid, 3, n_alus=self.aluissue.n_insns)
         cub = CompUnitBR(self.rwid, 3) # 1 BR ALUs
 
         # LDST Comp Units
@@ -1089,10 +1089,10 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if False:
+        if True:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if True: # LD test (with immediate)
+        if False: # LD test (with immediate)
             instrs.append( (1, 2, 2, 0x10, 1, 20, (0, 0)) )
 
         if False:
