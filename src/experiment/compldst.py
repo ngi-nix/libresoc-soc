@@ -52,6 +52,7 @@ class LDSTCompUnit(Elaboratable):
         * :go_die_i:   resets the unit back to "wait for issue"
     """
     def __init__(self, rwid, opwid, alu, mem):
+        self.opwid = opwid
         self.rwid = rwid
         self.alu = alu
         self.mem = mem
@@ -112,14 +113,6 @@ class LDSTCompUnit(Elaboratable):
         op_is_st = Signal(reset_less=True)
         op_ldst = Signal(reset_less=True)
         op_is_imm = Signal(reset_less=True)
-
-        comb += op_alu.eq(self.oper_i[0])
-        comb += op_is_imm.eq(self.oper_i[1])
-        comb += op_is_ld.eq(self.oper_i[2])
-        comb += op_is_st.eq(self.oper_i[3])
-        comb += op_ldst.eq(op_is_ld | op_is_st)
-        comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
-        comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
 
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
@@ -189,12 +182,23 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, src2_or_imm, self.alu.b, src_sel)
 
         # create a latch/register for the operand
+        oper_r = Signal(self.opwid, reset_less=True) # Dest register
+        latchregister(m, self.oper_i, oper_r, self.issue_i)
         alu_op = Cat(op_alu, 0, op_is_imm) # using alu_hier, here.
-        latchregister(m, alu_op, self.alu.op, self.issue_i)
+        comb += self.alu.op.eq(alu_op)
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True) # Dest register
         latchregister(m, self.alu.o, data_r, req_l.q)
+
+        # decode bits of operand (latched)
+        comb += op_alu.eq(oper_r[0])
+        comb += op_is_imm.eq(oper_r[1])
+        comb += op_is_ld.eq(oper_r[2])
+        comb += op_is_st.eq(oper_r[3])
+        comb += op_ldst.eq(op_is_ld | op_is_st)
+        comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
+        comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
 
         with m.If(self.go_wr_i):
             comb += self.data_o.eq(data_r)

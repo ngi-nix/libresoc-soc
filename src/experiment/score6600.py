@@ -202,7 +202,7 @@ class CompUnitsBase(Elaboratable):
 
 class CompUnitLDSTs(CompUnitsBase):
 
-    def __init__(self, rwid, opwid, mem):
+    def __init__(self, rwid, opwid, n_ldsts, mem):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
@@ -215,11 +215,12 @@ class CompUnitLDSTs(CompUnitsBase):
         self.imm_i = Signal(rwid, reset_less=True)
 
         # Int ALUs
-        add1 = ALU(rwid)
-        add2 = ALU(rwid)
+        alus = []
+        for i in range(n_ldsts):
+            alus.append(ALU(rwid))
 
         units = []
-        for alu in [add1, add2]:
+        for alu in alus:
             aluopwid = 4 # see compldst.py for "internal" opcode
             units.append(LDSTCompUnit(rwid, aluopwid, alu, mem))
 
@@ -402,8 +403,8 @@ class Scoreboard(Elaboratable):
 
         # issue q needs to get at these
         self.aluissue = IssueUnitGroup(2)
+        self.lsissue = IssueUnitGroup(2)
         self.brissue = IssueUnitGroup(1)
-        self.lsissue = IssueUnitGroup(1)
         # and these
         self.alu_oper_i = Signal(4, reset_less=True)
         self.alu_imm_i = Signal(rwid, reset_less=True)
@@ -454,10 +455,10 @@ class Scoreboard(Elaboratable):
 
         # LDST Comp Units
         n_ldsts = 2
-        cul = CompUnitLDSTs(self.rwid, 4, None)
+        cul = CompUnitLDSTs(self.rwid, 4, self.lsissue.n_insns, None)
 
         # Comp Units
-        m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub, cul])
+        m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cul, cub])
         bgt = cub.bgt # get at the branch computation unit
         br1 = cub.br1
 
@@ -478,7 +479,7 @@ class Scoreboard(Elaboratable):
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        issueunit = IssueUnitArray([self.aluissue, self.brissue, self.lsissue])
+        issueunit = IssueUnitArray([self.aluissue, self.lsissue, self.brissue])
         m.submodules.issueunit = issueunit
 
         # Shadow Matrix.  currently n_intfus shadows, to be used for
@@ -1089,10 +1090,10 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if False: # LD test (with immediate)
+        if True: # LD test (with immediate)
             instrs.append( (1, 2, 2, 0x10, 1, 20, (0, 0)) )
 
         if False:
