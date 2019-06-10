@@ -454,7 +454,7 @@ class Scoreboard(Elaboratable):
 
         # LDST Comp Units
         n_ldsts = 2
-        cul = CompUnitLDSTs(self.rwid, 3, None)
+        cul = CompUnitLDSTs(self.rwid, 4, None)
 
         # Comp Units
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub, cul])
@@ -765,11 +765,12 @@ class IssueToScoreboard(Elaboratable):
                 comb += sc.brissue.insn_i.eq(1)
                 comb += wait_issue_br.eq(1)
             with m.Elif((op & (0x3<<4)) != 0): # ld/st
+                # see compldst.py
                 # bit 0: ADD/SUB
                 # bit 1: immed
                 # bit 4: LD
                 # bit 5: ST
-                comb += sc.ls_oper_i.eq(Cat(op[0], opi, op[4:5]))
+                comb += sc.ls_oper_i.eq(Cat(op[0], opi[0], op[4:6]))
                 comb += sc.ls_imm_i.eq(imm)
                 comb += sc.lsissue.insn_i.eq(1)
                 comb += wait_issue_ls.eq(1)
@@ -807,6 +808,7 @@ IBLT = 5
 IBEQ = 6
 IBNE = 7
 
+
 class RegSim:
     def __init__(self, rwidth, nregs):
         self.rwidth = rwidth
@@ -835,6 +837,8 @@ class RegSim:
             val = int(src1 == src2)
         elif op == IBNE:
             val = int(src1 != src2)
+        else:
+            return 0 # LD/ST TODO
         val &= maxbits
         self.setval(dest, val)
         return val
@@ -940,6 +944,7 @@ def wait_for_busy_clear(dut):
 def disable_issue(dut):
     yield dut.aluissue.insn_i.eq(0)
     yield dut.brissue.insn_i.eq(0)
+    yield dut.lsissue.insn_i.eq(0)
 
 
 def wait_for_issue(dut, dut_issue):
@@ -1084,8 +1089,11 @@ def scoreboard_sim(dut, alusim):
 
         # create some instructions (some random, some regression tests)
         instrs = []
-        if True:
+        if False:
             instrs = create_random_ops(dut, 15, True, 4)
+
+        if True: # LD test (with immediate)
+            instrs.append( (1, 2, 2, 0x20, 1, 20, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
