@@ -4,13 +4,11 @@ from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
 from regfile.regfile import RegFileArray, treereduce
 from scoreboard.fu_fu_matrix import FUFUDepMatrix
-from scoreboard.fu_reg_matrix import FURegDepMatrix
 from scoreboard.global_pending import GlobalPending
 from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
-from scoreboard.addr_match import PartialAddrMatch
-
+from scoreboard.mdm import FUMemMatchMatrix
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
 
@@ -56,20 +54,6 @@ class MemSim:
     def st(self, addr, data):
         self.mem[addr>>self.ddepth] = data & ((1<<self.regwid)-1)
 
-
-class FUMemMatchMatrix(FURegDepMatrix, PartialAddrMatch):
-    """ implement a FU-Regs overload with memory-address matching
-    """
-    def __init__(self, n_fu, addrbitwid):
-        PartialAddrMatch.__init__(self, n_fu, addrbitwid)
-        FURegDepMatrix.__init__(self, n_fu, n_fu, 1, self.addr_match_o)
-
-    def elaborate(self, platform):
-        m = Module()
-        PartialAddrMatch._elaborate(self, m, platform)
-        FURegDepMatrix._elaborate(self, m, platform)
-
-        return m
 
 
 class MemFunctionUnits(Elaboratable):
