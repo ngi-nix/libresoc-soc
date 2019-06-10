@@ -215,12 +215,12 @@ class CompUnitLDSTs(CompUnitsBase):
         self.imm_i = Signal(rwid, reset_less=True)
 
         # Int ALUs
-        alus = []
+        self.alus = []
         for i in range(n_ldsts):
-            alus.append(ALU(rwid))
+            self.alus.append(ALU(rwid))
 
         units = []
-        for alu in alus:
+        for alu in self.alus:
             aluopwid = 4 # see compldst.py for "internal" opcode
             units.append(LDSTCompUnit(rwid, aluopwid, alu, mem))
 
@@ -532,6 +532,16 @@ class Scoreboard(Elaboratable):
         comb += intfus.fn_issue_i.eq(fn_issue_o)
         comb += issueunit.busy_i.eq(cu.busy_o)
         comb += self.busy_o.eq(cu.busy_o.bool())
+
+        #---------
+        # Memory Function Unit
+        #---------
+        comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
+        comb += memfus.addr_we_i.eq(cul.adr_rel_o) # Match enable on adr rel
+
+        #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
+        #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
+        #comb += cu.issue_i[0:n_intfus].eq(fn_issue_o[0:n_intfus])
 
         #---------
         # merge shadow matrices outputs
