@@ -103,7 +103,7 @@ class LDSTCompUnit(Elaboratable):
         comb += reset_s.eq(self.go_st_i | self.go_die_i)
         comb += reset_r.eq(self.go_rd_i | self.go_die_i)
         # this one is slightly different, issue_alu_i selects go_wr_i)
-        a_sel = Mux(self.isalu_i, self.go_wr_i, self.go_ad_i )
+        a_sel = Mux(self.isalu_i, self.go_wr_i, self.go_ad_i)
         comb += reset_a.eq(a_sel| self.go_die_i)
 
         # opcode decode
@@ -159,7 +159,7 @@ class LDSTCompUnit(Elaboratable):
         comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
 
         # address release only happens on LD/ST, and is shadowed.
-        comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadownn_i)
+        comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadown_i)
 
         # request release enabled based on if op is a LD/ST or a plain ALU
         # if op is a LD/ST, req_rel activates from the *address* latch
@@ -189,7 +189,8 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, src2_or_imm, self.alu.b, src_sel)
 
         # create a latch/register for the operand
-        latchregister(m, Cat(op_alu, 0), self.alu.op, self.issue_i)
+        alu_op = Cat(op_alu, 0, op_is_imm) # using alu_hier, here.
+        latchregister(m, alu_op, self.alu.op, self.issue_i)
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True) # Dest register

@@ -10,8 +10,10 @@ from scoreboard.group_picker import GroupPicker
 from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 from scoreboard.instruction_q import Instruction, InstructionQ
+from scoreboard.memfu import MemFunctionUnits
 
 from compalu import ComputationUnitNoDelay
+from compldst import LDSTCompUnit
 
 from alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
@@ -85,13 +87,14 @@ class CompUnitsBase(Elaboratable):
         Computation Unit" as defined by Mitch Alsup (see section
         11.4.9.3)
     """
-    def __init__(self, rwid, units):
+    def __init__(self, rwid, units, ldstmode=False):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
             * :units: sequence of ALUs (or CompUnitsBase derivatives)
         """
         self.units = units
+        self.ldstmode = ldstmode
         self.rwid = rwid
         self.rwid = rwid
         if units and isinstance(units[0], CompUnitsBase):
@@ -109,11 +112,19 @@ class CompUnitsBase(Elaboratable):
         self.go_wr_i = Signal(n_units, reset_less=True)
         self.shadown_i = Signal(n_units, reset_less=True)
         self.go_die_i = Signal(n_units, reset_less=True)
+        if ldstmode:
+            self.go_ad_i = Signal(n_units, reset_less=True)
 
         # outputs
         self.busy_o = Signal(n_units, reset_less=True)
         self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
+        if ldstmode:
+            self.adr_rel_o = Signal(n_units, reset_less=True)
+            self.sto_rel_o = Signal(n_units, reset_less=True)
+            self.req_rel_o = Signal(n_units, reset_less=True)
+            self.load_mem_o = Signal(n_units, reset_less=True)
+            self.stwd_mem_o = Signal(n_units, reset_less=True)
 
         # in/out register data (note: not register#, actual data)
         self.data_o = Signal(rwid, reset_less=True)
@@ -166,12 +177,32 @@ class CompUnitsBase(Elaboratable):
             comb += alu.src1_i.eq(self.src1_i)
             comb += alu.src2_i.eq(self.src2_i)
 
+        if not self.ldstmode:
+            return m
+
+        ldmem_l = []
+        stmem_l = []
+        go_ad_l = []
+        adr_rel_l = []
+        sto_rel_l = []
+        for alu in self.units:
+            adr_rel_l.append(alu.adr_rel_o)
+            sto_rel_l.append(alu.sto_rel_o)
+            ldmem_l.append(alu.load_mem_o)
+            stmem_l.append(alu.stwd_mem_o)
+            go_ad_l.append(alu.go_ad_i)
+        comb += self.adr_rel_o.eq(Cat(*adr_rel_l))
+        comb += self.sto_rel_o.eq(Cat(*sto_rel_l))
+        comb += self.load_mem_o.eq(Cat(*ldmem_l))
+        comb += self.stwd_mem_o.eq(Cat(*stmem_l))
+        comb += Cat(*go_ad_l).eq(self.go_ad_i)
+
         return m
 
 
-class CompUnitALUs(CompUnitsBase):
+class CompUnitLDSTs(CompUnitsBase):
 
-    def __init__(self, rwid, opwid):
+    def __init__(self, rwid, opwid, mem):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
@@ -184,13 +215,50 @@ class CompUnitALUs(CompUnitsBase):
         self.imm_i = Signal(rwid, reset_less=True)
 
         # Int ALUs
-        add = ALU(rwid)
-        sub = ALU(rwid)
-        mul = ALU(rwid)
-        shf = ALU(rwid)
+        add1 = ALU(rwid)
+        add2 = ALU(rwid)
 
         units = []
-        for alu in [add, sub, mul, shf]:
+        for alu in [add1, add2]:
+            aluopwid = 4 # see compldst.py for "internal" opcode
+            units.append(LDSTCompUnit(rwid, aluopwid, alu, mem))
+
+        CompUnitsBase.__init__(self, rwid, units, ldstmode=True)
+
+    def elaborate(self, platform):
+        m = CompUnitsBase.elaborate(self, platform)
+        comb = m.d.comb
+
+        # hand the same operation to all units, 4 lower bits though
+        for alu in self.units:
+            comb += alu.oper_i[0:4].eq(self.oper_i)
+            comb += alu.imm_i.eq(self.imm_i)
+            comb += alu.isalu_i.eq(0)
+
+        return m
+
+
+class CompUnitALUs(CompUnitsBase):
+
+    def __init__(self, rwid, opwid, n_alus):
+        """ Inputs:
+
+            * :rwid:   bit width of register file(s) - both FP and INT
+            * :opwid:  operand bit width
+        """
+        self.opwid = opwid
+
+        # inputs
+        self.oper_i = Signal(opwid, reset_less=True)
+        self.imm_i = Signal(rwid, reset_less=True)
+
+        # Int ALUs
+        alus = []
+        for i in range(n_alus):
+            alus.append(ALU(rwid))
+
+        units = []
+        for alu in alus:
             aluopwid = 3 # extra bit for immediate mode
             units.append(ComputationUnitNoDelay(rwid, aluopwid, alu))
 
@@ -200,7 +268,7 @@ class CompUnitALUs(CompUnitsBase):
         m = CompUnitsBase.elaborate(self, platform)
         comb = m.d.comb
 
-        # hand the same operation to all units, only lower 2 bits though
+        # hand the same operation to all units, only lower 3 bits though
         for alu in self.units:
             comb += alu.oper_i[0:3].eq(self.oper_i)
             comb += alu.imm_i.eq(self.imm_i)
@@ -376,23 +444,32 @@ class Scoreboard(Elaboratable):
         fp_src1 = self.fpregs.read_port("src1")
         fp_src2 = self.fpregs.read_port("src2")
 
-        # Int ALUs and Comp Units
+        # Int ALUs and BR ALUs
         n_int_alus = 5
-        cua = CompUnitALUs(self.rwid, 3)
-        cub = CompUnitBR(self.rwid, 3)
-        m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
+        cua = CompUnitALUs(self.rwid, 3, n_alus=4)
+        cub = CompUnitBR(self.rwid, 3) # 1 BR ALUs
+
+        # LDST Comp Units
+        n_ldsts = 2
+        cul = CompUnitLDSTs(self.rwid, 3, None)
+
+        # Comp Units
+        m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub, cul])
         bgt = cub.bgt # get at the branch computation unit
         br1 = cub.br1
 
         # Int FUs
         m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
 
+        # Memory FUs
+        m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 11)
+
         # Count of number of FUs
         n_intfus = n_int_alus
         n_fp_fus = 0 # for now
 
-        # Integer Priority Picker 1: Adder + Subtractor
-        intpick1 = GroupPicker(n_intfus) # picks between add, sub, mul and shf
+        # Integer Priority Picker 1: Adder + Subtractor (and LD/ST)
+        intpick1 = GroupPicker(n_intfus) # picks 1 reader and 1 writer to intreg
         m.submodules.intpick1 = intpick1
 
         # INT/FP Issue Unit
