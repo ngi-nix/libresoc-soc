@@ -151,14 +151,10 @@ class LDSTCompUnit(Elaboratable):
         comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
         comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
 
-        # address release only happens on LD/ST, and is shadowed.
-        comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & self.shadown_i)
-
         # request release enabled based on if op is a LD/ST or a plain ALU
-        # if op is a LD/ST, req_rel activates from the *address* latch
-        # if op is ADD/SUB, req_rel activates from the *dest* latch
+        # if op is an ADD/SUB or a LD, req_rel activates.
         wr_q = Signal(reset_less=True)
-        comb += wr_q.eq(Mux(op_ldst, adr_l.q, req_l.q))
+        comb += wr_q.eq(req_l.q & (~op_ldst | op_is_ld))
 
         # the counter is just for demo purposes, to get the ALUs of different
         # types to take arbitrary completion times
@@ -171,6 +167,10 @@ class LDSTCompUnit(Elaboratable):
         with m.If(self.counter == 1):
             # write req release out.  waits until shadow is dropped.
             comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
+            # address release only happens on LD/ST, and is shadowed.
+            comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & \
+                                      self.shadown_i)
+
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
