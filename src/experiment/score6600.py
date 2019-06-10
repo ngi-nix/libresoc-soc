@@ -403,11 +403,14 @@ class Scoreboard(Elaboratable):
         # issue q needs to get at these
         self.aluissue = IssueUnitGroup(4)
         self.brissue = IssueUnitGroup(1)
+        self.lsissue = IssueUnitGroup(1)
         # and these
         self.alu_oper_i = Signal(4, reset_less=True)
         self.alu_imm_i = Signal(rwid, reset_less=True)
         self.br_oper_i = Signal(4, reset_less=True)
         self.br_imm_i = Signal(rwid, reset_less=True)
+        self.ls_oper_i = Signal(4, reset_less=True)
+        self.ls_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
         self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
@@ -475,7 +478,7 @@ class Scoreboard(Elaboratable):
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
         m.submodules.regdecode = regdecode
-        issueunit = IssueUnitArray([self.aluissue, self.brissue])
+        issueunit = IssueUnitArray([self.aluissue, self.brissue, self.lsissue])
         m.submodules.issueunit = issueunit
 
         # Shadow Matrix.  currently n_intfus shadows, to be used for
@@ -513,6 +516,8 @@ class Scoreboard(Elaboratable):
         comb += cua.imm_i.eq(self.alu_imm_i)
         comb += cub.oper_i.eq(self.br_oper_i)
         comb += cub.imm_i.eq(self.br_imm_i)
+        comb += cul.oper_i.eq(self.ls_oper_i)
+        comb += cul.imm_i.eq(self.ls_imm_i)
 
         # TODO: issueunit.f (FP)
 
@@ -720,9 +725,13 @@ class IssueToScoreboard(Elaboratable):
         # in "waiting" state
         wait_issue_br = Signal()
         wait_issue_alu = Signal()
+        wait_issue_ls = Signal()
 
-        with m.If(wait_issue_br | wait_issue_alu):
+        with m.If(wait_issue_br | wait_issue_alu | wait_issue_ls):
             # set instruction pop length to 1 if the unit accepted
+            with m.If(wait_issue_ls & (sc.lsissue.fn_issue_o != 0)):
+                with m.If(iq.qlen_o != 0):
+                    comb += iq.n_sub_i.eq(1)
             with m.If(wait_issue_br & (sc.brissue.fn_issue_o != 0)):
                 with m.If(iq.qlen_o != 0):
                     comb += iq.n_sub_i.eq(1)
@@ -751,14 +760,23 @@ class IssueToScoreboard(Elaboratable):
 
             # choose a Function-Unit-Group
             with m.If((op & (0x3<<2)) != 0): # branch
-                comb += sc.brissue.insn_i.eq(1)
                 comb += sc.br_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.br_imm_i.eq(imm)
+                comb += sc.brissue.insn_i.eq(1)
                 comb += wait_issue_br.eq(1)
-            with m.Else():                   # alu
-                comb += sc.aluissue.insn_i.eq(1)
+            with m.Elif((op & (0x3<<4)) != 0): # ld/st
+                # bit 0: ADD/SUB
+                # bit 1: immed
+                # bit 4: LD
+                # bit 5: ST
+                comb += sc.ls_oper_i.eq(Cat(op[0], opi, op[4:5]))
+                comb += sc.ls_imm_i.eq(imm)
+                comb += sc.lsissue.insn_i.eq(1)
+                comb += wait_issue_ls.eq(1)
+            with m.Else(): # alu
                 comb += sc.alu_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.alu_imm_i.eq(imm)
+                comb += sc.aluissue.insn_i.eq(1)
                 comb += wait_issue_alu.eq(1)
 
             # XXX TODO
