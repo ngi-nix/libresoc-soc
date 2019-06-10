@@ -449,7 +449,7 @@ class Scoreboard(Elaboratable):
 
         # Int ALUs and BR ALUs
         n_int_alus = 5
-        cua = CompUnitALUs(self.rwid, 3, n_alus=4)
+        cua = CompUnitALUs(self.rwid, 3, n_alus=2)
         cub = CompUnitBR(self.rwid, 3) # 1 BR ALUs
 
         # LDST Comp Units
@@ -623,9 +623,9 @@ class Scoreboard(Elaboratable):
         with m.If(br1.issue_i):
             sync += bspec.active_i.eq(1)
         with m.If(self.branch_succ_i):
-            comb += bspec.good_i.eq(fn_issue_o & 0x1f)
+            comb += bspec.good_i.eq(fn_issue_o & 0x1f) # XXX MAGIC CONSTANT
         with m.If(self.branch_fail_i):
-            comb += bspec.fail_i.eq(fn_issue_o & 0x1f)
+            comb += bspec.fail_i.eq(fn_issue_o & 0x1f) # XXX MAGIC CONSTANT
 
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
@@ -1093,7 +1093,7 @@ def scoreboard_sim(dut, alusim):
             instrs = create_random_ops(dut, 15, True, 4)
 
         if True: # LD test (with immediate)
-            instrs.append( (1, 2, 2, 0x20, 1, 20, (0, 0)) )
+            instrs.append( (1, 2, 2, 0x10, 1, 20, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
