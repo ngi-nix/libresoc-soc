@@ -32,7 +32,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Const, Array, Cat, Elaboratable
 
-from nmutil.latch import latchregister
+from nmutil.latch import latchregister, SRLatch
 
 
 class PartialAddrMatch(Elaboratable):
@@ -44,7 +44,8 @@ class PartialAddrMatch(Elaboratable):
         # inputs
         self.addrs_i = Array(Signal(bitwid, name="addr") for i in range(n_adr))
         self.addr_we_i = Signal(n_adr) # write-enable for incoming address
-        self.addr_en_i = Signal(n_adr) # address activated (0 == ignore)
+        self.addr_en_i = Signal(n_adr) # address latched in
+        self.addr_rs_i = Signal(n_adr) # address deactivated
 
         # output
         self.addr_match_o = Array(Signal(n_adr, name="match_o") \
@@ -58,23 +59,26 @@ class PartialAddrMatch(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
+        m.submodules.l = l = SRLatch(llen=self.n_adr, sync=False)
         addrs_r = Array(Signal(self.bitwid, "a_r") for i in range(self.n_adr))
-        ae_r = Signal(self.n_adr)
+
+        # latch set/reset
+        comb += l.s.eq(self.addr_en_i)
+        comb += l.r.eq(self.addr_rs_i)
 
         # copy in addresses (and "enable" signals)
         for i in range(self.n_adr):
-            latchregister(m, self.addrs_i[i], addrs_r[i], self.addr_we_i[i])
-            latchregister(m, self.addr_en_i[i], ae_r[i], self.addr_we_i[i])
+            latchregister(m, self.addrs_i[i], addrs_r[i], l.q[i])
 
         # is there a clash, yes/no
         for i in range(self.n_adr):
-            match = []
+            nomatch = []
             for j in range(self.n_adr):
                 if i == j:
-                    match.append(Const(0)) # don't match against self!
+                    nomatch.append(Const(1)) # don't match against self!
                 else:
-                    match.append(addrs_r[i] == addrs_r[j])
-            comb += self.addr_match_o[i].eq(Cat(*match) & ae_r)
+                    nomatch.append(addrs_r[i] != addrs_r[j])
+            comb += self.addr_match_o[i].eq(Cat(*nomatch) & l.q)
             
         return m
 

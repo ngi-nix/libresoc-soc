@@ -23,6 +23,7 @@ class MemFunctionUnits(Elaboratable):
 
         self.loadable_o = Signal(n_ldsts, reset_less=True)
         self.storable_o = Signal(n_ldsts, reset_less=True)
+        #self.addr_match_o = Signal(n_ldsts, reset_less=True)
 
         self.go_ld_i = Signal(n_ldsts, reset_less=True)
         self.go_st_i = Signal(n_ldsts, reset_less=True)
@@ -33,7 +34,8 @@ class MemFunctionUnits(Elaboratable):
         self.addrs_i = Array(Signal(self.bitwid, name="addrs_i%d" % i) \
                              for i in range(n_ldsts))
         self.addr_we_i = Signal(n_ldsts) # write-enable for incoming address
-        self.addr_en_i = Signal(n_ldsts) # address activated (0 == ignore)
+        self.addr_en_i = Signal(n_ldsts) # address latched in
+        self.addr_rs_i = Signal(n_ldsts) # address deactivated
 
         # Note: FURegs st_pend_o is also outputted from here, for use in WaWGrid
 
@@ -74,6 +76,7 @@ class MemFunctionUnits(Elaboratable):
         comb += intfudeps.go_die_i.eq(self.go_die_i)
         comb += self.loadable_o.eq(intfudeps.readable_o)
         comb += self.storable_o.eq(intfudeps.writable_o)
+        #comb += self.addr_match_o.eq(intregdeps.addr_match_o)
 
         # Connect function issue / arrays, and dest/src1/src2
         comb += intregdeps.dest_i.eq(self.st_i)
@@ -92,6 +95,7 @@ class MemFunctionUnits(Elaboratable):
             comb += intregdeps.addrs_i[i].eq(self.addrs_i[i])
         comb += intregdeps.addr_we_i.eq(self.addr_we_i)
         comb += intregdeps.addr_en_i.eq(self.addr_en_i)
+        comb += intregdeps.addr_rs_i.eq(self.addr_rs_i)
 
         return m
 

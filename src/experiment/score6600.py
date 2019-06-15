@@ -114,6 +114,7 @@ class CompUnitsBase(Elaboratable):
         self.go_die_i = Signal(n_units, reset_less=True)
         if ldstmode:
             self.go_ad_i = Signal(n_units, reset_less=True)
+            self.go_st_i = Signal(n_units, reset_less=True)
 
         # outputs
         self.busy_o = Signal(n_units, reset_less=True)
@@ -183,6 +184,7 @@ class CompUnitsBase(Elaboratable):
         ldmem_l = []
         stmem_l = []
         go_ad_l = []
+        go_st_l = []
         adr_rel_l = []
         sto_rel_l = []
         for alu in self.units:
@@ -191,11 +193,13 @@ class CompUnitsBase(Elaboratable):
             ldmem_l.append(alu.load_mem_o)
             stmem_l.append(alu.stwd_mem_o)
             go_ad_l.append(alu.go_ad_i)
+            go_st_l.append(alu.go_st_i)
         comb += self.adr_rel_o.eq(Cat(*adr_rel_l))
         comb += self.sto_rel_o.eq(Cat(*sto_rel_l))
         comb += self.load_mem_o.eq(Cat(*ldmem_l))
         comb += self.stwd_mem_o.eq(Cat(*stmem_l))
         comb += Cat(*go_ad_l).eq(self.go_ad_i)
+        comb += Cat(*go_st_l).eq(self.go_st_i)
 
         return m
 
@@ -538,9 +542,17 @@ class Scoreboard(Elaboratable):
         #---------
         comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
         comb += memfus.addr_we_i.eq(cul.adr_rel_o) # Match enable on adr rel
+        comb += memfus.addr_rs_i.eq(~cul.busy_o) # Match disable on busy off
 
+        # connect up address data
         comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
         comb += memfus.addrs_i[1].eq(cul.units[1].data_o)
+
+        # connect loadable / storable to go_ld/go_st.
+        # XXX should only be done when the memory ld/st has actually happened!
+
+        #comb += cul.go_wr_i.eq(memfus.loadable_o & memfus.addr_match_o)
+        #comb += cul.go_st_i.eq(memfus.storable_o & memfus.addr_match_o)
 
         #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
         #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
@@ -1106,8 +1118,9 @@ def scoreboard_sim(dut, alusim):
         if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if True: # LD test (with immediate)
-            instrs.append( (1, 2, 2, 0x10, 1, 20, (0, 0)) )
+        if True: # LD/ST test (with immediate)
+            instrs.append( (1, 2, 2, 0x10, 1, 1, (0, 0)) )
+            #instrs.append( (5, 6, 7, 0x10, 1, 1, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
