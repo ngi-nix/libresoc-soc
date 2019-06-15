@@ -539,6 +539,9 @@ class Scoreboard(Elaboratable):
         comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
         comb += memfus.addr_we_i.eq(cul.adr_rel_o) # Match enable on adr rel
 
+        comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
+        comb += memfus.addrs_i[1].eq(cul.units[1].data_o)
+
         #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
         #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
         #comb += cu.issue_i[0:n_intfus].eq(fn_issue_o[0:n_intfus])

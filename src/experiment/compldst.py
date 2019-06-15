@@ -156,21 +156,21 @@ class LDSTCompUnit(Elaboratable):
         wr_q = Signal(reset_less=True)
         comb += wr_q.eq(req_l.q & (~op_ldst | op_is_ld))
 
-        # the counter is just for demo purposes, to get the ALUs of different
-        # types to take arbitrary completion times
-        with m.If(opc_l.qn):
-            sync += self.counter.eq(0) # reset counter when not busy
-        with m.If(req_l.qn & busy_o & (self.counter == 0)):
-            sync += self.counter.eq(2) # take 2 (fake) cycles to respond
-        with m.If(self.counter > 1):
-            sync += self.counter.eq(self.counter - 1)
-        with m.If(self.counter == 1):
+        alulatch = Signal(reset_less=True)
+        comb += alulatch.eq((op_ldst & self.adr_rel_o) | \
+                            (~op_ldst & self.req_rel_o))
+
+        # only proceed if ALU says its output is valid
+        with m.If(self.alu.n_valid_o):
+
             # write req release out.  waits until shadow is dropped.
             comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
             # address release only happens on LD/ST, and is shadowed.
             comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & \
                                       self.shadown_i)
-
+            # when output latch is ready, and ALU says ready, accept ALU output
+            with m.If(self.req_rel_o):
+                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
@@ -189,7 +189,7 @@ class LDSTCompUnit(Elaboratable):
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True) # Dest register
-        latchregister(m, self.alu.o, data_r, req_l.q)
+        latchregister(m, self.alu.o, data_r, alulatch)
 
         # decode bits of operand (latched)
         comb += op_alu.eq(oper_r[0])
@@ -200,8 +200,15 @@ class LDSTCompUnit(Elaboratable):
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
         comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
 
-        with m.If(self.go_wr_i):
-            comb += self.data_o.eq(data_r)
+        # on a go_read, tell the ALU we're accepting data.
+        # NOTE: this spells TROUBLE if the ALU isn't ready!
+        # go_read is only valid for one clock!
+        with m.If(self.go_rd_i):                     # src operands ready, GO!
+            with m.If(~self.alu.p_ready_o):          # no ACK yet
+                m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
+
+        # put the register directly onto the output
+        comb += self.data_o.eq(data_r)
 
         return m
 
