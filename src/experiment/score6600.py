@@ -540,9 +540,15 @@ class Scoreboard(Elaboratable):
         #---------
         # Memory Function Unit
         #---------
+        reset_b = Signal(cul.n_units, reset_less=True)
+        sync += reset_b.eq(cul.go_st_i | cul.go_wr_i | cul.go_die_i)
         comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
-        comb += memfus.addr_we_i.eq(cul.adr_rel_o) # Match enable on adr rel
-        comb += memfus.addr_rs_i.eq(~cul.busy_o) # Match disable on busy off
+        comb += memfus.addr_en_i.eq(cul.adr_rel_o) # Match enable on adr rel
+        comb += memfus.addr_rs_i.eq(reset_b) # reset same as LDSTCompUnit
+        with m.If(self.ls_oper_i[2]): # LD bit of operand
+            comb += memfus.ld_i.eq(cul.issue_i)
+        with m.If(self.ls_oper_i[3]): # ST bit of operand
+            comb += memfus.st_i.eq(cul.issue_i)
 
         # connect up address data
         comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
@@ -551,8 +557,10 @@ class Scoreboard(Elaboratable):
         # connect loadable / storable to go_ld/go_st.
         # XXX should only be done when the memory ld/st has actually happened!
 
-        #comb += cul.go_wr_i.eq(memfus.loadable_o & memfus.addr_match_o)
-        #comb += cul.go_st_i.eq(memfus.storable_o & memfus.addr_match_o)
+        comb += memfus.go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o)
+        comb += memfus.go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o)
+        #comb += cul.go_wr_i.eq(memfus.loadable_o & memfus.addr_nomatch_o)
+        comb += cul.go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o)
 
         #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
         #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
@@ -1120,7 +1128,7 @@ def scoreboard_sim(dut, alusim):
 
         if True: # LD/ST test (with immediate)
             instrs.append( (1, 2, 2, 0x10, 1, 1, (0, 0)) )
-            #instrs.append( (5, 6, 7, 0x10, 1, 1, (0, 0)) )
+            #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )

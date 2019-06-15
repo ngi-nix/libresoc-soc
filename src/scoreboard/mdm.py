@@ -10,7 +10,7 @@ class FUMemMatchMatrix(FURegDepMatrix, PartialAddrMatch):
     """
     def __init__(self, n_fu, addrbitwid):
         PartialAddrMatch.__init__(self, n_fu, addrbitwid)
-        FURegDepMatrix.__init__(self, n_fu, n_fu, 1, self.addr_match_o)
+        FURegDepMatrix.__init__(self, n_fu, n_fu, 1, self.addr_nomatch_o)
 
     def elaborate(self, platform):
         m = Module()

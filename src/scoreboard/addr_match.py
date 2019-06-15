@@ -48,7 +48,8 @@ class PartialAddrMatch(Elaboratable):
         self.addr_rs_i = Signal(n_adr) # address deactivated
 
         # output
-        self.addr_match_o = Array(Signal(n_adr, name="match_o") \
+        self.addr_nomatch_o = Signal(n_adr, name="nomatch_o")
+        self.addr_nomatch_a_o = Array(Signal(n_adr, name="nomatch_array_o") \
                                   for i in range(n_adr))
 
     def elaborate(self, platform):
@@ -71,6 +72,7 @@ class PartialAddrMatch(Elaboratable):
             latchregister(m, self.addrs_i[i], addrs_r[i], l.q[i])
 
         # is there a clash, yes/no
+        matchgrp = []
         for i in range(self.n_adr):
             nomatch = []
             for j in range(self.n_adr):
@@ -78,7 +80,9 @@ class PartialAddrMatch(Elaboratable):
                     nomatch.append(Const(1)) # don't match against self!
                 else:
                     nomatch.append(addrs_r[i] != addrs_r[j])
-            comb += self.addr_match_o[i].eq(Cat(*nomatch) & l.q)
+            matchgrp.append((~Cat(*nomatch)).bool()) # true if all matches fail
+            comb += self.addr_nomatch_o[i].eq(Cat(*nomatch) & l.q)
+        comb += self.addr_nomatch_o.eq((~Cat(*matchgrp)) & l.q)
             
         return m
 
@@ -86,7 +90,8 @@ class PartialAddrMatch(Elaboratable):
         yield from self.addrs_i
         yield self.addr_we_i
         yield self.addr_en_i
-        yield from self.addr_match_o
+        yield from self.addr_nomatch_a_o
+        yield self.addr_nomatch_o
 
     def ports(self):
         return list(self)

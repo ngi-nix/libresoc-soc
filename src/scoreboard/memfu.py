@@ -23,7 +23,7 @@ class MemFunctionUnits(Elaboratable):
 
         self.loadable_o = Signal(n_ldsts, reset_less=True)
         self.storable_o = Signal(n_ldsts, reset_less=True)
-        #self.addr_match_o = Signal(n_ldsts, reset_less=True)
+        self.addr_nomatch_o = Signal(n_ldsts, reset_less=True)
 
         self.go_ld_i = Signal(n_ldsts, reset_less=True)
         self.go_st_i = Signal(n_ldsts, reset_less=True)
@@ -76,7 +76,7 @@ class MemFunctionUnits(Elaboratable):
         comb += intfudeps.go_die_i.eq(self.go_die_i)
         comb += self.loadable_o.eq(intfudeps.readable_o)
         comb += self.storable_o.eq(intfudeps.writable_o)
-        #comb += self.addr_match_o.eq(intregdeps.addr_match_o)
+        comb += self.addr_nomatch_o.eq(intregdeps.addr_nomatch_o)
 
         # Connect function issue / arrays, and dest/src1/src2
         comb += intregdeps.dest_i.eq(self.st_i)
