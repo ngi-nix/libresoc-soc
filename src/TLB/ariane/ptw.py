@@ -25,7 +25,7 @@ see linux kernel source:
 
 """
 
-from nmigen import Const, Signal, Cat, Module
+from nmigen import Const, Signal, Cat, Module, Elaboratable
 from nmigen.hdl.ast import ArrayProxy
 from nmigen.cli import verilog, rtlil
 from math import log2
@@ -153,7 +153,7 @@ LVL2 = Const(1, 2)
 LVL3 = Const(2, 2)
 
 
-class PTW:
+class PTW(Elaboratable):
     def __init__(self, asid_width=8):
         self.asid_width = asid_width
 

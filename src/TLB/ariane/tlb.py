@@ -29,9 +29,9 @@ from nmigen import Signal, Module, Cat, Const, Array
 from nmigen.cli import verilog, rtlil
 from nmigen.lib.coding import Encoder
 
-from ptw import TLBUpdate, PTE, ASID_WIDTH
-from plru import PLRU
-from tlb_content import TLBContent
+from TLB.ariane.ptw import TLBUpdate, PTE, ASID_WIDTH
+from TLB.ariane.plru import PLRU
+from TLB.ariane.tlb_content import TLBContent
 
 TLB_ENTRIES = 8
 

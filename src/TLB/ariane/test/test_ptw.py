@@ -7,7 +7,7 @@ from nmigen.compat.sim import run_simulation
 from TLB.ariane.ptw import PTW, PTE
 
 
-def testbench(dut):
+def tbench(dut):
 
     addr = 0x8000000
 
@@ -120,8 +120,10 @@ def testbench(dut):
     yield
 
 
+def test_ptw():
+    dut = PTW()
+    run_simulation(dut, tbench(dut), vcd_name="test_ptw.vcd")
+    print("PTW Unit Test Success")
 
 if __name__ == "__main__":
-    dut = PTW()
-    run_simulation(dut, testbench(dut), vcd_name="test_ptw.vcd")
-    print("PTW Unit Test Success")
+    test_ptw()

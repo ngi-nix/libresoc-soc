@@ -11,7 +11,7 @@ def set_vaddr(addr):
     yield dut.update_i.vpn.eq(addr>>12)
 
 
-def testbench(dut):
+def tbench(dut):
     yield dut.lu_access_i.eq(1)
     yield dut.lu_asid_i.eq(1)
     yield dut.update_i.valid.eq(1)
@@ -66,4 +66,4 @@ def testbench(dut):
 
 if __name__ == "__main__":
     dut = TLB()
-    run_simulation(dut, testbench(dut), vcd_name="test_tlb.vcd")
+    run_simulation(dut, tbench(dut), vcd_name="test_tlb.vcd")

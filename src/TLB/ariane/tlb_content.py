@@ -1,6 +1,7 @@
-from nmigen import Signal, Module, Cat, Const
+from nmigen import Signal, Module, Cat, Const, Elaboratable
 
-from ptw import TLBUpdate, PTE
+from TLB.ariane.ptw import TLBUpdate, PTE
+
 
 class TLBEntry:
     def __init__(self, asid_width):
@@ -23,7 +24,7 @@ class TLBEntry:
         return [self.asid, self.vpn0, self.vpn1, self.vpn2,
                 self.is_2M, self.is_1G, self.valid]
 
-class TLBContent:
+class TLBContent(Elaboratable):
     def __init__(self, pte_width, asid_width):
         self.asid_width = asid_width
         self.pte_width = pte_width

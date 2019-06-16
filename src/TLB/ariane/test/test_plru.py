@@ -2,7 +2,7 @@ import sys
 sys.path.append("../src")
 sys.path.append("../../../TestUtil")
 
-from plru import PLRU
+from TLB.ariane.plru import PLRU
 
 from nmigen.compat.sim import run_simulation
 
