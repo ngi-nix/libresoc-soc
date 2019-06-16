@@ -4,7 +4,7 @@ sys.path.append("../../../TestUtil")
 
 from nmigen.compat.sim import run_simulation
 
-from ptw import PTW, PTE
+from TLB.ariane.ptw import PTW, PTE
 
 
 def testbench(dut):

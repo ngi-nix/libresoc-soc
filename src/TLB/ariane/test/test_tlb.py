@@ -4,7 +4,7 @@ sys.path.append("../../../TestUtil")
 
 from nmigen.compat.sim import run_simulation
 
-from tlb import TLB
+from TLB.ariane.tlb import TLB
 
 def set_vaddr(addr):
     yield dut.lu_vaddr_i.eq(addr)
