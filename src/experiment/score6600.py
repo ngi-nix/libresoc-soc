@@ -620,7 +620,6 @@ class Scoreboard(Elaboratable):
         # ok connect first n_int_fu shadows to busy lines, to create an
         # instruction-order linked-list-like arrangement, using a bit-matrix
         # (instead of e.g. a ring buffer).
-        # XXX TODO
 
         # when written, the shadow can be cancelled (and was good)
         for i in range(n_intfus):
