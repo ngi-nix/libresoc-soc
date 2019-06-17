@@ -542,13 +542,21 @@ class Scoreboard(Elaboratable):
         #---------
         reset_b = Signal(cul.n_units, reset_less=True)
         sync += reset_b.eq(cul.go_st_i | cul.go_wr_i | cul.go_die_i)
+
+
         comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
         comb += memfus.addr_en_i.eq(cul.adr_rel_o) # Match enable on adr rel
         comb += memfus.addr_rs_i.eq(reset_b) # reset same as LDSTCompUnit
+
+        # LD/STs have to accumulate prior LD/STs (TODO: multi-issue as well,
+        # in a transitive fashion).  This cycle activates based on LDSTCompUnit
+        # issue_i.  multi-issue gets a bit more complex but not a lot.
+        prior_ldsts = Signal(cul.n_units, reset_less=True)
+        sync += prior_ldsts.eq(memfus.g_int_ld_pend_o | memfus.g_int_st_pend_o)
         with m.If(self.ls_oper_i[2]): # LD bit of operand
-            comb += memfus.ld_i.eq(cul.issue_i)
+            comb += memfus.ld_i.eq(cul.issue_i | prior_ldsts)
         with m.If(self.ls_oper_i[3]): # ST bit of operand
-            comb += memfus.st_i.eq(cul.issue_i)
+            comb += memfus.st_i.eq(cul.issue_i | prior_ldsts)
 
         # connect up address data
         comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
