@@ -552,7 +552,6 @@ class Scoreboard(Elaboratable):
         reset_b = Signal(cul.n_units, reset_less=True)
         sync += reset_b.eq(cul.go_st_i | cul.go_wr_i | cul.go_die_i)
 
-
         comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
         comb += memfus.addr_en_i.eq(cul.adr_rel_o) # Match enable on adr rel
         comb += memfus.addr_rs_i.eq(reset_b) # reset same as LDSTCompUnit
@@ -585,7 +584,7 @@ class Scoreboard(Elaboratable):
                                   cul.sto_rel_o & cul.st_o)
         comb += memfus.go_ld_i.eq(go_ld_i)
         comb += memfus.go_st_i.eq(go_st_i)
-        #comb += cul.go_wr_i.eq(memfus.loadable_o & memfus.addr_nomatch_o)
+        #comb += cul.go_wr_i.eq(go_ld_i)
         comb += cul.go_st_i.eq(go_st_i)
 
         #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
@@ -1153,7 +1152,7 @@ def scoreboard_sim(dut, alusim):
 
         if True: # LD/ST test (with immediate)
             instrs.append( (1, 2, 2, 0x10, 1, 1, (0, 0)) )
-            instrs.append( (1, 2, 7, 0x12, 1, 1, (0, 0)) )
+            #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
