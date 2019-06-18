@@ -28,20 +28,27 @@ class TestMemory(Elaboratable):
     def __init__(self, regwid, addrw):
         self.ddepth = 1 # regwid //8
         depth = (1<<addrw) // self.ddepth
-        self.adr   = Signal(addrw)
+        self.adr_r  = Signal(addrw)
         self.dat_r = Signal(regwid)
+        self.adr_w  = Signal(addrw)
         self.dat_w = Signal(regwid)
         self.we    = Signal()
+        self.re    = Signal()
         self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.rdport = rdport = self.mem.read_port()
         m.submodules.wrport = wrport = self.mem.write_port()
+        # read port
         m.d.comb += [
-            rdport.addr.eq(self.adr[self.ddepth:]), # ignore low bits
+            rdport.addr.eq(self.adr_r[self.ddepth:]), # ignore low bits
+            rdport.en.eq(self.re),
             self.dat_r.eq(rdport.data),
-            wrport.addr.eq(self.adr),
+        ]
+        # write port
+        m.d.comb += [
+            wrport.addr.eq(self.adr_w),
             wrport.data.eq(self.dat_w),
             wrport.en.eq(self.we),
         ]
@@ -1151,7 +1158,7 @@ def scoreboard_sim(dut, alusim):
             instrs = create_random_ops(dut, 15, True, 4)
 
         if True: # LD/ST test (with immediate)
-            instrs.append( (1, 2, 2, 0x10, 1, 1, (0, 0)) )
+            instrs.append( (1, 2, 2, 0x30, 1, 1, (0, 0)) )
             #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
 
         if False:
