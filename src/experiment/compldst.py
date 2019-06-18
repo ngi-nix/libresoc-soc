@@ -214,7 +214,7 @@ class LDSTCompUnit(Elaboratable):
             with m.If(~self.alu.p_ready_o):          # no ACK yet
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
-        # put the register directly onto the output
+        # put the register directly onto the output bus
         with m.If((self.go_wr_i & ~op_ldst) | (self.go_st_i & op_is_st)):
             comb += self.data_o.eq(data_r)
 
