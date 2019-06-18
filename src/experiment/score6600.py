@@ -28,30 +28,12 @@ class TestMemory(Elaboratable):
     def __init__(self, regwid, addrw):
         self.ddepth = 1 # regwid //8
         depth = (1<<addrw) // self.ddepth
-        self.adr_r  = Signal(addrw)
-        self.dat_r = Signal(regwid)
-        self.adr_w  = Signal(addrw)
-        self.dat_w = Signal(regwid)
-        self.we    = Signal()
-        self.re    = Signal()
         self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.rdport = rdport = self.mem.read_port()
-        m.submodules.wrport = wrport = self.mem.write_port()
-        # read port
-        m.d.comb += [
-            rdport.addr.eq(self.adr_r[self.ddepth:]), # ignore low bits
-            rdport.en.eq(self.re),
-            self.dat_r.eq(rdport.data),
-        ]
-        # write port
-        m.d.comb += [
-            wrport.addr.eq(self.adr_w),
-            wrport.data.eq(self.dat_w),
-            wrport.en.eq(self.we),
-        ]
+        m.submodules.rdport = self.rdport = self.mem.read_port()
+        m.submodules.wrport = self.wrport = self.mem.write_port()
         return m
 
 
@@ -421,6 +403,9 @@ class Scoreboard(Elaboratable):
         self.intregs = RegFileArray(rwid, n_regs)
         self.fpregs = RegFileArray(rwid, n_regs)
 
+        # Memory (test for now)
+        self.mem = TestMemory(self.rwid, 8) # not too big, takes too long
+
         # issue q needs to get at these
         self.aluissue = IssueUnitGroup(2)
         self.lsissue = IssueUnitGroup(2)
@@ -458,6 +443,7 @@ class Scoreboard(Elaboratable):
 
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
+        m.submodules.mem = mem = self.mem
 
         # register ports
         int_dest = self.intregs.write_port("dest")
@@ -487,6 +473,10 @@ class Scoreboard(Elaboratable):
 
         # Memory FUs
         m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 5)
+
+        # Memory Priority Picker 1: one gateway per memory port
+        mempick1 = GroupPicker(n_ldsts) # picks 1 reader and 1 writer to intreg
+        m.submodules.mempick1 = mempick1
 
         # Count of number of FUs
         n_intfus = n_int_alus
@@ -765,10 +755,8 @@ class IssueToScoreboard(Elaboratable):
 
         iq = InstructionQ(self.rwid, self.opw, self.qlen, self.n_in, self.n_out)
         sc = Scoreboard(self.rwid, self.n_regs)
-        mem = TestMemory(self.rwid, 8) # not too big, takes too long
         m.submodules.iq = iq
         m.submodules.sc = sc
-        m.submodules.mem = mem
 
         # get at the regfile for testing
         self.intregs = sc.intregs
