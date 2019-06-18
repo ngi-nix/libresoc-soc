@@ -215,7 +215,7 @@ class LDSTCompUnit(Elaboratable):
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
         # put the register directly onto the output bus on a go_write
-        with m.If((self.go_wr_i):
+        with m.If(self.go_wr_i):
             comb += self.data_o.eq(data_r)
 
         # put the register directly onto the address bus
