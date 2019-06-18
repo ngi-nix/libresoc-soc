@@ -104,9 +104,9 @@ class ALU(Elaboratable):
                     m.d.sync += self.counter.eq(7)
                 with m.Elif(self.op == 1): # SUB to take 1, straight away
                     m.d.sync += self.counter.eq(1)
+                    m.d.comb += go_now.eq(1)
                 with m.Else(): # ADD to take 2
                     m.d.sync += self.counter.eq(2)
-                    m.d.comb += go_now.eq(1)
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops

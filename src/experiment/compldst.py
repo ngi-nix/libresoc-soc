@@ -78,8 +78,12 @@ class LDSTCompUnit(Elaboratable):
         self.sto_rel_o = Signal(reset_less=True) # request store (to mem)
         self.req_rel_o = Signal(reset_less=True) # request write (result)
         self.data_o = Signal(rwid, reset_less=True) # Dest out (LD or ALU)
+
+        # hmm... TODO... move these to outside of LDSTCompUnit
         self.load_mem_o = Signal(reset_less=True) # activate memory LOAD
         self.stwd_mem_o = Signal(reset_less=True) # activate memory STORE
+        self.ld_o = Signal(reset_less=True) # operation is a LD
+        self.st_o = Signal(reset_less=True) # operation is a ST
 
     def elaborate(self, platform):
         m = Module()
@@ -149,7 +153,7 @@ class LDSTCompUnit(Elaboratable):
         busy_o = self.busy_o
         comb += self.busy_o.eq(opc_l.q) # busy out
         comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
-        comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i)
+        comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i & op_is_st)
 
         # request release enabled based on if op is a LD/ST or a plain ALU
         # if op is an ADD/SUB or a LD, req_rel activates.
@@ -199,6 +203,8 @@ class LDSTCompUnit(Elaboratable):
         comb += op_ldst.eq(op_is_ld | op_is_st)
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
         comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
+        comb += self.ld_o.eq(op_is_ld)
+        comb += self.st_o.eq(op_is_st)
 
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!

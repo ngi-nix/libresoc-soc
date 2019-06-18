@@ -121,6 +121,8 @@ class CompUnitsBase(Elaboratable):
         self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
         if ldstmode:
+            self.ld_o = Signal(n_units, reset_less=True) # op is LD
+            self.st_o = Signal(n_units, reset_less=True) # op is ST
             self.adr_rel_o = Signal(n_units, reset_less=True)
             self.sto_rel_o = Signal(n_units, reset_less=True)
             self.req_rel_o = Signal(n_units, reset_less=True)
@@ -185,9 +187,13 @@ class CompUnitsBase(Elaboratable):
         stmem_l = []
         go_ad_l = []
         go_st_l = []
+        ld_l = []
+        st_l = []
         adr_rel_l = []
         sto_rel_l = []
         for alu in self.units:
+            ld_l.append(alu.ld_o)
+            st_l.append(alu.st_o)
             adr_rel_l.append(alu.adr_rel_o)
             sto_rel_l.append(alu.sto_rel_o)
             ldmem_l.append(alu.load_mem_o)
@@ -568,11 +574,16 @@ class Scoreboard(Elaboratable):
 
         # connect loadable / storable to go_ld/go_st.
         # XXX should only be done when the memory ld/st has actually happened!
-
-        comb += memfus.go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o)
-        comb += memfus.go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o)
+        go_st_i = Signal(cul.n_units, reset_less=True)
+        go_ld_i = Signal(cul.n_units, reset_less=True)
+        comb += go_ld_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
+                                  cul.req_rel_o & cul.ld_o)
+        comb += go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
+                                  cul.sto_rel_o & cul.st_o)
+        comb += memfus.go_ld_i.eq(go_ld_i)
+        comb += memfus.go_st_i.eq(go_st_i)
         #comb += cul.go_wr_i.eq(memfus.loadable_o & memfus.addr_nomatch_o)
-        comb += cul.go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o)
+        comb += cul.go_st_i.eq(go_st_i)
 
         #comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
         #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
@@ -1139,7 +1150,7 @@ def scoreboard_sim(dut, alusim):
 
         if True: # LD/ST test (with immediate)
             instrs.append( (1, 2, 2, 0x10, 1, 1, (0, 0)) )
-            #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
+            instrs.append( (1, 2, 7, 0x12, 1, 1, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
