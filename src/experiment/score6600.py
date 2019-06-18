@@ -558,6 +558,10 @@ class Scoreboard(Elaboratable):
         with m.If(self.ls_oper_i[3]): # ST bit of operand
             comb += memfus.st_i.eq(cul.issue_i | prior_ldsts)
 
+        # TODO: adr_rel_o needs to go into L1 Cache.  for now,
+        # just immediately activate go_adr
+        comb += cul.go_ad_i.eq(cul.adr_rel_o)
+
         # connect up address data
         comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
         comb += memfus.addrs_i[1].eq(cul.units[1].data_o)
