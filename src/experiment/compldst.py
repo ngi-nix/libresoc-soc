@@ -78,6 +78,7 @@ class LDSTCompUnit(Elaboratable):
         self.sto_rel_o = Signal(reset_less=True) # request store (to mem)
         self.req_rel_o = Signal(reset_less=True) # request write (result)
         self.data_o = Signal(rwid, reset_less=True) # Dest out (LD or ALU)
+        self.addr_o = Signal(rwid, reset_less=True) # Address out (LD or ST)
 
         # hmm... TODO... move these to outside of LDSTCompUnit
         self.load_mem_o = Signal(reset_less=True) # activate memory LOAD
@@ -214,7 +215,12 @@ class LDSTCompUnit(Elaboratable):
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
         # put the register directly onto the output
-        comb += self.data_o.eq(data_r)
+        with m.If((self.go_wr_i & ~op_ldst) | (self.go_st_i & op_is_st)):
+            comb += self.data_o.eq(data_r)
+
+        # put the register directly onto the address bus
+        with m.If(self.go_ad_i):
+            comb += self.addr_o.eq(data_r)
 
         return m
 

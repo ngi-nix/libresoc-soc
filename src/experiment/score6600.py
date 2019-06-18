@@ -128,6 +128,7 @@ class CompUnitsBase(Elaboratable):
             self.req_rel_o = Signal(n_units, reset_less=True)
             self.load_mem_o = Signal(n_units, reset_less=True)
             self.stwd_mem_o = Signal(n_units, reset_less=True)
+            self.addr_o = Signal(rwid, reset_less=True)
 
         # in/out register data (note: not register#, actual data)
         self.data_o = Signal(rwid, reset_less=True)
@@ -171,10 +172,12 @@ class CompUnitsBase(Elaboratable):
         # connect data register input/output
 
         # merge (OR) all integer FU / ALU outputs to a single value
-        # bit of a hack: treereduce needs a list with an item named "data_o"
         if self.units:
-            data_o = treereduce(self.units)
+            data_o = treereduce(self.units, "data_o")
             comb += self.data_o.eq(data_o)
+            if self.ldstmode:
+                addr_o = treereduce(self.units, "addr_o")
+                comb += self.addr_o.eq(addr_o)
 
         for i, alu in enumerate(self.units):
             comb += alu.src1_i.eq(self.src1_i)
@@ -569,8 +572,8 @@ class Scoreboard(Elaboratable):
         comb += cul.go_ad_i.eq(cul.adr_rel_o)
 
         # connect up address data
-        comb += memfus.addrs_i[0].eq(cul.units[0].data_o)
-        comb += memfus.addrs_i[1].eq(cul.units[1].data_o)
+        comb += memfus.addrs_i[0].eq(cul.units[0].addr_o)
+        comb += memfus.addrs_i[1].eq(cul.units[1].addr_o)
 
         # connect loadable / storable to go_ld/go_st.
         # XXX should only be done when the memory ld/st has actually happened!

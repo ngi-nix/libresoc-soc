@@ -10,7 +10,7 @@ import operator
 
 
 class Register(Elaboratable):
-    def __init__(self, width, writethru=False):
+    def __init__(self, width, writethru=True):
         self.width = width
         self.writethru = writethru
         self._rdports = []
@@ -65,16 +65,16 @@ class Register(Elaboratable):
     def ports(self):
         res = list(self)
 
-def treereduce(tree):
+def treereduce(tree, attr="data_o"):
     #print ("treereduce", tree)
     if not isinstance(tree, list):
         return tree
     if len(tree) == 1:
-        return tree[0].data_o
+        return getattr(tree[0], attr)
     if len(tree) == 2:
-        return tree[0].data_o | tree[1].data_o
-    splitpoint = len(tree) // 2
-    return treereduce(tree[:splitpoint]) | treereduce(tree[splitpoint:])
+        return getattr(tree[0], attr) | getattr(tree[1], attr)
+    split = len(tree) // 2
+    return treereduce(tree[:split], attr) | treereduce(tree[split:], attr)
 
 
 class RegFileArray(Elaboratable):
