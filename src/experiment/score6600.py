@@ -1146,7 +1146,7 @@ def scoreboard_sim(dut, alusim):
             instrs = create_random_ops(dut, 15, True, 4)
 
         if True: # LD/ST test (with immediate)
-            instrs.append( (1, 2, 2, 0x30, 1, 1, (0, 0)) )
+            instrs.append( (1, 2, 0, 0x20, 1, 1, (0, 0)) )
             #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
 
         if False:

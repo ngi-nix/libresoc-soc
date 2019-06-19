@@ -74,15 +74,15 @@ class PartialAddrMatch(Elaboratable):
         # is there a clash, yes/no
         matchgrp = []
         for i in range(self.n_adr):
-            nomatch = []
+            match = []
             for j in range(self.n_adr):
                 if i == j:
-                    nomatch.append(Const(1)) # don't match against self!
+                    match.append(Const(0)) # don't match against self!
                 else:
-                    nomatch.append(addrs_r[i] != addrs_r[j])
-            matchgrp.append((~Cat(*nomatch)).bool()) # true if all matches fail
-            comb += self.addr_nomatch_o[i].eq(Cat(*nomatch) & l.q)
-        comb += self.addr_nomatch_o.eq((~Cat(*matchgrp)) & l.q)
+                    match.append(addrs_r[i] == addrs_r[j])
+            comb += self.addr_nomatch_a_o[i].eq(~Cat(*match) & l.q)
+            matchgrp.append(self.addr_nomatch_a_o[i] == l.q)
+        comb += self.addr_nomatch_o.eq(Cat(*matchgrp) & l.q)
             
         return m
 
