@@ -192,6 +192,8 @@ class CompUnitsBase(Elaboratable):
             stmem_l.append(alu.stwd_mem_o)
             go_ad_l.append(alu.go_ad_i)
             go_st_l.append(alu.go_st_i)
+        comb += self.ld_o.eq(Cat(*ld_l))
+        comb += self.st_o.eq(Cat(*st_l))
         comb += self.adr_rel_o.eq(Cat(*adr_rel_l))
         comb += self.sto_rel_o.eq(Cat(*sto_rel_l))
         comb += self.load_mem_o.eq(Cat(*ldmem_l))
@@ -575,7 +577,7 @@ class Scoreboard(Elaboratable):
         # XXX should only be done when the memory ld/st has actually happened!
         go_st_i = Signal(cul.n_units, reset_less=True)
         go_ld_i = Signal(cul.n_units, reset_less=True)
-        comb += go_ld_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
+        comb += go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o &\
                                   cul.req_rel_o & cul.ld_o)
         comb += go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
                                   cul.sto_rel_o & cul.st_o)
@@ -1146,8 +1148,8 @@ def scoreboard_sim(dut, alusim):
             instrs = create_random_ops(dut, 15, True, 4)
 
         if True: # LD/ST test (with immediate)
-            instrs.append( (1, 2, 0, 0x20, 1, 1, (0, 0)) )
-            #instrs.append( (1, 2, 7, 0x10, 1, 1, (0, 0)) )
+            instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
+            #instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
 
         if False:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
