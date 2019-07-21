@@ -12,8 +12,8 @@
 # Author: Florian Zaruba, ETH Zurich
 # Date: 19/04/2017
 # Description: Memory Management Unit for Ariane, contains TLB and
-#              address translation unit. SV39 as defined in RISC-V
-#              privilege specification 1.11-WIP
+#              address translation unit. SV48 as defined in
+#              Volume II: RISC-V Privileged Architectures V1.10 Page 63
 
 import ariane_pkg::*;
 """
@@ -139,7 +139,7 @@ class MMU:
         walking_instr = Signal() # PTW is walking because of an ITLB miss
         ptw_error = Signal()     # PTW threw an exception
 
-        update_vaddr = Signal(39)
+        update_vaddr = Signal(48)				  # guessed
         uaddr64 = Cat(update_vaddr, Const(0, 25)) # extend to 64bit with zeros
         update_ptw_itlb = TLBUpdate(self.asid_width)
         update_ptw_dtlb = TLBUpdate(self.asid_width)
@@ -264,7 +264,7 @@ class MMU:
         # or when PTW performs walk due to ITLB miss and raises
         # an error.
         with m.If (self.enable_translation_i):
-            # we work with SV39, so if VM is enabled, check that
+            # we work with SV48, so if VM is enabled, check that
             # all bits [63:38] are equal
             with m.If (self.icache_areq_i.fetch_req & \
                 ~(((~self.icache_areq_i.fetch_vaddr[38:64]) == 0) | \

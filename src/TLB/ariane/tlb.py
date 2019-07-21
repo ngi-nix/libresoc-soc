@@ -12,7 +12,7 @@
 # Author: David Schaffenrath, TU Graz
 # Author: Florian Zaruba, ETH Zurich
 # Date: 21.4.2017
-# Description: Translation Lookaside Buffer, SV39
+# Description: Translation Lookaside Buffer, SV48
 #              fully set-associative
 
 Implementation in c++:
@@ -56,6 +56,7 @@ class TLB:
     def elaborate(self, platform):
         m = Module()
 
+        vpn3 = Signal(9) #FIXME unused signal
         vpn2 = Signal(9)
         vpn1 = Signal(9)
         vpn0 = Signal(9)
@@ -64,10 +65,11 @@ class TLB:
         # Translation
         #-------------
 
-        # SV39 defines three levels of page tables
+        # SV48 defines four levels of page tables
         m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
                       vpn1.eq(self.lu_vaddr_i[21:30]),
-                      vpn2.eq(self.lu_vaddr_i[30:39]),
+                      vpn2.eq(self.lu_vaddr_i[30:39]),      ### PLATEN ### OK
+                      vpn3.eq(self.lu_vaddr_i[39:48]),      ### PLATEN ### now using SV48
                     ]
 
         tc = []
@@ -80,6 +82,7 @@ class TLB:
             m.d.comb += [tlc.vpn0.eq(vpn0),
                          tlc.vpn1.eq(vpn1),
                          tlc.vpn2.eq(vpn2),
+                         # TODO 4th
                          tlc.flush_i.eq(self.flush_i),
                          #tlc.update_i.eq(self.update_i),
                          tlc.lu_asid_i.eq(self.lu_asid_i)]

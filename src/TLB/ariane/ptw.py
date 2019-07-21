@@ -147,10 +147,11 @@ class TLBUpdate:
                 self.content.ports()
 
 
-# SV39 defines three levels of page tables
+# SV48 defines four levels of page tables
 LVL1 = Const(0, 2) # defined to 0 so that ptw_lvl default-resets to LVL1
 LVL2 = Const(1, 2)
 LVL3 = Const(2, 2)
+LVL4 = Const(3, 2)
 
 
 class PTW(Elaboratable):
@@ -163,7 +164,7 @@ class PTW(Elaboratable):
         self.ptw_active_o = Signal(reset=1)    # active if not IDLE
         self.walking_instr_o = Signal()        # set when walking for TLB
         self.ptw_error_o = Signal()            # set when an error occurred
-        self.enable_translation_i = Signal()   # CSRs indicate to enable SV39
+        self.enable_translation_i = Signal()   # CSRs indicate to enable SV48
         self.en_ld_st_translation_i = Signal() # enable VM translation for ld/st
 
         self.lsu_is_store_i = Signal()       # translation triggered by store
@@ -175,7 +176,7 @@ class PTW(Elaboratable):
         self.itlb_update_o = TLBUpdate(asid_width)
         self.dtlb_update_o = TLBUpdate(asid_width)
 
-        self.update_vaddr_o = Signal(39)
+        self.update_vaddr_o = Signal(48)
 
         self.asid_i = Signal(self.asid_width)
         # from TLBs
@@ -220,14 +221,17 @@ class PTW(Elaboratable):
         pte = PTE()
         m.d.comb += pte.flatten().eq(data_rdata)
 
-        # SV39 defines three levels of page tables
+        # SV48 defines four levels of page tables
         ptw_lvl = Signal(2) # default=0=LVL1 on reset (see above)
         ptw_lvl1 = Signal()
         ptw_lvl2 = Signal()
         ptw_lvl3 = Signal()
+        ptw_lvl4 = Signal()
         m.d.comb += [ptw_lvl1.eq(ptw_lvl == LVL1),
                      ptw_lvl2.eq(ptw_lvl == LVL2),
-                     ptw_lvl3.eq(ptw_lvl == LVL3)]
+                     ptw_lvl3.eq(ptw_lvl == LVL3),
+                     ptw_lvl4.eq(ptw_lvl == LVL4)
+                     ]
 
         # is this an instruction page table walk?
         is_instr_ptw = Signal()
@@ -236,7 +240,7 @@ class PTW(Elaboratable):
         tag_valid = Signal()
         # register the ASID
         tlb_update_asid = Signal(self.asid_width)
-        # register VPN we need to walk, SV39 defines a 39 bit virtual addr
+        # register VPN we need to walk, SV48 defines a 48 bit virtual addr
         vaddr = Signal(64)
         # 4 byte aligned physical pointer
         ptw_pptr = Signal(56)
@@ -257,8 +261,9 @@ class PTW(Elaboratable):
             # -----------
             # TLB Update
             # -----------
-            self.itlb_update_o.vpn.eq(vaddr[12:39]),
-            self.dtlb_update_o.vpn.eq(vaddr[12:39]),
+            self.itlb_update_o.vpn.eq(vaddr[12:48]),
+            self.dtlb_update_o.vpn.eq(vaddr[12:48]),
+            #TODO_PLATEN: extend by 9 bits
             # update the correct page table level
             self.itlb_update_o.is_2M.eq(ptw_lvl2),
             self.itlb_update_o.is_1G.eq(ptw_lvl1),
@@ -277,12 +282,12 @@ class PTW(Elaboratable):
         ]
 
         #-------------------
-        # Page table walker
+        # Page table walker   #needs update
         #-------------------
         # A virtual address va is translated into a physical address pa as
         # follows:
-        # 1. Let a be sptbr.ppn × PAGESIZE, and let i = LEVELS-1. (For Sv39,
-        #    PAGESIZE=2^12 and LEVELS=3.)
+        # 1. Let a be sptbr.ppn × PAGESIZE, and let i = LEVELS-1. (For Sv48,
+        #    PAGESIZE=2^12 and LEVELS=4.)
         # 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE.
         #    (For Sv32, PTESIZE=4.)
         # 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise an
@@ -338,7 +343,7 @@ class PTW(Elaboratable):
             with m.State("PTE_LOOKUP"):
                 # we wait for the valid signal
                 with m.If(data_rvalid):
-                    self.lookup(m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3,
+                    self.lookup(m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3, ptw_lvl4,
                                 data_rvalid, global_mapping,
                                 is_instr_ptw, ptw_pptr)
 
@@ -387,7 +392,7 @@ class PTW(Elaboratable):
                                         ~self.dtlb_hit_i)
         # we got an ITLB miss?
         with m.If(self.itlb_miss_o):
-            pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:39],
+            pptr = Cat(Const(0, 3), self.itlb_vaddr_i[30:48],
                        self.satp_ppn_i)
             m.d.sync += [ptw_pptr.eq(pptr),
                          is_instr_ptw.eq(1),
@@ -398,7 +403,7 @@ class PTW(Elaboratable):
 
         # we got a DTLB miss?
         with m.Elif(self.dtlb_miss_o):
-            pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39],
+            pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:48],
                        self.satp_ppn_i)
             m.d.sync += [ptw_pptr.eq(pptr),
                          vaddr.eq(self.dtlb_vaddr_i),
@@ -426,7 +431,7 @@ class PTW(Elaboratable):
             with m.Else():
                 m.next = "PTE_LOOKUP"
 
-    def lookup(self, m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3,
+    def lookup(self, m, pte, ptw_lvl, ptw_lvl1, ptw_lvl2, ptw_lvl3, ptw_lvl4, 
                             data_rvalid, global_mapping,
                             is_instr_ptw, ptw_pptr):
         # temporaries
@@ -513,22 +518,29 @@ class PTW(Elaboratable):
             # pointer to next level of page table
             with m.If (ptw_lvl1):
                 # we are in the second level now
-                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[21:30], pte.ppn)
+                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[30:39], pte.ppn)
                 m.d.sync += [ptw_pptr.eq(pptr),
                              ptw_lvl.eq(LVL2)
                             ]
             with m.If(ptw_lvl2):
                 # here we received a pointer to the third level
-                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[12:21], pte.ppn)
+                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[21:30], pte.ppn)
                 m.d.sync += [ptw_pptr.eq(pptr),
                              ptw_lvl.eq(LVL3)
                             ]
+            with m.If(ptw_lvl3): #guess: shift page levels by one
+                # here we received a pointer to the fourth level
+                # the last one is near the page offset
+                pptr = Cat(Const(0, 3), self.dtlb_vaddr_i[12:21], pte.ppn)
+                m.d.sync += [ptw_pptr.eq(pptr),
+                             ptw_lvl.eq(LVL4)
+                            ]
             self.set_grant_state(m)
 
-            with m.If (ptw_lvl3):
+            with m.If (ptw_lvl4):
                 # Should already be the last level
                 # page table => Error
-                m.d.sync += ptw_lvl.eq(LVL3)
+                m.d.sync += ptw_lvl.eq(LVL4)
                 m.next = "PROPAGATE_ERROR"
 
 

@@ -6,10 +6,12 @@ from TLB.ariane.ptw import TLBUpdate, PTE
 class TLBEntry:
     def __init__(self, asid_width):
         self.asid = Signal(asid_width)
-        # SV39 defines three levels of page tables
+        # SV48 defines four levels of page tables
         self.vpn0 = Signal(9)
         self.vpn1 = Signal(9)
         self.vpn2 = Signal(9)
+        self.vpn3 = Signal(9)
+        #TODO_PLATEN: use that signal
         self.is_2M = Signal()
         self.is_1G = Signal()
         self.valid = Signal()
