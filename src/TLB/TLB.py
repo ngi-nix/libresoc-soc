@@ -5,13 +5,13 @@
     * Tag (N - 79) / ASID (78 - 64) / PTE (63 - 0)
 """
 
-from nmigen import Memory, Module, Signal, Cat
+from nmigen import Memory, Module, Signal, Cat, Elaboratable
 from nmigen.cli import main
 
-from PermissionValidator import PermissionValidator
-from Cam import Cam
+from .PermissionValidator import PermissionValidator
+from .Cam import Cam
 
-class TLB():
+class TLB(Elaboratable):
     def __init__(self, asid_size, vma_size, pte_size, L1_size):
         """ Arguments
             * asid_size: Address Space IDentifier (ASID) typically 15 bits
