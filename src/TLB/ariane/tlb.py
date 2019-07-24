@@ -25,7 +25,7 @@ Online simulator:
 http://www.ntu.edu.sg/home/smitha/ParaCache/Paracache/vm.html
 """
 from math import log2
-from nmigen import Signal, Module, Cat, Const, Array
+from nmigen import Signal, Module, Cat, Const, Array, Elaboratable
 from nmigen.cli import verilog, rtlil
 from nmigen.lib.coding import Encoder
 
@@ -35,7 +35,7 @@ from TLB.ariane.tlb_content import TLBContent
 
 TLB_ENTRIES = 8
 
-class TLB:
+class TLB(Elaboratable):
     def __init__(self, tlb_entries=8, asid_width=8):
         self.tlb_entries = tlb_entries
         self.asid_width = asid_width
