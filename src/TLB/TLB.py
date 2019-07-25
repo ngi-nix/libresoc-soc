@@ -27,7 +27,7 @@ class TLB(Elaboratable):
         # Internal
         self.state = 0
         # L1 Cache Modules
-        L1_size = 8 # XXX overridden incoming argument?
+        ### L1_size = 8 # XXX overridden incoming argument?
         self.cam_L1 = Cam(vma_size, L1_size)
         self.mem_L1 = Memory(asid_size + pte_size, L1_size)
 
@@ -124,11 +124,12 @@ class TLB(Elaboratable):
         m = Module()
         # Add submodules
         # Submodules for L1 Cache
-        m.d.submodules.cam_L1 = self.cam_L1
-        m.d.sumbmodules.read_L1 = read_L1 = self.mem_L1.read_port()
-        m.d.sumbmodules.read_L1 = write_L1 = self.mem_L1.write_port()
+        m.submodules.cam_L1 = self.cam_L1
+        m.submodules.read_L1 = read_L1 = self.mem_L1.read_port()
+        m.submodules.write_L1 = write_L1 = self.mem_L1.write_port()
+        
         # Permission Validator Submodule
-        m.d.submodules.perm_valididator = self.perm_validator
+        m.submodules.perm_valididator = self.perm_validator
 
         # When MODE specifies translation
         # TODO add in different bit length handling ie prefix 0s
