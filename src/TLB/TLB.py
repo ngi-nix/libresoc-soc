@@ -27,7 +27,6 @@ class TLB(Elaboratable):
         # Internal
         self.state = 0
         # L1 Cache Modules
-        ### L1_size = 8 # XXX overridden incoming argument?
         self.cam_L1 = Cam(vma_size, L1_size)
         self.mem_L1 = Memory(asid_size + pte_size, L1_size)
 
@@ -117,7 +116,9 @@ class TLB(Elaboratable):
         # CAM_L1 Logic
         m.d.comb += [
             self.cam_L1.write_enable.eq(1),
-            self.cam_L1.data_in.eq(self.vma),
+            self.cam_L1.data_in.eq(self.vma), #data_in is sent to all entries
+            # self.cam_L1.address_in.eq(todo) # a CAM entry needs to be selected
+            
         ]
 
     def elaborate(self, platform):
