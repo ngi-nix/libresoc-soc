@@ -48,6 +48,7 @@ class TLB(Elaboratable):
         self.lu_content_o = PTE()
         self.lu_is_2M_o = Signal()
         self.lu_is_1G_o = Signal()
+        self.lu_is_512G_o = Signal()
         self.lu_hit_o = Signal()
         # Update TLB
         self.pte_width = len(self.lu_content_o.flatten())
@@ -68,8 +69,8 @@ class TLB(Elaboratable):
         # SV48 defines four levels of page tables
         m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
                       vpn1.eq(self.lu_vaddr_i[21:30]),
-                      vpn2.eq(self.lu_vaddr_i[30:39]),      ### PLATEN ### OK
-                      vpn3.eq(self.lu_vaddr_i[39:48]),      ### PLATEN ### now using SV48
+                      vpn2.eq(self.lu_vaddr_i[30:39]),
+                      vpn3.eq(self.lu_vaddr_i[39:48]),      ### FIXME
                     ]
 
         tc = []
@@ -107,7 +108,8 @@ class TLB(Elaboratable):
         m.d.comb += active.eq(~hitsel.n)
         with m.If(active):
             # active hit, send selected as output
-            m.d.comb += [ self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
+            m.d.comb += [ self.lu_is_512G_o.eq(tc[idx].lu_is_512G_o),
+                          self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
                           self.lu_is_2M_o.eq(tc[idx].lu_is_2M_o),
                           self.lu_hit_o.eq(1),
                           self.lu_content_o.flatten().eq(tc[idx].lu_content_o),
@@ -162,7 +164,7 @@ class TLB(Elaboratable):
     def ports(self):
         return [self.flush_i, self.lu_access_i,
                  self.lu_asid_i, self.lu_vaddr_i,
-                 self.lu_is_2M_o, self.lu_is_1G_o, self.lu_hit_o,
+                 self.lu_is_2M_o, self.lu_1G_o, self.lu_is_512G_o, self.lu_hit_o
                 ] + self.lu_content_o.ports() + self.update_i.ports()
 
 if __name__ == '__main__':

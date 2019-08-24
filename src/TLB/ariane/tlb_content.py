@@ -11,9 +11,9 @@ class TLBEntry:
         self.vpn1 = Signal(9)
         self.vpn2 = Signal(9)
         self.vpn3 = Signal(9)
-        #TODO_PLATEN: use that signal
         self.is_2M = Signal()
         self.is_1G = Signal()
+        self.is_512G = Signal()
         self.valid = Signal()
 
     def flatten(self):
@@ -41,6 +41,7 @@ class TLBContent(Elaboratable):
         # Lookup signals
         self.lu_asid_i = Signal(asid_width)
         self.lu_content_o = Signal(pte_width)
+        self.lu_is_512G_o = Signal()
         self.lu_is_2M_o = Signal()
         self.lu_is_1G_o = Signal()
         self.lu_hit_o = Signal()
@@ -73,6 +74,8 @@ class TLBContent(Elaboratable):
                      tags_2M.eq(tags.is_2M),
                      vpn0_ok.eq(self.vpn0 == tags.vpn0),
                      vpn0_or_2M.eq(tags_2M | vpn0_ok)]
+        # TODO temporaries for 3rd level match
+        
         # first level match, this may be a giga page,
         # check the ASID flags as well
         with m.If(vpn2_hit):
@@ -113,6 +116,7 @@ class TLBContent(Elaboratable):
                           tags.vpn2.eq(self.update_i.vpn[18:27]),
                           tags.vpn1.eq(self.update_i.vpn[9:18]),
                           tags.vpn0.eq(self.update_i.vpn[0:9]),
+                          tags.is_512G.eq(self.update_i.is_512G),
                           tags.is_1G.eq(self.update_i.is_1G),
                           tags.is_2M.eq(self.update_i.is_2M),
                           tags.valid.eq(1),
@@ -124,5 +128,5 @@ class TLBContent(Elaboratable):
     def ports(self):
         return [self.flush_i,
                  self.lu_asid_i,
-                 self.lu_is_2M_o, self.lu_is_1G_o, self.lu_hit_o,
+                 self.lu_is_2M_o, self.lu_is_1G_o,self.lu_is_512G_o, self.lu_hit_o,
                 ] + self.update_i.content.ports() + self.update_i.ports()

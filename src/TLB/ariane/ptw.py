@@ -132,6 +132,7 @@ class TLBUpdate:
         self.valid = Signal()      # valid flag
         self.is_2M = Signal()
         self.is_1G = Signal()
+        self.is_512G = Signal()
         self.vpn = Signal(27)
         self.asid = Signal(asid_width)
         self.content = PTE()
@@ -263,12 +264,14 @@ class PTW(Elaboratable):
             # -----------
             self.itlb_update_o.vpn.eq(vaddr[12:48]),
             self.dtlb_update_o.vpn.eq(vaddr[12:48]),
-            #TODO_PLATEN: extend by 9 bits
             # update the correct page table level
-            self.itlb_update_o.is_2M.eq(ptw_lvl2),
-            self.itlb_update_o.is_1G.eq(ptw_lvl1),
-            self.dtlb_update_o.is_2M.eq(ptw_lvl2),
-            self.dtlb_update_o.is_1G.eq(ptw_lvl1),
+            self.itlb_update_o.is_2M.eq(ptw_lvl3),
+            self.itlb_update_o.is_1G.eq(ptw_lvl2),
+            self.itlb_update_o.is_512G.eq(ptw_lvl1),
+            self.dtlb_update_o.is_2M.eq(ptw_lvl3),
+            self.dtlb_update_o.is_1G.eq(ptw_lvl2),
+            self.dtlb_update_o.is_512G.eq(ptw_lvl1),
+            
             # output the correct ASID
             self.itlb_update_o.asid.eq(tlb_update_asid),
             self.dtlb_update_o.asid.eq(tlb_update_asid),
@@ -448,8 +451,9 @@ class PTW(Elaboratable):
 
         l1err = Signal(reset_less=True)
         l2err = Signal(reset_less=True)
-        m.d.comb += [l2err.eq((ptw_lvl2) & pte.ppn[0:9] != Const(0, 9)),
-                     l1err.eq((ptw_lvl1) & pte.ppn[0:18] != Const(0, 18)) ]
+        m.d.comb += [l3err.eq((ptw_lvl3) & pte.ppn[0:9] != Const(0,0)),
+                     l2err.eq((ptw_lvl2) & pte.ppn[0:18] != Const(0, 18)),
+                     l1err.eq((ptw_lvl1) & pte.ppn[0:27] != Const(0, 27))]
 
         # check if the global mapping bit is set
         with m.If (pte.g):
@@ -508,7 +512,7 @@ class PTW(Elaboratable):
                     m.next = "PROPAGATE_ERROR"
 
             # check if the ppn is correctly aligned: Case (6)
-            with m.If(l1err | l2err):
+            with m.If(l1err | l2err | l3err):
                 m.next = "PROPAGATE_ERROR"
                 m.d.comb += [self.dtlb_update_o.valid.eq(0),
                              self.itlb_update_o.valid.eq(0)]

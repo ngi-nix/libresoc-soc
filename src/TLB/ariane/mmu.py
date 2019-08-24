@@ -148,12 +148,14 @@ class MMU:
         itlb_content = PTE()
         itlb_is_2M = Signal()
         itlb_is_1G = Signal()
+        itlb_is_512G = Signal()
         itlb_lu_hit = Signal()
 
         dtlb_lu_access = Signal()
         dtlb_content = PTE()
         dtlb_is_2M = Signal()
         dtlb_is_1G = Signal()
+        dtlb_is_512G = Signal()
         dtlb_lu_hit = Signal()
 
         # Assignments
@@ -172,6 +174,7 @@ class MMU:
                      itlb_content.eq(i_tlb.lu_content_o),
                      itlb_is_2M.eq(i_tlb.lu_is_2M_o),
                      itlb_is_1G.eq(i_tlb.lu_is_1G_o),
+                     itlb_is_512G.eq(i_tlb.lu_is_512G_o),
                      itlb_lu_hit.eq(i_tlb.lu_hit_o),
                     ]
 
@@ -186,6 +189,7 @@ class MMU:
                      dtlb_content.eq(d_tlb.lu_content_o),
                      dtlb_is_2M.eq(d_tlb.lu_is_2M_o),
                      dtlb_is_1G.eq(d_tlb.lu_is_1G_o),
+                     dtlb_is_512G.eq(d_tlb.lu_is_512G_o),
                      dtlb_lu_hit.eq(d_tlb.lu_hit_o),
                     ]
 
@@ -251,7 +255,7 @@ class MMU:
         # Check whether we are allowed to access this memory region
         # from a fetch perspective
 
-        # XXX TODO: use PermissionValidator instead [we like modules]
+        # PLATEN TODO: use PermissionValidator instead [we like modules]
         m.d.comb += iaccess_err.eq(self.icache_areq_i.fetch_req & \
                                    (((self.priv_lvl_i == PRIV_LVL_U) & \
                                       ~itlb_content.u) | \
@@ -265,10 +269,10 @@ class MMU:
         # an error.
         with m.If (self.enable_translation_i):
             # we work with SV48, so if VM is enabled, check that
-            # all bits [63:38] are equal
+            # all bits [47:38] are equal
             with m.If (self.icache_areq_i.fetch_req & \
-                ~(((~self.icache_areq_i.fetch_vaddr[38:64]) == 0) | \
-                 (self.icache_areq_i.fetch_vaddr[38:64]) == 0)):
+                ~(((~self.icache_areq_i.fetch_vaddr[47:64]) == 0) | \
+                 (self.icache_areq_i.fetch_vaddr[47:64]) == 0)):
                 fe = self.icache_areq_o.fetch_exception
                 m.d.comb += [fe.cause.eq(INSTR_ACCESS_FAULT),
                              fe.tval.eq(self.icache_areq_i.fetch_vaddr),
@@ -290,6 +294,11 @@ class MMU:
             with m.If(itlb_is_1G):
                 m.d.comb += paddr[12:30].eq(
                           self.icache_areq_i.fetch_vaddr[12:30])
+            m.d.comb += self.icache_areq_o.fetch_paddr.eq(paddr)
+            # Tera page
+            with m.If(itlb_is_512G):
+                m.d.comb += paddr[12:39].eq(
+                          self.icache_areq_i.fetch_vaddr[12:39])
             m.d.comb += self.icache_areq_o.fetch_paddr.eq(paddr)
 
             # ---------
@@ -329,8 +338,9 @@ class MMU:
         lsu_req = Signal()
         lsu_is_store = Signal()
         dtlb_hit = Signal()
-        dtlb_is_2M = Signal()
-        dtlb_is_1G = Signal()
+        #dtlb_is_2M = Signal()
+        #dtlb_is_1G = Signal()
+        #dtlb_is_512 = Signal()
 
         # check if we need to do translation or if we are always
         # ready (e.g.: we are not translating anything)
@@ -347,8 +357,9 @@ class MMU:
             dtlb_pte.eq(dtlb_content),
             dtlb_hit.eq(dtlb_lu_hit),
             lsu_is_store.eq(self.lsu_is_store_i),
-            dtlb_is_2M.eq(dtlb_is_2M),
-            dtlb_is_1G.eq(dtlb_is_1G),
+            #dtlb_is_2M.eq(dtlb_is_2M),
+            #dtlb_is_1G.eq(dtlb_is_1G),
+            ##dtlb_is_512.eq(self.dtlb_is_512G) #????
         ]
         m.d.sync += [
             self.lsu_paddr_o.eq(lsu_vaddr),
@@ -391,6 +402,7 @@ class MMU:
             with m.If(dtlb_is_1G):
                 m.d.comb += paddr[12:30].eq(lsu_vaddr[12:30])
             m.d.sync += self.lsu_paddr_o.eq(paddr)
+            # TODO platen tera_page
 
             # ---------
             # DTLB Hit
