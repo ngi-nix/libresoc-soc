@@ -451,6 +451,7 @@ class PTW(Elaboratable):
 
         l1err = Signal(reset_less=True)
         l2err = Signal(reset_less=True)
+        l3err = Signal(reset_less=True)
         m.d.comb += [l3err.eq((ptw_lvl3) & pte.ppn[0:9] != Const(0,0)),
                      l2err.eq((ptw_lvl2) & pte.ppn[0:18] != Const(0, 18)),
                      l1err.eq((ptw_lvl1) & pte.ppn[0:27] != Const(0, 27))]

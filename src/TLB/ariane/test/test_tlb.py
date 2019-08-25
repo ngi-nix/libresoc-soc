@@ -67,3 +67,4 @@ def tbench(dut):
 if __name__ == "__main__":
     dut = TLB()
     run_simulation(dut, tbench(dut), vcd_name="test_tlb.vcd")
+    print("TLB Unit Test Success")
