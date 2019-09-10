@@ -5,17 +5,17 @@ from TLB.ariane.ptw import TLBUpdate, PTE
 
 class TLBEntry:
     def __init__(self, asid_width):
-        self.asid = Signal(asid_width)
+        self.asid = Signal(asid_width,name="ent_asid")
         # SV48 defines four levels of page tables
-        self.vpn0 = Signal(9)
-        self.vpn1 = Signal(9)
-        self.vpn2 = Signal(9)
-        self.vpn3 = Signal(9)
-        self.is_2M = Signal()
-        self.is_1G = Signal()
-        self.is_512G = Signal()
-        self.valid = Signal()
-
+        self.vpn0 = Signal(9,name="ent_vpn0")
+        self.vpn1 = Signal(9,name="ent_vpn1")
+        self.vpn2 = Signal(9,name="ent_vpn2")
+        self.vpn3 = Signal(9,name="ent_vpn3")
+        self.is_2M = Signal(name="ent_is_2M")
+        self.is_1G = Signal(name="ent_is_1G")
+        self.is_512G = Signal(name="ent_is_512G")
+        self.valid = Signal(name="ent_valid")
+        
     def flatten(self):
         return Cat(*self.ports())
 
@@ -25,6 +25,7 @@ class TLBEntry:
     def ports(self):
         return [self.asid, self.vpn0, self.vpn1, self.vpn2,
                 self.is_2M, self.is_1G, self.valid]
+        
 
 class TLBContent(Elaboratable):
     def __init__(self, pte_width, asid_width):
@@ -33,6 +34,7 @@ class TLBContent(Elaboratable):
         self.flush_i = Signal()  # Flush signal
         # Update TLB
         self.update_i = TLBUpdate(asid_width)
+        self.vpn3 = Signal(9)
         self.vpn2 = Signal(9)
         self.vpn1 = Signal(9)
         self.vpn0 = Signal(9)
@@ -50,6 +52,11 @@ class TLBContent(Elaboratable):
         m = Module()
 
         tags = TLBEntry(self.asid_width)
+        #TODO signal names, RecordObject
+        print("TAGS:")
+        #print(tags)
+        
+        
         content = Signal(self.pte_width)
 
         m.d.comb += [self.lu_hit_o.eq(0),
@@ -113,6 +120,7 @@ class TLBContent(Elaboratable):
         with m.Elif(replace_valid):
             m.d.sync += [ # update tag array
                           tags.asid.eq(self.update_i.asid),
+                          tags.vpn3.eq(self.update_i.vpn[27:36]),
                           tags.vpn2.eq(self.update_i.vpn[18:27]),
                           tags.vpn1.eq(self.update_i.vpn[9:18]),
                           tags.vpn0.eq(self.update_i.vpn[0:9]),

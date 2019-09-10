@@ -6,14 +6,17 @@ from nmigen.compat.sim import run_simulation
 
 from TLB.ariane.tlb_content import TLBContent
 
-#def set_vaddr(addr):
-#    yield dut.lu_vaddr_i.eq(addr)
-#    yield dut.update_i.vpn.eq(addr>>12)
-
+def update():
+    yield dut.replace_en_i.eq(1)
+    
 def tbench(dut):
+    yield dut.replace_en_i.eq(1)
+    yield dut.update_i.valid.eq(1)
+    yield dut.update_i.is_512G.eq(1)
+    yield dut.update_i.vpn.eq(0xFFFFFFFF)
     yield
     yield
-    yield
+    
 
 if __name__ == "__main__":
     dut = TLBContent(4,4)

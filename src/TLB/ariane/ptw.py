@@ -133,7 +133,7 @@ class TLBUpdate:
         self.is_2M = Signal()
         self.is_1G = Signal()
         self.is_512G = Signal()
-        self.vpn = Signal(27)
+        self.vpn = Signal(36)
         self.asid = Signal(asid_width)
         self.content = PTE()
 
