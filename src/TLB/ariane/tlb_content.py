@@ -52,26 +52,28 @@ class TLBContent(Elaboratable):
         m = Module()
 
         tags = TLBEntry(self.asid_width)
-        #TODO signal names, RecordObject
-        print("TAGS:")
-        #print(tags)
         
         
         content = Signal(self.pte_width)
 
         m.d.comb += [self.lu_hit_o.eq(0),
+                     self.lu_is_512G_o.eq(0),
                      self.lu_is_2M_o.eq(0),
                      self.lu_is_1G_o.eq(0)]
 
-        # temporaries for 1st level match
+        # temporaries for all levels
         asid_ok = Signal(reset_less=True)
-        vpn2_ok = Signal(reset_less=True)
         tags_ok = Signal(reset_less=True)
-        vpn2_hit = Signal(reset_less=True)
+
+        vpn3_ok = Signal(reset_less=True)
+        vpn2_ok = Signal(reset_less=True)
+    
+        
         m.d.comb += [tags_ok.eq(tags.valid),
                      asid_ok.eq(tags.asid == self.lu_asid_i),
                      vpn2_ok.eq(tags.vpn2 == self.vpn2),
-                     vpn2_hit.eq(tags_ok & asid_ok & vpn2_ok)]
+                     vpn3_ok.eq(tags.vpn3 == self.vpn3),
+                    ]
         # temporaries for 2nd level match
         vpn1_ok = Signal(reset_less=True)
         tags_2M = Signal(reset_less=True)
@@ -81,13 +83,17 @@ class TLBContent(Elaboratable):
                      tags_2M.eq(tags.is_2M),
                      vpn0_ok.eq(self.vpn0 == tags.vpn0),
                      vpn0_or_2M.eq(tags_2M | vpn0_ok)]
-        # TODO temporaries for 3rd level match
         
-        # first level match, this may be a giga page,
-        # check the ASID flags as well
-        with m.If(vpn2_hit):
+        
+        with m.If(asid_ok & tags_ok):
+            # first level, only vpn3 needs to match
+            with m.If (tags.is_512G & vpn3_ok):
+                m.d.comb += [ self.lu_content_o.eq(content),
+                              self.lu_is_512G_o.eq(1),
+                              self.lu_hit_o.eq(1),
+                            ]
             # second level
-            with m.If (tags.is_1G):
+            with m.Elif (tags.is_1G & vpn2_ok):
                 m.d.comb += [ self.lu_content_o.eq(content),
                               self.lu_is_1G_o.eq(1),
                               self.lu_hit_o.eq(1),
