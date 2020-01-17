@@ -1147,19 +1147,19 @@ def scoreboard_sim(dut, alusim):
         if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if True: # LD/ST test (with immediate)
+        if False: # LD/ST test (with immediate)
             instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
             #instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
 
-        if False:
+        if True:
             instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
 
-        if False:
-            instrs.append( (7, 3, 2, 4, (0, 0)) )
-            instrs.append( (7, 6, 6, 2, (0, 0)) )
-            instrs.append( (1, 7, 2, 2, (0, 0)) )
+        if True:
+            instrs.append( (7, 3, 2, 4, 0, 0, (0, 0)) )
+            instrs.append( (7, 6, 6, 2, 0, 0, (0, 0)) )
+            instrs.append( (1, 7, 2, 2, 0, 0, (0, 0)) )
 
-        if False:
+        if True:
             instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
             instrs.append((5, 3, 3, 1, 0, 0, (0, 0)))
             instrs.append((3, 5, 5, 2, 0, 0, (0, 0)))
