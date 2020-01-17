@@ -61,7 +61,8 @@ class PartialAddrMatch(Elaboratable):
         sync = m.d.sync
 
         m.submodules.l = l = SRLatch(llen=self.n_adr, sync=False)
-        addrs_r = Array(Signal(self.bitwid, "a_r") for i in range(self.n_adr))
+        addrs_r = Array(Signal(self.bitwid, name="a_r") \
+                                for i in range(self.n_adr))
 
         # latch set/reset
         comb += l.s.eq(self.addr_en_i)

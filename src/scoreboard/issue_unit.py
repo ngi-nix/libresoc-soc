@@ -18,9 +18,9 @@ class RegDecode(Elaboratable):
 
         # inputs
         self.enable_i = Signal(reset_less=True) # enable decoders
-        self.dest_i = Signal(max=wid, reset_less=True) # Dest R# in
-        self.src1_i = Signal(max=wid, reset_less=True) # oper1 R# in
-        self.src2_i = Signal(max=wid, reset_less=True) # oper2 R# in
+        self.dest_i = Signal(range(wid), reset_less=True) # Dest R# in
+        self.src1_i = Signal(range(wid), reset_less=True) # oper1 R# in
+        self.src2_i = Signal(range(wid), reset_less=True) # oper2 R# in
 
         # outputs
         self.dest_o = Signal(wid, reset_less=True) # Dest unary out

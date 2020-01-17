@@ -1,5 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
+from nmigen.hdl.ast import unsigned
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable, Memory
 
 from regfile.regfile import RegFileArray, treereduce
@@ -421,9 +422,9 @@ class Scoreboard(Elaboratable):
         self.ls_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
-        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
-        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
-        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+        self.int_dest_i = Signal(range(n_regs), reset_less=True) # Dest R# in
+        self.int_src1_i = Signal(range(n_regs), reset_less=True) # oper1 R# in
+        self.int_src2_i = Signal(range(n_regs), reset_less=True) # oper2 R# in
         self.reg_enable_i = Signal(reset_less=True) # enable reg decode
 
         # outputs
@@ -742,7 +743,7 @@ class IssueToScoreboard(Elaboratable):
         self.opw = opwid
         self.n_regs = n_regs
 
-        mqbits = (int(log(qlen) / log(2))+2, False)
+        mqbits = unsigned(int(log(qlen) / log(2))+2)
         self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
         self.p_ready_o = Signal() # instructions were added
         self.data_i = Instruction.nq(n_in, "data_i", rwid, opwid)
