@@ -3,10 +3,12 @@ import csv
 import os
 from enum import Enum, unique
 
+
 @unique
 class Function(Enum):
     ALU = 0
     LDST = 1
+
 
 @unique
 class InternalOp(Enum):
@@ -23,13 +25,16 @@ class InternalOp(Enum):
     OP_TDI = 10
     OP_XOR = 11
 
+
 def get_csv(name):
     file_dir = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(file_dir, name)) as csvfile:
         reader = csv.DictReader(csvfile)
         return list(reader)
 
+
 major_opcodes = get_csv("major.csv")
+
 
 class PowerMajorDecoder(Elaboratable):
     def __init__(self):
@@ -37,6 +42,7 @@ class PowerMajorDecoder(Elaboratable):
 
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(InternalOp, reset_less=True)
+
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
@@ -49,6 +55,7 @@ class PowerMajorDecoder(Elaboratable):
                     comb += self.internal_op.eq(InternalOp[row['internal op']])
         return m
 
-
-
-    
+    def ports(self):
+        return [self.opcode_in,
+                self.function_unit,
+                self.internal_op]
