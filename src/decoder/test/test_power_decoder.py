@@ -3,19 +3,20 @@ from nmigen.back.pysim import Simulator, Delay
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 import sys
+import os
 import unittest
 sys.path.append("../")
-from power_major_decoder import (PowerMajorDecoder, single_bit_flags,
-                                 get_signal_name, major_opcodes)
+from power_decoder import (PowerDecoder)
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
-                         OutSel, RC, LdstLen, CryIn)
+                         OutSel, RC, LdstLen, CryIn, single_bit_flags,
+                         get_signal_name)
 
 
 class DecoderTestCase(FHDLTestCase):
-    def test_function_unit(self):
+    def run_test(self, width, csvname):
         m = Module()
         comb = m.d.comb
-        opcode = Signal(6)
+        opcode = Signal(width)
         function_unit = Signal(Function)
         internal_op = Signal(InternalOp)
         in1_sel = Signal(In1Sel)
@@ -26,7 +27,7 @@ class DecoderTestCase(FHDLTestCase):
         ldst_len = Signal(LdstLen)
         cry_in = Signal(CryIn)
 
-        m.submodules.dut = dut = PowerMajorDecoder()
+        m.submodules.dut = dut = PowerDecoder(width, csvname)
         comb += [dut.opcode_in.eq(opcode),
                  function_unit.eq(dut.function_unit),
                  in1_sel.eq(dut.in1_sel),
@@ -41,8 +42,8 @@ class DecoderTestCase(FHDLTestCase):
         sim = Simulator(m)
 
         def process():
-            for row in major_opcodes:
-                yield opcode.eq(int(row['opcode']))
+            for row in dut.opcodes:
+                yield opcode.eq(int(row['opcode'], 0))
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
                            (internal_op, InternalOp, 'internal op'),
@@ -70,11 +71,18 @@ class DecoderTestCase(FHDLTestCase):
                 in1_sel, in2_sel]):
             sim.run()
 
-    def test_ilang(self):
-        dut = PowerMajorDecoder()
+    def generate_ilang(self, width, csvname):
+        prefix = os.path.splitext(csvname)[0]
+        dut = PowerDecoder(width, csvname)
         vl = rtlil.convert(dut, ports=dut.ports())
-        with open("power_major_decoder.il", "w") as f:
+        with open("%s_decoder.il" % prefix, "w") as f:
             f.write(vl)
+
+    def test_major(self):
+        self.run_test(6, "major.csv")
+
+    def test_minor_19(self):
+        self.run_test(3, "minor_19.csv")
 
 
 if __name__ == "__main__":
