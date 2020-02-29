@@ -60,6 +60,21 @@ class OutSel(Enum):
     SPR = 3
 
 
+@unique
+class LdstLen(Enum):
+    NONE = 0
+    is1B = 1
+    is2B = 2
+    is4B = 3
+
+
+@unique
+class RC(Enum):
+    NONE = 0
+    ONE = 1
+    RC = 2
+
+
 # names of the fields in major.csv that don't correspond to an enum
 single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out', 'cry in',
                     'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
@@ -90,6 +105,8 @@ class PowerMajorDecoder(Elaboratable):
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
         self.out_sel = Signal(OutSel, reset_less=True)
+        self.ldst_len = Signal(LdstLen, reset_less=True)
+        self.rc_sel = Signal(RC, reset_less=True)
         for bit in single_bit_flags:
             name = get_signal_name(bit)
             setattr(self, name,
@@ -109,6 +126,8 @@ class PowerMajorDecoder(Elaboratable):
                     comb += self.in2_sel.eq(In2Sel[row['in2']])
                     comb += self.in3_sel.eq(In3Sel[row['in3']])
                     comb += self.out_sel.eq(OutSel[row['out']])
+                    comb += self.ldst_len.eq(LdstLen[row['ldst len']])
+                    comb += self.rc_sel.eq(RC[row['rc']])
                     for bit in single_bit_flags:
                         sig = getattr(self, get_signal_name(bit))
                         comb += sig.eq(int(row[bit]))
@@ -121,6 +140,8 @@ class PowerMajorDecoder(Elaboratable):
                   self.in2_sel,
                   self.in3_sel,
                   self.out_sel,
+                  self.ldst_len,
+                  self.rc_sel,
                   self.internal_op]
         single_bit_ports = [getattr(self, get_signal_name(x))
                             for x in single_bit_flags]

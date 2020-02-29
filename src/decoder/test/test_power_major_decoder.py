@@ -7,6 +7,7 @@ import unittest
 sys.path.append("../")
 from power_major_decoder import (PowerMajorDecoder, Function,
                                  In1Sel, In2Sel, In3Sel, OutSel,
+                                 LdstLen, RC,
                                  single_bit_flags, get_signal_name,
                                  InternalOp, major_opcodes)
 
@@ -22,6 +23,8 @@ class DecoderTestCase(FHDLTestCase):
         in2_sel = Signal(In2Sel)
         in3_sel = Signal(In3Sel)
         out_sel = Signal(OutSel)
+        rc_sel = Signal(RC)
+        ldst_len = Signal(LdstLen)
 
         m.submodules.dut = dut = PowerMajorDecoder()
         comb += [dut.opcode_in.eq(opcode),
@@ -30,6 +33,8 @@ class DecoderTestCase(FHDLTestCase):
                  in2_sel.eq(dut.in2_sel),
                  in3_sel.eq(dut.in3_sel),
                  out_sel.eq(dut.out_sel),
+                 rc_sel.eq(dut.rc_sel),
+                 ldst_len.eq(dut.ldst_len),
                  internal_op.eq(dut.internal_op)]
 
         sim = Simulator(m)
@@ -60,6 +65,14 @@ class DecoderTestCase(FHDLTestCase):
 
                 result = yield out_sel
                 expected = OutSel[row['out']].value
+                self.assertEqual(expected, result)
+
+                result = yield rc_sel
+                expected = RC[row['rc']].value
+                self.assertEqual(expected, result)
+
+                result = yield ldst_len
+                expected = LdstLen[row['ldst len']].value
                 self.assertEqual(expected, result)
 
                 for bit in single_bit_flags:
