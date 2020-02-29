@@ -1,5 +1,19 @@
 from enum import Enum, unique
+import csv
+import os
+import requests
 
+def get_csv(name):
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(file_dir, name)
+    if not os.path.isfile(file_path):
+        url = 'https://libre-riscv.org/openpower/isatables/' + name
+        r = requests.get(url, allow_redirects=True)
+        with open(file_path, 'w') as outfile:
+            outfile.write(r.content.decode("utf-8"))
+    with open(file_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        return list(reader)
 
 @unique
 class Function(Enum):

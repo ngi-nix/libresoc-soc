@@ -1,8 +1,6 @@
 from nmigen import Module, Elaboratable, Signal
-import csv
-import os
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
-                         OutSel, RC, LdstLen, CryIn)
+                         OutSel, RC, LdstLen, CryIn, get_csv)
 
 
 # names of the fields in major.csv that don't correspond to an enum
@@ -15,11 +13,6 @@ def get_signal_name(name):
     return name.lower().replace(' ', '_')
 
 
-def get_csv(name):
-    file_dir = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(file_dir, name)) as csvfile:
-        reader = csv.DictReader(csvfile)
-        return list(reader)
 
 
 major_opcodes = get_csv("major.csv")
