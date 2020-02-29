@@ -5,11 +5,10 @@ from nmigen.cli import rtlil
 import sys
 import unittest
 sys.path.append("../")
-from power_major_decoder import (PowerMajorDecoder, Function,
-                                 In1Sel, In2Sel, In3Sel, OutSel,
-                                 LdstLen, RC, CryIn,
-                                 single_bit_flags, get_signal_name,
-                                 InternalOp, major_opcodes)
+from power_major_decoder import (PowerMajorDecoder, single_bit_flags,
+                                 get_signal_name, major_opcodes)
+from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
+                         OutSel, RC, LdstLen, CryIn)
 
 
 class DecoderTestCase(FHDLTestCase):
