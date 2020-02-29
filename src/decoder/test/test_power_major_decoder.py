@@ -7,6 +7,7 @@ import unittest
 sys.path.append("../")
 from power_major_decoder import (PowerMajorDecoder, Function,
                                  In1Sel, In2Sel, In3Sel, OutSel,
+                                 single_bit_flags, get_signal_name,
                                  InternalOp, major_opcodes)
 
 
@@ -60,6 +61,12 @@ class DecoderTestCase(FHDLTestCase):
                 result = yield out_sel
                 expected = OutSel[row['out']].value
                 self.assertEqual(expected, result)
+
+                for bit in single_bit_flags:
+                    sig = getattr(dut, get_signal_name(bit))
+                    result = yield sig
+                    expected = int(row[bit])
+                    self.assertEqual(expected, result)
         sim.add_process(process)
         with sim.write_vcd("test.vcd", "test.gtkw", traces=[
                 opcode, function_unit, internal_op,

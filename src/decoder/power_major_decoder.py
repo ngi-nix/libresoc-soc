@@ -60,6 +60,15 @@ class OutSel(Enum):
     SPR = 3
 
 
+# names of the fields in major.csv that don't correspond to an enum
+single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out', 'cry in',
+                    'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
+                    'sgn', 'lk', 'sgl pipe']
+
+
+def get_signal_name(name):
+    return name.lower().replace(' ', '_')
+
 
 def get_csv(name):
     file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -81,6 +90,10 @@ class PowerMajorDecoder(Elaboratable):
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
         self.out_sel = Signal(OutSel, reset_less=True)
+        for bit in single_bit_flags:
+            name = get_signal_name(bit)
+            setattr(self, name,
+                    Signal(reset_less=True, name=name))
 
     def elaborate(self, platform):
         m = Module()
@@ -96,13 +109,19 @@ class PowerMajorDecoder(Elaboratable):
                     comb += self.in2_sel.eq(In2Sel[row['in2']])
                     comb += self.in3_sel.eq(In3Sel[row['in3']])
                     comb += self.out_sel.eq(OutSel[row['out']])
+                    for bit in single_bit_flags:
+                        sig = getattr(self, get_signal_name(bit))
+                        comb += sig.eq(int(row[bit]))
         return m
 
     def ports(self):
-        return [self.opcode_in,
-                self.function_unit,
-                self.in1_sel,
-                self.in2_sel,
-                self.in3_sel,
-                self.out_sel,
-                self.internal_op]
+        regular =[self.opcode_in,
+                  self.function_unit,
+                  self.in1_sel,
+                  self.in2_sel,
+                  self.in3_sel,
+                  self.out_sel,
+                  self.internal_op]
+        single_bit_ports = [getattr(self, get_signal_name(x))
+                            for x in single_bit_flags]
+        return regular + single_bit_ports
