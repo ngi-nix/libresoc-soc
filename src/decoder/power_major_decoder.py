@@ -31,7 +31,7 @@ def get_csv(name):
 
 major_opcodes = get_csv("major.csv")
 
-class PowerDecoder(Elaboratable):
+class PowerMajorDecoder(Elaboratable):
     def __init__(self):
         self.opcode_in = Signal(6, reset_less=True)
 

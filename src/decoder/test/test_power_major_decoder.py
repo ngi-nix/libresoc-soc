@@ -5,7 +5,8 @@ from nmigen.cli import rtlil
 import sys
 import unittest
 sys.path.append("../")
-from decoder import PowerDecoder, Function, InternalOp, major_opcodes
+from power_major_decoder import (PowerMajorDecoder, Function,
+                                InternalOp, major_opcodes)
 
 class DecoderTestCase(FHDLTestCase):
     def test_function_unit(self):
@@ -15,7 +16,7 @@ class DecoderTestCase(FHDLTestCase):
         function_unit = Signal(Function)
         internal_op = Signal(InternalOp)
 
-        m.submodules.dut = dut = PowerDecoder()
+        m.submodules.dut = dut = PowerMajorDecoder()
         comb += [dut.opcode_in.eq(opcode),
                  function_unit.eq(dut.function_unit),
                  internal_op.eq(dut.internal_op)]
@@ -37,9 +38,9 @@ class DecoderTestCase(FHDLTestCase):
             sim.run()
 
     def test_ilang(self):
-        dut = PowerDecoder()
+        dut = PowerMajorDecoder()
         vl = rtlil.convert(dut, ports=[dut.opcode_in, dut.function_unit])
-        with open("power_decoder.il", "w") as f:
+        with open("power_major_decoder.il", "w") as f:
             f.write(vl)
 
 if __name__ == "__main__":

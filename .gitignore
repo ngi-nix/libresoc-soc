@@ -8,3 +8,4 @@ Waveforms
 !**/Waveforms/.gitkeep
 *.egg-info
 *.il
+**/*.gtkw
