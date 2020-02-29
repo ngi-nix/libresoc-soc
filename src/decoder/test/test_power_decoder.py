@@ -43,6 +43,8 @@ class DecoderTestCase(FHDLTestCase):
 
         def process():
             for row in dut.opcodes:
+                if not row['unit']:
+                    continue
                 yield opcode.eq(int(row['opcode'], 0))
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
@@ -80,10 +82,19 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_major(self):
         self.run_test(6, "major.csv")
+        self.generate_ilang(6, "major.csv")
 
     def test_minor_19(self):
         self.run_test(3, "minor_19.csv")
+        self.generate_ilang(3, "minor_19.csv")
 
+    def test_minor_30(self):
+        self.run_test(4, "minor_30.csv")
+        self.generate_ilang(4, "minor_30.csv")
+
+    def test_minor_31(self):
+        self.run_test(10, "minor_31.csv")
+        self.generate_ilang(10, "minor_31.csv")
 
 if __name__ == "__main__":
     unittest.main()

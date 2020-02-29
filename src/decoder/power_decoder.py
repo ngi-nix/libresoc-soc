@@ -30,6 +30,8 @@ class PowerDecoder(Elaboratable):
         with m.Switch(self.opcode_in):
             for row in self.opcodes:
                 opcode = int(row['opcode'], 0)
+                if not row['unit']:
+                    continue
                 with m.Case(opcode):
                     comb += self.function_unit.eq(Function[row['unit']])
                     comb += self.internal_op.eq(InternalOp[row['internal op']])
