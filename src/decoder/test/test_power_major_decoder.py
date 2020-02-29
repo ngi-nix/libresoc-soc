@@ -43,43 +43,25 @@ class DecoderTestCase(FHDLTestCase):
             for row in major_opcodes:
                 yield opcode.eq(int(row['opcode']))
                 yield Delay(1e-6)
-                result = yield function_unit
-                expected = Function[row['unit']].value
-                self.assertEqual(expected, result)
-
-                result = yield internal_op
-                expected = InternalOp[row['internal op']].value
-                self.assertEqual(expected, result)
-
-                result = yield in1_sel
-                expected = In1Sel[row['in1']].value
-                self.assertEqual(expected, result)
-
-                result = yield in2_sel
-                expected = In2Sel[row['in2']].value
-                self.assertEqual(expected, result)
-
-                result = yield in3_sel
-                expected = In3Sel[row['in3']].value
-                self.assertEqual(expected, result)
-
-                result = yield out_sel
-                expected = OutSel[row['out']].value
-                self.assertEqual(expected, result)
-
-                result = yield rc_sel
-                expected = RC[row['rc']].value
-                self.assertEqual(expected, result)
-
-                result = yield ldst_len
-                expected = LdstLen[row['ldst len']].value
-                self.assertEqual(expected, result)
-
+                signals = [(function_unit, Function, 'unit'),
+                           (internal_op, InternalOp, 'internal op'),
+                           (in1_sel, In1Sel, 'in1'),
+                           (in2_sel, In2Sel, 'in2'),
+                           (in3_sel, In3Sel, 'in3'),
+                           (out_sel, OutSel, 'out'),
+                           (rc_sel, RC, 'rc'),
+                           (ldst_len, LdstLen, 'ldst len')]
+                for sig, enm, name in signals:
+                    result = yield sig
+                    expected = enm[row[name]]
+                    msg = f"{sig.name} == {enm(result)}, expected: {expected}"
+                    self.assertEqual(enm(result), expected, msg)
                 for bit in single_bit_flags:
                     sig = getattr(dut, get_signal_name(bit))
                     result = yield sig
                     expected = int(row[bit])
-                    self.assertEqual(expected, result)
+                    msg = f"{sig.name} == {result}, expected: {expected}"
+                    self.assertEqual(expected, result, msg)
         sim.add_process(process)
         with sim.write_vcd("test.vcd", "test.gtkw", traces=[
                 opcode, function_unit, internal_op,
