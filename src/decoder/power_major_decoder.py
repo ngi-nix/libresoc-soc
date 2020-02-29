@@ -75,8 +75,15 @@ class RC(Enum):
     RC = 2
 
 
+@unique
+class CryIn(Enum):
+    ZERO = 0
+    ONE = 1
+    CA = 2
+
+
 # names of the fields in major.csv that don't correspond to an enum
-single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out', 'cry in',
+single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out',
                     'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
                     'sgn', 'lk', 'sgl pipe']
 
@@ -107,6 +114,7 @@ class PowerMajorDecoder(Elaboratable):
         self.out_sel = Signal(OutSel, reset_less=True)
         self.ldst_len = Signal(LdstLen, reset_less=True)
         self.rc_sel = Signal(RC, reset_less=True)
+        self.cry_in = Signal(CryIn, reset_less=True)
         for bit in single_bit_flags:
             name = get_signal_name(bit)
             setattr(self, name,
@@ -128,6 +136,7 @@ class PowerMajorDecoder(Elaboratable):
                     comb += self.out_sel.eq(OutSel[row['out']])
                     comb += self.ldst_len.eq(LdstLen[row['ldst len']])
                     comb += self.rc_sel.eq(RC[row['rc']])
+                    comb += self.cry_in.eq(CryIn[row['cry in']])
                     for bit in single_bit_flags:
                         sig = getattr(self, get_signal_name(bit))
                         comb += sig.eq(int(row[bit]))

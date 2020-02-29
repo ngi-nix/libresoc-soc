@@ -7,7 +7,7 @@ import unittest
 sys.path.append("../")
 from power_major_decoder import (PowerMajorDecoder, Function,
                                  In1Sel, In2Sel, In3Sel, OutSel,
-                                 LdstLen, RC,
+                                 LdstLen, RC, CryIn,
                                  single_bit_flags, get_signal_name,
                                  InternalOp, major_opcodes)
 
@@ -25,6 +25,7 @@ class DecoderTestCase(FHDLTestCase):
         out_sel = Signal(OutSel)
         rc_sel = Signal(RC)
         ldst_len = Signal(LdstLen)
+        cry_in = Signal(CryIn)
 
         m.submodules.dut = dut = PowerMajorDecoder()
         comb += [dut.opcode_in.eq(opcode),
@@ -35,6 +36,7 @@ class DecoderTestCase(FHDLTestCase):
                  out_sel.eq(dut.out_sel),
                  rc_sel.eq(dut.rc_sel),
                  ldst_len.eq(dut.ldst_len),
+                 cry_in.eq(dut.cry_in),
                  internal_op.eq(dut.internal_op)]
 
         sim = Simulator(m)
@@ -50,6 +52,7 @@ class DecoderTestCase(FHDLTestCase):
                            (in3_sel, In3Sel, 'in3'),
                            (out_sel, OutSel, 'out'),
                            (rc_sel, RC, 'rc'),
+                           (cry_in, CryIn, 'cry in'),
                            (ldst_len, LdstLen, 'ldst len')]
                 for sig, enm, name in signals:
                     result = yield sig
