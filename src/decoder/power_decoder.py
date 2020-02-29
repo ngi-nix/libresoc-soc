@@ -43,6 +43,19 @@ class PowerDecoder(Elaboratable):
                     for bit in single_bit_flags:
                         sig = getattr(self, get_signal_name(bit))
                         comb += sig.eq(int(row[bit]))
+            with m.Default():
+                comb += self.function_unit.eq(Function.NONE)
+                comb += self.internal_op.eq(InternalOp.OP_ILLEGAL)
+                comb += self.in1_sel.eq(0)
+                comb += self.in2_sel.eq(0)
+                comb += self.in3_sel.eq(0)
+                comb += self.out_sel.eq(0)
+                comb += self.ldst_len.eq(0)
+                comb += self.rc_sel.eq(0)
+                comb += self.cry_in.eq(0)
+                for bit in single_bit_flags:
+                    sig = getattr(self, get_signal_name(bit))
+                    comb += sig.eq(0)
         return m
 
     def ports(self):

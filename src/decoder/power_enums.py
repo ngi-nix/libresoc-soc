@@ -29,8 +29,9 @@ def get_signal_name(name):
 
 @unique
 class Function(Enum):
-    ALU = 0
-    LDST = 1
+    NONE = 0
+    ALU = 1
+    LDST = 2
 
 
 @unique
