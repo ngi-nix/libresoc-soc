@@ -35,22 +35,75 @@ class Function(Enum):
 
 @unique
 class InternalOp(Enum):
-    OP_ADD = 0
-    OP_AND = 1
-    OP_B = 2
-    OP_BC = 3
-    OP_CMP = 4
-    OP_LOAD = 5
-    OP_MUL_L64 = 6
-    OP_OR = 7
-    OP_RLC = 8
-    OP_STORE = 9
-    OP_TDI = 10
-    OP_XOR = 11
-    OP_MCRF = 12
-    OP_BCREG = 13
-    OP_ISYNC = 14
-    OP_ILLEGAL = 15
+    OP_ILLEGAL = 0
+    OP_NOP = 1
+    OP_ADD = 2
+    OP_ADDPCIS = 3
+    OP_AND = 4
+    OP_ATTN = 5
+    OP_B = 6
+    OP_BC = 7
+    OP_BCREG = 8
+    OP_BPERM = 9
+    OP_CMP = 10
+    OP_CMPB = 11
+    OP_CMPEQB = 12
+    OP_CMPRB = 13
+    OP_CNTZ = 14
+    OP_CRAND = 15
+    OP_CRANDC = 16
+    OP_CREQV = 17
+    OP_CRNAND = 18
+    OP_CRNOR = 19
+    OP_CROR = 20
+    OP_CRORC = 21
+    OP_CRXOR = 22
+    OP_DARN = 23
+    OP_DCBF = 24
+    OP_DCBST = 25
+    OP_DCBT = 26
+    OP_DCBTST = 27
+    OP_DCBZ = 28
+    OP_DIV = 29
+    OP_DIVE = 30
+    OP_EXTS = 31
+    OP_EXTSWSLI = 32
+    OP_ICBI = 33
+    OP_ICBT = 34
+    OP_ISEL = 35
+    OP_ISYNC = 36
+    OP_LOAD = 37
+    OP_STORE = 38
+    OP_MADDHD = 39
+    OP_MADDHDU = 40
+    OP_MADDLD = 41
+    OP_MCRF = 42
+    OP_MCRXR = 43
+    OP_MCRXRX = 44
+    OP_MFCR = 45
+    OP_MFSPR = 46
+    OP_MOD = 47
+    OP_MTCRF = 48
+    OP_MTSPR = 49
+    OP_MUL_L64 = 50
+    OP_MUL_H64 = 51
+    OP_MUL_H32 = 52
+    OP_OR = 53
+    OP_POPCNT = 54
+    OP_PRTY = 55
+    OP_RLC = 56
+    OP_RLCL = 57
+    OP_RLCR = 58
+    OP_SETB = 59
+    OP_SHL = 60
+    OP_SHR = 61
+    OP_SYNC = 62
+    OP_TD = 63
+    OP_TDI = 64
+    OP_TW = 65
+    OP_TWI = 66
+    OP_XOR = 67
+    OP_SIM_CONFIG = 68
 
 
 @unique
@@ -63,16 +116,19 @@ class In1Sel(Enum):
 
 @unique
 class In2Sel(Enum):
-    CONST_SI = 0
-    CONST_SI_HI = 1
+    NONE = 0
+    RB = 1
     CONST_UI = 2
-    CONST_UI_HI = 3
-    CONST_LI = 4
-    CONST_BD = 5
-    CONST_SH32 = 6
-    RB = 7
-    NONE = 8
-    SPR = 9
+    CONST_SI = 3
+    CONST_UI_HI = 4
+    CONST_SI_HI = 5
+    CONST_LI = 6
+    CONST_BD = 7
+    CONST_DS = 8
+    CONST_M1 = 9
+    CONST_SH = 10
+    CONST_SH32 = 11
+    SPR = 12
 
 
 @unique
@@ -83,9 +139,9 @@ class In3Sel(Enum):
 
 @unique
 class OutSel(Enum):
-    RT = 0
-    RA = 1
-    NONE = 2
+    NONE = 0
+    RT = 1
+    RA = 2
     SPR = 3
 
 
@@ -95,6 +151,7 @@ class LdstLen(Enum):
     is1B = 1
     is2B = 2
     is4B = 3
+    is8B = 4
 
 
 @unique
