@@ -27,14 +27,14 @@ class PowerOp:
             row = {}
         res = [self.function_unit.eq(Function[row.get('unit', Function.NONE)]),
                self.internal_op.eq(InternalOp[row.get('internal op',
-                                                      InternalOp.OP_ILLEGAL)])
-               self.in1_sel.eq(In1Sel[row.get('in1', 0)])
-               self.in2_sel.eq(In2Sel[row.get('in2', 0)])
-               self.in3_sel.eq(In3Sel[row.get('in3', 0)])
-               self.out_sel.eq(OutSel[row.get('out', 0)])
-               self.ldst_len.eq(LdstLen[row.get('ldst len', 0)])
-               self.rc_sel.eq(RC[row.get('rc', 0)])
-               self.cry_in.eq(CryIn[row.get('cry in', 0)])
+                                                      InternalOp.OP_ILLEGAL)]),
+               self.in1_sel.eq(In1Sel[row.get('in1', 0)]),
+               self.in2_sel.eq(In2Sel[row.get('in2', 0)]),
+               self.in3_sel.eq(In3Sel[row.get('in3', 0)]),
+               self.out_sel.eq(OutSel[row.get('out', 0)]),
+               self.ldst_len.eq(LdstLen[row.get('ldst len', 0)]),
+               self.rc_sel.eq(RC[row.get('rc', 0)]),
+               self.cry_in.eq(CryIn[row.get('cry in', 0)]),
                ]
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))
