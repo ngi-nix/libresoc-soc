@@ -89,3 +89,13 @@ class PowerDecoder(Elaboratable):
     def ports(self):
         return [self.opcode_in] + self.op.ports()
 
+# how about this?
+if False:
+    pminor = (0, 6, [(19, "minor_19", (1,11)), # pass to 'splitter' function
+                     (30, "minor_30", (1,4)),
+                     (31, "minor_31", (1,11)), # pass to 'splitter' function
+                     (58, "minor_58", (0,1)),
+                     (62, "minor_62", (0,1)),
+                    ]
+
+    pdecode = PowerDecoder(6, "major", subcoders = pminor)
