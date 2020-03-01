@@ -5,6 +5,9 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
 
 
 class PowerOp:
+    """PowerOp: spec for execution.  op type (ADD etc.) reg specs etc.
+    """
+
     def __init__(self):
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(InternalOp, reset_less=True)
@@ -19,7 +22,7 @@ class PowerOp:
             name = get_signal_name(bit)
             setattr(self, name, Signal(reset_less=True, name=name))
 
-    def _eq(self, row):
+    def _eq(self, row=None):
         if row is None:
             row = {}
         res = [self.function_unit.eq(Function[row.get('unit', Function.NONE)]),
@@ -53,6 +56,9 @@ class PowerOp:
 
 
 class PowerDecoder(Elaboratable):
+    """PowerDecoder - decodes an incoming opcode into the type of operation
+    """
+
     def __init__(self, width, csvname):
         self.opcodes = get_csv(csvname)
         self.opcode_in = Signal(width, reset_less=True)
