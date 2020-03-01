@@ -29,15 +29,15 @@ class DecoderTestCase(FHDLTestCase):
 
         m.submodules.dut = dut = PowerDecoder(width, csvname)
         comb += [dut.opcode_in.eq(opcode),
-                 function_unit.eq(dut.function_unit),
-                 in1_sel.eq(dut.in1_sel),
-                 in2_sel.eq(dut.in2_sel),
-                 in3_sel.eq(dut.in3_sel),
-                 out_sel.eq(dut.out_sel),
-                 rc_sel.eq(dut.rc_sel),
-                 ldst_len.eq(dut.ldst_len),
-                 cry_in.eq(dut.cry_in),
-                 internal_op.eq(dut.internal_op)]
+                 function_unit.eq(dut.op.function_unit),
+                 in1_sel.eq(dut.op.in1_sel),
+                 in2_sel.eq(dut.op.in2_sel),
+                 in3_sel.eq(dut.op.in3_sel),
+                 out_sel.eq(dut.op.out_sel),
+                 rc_sel.eq(dut.op.rc_sel),
+                 ldst_len.eq(dut.op.ldst_len),
+                 cry_in.eq(dut.op.cry_in),
+                 internal_op.eq(dut.op.internal_op)]
 
         sim = Simulator(m)
 
@@ -62,7 +62,7 @@ class DecoderTestCase(FHDLTestCase):
                     msg = f"{sig.name} == {enm(result)}, expected: {expected}"
                     self.assertEqual(enm(result), expected, msg)
                 for bit in single_bit_flags:
-                    sig = getattr(dut, get_signal_name(bit))
+                    sig = getattr(dut.op, get_signal_name(bit))
                     result = yield sig
                     expected = int(row[bit])
                     msg = f"{sig.name} == {result}, expected: {expected}"
