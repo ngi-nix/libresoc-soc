@@ -13,7 +13,7 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
 
 
 class DecoderTestCase(FHDLTestCase):
-    def run_test(self, width, csvname):
+    def run_test(self, width, csvname, opint=True):
         m = Module()
         comb = m.d.comb
         opcode = Signal(width)
@@ -27,7 +27,7 @@ class DecoderTestCase(FHDLTestCase):
         ldst_len = Signal(LdstLen)
         cry_in = Signal(CryIn)
 
-        m.submodules.dut = dut = PowerDecoder(width, csvname)
+        m.submodules.dut = dut = PowerDecoder(width, csvname, opint)
         comb += [dut.opcode_in.eq(opcode),
                  function_unit.eq(dut.op.function_unit),
                  in1_sel.eq(dut.op.in1_sel),
@@ -45,7 +45,11 @@ class DecoderTestCase(FHDLTestCase):
             for row in dut.opcodes:
                 if not row['unit']:
                     continue
-                yield opcode.eq(int(row['opcode'], 0))
+                op = row['opcode']
+                if not opint: # HACK: convert 001---10 to 0b00100010
+                    op = "0b" + op.replace('-', '0')
+                print ("opint", opint, row['opcode'], op)
+                yield opcode.eq(int(op, 0))
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
                            (internal_op, InternalOp, 'internal op'),
@@ -73,9 +77,9 @@ class DecoderTestCase(FHDLTestCase):
                 in1_sel, in2_sel]):
             sim.run()
 
-    def generate_ilang(self, width, csvname):
+    def generate_ilang(self, width, csvname, opint=True):
         prefix = os.path.splitext(csvname)[0]
-        dut = PowerDecoder(width, csvname)
+        dut = PowerDecoder(width, csvname, opint)
         vl = rtlil.convert(dut, ports=dut.ports())
         with open("%s_decoder.il" % prefix, "w") as f:
             f.write(vl)
@@ -95,6 +99,10 @@ class DecoderTestCase(FHDLTestCase):
     def test_minor_31(self):
         self.run_test(10, "minor_31.csv")
         self.generate_ilang(10, "minor_31.csv")
+
+    def test_minor_31(self):
+        self.run_test(32, "extra.csv", False)
+        self.generate_ilang(32, "extra.csv", False)
 
 if __name__ == "__main__":
     unittest.main()

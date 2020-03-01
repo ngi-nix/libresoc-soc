@@ -61,7 +61,8 @@ class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
     """
 
-    def __init__(self, width, csvname):
+    def __init__(self, width, csvname, opint=True):
+        self.opint = opint # true if the opcode needs to be converted to int
         self.opcodes = get_csv(csvname)
         self.opcode_in = Signal(width, reset_less=True)
 
@@ -73,9 +74,12 @@ class PowerDecoder(Elaboratable):
 
         with m.Switch(self.opcode_in):
             for row in self.opcodes:
-                opcode = int(row['opcode'], 0)
+                opcode = row['opcode']
+                if self.opint:
+                    opcode = int(opcode, 0)
                 if not row['unit']:
                     continue
+                print ("opcode", opcode)
                 with m.Case(opcode):
                     comb += self.op._eq(row)
             with m.Default():
