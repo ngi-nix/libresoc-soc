@@ -40,7 +40,7 @@ class PowerOp:
                ]
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))
-            res.append(sig.eq(0))
+            res.append(sig.eq(int(row.get(bit, 0))))
         return res
 
     def ports(self):
