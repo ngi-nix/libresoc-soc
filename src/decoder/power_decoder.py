@@ -83,6 +83,8 @@ class PowerDecoder(Elaboratable):
 
         self.op = PowerOp()
         self.suffix = suffix
+        if suffix[1] - suffix[0] >= width:
+            self.suffix = None
         self.width = width
 
     def suffix_mask(self):
@@ -116,7 +118,8 @@ class PowerDecoder(Elaboratable):
                 for key, row in opcodes.items():
                     subdecoder = PowerDecoder(width=self.width - opc_in.width,
                                               opcodes=row,
-                                              opint=False)
+                                              opint=False,
+                                              suffix=self.suffix)
                     setattr(m.submodules, "dec%d" % key, subdecoder)
                     comb += subdecoder.opcode_in.eq(self.opcode_in[self.suffix[1]:])
                     with m.Case(key):

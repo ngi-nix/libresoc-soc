@@ -105,5 +105,6 @@ class DecoderTestCase(FHDLTestCase):
         self.run_test(32, "extra.csv", False)
         self.generate_ilang(32, "extra.csv", False)
 
+
 if __name__ == "__main__":
     unittest.main()
