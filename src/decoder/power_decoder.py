@@ -1,7 +1,7 @@
 from nmigen import Module, Elaboratable, Signal
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
-                         get_signal_name)
+                         get_signal_name, default_values)
 
 
 class PowerOp:
@@ -24,10 +24,7 @@ class PowerOp:
 
     def _eq(self, row=None):
         if row is None:
-            row = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
-                   'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
-                   'ldst len': 'NONE',
-                   'rc' : 'NONE', 'cry in' : 'ZERO'}
+            row = default_values
         res = [self.function_unit.eq(Function[row['unit']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
                self.in1_sel.eq(In1Sel[row['in1']]),

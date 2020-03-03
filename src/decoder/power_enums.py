@@ -22,6 +22,11 @@ single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out',
                     'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
                     'sgn', 'lk', 'sgl pipe']
 
+# default values for fields in the table
+default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
+                   'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
+                   'ldst len': 'NONE',
+                   'rc' : 'NONE', 'cry in' : 'ZERO'}
 
 def get_signal_name(name):
     return name.lower().replace(' ', '_')
