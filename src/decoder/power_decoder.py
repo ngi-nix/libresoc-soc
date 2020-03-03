@@ -83,7 +83,7 @@ class PowerDecoder(Elaboratable):
 
         self.op = PowerOp()
         self.suffix = suffix
-        if suffix[1] - suffix[0] >= width:
+        if suffix is not None and suffix[1] - suffix[0] >= width:
             self.suffix = None
         self.width = width
 
@@ -93,9 +93,10 @@ class PowerDecoder(Elaboratable):
     def divide_opcodes(self):
         divided = {}
         mask = self.suffix_mask()
+        print ("mask", hex(mask))
         for row in self.opcodes:
             opcode = row['opcode']
-            if self.opint:
+            if self.opint and '-' not in opcode:
                 opcode = int(opcode, 0)
             key = opcode & mask >> (self.suffix[0])
             opcode = opcode >> self.suffix[1]
@@ -129,7 +130,7 @@ class PowerDecoder(Elaboratable):
             with m.Switch(self.opcode_in):
                 for row in self.opcodes:
                     opcode = row['opcode']
-                    if self.opint:
+                    if self.opint and '-' not in opcode:
                         opcode = int(opcode, 0)
                     if not row['unit']:
                         continue

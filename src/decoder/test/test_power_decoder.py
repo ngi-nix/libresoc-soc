@@ -80,6 +80,8 @@ class DecoderTestCase(FHDLTestCase):
 
     def generate_ilang(self, width, csvname, opint=True, suffix=None):
         prefix = os.path.splitext(csvname)[0]
+        if suffix:
+            prefix += ".%s" % str(suffix).replace(" ", "")[1:-1]
         dut = PowerDecoder(width, get_csv(csvname), opint, suffix=suffix)
         vl = rtlil.convert(dut, ports=dut.ports())
         with open("%s_decoder.il" % prefix, "w") as f:
@@ -89,9 +91,9 @@ class DecoderTestCase(FHDLTestCase):
         self.run_test(6, "major.csv")
         self.generate_ilang(6, "major.csv")
 
-    # def test_minor_19(self):
-    #     self.run_test(3, "minor_19.csv")
-    #     self.generate_ilang(3, "minor_19.csv")
+    #def test_minor_19(self):
+    #    self.run_test(10, "minor_19.csv", suffix=(0, 5))
+    #    self.generate_ilang(10, "minor_19.csv", suffix=(0, 5))
 
     def test_minor_30(self):
         self.run_test(4, "minor_30.csv")
@@ -100,10 +102,15 @@ class DecoderTestCase(FHDLTestCase):
     def test_minor_31(self):
         self.run_test(10, "minor_31.csv", suffix=(0, 5))
         self.generate_ilang(10, "minor_31.csv", suffix=(0, 5))
+        assert False
+
+    #def test_minor_31_prefix(self):
+    #    self.run_test(10, "minor_31.csv", suffix=(5, 10))
+    #    self.generate_ilang(10, "minor_31.csv", suffix=(5, 10))
 
     def test_extra(self):
-        self.run_test(32, "extra.csv", False)
-        self.generate_ilang(32, "extra.csv", False)
+        self.run_test(32, "extra.csv", opint=False)
+        self.generate_ilang(32, "extra.csv", opint=False)
 
 
 if __name__ == "__main__":
