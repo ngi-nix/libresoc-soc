@@ -13,7 +13,8 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
 
 
 class DecoderTestCase(FHDLTestCase):
-    def run_test(self, width, csvname, suffix=None, opint=True):
+
+    def run_tst(self, width, csvname, suffix=None, opint=True):
         m = Module()
         comb = m.d.comb
         opcode = Signal(width)
@@ -88,28 +89,31 @@ class DecoderTestCase(FHDLTestCase):
             f.write(vl)
 
     def test_major(self):
-        self.run_test(6, "major.csv")
+        self.run_tst(6, "major.csv")
         self.generate_ilang(6, "major.csv")
 
-    #def test_minor_19(self):
-    #    self.run_test(10, "minor_19.csv", suffix=(0, 5))
-    #    self.generate_ilang(10, "minor_19.csv", suffix=(0, 5))
+    def test_minor_19(self):
+        self.run_tst(10, "minor_19.csv", suffix=(0, 5))
+        self.generate_ilang(10, "minor_19.csv", suffix=(0, 5))
+
+    def test_minor_19_00000(self):
+        self.run_tst(10, "minor_19_00000.csv")
+        self.generate_ilang(10, "minor_19_00000.csv")
 
     def test_minor_30(self):
-        self.run_test(4, "minor_30.csv")
+        self.run_tst(4, "minor_30.csv")
         self.generate_ilang(4, "minor_30.csv")
 
     def test_minor_31(self):
-        self.run_test(10, "minor_31.csv", suffix=(0, 5))
+        self.run_tst(10, "minor_31.csv", suffix=(0, 5))
         self.generate_ilang(10, "minor_31.csv", suffix=(0, 5))
-        assert False
 
     #def test_minor_31_prefix(self):
-    #    self.run_test(10, "minor_31.csv", suffix=(5, 10))
+    #    self.run_tst(10, "minor_31.csv", suffix=(5, 10))
     #    self.generate_ilang(10, "minor_31.csv", suffix=(5, 10))
 
     def test_extra(self):
-        self.run_test(32, "extra.csv", opint=False)
+        self.run_tst(32, "extra.csv", opint=False)
         self.generate_ilang(32, "extra.csv", opint=False)
 
 
