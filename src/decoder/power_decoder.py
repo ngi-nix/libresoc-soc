@@ -2,6 +2,9 @@ from nmigen import Module, Elaboratable, Signal
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
+from collections import namedtuple
+
+Subdecoder = namedtuple("Subdecoder", ["pattern", "csv", "opint", "bitsel"])
 
 
 class PowerOp:
@@ -129,9 +132,10 @@ class PowerDecoder(Elaboratable):
         #                 comb += self.op.eq(subdecoder.op)
 
         # else:
-        opcode = Signal(self.bitsel[1] - self.bitsel[0], reset_less=True)
-        comb += opcode.eq(self.opcode_in[self.bitsel[0]:self.bitsel[1]])
-        with m.Switch(opcode):
+        opcode_switch = Signal(self.bitsel[1] - self.bitsel[0], reset_less=True)
+        comb += opcode_switch.eq(self.opcode_in[self.bitsel[0]:self.bitsel[1]])
+        with m.Switch(opcode_switch):
+            self.handle_subdecoders(m)
             for row in self.opcodes:
                 opcode = row['opcode']
                 if self.opint and '-' not in opcode:
@@ -144,17 +148,34 @@ class PowerDecoder(Elaboratable):
                     comb += self.op._eq(None)
         return m
 
+    def handle_subdecoders(self, m):
+        for dec in self.subdecoders:
+            subdecoder = PowerDecoder(width=self.width,
+                                      opcodes=dec.csv,
+                                      opint=dec.opint,
+                                      bitsel=dec.bitsel)
+
+            setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
+            m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
+            with m.Case(dec.pattern):
+                m.d.comb += self.op.eq(subdecoder.op)
 
     def ports(self):
         return [self.opcode_in] + self.op.ports()
 
-# how about this?
-# if False:
-#     pminor = (0, 6, [(19, "minor_19", (1,11)), # pass to 'splitter' function
-#                      (30, "minor_30", (1,4)),
-#                      (31, "minor_31", (1,11)), # pass to 'splitter' function
-#                      (58, "minor_58", (0,1)),
-#                      (62, "minor_62", (0,1)),
-#                     ]
 
-#     pdecode = PowerDecoder(6, "major", subcoders = pminor)
+pminor = [
+    Subdecoder(pattern=19, csv=get_csv("minor_19.csv"),
+               opint=True, bitsel=(1, 11)),
+    Subdecoder(pattern=30, csv=get_csv("minor_30.csv"),
+               opint=True, bitsel=(1, 5)),
+    Subdecoder(pattern=31, csv=get_csv("minor_31.csv"),
+               opint=True, bitsel=(1, 11)),
+    # Subdecoder(pattern=58, csv=get_csv("minor_58.csv"),
+    #            opint=True, bitsel=(0, 1)),
+    # Subdecoder(pattern=62, csv=get_csv("minor_62.csv"),
+    #            opint=True, bitsel=(0, 1)),
+]
+
+opcodes = get_csv("major.csv")
+pdecode = PowerDecoder(32, opcodes, bitsel=(26, 32), subdecoders=pminor)

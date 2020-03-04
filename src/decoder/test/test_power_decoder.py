@@ -6,7 +6,7 @@ import sys
 import os
 import unittest
 sys.path.append("../")
-from power_decoder import (PowerDecoder)
+from power_decoder import (PowerDecoder, pdecode)
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, single_bit_flags,
                          get_signal_name, get_csv)
@@ -14,7 +14,7 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
 
 class DecoderTestCase(FHDLTestCase):
 
-    def run_tst(self, bitsel, csvname, suffix=None, opint=True):
+    def run_tst(self, bitsel, csvname, minor=None, suffix=None, opint=True):
         m = Module()
         comb = m.d.comb
         opcode = Signal(32)
@@ -28,9 +28,10 @@ class DecoderTestCase(FHDLTestCase):
         ldst_len = Signal(LdstLen)
         cry_in = Signal(CryIn)
 
-        opcodes = get_csv(csvname)
-        m.submodules.dut = dut = PowerDecoder(32, opcodes, bitsel=bitsel,
-                                              opint=opint, suffix=suffix)
+        # opcodes = get_csv(csvname)
+        # m.submodules.dut = dut = PowerDecoder(32, opcodes, bitsel=bitsel,
+        #                                       opint=opint, suffix=suffix)
+        m.submodules.dut = dut = pdecode
         comb += [dut.opcode_in.eq(opcode),
                  function_unit.eq(dut.op.function_unit),
                  in1_sel.eq(dut.op.in1_sel),
@@ -43,17 +44,23 @@ class DecoderTestCase(FHDLTestCase):
                  internal_op.eq(dut.op.internal_op)]
 
         sim = Simulator(m)
+        opcodes = get_csv(csvname)
 
         def process():
-            for row in dut.opcodes:
+            for row in opcodes:
                 if not row['unit']:
                     continue
                 op = row['opcode']
                 if not opint: # HACK: convert 001---10 to 0b00100010
                     op = "0b" + op.replace('-', '0')
                 print ("opint", opint, row['opcode'], op)
+                print(row)
                 yield opcode.eq(0)
                 yield opcode[bitsel[0]:bitsel[1]].eq(int(op, 0))
+                if minor:
+                    print(minor)
+                    minorbits = minor[1]
+                    yield opcode[minorbits[0]:minorbits[1]].eq(minor[0])
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
                            (internal_op, InternalOp, 'internal op'),
@@ -97,19 +104,20 @@ class DecoderTestCase(FHDLTestCase):
         self.generate_ilang((26, 32), "major.csv")
 
     def test_minor_19(self):
-        self.run_tst((1, 11), "minor_19.csv", suffix=(0, 5))
+        self.run_tst((1, 11), "minor_19.csv", minor=(19, (26, 32)),
+                     suffix=(0, 5))
         self.generate_ilang((1, 11), "minor_19.csv", suffix=(0, 5))
 
-    def test_minor_19_00000(self):
-        self.run_tst((1, 11), "minor_19_00000.csv")
-        self.generate_ilang((1, 11), "minor_19_00000.csv")
+    # def test_minor_19_00000(self):
+    #     self.run_tst((1, 11), "minor_19_00000.csv")
+    #     self.generate_ilang((1, 11), "minor_19_00000.csv")
 
     def test_minor_30(self):
-        self.run_tst((1, 5), "minor_30.csv")
+        self.run_tst((1, 5), "minor_30.csv", minor=(30, (26, 32)))
         self.generate_ilang((1, 5), "minor_30.csv")
 
     def test_minor_31(self):
-        self.run_tst((1, 11), "minor_31.csv", suffix=(0, 5))
+        self.run_tst((1, 11), "minor_31.csv", minor=(31, (26, 32)))
         self.generate_ilang((1, 11), "minor_31.csv", suffix=(0, 5))
 
     # #def test_minor_31_prefix(self):
