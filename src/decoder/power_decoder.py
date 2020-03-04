@@ -4,6 +4,10 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          get_signal_name, default_values)
 from collections import namedtuple
 
+# TODO - list of these into PowerDecoder
+Decoder = namedtuple("Decoder", ["width", "pattern", "csv", "opint",
+                                       "bitsel", "suffix", "subdecoders"])
+
 Subdecoder = namedtuple("Subdecoder", ["pattern", "csv", "opint",
                                        "bitsel", "suffix"])
 
