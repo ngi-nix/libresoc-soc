@@ -89,49 +89,37 @@ class DecoderTestCase(FHDLTestCase):
                 in1_sel, in2_sel]):
             sim.run()
 
-    def generate_ilang(self, bitsel, csvname, opint=True, suffix=None):
-        prefix = os.path.splitext(csvname)[0]
-        if suffix:
-            prefix += ".%s" % str(suffix).replace(" ", "")[1:-1]
-        dut = PowerDecoder(32, get_csv(csvname), bitsel=bitsel,
-                           opint=opint, suffix=suffix)
-        vl = rtlil.convert(dut, ports=dut.ports())
-        with open("%s_decoder.il" % prefix, "w") as f:
+    def generate_ilang(self):
+        vl = rtlil.convert(pdecode, ports=pdecode.ports())
+        with open("decoder.il", "w") as f:
             f.write(vl)
 
     def test_major(self):
         self.run_tst((26, 32), "major.csv")
-        self.generate_ilang((26, 32), "major.csv")
+        self.generate_ilang()
 
     def test_minor_19(self):
         self.run_tst((1, 11), "minor_19.csv", minor=(19, (26, 32)),
                      suffix=(0, 5))
-        self.generate_ilang((1, 11), "minor_19.csv", suffix=(0, 5))
 
     # def test_minor_19_00000(self):
     #     self.run_tst((1, 11), "minor_19_00000.csv")
-    #     self.generate_ilang((1, 11), "minor_19_00000.csv")
 
     def test_minor_30(self):
         self.run_tst((1, 5), "minor_30.csv", minor=(30, (26, 32)))
-        self.generate_ilang((1, 5), "minor_30.csv")
 
     def test_minor_31(self):
         self.run_tst((1, 11), "minor_31.csv", minor=(31, (26, 32)))
-        self.generate_ilang((1, 11), "minor_31.csv", suffix=(0, 5))
 
     def test_minor_58(self):
         self.run_tst((0, 2), "minor_58.csv", minor=(58, (26, 32)))
-        self.generate_ilang((0, 2), "minor_58.csv")
 
     def test_minor_62(self):
         self.run_tst((0, 2), "minor_62.csv", minor=(62, (26, 32)))
-        self.generate_ilang((0, 2), "minor_62.csv")
 
 
     # #def test_minor_31_prefix(self):
     # #    self.run_tst(10, "minor_31.csv", suffix=(5, 10))
-    # #    self.generate_ilang(10, "minor_31.csv", suffix=(5, 10))
 
     # def test_extra(self):
     #     self.run_tst(32, "extra.csv", opint=False)
