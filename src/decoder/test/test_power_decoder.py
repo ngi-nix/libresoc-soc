@@ -120,6 +120,15 @@ class DecoderTestCase(FHDLTestCase):
         self.run_tst((1, 11), "minor_31.csv", minor=(31, (26, 32)))
         self.generate_ilang((1, 11), "minor_31.csv", suffix=(0, 5))
 
+    def test_minor_58(self):
+        self.run_tst((0, 2), "minor_58.csv", minor=(58, (26, 32)))
+        self.generate_ilang((0, 2), "minor_58.csv")
+
+    def test_minor_62(self):
+        self.run_tst((0, 2), "minor_62.csv", minor=(62, (26, 32)))
+        self.generate_ilang((0, 2), "minor_62.csv")
+
+
     # #def test_minor_31_prefix(self):
     # #    self.run_tst(10, "minor_31.csv", suffix=(5, 10))
     # #    self.generate_ilang(10, "minor_31.csv", suffix=(5, 10))

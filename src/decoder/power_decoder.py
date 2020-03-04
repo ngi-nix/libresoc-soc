@@ -171,10 +171,10 @@ pminor = [
                opint=True, bitsel=(1, 5)),
     Subdecoder(pattern=31, csv=get_csv("minor_31.csv"),
                opint=True, bitsel=(1, 11)),
-    # Subdecoder(pattern=58, csv=get_csv("minor_58.csv"),
-    #            opint=True, bitsel=(0, 1)),
-    # Subdecoder(pattern=62, csv=get_csv("minor_62.csv"),
-    #            opint=True, bitsel=(0, 1)),
+    Subdecoder(pattern=58, csv=get_csv("minor_58.csv"),
+               opint=True, bitsel=(0, 2)),
+    Subdecoder(pattern=62, csv=get_csv("minor_62.csv"),
+               opint=True, bitsel=(0, 2)),
 ]
 
 opcodes = get_csv("major.csv")
