@@ -77,10 +77,11 @@ class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
     """
 
-    def __init__(self, width, opcodes, *,
-                 bitsel, subdecoders=[],
-                 opint=True,
-                 suffix=None):
+    def __init__(self,
+                width, opcodes, *,            # TODO
+                 bitsel, subdecoders=[],      # all of these
+                 opint=True,                  # to become
+                 suffix=None):                # a *list* of arguments
         self.opint = opint  # true if the opcode needs to be converted to int
         self.opcodes = opcodes
         self.opcode_in = Signal(width, reset_less=True)
@@ -137,8 +138,8 @@ class PowerDecoder(Elaboratable):
 
         else:
             comb += self.op._eq(None) # default case
-            # TODO: detect if subdecoders is a *list*, and do
-            # a for-loop around the *list* of subdecoders
+            # TODO: arguments, here (all of them) need to be a list.
+            # a for-loop around the *list* of decoder args.
             with m.Switch(opcode_switch):
                 self.handle_subdecoders(m)
                 for row in self.opcodes:
