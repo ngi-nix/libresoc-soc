@@ -4,7 +4,8 @@ from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          get_signal_name, default_values)
 from collections import namedtuple
 
-Subdecoder = namedtuple("Subdecoder", ["pattern", "csv", "opint", "bitsel"])
+Subdecoder = namedtuple("Subdecoder", ["pattern", "csv", "opint",
+                                       "bitsel", "suffix"])
 
 
 class PowerOp:
@@ -86,25 +87,25 @@ class PowerDecoder(Elaboratable):
 
         self.op = PowerOp()
         self.suffix = suffix
-        if suffix is not None and suffix[1] - suffix[0] >= width:
+        if suffix is not None and suffix >= width:
             self.suffix = None
         self.bitsel = bitsel
         self.subdecoders = subdecoders
         self.width = width
 
     def suffix_mask(self):
-        return ((1 << self.suffix[1]) - 1) - ((1 << self.suffix[0]) - 1)
+        return ((1 << self.suffix) - 1)
 
     def divide_opcodes(self):
         divided = {}
         mask = self.suffix_mask()
-        print ("mask", hex(mask))
+        print("mask", hex(mask))
         for row in self.opcodes:
             opcode = row['opcode']
             if self.opint and '-' not in opcode:
                 opcode = int(opcode, 0)
-            key = opcode & mask >> (self.suffix[0])
-            opcode = opcode >> self.suffix[1]
+            key = opcode & mask
+            opcode = opcode >> self.suffix
             if key not in divided:
                 divided[key] = []
             r = row.copy()
@@ -116,35 +117,36 @@ class PowerDecoder(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        # if self.suffix:
-        #     opcodes = self.divide_opcodes()
-        #     opc_in = Signal(self.suffix[1] - self.suffix[0], reset_less=True)
-        #     comb += opc_in.eq(self.opcode_in[self.suffix[0]:self.suffix[1]])
-        #     with m.Switch(opc_in):
-        #         for key, row in opcodes.items():
-        #             subdecoder = PowerDecoder(width=self.width - opc_in.width,
-        #                                       opcodes=row,
-        #                                       opint=False,
-        #                                       suffix=self.suffix)
-        #             setattr(m.submodules, "dec%d" % key, subdecoder)
-        #             comb += subdecoder.opcode_in.eq(self.opcode_in[self.suffix[1]:])
-        #             with m.Case(key):
-        #                 comb += self.op.eq(subdecoder.op)
-
-        # else:
         opcode_switch = Signal(self.bitsel[1] - self.bitsel[0], reset_less=True)
         comb += opcode_switch.eq(self.opcode_in[self.bitsel[0]:self.bitsel[1]])
-        with m.Switch(opcode_switch):
-            self.handle_subdecoders(m)
-            for row in self.opcodes:
-                opcode = row['opcode']
-                if self.opint and '-' not in opcode:
-                    opcode = int(opcode, 0)
-                if not row['unit']:
-                    continue
-                with m.Case(opcode):
-                    comb += self.op._eq(row)
-            with m.Default():
+        if self.suffix:
+            opcodes = self.divide_opcodes()
+            opc_in = Signal(self.suffix, reset_less=True)
+            comb += opc_in.eq(opcode_switch[:self.suffix])
+            with m.Switch(opc_in):
+                for key, row in opcodes.items():
+                    bitsel = (self.suffix+self.bitsel[0], self.bitsel[1])
+                    subdecoder = PowerDecoder(width=32,
+                                              opcodes=row,
+                                              bitsel=bitsel,
+                                              opint=False)
+                    setattr(m.submodules, "dec_sub%d" % key, subdecoder)
+                    comb += subdecoder.opcode_in.eq(self.opcode_in)
+                    with m.Case(key):
+                        comb += self.op.eq(subdecoder.op)
+
+        else:
+            with m.Switch(opcode_switch):
+                self.handle_subdecoders(m)
+                for row in self.opcodes:
+                    opcode = row['opcode']
+                    if self.opint and '-' not in opcode:
+                        opcode = int(opcode, 0)
+                    if not row['unit']:
+                        continue
+                    with m.Case(opcode):
+                        comb += self.op._eq(row)
+                with m.Default():
                     comb += self.op._eq(None)
         return m
 
@@ -153,6 +155,7 @@ class PowerDecoder(Elaboratable):
             subdecoder = PowerDecoder(width=self.width,
                                       opcodes=dec.csv,
                                       opint=dec.opint,
+                                      suffix=dec.suffix,
                                       bitsel=dec.bitsel)
 
             setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
@@ -166,15 +169,15 @@ class PowerDecoder(Elaboratable):
 
 pminor = [
     Subdecoder(pattern=19, csv=get_csv("minor_19.csv"),
-               opint=True, bitsel=(1, 11)),
+               opint=True, bitsel=(1, 11), suffix=None),
     Subdecoder(pattern=30, csv=get_csv("minor_30.csv"),
-               opint=True, bitsel=(1, 5)),
+               opint=True, bitsel=(1, 5), suffix=None),
     Subdecoder(pattern=31, csv=get_csv("minor_31.csv"),
-               opint=True, bitsel=(1, 11)),
+               opint=True, bitsel=(1, 11), suffix=5),
     Subdecoder(pattern=58, csv=get_csv("minor_58.csv"),
-               opint=True, bitsel=(0, 2)),
+               opint=True, bitsel=(0, 2), suffix=None),
     Subdecoder(pattern=62, csv=get_csv("minor_62.csv"),
-               opint=True, bitsel=(0, 2)),
+               opint=True, bitsel=(0, 2), suffix=None),
 ]
 
 opcodes = get_csv("major.csv")
