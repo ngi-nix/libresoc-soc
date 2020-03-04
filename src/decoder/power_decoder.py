@@ -136,6 +136,9 @@ class PowerDecoder(Elaboratable):
                         comb += self.op.eq(subdecoder.op)
 
         else:
+            comb += self.op._eq(None) # default case
+            # TODO: detect if subdecoders is a *list*, and do
+            # a for-loop around the *list* of subdecoders
             with m.Switch(opcode_switch):
                 self.handle_subdecoders(m)
                 for row in self.opcodes:
@@ -146,8 +149,6 @@ class PowerDecoder(Elaboratable):
                         continue
                     with m.Case(opcode):
                         comb += self.op._eq(row)
-                with m.Default():
-                    comb += self.op._eq(None)
         return m
 
     def handle_subdecoders(self, m):
