@@ -55,6 +55,9 @@ def decode_line(header, line):
         end = count + len(f) + 1
         fieldname = f.strip()
         if not fieldname or fieldname.startswith('/'):
+            if prev_fieldname is not None:
+                res[prev_fieldname] = (res[prev_fieldname], header[count])
+                prev_fieldname = None
             count = end
             continue
         bitstart = header[count]
@@ -74,7 +77,22 @@ def decode_form(form):
         dec = decode_line(header, line)
         if dec:
             res.append(dec)
-    return res
+    fields = {}
+    falternate = {}
+    for l in res:
+        for k, (start,end) in l.items():
+            if k in fields:
+                if (start, end) == fields[k]:
+                    continue # already in and matching for this Form
+                if k in falternate:
+                    alternate = "%s_%d" % (k, falternate[k])
+                    if (start, end) == fields[alternate]:
+                        continue
+                falternate[k] = fidx = falternate.get(k, 0) + 1
+                fields["%s_%d" % (k, fidx)] = (start, end)
+            else:
+                fields[k] = (start, end)
+    return fields
 
     
 if __name__ == '__main__':
@@ -82,7 +100,7 @@ if __name__ == '__main__':
     for hdr, form in forms.items():
         print ()
         print (hdr)
-        for l in form:
-            print ("line", l)
-            for k, v in l.items():
-                print ("%s: %d-%d" % (k, v[0], v[1]))
+        for k, v in form.items():
+            #print ("line", l)
+            #for k, v in l.items():
+            print ("%s: %d-%d" % (k, v[0], v[1]))
