@@ -151,7 +151,8 @@ class PowerDecoder(Elaboratable):
     def handle_subdecoders(self, m, d):
         for dec in d.subdecoders:
             subdecoder = PowerDecoder(self.width, dec)
-
+            if isinstance(dec, list): # XXX HACK: take first pattern
+                dec = dec[0]
             setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
             m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
             with m.Case(dec.pattern):
@@ -161,11 +162,19 @@ class PowerDecoder(Elaboratable):
         return [self.opcode_in] + self.op.ports()
 
 def create_pdecode():
+
+    # minor 19 has extra patterns
+    m19 = []
+    m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19.csv"),
+                   opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]))
+    m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19_00000.csv"),
+                   opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]))
+
+    # minor opcodes.
     pminor = [
-        Subdecoder(pattern=19, opcodes=get_csv("minor_19.csv"),
-                   opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]),
+        m19,
         Subdecoder(pattern=30, opcodes=get_csv("minor_30.csv"),
-                   opint=True, bitsel=(1, 5), suffix=None, subdecoders=[]),
+                   opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]),
         Subdecoder(pattern=31, opcodes=get_csv("minor_31.csv"),
                    opint=True, bitsel=(1, 11), suffix=5, subdecoders=[]),
         Subdecoder(pattern=58, opcodes=get_csv("minor_58.csv"),
@@ -174,9 +183,15 @@ def create_pdecode():
                    opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
     ]
 
+    # top level: extra merged with major
+    dec = []
     opcodes = get_csv("major.csv")
-    dec = Subdecoder(pattern=None, opint=True, opcodes=opcodes,
-                     bitsel=(26, 32), suffix=None, subdecoders=pminor)
+    dec.append(Subdecoder(pattern=None, opint=True, opcodes=opcodes,
+                     bitsel=(26, 32), suffix=None, subdecoders=pminor))
+    opcodes = get_csv("extra.csv")
+    dec.append(Subdecoder(pattern=None, opint=False, opcodes=opcodes,
+                     bitsel=(0, 32), suffix=None, subdecoders=[]))
+
     return PowerDecoder(32, dec)
 
 if __name__ == '__main__':
