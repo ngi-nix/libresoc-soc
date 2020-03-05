@@ -1,3 +1,58 @@
+"""Cascading Power ISA Decoder
+
+This module uses CSV tables in a hierarchical/peer cascading fashion,
+to create a multi-level instruction decoder by recognising appropriate
+patterns.  The output is a flattened (1-level) series of fields suitable
+for a simple RISC engine.
+
+This is based on Anton Blanchard's excellent microwatt work:
+https://github.com/antonblanchard/microwatt/blob/master/decode1.vhdl
+
+The basic principle is that the python code does the heavy lifting
+(reading the CSV files, constructing the hierarchy), creating the HDL
+AST with for-loops generating switch-case statements.
+
+PowerDecoder takes a *list* of CSV files with an associated bit-range
+that it is requested to match against the "opcode" row of the CSV file.
+This pattern can be either an integer, a binary number, *or* a wildcard
+nmigen Case pattern of the form "001--1-100".
+
+Subdecoders are *additional* cases with further decoding.  The "pattern"
+argument is specified as one of the Case statements (a peer of the opcode
+row in the CSV file), and thus further fields of the opcode may be decoded
+giving increasing levels of detail.
+
+Top Level:
+
+    [ (extra.csv: bit-fields entire 32-bit range
+        opcode                           -> matches
+        000000---------------01000000000 -> ILLEGAL instruction
+        01100000000000000000000000000000 -> SIM_CONFIG instruction
+        ................................ ->
+      ),
+      (major.csv: first 6 bits ONLY
+        opcode                           -> matches
+        001100                           -> ALU,OP_ADD (add)
+        001101                           -> ALU,OP_ADD (another type of add)
+        ......                           -> ...
+        ......                           -> ...
+        subdecoders:
+        001011 this must match *MAJOR*.CSV
+            [ (minor_19.csv: bits 21 through 30 inclusive:
+                opcode                  -> matches
+                0b0000000000            -> ALU,OP_MCRF
+                ............            -> ....
+              ),
+              (minor_19_00000.csv: bits 21 through 25 inclusive:
+                opcode                  -> matches
+                0b00010                 -> ALU,add_pcis
+              )
+            ]
+      ),
+    ]
+
+"""
+
 from nmigen import Module, Elaboratable, Signal
 from nmigen.cli import rtlil
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
