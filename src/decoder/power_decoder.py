@@ -169,6 +169,9 @@ class PowerDecoder(Elaboratable):
         m = Module()
         comb = m.d.comb
 
+        # note: default opcode is "illegal" as this is a combinatorial block
+
+        # go through the list of CSV decoders first
         for d in self.dec:
             opcode_switch = Signal(d.bitsel[1] - d.bitsel[0],
                                    reset_less=True)
@@ -232,7 +235,7 @@ def create_pdecode():
         Subdecoder(pattern=30, opcodes=get_csv("minor_30.csv"),
                    opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]),
         Subdecoder(pattern=31, opcodes=get_csv("minor_31.csv"),
-                   opint=True, bitsel=(1, 11), suffix=5, subdecoders=[]),
+                   opint=True, bitsel=(1, 11), suffix=0b00101, subdecoders=[]),
         Subdecoder(pattern=58, opcodes=get_csv("minor_58.csv"),
                    opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
         Subdecoder(pattern=62, opcodes=get_csv("minor_62.csv"),
