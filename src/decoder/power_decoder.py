@@ -161,6 +161,7 @@ class PowerDecoder(Elaboratable):
     def ports(self):
         return [self.opcode_in] + self.op.ports()
 
+
 def create_pdecode():
 
     # minor 19 has extra patterns
@@ -194,9 +195,9 @@ def create_pdecode():
 
     return PowerDecoder(32, dec)
 
+
 if __name__ == '__main__':
     pdecode = create_pdecode()
     vl = rtlil.convert(pdecode, ports=pdecode.ports())
     with open("decoder.il", "w") as f:
         f.write(vl)
-
