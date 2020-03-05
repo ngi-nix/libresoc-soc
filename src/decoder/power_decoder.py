@@ -71,7 +71,7 @@ class PowerOp:
     def __init__(self):
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(InternalOp, reset_less=True)
-        self.form = Signal(form, reset_less=True)
+        self.form = Signal(Form, reset_less=True)
         self.in1_sel = Signal(In1Sel, reset_less=True)
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)

@@ -48,8 +48,9 @@ class Form(Enum):
     D = 4
     DS = 5
     DQ = 6
-    X = 7
-    XL = 8
+    DX = 7
+    X = 8
+    XL = 9
     XFX = 10
     XFL = 11
     XX1 = 12
