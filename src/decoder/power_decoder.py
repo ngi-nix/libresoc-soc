@@ -55,7 +55,7 @@ Top Level:
 
 from nmigen import Module, Elaboratable, Signal
 from nmigen.cli import rtlil
-from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
+from power_enums import (Function, Form, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
 from collections import namedtuple
@@ -71,6 +71,7 @@ class PowerOp:
     def __init__(self):
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(InternalOp, reset_less=True)
+        self.form = Signal(form, reset_less=True)
         self.in1_sel = Signal(In1Sel, reset_less=True)
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
@@ -86,6 +87,7 @@ class PowerOp:
         if row is None:
             row = default_values
         res = [self.function_unit.eq(Function[row['unit']]),
+               self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
                self.in1_sel.eq(In1Sel[row['in1']]),
                self.in2_sel.eq(In2Sel[row['in2']]),
@@ -102,6 +104,7 @@ class PowerOp:
 
     def eq(self, otherop):
         res = [self.function_unit.eq(otherop.function_unit),
+               self.form.eq(otherop.form),
                self.internal_op.eq(otherop.internal_op),
                self.in1_sel.eq(otherop.in1_sel),
                self.in2_sel.eq(otherop.in2_sel),
@@ -123,7 +126,8 @@ class PowerOp:
                    self.out_sel,
                    self.ldst_len,
                    self.rc_sel,
-                   self.internal_op]
+                   self.internal_op,
+                   self.form]
         single_bit_ports = [getattr(self, get_signal_name(x))
                             for x in single_bit_flags]
         return regular + single_bit_ports

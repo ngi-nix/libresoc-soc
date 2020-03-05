@@ -26,7 +26,7 @@ single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out',
 default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
                    'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
                    'ldst len': 'NONE',
-                   'rc' : 'NONE', 'cry in' : 'ZERO'}
+                   'rc' : 'NONE', 'cry in' : 'ZERO', 'form': 'NONE'}
 
 def get_signal_name(name):
     return name.lower().replace(' ', '_')
@@ -37,6 +37,39 @@ class Function(Enum):
     NONE = 0
     ALU = 1
     LDST = 2
+
+
+@unique
+class Form(Enum):
+    NONE = 0
+    I = 1
+    B = 2
+    SC = 3
+    D = 4
+    DS = 5
+    DQ = 6
+    X = 7
+    XL = 8
+    XFX = 10
+    XFL = 11
+    XX1 = 12
+    XX2 = 13
+    XX3 = 13
+    XX4 = 14
+    XS = 15
+    XO = 16
+    A = 17
+    M = 18
+    MD = 19
+    MDS = 20
+    VA = 21
+    VC = 22
+    VX = 23
+    EVX = 24
+    EVS = 25
+    Z22 = 26
+    Z23 = 27
+
 
 
 @unique
