@@ -1,15 +1,12 @@
 from nmigen import Module, Elaboratable, Signal
+from nmigen.cli import rtlil
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
 from collections import namedtuple
 
-# TODO - list of these into PowerDecoder
-Decoder = namedtuple("Decoder", ["width", "pattern", "csv", "opint",
+Subdecoder = namedtuple("Subdecoder", ["pattern", "opcodes", "opint",
                                        "bitsel", "suffix", "subdecoders"])
-
-Subdecoder = namedtuple("Subdecoder", ["pattern", "csv", "opint",
-                                       "bitsel", "suffix"])
 
 
 class PowerOp:
@@ -81,36 +78,31 @@ class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
     """
 
-    def __init__(self,
-                width, opcodes, *,            # TODO
-                 bitsel, subdecoders=[],      # all of these
-                 opint=True,                  # to become
-                 suffix=None):                # a *list* of arguments
-        self.opint = opint  # true if the opcode needs to be converted to int
-        self.opcodes = opcodes
+    def __init__(self, width, dec):
+        if not isinstance(dec, list):
+            dec = [dec]
+        self.dec = dec
         self.opcode_in = Signal(width, reset_less=True)
 
         self.op = PowerOp()
-        self.suffix = suffix
-        if suffix is not None and suffix >= width:
-            self.suffix = None
-        self.bitsel = bitsel
-        self.subdecoders = subdecoders
+        for d in dec:
+            if d.suffix is not None and d.suffix >= width:
+                d.suffix = None
         self.width = width
 
-    def suffix_mask(self):
-        return ((1 << self.suffix) - 1)
+    def suffix_mask(self, d):
+        return ((1 << d.suffix) - 1)
 
-    def divide_opcodes(self):
+    def divide_opcodes(self, d):
         divided = {}
-        mask = self.suffix_mask()
+        mask = self.suffix_mask(d)
         print("mask", hex(mask))
-        for row in self.opcodes:
+        for row in d.opcodes:
             opcode = row['opcode']
-            if self.opint and '-' not in opcode:
+            if d.opint and '-' not in opcode:
                 opcode = int(opcode, 0)
             key = opcode & mask
-            opcode = opcode >> self.suffix
+            opcode = opcode >> d.suffix
             if key not in divided:
                 divided[key] = []
             r = row.copy()
@@ -122,47 +114,43 @@ class PowerDecoder(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        opcode_switch = Signal(self.bitsel[1] - self.bitsel[0], reset_less=True)
-        comb += opcode_switch.eq(self.opcode_in[self.bitsel[0]:self.bitsel[1]])
-        if self.suffix:
-            opcodes = self.divide_opcodes()
-            opc_in = Signal(self.suffix, reset_less=True)
-            comb += opc_in.eq(opcode_switch[:self.suffix])
-            with m.Switch(opc_in):
-                for key, row in opcodes.items():
-                    bitsel = (self.suffix+self.bitsel[0], self.bitsel[1])
-                    subdecoder = PowerDecoder(width=32,
-                                              opcodes=row,
-                                              bitsel=bitsel,
-                                              opint=False)
-                    setattr(m.submodules, "dec_sub%d" % key, subdecoder)
-                    comb += subdecoder.opcode_in.eq(self.opcode_in)
-                    with m.Case(key):
-                        comb += self.op.eq(subdecoder.op)
-
-        else:
-            comb += self.op._eq(None) # default case
-            # TODO: arguments, here (all of them) need to be a list.
-            # a for-loop around the *list* of decoder args.
-            with m.Switch(opcode_switch):
-                self.handle_subdecoders(m)
-                for row in self.opcodes:
-                    opcode = row['opcode']
-                    if self.opint and '-' not in opcode:
-                        opcode = int(opcode, 0)
-                    if not row['unit']:
-                        continue
-                    with m.Case(opcode):
-                        comb += self.op._eq(row)
+        for d in self.dec:
+            opcode_switch = Signal(d.bitsel[1] - d.bitsel[0],
+                                   reset_less=True)
+            comb += opcode_switch.eq(self.opcode_in[d.bitsel[0]:d.bitsel[1]])
+            if d.suffix:
+                opcodes = self.divide_opcodes(d)
+                opc_in = Signal(d.suffix, reset_less=True)
+                comb += opc_in.eq(opcode_switch[:d.suffix])
+                with m.Switch(opc_in):
+                    for key, row in opcodes.items():
+                        bitsel = (d.suffix+d.bitsel[0], d.bitsel[1])
+                        sd = Subdecoder(pattern=None, opcodes=row,
+                                        bitsel=bitsel, suffix=None,
+                                        opint=False, subdecoders=[])
+                        subdecoder = PowerDecoder(width=32, dec=sd)
+                        setattr(m.submodules, "dec_sub%d" % key, subdecoder)
+                        comb += subdecoder.opcode_in.eq(self.opcode_in)
+                        with m.Case(key):
+                            comb += self.op.eq(subdecoder.op)
+            else:
+                # TODO: arguments, here (all of them) need to be a list.
+                # a for-loop around the *list* of decoder args.
+                with m.Switch(opcode_switch):
+                    self.handle_subdecoders(m, d)
+                    for row in d.opcodes:
+                        opcode = row['opcode']
+                        if d.opint and '-' not in opcode:
+                            opcode = int(opcode, 0)
+                        if not row['unit']:
+                            continue
+                        with m.Case(opcode):
+                            comb += self.op._eq(row)
         return m
 
-    def handle_subdecoders(self, m):
-        for dec in self.subdecoders:
-            subdecoder = PowerDecoder(width=self.width,
-                                      opcodes=dec.csv,
-                                      opint=dec.opint,
-                                      suffix=dec.suffix,
-                                      bitsel=dec.bitsel)
+    def handle_subdecoders(self, m, d):
+        for dec in d.subdecoders:
+            subdecoder = PowerDecoder(self.width, dec)
 
             setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
             m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
@@ -172,19 +160,28 @@ class PowerDecoder(Elaboratable):
     def ports(self):
         return [self.opcode_in] + self.op.ports()
 
+def create_pdecode():
+    pminor = [
+        Subdecoder(pattern=19, opcodes=get_csv("minor_19.csv"),
+                   opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]),
+        Subdecoder(pattern=30, opcodes=get_csv("minor_30.csv"),
+                   opint=True, bitsel=(1, 5), suffix=None, subdecoders=[]),
+        Subdecoder(pattern=31, opcodes=get_csv("minor_31.csv"),
+                   opint=True, bitsel=(1, 11), suffix=5, subdecoders=[]),
+        Subdecoder(pattern=58, opcodes=get_csv("minor_58.csv"),
+                   opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
+        Subdecoder(pattern=62, opcodes=get_csv("minor_62.csv"),
+                   opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
+    ]
 
-pminor = [
-    Subdecoder(pattern=19, csv=get_csv("minor_19.csv"),
-               opint=True, bitsel=(1, 11), suffix=None),
-    Subdecoder(pattern=30, csv=get_csv("minor_30.csv"),
-               opint=True, bitsel=(1, 5), suffix=None),
-    Subdecoder(pattern=31, csv=get_csv("minor_31.csv"),
-               opint=True, bitsel=(1, 11), suffix=5),
-    Subdecoder(pattern=58, csv=get_csv("minor_58.csv"),
-               opint=True, bitsel=(0, 2), suffix=None),
-    Subdecoder(pattern=62, csv=get_csv("minor_62.csv"),
-               opint=True, bitsel=(0, 2), suffix=None),
-]
+    opcodes = get_csv("major.csv")
+    dec = Subdecoder(pattern=None, opint=True, opcodes=opcodes,
+                     bitsel=(26, 32), suffix=None, subdecoders=pminor)
+    return PowerDecoder(32, dec)
 
-opcodes = get_csv("major.csv")
-pdecode = PowerDecoder(32, opcodes, bitsel=(26, 32), subdecoders=pminor)
+if __name__ == '__main__':
+    pdecode = create_pdecode()
+    vl = rtlil.convert(pdecode, ports=pdecode.ports())
+    with open("decoder.il", "w") as f:
+        f.write(vl)
+
