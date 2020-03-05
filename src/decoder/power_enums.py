@@ -54,21 +54,21 @@ class Form(Enum):
     XFL = 11
     XX1 = 12
     XX2 = 13
-    XX3 = 13
-    XX4 = 14
-    XS = 15
-    XO = 16
-    A = 17
-    M = 18
-    MD = 19
-    MDS = 20
-    VA = 21
-    VC = 22
-    VX = 23
-    EVX = 24
-    EVS = 25
-    Z22 = 26
-    Z23 = 27
+    XX3 = 14
+    XX4 = 15
+    XS = 16
+    XO = 17
+    A = 18
+    M = 19
+    MD = 20
+    MDS = 21
+    VA = 22
+    VC = 23
+    VX = 24
+    EVX = 25
+    EVS = 26
+    Z22 = 27
+    Z23 = 28
 
 
 
