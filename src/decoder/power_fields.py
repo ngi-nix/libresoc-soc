@@ -16,17 +16,40 @@ def decode_fields():
         if not reading_data:
             assert l[0] == '#'
             heading = l[1:].strip()
-            if heading.startswith('1.6.28'): # skip instruction fields for now
-                break
+            #if heading.startswith('1.6.28'): # skip instruction fields for now
+                #break
             heading = heading.split(' ')[-1]
             print ("heading", heading)
             reading_data = True
             forms[heading] = []
 
     res = {}
+    inst = None
+
     for hdr, form in forms.items():
         print ("heading", hdr)
-        res[hdr] = decode_form(form)
+        if heading == 'Fields':
+            inst = decode_instructions(form)
+        #else:
+        #    res[hdr] = decode_form(form)
+    return res, inst
+
+def decode_instructions(form):
+    res = {}
+    accum = []
+    for l in form:
+        if l.strip().startswith("Formats"):
+            l = l.strip().split(":")[-1]
+            l = l.replace(" ", "")
+            l = l.split(",")
+            for fmt in l:
+                if fmt not in res:
+                    res[fmt] = [accum[0]]
+                else:
+                    res[fmt].append(accum[0])
+            accum = []
+        else:
+            accum.append(l.strip())
     return res
 
 def decode_form_header(hdr):
@@ -96,7 +119,7 @@ def decode_form(form):
 
     
 if __name__ == '__main__':
-    forms = decode_fields()
+    forms, instrs = decode_fields()
     for hdr, form in forms.items():
         print ()
         print (hdr)
@@ -104,3 +127,5 @@ if __name__ == '__main__':
             #print ("line", l)
             #for k, v in l.items():
             print ("%s: %d-%d" % (k, v[0], v[1]))
+    for form, field in instrs.items():
+        print (form, field)
