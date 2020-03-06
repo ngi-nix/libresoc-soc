@@ -1,3 +1,6 @@
+from collections import OrderedDict
+
+
 def decode_fields():
     with open("fields.txt") as f:
         txt = f.readlines()
@@ -24,15 +27,49 @@ def decode_fields():
             forms[heading] = []
 
     res = {}
-    inst = None
+    inst = {}
 
     for hdr, form in forms.items():
         print ("heading", hdr)
         if heading == 'Fields':
-            inst = decode_instructions(form)
+            i = decode_instructions(form)
+            for form, field in i.items():
+                inst[form] = decode_instruction_fields(field)
         #else:
         #    res[hdr] = decode_form(form)
     return res, inst
+
+class BitRange(OrderedDict):
+    """BitRange: remaps from straight indices (0,1,2..) to bit numbers
+    """
+    def __getitem__(self, subscript):
+        if isinstance(subscript, slice):
+            return list(self)[subscript]
+        else:
+            return self[subscript]
+
+
+def decode_instruction_fields(fields):
+    res = {}
+    for field in fields:
+        f, spec = field.strip().split(" ")
+        d = BitRange()
+        idx = 0
+        for s in spec[1:-1].split(","):
+            s = s.split(':')
+            if len(s) == 1:
+                d[idx] = int(s[0])
+                idx += 1
+            else:
+                start = int(s[0])
+                end = int(s[1])
+                while start <= end:
+                    d[idx] = start
+                    idx += 1
+                    start += 1
+        res[f] = d
+
+    return res
 
 def decode_instructions(form):
     res = {}
@@ -66,6 +103,15 @@ def decode_form_header(hdr):
         count += len(f) + 1
     return res
 
+def find_unique(d, key):
+    if key not in d:
+        return key
+    idx = 1
+    while "%s_%d" % (key, idx) in d:
+        idx += 1
+    return "%s_%d" % (key, idx)
+
+
 def decode_line(header, line):
     line = line.strip()
     res = {}
@@ -91,6 +137,7 @@ def decode_line(header, line):
         prev_fieldname = fieldname
     res[prev_fieldname] = (bitstart, 32)
     return res
+
 
 def decode_form(form):
     header = decode_form_header(form[0])
@@ -128,4 +175,7 @@ if __name__ == '__main__':
             #for k, v in l.items():
             print ("%s: %d-%d" % (k, v[0], v[1]))
     for form, field in instrs.items():
-        print (form, field)
+        print ()
+        print (form)
+        for f, vals in field.items():
+            print ("    ", f, vals)
