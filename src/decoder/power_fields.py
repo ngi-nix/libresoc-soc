@@ -1,43 +1,5 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
-
-def decode_fields():
-    with open("fields.txt") as f:
-        txt = f.readlines()
-    forms = {}
-    reading_data = False
-    for l in txt:
-        print ("line", l)
-        l = l.strip()
-        if len(l) == 0:
-            continue
-        if reading_data:
-            if l[0] == '#':
-                reading_data = False
-            else:
-                forms[heading].append(l)
-        if not reading_data:
-            assert l[0] == '#'
-            heading = l[1:].strip()
-            #if heading.startswith('1.6.28'): # skip instruction fields for now
-                #break
-            heading = heading.split(' ')[-1]
-            print ("heading", heading)
-            reading_data = True
-            forms[heading] = []
-
-    res = {}
-    inst = {}
-
-    for hdr, form in forms.items():
-        print ("heading", hdr)
-        if heading == 'Fields':
-            i = decode_instructions(form)
-            for form, field in i.items():
-                inst[form] = decode_instruction_fields(field)
-        #else:
-        #    res[hdr] = decode_form(form)
-    return res, inst
 
 class BitRange(OrderedDict):
     """BitRange: remaps from straight indices (0,1,2..) to bit numbers
@@ -47,31 +9,6 @@ class BitRange(OrderedDict):
             return list(self)[subscript]
         else:
             return self[subscript]
-
-
-def decode_instruction_fields(fields):
-    res = {}
-    for field in fields:
-        f, spec = field.strip().split(" ")
-        d = BitRange()
-        idx = 0
-        for s in spec[1:-1].split(","):
-            s = s.split(':')
-            if len(s) == 1:
-                d[idx] = int(s[0])
-                idx += 1
-            else:
-                start = int(s[0])
-                end = int(s[1])
-                while start <= end:
-                    d[idx] = start
-                    idx += 1
-                    start += 1
-        f = f.replace(",", "_")
-        unique = find_unique(res, f)
-        res[unique] = d
-
-    return res
 
 def decode_instructions(form):
     res = {}
@@ -166,9 +103,90 @@ def decode_form(form):
                 fields[k] = (start, end)
     return fields
 
-    
+
+class DecodeFields:
+
+    def __init__(self, bitkls=BitRange, bitargs=(), fname="fields.txt"):
+        self.bitkls = bitkls
+        self.bitargs = bitargs
+        self.fname = fname
+
+    def create_specs(self):
+        self.forms, self.instrs = self.decode_fields()
+        self.form_names = forms = self.instrs.keys()
+        for form in forms:
+            fields = self.instrs[form]
+            fk = fields.keys()
+            Fields = namedtuple("Fields", fk)
+            instr = Fields(**fields)
+            setattr(self, "Form%s" % form, instr)
+
+    def decode_fields(self):
+        with open(self.fname) as f:
+            txt = f.readlines()
+        forms = {}
+        reading_data = False
+        for l in txt:
+            print ("line", l)
+            l = l.strip()
+            if len(l) == 0:
+                continue
+            if reading_data:
+                if l[0] == '#':
+                    reading_data = False
+                else:
+                    forms[heading].append(l)
+            if not reading_data:
+                assert l[0] == '#'
+                heading = l[1:].strip()
+                #if heading.startswith('1.6.28'): # skip instr fields for now
+                    #break
+                heading = heading.split(' ')[-1]
+                print ("heading", heading)
+                reading_data = True
+                forms[heading] = []
+
+        res = {}
+        inst = {}
+
+        for hdr, form in forms.items():
+            print ("heading", hdr)
+            if heading == 'Fields':
+                i = decode_instructions(form)
+                for form, field in i.items():
+                    inst[form] = self.decode_instruction_fields(field)
+            #else:
+            #    res[hdr] = decode_form(form)
+        return res, inst
+
+    def decode_instruction_fields(self, fields):
+        res = {}
+        for field in fields:
+            f, spec = field.strip().split(" ")
+            d = self.bitkls(*self.bitargs)
+            idx = 0
+            for s in spec[1:-1].split(","):
+                s = s.split(':')
+                if len(s) == 1:
+                    d[idx] = int(s[0])
+                    idx += 1
+                else:
+                    start = int(s[0])
+                    end = int(s[1])
+                    while start <= end:
+                        d[idx] = start
+                        idx += 1
+                        start += 1
+            f = f.replace(",", "_")
+            unique = find_unique(res, f)
+            res[unique] = d
+
+        return res
+
 if __name__ == '__main__':
-    forms, instrs = decode_fields()
+    dec = DecodeFields()
+    dec.create_specs()
+    forms, instrs = dec.forms, dec.instrs
     for hdr, form in forms.items():
         print ()
         print (hdr)
@@ -181,3 +199,7 @@ if __name__ == '__main__':
         print (form)
         for f, vals in field.items():
             print ("    ", f, vals)
+    print (dec.FormX)
+    print (dec.FormX.A)
+    print (dir(dec.FormX))
+    print (dec.FormX._fields)
