@@ -3,6 +3,7 @@ from power_fields import DecodeFields, BitRange
 from nmigen import Module, Elaboratable, Signal, Cat
 from nmigen.cli import rtlil
 
+
 class SignalBitRange(BitRange):
     def __init__(self, signal):
         BitRange.__init__(self)

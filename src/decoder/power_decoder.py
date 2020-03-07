@@ -59,6 +59,8 @@ from power_enums import (Function, Form, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
 from collections import namedtuple
+from power_fields import DecodeFields
+from power_fieldsn import SigDecode, SignalBitRange
 
 Subdecoder = namedtuple("Subdecoder", ["pattern", "opcodes", "opint",
                                        "bitsel", "suffix", "subdecoders"])
@@ -224,6 +226,14 @@ class PowerDecoder(Elaboratable):
         return [self.opcode_in] + self.op.ports()
 
 
+class TopPowerDecoder(PowerDecoder, DecodeFields):
+
+    def __init__(self, width, dec):
+        PowerDecoder.__init__(self, width, dec)
+        DecodeFields.__init__(self, SignalBitRange, [self.opcode_in])
+        self.create_specs()
+
+
 def create_pdecode():
 
     # minor 19 has extra patterns
@@ -255,7 +265,7 @@ def create_pdecode():
     dec.append(Subdecoder(pattern=None, opint=False, opcodes=opcodes,
                      bitsel=(0, 32), suffix=None, subdecoders=[]))
 
-    return PowerDecoder(32, dec)
+    return TopPowerDecoder(32, dec)
 
 
 if __name__ == '__main__':
