@@ -131,6 +131,7 @@ class DecodeFields:
         self.UI = self.FormD.UI
         self.L = self.FormD.L
         self.SH32 = self.FormM.SH
+        self.sh = self.FormMD.sh
         self.MB32 = self.FormM.MB
         self.ME32 = self.FormM.ME
         self.LI = self.FormI.LI
