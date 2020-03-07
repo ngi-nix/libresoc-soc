@@ -120,6 +120,41 @@ class DecodeFields:
             Fields = namedtuple("Fields", fk)
             instr = Fields(**fields)
             setattr(self, "Form%s" % form, instr)
+        # now add in some commonly-used fields (should be done automatically)
+        # note that these should only be ones which are the same on all Forms
+        # note: these are from microwatt insn_helpers.vhdl
+        self.RS = self.FormX.RS
+        self.RT = self.FormX.RT
+        self.RA = self.FormX.RA
+        self.RB = self.FormX.RB
+        self.SI = self.FormD.SI
+        self.UI = self.FormD.UI
+        self.L = self.FormD.L
+        self.SH32 = self.FormM.SH
+        self.MB32 = self.FormM.MB
+        self.ME32 = self.FormM.ME
+        self.LI = self.FormI.LI
+        self.LK = self.FormI.LK
+        self.AA = self.FormB.AA
+        self.Rc = self.FormX.Rc
+        self.OE = self.FormXO.Rc
+        self.BD = self.FormB.BD
+        self.BF = self.FormX.BF
+        self.CR = self.FormXL.XO # used by further mcrf decoding
+        self.BB = self.FormXL.BB
+        self.BA = self.FormXL.BA
+        self.BT = self.FormXL.BT
+        self.FXM = self.FormXFX.FXM
+        self.BO = self.FormXL.BO
+        self.BI = self.FormXL.BI
+        self.BH = self.FormXL.BH
+        self.D = self.FormD.D
+        self.DS = self.FormDS.DS
+        self.TO = self.FormX.TO
+        self.BC = self.FormA.BC
+        self.SH = self.FormX.SH
+        self.ME = self.FormM.ME
+        self.MB = self.FormM.MB
 
     def decode_fields(self):
         with open(self.fname) as f:
