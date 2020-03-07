@@ -67,7 +67,9 @@ def decode_instruction_fields(fields):
                     d[idx] = start
                     idx += 1
                     start += 1
-        res[f] = d
+        f = f.replace(",", "_")
+        unique = find_unique(res, f)
+        res[unique] = d
 
     return res
 
