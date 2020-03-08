@@ -158,7 +158,7 @@ class DecodeOut(Elaboratable):
             with m.Case(In1Sel.RA):
                 comb += self.reg_out.eq(self.dec.RA)
                 comb += self.regok_out.eq(1)
-              with m.Case(In1Sel.SPR):
+            with m.Case(In1Sel.SPR):
                 self.spr_out.eq(self.dec.SPR) # decode SPR field from XFX insn
                 self.sprok_out.eq(1)
 
@@ -185,7 +185,7 @@ class DecodeRC(Elaboratable):
             with m.Case(RC.ONE):
                 comb += self.rc_out.eq(1)
                 comb += self.rcok_out.eq(1)
-              with m.Case(RC.NONE):
+            with m.Case(RC.NONE):
                 comb += self.rc_out.eq(0)
                 comb += self.rcok_out.eq(1)
 
