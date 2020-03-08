@@ -4,10 +4,20 @@ based on Anton Blanchard microwatt decode2.vhdl
 
 """
 from nmigen import Module, Elaboratable, Signal
-from power_enums import (InternalOp, CryIn,
+from nmigen.cli import rtlil
+
+from power_decoder import create_pdecode
+from power_enums import (InternalOp, CryIn, Function, LdstLen,
                          In1Sel, In2Sel, In3Sel, OutSel, SPR, RC)
 
+
 class DecodeA(Elaboratable):
+    """DecodeA from instruction
+
+    decodes register RA, whether immediate-zero, implicit and
+    explicit CSRs
+    """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(In1Sel, reset_less=True)
@@ -52,6 +62,12 @@ class DecodeA(Elaboratable):
 
 
 class DecodeB(Elaboratable):
+    """DecodeB from instruction
+
+    decodes register RB, different forms of immediate (signed, unsigned),
+    and implicit SPRs
+    """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(In2Sel, reset_less=True)
@@ -117,6 +133,11 @@ class DecodeB(Elaboratable):
 
 
 class DecodeC(Elaboratable):
+    """DecodeC from instruction
+
+    decodes register RC
+    """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(In3Sel, reset_less=True)
@@ -137,6 +158,11 @@ class DecodeC(Elaboratable):
 
 
 class DecodeOut(Elaboratable):
+    """DecodeOut from instruction
+
+    decodes output register RA, RT or SPR
+    """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(In1Sel, reset_less=True)
@@ -166,11 +192,15 @@ class DecodeOut(Elaboratable):
 
 
 class DecodeRC(Elaboratable):
+    """DecodeRc from instruction
+
+    decodes Record bit Rc
+    """
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(RC, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.rc_out = Signal(1, reset_less=True)
+        self.rc_out = Signal(reset_less=True)
         self.rcok_out = Signal(reset_less=True)
 
     def elaborate(self, platform):
@@ -193,7 +223,10 @@ class DecodeRC(Elaboratable):
 
 
 class DecodeOE(Elaboratable):
-    """
+    """DecodeOE from instruction
+
+    decodes OE field: uses RC decode detection which might not be good
+
     -- For now, use "rc" in the decode table to decide whether oe exists.
     -- This is not entirely correct architecturally: For mulhd and
     -- mulhdu, the OE field is reserved. It remains to be seen what an
@@ -229,9 +262,9 @@ class XerBits:
         self.so = Signal(reset_less=True)
 
 
-class PowerDecodeToExecute(Elaboratable):
+class Decode2ToExecute1Type:
 
-    def __init__(self, width):
+    def __init__(self):
 
         self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
@@ -239,6 +272,7 @@ class PowerDecodeToExecute(Elaboratable):
         self.write_reg = Signal(5, reset_less=True)
         self.read_reg1 = Signal(5, reset_less=True)
         self.read_reg2 = Signal(5, reset_less=True)
+        self.read_reg3 = Signal(5, reset_less=True)
         self.read_data1 = Signal(64, reset_less=True)
         self.read_data2 = Signal(64, reset_less=True)
         self.read_data3 = Signal(64, reset_less=True)
@@ -249,7 +283,7 @@ class PowerDecodeToExecute(Elaboratable):
         self.oe = Signal(reset_less=True)
         self.invert_a = Signal(reset_less=True)
         self.invert_out = Signal(reset_less=True)
-        self.input_carry: Signal(CryIn, reset_less=True)
+        self.input_carry = Signal(CryIn, reset_less=True)
         self.output_carry = Signal(reset_less=True)
         self.input_cr = Signal(reset_less=True)
         self.output_cr = Signal(reset_less=True)
@@ -261,9 +295,104 @@ class PowerDecodeToExecute(Elaboratable):
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.update  = Signal(reset_less=True) # is this an update instruction?
 
+    def ports(self):
+        return [self.valid, self.insn_type, self.nia, self.write_reg,
+                self.read_reg1, self.read_reg2, self.read_reg3,
+                self.read_data1, self.read_data2, self.read_data3,
+                self.cr, self.xerc, self.lr, self.rc, self.oe,
+                self.invert_a, self.invert_out,
+                self.input_carry, self.output_carry,
+                self.input_cr, self.output_cr,
+                self.is_32bit, self.is_signed,
+                self.insn,
+                self.data_len, self.byte_reverse , self.sign_extend ,
+                self.update]
+
+
+class PowerDecode2(Elaboratable):
+
+    def __init__(self, dec):
+
+        self.dec = dec
+        self.e = Decode2ToExecute1Type()
+
+    def ports(self):
+        return self.dec.ports() + self.e.ports()
+
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
+        # set up submodule decoders
+        m.submodules.dec_a = dec_a = DecodeA(self.dec)
+        m.submodules.dec_b = dec_b = DecodeB(self.dec)
+        m.submodules.dec_c = dec_c = DecodeC(self.dec)
+        m.submodules.dec_o = dec_o = DecodeOut(self.dec)
+        m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
+        m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
+
+        # copy instruction through...
+        for i in [self.e.insn, dec_a.insn_in, dec_b.insn_in,
+                  dec_c.insn_in, dec_o.insn_in, dec_rc.insn_in,
+                  dec_oe.insn_in]:
+            comb += i.eq(self.dec.opcode_in)
+
+        # ...and subdecoders' input fields
+        comb += dec_a.sel_in.eq(self.dec.in1_sel)
+        comb += dec_b.sel_in.eq(self.dec.in2_sel)
+        comb += dec_c.sel_in.eq(self.dec.in3_sel)
+        comb += dec_o.sel_in.eq(self.dec.out_sel)
+        comb += dec_rc.sel_in.eq(self.dec.rc_sel)
+        comb += dec_oe.sel_in.eq(self.dec.rc_sel) # XXX should be OE sel
+
+        # decode LD/ST length
+        with m.Switch(self.dec.ldst_len):
+            with m.Case(LDstLen.is1B):
+                comb += self.e.data_len.eq(1)
+            with m.Case(LDstLen.is2B):
+                comb += self.e.data_len.eq(2)
+            with m.Case(LDstLen.is4B):
+                comb += self.e.data_len.eq(4)
+            with m.Case(LDstLen.is8B):
+                comb += self.e.data_len.eq(8)
+
+        #comb += self.e.nia.eq(self.dec.nia) # XXX TODO
+        itype = Mux(self.dec.function_unit == Function.NONE,
+                    InternalOp.OP_ILLEGAL,
+                    self.dec.insn_type)
+        comb += self.e.insn_type.eq(itype)
+
+        # registers a, b, c and out
+        # TODO: registers valid
+        comb += self.e.read_reg1.eq(dec_a.reg_out)
+        comb += self.e.read_reg2.eq(dec_b.reg_out)
+        comb += self.e.read_reg3.eq(dec_c.reg_out)
+        comb += self.e.write_reg.eq(dec_o.reg_out)
+
+        # TODO: SPRs out
+        # TODO: SPRs valid
+
+        # decoded/selected instruction flags
+        comb += self.e.invert_a.eq(self.dec.inv_A)
+        comb += self.e.invert_out.eq(self.dec.inv_out)
+        comb += self.e.input_carry.eq(self.dec.CR_in)
+        comb += self.e.output_carry.eq(self.dec.CR_out)
+        comb += self.e.is_32bit.eq(self.dec.is_32b)
+        comb += self.e.is_signed.eq(self.dec.sgn)
+        with m.If(self.dec.lk):
+            comb += self.e.lk.eq(self.dec.LK)
+
+        comb += self.e.byte_reverse.eq(self.dec.br)
+        comb += self.e.sign_extend.eq(self.dec.sgn_ext)
+        comb += self.e.update.eq(self.dec.upd)
+
         return m
+
+
+if __name__ == '__main__':
+    pdecode = create_pdecode()
+    dec2 = PowerDecode2(pdecode)
+    vl = rtlil.convert(dec2, ports=dec2.ports())
+    with open("dec2.il", "w") as f:
+        f.write(vl)
 
