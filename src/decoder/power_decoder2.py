@@ -22,8 +22,7 @@ class DecodeA(Elaboratable):
         self.dec = dec
         self.sel_in = Signal(In1Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Signal(5, reset_less=True)
-        self.regok_out = Signal(reset_less=True)
+        self.reg_out = Data(5, name="reg_a")
         self.immz_out = Signal(reset_less=True)
         self.spr_out = Signal(10, reset_less=True)
         self.sprok_out = Signal(reset_less=True)
@@ -35,13 +34,13 @@ class DecodeA(Elaboratable):
         # select Register A field
         with m.If((self.sel_in == In1Sel.RA) |
                   ((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (self.reg_out != Const(0, 5)))):
-            comb += self.reg_out.eq(self.dec.RA[0:-1])
-            comb += self.regok_out.eq(1)
+                   (self.reg_out.data != Const(0, 5)))):
+            comb += self.reg_out.data.eq(self.dec.RA[0:-1])
+            comb += self.reg_out.ok.eq(1)
 
         # zero immediate requested
         with m.If((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (self.reg_out == Const(0, 5))):
+                   (self.reg_out.data == Const(0, 5))):
             comb += self.immz_out.eq(1)
 
         # decode SPR1 based on instruction type
@@ -60,6 +59,20 @@ class DecodeA(Elaboratable):
 
         return m
 
+class Data:
+
+    def __init__(self, width, name):
+
+        self.data = Signal(width, name=name, reset_less=True)
+        self.ok = Signal(name="%s_ok" % name, reset_less=True)
+
+    def eq(self, rhs):
+        return [self.data.eq(rhs.data),
+                self.ok.eq(rhs.ok)]
+
+    def ports(self):
+        return [self.data, self.ok]
+
 
 class DecodeB(Elaboratable):
     """DecodeB from instruction
@@ -72,10 +85,8 @@ class DecodeB(Elaboratable):
         self.dec = dec
         self.sel_in = Signal(In2Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Signal(5, reset_less=True)
-        self.regok_out = Signal(reset_less=True)
-        self.imm_out = Signal(64, reset_less=True)
-        self.immok_out = Signal(reset_less=True)
+        self.reg_out = Data(5, "reg_b")
+        self.imm_out = Data(64, "imm_b")
         self.spr_out = Signal(10, reset_less=True)
         self.sprok_out = Signal(reset_less=True)
 
@@ -86,38 +97,38 @@ class DecodeB(Elaboratable):
         # select Register B field
         with m.Switch(self.sel_in):
             with m.Case(In2Sel.RB):
-                comb += self.reg_out.eq(self.dec.RB[0:-1])
-                comb += self.regok_out.eq(1)
+                comb += self.reg_out.data.eq(self.dec.RB[0:-1])
+                comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI):
-                comb += self.imm_out.eq(self.dec.UI[0:-1])
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.UI[0:-1])
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI): # TODO: sign-extend here?
-                comb += self.imm_out.eq(self.dec.SI[0:-1])
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.SI[0:-1])
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI_HI):
-                comb += self.imm_out.eq(self.dec.UI[0:-1]<<4)
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.UI[0:-1]<<4)
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI_HI): # TODO: sign-extend here?
-                comb += self.imm_out.eq(self.dec.SI[0:-1]<<4)
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.SI[0:-1]<<4)
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_LI):
-                comb += self.imm_out.eq(self.dec.LI[0:-1]<<2)
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.LI[0:-1]<<2)
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_BD):
-                comb += self.imm_out.eq(self.dec.BD[0:-1]<<2)
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.BD[0:-1]<<2)
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_DS):
-                comb += self.imm_out.eq(self.dec.DS[0:-1]<<2)
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.DS[0:-1]<<2)
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_M1):
-                comb += self.imm_out.eq(~Const(0, 64)) # all 1s
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(~Const(0, 64)) # all 1s
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SH):
-                comb += self.imm_out.eq(self.dec.sh[0:-1])
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.sh[0:-1])
+                comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SH32):
-                comb += self.imm_out.eq(self.dec.SH32[0:-1])
-                comb += self.immok_out.eq(1)
+                comb += self.imm_out.data.eq(self.dec.SH32[0:-1])
+                comb += self.imm_out.ok.eq(1)
 
         # decode SPR2 based on instruction type
         op = self.dec.op
@@ -142,8 +153,7 @@ class DecodeC(Elaboratable):
         self.dec = dec
         self.sel_in = Signal(In3Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Signal(5, reset_less=True)
-        self.regok_out = Signal(reset_less=True)
+        self.reg_out = Data(5, "reg_c")
 
     def elaborate(self, platform):
         m = Module()
@@ -151,8 +161,8 @@ class DecodeC(Elaboratable):
 
         # select Register C field
         with m.If(self.sel_in == In3Sel.RS):
-            comb += self.reg_out.eq(self.dec.RS[0:-1])
-            comb += self.regok_out.eq(1)
+            comb += self.reg_out.data.eq(self.dec.RS[0:-1])
+            comb += self.reg_out.ok.eq(1)
 
         return m
 
@@ -273,12 +283,13 @@ class Decode2ToExecute1Type:
         self.insn_type = Signal(InternalOp, reset_less=True)
         self.nia = Signal(64, reset_less=True)
         self.write_reg = Signal(5, reset_less=True)
-        self.read_reg1 = Signal(5, reset_less=True)
-        self.read_reg2 = Signal(5, reset_less=True)
-        self.read_reg3 = Signal(5, reset_less=True)
-        self.read_data1 = Signal(64, reset_less=True)
-        self.read_data2 = Signal(64, reset_less=True)
-        self.read_data3 = Signal(64, reset_less=True)
+        self.read_reg1 = Data(5, name="reg1")
+        self.read_reg2 = Data(5, name="reg2")
+        self.read_reg3 = Data(5, name="reg3")
+        self.imm_data = Data(64, name="imm")
+        #self.read_data1 = Signal(64, reset_less=True)
+        #self.read_data2 = Signal(64, reset_less=True)
+        #self.read_data3 = Signal(64, reset_less=True)
         #self.cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
         #self.xerc = XerBits() # NO: this is from the XER SPR
         self.lk = Signal(reset_less=True)
@@ -300,8 +311,7 @@ class Decode2ToExecute1Type:
 
     def ports(self):
         return [self.valid, self.insn_type, self.nia, self.write_reg,
-                self.read_reg1, self.read_reg2, self.read_reg3,
-                self.read_data1, self.read_data2, self.read_data3,
+                #self.read_data1, self.read_data2, self.read_data3,
                 #self.cr,
                 self.lk, self.rc, self.oe,
                 self.invert_a, self.invert_out,
@@ -310,8 +320,12 @@ class Decode2ToExecute1Type:
                 self.is_32bit, self.is_signed,
                 self.insn,
                 self.data_len, self.byte_reverse , self.sign_extend ,
-                self.update] # + self.xerc.ports()
-
+                self.update] + \
+                self.read_reg1.ports() + \
+                self.read_reg2.ports() + \
+                self.read_reg3.ports() + \
+                self.imm_data.ports()
+                # + self.xerc.ports()
 
 class PowerDecode2(Elaboratable):
 
@@ -368,11 +382,11 @@ class PowerDecode2(Elaboratable):
         comb += self.e.insn_type.eq(itype)
 
         # registers a, b, c and out
-        # TODO: registers valid
         comb += self.e.read_reg1.eq(dec_a.reg_out)
         comb += self.e.read_reg2.eq(dec_b.reg_out)
         comb += self.e.read_reg3.eq(dec_c.reg_out)
         comb += self.e.write_reg.eq(dec_o.reg_out)
+        comb += self.e.imm_data.eq(dec_b.imm_out)
 
         # rc and oe out
         comb += self.e.rc.eq(dec_rc.rc_out)
