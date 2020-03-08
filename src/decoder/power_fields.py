@@ -156,6 +156,7 @@ class DecodeFields:
         self.SH = self.FormX.SH
         self.ME = self.FormM.ME
         self.MB = self.FormM.MB
+        self.SPR = self.FormXFX.SPR
 
     def decode_fields(self):
         with open(self.fname) as f:
