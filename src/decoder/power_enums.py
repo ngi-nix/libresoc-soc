@@ -29,6 +29,8 @@ default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
                    'rc' : 'NONE', 'cry in' : 'ZERO', 'form': 'NONE'}
 
 def get_signal_name(name):
+    if name[0].isdigit():
+        name = "is_" + name
     return name.lower().replace(' ', '_')
 
 
