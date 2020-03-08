@@ -279,7 +279,7 @@ class Decode2ToExecute1Type:
         self.read_data1 = Signal(64, reset_less=True)
         self.read_data2 = Signal(64, reset_less=True)
         self.read_data3 = Signal(64, reset_less=True)
-        self.cr = Signal(32, reset_less=True)
+        #self.cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
         #self.xerc = XerBits() # NO: this is from the XER SPR
         self.lk = Signal(reset_less=True)
         self.rc = Signal(reset_less=True)
@@ -302,7 +302,8 @@ class Decode2ToExecute1Type:
         return [self.valid, self.insn_type, self.nia, self.write_reg,
                 self.read_reg1, self.read_reg2, self.read_reg3,
                 self.read_data1, self.read_data2, self.read_data3,
-                self.cr, self.lk, self.rc, self.oe,
+                #self.cr,
+                self.lk, self.rc, self.oe,
                 self.invert_a, self.invert_out,
                 self.input_carry, self.output_carry,
                 self.input_cr, self.output_cr,
