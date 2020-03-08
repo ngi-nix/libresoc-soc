@@ -280,7 +280,7 @@ class Decode2ToExecute1Type:
         self.read_data2 = Signal(64, reset_less=True)
         self.read_data3 = Signal(64, reset_less=True)
         self.cr = Signal(32, reset_less=True)
-        self.xerc = XerBits()
+        #self.xerc = XerBits() # NO: this is from the XER SPR
         self.lk = Signal(reset_less=True)
         self.rc = Signal(reset_less=True)
         self.oe = Signal(reset_less=True)
@@ -309,7 +309,7 @@ class Decode2ToExecute1Type:
                 self.is_32bit, self.is_signed,
                 self.insn,
                 self.data_len, self.byte_reverse , self.sign_extend ,
-                self.update] + self.xerc.ports()
+                self.update] # + self.xerc.ports()
 
 
 class PowerDecode2(Elaboratable):
