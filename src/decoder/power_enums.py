@@ -206,3 +206,22 @@ class CryIn(Enum):
     ZERO = 0
     ONE = 1
     CA = 2
+
+@unique
+class SPR(Enum):
+    XER    = 1
+    LR     = 8
+    CTR    = 9
+    TB     = 268
+    SRR0   = 26
+    SRR1   = 27
+    HSRR0  = 314
+    HSRR1  = 315
+    SPRG0  = 272
+    SPRG1  = 273
+    SPRG2  = 274
+    SPRG3  = 275
+    SPRG3U = 259
+    HSPRG0 = 304
+    HSPRG1 = 305
+
