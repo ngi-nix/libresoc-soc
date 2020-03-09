@@ -6,7 +6,7 @@ class TestMemory(Elaboratable):
         self.ddepth = 1 # regwid //8
         depth = (1<<addrw) // self.ddepth
         self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
-        self.rdport = self.mem.read_port()
+        self.rdport = self.mem.read_port(transparent=False)
         self.wrport = self.mem.write_port()
 
     def elaborate(self, platform):

@@ -253,6 +253,7 @@ class LDSTCompUnit(Elaboratable):
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
         # put the register directly onto the output bus on a go_write
+        # this is "ALU mode".  go_wr_i *must* be deasserted on next clock
         with m.If(self.go_wr_i):
             comb += self.data_o.eq(data_r)
 
@@ -260,13 +261,23 @@ class LDSTCompUnit(Elaboratable):
         with m.If(self.go_ad_i):
             comb += self.addr_o.eq(data_r)
 
-        # TODO: think about moving this to another module
-        # connect ST to memory
+        # TODO: think about moving these to another module
+
+        # connect ST to memory.  NOTE: unit *must* be set back
+        # to start again by dropping go_st_i on next clock
         with m.If(self.stwd_mem_o):
             wrport = self.mem.wrport
             comb += wrport.addr.eq(self.addr_o)
             comb += wrport.data.eq(src2_r)
             comb += wrport.en.eq(1)
+
+        # connect LD to memory.  NOTE: unit *must* be set back
+        # to start again by dropping go_ad_i on next clock
+        with m.If(self.load_mem_o):
+            rdport = self.mem.rdport
+            comb += rdport.addr.eq(self.addr_o)
+            comb += self.data_o.eq(rdport.data)
+            comb += rdport.en.eq(1)
 
         return m
 
