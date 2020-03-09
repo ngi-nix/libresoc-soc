@@ -3,7 +3,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Elaboratable, Repl
 from nmigen.lib.coding import Decoder
 
-from scoreboard.shadow_fn import ShadowFn
+from soc.scoreboard.shadow_fn import ShadowFn
 
 
 class ShadowMatrix(Elaboratable):

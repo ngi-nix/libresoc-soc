@@ -3,12 +3,12 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
 from regfile.regfile import RegFileArray, treereduce
-from scoreboard.ldst_matrix import LDSTDepMatrix
-from scoreboard.fu_mem_matrix import FUMemDepMatrix
-from scoreboard.global_pending import GlobalPending
-from scoreboard.group_picker import GroupPicker
-from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
-from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
+from soc.scoreboard.ldst_matrix import LDSTDepMatrix
+from soc.scoreboard.fu_mem_matrix import FUMemDepMatrix
+from soc.scoreboard.global_pending import GlobalPending
+from soc.scoreboard.group_picker import GroupPicker
+from soc.scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
+from soc.scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq

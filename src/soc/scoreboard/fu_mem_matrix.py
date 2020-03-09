@@ -2,8 +2,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat, Const
 
-from scoreboard.fumem_dep_cell import FUMemDependenceCell
-from scoreboard.fu_mem_picker_vec import FUMem_Pick_Vec
+from soc.scoreboard.fumem_dep_cell import FUMemDependenceCell
+from soc.scoreboard.fu_mem_picker_vec import FUMem_Pick_Vec
 
 """
 

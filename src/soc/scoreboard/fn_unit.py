@@ -5,7 +5,7 @@ from nmigen.lib.coding import Decoder
 
 from nmutil.latch import SRLatch, latchregister
 
-from scoreboard.shadow import Shadow
+from soc.scoreboard.shadow import Shadow
 
 
 class FnUnit(Elaboratable):

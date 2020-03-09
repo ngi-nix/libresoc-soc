@@ -6,7 +6,7 @@ from random import randint
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 
-from scoreboard.instruction_q import InstructionQ
+from soc.scoreboard.instruction_q import InstructionQ
 from nmutil.nmoperator import eq
 
 

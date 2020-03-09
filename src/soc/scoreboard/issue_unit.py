@@ -3,7 +3,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
 from nmigen.lib.coding import Decoder
 
-from scoreboard.group_picker import PriorityPicker
+from soc.scoreboard.group_picker import PriorityPicker
 
 
 class RegDecode(Elaboratable):

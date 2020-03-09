@@ -2,10 +2,10 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat
 
-from scoreboard.mem_dependence_cell import MemDepRow
-from scoreboard.mem_fu_pending import MemFU_Pend
-from scoreboard.mem_select import Mem_Rsv
-from scoreboard.global_pending import GlobalPending
+from soc.scoreboard.mem_dependence_cell import MemDepRow
+from soc.scoreboard.mem_fu_pending import MemFU_Pend
+from soc.scoreboard.mem_select import Mem_Rsv
+from soc.scoreboard.global_pending import GlobalPending
 
 """
 

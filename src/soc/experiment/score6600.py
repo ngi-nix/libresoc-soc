@@ -3,15 +3,15 @@ from nmigen.cli import verilog, rtlil
 from nmigen.hdl.ast import unsigned
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable, Memory
 
-from regfile.regfile import RegFileArray, treereduce
-from scoreboard.fu_fu_matrix import FUFUDepMatrix
-from scoreboard.fu_reg_matrix import FURegDepMatrix
-from scoreboard.global_pending import GlobalPending
-from scoreboard.group_picker import GroupPicker
-from scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
-from scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
-from scoreboard.instruction_q import Instruction, InstructionQ
-from scoreboard.memfu import MemFunctionUnits
+from soc.regfile.regfile import RegFileArray, treereduce
+from soc.scoreboard.fu_fu_matrix import FUFUDepMatrix
+from soc.scoreboard.fu_reg_matrix import FURegDepMatrix
+from soc.scoreboard.global_pending import GlobalPending
+from soc.scoreboard.group_picker import GroupPicker
+from soc.scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
+from soc.scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
+from soc.scoreboard.instruction_q import Instruction, InstructionQ
+from soc.scoreboard.memfu import MemFunctionUnits
 
 from compalu import ComputationUnitNoDelay
 from compldst import LDSTCompUnit

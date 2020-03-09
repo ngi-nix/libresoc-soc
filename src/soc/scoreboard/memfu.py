@@ -2,8 +2,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Array, Elaboratable
 
-from scoreboard.fu_fu_matrix import FUFUDepMatrix
-from scoreboard.mdm import FUMemMatchMatrix
+from soc.scoreboard.fu_fu_matrix import FUFUDepMatrix
+from soc.scoreboard.mdm import FUMemMatchMatrix
 
 
 class MemFunctionUnits(Elaboratable):

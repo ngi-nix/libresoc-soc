@@ -2,8 +2,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module
 
-from scoreboard.fu_reg_matrix import FURegDepMatrix
-from scoreboard.addr_match import PartialAddrMatch
+from soc.scoreboard.fu_reg_matrix import FURegDepMatrix
+from soc.scoreboard.addr_match import PartialAddrMatch
 
 class FUMemMatchMatrix(FURegDepMatrix, PartialAddrMatch):
     """ implement a FU-Regs overload with memory-address matching
