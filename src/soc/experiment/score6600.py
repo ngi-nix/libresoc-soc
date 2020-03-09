@@ -15,6 +15,7 @@ from soc.scoreboard.memfu import MemFunctionUnits
 
 from compalu import ComputationUnitNoDelay
 from compldst import LDSTCompUnit
+from testmem import TestMemory
 
 from alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
@@ -23,19 +24,6 @@ from nmutil.nmoperator import eq
 from random import randint, seed
 from copy import deepcopy
 from math import log
-
-
-class TestMemory(Elaboratable):
-    def __init__(self, regwid, addrw):
-        self.ddepth = 1 # regwid //8
-        depth = (1<<addrw) // self.ddepth
-        self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
-
-    def elaborate(self, platform):
-        m = Module()
-        m.submodules.rdport = self.rdport = self.mem.read_port()
-        m.submodules.wrport = self.wrport = self.mem.write_port()
-        return m
 
 
 class MemSim:
@@ -464,7 +452,7 @@ class Scoreboard(Elaboratable):
 
         # LDST Comp Units
         n_ldsts = 2
-        cul = CompUnitLDSTs(self.rwid, 4, self.lsissue.n_insns, None)
+        cul = CompUnitLDSTs(self.rwid, 4, self.lsissue.n_insns, self.mem)
 
         # Comp Units
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cul, cub])
@@ -1280,7 +1268,7 @@ def scoreboard_sim(dut, alusim):
 def test_scoreboard():
     dut = IssueToScoreboard(2, 1, 1, 16, 8, 8)
     alusim = RegSim(16, 8)
-    memsim = MemSim(16, 16)
+    memsim = MemSim(16, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
         f.write(vl)

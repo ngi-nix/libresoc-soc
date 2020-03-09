@@ -1,9 +1,3 @@
-from nmigen.compat.sim import run_simulation
-from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Cat, Elaboratable
-
-from nmutil.latch import SRLatch, latchregister
-
 """ LOAD / STORE Computation Unit.  Also capable of doing ADD and ADD immediate
 
     This module runs a "revolving door" set of four latches, based on
@@ -14,7 +8,23 @@ from nmutil.latch import SRLatch, latchregister
 
     (Note that opc_l has been inverted (and qn used), due to SRLatch
      default reset state being "0" rather than "1")
+
+    Also note: the LD/ST Comp Unit can act as a *standard ALU* doing
+    add and subtract.
+
+    Stores are activated when Go_Store is enabled, and uses the ALU
+    to add the immediate (imm_i) to the address (src1_i), and then
+    when ready (go_st_i and the ALU ready) the operand (src2_i) is stored
+    in the computed address.
 """
+
+from nmigen.compat.sim import run_simulation
+from nmigen.cli import verilog, rtlil
+from nmigen import Module, Signal, Mux, Cat, Elaboratable
+
+from nmutil.latch import SRLatch, latchregister
+
+from testmem import TestMemory
 
 # internal opcodes.  hypothetically this could do more combinations.
 # meanings:
@@ -22,10 +32,10 @@ from nmutil.latch import SRLatch, latchregister
 # * bit 1: 0 = src1, 1 = IMM
 # * bit 2: 1 = LD
 # * bit 3: 1 = ST
-LDST_OP_ADDI = 0b0000 # plain ADD (src1 + src2)
-LDST_OP_SUBI = 0b0001 # plain SUB (src1 - src2)
-LDST_OP_ADD  = 0b0010 # immed ADD (imm + src1)
-LDST_OP_SUB  = 0b0011 # immed SUB (imm - src1)
+LDST_OP_ADD  = 0b0000 # plain ADD (src1 + src2) - use this ALU as an ADD
+LDST_OP_SUB  = 0b0001 # plain SUB (src1 - src2) - use this ALU as a SUB
+LDST_OP_ADDI = 0b0010 # immed ADD (imm + src1)
+LDST_OP_SUBI = 0b0011 # immed SUB (imm - src1)
 LDST_OP_ST   = 0b0110 # immed ADD plus LD op.  ADD result is address
 LDST_OP_LD   = 0b1010 # immed ADD plus ST op.  ADD result is address
 
@@ -92,6 +102,7 @@ class LDSTCompUnit(Elaboratable):
         sync = m.d.sync
 
         m.submodules.alu = self.alu
+        #m.submodules.mem = self.mem
         m.submodules.src_l = src_l = SRLatch(sync=False)
         m.submodules.opc_l = opc_l = SRLatch(sync=False)
         m.submodules.adr_l = adr_l = SRLatch(sync=False)
@@ -118,6 +129,9 @@ class LDSTCompUnit(Elaboratable):
         op_is_st = Signal(reset_less=True)
         op_ldst = Signal(reset_less=True)
         op_is_imm = Signal(reset_less=True)
+
+        # src2 register
+        src2_r = Signal(self.rwid, reset_less=True)
 
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
@@ -184,6 +198,7 @@ class LDSTCompUnit(Elaboratable):
 
         # create a latch/register for src1/src2 (include immediate select)
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
+        latchregister(m, self.src2_i, src2_r, src_l.q)
         latchregister(m, src2_or_imm, self.alu.b, src_sel)
 
         # create a latch/register for the operand
@@ -221,6 +236,14 @@ class LDSTCompUnit(Elaboratable):
         # put the register directly onto the address bus
         with m.If(self.go_ad_i):
             comb += self.addr_o.eq(data_r)
+
+        # TODO: think about moving this to another module
+        # connect ST to memory
+        with m.If(self.stwd_mem_o):
+            wrport = self.mem.wrport
+            comb += wrport.addr.eq(self.addr_o)
+            comb += wrport.data.eq(src2_r)
+            comb += wrport.en.eq(1)
 
         return m
 
@@ -273,11 +296,23 @@ def scoreboard_sim(dut):
     yield
 
 
+class TestLDSTCompUnit(LDSTCompUnit):
+
+    def __init__(self, rwid, opwid):
+        from alu_hier import ALU
+        self.alu = alu = ALU(rwid)
+        self.mem = mem = TestMemory(rwid, 8)
+        LDSTCompUnit.__init__(self, rwid, opwid, alu, mem)
+
+    def elaborate(self, platform):
+        m = LDSTCompUnit.elaborate(self, platform)
+        m.submodules.mem = self.mem
+        return m
+
+
 def test_scoreboard():
-    from alu_hier import ALU
-    alu = ALU(16)
-    mem = alu # fake
-    dut = LDSTCompUnit(16, 4, alu, mem)
+
+    dut = TestLDSTCompUnit(16, 4)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
