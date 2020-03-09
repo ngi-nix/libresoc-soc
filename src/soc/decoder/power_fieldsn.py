@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from power_fields import DecodeFields, BitRange
+from soc.decoder.power_fields import DecodeFields, BitRange
 from nmigen import Module, Elaboratable, Signal, Cat
 from nmigen.cli import rtlil
 

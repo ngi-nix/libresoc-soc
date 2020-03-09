@@ -1,5 +1,5 @@
 from collections import OrderedDict, namedtuple
-from power_enums import download_wiki_file
+from soc.decoder.power_enums import download_wiki_file
 
 
 class BitRange(OrderedDict):

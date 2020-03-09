@@ -6,9 +6,10 @@ based on Anton Blanchard microwatt decode2.vhdl
 from nmigen import Module, Elaboratable, Signal, Mux, Const
 from nmigen.cli import rtlil
 
-from power_decoder import create_pdecode
-from power_enums import (InternalOp, CryIn, Function, LdstLen,
-                         In1Sel, In2Sel, In3Sel, OutSel, SPR, RC)
+from soc.decoder.power_decoder import create_pdecode
+from soc.decoder.power_enums import (InternalOp, CryIn, Function,
+                                     LdstLen, In1Sel, In2Sel, In3Sel,
+                                     OutSel, SPR, RC)
 
 
 class DecodeA(Elaboratable):

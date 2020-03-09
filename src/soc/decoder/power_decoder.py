@@ -55,12 +55,13 @@ Top Level:
 
 from nmigen import Module, Elaboratable, Signal
 from nmigen.cli import rtlil
-from power_enums import (Function, Form, InternalOp, In1Sel, In2Sel, In3Sel,
-                         OutSel, RC, LdstLen, CryIn, get_csv, single_bit_flags,
+from soc.decoder.power_enums import (Function, Form, InternalOp,
+                         In1Sel, In2Sel, In3Sel, OutSel, RC, LdstLen,
+                         CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
 from collections import namedtuple
-from power_fields import DecodeFields
-from power_fieldsn import SigDecode, SignalBitRange
+from soc.decoder.power_fields import DecodeFields
+from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
 Subdecoder = namedtuple("Subdecoder", ["pattern", "opcodes", "opint",
                                        "bitsel", "suffix", "subdecoders"])
