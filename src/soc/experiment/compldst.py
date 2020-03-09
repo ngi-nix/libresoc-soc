@@ -57,6 +57,7 @@ class LDSTCompUnit(Elaboratable):
         * :isalu_i:    ADD/SUB is being "issued" (aka issue_alu_i)
         * :shadown_i:  Inverted-shadow is being held (stops STORE *and* WRITE)
         * :go_rd_i:    read is being actioned (latches in src regs)
+        * :go_wr_i:    write mode (exactly like ALU CompUnit)
         * :go_ad_i:    address is being actioned (triggers actual mem LD)
         * :go_st_i:    store is being actioned (triggers actual mem STORE)
         * :go_die_i:   resets the unit back to "wait for issue"
@@ -69,9 +70,14 @@ class LDSTCompUnit(Elaboratable):
         * :adr_rel_o:   request address (from mem)
         * :sto_rel_o:   request store (to mem)
         * :req_rel_o:   request write (result)
+        * :load_mem_o:  activate memory LOAD
+        * :stwd_mem_o:  activate memory STORE
 
-        Note: adr_rel, sto_rel, req_rel must all be acknowledged in a
-        single cycle.
+        Note: load_mem_o, stwd_mem_o and req_rel_o MUST all be acknowledged
+        in a single cycle and the CompUnit set back to doing another op.
+        This means deasserting go_st_i, go_ad_i or go_wr_i as appropriate
+        depending on whether the operation is a STORE, LD, or a straight
+        ALU operation respectively.
 
         Control Data (out)
         ------------------
