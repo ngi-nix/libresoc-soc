@@ -277,7 +277,7 @@ class LDSTCompUnit(Elaboratable):
             rdport = self.mem.rdport
             comb += rdport.addr.eq(self.addr_o)
             comb += self.data_o.eq(rdport.data)
-            comb += rdport.en.eq(1)
+            # comb += rdport.en.eq(1) # only when transparent=False
 
         return m
 
