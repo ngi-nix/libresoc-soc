@@ -34,13 +34,13 @@ class DecodeA(Elaboratable):
         # select Register A field
         with m.If((self.sel_in == In1Sel.RA) |
                   ((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (self.reg_out.data != Const(0, 5)))):
+                   (self.dec.RA[0:-1] != Const(0, 5)))):
             comb += self.reg_out.data.eq(self.dec.RA[0:-1])
             comb += self.reg_out.ok.eq(1)
 
         # zero immediate requested
         with m.If((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (self.reg_out.data == Const(0, 5))):
+                  (self.reg_out.data == Const(0, 5))):
             comb += self.immz_out.eq(1)
 
         # decode SPR1 based on instruction type
