@@ -53,6 +53,7 @@ class LDSTCompUnit(Elaboratable):
         Control Signals (In)
         --------------------
 
+        * :oper_i:     operation being carried out (LDST_OP_ADD, LDST_OP_LD)
         * :issue_i:    LD/ST is being "issued".
         * :isalu_i:    ADD/SUB is being "issued" (aka issue_alu_i)
         * :shadown_i:  Inverted-shadow is being held (stops STORE *and* WRITE)
