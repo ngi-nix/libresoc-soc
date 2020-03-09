@@ -6,7 +6,7 @@ import sys
 import os
 import unittest
 sys.path.append("../")
-from power_decoder import (PowerDecoder, pdecode)
+from power_decoder import (create_pdecode)
 from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
                          OutSel, RC, LdstLen, CryIn, single_bit_flags,
                          get_signal_name, get_csv)
@@ -29,9 +29,7 @@ class DecoderTestCase(FHDLTestCase):
         cry_in = Signal(CryIn)
 
         # opcodes = get_csv(csvname)
-        # m.submodules.dut = dut = PowerDecoder(32, opcodes, bitsel=bitsel,
-        #                                       opint=opint, suffix=suffix)
-        m.submodules.dut = dut = pdecode
+        m.submodules.dut = dut = create_pdecode()
         comb += [dut.opcode_in.eq(opcode),
                  function_unit.eq(dut.op.function_unit),
                  in1_sel.eq(dut.op.in1_sel),
@@ -61,6 +59,13 @@ class DecoderTestCase(FHDLTestCase):
                     print(minor)
                     minorbits = minor[1]
                     yield opcode[minorbits[0]:minorbits[1]].eq(minor[0])
+                else:
+                    # OR 0, 0, 0  ; 0x60000000 is decoded as a NOP
+                    # If we're testing the OR instruction, make sure
+                    # that the instruction is not 0x60000000
+                    if int(op, 0) == 24:
+                        yield opcode[24:25].eq(0b11)
+
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
                            (internal_op, InternalOp, 'internal op'),
@@ -90,6 +95,7 @@ class DecoderTestCase(FHDLTestCase):
             sim.run()
 
     def generate_ilang(self):
+        pdecode = create_pdecode()
         vl = rtlil.convert(pdecode, ports=pdecode.ports())
         with open("decoder.il", "w") as f:
             f.write(vl)

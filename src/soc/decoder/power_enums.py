@@ -4,7 +4,7 @@ import os
 import requests
 
 
-def get_csv(name):
+def download_wiki_file(name):
     file_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = os.path.join(file_dir, name)
     if not os.path.isfile(file_path):
@@ -12,6 +12,11 @@ def get_csv(name):
         r = requests.get(url, allow_redirects=True)
         with open(file_path, 'w') as outfile:
             outfile.write(r.content.decode("utf-8"))
+    return file_path
+
+
+def get_csv(name):
+    file_path = download_wiki_file(name)
     with open(file_path, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         return list(reader)

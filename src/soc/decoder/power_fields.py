@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple
+from power_enums import download_wiki_file
 
 
 class BitRange(OrderedDict):
@@ -106,10 +107,10 @@ def decode_form(form):
 
 class DecodeFields:
 
-    def __init__(self, bitkls=BitRange, bitargs=(), fname="fields.txt"):
+    def __init__(self, bitkls=BitRange, bitargs=(), fname="fields.text"):
         self.bitkls = bitkls
         self.bitargs = bitargs
-        self.fname = fname
+        self.fname = download_wiki_file(fname)
 
     def create_specs(self):
         self.forms, self.instrs = self.decode_fields()
