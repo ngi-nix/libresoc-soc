@@ -60,6 +60,23 @@ class LDSTCompUnit(Elaboratable):
         * :go_ad_i:    address is being actioned (triggers actual mem LD)
         * :go_st_i:    store is being actioned (triggers actual mem STORE)
         * :go_die_i:   resets the unit back to "wait for issue"
+
+        Control Signals (Out)
+        ---------------------
+
+        * :busy_o:      function unit is busy
+        * :rd_rel_o:    request src1/src2
+        * :adr_rel_o:   request address (from mem)
+        * :sto_rel_o:   request store (to mem)
+        * :req_rel_o:   request write (result)
+
+        Note: adr_rel, sto_rel, req_rel must all be acknowledged in a
+        single cycle.
+
+        Control Data (out)
+        ------------------
+        * :data_o:     Dest out (LD or ALU)
+        * :addr_o:     Address out (LD or ST)
     """
     def __init__(self, rwid, opwid, alu, mem):
         self.opwid = opwid
@@ -90,7 +107,7 @@ class LDSTCompUnit(Elaboratable):
         self.data_o = Signal(rwid, reset_less=True) # Dest out (LD or ALU)
         self.addr_o = Signal(rwid, reset_less=True) # Address out (LD or ST)
 
-        # hmm... TODO... move these to outside of LDSTCompUnit
+        # hmm... TODO... move these to outside of LDSTCompUnit?
         self.load_mem_o = Signal(reset_less=True) # activate memory LOAD
         self.stwd_mem_o = Signal(reset_less=True) # activate memory STORE
         self.ld_o = Signal(reset_less=True) # operation is a LD
