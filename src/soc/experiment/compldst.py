@@ -191,7 +191,7 @@ class LDSTCompUnit(Elaboratable):
         sync += req_l.r.eq(reset_w)
 
         # store latch
-        sync += sto_l.s.eq(issue_i)# XXX hmmm... |self.go_st_i)
+        sync += sto_l.s.eq(self.go_rd_i) # XXX not sure which
         sync += sto_l.r.eq(reset_s)
 
         # outputs: busy and release signals
