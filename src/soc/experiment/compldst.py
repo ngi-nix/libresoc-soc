@@ -32,12 +32,18 @@ from testmem import TestMemory
 # * bit 1: 0 = src1, 1 = IMM
 # * bit 2: 1 = LD
 # * bit 3: 1 = ST
+BIT0_ADD     = 0
+BIT1_SRC     = 1
+BIT2_ST      = 2
+BIT3_LD      = 3
+# convenience thingies.
 LDST_OP_ADD  = 0b0000 # plain ADD (src1 + src2) - use this ALU as an ADD
 LDST_OP_SUB  = 0b0001 # plain SUB (src1 - src2) - use this ALU as a SUB
 LDST_OP_ADDI = 0b0010 # immed ADD (imm + src1)
 LDST_OP_SUBI = 0b0011 # immed SUB (imm - src1)
 LDST_OP_ST   = 0b0110 # immed ADD plus LD op.  ADD result is address
 LDST_OP_LD   = 0b1010 # immed ADD plus ST op.  ADD result is address
+
 
 
 class LDSTCompUnit(Elaboratable):
@@ -224,10 +230,10 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, self.alu.o, data_r, alulatch)
 
         # decode bits of operand (latched)
-        comb += op_alu.eq(oper_r[0])
-        comb += op_is_imm.eq(oper_r[1])
-        comb += op_is_ld.eq(oper_r[2])
-        comb += op_is_st.eq(oper_r[3])
+        comb += op_alu.eq(oper_r[BIT0_ADD])    # ADD/SUB
+        comb += op_is_imm.eq(oper_r[BIT1_SRC]) # IMMED/reg
+        comb += op_is_st.eq(oper_r[BIT2_ST])  # OP is ST
+        comb += op_is_ld.eq(oper_r[BIT3_LD])  # OP is LD
         comb += op_ldst.eq(op_is_ld | op_is_st)
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
         comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
@@ -317,8 +323,8 @@ def wait_for(sig):
             break
 
 def store(dut):
-    yield dut.oper_i.eq(LDST_OP_LD)
-    yield dut.src1_i.eq(4)
+    yield dut.oper_i.eq(LDST_OP_ST)
+    yield dut.src1_i.eq(3)
     yield dut.src2_i.eq(9)
     yield dut.imm_i.eq(2)
     yield dut.issue_i.eq(1)
@@ -331,8 +337,9 @@ def store(dut):
     yield from wait_for(dut.adr_rel_o)
     yield dut.go_st_i.eq(1)
     yield from wait_for(dut.sto_rel_o)
-    #wait_for(dut.stwd_mem_o)
+    wait_for(dut.stwd_mem_o)
     yield dut.go_st_i.eq(0)
+    yield
 
 
 def load(dut):
@@ -348,16 +355,17 @@ def load(dut):
     yield from wait_for(dut.rd_rel_o)
     yield dut.go_rd_i.eq(0)
     yield from wait_for(dut.adr_rel_o)
-    #yield dut.go_ad_i.eq(1)
-    #yield
-    #yield dut.go_ad_i.eq(0)
-    yield dut.go_st_i.eq(1)
+    yield dut.go_ad_i.eq(1)
     yield from wait_for(dut.busy_o)
     #wait_for(dut.stwd_mem_o)
-    yield dut.go_st_i.eq(0)
+    yield dut.go_ad_i.eq(0)
+    data = yield dut.data_o
+    print ("read", data)
+    assert data == 0x0009
 
 def scoreboard_sim(dut):
     yield from store(dut)
+    yield from load(dut)
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
