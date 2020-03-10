@@ -203,18 +203,6 @@ class LDSTCompUnit(Elaboratable):
         comb += alulatch.eq((op_ldst & self.adr_rel_o) | \
                             (~op_ldst & self.req_rel_o))
 
-        # only proceed if ALU says its output is valid
-        with m.If(self.alu.n_valid_o):
-
-            # write req release out.  waits until shadow is dropped.
-            comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
-            # address release only happens on LD/ST, and is shadowed.
-            comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & \
-                                      self.shadown_i)
-            # when output latch is ready, and ALU says ready, accept ALU output
-            with m.If(self.req_rel_o):
-                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
-
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
         comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
@@ -253,13 +241,24 @@ class LDSTCompUnit(Elaboratable):
             with m.If(~self.alu.p_ready_o):          # no ACK yet
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
+        # only proceed if ALU says its output is valid
+        with m.If(self.alu.n_valid_o):
+            # write req release out.  waits until shadow is dropped.
+            comb += self.req_rel_o.eq(wr_q & busy_o & self.shadown_i)
+            # address release only happens on LD/ST, and is shadowed.
+            comb += self.adr_rel_o.eq(adr_l.q & op_ldst & busy_o & \
+                                      self.shadown_i)
+            # when output latch is ready, and ALU says ready, accept ALU output
+            with m.If(self.req_rel_o):
+                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
+
         # put the register directly onto the output bus on a go_write
         # this is "ALU mode".  go_wr_i *must* be deasserted on next clock
         with m.If(self.go_wr_i):
             comb += self.data_o.eq(data_r)
 
-        # put the register directly onto the address bus
-        with m.If(self.go_ad_i):
+        # "LD/ST" mode: put the register directly onto the *address* bus
+        with m.If(self.go_ad_i | self.go_st_i):
             comb += self.addr_o.eq(data_r)
 
         # TODO: think about moving these to another module
@@ -309,26 +308,35 @@ class LDSTCompUnit(Elaboratable):
 
 
 def scoreboard_sim(dut):
-    yield dut.dest_i.eq(1)
+    yield dut.oper_i.eq(LDST_OP_LD)
+    yield dut.src1_i.eq(4)
+    yield dut.src2_i.eq(9)
+    yield dut.imm_i.eq(2)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.src1_i.eq(1)
+    yield dut.go_rd_i.eq(1)
+    yield
+    yield dut.go_rd_i.eq(0)
+    yield
+    #yield dut.go_ad_i.eq(1)
+    #yield
+    #yield dut.go_ad_i.eq(0)
+    yield
+    yield dut.go_st_i.eq(1)
+    yield
+    yield dut.go_st_i.eq(0)
+    yield
+    #yield dut.go_wr_i.eq(1)
+    #yield
+    #yield dut.go_wr_i.eq(0)
+    yield
     yield dut.issue_i.eq(1)
-    yield
-    yield
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_read_i.eq(1)
-    yield
-    yield dut.go_read_i.eq(0)
-    yield
-    yield dut.go_write_i.eq(1)
-    yield
-    yield dut.go_write_i.eq(0)
-    yield
+    x = yield dut.go_rd_i
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
