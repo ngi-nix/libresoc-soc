@@ -145,7 +145,7 @@ class LDSTCompUnit(Elaboratable):
         reset_a = Signal(reset_less=True)
         reset_s = Signal(reset_less=True)
         reset_r = Signal(reset_less=True)
-        comb += reset_b.eq(self.go_st_i | self.go_wr_i | self.go_die_i)
+        comb += reset_b.eq(self.go_st_i|self.go_wr_i|self.go_ad_i|self.go_die_i)
         comb += reset_w.eq(self.go_wr_i | self.go_die_i)
         comb += reset_s.eq(self.go_st_i | self.go_die_i)
         comb += reset_r.eq(self.go_rd_i | self.go_die_i)
@@ -191,7 +191,7 @@ class LDSTCompUnit(Elaboratable):
         sync += req_l.r.eq(reset_w)
 
         # store latch
-        sync += sto_l.s.eq(issue_i)#self.go_ad_i)
+        sync += sto_l.s.eq(issue_i)# XXX hmmm... |self.go_st_i)
         sync += sto_l.r.eq(reset_s)
 
         # outputs: busy and release signals
@@ -322,11 +322,11 @@ def wait_for(sig):
         if v:
             break
 
-def store(dut):
+def store(dut, src1, src2, imm):
     yield dut.oper_i.eq(LDST_OP_ST)
-    yield dut.src1_i.eq(4)
-    yield dut.src2_i.eq(9)
-    yield dut.imm_i.eq(2)
+    yield dut.src1_i.eq(src1)
+    yield dut.src2_i.eq(src2)
+    yield dut.imm_i.eq(imm)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
@@ -342,11 +342,11 @@ def store(dut):
     yield
 
 
-def load(dut):
+def load(dut, src1, src2, imm):
     yield dut.oper_i.eq(LDST_OP_LD)
-    yield dut.src1_i.eq(4)
-    yield dut.src2_i.eq(9)
-    yield dut.imm_i.eq(2)
+    yield dut.src1_i.eq(src1)
+    yield dut.src2_i.eq(src2)
+    yield dut.imm_i.eq(imm)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
@@ -357,16 +357,21 @@ def load(dut):
     yield from wait_for(dut.adr_rel_o)
     yield dut.go_ad_i.eq(1)
     yield from wait_for(dut.busy_o)
-    #wait_for(dut.stwd_mem_o)
-    yield dut.go_ad_i.eq(0)
-    data = (yield dut.data_o)
-    print ("read", data)
-    assert data != 0x0009
     yield
+    data = (yield dut.data_o)
+    yield dut.go_ad_i.eq(0)
+    #wait_for(dut.stwd_mem_o)
+    return data
 
 def scoreboard_sim(dut):
-    yield from store(dut)
-    yield from load(dut)
+    yield from store(dut, 4, 3, 2)
+    yield from store(dut, 2, 9, 2)
+    yield
+    data = yield from load(dut, 4, 0, 2)
+    assert data == 0x0003
+    data = yield from load(dut, 2, 0, 2)
+    assert data == 0x0009
+    yield
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
