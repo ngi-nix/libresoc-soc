@@ -187,7 +187,7 @@ class LDSTCompUnit(Elaboratable):
         sync += adr_l.r.eq(reset_a)
 
         # dest operand latch
-        sync += req_l.s.eq(self.go_ad_i|self.go_st_i)
+        sync += req_l.s.eq(self.go_ad_i|self.go_st_i|self.go_wr_i)
         sync += req_l.r.eq(reset_w)
 
         # store latch
@@ -363,15 +363,48 @@ def load(dut, src1, src2, imm):
     #wait_for(dut.stwd_mem_o)
     return data
 
+
+def add(dut, src1, src2, imm, imm_mode = False):
+    yield dut.oper_i.eq(LDST_OP_ADDI if imm_mode else LDST_OP_ADD)
+    yield dut.src1_i.eq(src1)
+    yield dut.src2_i.eq(src2)
+    yield dut.imm_i.eq(imm)
+    yield dut.issue_i.eq(1)
+    yield
+    yield dut.issue_i.eq(0)
+    yield
+    yield dut.go_rd_i.eq(1)
+    yield from wait_for(dut.rd_rel_o)
+    yield dut.go_rd_i.eq(0)
+    yield from wait_for(dut.req_rel_o)
+    yield dut.go_wr_i.eq(1)
+    yield from wait_for(dut.busy_o)
+    yield
+    data = (yield dut.data_o)
+    yield dut.go_wr_i.eq(0)
+    yield
+    #wait_for(dut.stwd_mem_o)
+    return data
+
 def scoreboard_sim(dut):
+    # two STs (different addresses)
     yield from store(dut, 4, 3, 2)
     yield from store(dut, 2, 9, 2)
     yield
+    # two LDs (deliberately LD from the 1st address then 2nd)
     data = yield from load(dut, 4, 0, 2)
     assert data == 0x0003
     data = yield from load(dut, 2, 0, 2)
     assert data == 0x0009
     yield
+
+    # now do an add
+    data = yield from add(dut, 4, 3, 0xfeed)
+    assert data == 0x7
+
+    # and an add-immediate
+    data = yield from add(dut, 4, 0xdeef, 2, imm_mode=True)
+    assert data == 0x6
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
