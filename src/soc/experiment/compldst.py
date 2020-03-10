@@ -215,19 +215,19 @@ class LDSTCompUnit(Elaboratable):
         comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
 
         # create a latch/register for src1/src2 (include immediate select)
-        latchregister(m, self.src1_i, self.alu.a, src_l.q)
-        latchregister(m, self.src2_i, src2_r, src_l.q)
-        latchregister(m, src2_or_imm, self.alu.b, src_sel)
+        latchregister(m, self.src1_i, self.alu.a, src_l.q, name="src1_r")
+        latchregister(m, self.src2_i, src2_r, src_l.q, name="src2_r")
+        latchregister(m, src2_or_imm, self.alu.b, src_sel, name="imm_r")
 
         # create a latch/register for the operand
         oper_r = Signal(self.opwid, reset_less=True) # Dest register
-        latchregister(m, self.oper_i, oper_r, self.issue_i)
+        latchregister(m, self.oper_i, oper_r, self.issue_i, name="operi_r")
         alu_op = Cat(op_alu, 0, op_is_imm) # using alu_hier, here.
         comb += self.alu.op.eq(alu_op)
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True) # Dest register
-        latchregister(m, self.alu.o, data_r, alulatch)
+        latchregister(m, self.alu.o, data_r, alulatch, "aluo_r")
 
         # decode bits of operand (latched)
         comb += op_alu.eq(oper_r[BIT0_ADD])    # ADD/SUB
@@ -324,7 +324,7 @@ def wait_for(sig):
 
 def store(dut):
     yield dut.oper_i.eq(LDST_OP_ST)
-    yield dut.src1_i.eq(3)
+    yield dut.src1_i.eq(4)
     yield dut.src2_i.eq(9)
     yield dut.imm_i.eq(2)
     yield dut.issue_i.eq(1)
@@ -359,9 +359,10 @@ def load(dut):
     yield from wait_for(dut.busy_o)
     #wait_for(dut.stwd_mem_o)
     yield dut.go_ad_i.eq(0)
-    data = yield dut.data_o
+    data = (yield dut.data_o)
     print ("read", data)
-    assert data == 0x0009
+    assert data != 0x0009
+    yield
 
 def scoreboard_sim(dut):
     yield from store(dut)
