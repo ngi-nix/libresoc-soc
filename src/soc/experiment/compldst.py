@@ -127,11 +127,11 @@ class LDSTCompUnit(Elaboratable):
 
         m.submodules.alu = self.alu
         #m.submodules.mem = self.mem
-        m.submodules.src_l = src_l = SRLatch(sync=False)
-        m.submodules.opc_l = opc_l = SRLatch(sync=False)
-        m.submodules.adr_l = adr_l = SRLatch(sync=False)
-        m.submodules.req_l = req_l = SRLatch(sync=False)
-        m.submodules.sto_l = sto_l = SRLatch(sync=False)
+        m.submodules.src_l = src_l = SRLatch(sync=False, name="src")
+        m.submodules.opc_l = opc_l = SRLatch(sync=False, name="opc")
+        m.submodules.adr_l = adr_l = SRLatch(sync=False, name="adr")
+        m.submodules.req_l = req_l = SRLatch(sync=False, name="req")
+        m.submodules.sto_l = sto_l = SRLatch(sync=False, name="sto")
 
         # shadow/go_die
         reset_b = Signal(reset_less=True)
@@ -181,11 +181,11 @@ class LDSTCompUnit(Elaboratable):
         sync += adr_l.r.eq(reset_a)
 
         # dest operand latch
-        sync += req_l.s.eq(self.go_ad_i)
+        sync += req_l.s.eq(self.go_ad_i|self.go_st_i)
         sync += req_l.r.eq(reset_w)
 
         # store latch
-        sync += sto_l.s.eq(self.go_ad_i)
+        sync += sto_l.s.eq(issue_i)#self.go_ad_i)
         sync += sto_l.r.eq(reset_s)
 
         # outputs: busy and release signals
@@ -306,8 +306,17 @@ class LDSTCompUnit(Elaboratable):
     def ports(self):
         return list(self)
 
+def wait_for(sig):
+    v = (yield sig)
+    print ("wait for", sig, v)
+    while True:
+        yield
+        v = (yield sig)
+        print (v)
+        if v:
+            break
 
-def scoreboard_sim(dut):
+def store(dut):
     yield dut.oper_i.eq(LDST_OP_LD)
     yield dut.src1_i.eq(4)
     yield dut.src2_i.eq(9)
@@ -317,26 +326,38 @@ def scoreboard_sim(dut):
     yield dut.issue_i.eq(0)
     yield
     yield dut.go_rd_i.eq(1)
-    yield
+    yield from wait_for(dut.rd_rel_o)
     yield dut.go_rd_i.eq(0)
-    yield
-    #yield dut.go_ad_i.eq(1)
-    #yield
-    #yield dut.go_ad_i.eq(0)
-    yield
+    yield from wait_for(dut.adr_rel_o)
     yield dut.go_st_i.eq(1)
-    yield
+    yield from wait_for(dut.sto_rel_o)
+    #wait_for(dut.stwd_mem_o)
     yield dut.go_st_i.eq(0)
-    yield
-    #yield dut.go_wr_i.eq(1)
-    #yield
-    #yield dut.go_wr_i.eq(0)
-    yield
+
+
+def load(dut):
+    yield dut.oper_i.eq(LDST_OP_LD)
+    yield dut.src1_i.eq(4)
+    yield dut.src2_i.eq(9)
+    yield dut.imm_i.eq(2)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    x = yield dut.go_rd_i
+    yield dut.go_rd_i.eq(1)
+    yield from wait_for(dut.rd_rel_o)
+    yield dut.go_rd_i.eq(0)
+    yield from wait_for(dut.adr_rel_o)
+    #yield dut.go_ad_i.eq(1)
+    #yield
+    #yield dut.go_ad_i.eq(0)
+    yield dut.go_st_i.eq(1)
+    yield from wait_for(dut.busy_o)
+    #wait_for(dut.stwd_mem_o)
+    yield dut.go_st_i.eq(0)
+
+def scoreboard_sim(dut):
+    yield from store(dut)
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
