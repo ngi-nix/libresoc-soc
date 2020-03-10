@@ -98,12 +98,12 @@ class CompUnitsBase(Elaboratable):
         self.busy_o = Signal(n_units, reset_less=True)
         self.rd_rel_o = Signal(n_units, reset_less=True)
         self.req_rel_o = Signal(n_units, reset_less=True)
+        self.done_o = Signal(n_units, reset_less=True)
         if ldstmode:
             self.ld_o = Signal(n_units, reset_less=True) # op is LD
             self.st_o = Signal(n_units, reset_less=True) # op is ST
             self.adr_rel_o = Signal(n_units, reset_less=True)
             self.sto_rel_o = Signal(n_units, reset_less=True)
-            self.req_rel_o = Signal(n_units, reset_less=True)
             self.load_mem_o = Signal(n_units, reset_less=True)
             self.stwd_mem_o = Signal(n_units, reset_less=True)
             self.addr_o = Signal(rwid, reset_less=True)
@@ -126,11 +126,13 @@ class CompUnitsBase(Elaboratable):
         issue_l = []
         busy_l = []
         req_rel_l = []
+        done_l = []
         rd_rel_l = []
         shadow_l = []
         godie_l = []
         for alu in self.units:
             req_rel_l.append(alu.req_rel_o)
+            done_l.append(alu.done_o)
             rd_rel_l.append(alu.rd_rel_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
@@ -140,6 +142,7 @@ class CompUnitsBase(Elaboratable):
             busy_l.append(alu.busy_o)
         comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
+        comb += self.done_o.eq(Cat(*done_l))
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
@@ -610,13 +613,7 @@ class Scoreboard(Elaboratable):
         # Connect Picker
         #---------
         comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
-        #comb += intpick1.req_rel_i[0:n_intfus].eq(cu.req_rel_o[0:n_intfus])
-        # HACK for now: connect LD/ST request release to *address* release
-        comb += intpick1.req_rel_i[0].eq(cu.req_rel_o[0]) # ALU 0
-        comb += intpick1.req_rel_i[1].eq(cu.req_rel_o[1]) # ALU 1
-        comb += intpick1.req_rel_i[2].eq(cul.adr_rel_o[0]) # LD/ST 0
-        comb += intpick1.req_rel_i[3].eq(cul.adr_rel_o[1]) # LD/ST 1
-        comb += intpick1.req_rel_i[4].eq(cu.req_rel_o[4])  # BR 0
+        comb += intpick1.req_rel_i[0:n_intfus].eq(cu.done_o[0:n_intfus])
         int_rd_o = intfus.readable_o
         int_wr_o = intfus.writable_o
         comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])

@@ -65,6 +65,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.data_o = Signal(rwid, reset_less=True) # Dest out
         self.rd_rel_o = Signal(reset_less=True) # release src1/src2 request
         self.req_rel_o = Signal(reset_less=True) # release request out (valid_o)
+        self.done_o = self.req_rel_o # 'normalise' API
 
     def elaborate(self, platform):
         m = Module()

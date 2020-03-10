@@ -117,6 +117,7 @@ class LDSTCompUnit(Elaboratable):
         self.adr_rel_o = Signal(reset_less=True) # request address (from mem)
         self.sto_rel_o = Signal(reset_less=True) # request store (to mem)
         self.req_rel_o = Signal(reset_less=True) # request write (result)
+        self.done_o = Signal(reset_less=True) # final release signal
         self.data_o = Signal(rwid, reset_less=True) # Dest out (LD or ALU)
         self.addr_o = Signal(rwid, reset_less=True) # Address out (LD or ST)
 
@@ -258,6 +259,10 @@ class LDSTCompUnit(Elaboratable):
             with m.If(self.req_rel_o):
                 m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
 
+        # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
+        comb += self.done_o.eq((self.req_rel_o & ~op_ldst) |
+                               (self.adr_rel_o & op_ldst))
+
         # put the register directly onto the output bus on a go_write
         # this is "ALU mode".  go_wr_i *must* be deasserted on next clock
         with m.If(self.go_wr_i):
@@ -387,8 +392,6 @@ def add(dut, src1, src2, imm, imm_mode = False):
     return data
 
 def scoreboard_sim(dut):
-    data = yield from load(dut, 4, 0, 2)
-    return
     # two STs (different addresses)
     yield from store(dut, 4, 3, 2)
     yield from store(dut, 2, 9, 2)
