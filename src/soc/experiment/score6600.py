@@ -549,9 +549,9 @@ class Scoreboard(Elaboratable):
         # issue_i.  multi-issue gets a bit more complex but not a lot.
         prior_ldsts = Signal(cul.n_units, reset_less=True)
         sync += prior_ldsts.eq(memfus.g_int_ld_pend_o | memfus.g_int_st_pend_o)
-        with m.If(self.ls_oper_i[2]): # LD bit of operand
+        with m.If(self.ls_oper_i[3]): # LD bit of operand
             comb += memfus.ld_i.eq(cul.issue_i | prior_ldsts)
-        with m.If(self.ls_oper_i[3]): # ST bit of operand
+        with m.If(self.ls_oper_i[2]): # ST bit of operand
             comb += memfus.st_i.eq(cul.issue_i | prior_ldsts)
 
         # TODO: adr_rel_o needs to go into L1 Cache.  for now,
@@ -567,7 +567,7 @@ class Scoreboard(Elaboratable):
         go_st_i = Signal(cul.n_units, reset_less=True)
         go_ld_i = Signal(cul.n_units, reset_less=True)
         comb += go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o &\
-                                  cul.req_rel_o & cul.ld_o)
+                                  cul.adr_rel_o & cul.ld_o)
         comb += go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
                                   cul.sto_rel_o & cul.st_o)
         comb += memfus.go_ld_i.eq(go_ld_i)
@@ -610,7 +610,13 @@ class Scoreboard(Elaboratable):
         # Connect Picker
         #---------
         comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
-        comb += intpick1.req_rel_i[0:n_intfus].eq(cu.req_rel_o[0:n_intfus])
+        #comb += intpick1.req_rel_i[0:n_intfus].eq(cu.req_rel_o[0:n_intfus])
+        # HACK for now: connect LD/ST request release to *address* release
+        comb += intpick1.req_rel_i[0].eq(cu.req_rel_o[0]) # ALU 0
+        comb += intpick1.req_rel_i[1].eq(cu.req_rel_o[1]) # ALU 1
+        comb += intpick1.req_rel_i[2].eq(cul.adr_rel_o[0]) # LD/ST 0
+        comb += intpick1.req_rel_i[3].eq(cul.adr_rel_o[1]) # LD/ST 1
+        comb += intpick1.req_rel_i[4].eq(cu.req_rel_o[4])  # BR 0
         int_rd_o = intfus.readable_o
         int_wr_o = intfus.writable_o
         comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])
@@ -1125,9 +1131,9 @@ def scoreboard_sim(dut, alusim):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
-            val = randint(0, (1<<alusim.rwidth)-1)
+            #val = randint(0, (1<<alusim.rwidth)-1)
             #val = 31+i*3
-            #val = i
+            val = i
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
@@ -1136,8 +1142,8 @@ def scoreboard_sim(dut, alusim):
         if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if False: # LD/ST test (with immediate)
-            instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
+        if True: # LD/ST test (with immediate)
+            instrs.append( (1, 2, 0, 0x20, 1, 1, (0, 0)) ) # LD
             #instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
 
         if True:

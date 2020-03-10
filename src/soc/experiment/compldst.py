@@ -387,6 +387,8 @@ def add(dut, src1, src2, imm, imm_mode = False):
     return data
 
 def scoreboard_sim(dut):
+    data = yield from load(dut, 4, 0, 2)
+    return
     # two STs (different addresses)
     yield from store(dut, 4, 3, 2)
     yield from store(dut, 2, 9, 2)
