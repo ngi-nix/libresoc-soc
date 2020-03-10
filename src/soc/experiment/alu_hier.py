@@ -1,3 +1,14 @@
+"""*Experimental* ALU: based on nmigen alu_hier.py, includes branch-compare ALU
+
+This ALU is *deliberately* designed to add in (unnecessary) delays into
+different operations so as to be able to test the 6600-style matrices
+and the CompUnits.  Countdown timers wait for (defined) periods before
+indicating that the output is valid
+
+A "real" integer ALU would place the answers onto the output bus after
+only one cycle (sync)
+"""
+
 from nmigen import Elaboratable, Signal, Module, Const, Mux
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
