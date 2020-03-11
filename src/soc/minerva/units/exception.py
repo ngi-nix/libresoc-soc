@@ -1,8 +1,11 @@
-from nmigen import *
+from nmigen import Elaboratable, Module, Signal
 from nmigen.lib.coding import PriorityEncoder
 
-from ..csr import *
-from ..isa import *
+from ..csr import AutoCSR, CSR
+from ..isa import (Cause,
+                   mstatus_layout, misa_layout, mie_layout,
+                   mtvec_layout, flat_layout, mepc_layout, mcause_layout,
+                   flat_layout, mip_layout, flat_layout)
 
 
 __all__ = ["ExceptionUnit"]
