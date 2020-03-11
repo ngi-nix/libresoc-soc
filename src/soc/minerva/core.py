@@ -2,30 +2,28 @@ from functools import reduce
 from operator import or_
 from itertools import tee
 
-from nmigen import *
+from nmigen import Elaboratable, Module, Record, Mux, Const, Signal
 from nmigen.lib.coding import PriorityEncoder
 
-from .isa import *
-from .stage import *
-from .csr import *
+from soc.minerva.stage import Stage
+from soc.minerva.csr import CSRFile
+from soc.minerva.units.adder import Adder
+from soc.minerva.units.compare import CompareUnit
+from soc.minerva.units.debug import DebugUnit,
+from soc.minerva.units.decoder import InstructionDecoder
+from soc.minerva.units.divider import Divider, DummyDivider
+from soc.minerva.units.exception import ExceptionUnit
+from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit
+from soc.minerva.units.rvficon import RVFIController
+from soc.minerva.units.loadstore import BareLoadStoreUnit, CachedLoadStoreUnit
+from soc.minerva.units.logic import LogicUnit,
+from soc.minerva.units.multiplier import DummyMultiplier, Multiplier
+from soc.minerva.units.predict import BranchPredictor
+from soc.minerva.units.shifter import Shifter
+from soc.minerva.units.trigger import TriggerUnit
 
-from .units.adder import *
-from .units.compare import *
-from .units.debug import *
-from .units.decoder import *
-from .units.divider import *
-from .units.exception import *
-from .units.fetch import *
-from .units.rvficon import *
-from .units.loadstore import *
-from .units.logic import *
-from .units.multiplier import *
-from .units.predict import *
-from .units.shifter import *
-from .units.trigger import *
-
-from .units.debug.jtag import jtag_layout
-from .wishbone import wishbone_layout
+from soc.minerva.units.debug.jtag import jtag_layout
+from soc.minerva.wishbone import wishbone_layout
 
 
 __all__ = ["Minerva"]
