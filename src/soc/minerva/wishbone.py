@@ -1,6 +1,6 @@
-from nmigen import *
-from nmigen.hdl.rec import *
-from nmigen.lib.coding import *
+from nmigen import Array, Elaboratable, Module, Record, Signal
+from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT, DIR_NONE
+from nmigen.lib.coding import PriorityEncoder
 
 
 __all__ = ["Cycle", "wishbone_layout", "WishboneArbiter"]
