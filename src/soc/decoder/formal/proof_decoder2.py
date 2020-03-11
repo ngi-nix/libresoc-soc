@@ -4,6 +4,7 @@ from nmigen.test.utils import FHDLTestCase
 
 from soc.decoder.power_decoder import create_pdecode, PowerOp
 from soc.decoder.power_enums import (In1Sel, In2Sel, In3Sel,
+                                     OutSel, RC,
                                      InternalOp, SPR)
 from soc.decoder.power_decoder2 import (PowerDecode2,
                                         Decode2ToExecute1Type)
@@ -29,6 +30,8 @@ class Driver(Elaboratable):
         self.test_in1(pdecode2, pdecode)
         self.test_in2()
         self.test_in3()
+        self.test_out()
+        self.test_rc()
 
         return self.m
 
@@ -117,6 +120,42 @@ class Driver(Elaboratable):
             comb += Assert(pdecode2.e.read_reg3.data ==
                            pdecode2.dec.RS[0:-1])
 
+    def test_out(self):
+        m = self.m
+        comb = self.comb
+        pdecode2 = m.submodules.pdecode2
+        sel = pdecode2.dec.op.out_sel
+        dec = pdecode2.dec
+        with m.If(sel == OutSel.SPR):
+            comb += Assert(pdecode2.e.write_spr.ok == 1)
+            comb += Assert(pdecode2.e.write_reg.ok == 0)
+        with m.Elif(sel == OutSel.NONE):
+            comb += Assert(pdecode2.e.write_spr.ok == 0)
+            comb += Assert(pdecode2.e.write_reg.ok == 0)
+        with m.Else():
+            comb += Assert(pdecode2.e.write_spr.ok == 0)
+            comb += Assert(pdecode2.e.write_reg.ok == 1)
+            data = pdecode2.e.write_reg.data
+            with m.If(sel == OutSel.RT):
+                comb += Assert(data == dec.RT[0:-1])
+            with m.If(sel == OutSel.RA):
+                comb += Assert(data == dec.RA[0:-1])
+
+    def test_rc(self):
+        m = self.m
+        comb = self.comb
+        pdecode2 = m.submodules.pdecode2
+        sel = pdecode2.dec.op.rc_sel
+        dec = pdecode2.dec
+        comb += Assert(pdecode2.e.rc.ok == 1)
+        with m.If(sel == RC.NONE):
+            comb += Assert(pdecode2.e.rc.data == 0)
+        with m.If(sel == RC.ONE):
+            comb += Assert(pdecode2.e.rc.data == 1)
+        with m.If(sel == RC.RC):
+            comb += Assert(pdecode2.e.rc.data == dec.Rc[0:-1])
+
+        
 
 class Decoder2TestCase(FHDLTestCase):
     def test_decoder2(self):
