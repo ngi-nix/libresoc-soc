@@ -1,7 +1,7 @@
 from functools import reduce
 from operator import or_
 
-from nmigen import Elaboratable, Module, Signal, Record
+from nmigen import Elaboratable, Module, Signal, Record, Const
 from nmigen.hdl.rec import DIR_FANOUT
 
 from ..wishbone import wishbone_layout

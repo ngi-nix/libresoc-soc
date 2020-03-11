@@ -14,7 +14,7 @@ from soc.minerva.units.decoder import InstructionDecoder
 from soc.minerva.units.divider import Divider, DummyDivider
 from soc.minerva.units.exception import ExceptionUnit
 from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit, PCSelector
-from soc.minerva.units.rvficon import RVFIController
+from soc.minerva.units.rvficon import RVFIController, rvfi_layout
 from soc.minerva.units.loadstore import (BareLoadStoreUnit, CachedLoadStoreUnit,
                                          DataSelector)
 from soc.minerva.units.logic import LogicUnit
