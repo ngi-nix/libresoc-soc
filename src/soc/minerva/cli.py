@@ -2,7 +2,7 @@ import argparse
 import warnings
 from nmigen import cli
 
-from minerva.core import Minerva
+from soc.minerva.core import Minerva
 
 
 def main():
