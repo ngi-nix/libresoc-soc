@@ -1,8 +1,8 @@
 from enum import Enum
 from collections import OrderedDict
 
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import (Const, Elaboratable, Module, Mux,
+                    Record, Signal,)
 from nmigen.utils import bits_for
 
 
