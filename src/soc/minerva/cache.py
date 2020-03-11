@@ -1,5 +1,6 @@
-from nmigen import *
-from nmigen.asserts import *
+from nmigen import (Elaboratable, Module, Const, Signal, Record, Array,
+                    Mux, Memory)
+from nmigen.asserts import Assume, Initial
 from nmigen.lib.coding import Encoder
 from nmigen.utils import log2_int
 
