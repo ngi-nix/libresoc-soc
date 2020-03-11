@@ -32,10 +32,12 @@ class DecodeA(Elaboratable):
         comb = m.d.comb
 
         # select Register A field
+        ra = Signal(5, reset_less=True)
+        comb += ra.eq(self.dec.RA[0:-1])
         with m.If((self.sel_in == In1Sel.RA) |
                   ((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (self.dec.RA[0:-1] != Const(0, 5)))):
-            comb += self.reg_out.data.eq(self.dec.RA[0:-1])
+                   (ra != Const(0, 5)))):
+            comb += self.reg_out.data.eq(ra)
             comb += self.reg_out.ok.eq(1)
 
         # zero immediate requested
