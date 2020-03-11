@@ -2,21 +2,22 @@ from functools import reduce
 from operator import or_
 from itertools import tee
 
-from nmigen import Elaboratable, Module, Record, Mux, Const, Signal
+from nmigen import Elaboratable, Module, Record, Mux, Const, Signal, Memory
 from nmigen.lib.coding import PriorityEncoder
 
 from soc.minerva.stage import Stage
 from soc.minerva.csr import CSRFile
 from soc.minerva.units.adder import Adder
 from soc.minerva.units.compare import CompareUnit
-from soc.minerva.units.debug import DebugUnit,
+from soc.minerva.units.debug import DebugUnit
 from soc.minerva.units.decoder import InstructionDecoder
 from soc.minerva.units.divider import Divider, DummyDivider
 from soc.minerva.units.exception import ExceptionUnit
-from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit
+from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit, PCSelector
 from soc.minerva.units.rvficon import RVFIController
-from soc.minerva.units.loadstore import BareLoadStoreUnit, CachedLoadStoreUnit
-from soc.minerva.units.logic import LogicUnit,
+from soc.minerva.units.loadstore import (BareLoadStoreUnit, CachedLoadStoreUnit,
+                                         DataSelector)
+from soc.minerva.units.logic import LogicUnit
 from soc.minerva.units.multiplier import DummyMultiplier, Multiplier
 from soc.minerva.units.predict import BranchPredictor
 from soc.minerva.units.shifter import Shifter
