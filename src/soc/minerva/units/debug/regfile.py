@@ -1,7 +1,8 @@
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Record, Const
 
-from .dmi import *
+from .dmi import (DebugReg, DmiOp, RegMode,
+                  abstractcs_layout, cmd_access_reg_layout, command_layout,
+                  dmcontrol_layout, dmstatus_layout, flat_layout, sbcs_layout)
 
 
 __all__ = ["DebugRegisterFile"]

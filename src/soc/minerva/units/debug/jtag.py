@@ -1,4 +1,4 @@
-from nmigen.hdl.rec import *
+from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT
 
 
 __all__ = ["jtag_layout", "JTAGReg", "dtmcs_layout", "dmi_layout"]

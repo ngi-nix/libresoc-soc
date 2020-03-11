@@ -1,16 +1,14 @@
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Signal, Record
 
 
-from ...csr import *
-from ...isa import *
+from ...csr import AutoCSR, CSR
 from ...wishbone import wishbone_layout
-from .controller import *
-from .dmi import *
-from .jtag import *
-from .regfile import *
-from .wbmaster import *
+from .controller import DebugController
+from .jtag import JTAGReg, dtmcs_layout, dmi_layout, jtag_layout
+from .regfile import DebugRegisterFile
+from .wbmaster import wishbone_layout, DebugWishboneMaster
 
+from jtagtap import JTAGTap
 
 __all__ = ["DebugUnit"]
 
@@ -69,7 +67,6 @@ class DebugUnit(Elaboratable, AutoCSR):
     def elaborate(self, platform):
         m = Module()
 
-        from jtagtap import JTAGTap
         tap        = m.submodules.tap        = JTAGTap(jtag_regs)
         regfile    = m.submodules.regfile    = DebugRegisterFile(tap.regs[JTAGReg.DMI])
         controller = m.submodules.controller = DebugController(regfile)

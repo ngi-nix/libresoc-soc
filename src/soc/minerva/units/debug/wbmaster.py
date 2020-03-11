@@ -1,11 +1,10 @@
 from functools import reduce
 from operator import or_
 
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Signal, Record
 
 from ...wishbone import wishbone_layout
-from .dmi import *
+from .dmi import DebugReg
 
 
 __all__ = ["BusError", "AccessSize", "DebugWishboneMaster"]

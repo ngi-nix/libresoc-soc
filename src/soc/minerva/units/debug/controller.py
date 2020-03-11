@@ -1,8 +1,8 @@
-from nmigen import *
+from nmigen import Elaboratable, Module, Signal, Array, Record
 from nmigen.lib.coding import PriorityEncoder
 
-from ...csr import *
-from ...isa import *
+from ...csr import AutoCSR, CSR
+from ...isa import dcsr_layout, flat_layout
 from ...wishbone import wishbone_layout
 from .dmi import DebugReg, Command, Error, Version, cmd_access_reg_layout
 
