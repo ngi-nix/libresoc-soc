@@ -1,11 +1,10 @@
 from functools import reduce
 from operator import or_
 
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Signal, Record
+from nmigen.hdl.rec import DIR_FANOUT
 
-from ..isa import *
-from ..wishbone import *
+from ..wishbone import wishbone_layout
 
 
 __all__ = ["rvfi_layout", "RVFIController"]

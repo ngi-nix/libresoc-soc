@@ -1,8 +1,8 @@
-from nmigen import *
+from nmigen import Elaboratable, Module, Signal, Record
 from nmigen.utils import log2_int
 
-from ..cache import *
-from ..wishbone import *
+from ..cache import L1Cache
+from ..wishbone import wishbone_layout
 
 
 __all__ = ["PCSelector", "FetchUnitInterface", "BareFetchUnit", "CachedFetchUnit"]

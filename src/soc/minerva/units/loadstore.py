@@ -1,10 +1,10 @@
-from nmigen import *
+from nmigen import Elaboratable, Module, Signal, Record, Cat
 from nmigen.utils import log2_int
 from nmigen.lib.fifo import SyncFIFO
 
-from ..cache import *
+from ..cache import L1Cache
 from ..isa import Funct3
-from ..wishbone import *
+from ..wishbone import wishbone_layout
 
 
 __all__ = ["DataSelector", "LoadStoreUnitInterface", "BareLoadStoreUnit", "CachedLoadStoreUnit"]

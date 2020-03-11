@@ -1,11 +1,10 @@
 from functools import reduce
 from operator import or_
 
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Signal, Record
 
-from ..csr import *
-from ..isa import *
+from ..csr import AutoCSR, CSR
+from ..isa import flat_layout, tdata1_layout
 
 
 __all__ = ["TriggerUnit"]
