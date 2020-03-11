@@ -1,8 +1,8 @@
-from nmigen import Elaboratable, Module, Signal, Record
+from nmigen import Elaboratable, Module, Signal, Record, Const, Mux
 from nmigen.utils import log2_int
 
 from ..cache import L1Cache
-from ..wishbone import wishbone_layout
+from ..wishbone import wishbone_layout, WishboneArbiter, Cycle
 
 
 __all__ = ["PCSelector", "FetchUnitInterface", "BareFetchUnit", "CachedFetchUnit"]
