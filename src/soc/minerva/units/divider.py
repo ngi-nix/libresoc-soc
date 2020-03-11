@@ -1,4 +1,4 @@
-from nmigen import Elaboratable, Signal, Mux, Cat
+from nmigen import Elaboratable, Module, Signal, Mux, Cat, C
 
 from ..isa import Funct3
 
