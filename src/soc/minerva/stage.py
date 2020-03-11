@@ -1,8 +1,8 @@
 from functools import reduce
 from operator import or_
 
-from nmigen import *
-from nmigen.hdl.rec import *
+from nmigen import Elaboratable, Module, Mux, Record, Signal,
+from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT, DIR_NONE
 
 
 __all__ = ["Stage"]
