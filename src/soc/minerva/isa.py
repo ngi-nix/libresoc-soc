@@ -1,4 +1,5 @@
-from .csr import *
+from soc.minerva.csr import CSRAccess
+
 
 __all__ = [
     "Opcode", "Funct3", "Funct7", "Funct12", "CSRIndex", "Cause",
