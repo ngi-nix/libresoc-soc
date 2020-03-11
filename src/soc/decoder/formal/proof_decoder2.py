@@ -32,6 +32,7 @@ class Driver(Elaboratable):
         self.test_in3()
         self.test_out()
         self.test_rc()
+        self.test_single_bits()
 
         return self.m
 
@@ -154,8 +155,29 @@ class Driver(Elaboratable):
             comb += Assert(pdecode2.e.rc.data == 1)
         with m.If(sel == RC.RC):
             comb += Assert(pdecode2.e.rc.data == dec.Rc[0:-1])
+            comb += Assert(pdecode2.e.oe.ok == 1)
+            comb += Assert(pdecode2.e.oe.data == dec.OE[0:-1])
 
-        
+    def test_single_bits(self):
+        m = self.m
+        comb = self.comb
+        pdecode2 = m.submodules.pdecode2
+        dec = pdecode2.dec
+        e = pdecode2.e
+        comb += Assert(e.invert_a == dec.op.inv_a)
+        comb += Assert(e.invert_out == dec.op.inv_out)
+        comb += Assert(e.input_carry == dec.op.cry_in)
+        comb += Assert(e.output_carry == dec.op.cry_out)
+        comb += Assert(e.is_32bit == dec.op.is_32b)
+        comb += Assert(e.is_signed == dec.op.sgn)
+        with m.If(dec.op.lk):
+            comb += Assert(e.lk == dec.LK[0:-1])
+        comb += Assert(e.byte_reverse == dec.op.br)
+        comb += Assert(e.sign_extend == dec.op.sgn_ext)
+        comb += Assert(e.update == dec.op.upd)
+        comb += Assert(e.input_cr == dec.op.cr_in)
+        comb += Assert(e.output_cr == dec.op.cr_out)
+
 
 class Decoder2TestCase(FHDLTestCase):
     def test_decoder2(self):
