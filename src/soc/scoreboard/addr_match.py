@@ -60,9 +60,10 @@ class PartialAddrMatch(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
+        # array of address-latches
         m.submodules.l = l = SRLatch(llen=self.n_adr, sync=False)
-        addrs_r = Array(Signal(self.bitwid, name="a_r") \
-                                for i in range(self.n_adr))
+        self.addrs_r = addrs_r = Array(Signal(self.bitwid, name="a_r") \
+                                       for i in range(self.n_adr))
 
         # latch set/reset
         comb += l.s.eq(self.addr_en_i)
@@ -77,15 +78,17 @@ class PartialAddrMatch(Elaboratable):
         for i in range(self.n_adr):
             match = []
             for j in range(self.n_adr):
-                if i == j:
-                    match.append(Const(0)) # don't match against self!
-                else:
-                    match.append(addrs_r[i] == addrs_r[j])
+                match.append(self.is_match(i, j))
             comb += self.addr_nomatch_a_o[i].eq(~Cat(*match) & l.q)
             matchgrp.append(self.addr_nomatch_a_o[i] == l.q)
         comb += self.addr_nomatch_o.eq(Cat(*matchgrp) & l.q)
             
         return m
+
+    def is_match(self, i, j):
+        if i == j:
+            return Const(0) # don't match against self!
+        return self.addrs_r[i] == self.addrs_r[j]
 
     def __iter__(self):
         yield from self.addrs_i
@@ -96,6 +99,12 @@ class PartialAddrMatch(Elaboratable):
 
     def ports(self):
         return list(self)
+
+
+class PartialAddrBitmap(PartialAddrMatch):
+    def __init__(self, n_adr, bitwid, bit_len):
+        PartialAddrMatch.__init__(self, n_adr, bitwid)
+        self.bitlen = bitlen # number of bits to turn into unary
 
 
 def part_addr_sim(dut):
