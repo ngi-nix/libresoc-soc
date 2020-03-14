@@ -44,13 +44,14 @@ class PartialAddrMatch(Elaboratable):
         self.bitwid = bitwid
         # inputs
         self.addrs_i = Array(Signal(bitwid, name="addr") for i in range(n_adr))
-        self.addr_we_i = Signal(n_adr) # write-enable for incoming address
-        self.addr_en_i = Signal(n_adr) # address latched in
-        self.addr_rs_i = Signal(n_adr) # address deactivated
+        self.addr_we_i = Signal(n_adr, reset_less=True) # write-enable
+        self.addr_en_i = Signal(n_adr, reset_less=True) # address latched in
+        self.addr_rs_i = Signal(n_adr, reset_less=True) # address deactivated
 
         # output
-        self.addr_nomatch_o = Signal(n_adr, name="nomatch_o")
-        self.addr_nomatch_a_o = Array(Signal(n_adr, name="nomatch_array_o") \
+        self.addr_nomatch_o = Signal(n_adr, name="nomatch_o", reset_less=True)
+        self.addr_nomatch_a_o = Array(Signal(n_adr, reset_less=True,
+                                             name="nomatch_array_o") \
                                   for i in range(n_adr))
 
     def elaborate(self, platform):
@@ -63,7 +64,8 @@ class PartialAddrMatch(Elaboratable):
 
         # array of address-latches
         m.submodules.l = self.l = l = SRLatch(llen=self.n_adr, sync=False)
-        self.addrs_r = addrs_r = Array(Signal(self.bitwid, name="a_r") \
+        self.addrs_r = addrs_r = Array(Signal(self.bitwid, reset_less=True,
+                                              name="a_r") \
                                        for i in range(self.n_adr))
 
         # latch set/reset
@@ -83,7 +85,7 @@ class PartialAddrMatch(Elaboratable):
             comb += self.addr_nomatch_a_o[i].eq(~Cat(*match) & l.q)
             matchgrp.append(self.addr_nomatch_a_o[i] == l.q)
         comb += self.addr_nomatch_o.eq(Cat(*matchgrp) & l.q)
-            
+
         return m
 
     def is_match(self, i, j):
@@ -102,13 +104,47 @@ class PartialAddrMatch(Elaboratable):
         return list(self)
 
 
+class LenExpand(Elaboratable):
+    """LenExpand: expands binary length (and LSBs of an address) into unary
+
+    this basically produces a bitmap of which *bytes* are to be read (written)
+    in memory.  examples:
+
+    (bit_len=4) len=4, addr=0b0011 => 0b1111 << addr
+                                   => 0b1111000
+    (bit_len=4) len=8, addr=0b0101 => 0b11111111 << addr
+                                   => 0b1111111100000
+    """
+
+    def __init__(self, bit_len):
+        self.bit_len = bit_len
+        self.len_i = Signal(bit_len, reset_less=True)
+        self.addr_i = Signal(bit_len, reset_less=True)
+        self.explen_o = Signal(1<<(bit_len+1), reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # temp
+        binlen = Signal((1<<self.bit_len)+1, reset_less=True)
+        comb += binlen.eq((Const(1, self.bit_len+1) << (1+self.len_i)) - 1)
+        comb += self.explen_o.eq(binlen << self.addr_i)
+
+        return m
+
+    def ports(self):
+        return [self.len_i, self.addr_i, self.explen_o,]
+
+
 class PartialAddrBitmap(PartialAddrMatch):
     def __init__(self, n_adr, bitwid, bit_len):
         PartialAddrMatch.__init__(self, n_adr, bitwid)
         self.bitlen = bitlen # number of bits to turn into unary
 
         # inputs: length of the LOAD/STORE
-        self.len_i = Array(Signal(bitwid, name="len") for i in range(n_adr))
+        self.len_i = Array(Signal(bitwid, reset_less=True,
+                                  name="len") for i in range(n_adr))
 
     def elaborate(self, platform):
         m = PartialAddrMatch.elaborate(self, platform)
@@ -116,14 +152,15 @@ class PartialAddrBitmap(PartialAddrMatch):
         # intermediaries
         addrs_r, l = self.addrs_r, self.l
         expwid = 8 + (1<<self.bitlen) # XXX assume LD/ST no greater than 8
-        explen_i = Array(Signal(expwid, name="a_l") \
+        explen_i = Array(Signal(expwid, reset_less=True,
+                                name="a_l") \
                                        for i in range(self.n_adr))
-        lenexp_r = Array(Signal(expwid, name="a_l") \
+        lenexp_r = Array(Signal(expwid, reset_less=True,
+                                name="a_l") \
                                        for i in range(self.n_adr))
 
         # the mapping between length, address and lenexp_r is that the
         # length and address creates a bytemap which a LD/ST covers.
-        # TODO
 
         # copy in lengths and latch them
         for i in range(self.n_adr):
@@ -153,6 +190,11 @@ def part_addr_sim(dut):
     yield
 
 def test_part_addr():
+    dut = LenExpand(4)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_len_expand.il", "w") as f:
+        f.write(vl)
+
     dut = PartialAddrMatch(3, 10)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_part_addr.il", "w") as f:
