@@ -31,6 +31,7 @@ Notes:
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Const, Array, Cat, Elaboratable
+from nmigen.lib.coding import Decoder
 
 from nmutil.latch import latchregister, SRLatch
 
@@ -61,7 +62,7 @@ class PartialAddrMatch(Elaboratable):
         sync = m.d.sync
 
         # array of address-latches
-        m.submodules.l = l = SRLatch(llen=self.n_adr, sync=False)
+        m.submodules.l = self.l = l = SRLatch(llen=self.n_adr, sync=False)
         self.addrs_r = addrs_r = Array(Signal(self.bitwid, name="a_r") \
                                        for i in range(self.n_adr))
 
@@ -105,6 +106,30 @@ class PartialAddrBitmap(PartialAddrMatch):
     def __init__(self, n_adr, bitwid, bit_len):
         PartialAddrMatch.__init__(self, n_adr, bitwid)
         self.bitlen = bitlen # number of bits to turn into unary
+
+        # inputs: length of the LOAD/STORE
+        self.len_i = Array(Signal(bitwid, name="len") for i in range(n_adr))
+
+    def elaborate(self, platform):
+        m = PartialAddrMatch.elaborate(self, platform)
+
+        # intermediaries
+        addrs_r, l = self.addrs_r, self.l
+        expwid = 8 + (1<<self.bitlen) # XXX assume LD/ST no greater than 8
+        explen_i = Array(Signal(expwid, name="a_l") \
+                                       for i in range(self.n_adr))
+        lenexp_r = Array(Signal(expwid, name="a_l") \
+                                       for i in range(self.n_adr))
+
+        # the mapping between length, address and lenexp_r is that the
+        # length and address creates a bytemap which a LD/ST covers.
+        # TODO
+
+        # copy in lengths and latch them
+        for i in range(self.n_adr):
+            latchregister(m, explen_i[i], lenexp_r[i], l.q[i])
+
+        return m
 
 
 def part_addr_sim(dut):
