@@ -1,5 +1,8 @@
 """ Load / Store partial address matcher
 
+Related bugreports:
+* http://bugs.libre-riscv.org/show_bug.cgi?id=216
+
 Loads and Stores do not need a full match (CAM), they need "good enough"
 avoidance.  Around 11 bits on a 64-bit address is "good enough".
 
