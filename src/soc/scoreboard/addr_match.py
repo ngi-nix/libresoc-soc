@@ -138,14 +138,40 @@ class LenExpand(Elaboratable):
 
 
 class PartialAddrBitmap(PartialAddrMatch):
-    def __init__(self, n_adr, bitwid, bit_len):
-        self.bitwid = bitwid # number of bits to turn into unary
-        PartialAddrMatch.__init__(self, n_adr, bitwid-bit_len)
+    """PartialAddrBitMap
 
-        # inputs: length of the LOAD/STORE
+    makes two comparisons for each address, with each (addr,len)
+    being extended to an unary byte-map.
+
+    two comparisons are needed because when an address is misaligned,
+    the byte-map is split into two halves.  example:
+
+    address = 0b1011011, len=8 => 0b101 and shift of 11 (0b1011)
+                                  len in unary is 0b0000 0000 1111 1111
+                                  when shifted becomes TWO addresses:
+
+    * 0b101   and a byte-map of 0b1111 1000 0000 0000 (len-mask shifted by 11)
+    * 0b101+1 and a byte-map of 0b0000 0000 0000 0111 (overlaps onto next 16)
+
+    therefore, because this now covers two addresses, we need *two*
+    comparisons per address *not* one.
+    """
+    def __init__(self, n_adr, bitwid, bitlen):
+        self.bitwid = bitwid # number of bits to turn into unary
+        self.midlen = bitlen-bitwid
+        PartialAddrMatch.__init__(self, n_adr, self.midlen)
+
+        # input: length of the LOAD/STORE
         self.len_i = Array(Signal(bitwid, reset_less=True,
                                   name="len") for i in range(n_adr))
-        self.faddrs_i = Array(Signal(bitwid, name="fadr") for i in range(n_adr))
+        # input: full address
+        self.faddrs_i = Array(Signal(bitlen, reset_less=True,
+                                      name="fadr") for i in range(n_adr))
+
+        # intermediary: address + 1
+        self.addr1s = Array(Signal(self.bitwid, reset_less=True,
+                                      name="adr1") \
+                            for i in range(n_adr))
 
     def elaborate(self, platform):
         m = PartialAddrMatch.elaborate(self, platform)
@@ -153,7 +179,7 @@ class PartialAddrBitmap(PartialAddrMatch):
 
         # intermediaries
         addrs_r, l = self.addrs_r, self.l
-        expwid = 8 + (1<<self.bitlen) # XXX assume LD/ST no greater than 8
+        expwid = 1+self.bitwid # XXX assume LD/ST no greater than 8
         explen_i = Array(Signal(expwid, reset_less=True,
                                 name="a_l") \
                                        for i in range(self.n_adr))
@@ -163,13 +189,18 @@ class PartialAddrBitmap(PartialAddrMatch):
 
         # copy the top bitlen..(bitwid-bit_len) of addresses to compare
         for i in range(self.n_adr):
-            comb += self.addrs_i.eq(self.faddrs_i[self.bitwid:])
+            comb += self.addrs_i[i].eq(self.faddrs_i[i][self.bitwid:])
 
         # copy in lengths and latch them
         for i in range(self.n_adr):
             latchregister(m, explen_i[i], lenexp_r[i], l.q[i])
 
-        # put the bottom bits into the LenExpanders
+        # add one to intermediate addresses
+        for i in range(self.n_adr):
+            comb += self.addr1s[i].eq(self.addrs_r[i]+1)
+
+        # put the bottom bits into the LenExpanders.  One is for
+        # non-aligned stores.
 
         return m
 
@@ -178,6 +209,16 @@ class PartialAddrBitmap(PartialAddrMatch):
             return Const(0) # don't match against self!
         return self.addrs_r[i] == self.addrs_r[j]
 
+    def __iter__(self):
+        yield from self.faddrs_i
+        yield from self.len_i
+        yield self.addr_we_i
+        yield self.addr_en_i
+        yield from self.addr_nomatch_a_o
+        yield self.addr_nomatch_o
+
+    def ports(self):
+        return list(self)
 
 def part_addr_sim(dut):
     yield dut.dest_i.eq(1)
@@ -203,6 +244,11 @@ def test_part_addr():
     dut = LenExpand(4)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_len_expand.il", "w") as f:
+        f.write(vl)
+
+    dut = PartialAddrBitmap(3, 4, 10)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_part_bit.il", "w") as f:
         f.write(vl)
 
     dut = PartialAddrMatch(3, 10)
