@@ -48,7 +48,7 @@ class PartialAddrMatch(Elaboratable):
         self.addr_en_i = Signal(n_adr, reset_less=True) # address latched in
         self.addr_rs_i = Signal(n_adr, reset_less=True) # address deactivated
 
-        # output
+        # output: a nomatch for each address plus individual nomatch signals
         self.addr_nomatch_o = Signal(n_adr, name="nomatch_o", reset_less=True)
         self.addr_nomatch_a_o = Array(Signal(n_adr, reset_less=True,
                                              name="nomatch_array_o") \
@@ -139,15 +139,17 @@ class LenExpand(Elaboratable):
 
 class PartialAddrBitmap(PartialAddrMatch):
     def __init__(self, n_adr, bitwid, bit_len):
-        PartialAddrMatch.__init__(self, n_adr, bitwid)
-        self.bitlen = bitlen # number of bits to turn into unary
+        self.bitwid = bitwid # number of bits to turn into unary
+        PartialAddrMatch.__init__(self, n_adr, bitwid-bit_len)
 
         # inputs: length of the LOAD/STORE
         self.len_i = Array(Signal(bitwid, reset_less=True,
                                   name="len") for i in range(n_adr))
+        self.faddrs_i = Array(Signal(bitwid, name="fadr") for i in range(n_adr))
 
     def elaborate(self, platform):
         m = PartialAddrMatch.elaborate(self, platform)
+        comb = m.d.comb
 
         # intermediaries
         addrs_r, l = self.addrs_r, self.l
@@ -159,14 +161,22 @@ class PartialAddrBitmap(PartialAddrMatch):
                                 name="a_l") \
                                        for i in range(self.n_adr))
 
-        # the mapping between length, address and lenexp_r is that the
-        # length and address creates a bytemap which a LD/ST covers.
+        # copy the top bitlen..(bitwid-bit_len) of addresses to compare
+        for i in range(self.n_adr):
+            comb += self.addrs_i.eq(self.faddrs_i[self.bitwid:])
 
         # copy in lengths and latch them
         for i in range(self.n_adr):
             latchregister(m, explen_i[i], lenexp_r[i], l.q[i])
 
+        # put the bottom bits into the LenExpanders
+
         return m
+
+    def is_match(self, i, j):
+        if i == j:
+            return Const(0) # don't match against self!
+        return self.addrs_r[i] == self.addrs_r[j]
 
 
 def part_addr_sim(dut):
