@@ -183,27 +183,29 @@ class PartialAddrBitmap(PartialAddrMatch):
         # intermediaries
         addrs_r, l = self.addrs_r, self.l
         expwid = 1+self.bitwid # XXX assume LD/ST no greater than 8
-        explen_i = Array(Signal(expwid, reset_less=True,
+        self.explen = Array(Signal(1<<expwid, reset_less=True,
                                 name="a_l") \
                                        for i in range(self.n_adr))
-        lenexp_r = Array(Signal(expwid, reset_less=True,
-                                name="a_l") \
+        len_r = Array(Signal(self.bitwid, reset_less=True,
+                                name="l_r") \
                                        for i in range(self.n_adr))
 
-        # copy the top bitlen..(bitwid-bit_len) of addresses to compare
         for i in range(self.n_adr):
+            # create a bit-expander for each address
+            be = LenExpand(self.bitwid)
+            setattr(m.submodules, "le%d" % i, be)
+            # copy the top bitlen..(bitwid-bit_len) of addresses to compare
             comb += self.addrs_i[i].eq(self.faddrs_i[i][self.bitwid:])
 
-        # copy in lengths and latch them
-        for i in range(self.n_adr):
-            latchregister(m, explen_i[i], lenexp_r[i], l.q[i])
+            # copy in lengths and latch them
+            latchregister(m, self.len_i[i], len_r[i], l.q[i])
 
-        # add one to intermediate addresses
-        for i in range(self.n_adr):
+            # add one to intermediate addresses
             comb += self.addr1s[i].eq(self.addrs_r[i]+1)
 
-        # put the bottom bits into the LenExpanders.  One is for
-        # non-aligned stores.
+            # put the bottom bits of each address into each LenExpander.
+            comb += be.len_i.eq(len_r[i])
+            comb += be.addr_i.eq(self.faddrs_i[i][:self.bitwid])
 
         return m
 
