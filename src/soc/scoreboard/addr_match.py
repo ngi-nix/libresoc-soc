@@ -85,8 +85,8 @@ class PartialAddrMatch(Elaboratable):
             match = []
             for j in range(self.n_adr):
                 match.append(self.is_match(i, j))
-            comb += self.addr_nomatch_a_o[i].eq(~Cat(*match) & l.q)
-            matchgrp.append(self.addr_nomatch_a_o[i] == l.q)
+            comb += self.addr_nomatch_a_o[i].eq(~Cat(*match))
+            matchgrp.append((self.addr_nomatch_a_o[i] & l.q) == l.q)
         comb += self.addr_nomatch_o.eq(Cat(*matchgrp) & l.q)
 
         return m
@@ -213,20 +213,27 @@ class PartialAddrBitmap(PartialAddrMatch):
 
         return m
 
+    # TODO make this a module.  too much.
     def is_match(self, i, j):
         if i == j:
             return Const(0) # don't match against self!
+        # the bitmask contains data for *two* cache lines (16 bytes).
+        # however len==8 only covers *half* a cache line so we only
+        # need to compare half the bits
         expwid = 1<<self.lsbwid
         hexp = expwid >> 1
         expwid2 = expwid + hexp
         print (self.lsbwid, expwid)
-        return (((self.adrs_r[i] == self.adrs_r[j]) &
-                 (self.lexp[i][:expwid] & self.lexp[j][:expwid]).bool()) |
-                ((self.addr1s[i] == self.adrs_r[j]) &
-                 (self.lexp[i][expwid:expwid2] & self.lexp[j][:hexp]).bool())
-               )
-               # ((self.addr1s[j] == self.adrs_r[i]) &
-               # (self.lexp[j][expwid:expwid2] & self.lexp[i][:hexp]).bool()))
+        # straight compare: binary top bits of addr, *unary* compare on bottom
+        straight_eq = (self.adrs_r[i] == self.adrs_r[j]) & \
+                      (self.lexp[i][:expwid] & self.lexp[j][:expwid]).bool()
+        # compare i (addr+1) to j (addr), but top unary against bottom unary
+        i1_eq_j = (self.addr1s[i] == self.adrs_r[j]) & \
+                  (self.lexp[i][expwid:expwid2] & self.lexp[j][:hexp]).bool()
+        # compare i (addr) to j (addr+1), but bottom unary against top unary
+        i_eq_j1 = (self.adrs_r[i] == self.addr1s[j]) & \
+                  (self.lexp[i][:hexp] & self.lexp[j][expwid:expwid2]).bool()
+        return straight_eq | i1_eq_j | i_eq_j1
 
     def __iter__(self):
         yield from self.faddrs_i
@@ -260,20 +267,34 @@ def part_addr_sim(dut):
     yield
 
 def part_addr_bit(dut):
+    #                                    0b110 |               0b101 |
+    # 0b101 1011 / 8 ==> 0b0000 0000 0000 0111 | 1111 1000 0000 0000 |
     yield dut.len_i[0].eq(8)
     yield dut.faddrs_i[0].eq(0b1011011)
     yield dut.addr_en_i[0].eq(1)
     yield
     yield dut.addr_en_i[0].eq(0)
     yield
+    #                                    0b110 |               0b101 |
+    # 0b110 0010 / 2 ==> 0b0000 0000 0000 1100 | 0000 0000 0000 0000 |
     yield dut.len_i[1].eq(2)
     yield dut.faddrs_i[1].eq(0b1100010)
     yield dut.addr_en_i[1].eq(1)
     yield
     yield dut.addr_en_i[1].eq(0)
     yield
+    #                                    0b110 |               0b101 |
+    # 0b101 1010 / 2 ==> 0b0000 0000 0000 0000 | 0000 1100 0000 0000 |
     yield dut.len_i[2].eq(2)
     yield dut.faddrs_i[2].eq(0b1011010)
+    yield dut.addr_en_i[2].eq(1)
+    yield
+    yield dut.addr_en_i[2].eq(0)
+    yield
+    #                                    0b110 |               0b101 |
+    # 0b101 1001 / 2 ==> 0b0000 0000 0000 0000 | 0000 0110 0000 0000 |
+    yield dut.len_i[2].eq(2)
+    yield dut.faddrs_i[2].eq(0b1011001)
     yield dut.addr_en_i[2].eq(1)
     yield
     yield dut.addr_en_i[2].eq(0)
