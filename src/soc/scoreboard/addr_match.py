@@ -159,22 +159,28 @@ class PartialAddrBitmap(PartialAddrMatch):
     therefore, because this now covers two addresses, we need *two*
     comparisons per address *not* one.
     """
-    def __init__(self, n_adr, bitwid, bitlen):
-        self.bitwid = bitwid # number of bits to turn into unary
-        self.midlen = bitlen-bitwid
+    def __init__(self, n_adr, lsbwid, bitlen):
+        self.lsbwid = lsbwid # number of bits to turn into unary
+        self.midlen = bitlen-lsbwid
         PartialAddrMatch.__init__(self, n_adr, self.midlen)
 
         # input: length of the LOAD/STORE
-        self.len_i = Array(Signal(bitwid, reset_less=True,
+        self.len_i = Array(Signal(lsbwid, reset_less=True,
                                   name="len") for i in range(n_adr))
         # input: full address
         self.faddrs_i = Array(Signal(bitlen, reset_less=True,
                                       name="fadr") for i in range(n_adr))
 
         # intermediary: address + 1
-        self.addr1s = Array(Signal(self.bitwid, reset_less=True,
+        self.addr1s = Array(Signal(self.midlen, reset_less=True,
                                       name="adr1") \
                             for i in range(n_adr))
+
+        # expanded lengths, needed in match
+        expwid = 1+self.lsbwid # XXX assume LD/ST no greater than 8
+        self.explen = Array(Signal(1<<expwid, reset_less=True,
+                                name="a_l") \
+                                       for i in range(self.n_adr))
 
     def elaborate(self, platform):
         m = PartialAddrMatch.elaborate(self, platform)
@@ -182,20 +188,16 @@ class PartialAddrBitmap(PartialAddrMatch):
 
         # intermediaries
         addrs_r, l = self.addrs_r, self.l
-        expwid = 1+self.bitwid # XXX assume LD/ST no greater than 8
-        self.explen = Array(Signal(1<<expwid, reset_less=True,
-                                name="a_l") \
-                                       for i in range(self.n_adr))
-        len_r = Array(Signal(self.bitwid, reset_less=True,
+        len_r = Array(Signal(self.lsbwid, reset_less=True,
                                 name="l_r") \
                                        for i in range(self.n_adr))
 
         for i in range(self.n_adr):
             # create a bit-expander for each address
-            be = LenExpand(self.bitwid)
+            be = LenExpand(self.lsbwid)
             setattr(m.submodules, "le%d" % i, be)
-            # copy the top bitlen..(bitwid-bit_len) of addresses to compare
-            comb += self.addrs_i[i].eq(self.faddrs_i[i][self.bitwid:])
+            # copy the top lsbwid..(lsbwid-bit_len) of addresses to compare
+            comb += self.addrs_i[i].eq(self.faddrs_i[i][self.lsbwid:])
 
             # copy in lengths and latch them
             latchregister(m, self.len_i[i], len_r[i], l.q[i])
@@ -205,14 +207,23 @@ class PartialAddrBitmap(PartialAddrMatch):
 
             # put the bottom bits of each address into each LenExpander.
             comb += be.len_i.eq(len_r[i])
-            comb += be.addr_i.eq(self.faddrs_i[i][:self.bitwid])
+            comb += be.addr_i.eq(self.faddrs_i[i][:self.lsbwid])
+            # connect expander output
+            comb += self.explen[i].eq(be.explen_o)
 
         return m
 
     def is_match(self, i, j):
         if i == j:
             return Const(0) # don't match against self!
-        return self.addrs_r[i] == self.addrs_r[j]
+        expwid = 1<<self.lsbwid
+        hexp = expwid >> 1
+        expwid2 = expwid + hexp
+        print (self.lsbwid, expwid)
+        return ((self.addrs_r[i] == self.addrs_r[j]) & \
+                (self.explen[i][:expwid] & self.explen[j][:expwid]).bool() |
+               (self.addr1s[i] == self.addrs_r[j]) & \
+                (self.explen[i][expwid:expwid2] & self.explen[j][:hexp]).bool())
 
     def __iter__(self):
         yield from self.faddrs_i
