@@ -67,7 +67,7 @@ class PartialAddrMatch(Elaboratable):
 
         # array of address-latches
         m.submodules.l = self.l = l = SRLatch(llen=self.n_adr, sync=False)
-        self.addrs_r = addrs_r = Array(Signal(self.bitwid, reset_less=True,
+        self.adrs_r = adrs_r = Array(Signal(self.bitwid, reset_less=True,
                                               name="a_r") \
                                        for i in range(self.n_adr))
 
@@ -77,7 +77,7 @@ class PartialAddrMatch(Elaboratable):
 
         # copy in addresses (and "enable" signals)
         for i in range(self.n_adr):
-            latchregister(m, self.addrs_i[i], addrs_r[i], l.q[i])
+            latchregister(m, self.addrs_i[i], adrs_r[i], l.q[i])
 
         # is there a clash, yes/no
         matchgrp = []
@@ -94,7 +94,7 @@ class PartialAddrMatch(Elaboratable):
     def is_match(self, i, j):
         if i == j:
             return Const(0) # don't match against self!
-        return self.addrs_r[i] == self.addrs_r[j]
+        return self.adrs_r[i] == self.adrs_r[j]
 
     def __iter__(self):
         yield from self.addrs_i
@@ -123,7 +123,7 @@ class LenExpand(Elaboratable):
         self.bit_len = bit_len
         self.len_i = Signal(bit_len, reset_less=True)
         self.addr_i = Signal(bit_len, reset_less=True)
-        self.explen_o = Signal(1<<(bit_len+1), reset_less=True)
+        self.lexp_o = Signal(1<<(bit_len+1), reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
@@ -131,13 +131,13 @@ class LenExpand(Elaboratable):
 
         # temp
         binlen = Signal((1<<self.bit_len)+1, reset_less=True)
-        comb += binlen.eq((Const(1, self.bit_len+1) << (1+self.len_i)) - 1)
-        comb += self.explen_o.eq(binlen << self.addr_i)
+        comb += binlen.eq((Const(1, self.bit_len+1) << (self.len_i)) - 1)
+        comb += self.lexp_o.eq(binlen << self.addr_i)
 
         return m
 
     def ports(self):
-        return [self.len_i, self.addr_i, self.explen_o,]
+        return [self.len_i, self.addr_i, self.lexp_o,]
 
 
 class PartialAddrBitmap(PartialAddrMatch):
@@ -178,7 +178,7 @@ class PartialAddrBitmap(PartialAddrMatch):
 
         # expanded lengths, needed in match
         expwid = 1+self.lsbwid # XXX assume LD/ST no greater than 8
-        self.explen = Array(Signal(1<<expwid, reset_less=True,
+        self.lexp = Array(Signal(1<<expwid, reset_less=True,
                                 name="a_l") \
                                        for i in range(self.n_adr))
 
@@ -187,7 +187,7 @@ class PartialAddrBitmap(PartialAddrMatch):
         comb = m.d.comb
 
         # intermediaries
-        addrs_r, l = self.addrs_r, self.l
+        adrs_r, l = self.adrs_r, self.l
         len_r = Array(Signal(self.lsbwid, reset_less=True,
                                 name="l_r") \
                                        for i in range(self.n_adr))
@@ -203,13 +203,13 @@ class PartialAddrBitmap(PartialAddrMatch):
             latchregister(m, self.len_i[i], len_r[i], l.q[i])
 
             # add one to intermediate addresses
-            comb += self.addr1s[i].eq(self.addrs_r[i]+1)
+            comb += self.addr1s[i].eq(self.adrs_r[i]+1)
 
             # put the bottom bits of each address into each LenExpander.
             comb += be.len_i.eq(len_r[i])
             comb += be.addr_i.eq(self.faddrs_i[i][:self.lsbwid])
             # connect expander output
-            comb += self.explen[i].eq(be.explen_o)
+            comb += self.lexp[i].eq(be.lexp_o)
 
         return m
 
@@ -220,10 +220,13 @@ class PartialAddrBitmap(PartialAddrMatch):
         hexp = expwid >> 1
         expwid2 = expwid + hexp
         print (self.lsbwid, expwid)
-        return ((self.addrs_r[i] == self.addrs_r[j]) & \
-                (self.explen[i][:expwid] & self.explen[j][:expwid]).bool() |
-               (self.addr1s[i] == self.addrs_r[j]) & \
-                (self.explen[i][expwid:expwid2] & self.explen[j][:hexp]).bool())
+        return (((self.adrs_r[i] == self.adrs_r[j]) &
+                 (self.lexp[i][:expwid] & self.lexp[j][:expwid]).bool()) |
+                ((self.addr1s[i] == self.adrs_r[j]) &
+                 (self.lexp[i][expwid:expwid2] & self.lexp[j][:hexp]).bool())
+               )
+               # ((self.addr1s[j] == self.adrs_r[i]) &
+               # (self.lexp[j][expwid:expwid2] & self.lexp[i][:hexp]).bool()))
 
     def __iter__(self):
         yield from self.faddrs_i
@@ -256,6 +259,30 @@ def part_addr_sim(dut):
     yield dut.go_wr_i.eq(0)
     yield
 
+def part_addr_bit(dut):
+    yield dut.len_i[0].eq(8)
+    yield dut.faddrs_i[0].eq(0b1011011)
+    yield dut.addr_en_i[0].eq(1)
+    yield
+    yield dut.addr_en_i[0].eq(0)
+    yield
+    yield dut.len_i[1].eq(2)
+    yield dut.faddrs_i[1].eq(0b1100010)
+    yield dut.addr_en_i[1].eq(1)
+    yield
+    yield dut.addr_en_i[1].eq(0)
+    yield
+    yield dut.len_i[2].eq(2)
+    yield dut.faddrs_i[2].eq(0b1011010)
+    yield dut.addr_en_i[2].eq(1)
+    yield
+    yield dut.addr_en_i[2].eq(0)
+    yield
+    yield dut.addr_rs_i[1].eq(1)
+    yield
+    yield dut.addr_rs_i[1].eq(0)
+    yield
+
 def test_part_addr():
     dut = LenExpand(4)
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -266,6 +293,8 @@ def test_part_addr():
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_part_bit.il", "w") as f:
         f.write(vl)
+
+    run_simulation(dut, part_addr_bit(dut), vcd_name='test_part_bit.vcd')
 
     dut = PartialAddrMatch(3, 10)
     vl = rtlil.convert(dut, ports=dut.ports())
