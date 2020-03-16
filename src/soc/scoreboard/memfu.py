@@ -33,7 +33,7 @@ class MemFunctionUnits(Elaboratable):
         # address matching
         self.addrs_i = Array(Signal(self.bitwid, name="addrs_i%d" % i) \
                              for i in range(n_ldsts))
-        self.addr_we_i = Signal(n_ldsts) # write-enable for incoming address
+        #self.addr_we_i = Signal(n_ldsts) # write-enable for incoming address
         self.addr_en_i = Signal(n_ldsts) # address latched in
         self.addr_rs_i = Signal(n_ldsts) # address deactivated
 
@@ -93,7 +93,7 @@ class MemFunctionUnits(Elaboratable):
         # connect address matching: these get connected to the Addr CUs
         for i in range(self.n_ldsts):
             comb += intregdeps.addrs_i[i].eq(self.addrs_i[i])
-        comb += intregdeps.addr_we_i.eq(self.addr_we_i)
+        #comb += intregdeps.addr_we_i.eq(self.addr_we_i)
         comb += intregdeps.addr_en_i.eq(self.addr_en_i)
         comb += intregdeps.addr_rs_i.eq(self.addr_rs_i)
 
@@ -113,7 +113,7 @@ class MemFunctionUnits(Elaboratable):
         yield self.go_die_i
         yield self.fn_issue_i
         yield from self.addrs_i
-        yield self.addr_we_i
+        #yield self.addr_we_i
         yield self.addr_en_i
 
     def ports(self):

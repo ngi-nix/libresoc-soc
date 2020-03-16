@@ -47,7 +47,7 @@ class PartialAddrMatch(Elaboratable):
         self.bitwid = bitwid
         # inputs
         self.addrs_i = Array(Signal(bitwid, name="addr") for i in range(n_adr))
-        self.addr_we_i = Signal(n_adr, reset_less=True) # write-enable
+        #self.addr_we_i = Signal(n_adr, reset_less=True) # write-enable
         self.addr_en_i = Signal(n_adr, reset_less=True) # address latched in
         self.addr_rs_i = Signal(n_adr, reset_less=True) # address deactivated
 
@@ -98,7 +98,7 @@ class PartialAddrMatch(Elaboratable):
 
     def __iter__(self):
         yield from self.addrs_i
-        yield self.addr_we_i
+        #yield self.addr_we_i
         yield self.addr_en_i
         yield from self.addr_nomatch_a_o
         yield self.addr_nomatch_o
@@ -228,7 +228,7 @@ class PartialAddrBitmap(PartialAddrMatch):
     def __iter__(self):
         yield from self.faddrs_i
         yield from self.len_i
-        yield self.addr_we_i
+        #yield self.addr_we_i
         yield self.addr_en_i
         yield from self.addr_nomatch_a_o
         yield self.addr_nomatch_o
