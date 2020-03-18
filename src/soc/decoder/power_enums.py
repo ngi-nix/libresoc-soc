@@ -79,10 +79,10 @@ class Form(Enum):
     Z23 = 28
 
 
-
+# Internal Operation numbering.  Add new opcodes here (FPADD, FPMUL etc.)
 @unique
 class InternalOp(Enum):
-    OP_ILLEGAL = 0
+    OP_ILLEGAL = 0     # important that this is zero (see power_decoder.py)
     OP_NOP = 1
     OP_ADD = 2
     OP_ADDPCIS = 3
@@ -213,6 +213,9 @@ class CryIn(Enum):
     ZERO = 0
     ONE = 1
     CA = 2
+
+
+# SPRs - Special-Purpose Registers.  See V3.0B Figure 18 p971
 
 @unique
 class SPR(Enum):

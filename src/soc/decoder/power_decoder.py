@@ -63,6 +63,7 @@ from collections import namedtuple
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
+
 Subdecoder = namedtuple("Subdecoder", ["pattern", "opcodes", "opint",
                                        "bitsel", "suffix", "subdecoders"])
 
@@ -177,6 +178,7 @@ class PowerDecoder(Elaboratable):
         comb = m.d.comb
 
         # note: default opcode is "illegal" as this is a combinatorial block
+        # this only works because OP_ILLEGAL=0 and the default (unset) is 0
 
         # go through the list of CSV decoders first
         for d in self.dec:
