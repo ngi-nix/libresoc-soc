@@ -155,9 +155,9 @@ class InternalOp(Enum):
 
 @unique
 class In1Sel(Enum):
-    RA = 0
-    RA_OR_ZERO = 1
-    NONE = 2
+    NONE = 0
+    RA = 1
+    RA_OR_ZERO = 2
     SPR = 3
 
 
@@ -220,21 +220,6 @@ class CryIn(Enum):
 # TODO: make this read the sprs.csv file
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
-@unique
-class SPR(Enum):
-    XER    = 1
-    LR     = 8
-    CTR    = 9
-    TB     = 268
-    SRR0   = 26
-    SRR1   = 27
-    HSRR0  = 314
-    HSRR1  = 315
-    SPRG0  = 272
-    SPRG1  = 273
-    SPRG2  = 274
-    SPRG3  = 275
-    SPRG3U = 259
-    HSPRG0 = 304
-    HSPRG1 = 305
-
+spr_csv = get_csv("sprs.csv")
+fields = [(row['SPR'], row['Idx']) for row in spr_csv]
+SPR = Enum('SPR', fields)
