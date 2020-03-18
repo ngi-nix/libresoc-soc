@@ -32,11 +32,11 @@ class SignalBitRange(BitRange):
             for t in range(start, stop, step):
                 k = OrderedDict.__getitem__(self, t)
                 print ("t", t, k)
-                res.append(self.signal[width-k-1])
+                res.append(self.signal[width-k-1]) # reverse-order here
             return Cat(*res)
         else:
             k = OrderedDict.__getitem__(self, subs)
-            return self.signal[width-k-1]
+            return self.signal[width-k-1] # reverse-order here
 
         print ("translated", subs, translated)
 
