@@ -81,15 +81,19 @@ class Driver(Elaboratable):
                 Assert(op.form == Form[row['form']]),
                 ]
 
+    # This is to assert that the decoder conforms to the table listed
+    # in PowerISA public spec v3.0B, Section 1.6, page 12
     def assert_form(self, dec, dec2):
         with self.m.Switch(dec.op.form):
             with self.m.Case(Form.A):
-                self.comb += Assert(dec2.e.write_reg.data ==
-                                    self.instr_bits(6, 10))
-                self.comb += Assert(dec2.e.read_reg1.data ==
-                                    self.instr_bits(11, 15))
-                self.comb += Assert(dec2.e.read_reg2.data ==
-                                    self.instr_bits(16, 20))
+                self.comb += Assert(dec.op.in1_sel.matches(
+                    In1Sel.NONE, In1Sel.RA, In1Sel.RA_OR_ZERO))
+                self.comb += Assert(dec.op.in2_sel.matches(
+                    In2Sel.RB, In2Sel.NONE))
+                self.comb += Assert(dec.op.in3_sel.matches(
+                    In3Sel.RS, In3Sel.NONE))
+                self.comb += Assert(dec.op.out_sel.matches(
+                    OutSel.NONE, OutSel.RT))
                 # The table has fields for XO and Rc, but idk what they correspond to
             with self.m.Case(Form.B):
                 pass
@@ -101,10 +105,10 @@ class Driver(Elaboratable):
                     In2Sel.CONST_SI_HI))
                 self.comb += Assert(dec.op.out_sel.matches(
                     OutSel.NONE, OutSel.RT, OutSel.RA))
-                        
-                
-                
-        
+            with self.m.Case(Form.I):
+                self.comb += Assert(dec.op.in2_sel.matches(
+                    In2Sel.CONST_LI))
+
     def instr_bits(self, start, end=None):
         if not end:
             end = start
