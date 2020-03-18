@@ -9,9 +9,12 @@ class SignalBitRange(BitRange):
         BitRange.__init__(self)
         self.signal = signal
 
+    def _rev(self, k):
+        width = self.signal.shape()[0]
+        return width-1-k
+
     def __getitem__(self, subs):
         # *sigh* field numberings are bit-inverted.  PowerISA 3.0B section 1.3.2
-        width = self.signal.shape()[0]
         print (dir(self))
         print (self.items())
         if isinstance(subs, slice):
@@ -32,11 +35,11 @@ class SignalBitRange(BitRange):
             for t in range(start, stop, step):
                 k = OrderedDict.__getitem__(self, t)
                 print ("t", t, k)
-                res.append(self.signal[width-k-1]) # reverse-order here
+                res.append(self.signal[self._rev(k)]) # reverse-order here
             return Cat(*res)
         else:
             k = OrderedDict.__getitem__(self, subs)
-            return self.signal[width-k-1] # reverse-order here
+            return self.signal[self._rev(k)] # reverse-order here
 
         print ("translated", subs, translated)
 
