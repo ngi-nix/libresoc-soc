@@ -2,12 +2,11 @@ from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
-import sys
 import os
 import unittest
-sys.path.append("../")
-from power_decoder import (create_pdecode)
-from power_enums import (Function, InternalOp, In1Sel, In2Sel, In3Sel,
+from soc.decoder.power_decoder import (create_pdecode)
+from soc.decoder.power_enums import (Function, InternalOp,
+                         In1Sel, In2Sel,In3Sel,
                          OutSel, RC, LdstLen, CryIn, single_bit_flags,
                          get_signal_name, get_csv)
 
