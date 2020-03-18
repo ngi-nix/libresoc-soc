@@ -217,7 +217,6 @@ class CryIn(Enum):
 
 # SPRs - Special-Purpose Registers.  See V3.0B Figure 18 p971 and
 # http://libre-riscv.org/openpower/isatables/sprs.csv
-# TODO: make this read the sprs.csv file
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
 spr_csv = get_csv("sprs.csv")
