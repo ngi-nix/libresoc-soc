@@ -57,6 +57,10 @@ class Driver(Elaboratable):
                         continue
                     with self.m.Case(opcode):
                         self.comb += self.assert_dec1_signals(dec1, row)
+                with self.m.Default():
+                    self.comb += Assert(dec.op.internal_op ==
+                                        InternalOp.OP_ILLEGAL)
+                                        
 
     def handle_subdecoders(self, dec1, decoders):
         for dec in decoders.subdecoders:
