@@ -220,5 +220,5 @@ class CryIn(Enum):
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
 spr_csv = get_csv("sprs.csv")
-fields = [(row['SPR'], row['Idx']) for row in spr_csv]
+fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
 SPR = Enum('SPR', fields)
