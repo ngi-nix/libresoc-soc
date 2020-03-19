@@ -13,6 +13,7 @@ import tempfile
 import subprocess
 import struct
 import random
+import pdb
 
 
 
@@ -23,20 +24,22 @@ class Register:
 class RegRegOp:
     def __init__(self):
         self.ops = {
-            InternalOp.OP_ADD: "add",
-            InternalOp.OP_AND: "and",
-            InternalOp.OP_OR: "or"}
-        self.opcode = random.choice(list(self.ops.keys()))
+            "add": InternalOp.OP_ADD,
+            "and": InternalOp.OP_AND,
+            "or": InternalOp.OP_OR,
+            "add.": InternalOp.OP_ADD,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
         self.r1 = Register(random.randrange(32))
         self.r2 = Register(random.randrange(32))
         self.r3 = Register(random.randrange(32))
 
     def generate_instruction(self):
-        opcodestr = self.ops[self.opcode]
-        string = "{} {}, {}, {}\n".format(opcodestr,
-                                            self.r1.num,
-                                            self.r2.num,
-                                            self.r3.num)
+        string = "{} {}, {}, {}\n".format(self.opcodestr,
+                                          self.r1.num,
+                                          self.r2.num,
+                                          self.r3.num)
         return string
 
     def check_results(self, pdecode2):
@@ -56,26 +59,34 @@ class RegRegOp:
 
         opc_out = yield pdecode2.dec.op.internal_op
         assert(opc_out == self.opcode.value)
+        # check RC value (the dot in the instruction)
+        rc = yield pdecode2.e.rc.data
+        if '.' in self.opcodestr:
+            assert(rc == 1)
+        else:
+            assert(rc == 0)
+            
 
 
 class RegImmOp:
     def __init__(self):
         self.ops = {
-            InternalOp.OP_ADD: "addi",
-            InternalOp.OP_ADD: "addis",
-            InternalOp.OP_AND: "andi.",
-            InternalOp.OP_OR: "ori"}
-        self.opcode = random.choice(list(self.ops.keys()))
+            "addi": InternalOp.OP_ADD,
+            "addis": InternalOp.OP_ADD,
+            "andi.": InternalOp.OP_AND,
+            "ori": InternalOp.OP_OR,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
         self.r1 = Register(random.randrange(32))
         self.r2 = Register(random.randrange(32))
         self.imm = random.randrange(32767)
 
     def generate_instruction(self):
-        opcodestr = self.ops[self.opcode]
-        string = "{} {}, {}, {}\n".format(opcodestr,
-                                            self.r1.num,
-                                            self.r2.num,
-                                            self.imm)
+        string = "{} {}, {}, {}\n".format(self.opcodestr,
+                                          self.r1.num,
+                                          self.r2.num,
+                                          self.imm)
         return string
 
     def check_results(self, pdecode2):
@@ -98,6 +109,12 @@ class RegImmOp:
         else:    
             assert(imm == self.imm)
 
+        rc = yield pdecode2.e.rc.data
+        if '.' in self.opcodestr:
+            assert(rc == 1)
+        else:
+            assert(rc == 0)
+
 class DecoderTestCase(FHDLTestCase):
 
     def get_assembled_instruction(self, instruction):
@@ -119,7 +136,6 @@ class DecoderTestCase(FHDLTestCase):
                 return binary
 
     def run_tst(self, kls, name):
-        random.seed(1)
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -132,7 +148,7 @@ class DecoderTestCase(FHDLTestCase):
         sim = Simulator(m)
 
         def process():
-            for i in range(10):
+            for i in range(20):
                 checker = kls()
 
                 instruction_str = checker.generate_instruction()
