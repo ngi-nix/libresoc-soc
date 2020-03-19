@@ -121,6 +121,61 @@ class RegImmOp:
         else:
             assert(rc == 0)
 
+class LdStOp:
+    def __init__(self):
+        self.ops = {
+            "lwz": InternalOp.OP_LOAD,
+            "stw": InternalOp.OP_STORE,
+            "lwzu": InternalOp.OP_LOAD,
+            "stwu": InternalOp.OP_STORE,
+            "lbz": InternalOp.OP_LOAD,
+            "lhz": InternalOp.OP_LOAD,
+            "stb": InternalOp.OP_STORE,
+            "sth": InternalOp.OP_STORE,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.r1 = Register(random.randrange(32))
+        self.r2 = Register(random.randrange(1,32))
+        self.imm = random.randrange(32767)
+
+    def generate_instruction(self):
+        string = "{} {}, {}({})\n".format(self.opcodestr,
+                                          self.r1.num,
+                                          self.imm,
+                                          self.r2.num)
+        return string
+
+    def check_results(self, pdecode2):
+        print("Check")
+        r2sel = yield pdecode2.e.read_reg1.data
+        if self.opcode == InternalOp.OP_STORE:
+            r1sel = yield pdecode2.e.read_reg3.data
+        else:
+            r1sel = yield pdecode2.e.write_reg.data
+        assert(r1sel == self.r1.num)
+        assert(r2sel == self.r2.num)
+
+        imm = yield pdecode2.e.imm_data.data
+        in2_sel = yield pdecode2.dec.op.in2_sel
+        assert(imm == self.imm)
+
+        update = yield pdecode2.e.update
+        if "u" in self.opcodestr:
+            assert(update == 1)
+        else:
+            assert(update == 0)
+
+        size = yield pdecode2.e.data_len
+        if "w" in self.opcodestr:
+            assert(size == 4)
+        elif "h" in self.opcodestr:
+            assert(size == 2)
+        elif "b" in self.opcodestr:
+            assert(size == 1)
+        else:
+            assert(False)
+
 class DecoderTestCase(FHDLTestCase):
 
     def get_assembled_instruction(self, instruction):
@@ -178,6 +233,9 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_reg_imm(self):
         self.run_tst(RegImmOp, "reg_imm")
+
+    def test_ldst_imm(self):
+        self.run_tst(LdStOp, "ldst_imm")
 
 
 if __name__ == "__main__":
