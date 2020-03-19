@@ -80,8 +80,9 @@ class DecoderTestCase(FHDLTestCase):
                 r3 = Register(random.randrange(32))
 
                 instruction_str = self.generate_opcode_string(opcode, r1, r2, r3)
-                print(instruction_str)
+                print("instr", instruction_str.strip())
                 instruction_bin = self.get_assembled_instruction(instruction_str)
+                print("code", hex(instruction_bin), bin(instruction_bin))
 
                 yield instruction.eq(instruction_bin)
                 yield Delay(1e-6)

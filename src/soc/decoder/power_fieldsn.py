@@ -15,8 +15,7 @@ class SignalBitRange(BitRange):
 
     def __getitem__(self, subs):
         # *sigh* field numberings are bit-inverted.  PowerISA 3.0B section 1.3.2
-        print (dir(self))
-        print (self.items())
+        print ("SignalBitRange", subs, len(self), self.items())
         if isinstance(subs, slice):
             res = []
             print (subs)
@@ -28,9 +27,9 @@ class SignalBitRange(BitRange):
             if stop is None:
                 stop = -1
             if start < 0:
-                start = len(self) + start
+                start = len(self) + start + 1
             if stop < 0:
-                stop = len(self) + stop
+                stop = len(self) + stop + 1
             print ("range", start, stop, step)
             for t in range(start, stop, step):
                 t = len(self) - 1 - t # invert field back
@@ -40,7 +39,7 @@ class SignalBitRange(BitRange):
             return Cat(*res)
         else:
             if subs < 0:
-                subs = len(self) + sub
+                subs = len(self) + subs
             subs = len(self) - 1 - subs # invert field back
             k = OrderedDict.__getitem__(self, subs)
             return self.signal[self._rev(k)] # reverse-order here
