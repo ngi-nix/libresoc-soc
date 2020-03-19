@@ -28,16 +28,20 @@ class SignalBitRange(BitRange):
             if stop is None:
                 stop = -1
             if start < 0:
-                start = len(self) - start - 1
+                start = len(self) + start
             if stop < 0:
-                stop = len(self) - stop - 1
+                stop = len(self) + stop
             print ("range", start, stop, step)
             for t in range(start, stop, step):
+                t = len(self) - 1 - t # invert field back
                 k = OrderedDict.__getitem__(self, t)
                 print ("t", t, k)
                 res.append(self.signal[self._rev(k)]) # reverse-order here
             return Cat(*res)
         else:
+            if subs < 0:
+                subs = len(self) + sub
+            subs = len(self) - 1 - subs # invert field back
             k = OrderedDict.__getitem__(self, subs)
             return self.signal[self._rev(k)] # reverse-order here
 
