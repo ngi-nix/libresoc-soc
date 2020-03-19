@@ -71,7 +71,7 @@ class RegRegOp:
             assert(rc == 1)
         else:
             assert(rc == 0)
-            
+
 
 
 class RegImmOp:
@@ -112,7 +112,7 @@ class RegImmOp:
         in2_sel = yield pdecode2.dec.op.in2_sel
         if in2_sel in [In2Sel.CONST_SI_HI.value, In2Sel.CONST_UI_HI.value]:
             assert(imm == (self.imm << 16))
-        else:    
+        else:
             assert(imm == self.imm)
 
         rc = yield pdecode2.e.rc.data
@@ -176,6 +176,36 @@ class LdStOp:
         else:
             assert(False)
 
+
+class CmpRegOp:
+    def __init__(self):
+        self.ops = {
+            "cmp": InternalOp.OP_CMP,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.r1 = Register(random.randrange(32))
+        self.r2 = Register(random.randrange(32))
+        self.cr = Register(random.randrange(8))
+
+    def generate_instruction(self):
+        string = "{} {}, 0, {}, {}\n".format(self.opcodestr,
+                                             self.cr.num,
+                                             self.r1.num,
+                                             self.r2.num)
+        return string
+
+    def check_results(self, pdecode2):
+        r1sel = yield pdecode2.e.read_reg1.data
+        r2sel = yield pdecode2.e.read_reg2.data
+        crsel = yield pdecode2.e.cr_sel.data
+
+        assert(r1sel == self.r1.num)
+        assert(r2sel == self.r2.num)
+        assert(crsel == self.cr.num)
+
+
+
 class DecoderTestCase(FHDLTestCase):
 
     def get_assembled_instruction(self, instruction):
@@ -236,6 +266,9 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_ldst_imm(self):
         self.run_tst(LdStOp, "ldst_imm")
+
+    def test_cmp_reg(self):
+        self.run_tst(CmpRegOp, "cmp_reg")
 
 
 if __name__ == "__main__":
