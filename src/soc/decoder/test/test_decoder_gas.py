@@ -28,6 +28,8 @@ class RegRegOp:
             "and": InternalOp.OP_AND,
             "or": InternalOp.OP_OR,
             "add.": InternalOp.OP_ADD,
+            "lwzx": InternalOp.OP_LOAD,
+            "stwx": InternalOp.OP_STORE,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -43,7 +45,11 @@ class RegRegOp:
         return string
 
     def check_results(self, pdecode2):
-        r1sel = yield pdecode2.e.write_reg.data
+        if self.opcode == InternalOp.OP_STORE:
+            r1sel = yield pdecode2.e.read_reg3.data
+        else:
+            r1sel = yield pdecode2.e.write_reg.data
+
         r3sel = yield pdecode2.e.read_reg2.data
 
         # For some reason r2 gets decoded either in read_reg1
