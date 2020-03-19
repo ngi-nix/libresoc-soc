@@ -107,10 +107,10 @@ class DecodeB(Elaboratable):
                 comb += self.imm_out.data.eq(self.dec.SI[0:-1])
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI_HI):
-                comb += self.imm_out.data.eq(self.dec.UI[0:-1]<<4)
+                comb += self.imm_out.data.eq(self.dec.UI[0:-1]<<16)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI_HI): # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(self.dec.SI[0:-1]<<4)
+                comb += self.imm_out.data.eq(self.dec.SI[0:-1]<<16)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_LI):
                 comb += self.imm_out.data.eq(self.dec.LI[0:-1]<<2)

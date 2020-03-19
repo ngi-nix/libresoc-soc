@@ -39,14 +39,14 @@ class RegRegOp:
                                             self.r3.num)
         return string
 
-    def check(self, pdecode2):
+    def check_results(self, pdecode2):
         r1sel = yield pdecode2.e.write_reg.data
         r3sel = yield pdecode2.e.read_reg2.data
 
         # For some reason r2 gets decoded either in read_reg1
         # or read_reg3
-        form = yield pdecode2.dec.op.form
-        if form == Form.X.value:
+        out_sel = yield pdecode2.dec.op.out_sel
+        if out_sel == OutSel.RA.value:
             r2sel = yield pdecode2.e.read_reg3.data
         else:
             r2sel = yield pdecode2.e.read_reg1.data
@@ -57,6 +57,46 @@ class RegRegOp:
         opc_out = yield pdecode2.dec.op.internal_op
         assert(opc_out == self.opcode.value)
 
+
+class RegImmOp:
+    def __init__(self):
+        self.ops = {
+            InternalOp.OP_ADD: "addi",
+            InternalOp.OP_ADD: "addis",
+            InternalOp.OP_AND: "andi.",
+            InternalOp.OP_OR: "ori"}
+        self.opcode = random.choice(list(self.ops.keys()))
+        self.r1 = Register(random.randrange(32))
+        self.r2 = Register(random.randrange(32))
+        self.imm = random.randrange(32767)
+
+    def generate_instruction(self):
+        opcodestr = self.ops[self.opcode]
+        string = "{} {}, {}, {}\n".format(opcodestr,
+                                            self.r1.num,
+                                            self.r2.num,
+                                            self.imm)
+        return string
+
+    def check_results(self, pdecode2):
+        print("Check")
+        r1sel = yield pdecode2.e.write_reg.data
+        # For some reason r2 gets decoded either in read_reg1
+        # or read_reg3
+        out_sel = yield pdecode2.dec.op.out_sel
+        if out_sel == OutSel.RA.value:
+            r2sel = yield pdecode2.e.read_reg3.data
+        else:
+            r2sel = yield pdecode2.e.read_reg1.data
+        assert(r1sel == self.r1.num)
+        assert(r2sel == self.r2.num)
+
+        imm = yield pdecode2.e.imm_data.data
+        in2_sel = yield pdecode2.dec.op.in2_sel
+        if in2_sel in [In2Sel.CONST_SI_HI.value, In2Sel.CONST_UI_HI.value]:
+            assert(imm == (self.imm << 16))
+        else:    
+            assert(imm == self.imm)
 
 class DecoderTestCase(FHDLTestCase):
 
@@ -78,7 +118,7 @@ class DecoderTestCase(FHDLTestCase):
                 binary = struct.unpack('>i', binfile.read(4))[0]
                 return binary
 
-    def run_tst(self, kls):
+    def run_tst(self, kls, name):
         random.seed(1)
         m = Module()
         comb = m.d.comb
@@ -104,14 +144,18 @@ class DecoderTestCase(FHDLTestCase):
                 yield instruction.eq(instruction_bin)
                 yield Delay(1e-6)
 
-                checker.check(pdecode2)
+                yield from checker.check_results(pdecode2)
 
 
         sim.add_process(process)
-        with sim.write_vcd("gas.vcd", "gas.gtkw", traces=[pdecode2.ports()]):
+        with sim.write_vcd("%s.vcd" % name, "%s.gtkw" % name,
+                           traces=[pdecode2.ports()]):
             sim.run()
     def test_reg_reg(self):
-        self.run_tst(RegRegOp)
+        self.run_tst(RegRegOp, "reg_reg")
+
+    def test_reg_imm(self):
+        self.run_tst(RegImmOp, "reg_imm")
 
 
 if __name__ == "__main__":
