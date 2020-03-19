@@ -6,9 +6,10 @@ import os
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_enums import (Function, InternalOp,
-                         In1Sel, In2Sel,In3Sel,
-                         OutSel, RC, LdstLen, CryIn, single_bit_flags,
-                         get_signal_name, get_csv)
+                                     In1Sel, In2Sel,In3Sel,
+                                     OutSel, RC, LdstLen, CryIn,
+                                     single_bit_flags, Form,
+                                     get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 import tempfile
 import subprocess
@@ -88,9 +89,18 @@ class DecoderTestCase(FHDLTestCase):
                 yield Delay(1e-6)
 
                 r1sel = yield pdecode2.e.write_reg.data
-                r2sel = yield pdecode2.e.read_reg2.data
-                r3sel = yield pdecode2.e.read_reg3.data
+                r3sel = yield pdecode2.e.read_reg2.data
+
+                # For some reason r2 gets decoded either in read_reg1
+                # or read_reg3
+                form = yield pdecode2.dec.op.form
+                if form == Form.X.value:
+                    r2sel = yield pdecode2.e.read_reg3.data
+                else:
+                    r2sel = yield pdecode2.e.read_reg1.data
                 assert(r1sel == r1.num)
+                assert(r3sel == r3.num)
+                assert(r2sel == r2.num)
                 
         sim.add_process(process)
         with sim.write_vcd("gas.vcd", "gas.gtkw", traces=[pdecode2.ports()]):
