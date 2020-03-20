@@ -33,7 +33,6 @@ def decode_form_header(hdr):
     res = {}
     count = 0
     hdr = hdr.strip()
-    print (hdr.split('|'))
     for f in hdr.split("|"):
         if not f:
             continue
@@ -56,7 +55,6 @@ def decode_line(header, line):
     line = line.strip()
     res = {}
     count = 0
-    print ("line", line)
     prev_fieldname = None
     for f in line.split("|"):
         if not f:
@@ -82,7 +80,6 @@ def decode_line(header, line):
 def decode_form(form):
     header = decode_form_header(form[0])
     res = []
-    print ("header", header)
     for line in form[1:]:
         dec = decode_line(header, line)
         if dec:
@@ -165,7 +162,6 @@ class DecodeFields:
         forms = {}
         reading_data = False
         for l in txt:
-            print ("line", l)
             l = l.strip()
             if len(l) == 0:
                 continue
@@ -180,7 +176,6 @@ class DecodeFields:
                 #if heading.startswith('1.6.28'): # skip instr fields for now
                     #break
                 heading = heading.split(' ')[-1]
-                print ("heading", heading)
                 reading_data = True
                 forms[heading] = []
 
@@ -188,7 +183,6 @@ class DecodeFields:
         inst = {}
 
         for hdr, form in forms.items():
-            print ("heading", hdr)
             if heading == 'Fields':
                 i = decode_instructions(form)
                 for form, field in i.items():
@@ -225,19 +219,3 @@ if __name__ == '__main__':
     dec = DecodeFields()
     dec.create_specs()
     forms, instrs = dec.forms, dec.instrs
-    for hdr, form in forms.items():
-        print ()
-        print (hdr)
-        for k, v in form.items():
-            #print ("line", l)
-            #for k, v in l.items():
-            print ("%s: %d-%d" % (k, v[0], v[1]))
-    for form, field in instrs.items():
-        print ()
-        print (form)
-        for f, vals in field.items():
-            print ("    ", f, vals)
-    print (dec.FormX)
-    print (dec.FormX.A)
-    print (dir(dec.FormX))
-    print (dec.FormX._fields)
