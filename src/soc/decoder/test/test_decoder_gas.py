@@ -198,7 +198,7 @@ class CmpRegOp:
     def check_results(self, pdecode2):
         r1sel = yield pdecode2.e.read_reg1.data
         r2sel = yield pdecode2.e.read_reg2.data
-        crsel = yield pdecode2.e.cr_sel.data
+        crsel = yield pdecode2.dec.BF[0:-1]
 
         assert(r1sel == self.r1.num)
         assert(r2sel == self.r2.num)

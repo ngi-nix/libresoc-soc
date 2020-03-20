@@ -229,28 +229,6 @@ class DecodeRC(Elaboratable):
 
         return m
 
-class DecodeCR(Elaboratable):
-    """DecodeRc from instruction
-
-    decodes Record bit Rc
-    """
-    def __init__(self, dec):
-        self.dec = dec
-        self.cr_out = Data(3, "cr")
-        self.insn_in = Signal(32, reset_less=True)
-        self.sel_in = Signal(1, reset_less=True)
-
-    def elaborate(self, platform):
-        m = Module()
-        comb = m.d.comb
-
-        # select Record bit out field
-        with m.If(self.sel_in):
-            comb += self.cr_out.data.eq(self.dec.BF[0:-1])
-
-        comb += self.cr_out.ok.eq(self.sel_in)
-        return m
-
 
 class DecodeOE(Elaboratable):
     """DecodeOE from instruction
@@ -309,7 +287,6 @@ class Decode2ToExecute1Type:
         self.write_spr = Data(10, name="spro")
         self.read_spr1 = Data(10, name="spr1")
         self.read_spr2 = Data(10, name="spr2")
-        self.cr_sel    = Data(3, name="cr_sel")
         #self.read_data1 = Signal(64, reset_less=True)
         #self.read_data2 = Signal(64, reset_less=True)
         #self.read_data3 = Signal(64, reset_less=True)
@@ -378,12 +355,11 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_o = dec_o = DecodeOut(self.dec)
         m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
-        m.submodules.dec_cr = dec_cr = DecodeCR(self.dec)
 
         # copy instruction through...
         for i in [self.e.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_rc.insn_in,
-                  dec_oe.insn_in, dec_cr.insn_in]:
+                  dec_oe.insn_in]:
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
@@ -393,7 +369,6 @@ class PowerDecode2(Elaboratable):
         comb += dec_o.sel_in.eq(self.dec.op.out_sel)
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
-        comb += dec_cr.sel_in.eq(self.dec.op.cr_out)
 
         # decode LD/ST length
         with m.Switch(self.dec.op.ldst_len):
@@ -445,7 +420,6 @@ class PowerDecode2(Elaboratable):
         comb += self.e.input_cr.eq(self.dec.op.cr_in)
         comb += self.e.output_cr.eq(self.dec.op.cr_out)
 
-        comb += self.e.cr_sel.eq(dec_cr.cr_out)
 
         return m
 
