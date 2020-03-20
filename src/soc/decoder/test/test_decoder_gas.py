@@ -205,6 +205,57 @@ class CmpRegOp:
         assert(crsel == self.cr.num)
 
 
+class RotateOp:
+    def __init__(self):
+        self.ops = {
+            "rlwinm": InternalOp.OP_CMP,
+            "rlwnm": InternalOp.OP_CMP,
+            "rlwimi": InternalOp.OP_CMP,
+            "rlwinm.": InternalOp.OP_CMP,
+            "rlwnm.": InternalOp.OP_CMP,
+            "rlwimi.": InternalOp.OP_CMP,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.r1 = Register(random.randrange(32))
+        self.r2 = Register(random.randrange(32))
+        self.shift = random.randrange(32)
+        self.mb = random.randrange(32)
+        self.me = random.randrange(32)
+
+    def generate_instruction(self):
+        string = "{} {},{},{},{},{}\n".format(self.opcodestr,
+                                              self.r1.num,
+                                              self.r2.num,
+                                              self.shift,
+                                              self.mb,
+                                              self.me)
+        return string
+
+    def check_results(self, pdecode2):
+        r1sel = yield pdecode2.e.write_reg.data
+        r2sel = yield pdecode2.e.read_reg3.data
+        dec = pdecode2.dec
+
+        if "i" in self.opcodestr:
+            shift = yield dec.SH[0:-1]
+        else:
+            shift = yield pdecode2.e.read_reg2.data
+        mb = yield dec.MB[0:-1]
+        me = yield dec.ME[0:-1]
+
+        assert(r1sel == self.r1.num)
+        assert(r2sel == self.r2.num)
+        assert(shift == self.shift)
+        assert(mb == self.mb)
+        assert(me == self.me)
+
+        rc = yield pdecode2.e.rc.data
+        if '.' in self.opcodestr:
+            assert(rc == 1)
+        else:
+            assert(rc == 0)
+
 
 class DecoderTestCase(FHDLTestCase):
 
@@ -270,6 +321,8 @@ class DecoderTestCase(FHDLTestCase):
     def test_cmp_reg(self):
         self.run_tst(CmpRegOp, "cmp_reg")
 
+    def test_rot(self):
+        self.run_tst(RotateOp, "rot")
 
 if __name__ == "__main__":
     unittest.main()
