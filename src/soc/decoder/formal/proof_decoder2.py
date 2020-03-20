@@ -92,10 +92,10 @@ class Driver(Elaboratable):
                     comb += Assert(pdecode2.e.imm_data.data == dec.SI[0:-1])
                 with m.Case(In2Sel.CONST_UI_HI):
                     comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.UI[0:-1] << 4))
+                                   (dec.UI[0:-1] << 16))
                 with m.Case(In2Sel.CONST_SI_HI):
                     comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.SI[0:-1] << 4))
+                                   (dec.SI[0:-1] << 16))
                 with m.Case(In2Sel.CONST_LI):
                     comb += Assert(pdecode2.e.imm_data.data ==
                                    (dec.LI[0:-1] << 2))
@@ -125,8 +125,8 @@ class Driver(Elaboratable):
         comb += Assert(dec.LI[0:-1] == self.instr_bits(6, 29))
         comb += Assert(dec.BD[0:-1] == self.instr_bits(16, 29))
         comb += Assert(dec.DS[0:-1] == self.instr_bits(16, 29))
-        comb += Assert(dec.sh[0:-1] == Cat(self.instr_bits(30),
-                                           self.instr_bits(16, 20)))
+        comb += Assert(dec.sh[0:-1] == Cat(self.instr_bits(16, 20),
+                                           self.instr_bits(30)))
         comb += Assert(dec.SH32[0:-1] == self.instr_bits(16, 20))
 
     def test_in3(self):
@@ -201,7 +201,7 @@ class Driver(Elaboratable):
     def instr_bits(self, start, end=None):
         if not end:
             end = start
-        return self.instruction[::-1][start:end+1]
+        return self.instruction[::-1][start:end+1][::-1]
 
 
 class Decoder2TestCase(FHDLTestCase):
