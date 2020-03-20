@@ -6,7 +6,7 @@ from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_enums import (Function, InternalOp,
                                      In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, LdstLen, CryIn,
-                                     single_bit_flags, Form,
+                                     single_bit_flags, Form, SPR,
                                      get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 import tempfile
@@ -261,6 +261,7 @@ class Branch:
     def __init__(self):
         self.ops = {
             "b": InternalOp.OP_B,
+            "bl": InternalOp.OP_B,
             "ba": InternalOp.OP_B,
             "bla": InternalOp.OP_B,
         }
@@ -287,6 +288,95 @@ class Branch:
             assert(aa == 1)
         else:
             assert(aa == 0)
+
+
+class BranchCond:
+    def __init__(self):
+        self.ops = {
+            "bc": InternalOp.OP_B,
+            "bcl": InternalOp.OP_B,
+            "bca": InternalOp.OP_B,
+            "bcla": InternalOp.OP_B,
+        }
+        # Given in Figure 40 "BO field encodings" in section 2.4, page
+        # 33 of the Power ISA v3.0B manual
+        self.branchops = [0b00000, 0b00010, 0b00100, 0b01000, 0b01010,
+                          0b01100, 0b10000, 0b10100]
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.addr = random.randrange(2**13) * 4
+        self.bo = random.choice(self.branchops)
+        self.bi = random.randrange(32)
+
+    def generate_instruction(self):
+        string = "{} {},{},{}\n".format(self.opcodestr,
+                                        self.bo,
+                                        self.bi,
+                                        self.addr)
+        return string
+
+    def check_results(self, pdecode2):
+        imm = yield pdecode2.e.imm_data.data
+        bo = yield pdecode2.dec.BO[0:-1]
+        bi = yield pdecode2.dec.BI[0:-1]
+
+        assert(imm == self.addr)
+        assert(bo == self.bo)
+        assert(bi == self.bi)
+        lk = yield pdecode2.e.lk
+        if "l" in self.opcodestr:
+            assert(lk == 1)
+        else:
+            assert(lk == 0)
+        aa = yield pdecode2.dec.AA[0:-1]
+        if "a" in self.opcodestr:
+            assert(aa == 1)
+        else:
+            assert(aa == 0)
+
+
+class BranchRel:
+    def __init__(self):
+        self.ops = {
+            "bclr": InternalOp.OP_B,
+            "bcctr": InternalOp.OP_B,
+            "bclrl": InternalOp.OP_B,
+            "bcctrl": InternalOp.OP_B,
+        }
+        # Given in Figure 40 "BO field encodings" in section 2.4, page
+        # 33 of the Power ISA v3.0B manual
+        self.branchops = [0b00100, 0b01100, 0b10100]
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.bh = random.randrange(4)
+        self.bo = random.choice(self.branchops)
+        self.bi = random.randrange(32)
+
+    def generate_instruction(self):
+        string = "{} {},{},{}\n".format(self.opcodestr,
+                                        self.bo,
+                                        self.bi,
+                                        self.bh)
+        return string
+
+    def check_results(self, pdecode2):
+        bo = yield pdecode2.dec.BO[0:-1]
+        bi = yield pdecode2.dec.BI[0:-1]
+
+        assert(bo == self.bo)
+        assert(bi == self.bi)
+
+        spr = yield pdecode2.e.read_spr2.data
+        if "lr" in self.opcodestr:
+            assert(spr == SPR.LR.value)
+        else:
+            assert(spr == SPR.CTR.value)
+
+        lk = yield pdecode2.e.lk
+        if self.opcodestr[-1] == 'l':
+            assert(lk == 1)
+        else:
+            assert(lk == 0)
 
 
 class DecoderTestCase(FHDLTestCase):
@@ -357,7 +447,13 @@ class DecoderTestCase(FHDLTestCase):
         self.run_tst(RotateOp, "rot")
 
     def test_branch(self):
-        self.run_tst(Branch, "branch_abs")
+        self.run_tst(Branch, "branch")
+
+    def test_branch_cond(self):
+        self.run_tst(BranchCond, "branch_cond")
+
+    def test_branch_rel(self):
+        self.run_tst(BranchRel, "branch_rel")
 
 if __name__ == "__main__":
     unittest.main()
