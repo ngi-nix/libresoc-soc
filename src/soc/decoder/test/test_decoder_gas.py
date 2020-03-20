@@ -257,6 +257,38 @@ class RotateOp:
             assert(rc == 0)
 
 
+class Branch:
+    def __init__(self):
+        self.ops = {
+            "b": InternalOp.OP_B,
+            "ba": InternalOp.OP_B,
+            "bla": InternalOp.OP_B,
+        }
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.addr = random.randrange(2**23) * 4
+
+    def generate_instruction(self):
+        string = "{} {}\n".format(self.opcodestr,
+                                  self.addr)
+        return string
+
+    def check_results(self, pdecode2):
+        imm = yield pdecode2.e.imm_data.data
+
+        assert(imm == self.addr)
+        lk = yield pdecode2.e.lk
+        if "l" in self.opcodestr:
+            assert(lk == 1)
+        else:
+            assert(lk == 0)
+        aa = yield pdecode2.dec.AA[0:-1]
+        if "a" in self.opcodestr:
+            assert(aa == 1)
+        else:
+            assert(aa == 0)
+
+
 class DecoderTestCase(FHDLTestCase):
 
     def get_assembled_instruction(self, instruction):
@@ -323,6 +355,9 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_rot(self):
         self.run_tst(RotateOp, "rot")
+
+    def test_branch(self):
+        self.run_tst(Branch, "branch_abs")
 
 if __name__ == "__main__":
     unittest.main()
