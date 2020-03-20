@@ -13,13 +13,12 @@ import tempfile
 import subprocess
 import struct
 import random
-import pdb
-
 
 
 class Register:
     def __init__(self, num):
         self.num = num
+
 
 class RegRegOp:
     def __init__(self):
@@ -73,7 +72,6 @@ class RegRegOp:
             assert(rc == 0)
 
 
-
 class RegImmOp:
     def __init__(self):
         self.ops = {
@@ -121,6 +119,7 @@ class RegImmOp:
         else:
             assert(rc == 0)
 
+
 class LdStOp:
     def __init__(self):
         self.ops = {
@@ -136,7 +135,7 @@ class LdStOp:
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
         self.r1 = Register(random.randrange(32))
-        self.r2 = Register(random.randrange(1,32))
+        self.r2 = Register(random.randrange(1, 32))
         self.imm = random.randrange(32767)
 
     def generate_instruction(self):
@@ -157,7 +156,6 @@ class LdStOp:
         assert(r2sel == self.r2.num)
 
         imm = yield pdecode2.e.imm_data.data
-        in2_sel = yield pdecode2.dec.op.in2_sel
         assert(imm == self.imm)
 
         update = yield pdecode2.e.update
@@ -426,11 +424,11 @@ class DecoderTestCase(FHDLTestCase):
 
                 yield from checker.check_results(pdecode2)
 
-
         sim.add_process(process)
         with sim.write_vcd("%s.vcd" % name, "%s.gtkw" % name,
                            traces=[pdecode2.ports()]):
             sim.run()
+
     def test_reg_reg(self):
         self.run_tst(RegRegOp, "reg_reg")
 
@@ -454,6 +452,7 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_branch_rel(self):
         self.run_tst(BranchRel, "branch_rel")
+
 
 if __name__ == "__main__":
     unittest.main()
