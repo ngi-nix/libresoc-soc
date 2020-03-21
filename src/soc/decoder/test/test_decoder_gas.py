@@ -419,17 +419,17 @@ class DecoderTestCase(FHDLTestCase):
         def process():
             for i in range(20):
                 checker = kls()
-                instruction_str = checker.generate_instruction()
-                print("instr", instruction_str.strip())
-                for endian in [0, 1]:
+                ins = checker.generate_instruction()
+                print("instr", ins.strip())
+                for mode in [0, 1]:
 
-                    instruction_bin = self.get_assembled_instruction(
-                        instruction_str, endian)
-                    print("code", endian, hex(instruction_bin),
-                                          bin(instruction_bin))
+                    # turn the instruction into binary data (endian'd)
+                    ibin = self.get_assembled_instruction(ins, mode)
+                    print("code", mode, hex(ibin), bin(ibin))
 
-                    yield pdecode2.dec.bigendian.eq(endian)
-                    yield instruction.eq(instruction_bin)
+                    # ask the decoder to decode this binary data (endian'd)
+                    yield pdecode2.dec.bigendian.eq(endian) # little / big?
+                    yield instruction.eq(ibin)              # raw binary instr.
                     yield Delay(1e-6)
 
                     yield from checker.check_results(pdecode2)
