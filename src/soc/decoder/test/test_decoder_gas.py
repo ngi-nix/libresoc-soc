@@ -428,8 +428,8 @@ class DecoderTestCase(FHDLTestCase):
                     print("code", mode, hex(ibin), bin(ibin))
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(endian) # little / big?
-                    yield instruction.eq(ibin)              # raw binary instr.
+                    yield pdecode2.dec.bigendian.eq(mode) # little / big?
+                    yield instruction.eq(ibin)            # raw binary instr.
                     yield Delay(1e-6)
 
                     yield from checker.check_results(pdecode2)
