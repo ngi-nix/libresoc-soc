@@ -379,9 +379,16 @@ class BranchRel:
 
 class DecoderTestCase(FHDLTestCase):
 
-    def get_assembled_instruction(self, instruction):
+    def get_assembled_instruction(self, instruction, bigendian=False):
+        if bigendian:
+            endian_fmt = "elf64-big"
+            obj_fmt = "-be"
+        else:
+            endian_fmt = "elf64-little"
+            obj_fmt = "-le"
         with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
             args = ["powerpc64-linux-gnu-as",
+                    obj_fmt,
                     "-o",
                     outfile.name]
             p = subprocess.Popen(args, stdin=subprocess.PIPE)
@@ -390,6 +397,7 @@ class DecoderTestCase(FHDLTestCase):
 
             with tempfile.NamedTemporaryFile(suffix=".bin") as binfile:
                 args = ["powerpc64-linux-gnu-objcopy",
+                        "-I", endian_fmt,
                         "-O", "binary",
                         outfile.name,
                         binfile.name]
@@ -405,24 +413,26 @@ class DecoderTestCase(FHDLTestCase):
         pdecode = create_pdecode()
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        comb += pdecode2.dec.opcode_in.eq(instruction)
-
+        comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
         def process():
             for i in range(20):
                 checker = kls()
-
                 instruction_str = checker.generate_instruction()
                 print("instr", instruction_str.strip())
-                instruction_bin = self.get_assembled_instruction(
-                    instruction_str)
-                print("code", hex(instruction_bin), bin(instruction_bin))
+                for endian in [0, 1]:
 
-                yield instruction.eq(instruction_bin)
-                yield Delay(1e-6)
+                    instruction_bin = self.get_assembled_instruction(
+                        instruction_str, endian)
+                    print("code", endian, hex(instruction_bin),
+                                          bin(instruction_bin))
 
-                yield from checker.check_results(pdecode2)
+                    yield pdecode2.dec.bigendian.eq(endian)
+                    yield instruction.eq(instruction_bin)
+                    yield Delay(1e-6)
+
+                    yield from checker.check_results(pdecode2)
 
         sim.add_process(process)
         with sim.write_vcd("%s.vcd" % name, "%s.gtkw" % name,
