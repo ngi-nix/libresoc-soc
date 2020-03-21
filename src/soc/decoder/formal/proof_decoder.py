@@ -29,7 +29,8 @@ class Driver(Elaboratable):
 
         self.m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
         dec1 = pdecode2.dec
-        self.comb += pdecode2.dec.opcode_in.eq(self.instruction)
+        self.comb += pdecode2.dec.bigendian.eq(1) # TODO: bigendian=0
+        self.comb += pdecode2.dec.raw_opcode_in.eq(self.instruction)
 
         # ignore special decoding of nop
         self.comb += Assume(self.instruction != 0x60000000)

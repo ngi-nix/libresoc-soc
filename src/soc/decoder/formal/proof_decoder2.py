@@ -26,7 +26,8 @@ class Driver(Elaboratable):
         pdecode = create_pdecode()
 
         self.m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        self.comb += pdecode2.dec.opcode_in.eq(self.instruction)
+        self.comb += pdecode2.dec.bigendian.eq(1) # XXX TODO: bigendian=0
+        self.comb += pdecode2.dec.raw_opcode_in.eq(self.instruction)
 
         self.test_in1(pdecode2, pdecode)
         self.test_in2()
