@@ -53,7 +53,7 @@ Top Level:
 
 """
 
-from nmigen import Module, Elaboratable, Signal
+from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, InternalOp,
                          In1Sel, In2Sel, In3Sel, OutSel, RC, LdstLen,
@@ -230,11 +230,34 @@ class PowerDecoder(Elaboratable):
 
 
 class TopPowerDecoder(PowerDecoder, DecodeFields):
+    """TopPowerDecoder
+
+    top-level hierarchical decoder for POWER ISA
+    bigendian dynamically switches between big and little endian decoding
+    (reverses byte order)
+    """
 
     def __init__(self, width, dec):
         PowerDecoder.__init__(self, width, dec)
         DecodeFields.__init__(self, SignalBitRange, [self.opcode_in])
         self.create_specs()
+        self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
+        self.bigendian = Signal(reset_less=True)
+
+    def elaborate(self, platform):
+        m = PowerDecoder.elaborate(self, platform)
+        comb = m.d.comb
+        raw_be = self.raw_opcode_in
+        l = []
+        for i in range(0, self.width, 8):
+            l.append(raw_be[i:i+8])
+        l.reverse()
+        raw_le = Cat(*l)
+        comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
+        return m
+
+    def ports(self):
+        return [self.raw_opcode_in, self.bigendian] + PowerDecoder.ports(self)
 
 
 def create_pdecode():
