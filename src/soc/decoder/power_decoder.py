@@ -234,7 +234,7 @@ class TopPowerDecoder(PowerDecoder, DecodeFields):
 
     top-level hierarchical decoder for POWER ISA
     bigendian dynamically switches between big and little endian decoding
-    (reverses byte order)
+    (reverses byte order).  See V3.0B p44 1.11.2
     """
 
     def __init__(self, width, dec):
