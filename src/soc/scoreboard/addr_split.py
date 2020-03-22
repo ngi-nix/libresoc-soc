@@ -107,11 +107,14 @@ class LDSTSplitter(Elaboratable):
             # errors cause error condition
             comb += self.ld_data_o.err.eq(ld1.ld_o.err | ld2.ld_o.err)
             # data needs recombining via shifting.
-            ashift1 = self.addr_i[:self.dlen]
+            ashift1 = Signal(self.dlen)
+            ashift2 = Signal(self.dlen)
+            comb += ashift1.eq(self.addr_i[:self.dlen])
+            comb += ashift2.eq((1<<dlen)-ashift1)
             # note that data from LD1 will be in *cache-line* byte position
             # likewise from LD2 but we *know* it is at the start of the line
             comb += self.ld_data_o.data.eq((ld1.ld_o.data >> ashift1) |
-                                            (ld2.ld_o.data << (1<<self.dlen)))
+                                            (ld2.ld_o.data << ashift2))
 
         return m
 
@@ -135,7 +138,7 @@ def sim(dut):
 
     sim = Simulator(dut)
     sim.add_clock(1e-6)
-    data = 0b1101001110110010011
+    data = 0b11010011
     dlen = 4 # 4 bits
     addr = 0b1101
     ld_len = 8
@@ -159,10 +162,10 @@ def sim(dut):
             if valid_o:
                 break
             yield
-        ld_data_o = yield dut.ld_data_o
+        ld_data_o = yield dut.ld_data_o.data
         yield
 
-        print (ld_data_o)
+        print (bin(ld_data_o), bin(data))
         assert ld_data_o == data
 
     def lds():
@@ -173,14 +176,17 @@ def sim(dut):
                 break
             yield
 
-        data1 = (data & dmask) << (addr & dlm)
-        data2 = ((data >> (1<<dlen)) & dmask1)
-        print ("ld data", bin(data), bin(data1), bin(data2))
-        yield dut.sld_data_i[0].eq(data1)
+        shf = addr & dlm
+        shfdata = (data << shf)
+        data1 = shfdata & dmask
+        print ("ld data1", bin(data), bin(data1), shf, bin(dmask))
+
+        data2 = (shfdata >> 16) & dmask1
+        print ("ld data2", 1<<dlen, bin(data >> (1<<dlen)), bin(data2))
+        yield dut.sld_data_i[0].data.eq(data1)
         yield dut.sld_valid_i[0].eq(1)
         yield
-        yield
-        yield dut.sld_data_i[1].eq(data2)
+        yield dut.sld_data_i[1].data.eq(data2)
         yield dut.sld_valid_i[1].eq(1)
         yield
 
