@@ -9,8 +9,8 @@ from soc.scoreboard.addr_match import LenExpand
 #from nmutil.queue import Queue
 
 class LDData(Record):
-    def __init__(self, dwidth):
-        Record.__init__(self, (('err', 1), ('data', dwidth)))
+    def __init__(self, dwidth, name=None):
+        Record.__init__(self, (('err', 1), ('data', dwidth)), name=name)
 
 
 class LDLatch(Elaboratable):
@@ -19,8 +19,8 @@ class LDLatch(Elaboratable):
         self.addr_i = Signal(awidth, reset_less=True)
         self.mask_i = Signal(mlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
-        self.ld_i = LDData(dwidth)
-        self.ld_o = LDData(dwidth)
+        self.ld_i = LDData(dwidth, "ld_i")
+        self.ld_o = LDData(dwidth, "ld_o")
         self.valid_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
@@ -41,10 +41,11 @@ class LDSTSplitter(Elaboratable):
         self.addr_i = Signal(awidth, reset_less=True)
         self.len_i = Signal(dlen, reset_less=True)
         self.is_ld_i = Signal(reset_less=True)
-        self.ld_data_o = LDData(dwidth)
+        self.ld_data_o = LDData(dwidth, "ld_data_o")
         self.ld_valid_i = Signal(reset_less=True)
         self.valid_o = Signal(2, reset_less=True)
-        self.ld_data_i = Array((LDData(dwidth), LDData(dwidth)))
+        self.ld_data_i = Array((LDData(dwidth, "ld_data_i1"),
+                                LDData(dwidth, "ld_data_i2")))
 
         #self.is_st_i = Signal(reset_less=True)
         #self.st_data_i = Signal(dwidth, reset_less=True)
@@ -61,8 +62,8 @@ class LDSTSplitter(Elaboratable):
         # set up len-expander, len to mask.  ld1 gets first bit, ld2 gets rest
         comb += lenexp.addr_i.eq(self.addr_i)
         comb += lenexp.len_i.eq(self.len_i)
-        mask1 = lenexp.lexp_o[0:mlen]
-        mask2 = lenexp.lexp_o[mlen:]
+        mask1 = lenexp.lexp_o[0:mlen] # Lo bits of expanded len-mask
+        mask2 = lenexp.lexp_o[mlen:]  # Hi bits of expanded len-mask
 
         # set up new address records: addr1 is "as-is", addr2 is +1
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
@@ -72,7 +73,19 @@ class LDSTSplitter(Elaboratable):
         for i, (ld, mask) in enumerate(((ld1, mask1),
                                         (ld2, mask2))):
             comb += ld.valid_i.eq(self.ld_valid_i)
+            comb += ld.ld_i.eq(self.ld_data_i[i])
             comb += self.valid_o[i].eq(ld.valid_o & (mask != 0))
+
+        # all bits valid (including when a data error occurs!) decode ld1/ld2
+        with m.If(self.valid_o.all()):
+            # errors cause error condition
+            comb += self.ld_data_o.err.eq(ld1.ld_o.err | ld2.ld_o.err)
+            # data needs recombining via shifting.
+            ashift1 = self.addr_i[:self.dlen]
+            # note that data from LD1 will be in *cache-line* byte position
+            # likewise from LD2 but we *know* it is at the start of the line
+            comb += self.ld_data_o.data.eq((ld1.ld_o.data >> ashift1) |
+                                           (ld2.ld_o.data << (1<<self.dlen)))
 
         return m
 
