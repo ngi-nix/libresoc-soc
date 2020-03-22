@@ -1,8 +1,8 @@
 # LDST Address Splitter.  For misaligned address crossing cache line boundary
 
-from nmigen import Elaboratable, Module, Signal, Record, Array
+from nmigen import Elaboratable, Module, Signal, Record, Array, Const
 from nmutil.latch import SRLatch, latchregister
-from nmigen.compat.sim import run_simulation
+from nmigen.back.pysim import Simulator, Delay
 from nmigen.cli import verilog, rtlil
 
 from soc.scoreboard.addr_match import LenExpand
@@ -28,11 +28,24 @@ class LDLatch(Elaboratable):
         comb = m.d.comb
         m.submodules.in_l = in_l = SRLatch(sync=False, name="in_l")
 
+        comb += in_l.s.eq(self.valid_i)
         comb += self.valid_o.eq(in_l.q & self.valid_i)
         latchregister(m, self.ld_i, self.ld_o, in_l.q & self.valid_o, "ld_i_r")
 
         return m
 
+    def __iter__(self):
+        yield self.addr_i
+        yield self.mask_i
+        yield self.ld_i.err
+        yield self.ld_i.data
+        yield self.ld_o.err
+        yield self.ld_o.data
+        yield self.valid_i
+        yield self.valid_o
+
+    def ports(self):
+        return list(self)
 
 class LDSTSplitter(Elaboratable):
 
@@ -43,8 +56,10 @@ class LDSTSplitter(Elaboratable):
         self.is_ld_i = Signal(reset_less=True)
         self.ld_data_o = LDData(dwidth, "ld_data_o")
         self.ld_valid_i = Signal(reset_less=True)
-        self.valid_o = Signal(2, reset_less=True)
-        self.ld_data_i = Array((LDData(dwidth, "ld_data_i1"),
+        self.valid_o = Signal(reset_less=True)
+        self.sld_valid_o = Signal(2, reset_less=True)
+        self.sld_valid_i = Signal(2, reset_less=True)
+        self.sld_data_i = Array((LDData(dwidth, "ld_data_i1"),
                                 LDData(dwidth, "ld_data_i2")))
 
         #self.is_st_i = Signal(reset_less=True)
@@ -62,22 +77,33 @@ class LDSTSplitter(Elaboratable):
         # set up len-expander, len to mask.  ld1 gets first bit, ld2 gets rest
         comb += lenexp.addr_i.eq(self.addr_i)
         comb += lenexp.len_i.eq(self.len_i)
-        mask1 = lenexp.lexp_o[0:mlen] # Lo bits of expanded len-mask
-        mask2 = lenexp.lexp_o[mlen:]  # Hi bits of expanded len-mask
+        mask1 = Signal(mlen, reset_less=True)
+        mask2 = Signal(mlen, reset_less=True)
+        comb += mask1.eq(lenexp.lexp_o[0:mlen]) # Lo bits of expanded len-mask
+        comb += mask2.eq(lenexp.lexp_o[mlen:])  # Hi bits of expanded len-mask
 
         # set up new address records: addr1 is "as-is", addr2 is +1
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
         comb += ld2.addr_i.eq(self.addr_i[dlen:] + 1) # TODO exception if rolls
 
         # set up connections to LD-split.  note: not active if mask is zero
+        mzero = Const(0, mlen)
         for i, (ld, mask) in enumerate(((ld1, mask1),
                                         (ld2, mask2))):
-            comb += ld.valid_i.eq(self.ld_valid_i)
-            comb += ld.ld_i.eq(self.ld_data_i[i])
-            comb += self.valid_o[i].eq(ld.valid_o & (mask != 0))
+            ld_valid = Signal(name="ldvalid_i%d" % i, reset_less=True)
+            comb += ld_valid.eq(self.ld_valid_i & self.sld_valid_i[i])
+            comb += ld.valid_i.eq(ld_valid & (mask != mzero))
+            comb += ld.ld_i.eq(self.sld_data_i[i])
+            comb += self.sld_valid_o[i].eq(ld.valid_o)
+
+        # sort out valid: mask2 zero we ignore 2nd LD
+        with m.If(mask2 == mzero):
+            comb += self.valid_o.eq(self.sld_valid_o[0])
+        with m.Else():
+            comb += self.valid_o.eq(self.sld_valid_o.all())
 
         # all bits valid (including when a data error occurs!) decode ld1/ld2
-        with m.If(self.valid_o.all()):
+        with m.If(self.valid_o):
             # errors cause error condition
             comb += self.ld_data_o.err.eq(ld1.ld_o.err | ld2.ld_o.err)
             # data needs recombining via shifting.
@@ -85,7 +111,7 @@ class LDSTSplitter(Elaboratable):
             # note that data from LD1 will be in *cache-line* byte position
             # likewise from LD2 but we *know* it is at the start of the line
             comb += self.ld_data_o.data.eq((ld1.ld_o.data >> ashift1) |
-                                           (ld2.ld_o.data << (1<<self.dlen)))
+                                            (ld2.ld_o.data << (1<<self.dlen)))
 
         return m
 
@@ -97,17 +123,79 @@ class LDSTSplitter(Elaboratable):
         yield self.ld_data_o.data
         yield self.ld_valid_i
         yield self.valid_o
+        yield self.sld_valid_i
         for i in range(2):
-            yield self.ld_data_i[i].err
-            yield self.ld_data_i[i].data
+            yield self.sld_data_i[i].err
+            yield self.sld_data_i[i].data
 
     def ports(self):
         return list(self)
 
+def sim(dut):
+
+    sim = Simulator(dut)
+    sim.add_clock(1e-6)
+    data = 0b1101001110110010011
+    dlen = 4 # 4 bits
+    addr = 0b1101
+    ld_len = 8
+    dlm = ((1<<dlen)-1)
+    print ("dlm", dlm, bin(addr&dlm))
+    dmask = ((1<<ld_len)-1) << (addr & dlm)
+    print ("dmask", bin(dmask))
+    dmask1 = dmask >> (1<<dlen)
+    print ("dmask1", bin(dmask1))
+    dmask = dmask & ((1<<(1<<dlen))-1)
+    print ("dmask", bin(dmask))
+
+    def send_in():
+        print ("send_in")
+        yield dut.len_i.eq(ld_len)
+        yield dut.addr_i.eq(addr)
+        yield dut.ld_valid_i.eq(1)
+        print ("waiting")
+        while True:
+            valid_o = yield dut.valid_o
+            if valid_o:
+                break
+            yield
+        ld_data_o = yield dut.ld_data_o
+        yield
+
+        print (ld_data_o)
+        assert ld_data_o == data
+
+    def lds():
+        print ("lds")
+        while True:
+            valid_i = yield dut.ld_valid_i
+            if valid_i:
+                break
+            yield
+
+        data1 = (data & dmask) << (addr & dlm)
+        data2 = ((data >> (1<<dlen)) & dmask1)
+        print ("ld data", bin(data), bin(data1), bin(data2))
+        yield dut.sld_data_i[0].eq(data1)
+        yield dut.sld_valid_i[0].eq(1)
+        yield
+        yield
+        yield dut.sld_data_i[1].eq(data2)
+        yield dut.sld_valid_i[1].eq(1)
+        yield
+
+    sim.add_sync_process(lds)
+    sim.add_sync_process(send_in)
+
+    prefix = "ldst_splitter"
+    with sim.write_vcd("%s.vcd" % prefix, traces=dut.ports()):
+        sim.run()
+
 
 if __name__ == '__main__':
-    dut = LDSTSplitter(32, 48, 3)
+    dut = LDSTSplitter(32, 48, 4)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("ldst_splitter.il", "w") as f:
         f.write(vl)
 
+    sim(dut)
