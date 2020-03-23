@@ -140,6 +140,85 @@ class LenExpand(Elaboratable):
         return [self.len_i, self.addr_i, self.lexp_o,]
 
 
+class TwinPartialAddrBitmap(PartialAddrMatch):
+    """TwinPartialAddrBitMap
+
+    designed to be connected to via LDSTSplitter, which generates
+    *pairs* of addresses and covers the misalignment across cache
+    line boundaries *in the splitter*.  Also LDSTSplitter takes
+    care of expanding the LSBs of each address into a bitmap, itself.
+
+    the key difference between this and PartialAddrMap is that the
+    knowledge (fact) that pairs of addresses from the same LDSTSplitter
+    are 1 apart is *guaranteed* to be a miss for those two addresses.
+    therefore is_match specially takes that into account.
+    """
+    def __init__(self, n_adr, lsbwid, bitlen):
+        self.lsbwid = lsbwid # number of bits to turn into unary
+        self.midlen = bitlen-lsbwid
+        PartialAddrMatch.__init__(self, n_adr, self.midlen)
+
+        # input: length of the LOAD/STORE
+        expwid = 1+self.lsbwid # XXX assume LD/ST no greater than 8
+        self.lexp_i = Array(Signal(1<<expwid, reset_less=True,
+                                  name="len") for i in range(n_adr))
+        # input: full address
+        self.faddrs_i = Array(Signal(bitlen, reset_less=True,
+                                      name="fadr") for i in range(n_adr))
+
+        # registers for expanded len
+        self.len_r = Array(Signal(expwid, reset_less=True, name="l_r") \
+                                       for i in range(self.n_adr))
+
+    def elaborate(self, platform):
+        m = PartialAddrMatch.elaborate(self, platform)
+        comb = m.d.comb
+
+        # intermediaries
+        adrs_r, l = self.adrs_r, self.l
+        expwid = 1+self.lsbwid
+
+        for i in range(self.n_adr):
+            # copy the top lsbwid..(lsbwid-bit_len) of addresses to compare
+            comb += self.addrs_i[i].eq(self.faddrs_i[i][self.lsbwid:])
+
+            # copy in expanded-lengths and latch them
+            latchregister(m, self.lexp_i[i], self.len_r[i], l.q[i])
+
+        return m
+
+    # TODO make this a module.  too much.
+    def is_match(self, i, j):
+        if i == j:
+            return Const(0) # don't match against self!
+        # we know that pairs have addr and addr+1 therefore it is
+        # guaranteed that they will not match.
+        if (i // 2) == (j // 2):
+            return Const(0) # don't match against twin, either.
+
+        # the bitmask contains data for *two* cache lines (16 bytes).
+        # however len==8 only covers *half* a cache line so we only
+        # need to compare half the bits
+        expwid = 1<<self.lsbwid
+        #if i % 2 == 1 or j % 2 == 1: # XXX hmmm...
+        #   expwid >>= 1
+
+        # straight compare: binary top bits of addr, *unary* compare on bottom
+        straight_eq = (self.adrs_r[i] == self.adrs_r[j]) & \
+                      (self.len_r[i][:expwid] & self.len_r[j][:expwid]).bool()
+        return straight_eq
+
+    def __iter__(self):
+        yield from self.faddrs_i
+        yield from self.lexp_i
+        yield self.addr_en_i
+        yield from self.addr_nomatch_a_o
+        yield self.addr_nomatch_o
+
+    def ports(self):
+        return list(self)
+
+
 class PartialAddrBitmap(PartialAddrMatch):
     """PartialAddrBitMap
 
@@ -246,6 +325,7 @@ class PartialAddrBitmap(PartialAddrMatch):
     def ports(self):
         return list(self)
 
+
 def part_addr_sim(dut):
     yield dut.dest_i.eq(1)
     yield dut.issue_i.eq(1)
@@ -308,6 +388,11 @@ def test_part_addr():
     dut = LenExpand(4)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_len_expand.il", "w") as f:
+        f.write(vl)
+
+    dut = TwinPartialAddrBitmap(3, 4, 10)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_twin_part_bit.il", "w") as f:
         f.write(vl)
 
     dut = PartialAddrBitmap(3, 4, 10)
