@@ -17,6 +17,23 @@ class Register:
     def __init__(self, num):
         self.num = num
 
+class Checker:
+    def __init__(self):
+        self.imm = 0
+
+    def get_imm(self, in2_sel):
+        if in2_sel == In2Sel.CONST_UI.value:
+            return self.imm & 0xffff
+        if in2_sel == In2Sel.CONST_UI_HI.value:
+            return (self.imm & 0xffff) << 16
+        if in2_sel == In2Sel.CONST_SI.value:
+            sign_bit = 1 << 15
+            return (self.imm & (sign_bit-1)) - (self.imm & sign_bit)
+        if in2_sel == In2Sel.CONST_SI_HI.value:
+            imm = self.imm << 16
+            sign_bit = 1 << 31
+            return (imm & (sign_bit-1)) - (imm & sign_bit)
+        
 
 class RegRegOp:
     def __init__(self):
@@ -70,8 +87,9 @@ class RegRegOp:
             assert(rc == 0)
 
 
-class RegImmOp:
+class RegImmOp(Checker):
     def __init__(self):
+        super().__init__()
         self.ops = {
             "addi": InternalOp.OP_ADD,
             "addis": InternalOp.OP_ADD,
@@ -106,10 +124,9 @@ class RegImmOp:
 
         imm = yield pdecode2.e.imm_data.data
         in2_sel = yield pdecode2.dec.op.in2_sel
-        if in2_sel in [In2Sel.CONST_SI_HI.value, In2Sel.CONST_UI_HI.value]:
-            assert(imm == (self.imm << 16))
-        else:
-            assert(imm == self.imm)
+        imm_expected = self.get_imm(in2_sel)
+        msg = "imm: got {:x}, expected {:x}".format(imm, imm_expected)
+        assert imm == imm_expected, msg
 
         rc = yield pdecode2.e.rc.data
         if '.' in self.opcodestr:
@@ -118,8 +135,9 @@ class RegImmOp:
             assert(rc == 0)
 
 
-class LdStOp:
+class LdStOp(Checker):
     def __init__(self):
+        super().__init__()
         self.ops = {
             "lwz": InternalOp.OP_LOAD,
             "stw": InternalOp.OP_STORE,
@@ -154,7 +172,8 @@ class LdStOp:
         assert(r2sel == self.r2.num)
 
         imm = yield pdecode2.e.imm_data.data
-        assert(imm == self.imm)
+        in2_sel = yield pdecode2.dec.op.in2_sel
+        assert(imm == self.get_imm(in2_sel))
 
         update = yield pdecode2.e.update
         if "u" in self.opcodestr:

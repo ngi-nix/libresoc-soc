@@ -3,7 +3,7 @@
 based on Anton Blanchard microwatt decode2.vhdl
 
 """
-from nmigen import Module, Elaboratable, Signal, Mux, Const
+from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl
 from nmigen.cli import rtlil
 
 from soc.decoder.power_decoder import create_pdecode
@@ -91,6 +91,13 @@ class DecodeB(Elaboratable):
         self.imm_out = Data(64, "imm_b")
         self.spr_out = Data(10, "spr_b")
 
+    def exts(self, exts_data, width, fullwidth):
+        exts_data = exts_data[0:width]
+        topbit = exts_data[-1]
+        signbits = Repl(topbit, fullwidth-width)
+        return Cat(exts_data, signbits)
+
+
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
@@ -104,13 +111,16 @@ class DecodeB(Elaboratable):
                 comb += self.imm_out.data.eq(self.dec.UI[0:-1])
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI): # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(self.dec.SI[0:-1])
+                comb += self.imm_out.data.eq(
+                    self.exts(self.dec.SI[0:-1], 16, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI_HI):
                 comb += self.imm_out.data.eq(self.dec.UI[0:-1]<<16)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI_HI): # TODO: sign-extend here?
                 comb += self.imm_out.data.eq(self.dec.SI[0:-1]<<16)
+                comb += self.imm_out.data.eq(
+                    self.exts(self.dec.SI[0:-1] << 16, 32, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_LI):
                 comb += self.imm_out.data.eq(self.dec.LI[0:-1]<<2)
