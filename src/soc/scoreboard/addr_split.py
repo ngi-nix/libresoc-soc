@@ -140,11 +140,14 @@ def sim(dut):
     sim.add_clock(1e-6)
     data = 0b11010011
     dlen = 4 # 4 bits
-    addr = 0b1101
+    addr = 0b1100
     ld_len = 8
+    ldm = ((1<<ld_len)-1)
     dlm = ((1<<dlen)-1)
+    data = data & ldm # truncate data to be tested, mask to within ld len
+    print ("ldm", ldm, bin(data&ldm))
     print ("dlm", dlm, bin(addr&dlm))
-    dmask = ((1<<ld_len)-1) << (addr & dlm)
+    dmask = ldm << (addr & dlm)
     print ("dmask", bin(dmask))
     dmask1 = dmask >> (1<<dlen)
     print ("dmask1", bin(dmask1))
