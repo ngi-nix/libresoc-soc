@@ -9,9 +9,7 @@ from soc.decoder.power_enums import (Function, InternalOp,
                                      single_bit_flags, Form, SPR,
                                      get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-import tempfile
-import subprocess
-import struct
+from soc.simulator.gas import get_assembled_instruction
 import random
 
 
@@ -379,32 +377,6 @@ class BranchRel:
 
 class DecoderTestCase(FHDLTestCase):
 
-    def get_assembled_instruction(self, instruction, bigendian=False):
-        if bigendian:
-            endian_fmt = "elf64-big"
-            obj_fmt = "-be"
-        else:
-            endian_fmt = "elf64-little"
-            obj_fmt = "-le"
-        with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
-            args = ["powerpc64-linux-gnu-as",
-                    obj_fmt,
-                    "-o",
-                    outfile.name]
-            p = subprocess.Popen(args, stdin=subprocess.PIPE)
-            p.communicate(instruction.encode('utf-8'))
-            assert(p.wait() == 0)
-
-            with tempfile.NamedTemporaryFile(suffix=".bin") as binfile:
-                args = ["powerpc64-linux-gnu-objcopy",
-                        "-I", endian_fmt,
-                        "-O", "binary",
-                        outfile.name,
-                        binfile.name]
-                subprocess.check_output(args)
-                binary = struct.unpack('>i', binfile.read(4))[0]
-                return binary
-
     def run_tst(self, kls, name):
         m = Module()
         comb = m.d.comb
@@ -424,7 +396,7 @@ class DecoderTestCase(FHDLTestCase):
                 for mode in [0, 1]:
 
                     # turn the instruction into binary data (endian'd)
-                    ibin = self.get_assembled_instruction(ins, mode)
+                    ibin = get_assembled_instruction(ins, mode)
                     print("code", mode, hex(ibin), bin(ibin))
 
                     # ask the decoder to decode this binary data (endian'd)
