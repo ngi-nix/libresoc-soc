@@ -26,10 +26,13 @@ class DecoderTestCase(FHDLTestCase):
         rc_sel = Signal(RC)
         ldst_len = Signal(LdstLen)
         cry_in = Signal(CryIn)
+        bigendian = Signal()
+        comb += bigendian.eq(1)
 
         # opcodes = get_csv(csvname)
         m.submodules.dut = dut = create_pdecode()
-        comb += [dut.opcode_in.eq(opcode),
+        comb += [dut.raw_opcode_in.eq(opcode),
+                 dut.bigendian.eq(bigendian),
                  function_unit.eq(dut.op.function_unit),
                  in1_sel.eq(dut.op.in1_sel),
                  in2_sel.eq(dut.op.in2_sel),
