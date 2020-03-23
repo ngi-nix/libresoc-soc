@@ -104,6 +104,26 @@ class DecoderTestCase(FHDLTestCase):
             {1: 0x1234,
              2: 0x5678,
              3: 0x1234})
+    def test_ldst_widths(self):
+        lst = [" lis 1, 0xdead",
+               "ori 1, 1, 0xbeef",
+               "addi 2, 0, 0x1000",
+               "std 1, 0(2)",
+               "lbz 1, 5(2)",
+               "lhz 3, 4(2)",
+               "lwz 4, 4(2)",
+               "ori 5, 0, 0x12",
+               "stb 5, 5(2)",
+               "ld  5, 0(2)"]
+        gen = InstrList(lst)
+        simulator = InternalOpSimulator()
+        self.run_tst(gen, simulator)
+        simulator.regfile.assert_gprs({
+            1: 0xad,
+            3: 0xdead,
+            4: 0xdeadbeef,
+            5: 0xffffffffde12beef})  # checked with qemu
+
 
 if __name__ == "__main__":
     unittest.main()

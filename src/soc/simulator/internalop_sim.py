@@ -11,20 +11,45 @@ class MemorySim:
         self.bytes_per_word = bytes_per_word
         self.word_log2 = math.ceil(math.log2(bytes_per_word))
 
+    def _get_shifter_mask(self, width, remainder):
+        shifter = ((self.bytes_per_word - width) - remainder) * \
+            8  # bits per byte
+        mask = (1 << (width * 8)) - 1
+        return shifter, mask
+
     # TODO: Implement ld/st of lesser width
-    def ld(self, address):
+    def ld(self, address, width=8):
+        remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
+        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if address in self.mem:
             val = self.mem[address]
         else:
             val = 0
+
+        if width != self.bytes_per_word:
+            shifter, mask = self._get_shifter_mask(width, remainder)
+            val = val & (mask << shifter)
+            val >>= shifter
         print("Read {:x} from addr {:x}".format(val, address))
         return val
 
-    def st(self, address, value):
+    def st(self, address, value, width=8):
+        remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
+        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         print("Writing {:x} to addr {:x}".format(value, address))
-        self.mem[address] = value
+        if width != self.bytes_per_word:
+            if address in self.mem:
+                val = self.mem[address]
+            else:
+                val = 0
+            shifter, mask = self._get_shifter_mask(width, remainder)
+            val &= ~(mask << shifter)
+            val |= value << shifter
+            self.mem[address] = val
+        else:
+            self.mem[address] = value
 
 
 class RegFile:
@@ -60,8 +85,10 @@ class InternalOpSimulator:
             return op1 + op2
         elif internal_op == InternalOp.OP_AND.value:
             return op1 & op2
+        elif internal_op == InternalOp.OP_OR.value:
+            return op1 | op2
         else:
-            assert(False, "Not implemented")
+            assert False, "Not implemented" 
 
     def alu_op(self, pdecode2):
         internal_op = yield pdecode2.dec.op.internal_op
@@ -97,6 +124,7 @@ class InternalOpSimulator:
         
         imm_ok = yield pdecode2.e.imm_data.ok
         r2_ok = yield pdecode2.e.read_reg2.ok
+        width = yield pdecode2.e.data_len
         if imm_ok:
             imm = yield pdecode2.e.imm_data.data
             addr += imm
@@ -106,10 +134,10 @@ class InternalOpSimulator:
         if internal_op == InternalOp.OP_STORE.value:
             val_reg = yield pdecode2.e.read_reg3.data
             val = self.regfile.read_reg(val_reg)
-            self.mem_sim.st(addr, val)
+            self.mem_sim.st(addr, val, width)
         elif internal_op == InternalOp.OP_LOAD.value:
             dest_reg = yield pdecode2.e.write_reg.data
-            val = self.mem_sim.ld(addr)
+            val = self.mem_sim.ld(addr, width)
             self.regfile.write_reg(dest_reg, val)
 
 
