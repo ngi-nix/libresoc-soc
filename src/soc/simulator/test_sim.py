@@ -89,6 +89,21 @@ class DecoderTestCase(FHDLTestCase):
              2: 0x5678,
              3: 0x1234})
 
+    def test_ldst_extended(self):
+        lst = ["addi 1, 0, 0x1234",
+               "addi 2, 0, 0x5678",
+               "addi 4, 0, 0x40",
+               "stw  1, 0x40(2)",
+               "lwzx  3, 4, 2"]
+        gen = InstrList(lst)
+
+        simulator = InternalOpSimulator()
+
+        self.run_tst(gen, simulator)
+        simulator.regfile.assert_gprs(
+            {1: 0x1234,
+             2: 0x5678,
+             3: 0x1234})
 
 if __name__ == "__main__":
     unittest.main()

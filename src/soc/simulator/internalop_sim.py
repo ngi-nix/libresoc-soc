@@ -96,9 +96,13 @@ class InternalOpSimulator:
         addr = self.regfile.read_reg(addr_reg)
         
         imm_ok = yield pdecode2.e.imm_data.ok
+        r2_ok = yield pdecode2.e.read_reg2.ok
         if imm_ok:
             imm = yield pdecode2.e.imm_data.data
             addr += imm
+        elif r2_ok:
+            r2_sel = yield pdecode2.e.read_reg2.data
+            addr += self.regfile.read_reg(r2_sel)
         if internal_op == InternalOp.OP_STORE.value:
             val_reg = yield pdecode2.e.read_reg3.data
             val = self.regfile.read_reg(val_reg)
