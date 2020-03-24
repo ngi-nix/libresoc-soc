@@ -1,4 +1,10 @@
 # LDST Address Splitter.  For misaligned address crossing cache line boundary
+"""
+Links:
+* https://libre-riscv.org/3d_gpu/architecture/6600scoreboard/
+* http://bugs.libre-riscv.org/show_bug.cgi?id=257
+* http://bugs.libre-riscv.org/show_bug.cgi?id=216
+"""
 
 from nmigen import Elaboratable, Module, Signal, Record, Array, Const
 from nmutil.latch import SRLatch, latchregister
