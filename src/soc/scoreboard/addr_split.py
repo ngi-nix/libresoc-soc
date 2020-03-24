@@ -79,6 +79,7 @@ class LDSTSplitter(Elaboratable):
         comb = m.d.comb
         dlen = self.dlen
         mlen = 1 << dlen
+        mzero = Const(0, mlen)
         m.submodules.ld1 = ld1 = LDLatch(self.dwidth, self.awidth-dlen, mlen)
         m.submodules.ld2 = ld2 = LDLatch(self.dwidth, self.awidth-dlen, mlen)
         m.submodules.lenexp = lenexp = LenExpand(self.dlen)
@@ -103,7 +104,6 @@ class LDSTSplitter(Elaboratable):
 
         with m.If(self.is_ld_i):
             # set up connections to LD-split.  note: not active if mask is zero
-            mzero = Const(0, mlen)
             for i, (ld, mask) in enumerate(((ld1, mask1),
                                             (ld2, mask2))):
                 ld_valid = Signal(name="ldvalid_i%d" % i, reset_less=True)
@@ -129,16 +129,27 @@ class LDSTSplitter(Elaboratable):
                                                 (ld2.ld_o.data << ashift2))
 
         with m.If(self.is_st_i):
-            mzero = Const(0, mlen)
             for i, (ld, mask) in enumerate(((ld1, mask1),
                                             (ld2, mask2))):
                 valid = Signal(name="stvalid_i%d" % i, reset_less=True)
                 comb += valid.eq(self.valid_i & self.sst_valid_i[i])
                 comb += ld.valid_i.eq(valid & (mask != mzero))
                 comb += self.sld_valid_o[i].eq(ld.valid_o)
+                comb += self.sst_data_o[i].data.eq(ld.ld_o.data)
 
-            comb += ld1.ld_i.eq((self.st_data_i & mask1) << ashift1)
-            comb += ld2.ld_i.eq((self.st_data_i & mask2) >> ashift2)
+            comb += ld1.ld_i.eq((self.st_data_i << ashift1) & mask1)
+            comb += ld2.ld_i.eq((self.st_data_i >> ashift2) & mask2)
+
+            # sort out valid: mask2 zero we ignore 2nd LD
+            with m.If(mask2 == mzero):
+                comb += self.valid_o.eq(self.sst_valid_o[0])
+            with m.Else():
+                comb += self.valid_o.eq(self.sst_valid_o.all())
+
+            # all bits valid (including when data error occurs!) decode ld1/ld2
+            with m.If(self.valid_o):
+                # errors cause error condition
+                comb += self.st_data_i.err.eq(ld1.ld_o.err | ld2.ld_o.err)
 
         return m
 
