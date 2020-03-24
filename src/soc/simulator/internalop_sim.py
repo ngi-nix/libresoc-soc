@@ -88,7 +88,7 @@ class InternalOpSimulator:
         elif internal_op == InternalOp.OP_OR.value:
             return op1 | op2
         else:
-            assert False, "Not implemented" 
+            assert False, "Not implemented"
 
     def alu_op(self, pdecode2):
         internal_op = yield pdecode2.dec.op.internal_op
@@ -121,7 +121,7 @@ class InternalOpSimulator:
         internal_op = yield pdecode2.dec.op.internal_op
         addr_reg = yield pdecode2.e.read_reg1.data
         addr = self.regfile.read_reg(addr_reg)
-        
+ 
         imm_ok = yield pdecode2.e.imm_data.ok
         r2_ok = yield pdecode2.e.read_reg2.ok
         width = yield pdecode2.e.data_len
@@ -139,7 +139,6 @@ class InternalOpSimulator:
             dest_reg = yield pdecode2.e.write_reg.data
             val = self.mem_sim.ld(addr, width)
             self.regfile.write_reg(dest_reg, val)
-
 
     def execute_op(self, pdecode2):
         function = yield pdecode2.dec.op.function_unit
