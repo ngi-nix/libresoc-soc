@@ -195,8 +195,8 @@ def sim(dut):
     dmask = dmask & ((1<<(1<<dlen))-1)
     print ("dmask", bin(dmask))
 
-    def send_in():
-        print ("send_in")
+    def send_ld():
+        print ("send_ld")
         yield dut.is_ld_i.eq(1)
         yield dut.len_i.eq(ld_len)
         yield dut.addr_i.eq(addr)
@@ -237,7 +237,7 @@ def sim(dut):
         yield
 
     sim.add_sync_process(lds)
-    sim.add_sync_process(send_in)
+    sim.add_sync_process(send_ld)
 
     prefix = "ldst_splitter"
     with sim.write_vcd("%s.vcd" % prefix, traces=dut.ports()):
