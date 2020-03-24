@@ -33,7 +33,7 @@ class Checker:
             imm = self.imm << 16
             sign_bit = 1 << 31
             return (imm & (sign_bit-1)) - (imm & sign_bit)
-        
+
 
 class RegRegOp:
     def __init__(self):
