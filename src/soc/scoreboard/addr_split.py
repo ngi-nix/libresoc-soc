@@ -51,6 +51,8 @@ class LDSTSplitter(Elaboratable):
 
     def __init__(self, dwidth, awidth, dlen):
         self.dwidth, self.awidth, self.dlen = dwidth, awidth, dlen
+        #cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
+        cline_wid = dwidth # TODO: make this bytes not bits
         self.addr_i = Signal(awidth, reset_less=True)
         self.len_i = Signal(dlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
@@ -64,13 +66,13 @@ class LDSTSplitter(Elaboratable):
 
         self.sld_valid_o = Signal(2, reset_less=True)
         self.sld_valid_i = Signal(2, reset_less=True)
-        self.sld_data_i = Array((LDData(dwidth, "ld_data_i1"),
-                                LDData(dwidth, "ld_data_i2")))
+        self.sld_data_i = Array((LDData(cline_wid, "ld_data_i1"),
+                                LDData(cline_wid, "ld_data_i2")))
 
         self.sst_valid_o = Signal(2, reset_less=True)
         self.sst_valid_i = Signal(2, reset_less=True)
-        self.sst_data_o = Array((LDData(dwidth, "st_data_i1"),
-                                LDData(dwidth, "st_data_i2")))
+        self.sst_data_o = Array((LDData(cline_wid, "st_data_i1"),
+                                LDData(cline_wid, "st_data_i2")))
 
     def elaborate(self, platform):
         m = Module()
@@ -93,6 +95,12 @@ class LDSTSplitter(Elaboratable):
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
         comb += ld2.addr_i.eq(self.addr_i[dlen:] + 1) # TODO exception if rolls
 
+        # data needs recombining / splitting via shifting.
+        ashift1 = Signal(self.dlen, reset_less=True)
+        ashift2 = Signal(self.dlen, reset_less=True)
+        comb += ashift1.eq(self.addr_i[:self.dlen])
+        comb += ashift2.eq((1<<dlen)-ashift1)
+
         with m.If(self.is_ld_i):
             # set up connections to LD-split.  note: not active if mask is zero
             mzero = Const(0, mlen)
@@ -114,11 +122,7 @@ class LDSTSplitter(Elaboratable):
             with m.If(self.valid_o):
                 # errors cause error condition
                 comb += self.ld_data_o.err.eq(ld1.ld_o.err | ld2.ld_o.err)
-                # data needs recombining via shifting.
-                ashift1 = Signal(self.dlen)
-                ashift2 = Signal(self.dlen)
-                comb += ashift1.eq(self.addr_i[:self.dlen])
-                comb += ashift2.eq((1<<dlen)-ashift1)
+
                 # note that data from LD1 will be in *cache-line* byte position
                 # likewise from LD2 but we *know* it is at the start of the line
                 comb += self.ld_data_o.data.eq((ld1.ld_o.data >> ashift1) |
