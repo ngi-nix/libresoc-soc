@@ -10,14 +10,13 @@ from soc.decoder.power_enums import (Function, InternalOp,
                                      single_bit_flags, Form, SPR,
                                      get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.simulator.gas import get_assembled_instruction
 from soc.simulator.program import Program
+from soc.simulator.qemu import run_program
 
 
 class Register:
     def __init__(self, num):
         self.num = num
-
 
 
 class DecoderTestCase(FHDLTestCase):
@@ -55,31 +54,16 @@ class DecoderTestCase(FHDLTestCase):
                "addi 2, 0, 0x5678",
                "add  3, 1, 2",
                "and  4, 1, 2"]
-        gen = Program(lst)
-
-        simulator = InternalOpSimulator()
-
-        self.run_tst(gen, simulator)
-        simulator.regfile.assert_gprs(
-            {1: 0x1234,
-             2: 0x5678,
-             3: 0x68ac,
-             4: 0x1230})
+        with Program(lst) as program:
+            self.run_test_program(program, [1, 2, 3, 4])
 
     def test_ldst(self):
         lst = ["addi 1, 0, 0x1234",
                "addi 2, 0, 0x5678",
                "stw  1, 0(2)",
                "lwz  3, 0(2)"]
-        gen = Program(lst)
-
-        simulator = InternalOpSimulator()
-
-        self.run_tst(gen, simulator)
-        simulator.regfile.assert_gprs(
-            {1: 0x1234,
-             2: 0x5678,
-             3: 0x1234})
+        with Program(lst) as program:
+            self.run_test_program(program, [1, 2, 3])
 
     def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x1234",
@@ -87,15 +71,9 @@ class DecoderTestCase(FHDLTestCase):
                "addi 4, 0, 0x40",
                "stw  1, 0x40(2)",
                "lwzx  3, 4, 2"]
-        gen = Program(lst)
+        with Program(lst) as program:
+            self.run_test_program(program, [1, 2, 3])
 
-        simulator = InternalOpSimulator()
-
-        self.run_tst(gen, simulator)
-        simulator.regfile.assert_gprs(
-            {1: 0x1234,
-             2: 0x5678,
-             3: 0x1234})
     def test_ldst_widths(self):
         lst = [" lis 1, 0xdead",
                "ori 1, 1, 0xbeef",
@@ -104,17 +82,24 @@ class DecoderTestCase(FHDLTestCase):
                "lbz 1, 5(2)",
                "lhz 3, 4(2)",
                "lwz 4, 4(2)",
-               "ori 5, 0, 0x12",
+               "addi 5, 0, 0x12",
                "stb 5, 5(2)",
                "ld  5, 0(2)"]
-        gen = Program(lst)
+        with Program(lst) as program:
+            self.run_test_program(program, [1, 2, 3, 4, 5])
+
+    def run_test_program(self, prog, reglist):
         simulator = InternalOpSimulator()
-        self.run_tst(gen, simulator)
-        simulator.regfile.assert_gprs({
-            1: 0xad,
-            3: 0xdead,
-            4: 0xdeadbeef,
-            5: 0xffffffffde12beef})  # checked with qemu
+        self.run_tst(prog, simulator)
+        prog.reset()
+        with run_program(prog) as q:
+            qemu_register_compare(simulator, q, reglist)
+
+
+def qemu_register_compare(simulator, qemu, regs):
+    for reg in regs:
+        qemu_val = qemu.get_register(reg)
+        simulator.regfile.assert_gpr(reg, qemu_val)
 
 
 if __name__ == "__main__":

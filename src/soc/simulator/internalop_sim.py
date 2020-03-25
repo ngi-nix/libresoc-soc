@@ -1,7 +1,8 @@
 from soc.decoder.power_enums import (Function, Form, InternalOp,
-                         In1Sel, In2Sel, In3Sel, OutSel, RC, LdstLen,
-                         CryIn, get_csv, single_bit_flags,
-                         get_signal_name, default_values)
+                                     In1Sel, In2Sel, In3Sel, OutSel,
+                                     RC, LdstLen, CryIn, get_csv,
+                                     single_bit_flags,
+                                     get_signal_name, default_values)
 import math
 
 
@@ -66,12 +67,15 @@ class RegFile:
         print("Read {:x} from reg r{}".format(val, regnum))
         return val
 
+    def assert_gpr(self, gpr, val):
+        reg_val = self.read_reg(gpr)
+        msg = "reg r{} got {:x}, expecting {:x}".format(
+            gpr, reg_val, val)
+        assert reg_val == val, msg
+
     def assert_gprs(self, gprs):
-        for k,v in list(gprs.items()):
-            reg_val = self.read_reg(k)
-            msg = "reg r{} got {:x}, expecting {:x}".format(
-                k, reg_val, v)
-            assert reg_val == v, msg
+        for k, v in list(gprs.items()):
+            self.assert_gpr(k, v)
 
 
 class InternalOpSimulator:
@@ -121,7 +125,7 @@ class InternalOpSimulator:
         internal_op = yield pdecode2.dec.op.internal_op
         addr_reg = yield pdecode2.e.read_reg1.data
         addr = self.regfile.read_reg(addr_reg)
- 
+
         imm_ok = yield pdecode2.e.imm_data.ok
         r2_ok = yield pdecode2.e.read_reg2.ok
         width = yield pdecode2.e.data_len

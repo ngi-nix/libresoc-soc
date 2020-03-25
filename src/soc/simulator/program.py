@@ -10,6 +10,7 @@ bigendian = True
 endian_fmt = "elf64-big"
 obj_fmt = "-be"
 
+
 class Program:
     def __init__(self, instructions):
         if isinstance(instructions, list):
@@ -17,9 +18,14 @@ class Program:
         self.assembly = instructions
         self._assemble()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
     def _get_binary(self, elffile):
         self.binfile = tempfile.NamedTemporaryFile(suffix=".bin")
-        #self.binfile = open("kernel.bin", "wb+")
         args = ["powerpc64-linux-gnu-objcopy",
                 "-O", "binary",
                 "-I", endian_fmt,
@@ -29,7 +35,6 @@ class Program:
 
     def _link(self, ofile):
         with tempfile.NamedTemporaryFile(suffix=".elf") as elffile:
-        #with open("kernel.elf", "wb+") as elffile:
             args = ["powerpc64-linux-gnu-ld",
                     "-o", elffile.name,
                     "-T", memmap,
@@ -54,3 +59,16 @@ class Program:
             if not data:
                 break
             yield struct.unpack('<i', data)[0]
+
+    def reset(self):
+        self.binfile.seek(0)
+
+    def size(self):
+        curpos = self.binfile.tell()
+        self.binfile.seek(0, 2)  # Seek to end of file
+        size = self.binfile.tell()
+        self.binfile.seek(curpos, 0)
+        return size
+
+    def close(self):
+        self.binfile.close()
