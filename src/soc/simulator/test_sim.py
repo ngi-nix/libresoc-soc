@@ -11,19 +11,13 @@ from soc.decoder.power_enums import (Function, InternalOp,
                                      get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.simulator.gas import get_assembled_instruction
+from soc.simulator.program import Program
 
 
 class Register:
     def __init__(self, num):
         self.num = num
 
-
-class InstrList:
-    def __init__(self, lst):
-        self.instrs = [x + "\n" for x in lst]
-
-    def generate_instructions(self):
-        return iter(self.instrs)
 
 
 class DecoderTestCase(FHDLTestCase):
@@ -42,14 +36,12 @@ class DecoderTestCase(FHDLTestCase):
 
         def process():
             for ins in gen:
-                print("instr", ins.strip())
 
-                # turn the instruction into binary data (endian'd)
-                ibin = get_assembled_instruction(ins, 0)
+                print("0x{:X}".format(ins & 0xffffffff))
 
                 # ask the decoder to decode this binary data (endian'd)
                 yield pdecode2.dec.bigendian.eq(0)  # little / big?
-                yield instruction.eq(ibin)          # raw binary instr.
+                yield instruction.eq(ins)          # raw binary instr.
                 yield Delay(1e-6)
                 yield from simulator.execute_op(pdecode2)
 
@@ -63,7 +55,7 @@ class DecoderTestCase(FHDLTestCase):
                "addi 2, 0, 0x5678",
                "add  3, 1, 2",
                "and  4, 1, 2"]
-        gen = InstrList(lst)
+        gen = Program(lst)
 
         simulator = InternalOpSimulator()
 
@@ -79,7 +71,7 @@ class DecoderTestCase(FHDLTestCase):
                "addi 2, 0, 0x5678",
                "stw  1, 0(2)",
                "lwz  3, 0(2)"]
-        gen = InstrList(lst)
+        gen = Program(lst)
 
         simulator = InternalOpSimulator()
 
@@ -95,7 +87,7 @@ class DecoderTestCase(FHDLTestCase):
                "addi 4, 0, 0x40",
                "stw  1, 0x40(2)",
                "lwzx  3, 4, 2"]
-        gen = InstrList(lst)
+        gen = Program(lst)
 
         simulator = InternalOpSimulator()
 
@@ -115,7 +107,7 @@ class DecoderTestCase(FHDLTestCase):
                "ori 5, 0, 0x12",
                "stb 5, 5(2)",
                "ld  5, 0(2)"]
-        gen = InstrList(lst)
+        gen = Program(lst)
         simulator = InternalOpSimulator()
         self.run_tst(gen, simulator)
         simulator.regfile.assert_gprs({
