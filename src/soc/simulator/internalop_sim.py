@@ -134,7 +134,7 @@ class InternalOpSimulator:
         if cry_in == CryIn.ONE.value:
             carry = 1
         elif cry_in == CryIn.CA.value:
-            carry = TODO deliberately cause error here
+            carry = TODO # deliberately cause error here
 
         result = self.execute_alu_op(operand1, operand2, internal_op,
                                      carry=carry)
