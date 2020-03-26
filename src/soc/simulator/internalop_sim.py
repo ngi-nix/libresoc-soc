@@ -77,16 +77,23 @@ class RegFile:
         for k, v in list(gprs.items()):
             self.assert_gpr(k, v)
 
+    def set_xer(self, result, operanda, operandb):
+        xer = 0
+        if result & 1 << 64:
+            xer |= XER.CA
+
+        self.xer = xer
+
 
 class InternalOpSimulator:
     def __init__(self):
         self.mem_sim = MemorySim()
         self.regfile = RegFile()
 
-    def execute_alu_op(self, op1, op2, internal_op):
+    def execute_alu_op(self, op1, op2, internal_op, carry=0):
         print(internal_op)
         if internal_op == InternalOp.OP_ADD.value:
-            return op1 + op2
+            return op1 + op2 + carry
         elif internal_op == InternalOp.OP_AND.value:
             return op1 & op2
         elif internal_op == InternalOp.OP_OR.value:
@@ -99,6 +106,7 @@ class InternalOpSimulator:
         operand1 = 0
         operand2 = 0
         result = 0
+        carry = 0
         r1_ok = yield pdecode2.e.read_reg1.ok
         r2_ok = yield pdecode2.e.read_reg2.ok
         r3_ok = yield pdecode2.e.read_reg3.ok
@@ -115,7 +123,16 @@ class InternalOpSimulator:
         if imm_ok:
             operand2 = yield pdecode2.e.imm_data.data
 
-        result = self.execute_alu_op(operand1, operand2, internal_op)
+        inv_a = yield pdecode2.dec.op.inv_a
+        if inv_a:
+            operand1 = ~operand1 & ((1<<64)-1)
+
+        cry_in = yield pdecode2.dec.op.cry_in
+        if cry_in == CryIn.ONE.value:
+            carry = 1
+
+        result = self.execute_alu_op(operand1, operand2, internal_op,
+                                     carry=carry)
         ro_ok = yield pdecode2.e.write_reg.ok
         if ro_ok:
             ro_sel = yield pdecode2.e.write_reg.data
