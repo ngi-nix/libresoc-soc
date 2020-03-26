@@ -10,6 +10,7 @@ source.  Obtain the latest tarball, unpack it, then:
 
     cd gdb-9.1 (or other location)
     mkdir build
+    cd build
      ../configure --srcdir=.. --host=x86_64-linux --target=powerpc64-linux-gnu
     make -j16
     make install
