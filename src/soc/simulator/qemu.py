@@ -45,6 +45,9 @@ class QemuController:
     def exit(self):
         self.gdb.exit()
         self.qemu_popen.kill()
+        outs, errs = self.qemu_popen.communicate()
+        self.qemu_popen.stdout.close()
+        self.qemu_popen.stdin.close()
 
 
 def run_program(program):
