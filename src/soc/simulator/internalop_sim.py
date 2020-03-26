@@ -125,7 +125,7 @@ class InternalOpSimulator:
 
         inv_a = yield pdecode2.dec.op.inv_a
         if inv_a:
-            operand1 = ~operand1 & ((1<<64)-1)
+            operand1 = (~operand1) & ((1<<64)-1)
 
         cry_in = yield pdecode2.dec.op.cry_in
         if cry_in == CryIn.ONE.value:
