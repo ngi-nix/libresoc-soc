@@ -133,6 +133,8 @@ class InternalOpSimulator:
         cry_in = yield pdecode2.dec.op.cry_in
         if cry_in == CryIn.ONE.value:
             carry = 1
+        elif cry_in == CryIn.CA.value:
+            carry = TODO deliberately cause error here
 
         result = self.execute_alu_op(operand1, operand2, internal_op,
                                      carry=carry)
