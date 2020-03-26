@@ -11,6 +11,7 @@ version = '0.0.1'
 install_requires = [
 #    'sfpy',
     'ieee754fpu',
+    'pygdbmi',
 ]
 
 test_requires = [
@@ -20,7 +21,7 @@ test_requires = [
 setup(
     name='soc',
     version=version,
-    description="A nmigen-based RISC-V Hybrid CPU / VPU / GPU",
+    description="A nmigen-based OpenPOWER Hybrid CPU / VPU / GPU",
     long_description=README + '\n\n' + NEWS,
     classifiers=[
         "Topic :: Software Development :: Libraries",
