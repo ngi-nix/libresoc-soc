@@ -15,7 +15,7 @@ class Program:
     def __init__(self, instructions):
         if isinstance(instructions, list):
             instructions = '\n'.join(instructions)
-        self.assembly = instructions
+        self.assembly = instructions + '\n' # plus final newline
         self._assemble()
 
     def __enter__(self):
