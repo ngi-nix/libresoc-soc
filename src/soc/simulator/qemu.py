@@ -33,6 +33,7 @@ class QemuController:
 
     def get_register(self, num):
         res = self.gdb.write('-data-list-register-values x {}'.format(num))
+        assert 'register-values' in res[0]['payload']
         val = int(res[0]['payload']['register-values'][0]['value'], 0)
         return val
 
