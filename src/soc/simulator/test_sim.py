@@ -91,9 +91,11 @@ class DecoderTestCase(FHDLTestCase):
     def test_sub(self):
         lst = ["addi 1, 0, 0x1234",
                "addi 2, 0, 0x5678",
-               "subf 1, 1, 2"]
+               "subf 3, 1, 2",
+               "subfic 4, 1, 0x1337",
+               "neg 5, 1"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2])
+            self.run_test_program(program, [1, 2, 3, 4, 5])
 
     def run_test_program(self, prog, reglist):
         simulator = InternalOpSimulator()
