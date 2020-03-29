@@ -10,8 +10,9 @@ version = '0.0.1'
 
 install_requires = [
 #    'sfpy',
-    'ieee754fpu',
+    'ieee754fpu', # needs to be installed manually
     'pygdbmi',
+    'ply', # needs to be installed manually
 ]
 
 test_requires = [
