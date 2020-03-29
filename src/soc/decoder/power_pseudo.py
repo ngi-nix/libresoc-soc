@@ -1,45 +1,17 @@
-# GardenSnake - a parser generator demonstration program
-#
-# This implements a modified version of a subset of Python:
-#  - only 'def', 'return' and 'if' statements
-#  - 'if' only has 'then' clause (no elif nor else)
-#  - single-quoted strings only, content in raw format
-#  - numbers are decimal.Decimal instances (not integers or floats)
-#  - no print statment; use the built-in 'print' function
-#  - only < > == + - / * implemented (and unary + -)
-#  - assignment and tuple assignment work
-#  - no generators of any sort
-#  - no ... well, no quite a lot
+# Based on GardenSnake - a parser generator demonstration program
+# GardenSnake was released into the Public Domain by Andrew Dalke.
 
-# Why?  I'm thinking about a new indentation-based configuration
-# language for a project and wanted to figure out how to do it.  Once
-# I got that working I needed a way to test it out.  My original AST
-# was dumb so I decided to target Python's AST and compile it into
-# Python code.  Plus, it's pretty cool that it only took a day or so
-# from sitting down with Ply to having working code.
-
-# This uses David Beazley's Ply from http://www.dabeaz.com/ply/
-
-# This work is hereby released into the Public Domain. To view a copy of
-# the public domain dedication, visit
-# http://creativecommons.org/licenses/publicdomain/ or send a letter to
-# Creative Commons, 543 Howard Street, 5th Floor, San Francisco,
-# California, 94105, USA.
-#
 # Portions of this work are derived from Python's Grammar definition
 # and may be covered under the Python copyright and license
 #
 #          Andrew Dalke / Dalke Scientific Software, LLC
 #             30 August 2006 / Cape Town, South Africa
 
-# Changelog:
-#  30 August - added link to CC license; removed the "swapcase" encoding
-
 # Modifications for inclusion in PLY distribution
 import sys
 from pprint import pprint
 from copy import copy
-from ply import *
+from ply import lex, yacc
 
 ##### Lexer ######
 #import lex
@@ -49,12 +21,17 @@ tokens = (
     'DEF',
     'IF',
     'ELSE',
+    'FOR',
+    'TO',
+    'THEN',
     'WHILE',
     'NAME',
     'NUMBER',  # Python decimals
     'STRING',  # single quoted strings only; syntax of raw strings
     'LPAR',
     'RPAR',
+    'LBRACK',
+    'RBRACK',
     'COLON',
     'EQ',
     'ASSIGN',
@@ -88,7 +65,7 @@ def t_STRING(t):
 
 t_COLON = r':'
 t_EQ = r'=='
-t_ASSIGN = r'='
+t_ASSIGN = r'<-'
 t_LT = r'<'
 t_GT = r'>'
 t_PLUS = r'\+'
@@ -104,6 +81,8 @@ RESERVED = {
   "def": "DEF",
   "if": "IF",
   "else": "ELSE",
+  "for": "FOR",
+  "to": "TO",
   "while": "WHILE",
   "return": "RETURN",
   }
@@ -124,7 +103,8 @@ def t_comment(t):
 # Whitespace
 def t_WS(t):
     r'[ ]+'
-    if t.lexer.at_line_start and t.lexer.paren_count == 0:
+    if t.lexer.at_line_start and t.lexer.paren_count == 0 and \
+                                 t.lexer.brack_count == 0:
         return t
 
 # Don't generate newline tokens when inside of parenthesis, eg
@@ -134,8 +114,19 @@ def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
     t.type = "NEWLINE"
-    if t.lexer.paren_count == 0:
+    if t.lexer.paren_count == 0 and t.lexer.brack_count == 0:
         return t
+
+def t_LBRACK(t):
+    r'\['
+    t.lexer.brack_count += 1
+    return t
+
+def t_RBRACK(t):
+    r'\]'
+    # check for underflow?  should be the job of the parser
+    t.lexer.brack_count -= 1
+    return t
 
 def t_LPAR(t):
     r'\('
@@ -337,6 +328,7 @@ class IndentLexer(object):
         self.token_stream = None
     def input(self, s, add_endmarker=True):
         self.lexer.paren_count = 0
+        self.lexer.brack_count = 0
         self.lexer.input(s)
         self.token_stream = filter(self.lexer, add_endmarker)
     def token(self):
@@ -578,7 +570,8 @@ def p_comparison(p):
         p[0] = p[1]
 
 # power: atom trailer* ['**' factor]
-# trailers enables function calls.  I only allow one level of calls
+# trailers enables function calls (and subscripts).
+# I only allow one level of calls
 # so this is 'trailer'
 def p_power(p):
     """power : atom
@@ -592,7 +585,13 @@ def p_power(p):
             else:
                 p[0] = ast.CallFunc(p[1], p[2][1], None, None)
         else:
-            raise AssertionError("not implemented")
+            print p[2][1]
+            #raise AssertionError("not implemented %s" % p[2][0])
+            subs = p[2][1]
+            if len(subs) == 1:
+                p[0] = ast.Subscript(p[1], 'OP_APPLY', subs[0])
+            else:
+                p[0] = ast.Slice(p[1], 'OP_APPLY', subs[0], subs[1])
 
 def p_atom_name(p):
     """atom : NAME"""
@@ -609,8 +608,30 @@ def p_atom_tuple(p):
 
 # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 def p_trailer(p):
-    "trailer : LPAR arglist RPAR"
+    """trailer : trailer_arglist
+               | trailer_subscript
+    """
+    p[0] = p[1]
+
+def p_trailer_arglist(p):
+    "trailer_arglist : LPAR arglist RPAR"
     p[0] = ("CALL", p[2])
+
+def p_trailer_subscript(p):
+    "trailer_subscript : LBRACK subscript RBRACK"
+    p[0] = ("SUBS", p[2])
+
+#subscript: '.' '.' '.' | test | [test] ':' [test]
+
+def p_subscript(p):
+    """subscript : test COLON test
+                 | test
+    """
+    if len(p) == 4:
+        p[0] = [p[1], p[3]]
+    else:
+        p[0] = [p[1]]
+
 
 # testlist: test (',' test)* [',']
 # Contains shift/reduce error
@@ -681,7 +702,7 @@ class GardenSnakeParser(object):
 
     def parse(self, code):
         self.lexer.input(code)
-        result = self.parser.parse(lexer = self.lexer, debug=True)
+        result = self.parser.parse(lexer = self.lexer, debug=False)
         return ast.Module(None, result)
 
 
@@ -704,77 +725,22 @@ class GardenSnakeCompiler(object):
 
 ####### Test code #######
 
-code = r"""
-
-print('LET\'S TRY THIS \\OUT')
-   
-#Comment here
-def x(a):
-    print('called with', a)
-    if a == 1:
-        return 2
-    if a*2 > 10: return 999 / 4
-        # Another comment here
-
-    return a+2*3
-
-ints = (1, 2,
-   3, 4,
-5)
-print('mutiline-expression', ints)
-
-if 1:
- 8
- a=9
- print(x(a))
-
-t = 4+1/3*2+6*(9-5+1)
-print('predence test; should be 34+2/3:', t, t==(34+2/3))
-
-print('numbers', 1,2,3,4,5)
-
-print(x(1))
-print(x(2))
-print(x(8),'3')
-print('this is decimal', 1/5)
-print('BIG DECIMAL', 1.234567891234567)
-
+bpermd = r"""
+for i = 0 to 7
+   index <- (RS)[8*i:8*i+7]
+   if index < 64 then
+        permi <- (RB)[index]
+   else
+        permi <- 0
+RA <- [0]*56|| perm[0:7]
 """
 
-_code = """
-print('hello')
-if 1:
-   a=9
+bpermd = r"""
+index <- (RS)[8*i:8*i+7]
+#RA <- [0]*56 # || perm[0:7]
 """
 
-code = r"""
-
-def x(a):
-    y = 5
-    z = 5
-    print('called with', a)
-    if a == 1:
-        print('a == 1')
-        if a * 5 == 5:
-            print('a*5 == 5')
-            return a*5
-        return a*2
-    else:
-        print('a != 1')
-        return a*6
-
-    return a
-
-count = 0
-while count < 5:
-    count = count + 1
-    print (count)
-else:
-    print ('done', count)
-
-print (x(1))
-print (x(2))
-"""
+code = bpermd
 
 lexer = IndentLexer(debug=1)
 # Give the lexer some input
