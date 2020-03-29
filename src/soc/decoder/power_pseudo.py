@@ -55,7 +55,7 @@ tokens = (
 # taken from decmial.py but without the leading sign
 def t_NUMBER(t):
     r"""(\d+(\.\d*)?|\.\d+)([eE][-+]? \d+)?"""
-    t.value = decimal.Decimal(t.value)
+    t.value = int(t.value)
     return t
 
 def t_STRING(t):
@@ -602,6 +602,21 @@ def p_atom_number(p):
             | STRING"""
     p[0] = ast.Const(p[1])
 
+#'[' [listmaker] ']' |
+
+def p_atom_listmaker(p):
+    """atom : LBRACK listmaker RBRACK"""
+    p[0] = p[2]
+
+def p_listmaker(p):
+    """listmaker : test COMMA listmaker
+                 | test
+    """
+    if len(p) == 2:
+        p[0] = ast.List([p[1]])
+    else:
+        p[0] = ast.List([p[1]] + p[3].nodes)
+
 def p_atom_tuple(p):
     """atom : LPAR testlist RPAR"""
     p[0] = p[2]
@@ -736,8 +751,9 @@ RA <- [0]*56|| perm[0:7]
 """
 
 bpermd = r"""
-index <- (RS)[8*i:8*i+7]
-#RA <- [0]*56 # || perm[0:7]
+#index <- (RS)[8*i:8*i+7]
+RA <- [0]*56 # || perm[0:7]
+print (RA)
 """
 
 code = bpermd
