@@ -48,20 +48,14 @@ class SigDecode(Elaboratable):
         self.opcode_in = Signal(width, reset_less=False)
         self.df = DecodeFields(SignalBitRange, [self.opcode_in])
         self.df.create_specs()
-        self.x_s = Signal(len(self.df.FormX.S), reset_less=True)
-        self.x_sh = Signal(len(self.df.FormX.SH), reset_less=True)
-        self.dq_xs_s = Signal(len(self.df.FormDQ.SX_S), reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        comb += self.x_s.eq(self.df.FormX.S[0])
-        comb += self.x_sh.eq(self.df.FormX.SH[0:-1])
-        comb += self.dq_xs_s.eq(self.df.FormDQ.SX_S[0:-1])
         return m
 
     def ports(self):
-        return [self.opcode_in, self.x_s, self.x_sh]
+        return [self.opcode_in]
 
 def create_sigdecode():
     s = SigDecode(32)
