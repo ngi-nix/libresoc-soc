@@ -48,6 +48,7 @@ import decimal
 tokens = (
     'DEF',
     'IF',
+    'ELSE',
     'NAME',
     'NUMBER',  # Python decimals
     'STRING',  # single quoted strings only; syntax of raw strings
@@ -101,6 +102,7 @@ t_SEMICOLON = r';'
 RESERVED = {
   "def": "DEF",
   "if": "IF",
+  "else": "ELSE",
   "return": "RETURN",
   }
 
@@ -184,7 +186,7 @@ def track_tokens_filter(lexer, tokens):
             at_line_start = False
             indent = MAY_INDENT
             token.must_indent = False
-            
+
         elif token.type == "NEWLINE":
             at_line_start = True
             if indent == MAY_INDENT:
@@ -249,7 +251,7 @@ def indentation_filter(tokens):
             if token.must_indent:
                 print "must_indent",
             print
-                
+
         # WS only occurs at the start of the line
         # There may be WS followed by NEWLINE so
         # only track the depth here.  Don't indent/dedent
@@ -308,7 +310,7 @@ def indentation_filter(tokens):
         assert token is not None
         for _ in range(1, len(levels)):
             yield DEDENT(token.lineno)
-    
+
 
 # The top-level filter adds an ENDMARKER, if requested.
 # Python's grammar uses it.
@@ -392,14 +394,14 @@ def p_file_input(p):
             p[0] = p[1] + p[2]
         else:
             p[0] = p[1]
-            
+
 
 # funcdef: [decorators] 'def' NAME parameters ':' suite
 # ignoring decorators
 def p_funcdef(p):
     "funcdef : DEF NAME parameters COLON suite"
     p[0] = ast.Function(None, p[2], list(p[3]), (), 0, None, p[5])
-    
+
 # parameters: '(' [varargslist] ')'
 def p_parameters(p):
     """parameters : LPAR RPAR
@@ -408,9 +410,9 @@ def p_parameters(p):
         p[0] = []
     else:
         p[0] = p[2]
-    
 
-# varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) | 
+
+# varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
 # highly simplified
 def p_varargslist(p):
     """varargslist : varargslist COMMA NAME
@@ -425,7 +427,7 @@ def p_stmt_simple(p):
     """stmt : simple_stmt"""
     # simple_stmt is a list
     p[0] = p[1]
-    
+
 def p_stmt_compound(p):
     """stmt : compound_stmt"""
     p[0] = [p[1]]
@@ -481,8 +483,13 @@ def p_compound_stmt(p):
     p[0] = p[1]
 
 def p_if_stmt(p):
-    'if_stmt : IF test COLON suite'
-    p[0] = ast.If([(p[2], p[4])], None)
+    """if_stmt : IF test COLON suite ELSE COLON suite
+               | IF test COLON suite
+    """
+    if len(p) == 5:
+        p[0] = ast.If([(p[2], p[4])], None)
+    else:
+        p[0] = ast.If([(p[2], p[4])], p[7])
 
 def p_suite(p):
     """suite : simple_stmt
@@ -491,7 +498,7 @@ def p_suite(p):
         p[0] = ast.Stmt(p[1])
     else:
         p[0] = ast.Stmt(p[3])
-    
+
 
 def p_stmts(p):
     """stmts : stmts stmt
@@ -556,7 +563,7 @@ def p_comparison(p):
         p[0] = unary_ops[p[1]](p[2])
     else:
         p[0] = p[1]
-                  
+
 # power: atom trailer* ['**' factor]
 # trailers enables function calls.  I only allow one level of calls
 # so this is 'trailer'
@@ -628,7 +635,7 @@ def p_testlist_multi(p):
 def p_test(p):
     "test : comparison"
     p[0] = p[1]
-    
+
 
 
 # arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
@@ -656,16 +663,17 @@ class GardenSnakeParser(object):
         if lexer is None:
             lexer = IndentLexer(debug=1)
         self.lexer = lexer
-        self.parser = yacc.yacc(start="file_input_end")
+        self.parser = yacc.yacc(start="file_input_end",
+                                debug=False, write_tables=False)
 
     def parse(self, code):
         self.lexer.input(code)
-        result = self.parser.parse(lexer = self.lexer)
+        result = self.parser.parse(lexer = self.lexer, debug=True)
         return ast.Module(None, result)
 
 
 ###### Code generation ######
-    
+
 from compiler import misc, syntax, pycodegen
 
 class GardenSnakeCompiler(object):
@@ -682,11 +690,11 @@ class GardenSnakeCompiler(object):
         return code
 
 ####### Test code #######
-    
+
 code = r"""
 
 print('LET\'S TRY THIS \\OUT')
-  
+   
 #Comment here
 def x(a):
     print('called with', a)
@@ -726,15 +734,26 @@ if 1:
    a=9
 """
 
-_code = r"""
+code = r"""
 
 def x(a):
     y = 5
     z = 5
     print('called with', a)
-    return a*2
+    if a == 1:
+        print('a == 1')
+        if a * 5 == 5:
+            print('a*5 == 5')
+            return a*5
+        return a*2
+    else:
+        print('a != 1')
+        return a*6
+
+    return a
 
 print (x(1))
+print (x(2))
 """
 
 lexer = IndentLexer(debug=1)
@@ -746,9 +765,11 @@ lexer.input(code)
 # Tokenize
 while True:
     tok = lexer.token()
-    if not tok: 
+    if not tok:
         break      # No more input
     print(tok)
+
+#sys.exit(0)
 
 # Set up the GardenSnake run-time environment
 def print_(*args):
