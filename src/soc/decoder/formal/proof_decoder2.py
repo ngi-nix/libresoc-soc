@@ -1,4 +1,4 @@
-from nmigen import Module, Signal, Elaboratable, Cat
+from nmigen import Module, Signal, Elaboratable, Cat, Repl
 from nmigen.asserts import Assert, AnyConst
 from nmigen.test.utils import FHDLTestCase
 
@@ -90,13 +90,14 @@ class Driver(Elaboratable):
                 with m.Case(In2Sel.CONST_UI):
                     comb += Assert(pdecode2.e.imm_data.data == dec.UI[0:-1])
                 with m.Case(In2Sel.CONST_SI):
-                    comb += Assert(pdecode2.e.imm_data.data == dec.SI[0:-1])
+                    comb += Assert(pdecode2.e.imm_data.data ==
+                                   self.exts(dec.SI[0:-1], 16, 64))
                 with m.Case(In2Sel.CONST_UI_HI):
                     comb += Assert(pdecode2.e.imm_data.data ==
                                    (dec.UI[0:-1] << 16))
                 with m.Case(In2Sel.CONST_SI_HI):
                     comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.SI[0:-1] << 16))
+                                   self.exts(dec.SI[0:-1] << 16, 32, 64))
                 with m.Case(In2Sel.CONST_LI):
                     comb += Assert(pdecode2.e.imm_data.data ==
                                    (dec.LI[0:-1] << 2))
@@ -114,6 +115,12 @@ class Driver(Elaboratable):
                     comb += Assert(pdecode2.e.imm_data.data == dec.SH32[0:-1])
                 with m.Default():
                     comb += Assert(0)
+
+    def exts(self, exts_data, width, fullwidth):
+        exts_data = exts_data[0:width]
+        topbit = exts_data[-1]
+        signbits = Repl(topbit, fullwidth-width)
+        return Cat(exts_data, signbits)
 
     def test_in2_fields(self):
         m = self.m
