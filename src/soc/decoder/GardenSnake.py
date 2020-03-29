@@ -49,6 +49,7 @@ tokens = (
     'DEF',
     'IF',
     'ELSE',
+    'WHILE',
     'NAME',
     'NUMBER',  # Python decimals
     'STRING',  # single quoted strings only; syntax of raw strings
@@ -103,6 +104,7 @@ RESERVED = {
   "def": "DEF",
   "if": "IF",
   "else": "ELSE",
+  "while": "WHILE",
   "return": "RETURN",
   }
 
@@ -479,8 +481,19 @@ def p_return_stmt(p):
 
 def p_compound_stmt(p):
     """compound_stmt : if_stmt
-                     | funcdef"""
+                     | while_stmt
+                     | funcdef
+    """
     p[0] = p[1]
+
+def p_while_stmt(p):
+    """while_stmt : WHILE test COLON suite ELSE COLON suite
+                  | WHILE test COLON suite
+    """
+    if len(p) == 5:
+        p[0] = ast.While(p[2], p[4], None)
+    else:
+        p[0] = ast.While(p[2], p[4], p[7])
 
 def p_if_stmt(p):
     """if_stmt : IF test COLON suite ELSE COLON suite
@@ -751,6 +764,13 @@ def x(a):
         return a*6
 
     return a
+
+count = 0
+while count < 5:
+    count = count + 1
+    print (count)
+else:
+    print ('done', count)
 
 print (x(1))
 print (x(2))
