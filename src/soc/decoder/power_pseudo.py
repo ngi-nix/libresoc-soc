@@ -238,11 +238,11 @@ def indentation_filter(tokens):
     prev_was_ws = False
     for token in tokens:
         if 1:
-            print "Process", depth, token.indent, token,
+            print ("Process", depth, token.indent, token,)
             if token.at_line_start:
-                print "at_line_start",
+                print ("at_line_start",)
             if token.must_indent:
-                print "must_indent",
+                print ("must_indent",)
             print
 
         # WS only occurs at the start of the line
@@ -333,7 +333,7 @@ class IndentLexer(object):
         self.token_stream = filter(self.lexer, add_endmarker)
     def token(self):
         try:
-            return self.token_stream.next()
+            return next(self.token_stream)
         except StopIteration:
             return None
 
@@ -343,14 +343,15 @@ class IndentLexer(object):
 #import yacc
 
 # I use the Python AST
-from compiler import ast
+#from compiler import ast
+import ast
 
 # Helper function
 def Assign(left, right):
     names = []
     if isinstance(left, ast.Name):
         # Single assignment on left
-        return ast.Assign([ast.AssName(left.name, 'OP_ASSIGN')], right)
+        return ast.Assign([ast.Name(left.id, ast.Store())], right)
     elif isinstance(left, ast.Tuple):
         # List of things - make sure they are Name nodes
         names = []
@@ -370,15 +371,15 @@ def Assign(left, right):
 # file_input: (NEWLINE | stmt)* ENDMARKER
 def p_file_input_end(p):
     """file_input_end : file_input ENDMARKER"""
-    print "end", p[1]
-    p[0] = ast.Stmt(p[1])
+    print ("end", p[1])
+    p[0] = p[1]
 
 def p_file_input(p):
     """file_input : file_input NEWLINE
                   | file_input stmt
                   | NEWLINE
                   | stmt"""
-    if isinstance(p[len(p)-1], basestring):
+    if isinstance(p[len(p)-1], str):
         if len(p) == 3:
             p[0] = p[1]
         else:
@@ -500,9 +501,9 @@ def p_suite(p):
     """suite : simple_stmt
              | NEWLINE INDENT stmts DEDENT"""
     if len(p) == 2:
-        p[0] = ast.Stmt(p[1])
+        p[0] = p[1]
     else:
-        p[0] = ast.Stmt(p[3])
+        p[0] = p[3]
 
 
 def p_stmts(p):
@@ -535,15 +536,15 @@ def make_eq_compare(arg):
 binary_ops = {
     "+": ast.Add,
     "-": ast.Sub,
-    "*": ast.Mul,
+    "*": ast.Mult(),
     "/": ast.Div,
     "<": make_lt_compare,
     ">": make_gt_compare,
     "==": make_eq_compare,
 }
 unary_ops = {
-    "+": ast.UnaryAdd,
-    "-": ast.UnarySub,
+    "+": ast.Add,
+    "-": ast.Sub,
     }
 precedence = (
     ("left", "EQ", "GT", "LT"),
@@ -563,7 +564,7 @@ def p_comparison(p):
                   | MINUS comparison
                   | power"""
     if len(p) == 4:
-        p[0] = binary_ops[p[2]]((p[1], p[3]))
+        p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
     elif len(p) == 3:
         p[0] = unary_ops[p[1]](p[2])
     else:
@@ -580,12 +581,13 @@ def p_power(p):
         p[0] = p[1]
     else:
         if p[2][0] == "CALL":
-            if p[1].name == 'print':
-                p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
-            else:
-                p[0] = ast.CallFunc(p[1], p[2][1], None, None)
+            p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
+            #if p[1].id == 'print':
+            #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
+            #else:
+            #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
         else:
-            print p[2][1]
+            print (p[2][1])
             #raise AssertionError("not implemented %s" % p[2][0])
             subs = p[2][1]
             if len(subs) == 1:
@@ -595,12 +597,12 @@ def p_power(p):
 
 def p_atom_name(p):
     """atom : NAME"""
-    p[0] = ast.Name(p[1])
+    p[0] = ast.Name(p[1], ctx=ast.Load())
 
 def p_atom_number(p):
     """atom : NUMBER
             | STRING"""
-    p[0] = ast.Const(p[1])
+    p[0] = ast.Constant(p[1])
 
 #'[' [listmaker] ']' |
 
@@ -718,27 +720,31 @@ class GardenSnakeParser(object):
     def parse(self, code):
         self.lexer.input(code)
         result = self.parser.parse(lexer = self.lexer, debug=False)
-        return ast.Module(None, result)
+        return ast.Module(result)
 
 
 ###### Code generation ######
 
-from compiler import misc, syntax, pycodegen
+#from compiler import misc, syntax, pycodegen
 
 class GardenSnakeCompiler(object):
     def __init__(self):
         self.parser = GardenSnakeParser()
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)
-        print "snake"
+        print ("snake")
         pprint(tree)
-        misc.set_filename(filename, tree)
-        syntax.check(tree)
+        return tree
+        #misc.set_filename(filename, tree)
+        return compile(tree, mode="exec", filename="<string>")
+        #syntax.check(tree)
         gen = pycodegen.ModuleCodeGenerator(tree)
         code = gen.getCode()
         return code
 
 ####### Test code #######
+
+from soc.decoder.power_fieldsn import create_sigdecode
 
 bpermd = r"""
 for i = 0 to 7
@@ -751,6 +757,7 @@ RA <- [0]*56|| perm[0:7]
 """
 
 bpermd = r"""
+perm <- [0] * 8
 #index <- (RS)[8*i:8*i+7]
 RA <- [0]*56 # || perm[0:7]
 print (RA)
@@ -760,8 +767,8 @@ code = bpermd
 
 lexer = IndentLexer(debug=1)
 # Give the lexer some input
-print "code"
-print code
+print ("code")
+print (code)
 lexer.input(code)
 
 # Tokenize
@@ -781,17 +788,28 @@ def print_(*args):
 #d = copy(globals())
 d = {}
 d["print"] = print_
-#d["a"] = 10
-l = {}
 
+sd = create_sigdecode()
+print ("forms", sd.df.forms)
+for f in sd.df.FormX:
+    print (f)
 
-compile = GardenSnakeCompiler().compile
+_compile = GardenSnakeCompiler().compile
 
-compiled_code = compile(code, mode="single", filename="string")
+tree = _compile(code, mode="single", filename="string")
+import ast
+tree = ast.fix_missing_locations(tree)
+print ( ast.dump(tree) )
 
-from compiler import parse
-tree = parse(code, "exec")
-pprint(tree)
+import astor
+print ("astor dump")
+print (astor.dump_tree(tree))
+print ("to source")
+source = astor.to_source(tree)
+print (source)
+
+#from compiler import parse
+#tree = parse(code, "exec")
 
 print (compiled_code)
 
