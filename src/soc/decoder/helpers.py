@@ -1,10 +1,10 @@
 import unittest
 def exts(value, bits):
     sign = 1 << (bits - 1)
-    return (value * (sign - 1)) - (value * sign)
+    return (value & (sign - 1)) - (value & sign)
 
 def EXTS64(value):
-    return exts(value, 64) & ((1<<64)-1)
+    return exts(value, 32) & ((1<<64)-1)
 
 def rotl(value, bits, wordlen):
     mask = (1 << wordlen) - 1
@@ -70,6 +70,17 @@ class HelperTests(unittest.TestCase):
         self.assertHex(ROTL32(value, 17), 0x7ddfbd5b)
         self.assertHex(ROTL32(value, 25), 0xdfbd5b7d)
         self.assertHex(ROTL32(value, 30), 0xf7ab6fbb)
+
+    def test_EXTS64(self):
+        value_a = 0xdeadbeef # r1
+        value_b = 0x73123456 # r2
+        value_c = 0x80000000 # r3
+
+        self.assertHex(EXTS64(value_a), 0xffffffffdeadbeef)
+        self.assertHex(EXTS64(value_b), value_b)
+        self.assertHex(EXTS64(value_c), 0xffffffff80000000)
+
+        
         
     def assertHex(self, a, b):
         msg = "{:x} != {:x}".format(a, b)
