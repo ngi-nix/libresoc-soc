@@ -245,8 +245,7 @@ class TopPowerDecoder(PowerDecoder):
         self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
         self.bigendian = Signal(reset_less=True)
 
-        for name in self.fields.common_fields:
-            value = getattr(self.fields, name)
+        for name, value in self.fields.common_fields.items():
             sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
             setattr(self, name, sig)
 
@@ -263,8 +262,7 @@ class TopPowerDecoder(PowerDecoder):
         comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # add all signal from commonly-used fields
-        for name in self.fields.common_fields:
-            value = getattr(self.fields, name)
+        for name, value in self.fields.common_fields.items():
             sig = getattr(self, name)
             comb += sig.eq(value[0:-1])
 
