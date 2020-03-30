@@ -24,6 +24,7 @@ tokens = (
     'THEN',
     'ELSE',
     'FOR',
+    'FOREQ',
     'TO',
     'DO',
     'WHILE',
@@ -69,6 +70,7 @@ def t_STRING(t):
 t_COLON = r':'
 t_EQ = r'=='
 t_ASSIGN = r'<-'
+t_FOREQ = r'='
 t_LT = r'<'
 t_GT = r'>'
 t_PLUS = r'\+'
@@ -174,7 +176,7 @@ MUST_INDENT = 2
 # turn into python-like colon syntax from pseudo-code syntax
 def python_colonify(lexer, tokens):
 
-    while_seen = False
+    forwhile_seen = False
     for token in tokens:
         print ("track colon token", token, token.type)
 
@@ -189,15 +191,15 @@ def python_colonify(lexer, tokens):
             token = copy(token)
             token.type = "COLON"
             yield token
-        elif token.type == 'WHILE':
-            while_seen = True
+        elif token.type in ['WHILE', 'FOR']:
+            forwhile_seen = True
             yield token
         elif token.type == 'NEWLINE':
-            if while_seen:
+            if forwhile_seen:
                 ctok = copy(token)
                 ctok.type = "COLON"
                 yield ctok
-                while_seen = False
+                forwhile_seen = False
             yield token
         else:
             yield token
@@ -514,9 +516,20 @@ def p_return_stmt(p):
 def p_compound_stmt(p):
     """compound_stmt : if_stmt
                      | while_stmt
+                     | for_stmt
                      | funcdef
     """
     p[0] = p[1]
+
+def p_for_stmt(p):
+    """for_stmt : FOR test FOREQ test TO test COLON suite
+    """
+    p[0] = ast.While(p[2], p[4], [])
+    # auto-add-one (sigh) due to python range
+    start = p[4]
+    end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
+    it = ast.Call(ast.Name("range"), [start, end], [])
+    p[0] = ast.For(p[2], it, p[8], [])
 
 def p_while_stmt(p):
     """while_stmt : WHILE test COLON suite ELSE COLON suite
@@ -803,16 +816,6 @@ class GardenSnakeCompiler(object):
 from soc.decoder.power_fieldsn import create_sigdecode
 
 bpermd = r"""
-for i = 0 to 7
-   index <- (RS)[8*i:8*i+7]
-   if index < 64 then
-        permi <- (RB)[index]
-   else
-        permi <- 0
-RA <- [0]*56|| perm[0:7]
-"""
-
-bpermd = r"""
 perm <- [0] * 8
 if index < 64:
     index <- (RS)[8*i:8*i+7]
@@ -825,7 +828,20 @@ if index < 64 then index <- 0
 else index <- 5
 while index
     index <- 0
+for i = 0 to 7
+    index <- 0
 """
+
+bpermd = r"""
+for i = 0 to 7
+   index <- (RS)[8*i:8*i+7]
+   if index < 64 then
+        permi <- (RB)[index]
+   else
+        permi <- 0
+RA <- [0]*56|| perm[0:7]
+"""
+
 code = bpermd
 
 lexer = IndentLexer(debug=1)
