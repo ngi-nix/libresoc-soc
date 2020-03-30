@@ -30,6 +30,7 @@ tokens = (
     'BREAK',
     'NAME',
     'NUMBER',  # Python decimals
+    'BINARY',  # Python binary
     'STRING',  # single quoted strings only; syntax of raw strings
     'LPAR',
     'RPAR',
@@ -54,6 +55,11 @@ tokens = (
     'DEDENT',
     'ENDMARKER',
     )
+
+def t_BINARY(t):
+    r"""0b[01]+"""
+    t.value = int(t.value, 2)
+    return t
 
 #t_NUMBER = r'\d+'
 # taken from decmial.py but without the leading sign
@@ -178,7 +184,7 @@ def python_colonify(lexer, tokens):
 
     forwhile_seen = False
     for token in tokens:
-        print ("track colon token", token, token.type)
+        #print ("track colon token", token, token.type)
 
         if token.type == 'THEN':
             # turn then into colon
@@ -210,7 +216,7 @@ def track_tokens_filter(lexer, tokens):
     indent = NO_INDENT
     saw_colon = False
     for token in tokens:
-        print ("track token", token, token.type)
+        #print ("track token", token, token.type)
         token.at_line_start = at_line_start
 
         if token.type == "COLON":
@@ -653,7 +659,8 @@ def p_power(p):
         p[0] = p[1]
     else:
         if p[2][0] == "CALL":
-            p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
+            #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
+            p[0] = ast.Call(p[1], p[2][1], [])
             #if p[1].id == 'print':
             #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
             #else:
@@ -673,7 +680,8 @@ def p_atom_name(p):
     p[0] = ast.Name(p[1], ctx=ast.Load())
 
 def p_atom_number(p):
-    """atom : NUMBER
+    """atom : BINARY
+            | NUMBER
             | STRING"""
     p[0] = ast.Constant(p[1])
 
@@ -874,15 +882,6 @@ while True:
 
 #sys.exit(0)
 
-# Set up the GardenSnake run-time environment
-def print_(*args):
-    print ("args", args)
-    print ("-->", " ".join(map(str,args)))
-
-#d = copy(globals())
-d = {}
-d["print"] = print_
-
 sd = create_sigdecode()
 print ("forms", sd.df.forms)
 for f in sd.df.FormX:
@@ -901,13 +900,31 @@ print ("to source")
 source = astor.to_source(tree)
 print (source)
 
-#from compiler import parse
-#tree = parse(code, "exec")
+#sys.exit(0)
 
-print (compiled_code)
+from soc.decoder.power_fieldsn import create_sigdecode
+
+# Set up the GardenSnake run-time environment
+def print_(*args):
+    print ("args", args)
+    print ("-->", " ".join(map(str,args)))
+
+def listconcat(l1, l2):
+    return l1 + l2
+
+d = {}
+d["print"] = print_
+d["concat"] = listconcat
+
+form = 'X'
+sd = create_sigdecode()
+getform = getattr(sd.df, "Form%s" % form)
+print (getform)
+for k, f in sd.df.instrs[form].items():
+    d[k] = getattr(getform, k)
+
+compiled_code = compile(source, mode="exec", filename="<string>")
 
 exec (compiled_code, d)
 print ("Done")
 
-#print d
-#print l
