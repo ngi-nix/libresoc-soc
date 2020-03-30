@@ -487,7 +487,7 @@ def p_while_stmt(p):
                   | WHILE test COLON suite
     """
     if len(p) == 5:
-        p[0] = ast.While(p[2], p[4], None)
+        p[0] = ast.While(p[2], p[4], [])
     else:
         p[0] = ast.While(p[2], p[4], p[7])
 
@@ -496,9 +496,9 @@ def p_if_stmt(p):
                | IF test COLON suite
     """
     if len(p) == 5:
-        p[0] = ast.If([(p[2], p[4])], None)
+        p[0] = ast.If(p[2], p[4], [])
     else:
-        p[0] = ast.If([(p[2], p[4])], p[7])
+        p[0] = ast.If(p[2], p[4], p[7])
 
 def p_suite(p):
     """suite : simple_stmt
@@ -527,13 +527,13 @@ def p_stmts(p):
 
 def make_lt_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [('<', right),])
+    return ast.Compare(left, [ast.Lt()], [right])
 def make_gt_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [('>', right),])
+    return ast.Compare(left, [ast.Gt()], [right])
 def make_eq_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [('==', right),])
+    return ast.Compare(left, [ast.Eq()], [right])
 
 
 binary_ops = {
@@ -580,6 +580,8 @@ def p_comparison(p):
         if p[2] == '||':
             l = check_concat(p[1]) + check_concat(p[3])
             p[0] = ast.Call(ast.Name("concat"), l, [])
+        elif p[2] in ['<', '>', '==']:
+            p[0] = binary_ops[p[2]]((p[1],p[3]))
         else:
             p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
     elif len(p) == 3:
@@ -776,7 +778,8 @@ RA <- [0]*56|| perm[0:7]
 
 bpermd = r"""
 perm <- [0] * 8
-#index <- (RS)[8*i:8*i+7]
+if index < 64:
+    index <- (RS)[8*i:8*i+7]
 RA <- [0]*56 || perm[0:7]
 print (RA)
 """
