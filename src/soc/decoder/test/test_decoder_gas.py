@@ -213,7 +213,7 @@ class CmpRegOp:
     def check_results(self, pdecode2):
         r1sel = yield pdecode2.e.read_reg1.data
         r2sel = yield pdecode2.e.read_reg2.data
-        crsel = yield pdecode2.dec.BF[0:-1]
+        crsel = yield pdecode2.dec.BF
 
         assert(r1sel == self.r1.num)
         assert(r2sel == self.r2.num)
@@ -253,11 +253,11 @@ class RotateOp:
         dec = pdecode2.dec
 
         if "i" in self.opcodestr:
-            shift = yield dec.SH[0:-1]
+            shift = yield dec.SH
         else:
             shift = yield pdecode2.e.read_reg2.data
-        mb = yield dec.MB[0:-1]
-        me = yield dec.ME[0:-1]
+        mb = yield dec.MB
+        me = yield dec.ME
 
         assert(r1sel == self.r1.num)
         assert(r2sel == self.r2.num)
@@ -298,7 +298,7 @@ class Branch:
             assert(lk == 1)
         else:
             assert(lk == 0)
-        aa = yield pdecode2.dec.AA[0:-1]
+        aa = yield pdecode2.dec.AA
         if "a" in self.opcodestr:
             assert(aa == 1)
         else:
@@ -332,8 +332,8 @@ class BranchCond:
 
     def check_results(self, pdecode2):
         imm = yield pdecode2.e.imm_data.data
-        bo = yield pdecode2.dec.BO[0:-1]
-        bi = yield pdecode2.dec.BI[0:-1]
+        bo = yield pdecode2.dec.BO
+        bi = yield pdecode2.dec.BI
 
         assert(imm == self.addr)
         assert(bo == self.bo)
@@ -343,7 +343,7 @@ class BranchCond:
             assert(lk == 1)
         else:
             assert(lk == 0)
-        aa = yield pdecode2.dec.AA[0:-1]
+        aa = yield pdecode2.dec.AA
         if "a" in self.opcodestr:
             assert(aa == 1)
         else:
@@ -375,8 +375,8 @@ class BranchRel:
         return string
 
     def check_results(self, pdecode2):
-        bo = yield pdecode2.dec.BO[0:-1]
-        bi = yield pdecode2.dec.BI[0:-1]
+        bo = yield pdecode2.dec.BO
+        bi = yield pdecode2.dec.BI
 
         assert(bo == self.bo)
         assert(bi == self.bi)

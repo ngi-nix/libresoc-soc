@@ -33,7 +33,7 @@ class DecodeA(Elaboratable):
 
         # select Register A field
         ra = Signal(5, reset_less=True)
-        comb += ra.eq(self.dec.RA[0:-1])
+        comb += ra.eq(self.dec.RA)
         with m.If((self.sel_in == In1Sel.RA) |
                   ((self.sel_in == In1Sel.RA_OR_ZERO) &
                    (ra != Const(0, 5)))):
@@ -56,7 +56,7 @@ class DecodeA(Elaboratable):
         # MFSPR or MTSPR: move-from / move-to SPRs
         with m.If((op.internal_op == InternalOp.OP_MFSPR) |
                   (op.internal_op == InternalOp.OP_MTSPR)):
-            comb += self.spr_out.data.eq(self.dec.SPR[0:-1]) # SPR field, XFX
+            comb += self.spr_out.data.eq(self.dec.SPR) # SPR field, XFX
             comb += self.spr_out.ok.eq(1)
 
         return m
@@ -105,40 +105,40 @@ class DecodeB(Elaboratable):
         # select Register B field
         with m.Switch(self.sel_in):
             with m.Case(In2Sel.RB):
-                comb += self.reg_out.data.eq(self.dec.RB[0:-1])
+                comb += self.reg_out.data.eq(self.dec.RB)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI):
-                comb += self.imm_out.data.eq(self.dec.UI[0:-1])
+                comb += self.imm_out.data.eq(self.dec.UI)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI): # TODO: sign-extend here?
                 comb += self.imm_out.data.eq(
-                    self.exts(self.dec.SI[0:-1], 16, 64))
+                    self.exts(self.dec.SI, 16, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI_HI):
-                comb += self.imm_out.data.eq(self.dec.UI[0:-1]<<16)
+                comb += self.imm_out.data.eq(self.dec.UI<<16)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SI_HI): # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(self.dec.SI[0:-1]<<16)
+                comb += self.imm_out.data.eq(self.dec.SI<<16)
                 comb += self.imm_out.data.eq(
-                    self.exts(self.dec.SI[0:-1] << 16, 32, 64))
+                    self.exts(self.dec.SI << 16, 32, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_LI):
-                comb += self.imm_out.data.eq(self.dec.LI[0:-1]<<2)
+                comb += self.imm_out.data.eq(self.dec.LI<<2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_BD):
-                comb += self.imm_out.data.eq(self.dec.BD[0:-1]<<2)
+                comb += self.imm_out.data.eq(self.dec.BD<<2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_DS):
-                comb += self.imm_out.data.eq(self.dec.DS[0:-1]<<2)
+                comb += self.imm_out.data.eq(self.dec.DS<<2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_M1):
                 comb += self.imm_out.data.eq(~Const(0, 64)) # all 1s
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SH):
-                comb += self.imm_out.data.eq(self.dec.sh[0:-1])
+                comb += self.imm_out.data.eq(self.dec.sh)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SH32):
-                comb += self.imm_out.data.eq(self.dec.SH32[0:-1])
+                comb += self.imm_out.data.eq(self.dec.SH32)
                 comb += self.imm_out.ok.eq(1)
 
         # decode SPR2 based on instruction type
@@ -172,7 +172,7 @@ class DecodeC(Elaboratable):
 
         # select Register C field
         with m.If(self.sel_in == In3Sel.RS):
-            comb += self.reg_out.data.eq(self.dec.RS[0:-1])
+            comb += self.reg_out.data.eq(self.dec.RS)
             comb += self.reg_out.ok.eq(1)
 
         return m
@@ -198,13 +198,13 @@ class DecodeOut(Elaboratable):
         # select Register out field
         with m.Switch(self.sel_in):
             with m.Case(OutSel.RT):
-                comb += self.reg_out.data.eq(self.dec.RT[0:-1])
+                comb += self.reg_out.data.eq(self.dec.RT)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.RA):
-                comb += self.reg_out.data.eq(self.dec.RA[0:-1])
+                comb += self.reg_out.data.eq(self.dec.RA)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.SPR):
-                comb += self.spr_out.data.eq(self.dec.SPR[0:-1]) # from XFX
+                comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
                 comb += self.spr_out.ok.eq(1)
 
         return m
@@ -228,7 +228,7 @@ class DecodeRC(Elaboratable):
         # select Record bit out field
         with m.Switch(self.sel_in):
             with m.Case(RC.RC):
-                comb += self.rc_out.data.eq(self.dec.Rc[0:-1])
+                comb += self.rc_out.data.eq(self.dec.Rc)
                 comb += self.rc_out.ok.eq(1)
             with m.Case(RC.ONE):
                 comb += self.rc_out.data.eq(1)
@@ -264,7 +264,7 @@ class DecodeOE(Elaboratable):
         # select OE bit out field
         with m.Switch(self.sel_in):
             with m.Case(RC.RC):
-                comb += self.oe_out.data.eq(self.dec.OE[0:-1])
+                comb += self.oe_out.data.eq(self.dec.OE)
                 comb += self.oe_out.ok.eq(1)
 
         return m
@@ -421,7 +421,7 @@ class PowerDecode2(Elaboratable):
         comb += self.e.is_32bit.eq(self.dec.op.is_32b)
         comb += self.e.is_signed.eq(self.dec.op.sgn)
         with m.If(self.dec.op.lk):
-            comb += self.e.lk.eq(self.dec.LK[0:-1]) # XXX TODO: accessor
+            comb += self.e.lk.eq(self.dec.LK) # XXX TODO: accessor
 
         comb += self.e.byte_reverse.eq(self.dec.op.br)
         comb += self.e.sign_extend.eq(self.dec.op.sgn_ext)
