@@ -112,7 +112,7 @@ class DecodeFields:
     def create_specs(self):
         self.forms, self.instrs = self.decode_fields()
         self.form_names = forms = self.instrs.keys()
-        print ("specs", self.forms, forms)
+        #print ("specs", self.forms, forms)
         for form in forms:
             fields = self.instrs[form]
             fk = fields.keys()
@@ -163,7 +163,7 @@ class DecodeFields:
     def decode_fields(self):
         with open(self.fname) as f:
             txt = f.readlines()
-        print ("decode", txt)
+        #print ("decode", txt)
         forms = {}
         reading_data = False
         for l in txt:

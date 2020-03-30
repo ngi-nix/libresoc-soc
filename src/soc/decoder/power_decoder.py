@@ -53,6 +53,7 @@ Top Level:
 
 """
 
+from collections import namedtuple
 from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, InternalOp,
@@ -239,7 +240,7 @@ class TopPowerDecoder(PowerDecoder):
 
     def __init__(self, width, dec):
         PowerDecoder.__init__(self, width, dec)
-        self.fields = DecodeFields(SignalBitRange, [self.opcode_in])
+        self.fields = df = DecodeFields(SignalBitRange, [self.opcode_in])
         self.fields.create_specs()
         self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
         self.bigendian = Signal(reset_less=True)
@@ -248,6 +249,7 @@ class TopPowerDecoder(PowerDecoder):
             value = getattr(self.fields, name)
             sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
             setattr(self, name, sig)
+
 
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
@@ -259,10 +261,30 @@ class TopPowerDecoder(PowerDecoder):
         l.reverse()
         raw_le = Cat(*l)
         comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
+
+        # add all signal from commonly-used fields
         for name in self.fields.common_fields:
             value = getattr(self.fields, name)
             sig = getattr(self, name)
             comb += sig.eq(value[0:-1])
+
+        # create signals for all field forms
+        self.form_names = forms = self.fields.instrs.keys()
+        self.sigforms = {}
+        for form in forms:
+            fields = self.fields.instrs[form]
+            fk = fields.keys()
+            Fields = namedtuple("Fields", fk)
+            sf = {}
+            for k, value in fields.items():
+                name = "%s_%s" % (form, k)
+                sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
+                sf[k] = sig
+                comb += sig.eq(value[0:-1])
+            instr = Fields(**sf)
+            setattr(self, "Form%s" % form, instr)
+            self.sigforms[form] = instr
+
         return m
 
     def ports(self):
