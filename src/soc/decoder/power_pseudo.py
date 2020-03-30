@@ -21,10 +21,11 @@ import decimal
 tokens = (
     'DEF',
     'IF',
+    'THEN',
     'ELSE',
     'FOR',
     'TO',
-    'THEN',
+    'DO',
     'WHILE',
     'NAME',
     'NUMBER',  # Python decimals
@@ -83,10 +84,12 @@ t_APPEND = r'\|\|'
 RESERVED = {
   "def": "DEF",
   "if": "IF",
+  "then": "THEN",
   "else": "ELSE",
   "for": "FOR",
   "to": "TO",
   "while": "WHILE",
+  "do": "do",
   "return": "RETURN",
   }
 
@@ -168,6 +171,38 @@ NO_INDENT = 0
 MAY_INDENT = 1
 MUST_INDENT = 2
 
+# turn into python-like colon syntax from pseudo-code syntax
+def python_colonify(lexer, tokens):
+
+    while_seen = False
+    for token in tokens:
+        print ("track colon token", token, token.type)
+
+        if token.type == 'DO':
+            continue # skip.  do while is redundant
+        elif token.type == 'THEN':
+            # turn then into colon
+            token.type = "COLON"
+            yield token
+        elif token.type == 'ELSE':
+            yield token
+            token = copy(token)
+            token.type = "COLON"
+            yield token
+        elif token.type == 'WHILE':
+            while_seen = True
+            yield token
+        elif token.type == 'NEWLINE':
+            if while_seen:
+                ctok = copy(token)
+                ctok.type = "COLON"
+                yield ctok
+                while_seen = False
+            yield token
+        else:
+            yield token
+
+
 # only care about whitespace at the start of a line
 def track_tokens_filter(lexer, tokens):
     oldignore = lexer.lexignore
@@ -175,7 +210,7 @@ def track_tokens_filter(lexer, tokens):
     indent = NO_INDENT
     saw_colon = False
     for token in tokens:
-        #print ("token", token)
+        print ("track token", token, token.type)
         token.at_line_start = at_line_start
 
         if token.type == "COLON":
@@ -313,6 +348,7 @@ def indentation_filter(tokens):
 def filter(lexer, add_endmarker = True):
     token = None
     tokens = iter(lexer.token, None)
+    tokens = python_colonify(lexer, tokens)
     tokens = track_tokens_filter(lexer, tokens)
     for token in indentation_filter(tokens):
         yield token
@@ -784,6 +820,12 @@ RA <- [0]*56 || perm[0:7]
 print (RA)
 """
 
+bpermd = r"""
+if index < 64 then index <- 0
+else index <- 5
+while index
+    index <- 0
+"""
 code = bpermd
 
 lexer = IndentLexer(debug=1)
