@@ -14,151 +14,28 @@ from copy import copy
 from ply import lex, yacc
 import astor
 
-##### Lexer ######
-#import lex
-import decimal
+# I use the Python AST
+#from compiler import ast
+import ast
 
-tokens = (
-    'DEF',
-    'IF',
-    'THEN',
-    'ELSE',
-    'FOR',
-    'TO',
-    'DO',
-    'WHILE',
-    'BREAK',
-    'NAME',
-    'NUMBER',  # Python decimals
-    'BINARY',  # Python binary
-    'STRING',  # single quoted strings only; syntax of raw strings
-    'LPAR',
-    'RPAR',
-    'LBRACK',
-    'RBRACK',
-    'COLON',
-    'EQ',
-    'ASSIGN',
-    'LT',
-    'GT',
-    'PLUS',
-    'MINUS',
-    'MULT',
-    'DIV',
-    'APPEND',
-    'RETURN',
-    'WS',
-    'NEWLINE',
-    'COMMA',
-    'SEMICOLON',
-    'INDENT',
-    'DEDENT',
-    'ENDMARKER',
-    )
+# Helper function
+def Assign(left, right):
+    names = []
+    if isinstance(left, ast.Name):
+        # Single assignment on left
+        return ast.Assign([ast.Name(left.id, ast.Store())], right)
+    elif isinstance(left, ast.Tuple):
+        # List of things - make sure they are Name nodes
+        names = []
+        for child in left.getChildren():
+            if not isinstance(child, ast.Name):
+                raise SyntaxError("that assignment not supported")
+            names.append(child.name)
+        ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
+        return ast.Assign([ast.AssTuple(ass_list)], right)
+    else:
+        raise SyntaxError("Can't do that yet")
 
-def t_BINARY(t):
-    r"""0b[01]+"""
-    t.value = int(t.value, 2)
-    return t
-
-#t_NUMBER = r'\d+'
-# taken from decmial.py but without the leading sign
-def t_NUMBER(t):
-    r"""(\d+(\.\d*)?|\.\d+)([eE][-+]? \d+)?"""
-    t.value = int(t.value)
-    return t
-
-def t_STRING(t):
-    r"'([^\\']+|\\'|\\\\)*'"  # I think this is right ...
-    t.value=t.value[1:-1].decode("string-escape") # .swapcase() # for fun
-    return t
-
-t_COLON = r':'
-t_EQ = r'='
-t_ASSIGN = r'<-'
-t_LT = r'<'
-t_GT = r'>'
-t_PLUS = r'\+'
-t_MINUS = r'-'
-t_MULT = r'\*'
-t_DIV = r'/'
-t_COMMA = r','
-t_SEMICOLON = r';'
-t_APPEND = r'\|\|'
-
-# Ply nicely documented how to do this.
-
-RESERVED = {
-  "def": "DEF",
-  "if": "IF",
-  "then": "THEN",
-  "else": "ELSE",
-  "leave": "BREAK",
-  "for": "FOR",
-  "to": "TO",
-  "while": "WHILE",
-  "do": "DO",
-  "return": "RETURN",
-  }
-
-def t_NAME(t):
-    r'[a-zA-Z_][a-zA-Z0-9_]*'
-    t.type = RESERVED.get(t.value, "NAME")
-    return t
-
-# Putting this before t_WS let it consume lines with only comments in
-# them so the latter code never sees the WS part.  Not consuming the
-# newline.  Needed for "if 1: #comment"
-def t_comment(t):
-    r"[ ]*\043[^\n]*"  # \043 is '#'
-    pass
-
-
-# Whitespace
-def t_WS(t):
-    r'[ ]+'
-    if t.lexer.at_line_start and t.lexer.paren_count == 0 and \
-                                 t.lexer.brack_count == 0:
-        return t
-
-# Don't generate newline tokens when inside of parenthesis, eg
-#   a = (1,
-#        2, 3)
-def t_newline(t):
-    r'\n+'
-    t.lexer.lineno += len(t.value)
-    t.type = "NEWLINE"
-    if t.lexer.paren_count == 0 and t.lexer.brack_count == 0:
-        return t
-
-def t_LBRACK(t):
-    r'\['
-    t.lexer.brack_count += 1
-    return t
-
-def t_RBRACK(t):
-    r'\]'
-    # check for underflow?  should be the job of the parser
-    t.lexer.brack_count -= 1
-    return t
-
-def t_LPAR(t):
-    r'\('
-    t.lexer.paren_count += 1
-    return t
-
-def t_RPAR(t):
-    r'\)'
-    # check for underflow?  should be the job of the parser
-    t.lexer.paren_count -= 1
-    return t
-
-#t_ignore = " "
-
-def t_error(t):
-    raise SyntaxError("Unknown symbol %r" % (t.value[0],))
-    print ("Skipping", repr(t.value[0]))
-    t.lexer.skip(1)
 
 ## I implemented INDENT / DEDENT generation as a post-processing filter
 
@@ -365,217 +242,6 @@ def filter(lexer, add_endmarker = True):
             lineno = token.lineno
         yield _new_token("ENDMARKER", lineno)
 
-# Combine Ply and my filters into a new lexer
-
-class IndentLexer(object):
-    def __init__(self, debug=0, optimize=0, lextab='lextab', reflags=0):
-        self.lexer = lex.lex(debug=debug, optimize=optimize, lextab=lextab, reflags=reflags)
-        self.token_stream = None
-    def input(self, s, add_endmarker=True):
-        self.lexer.paren_count = 0
-        self.lexer.brack_count = 0
-        self.lexer.input(s)
-        self.token_stream = filter(self.lexer, add_endmarker)
-    def token(self):
-        try:
-            return next(self.token_stream)
-        except StopIteration:
-            return None
-
-##########   Parser (tokens -> AST) ######
-
-# also part of Ply
-#import yacc
-
-# I use the Python AST
-#from compiler import ast
-import ast
-
-# Helper function
-def Assign(left, right):
-    names = []
-    if isinstance(left, ast.Name):
-        # Single assignment on left
-        return ast.Assign([ast.Name(left.id, ast.Store())], right)
-    elif isinstance(left, ast.Tuple):
-        # List of things - make sure they are Name nodes
-        names = []
-        for child in left.getChildren():
-            if not isinstance(child, ast.Name):
-                raise SyntaxError("that assignment not supported")
-            names.append(child.name)
-        ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
-        return ast.Assign([ast.AssTuple(ass_list)], right)
-    else:
-        raise SyntaxError("Can't do that yet")
-
-
-# The grammar comments come from Python's Grammar/Grammar file
-
-## NB: compound_stmt in single_input is followed by extra NEWLINE!
-# file_input: (NEWLINE | stmt)* ENDMARKER
-def p_file_input_end(p):
-    """file_input_end : file_input ENDMARKER"""
-    print ("end", p[1])
-    p[0] = p[1]
-
-def p_file_input(p):
-    """file_input : file_input NEWLINE
-                  | file_input stmt
-                  | NEWLINE
-                  | stmt"""
-    if isinstance(p[len(p)-1], str):
-        if len(p) == 3:
-            p[0] = p[1]
-        else:
-            p[0] = [] # p == 2 --> only a blank line
-    else:
-        if len(p) == 3:
-            p[0] = p[1] + p[2]
-        else:
-            p[0] = p[1]
-
-
-# funcdef: [decorators] 'def' NAME parameters ':' suite
-# ignoring decorators
-def p_funcdef(p):
-    "funcdef : DEF NAME parameters COLON suite"
-    p[0] = ast.Function(None, p[2], list(p[3]), (), 0, None, p[5])
-
-# parameters: '(' [varargslist] ')'
-def p_parameters(p):
-    """parameters : LPAR RPAR
-                  | LPAR varargslist RPAR"""
-    if len(p) == 3:
-        p[0] = []
-    else:
-        p[0] = p[2]
-
-
-# varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
-# highly simplified
-def p_varargslist(p):
-    """varargslist : varargslist COMMA NAME
-                   | NAME"""
-    if len(p) == 4:
-        p[0] = p[1] + p[3]
-    else:
-        p[0] = [p[1]]
-
-# stmt: simple_stmt | compound_stmt
-def p_stmt_simple(p):
-    """stmt : simple_stmt"""
-    # simple_stmt is a list
-    p[0] = p[1]
-
-def p_stmt_compound(p):
-    """stmt : compound_stmt"""
-    p[0] = [p[1]]
-
-# simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
-def p_simple_stmt(p):
-    """simple_stmt : small_stmts NEWLINE
-                   | small_stmts SEMICOLON NEWLINE"""
-    p[0] = p[1]
-
-def p_small_stmts(p):
-    """small_stmts : small_stmts SEMICOLON small_stmt
-                   | small_stmt"""
-    if len(p) == 4:
-        p[0] = p[1] + [p[3]]
-    else:
-        p[0] = [p[1]]
-
-# small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
-#    import_stmt | global_stmt | exec_stmt | assert_stmt
-def p_small_stmt(p):
-    """small_stmt : flow_stmt
-                  | break_stmt
-                  | expr_stmt"""
-    p[0] = p[1]
-
-# expr_stmt: testlist (augassign (yield_expr|testlist) |
-#                      ('=' (yield_expr|testlist))*)
-# augassign: ('+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' |
-#             '<<=' | '>>=' | '**=' | '//=')
-def p_expr_stmt(p):
-    """expr_stmt : testlist ASSIGN testlist
-                 | testlist """
-    if len(p) == 2:
-        # a list of expressions
-        #p[0] = ast.Discard(p[1])
-        p[0] = p[1]
-    else:
-        p[0] = Assign(p[1], p[3])
-
-def p_flow_stmt(p):
-    "flow_stmt : return_stmt"
-    p[0] = p[1]
-
-# return_stmt: 'return' [testlist]
-def p_return_stmt(p):
-    "return_stmt : RETURN testlist"
-    p[0] = ast.Return(p[2])
-
-
-def p_compound_stmt(p):
-    """compound_stmt : if_stmt
-                     | while_stmt
-                     | for_stmt
-                     | funcdef
-    """
-    p[0] = p[1]
-
-def p_break_stmt(p):
-    """break_stmt : BREAK
-    """
-    p[0] = ast.Break()
-
-def p_for_stmt(p):
-    """for_stmt : FOR test EQ test TO test COLON suite
-    """
-    p[0] = ast.While(p[2], p[4], [])
-    # auto-add-one (sigh) due to python range
-    start = p[4]
-    end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
-    it = ast.Call(ast.Name("range"), [start, end], [])
-    p[0] = ast.For(p[2], it, p[8], [])
-
-def p_while_stmt(p):
-    """while_stmt : DO WHILE test COLON suite ELSE COLON suite
-                  | DO WHILE test COLON suite
-    """
-    if len(p) == 6:
-        p[0] = ast.While(p[3], p[5], [])
-    else:
-        p[0] = ast.While(p[3], p[5], p[8])
-
-def p_if_stmt(p):
-    """if_stmt : IF test COLON suite ELSE COLON suite
-               | IF test COLON suite
-    """
-    if len(p) == 5:
-        p[0] = ast.If(p[2], p[4], [])
-    else:
-        p[0] = ast.If(p[2], p[4], p[7])
-
-def p_suite(p):
-    """suite : simple_stmt
-             | NEWLINE INDENT stmts DEDENT"""
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        p[0] = p[3]
-
-
-def p_stmts(p):
-    """stmts : stmts stmt
-             | stmt"""
-    if len(p) == 3:
-        p[0] = p[1] + p[2]
-    else:
-        p[0] = p[1]
-
 ## No using Python's approach because Ply supports precedence
 
 # comparison: expr (comp_op expr)*
@@ -621,181 +287,526 @@ def check_concat(node): # checks if the comparison is already a concat
     if node[0].id != 'concat':
         return node
     return node[1]
+##### Lexer ######
+#import lex
+import decimal
 
-def p_comparison(p):
-    """comparison : comparison PLUS comparison
-                  | comparison MINUS comparison
-                  | comparison MULT comparison
-                  | comparison DIV comparison
-                  | comparison LT comparison
-                  | comparison EQ comparison
-                  | comparison GT comparison
-                  | PLUS comparison
-                  | MINUS comparison
-                  | comparison APPEND comparison
-                  | power"""
-    if len(p) == 4:
-        print (list(p))
-        if p[2] == '||':
-            l = check_concat(p[1]) + check_concat(p[3])
-            p[0] = ast.Call(ast.Name("concat"), l, [])
-        elif p[2] in ['<', '>', '=']:
-            p[0] = binary_ops[p[2]]((p[1],p[3]))
-        else:
-            p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
-    elif len(p) == 3:
-        p[0] = unary_ops[p[1]](p[2])
-    else:
+class PowerLexer:
+    tokens = (
+        'DEF',
+        'IF',
+        'THEN',
+        'ELSE',
+        'FOR',
+        'TO',
+        'DO',
+        'WHILE',
+        'BREAK',
+        'NAME',
+        'NUMBER',  # Python decimals
+        'BINARY',  # Python binary
+        'STRING',  # single quoted strings only; syntax of raw strings
+        'LPAR',
+        'RPAR',
+        'LBRACK',
+        'RBRACK',
+        'COLON',
+        'EQ',
+        'ASSIGN',
+        'LT',
+        'GT',
+        'PLUS',
+        'MINUS',
+        'MULT',
+        'DIV',
+        'APPEND',
+        'RETURN',
+        'WS',
+        'NEWLINE',
+        'COMMA',
+        'SEMICOLON',
+        'INDENT',
+        'DEDENT',
+        'ENDMARKER',
+        )
+
+    # Build the lexer
+    def build(self,**kwargs):
+         self.lexer = lex.lex(module=self, **kwargs)
+
+    def t_BINARY(self, t):
+        r"""0b[01]+"""
+        t.value = int(t.value, 2)
+        return t
+
+    #t_NUMBER = r'\d+'
+    # taken from decmial.py but without the leading sign
+    def t_NUMBER(self, t):
+        r"""(\d+(\.\d*)?|\.\d+)([eE][-+]? \d+)?"""
+        t.value = int(t.value)
+        return t
+
+    def t_STRING(self, t):
+        r"'([^\\']+|\\'|\\\\)*'"  # I think this is right ...
+        t.value=t.value[1:-1].decode("string-escape") # .swapcase() # for fun
+        return t
+
+    t_COLON = r':'
+    t_EQ = r'='
+    t_ASSIGN = r'<-'
+    t_LT = r'<'
+    t_GT = r'>'
+    t_PLUS = r'\+'
+    t_MINUS = r'-'
+    t_MULT = r'\*'
+    t_DIV = r'/'
+    t_COMMA = r','
+    t_SEMICOLON = r';'
+    t_APPEND = r'\|\|'
+
+    # Ply nicely documented how to do this.
+
+    RESERVED = {
+      "def": "DEF",
+      "if": "IF",
+      "then": "THEN",
+      "else": "ELSE",
+      "leave": "BREAK",
+      "for": "FOR",
+      "to": "TO",
+      "while": "WHILE",
+      "do": "DO",
+      "return": "RETURN",
+      }
+
+    def t_NAME(self, t):
+        r'[a-zA-Z_][a-zA-Z0-9_]*'
+        t.type = self.RESERVED.get(t.value, "NAME")
+        return t
+
+    # Putting this before t_WS let it consume lines with only comments in
+    # them so the latter code never sees the WS part.  Not consuming the
+    # newline.  Needed for "if 1: #comment"
+    def t_comment(self, t):
+        r"[ ]*\043[^\n]*"  # \043 is '#'
+        pass
+
+
+    # Whitespace
+    def t_WS(self, t):
+        r'[ ]+'
+        if t.lexer.at_line_start and t.lexer.paren_count == 0 and \
+                                     t.lexer.brack_count == 0:
+            return t
+
+    # Don't generate newline tokens when inside of parenthesis, eg
+    #   a = (1,
+    #        2, 3)
+    def t_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
+        t.type = "NEWLINE"
+        if t.lexer.paren_count == 0 and t.lexer.brack_count == 0:
+            return t
+
+    def t_LBRACK(self, t):
+        r'\['
+        t.lexer.brack_count += 1
+        return t
+
+    def t_RBRACK(self, t):
+        r'\]'
+        # check for underflow?  should be the job of the parser
+        t.lexer.brack_count -= 1
+        return t
+
+    def t_LPAR(self, t):
+        r'\('
+        t.lexer.paren_count += 1
+        return t
+
+    def t_RPAR(self, t):
+        r'\)'
+        # check for underflow?  should be the job of the parser
+        t.lexer.paren_count -= 1
+        return t
+
+    #t_ignore = " "
+
+    def t_error(self, t):
+        raise SyntaxError("Unknown symbol %r" % (t.value[0],))
+        print ("Skipping", repr(t.value[0]))
+        t.lexer.skip(1)
+
+# Combine Ply and my filters into a new lexer
+
+class IndentLexer(PowerLexer):
+    def __init__(self, debug=0, optimize=0, lextab='lextab', reflags=0):
+        self.build(debug=debug, optimize=optimize,
+                                lextab=lextab, reflags=reflags)
+        self.token_stream = None
+    def input(self, s, add_endmarker=True):
+        self.lexer.paren_count = 0
+        self.lexer.brack_count = 0
+        self.lexer.input(s)
+        self.token_stream = filter(self.lexer, add_endmarker)
+
+    def token(self):
+        try:
+            return next(self.token_stream)
+        except StopIteration:
+            return None
+
+
+##########   Parser (tokens -> AST) ######
+
+# also part of Ply
+#import yacc
+
+class PowerParser:
+
+    # The grammar comments come from Python's Grammar/Grammar file
+
+    ## NB: compound_stmt in single_input is followed by extra NEWLINE!
+    # file_input: (NEWLINE | stmt)* ENDMARKER
+
+    def p_file_input_end(self, p):
+        """file_input_end : file_input ENDMARKER"""
+        print ("end", p[1])
         p[0] = p[1]
 
-# power: atom trailer* ['**' factor]
-# trailers enables function calls (and subscripts).
-# I only allow one level of calls
-# so this is 'trailer'
-def p_power(p):
-    """power : atom
-             | atom trailer"""
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        if p[2][0] == "CALL":
-            #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
-            p[0] = ast.Call(p[1], p[2][1], [])
-            #if p[1].id == 'print':
-            #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
-            #else:
-            #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
-        else:
-            print (p[2][1])
-            #raise AssertionError("not implemented %s" % p[2][0])
-            subs = p[2][1]
-            if len(subs) == 1:
-                idx = subs[0]
+    def p_file_input(self, p):
+        """file_input : file_input NEWLINE
+                      | file_input stmt
+                      | NEWLINE
+                      | stmt"""
+        if isinstance(p[len(p)-1], str):
+            if len(p) == 3:
+                p[0] = p[1]
             else:
-                idx = ast.Slice(subs[0], subs[1], None)
-            p[0] = ast.Subscript(p[1], idx)
-
-def p_atom_name(p):
-    """atom : NAME"""
-    p[0] = ast.Name(p[1], ctx=ast.Load())
-
-def p_atom_number(p):
-    """atom : BINARY
-            | NUMBER
-            | STRING"""
-    p[0] = ast.Constant(p[1])
-
-#'[' [listmaker] ']' |
-
-def p_atom_listmaker(p):
-    """atom : LBRACK listmaker RBRACK"""
-    p[0] = p[2]
-
-def p_listmaker(p):
-    """listmaker : test COMMA listmaker
-                 | test
-    """
-    if len(p) == 2:
-        p[0] = ast.List([p[1]])
-    else:
-        p[0] = ast.List([p[1]] + p[3].nodes)
-
-def p_atom_tuple(p):
-    """atom : LPAR testlist RPAR"""
-    p[0] = p[2]
-
-# trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
-def p_trailer(p):
-    """trailer : trailer_arglist
-               | trailer_subscript
-    """
-    p[0] = p[1]
-
-def p_trailer_arglist(p):
-    "trailer_arglist : LPAR arglist RPAR"
-    p[0] = ("CALL", p[2])
-
-def p_trailer_subscript(p):
-    "trailer_subscript : LBRACK subscript RBRACK"
-    p[0] = ("SUBS", p[2])
-
-#subscript: '.' '.' '.' | test | [test] ':' [test]
-
-def p_subscript(p):
-    """subscript : test COLON test
-                 | test
-    """
-    if len(p) == 4:
-        p[0] = [p[1], p[3]]
-    else:
-        p[0] = [p[1]]
+                p[0] = [] # p == 2 --> only a blank line
+        else:
+            if len(p) == 3:
+                p[0] = p[1] + p[2]
+            else:
+                p[0] = p[1]
 
 
-# testlist: test (',' test)* [',']
-# Contains shift/reduce error
-def p_testlist(p):
-    """testlist : testlist_multi COMMA
-                | testlist_multi """
-    if len(p) == 2:
-        p[0] = p[1]
-    else:
-        # May need to promote singleton to tuple
-        if isinstance(p[1], list):
-            p[0] = p[1]
+    # funcdef: [decorators] 'def' NAME parameters ':' suite
+    # ignoring decorators
+    def p_funcdef(self, p):
+        "funcdef : DEF NAME parameters COLON suite"
+        p[0] = ast.Function(None, p[2], list(p[3]), (), 0, None, p[5])
+
+    # parameters: '(' [varargslist] ')'
+    def p_parameters(self, p):
+        """parameters : LPAR RPAR
+                      | LPAR varargslist RPAR"""
+        if len(p) == 3:
+            p[0] = []
+        else:
+            p[0] = p[2]
+
+
+    # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
+    # highly simplified
+    def p_varargslist(self, p):
+        """varargslist : varargslist COMMA NAME
+                       | NAME"""
+        if len(p) == 4:
+            p[0] = p[1] + p[3]
         else:
             p[0] = [p[1]]
-    # Convert into a tuple?
-    if isinstance(p[0], list):
-        p[0] = ast.Tuple(p[0])
 
-def p_testlist_multi(p):
-    """testlist_multi : testlist_multi COMMA test
-                      | test"""
-    if len(p) == 2:
-        # singleton
+    # stmt: simple_stmt | compound_stmt
+    def p_stmt_simple(self, p):
+        """stmt : simple_stmt"""
+        # simple_stmt is a list
         p[0] = p[1]
-    else:
-        if isinstance(p[1], list):
-            p[0] = p[1] + [p[3]]
-        else:
-            # singleton -> tuple
-            p[0] = [p[1], p[3]]
 
-
-# test: or_test ['if' or_test 'else' test] | lambdef
-#  as I don't support 'and', 'or', and 'not' this works down to 'comparison'
-def p_test(p):
-    "test : comparison"
-    p[0] = p[1]
-
-
-
-# arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
-# XXX INCOMPLETE: this doesn't allow the trailing comma
-def p_arglist(p):
-    """arglist : arglist COMMA argument
-               | argument"""
-    if len(p) == 4:
-        p[0] = p[1] + [p[3]]
-    else:
+    def p_stmt_compound(self, p):
+        """stmt : compound_stmt"""
         p[0] = [p[1]]
 
-# argument: test [gen_for] | test '=' test  # Really [keyword '='] test
-def p_argument(p):
-    "argument : test"
-    p[0] = p[1]
+    # simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
+    def p_simple_stmt(self, p):
+        """simple_stmt : small_stmts NEWLINE
+                       | small_stmts SEMICOLON NEWLINE"""
+        p[0] = p[1]
 
-def p_error(p):
-    #print "Error!", repr(p)
-    raise SyntaxError(p)
+    def p_small_stmts(self, p):
+        """small_stmts : small_stmts SEMICOLON small_stmt
+                       | small_stmt"""
+        if len(p) == 4:
+            p[0] = p[1] + [p[3]]
+        else:
+            p[0] = [p[1]]
+
+    # small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
+    #    import_stmt | global_stmt | exec_stmt | assert_stmt
+    def p_small_stmt(self, p):
+        """small_stmt : flow_stmt
+                      | break_stmt
+                      | expr_stmt"""
+        p[0] = p[1]
+
+    # expr_stmt: testlist (augassign (yield_expr|testlist) |
+    #                      ('=' (yield_expr|testlist))*)
+    # augassign: ('+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' |
+    #             '<<=' | '>>=' | '**=' | '//=')
+    def p_expr_stmt(self, p):
+        """expr_stmt : testlist ASSIGN testlist
+                     | testlist """
+        if len(p) == 2:
+            # a list of expressions
+            #p[0] = ast.Discard(p[1])
+            p[0] = p[1]
+        else:
+            p[0] = Assign(p[1], p[3])
+
+    def p_flow_stmt(self, p):
+        "flow_stmt : return_stmt"
+        p[0] = p[1]
+
+    # return_stmt: 'return' [testlist]
+    def p_return_stmt(self, p):
+        "return_stmt : RETURN testlist"
+        p[0] = ast.Return(p[2])
 
 
-class GardenSnakeParser(object):
+    def p_compound_stmt(self, p):
+        """compound_stmt : if_stmt
+                         | while_stmt
+                         | for_stmt
+                         | funcdef
+        """
+        p[0] = p[1]
+
+    def p_break_stmt(self, p):
+        """break_stmt : BREAK
+        """
+        p[0] = ast.Break()
+
+    def p_for_stmt(self, p):
+        """for_stmt : FOR test EQ test TO test COLON suite
+        """
+        p[0] = ast.While(p[2], p[4], [])
+        # auto-add-one (sigh) due to python range
+        start = p[4]
+        end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
+        it = ast.Call(ast.Name("range"), [start, end], [])
+        p[0] = ast.For(p[2], it, p[8], [])
+
+    def p_while_stmt(self, p):
+        """while_stmt : DO WHILE test COLON suite ELSE COLON suite
+                      | DO WHILE test COLON suite
+        """
+        if len(p) == 6:
+            p[0] = ast.While(p[3], p[5], [])
+        else:
+            p[0] = ast.While(p[3], p[5], p[8])
+
+    def p_if_stmt(self, p):
+        """if_stmt : IF test COLON suite ELSE COLON suite
+                   | IF test COLON suite
+        """
+        if len(p) == 5:
+            p[0] = ast.If(p[2], p[4], [])
+        else:
+            p[0] = ast.If(p[2], p[4], p[7])
+
+    def p_suite(self, p):
+        """suite : simple_stmt
+                 | NEWLINE INDENT stmts DEDENT"""
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = p[3]
+
+
+    def p_stmts(self, p):
+        """stmts : stmts stmt
+                 | stmt"""
+        if len(p) == 3:
+            p[0] = p[1] + p[2]
+        else:
+            p[0] = p[1]
+
+    def p_comparison(self, p):
+        """comparison : comparison PLUS comparison
+                      | comparison MINUS comparison
+                      | comparison MULT comparison
+                      | comparison DIV comparison
+                      | comparison LT comparison
+                      | comparison EQ comparison
+                      | comparison GT comparison
+                      | PLUS comparison
+                      | MINUS comparison
+                      | comparison APPEND comparison
+                      | power"""
+        if len(p) == 4:
+            print (list(p))
+            if p[2] == '||':
+                l = check_concat(p[1]) + check_concat(p[3])
+                p[0] = ast.Call(ast.Name("concat"), l, [])
+            elif p[2] in ['<', '>', '=']:
+                p[0] = binary_ops[p[2]]((p[1],p[3]))
+            else:
+                p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
+        elif len(p) == 3:
+            p[0] = unary_ops[p[1]](p[2])
+        else:
+            p[0] = p[1]
+
+    # power: atom trailer* ['**' factor]
+    # trailers enables function calls (and subscripts).
+    # I only allow one level of calls
+    # so this is 'trailer'
+    def p_power(self, p):
+        """power : atom
+                 | atom trailer"""
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            if p[2][0] == "CALL":
+                #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
+                p[0] = ast.Call(p[1], p[2][1], [])
+                #if p[1].id == 'print':
+                #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
+                #else:
+                #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
+            else:
+                print (p[2][1])
+                #raise AssertionError("not implemented %s" % p[2][0])
+                subs = p[2][1]
+                if len(subs) == 1:
+                    idx = subs[0]
+                else:
+                    idx = ast.Slice(subs[0], subs[1], None)
+                p[0] = ast.Subscript(p[1], idx)
+
+    def p_atom_name(self, p):
+        """atom : NAME"""
+        p[0] = ast.Name(p[1], ctx=ast.Load())
+
+    def p_atom_number(self, p):
+        """atom : BINARY
+                | NUMBER
+                | STRING"""
+        p[0] = ast.Constant(p[1])
+
+    #'[' [listmaker] ']' |
+
+    def p_atom_listmaker(self, p):
+        """atom : LBRACK listmaker RBRACK"""
+        p[0] = p[2]
+
+    def p_listmaker(self, p):
+        """listmaker : test COMMA listmaker
+                     | test
+        """
+        if len(p) == 2:
+            p[0] = ast.List([p[1]])
+        else:
+            p[0] = ast.List([p[1]] + p[3].nodes)
+
+    def p_atom_tuple(self, p):
+        """atom : LPAR testlist RPAR"""
+        p[0] = p[2]
+
+    # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
+    def p_trailer(self, p):
+        """trailer : trailer_arglist
+                   | trailer_subscript
+        """
+        p[0] = p[1]
+
+    def p_trailer_arglist(self, p):
+        "trailer_arglist : LPAR arglist RPAR"
+        p[0] = ("CALL", p[2])
+
+    def p_trailer_subscript(self, p):
+        "trailer_subscript : LBRACK subscript RBRACK"
+        p[0] = ("SUBS", p[2])
+
+    #subscript: '.' '.' '.' | test | [test] ':' [test]
+
+    def p_subscript(self, p):
+        """subscript : test COLON test
+                     | test
+        """
+        if len(p) == 4:
+            p[0] = [p[1], p[3]]
+        else:
+            p[0] = [p[1]]
+
+
+    # testlist: test (',' test)* [',']
+    # Contains shift/reduce error
+    def p_testlist(self, p):
+        """testlist : testlist_multi COMMA
+                    | testlist_multi """
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            # May need to promote singleton to tuple
+            if isinstance(p[1], list):
+                p[0] = p[1]
+            else:
+                p[0] = [p[1]]
+        # Convert into a tuple?
+        if isinstance(p[0], list):
+            p[0] = ast.Tuple(p[0])
+
+    def p_testlist_multi(self, p):
+        """testlist_multi : testlist_multi COMMA test
+                          | test"""
+        if len(p) == 2:
+            # singleton
+            p[0] = p[1]
+        else:
+            if isinstance(p[1], list):
+                p[0] = p[1] + [p[3]]
+            else:
+                # singleton -> tuple
+                p[0] = [p[1], p[3]]
+
+
+    # test: or_test ['if' or_test 'else' test] | lambdef
+    #  as I don't support 'and', 'or', and 'not' this works down to 'comparison'
+    def p_test(self, p):
+        "test : comparison"
+        p[0] = p[1]
+
+
+
+    # arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
+    # XXX INCOMPLETE: this doesn't allow the trailing comma
+    def p_arglist(self, p):
+        """arglist : arglist COMMA argument
+                   | argument"""
+        if len(p) == 4:
+            p[0] = p[1] + [p[3]]
+        else:
+            p[0] = [p[1]]
+
+    # argument: test [gen_for] | test '=' test  # Really [keyword '='] test
+    def p_argument(self, p):
+        "argument : test"
+        p[0] = p[1]
+
+    def p_error(self, p):
+        #print "Error!", repr(p)
+        raise SyntaxError(p)
+
+
+class GardenSnakeParser(PowerParser):
     def __init__(self, lexer = None):
         if lexer is None:
             lexer = IndentLexer(debug=1)
         self.lexer = lexer
-        self.parser = yacc.yacc(start="file_input_end",
+        self.tokens = lexer.tokens
+        self.parser = yacc.yacc(module=self, start="file_input_end",
                                 debug=False, write_tables=False)
 
     def parse(self, code):
