@@ -24,7 +24,6 @@ tokens = (
     'THEN',
     'ELSE',
     'FOR',
-    'FOREQ',
     'TO',
     'DO',
     'WHILE',
@@ -69,9 +68,8 @@ def t_STRING(t):
     return t
 
 t_COLON = r':'
-t_EQ = r'=='
+t_EQ = r'='
 t_ASSIGN = r'<-'
-t_FOREQ = r'='
 t_LT = r'<'
 t_GT = r'>'
 t_PLUS = r'\+'
@@ -528,7 +526,7 @@ def p_break_stmt(p):
     p[0] = ast.Break()
 
 def p_for_stmt(p):
-    """for_stmt : FOR test FOREQ test TO test COLON suite
+    """for_stmt : FOR test EQ test TO test COLON suite
     """
     p[0] = ast.While(p[2], p[4], [])
     # auto-add-one (sigh) due to python range
@@ -598,7 +596,7 @@ binary_ops = {
     "/": ast.Div(),
     "<": make_lt_compare,
     ">": make_gt_compare,
-    "==": make_eq_compare,
+    "=": make_eq_compare,
 }
 unary_ops = {
     "+": ast.Add,
@@ -635,7 +633,7 @@ def p_comparison(p):
         if p[2] == '||':
             l = check_concat(p[1]) + check_concat(p[3])
             p[0] = ast.Call(ast.Name("concat"), l, [])
-        elif p[2] in ['<', '>', '==']:
+        elif p[2] in ['<', '>', '=']:
             p[0] = binary_ops[p[2]]((p[1],p[3]))
         else:
             p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
@@ -849,7 +847,17 @@ for i = 0 to 7
 RA <- [0]*56|| perm[0:7]
 """
 
-code = bpermd
+cnttzd = """
+n  <- 0
+do while n < 64
+   if (RS)[63-n] = 0b1 then
+        leave
+   n  <- n + 1
+RA <- EXTZ64(n)
+"""
+
+code = cnttzd
+#code = bpermd
 
 lexer = IndentLexer(debug=1)
 # Give the lexer some input
