@@ -152,6 +152,8 @@ class LdStOp(Checker):
         self.opcode = self.ops[self.opcodestr]
         self.r1 = Register(random.randrange(32))
         self.r2 = Register(random.randrange(1, 32))
+        while self.r2.num == self.r1.num:
+            self.r2 = Register(random.randrange(1, 32))
         self.imm = random.randrange(32767)
 
     def generate_instruction(self):
