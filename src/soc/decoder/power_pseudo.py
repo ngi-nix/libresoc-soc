@@ -12,6 +12,7 @@ import sys
 from pprint import pprint
 from copy import copy
 from ply import lex, yacc
+import astor
 
 ##### Lexer ######
 #import lex
@@ -41,6 +42,7 @@ tokens = (
     'MINUS',
     'MULT',
     'DIV',
+    'APPEND',
     'RETURN',
     'WS',
     'NEWLINE',
@@ -74,6 +76,7 @@ t_MULT = r'\*'
 t_DIV = r'/'
 t_COMMA = r','
 t_SEMICOLON = r';'
+t_APPEND = r'\|\|'
 
 # Ply nicely documented how to do this.
 
@@ -534,10 +537,10 @@ def make_eq_compare(arg):
 
 
 binary_ops = {
-    "+": ast.Add,
-    "-": ast.Sub,
+    "+": ast.Add(),
+    "-": ast.Sub(),
     "*": ast.Mult(),
-    "/": ast.Div,
+    "/": ast.Div(),
     "<": make_lt_compare,
     ">": make_gt_compare,
     "==": make_eq_compare,
@@ -552,6 +555,14 @@ precedence = (
     ("left", "MULT", "DIV"),
     )
 
+def check_concat(node): # checks if the comparison is already a concat
+    print (node)
+    if not isinstance(node, ast.Call):
+        return [node]
+    if node[0].id != 'concat':
+        return node
+    return node[1]
+
 def p_comparison(p):
     """comparison : comparison PLUS comparison
                   | comparison MINUS comparison
@@ -562,9 +573,15 @@ def p_comparison(p):
                   | comparison GT comparison
                   | PLUS comparison
                   | MINUS comparison
+                  | comparison APPEND comparison
                   | power"""
     if len(p) == 4:
-        p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
+        print (list(p))
+        if p[2] == '||':
+            l = check_concat(p[1]) + check_concat(p[3])
+            p[0] = ast.Call(ast.Name("concat"), l, [])
+        else:
+            p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
     elif len(p) == 3:
         p[0] = unary_ops[p[1]](p[2])
     else:
@@ -591,9 +608,10 @@ def p_power(p):
             #raise AssertionError("not implemented %s" % p[2][0])
             subs = p[2][1]
             if len(subs) == 1:
-                p[0] = ast.Subscript(p[1], 'OP_APPLY', subs[0])
+                idx = subs[0]
             else:
-                p[0] = ast.Slice(p[1], 'OP_APPLY', subs[0], subs[1])
+                idx = ast.Slice(subs[0], subs[1], None)
+            p[0] = ast.Subscript(p[1], idx)
 
 def p_atom_name(p):
     """atom : NAME"""
@@ -759,7 +777,7 @@ RA <- [0]*56|| perm[0:7]
 bpermd = r"""
 perm <- [0] * 8
 #index <- (RS)[8*i:8*i+7]
-RA <- [0]*56 # || perm[0:7]
+RA <- [0]*56 || perm[0:7]
 print (RA)
 """
 
@@ -801,7 +819,6 @@ import ast
 tree = ast.fix_missing_locations(tree)
 print ( ast.dump(tree) )
 
-import astor
 print ("astor dump")
 print (astor.dump_tree(tree))
 print ("to source")
