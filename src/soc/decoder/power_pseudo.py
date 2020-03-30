@@ -28,6 +28,7 @@ tokens = (
     'TO',
     'DO',
     'WHILE',
+    'BREAK',
     'NAME',
     'NUMBER',  # Python decimals
     'STRING',  # single quoted strings only; syntax of raw strings
@@ -88,6 +89,7 @@ RESERVED = {
   "if": "IF",
   "then": "THEN",
   "else": "ELSE",
+  "leave": "BREAK",
   "for": "FOR",
   "to": "TO",
   "while": "WHILE",
@@ -484,6 +486,7 @@ def p_small_stmts(p):
 #    import_stmt | global_stmt | exec_stmt | assert_stmt
 def p_small_stmt(p):
     """small_stmt : flow_stmt
+                  | break_stmt
                   | expr_stmt"""
     p[0] = p[1]
 
@@ -518,6 +521,11 @@ def p_compound_stmt(p):
                      | funcdef
     """
     p[0] = p[1]
+
+def p_break_stmt(p):
+    """break_stmt : BREAK
+    """
+    p[0] = ast.Break()
 
 def p_for_stmt(p):
     """for_stmt : FOR test FOREQ test TO test COLON suite
@@ -826,6 +834,7 @@ if index < 64 then index <- 0
 else index <- 5
 do while index < 5
     index <- 0
+    leave
 for i = 0 to 7
     index <- 0
 """
