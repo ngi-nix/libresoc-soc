@@ -34,6 +34,12 @@ def MASK(x, y):
     return mask_a ^ mask_b
 
 
+# For these tests I tried to find power instructions that would let me
+# isolate each of these helper operations. So for instance, when I was
+# testing the MASK() function, I chose rlwinm and rldicl because if I
+# set the shift equal to 0 and passed in a value of all ones, the
+# result I got would be exactly the same as the output of MASK()
+
 class HelperTests(unittest.TestCase):
     def test_MASK(self):
         # Verified using rlwinm, rldicl, rldicr in qemu
@@ -79,8 +85,11 @@ class HelperTests(unittest.TestCase):
         value_b = 0x73123456 # r2
         value_c = 0x80000000 # r3
 
+        # extswsli reg, 1, 0
         self.assertHex(EXTS64(value_a), 0xffffffffdeadbeef)
+        # extswsli reg, 2, 0
         self.assertHex(EXTS64(value_b), value_b)
+        # extswsli reg, 3, 0
         self.assertHex(EXTS64(value_c), 0xffffffff80000000)
 
         
