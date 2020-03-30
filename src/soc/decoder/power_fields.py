@@ -122,40 +122,43 @@ class DecodeFields:
         # now add in some commonly-used fields (should be done automatically)
         # note that these should only be ones which are the same on all Forms
         # note: these are from microwatt insn_helpers.vhdl
-        self.RS = self.FormX.RS
-        self.RT = self.FormX.RT
-        self.RA = self.FormX.RA
-        self.RB = self.FormX.RB
-        self.SI = self.FormD.SI
-        self.UI = self.FormD.UI
-        self.L = self.FormD.L
-        self.SH32 = self.FormM.SH
-        self.sh = self.FormMD.sh
-        self.MB32 = self.FormM.MB
-        self.ME32 = self.FormM.ME
-        self.LI = self.FormI.LI
-        self.LK = self.FormI.LK
-        self.AA = self.FormB.AA
-        self.Rc = self.FormX.Rc
-        self.OE = self.FormXO.Rc
-        self.BD = self.FormB.BD
-        self.BF = self.FormX.BF
-        self.CR = self.FormXL.XO # used by further mcrf decoding
-        self.BB = self.FormXL.BB
-        self.BA = self.FormXL.BA
-        self.BT = self.FormXL.BT
-        self.FXM = self.FormXFX.FXM
-        self.BO = self.FormXL.BO
-        self.BI = self.FormXL.BI
-        self.BH = self.FormXL.BH
-        self.D = self.FormD.D
-        self.DS = self.FormDS.DS
-        self.TO = self.FormX.TO
-        self.BC = self.FormA.BC
-        self.SH = self.FormX.SH
-        self.ME = self.FormM.ME
-        self.MB = self.FormM.MB
-        self.SPR = self.FormXFX.SPR
+        self.common_fields = {
+            "RS": self.FormX.RS,
+            "RT": self.FormX.RT,
+            "RA": self.FormX.RA,
+            "RB": self.FormX.RB,
+            "SI": self.FormD.SI,
+            "UI": self.FormD.UI,
+            "L": self.FormD.L,
+            "SH32": self.FormM.SH,
+            "sh": self.FormMD.sh,
+            "MB32": self.FormM.MB,
+            "ME32": self.FormM.ME,
+            "LI": self.FormI.LI,
+            "LK": self.FormI.LK,
+            "AA": self.FormB.AA,
+            "Rc": self.FormX.Rc,
+            "OE": self.FormXO.Rc,
+            "BD": self.FormB.BD,
+            "BF": self.FormX.BF,
+            "CR": self.FormXL.XO,
+            "BB": self.FormXL.BB,
+            "BA": self.FormXL.BA,
+            "BT": self.FormXL.BT,
+            "FXM": self.FormXFX.FXM,
+            "BO": self.FormXL.BO,
+            "BI": self.FormXL.BI,
+            "BH": self.FormXL.BH,
+            "D": self.FormD.D,
+            "DS": self.FormDS.DS,
+            "TO": self.FormX.TO,
+            "BC": self.FormA.BC,
+            "SH": self.FormX.SH,
+            "ME": self.FormM.ME,
+            "MB": self.FormM.MB,
+            "SPR": self.FormXFX.SPR}
+        for k, v in self.common_fields.items():
+            setattr(self, k, v)
 
     def decode_fields(self):
         with open(self.fname) as f:

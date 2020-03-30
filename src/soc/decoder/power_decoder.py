@@ -229,7 +229,7 @@ class PowerDecoder(Elaboratable):
         return [self.opcode_in] + self.op.ports()
 
 
-class TopPowerDecoder(PowerDecoder, DecodeFields):
+class TopPowerDecoder(PowerDecoder):
     """TopPowerDecoder
 
     top-level hierarchical decoder for POWER ISA
@@ -239,10 +239,15 @@ class TopPowerDecoder(PowerDecoder, DecodeFields):
 
     def __init__(self, width, dec):
         PowerDecoder.__init__(self, width, dec)
-        DecodeFields.__init__(self, SignalBitRange, [self.opcode_in])
-        self.create_specs()
+        self.fields = DecodeFields(SignalBitRange, [self.opcode_in])
+        self.fields.create_specs()
         self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
         self.bigendian = Signal(reset_less=True)
+
+        for name in self.fields.common_fields:
+            value = getattr(self.fields, name)
+            sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
+            setattr(self, name, sig)
 
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
@@ -254,6 +259,10 @@ class TopPowerDecoder(PowerDecoder, DecodeFields):
         l.reverse()
         raw_le = Cat(*l)
         comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
+        for name in self.fields.common_fields:
+            value = getattr(self.fields, name)
+            sig = getattr(self, name)
+            comb += sig.eq(value[0:-1])
         return m
 
     def ports(self):
