@@ -91,7 +91,7 @@ RESERVED = {
   "for": "FOR",
   "to": "TO",
   "while": "WHILE",
-  "do": "do",
+  "do": "DO",
   "return": "RETURN",
   }
 
@@ -180,9 +180,7 @@ def python_colonify(lexer, tokens):
     for token in tokens:
         print ("track colon token", token, token.type)
 
-        if token.type == 'DO':
-            continue # skip.  do while is redundant
-        elif token.type == 'THEN':
+        if token.type == 'THEN':
             # turn then into colon
             token.type = "COLON"
             yield token
@@ -532,13 +530,13 @@ def p_for_stmt(p):
     p[0] = ast.For(p[2], it, p[8], [])
 
 def p_while_stmt(p):
-    """while_stmt : WHILE test COLON suite ELSE COLON suite
-                  | WHILE test COLON suite
+    """while_stmt : DO WHILE test COLON suite ELSE COLON suite
+                  | DO WHILE test COLON suite
     """
-    if len(p) == 5:
-        p[0] = ast.While(p[2], p[4], [])
+    if len(p) == 6:
+        p[0] = ast.While(p[3], p[5], [])
     else:
-        p[0] = ast.While(p[2], p[4], p[7])
+        p[0] = ast.While(p[3], p[5], p[8])
 
 def p_if_stmt(p):
     """if_stmt : IF test COLON suite ELSE COLON suite
@@ -826,13 +824,13 @@ print (RA)
 bpermd = r"""
 if index < 64 then index <- 0
 else index <- 5
-while index
+do while index < 5
     index <- 0
 for i = 0 to 7
     index <- 0
 """
 
-bpermd = r"""
+_bpermd = r"""
 for i = 0 to 7
    index <- (RS)[8*i:8*i+7]
    if index < 64 then
