@@ -1,10 +1,14 @@
 import unittest
+
+
 def exts(value, bits):
     sign = 1 << (bits - 1)
     return (value & (sign - 1)) - (value & sign)
 
+
 def EXTS64(value):
-    return exts(value, 32) & ((1<<64)-1)
+    return exts(value, 32) & ((1 << 64)-1)
+
 
 def EXTZ64(value):
     return value & ((1<<32)-1)
@@ -14,23 +18,26 @@ def rotl(value, bits, wordlen):
     bits = bits & (wordlen - 1)
     return ((value << bits) | (value >> (wordlen-bits))) & mask
 
+
 def ROTL64(value, bits):
     return rotl(value, bits, 64)
 
+
 def ROTL32(value, bits):
     return rotl(value, bits, 32)
+
 
 def MASK(x, y):
     if x < y:
         x = 64-x
         y = 63-y
-        mask_a = ((1<<x) - 1) & ((1<<64) - 1)
-        mask_b = ((1<<y) - 1) & ((1<<64) - 1)
+        mask_a = ((1 << x) - 1) & ((1 << 64) - 1)
+        mask_b = ((1 << y) - 1) & ((1 << 64) - 1)
     else:
         x = 64-x
         y = 63-y
-        mask_a = ((1<<x) - 1) & ((1<<64) - 1)
-        mask_b = (~((1<<y) - 1)) & ((1<<64) - 1)
+        mask_a = ((1 << x) - 1) & ((1 << 64) - 1)
+        mask_b = (~((1 << y) - 1)) & ((1 << 64) - 1)
     return mask_a ^ mask_b
 
 
@@ -81,9 +88,9 @@ class HelperTests(unittest.TestCase):
         self.assertHex(ROTL32(value, 30), 0xf7ab6fbb)
 
     def test_EXTS64(self):
-        value_a = 0xdeadbeef # r1
-        value_b = 0x73123456 # r2
-        value_c = 0x80000000 # r3
+        value_a = 0xdeadbeef  # r1
+        value_b = 0x73123456  # r2
+        value_c = 0x80000000  # r3
 
         # extswsli reg, 1, 0
         self.assertHex(EXTS64(value_a), 0xffffffffdeadbeef)
@@ -92,11 +99,10 @@ class HelperTests(unittest.TestCase):
         # extswsli reg, 3, 0
         self.assertHex(EXTS64(value_c), 0xffffffff80000000)
 
-        
-        
     def assertHex(self, a, b):
         msg = "{:x} != {:x}".format(a, b)
         return self.assertEqual(a, b, msg)
+
 
 if __name__ == '__main__':
     unittest.main()
