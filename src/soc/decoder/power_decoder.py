@@ -249,6 +249,21 @@ class TopPowerDecoder(PowerDecoder):
             sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
             setattr(self, name, sig)
 
+        # create signals for all field forms
+        self.form_names = forms = self.fields.instrs.keys()
+        self.sigforms = {}
+        for form in forms:
+            fields = self.fields.instrs[form]
+            fk = fields.keys()
+            Fields = namedtuple("Fields", fk)
+            sf = {}
+            for k, value in fields.items():
+                name = "%s_%s" % (form, k)
+                sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
+                sf[k] = sig
+            instr = Fields(**sf)
+            setattr(self, "Form%s" % form, instr)
+            self.sigforms[form] = instr
 
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
@@ -266,22 +281,14 @@ class TopPowerDecoder(PowerDecoder):
             sig = getattr(self, name)
             comb += sig.eq(value[0:-1])
 
-        # create signals for all field forms
-        self.form_names = forms = self.fields.instrs.keys()
-        self.sigforms = {}
+        # link signals for all field forms
+        forms = self.form_names
         for form in forms:
+            sf = self.sigforms[form]
             fields = self.fields.instrs[form]
-            fk = fields.keys()
-            Fields = namedtuple("Fields", fk)
-            sf = {}
             for k, value in fields.items():
-                name = "%s_%s" % (form, k)
-                sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
-                sf[k] = sig
+                sig = getattr(sf, k)
                 comb += sig.eq(value[0:-1])
-            instr = Fields(**sf)
-            setattr(self, "Form%s" % form, instr)
-            self.sigforms[form] = instr
 
         return m
 
