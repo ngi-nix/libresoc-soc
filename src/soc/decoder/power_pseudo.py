@@ -14,7 +14,7 @@ from copy import copy
 from ply import lex, yacc
 import astor
 
-from soc.decoder.power_fieldsn import create_sigdecode
+from soc.decoder.power_decoder import create_pdecode
 
 
 # I use the Python AST
@@ -470,7 +470,7 @@ class PowerParser:
 
     def __init__(self):
         self.gprs = {}
-        for rname in ['RA', 'RB', 'RC', 'RT']:
+        for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
 
     # The grammar comments come from Python's Grammar/Grammar file
@@ -721,6 +721,16 @@ class PowerParser:
 
     def p_atom_tuple(self, p):
         """atom : LPAR testlist RPAR"""
+        print ("tuple", p[2])
+        if isinstance(p[2], ast.Name):
+            print ("tuple name", p[2].id)
+            if p[2].id in self.gprs:
+                #p[0] = ast.Call(ast.Name("GPR"), [p[2]], [])
+                #idx = ast.Slice(ast.Constant(0), ast.Constant(-1), None)
+                #idx = ast.Subscript(p[2], idx)
+                #idx = ast.Subscript(p[2], idx)
+                p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
+                return
         p[0] = p[2]
 
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
@@ -812,6 +822,7 @@ class PowerParser:
 
 class GardenSnakeParser(PowerParser):
     def __init__(self, lexer = None):
+        PowerParser.__init__(self)
         if lexer is None:
             lexer = IndentLexer(debug=1)
         self.lexer = lexer
@@ -819,7 +830,7 @@ class GardenSnakeParser(PowerParser):
         self.parser = yacc.yacc(module=self, start="file_input_end",
                                 debug=False, write_tables=False)
 
-        self.sd = create_sigdecode()
+        self.sd = create_pdecode()
 
     def parse(self, code):
         self.lexer.input(code)
@@ -847,8 +858,6 @@ class GardenSnakeCompiler(object):
         return code
 
 ####### Test code #######
-
-from soc.decoder.power_fieldsn import create_sigdecode
 
 bpermd = r"""
 perm <- [0] * 8
@@ -887,6 +896,11 @@ do while n < 64
 RA <- EXTZ64(n)
 """
 
+testreg = """
+x <- (RS)
+"""
+
+#code = testreg
 code = cnttzd
 #code = bpermd
 
@@ -905,10 +919,10 @@ while True:
 
 #sys.exit(0)
 
-sd = create_sigdecode()
-print ("forms", sd.df.forms)
-for f in sd.df.FormX:
-    print (f)
+sd = create_pdecode()
+print ("forms", sd.sigforms)
+for f in sd.FormX:
+    print ("field", f)
 
 gsc = GardenSnakeCompiler()
 _compile = gsc.compile
@@ -934,14 +948,25 @@ def print_(*args):
 def listconcat(l1, l2):
     return l1 + l2
 
+from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
+
+class GPR(dict):
+    def __init__(self):
+        for rname in ['RA', 'RS']:
+            self[rname] = [0]*64
+
+
 d = {}
 d["print"] = print_
+d["EXTS64"] = EXTS64
+d["EXTZ64"] = EXTZ64
 d["concat"] = listconcat
+d["GPR"] = GPR()
 
 form = 'X'
-getform = getattr(gsc.parser.sd.df, "Form%s" % form)
-print (getform)
-for k, f in sd.df.instrs[form].items():
+getform = gsc.parser.sd.sigforms[form]
+print (getform._asdict())
+for k, f in getform._asdict().items():
     d[k] = getattr(getform, k)
 
 compiled_code = compile(source, mode="exec", filename="<string>")
