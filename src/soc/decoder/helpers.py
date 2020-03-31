@@ -6,6 +6,9 @@ def exts(value, bits):
 def EXTS64(value):
     return exts(value, 32) & ((1<<64)-1)
 
+def EXTZ64(value):
+    return value & ((1<<32)-1)
+
 def rotl(value, bits, wordlen):
     mask = (1 << wordlen) - 1
     bits = bits & (wordlen - 1)
