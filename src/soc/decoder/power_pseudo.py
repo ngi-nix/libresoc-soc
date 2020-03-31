@@ -14,6 +14,9 @@ from copy import copy
 from ply import lex, yacc
 import astor
 
+from soc.decoder.power_fieldsn import create_sigdecode
+
+
 # I use the Python AST
 #from compiler import ast
 import ast
@@ -809,6 +812,8 @@ class GardenSnakeParser(PowerParser):
         self.parser = yacc.yacc(module=self, start="file_input_end",
                                 debug=False, write_tables=False)
 
+        self.sd = create_sigdecode()
+
     def parse(self, code):
         self.lexer.input(code)
         result = self.parser.parse(lexer = self.lexer, debug=False)
@@ -898,7 +903,8 @@ print ("forms", sd.df.forms)
 for f in sd.df.FormX:
     print (f)
 
-_compile = GardenSnakeCompiler().compile
+gsc = GardenSnakeCompiler()
+_compile = gsc.compile
 
 tree = _compile(code, mode="single", filename="string")
 import ast
@@ -913,8 +919,6 @@ print (source)
 
 #sys.exit(0)
 
-from soc.decoder.power_fieldsn import create_sigdecode
-
 # Set up the GardenSnake run-time environment
 def print_(*args):
     print ("args", args)
@@ -928,8 +932,7 @@ d["print"] = print_
 d["concat"] = listconcat
 
 form = 'X'
-sd = create_sigdecode()
-getform = getattr(sd.df, "Form%s" % form)
+getform = getattr(gsc.parser.sd.df, "Form%s" % form)
 print (getform)
 for k, f in sd.df.instrs[form].items():
     d[k] = getattr(getform, k)
