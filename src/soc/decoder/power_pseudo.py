@@ -207,7 +207,7 @@ def indentation_filter(tokens):
                 # At the same level
                 pass
             elif depth > levels[-1]:
-                raise IndentationError("indentation increase but not in new block")
+                raise IndentationError("indent increase but not in new block")
             else:
                 # Back up; but only if it matches a previous level
                 try:
@@ -516,7 +516,8 @@ class PowerParser:
             p[0] = p[2]
 
 
-    # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) |
+    # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] |
+    # '**' NAME) |
     # highly simplified
     def p_varargslist(self, p):
         """varargslist : varargslist COMMA NAME
@@ -788,7 +789,8 @@ class PowerParser:
 
 
 
-    # arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
+    # arglist: (argument ',')* (argument [',']| '*' test [',' '**' test]
+    # | '**' test)
     # XXX INCOMPLETE: this doesn't allow the trailing comma
     def p_arglist(self, p):
         """arglist : arglist COMMA argument
