@@ -468,6 +468,11 @@ class IndentLexer(PowerLexer):
 
 class PowerParser:
 
+    def __init__(self):
+        self.gprs = {}
+        for rname in ['RA', 'RB', 'RC', 'RT']:
+            self.gprs[rname] = None
+
     # The grammar comments come from Python's Grammar/Grammar file
 
     ## NB: compound_stmt in single_input is followed by extra NEWLINE!
