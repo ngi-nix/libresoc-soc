@@ -2,3 +2,6 @@
 	path = nmigen-type-annotations
 	url = https://salsa.debian.org/Kazan-team/nmigen-type-annotations.git
 	branch = master
+[submodule "libreriscv"]
+	path = libreriscv
+	url = git://git.libre-riscv.org/libreriscv.git
