@@ -18,7 +18,6 @@ from soc.decoder.power_decoder import create_pdecode
 from nmigen.back.pysim import Simulator, Delay
 from nmigen import Module, Signal
 
-from soc.decoder.pseudo.lexer import IndentLexer
 from soc.decoder.pseudo.parser import GardenSnakeCompiler
 
 ####### Test code #######
@@ -65,21 +64,6 @@ print (RA)
 code = cnttzd
 #code = bpermd
 
-#lexer = IndentLexer(debug=1)
-# Give the lexer some input
-#print ("code")
-#print (code)
-#lexer.input(code)
-
-# Tokenize
-while False:
-    tok = lexer.token()
-    if not tok:
-        break      # No more input
-    print(tok)
-
-#sys.exit(0)
-
 def tolist(num):
     l = []
     for i in range(64):
@@ -93,14 +77,13 @@ def get_reg_hex(reg):
     return hex(int('0b%s' % report, 2))
 
 
-gsc = GardenSnakeCompiler()
 class GPR(dict):
     def __init__(self, sd, regfile):
         dict.__init__(self)
         self.sd = sd
         self.regfile = regfile
         for i in range(32):
-            self[i] = [0] * 64
+            self[i] = [0] * 64 # TODO: needs to be IntClass(value=0, len=64)
 
     def set_form(self, form):
         self.form = form
@@ -119,14 +102,18 @@ class GPR(dict):
         return self.regfile[rnum]
 
 
-gsc.regfile = {}
-for i in range(32):
-    gsc.regfile[i] = 0
-gsc.gpr = GPR(gsc.parser.sd, gsc.regfile)
-
-_compile = gsc.compile
-
 def test():
+
+    gsc = GardenSnakeCompiler()
+
+    # XXX unused!  see GPR instead
+    gsc.regfile = {}
+    for i in range(32):
+        gsc.regfile[i] = 0
+    gsc.gpr = GPR(gsc.parser.sd, gsc.regfile)
+
+    _compile = gsc.compile
+
     tree = _compile(code, mode="single", filename="string")
     import ast
     tree = ast.fix_missing_locations(tree)
