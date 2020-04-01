@@ -15,6 +15,8 @@ from ply import lex, yacc
 import astor
 
 from soc.decoder.power_decoder import create_pdecode
+from nmigen.back.pysim import Simulator, Delay
+from nmigen import Module, Signal
 
 
 # I use the Python AST
@@ -472,6 +474,8 @@ class PowerParser:
         self.gprs = {}
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
+        self.read_regs = []
+        self.write_regs = []
 
     # The grammar comments come from Python's Grammar/Grammar file
 
@@ -504,16 +508,17 @@ class PowerParser:
     # ignoring decorators
     def p_funcdef(self, p):
         "funcdef : DEF NAME parameters COLON suite"
-        p[0] = ast.Function(None, p[2], list(p[3]), (), 0, None, p[5])
+        p[0] = ast.FunctionDef(p[2], p[3], p[5], ())
 
     # parameters: '(' [varargslist] ')'
     def p_parameters(self, p):
         """parameters : LPAR RPAR
                       | LPAR varargslist RPAR"""
         if len(p) == 3:
-            p[0] = []
+            args=[]
         else:
-            p[0] = p[2]
+            args = p[2]
+        p[0] = ast.arguments(args=args, vararg=None, kwarg=None, defaults=[])
 
 
     # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] |
@@ -557,7 +562,10 @@ class PowerParser:
         """small_stmt : flow_stmt
                       | break_stmt
                       | expr_stmt"""
-        p[0] = p[1]
+        if isinstance(p[1], ast.Call):
+            p[0] = ast.Expr(p[1])
+        else:
+            p[0] = p[1]
 
     # expr_stmt: testlist (augassign (yield_expr|testlist) |
     #                      ('=' (yield_expr|testlist))*)
@@ -571,6 +579,8 @@ class PowerParser:
             #p[0] = ast.Discard(p[1])
             p[0] = p[1]
         else:
+            if p[1].id in self.gprs:
+                self.write_regs.append(p[1].id) # add to list of regs to write
             p[0] = Assign(p[1], p[3])
 
     def p_flow_stmt(self, p):
@@ -725,12 +735,9 @@ class PowerParser:
         if isinstance(p[2], ast.Name):
             print ("tuple name", p[2].id)
             if p[2].id in self.gprs:
-                #p[0] = ast.Call(ast.Name("GPR"), [p[2]], [])
-                #idx = ast.Slice(ast.Constant(0), ast.Constant(-1), None)
-                #idx = ast.Subscript(p[2], idx)
-                #idx = ast.Subscript(p[2], idx)
-                p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
-                return
+                self.read_regs.append(p[2].id) # add to list of regs to read
+                #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
+                #return
         p[0] = p[2]
 
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
@@ -894,10 +901,7 @@ do while n < 64
         leave
    n  <- n + 1
 RA <- EXTZ64(n)
-"""
-
-testreg = """
-x <- (RS)
+print (RA)
 """
 
 #code = testreg
@@ -919,58 +923,143 @@ while True:
 
 #sys.exit(0)
 
-sd = create_pdecode()
-print ("forms", sd.sigforms)
-for f in sd.FormX:
-    print ("field", f)
+def tolist(num):
+    l = []
+    for i in range(64):
+        l.append(1 if (num & (1<<i)) else 0)
+    l.reverse()
+    return l
+
+
+def get_reg_hex(reg):
+    report = ''.join(map(str, reg))
+    return hex(int('0b%s' % report, 2))
+
 
 gsc = GardenSnakeCompiler()
+class GPR(dict):
+    def __init__(self, sd, regfile):
+        dict.__init__(self)
+        self.sd = sd
+        self.regfile = regfile
+        for i in range(32):
+            self[i] = [0] * 64
+
+    def set_form(self, form):
+        self.form = form
+
+    def ___getitem__(self, attr):
+        print ("GPR getitem", attr)
+        getform = self.sd.sigforms[self.form]
+        rnum = getattr(getform, attr)
+        print ("GPR get", rnum, rnum, dir(rnum))
+        l = list(rnum)
+        print (l[0]._as_const())
+        #for x in rnum:
+            #print (x, x.value, dir(x))
+            #print (x.value, dir(x.value))
+        print (list(rnum))
+        return self.regfile[rnum]
+
+
+gsc.regfile = {}
+for i in range(32):
+    gsc.regfile[i] = 0
+gsc.gpr = GPR(gsc.parser.sd, gsc.regfile)
+
 _compile = gsc.compile
 
-tree = _compile(code, mode="single", filename="string")
-import ast
-tree = ast.fix_missing_locations(tree)
-print ( ast.dump(tree) )
+def test():
+    tree = _compile(code, mode="single", filename="string")
+    import ast
+    tree = ast.fix_missing_locations(tree)
+    print ( ast.dump(tree) )
 
-print ("astor dump")
-print (astor.dump_tree(tree))
-print ("to source")
-source = astor.to_source(tree)
-print (source)
+    print ("astor dump")
+    print (astor.dump_tree(tree))
+    print ("to source")
+    source = astor.to_source(tree)
+    print (source)
 
-#sys.exit(0)
+    #sys.exit(0)
 
-# Set up the GardenSnake run-time environment
-def print_(*args):
-    print ("args", args)
-    print ("-->", " ".join(map(str,args)))
+    # Set up the GardenSnake run-time environment
+    def print_(*args):
+        print ("args", args)
+        print ("-->", " ".join(map(str,args)))
 
-def listconcat(l1, l2):
-    return l1 + l2
+    def listconcat(l1, l2):
+        return l1 + l2
 
-from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
+    from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
 
-class GPR(dict):
-    def __init__(self):
-        for rname in ['RA', 'RS']:
-            self[rname] = [0]*64
+    d = {}
+    d["print"] = print_
+    d["EXTS64"] = EXTS64
+    d["EXTZ64"] = EXTZ64
+    d["concat"] = listconcat
+    d["GPR"] = gsc.gpr
+
+    form = 'X'
+    gsc.gpr.set_form(form)
+    getform = gsc.parser.sd.sigforms[form]._asdict()
+    #print ("getform", form)
+    #for k, f in getform.items():
+        #print (k, f)
+        #d[k] = getform[k]
+
+    compiled_code = compile(source, mode="exec", filename="<string>")
+
+    m = Module()
+    comb = m.d.comb
+    instruction = Signal(32)
+
+    m.submodules.decode = decode =  gsc.parser.sd
+    comb += decode.raw_opcode_in.eq(instruction)
+    sim = Simulator(m)
+
+    instr = [0x11111117]
+
+    def process():
+        for ins in instr:
+            print("0x{:X}".format(ins & 0xffffffff))
+
+            # ask the decoder to decode this binary data (endian'd)
+            yield decode.bigendian.eq(0)  # little / big?
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Delay(1e-6)
+
+            # read regs, drop them into dict for function
+            for rname in gsc.parser.read_regs:
+                regidx = yield getattr(decode.sigforms['X'], rname)
+                d[rname] = gsc.gpr[regidx]
+                print ("read reg", rname, regidx, get_reg_hex(d[rname]))
+
+            exec (compiled_code, d)
+            print ("Done")
+
+            print (d.keys())
+
+            print (decode.sigforms['X'])
+            x = yield decode.sigforms['X'].RS
+            ra = yield decode.sigforms['X'].RA
+            print ("RA", ra, d['RA'])
+            print ("RS", x)
+
+            for wname in gsc.parser.write_regs:
+                reg = getform[wname]
+                print ("write regs", wname, d[wname], reg)
+                regidx = yield reg
+                gsc.gpr[regidx] = tolist(d[wname])
+
+    sim.add_process(process)
+    with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+                       traces=[decode.ports()]):
+        sim.run()
+
+    for i in range(len(gsc.gpr)):
+        print ("regfile", i, get_reg_hex(gsc.gpr[i]))
 
 
-d = {}
-d["print"] = print_
-d["EXTS64"] = EXTS64
-d["EXTZ64"] = EXTZ64
-d["concat"] = listconcat
-d["GPR"] = GPR()
-
-form = 'X'
-getform = gsc.parser.sd.sigforms[form]
-print (getform._asdict())
-for k, f in getform._asdict().items():
-    d[k] = getattr(getform, k)
-
-compiled_code = compile(source, mode="exec", filename="<string>")
-
-exec (compiled_code, d)
-print ("Done")
-
+if __name__ == '__main__':
+    test()
