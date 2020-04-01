@@ -429,7 +429,7 @@ class DecoderTestCase(FHDLTestCase):
 
         sim.add_process(process)
         with sim.write_vcd("%s.vcd" % name, "%s.gtkw" % name,
-                           traces=[pdecode2.ports()]):
+                           traces=pdecode2.ports()):
             sim.run()
 
     def test_reg_reg(self):
