@@ -3,12 +3,39 @@ import unittest
 
 class SelectableInt:
     def __init__(self, value, bits):
-        self.value = value
+        mask = (1 << bits) - 1
+        self.value = value & mask
         self.bits = bits
 
     def __add__(self, b):
         assert b.bits == self.bits
         return SelectableInt(self.value + b.value, self.bits)
+
+    def __sub__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value - b.value, self.bits)
+
+    def __mul__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value * b.value, self.bits)
+
+    def __or__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value | b.value, self.bits)
+
+    def __and__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value & b.value, self.bits)
+
+    def __xor__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value ^ b.value, self.bits)
+
+    def __invert__(self):
+        return SelectableInt(~self.value, self.bits)
+
+    def __neg__(self):
+        return SelectableInt(~self.value + 1, self.bits)
 
     def __getitem__(self, key):
         if isinstance(key, int):
@@ -74,19 +101,40 @@ class SelectableInt:
 
 
 class SelectableIntTestCase(unittest.TestCase):
-    def test_add(self):
+    def test_arith(self):
         a = SelectableInt(5, 8)
         b = SelectableInt(9, 8)
         c = a + b
-        assert c.value == a.value + b.value
-        assert c.bits == a.bits
+        d = a - b
+        e = a * b
+        f = -a
+        self.assertEqual(c.value, a.value + b.value)
+        self.assertEqual(d.value, (a.value - b.value) & 0xFF)
+        self.assertEqual(e.value, (a.value * b.value) & 0xFF)
+        self.assertEqual(f.value, (-a.value) & 0xFF)
+        self.assertEqual(c.bits, a.bits)
+        self.assertEqual(d.bits, a.bits)
+        self.assertEqual(e.bits, a.bits)
+
+    def test_logic(self):
+        a = SelectableInt(0x0F, 8)
+        b = SelectableInt(0xA5, 8)
+        c = a & b
+        d = a | b
+        e = a ^ b
+        f = ~a
+        self.assertEqual(c.value, a.value & b.value)
+        self.assertEqual(d.value, a.value | b.value)
+        self.assertEqual(e.value, a.value ^ b.value)
+        self.assertEqual(f.value, 0xF0)
+                          
 
     def test_get(self):
         a = SelectableInt(0xa2, 8)
         # These should be big endian
-        assert a[7] == 0
-        assert a[0:4] == 10
-        assert a[4:8] == 2
+        self.assertEqual(a[7], 0)
+        self.assertEqual(a[0:4], 10)
+        self.assertEqual(a[4:8], 2)
 
     def test_set(self):
         a = SelectableInt(0x5, 8)
