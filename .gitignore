@@ -9,3 +9,4 @@ Waveforms
 *.egg-info
 *.il
 **/*.gtkw
+.eggs
