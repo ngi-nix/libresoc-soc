@@ -24,6 +24,10 @@ def Assign(left, right):
     names = []
     if isinstance(left, ast.Name):
         # Single assignment on left
+        # XXX when doing IntClass, which will have an "eq" function,
+        # this is how to access it
+        #   eq = ast.Attribute(left, "eq")   # get eq fn
+        #   return ast.Call(eq, [right], []) # now call left.eq(right)
         return ast.Assign([ast.Name(left.id, ast.Store())], right)
     elif isinstance(left, ast.Tuple):
         # List of things - make sure they are Name nodes
