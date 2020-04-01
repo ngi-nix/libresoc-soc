@@ -1,6 +1,8 @@
 # Installation
 
-python3 setup.py develop
+    make update
+    make install
+    make test # optional (ish)
 
 # Running Simulator tests
 
