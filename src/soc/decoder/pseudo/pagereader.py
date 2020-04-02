@@ -41,15 +41,16 @@ this translates to:
     Special Registers Altered:
     4-space-indented register description
     blank
-    blank (optional)
-
+    blank(s) (optional for convenience at end-of-page)
 """
 
 from collections import namedtuple, OrderedDict
 from copy import copy
 import os
 
-op = namedtuple("Ops", ("desc", "form", "opcode", "regs", "pcode", "sregs"))
+opfields = ("desc", "form", "opcode", "regs", "pcode", "sregs", "page")
+op = namedtuple("Ops", opfields)
+
 
 def get_isa_dir():
     fdir = os.path.abspath(os.path.dirname(__file__))
@@ -58,6 +59,7 @@ def get_isa_dir():
     fdir = os.path.split(fdir)[0]
     fdir = os.path.split(fdir)[0]
     return os.path.join(fdir, "libreriscv", "openpower", "isa")
+
 
 class ISA:
 
@@ -70,11 +72,14 @@ class ISA:
             self.read_file(pth)
 
     def read_file(self, fname):
+        pagename = fname.split('.')[0]
         fname = os.path.join(get_isa_dir(), fname)
         with open(fname) as f:
             lines = f.readlines()
         
-        d = {}
+        # set up dict with current page name
+        d = {'pagename': pagename}
+
         l = lines.pop(0).rstrip() # get first line
         while lines:
             print (l)
