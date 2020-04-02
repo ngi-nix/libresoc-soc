@@ -265,10 +265,13 @@ class PowerParser:
             p[0] = ast.While(p[3], p[5], p[8])
 
     def p_if_stmt(self, p):
-        """if_stmt : IF test COLON suite ELSE COLON suite
+        """if_stmt : IF test COLON suite ELSE COLON if_stmt
+                   | IF test COLON suite ELSE COLON suite
                    | IF test COLON suite
         """
-        if len(p) == 5:
+        if len(p) == 8 and isinstance(p[7], ast.If):
+            p[0] = ast.If(p[2], p[4], [p[7]])
+        elif len(p) == 5:
             p[0] = ast.If(p[2], p[4], [])
         else:
             p[0] = ast.If(p[2], p[4], p[7])

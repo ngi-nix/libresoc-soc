@@ -62,8 +62,16 @@ RA <- EXTZ64(n)
 print (RA)
 """
 
+cmpi = """
+if      a < EXTS(SI) then
+    c <- 0b100
+else if a > EXTS(SI) then
+    c <- 0b010
+"""
+
 #code = testreg
-code = cnttzd
+#code = cnttzd
+code = cmpi
 #code = bpermd
 
 def tolist(num):
