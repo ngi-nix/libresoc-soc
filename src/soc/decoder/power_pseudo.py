@@ -69,6 +69,11 @@ else if a > EXTS(SI) then
     c <- 0b010
 """
 
+cmpi = """
+CR[0:1] <- c
+"""
+
+
 #code = testreg
 #code = cnttzd
 code = cmpi

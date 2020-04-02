@@ -22,6 +22,7 @@ import ast
 # Helper function
 def Assign(left, right):
     names = []
+    print ("Assign", left, right)
     if isinstance(left, ast.Name):
         # Single assignment on left
         # XXX when doing IntClass, which will have an "eq" function,
@@ -38,7 +39,10 @@ def Assign(left, right):
             names.append(child.name)
         ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
         return ast.Assign([ast.AssTuple(ass_list)], right)
+    elif isinstance(left, ast.Subscript):
+        return ast.Assign([left], right)
     else:
+        print ("Assign fail")
         raise SyntaxError("Can't do that yet")
 
 
@@ -213,13 +217,19 @@ class PowerParser:
     def p_expr_stmt(self, p):
         """expr_stmt : testlist ASSIGN testlist
                      | testlist """
+        print ("expr_stmt", p)
         if len(p) == 2:
             # a list of expressions
             #p[0] = ast.Discard(p[1])
             p[0] = p[1]
         else:
-            if p[1].id in self.gprs:
-                self.write_regs.append(p[1].id) # add to list of regs to write
+            if isinstance(p[1], ast.Name):
+                name = p[1].id
+            elif isinstance(p[1], ast.Subscript):
+                name = p[1].value.id
+            print ("expr assign", name, p[1])
+            if name in self.gprs:
+                self.write_regs.append(name) # add to list of regs to write
             p[0] = Assign(p[1], p[3])
 
     def p_flow_stmt(self, p):
@@ -337,7 +347,7 @@ class PowerParser:
                 #else:
                 #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
             else:
-                print (p[2][1])
+                print ("subscript atom", p[2][1])
                 #raise AssertionError("not implemented %s" % p[2][0])
                 subs = p[2][1]
                 if len(subs) == 1:
