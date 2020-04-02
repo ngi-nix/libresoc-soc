@@ -470,7 +470,7 @@ class GardenSnakeParser(PowerParser):
     def __init__(self, lexer = None):
         PowerParser.__init__(self)
         if lexer is None:
-            lexer = IndentLexer(debug=1)
+            lexer = IndentLexer(debug=0)
         self.lexer = lexer
         self.tokens = lexer.tokens
         self.parser = yacc.yacc(module=self, start="file_input_end",
@@ -479,8 +479,8 @@ class GardenSnakeParser(PowerParser):
         self.sd = create_pdecode()
 
     def parse(self, code):
-        self.lexer.input(code)
-        result = self.parser.parse(lexer = self.lexer, debug=False)
+        #self.lexer.input(code)
+        result = self.parser.parse(code, lexer=self.lexer, debug=False)
         return ast.Module(result)
 
 
@@ -491,6 +491,7 @@ class GardenSnakeParser(PowerParser):
 class GardenSnakeCompiler(object):
     def __init__(self):
         self.parser = GardenSnakeParser()
+
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)
         print ("snake")

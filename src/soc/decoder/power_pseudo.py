@@ -13,6 +13,7 @@ from pprint import pprint
 from copy import copy
 from ply import lex, yacc
 import astor
+import ast
 
 from soc.decoder.power_decoder import create_pdecode
 from nmigen.back.pysim import Simulator, Delay
@@ -102,6 +103,15 @@ class GPR(dict):
         return self.regfile[rnum]
 
 
+def convert_to_python(pcode):
+
+    gsc = GardenSnakeCompiler()
+
+    tree = gsc.compile(pcode, mode="exec", filename="string")
+    tree = ast.fix_missing_locations(tree)
+    return astor.to_source(tree)
+
+
 def test():
 
     gsc = GardenSnakeCompiler()
@@ -115,7 +125,6 @@ def test():
     _compile = gsc.compile
 
     tree = _compile(code, mode="single", filename="string")
-    import ast
     tree = ast.fix_missing_locations(tree)
     print ( ast.dump(tree) )
 

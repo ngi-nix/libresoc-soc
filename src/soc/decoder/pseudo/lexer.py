@@ -133,7 +133,7 @@ def indentation_filter(tokens):
     depth = 0
     prev_was_ws = False
     for token in tokens:
-        if 1:
+        if 0:
             print ("Process", depth, token.indent, token,)
             if token.at_line_start:
                 print ("at_line_start",)
@@ -367,6 +367,7 @@ class PowerLexer:
         print ("Skipping", repr(t.value[0]))
         t.lexer.skip(1)
 
+
 # Combine Ply and my filters into a new lexer
 
 class IndentLexer(PowerLexer):
@@ -374,6 +375,7 @@ class IndentLexer(PowerLexer):
         self.build(debug=debug, optimize=optimize,
                                 lextab=lextab, reflags=reflags)
         self.token_stream = None
+
     def input(self, s, add_endmarker=True):
         self.lexer.paren_count = 0
         self.lexer.brack_count = 0

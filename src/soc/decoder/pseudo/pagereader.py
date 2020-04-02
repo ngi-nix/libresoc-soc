@@ -66,6 +66,7 @@ class ISA:
     def __init__(self):
         self.instr = OrderedDict()
         self.forms = {}
+        self.page = {}
         for pth in os.listdir(os.path.join(get_isa_dir())):
             print (get_isa_dir(), pth)
             assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
@@ -160,6 +161,11 @@ class ISA:
         form = op['form']
         fl = self.forms.get(form, [])
         self.forms[form] = fl + [opcode]
+
+        # create list of instructions by page
+        page = op['page']
+        pl = self.page.get(page, [])
+        self.page[page] = pl + [opcode]
 
     def pprint_ops(self):
         for k, v in self.instr.items():
