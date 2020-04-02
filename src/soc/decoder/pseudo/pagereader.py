@@ -5,19 +5,21 @@ import os
 
 op = namedtuple("Ops", ("desc", "form", "opcode", "regs", "pcode", "sregs"))
 
+def get_isa_dir():
+    fdir = os.path.abspath(os.path.dirname(__file__))
+    fdir = os.path.split(fdir)[0]
+    fdir = os.path.split(fdir)[0]
+    fdir = os.path.split(fdir)[0]
+    fdir = os.path.split(fdir)[0]
+    return os.path.join(fdir, "libreriscv", "openpower", "isa")
+
 class ISA:
 
     def __init__(self):
         self.instr = OrderedDict()
 
     def read_file(self, fname):
-        fdir = os.path.abspath(os.path.dirname(__file__))
-        fdir = os.path.split(fdir)[0]
-        fdir = os.path.split(fdir)[0]
-        fdir = os.path.split(fdir)[0]
-        fdir = os.path.split(fdir)[0]
-        print (fdir)
-        fname = os.path.join(fdir, "libreriscv", "openpower", "isa", fname)
+        fname = os.path.join(get_isa_dir(), fname)
         with open(fname) as f:
             lines = f.readlines()
         
@@ -74,7 +76,7 @@ class ISA:
 
             # get special regs
             li = []
-            while True:
+            while lines:
                 l = lines.pop(0).rstrip()
                 if len(l) == 0: break
                 assert l.startswith('    '), ("4spcs not found in line %s" % l)
@@ -106,5 +108,9 @@ class ISA:
 
 if __name__ == '__main__':
     isa = ISA()
-    isa.read_file("fixedlogical.mdwn")
+    for pth in os.listdir(os.path.join(get_isa_dir())):
+        print (get_isa_dir(), pth)
+        assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
+        isa.read_file(pth)
+
     isa.pprint_ops()
