@@ -19,6 +19,7 @@ from nmigen.back.pysim import Simulator, Delay
 from nmigen import Module, Signal
 
 from soc.decoder.pseudo.parser import GardenSnakeCompiler
+from soc.decoder.selectable_int import SelectableInt
 
 ####### Test code #######
 
@@ -53,9 +54,9 @@ RA <- [0]*56|| perm[0:7]
 cnttzd = """
 n  <- 0
 do while n < 64
-   if (RS)[63-n] = 0b1 then
+    if (RS)[63-n] = 0b1 then
         leave
-   n  <- n + 1
+    n  <- n + 1
 RA <- EXTZ64(n)
 print (RA)
 """
@@ -73,8 +74,7 @@ def tolist(num):
 
 
 def get_reg_hex(reg):
-    report = ''.join(map(str, reg))
-    return hex(int('0b%s' % report, 2))
+    return hex(reg.value)
 
 
 class GPR(dict):
@@ -83,7 +83,7 @@ class GPR(dict):
         self.sd = sd
         self.regfile = regfile
         for i in range(32):
-            self[i] = [0] * 64 # TODO: needs to be IntClass(value=0, len=64)
+            self[i] = SelectableInt(0, 64)
 
     def set_form(self, form):
         self.form = form
@@ -194,7 +194,7 @@ def test():
                 reg = getform[wname]
                 print ("write regs", wname, d[wname], reg)
                 regidx = yield reg
-                gsc.gpr[regidx] = tolist(d[wname])
+                gsc.gpr[regidx] = d[wname]
 
     sim.add_process(process)
     with sim.write_vcd("simulator.vcd", "simulator.gtkw",

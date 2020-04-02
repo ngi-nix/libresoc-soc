@@ -1,4 +1,5 @@
 import unittest
+from soc.decoder.selectable_int import SelectableInt
 
 
 def exts(value, bits):
@@ -7,11 +8,15 @@ def exts(value, bits):
 
 
 def EXTS64(value):
-    return exts(value, 32) & ((1 << 64)-1)
+    if isinstance(value, SelectableInt):
+        value = value.value
+    return SelectableInt(exts(value, 32) & ((1 << 64)-1), 64)
 
 
 def EXTZ64(value):
-    return value & ((1<<32)-1)
+    if isinstance(value, SelectableInt):
+        value = value.value
+    return SelectableInt(value & ((1<<32)-1), 64)
 
 def rotl(value, bits, wordlen):
     mask = (1 << wordlen) - 1

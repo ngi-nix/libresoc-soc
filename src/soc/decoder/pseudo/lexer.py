@@ -276,7 +276,8 @@ class PowerLexer:
 
     def t_STRING(self, t):
         r"'([^\\']+|\\'|\\\\)*'"  # I think this is right ...
-        t.value=t.value[1:-1].decode("string-escape") # .swapcase() # for fun
+        print (repr(t.value))
+        t.value=t.value[1:-1]
         return t
 
     t_COLON = r':'

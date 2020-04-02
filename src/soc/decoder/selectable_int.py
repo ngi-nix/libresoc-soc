@@ -39,7 +39,7 @@ class SelectableInt:
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            assert key < self.bits
+            assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
             key = self.bits - (key + 1)
 
