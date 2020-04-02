@@ -19,7 +19,7 @@ from nmigen.back.pysim import Simulator, Delay
 from nmigen import Module, Signal
 
 from soc.decoder.pseudo.parser import GardenSnakeCompiler
-from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.selectable_int import SelectableInt, selectconcat
 
 ####### Test code #######
 
@@ -132,16 +132,14 @@ def test():
         print ("args", args)
         print ("-->", " ".join(map(str,args)))
 
-    def listconcat(l1, l2):
-        return l1 + l2
-
     from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
 
     d = {}
     d["print"] = print_
     d["EXTS64"] = EXTS64
     d["EXTZ64"] = EXTZ64
-    d["concat"] = listconcat
+    d["SelectableInt"] = SelectableInt
+    d["concat"] = selectconcat
     d["GPR"] = gsc.gpr
 
     form = 'X'

@@ -10,7 +10,7 @@
 # Modifications for inclusion in PLY distribution
 from copy import copy
 from ply import lex
-
+from soc.decoder.selectable_int import SelectableInt
 
 ## I implemented INDENT / DEDENT generation as a post-processing filter
 
@@ -264,7 +264,7 @@ class PowerLexer:
 
     def t_BINARY(self, t):
         r"""0b[01]+"""
-        t.value = int(t.value, 2)
+        t.value = SelectableInt(int(t.value, 2), len(t.value)-2)
         return t
 
     #t_NUMBER = r'\d+'

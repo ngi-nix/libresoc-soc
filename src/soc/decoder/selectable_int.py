@@ -1,4 +1,5 @@
 import unittest
+from copy import copy
 
 
 class SelectableInt:
@@ -98,6 +99,14 @@ class SelectableInt:
     def __repr__(self):
         return "SelectableInt(value={:x}, bits={})".format(self.value,
                                                            self.bits)
+
+def selectconcat(*args):
+    res = copy(args[0])
+    for i in args[1:]:
+        assert isinstance(i, SelectableInt), "can only concat SIs, sorry"
+        res.bits += i.bits
+        res.value = (res.value << i.bits) | i.value
+    return res
 
 
 class SelectableIntTestCase(unittest.TestCase):

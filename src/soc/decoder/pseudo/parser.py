@@ -90,8 +90,9 @@ def check_concat(node): # checks if the comparison is already a concat
     print (node)
     if not isinstance(node, ast.Call):
         return [node]
-    if node[0].id != 'concat':
-        return node
+    print (node.func.id)
+    if node.func.id != 'concat':
+        return [node]
     return node[1]
 
 
