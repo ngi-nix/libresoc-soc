@@ -63,6 +63,7 @@ class ISA:
 
     def __init__(self):
         self.instr = OrderedDict()
+        self.forms = {}
 
     def read_file(self, fname):
         fname = os.path.join(get_isa_dir(), fname)
@@ -132,16 +133,24 @@ class ISA:
 
             # add in opcode
             for o in opcodes:
-                opcode, regs = o[0], o[1:]
-                op = copy(d)
-                op['regs'] = regs
-                op['opcode'] = opcode
-                self.instr[opcode] = op
+                self.add_op(o, d)
 
             # expect and drop whitespace
             while lines:
                 l = lines.pop(0).rstrip()
                 if len(l) != 0: break
+
+    def add_op(self, o, d):
+        opcode, regs = o[0], o[1:]
+        op = copy(d)
+        op['regs'] = regs
+        op['opcode'] = opcode
+        self.instr[opcode] = op
+
+        # create list of instructions by form
+        form = op['form']
+        fl = self.forms.get(form, [])
+        self.forms[form] = fl + [opcode]
 
     def pprint_ops(self):
         for k, v in self.instr.items():
@@ -151,6 +160,8 @@ class ISA:
             print ("Specials")
             print ('\n'.join(map(lambda x: "    %s" % x, v['sregs'])))
             print ()
+        for k, v in isa.forms.items():
+            print (k, v)
 
 if __name__ == '__main__':
     isa = ISA()
