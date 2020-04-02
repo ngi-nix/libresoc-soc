@@ -1,4 +1,50 @@
 # Reads OpenPOWER ISA pages from http://libre-riscv.org/openpower/isa
+"""OpenPOWER ISA page parser
+
+returns an OrderedDict of namedtuple "Ops" containing details of all
+instructions listed in markdown files.
+
+format must be strictly as follows (no optional sections) including whitespace:
+
+# Compare Logical
+
+X-Form
+
+* cmpl BF,L,RA,RB
+
+    if L = 0 then a <- [0]*32 || (RA)[32:63]
+                  b <- [0]*32 || (RB)[32:63]
+             else a <-  (RA)
+                  b <-  (RB)
+    if      a <u b then c <- 0b100
+    else if a >u b then c <- 0b010
+    else                c <-  0b001
+    CR[4*BF+32:4*BF+35] <- c || XER[SO]
+
+Special Registers Altered:
+
+    CR field BF
+    Another field
+
+this translates to:
+
+    # heading
+    blank
+    Some-Form
+    blank
+    * instruction registerlist
+    * instruction registerlist
+    blank
+    4-space-indented pseudo-code
+    4-space-indented pseudo-code
+    blank
+    Special Registers Altered:
+    4-space-indented register description
+    blank
+    blank (optional)
+
+"""
+
 from collections import namedtuple, OrderedDict
 from copy import copy
 import os
