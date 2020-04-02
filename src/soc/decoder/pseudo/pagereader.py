@@ -64,6 +64,10 @@ class ISA:
     def __init__(self):
         self.instr = OrderedDict()
         self.forms = {}
+        for pth in os.listdir(os.path.join(get_isa_dir())):
+            print (get_isa_dir(), pth)
+            assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
+            self.read_file(pth)
 
     def read_file(self, fname):
         fname = os.path.join(get_isa_dir(), fname)
@@ -165,9 +169,4 @@ class ISA:
 
 if __name__ == '__main__':
     isa = ISA()
-    for pth in os.listdir(os.path.join(get_isa_dir())):
-        print (get_isa_dir(), pth)
-        assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
-        isa.read_file(pth)
-
     isa.pprint_ops()
