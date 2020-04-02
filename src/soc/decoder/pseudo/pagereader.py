@@ -49,7 +49,7 @@ from copy import copy
 import os
 
 opfields = ("desc", "form", "opcode", "regs", "pcode", "sregs", "page")
-op = namedtuple("Ops", opfields)
+Ops = namedtuple("Ops", opfields)
 
 
 def get_isa_dir():
@@ -78,7 +78,7 @@ class ISA:
             lines = f.readlines()
         
         # set up dict with current page name
-        d = {'pagename': pagename}
+        d = {'page': pagename}
 
         l = lines.pop(0).rstrip() # get first line
         while lines:
@@ -154,7 +154,7 @@ class ISA:
         op = copy(d)
         op['regs'] = regs
         op['opcode'] = opcode
-        self.instr[opcode] = op
+        self.instr[opcode] = Ops(**op)
 
         # create list of instructions by form
         form = op['form']
@@ -163,11 +163,11 @@ class ISA:
 
     def pprint_ops(self):
         for k, v in self.instr.items():
-            print ("# %s %s" % (v['opcode'], v['desc']))
-            print ("Form: %s Regs: %s" % (v['form'], v['regs']))
-            print ('\n'.join(map(lambda x: "    %s" % x, v['pcode'])))
+            print ("# %s %s" % (v.opcode, v.desc))
+            print ("Form: %s Regs: %s" % (v.form, v.regs))
+            print ('\n'.join(map(lambda x: "    %s" % x, v.pcode)))
             print ("Specials")
-            print ('\n'.join(map(lambda x: "    %s" % x, v['sregs'])))
+            print ('\n'.join(map(lambda x: "    %s" % x, v.sregs)))
             print ()
         for k, v in isa.forms.items():
             print (k, v)
