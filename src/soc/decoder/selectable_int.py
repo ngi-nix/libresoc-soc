@@ -55,7 +55,7 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start
+            bits = stop - start + 1
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
             return SelectableInt(value, bits)
@@ -81,9 +81,9 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start
+            bits = stop - start + 1
             if isinstance(value, SelectableInt):
-                assert value.bits == bits
+                assert value.bits == bits, "%d into %d" % (value.bits, bits)
                 value = value.value
             mask = ((1 << bits) - 1) << start
             value = value << start
@@ -99,6 +99,23 @@ class SelectableInt:
     def __repr__(self):
         return "SelectableInt(value={:x}, bits={})".format(self.value,
                                                            self.bits)
+
+# XXX this probably isn't needed...
+def selectassign(lhs, idx, rhs):
+    if isinstance(idx, tuple):
+        if len(idx) == 2:
+            lower, upper = idx
+            step = None
+        else:
+            lower, upper, step = idx
+        toidx = range(lower, upper, step)
+        fromidx = range(0, upper-lower, step) # XXX eurgh...
+    else:
+        toidx = [idx]
+        fromidx = [0]
+    for t, f in zip(toidx, fromidx):
+        lhs[t] = rhs[f]
+
 
 def selectconcat(*args):
     res = copy(args[0])
@@ -154,8 +171,7 @@ class SelectableIntTestCase(unittest.TestCase):
         a[0:4] = 3
         self.assertEqual(a, 0x39)
         a[0:4] = a[4:8]
-        self.assertEqual(a, 0x99)
-
+        self.assertEqual(a, 0x199)
 
 if __name__ == "__main__":
     unittest.main()
