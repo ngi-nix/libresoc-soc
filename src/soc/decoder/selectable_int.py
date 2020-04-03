@@ -102,7 +102,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return other <= self.value
+            return onebit(other <= self.value)
         assert False
 
     def __gt__(self, other):
@@ -110,7 +110,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return other > self.value
+            return onebit(other > self.value)
         assert False
 
     def __lt__(self, other):
@@ -118,7 +118,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return other < self.value
+            return onebit(other < self.value)
         assert False
 
     def __eq__(self, other):
@@ -126,26 +126,29 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return other == self.value
+            return onebit(other == self.value)
         assert False
 
     def __repr__(self):
         return "SelectableInt(value={:x}, bits={})".format(self.value,
                                                            self.bits)
 
+def onebit(bit):
+    return SelectableInt(1 if bit else 0, 1)
+
 def selectltu(lhs, rhs):
     """ less-than (unsigned)
     """
     if isinstance(rhs, SelectableInt):
         rhs = rhs.value
-    return lhs.value < rhs
+    return onebit(lhs.value < rhs)
 
 def selectgtu(lhs, rhs):
     """ greater-than (unsigned)
     """
     if isinstance(rhs, SelectableInt):
         rhs = rhs.value
-    return lhs.value > rhs
+    return onebit(lhs.value > rhs)
 
 
 # XXX this probably isn't needed...

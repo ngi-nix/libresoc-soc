@@ -73,6 +73,10 @@ cmpi = """
 RA[0:1] <- 0b11
 """
 
+cmpi = """
+in_range <-  (x | y) & (a | b)
+in_range <-  (x + y) - (a + b)
+"""
 
 #code = testreg
 #code = cnttzd

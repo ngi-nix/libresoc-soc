@@ -252,6 +252,8 @@ class PowerLexer:
         'MULT',
         'DIV',
         'APPEND',
+        'BITOR',
+        'BITAND',
         'RETURN',
         'WS',
         'NEWLINE',
@@ -300,6 +302,8 @@ class PowerLexer:
     t_COMMA = r','
     t_SEMICOLON = r';'
     t_APPEND = r'\|\|'
+    t_BITOR = r'\|'
+    t_BITAND = r'\&'
 
     # Ply nicely documented how to do this.
 

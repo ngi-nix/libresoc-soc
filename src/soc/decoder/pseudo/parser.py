@@ -95,6 +95,8 @@ def make_eq_compare(arg):
     return ast.Compare(left, [ast.Eq()], [right])
 
 binary_ops = {
+    "&": ast.BitAnd(),
+    "|": ast.BitOr(),
     "+": ast.Add(),
     "-": ast.Sub(),
     "*": ast.Mult(),
@@ -128,6 +130,7 @@ def check_concat(node): # checks if the comparison is already a concat
 class PowerParser:
 
     precedence = (
+        ("left", "BITOR", "BITAND"),
         ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
@@ -338,6 +341,8 @@ class PowerParser:
                       | comparison GTU comparison
                       | comparison LT comparison
                       | comparison GT comparison
+                      | comparison BITOR comparison
+                      | comparison BITAND comparison
                       | PLUS comparison
                       | MINUS comparison
                       | comparison APPEND comparison
