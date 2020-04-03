@@ -113,13 +113,13 @@ unary_ops = {
     }
 
 def check_concat(node): # checks if the comparison is already a concat
-    print (node)
+    print ("check concat", node)
     if not isinstance(node, ast.Call):
         return [node]
-    print (node.func.id)
+    print ("func", node.func.id)
     if node.func.id != 'concat':
         return [node]
-    return node[1]
+    return node.args
 
 
 ##########   Parser (tokens -> AST) ######

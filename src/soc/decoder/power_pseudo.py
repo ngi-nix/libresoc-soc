@@ -91,10 +91,15 @@ src1 <- GPR[RA]
 src1 <- src1[0:56]
 """
 
+addpcis = """
+D <- d0||d1||d2
+"""
+
 #code = testreg
 #code = cnttzd
 #code = cmpi
-code = cmpeqb
+#code = cmpeqb
+code = addpcis
 #code = bpermd
 
 def tolist(num):
