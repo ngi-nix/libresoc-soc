@@ -241,6 +241,10 @@ class PowerLexer:
         'COLON',
         'EQ',
         'ASSIGN',
+        'LTU',
+        'GTU',
+        'LE',
+        'GE',
         'LT',
         'GT',
         'PLUS',
@@ -283,6 +287,10 @@ class PowerLexer:
     t_COLON = r':'
     t_EQ = r'='
     t_ASSIGN = r'<-'
+    t_LTU = r'<u'
+    t_GTU = r'>u'
+    t_LE = r'<='
+    t_GE = r'>='
     t_LT = r'<'
     t_GT = r'>'
     t_PLUS = r'\+'

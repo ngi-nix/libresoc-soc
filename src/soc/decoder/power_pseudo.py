@@ -70,7 +70,7 @@ else if a > EXTS(SI) then
 """
 
 cmpi = """
-CR[0:1] <- c
+RA[0:1] <- 0b11
 """
 
 
@@ -194,6 +194,10 @@ def test():
             yield Delay(1e-6)
 
             # read regs, drop them into dict for function
+            for rname in gsc.parser.uninit_regs:
+                d[rname] = SelectableInt(0, 64) # uninitialised (to zero)
+                print ("uninitialised", rname, get_reg_hex(d[rname]))
+
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
                 d[rname] = gsc.gpr[regidx]

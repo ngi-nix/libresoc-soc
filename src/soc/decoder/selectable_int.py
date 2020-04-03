@@ -89,9 +89,42 @@ class SelectableInt:
             value = value << start
             self.value = (self.value & ~mask) | (value & mask)
 
+    def __ge__(self, other):
+        if isinstance(other, SelectableInt):
+            assert other.bits == self.bits
+            other = other.value
+        if isinstance(other, int):
+            return other >= self.value
+        assert False
+
+    def __le__(self, other):
+        if isinstance(other, SelectableInt):
+            assert other.bits == self.bits
+            other = other.value
+        if isinstance(other, int):
+            return other <= self.value
+        assert False
+
+    def __gt__(self, other):
+        if isinstance(other, SelectableInt):
+            assert other.bits == self.bits
+            other = other.value
+        if isinstance(other, int):
+            return other > self.value
+        assert False
+
+    def __lt__(self, other):
+        if isinstance(other, SelectableInt):
+            assert other.bits == self.bits
+            other = other.value
+        if isinstance(other, int):
+            return other < self.value
+        assert False
+
     def __eq__(self, other):
         if isinstance(other, SelectableInt):
-            return other.value == self.value and other.bits == self.bits
+            assert other.bits == self.bits
+            other = other.value
         if isinstance(other, int):
             return other == self.value
         assert False
@@ -99,6 +132,21 @@ class SelectableInt:
     def __repr__(self):
         return "SelectableInt(value={:x}, bits={})".format(self.value,
                                                            self.bits)
+
+def selectltu(lhs, rhs):
+    """ less-than (unsigned)
+    """
+    if isinstance(rhs, SelectableInt):
+        rhs = rhs.value
+    return lhs.value < rhs
+
+def selectgtu(lhs, rhs):
+    """ greater-than (unsigned)
+    """
+    if isinstance(rhs, SelectableInt):
+        rhs = rhs.value
+    return lhs.value > rhs
+
 
 # XXX this probably isn't needed...
 def selectassign(lhs, idx, rhs):
@@ -153,7 +201,6 @@ class SelectableIntTestCase(unittest.TestCase):
         self.assertEqual(d.value, a.value | b.value)
         self.assertEqual(e.value, a.value ^ b.value)
         self.assertEqual(f.value, 0xF0)
-                          
 
     def test_get(self):
         a = SelectableInt(0xa2, 8)

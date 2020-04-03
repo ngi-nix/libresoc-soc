@@ -41,6 +41,18 @@ def Assign(left, right):
         return ast.Assign([ast.AssTuple(ass_list)], right)
     elif isinstance(left, ast.Subscript):
         return ast.Assign([left], right)
+        # XXX HMMM probably not needed...
+        ls = left.slice
+        if isinstance(ls, ast.Slice):
+            lower, upper, step = ls.lower, ls.upper, ls.step
+            print ("slice assign", lower, upper, step)
+            if step is None:
+                ls = (lower, upper, None)
+            else:
+                ls = (lower, upper, step)
+            ls = ast.Tuple(ls)
+        return ast.Call(ast.Name("selectassign"),
+                        [left.value, ls, right], [])
     else:
         print ("Assign fail")
         raise SyntaxError("Can't do that yet")
@@ -66,6 +78,12 @@ def Assign(left, right):
 # factor: ('+'|'-'|'~') factor | power
 # comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
 
+def make_le_compare(arg):
+    (left, right) = arg
+    return ast.Compare(left, [ast.Le()], [right])
+def make_ge_compare(arg):
+    (left, right) = arg
+    return ast.Compare(left, [ast.Ge()], [right])
 def make_lt_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.Lt()], [right])
@@ -81,6 +99,8 @@ binary_ops = {
     "-": ast.Sub(),
     "*": ast.Mult(),
     "/": ast.Div(),
+    "<=": make_le_compare,
+    ">=": make_ge_compare,
     "<": make_lt_compare,
     ">": make_gt_compare,
     "=": make_eq_compare,
@@ -108,7 +128,7 @@ def check_concat(node): # checks if the comparison is already a concat
 class PowerParser:
 
     precedence = (
-        ("left", "EQ", "GT", "LT"),
+        ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         )
@@ -118,6 +138,7 @@ class PowerParser:
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
         self.read_regs = []
+        self.uninit_regs = []
         self.write_regs = []
 
     # The grammar comments come from Python's Grammar/Grammar file
@@ -227,6 +248,8 @@ class PowerParser:
                 name = p[1].id
             elif isinstance(p[1], ast.Subscript):
                 name = p[1].value.id
+                if name in self.gprs:
+                    self.uninit_regs.append(name) # add to list of uninitialised
             print ("expr assign", name, p[1])
             if name in self.gprs:
                 self.write_regs.append(name) # add to list of regs to write
@@ -308,8 +331,12 @@ class PowerParser:
                       | comparison MINUS comparison
                       | comparison MULT comparison
                       | comparison DIV comparison
-                      | comparison LT comparison
                       | comparison EQ comparison
+                      | comparison LE comparison
+                      | comparison GE comparison
+                      | comparison LTU comparison
+                      | comparison GTU comparison
+                      | comparison LT comparison
                       | comparison GT comparison
                       | PLUS comparison
                       | MINUS comparison
@@ -317,7 +344,11 @@ class PowerParser:
                       | power"""
         if len(p) == 4:
             print (list(p))
-            if p[2] == '||':
+            if p[2] == '<u':
+                p[0] = ast.Call(ast.Name("ltu"), (p[1], p[3]), [])
+            elif p[2] == '>u':
+                p[0] = ast.Call(ast.Name("gtu"), (p[1], p[3]), [])
+            elif p[2] == '||':
                 l = check_concat(p[1]) + check_concat(p[3])
                 p[0] = ast.Call(ast.Name("concat"), l, [])
             elif p[2] in ['<', '>', '=']:
