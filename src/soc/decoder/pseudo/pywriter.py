@@ -52,7 +52,7 @@ class PyISAWriter(ISA):
                 else:
                     f.write("\n")
                 # cumulate the instruction info
-                iinfo = "('%s', %s, %s, %s)" % \
+                iinfo = "(%s, %s, %s, %s)" % \
                             (pagename, rused['read_regs'],
                             rused['uninit_regs'], rused['write_regs'])
                 iinf += "    instrs['%s'] = %s\n" % (pagename, iinfo)
