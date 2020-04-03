@@ -450,7 +450,12 @@ class PowerParser:
                      | test
         """
         if len(p) == 4:
-            p[0] = [p[1], p[3]]
+            # add one to end
+            if isinstance(p[3], ast.Constant):
+                end = ast.Constant(p[3].value+1)
+            else:
+                end = ast.BinOp(p[3], ast.Add(), ast.Constant(1))
+            p[0] = [p[1], end]
         else:
             p[0] = [p[1]]
 
