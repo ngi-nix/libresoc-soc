@@ -108,8 +108,9 @@ binary_ops = {
     "=": make_eq_compare,
 }
 unary_ops = {
-    "+": ast.Add,
-    "-": ast.Sub,
+    "+": ast.UAdd(),
+    "-": ast.USub(),
+    "¬": ast.Invert(),
     }
 
 def check_concat(node): # checks if the comparison is already a concat
@@ -134,6 +135,7 @@ class PowerParser:
         ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
+        ("left", "INVERT"),
         )
 
     def __init__(self):
@@ -345,6 +347,7 @@ class PowerParser:
                       | comparison BITAND comparison
                       | PLUS comparison
                       | MINUS comparison
+                      | INVERT comparison
                       | comparison APPEND comparison
                       | power"""
         if len(p) == 4:
@@ -361,7 +364,7 @@ class PowerParser:
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
         elif len(p) == 3:
-            p[0] = unary_ops[p[1]](p[2])
+            p[0] = ast.UnaryOp(unary_ops[p[1]], p[2])
         else:
             p[0] = p[1]
 

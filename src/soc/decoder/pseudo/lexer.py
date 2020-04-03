@@ -251,6 +251,7 @@ class PowerLexer:
         'MINUS',
         'MULT',
         'DIV',
+        'INVERT',
         'APPEND',
         'BITOR',
         'BITAND',
@@ -299,6 +300,7 @@ class PowerLexer:
     t_MINUS = r'-'
     t_MULT = r'\*'
     t_DIV = r'/'
+    t_INVERT = r'¬'
     t_COMMA = r','
     t_SEMICOLON = r';'
     t_APPEND = r'\|\|'
