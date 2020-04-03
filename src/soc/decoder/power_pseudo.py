@@ -213,7 +213,7 @@ def test():
 
     sim.add_process(process)
     with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                       traces=[decode.ports()]):
+                       traces=decode.ports()):
         sim.run()
 
     for i in range(len(gsc.gpr)):
