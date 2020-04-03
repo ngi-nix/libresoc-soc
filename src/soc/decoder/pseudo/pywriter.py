@@ -28,18 +28,20 @@ class PyISAWriter(ISA):
         isadir = get_isasrc_dir()
         fname = os.path.join(isadir, "%s.py" % pagename)
         with open(fname, "w") as f:
-            f.write("class %s:\n" % pagename)
+            iinf = ''
+            f.write("from soc.decoder.isa import ISACaller\n\n")
+            f.write("class %s(ISACaller):\n" % pagename)
             for page in instrs:
                 d = self.instr[page]
                 print (fname, d.opcode)
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
-                pycode, regsused = convert_to_python(pcode)
+                pycode, rused = convert_to_python(pcode)
                 # create list of arguments to call
-                regs = regsused['read_regs'] + regsused['uninit_regs']
+                regs = rused['read_regs'] + rused['uninit_regs']
                 args = create_args(regs, 'self')
                 # create list of arguments to return
-                retargs = create_args(regsused['write_regs'])
+                retargs = create_args(rused['write_regs'])
                 f.write("    def %s(%s):\n" % (page.replace(".", "_"), args))
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
@@ -49,6 +51,13 @@ class PyISAWriter(ISA):
                     f.write("        return (%s,)\n\n" % retargs)
                 else:
                     f.write("\n")
+                # cumulate the instruction info
+                iinfo = "('%s', %s, %s, %s)" % \
+                            (pagename, rused['read_regs'],
+                            rused['uninit_regs'], rused['write_regs'])
+                iinf += "    instrs['%s'] = %s\n" % (pagename, iinfo)
+            f.write("    instrs = {}\n")
+            f.write(iinf)
 
 if __name__ == '__main__':
     isa = PyISAWriter()
