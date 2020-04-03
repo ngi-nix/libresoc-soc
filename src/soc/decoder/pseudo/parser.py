@@ -346,7 +346,7 @@ class PowerParser:
                       | comparison BITOR comparison
                       | comparison BITAND comparison
                       | PLUS comparison
-                      | MINUS comparison
+                      | comparison MINUS
                       | INVERT comparison
                       | comparison APPEND comparison
                       | power"""
@@ -364,7 +364,10 @@ class PowerParser:
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
         elif len(p) == 3:
-            p[0] = ast.UnaryOp(unary_ops[p[1]], p[2])
+            if isinstance(p[2], str) and p[2] == '-':
+                p[0] = ast.UnaryOp(unary_ops[p[2]], p[1])
+            else:
+                p[0] = ast.UnaryOp(unary_ops[p[1]], p[2])
         else:
             p[0] = p[1]
 
