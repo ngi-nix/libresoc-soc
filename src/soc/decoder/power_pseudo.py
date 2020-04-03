@@ -55,6 +55,7 @@ RA <- [0]*56|| perm[0:7]
 cnttzd = """
 n  <- 0
 do while n < 64
+    print (n)
     if (RS)[63-n] = 0b1 then
         leave
     n  <- n + 1
@@ -96,10 +97,10 @@ D <- d0||d1||d2
 """
 
 #code = testreg
-#code = cnttzd
+code = cnttzd
 #code = cmpi
 #code = cmpeqb
-code = addpcis
+#code = addpcis
 #code = bpermd
 
 def tolist(num):
@@ -219,20 +220,21 @@ def test():
             yield instruction.eq(ins)          # raw binary instr.
             yield Delay(1e-6)
 
-            # read regs, drop them into dict for function
+            # uninitialised regs, drop them into dict for function
             for rname in gsc.parser.uninit_regs:
                 d[rname] = SelectableInt(0, 64) # uninitialised (to zero)
                 print ("uninitialised", rname, get_reg_hex(d[rname]))
 
+            # read regs, drop them into dict for function
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
                 d[rname] = gsc.gpr[regidx]
                 print ("read reg", rname, regidx, get_reg_hex(d[rname]))
 
-            exec (compiled_code, d)
+            exec (compiled_code, d) # code gets executed here in dict "d"
             print ("Done")
 
-            print (d.keys())
+            print (d.keys()) # shows the variables that may have been created
 
             print (decode.sigforms['X'])
             x = yield decode.sigforms['X'].RS
