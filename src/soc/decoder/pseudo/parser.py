@@ -20,9 +20,11 @@ from soc.decoder.pseudo.lexer import IndentLexer
 import ast
 
 # Helper function
+
+
 def Assign(left, right):
     names = []
-    print ("Assign", left, right)
+    print("Assign", left, right)
     if isinstance(left, ast.Name):
         # Single assignment on left
         # XXX when doing IntClass, which will have an "eq" function,
@@ -45,7 +47,7 @@ def Assign(left, right):
         ls = left.slice
         if isinstance(ls, ast.Slice):
             lower, upper, step = ls.lower, ls.upper, ls.step
-            print ("slice assign", lower, upper, step)
+            print("slice assign", lower, upper, step)
             if step is None:
                 ls = (lower, upper, None)
             else:
@@ -54,11 +56,11 @@ def Assign(left, right):
         return ast.Call(ast.Name("selectassign"),
                         [left.value, ls, right], [])
     else:
-        print ("Assign fail")
+        print("Assign fail")
         raise SyntaxError("Can't do that yet")
 
 
-## I implemented INDENT / DEDENT generation as a post-processing filter
+# I implemented INDENT / DEDENT generation as a post-processing filter
 
 # The original lex token stream contains WS and NEWLINE characters.
 # WS will only occur before any other tokens on a line.
@@ -70,7 +72,7 @@ def Assign(left, right):
 # see if the new line has changed indication level.
 
 
-## No using Python's approach because Ply supports precedence
+# No using Python's approach because Ply supports precedence
 
 # comparison: expr (comp_op expr)*
 # arith_expr: term (('+'|'-') term)*
@@ -81,18 +83,27 @@ def Assign(left, right):
 def make_le_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.LtE()], [right])
+
+
 def make_ge_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.GtE()], [right])
+
+
 def make_lt_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.Lt()], [right])
+
+
 def make_gt_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.Gt()], [right])
+
+
 def make_eq_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.Eq()], [right])
+
 
 binary_ops = {
     "&": ast.BitAnd(),
@@ -111,13 +122,14 @@ unary_ops = {
     "+": ast.UAdd(),
     "-": ast.USub(),
     "¬": ast.Invert(),
-    }
+}
 
-def check_concat(node): # checks if the comparison is already a concat
-    print ("check concat", node)
+
+def check_concat(node):  # checks if the comparison is already a concat
+    print("check concat", node)
     if not isinstance(node, ast.Call):
         return [node]
-    print ("func", node.func.id)
+    print("func", node.func.id)
     if node.func.id != 'concat':
         return [node]
     return node.args
@@ -131,12 +143,13 @@ def check_concat(node): # checks if the comparison is already a concat
 class PowerParser:
 
     precedence = (
-        ("left", "BITOR", "BITAND"),
         ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
+        ("left", "BITOR"),
+        ("left", "BITAND"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV"),
         ("left", "INVERT"),
-        )
+    )
 
     def __init__(self):
         self.gprs = {}
@@ -148,12 +161,12 @@ class PowerParser:
 
     # The grammar comments come from Python's Grammar/Grammar file
 
-    ## NB: compound_stmt in single_input is followed by extra NEWLINE!
+    # NB: compound_stmt in single_input is followed by extra NEWLINE!
     # file_input: (NEWLINE | stmt)* ENDMARKER
 
     def p_file_input_end(self, p):
         """file_input_end : file_input ENDMARKER"""
-        print ("end", p[1])
+        print("end", p[1])
         p[0] = p[1]
 
     def p_file_input(self, p):
@@ -165,16 +178,16 @@ class PowerParser:
             if len(p) == 3:
                 p[0] = p[1]
             else:
-                p[0] = [] # p == 2 --> only a blank line
+                p[0] = []  # p == 2 --> only a blank line
         else:
             if len(p) == 3:
                 p[0] = p[1] + p[2]
             else:
                 p[0] = p[1]
 
-
     # funcdef: [decorators] 'def' NAME parameters ':' suite
     # ignoring decorators
+
     def p_funcdef(self, p):
         "funcdef : DEF NAME parameters COLON suite"
         p[0] = ast.FunctionDef(p[2], p[3], p[5], ())
@@ -184,15 +197,15 @@ class PowerParser:
         """parameters : LPAR RPAR
                       | LPAR varargslist RPAR"""
         if len(p) == 3:
-            args=[]
+            args = []
         else:
             args = p[2]
         p[0] = ast.arguments(args=args, vararg=None, kwarg=None, defaults=[])
 
-
     # varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] |
     # '**' NAME) |
     # highly simplified
+
     def p_varargslist(self, p):
         """varargslist : varargslist COMMA NAME
                        | NAME"""
@@ -243,7 +256,7 @@ class PowerParser:
     def p_expr_stmt(self, p):
         """expr_stmt : testlist ASSIGN testlist
                      | testlist """
-        print ("expr_stmt", p)
+        print("expr_stmt", p)
         if len(p) == 2:
             # a list of expressions
             #p[0] = ast.Discard(p[1])
@@ -254,10 +267,11 @@ class PowerParser:
             elif isinstance(p[1], ast.Subscript):
                 name = p[1].value.id
                 if name in self.gprs:
-                    self.uninit_regs.append(name) # add to list of uninitialised
-            print ("expr assign", name, p[1])
+                    # add to list of uninitialised
+                    self.uninit_regs.append(name)
+            print("expr assign", name, p[1])
             if name in self.gprs:
-                self.write_regs.append(name) # add to list of regs to write
+                self.write_regs.append(name)  # add to list of regs to write
             p[0] = Assign(p[1], p[3])
 
     def p_flow_stmt(self, p):
@@ -268,7 +282,6 @@ class PowerParser:
     def p_return_stmt(self, p):
         "return_stmt : RETURN testlist"
         p[0] = ast.Return(p[2])
-
 
     def p_compound_stmt(self, p):
         """compound_stmt : if_stmt
@@ -322,7 +335,6 @@ class PowerParser:
         else:
             p[0] = p[3]
 
-
     def p_stmts(self, p):
         """stmts : stmts stmt
                  | stmt"""
@@ -351,7 +363,7 @@ class PowerParser:
                       | comparison APPEND comparison
                       | power"""
         if len(p) == 4:
-            print (list(p))
+            print(list(p))
             if p[2] == '<u':
                 p[0] = ast.Call(ast.Name("ltu"), (p[1], p[3]), [])
             elif p[2] == '>u':
@@ -360,7 +372,7 @@ class PowerParser:
                 l = check_concat(p[1]) + check_concat(p[3])
                 p[0] = ast.Call(ast.Name("concat"), l, [])
             elif p[2] in ['<', '>', '=', '<=', '>=']:
-                p[0] = binary_ops[p[2]]((p[1],p[3]))
+                p[0] = binary_ops[p[2]]((p[1], p[3]))
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
         elif len(p) == 3:
@@ -384,23 +396,23 @@ class PowerParser:
             if p[2][0] == "CALL":
                 #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
                 p[0] = ast.Call(p[1], p[2][1], [])
-                #if p[1].id == 'print':
+                # if p[1].id == 'print':
                 #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
-                #else:
+                # else:
                 #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
             else:
-                print ("subscript atom", p[2][1])
+                print("subscript atom", p[2][1])
                 #raise AssertionError("not implemented %s" % p[2][0])
                 subs = p[2][1]
                 if len(subs) == 1:
                     idx = subs[0]
                 else:
                     idx = ast.Slice(subs[0], subs[1], None)
-                p[0] = ast.Subscript(p[1], idx)
+                p[0] = ast.Subscript(p[1], idx, ast.Load())
 
     def p_atom_name(self, p):
         """atom : NAME"""
-        p[0] = ast.Name(p[1], ctx=ast.Load())
+        p[0] = ast.Name(id=p[1], ctx=ast.Load())
 
     def p_atom_number(self, p):
         """atom : BINARY
@@ -408,7 +420,7 @@ class PowerParser:
                 | STRING"""
         p[0] = ast.Constant(p[1])
 
-    #'[' [listmaker] ']' |
+    # '[' [listmaker] ']' |
 
     def p_atom_listmaker(self, p):
         """atom : LBRACK listmaker RBRACK"""
@@ -425,13 +437,13 @@ class PowerParser:
 
     def p_atom_tuple(self, p):
         """atom : LPAR testlist RPAR"""
-        print ("tuple", p[2])
+        print("tuple", p[2])
         if isinstance(p[2], ast.Name):
-            print ("tuple name", p[2].id)
+            print("tuple name", p[2].id)
             if p[2].id in self.gprs:
-                self.read_regs.append(p[2].id) # add to list of regs to read
+                self.read_regs.append(p[2].id)  # add to list of regs to read
                 #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
-                #return
+                # return
         p[0] = p[2]
 
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
@@ -449,7 +461,7 @@ class PowerParser:
         "trailer_subscript : LBRACK subscript RBRACK"
         p[0] = ("SUBS", p[2])
 
-    #subscript: '.' '.' '.' | test | [test] ':' [test]
+    # subscript: '.' '.' '.' | test | [test] ':' [test]
 
     def p_subscript(self, p):
         """subscript : test COLON test
@@ -465,9 +477,9 @@ class PowerParser:
         else:
             p[0] = [p[1]]
 
-
     # testlist: test (',' test)* [',']
     # Contains shift/reduce error
+
     def p_testlist(self, p):
         """testlist : testlist_multi COMMA
                     | testlist_multi """
@@ -496,18 +508,17 @@ class PowerParser:
                 # singleton -> tuple
                 p[0] = [p[1], p[3]]
 
-
     # test: or_test ['if' or_test 'else' test] | lambdef
     #  as I don't support 'and', 'or', and 'not' this works down to 'comparison'
+
     def p_test(self, p):
         "test : comparison"
         p[0] = p[1]
 
-
-
     # arglist: (argument ',')* (argument [',']| '*' test [',' '**' test]
     # | '**' test)
     # XXX INCOMPLETE: this doesn't allow the trailing comma
+
     def p_arglist(self, p):
         """arglist : arglist COMMA argument
                    | argument"""
@@ -522,12 +533,12 @@ class PowerParser:
         p[0] = p[1]
 
     def p_error(self, p):
-        #print "Error!", repr(p)
+        # print "Error!", repr(p)
         raise SyntaxError(p)
 
 
 class GardenSnakeParser(PowerParser):
-    def __init__(self, lexer = None):
+    def __init__(self, lexer=None):
         PowerParser.__init__(self)
         if lexer is None:
             lexer = IndentLexer(debug=0)
@@ -539,7 +550,7 @@ class GardenSnakeParser(PowerParser):
         self.sd = create_pdecode()
 
     def parse(self, code):
-        #self.lexer.input(code)
+        # self.lexer.input(code)
         result = self.parser.parse(code, lexer=self.lexer, debug=False)
         return ast.Module(result)
 
@@ -554,13 +565,12 @@ class GardenSnakeCompiler(object):
 
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)
-        print ("snake")
+        print("snake")
         pprint(tree)
         return tree
         #misc.set_filename(filename, tree)
         return compile(tree, mode="exec", filename="<string>")
-        #syntax.check(tree)
+        # syntax.check(tree)
         gen = pycodegen.ModuleCodeGenerator(tree)
         code = gen.getCode()
         return code
-

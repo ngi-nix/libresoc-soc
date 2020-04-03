@@ -103,10 +103,11 @@ code = cnttzd
 #code = addpcis
 #code = bpermd
 
+
 def tolist(num):
     l = []
     for i in range(64):
-        l.append(1 if (num & (1<<i)) else 0)
+        l.append(1 if (num & (1 << i)) else 0)
     l.reverse()
     return l
 
@@ -127,16 +128,16 @@ class GPR(dict):
         self.form = form
 
     def ___getitem__(self, attr):
-        print ("GPR getitem", attr)
+        print("GPR getitem", attr)
         getform = self.sd.sigforms[self.form]
         rnum = getattr(getform, attr)
-        print ("GPR get", rnum, rnum, dir(rnum))
+        print("GPR get", rnum, rnum, dir(rnum))
         l = list(rnum)
-        print (l[0]._as_const())
-        #for x in rnum:
-            #print (x, x.value, dir(x))
-            #print (x.value, dir(x.value))
-        print (list(rnum))
+        print(l[0]._as_const())
+        # for x in rnum:
+        #print (x, x.value, dir(x))
+        #print (x.value, dir(x.value))
+        print(list(rnum))
         return self.regfile[rnum]
 
 
@@ -166,20 +167,20 @@ def test():
 
     tree = _compile(code, mode="single", filename="string")
     tree = ast.fix_missing_locations(tree)
-    print ( ast.dump(tree) )
+    print(ast.dump(tree))
 
-    print ("astor dump")
-    print (astor.dump_tree(tree))
-    print ("to source")
+    print("astor dump")
+    print(astor.dump_tree(tree))
+    print("to source")
     source = astor.to_source(tree)
-    print (source)
+    print(source)
 
-    #sys.exit(0)
+    # sys.exit(0)
 
     # Set up the GardenSnake run-time environment
     def print_(*args):
-        print ("args", args)
-        print ("-->", " ".join(map(str,args)))
+        print("args", args)
+        print("-->", " ".join(map(str, args)))
 
     from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
 
@@ -195,9 +196,9 @@ def test():
     gsc.gpr.set_form(form)
     getform = gsc.parser.sd.sigforms[form]._asdict()
     #print ("getform", form)
-    #for k, f in getform.items():
-        #print (k, f)
-        #d[k] = getform[k]
+    # for k, f in getform.items():
+    #print (k, f)
+    #d[k] = getform[k]
 
     compiled_code = compile(source, mode="exec", filename="<string>")
 
@@ -205,7 +206,7 @@ def test():
     comb = m.d.comb
     instruction = Signal(32)
 
-    m.submodules.decode = decode =  gsc.parser.sd
+    m.submodules.decode = decode = gsc.parser.sd
     comb += decode.raw_opcode_in.eq(instruction)
     sim = Simulator(m)
 
@@ -222,29 +223,29 @@ def test():
 
             # uninitialised regs, drop them into dict for function
             for rname in gsc.parser.uninit_regs:
-                d[rname] = SelectableInt(0, 64) # uninitialised (to zero)
-                print ("uninitialised", rname, get_reg_hex(d[rname]))
+                d[rname] = SelectableInt(0, 64)  # uninitialised (to zero)
+                print("uninitialised", rname, get_reg_hex(d[rname]))
 
             # read regs, drop them into dict for function
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
                 d[rname] = gsc.gpr[regidx]
-                print ("read reg", rname, regidx, get_reg_hex(d[rname]))
+                print("read reg", rname, regidx, get_reg_hex(d[rname]))
 
-            exec (compiled_code, d) # code gets executed here in dict "d"
-            print ("Done")
+            exec(compiled_code, d)  # code gets executed here in dict "d"
+            print("Done")
 
-            print (d.keys()) # shows the variables that may have been created
+            print(d.keys())  # shows the variables that may have been created
 
-            print (decode.sigforms['X'])
+            print(decode.sigforms['X'])
             x = yield decode.sigforms['X'].RS
             ra = yield decode.sigforms['X'].RA
-            print ("RA", ra, d['RA'])
-            print ("RS", x)
+            print("RA", ra, d['RA'])
+            print("RS", x)
 
             for wname in gsc.parser.write_regs:
                 reg = getform[wname]
-                print ("write regs", wname, d[wname], reg)
+                print("write regs", wname, d[wname], reg)
                 regidx = yield reg
                 gsc.gpr[regidx] = d[wname]
 
@@ -254,7 +255,7 @@ def test():
         sim.run()
 
     for i in range(len(gsc.gpr)):
-        print ("regfile", i, get_reg_hex(gsc.gpr[i]))
+        print("regfile", i, get_reg_hex(gsc.gpr[i]))
 
 
 if __name__ == '__main__':
