@@ -145,7 +145,10 @@ def convert_to_python(pcode):
 
     tree = gsc.compile(pcode, mode="exec", filename="string")
     tree = ast.fix_missing_locations(tree)
-    return astor.to_source(tree)
+    regsused = {'read_regs': gsc.parser.read_regs,
+                'write_regs': gsc.parser.write_regs,
+                'uninit_regs': gsc.parser.uninit_regs}
+    return astor.to_source(tree), regsused
 
 
 def test():

@@ -19,15 +19,17 @@ class PyISAWriter(ISA):
         isadir = get_isasrc_dir()
         fname = os.path.join(isadir, "%s.py" % pagename)
         with open(fname, "w") as f:
+            f.write("class %s:\n" % pagename)
             for page in instrs:
                 d = self.instr[page]
                 print (fname, d.opcode)
-                f.write("def %s():\n" % page.replace(".", "_"))
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
-                pycode = convert_to_python(pcode)
+                pycode, regsused = convert_to_python(pcode)
+                f.write("    #%s\n" % repr(regsused))
+                f.write("    def %s(self):\n" % page.replace(".", "_"))
                 pycode = pycode.split("\n")
-                pycode = '\n'.join(map(lambda x: "    %s" % x, pycode))
+                pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
                 f.write("%s\n\n" % pycode)
 
 
