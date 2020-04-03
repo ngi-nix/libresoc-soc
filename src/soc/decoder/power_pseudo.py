@@ -86,9 +86,15 @@ CR[4*BF+32] <- 0b0
 in_range <- src21lo  <= src1 & src1 <=  src21hi 
 """
 
+cmpeqb = """
+src1 <- GPR[RA]
+src1 <- src1[0:56]
+"""
+
 #code = testreg
 #code = cnttzd
-code = cmpi
+#code = cmpi
+code = cmpeqb
 #code = bpermd
 
 def tolist(num):
