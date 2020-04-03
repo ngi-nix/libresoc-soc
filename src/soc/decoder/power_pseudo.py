@@ -79,6 +79,13 @@ in_range <-  ((x | y) &
 in_range <-  (x + y) - (a + b)
 """
 
+cmpi = """
+(RA)[0:1] <- 1
+src1    <- EXTZ((RA)[56:63])
+CR[4*BF+32] <- 0b0
+in_range <- src21lo  <= src1 & src1 <=  src21hi 
+"""
+
 #code = testreg
 #code = cnttzd
 code = cmpi

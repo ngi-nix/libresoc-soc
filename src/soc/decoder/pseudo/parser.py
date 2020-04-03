@@ -80,10 +80,10 @@ def Assign(left, right):
 
 def make_le_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.Le()], [right])
+    return ast.Compare(left, [ast.LtE()], [right])
 def make_ge_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.Ge()], [right])
+    return ast.Compare(left, [ast.GtE()], [right])
 def make_lt_compare(arg):
     (left, right) = arg
     return ast.Compare(left, [ast.Lt()], [right])
@@ -356,7 +356,7 @@ class PowerParser:
             elif p[2] == '||':
                 l = check_concat(p[1]) + check_concat(p[3])
                 p[0] = ast.Call(ast.Name("concat"), l, [])
-            elif p[2] in ['<', '>', '=']:
+            elif p[2] in ['<', '>', '=', '<=', '>=']:
                 p[0] = binary_ops[p[2]]((p[1],p[3]))
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
