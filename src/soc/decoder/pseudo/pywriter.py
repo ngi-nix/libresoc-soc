@@ -9,6 +9,15 @@ def get_isasrc_dir():
     fdir = os.path.split(fdir)[0]
     return os.path.join(fdir, "isa")
 
+def create_args(reglist, extra=None):
+    args = set()
+    for reg in reglist:
+        args.add(reg)
+    args = list(args)
+    if extra:
+        args = [extra] + args
+    return ', '.join(args)
+
 
 class PyISAWriter(ISA):
     def __init__(self):
@@ -26,12 +35,20 @@ class PyISAWriter(ISA):
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
                 pycode, regsused = convert_to_python(pcode)
-                f.write("    #%s\n" % repr(regsused))
-                f.write("    def %s(self):\n" % page.replace(".", "_"))
+                # create list of arguments to call
+                regs = regsused['read_regs'] + regsused['uninit_regs']
+                args = create_args(regs, 'self')
+                # create list of arguments to return
+                retargs = create_args(regsused['write_regs'])
+                f.write("    def %s(%s):\n" % (page.replace(".", "_"), args))
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
-                f.write("%s\n\n" % pycode)
-
+                pycode = pycode.rstrip()
+                f.write(pycode + '\n')
+                if retargs:
+                    f.write("        return (%s,)\n\n" % retargs)
+                else:
+                    f.write("\n")
 
 if __name__ == '__main__':
     isa = PyISAWriter()
