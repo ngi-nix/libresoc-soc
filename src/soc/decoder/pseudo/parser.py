@@ -197,9 +197,9 @@ class PowerParser:
         self.gprs = {}
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
-        self.read_regs = []
-        self.uninit_regs = []
-        self.write_regs = []
+        self.read_regs = set()
+        self.uninit_regs = set()
+        self.write_regs = set()
 
     # The grammar comments come from Python's Grammar/Grammar file
 
@@ -310,10 +310,10 @@ class PowerParser:
                 name = p[1].value.id
                 if name in self.gprs:
                     # add to list of uninitialised
-                    self.uninit_regs.append(name)
+                    self.uninit_regs.add(name)
             print("expr assign", name, p[1])
             if name in self.gprs:
-                self.write_regs.append(name)  # add to list of regs to write
+                self.write_regs.add(name)  # add to list of regs to write
             p[0] = Assign(p[1], p[3])
 
     def p_flow_stmt(self, p):
@@ -488,7 +488,7 @@ class PowerParser:
         if isinstance(p[2], ast.Name):
             print("tuple name", p[2].id)
             if p[2].id in self.gprs:
-                self.read_regs.append(p[2].id)  # add to list of regs to read
+                self.read_regs.add(p[2].id)  # add to list of regs to read
                 #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
                 # return
         p[0] = p[2]

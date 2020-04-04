@@ -49,7 +49,7 @@ class PyISAWriter(ISA):
                 print (pcode)
                 pycode, rused = convert_to_python(pcode)
                 # create list of arguments to call
-                regs = rused['read_regs'] + rused['uninit_regs']
+                regs = list(rused['read_regs']) + list(rused['uninit_regs'])
                 args = create_args(regs, 'self')
                 # create list of arguments to return
                 retargs = create_args(rused['write_regs'])
