@@ -80,11 +80,13 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[3] = 0x1234
         initial_regs[2] = 0x4321
         with Program(lst) as program:
-            self.run_test_program(program, initial_regs)
+            sim = self.run_test_program(program, initial_regs)
+            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
 
     def run_test_program(self, prog, initial_regs):
         simulator = self.run_tst(prog, initial_regs)
         print(simulator.gpr)
+        return simulator
 
 if __name__ == "__main__":
     unittest.main()

@@ -78,6 +78,10 @@ class ISACaller:
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
 
+    def prep_namespace(self):
+        si = yield self.decoder.SI
+        self.namespace.SI = SelectableInt(si, bits=16)
+
     def call(self, name):
         function, read_regs, uninit_regs, write_regs = self.instrs[name]
         input_names = create_args(read_regs | uninit_regs)
@@ -86,12 +90,17 @@ class ISACaller:
         inputs = []
         for name in input_names:
             regnum = yield getattr(self.decoder, name)
-            print(regnum)
+            print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
         print(inputs)
         results = function(self, *inputs)
         print(results)
 
+        output_names = create_args(write_regs)
+        for name, output in zip(output_names, results):
+            regnum = yield getattr(self.decoder, name)
+            print('writing reg %d' % regnum)
+            self.gpr[regnum] = output
 
 
 def inject():
