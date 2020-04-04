@@ -96,8 +96,14 @@ addpcis = """
 D <- d0||d1||d2
 """
 
+testmul = """
+x <- [0] * 16
+RT <- (RA) + EXTS(SI || [0]*16)
+"""
+
+code = testmul
 #code = testreg
-code = cnttzd
+#code = cnttzd
 #code = cmpi
 #code = cmpeqb
 #code = addpcis

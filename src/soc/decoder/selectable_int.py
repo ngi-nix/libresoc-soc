@@ -179,12 +179,20 @@ def selectassign(lhs, idx, rhs):
         lhs[t] = rhs[f]
 
 
-def selectconcat(*args):
+def selectconcat(*args, repeat=1):
+    if repeat != 1 and len(args) == 1 and isinstance(args[0], int):
+        args = [SelectableInt(args[0], 1)]
+    if repeat != 1: # multiplies the incoming arguments
+        tmp = []
+        for i in range(repeat):
+            tmp += args
+        args = tmp
     res = copy(args[0])
     for i in args[1:]:
         assert isinstance(i, SelectableInt), "can only concat SIs, sorry"
         res.bits += i.bits
         res.value = (res.value << i.bits) | i.value
+    print ("concat", repeat, res)
     return res
 
 

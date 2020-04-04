@@ -133,7 +133,22 @@ def check_concat(node):  # checks if the comparison is already a concat
     print("func", node.func.id)
     if node.func.id != 'concat':
         return [node]
+    if node.keywords: # a repeated list-constant, don't optimise
+        return [node]
     return node.args
+
+
+# identify SelectableInt pattern
+def identify_sint_mul_pattern(p):
+    if not isinstance(p[3], ast.Constant):
+        return False
+    if not isinstance(p[1], ast.List):
+        return False
+    l = p[1].elts
+    if len(l) != 1:
+        return False
+    elt = l[0]
+    return isinstance(elt, ast.Constant)
 
 
 ##########   Parser (tokens -> AST) ######
@@ -401,6 +416,10 @@ class PowerParser:
                 p[0] = ast.Call(ast.Name("concat"), l, [])
             elif p[2] in ['<', '>', '=', '<=', '>=']:
                 p[0] = binary_ops[p[2]]((p[1], p[3]))
+            elif identify_sint_mul_pattern(p):
+                keywords=[ast.keyword(arg='repeat', value=p[3])]
+                l = p[1].elts
+                p[0] = ast.Call(ast.Name("concat"), l, keywords)
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
         elif len(p) == 3:
