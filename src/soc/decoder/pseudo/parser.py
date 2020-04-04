@@ -305,6 +305,7 @@ class PowerParser:
             #p[0] = ast.Discard(p[1])
             p[0] = p[1]
         else:
+            name = None
             if isinstance(p[1], ast.Name):
                 name = p[1].id
             elif isinstance(p[1], ast.Subscript):
@@ -312,8 +313,16 @@ class PowerParser:
                 if name in self.gprs:
                     # add to list of uninitialised
                     self.uninit_regs.add(name)
+            elif isinstance(p[1], ast.Call) and p[1].func.id == 'GPR':
+                print(astor.dump_tree(p[1]))
+                # replace GPR(x) with GPR[x]
+                idx = p[1].args[0]
+                p[1] = ast.Subscript(p[1].func, idx)
+            else:
+                print ("help, help")
+                print(astor.dump_tree(p[1]))
             print("expr assign", name, p[1])
-            if name in self.gprs:
+            if name and name in self.gprs:
                 self.write_regs.add(name)  # add to list of regs to write
             p[0] = Assign(p[1], p[3])
 

@@ -107,8 +107,20 @@ RS <- RS + 1
 print(RS)
 """
 
+testcat = """
+RT <- (load_data[56:63] || load_data[48:55]
+    || load_data[40:47] || load_data[32:39]
+    || load_data[24:31] || load_data[16:23]
+    || load_data[8:15]  || load_data[0:7])
+"""
+
+testgpr = """
+GPR(5) <- x
+"""
 #code = testmul
-code = testgetzero
+#code = testgetzero
+#code = testcat
+code = testgpr
 #code = testreg
 #code = cnttzd
 #code = cmpi
