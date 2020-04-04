@@ -21,6 +21,8 @@ from nmigen import Module, Signal
 
 from soc.decoder.pseudo.parser import GardenSnakeCompiler
 from soc.decoder.selectable_int import SelectableInt, selectconcat
+from soc.decoder.isa.caller import GPR, Mem
+
 
 ####### Test code #######
 
@@ -156,58 +158,6 @@ def tolist(num):
 
 def get_reg_hex(reg):
     return hex(reg.value)
-
-class Mem:
-
-    def __init__(self):
-        self.mem = []
-        for i in range(128):
-            self.mem.append(i)
-
-    def __call__(self, addr, sz):
-        res = []
-        for s in range(sz): # TODO: big/little-end
-            res.append(SelectableInt(self.mem[addr.value + s], 8))
-        print ("memread", addr, sz, res)
-        return selectconcat(*res)
-
-    def memassign(self, addr, sz, val):
-        print ("memassign", addr, sz, val)
-        for s in range(sz):
-            byte = (val.value) >> (s*8) & 0xff # TODO: big/little-end
-            self.mem[addr.value + s] = byte
-
-
-class GPR(dict):
-    def __init__(self, sd, regfile):
-        dict.__init__(self)
-        self.sd = sd
-        for i in range(32):
-            self[i] = SelectableInt(regfile[i], 64)
-
-    def __call__(self, ridx):
-        return self[ridx]
-
-    def set_form(self, form):
-        self.form = form
-
-    def getz(self, rnum):
-        #rnum = rnum.value # only SelectableInt allowed
-        print("GPR getzero", rnum)
-        if rnum == 0:
-            return SelectableInt(0, 64)
-        return self[rnum]
-
-    def _get_regnum(self, attr):
-        getform = self.sd.sigforms[self.form]
-        rnum = getattr(getform, attr)
-        return rnum
-
-    def ___getitem__(self, attr):
-        print("GPR getitem", attr)
-        rnum = self._get_regnum(attr)
-        return self.regfile[rnum]
-
 
 def convert_to_python(pcode):
 
