@@ -14,6 +14,7 @@ import astor
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.pseudo.lexer import IndentLexer
+from soc.decoder.orderedset import OrderedSet
 
 # I use the Python AST
 #from compiler import ast
@@ -197,9 +198,9 @@ class PowerParser:
         self.gprs = {}
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
-        self.read_regs = set()
-        self.uninit_regs = set()
-        self.write_regs = set()
+        self.read_regs = OrderedSet()
+        self.uninit_regs = OrderedSet()
+        self.write_regs = OrderedSet()
 
     # The grammar comments come from Python's Grammar/Grammar file
 
