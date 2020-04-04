@@ -309,7 +309,7 @@ class PowerLexer:
     t_APPEND = r'\|\|'
     t_BITOR = r'\|'
     t_BITAND = r'\&'
-    t_BITXOR = r'\&'
+    t_BITXOR = r'\^'
 
     # Ply nicely documented how to do this.
 
