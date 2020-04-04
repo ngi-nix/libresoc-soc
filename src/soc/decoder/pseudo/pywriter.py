@@ -51,7 +51,9 @@ class PyISAWriter(ISA):
                 args = create_args(regs, 'self')
                 # create list of arguments to return
                 retargs = create_args(rused['write_regs'])
-                f.write("    def %s(%s):\n" % (page.replace(".", "_"), args))
+                # write out function.  pre-pend "op_" because some instrs are
+                # also python keywords (cmp).  also replace "." with "_"
+                f.write("    def op_%s(%s):\n" % (page.replace(".", "_"), args))
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
                 pycode = pycode.rstrip()
@@ -61,10 +63,10 @@ class PyISAWriter(ISA):
                 else:
                     f.write("\n")
                 # accumulate the instruction info
-                iinfo = "(%s, %s, %s, %s)" % \
+                iinfo = "(op_%s, %s, %s, %s)" % \
                             (page, rused['read_regs'],
                             rused['uninit_regs'], rused['write_regs'])
-                iinf += "    instrs['%s'] = %s\n" % (pagename, iinfo)
+                iinf += "    instrs['%s'] = %s\n" % (page, iinfo)
             # write out initialisation of info, for ISACaller to use
             f.write("    instrs = {}\n")
             f.write(iinf)
