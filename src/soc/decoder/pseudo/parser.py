@@ -318,6 +318,15 @@ class PowerParser:
                 # replace GPR(x) with GPR[x]
                 idx = p[1].args[0]
                 p[1] = ast.Subscript(p[1].func, idx)
+            elif isinstance(p[1], ast.Call) and p[1].func.id == 'MEM':
+                print ("mem assign")
+                print(astor.dump_tree(p[1]))
+                p[1].func.id = "memassign" # change function name to set
+                p[1].args.append(p[3])
+                p[0] = p[1]
+                print ("mem rewrite")
+                print(astor.dump_tree(p[0]))
+                return
             else:
                 print ("help, help")
                 print(astor.dump_tree(p[1]))

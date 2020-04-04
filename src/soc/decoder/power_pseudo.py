@@ -117,10 +117,20 @@ RT <- (load_data[56:63] || load_data[48:55]
 testgpr = """
 GPR(5) <- x
 """
+testmem = """
+a <- (RA|0)
+b <- (RB|0)
+RA <- MEM(RB, 2)
+EA <- a + 1
+MEM(EA, 1) <- (RS)[56:63]
+RB <- RA
+RA <- EA
+"""
 #code = testmul
 #code = testgetzero
 #code = testcat
-code = testgpr
+#code = testgpr
+code = testmem
 #code = testreg
 #code = cnttzd
 #code = cmpi
@@ -139,6 +149,26 @@ def tolist(num):
 
 def get_reg_hex(reg):
     return hex(reg.value)
+
+class Mem:
+
+    def __init__(self):
+        self.mem = []
+        for i in range(128):
+            self.mem.append(i)
+
+    def __call__(self, addr, sz):
+        res = []
+        for s in range(sz): # TODO: big/little-end
+            res.append(SelectableInt(self.mem[addr.value + s], 8))
+        print ("memread", addr, sz, res)
+        return selectconcat(*res)
+
+    def memassign(self, addr, sz, val):
+        print ("memassign", addr, sz, val)
+        for s in range(sz):
+            byte = (val.value) >> (s*8) & 0xff # TODO: big/little-end
+            self.mem[addr.value + s] = byte
 
 
 class GPR(dict):
@@ -185,11 +215,11 @@ def test():
 
     gsc = GardenSnakeCompiler()
 
-    # XXX unused!  see GPR instead
     gsc.regfile = {}
     for i in range(32):
         gsc.regfile[i] = i
     gsc.gpr = GPR(gsc.parser.sd, gsc.regfile)
+    gsc.mem = Mem()
 
     _compile = gsc.compile
 
@@ -219,6 +249,8 @@ def test():
     d["SelectableInt"] = SelectableInt
     d["concat"] = selectconcat
     d["GPR"] = gsc.gpr
+    d["MEM"] = gsc.mem
+    d["memassign"] = gsc.mem.memassign
 
     form = 'X'
     gsc.gpr.set_form(form)
@@ -269,7 +301,9 @@ def test():
             print(decode.sigforms['X'])
             x = yield decode.sigforms['X'].RS
             ra = yield decode.sigforms['X'].RA
+            rb = yield decode.sigforms['X'].RB
             print("RA", ra, d['RA'])
+            print("RB", rb, d['RB'])
             print("RS", x)
 
             for wname in gsc.parser.write_regs:
@@ -286,6 +320,12 @@ def test():
     for i in range(len(gsc.gpr)):
         print("regfile", i, get_reg_hex(gsc.gpr[i]))
 
+    for i in range(0, len(gsc.mem.mem), 16):
+        hexstr = []
+        for j in range(16):
+            hexstr.append("%02x" % gsc.mem.mem[i+j])
+        hexstr = ' '.join(hexstr)
+        print ("mem %4x" % i, hexstr)
 
 if __name__ == '__main__':
     test()

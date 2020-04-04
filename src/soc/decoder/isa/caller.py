@@ -4,7 +4,13 @@ class ISACaller:
     def __init__(self):
         self.gpr = {} # TODO
         self.mem = {} # TODO
-        self.namespace = {'GPR': self.gpr, 'MEM': self.mem}
+        self.namespace = {'GPR': self.gpr,
+                          'MEM': self.mem,
+                          'memassign': self.memassign
+                         }
+
+    def memassign(self, ea, sz, val):
+        pass
 
 def inject(context):
     """ Decorator factory. """
