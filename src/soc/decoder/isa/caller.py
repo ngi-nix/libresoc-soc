@@ -24,9 +24,9 @@ class Mem:
 
 
 class GPR(dict):
-    def __init__(self, sd, regfile):
+    def __init__(self, decoder, regfile):
         dict.__init__(self)
-        self.sd = sd
+        self.sd = decoder
         for i in range(32):
             self[i] = SelectableInt(regfile[i], 64)
 
@@ -55,8 +55,10 @@ class GPR(dict):
 
 
 class ISACaller:
-    def __init__(self):
-        self.gpr = GPR()
+    # decoder2 - an instance of power_decoder2 
+    # regfile - a list of initial values for the registers
+    def __init__(self, decoder2, regfile):
+        self.gpr = GPR(decoder2, regfile)
         self.mem = Mem()
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
