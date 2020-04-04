@@ -151,6 +151,27 @@ def identify_sint_mul_pattern(p):
     elt = l[0]
     return isinstance(elt, ast.Constant)
 
+def apply_trailer(atom, trailer):
+    if trailer[0] == "TLIST":
+        # assume depth of one
+        atom = apply_trailer(atom, trailer[1])
+        trailer = trailer[2]
+    if trailer[0] == "CALL":
+        #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
+        return ast.Call(atom, trailer[1], [])
+        # if p[1].id == 'print':
+        #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
+        # else:
+        #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
+    else:
+        print("subscript atom", trailer[1])
+        #raise AssertionError("not implemented %s" % p[2][0])
+        subs = trailer[1]
+        if len(subs) == 1:
+            idx = subs[0]
+        else:
+            idx = ast.Slice(subs[0], subs[1], None)
+        return ast.Subscript(atom, idx, ast.Load())
 
 ##########   Parser (tokens -> AST) ######
 
@@ -451,30 +472,18 @@ class PowerParser:
 
     # power: atom trailer* ['**' factor]
     # trailers enables function calls (and subscripts).
-    # I only allow one level of calls
-    # so this is 'trailer'
+    # so this is 'trailerlist'
     def p_power(self, p):
         """power : atom
-                 | atom trailer"""
+                 | atom trailerlist"""
         if len(p) == 2:
             p[0] = p[1]
         else:
-            if p[2][0] == "CALL":
-                #p[0] = ast.Expr(ast.Call(p[1], p[2][1], []))
-                p[0] = ast.Call(p[1], p[2][1], [])
-                # if p[1].id == 'print':
-                #    p[0] = ast.Printnl(ast.Tuple(p[2][1]), None, None)
-                # else:
-                #    p[0] = ast.CallFunc(p[1], p[2][1], None, None)
-            else:
-                print("subscript atom", p[2][1])
-                #raise AssertionError("not implemented %s" % p[2][0])
-                subs = p[2][1]
-                if len(subs) == 1:
-                    idx = subs[0]
-                else:
-                    idx = ast.Slice(subs[0], subs[1], None)
-                p[0] = ast.Subscript(p[1], idx, ast.Load())
+            print("power dump atom")
+            print(astor.dump_tree(p[1]))
+            print("power dump trailerlist")
+            print(astor.dump_tree(p[2]))
+            p[0] = apply_trailer(p[1], p[2])
 
     def p_atom_name(self, p):
         """atom : NAME"""
@@ -532,6 +541,15 @@ class PowerParser:
                 p[0] = p[2]
         else:
             p[0] = p[2]
+
+    def p_trailerlist(self, p):
+        """trailerlist : trailer trailerlist
+                       | trailer
+        """
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = ("TLIST", p[1], p[2])
 
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
     def p_trailer(self, p):

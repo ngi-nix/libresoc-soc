@@ -126,11 +126,18 @@ MEM(EA, 1) <- (RS)[56:63]
 RB <- RA
 RA <- EA
 """
+
+testgprslice = """
+MEM(EA, 4) <- GPR(r)[32:63]
+#x <- x[0][32:63]
+"""
+
 #code = testmul
 #code = testgetzero
 #code = testcat
 #code = testgpr
-code = testmem
+#code = testmem
+code = testgprslice
 #code = testreg
 #code = cnttzd
 #code = cmpi
@@ -177,6 +184,9 @@ class GPR(dict):
         self.sd = sd
         for i in range(32):
             self[i] = SelectableInt(regfile[i], 64)
+
+    def __call__(self, ridx):
+        return self[ridx]
 
     def set_form(self, form):
         self.form = form
