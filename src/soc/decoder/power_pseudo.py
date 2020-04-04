@@ -139,13 +139,13 @@ do i = 0 to 7
     print(i)
 """
 
-code = testdo
+#code = testdo
 #code = _bpermd
 #code = testmul
 #code = testgetzero
 #code = testcat
 #code = testgpr
-#code = testmem
+code = testmem
 #code = testgprslice
 #code = testreg
 #code = cnttzd
@@ -251,14 +251,14 @@ def test():
             # uninitialised regs, drop them into dict for function
             for rname in gsc.parser.uninit_regs:
                 d[rname] = SelectableInt(0, 64)  # uninitialised (to zero)
-                print("uninitialised", rname, get_reg_hex(d[rname]))
+                print("uninitialised", rname, hex(d[rname].value))
 
             # read regs, drop them into dict for function
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
                 d[rname] = gsc.gpr[regidx] # contents of regfile
                 d["_%s" % rname] = regidx # actual register value
-                print("read reg", rname, regidx, get_reg_hex(d[rname]))
+                print("read reg", rname, regidx, hex(d[rname].value))
 
             exec(compiled_code, d)  # code gets executed here in dict "d"
             print("Done")
@@ -284,8 +284,7 @@ def test():
                        traces=decode.ports()):
         sim.run()
 
-    for i in range(len(gsc.gpr)):
-        print("regfile", i, get_reg_hex(gsc.gpr[i]))
+    gsc.gpr.dump()
 
     for i in range(0, len(gsc.mem.mem), 16):
         hexstr = []

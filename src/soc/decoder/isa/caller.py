@@ -62,6 +62,11 @@ class GPR(dict):
         rnum = self._get_regnum(attr)
         return self.regfile[rnum]
 
+    def dump(self):
+        for i in range(len(self)):
+            print("reg", i, hex(self[i].value))
+
+
 
 class ISACaller:
     # decoder2 - an instance of power_decoder2
