@@ -25,6 +25,7 @@ from soc.decoder.isa import ISACaller
 from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
 
 class %s(ISACaller):
+
 """
 
 class PyISAWriter(ISA):
