@@ -63,9 +63,12 @@ class GPR(dict):
         return self.regfile[rnum]
 
     def dump(self):
-        for i in range(len(self)):
-            print("reg", i, hex(self[i].value))
-
+        for i in range(0, len(self), 8):
+            s = []
+            for j in range(8):
+                s.append("%08x" % self[i+j].value)
+            s = ' '.join(s)
+            print("reg", "%2d" % i, s)
 
 
 class ISACaller:
