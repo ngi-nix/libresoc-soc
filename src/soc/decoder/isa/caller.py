@@ -55,7 +55,7 @@ class GPR(dict):
 
 
 class ISACaller:
-    # decoder2 - an instance of power_decoder2 
+    # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
     def __init__(self, decoder2, regfile):
         self.gpr = GPR(decoder2, regfile)
@@ -63,10 +63,15 @@ class ISACaller:
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
                           'memassign': self.memassign
-                         }
+                          }
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
+
+    def call(self, name):
+        function, read_regs, uninit_regs, write_regs = self.instrs[name]
+
+
 
 
 def inject(context):

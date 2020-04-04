@@ -42,7 +42,7 @@ class DecoderTestCase(FHDLTestCase):
         instruction = Signal(32)
 
         pdecode = create_pdecode()
-        simulator = ISACaller(pdecode, [0] * 32)
+        simulator = fixedarith(pdecode, [0] * 32)
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
@@ -50,15 +50,17 @@ class DecoderTestCase(FHDLTestCase):
         gen = generator.generate_instructions()
 
         def process():
-            for ins in gen:
+            for ins, code in zip(gen, generator.assembly.splitlines()):
 
                 print("0x{:X}".format(ins & 0xffffffff))
+                print(code)
 
                 # ask the decoder to decode this binary data (endian'd)
                 yield pdecode2.dec.bigendian.eq(0)  # little / big?
                 yield instruction.eq(ins)          # raw binary instr.
                 yield Delay(1e-6)
-                yield from simulator.execute_op(pdecode2)
+                opname = code.split(' ')[0]
+                yield from simulator.call(opname)
 
         sim.add_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -67,7 +69,7 @@ class DecoderTestCase(FHDLTestCase):
         return simulator
 
     def test_addi(self):
-        lst = ["addi 1, 0, 0x1234",]
+        lst = ["addi 1, 0, 0x1234"]
         with Program(lst) as program:
             self.run_test_program(program)
 
