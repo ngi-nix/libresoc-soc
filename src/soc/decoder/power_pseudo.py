@@ -135,12 +135,12 @@ MEM(EA, 4) <- GPR(r)[32:63]
 """
 
 testdo = r"""
-for i = 0 to 7
+do i = 0 to 7
     print(i)
 """
 
 code = testdo
-code = _bpermd
+#code = _bpermd
 #code = testmul
 #code = testgetzero
 #code = testcat
@@ -180,7 +180,7 @@ def convert_to_python(pcode):
 
 def test():
 
-    gsc = GardenSnakeCompiler()
+    gsc = GardenSnakeCompiler(debug=True)
 
     gsc.regfile = {}
     for i in range(32):

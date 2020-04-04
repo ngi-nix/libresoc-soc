@@ -381,7 +381,8 @@ class PowerParser:
         p[0] = ast.Break()
 
     def p_for_stmt(self, p):
-        """for_stmt : FOR test EQ test TO test COLON suite
+        """for_stmt : FOR atom EQ test TO test COLON suite
+                    | DO atom EQ test TO test COLON suite
         """
         # auto-add-one (sigh) due to python range
         start = p[4]
@@ -645,20 +646,21 @@ class PowerParser:
 
 
 class GardenSnakeParser(PowerParser):
-    def __init__(self, lexer=None):
+    def __init__(self, lexer=None, debug=False):
         PowerParser.__init__(self)
+        self.debug = debug
         if lexer is None:
             lexer = IndentLexer(debug=0)
         self.lexer = lexer
         self.tokens = lexer.tokens
         self.parser = yacc.yacc(module=self, start="file_input_end",
-                                debug=False, write_tables=False)
+                                debug=debug, write_tables=False)
 
         self.sd = create_pdecode()
 
     def parse(self, code):
         # self.lexer.input(code)
-        result = self.parser.parse(code, lexer=self.lexer, debug=False)
+        result = self.parser.parse(code, lexer=self.lexer, debug=self.debug)
         return ast.Module(result)
 
 
@@ -667,8 +669,8 @@ class GardenSnakeParser(PowerParser):
 #from compiler import misc, syntax, pycodegen
 
 class GardenSnakeCompiler(object):
-    def __init__(self):
-        self.parser = GardenSnakeParser()
+    def __init__(self, debug=False):
+        self.parser = GardenSnakeParser(debug=debug)
 
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)

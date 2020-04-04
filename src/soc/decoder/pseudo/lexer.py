@@ -47,7 +47,7 @@ def python_colonify(lexer, tokens):
             token = copy(token)
             token.type = "COLON"
             yield token
-        elif token.type in ['WHILE', 'FOR']:
+        elif token.type in ['DO', 'WHILE', 'FOR']:
             forwhile_seen = True
             yield token
         elif token.type == 'NEWLINE':
