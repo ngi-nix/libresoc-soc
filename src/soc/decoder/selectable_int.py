@@ -9,10 +9,14 @@ class SelectableInt:
         self.bits = bits
 
     def __add__(self, b):
+        if isinstance(b, int):
+            b = SelectableInt(b, self.bits)
         assert b.bits == self.bits
         return SelectableInt(self.value + b.value, self.bits)
 
     def __sub__(self, b):
+        if isinstance(b, int):
+            b = SelectableInt(b, self.bits)
         assert b.bits == self.bits
         return SelectableInt(self.value - b.value, self.bits)
 
