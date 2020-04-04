@@ -134,12 +134,17 @@ MEM(EA, 4) <- GPR(r)[32:63]
 #x <- x[0][32:63]
 """
 
+testdo = r"""
+for i = 0 to 7
+   print(i)
+"""
+code = testdo
 #code = testmul
 #code = testgetzero
 #code = testcat
 #code = testgpr
 #code = testmem
-code = testgprslice
+#code = testgprslice
 #code = testreg
 #code = cnttzd
 #code = cmpi

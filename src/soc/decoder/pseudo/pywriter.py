@@ -80,8 +80,9 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
-    isa.write_pysource('fixedstore')
+    isa.write_pysource('fixedlogical')
     exit(0)
+    isa.write_pysource('fixedstore')
     isa.write_pysource('fixedload')
     isa.write_pysource('comparefixed')
     isa.write_pysource('fixedarith')

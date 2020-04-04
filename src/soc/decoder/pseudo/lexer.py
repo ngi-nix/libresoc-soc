@@ -256,6 +256,7 @@ class PowerLexer:
         'APPEND',
         'BITOR',
         'BITAND',
+        'BITXOR',
         'RETURN',
         'WS',
         'NEWLINE',
@@ -308,6 +309,7 @@ class PowerLexer:
     t_APPEND = r'\|\|'
     t_BITOR = r'\|'
     t_BITAND = r'\&'
+    t_BITXOR = r'\&'
 
     # Ply nicely documented how to do this.
 

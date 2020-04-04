@@ -107,6 +107,7 @@ def make_eq_compare(arg):
 
 
 binary_ops = {
+    "^": ast.BitXor(),
     "&": ast.BitAnd(),
     "|": ast.BitOr(),
     "+": ast.Add(),
@@ -209,6 +210,7 @@ class PowerParser:
     precedence = (
         ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
         ("left", "BITOR"),
+        ("left", "BITXOR"),
         ("left", "BITAND"),
         ("left", "PLUS", "MINUS"),
         ("left", "MULT", "DIV", "MOD"),
@@ -439,6 +441,7 @@ class PowerParser:
                       | comparison LT comparison
                       | comparison GT comparison
                       | comparison BITOR comparison
+                      | comparison BITXOR comparison
                       | comparison BITAND comparison
                       | PLUS comparison
                       | comparison MINUS
