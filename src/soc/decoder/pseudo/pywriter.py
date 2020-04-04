@@ -4,20 +4,12 @@ import os
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_pseudo import convert_to_python
 from soc.decoder.orderedset import OrderedSet
+from soc.decoder.isa.caller import create_args
 
 def get_isasrc_dir():
     fdir = os.path.abspath(os.path.dirname(__file__))
     fdir = os.path.split(fdir)[0]
     return os.path.join(fdir, "isa")
-
-def create_args(reglist, extra=None):
-    args = OrderedSet()
-    for reg in reglist:
-        args.add(reg)
-    args = list(args)
-    if extra:
-        args = [extra] + args
-    return ', '.join(args)
 
 
 header = """\
@@ -53,9 +45,9 @@ class PyISAWriter(ISA):
                 pycode, rused = convert_to_python(pcode)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
-                args = create_args(regs, 'self')
+                args = ', '.join(create_args(regs, 'self'))
                 # create list of arguments to return
-                retargs = create_args(rused['write_regs'])
+                retargs = ', '.join(create_args(rused['write_regs']))
                 # write out function.  pre-pend "op_" because some instrs are
                 # also python keywords (cmp).  also replace "." with "_"
                 op_fname ="op_%s" % page.replace(".", "_")

@@ -15,16 +15,22 @@ from soc.decoder.orderedset import OrderedSet
 
 class fixedarith(ISACaller):
 
-    @inject
+    @inject()
     def op_addi(self, RA):
         if RA == 0:
-            RT = EXTS(SI)
+            RT = SI
         else:
-            RT = RA + EXTS(SI)
+            RT = RA + SI
+        return (RT,)
+    @inject()
+    def op_add(self, RA, RB):
+        RT = RA + RB
         return (RT,)
 
     instrs = {}
     instrs['addi'] = (op_addi, OrderedSet(['RA']),
+                OrderedSet(), OrderedSet(['RT']))
+    instrs['add'] = (op_add, OrderedSet(['RA', 'RB']),
                 OrderedSet(), OrderedSet(['RT']))
 
 
@@ -36,13 +42,13 @@ class Register:
 
 class DecoderTestCase(FHDLTestCase):
 
-    def run_tst(self, generator):
+    def run_tst(self, generator, initial_regs):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
 
         pdecode = create_pdecode()
-        simulator = fixedarith(pdecode, [0] * 32)
+        simulator = fixedarith(pdecode, initial_regs)
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
@@ -68,13 +74,16 @@ class DecoderTestCase(FHDLTestCase):
             sim.run()
         return simulator
 
-    def test_addi(self):
-        lst = ["addi 1, 0, 0x1234"]
+    def test_add(self):
+        lst = ["add 1, 3, 2"]
+        initial_regs = [0] * 32
+        initial_regs[3] = 0x1234
+        initial_regs[2] = 0x4321
         with Program(lst) as program:
-            self.run_test_program(program)
+            self.run_test_program(program, initial_regs)
 
-    def run_test_program(self, prog):
-        simulator = self.run_tst(prog)
+    def run_test_program(self, prog, initial_regs):
+        simulator = self.run_tst(prog, initial_regs)
         print(simulator.gpr)
 
 if __name__ == "__main__":

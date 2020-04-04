@@ -1,6 +1,15 @@
 from functools import wraps
+from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import SelectableInt, selectconcat
 
+def create_args(reglist, extra=None):
+    args = OrderedSet()
+    for reg in reglist:
+        args.add(reg)
+    args = list(args)
+    if extra:
+        args = [extra] + args
+    return args
 
 class Mem:
 
@@ -64,17 +73,28 @@ class ISACaller:
                           'MEM': self.mem,
                           'memassign': self.memassign
                           }
+        self.decoder = decoder2
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
 
     def call(self, name):
         function, read_regs, uninit_regs, write_regs = self.instrs[name]
+        input_names = create_args(read_regs | uninit_regs)
+        print(input_names)
+
+        inputs = []
+        for name in input_names:
+            regnum = yield getattr(self.decoder, name)
+            print(regnum)
+            inputs.append(self.gpr(regnum))
+        print(inputs)
+        results = function(self, *inputs)
+        print(results)
 
 
 
-
-def inject(context):
+def inject():
     """ Decorator factory. """
     def variable_injector(func):
         @wraps(func)
@@ -84,6 +104,7 @@ def inject(context):
             except AttributeError:
                 func_globals = func.func_globals  # Earlier versions.
 
+            context = args[0].namespace
             saved_values = func_globals.copy()  # Shallow copy of dict.
             func_globals.update(context)
 
@@ -99,20 +120,3 @@ def inject(context):
 
     return variable_injector
 
-if __name__ == '__main__':
-    d = {'1': 1}
-    namespace = {'a': 5, 'b': 3, 'd': d}
-
-    @inject(namespace)
-    def test():
-        print (globals())
-        print('a:', a)
-        print('b:', b)
-        print('d1:', d['1'])
-        d[2] = 5
-        
-        return locals()
-
-    test()
-
-    print (namespace)
