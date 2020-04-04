@@ -51,7 +51,7 @@ class PyISAWriter(ISA):
                 # write out function.  pre-pend "op_" because some instrs are
                 # also python keywords (cmp).  also replace "." with "_"
                 op_fname ="op_%s" % page.replace(".", "_")
-                f.write("    @inject(self.namespace)\n")
+                f.write("    @inject()\n")
                 f.write("    def %s(%s):\n" % (op_fname, args))
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
