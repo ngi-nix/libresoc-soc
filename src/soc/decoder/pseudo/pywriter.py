@@ -53,7 +53,8 @@ class PyISAWriter(ISA):
                 retargs = create_args(rused['write_regs'])
                 # write out function.  pre-pend "op_" because some instrs are
                 # also python keywords (cmp).  also replace "." with "_"
-                f.write("    def op_%s(%s):\n" % (page.replace(".", "_"), args))
+                op_fname ="op_%s" % page.replace(".", "_")
+                f.write("    def op_%s(%s):\n" % (op_fname, args))
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
                 pycode = pycode.rstrip()
@@ -64,7 +65,7 @@ class PyISAWriter(ISA):
                     f.write("\n")
                 # accumulate the instruction info
                 iinfo = "(op_%s, %s, %s, %s)" % \
-                            (page, rused['read_regs'],
+                            (op_fname, rused['read_regs'],
                             rused['uninit_regs'], rused['write_regs'])
                 iinf += "    instrs['%s'] = %s\n" % (page, iinfo)
             # write out initialisation of info, for ISACaller to use
