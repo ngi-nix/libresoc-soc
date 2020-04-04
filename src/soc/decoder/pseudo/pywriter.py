@@ -23,6 +23,8 @@ header = """\
 
 from soc.decoder.isa import ISACaller
 from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
+from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.selectable_int import selectconcat as concat
 
 class %s(ISACaller):
 
