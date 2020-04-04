@@ -112,6 +112,7 @@ binary_ops = {
     "-": ast.Sub(),
     "*": ast.Mult(),
     "/": ast.Div(),
+    "%": ast.Mod(),
     "<=": make_le_compare,
     ">=": make_ge_compare,
     "<": make_lt_compare,
@@ -140,6 +141,32 @@ def check_concat(node):  # checks if the comparison is already a concat
 # also part of Ply
 #import yacc
 
+# https://www.mathcs.emory.edu/~valerie/courses/fall10/155/resources/op_precedence.html
+# python operator precedence
+# Highest precedence at top, lowest at bottom.
+# Operators in the same box evaluate left to right.
+#
+# Operator Description
+# ()                                                     Parentheses (grouping)
+# f(args...)                                             Function call
+# x[index:index]                                         Slicing
+# x[index]                                               Subscription
+# x.attribute                                            Attribute reference
+# **                                                     Exponentiation
+# ~x                                                     Bitwise not
+# +x, -x                                                 Positive, negative
+# *, /, %                                                mul, div, remainder
+# +, -                                                   Addition, subtraction
+# <<, >>                                                 Bitwise shifts
+# &                                                      Bitwise AND
+# ^                                                      Bitwise XOR
+# |                                                      Bitwise OR
+# in, not in, is, is not, <, <=,  >,  >=, <>, !=, ==     comp, membership, ident
+# not x                                                  Boolean NOT
+# and                                                    Boolean AND
+# or                                                     Boolean OR
+# lambda                                                 Lambda expression
+
 class PowerParser:
 
     precedence = (
@@ -147,7 +174,7 @@ class PowerParser:
         ("left", "BITOR"),
         ("left", "BITAND"),
         ("left", "PLUS", "MINUS"),
-        ("left", "MULT", "DIV"),
+        ("left", "MULT", "DIV", "MOD"),
         ("left", "INVERT"),
     )
 
@@ -348,6 +375,7 @@ class PowerParser:
                       | comparison MINUS comparison
                       | comparison MULT comparison
                       | comparison DIV comparison
+                      | comparison MOD comparison
                       | comparison EQ comparison
                       | comparison LE comparison
                       | comparison GE comparison

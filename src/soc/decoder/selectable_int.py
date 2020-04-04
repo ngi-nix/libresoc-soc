@@ -20,6 +20,14 @@ class SelectableInt:
         assert b.bits == self.bits
         return SelectableInt(self.value * b.value, self.bits)
 
+    def __div__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value / b.value, self.bits)
+
+    def __mod__(self, b):
+        assert b.bits == self.bits
+        return SelectableInt(self.value % b.value, self.bits)
+
     def __or__(self, b):
         assert b.bits == self.bits
         return SelectableInt(self.value | b.value, self.bits)
