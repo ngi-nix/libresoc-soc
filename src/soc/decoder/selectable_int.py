@@ -1,6 +1,11 @@
 import unittest
 from copy import copy
 
+def check_extsign(a, b):
+    if b.bits != 256:
+        return b
+    return SelectableInt(b.value, a.bits)
+
 
 class SelectableInt:
     def __init__(self, value, bits):
@@ -11,36 +16,44 @@ class SelectableInt:
     def __add__(self, b):
         if isinstance(b, int):
             b = SelectableInt(b, self.bits)
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value + b.value, self.bits)
 
     def __sub__(self, b):
         if isinstance(b, int):
             b = SelectableInt(b, self.bits)
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value - b.value, self.bits)
 
     def __mul__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value * b.value, self.bits)
 
     def __div__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value / b.value, self.bits)
 
     def __mod__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value % b.value, self.bits)
 
     def __or__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value | b.value, self.bits)
 
     def __and__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value & b.value, self.bits)
 
     def __xor__(self, b):
+        b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value ^ b.value, self.bits)
 
@@ -103,6 +116,7 @@ class SelectableInt:
 
     def __ge__(self, other):
         if isinstance(other, SelectableInt):
+            other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
@@ -111,6 +125,7 @@ class SelectableInt:
 
     def __le__(self, other):
         if isinstance(other, SelectableInt):
+            other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
@@ -119,6 +134,7 @@ class SelectableInt:
 
     def __gt__(self, other):
         if isinstance(other, SelectableInt):
+            other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
@@ -127,6 +143,7 @@ class SelectableInt:
 
     def __lt__(self, other):
         if isinstance(other, SelectableInt):
+            other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
@@ -135,6 +152,7 @@ class SelectableInt:
 
     def __eq__(self, other):
         if isinstance(other, SelectableInt):
+            other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
