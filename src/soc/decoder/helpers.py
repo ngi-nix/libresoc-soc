@@ -7,16 +7,25 @@ def exts(value, bits):
     return (value & (sign - 1)) - (value & sign)
 
 
+def EXTS(value):
+    """ extends sign bit out from current MSB to all 256 bits
+    """
+    assert isinstance(value, SelectableInt)
+    return SelectableInt(exts(value.value, value.bits) & ((1 << 256)-1), 256)
+
 def EXTS64(value):
-    if isinstance(value, SelectableInt):
-        value = value.value
-    return SelectableInt(exts(value, 32) & ((1 << 64)-1), 64)
+    """ extends sign bit out from current MSB to 64 bits
+    """
+    assert isinstance(value, SelectableInt)
+    return SelectableInt(exts(value.value, value.bits) & ((1 << 64)-1), 64)
 
 
+# XXX should this explicitly extend from 32 to 64?
 def EXTZ64(value):
     if isinstance(value, SelectableInt):
         value = value.value
     return SelectableInt(value & ((1<<32)-1), 64)
+
 
 def rotl(value, bits, wordlen):
     mask = (1 << wordlen) - 1
