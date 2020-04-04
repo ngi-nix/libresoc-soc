@@ -240,6 +240,7 @@ class PowerLexer:
         'RBRACK',
         'COLON',
         'EQ',
+        'ASSIGNEA',
         'ASSIGN',
         'LTU',
         'GTU',
@@ -291,6 +292,7 @@ class PowerLexer:
 
     t_COLON = r':'
     t_EQ = r'='
+    t_ASSIGNEA = r'<-iea'
     t_ASSIGN = r'<-'
     t_LTU = r'<u'
     t_GTU = r'>u'

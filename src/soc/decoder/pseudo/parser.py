@@ -23,7 +23,7 @@ import ast
 # Helper function
 
 
-def Assign(left, right):
+def Assign(left, right, iea_mode):
     names = []
     print("Assign", left, right)
     if isinstance(left, ast.Name):
@@ -320,7 +320,8 @@ class PowerParser:
     # augassign: ('+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' |
     #             '<<=' | '>>=' | '**=' | '//=')
     def p_expr_stmt(self, p):
-        """expr_stmt : testlist ASSIGN testlist
+        """expr_stmt : testlist ASSIGNEA testlist
+                     | testlist ASSIGN testlist
                      | testlist """
         print("expr_stmt", p)
         if len(p) == 2:
@@ -328,6 +329,7 @@ class PowerParser:
             #p[0] = ast.Discard(p[1])
             p[0] = p[1]
         else:
+            iea_mode = p[2] == '<-iea'
             name = None
             if isinstance(p[1], ast.Name):
                 name = p[1].id
@@ -356,7 +358,7 @@ class PowerParser:
             print("expr assign", name, p[1])
             if name and name in self.gprs:
                 self.write_regs.add(name)  # add to list of regs to write
-            p[0] = Assign(p[1], p[3])
+            p[0] = Assign(p[1], p[3], iea_mode)
 
     def p_flow_stmt(self, p):
         "flow_stmt : return_stmt"
