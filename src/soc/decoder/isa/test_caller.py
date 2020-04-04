@@ -85,7 +85,7 @@ class DecoderTestCase(FHDLTestCase):
 
     def run_test_program(self, prog, initial_regs):
         simulator = self.run_tst(prog, initial_regs)
-        print(simulator.gpr)
+        simulator.gpr.dump()
         return simulator
 
 if __name__ == "__main__":
