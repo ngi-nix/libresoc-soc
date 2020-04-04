@@ -383,7 +383,6 @@ class PowerParser:
     def p_for_stmt(self, p):
         """for_stmt : FOR test EQ test TO test COLON suite
         """
-        p[0] = ast.While(p[2], p[4], [])
         # auto-add-one (sigh) due to python range
         start = p[4]
         end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))

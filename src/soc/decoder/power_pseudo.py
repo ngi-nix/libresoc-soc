@@ -136,9 +136,11 @@ MEM(EA, 4) <- GPR(r)[32:63]
 
 testdo = r"""
 for i = 0 to 7
-   print(i)
+    print(i)
 """
+
 code = testdo
+code = _bpermd
 #code = testmul
 #code = testgetzero
 #code = testcat
