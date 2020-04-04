@@ -106,6 +106,11 @@ def make_eq_compare(arg):
     return ast.Compare(left, [ast.Eq()], [right])
 
 
+def make_ne_compare(arg):
+    (left, right) = arg
+    return ast.Compare(left, [ast.NotEq()], [right])
+
+
 binary_ops = {
     "^": ast.BitXor(),
     "&": ast.BitAnd(),
@@ -120,6 +125,7 @@ binary_ops = {
     "<": make_lt_compare,
     ">": make_gt_compare,
     "=": make_eq_compare,
+    "!=": make_ne_compare,
 }
 unary_ops = {
     "+": ast.UAdd(),
@@ -208,7 +214,7 @@ def apply_trailer(atom, trailer):
 class PowerParser:
 
     precedence = (
-        ("left", "EQ", "GT", "LT", "LE", "GE", "LTU", "GTU"),
+        ("left", "EQ", "NE", "GT", "LT", "LE", "GE", "LTU", "GTU"),
         ("left", "BITOR"),
         ("left", "BITXOR"),
         ("left", "BITAND"),
@@ -436,6 +442,7 @@ class PowerParser:
                       | comparison DIV comparison
                       | comparison MOD comparison
                       | comparison EQ comparison
+                      | comparison NE comparison
                       | comparison LE comparison
                       | comparison GE comparison
                       | comparison LTU comparison
@@ -459,7 +466,7 @@ class PowerParser:
             elif p[2] == '||':
                 l = check_concat(p[1]) + check_concat(p[3])
                 p[0] = ast.Call(ast.Name("concat"), l, [])
-            elif p[2] in ['<', '>', '=', '<=', '>=']:
+            elif p[2] in ['<', '>', '=', '<=', '>=', '!=']:
                 p[0] = binary_ops[p[2]]((p[1], p[3]))
             elif identify_sint_mul_pattern(p):
                 keywords=[ast.keyword(arg='repeat', value=p[3])]

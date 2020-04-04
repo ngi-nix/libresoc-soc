@@ -244,6 +244,7 @@ class PowerLexer:
         'ASSIGN',
         'LTU',
         'GTU',
+        'NE',
         'LE',
         'GE',
         'LT',
@@ -296,6 +297,7 @@ class PowerLexer:
     t_ASSIGN = r'<-'
     t_LTU = r'<u'
     t_GTU = r'>u'
+    t_NE = r'!='
     t_LE = r'<='
     t_GE = r'>='
     t_LT = r'<'
