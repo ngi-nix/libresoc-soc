@@ -101,7 +101,14 @@ x <- [0] * 16
 RT <- (RA) + EXTS(SI || [0]*16)
 """
 
-code = testmul
+testgetzero = """
+RS <- (RA|0)
+RS <- RS + 1
+print(RS)
+"""
+
+#code = testmul
+code = testgetzero
 #code = testreg
 #code = cnttzd
 #code = cmpi
@@ -126,24 +133,27 @@ class GPR(dict):
     def __init__(self, sd, regfile):
         dict.__init__(self)
         self.sd = sd
-        self.regfile = regfile
         for i in range(32):
-            self[i] = SelectableInt(0, 64)
+            self[i] = SelectableInt(regfile[i], 64)
 
     def set_form(self, form):
         self.form = form
 
-    def ___getitem__(self, attr):
-        print("GPR getitem", attr)
+    def getz(self, rnum):
+        #rnum = rnum.value # only SelectableInt allowed
+        print("GPR getzero", rnum)
+        if rnum == 0:
+            return SelectableInt(0, 64)
+        return self[rnum]
+
+    def _get_regnum(self, attr):
         getform = self.sd.sigforms[self.form]
         rnum = getattr(getform, attr)
-        print("GPR get", rnum, rnum, dir(rnum))
-        l = list(rnum)
-        print(l[0]._as_const())
-        # for x in rnum:
-        #print (x, x.value, dir(x))
-        #print (x.value, dir(x.value))
-        print(list(rnum))
+        return rnum
+
+    def ___getitem__(self, attr):
+        print("GPR getitem", attr)
+        rnum = self._get_regnum(attr)
         return self.regfile[rnum]
 
 
@@ -166,7 +176,7 @@ def test():
     # XXX unused!  see GPR instead
     gsc.regfile = {}
     for i in range(32):
-        gsc.regfile[i] = 0
+        gsc.regfile[i] = i
     gsc.gpr = GPR(gsc.parser.sd, gsc.regfile)
 
     _compile = gsc.compile
@@ -235,7 +245,8 @@ def test():
             # read regs, drop them into dict for function
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
-                d[rname] = gsc.gpr[regidx]
+                d[rname] = gsc.gpr[regidx] # contents of regfile
+                d["_%s" % rname] = regidx # actual register value
                 print("read reg", rname, regidx, get_reg_hex(d[rname]))
 
             exec(compiled_code, d)  # code gets executed here in dict "d"
@@ -251,8 +262,8 @@ def test():
 
             for wname in gsc.parser.write_regs:
                 reg = getform[wname]
-                print("write regs", wname, d[wname], reg)
                 regidx = yield reg
+                print("write regs", regidx, wname, d[wname], reg)
                 gsc.gpr[regidx] = d[wname]
 
     sim.add_process(process)

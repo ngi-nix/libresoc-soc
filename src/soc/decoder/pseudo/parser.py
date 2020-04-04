@@ -486,13 +486,34 @@ class PowerParser:
     def p_atom_tuple(self, p):
         """atom : LPAR testlist RPAR"""
         print("tuple", p[2])
+        print("astor dump")
+        print(astor.dump_tree(p[2]))
+
         if isinstance(p[2], ast.Name):
             print("tuple name", p[2].id)
             if p[2].id in self.gprs:
                 self.read_regs.add(p[2].id)  # add to list of regs to read
                 #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
                 # return
-        p[0] = p[2]
+            p[0] = p[2]
+        elif isinstance(p[2], ast.BinOp):
+            if isinstance(p[2].left, ast.Name) and \
+               isinstance(p[2].right, ast.Constant) and \
+                p[2].right.value == 0 and \
+                p[2].left.id in self.gprs:
+                    rid = p[2].left.id
+                    self.read_regs.add(rid)  # add to list of regs to read
+                    # create special call to GPR.getz
+                    gprz = ast.Name("GPR")
+                    gprz = ast.Attribute(gprz, "getz")   # get testzero function
+                    # *sigh* see class GPR.  we need index itself not reg value
+                    ridx = ast.Name("_%s" % rid)
+                    p[0] = ast.Call(gprz, [ridx], [])
+                    print("tree", astor.dump_tree(p[0]))
+            else:
+                p[0] = p[2]
+        else:
+            p[0] = p[2]
 
     # trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
     def p_trailer(self, p):
