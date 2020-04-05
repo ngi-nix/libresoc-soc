@@ -123,17 +123,22 @@ class ISACaller:
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
 
-    def prep_namespace(self):
+    def prep_namespace(self, formname, op_fields):
+        # TODO: get field names from form in decoder*1* (not decoder2)
+        # decoder2 is hand-created, and decoder1.sigform is auto-generated
+        # from spec
+        # then "yield" fields only from op_fields rather than hard-coded
+        # list, here.
         for name in ['SI', 'UI', 'D', 'BD']:
             signal = getattr(self.decoder, name)
             val = yield signal
             self.namespace[name] = SelectableInt(val, bits=signal.width)
 
     def call(self, name):
-        yield from self.prep_namespace()
-
         function, read_regs, uninit_regs, write_regs, op_fields, form \
             = self.instrs[name]
+        yield from self.prep_namespace(form, op_fields)
+
         input_names = create_args(read_regs | uninit_regs)
         print(input_names)
 
