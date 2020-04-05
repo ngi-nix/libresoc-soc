@@ -4,11 +4,13 @@ import os
 import requests
 
 
-def download_wiki_file(name):
+def download_wiki_file(name, name_on_wiki=None):
+    if name_on_wiki is None:
+        name_on_wiki = name
     file_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = os.path.join(file_dir, name)
     if not os.path.isfile(file_path):
-        url = 'https://libre-riscv.org/openpower/isatables/' + name
+        url = 'https://libre-riscv.org/openpower/isatables/' + name_on_wiki
         r = requests.get(url, allow_redirects=True)
         with open(file_path, 'w') as outfile:
             outfile.write(r.content.decode("utf-8"))
@@ -29,9 +31,10 @@ single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out',
 
 # default values for fields in the table
 default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
-                   'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
-                   'ldst len': 'NONE',
-                   'rc' : 'NONE', 'cry in' : 'ZERO', 'form': 'NONE'}
+                  'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
+                  'ldst len': 'NONE',
+                  'rc': 'NONE', 'cry in': 'ZERO', 'form': 'NONE'}
+
 
 def get_signal_name(name):
     if name[0].isdigit():
