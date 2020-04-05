@@ -72,7 +72,8 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
-    isa.write_pysource('system')
+    isa.write_pysource('sprset')
+    #isa.write_pysource('system')
     exit(0)
     isa.write_pysource('stringldst')
     isa.write_pysource('fixedshift')

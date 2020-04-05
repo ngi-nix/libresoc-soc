@@ -419,24 +419,40 @@ class IndentLexer(PowerLexer):
         except StopIteration:
             return None
 
+switchtest = """
+switch (n)
+    case(1): x <- 5
+    case(2): fallthrough
+    case(3):
+        x <- 3
+    default:
+        x <- 9
+print (5)
+"""
+
+cnttzd = """
+n  <- 0
+do while n < 64
+   if (RS)[63-n] = 0b1 then
+        leave
+   n  <- n + 1
+RA <- EXTZ64(n)
+print (RA)
+"""
+
 if __name__ == '__main__':
 
     # quick test/demo
-    cnttzd = """
-    n  <- 0
-    do while n < 64
-       if (RS)[63-n] = 0b1 then
-            leave
-       n  <- n + 1
-    RA <- EXTZ64(n)
-    print (RA)
-    """
-
-    code = cnttzd
+    #code = cnttzd
+    code = switchtest
 
     lexer = IndentLexer(debug=1)
     # Give the lexer some input
     print ("code")
     print (code)
     lexer.input(code)
+
+    tokens = iter(lexer.token, None)
+    for token in tokens:
+        print (token)
 

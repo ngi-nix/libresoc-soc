@@ -382,6 +382,7 @@ class PowerParser:
     def p_compound_stmt(self, p):
         """compound_stmt : if_stmt
                          | while_stmt
+                         | switch_stmt
                          | for_stmt
                          | funcdef
         """
@@ -410,6 +411,61 @@ class PowerParser:
             p[0] = ast.While(p[3], p[5], [])
         else:
             p[0] = ast.While(p[3], p[5], p[8])
+
+    def p_switch_smt(self, p):
+        """switch_stmt : SWITCH LPAR atom RPAR COLON NEWLINE INDENT switches DEDENT
+        """
+        switchon = p[3]
+        print("switch stmt")
+        print(astor.dump_tree(p[1]))
+
+        cases = []
+        current_cases = []
+        for (case, suite) in p[8]:
+            print (case, suite)
+        res = []
+        p[0] = ast.If([], [], [])
+
+    def p_switches(self, p):
+        """switches : switch_list switch_default
+                    | switch_default
+        """
+        if len(p) == 3:
+            p[0] = p[1] + [p[2]]
+        else:
+            p[0] = [p[1]]
+
+    def p_switch_list(self, p):
+        """switch_list : switch_case switch_list
+                       | switch_case
+        """
+        if len(p) == 3:
+            p[0] = [p[1]] + p[2]
+        else:
+            p[0] = [p[1]]
+
+    def p_switch_case(self, p):
+        """switch_case : CASE LPAR atomlist RPAR COLON suite
+        """
+        # XXX bad hack
+        if isinstance(p[6][0], ast.Name) and p[6][0].id == 'fallthrough':
+            p[6] = None
+        p[0] = (p[3], p[6])
+
+    def p_switch_default(self, p):
+        """switch_default : DEFAULT COLON suite
+        """
+        p[0] = ('default', p[3])
+
+    def p_atomlist(self, p):
+        """atomlist : atom COMMA atomlist
+                    | atom
+        """
+        assert isinstance(p[1], ast.Constant), "case must be numbers"
+        if len(p) == 4:
+            p[0] = [p[1].value] + p[3]
+        else:
+            p[0] = [p[1].value]
 
     def p_if_stmt(self, p):
         """if_stmt : IF test COLON suite ELSE COLON if_stmt

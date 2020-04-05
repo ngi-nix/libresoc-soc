@@ -166,7 +166,18 @@ _lswx = """
 GPR(r)[x] <- 1
 """
 
-code = lswx
+switchtest = """
+switch (n)
+    case(1): x <- 5
+    case(2): fallthrough
+    case(3):
+        x <- 3
+    default:
+        x <- 9
+"""
+
+code = switchtest
+#code = lswx
 #code = testcond
 #code = testdo
 #code = _bpermd
