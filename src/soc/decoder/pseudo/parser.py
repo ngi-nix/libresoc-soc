@@ -226,10 +226,20 @@ class PowerParser:
         ("left", "INVERT"),
     )
 
-    def __init__(self):
+    def __init__(self, form):
         self.gprs = {}
+        form = self.sd.sigforms[form]
+        print (form)
+        formkeys = form._asdict().keys()
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
+        self.available_op_fields = set()
+        for k in formkeys:
+            if k not in self.gprs:
+                if k == 'SPR': # sigh, lower-case to not conflict
+                    k = k.lower()
+                self.available_op_fields.add(k)
+        self.op_fields = OrderedSet()
         self.read_regs = OrderedSet()
         self.uninit_regs = OrderedSet()
         self.write_regs = OrderedSet()
@@ -591,7 +601,10 @@ class PowerParser:
 
     def p_atom_name(self, p):
         """atom : NAME"""
-        p[0] = ast.Name(id=p[1], ctx=ast.Load())
+        name = p[1]
+        if name in self.available_op_fields:
+            self.op_fields.add(name)
+        p[0] = ast.Name(id=name, ctx=ast.Load())
 
     def p_atom_number(self, p):
         """atom : BINARY
@@ -622,9 +635,10 @@ class PowerParser:
         print(astor.dump_tree(p[2]))
 
         if isinstance(p[2], ast.Name):
-            print("tuple name", p[2].id)
-            if p[2].id in self.gprs:
-                self.read_regs.add(p[2].id)  # add to list of regs to read
+            name = p[2].id
+            print("tuple name", name)
+            if name in self.gprs:
+                self.read_regs.add(name)  # add to list of regs to read
                 #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
                 # return
             p[0] = p[2]
@@ -748,8 +762,9 @@ class PowerParser:
 
 
 class GardenSnakeParser(PowerParser):
-    def __init__(self, lexer=None, debug=False):
-        PowerParser.__init__(self)
+    def __init__(self, lexer=None, debug=False, form=None):
+        self.sd = create_pdecode()
+        PowerParser.__init__(self, form)
         self.debug = debug
         if lexer is None:
             lexer = IndentLexer(debug=0)
@@ -757,8 +772,6 @@ class GardenSnakeParser(PowerParser):
         self.tokens = lexer.tokens
         self.parser = yacc.yacc(module=self, start="file_input_end",
                                 debug=debug, write_tables=False)
-
-        self.sd = create_pdecode()
 
     def parse(self, code):
         # self.lexer.input(code)
@@ -771,8 +784,8 @@ class GardenSnakeParser(PowerParser):
 #from compiler import misc, syntax, pycodegen
 
 class GardenSnakeCompiler(object):
-    def __init__(self, debug=False):
-        self.parser = GardenSnakeParser(debug=debug)
+    def __init__(self, debug=False, form=None):
+        self.parser = GardenSnakeParser(debug=debug, form=form)
 
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)

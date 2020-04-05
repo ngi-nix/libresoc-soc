@@ -44,7 +44,7 @@ class PyISAWriter(ISA):
                 print (fname, d.opcode)
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
-                pycode, rused = convert_to_python(pcode)
+                pycode, rused = convert_to_python(pcode, d.form)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
                 args = ', '.join(create_args(regs, 'self'))
@@ -64,10 +64,12 @@ class PyISAWriter(ISA):
                 else:
                     f.write("\n")
                 # accumulate the instruction info
-                iinfo = "(%s, %s,\n                %s, %s, '%s')" % \
-                            (op_fname, rused['read_regs'],
-                            rused['uninit_regs'], rused['write_regs'],
-                            d.form)
+                ops = repr(rused['op_fields'])
+                iinfo = """(%s, %s,
+                %s, %s,
+                %s, '%s')""" % (op_fname, rused['read_regs'],
+                                rused['uninit_regs'], rused['write_regs'],
+                                ops, d.form)
                 iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
             f.write("    %s_instrs = {}\n" % pagename)

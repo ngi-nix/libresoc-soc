@@ -211,15 +211,17 @@ def tolist(num):
 def get_reg_hex(reg):
     return hex(reg.value)
 
-def convert_to_python(pcode):
+def convert_to_python(pcode, form):
 
-    gsc = GardenSnakeCompiler()
+    print ("form", form)
+    gsc = GardenSnakeCompiler(form=form)
 
     tree = gsc.compile(pcode, mode="exec", filename="string")
     tree = ast.fix_missing_locations(tree)
     regsused = {'read_regs': gsc.parser.read_regs,
                 'write_regs': gsc.parser.write_regs,
-                'uninit_regs': gsc.parser.uninit_regs}
+                'uninit_regs': gsc.parser.uninit_regs,
+                'op_fields': gsc.parser.op_fields }
     return astor.to_source(tree), regsused
 
 
