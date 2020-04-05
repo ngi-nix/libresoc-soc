@@ -596,6 +596,7 @@ class PowerParser:
     def p_atom_number(self, p):
         """atom : BINARY
                 | NUMBER
+                | HEX
                 | STRING"""
         p[0] = ast.Constant(p[1])
 

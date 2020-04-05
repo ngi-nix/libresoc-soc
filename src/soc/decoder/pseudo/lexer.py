@@ -234,6 +234,7 @@ class PowerLexer:
         'WHILE',
         'BREAK',
         'NAME',
+        'HEX',     # hex numbers
         'NUMBER',  # Python decimals
         'BINARY',  # Python binary
         'STRING',  # single quoted strings only; syntax of raw strings
@@ -278,6 +279,12 @@ class PowerLexer:
     # Build the lexer
     def build(self,**kwargs):
          self.lexer = lex.lex(module=self, **kwargs)
+
+    def t_HEX(self, t):
+        r"""0x[0-9a-f_]+"""
+        val = t.value.replace("_", "")
+        t.value = SelectableInt(int(val, 16), (len(val)-2)*16)
+        return t
 
     def t_BINARY(self, t):
         r"""0b[01]+"""

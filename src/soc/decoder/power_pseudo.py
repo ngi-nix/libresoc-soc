@@ -177,7 +177,11 @@ switch (n)
         x <- 9
 """
 
-code = switchtest
+hextest = """
+RT <- 0x0001_a000_0000_0000
+"""
+
+code = hextest
 #code = lswx
 #code = testcond
 #code = testdo
