@@ -9,7 +9,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.caller import ISACaller, inject
 from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.orderedset import OrderedSet
-from soc.decoder.isa import ISA
+from soc.decoder.isa.all import ISA
 
 
 class Register:

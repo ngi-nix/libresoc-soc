@@ -110,7 +110,9 @@ class ISACaller:
         for name, output in zip(output_names, results):
             regnum = yield getattr(self.decoder, name)
             print('writing reg %d' % regnum)
-            self.gpr[regnum] = output.narrow(64)
+            if isinstance(output, int):
+                output = SelectableInt(output, 64)
+            self.gpr[regnum] = output
 
 
 def inject():
