@@ -100,8 +100,10 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
+    isa.write_pysource('fixedarith')
     isa.write_pysource('sprset')
     #isa.write_pysource('system')
+    isa.write_isa_class()
     exit(0)
     isa.write_pysource('stringldst')
     isa.write_pysource('fixedshift')
@@ -112,5 +114,3 @@ if __name__ == '__main__':
     isa.write_pysource('fixedstore')
     isa.write_pysource('fixedload')
     isa.write_pysource('comparefixed')
-    isa.write_pysource('fixedarith')
-    isa.write_isa_class()

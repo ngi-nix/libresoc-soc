@@ -132,7 +132,7 @@ class ISACaller:
     def call(self, name):
         yield from self.prep_namespace()
 
-        function, read_regs, uninit_regs, write_regs, form \
+        function, read_regs, uninit_regs, write_regs, op_fields, form \
             = self.instrs[name]
         input_names = create_args(read_regs | uninit_regs)
         print(input_names)
