@@ -119,4 +119,5 @@ class HelperTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    print (SelectableInt.__bases__)
     unittest.main()
