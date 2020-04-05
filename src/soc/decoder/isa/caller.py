@@ -135,7 +135,9 @@ class ISACaller:
             self.namespace[name] = SelectableInt(val, bits=signal.width)
 
     def call(self, name):
-        function, read_regs, uninit_regs, write_regs, op_fields, form \
+        # TODO, asmregs is from the spec, e.g. add RT,RA,RB
+        # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
+        fn, read_regs, uninit_regs, write_regs, op_fields, asmregs, form \
             = self.instrs[name]
         yield from self.prep_namespace(form, op_fields)
 
@@ -150,7 +152,7 @@ class ISACaller:
             print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
         print(inputs)
-        results = function(self, *inputs)
+        results = fn(self, *inputs)
         print(results)
 
         if write_regs:
