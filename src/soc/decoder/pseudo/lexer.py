@@ -37,7 +37,7 @@ MUST_INDENT = 2
 # complex grammar rules
 def python_colonify(lexer, tokens):
 
-    fake_colon_needed = False
+    implied_colon_needed = False
     for token in tokens:
         #print ("track colon token", token, token.type)
 
@@ -50,15 +50,15 @@ def python_colonify(lexer, tokens):
             token = copy(token)
             token.type = "COLON"
             yield token
-        elif token.type in ['DO', 'WHILE', 'FOR', 'SWITCH', 'CASE', 'DEFAULT']:
-            fake_colon_needed = True
+        elif token.type in ['DO', 'WHILE', 'FOR', 'SWITCH']:
+            implied_colon_needed = True
             yield token
         elif token.type == 'NEWLINE':
-            if fake_colon_needed:
+            if implied_colon_needed:
                 ctok = copy(token)
                 ctok.type = "COLON"
                 yield ctok
-                fake_colon_needed = False
+                implied_colon_needed = False
             yield token
         else:
             yield token
