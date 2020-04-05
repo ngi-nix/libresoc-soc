@@ -144,7 +144,30 @@ ctr_ok <- BO[2] | ((CTR[M:63] != 0) ^ BO[3])
 cond_ok <- BO[0] | ¬(CR[BI+32] ^  BO[1])
 """
 
-code = testcond
+lswx = """
+if RA = 0 then EA <- 0
+else           EA <- (RA)
+if NB = 0 then n <-  32
+else           n <-  NB
+r <- RT - 1
+i <- 32
+do while n > 0
+    if i = 32 then
+        r <- (r + 1) % 32
+        GPR(r) <- 0
+    GPR(r)[i:i+7] <- MEM(EA, 1)
+    i <- i + 8
+    if i = 64 then i <- 32
+    EA <- EA + 1
+    n <- n - 1
+"""
+
+_lswx = """
+GPR(r)[x] <- 1
+"""
+
+code = lswx
+#code = testcond
 #code = testdo
 #code = _bpermd
 #code = testmul

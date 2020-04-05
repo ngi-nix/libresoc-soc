@@ -343,10 +343,11 @@ class PowerParser:
             if isinstance(p[1], ast.Name):
                 name = p[1].id
             elif isinstance(p[1], ast.Subscript):
-                name = p[1].value.id
-                if name in self.gprs:
-                    # add to list of uninitialised
-                    self.uninit_regs.add(name)
+                if isinstance(p[1].value, ast.Name):
+                    name = p[1].value.id
+                    if name in self.gprs:
+                        # add to list of uninitialised
+                        self.uninit_regs.add(name)
             elif isinstance(p[1], ast.Call) and p[1].func.id == 'GPR':
                 print(astor.dump_tree(p[1]))
                 # replace GPR(x) with GPR[x]
