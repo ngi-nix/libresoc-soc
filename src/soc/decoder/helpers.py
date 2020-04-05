@@ -11,7 +11,7 @@ def EXTS(value):
     """ extends sign bit out from current MSB to all 256 bits
     """
     assert isinstance(value, SelectableInt)
-    return exts(value.value, value.bits)
+    return SelectableInt(exts(value.value, value.bits) & ((1 << 256)-1), 256)
 
 def EXTS64(value):
     """ extends sign bit out from current MSB to 64 bits
