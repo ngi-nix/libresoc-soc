@@ -124,8 +124,10 @@ class ISACaller:
         self.mem.memassign(ea, sz, val)
 
     def prep_namespace(self):
-        si = yield self.decoder.SI
-        self.namespace['SI'] = SelectableInt(si, bits=16)
+        for name in ['SI', 'UI', 'D', 'BD']:
+            signal = getattr(self.decoder, name)
+            val = yield signal
+            self.namespace[name] = SelectableInt(val, bits=signal.width)
 
     def call(self, name):
         yield from self.prep_namespace()
@@ -137,17 +139,22 @@ class ISACaller:
         inputs = []
         for name in input_names:
             regnum = yield getattr(self.decoder, name)
+            regname = "_" + name
+            self.namespace[regname] = regnum
             print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
         print(inputs)
         results = function(self, *inputs)
         print(results)
 
-        output_names = create_args(write_regs)
-        for name, output in zip(output_names, results):
-            regnum = yield getattr(self.decoder, name)
-            print('writing reg %d' % regnum)
-            self.gpr[regnum] = output.narrow(64)
+        if write_regs:
+            output_names = create_args(write_regs)
+            for name, output in zip(output_names, results):
+                regnum = yield getattr(self.decoder, name)
+                print('writing reg %d' % regnum)
+                if isinstance(output, int):
+                    output = SelectableInt(output, 64)
+                self.gpr[regnum] = output
 
 
 def inject():

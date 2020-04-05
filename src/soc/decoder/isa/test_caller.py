@@ -69,6 +69,16 @@ class DecoderTestCase(FHDLTestCase):
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
 
+    def test_load_store(self):
+        lst = ["addi 1, 0, 0x0010",
+               "addi 2, 0, 0x1234",
+               "stw 2, 0(1)",
+               "lwz 3, 0(1)"]
+        with Program(lst) as program:
+            sim = self.run_test_program(program)
+            print(sim.gpr(1))
+            self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
+
     def run_test_program(self, prog, initial_regs=[0] * 32):
         simulator = self.run_tst(prog, initial_regs)
         simulator.gpr.dump()
