@@ -28,8 +28,10 @@ class %s:
 class PyISAWriter(ISA):
     def __init__(self):
         ISA.__init__(self)
+        self.pages_written = []
 
     def write_pysource(self, pagename):
+        self.pages_written.append(pagename)
         instrs = isa.page[pagename]
         isadir = get_isasrc_dir()
         fname = os.path.join(isadir, "%s.py" % pagename)
@@ -71,6 +73,29 @@ class PyISAWriter(ISA):
             f.write("    %s_instrs = {}\n" % pagename)
             f.write(iinf)
 
+    def write_isa_class(self):
+        isadir = get_isasrc_dir()
+        fname = os.path.join(isadir, "all.py")
+
+        with open(fname, "w") as f:
+            f.write('from soc.decoder.isa.caller import ISACaller\n')
+            for page in self.pages_written:
+                f.write('from soc.decoder.isa.%s import %s\n' % (page, page))
+            f.write('\n')
+
+            classes = ', '.join(['ISACaller'] + self.pages_written)
+            f.write('class ISA(%s):\n' % classes)
+            f.write('    def __init__(self, dec, regs):\n')
+            f.write('        super().__init__(dec, regs)\n')
+            f.write('        self.instrs = {\n')
+            for page in self.pages_written:
+                f.write('            **self.%s_instrs,\n' % page)
+            f.write('        }\n')
+
+
+
+
+
 if __name__ == '__main__':
     isa = PyISAWriter()
     isa.write_pysource('sprset')
@@ -86,3 +111,4 @@ if __name__ == '__main__':
     isa.write_pysource('fixedload')
     isa.write_pysource('comparefixed')
     isa.write_pysource('fixedarith')
+    isa.write_isa_class()
