@@ -5,11 +5,13 @@ from soc.decoder.power_enums import download_wiki_file
 class BitRange(OrderedDict):
     """BitRange: remaps from straight indices (0,1,2..) to bit numbers
     """
+
     def __getitem__(self, subscript):
         if isinstance(subscript, slice):
             return list(self)[subscript]
         else:
             return self[subscript]
+
 
 def decode_instructions(form):
     res = {}
@@ -29,6 +31,7 @@ def decode_instructions(form):
             accum.append(l.strip())
     return res
 
+
 def decode_form_header(hdr):
     res = {}
     count = 0
@@ -41,6 +44,7 @@ def decode_form_header(hdr):
             res[count] = idx
         count += len(f) + 1
     return res
+
 
 def find_unique(d, key):
     if key not in d:
@@ -87,10 +91,10 @@ def decode_form(form):
     fields = {}
     falternate = {}
     for l in res:
-        for k, (start,end) in l.items():
+        for k, (start, end) in l.items():
             if k in fields:
                 if (start, end) == fields[k]:
-                    continue # already in and matching for this Form
+                    continue  # already in and matching for this Form
                 if k in falternate:
                     alternate = "%s_%d" % (k, falternate[k])
                     if (start, end) == fields[alternate]:
@@ -104,7 +108,7 @@ def decode_form(form):
 
 class DecodeFields:
 
-    def __init__(self, bitkls=BitRange, bitargs=(), fname="fields.text"):
+    def __init__(self, bitkls=BitRange, bitargs=(), fname="fields.txt"):
         self.bitkls = bitkls
         self.bitargs = bitargs
         self.fname = download_wiki_file(fname)
@@ -178,8 +182,8 @@ class DecodeFields:
             if not reading_data:
                 assert l[0] == '#'
                 heading = l[1:].strip()
-                #if heading.startswith('1.6.28'): # skip instr fields for now
-                    #break
+                # if heading.startswith('1.6.28'): # skip instr fields for now
+                # break
                 heading = heading.split(' ')[-1]
                 reading_data = True
                 forms[heading] = []
@@ -192,7 +196,7 @@ class DecodeFields:
                 i = decode_instructions(form)
                 for form, field in i.items():
                     inst[form] = self.decode_instruction_fields(field)
-            #else:
+            # else:
             #    res[hdr] = decode_form(form)
         return res, inst
 
@@ -219,6 +223,7 @@ class DecodeFields:
             res[unique] = d
 
         return res
+
 
 if __name__ == '__main__':
     dec = DecodeFields()
