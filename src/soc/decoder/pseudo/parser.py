@@ -146,17 +146,20 @@ def check_concat(node):  # checks if the comparison is already a concat
     return node.args
 
 
-# identify SelectableInt pattern
+# identify SelectableInt pattern [something] * N
+# must return concat(something, repeat=N)
 def identify_sint_mul_pattern(p):
-    if not isinstance(p[3], ast.Constant):
+    if p[2] != '*': # multiply
         return False
-    if not isinstance(p[1], ast.List):
+    if not isinstance(p[3], ast.Constant): # rhs = Num
+        return False
+    if not isinstance(p[1], ast.List): # lhs is a list
         return False
     l = p[1].elts
-    if len(l) != 1:
+    if len(l) != 1: # lhs is a list of length 1
         return False
-    elt = l[0]
-    return isinstance(elt, ast.Constant)
+    return True # yippee!
+
 
 def apply_trailer(atom, trailer):
     if trailer[0] == "TLIST":
