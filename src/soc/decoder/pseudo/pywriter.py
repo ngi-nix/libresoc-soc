@@ -62,9 +62,10 @@ class PyISAWriter(ISA):
                 else:
                     f.write("\n")
                 # accumulate the instruction info
-                iinfo = "(%s, %s,\n                %s, %s)" % \
+                iinfo = "(%s, %s,\n                %s, %s, '%s')" % \
                             (op_fname, rused['read_regs'],
-                            rused['uninit_regs'], rused['write_regs'])
+                            rused['uninit_regs'], rused['write_regs'],
+                            d.form)
                 iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
             f.write("    %s_instrs = {}\n" % pagename)
