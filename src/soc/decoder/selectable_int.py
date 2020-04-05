@@ -264,5 +264,16 @@ class SelectableIntTestCase(unittest.TestCase):
         a[0:4] = a[4:8]
         self.assertEqual(a, 0x199)
 
+    def test_concat(self):
+        a = SelectableInt(0x1, 1)
+        c = selectconcat(a, repeat=8)
+        self.assertEqual(c, 0xff)
+        self.assertEqual(c.bits, 8)
+        a = SelectableInt(0x0, 1)
+        c = selectconcat(a, repeat=8)
+        self.assertEqual(c, 0x00)
+        self.assertEqual(c.bits, 8)
+
+
 if __name__ == "__main__":
     unittest.main()
