@@ -167,7 +167,7 @@ class SelectableInt:
         return self.value != 0
 
     def __repr__(self):
-        return "SelectableInt(value={:x}, bits={})".format(self.value,
+        return "SelectableInt(value=0x{:x}, bits={})".format(self.value,
                                                            self.bits)
 
 def onebit(bit):
@@ -278,6 +278,11 @@ class SelectableIntTestCase(unittest.TestCase):
         self.assertEqual(c, 0x00)
         self.assertEqual(c.bits, 8)
 
+    def test_repr(self):
+        for i in range(65536):
+            a = SelectableInt(i, 16)
+            b = eval(repr(a))
+            self.assertEqual(a, b)
 
 if __name__ == "__main__":
     unittest.main()
