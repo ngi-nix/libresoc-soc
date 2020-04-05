@@ -72,8 +72,10 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
-    isa.write_pysource('fixedtrap')
+    isa.write_pysource('fixedshift')
     exit(0)
+    isa.write_pysource('condition')
+    isa.write_pysource('fixedtrap')
     isa.write_pysource('branch')
     isa.write_pysource('fixedlogical')
     isa.write_pysource('fixedstore')
