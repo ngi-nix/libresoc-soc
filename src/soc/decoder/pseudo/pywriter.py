@@ -1,6 +1,7 @@
 # python code-writer for OpenPOWER ISA pseudo-code parsing
 
 import os
+import sys
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_pseudo import convert_to_python
 from soc.decoder.orderedset import OrderedSet
@@ -100,17 +101,11 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
-    isa.write_pysource('fixedarith')
-    isa.write_pysource('sprset')
-    #isa.write_pysource('system')
+    if len(sys.argv) == 1: # quick way to do it
+        print (dir(isa))
+        sources = isa.page.keys()
+    else:
+        sources = sys.argv[1:]
+    for source in sources:
+        isa.write_pysource(source)
     isa.write_isa_class()
-    exit(0)
-    isa.write_pysource('stringldst')
-    isa.write_pysource('fixedshift')
-    isa.write_pysource('condition')
-    isa.write_pysource('fixedtrap')
-    isa.write_pysource('branch')
-    isa.write_pysource('fixedlogical')
-    isa.write_pysource('fixedstore')
-    isa.write_pysource('fixedload')
-    isa.write_pysource('comparefixed')
