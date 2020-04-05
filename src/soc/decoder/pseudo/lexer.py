@@ -281,7 +281,7 @@ class PowerLexer:
          self.lexer = lex.lex(module=self, **kwargs)
 
     def t_HEX(self, t):
-        r"""0x[0-9a-f_]+"""
+        r"""0x[0-9a-fA-F_]+"""
         val = t.value.replace("_", "")
         t.value = SelectableInt(int(val, 16), (len(val)-2)*16)
         return t
