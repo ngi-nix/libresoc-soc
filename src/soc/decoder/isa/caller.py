@@ -1,6 +1,7 @@
 from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import SelectableInt, selectconcat
+import math
 
 def create_args(reglist, extra=None):
     args = OrderedSet()
@@ -13,23 +14,59 @@ def create_args(reglist, extra=None):
 
 class Mem:
 
-    def __init__(self):
-        self.mem = []
-        for i in range(128):
-            self.mem.append(i)
+    def __init__(self, bytes_per_word=8):
+        self.mem = {}
+        self.bytes_per_word = bytes_per_word
+        self.word_log2 = math.ceil(math.log2(bytes_per_word))
+
+    def _get_shifter_mask(self, width, remainder):
+        shifter = ((self.bytes_per_word - width) - remainder) * \
+            8  # bits per byte
+        mask = (1 << (width * 8)) - 1
+        return shifter, mask
+
+    # TODO: Implement ld/st of lesser width
+    def ld(self, address, width=8):
+        remainder = address & (self.bytes_per_word - 1)
+        address = address >> self.word_log2
+        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
+        if address in self.mem:
+            val = self.mem[address]
+        else:
+            val = 0
+
+        if width != self.bytes_per_word:
+            shifter, mask = self._get_shifter_mask(width, remainder)
+            val = val & (mask << shifter)
+            val >>= shifter
+        print("Read {:x} from addr {:x}".format(val, address))
+        return val
+
+    def st(self, address, value, width=8):
+        remainder = address & (self.bytes_per_word - 1)
+        address = address >> self.word_log2
+        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
+        print("Writing {:x} to addr {:x}".format(value, address))
+        if width != self.bytes_per_word:
+            if address in self.mem:
+                val = self.mem[address]
+            else:
+                val = 0
+            shifter, mask = self._get_shifter_mask(width, remainder)
+            val &= ~(mask << shifter)
+            val |= value << shifter
+            self.mem[address] = val
+        else:
+            self.mem[address] = value
 
     def __call__(self, addr, sz):
-        res = []
-        for s in range(sz): # TODO: big/little-end
-            res.append(SelectableInt(self.mem[addr.value + s], 8))
-        print ("memread", addr, sz, res)
-        return selectconcat(*res)
+        val = self.ld(addr.value, sz)
+        print ("memread", addr, sz, val)
+        return SelectableInt(val, sz*8)
 
     def memassign(self, addr, sz, val):
         print ("memassign", addr, sz, val)
-        for s in range(sz):
-            byte = (val.value) >> (s*8) & 0xff # TODO: big/little-end
-            self.mem[addr.value + s] = byte
+        self.st(addr.value, val.value, sz)
 
 
 class GPR(dict):
