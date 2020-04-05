@@ -159,6 +159,10 @@ class SelectableInt:
             return onebit(other == self.value)
         assert False
 
+    def narrow(self, bits):
+        assert bits <= self.bits
+        return SelectableInt(self.value, bits)
+
     def __bool__(self):
         return self.value != 0
 

@@ -88,9 +88,11 @@ class ISACaller:
 
     def prep_namespace(self):
         si = yield self.decoder.SI
-        self.namespace.SI = SelectableInt(si, bits=16)
+        self.namespace['SI'] = SelectableInt(si, bits=16)
 
     def call(self, name):
+        yield from self.prep_namespace()
+
         function, read_regs, uninit_regs, write_regs = self.instrs[name]
         input_names = create_args(read_regs | uninit_regs)
         print(input_names)
@@ -108,7 +110,7 @@ class ISACaller:
         for name, output in zip(output_names, results):
             regnum = yield getattr(self.decoder, name)
             print('writing reg %d' % regnum)
-            self.gpr[regnum] = output
+            self.gpr[regnum] = output.narrow(64)
 
 
 def inject():
