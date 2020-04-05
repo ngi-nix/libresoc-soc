@@ -420,11 +420,43 @@ class PowerParser:
         print(astor.dump_tree(p[1]))
 
         cases = []
-        current_cases = []
+        current_cases = [] # for deferral
         for (case, suite) in p[8]:
-            print (case, suite)
+            print ("for", case, suite)
+            if suite is None:
+                for c in case:
+                    current_cases.append(ast.Num(c))
+                continue
+            if case == 'default': # last
+                break
+            for c in case:
+                current_cases.append(ast.Num(c))
+            print ("cases", current_cases)
+            compare = ast.Compare(switchon, [ast.In()],
+                                  [ast.List(current_cases)])
+            current_cases = []
+            cases.append((compare, suite))
+
+        print ("ended", case, current_cases)
+        if case == 'default':
+            if current_cases:
+                compare = ast.Compare(switchon, [ast.In()],
+                                      [ast.List(current_cases)])
+                cases.append((compare, suite))
+            cases.append((None, suite))
+
+        cases.reverse()
         res = []
-        p[0] = ast.If([], [], [])
+        for compare, suite in cases:
+            print ("after rev", compare, suite)
+            if compare is None:
+                assert len(res) == 0, "last case should be default"
+                res = suite
+            else:
+                if not isinstance(res, list):
+                    res = [res]
+                res = ast.If(compare, suite, res)
+        p[0] = res
 
     def p_switches(self, p):
         """switches : switch_list switch_default

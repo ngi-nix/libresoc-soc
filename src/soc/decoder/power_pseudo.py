@@ -172,6 +172,7 @@ switch (n)
     case(2): fallthrough
     case(3):
         x <- 3
+    case(4): fallthrough
     default:
         x <- 9
 """
