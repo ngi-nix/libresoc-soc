@@ -6,33 +6,10 @@ from soc.decoder.isa.caller import ISACaller
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.simulator.program import Program
-from soc.simulator.qemu import run_program
 from soc.decoder.isa.caller import ISACaller, inject
-from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
 from soc.decoder.selectable_int import SelectableInt
-from soc.decoder.selectable_int import selectconcat as concat
 from soc.decoder.orderedset import OrderedSet
-
-class fixedarith(ISACaller):
-
-    @inject()
-    def op_addi(self, RA):
-        if RA == 0:
-            RT = SI
-        else:
-            RT = RA + SI
-        return (RT,)
-    @inject()
-    def op_add(self, RA, RB):
-        RT = RA + RB
-        return (RT,)
-
-    instrs = {}
-    instrs['addi'] = (op_addi, OrderedSet(['RA']),
-                OrderedSet(), OrderedSet(['RT']))
-    instrs['add'] = (op_add, OrderedSet(['RA', 'RB']),
-                OrderedSet(), OrderedSet(['RT']))
-
+from soc.decoder.isa import ISA
 
 
 class Register:
@@ -48,7 +25,7 @@ class DecoderTestCase(FHDLTestCase):
         instruction = Signal(32)
 
         pdecode = create_pdecode()
-        simulator = fixedarith(pdecode, initial_regs)
+        simulator = ISA(pdecode, initial_regs)
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
