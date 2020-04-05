@@ -139,13 +139,19 @@ do i = 0 to 7
     print(i)
 """
 
+testcond = """
+ctr_ok <- BO[2] | ((CTR[M:63] != 0) ^ BO[3])
+cond_ok <- BO[0] | ¬(CR[BI+32] ^  BO[1])
+"""
+
+code = testcond
 #code = testdo
 #code = _bpermd
 #code = testmul
 #code = testgetzero
 #code = testcat
 #code = testgpr
-code = testmem
+#code = testmem
 #code = testgprslice
 #code = testreg
 #code = cnttzd
