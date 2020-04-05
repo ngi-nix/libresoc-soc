@@ -129,15 +129,17 @@ class ISACaller:
         # from spec
         # then "yield" fields only from op_fields rather than hard-coded
         # list, here.
-        for name in ['SI', 'UI', 'D', 'BD']:
-            signal = getattr(self.decoder, name)
-            val = yield signal
-            self.namespace[name] = SelectableInt(val, bits=signal.width)
+        fields = self.decoder.sigforms[formname]
+        for name in fields._fields:
+            if name not in ["RA", "RB", "RT"]:
+                sig = getattr(fields, name)
+                val = yield sig
+                self.namespace[name] = SelectableInt(val, sig.width)
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
-        fn, read_regs, uninit_regs, write_regs, op_fields, asmregs, form \
+        fn, read_regs, uninit_regs, write_regs, op_fields, form, asmregs \
             = self.instrs[name]
         yield from self.prep_namespace(form, op_fields)
 
