@@ -65,9 +65,9 @@ class PyISAWriter(ISA):
                 iinfo = "(%s, %s,\n                %s, %s)" % \
                             (op_fname, rused['read_regs'],
                             rused['uninit_regs'], rused['write_regs'])
-                iinf += "    instrs['%s'] = %s\n" % (page, iinfo)
+                iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
-            f.write("    instrs = {}\n")
+            f.write("    %s_instrs = {}\n" % pagename)
             f.write(iinf)
 
 if __name__ == '__main__':
