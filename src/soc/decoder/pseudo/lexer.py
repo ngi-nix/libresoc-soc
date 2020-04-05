@@ -31,10 +31,13 @@ NO_INDENT = 0
 MAY_INDENT = 1
 MUST_INDENT = 2
 
-# turn into python-like colon syntax from pseudo-code syntax
+# turn into python-like colon syntax from pseudo-code syntax.
+# identify tokens which tell us whether a "hidden colon" is needed.
+# this in turn means that track_tokens_filter "works" without needing
+# complex grammar rules
 def python_colonify(lexer, tokens):
 
-    forwhile_seen = False
+    fake_colon_needed = False
     for token in tokens:
         #print ("track colon token", token, token.type)
 
@@ -47,15 +50,15 @@ def python_colonify(lexer, tokens):
             token = copy(token)
             token.type = "COLON"
             yield token
-        elif token.type in ['DO', 'WHILE', 'FOR']:
-            forwhile_seen = True
+        elif token.type in ['DO', 'WHILE', 'FOR', 'SWITCH', 'CASE', 'DEFAULT']:
+            fake_colon_needed = True
             yield token
         elif token.type == 'NEWLINE':
-            if forwhile_seen:
+            if fake_colon_needed:
                 ctok = copy(token)
                 ctok.type = "COLON"
                 yield ctok
-                forwhile_seen = False
+                fake_colon_needed = False
             yield token
         else:
             yield token
@@ -260,6 +263,9 @@ class PowerLexer:
         'BITAND',
         'BITXOR',
         'RETURN',
+        'SWITCH',
+        'CASE',
+        'DEFAULT',
         'WS',
         'NEWLINE',
         'COMMA',
@@ -328,6 +334,9 @@ class PowerLexer:
       "while": "WHILE",
       "do": "DO",
       "return": "RETURN",
+      "switch": "SWITCH",
+      "case": "CASE",
+      "default": "DEFAULT",
       }
 
     def t_NAME(self, t):
