@@ -13,6 +13,7 @@ variables:
 build:
     stage: build
     before_script:
+        - mkdir -p apt-cache
         - apt-get -o dir::cache::archives="apt-cache" update
         - >-
             apt-get -o dir::cache::archives="apt-cache" -y install
