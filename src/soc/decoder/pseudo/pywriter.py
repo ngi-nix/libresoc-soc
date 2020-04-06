@@ -73,7 +73,7 @@ class PyISAWriter(ISA):
                 ops = repr(rused['op_fields'])
                 iinfo = iinfo_template % (op_fname, rused['read_regs'],
                                 rused['uninit_regs'], rused['write_regs'],
-                                ops, d.form, d.regs)
+                                ops, d.regs, d.form)
                 iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
             f.write("    %s_instrs = {}\n" % pagename)
@@ -97,9 +97,6 @@ class PyISAWriter(ISA):
             for page in self.pages_written:
                 f.write('            **self.%s_instrs,\n' % page)
             f.write('        }\n')
-
-
-
 
 
 if __name__ == '__main__':
