@@ -135,11 +135,13 @@ class ISACaller:
         # TODO, needed here:
         # 4.4.4 III p971 SPR (same as GPR except for SPRs - best done as a dict
         # FPR (same as GPR except for FP nums)
-        # p124 FPSCR
+        # 4.2.2 p124 FPSCR
         # 2.3.1 CR (and sub-fields CR0..CR6)
-        # 2.3.2 LR
-        # 2.3.3 CTR
-        # 2.3.4 TAR
+        # 2.3.2 LR   (SPR #8)
+        # 2.3.3 CTR  (SPR #9)
+        # 2.3.4 TAR  (SPR #815)
+        # 3.2.2 p45 XER  (SPR #0)
+        # 3.2.3 p46 p232 VRSAVE (SPR #256)
 
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
