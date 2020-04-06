@@ -79,6 +79,16 @@ class DecoderTestCase(FHDLTestCase):
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
 
+    def test_addpcis(self):
+        lst = ["addpcis 1, 0x1",
+               "addpcis 2, 0x1",
+               "addpcis 3, 0x1"]
+        with Program(lst) as program:
+            sim = self.run_test_program(program)
+            self.assertEqual(sim.gpr(1), SelectableInt(0x10004, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0x10008, 64))
+            self.assertEqual(sim.gpr(3), SelectableInt(0x1000c, 64))
+
     def run_test_program(self, prog, initial_regs=[0] * 32):
         simulator = self.run_tst(prog, initial_regs)
         simulator.gpr.dump()

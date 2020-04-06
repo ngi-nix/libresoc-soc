@@ -45,6 +45,7 @@ class Program:
     def _assemble(self):
         with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
             args = ["powerpc64-linux-gnu-as",
+                    '-mpower9',
                     obj_fmt,
                     "-o",
                     outfile.name]
