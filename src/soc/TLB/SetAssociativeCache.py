@@ -21,9 +21,9 @@ from .MemorySet import MemorySet
 from .ariane.plru import PLRU
 from .LFSR import LFSR, LFSR_POLY_24
 
-SA_NA = "00" # no action (none)
-SA_RD = "01" # read
-SA_WR = "10" # write
+SA_NA = "00"  # no action (none)
+SA_RD = "01"  # read
+SA_WR = "10"  # write
 
 
 class SetAssociativeCache(Elaboratable):
@@ -35,6 +35,7 @@ class SetAssociativeCache(Elaboratable):
         while the ASID provides the tag (still to be decided).
 
     """
+
     def __init__(self, tag_size, data_size, set_count, way_count, lfsr=False):
         """ Arguments
             * tag_size (bits): The bit count of the tag
@@ -52,7 +53,7 @@ class SetAssociativeCache(Elaboratable):
         self.data_size = data_size  # The bit count of the data to be stored
 
         # set up Memory array
-        self.mem_array = Array() # memory array
+        self.mem_array = Array()  # memory array
         for i in range(way_count):
             ms = MemorySet(data_size, tag_size, set_count, active=0)
             self.mem_array.append(ms)
@@ -66,24 +67,26 @@ class SetAssociativeCache(Elaboratable):
             self.lfsr = LFSR(LFSR_POLY_24)
         else:
             # PLRU mode
-            self.plru = PLRU(way_count) # One block to handle plru calculations
-            self.plru_array = Array() # PLRU data on each set
+            # One block to handle plru calculations
+            self.plru = PLRU(way_count)
+            self.plru_array = Array()  # PLRU data on each set
             for i in range(set_count):
-                name="plru%d" % i
+                name = "plru%d" % i
                 self.plru_array.append(Signal(self.plru.TLBSZ, name=name))
 
         # Input
         self.enable = Signal(1)   # Whether the cache is enabled
         self.command = Signal(2)  # 00=None, 01=Read, 10=Write (see SA_XX)
-        self.cset = Signal(max=set_count)  # The set to be checked
+        self.cset = Signal(range(set_count))  # The set to be checked
         self.tag = Signal(tag_size)        # The tag to find
         self.data_i = Signal(data_size)    # The input data
 
         # Output
-        self.ready = Signal(1) # 0 => Processing 1 => Ready for commands
+        self.ready = Signal(1)  # 0 => Processing 1 => Ready for commands
         self.hit = Signal(1)            # Tag matched one way in the given set
-        self.multiple_hit = Signal(1)   # Tag matched many ways in the given set
-        self.data_o = Signal(data_size) # The data linked to the matched tag
+        # Tag matched many ways in the given set
+        self.multiple_hit = Signal(1)
+        self.data_o = Signal(data_size)  # The data linked to the matched tag
 
     def check_tags(self, m):
         """ Validate the tags in the selected set. If one and only one
@@ -152,17 +155,17 @@ class SetAssociativeCache(Elaboratable):
 
     def write_entry(self, m):
         if not self.lfsr_mode:
-            m.d.comb += [# set cset (mem address) into PLRU
-                         self.plru.plru_tree.eq(self.plru_array[self.cset]),
-                         # and connect plru to encoder for write
-                         self.encoder.i.eq(self.plru.replace_en_o)
-                        ]
+            m.d.comb += [  # set cset (mem address) into PLRU
+                self.plru.plru_tree.eq(self.plru_array[self.cset]),
+                # and connect plru to encoder for write
+                self.encoder.i.eq(self.plru.replace_en_o)
+            ]
             write_port = self.mem_array[self.encoder.o].w
         else:
             # use the LFSR to generate a random(ish) one of the mem array
-            lfsr_output = Signal(max=self.way_count)
-            lfsr_random = Signal(max=self.way_count)
-            m.d.comb += lfsr_output.eq(self.lfsr.state) # lose some bits
+            lfsr_output = Signal(range(self.way_count))
+            lfsr_random = Signal(range(self.way_count))
+            m.d.comb += lfsr_output.eq(self.lfsr.state)  # lose some bits
             # address too big, limit to range of array
             m.d.comb += lfsr_random.eq(Mux(lfsr_output > self.way_count,
                                            lfsr_output - self.way_count,
@@ -182,14 +185,13 @@ class SetAssociativeCache(Elaboratable):
             with m.State("READY"):
                 m.d.comb += self.ready.eq(0)
                 self.write_entry(m)
-                m.next ="FINISHED_WRITE"
+                m.next = "FINISHED_WRITE"
             with m.State("FINISHED_WRITE"):
                 m.d.comb += self.ready.eq(1)
                 if not self.lfsr_mode:
                     plru_entry = self.plru_array[self.cset]
                     m.d.sync += plru_entry.eq(self.plru.plru_tree_o)
                 m.next = "READY"
-
 
     def elaborate(self, platform=None):
         m = Module()
@@ -236,8 +238,8 @@ class SetAssociativeCache(Elaboratable):
             m.d.comb += [mem.cset.eq(self.cset),
                          mem.tag.eq(self.tag),
                          mem.data_i.eq(self.data_i),
-                         write_port.en.eq(0), # default: disable write
-                        ]
+                         write_port.en.eq(0),  # default: disable write
+                         ]
         # ----
         # Commands: READ/WRITE/TODO
         # ----

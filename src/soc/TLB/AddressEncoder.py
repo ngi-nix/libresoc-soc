@@ -1,6 +1,7 @@
 from nmigen import Module, Signal, Elaboratable
 from nmigen.lib.coding import Encoder, PriorityEncoder
 
+
 class AddressEncoder(Elaboratable):
     """Address Encoder
 
@@ -15,6 +16,7 @@ class AddressEncoder(Elaboratable):
        The output is valid when either single or multiple match is high.
        Otherwise output is 0.
     """
+
     def __init__(self, width):
         """ Arguments:
             * width: The desired length of the input vector
@@ -29,7 +31,7 @@ class AddressEncoder(Elaboratable):
         # Output
         self.single_match = Signal(1)
         self.multiple_match = Signal(1)
-        self.o = Signal(max=width)
+        self.o = Signal(range(width))
 
     def elaborate(self, platform=None):
         m = Module()

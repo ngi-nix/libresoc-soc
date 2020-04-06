@@ -1,8 +1,8 @@
 from nmigen.compat.sim import run_simulation
 
-from TLB.Cam import Cam
+from soc.TLB.Cam import Cam
 
-from TestUtil.test_helper import assert_eq, assert_ne, assert_op
+from soc.TestUtil.test_helper import assert_eq, assert_ne, assert_op
 
 # This function allows for the easy setting of values to the Cam
 # Arguments:
@@ -11,6 +11,8 @@ from TestUtil.test_helper import assert_eq, assert_ne, assert_op
 #   we (Write Enable): Whether the Cam will write on the next cycle
 #   a (Address): Where the data will be written if write enable is high
 #   d (Data): Either what we are looking for or will write to the address
+
+
 def set_cam(dut, e, we, a, d):
     yield dut.enable.eq(e)
     yield dut.write_enable.eq(we)
@@ -23,6 +25,8 @@ def set_cam(dut, e, we, a, d):
 #   dut: The Cam being tested
 #   mm (Multiple Match): The expected match result
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_multiple_match(dut, mm, op):
     out_mm = yield dut.multiple_match
     assert_op("Multiple Match", out_mm, mm, op)
@@ -32,6 +36,8 @@ def check_multiple_match(dut, mm, op):
 #   dut: The Cam being tested
 #   sm (Single Match): The expected match result
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_single_match(dut, sm, op):
     out_sm = yield dut.single_match
     assert_op("Single Match", out_sm, sm, op)
@@ -41,6 +47,8 @@ def check_single_match(dut, sm, op):
 #   dut: The Cam being tested
 #   ma (Match Address): The expected match result
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_match_address(dut, ma, op):
     out_ma = yield dut.match_address
     assert_op("Match Address", out_ma, ma, op)
@@ -54,10 +62,13 @@ def check_match_address(dut, ma, op):
 #   ss_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 #   mm_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 #   ma_op (Operation): Operation for the address assertion (0 => ==), (1 => !=)
+
+
 def check_all(dut, mm, sm, ma, mm_op, sm_op, ma_op):
     yield from check_multiple_match(dut, mm, mm_op)
     yield from check_single_match(dut, sm, sm_op)
     yield from check_match_address(dut, ma, ma_op)
+
 
 def tbench(dut):
     # NA
@@ -170,7 +181,7 @@ def tbench(dut):
     single_match = 0
     yield from set_cam(dut, enable, write_enable, address, data)
     yield
-    yield from check_all(dut, multiple_match, single_match, address,0,0,0)
+    yield from check_all(dut, multiple_match, single_match, address, 0, 0, 0)
 
     # Verify read_warning is not caused
     # Write Entry 0
@@ -201,6 +212,7 @@ def test_cam():
     dut = Cam(4, 4)
     run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_cam.vcd")
     print("Cam Unit Test Success")
+
 
 if __name__ == "__main__":
     test_cam()

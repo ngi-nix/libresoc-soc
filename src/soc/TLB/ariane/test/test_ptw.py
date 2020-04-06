@@ -1,24 +1,20 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
-
-from TLB.ariane.ptw import PTW, PTE
+from soc.TLB.ariane.ptw import PTW, PTE
 
 # unit was changed, test needs to be changed
+
 
 def tbench(dut):
 
     addr = 0x8000000
 
     #pte = PTE()
-    #yield pte.v.eq(1)
-    #yield pte.r.eq(1)
+    # yield pte.v.eq(1)
+    # yield pte.r.eq(1)
 
     yield dut.req_port_i.data_gnt.eq(1)
     yield dut.req_port_i.data_rvalid.eq(1)
-    yield dut.req_port_i.data_rdata.eq(0x43)#pte.flatten())
+    yield dut.req_port_i.data_rdata.eq(0x43)  # pte.flatten())
 
     # data lookup
     yield dut.en_ld_st_translation_i.eq(1)
@@ -56,7 +52,8 @@ def tbench(dut):
     yield dut.mxr_i.eq(0x1)
     yield dut.req_port_i.data_gnt.eq(1)
     yield dut.req_port_i.data_rvalid.eq(1)
-    yield dut.req_port_i.data_rdata.eq(0x41 | (addr>>12)<<10)#pte.flatten())
+    # pte.flatten())
+    yield dut.req_port_i.data_rdata.eq(0x41 | (addr >> 12) << 10)
 
     yield dut.en_ld_st_translation_i.eq(1)
     yield dut.asid_i.eq(1)
@@ -85,7 +82,6 @@ def tbench(dut):
     yield
     yield
     yield
-
 
     # instruction lookup
     yield dut.en_ld_st_translation_i.eq(0)
@@ -125,6 +121,7 @@ def test_ptw():
     dut = PTW()
     run_simulation(dut, tbench(dut), vcd_name="test_ptw.vcd")
     print("PTW Unit Test Success")
+
 
 if __name__ == "__main__":
     test_ptw()

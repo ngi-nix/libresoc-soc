@@ -1,8 +1,8 @@
 from nmigen.compat.sim import run_simulation
 
-from TLB.PermissionValidator import PermissionValidator
+from soc.TLB.PermissionValidator import PermissionValidator
 
-from TestUtil.test_helper import assert_op
+from soc.TestUtil.test_helper import assert_op
 
 
 def set_validator(dut, d, xwr, sm, sa, asid):
@@ -13,9 +13,11 @@ def set_validator(dut, d, xwr, sm, sa, asid):
     yield dut.asid.eq(asid)
     yield
 
+
 def check_valid(dut, v, op):
     out_v = yield dut.valid
     assert_op("Valid", out_v, v, op)
+
 
 def tbench(dut):
     # 80 bits represented. Ignore the MSB as it will be truncated
@@ -138,9 +140,11 @@ def tbench(dut):
 
 
 def test_permv():
-    dut = PermissionValidator(15, 64);
-    run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_permission_validator.vcd")
+    dut = PermissionValidator(15, 64)
+    run_simulation(dut, tbench(
+        dut), vcd_name="Waveforms/test_permission_validator.vcd")
     print("PermissionValidator Unit Test Success")
+
 
 if __name__ == "__main__":
     test_permv()

@@ -34,7 +34,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat, Const
 
-from ldst_dep_cell import LDSTDepCell
+from .ldst_dep_cell import LDSTDepCell
 
 
 class LDSTDepMatrix(Elaboratable):
@@ -45,19 +45,23 @@ class LDSTDepMatrix(Elaboratable):
         fashion, ORing together.  the OR gate from the dependency cell is
         here.
     """
+
     def __init__(self, n_ldst):
         self.n_ldst = n_ldst                  # X and Y (FUs)
         self.ld_pend_i = Signal(n_ldst, reset_less=True)  # load pending in
         self.st_pend_i = Signal(n_ldst, reset_less=True)  # store pending in
-        self.issue_i = Signal(n_ldst, reset_less=True) # Issue in
-        self.go_die_i = Signal(n_ldst, reset_less=True) # Die/Reset in
+        self.issue_i = Signal(n_ldst, reset_less=True)  # Issue in
+        self.go_die_i = Signal(n_ldst, reset_less=True)  # Die/Reset in
 
-        self.load_hit_i = Signal(n_ldst, reset_less=True) # load hit in
-        self.stwd_hit_i = Signal(n_ldst, reset_less=True) # store w/data hit in
+        self.load_hit_i = Signal(n_ldst, reset_less=True)  # load hit in
+        self.stwd_hit_i = Signal(
+            n_ldst, reset_less=True)  # store w/data hit in
 
         # outputs
-        self.ld_hold_st_o = Signal(n_ldst, reset_less=True) # load holds st out
-        self.st_hold_ld_o = Signal(n_ldst, reset_less=True) # st holds load out
+        self.ld_hold_st_o = Signal(
+            n_ldst, reset_less=True)  # load holds st out
+        self.st_hold_ld_o = Signal(
+            n_ldst, reset_less=True)  # st holds load out
 
     def elaborate(self, platform):
         m = Module()
@@ -92,12 +96,12 @@ class LDSTDepMatrix(Elaboratable):
                          dc.stwd_hit_i.eq(self.stwd_hit_i),
                          dc.load_v_i.eq(self.ld_pend_i),
                          dc.stor_v_i.eq(self.st_pend_i),
-                        ]
+                         ]
 
         # connect cell inputs using Cat(*list_of_stuff)
         m.d.comb += [Cat(*issue_l).eq(self.issue_i),
                      Cat(*go_die_l).eq(self.go_die_i),
-                    ]
+                     ]
         # connect the load-hold-store / store-hold-load OR-accumulated outputs
         m.d.comb += self.ld_hold_st_o.eq(Cat(*lhs_l))
         m.d.comb += self.st_hold_ld_o.eq(Cat(*shl_l))
@@ -112,7 +116,7 @@ class LDSTDepMatrix(Elaboratable):
                 stor_h_l.append(dc.stor_h_i)
             m.d.comb += [Cat(*load_h_l).eq(self.ld_pend_i),
                          Cat(*stor_h_l).eq(self.st_pend_i),
-                        ]
+                         ]
 
         return m
 
@@ -128,6 +132,7 @@ class LDSTDepMatrix(Elaboratable):
 
     def ports(self):
         return list(self)
+
 
 def d_matrix_sim(dut):
     """ XXX TODO
@@ -151,6 +156,7 @@ def d_matrix_sim(dut):
     yield dut.go_wr_i.eq(0)
     yield
 
+
 def test_d_matrix():
     dut = LDSTDepMatrix(n_ldst=4)
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -158,6 +164,7 @@ def test_d_matrix():
         f.write(vl)
 
     run_simulation(dut, d_matrix_sim(dut), vcd_name='test_ld_st_matrix.vcd')
+
 
 if __name__ == '__main__':
     test_d_matrix()

@@ -1,6 +1,6 @@
 from nmigen import Array, Cat, Module, Signal, Elaboratable
 from nmigen.lib.coding import Decoder
-from nmigen.cli import main #, verilog
+from nmigen.cli import main  # , verilog
 
 from .CamEntry import CamEntry
 from .AddressEncoder import AddressEncoder
@@ -44,15 +44,17 @@ class Cam(Elaboratable):
         # Input
         self.enable = Signal(1)
         self.write_enable = Signal(1)
-        self.data_in = Signal(data_size) # The data to be written
-        self.data_mask = Signal(data_size) # mask for ternary writes
-        self.address_in = Signal(max=cam_size) # address of CAM Entry to write
+        self.data_in = Signal(data_size)  # The data to be written
+        self.data_mask = Signal(data_size)  # mask for ternary writes
+        # address of CAM Entry to write
+        self.address_in = Signal(range(cam_size))
 
         # Output
-        self.read_warning = Signal(1) # High when a read interrupts a write
-        self.single_match = Signal(1) # High when there is only one match
-        self.multiple_match = Signal(1) # High when there at least two matches
-        self.match_address = Signal(max=cam_size) # The lowest address matched
+        self.read_warning = Signal(1)  # High when a read interrupts a write
+        self.single_match = Signal(1)  # High when there is only one match
+        self.multiple_match = Signal(1)  # High when there at least two matches
+        # The lowest address matched
+        self.match_address = Signal(range(cam_size))
 
     def elaborate(self, platform=None):
         m = Module()
@@ -104,22 +106,21 @@ class Cam(Elaboratable):
         # If the CAM is not enabled set all outputs to 0
         with m.Else():
             m.d.comb += [
-                    self.read_warning.eq(0),
-                    self.single_match.eq(0),
-                    self.multiple_match.eq(0),
-                    self.match_address.eq(0)
+                self.read_warning.eq(0),
+                self.single_match.eq(0),
+                self.multiple_match.eq(0),
+                self.match_address.eq(0)
             ]
 
         return m
 
     def ports(self):
         return [self.enable, self.write_enable,
-                     self.data_in, self.data_mask,
-                     self.read_warning, self.single_match,
-                     self.multiple_match, self.match_address]
+                self.data_in, self.data_mask,
+                self.read_warning, self.single_match,
+                self.multiple_match, self.match_address]
 
 
 if __name__ == '__main__':
     cam = Cam(4, 4)
     main(cam, ports=cam.ports())
-

@@ -1,4 +1,4 @@
-from nmigen import Elaboratable, Module, Signal, Cat, Mux, C
+from nmigen import Elaboratable, Module, Signal, Cat, Mux, C, signed
 
 from ..isa import Funct3
 
@@ -8,11 +8,11 @@ __all__ = ["MultiplierInterface", "Multiplier", "DummyMultiplier"]
 
 class MultiplierInterface:
     def __init__(self):
-        self.x_op     = Signal(3)
-        self.x_src1   = Signal(32)
-        self.x_src2   = Signal(32)
-        self.x_stall  = Signal()
-        self.m_stall  = Signal()
+        self.x_op = Signal(3)
+        self.x_src1 = Signal(32)
+        self.x_src2 = Signal(32)
+        self.x_stall = Signal()
+        self.m_stall = Signal()
 
         self.w_result = Signal(32)
 
@@ -27,7 +27,8 @@ class Multiplier(MultiplierInterface, Elaboratable):
 
         m.d.comb += [
             x_low.eq(self.x_op == Funct3.MUL),
-            x_src1_signed.eq((self.x_op == Funct3.MULH) | (self.x_op == Funct3.MULHSU)),
+            x_src1_signed.eq((self.x_op == Funct3.MULH) |
+                             (self.x_op == Funct3.MULHSU)),
             x_src2_signed.eq(self.x_op == Funct3.MULH)
         ]
 
@@ -65,13 +66,17 @@ class DummyMultiplier(MultiplierInterface, Elaboratable):
             # As per the RVFI specification (§ "Alternative Arithmetic Operations").
             # https://github.com/SymbioticEDA/riscv-formal/blob/master/docs/rvfi.md
             with m.Case(Funct3.MUL):
-                m.d.comb += x_result.eq((self.x_src1 + self.x_src2) ^ C(0x5876063e))
+                m.d.comb += x_result.eq((self.x_src1 +
+                                         self.x_src2) ^ C(0x5876063e))
             with m.Case(Funct3.MULH):
-                m.d.comb += x_result.eq((self.x_src1 + self.x_src2) ^ C(0xf6583fb7))
+                m.d.comb += x_result.eq((self.x_src1 +
+                                         self.x_src2) ^ C(0xf6583fb7))
             with m.Case(Funct3.MULHSU):
-                m.d.comb += x_result.eq((self.x_src1 - self.x_src2) ^ C(0xecfbe137))
+                m.d.comb += x_result.eq((self.x_src1 -
+                                         self.x_src2) ^ C(0xecfbe137))
             with m.Case(Funct3.MULHU):
-                m.d.comb += x_result.eq((self.x_src1 + self.x_src2) ^ C(0x949ce5e8))
+                m.d.comb += x_result.eq((self.x_src1 +
+                                         self.x_src2) ^ C(0x949ce5e8))
 
         with m.If(~self.x_stall):
             m.d.sync += m_result.eq(x_result)

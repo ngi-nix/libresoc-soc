@@ -11,6 +11,7 @@ from nmigen.cli import main
 from .PermissionValidator import PermissionValidator
 from .Cam import Cam
 
+
 class TLB(Elaboratable):
     def __init__(self, asid_size, vma_size, pte_size, L1_size):
         """ Arguments
@@ -28,26 +29,27 @@ class TLB(Elaboratable):
         self.state = 0
         # L1 Cache Modules
         self.cam_L1 = Cam(vma_size, L1_size)
-        self.mem_L1 = Memory(asid_size + pte_size, L1_size)
+        self.mem_L1 = Memory(width=asid_size + pte_size, depth=L1_size)
 
         # Permission Validator
         self.perm_validator = PermissionValidator(asid_size, pte_size)
 
         # Inputs
-        self.supermode = Signal(1) # Supervisor Mode
-        self.super_access = Signal(1) # Supervisor Access
-        self.command = Signal(2) # 00=None, 01=Search, 10=Write L1, 11=Write L2
-        self.xwr = Signal(3) # Execute, Write, Read
-        self.mode = Signal(4) # 4 bits for access to Sv48 on Rv64
-        self.address_L1 = Signal(max=L1_size)
-        self.asid = Signal(asid_size) # Address Space IDentifier (ASID)
-        self.vma = Signal(vma_size) # Virtual Memory Address (VMA)
-        self.pte_in = Signal(pte_size) # To be saved Page Table Entry (PTE)
+        self.supermode = Signal(1)  # Supervisor Mode
+        self.super_access = Signal(1)  # Supervisor Access
+        # 00=None, 01=Search, 10=Write L1, 11=Write L2
+        self.command = Signal(2)
+        self.xwr = Signal(3)  # Execute, Write, Read
+        self.mode = Signal(4)  # 4 bits for access to Sv48 on Rv64
+        self.address_L1 = Signal(range(L1_size))
+        self.asid = Signal(asid_size)  # Address Space IDentifier (ASID)
+        self.vma = Signal(vma_size)  # Virtual Memory Address (VMA)
+        self.pte_in = Signal(pte_size)  # To be saved Page Table Entry (PTE)
 
         # Outputs
-        self.hit = Signal(1) # Denotes if the VMA had a mapped PTE
-        self.perm_valid = Signal(1) # Denotes if the permissions are correct
-        self.pte_out = Signal(pte_size) # PTE that was mapped to by the VMA
+        self.hit = Signal(1)  # Denotes if the VMA had a mapped PTE
+        self.perm_valid = Signal(1)  # Denotes if the permissions are correct
+        self.pte_out = Signal(pte_size)  # PTE that was mapped to by the VMA
 
     def search(self, m, read_L1, write_L1):
         """ searches the TLB
@@ -60,7 +62,7 @@ class TLB(Elaboratable):
         # Match found in L1 CAM
         match_found = Signal(reset_less=True)
         m.d.comb += match_found.eq(self.cam_L1.single_match
-                              | self.cam_L1.multiple_match)
+                                   | self.cam_L1.multiple_match)
         with m.If(match_found):
             # Memory shortcut variables
             mem_address = self.cam_L1.match_address
@@ -116,9 +118,9 @@ class TLB(Elaboratable):
         # CAM_L1 Logic
         m.d.comb += [
             self.cam_L1.write_enable.eq(1),
-            self.cam_L1.data_in.eq(self.vma), #data_in is sent to all entries
+            self.cam_L1.data_in.eq(self.vma),  # data_in is sent to all entries
             # self.cam_L1.address_in.eq(todo) # a CAM entry needs to be selected
-            
+
         ]
 
     def elaborate(self, platform):
@@ -128,7 +130,7 @@ class TLB(Elaboratable):
         m.submodules.cam_L1 = self.cam_L1
         m.submodules.read_L1 = read_L1 = self.mem_L1.read_port()
         m.submodules.write_L1 = write_L1 = self.mem_L1.write_port()
-        
+
         # Permission Validator Submodule
         m.submodules.perm_valididator = self.perm_validator
 
@@ -152,7 +154,7 @@ class TLB(Elaboratable):
                     self.write_l1(m, read_L1, write_L1)
 
                 # TODO
-                #with m.Case("11"):
+                # with m.Case("11"):
 
         # When disabled
         with m.Else():
@@ -160,7 +162,7 @@ class TLB(Elaboratable):
                 self.cam_L1.enable.eq(0),
                 # XXX TODO - self.reg_file.enable.eq(0),
                 self.hit.eq(0),
-                self.perm_valid.eq(0), # XXX TODO, check this
+                self.perm_valid.eq(0),  # XXX TODO, check this
                 self.pte_out.eq(0)
             ]
         return m
@@ -168,8 +170,8 @@ class TLB(Elaboratable):
 
 if __name__ == '__main__':
     tlb = TLB(15, 36, 64, 4)
-    main(tlb, ports=[ tlb.supermode, tlb.super_access, tlb.command,
-        tlb.xwr, tlb.mode, tlb.address_L1, tlb.asid,
-        tlb.vma, tlb.pte_in,
-        tlb.hit, tlb.perm_valid, tlb.pte_out,
-        ] + tlb.cam_L1.ports())
+    main(tlb, ports=[tlb.supermode, tlb.super_access, tlb.command,
+                     tlb.xwr, tlb.mode, tlb.address_L1, tlb.asid,
+                     tlb.vma, tlb.pte_in,
+                     tlb.hit, tlb.perm_valid, tlb.pte_out,
+                     ] + tlb.cam_L1.ports())

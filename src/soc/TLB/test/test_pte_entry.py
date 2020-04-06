@@ -1,44 +1,54 @@
 from nmigen.compat.sim import run_simulation
 
-from TLB.PteEntry import PteEntry
+from soc.TLB.PteEntry import PteEntry
 
-from TestUtil.test_helper import assert_op
+from soc.TestUtil.test_helper import assert_op
+
 
 def set_entry(dut, i):
     yield dut.i.eq(i)
     yield
 
+
 def check_dirty(dut, d, op):
     out_d = yield dut.d
     assert_op("Dirty", out_d, d, op)
+
 
 def check_accessed(dut, a, op):
     out_a = yield dut.a
     assert_op("Accessed", out_a, a, op)
 
+
 def check_global(dut, o, op):
     out = yield dut.g
     assert_op("Global", out, o, op)
+
 
 def check_user(dut, o, op):
     out = yield dut.u
     assert_op("User Mode", out, o, op)
 
+
 def check_xwr(dut, o, op):
     out = yield dut.xwr
     assert_op("XWR", out, o, op)
+
 
 def check_asid(dut, o, op):
     out = yield dut.asid
     assert_op("ASID", out, o, op)
 
+
 def check_pte(dut, o, op):
     out = yield dut.pte
     assert_op("ASID", out, o, op)
 
+
 def check_valid(dut, v, op):
     out_v = yield dut.v
     assert_op("Valid", out_v, v, op)
+
 
 def check_all(dut, d, a, g, u, xwr, v, asid, pte):
     yield from check_dirty(dut, d, 0)
@@ -49,6 +59,7 @@ def check_all(dut, d, a, g, u, xwr, v, asid, pte):
     yield from check_asid(dut, asid, 0)
     yield from check_pte(dut, pte, 0)
     yield from check_valid(dut, v, 0)
+
 
 def tbench(dut):
     # 80 bits represented. Ignore the MSB as it will be truncated
@@ -94,9 +105,10 @@ def tbench(dut):
 
 
 def test_pteentry():
-    dut = PteEntry(15, 64);
+    dut = PteEntry(15, 64)
     run_simulation(dut, tbench(dut), vcd_name="Waveforms/test_pte_entry.vcd")
     print("PteEntry Unit Test Success")
+
 
 if __name__ == "__main__":
     test_pteentry()

@@ -29,11 +29,12 @@ from nmigen import Signal, Module, Cat, Const, Array, Elaboratable
 from nmigen.cli import verilog, rtlil
 from nmigen.lib.coding import Encoder
 
-from TLB.ariane.ptw import TLBUpdate, PTE, ASID_WIDTH
-from TLB.ariane.plru import PLRU
-from TLB.ariane.tlb_content import TLBContent
+from soc.TLB.ariane.ptw import TLBUpdate, PTE, ASID_WIDTH
+from soc.TLB.ariane.plru import PLRU
+from soc.TLB.ariane.tlb_content import TLBContent
 
 TLB_ENTRIES = 8
+
 
 class TLB(Elaboratable):
     def __init__(self, tlb_entries=8, asid_width=8):
@@ -57,21 +58,21 @@ class TLB(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        vpn3 = Signal(9) #FIXME unused signal
+        vpn3 = Signal(9)  # FIXME unused signal
         vpn2 = Signal(9)
         vpn1 = Signal(9)
         vpn0 = Signal(9)
 
-        #-------------
+        # -------------
         # Translation
-        #-------------
+        # -------------
 
         # SV48 defines four levels of page tables
-        m.d.comb += [ vpn0.eq(self.lu_vaddr_i[12:21]),
-                      vpn1.eq(self.lu_vaddr_i[21:30]),
-                      vpn2.eq(self.lu_vaddr_i[30:39]),
-                      vpn3.eq(self.lu_vaddr_i[39:48]),      ### FIXME
-                    ]
+        m.d.comb += [vpn0.eq(self.lu_vaddr_i[12:21]),
+                     vpn1.eq(self.lu_vaddr_i[21:30]),
+                     vpn2.eq(self.lu_vaddr_i[30:39]),
+                     vpn3.eq(self.lu_vaddr_i[39:48]),  # FIXME
+                     ]
 
         tc = []
         for i in range(self.tlb_entries):
@@ -85,13 +86,13 @@ class TLB(Elaboratable):
                          tlc.vpn2.eq(vpn2),
                          # TODO 4th
                          tlc.flush_i.eq(self.flush_i),
-                         #tlc.update_i.eq(self.update_i),
+                         # tlc.update_i.eq(self.update_i),
                          tlc.lu_asid_i.eq(self.lu_asid_i)]
         tc = Array(tc)
 
-        #--------------
+        # --------------
         # Select hit
-        #--------------
+        # --------------
 
         # use Encoder to select hit index
         # XXX TODO: assert that there's only one valid entry (one lu_hit)
@@ -101,23 +102,23 @@ class TLB(Elaboratable):
         hits = []
         for i in range(self.tlb_entries):
             hits.append(tc[i].lu_hit_o)
-        m.d.comb += hitsel.i.eq(Cat(*hits)) # (goes into plru as well)
+        m.d.comb += hitsel.i.eq(Cat(*hits))  # (goes into plru as well)
         idx = hitsel.o
 
         active = Signal(reset_less=True)
         m.d.comb += active.eq(~hitsel.n)
         with m.If(active):
             # active hit, send selected as output
-            m.d.comb += [ self.lu_is_512G_o.eq(tc[idx].lu_is_512G_o),
-                          self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
-                          self.lu_is_2M_o.eq(tc[idx].lu_is_2M_o),
-                          self.lu_hit_o.eq(1),
-                          self.lu_content_o.flatten().eq(tc[idx].lu_content_o),
-                        ]
+            m.d.comb += [self.lu_is_512G_o.eq(tc[idx].lu_is_512G_o),
+                         self.lu_is_1G_o.eq(tc[idx].lu_is_1G_o),
+                         self.lu_is_2M_o.eq(tc[idx].lu_is_2M_o),
+                         self.lu_hit_o.eq(1),
+                         self.lu_content_o.flatten().eq(tc[idx].lu_content_o),
+                         ]
 
-        #--------------
+        # --------------
         # PLRU.
-        #--------------
+        # --------------
 
         p = PLRU(self.tlb_entries)
         plru_tree = Signal(p.TLBSZ)
@@ -128,15 +129,15 @@ class TLB(Elaboratable):
         en = []
         for i in range(self.tlb_entries):
             en.append(tc[i].replace_en_i)
-        m.d.comb += [Cat(*en).eq(p.replace_en_o), # output from PLRU into tags
+        m.d.comb += [Cat(*en).eq(p.replace_en_o),  # output from PLRU into tags
                      p.lu_hit.eq(hitsel.i),
                      p.lu_access_i.eq(self.lu_access_i),
                      p.plru_tree.eq(plru_tree)]
         m.d.sync += plru_tree.eq(p.plru_tree_o)
 
-        #--------------
+        # --------------
         # Sanity checks
-        #--------------
+        # --------------
 
         assert (self.tlb_entries % 2 == 0) and (self.tlb_entries > 1), \
             "TLB size must be a multiple of 2 and greater than 1"
@@ -163,13 +164,13 @@ class TLB(Elaboratable):
 
     def ports(self):
         return [self.flush_i, self.lu_access_i,
-                 self.lu_asid_i, self.lu_vaddr_i,
-                 self.lu_is_2M_o, self.lu_1G_o, self.lu_is_512G_o, self.lu_hit_o
+                self.lu_asid_i, self.lu_vaddr_i,
+                self.lu_is_2M_o, self.lu_1G_o, self.lu_is_512G_o, self.lu_hit_o
                 ] + self.lu_content_o.ports() + self.update_i.ports()
+
 
 if __name__ == '__main__':
     tlb = TLB()
     vl = rtlil.convert(tlb, ports=tlb.ports())
     with open("test_tlb.il", "w") as f:
         f.write(vl)
-

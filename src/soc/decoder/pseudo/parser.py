@@ -54,7 +54,7 @@ def Assign(left, right, iea_mode):
             else:
                 ls = (lower, upper, step)
             ls = ast.Tuple(ls)
-        return ast.Call(ast.Name("selectassign"),
+        return ast.Call(ast.Name("selectassign", ast.Load()),
                         [left.value, ls, right], [])
     else:
         print("Assign fail")
@@ -141,7 +141,7 @@ def check_concat(node):  # checks if the comparison is already a concat
     print("func", node.func.id)
     if node.func.id != 'concat':
         return [node]
-    if node.keywords: # a repeated list-constant, don't optimise
+    if node.keywords:  # a repeated list-constant, don't optimise
         return [node]
     return node.args
 
@@ -149,16 +149,16 @@ def check_concat(node):  # checks if the comparison is already a concat
 # identify SelectableInt pattern [something] * N
 # must return concat(something, repeat=N)
 def identify_sint_mul_pattern(p):
-    if p[2] != '*': # multiply
+    if p[2] != '*':  # multiply
         return False
-    if not isinstance(p[3], ast.Constant): # rhs = Num
+    if not isinstance(p[3], ast.Constant):  # rhs = Num
         return False
-    if not isinstance(p[1], ast.List): # lhs is a list
+    if not isinstance(p[1], ast.List):  # lhs is a list
         return False
     l = p[1].elts
-    if len(l) != 1: # lhs is a list of length 1
+    if len(l) != 1:  # lhs is a list of length 1
         return False
-    return True # yippee!
+    return True  # yippee!
 
 
 def apply_trailer(atom, trailer):
@@ -214,6 +214,7 @@ def apply_trailer(atom, trailer):
 # or                                                     Boolean OR
 # lambda                                                 Lambda expression
 
+
 class PowerParser:
 
     precedence = (
@@ -229,14 +230,14 @@ class PowerParser:
     def __init__(self, form):
         self.gprs = {}
         form = self.sd.sigforms[form]
-        print (form)
+        print(form)
         formkeys = form._asdict().keys()
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
         self.available_op_fields = set()
         for k in formkeys:
             if k not in self.gprs:
-                if k == 'SPR': # sigh, lower-case to not conflict
+                if k == 'SPR':  # sigh, lower-case to not conflict
                     k = k.lower()
                 self.available_op_fields.add(k)
         self.op_fields = OrderedSet()
@@ -362,18 +363,18 @@ class PowerParser:
                 print(astor.dump_tree(p[1]))
                 # replace GPR(x) with GPR[x]
                 idx = p[1].args[0]
-                p[1] = ast.Subscript(p[1].func, idx)
+                p[1] = ast.Subscript(p[1].func, idx, ast.Load())
             elif isinstance(p[1], ast.Call) and p[1].func.id == 'MEM':
-                print ("mem assign")
+                print("mem assign")
                 print(astor.dump_tree(p[1]))
-                p[1].func.id = "memassign" # change function name to set
+                p[1].func.id = "memassign"  # change function name to set
                 p[1].args.append(p[3])
                 p[0] = p[1]
-                print ("mem rewrite")
+                print("mem rewrite")
                 print(astor.dump_tree(p[0]))
                 return
             else:
-                print ("help, help")
+                print("help, help")
                 print(astor.dump_tree(p[1]))
             print("expr assign", name, p[1])
             if name and name in self.gprs:
@@ -410,7 +411,7 @@ class PowerParser:
         # auto-add-one (sigh) due to python range
         start = p[4]
         end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
-        it = ast.Call(ast.Name("range"), [start, end], [])
+        it = ast.Call(ast.Name("range", ast.Load()), [start, end], [])
         p[0] = ast.For(p[2], it, p[8], [])
 
     def p_while_stmt(self, p):
@@ -430,35 +431,35 @@ class PowerParser:
         print(astor.dump_tree(p[1]))
 
         cases = []
-        current_cases = [] # for deferral
+        current_cases = []  # for deferral
         for (case, suite) in p[8]:
-            print ("for", case, suite)
+            print("for", case, suite)
             if suite is None:
                 for c in case:
                     current_cases.append(ast.Num(c))
                 continue
-            if case == 'default': # last
+            if case == 'default':  # last
                 break
             for c in case:
                 current_cases.append(ast.Num(c))
-            print ("cases", current_cases)
+            print("cases", current_cases)
             compare = ast.Compare(switchon, [ast.In()],
-                                  [ast.List(current_cases)])
+                                  [ast.List(current_cases, ast.Load())])
             current_cases = []
             cases.append((compare, suite))
 
-        print ("ended", case, current_cases)
+        print("ended", case, current_cases)
         if case == 'default':
             if current_cases:
                 compare = ast.Compare(switchon, [ast.In()],
-                                      [ast.List(current_cases)])
+                                      [ast.List(current_cases, ast.Load())])
                 cases.append((compare, suite))
             cases.append((None, suite))
 
         cases.reverse()
         res = []
         for compare, suite in cases:
-            print ("after rev", compare, suite)
+            print("after rev", compare, suite)
             if compare is None:
                 assert len(res) == 0, "last case should be default"
                 res = suite
@@ -562,18 +563,18 @@ class PowerParser:
         if len(p) == 4:
             print(list(p))
             if p[2] == '<u':
-                p[0] = ast.Call(ast.Name("ltu"), (p[1], p[3]), [])
+                p[0] = ast.Call(ast.Name("ltu", ast.Load()), (p[1], p[3]), [])
             elif p[2] == '>u':
-                p[0] = ast.Call(ast.Name("gtu"), (p[1], p[3]), [])
+                p[0] = ast.Call(ast.Name("gtu", ast.Load()), (p[1], p[3]), [])
             elif p[2] == '||':
                 l = check_concat(p[1]) + check_concat(p[3])
-                p[0] = ast.Call(ast.Name("concat"), l, [])
+                p[0] = ast.Call(ast.Name("concat", ast.Load()), l, [])
             elif p[2] in ['<', '>', '=', '<=', '>=', '!=']:
                 p[0] = binary_ops[p[2]]((p[1], p[3]))
             elif identify_sint_mul_pattern(p):
-                keywords=[ast.keyword(arg='repeat', value=p[3])]
+                keywords = [ast.keyword(arg='repeat', value=p[3])]
                 l = p[1].elts
-                p[0] = ast.Call(ast.Name("concat"), l, keywords)
+                p[0] = ast.Call(ast.Name("concat", ast.Load()), l, keywords)
             else:
                 p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
         elif len(p) == 3:
@@ -624,9 +625,9 @@ class PowerParser:
                      | test
         """
         if len(p) == 2:
-            p[0] = ast.List([p[1]])
+            p[0] = ast.List([p[1]], ast.Load())
         else:
-            p[0] = ast.List([p[1]] + p[3].nodes)
+            p[0] = ast.List([p[1]] + p[3].nodes, ast.Load())
 
     def p_atom_tuple(self, p):
         """atom : LPAR testlist RPAR"""
@@ -639,23 +640,24 @@ class PowerParser:
             print("tuple name", name)
             if name in self.gprs:
                 self.read_regs.add(name)  # add to list of regs to read
-                #p[0] = ast.Subscript(ast.Name("GPR"), ast.Str(p[2].id))
+                #p[0] = ast.Subscript(ast.Name("GPR", ast.Load()), ast.Str(p[2].id))
                 # return
             p[0] = p[2]
         elif isinstance(p[2], ast.BinOp):
             if isinstance(p[2].left, ast.Name) and \
                isinstance(p[2].right, ast.Constant) and \
-                p[2].right.value == 0 and \
-                p[2].left.id in self.gprs:
-                    rid = p[2].left.id
-                    self.read_regs.add(rid)  # add to list of regs to read
-                    # create special call to GPR.getz
-                    gprz = ast.Name("GPR")
-                    gprz = ast.Attribute(gprz, "getz")   # get testzero function
-                    # *sigh* see class GPR.  we need index itself not reg value
-                    ridx = ast.Name("_%s" % rid)
-                    p[0] = ast.Call(gprz, [ridx], [])
-                    print("tree", astor.dump_tree(p[0]))
+                    p[2].right.value == 0 and \
+                    p[2].left.id in self.gprs:
+                rid = p[2].left.id
+                self.read_regs.add(rid)  # add to list of regs to read
+                # create special call to GPR.getz
+                gprz = ast.Name("GPR", ast.Load())
+                # get testzero function
+                gprz = ast.Attribute(gprz, "getz", ast.Load())
+                # *sigh* see class GPR.  we need index itself not reg value
+                ridx = ast.Name("_%s" % rid, ast.Load())
+                p[0] = ast.Call(gprz, [ridx], [])
+                print("tree", astor.dump_tree(p[0]))
             else:
                 p[0] = p[2]
         else:

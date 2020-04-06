@@ -6,19 +6,19 @@ from nmigen.cli import verilog, rtlil
 class MemorySet(Elaboratable):
     def __init__(self, data_size, tag_size, set_count, active):
         self.active = active
-        input_size = tag_size + data_size # Size of the input data
-        memory_width = input_size + 1 # The width of the cache memory
+        input_size = tag_size + data_size  # Size of the input data
+        memory_width = input_size + 1  # The width of the cache memory
         self.active = active
         self.data_size = data_size
         self.tag_size = tag_size
 
         # XXX TODO, use rd-enable and wr-enable?
-        self.mem = Memory(memory_width, set_count)
+        self.mem = Memory(width=memory_width, depth=set_count)
         self.r = self.mem.read_port()
         self.w = self.mem.write_port()
 
         # inputs (address)
-        self.cset = Signal(max=set_count)  # The set to be checked
+        self.cset = Signal(range(set_count))  # The set to be checked
         self.tag = Signal(tag_size)        # The tag to find
         self.data_i = Signal(data_size)    # Incoming data
 

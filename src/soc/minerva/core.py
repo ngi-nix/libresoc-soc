@@ -133,14 +133,14 @@ _mw_layout = [
 
 class Minerva(Elaboratable):
     def __init__(self, reset_address=0x00000000,
-                with_icache=False,
-                icache_nways=1, icache_nlines=256, icache_nwords=8, icache_base=0, icache_limit=2**31,
-                with_dcache=False,
-                dcache_nways=1, dcache_nlines=256, dcache_nwords=8, dcache_base=0, dcache_limit=2**31,
-                with_muldiv=False,
-                with_debug=False,
-                with_trigger=False, nb_triggers=8,
-                with_rvfi=False):
+                 with_icache=False,
+                 icache_nways=1, icache_nlines=256, icache_nwords=8, icache_base=0, icache_limit=2**31,
+                 with_dcache=False,
+                 dcache_nways=1, dcache_nlines=256, dcache_nwords=8, dcache_base=0, dcache_limit=2**31,
+                 with_muldiv=False,
+                 with_debug=False,
+                 with_trigger=False, nb_triggers=8,
+                 with_rvfi=False):
         self.external_interrupt = Signal(32)
         self.timer_interrupt = Signal()
         self.software_interrupt = Signal()
@@ -154,15 +154,15 @@ class Minerva(Elaboratable):
             self.rvfi = Record(rvfi_layout)
 
         self.reset_address = reset_address
-        self.with_icache   = with_icache
-        self.icache_args   = icache_nways, icache_nlines, icache_nwords, icache_base, icache_limit
-        self.with_dcache   = with_dcache
-        self.dcache_args   = dcache_nways, dcache_nlines, dcache_nwords, dcache_base, dcache_limit
-        self.with_muldiv   = with_muldiv
-        self.with_debug    = with_debug
-        self.with_trigger  = with_trigger
-        self.nb_triggers   = nb_triggers
-        self.with_rvfi     = with_rvfi
+        self.with_icache = with_icache
+        self.icache_args = icache_nways, icache_nlines, icache_nwords, icache_base, icache_limit
+        self.with_dcache = with_dcache
+        self.dcache_args = dcache_nways, dcache_nlines, dcache_nwords, dcache_base, dcache_limit
+        self.with_muldiv = with_muldiv
+        self.with_debug = with_debug
+        self.with_trigger = with_trigger
+        self.nb_triggers = nb_triggers
+        self.with_rvfi = with_rvfi
 
     def elaborate(self, platform):
         cpu = Module()
@@ -187,15 +187,15 @@ class Minerva(Elaboratable):
 
         # units
 
-        pc_sel    = cpu.submodules.pc_sel    = PCSelector()
-        data_sel  = cpu.submodules.data_sel  = DataSelector()
-        adder     = cpu.submodules.adder     = Adder()
-        compare   = cpu.submodules.compare   = CompareUnit()
-        decoder   = cpu.submodules.decoder   = InstructionDecoder(self.with_muldiv)
+        pc_sel = cpu.submodules.pc_sel = PCSelector()
+        data_sel = cpu.submodules.data_sel = DataSelector()
+        adder = cpu.submodules.adder = Adder()
+        compare = cpu.submodules.compare = CompareUnit()
+        decoder = cpu.submodules.decoder = InstructionDecoder(self.with_muldiv)
         exception = cpu.submodules.exception = ExceptionUnit()
-        logic     = cpu.submodules.logic     = LogicUnit()
-        predict   = cpu.submodules.predict   = BranchPredictor()
-        shifter   = cpu.submodules.shifter   = Shifter()
+        logic = cpu.submodules.logic = LogicUnit()
+        predict = cpu.submodules.predict = BranchPredictor()
+        shifter = cpu.submodules.shifter = Shifter()
 
         if self.with_icache:
             fetch = cpu.submodules.fetch = CachedFetchUnit(*self.icache_args)
@@ -203,15 +203,16 @@ class Minerva(Elaboratable):
             fetch = cpu.submodules.fetch = BareFetchUnit()
 
         if self.with_dcache:
-            loadstore = cpu.submodules.loadstore = CachedLoadStoreUnit(*self.dcache_args)
+            loadstore = cpu.submodules.loadstore = CachedLoadStoreUnit(
+                *self.dcache_args)
         else:
             loadstore = cpu.submodules.loadstore = BareLoadStoreUnit()
 
         if self.with_muldiv:
             multiplier = Multiplier() if not self.with_rvfi else DummyMultiplier()
-            divider    = Divider()    if not self.with_rvfi else DummyDivider()
+            divider = Divider() if not self.with_rvfi else DummyDivider()
             cpu.submodules.multiplier = multiplier
-            cpu.submodules.divider    = divider
+            cpu.submodules.divider = divider
 
         if self.with_debug:
             debug = cpu.submodules.debug = DebugUnit()
@@ -227,7 +228,7 @@ class Minerva(Elaboratable):
         gprf = Memory(width=32, depth=32)
         gprf_rp1 = gprf.read_port()
         gprf_rp2 = gprf.read_port()
-        gprf_wp  = gprf.write_port()
+        gprf_wp = gprf.write_port()
         cpu.submodules += gprf_rp1, gprf_rp2, gprf_wp
 
         csrf = cpu.submodules.csrf = CSRFile()
@@ -245,7 +246,8 @@ class Minerva(Elaboratable):
         cpu.d.comb += [
             pc_sel.f_pc.eq(f.sink.pc),
             pc_sel.d_pc.eq(d.sink.pc),
-            pc_sel.d_branch_predict_taken.eq(predict.d_branch_taken & ~predict.d_fetch_misaligned),
+            pc_sel.d_branch_predict_taken.eq(
+                predict.d_branch_taken & ~predict.d_fetch_misaligned),
             pc_sel.d_branch_target.eq(predict.d_branch_target),
             pc_sel.d_valid.eq(d.valid),
             pc_sel.x_pc.eq(x.sink.pc),
@@ -326,7 +328,8 @@ class Minerva(Elaboratable):
         ]
 
         cpu.d.comb += [
-            adder.sub.eq(x.sink.adder & x.sink.adder_sub | x.sink.compare | x.sink.branch),
+            adder.sub.eq(x.sink.adder & x.sink.adder_sub |
+                         x.sink.compare | x.sink.branch),
             adder.src1.eq(x.sink.src1),
             adder.src2.eq(Mux(x.sink.store, x.sink.immediate, x.sink.src2))
         ]
@@ -360,7 +363,8 @@ class Minerva(Elaboratable):
 
         cpu.d.comb += [
             # compare.op is shared by compare and branch instructions.
-            compare.op.eq(Mux(x.sink.compare, x.sink.funct3 << 1, x.sink.funct3)),
+            compare.op.eq(
+                Mux(x.sink.compare, x.sink.funct3 << 1, x.sink.funct3)),
             compare.zero.eq(x.sink.src1 == x.sink.src2),
             compare.negative.eq(adder.result[-1]),
             compare.overflow.eq(adder.overflow),
@@ -371,12 +375,15 @@ class Minerva(Elaboratable):
             exception.external_interrupt.eq(self.external_interrupt),
             exception.timer_interrupt.eq(self.timer_interrupt),
             exception.software_interrupt.eq(self.software_interrupt),
-            exception.m_fetch_misaligned.eq(m.sink.branch_taken & m.sink.branch_target[:2].bool()),
+            exception.m_fetch_misaligned.eq(
+                m.sink.branch_taken & m.sink.branch_target[:2].bool()),
             exception.m_fetch_error.eq(m.sink.fetch_error),
             exception.m_fetch_badaddr.eq(m.sink.fetch_badaddr),
-            exception.m_load_misaligned.eq(m.sink.load & m.sink.loadstore_misaligned),
+            exception.m_load_misaligned.eq(
+                m.sink.load & m.sink.loadstore_misaligned),
             exception.m_load_error.eq(loadstore.m_load_error),
-            exception.m_store_misaligned.eq(m.sink.store & m.sink.loadstore_misaligned),
+            exception.m_store_misaligned.eq(
+                m.sink.store & m.sink.loadstore_misaligned),
             exception.m_store_error.eq(loadstore.m_store_error),
             exception.m_loadstore_badaddr.eq(loadstore.m_badaddr),
             exception.m_branch_target.eq(m.sink.branch_target),
@@ -466,23 +473,34 @@ class Minerva(Elaboratable):
         m_lock = Signal()
 
         cpu.d.comb += [
-            x_raw_rs1.eq((x.sink.rd != 0) & (x.sink.rd == decoder.rs1) & x.sink.rd_we),
-            m_raw_rs1.eq((m.sink.rd != 0) & (m.sink.rd == decoder.rs1) & m.sink.rd_we),
-            w_raw_rs1.eq((w.sink.rd != 0) & (w.sink.rd == decoder.rs1) & w.sink.rd_we),
+            x_raw_rs1.eq((x.sink.rd != 0) & (
+                x.sink.rd == decoder.rs1) & x.sink.rd_we),
+            m_raw_rs1.eq((m.sink.rd != 0) & (
+                m.sink.rd == decoder.rs1) & m.sink.rd_we),
+            w_raw_rs1.eq((w.sink.rd != 0) & (
+                w.sink.rd == decoder.rs1) & w.sink.rd_we),
 
-            x_raw_rs2.eq((x.sink.rd != 0) & (x.sink.rd == decoder.rs2) & x.sink.rd_we),
-            m_raw_rs2.eq((m.sink.rd != 0) & (m.sink.rd == decoder.rs2) & m.sink.rd_we),
-            w_raw_rs2.eq((w.sink.rd != 0) & (w.sink.rd == decoder.rs2) & w.sink.rd_we),
+            x_raw_rs2.eq((x.sink.rd != 0) & (
+                x.sink.rd == decoder.rs2) & x.sink.rd_we),
+            m_raw_rs2.eq((m.sink.rd != 0) & (
+                m.sink.rd == decoder.rs2) & m.sink.rd_we),
+            w_raw_rs2.eq((w.sink.rd != 0) & (
+                w.sink.rd == decoder.rs2) & w.sink.rd_we),
 
-            x_raw_csr.eq((x.sink.csr_adr == decoder.immediate) & x.sink.csr_we),
-            m_raw_csr.eq((m.sink.csr_adr == decoder.immediate) & m.sink.csr_we),
+            x_raw_csr.eq((x.sink.csr_adr == decoder.immediate)
+                         & x.sink.csr_we),
+            m_raw_csr.eq((m.sink.csr_adr == decoder.immediate)
+                         & m.sink.csr_we),
 
-            x_lock.eq(~x.sink.bypass_x & (decoder.rs1_re & x_raw_rs1 | decoder.rs2_re & x_raw_rs2) | decoder.csr & x_raw_csr),
-            m_lock.eq(~m.sink.bypass_m & (decoder.rs1_re & m_raw_rs1 | decoder.rs2_re & m_raw_rs2) | decoder.csr & m_raw_csr)
+            x_lock.eq(~x.sink.bypass_x & (decoder.rs1_re & x_raw_rs1 |
+                                          decoder.rs2_re & x_raw_rs2) | decoder.csr & x_raw_csr),
+            m_lock.eq(~m.sink.bypass_m & (decoder.rs1_re & m_raw_rs1 |
+                                          decoder.rs2_re & m_raw_rs2) | decoder.csr & m_raw_csr)
         ]
 
         if self.with_debug:
-            d.stall_on((x_lock & x.valid | m_lock & m.valid) & d.valid & ~debug.dcsr_step)
+            d.stall_on((x_lock & x.valid | m_lock & m.valid)
+                       & d.valid & ~debug.dcsr_step)
         else:
             d.stall_on((x_lock & x.valid | m_lock & m.valid) & d.valid)
 
@@ -526,7 +544,8 @@ class Minerva(Elaboratable):
             cpu.d.comb += x_csr_result.eq(x_csr_src1)
 
         cpu.d.comb += [
-            csrf_wp.en.eq(m.sink.csr & m.sink.csr_we & m.valid & ~exception.m_raise & ~m.stall),
+            csrf_wp.en.eq(m.sink.csr & m.sink.csr_we & m.valid &
+                          ~exception.m_raise & ~m.stall),
             csrf_wp.addr.eq(m.sink.csr_adr),
             csrf_wp.data.eq(m.sink.csr_result)
         ]
@@ -540,7 +559,8 @@ class Minerva(Elaboratable):
                 ]
             with cpu.Else():
                 cpu.d.comb += [
-                    gprf_wp.en.eq((w.sink.rd != 0) & w.sink.rd_we & w.valid & ~w.sink.exception),
+                    gprf_wp.en.eq((w.sink.rd != 0) & w.sink.rd_we &
+                                  w.valid & ~w.sink.exception),
                     gprf_wp.addr.eq(w.sink.rd),
                     gprf_wp.data.eq(w_result)
                 ]
@@ -596,11 +616,14 @@ class Minerva(Elaboratable):
             predict.d_rs1_re.eq(decoder.rs1_re)
         ]
 
-        a.kill_on(predict.d_branch_taken & ~predict.d_fetch_misaligned & d.valid)
+        a.kill_on(predict.d_branch_taken & ~
+                  predict.d_fetch_misaligned & d.valid)
         for s in a, f:
-            s.kill_on(m.sink.branch_predict_taken & ~m.sink.branch_taken & m.valid)
+            s.kill_on(m.sink.branch_predict_taken & ~
+                      m.sink.branch_taken & m.valid)
         for s in a, f, d:
-            s.kill_on(~m.sink.branch_predict_taken & m.sink.branch_taken & m.valid)
+            s.kill_on(~m.sink.branch_predict_taken &
+                      m.sink.branch_taken & m.valid)
             s.kill_on((exception.m_raise | m.sink.mret) & m.valid)
 
         # debug unit
@@ -665,8 +688,10 @@ class Minerva(Elaboratable):
                 rvficon.d_rs2_rdata.eq(Mux(decoder.rs2_re, d_src2, 0)),
                 rvficon.d_stall.eq(d.stall),
                 rvficon.x_mem_addr.eq(loadstore.x_addr[2:] << 2),
-                rvficon.x_mem_wmask.eq(Mux(loadstore.x_store, loadstore.x_mask, 0)),
-                rvficon.x_mem_rmask.eq(Mux(loadstore.x_load, loadstore.x_mask, 0)),
+                rvficon.x_mem_wmask.eq(
+                    Mux(loadstore.x_store, loadstore.x_mask, 0)),
+                rvficon.x_mem_rmask.eq(
+                    Mux(loadstore.x_load, loadstore.x_mask, 0)),
                 rvficon.x_mem_wdata.eq(loadstore.x_store_data),
                 rvficon.x_stall.eq(x.stall),
                 rvficon.m_mem_rdata.eq(loadstore.m_load_data),
@@ -739,7 +764,8 @@ class Minerva(Elaboratable):
                 d.source.mret.eq(decoder.mret),
                 d.source.src1.eq(d_src1),
                 d.source.src2.eq(d_src2),
-                d.source.branch_predict_taken.eq(predict.d_branch_taken & ~predict.d_fetch_misaligned),
+                d.source.branch_predict_taken.eq(
+                    predict.d_branch_taken & ~predict.d_fetch_misaligned),
                 d.source.branch_target.eq(predict.d_branch_target)
             ]
             if self.with_muldiv:
@@ -770,8 +796,10 @@ class Minerva(Elaboratable):
                 x.source.shift.eq(x.sink.shift),
                 x.source.mret.eq(x.sink.mret),
                 x.source.condition_met.eq(compare.condition_met),
-                x.source.branch_taken.eq(x.sink.jump | x.sink.branch & compare.condition_met),
-                x.source.branch_target.eq(Mux(x.sink.jump & x.sink.rs1_re, adder.result[1:] << 1, x.sink.branch_target)),
+                x.source.branch_taken.eq(
+                    x.sink.jump | x.sink.branch & compare.condition_met),
+                x.source.branch_target.eq(
+                    Mux(x.sink.jump & x.sink.rs1_re, adder.result[1:] << 1, x.sink.branch_target)),
                 x.source.branch_predict_taken.eq(x.sink.branch_predict_taken),
                 x.source.csr.eq(x.sink.csr),
                 x.source.csr_adr.eq(x.sink.csr_adr),

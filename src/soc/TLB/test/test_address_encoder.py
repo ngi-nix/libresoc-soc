@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
-from TLB.AddressEncoder import AddressEncoder
-from TestUtil.test_helper import assert_eq, assert_ne, assert_op
+from soc.TLB.AddressEncoder import AddressEncoder
+from soc.TestUtil.test_helper import assert_eq, assert_ne, assert_op
 
 
 # This function allows for the easy setting of values to the AddressEncoder
@@ -16,6 +16,8 @@ def set_encoder(dut, i):
 #   dut: The AddressEncoder being tested
 #   sm (Single Match): The expected match result
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_single_match(dut, sm, op):
     out_sm = yield dut.single_match
     assert_op("Single Match", out_sm, sm, op)
@@ -25,6 +27,8 @@ def check_single_match(dut, sm, op):
 #   dut: The AddressEncoder being tested
 #   mm (Multiple Match): The expected match result
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_multiple_match(dut, mm, op):
     out_mm = yield dut.multiple_match
     assert_op("Multiple Match", out_mm, mm, op)
@@ -34,6 +38,8 @@ def check_multiple_match(dut, mm, op):
 #   dut: The AddressEncoder being tested
 #   o (Output): The expected output
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_output(dut, o, op):
     out_o = yield dut.o
     assert_op("Output", out_o, o, op)
@@ -47,10 +53,13 @@ def check_output(dut, o, op):
 #   ss_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 #   mm_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
 #   o_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+
+
 def check_all(dut, sm, mm, o, sm_op, mm_op, o_op):
     yield from check_single_match(dut, sm, sm_op)
     yield from check_multiple_match(dut, mm, mm_op)
     yield from check_output(dut, o, o_op)
+
 
 def tbench(dut):
     # Check invalid input
@@ -95,11 +104,13 @@ def tbench(dut):
     yield from set_encoder(dut, in_val)
     yield from check_all(dut, single_match, multiple_match, output, 0, 0, 0)
 
+
 def test_addr():
     dut = AddressEncoder(4)
-    run_simulation(dut, tbench(dut), 
+    run_simulation(dut, tbench(dut),
                    vcd_name="Waveforms/test_address_encoder.vcd")
     print("AddressEncoder Unit Test Success")
+
 
 if __name__ == "__main__":
     test_addr()

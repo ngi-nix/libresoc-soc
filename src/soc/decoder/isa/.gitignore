@@ -1,0 +1,14 @@
+/all.py
+/bcd.py
+/branch.py
+/comparefixed.py
+/condition.py
+/fixedarith.py
+/fixedload.py
+/fixedlogical.py
+/fixedshift.py
+/fixedstore.py
+/fixedtrap.py
+/sprset.py
+/stringldst.py
+/system.py

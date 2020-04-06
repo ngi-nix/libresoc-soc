@@ -1,14 +1,11 @@
-import sys
-sys.path.append("../src")
-sys.path.append("../../../TestUtil")
-
 from nmigen.compat.sim import run_simulation
 
-from TLB.ariane.tlb import TLB
+from soc.TLB.ariane.tlb import TLB
+
 
 def set_vaddr(addr):
     yield dut.lu_vaddr_i.eq(addr)
-    yield dut.update_i.vpn.eq(addr>>12)
+    yield dut.update_i.vpn.eq(addr >> 12)
 
 
 def tbench(dut):
