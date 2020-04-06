@@ -14,6 +14,7 @@ build:
             python3-setuptools python3-wheel pkg-config tcl-dev
             libreadline-dev bison flex libffi-dev ccache python3-venv
             binutils-powerpc64-linux-gnu binutils-powerpc64le-linux-gnu
+            autoconf gperf libgmp-dev
         - export PATH="/usr/lib/ccache:$PATH"
         - export CCACHE_BASEDIR="$PWD"
         - export CCACHE_DIR="$PWD/ccache"
@@ -27,6 +28,14 @@ build:
         - python3 -m venv .env
         - . .env/bin/activate
         - pip install nose
+
+        - git clone --depth 1 https://github.com/SRI-CSL/yices2.git yices2
+        - pushd yices2
+        - autoconf
+        - ./configure
+        - make -j$(nproc)
+        - make install
+        - popd
 
         - git clone --depth 1 https://github.com/YosysHQ/yosys.git yosys
         - pushd yosys

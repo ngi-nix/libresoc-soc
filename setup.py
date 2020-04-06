@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
-import sys, os
+import sys
+import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.md')).read()
@@ -9,10 +10,11 @@ NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 version = '0.0.1'
 
 install_requires = [
-#    'sfpy',
-    'ieee754fpu', # needs to be installed manually
+    #    'sfpy',
+    'ieee754fpu',  # needs to be installed manually
     'pygdbmi',
-    'ply', # needs to be installed manually
+    'ply',  # needs to be installed manually
+    'astor',
 ]
 
 test_requires = [
@@ -35,7 +37,7 @@ setup(
     url='http://git.libre-riscv.org/?p=soc',
     license='GPLv3+',
     packages=find_packages('src'),
-    package_dir = {'': 'src'},
+    package_dir={'': 'src'},
     include_package_data=True,
     zip_safe=False,
     install_requires=install_requires,
