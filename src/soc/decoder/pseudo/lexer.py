@@ -461,6 +461,7 @@ class IndentLexer(PowerLexer):
         s = annoying_case_hack_filter(s)
         if self.debug:
             print (s)
+        s += "\n"
         self.lexer.paren_count = 0
         self.lexer.brack_count = 0
         self.lexer.input(s)
