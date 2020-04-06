@@ -54,7 +54,7 @@ class ram_tp_no_change(Elaboratable):
         self.d1_o = Signal(DATA_WIDTH)   # output
 
         DEPTH = int(math.pow(2, ADDR_WIDTH))
-        self.ram = Memory(DATA_WIDTH, DEPTH)
+        self.ram = Memory(width=DATA_WIDTH, depth=DEPTH)
     #
     #  localparam DEPTH = 2**ADDR_WIDTH;
     #

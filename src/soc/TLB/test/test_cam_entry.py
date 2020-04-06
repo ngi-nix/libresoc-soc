@@ -1,13 +1,15 @@
 from nmigen.compat.sim import run_simulation
 
-from TestUtil.test_helper import assert_eq, assert_ne, assert_op
-from TLB.CamEntry import CamEntry
+from soc.TestUtil.test_helper import assert_eq, assert_ne, assert_op
+from soc.TLB.CamEntry import CamEntry
 
 # This function allows for the easy setting of values to the Cam Entry
 # Arguments:
 #   dut: The CamEntry being tested
 #   c (command): NA (0), Read (1), Write (2), Reserve (3)
 #   d (data): The data to be set
+
+
 def set_cam_entry(dut, c, d):
     # Write desired values
     yield dut.command.eq(c)
@@ -23,6 +25,8 @@ def set_cam_entry(dut, c, d):
 #   dut: The CamEntry being tested
 #   d (Data): The expected data
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_data(dut, d, op):
     out_d = yield dut.data
     assert_op("Data", out_d, d, op)
@@ -32,6 +36,8 @@ def check_data(dut, d, op):
 #   dut: The CamEntry being tested
 #   m (Match): The expected match
 #   op (Operation): (0 => ==), (1 => !=)
+
+
 def check_match(dut, m, op):
     out_m = yield dut.match
     assert_op("Match", out_m, m, op)
@@ -43,6 +49,8 @@ def check_match(dut, m, op):
 #   m (match): The expected match
 #   d_op (Operation): Operation for the data assertion (0 => ==), (1 => !=)
 #   m_op (Operation): Operation for the match assertion (0 => ==), (1 => !=)
+
+
 def check_all(dut, d, m, d_op, m_op):
     yield from check_data(dut, d, d_op)
     yield from check_match(dut, m, m_op)
@@ -51,6 +59,8 @@ def check_all(dut, d, m, d_op, m_op):
 # It is done by writing and then reading various combinations of key/data pairs
 # and reading the results with varying keys to verify the resulting stored
 # data is correct.
+
+
 def tbench(dut):
     # Check write
     command = 2
@@ -107,4 +117,3 @@ def test_camentry():
 
 if __name__ == "__main__":
     test_camentry()
-

@@ -55,7 +55,7 @@ class DecoderTestCase(FHDLTestCase):
                "add  3, 1, 2",
                "and  4, 1, 2"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2, 3, 4])
+            self.run_tst_program(program, [1, 2, 3, 4])
 
     def test_ldst(self):
         lst = ["addi 1, 0, 0x1234",
@@ -63,7 +63,7 @@ class DecoderTestCase(FHDLTestCase):
                "stw  1, 0(2)",
                "lwz  3, 0(2)"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2, 3])
+            self.run_tst_program(program, [1, 2, 3])
 
     def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x1234",
@@ -72,7 +72,7 @@ class DecoderTestCase(FHDLTestCase):
                "stw  1, 0x40(2)",
                "lwzx  3, 4, 2"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2, 3])
+            self.run_tst_program(program, [1, 2, 3])
 
     def test_ldst_widths(self):
         lst = [" lis 1, 0xdead",
@@ -86,7 +86,7 @@ class DecoderTestCase(FHDLTestCase):
                "stb 5, 5(2)",
                "ld  5, 0(2)"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2, 3, 4, 5])
+            self.run_tst_program(program, [1, 2, 3, 4, 5])
 
     def test_sub(self):
         lst = ["addi 1, 0, 0x1234",
@@ -95,9 +95,9 @@ class DecoderTestCase(FHDLTestCase):
                "subfic 4, 1, 0x1337",
                "neg 5, 1"]
         with Program(lst) as program:
-            self.run_test_program(program, [1, 2, 3, 4, 5])
+            self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    def run_test_program(self, prog, reglist):
+    def run_tst_program(self, prog, reglist):
         simulator = InternalOpSimulator()
         self.run_tst(prog, simulator)
         prog.reset()

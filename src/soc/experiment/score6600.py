@@ -13,11 +13,11 @@ from soc.scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
-from compalu import ComputationUnitNoDelay
-from compldst import LDSTCompUnit
-from testmem import TestMemory
+from .compalu import ComputationUnitNoDelay
+from .compldst import LDSTCompUnit
+from .testmem import TestMemory
 
-from alu_hier import ALU, BranchALU
+from .alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
 
@@ -54,6 +54,7 @@ class CompUnitsBase(Elaboratable):
         Computation Unit" as defined by Mitch Alsup (see section
         11.4.9.3)
     """
+
     def __init__(self, rwid, units, ldstmode=False):
         """ Inputs:
 
@@ -89,8 +90,8 @@ class CompUnitsBase(Elaboratable):
         self.req_rel_o = Signal(n_units, reset_less=True)
         self.done_o = Signal(n_units, reset_less=True)
         if ldstmode:
-            self.ld_o = Signal(n_units, reset_less=True) # op is LD
-            self.st_o = Signal(n_units, reset_less=True) # op is ST
+            self.ld_o = Signal(n_units, reset_less=True)  # op is LD
+            self.st_o = Signal(n_units, reset_less=True)  # op is ST
             self.adr_rel_o = Signal(n_units, reset_less=True)
             self.sto_rel_o = Signal(n_units, reset_less=True)
             self.load_mem_o = Signal(n_units, reset_less=True)
@@ -206,7 +207,7 @@ class CompUnitLDSTs(CompUnitsBase):
 
         units = []
         for alu in self.alus:
-            aluopwid = 4 # see compldst.py for "internal" opcode
+            aluopwid = 4  # see compldst.py for "internal" opcode
             units.append(LDSTCompUnit(rwid, aluopwid, alu, mem))
 
         CompUnitsBase.__init__(self, rwid, units, ldstmode=True)
@@ -245,7 +246,7 @@ class CompUnitALUs(CompUnitsBase):
 
         units = []
         for alu in alus:
-            aluopwid = 3 # extra bit for immediate mode
+            aluopwid = 3  # extra bit for immediate mode
             units.append(ComputationUnitNoDelay(rwid, aluopwid, alu))
 
         CompUnitsBase.__init__(self, rwid, units)
@@ -281,7 +282,7 @@ class CompUnitBR(CompUnitsBase):
 
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
-        aluopwid = 3 # extra bit for immediate mode
+        aluopwid = 3  # extra bit for immediate mode
         self.br1 = ComputationUnitNoDelay(rwid, aluopwid, self.bgt)
         CompUnitsBase.__init__(self, rwid, [self.br1])
 
@@ -303,16 +304,16 @@ class FunctionUnits(Elaboratable):
         self.n_regs = n_regs
         self.n_int_alus = n_int_alus
 
-        self.dest_i = Signal(n_regs, reset_less=True) # Dest R# in
-        self.src1_i = Signal(n_regs, reset_less=True) # oper1 R# in
-        self.src2_i = Signal(n_regs, reset_less=True) # oper2 R# in
+        self.dest_i = Signal(n_regs, reset_less=True)  # Dest R# in
+        self.src1_i = Signal(n_regs, reset_less=True)  # oper1 R# in
+        self.src2_i = Signal(n_regs, reset_less=True)  # oper2 R# in
 
         self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
         self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
 
-        self.dest_rsel_o = Signal(n_regs, reset_less=True) # dest reg (bot)
-        self.src1_rsel_o = Signal(n_regs, reset_less=True) # src1 reg (bot)
-        self.src2_rsel_o = Signal(n_regs, reset_less=True) # src2 reg (bot)
+        self.dest_rsel_o = Signal(n_regs, reset_less=True)  # dest reg (bot)
+        self.src1_rsel_o = Signal(n_regs, reset_less=True)  # src1 reg (bot)
+        self.src2_rsel_o = Signal(n_regs, reset_less=True)  # src2 reg (bot)
 
         self.readable_o = Signal(n_int_alus, reset_less=True)
         self.writable_o = Signal(n_int_alus, reset_less=True)
@@ -346,7 +347,7 @@ class FunctionUnits(Elaboratable):
 
         comb += intfudeps.rd_pend_i.eq(intregdeps.rd_pend_o)
         comb += intfudeps.wr_pend_i.eq(intregdeps.wr_pend_o)
-        self.wr_pend_o = intregdeps.wr_pend_o # also output for use in WaWGrid
+        self.wr_pend_o = intregdeps.wr_pend_o  # also output for use in WaWGrid
 
         comb += intfudeps.issue_i.eq(self.fn_issue_i)
         comb += intfudeps.go_rd_i.eq(self.go_rd_i)
@@ -387,7 +388,7 @@ class Scoreboard(Elaboratable):
         self.fpregs = RegFileArray(rwid, n_regs)
 
         # Memory (test for now)
-        self.mem = TestMemory(self.rwid, 8) # not too big, takes too long
+        self.mem = TestMemory(self.rwid, 8)  # not too big, takes too long
 
         # issue q needs to get at these
         self.aluissue = IssueUnitGroup(2)
@@ -402,14 +403,14 @@ class Scoreboard(Elaboratable):
         self.ls_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
-        self.int_dest_i = Signal(range(n_regs), reset_less=True) # Dest R# in
-        self.int_src1_i = Signal(range(n_regs), reset_less=True) # oper1 R# in
-        self.int_src2_i = Signal(range(n_regs), reset_less=True) # oper2 R# in
-        self.reg_enable_i = Signal(reset_less=True) # enable reg decode
+        self.int_dest_i = Signal(range(n_regs), reset_less=True)  # Dest R# in
+        self.int_src1_i = Signal(range(n_regs), reset_less=True)  # oper1 R# in
+        self.int_src2_i = Signal(range(n_regs), reset_less=True)  # oper2 R# in
+        self.reg_enable_i = Signal(reset_less=True)  # enable reg decode
 
         # outputs
-        self.issue_o = Signal(reset_less=True) # instruction was accepted
-        self.busy_o = Signal(reset_less=True) # at least one CU is busy
+        self.issue_o = Signal(reset_less=True)  # instruction was accepted
+        self.busy_o = Signal(reset_less=True)  # at least one CU is busy
 
         # for branch speculation experiment.  branch_direction = 0 if
         # the branch hasn't been met yet.  1 indicates "success", 2 is "fail"
@@ -440,7 +441,7 @@ class Scoreboard(Elaboratable):
         # Int ALUs and BR ALUs
         n_int_alus = 5
         cua = CompUnitALUs(self.rwid, 3, n_alus=self.aluissue.n_insns)
-        cub = CompUnitBR(self.rwid, 3) # 1 BR ALUs
+        cub = CompUnitBR(self.rwid, 3)  # 1 BR ALUs
 
         # LDST Comp Units
         n_ldsts = 2
@@ -448,7 +449,7 @@ class Scoreboard(Elaboratable):
 
         # Comp Units
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cul, cub])
-        bgt = cub.bgt # get at the branch computation unit
+        bgt = cub.bgt  # get at the branch computation unit
         br1 = cub.br1
 
         # Int FUs
@@ -458,15 +459,17 @@ class Scoreboard(Elaboratable):
         m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 5)
 
         # Memory Priority Picker 1: one gateway per memory port
-        mempick1 = GroupPicker(n_ldsts) # picks 1 reader and 1 writer to intreg
+        # picks 1 reader and 1 writer to intreg
+        mempick1 = GroupPicker(n_ldsts)
         m.submodules.mempick1 = mempick1
 
         # Count of number of FUs
         n_intfus = n_int_alus
-        n_fp_fus = 0 # for now
+        n_fp_fus = 0  # for now
 
         # Integer Priority Picker 1: Adder + Subtractor (and LD/ST)
-        intpick1 = GroupPicker(n_intfus) # picks 1 reader and 1 writer to intreg
+        # picks 1 reader and 1 writer to intreg
+        intpick1 = GroupPicker(n_intfus)
         m.submodules.intpick1 = intpick1
 
         # INT/FP Issue Unit
@@ -489,21 +492,21 @@ class Scoreboard(Elaboratable):
         # allow/cancel can be issued as appropriate.
         m.submodules.specrec = bspec = BranchSpeculationRecord(n_intfus)
 
-        #---------
+        # ---------
         # ok start wiring things together...
         # "now hear de word of de looord... dem bones dem bones dem dryy bones"
         # https://www.youtube.com/watch?v=pYb8Wm6-QfA
-        #---------
+        # ---------
 
-        #---------
+        # ---------
         # Issue Unit is where it starts.  set up some in/outs for this module
-        #---------
-        comb += [    regdecode.dest_i.eq(self.int_dest_i),
-                     regdecode.src1_i.eq(self.int_src1_i),
-                     regdecode.src2_i.eq(self.int_src2_i),
-                     regdecode.enable_i.eq(self.reg_enable_i),
-                     self.issue_o.eq(issueunit.issue_o)
-                    ]
+        # ---------
+        comb += [regdecode.dest_i.eq(self.int_dest_i),
+                 regdecode.src1_i.eq(self.int_src1_i),
+                 regdecode.src2_i.eq(self.int_src2_i),
+                 regdecode.enable_i.eq(self.reg_enable_i),
+                 self.issue_o.eq(issueunit.issue_o)
+                 ]
 
         # take these to outside (issue needs them)
         comb += cua.oper_i.eq(self.alu_oper_i)
@@ -526,24 +529,24 @@ class Scoreboard(Elaboratable):
         comb += issueunit.busy_i.eq(cu.busy_o)
         comb += self.busy_o.eq(cu.busy_o.bool())
 
-        #---------
+        # ---------
         # Memory Function Unit
-        #---------
+        # ---------
         reset_b = Signal(cul.n_units, reset_less=True)
         sync += reset_b.eq(cul.go_st_i | cul.go_wr_i | cul.go_die_i)
 
-        comb += memfus.fn_issue_i.eq(cul.issue_i) # Comp Unit Issue -> Mem FUs
-        comb += memfus.addr_en_i.eq(cul.adr_rel_o) # Match enable on adr rel
-        comb += memfus.addr_rs_i.eq(reset_b) # reset same as LDSTCompUnit
+        comb += memfus.fn_issue_i.eq(cul.issue_i)  # Comp Unit Issue -> Mem FUs
+        comb += memfus.addr_en_i.eq(cul.adr_rel_o)  # Match enable on adr rel
+        comb += memfus.addr_rs_i.eq(reset_b)  # reset same as LDSTCompUnit
 
         # LD/STs have to accumulate prior LD/STs (TODO: multi-issue as well,
         # in a transitive fashion).  This cycle activates based on LDSTCompUnit
         # issue_i.  multi-issue gets a bit more complex but not a lot.
         prior_ldsts = Signal(cul.n_units, reset_less=True)
         sync += prior_ldsts.eq(memfus.g_int_ld_pend_o | memfus.g_int_st_pend_o)
-        with m.If(self.ls_oper_i[3]): # LD bit of operand
+        with m.If(self.ls_oper_i[3]):  # LD bit of operand
             comb += memfus.ld_i.eq(cul.issue_i | prior_ldsts)
-        with m.If(self.ls_oper_i[2]): # ST bit of operand
+        with m.If(self.ls_oper_i[2]):  # ST bit of operand
             comb += memfus.st_i.eq(cul.issue_i | prior_ldsts)
 
         # TODO: adr_rel_o needs to go into L1 Cache.  for now,
@@ -558,10 +561,10 @@ class Scoreboard(Elaboratable):
         # XXX should only be done when the memory ld/st has actually happened!
         go_st_i = Signal(cul.n_units, reset_less=True)
         go_ld_i = Signal(cul.n_units, reset_less=True)
-        comb += go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o &\
-                                  cul.adr_rel_o & cul.ld_o)
-        comb += go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o &\
-                                  cul.sto_rel_o & cul.st_o)
+        comb += go_ld_i.eq(memfus.loadable_o & memfus.addr_nomatch_o &
+                           cul.adr_rel_o & cul.ld_o)
+        comb += go_st_i.eq(memfus.storable_o & memfus.addr_nomatch_o &
+                           cul.sto_rel_o & cul.st_o)
         comb += memfus.go_ld_i.eq(go_ld_i)
         comb += memfus.go_st_i.eq(go_st_i)
         #comb += cul.go_wr_i.eq(go_ld_i)
@@ -571,9 +574,9 @@ class Scoreboard(Elaboratable):
         #comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
         #comb += cu.issue_i[0:n_intfus].eq(fn_issue_o[0:n_intfus])
 
-        #---------
+        # ---------
         # merge shadow matrices outputs
-        #---------
+        # ---------
 
         # these are explained in ShadowMatrix docstring, and are to be
         # connected to the FUReg and FUFU Matrices, to get them to reset
@@ -584,9 +587,9 @@ class Scoreboard(Elaboratable):
         comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
         comb += shreset.eq(bspec.match_g_o | bspec.match_f_o)
 
-        #---------
+        # ---------
         # connect fu-fu matrix
-        #---------
+        # ---------
 
         # Group Picker... done manually for now.
         go_rd_o = intpick1.go_rd_o
@@ -595,12 +598,12 @@ class Scoreboard(Elaboratable):
         go_wr_i = intfus.go_wr_i
         go_die_i = intfus.go_die_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus]) # rd
-        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus]) # wr
-        comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus]) # die
+        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])  # rd
+        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])  # wr
+        comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus])  # die
 
         # Connect Picker
-        #---------
+        # ---------
         comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
         comb += intpick1.req_rel_i[0:n_intfus].eq(cu.done_o[0:n_intfus])
         int_rd_o = intfus.readable_o
@@ -608,14 +611,14 @@ class Scoreboard(Elaboratable):
         comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])
         comb += intpick1.writable_i[0:n_intfus].eq(int_wr_o[0:n_intfus])
 
-        #---------
+        # ---------
         # Shadow Matrix
-        #---------
+        # ---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
         #comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
         comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
-        #---------
+        # ---------
         # NOTE; this setup is for the instruction order preservation...
 
         # connect shadows / go_dies to Computation Units
@@ -636,7 +639,7 @@ class Scoreboard(Elaboratable):
         for i in range(n_intfus):
             comb += shadows.shadow_i[i][0:n_intfus].eq(prev_shadow)
 
-        #---------
+        # ---------
         # ... and this is for branch speculation.  it uses the extra bit
         # tacked onto the ShadowMatrix (hence shadow_wid=n_intfus+1)
         # only needs to set shadow_i, s_fail_i and s_good_i
@@ -651,7 +654,7 @@ class Scoreboard(Elaboratable):
         with m.If(bactive & (self.branch_succ_i | self.branch_fail_i)):
             comb += bshadow.issue_i.eq(fn_issue_o)
             for i in range(n_intfus):
-                with m.If(fn_issue_o & (Const(1<<i))):
+                with m.If(fn_issue_o & (Const(1 << i))):
                     comb += bshadow.shadow_i[i][0].eq(1)
 
         # finally, we need an indicator to the test infrastructure as to
@@ -661,9 +664,9 @@ class Scoreboard(Elaboratable):
         with m.If(br1.issue_i):
             sync += bspec.active_i.eq(1)
         with m.If(self.branch_succ_i):
-            comb += bspec.good_i.eq(fn_issue_o & 0x1f) # XXX MAGIC CONSTANT
+            comb += bspec.good_i.eq(fn_issue_o & 0x1f)  # XXX MAGIC CONSTANT
         with m.If(self.branch_fail_i):
-            comb += bspec.fail_i.eq(fn_issue_o & 0x1f) # XXX MAGIC CONSTANT
+            comb += bspec.fail_i.eq(fn_issue_o & 0x1f)  # XXX MAGIC CONSTANT
 
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
@@ -679,9 +682,9 @@ class Scoreboard(Elaboratable):
                 # ... or it didn't
                 comb += bshadow.s_fail_i[i][0].eq(bspec.match_f_o[i])
 
-        #---------
+        # ---------
         # Connect Register File(s)
-        #---------
+        # ---------
         comb += int_dest.wen.eq(intfus.dest_rsel_o)
         comb += int_src1.ren.eq(intfus.src1_rsel_o)
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
@@ -724,11 +727,11 @@ class IssueToScoreboard(Elaboratable):
         self.n_regs = n_regs
 
         mqbits = unsigned(int(log(qlen) / log(2))+2)
-        self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
-        self.p_ready_o = Signal() # instructions were added
+        self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
+        self.p_ready_o = Signal()  # instructions were added
         self.data_i = Instruction.nq(n_in, "data_i", rwid, opwid)
 
-        self.busy_o = Signal(reset_less=True) # at least one CU is busy
+        self.busy_o = Signal(reset_less=True)  # at least one CU is busy
         self.qlen_o = Signal(mqbits, reset_less=True)
 
     def elaborate(self, platform):
@@ -736,7 +739,8 @@ class IssueToScoreboard(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        iq = InstructionQ(self.rwid, self.opw, self.qlen, self.n_in, self.n_out)
+        iq = InstructionQ(self.rwid, self.opw, self.qlen,
+                          self.n_in, self.n_out)
         sc = Scoreboard(self.rwid, self.n_regs)
         m.submodules.iq = iq
         m.submodules.sc = sc
@@ -786,21 +790,21 @@ class IssueToScoreboard(Elaboratable):
             src1 = iq.data_o[0].src1_i
             src2 = iq.data_o[0].src2_i
             op = iq.data_o[0].oper_i
-            opi = iq.data_o[0].opim_i # immediate set
+            opi = iq.data_o[0].opim_i  # immediate set
 
             # set the src/dest regs
             comb += sc.int_dest_i.eq(dest)
             comb += sc.int_src1_i.eq(src1)
             comb += sc.int_src2_i.eq(src2)
-            comb += sc.reg_enable_i.eq(1) # enable the regfile
+            comb += sc.reg_enable_i.eq(1)  # enable the regfile
 
             # choose a Function-Unit-Group
-            with m.If((op & (0x3<<2)) != 0): # branch
+            with m.If((op & (0x3 << 2)) != 0):  # branch
                 comb += sc.br_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.br_imm_i.eq(imm)
                 comb += sc.brissue.insn_i.eq(1)
                 comb += wait_issue_br.eq(1)
-            with m.Elif((op & (0x3<<4)) != 0): # ld/st
+            with m.Elif((op & (0x3 << 4)) != 0):  # ld/st
                 # see compldst.py
                 # bit 0: ADD/SUB
                 # bit 1: immed
@@ -810,7 +814,7 @@ class IssueToScoreboard(Elaboratable):
                 comb += sc.ls_imm_i.eq(imm)
                 comb += sc.lsissue.insn_i.eq(1)
                 comb += wait_issue_ls.eq(1)
-            with m.Else(): # alu
+            with m.Else():  # alu
                 comb += sc.alu_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.alu_imm_i.eq(imm)
                 comb += sc.aluissue.insn_i.eq(1)
@@ -820,8 +824,8 @@ class IssueToScoreboard(Elaboratable):
             # these indicate that the instruction is to be made
             # shadow-dependent on
             # (either) branch success or branch fail
-            #yield sc.branch_fail_i.eq(branch_fail)
-            #yield sc.branch_succ_i.eq(branch_success)
+            # yield sc.branch_fail_i.eq(branch_fail)
+            # yield sc.branch_succ_i.eq(branch_success)
 
         return m
 
@@ -844,7 +848,7 @@ def instr_q(dut, op, op_imm, imm, src1, src2, dest,
     for idx in range(sendlen):
         yield from eq(dut.data_i[idx], instrs[idx])
         di = yield dut.data_i[idx]
-        print ("senddata %d %x" % (idx, di))
+        print("senddata %d %x" % (idx, di))
     yield dut.p_add_i.eq(sendlen)
     yield
     o_p_ready = yield dut.p_ready_o
@@ -860,7 +864,7 @@ def int_instr(dut, op, imm, src1, src2, dest, branch_success, branch_fail):
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
-    if (op & (0x3<<2)) != 0: # branch
+    if (op & (0x3 << 2)) != 0:  # branch
         yield dut.brissue.insn_i.eq(1)
         yield dut.br_oper_i.eq(Const(op & 0x3, 2))
         yield dut.br_imm_i.eq(imm)
@@ -887,7 +891,7 @@ def print_reg(dut, rnums):
         reg = yield dut.intregs.regs[rnum].reg
         rs.append("%x" % reg)
     rnums = map(str, rnums)
-    print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
+    print("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 
 def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
@@ -895,10 +899,10 @@ def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
     for i in range(n_ops):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
-        imm = randint(1, (1<<dut.rwid)-1)
+        imm = randint(1, (1 << dut.rwid)-1)
         dest = randint(1, dut.n_regs-1)
         op = randint(0, max_opnums)
-        opi = 0 if randint(0, 2) else 1 # set true if random is nonzero
+        opi = 0 if randint(0, 2) else 1  # set true if random is nonzero
 
         if shadowing:
             insts.append((src1, src2, dest, op, opi, imm, (0, 0)))
@@ -912,8 +916,9 @@ def wait_for_busy_clear(dut):
         busy_o = yield dut.busy_o
         if not busy_o:
             break
-        print ("busy",)
+        print("busy",)
         yield
+
 
 def disable_issue(dut):
     yield dut.aluissue.insn_i.eq(0)
@@ -928,10 +933,11 @@ def wait_for_issue(dut, dut_issue):
             yield from disable_issue(dut)
             yield dut.reg_enable_i.eq(0)
             break
-        print ("busy",)
-        #yield from print_reg(dut, [1,2,3])
+        print("busy",)
+        # yield from print_reg(dut, [1,2,3])
         yield
-    #yield from print_reg(dut, [1,2,3])
+    # yield from print_reg(dut, [1,2,3])
+
 
 def scoreboard_branch_sim(dut, alusim):
 
@@ -939,7 +945,7 @@ def scoreboard_branch_sim(dut, alusim):
 
     for i in range(1):
 
-        print ("rseed", iseed)
+        print("rseed", iseed)
         seed(iseed)
         iseed += 1
 
@@ -948,7 +954,7 @@ def scoreboard_branch_sim(dut, alusim):
         # set random values in the registers
         for i in range(1, dut.n_regs):
             val = 31+i*3
-            val = randint(0, (1<<alusim.rwidth)-1)
+            val = randint(0, (1 << alusim.rwidth)-1)
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
@@ -961,7 +967,7 @@ def scoreboard_branch_sim(dut, alusim):
             src1 = randint(1, dut.n_regs-1)
             src2 = randint(1, dut.n_regs-1)
             #op = randint(4, 7)
-            op = 4 # only BGT at the moment
+            op = 4  # only BGT at the moment
 
             branch_ok = create_random_ops(dut, 1, True, 1)
             branch_fail = create_random_ops(dut, 1, True, 1)
@@ -970,14 +976,14 @@ def scoreboard_branch_sim(dut, alusim):
 
         if True:
             insts = []
-            insts.append( (3, 5, 2, 0, (0, 0)) )
+            insts.append((3, 5, 2, 0, (0, 0)))
             branch_ok = []
             branch_fail = []
             #branch_ok.append  ( (5, 7, 5, 1, (1, 0)) )
-            branch_ok.append( None )
-            branch_fail.append( (1, 1, 2, 0, (0, 1)) )
+            branch_ok.append(None)
+            branch_fail.append((1, 1, 2, 0, (0, 1)))
             #branch_fail.append( None )
-            insts.append( (6, 4, (branch_ok, branch_fail), 4, (0, 0)) )
+            insts.append((6, 4, (branch_ok, branch_fail), 4, (0, 0)))
 
         siminsts = deepcopy(insts)
 
@@ -989,14 +995,14 @@ def scoreboard_branch_sim(dut, alusim):
             yield
             yield
             i += 1
-            branch_direction = yield dut.branch_direction_o # way branch went
+            branch_direction = yield dut.branch_direction_o  # way branch went
             (src1, src2, dest, op, (shadow_on, shadow_off)) = insts.pop(0)
             if branch_direction == 1 and shadow_on:
-                print ("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
-                continue # branch was "success" and this is a "failed"... skip
+                print("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
+                continue  # branch was "success" and this is a "failed"... skip
             if branch_direction == 2 and shadow_off:
-                print ("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
-                continue # branch was "fail" and this is a "success"... skip
+                print("skip", i, src1, src2, dest, op, shadow_on, shadow_off)
+                continue  # branch was "fail" and this is a "success"... skip
             if branch_direction != 0:
                 shadow_on = 0
                 shadow_off = 0
@@ -1013,8 +1019,8 @@ def scoreboard_branch_sim(dut, alusim):
                         instrs.append((ok[0], ok[1], ok[2], ok[3], (1, 0)))
                     if fl:
                         instrs.append((fl[0], fl[1], fl[2], fl[3], (0, 1)))
-            print ("instr %d: (%d, %d, %d, %d, (%d, %d))" % \
-                            (i, src1, src2, dest, op, shadow_on, shadow_off))
+            print("instr %d: (%d, %d, %d, %d, (%d, %d))" %
+                  (i, src1, src2, dest, op, shadow_on, shadow_off))
             yield from int_instr(dut, op, src1, src2, dest,
                                  shadow_on, shadow_off)
 
@@ -1033,8 +1039,8 @@ def scoreboard_branch_sim(dut, alusim):
             if is_branch:
                 branch_ok, branch_fail = dest
                 dest = src2
-            print ("sim %d: (%d, %d, %d, %d, (%d, %d))" % \
-                            (i, src1, src2, dest, op, shadow_on, shadow_off))
+            print("sim %d: (%d, %d, %d, %d, (%d, %d))" %
+                  (i, src1, src2, dest, op, shadow_on, shadow_off))
             branch_res = alusim.op(op, src1, src2, dest)
             if is_branch:
                 if branch_res:
@@ -1066,17 +1072,17 @@ def scoreboard_sim(dut, alusim):
         if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if True: # LD/ST test (with immediate)
-            instrs.append( (1, 2, 0, 0x20, 1, 1, (0, 0)) ) # LD
+        if True:  # LD/ST test (with immediate)
+            instrs.append((1, 2, 0, 0x20, 1, 1, (0, 0)))  # LD
             #instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
 
         if True:
-            instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
+            instrs.append((1, 2, 2, 1, 1, 20, (0, 0)))
 
         if True:
-            instrs.append( (7, 3, 2, 4, 0, 0, (0, 0)) )
-            instrs.append( (7, 6, 6, 2, 0, 0, (0, 0)) )
-            instrs.append( (1, 7, 2, 2, 0, 0, (0, 0)) )
+            instrs.append((7, 3, 2, 4, 0, 0, (0, 0)))
+            instrs.append((7, 6, 6, 2, 0, 0, (0, 0)))
+            instrs.append((1, 7, 2, 2, 0, 0, (0, 0)))
 
         if True:
             instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
@@ -1086,9 +1092,9 @@ def scoreboard_sim(dut, alusim):
             instrs.append((3, 5, 5, 0, 0, 0, (0, 0)))
 
         if False:
-            instrs.append( (3, 3, 4, 0, 0, 13979, (0, 0)))
-            instrs.append( (6, 4, 1, 2, 0, 40976, (0, 0)))
-            instrs.append( (1, 4, 7, 4, 1, 23652, (0, 0)))
+            instrs.append((3, 3, 4, 0, 0, 13979, (0, 0)))
+            instrs.append((6, 4, 1, 2, 0, 40976, (0, 0)))
+            instrs.append((1, 4, 7, 4, 1, 23652, (0, 0)))
 
         if False:
             instrs.append((5, 6, 2, 1))
@@ -1114,8 +1120,8 @@ def scoreboard_sim(dut, alusim):
 
         if False:
             # Write-after-Write Hazard
-            instrs.append( (3, 6, 7, 2) )
-            instrs.append( (4, 4, 7, 1) )
+            instrs.append((3, 6, 7, 2))
+            instrs.append((4, 4, 7, 1))
 
         if False:
             # self-read/write-after-write followed by Read-after-Write
@@ -1135,9 +1141,9 @@ def scoreboard_sim(dut, alusim):
 
         if False:
             # very weird failure
-            instrs.append( (5, 2, 5, 2) )
-            instrs.append( (2, 6, 3, 0) )
-            instrs.append( (4, 2, 2, 1) )
+            instrs.append((5, 2, 5, 2))
+            instrs.append((2, 6, 3, 0))
+            instrs.append((4, 2, 2, 1))
 
         if False:
             v1 = 4
@@ -1158,22 +1164,22 @@ def scoreboard_sim(dut, alusim):
             instrs.append((4, 2, 1, 2, (1, 0)))
 
         if False:
-            instrs.append( (4, 3, 5, 1, 0, (0, 0)) )
-            instrs.append( (5, 2, 3, 1, 0, (0, 0)) )
-            instrs.append( (7, 1, 5, 2, 0, (0, 0)) )
-            instrs.append( (5, 6, 6, 4, 0, (0, 0)) )
-            instrs.append( (7, 5, 2, 2, 0, (1, 0)) )
-            instrs.append( (1, 7, 5, 0, 0, (0, 1)) )
-            instrs.append( (1, 6, 1, 2, 0, (1, 0)) )
-            instrs.append( (1, 6, 7, 3, 0, (0, 0)) )
-            instrs.append( (6, 7, 7, 0, 0, (0, 0)) )
+            instrs.append((4, 3, 5, 1, 0, (0, 0)))
+            instrs.append((5, 2, 3, 1, 0, (0, 0)))
+            instrs.append((7, 1, 5, 2, 0, (0, 0)))
+            instrs.append((5, 6, 6, 4, 0, (0, 0)))
+            instrs.append((7, 5, 2, 2, 0, (1, 0)))
+            instrs.append((1, 7, 5, 0, 0, (0, 1)))
+            instrs.append((1, 6, 1, 2, 0, (1, 0)))
+            instrs.append((1, 6, 7, 3, 0, (0, 0)))
+            instrs.append((6, 7, 7, 0, 0, (0, 0)))
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
             src1, src2, dest, op, opi, imm, (br_ok, br_fail) = instr
 
-            print ("instr %d: (%d, %d, %d, %d, %d, %d)" % \
-                    (i, src1, src2, dest, op, opi, imm))
+            print("instr %d: (%d, %d, %d, %d, %d, %d)" %
+                  (i, src1, src2, dest, op, opi, imm))
             alusim.op(op, opi, imm, src1, src2, dest)
             yield from instr_q(dut, op, opi, imm, src1, src2, dest,
                                br_ok, br_fail)
@@ -1204,9 +1210,9 @@ def test_scoreboard():
         f.write(vl)
 
     run_simulation(dut, scoreboard_sim(dut, alusim),
-                        vcd_name='test_scoreboard6600.vcd')
+                   vcd_name='test_scoreboard6600.vcd')
 
-    #run_simulation(dut, scoreboard_branch_sim(dut, alusim),
+    # run_simulation(dut, scoreboard_branch_sim(dut, alusim),
     #                    vcd_name='test_scoreboard6600.vcd')
 
 

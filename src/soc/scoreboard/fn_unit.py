@@ -35,6 +35,7 @@ class FnUnit(Elaboratable):
         * wr_pend is set False for the majority of uses: however for
           use in a STORE Function Unit it is set to True
     """
+
     def __init__(self, wid, shadow_wid=0, n_dests=1, wr_pend=False):
         self.reg_width = wid
         self.n_dests = n_dests
@@ -43,39 +44,39 @@ class FnUnit(Elaboratable):
 
         # inputs
         if n_dests > 1:
-            self.rfile_sel_i = Signal(max=n_dests, reset_less=True)
+            self.rfile_sel_i = Signal(range(n_dests), reset_less=True)
         else:
-            self.rfile_sel_i = Const(0) # no selection.  gets Array[0]
-        self.dest_i = Signal(max=wid, reset_less=True) # Dest R# in (top)
-        self.src1_i = Signal(max=wid, reset_less=True) # oper1 R# in (top)
-        self.src2_i = Signal(max=wid, reset_less=True) # oper2 R# in (top)
+            self.rfile_sel_i = Const(0)  # no selection.  gets Array[0]
+        self.dest_i = Signal(range(wid), reset_less=True)  # Dest R# in (top)
+        self.src1_i = Signal(range(wid), reset_less=True)  # oper1 R# in (top)
+        self.src2_i = Signal(range(wid), reset_less=True)  # oper2 R# in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
 
-        self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
+        self.go_wr_i = Signal(reset_less=True)  # Go Write in (left)
         self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
         self.req_rel_i = Signal(reset_less=True)  # request release (left)
 
-        self.g_xx_pend_i = Array(Signal(wid, reset_less=True, name="g_pend_i") \
-                               for i in range(n_dests)) # global rd (right)
-        self.g_wr_pend_i = Signal(wid, reset_less=True) # global wr (right)
+        self.g_xx_pend_i = Array(Signal(wid, reset_less=True, name="g_pend_i")
+                                 for i in range(n_dests))  # global rd (right)
+        self.g_wr_pend_i = Signal(wid, reset_less=True)  # global wr (right)
 
         if shadow_wid:
             self.shadow_i = Signal(shadow_wid, reset_less=True)
-            self.s_fail_i  = Signal(shadow_wid, reset_less=True)
-            self.s_good_i  = Signal(shadow_wid, reset_less=True)
-            self.go_die_o  = Signal(reset_less=True)
+            self.s_fail_i = Signal(shadow_wid, reset_less=True)
+            self.s_good_i = Signal(shadow_wid, reset_less=True)
+            self.go_die_o = Signal(reset_less=True)
 
         # outputs
-        self.readable_o = Signal(reset_less=True) # Readable out (right)
-        self.writable_o = Array(Signal(reset_less=True, name="writable_o") \
-                               for i in range(n_dests)) # writable out (right)
-        self.busy_o = Signal(reset_less=True) # busy out (left)
+        self.readable_o = Signal(reset_less=True)  # Readable out (right)
+        self.writable_o = Array(Signal(reset_less=True, name="writable_o")
+                                for i in range(n_dests))  # writable out (right)
+        self.busy_o = Signal(reset_less=True)  # busy out (left)
 
-        self.src1_pend_o = Signal(wid, reset_less=True) # src1 pending
-        self.src2_pend_o = Signal(wid, reset_less=True) # src1 pending
-        self.rd_pend_o = Signal(wid, reset_less=True) # rd pending (right)
-        self.xx_pend_o = Array(Signal(wid, reset_less=True, name="pend_o") \
-                               for i in range(n_dests))# wr pending (right)
+        self.src1_pend_o = Signal(wid, reset_less=True)  # src1 pending
+        self.src2_pend_o = Signal(wid, reset_less=True)  # src1 pending
+        self.rd_pend_o = Signal(wid, reset_less=True)  # rd pending (right)
+        self.xx_pend_o = Array(Signal(wid, reset_less=True, name="pend_o")
+                               for i in range(n_dests))  # wr pending (right)
 
     def elaborate(self, platform):
         m = Module()
@@ -102,8 +103,8 @@ class FnUnit(Elaboratable):
 
         for i in range(self.n_dests):
             m.d.comb += self.xx_pend_o[i].eq(0)  # initialise all array
-            m.d.comb += self.writable_o[i].eq(0) # to zero
-        m.d.comb += self.readable_o.eq(0) # to zero
+            m.d.comb += self.writable_o[i].eq(0)  # to zero
+        m.d.comb += self.readable_o.eq(0)  # to zero
 
         # go_wr latch: reset on go_wr HI, set on issue
         m.d.comb += wr_l.s.eq(self.issue_i)
@@ -114,25 +115,25 @@ class FnUnit(Elaboratable):
         m.d.comb += rd_l.r.eq(self.go_rd_i | recover)
 
         # latch/registers for dest / src1 / src2
-        dest_r = Signal(max=self.reg_width, reset_less=True)
-        src1_r = Signal(max=self.reg_width, reset_less=True)
-        src2_r = Signal(max=self.reg_width, reset_less=True)
+        dest_r = Signal(range(self.reg_width), reset_less=True)
+        src1_r = Signal(range(self.reg_width), reset_less=True)
+        src2_r = Signal(range(self.reg_width), reset_less=True)
         # XXX latch based on *issue* rather than !latch (as in book)
-        latchregister(m, self.dest_i, dest_r, self.issue_i) #wr_l.qn)
-        latchregister(m, self.src1_i, src1_r, self.issue_i) #wr_l.qn)
-        latchregister(m, self.src2_i, src2_r, self.issue_i) #wr_l.qn)
+        latchregister(m, self.dest_i, dest_r, self.issue_i)  # wr_l.qn)
+        latchregister(m, self.src1_i, src1_r, self.issue_i)  # wr_l.qn)
+        latchregister(m, self.src2_i, src2_r, self.issue_i)  # wr_l.qn)
 
         # dest decoder (use dest reg as input): write-pending out
         m.d.comb += dest_d.i.eq(dest_r)
-        m.d.comb += dest_d.n.eq(wr_l.qn) # decode is inverted
-        m.d.comb += self.busy_o.eq(wr_l.q) # busy if set
+        m.d.comb += dest_d.n.eq(wr_l.qn)  # decode is inverted
+        m.d.comb += self.busy_o.eq(wr_l.q)  # busy if set
         m.d.comb += xx_pend_o.eq(dest_d.o)
 
         # src1/src2 decoder (use src1/2 regs as input): read-pending out
         m.d.comb += src1_d.i.eq(src1_r)
-        m.d.comb += src1_d.n.eq(rd_l.qn) # decode is inverted
+        m.d.comb += src1_d.n.eq(rd_l.qn)  # decode is inverted
         m.d.comb += src2_d.i.eq(src2_r)
-        m.d.comb += src2_d.n.eq(rd_l.qn) # decode is inverted
+        m.d.comb += src2_d.n.eq(rd_l.qn)  # decode is inverted
         m.d.comb += self.src1_pend_o.eq(src1_d.o)
         m.d.comb += self.src2_pend_o.eq(src2_d.o)
         m.d.comb += self.rd_pend_o.eq(src1_d.o | src2_d.o)
@@ -224,6 +225,7 @@ class LDFnUnit(FnUnit):
         * when rfile_sel_i == 0, int_wr_pend_o is set
         * when rfile_sel_i == 1, fp_wr_pend_o is set
     """
+
     def __init__(self, wid, shadow_wid=0):
         FnUnit.__init__(self, wid, shadow_wid, n_dests=2)
         self.int_rd_pend_o = self.rd_pend_o
@@ -254,10 +256,11 @@ class STFnUnit(FnUnit):
         * when rfile_sel_i == 1, fp_wr_pend_o is set
         *
     """
+
     def __init__(self, wid, shadow_wid=0):
         FnUnit.__init__(self, wid, shadow_wid, n_dests=2, wr_pend=True)
         self.int_rd_pend_o = self.rd_pend_o     # 1st int read-pending vector
-        self.int2_rd_pend_o = self.xx_pend_o[0] # 2nd int read-pending vector
+        self.int2_rd_pend_o = self.xx_pend_o[0]  # 2nd int read-pending vector
         self.fp_rd_pend_o = self.xx_pend_o[1]   # 1x FP read-pending vector
         # yes overwrite FnUnit base class g_wr_pend_i vector
         self.g_int_wr_pend_i = self.g_wr_pend_i = self.g_xx_pend_i[0]
@@ -274,7 +277,6 @@ class STFnUnit(FnUnit):
         self.int_readable_o.name = "int_readable_o"
         self.int_writable_o.name = "int_writable_o"
         self.fp_writable_o.name = "fp_writable_o"
-
 
 
 def int_fn_unit_sim(dut):
@@ -299,6 +301,7 @@ def int_fn_unit_sim(dut):
     yield dut.go_wr_i.eq(0)
     yield
 
+
 def test_int_fn_unit():
     dut = FnUnit(32, 2, 2)
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -316,6 +319,7 @@ def test_int_fn_unit():
         f.write(vl)
 
     run_simulation(dut, int_fn_unit_sim(dut), vcd_name='test_fn_unit.vcd')
+
 
 if __name__ == '__main__':
     test_int_fn_unit()

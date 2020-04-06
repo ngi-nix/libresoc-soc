@@ -33,12 +33,12 @@ class Scoreboard(Elaboratable):
         self.fpregs = RegFileArray(rwid, n_regs)
 
         # inputs
-        self.int_store_i = Signal(reset_less=True) # instruction is a store
-        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
-        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
-        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
+        self.int_store_i = Signal(reset_less=True)  # instruction is a store
+        self.int_dest_i = Signal(range(n_regs), reset_less=True)  # Dest R# in
+        self.int_src1_i = Signal(range(n_regs), reset_less=True)  # oper1 R# in
+        self.int_src2_i = Signal(range(n_regs), reset_less=True)  # oper2 R# in
 
-        self.issue_o = Signal(reset_less=True) # instruction was accepted
+        self.issue_o = Signal(reset_less=True)  # instruction was accepted
 
     def elaborate(self, platform):
         m = Module()
@@ -62,8 +62,8 @@ class Scoreboard(Elaboratable):
         m.submodules.comp2 = comp2 = ComputationUnitNoDelay(self.rwid, 1, sub)
         int_alus = [comp1, comp2]
 
-        m.d.comb += comp1.oper_i.eq(Const(0)) # temporary/experiment: op=add
-        m.d.comb += comp2.oper_i.eq(Const(1)) # temporary/experiment: op=sub
+        m.d.comb += comp1.oper_i.eq(Const(0))  # temporary/experiment: op=add
+        m.d.comb += comp2.oper_i.eq(Const(1))  # temporary/experiment: op=sub
 
         # Int FUs
         if_l = []
@@ -85,9 +85,9 @@ class Scoreboard(Elaboratable):
 
         # Count of number of FUs
         n_int_fus = len(if_l)
-        n_fp_fus = 0 # for now
+        n_fp_fus = 0  # for now
 
-        n_fus = n_int_fus + n_fp_fus # plus FP FUs
+        n_fus = n_int_fus + n_fp_fus  # plus FP FUs
 
         # XXX replaced by array of FUs? *FnUnit
         # # Integer FU-FU Dep Matrix
@@ -97,7 +97,7 @@ class Scoreboard(Elaboratable):
         # m.submodules.intregdeps = intregdeps
 
         # Integer Priority Picker 1: Adder + Subtractor
-        intpick1 = GroupPicker(2) # picks between add and sub
+        intpick1 = GroupPicker(2)  # picks between add and sub
         m.submodules.intpick1 = intpick1
 
         # Global Pending Vectors (INT and FP)
@@ -121,24 +121,24 @@ class Scoreboard(Elaboratable):
         intfudeps = FUFUDepMatrix(n_int_fus, n_int_fus)
         m.submodules.intfudeps = intfudeps
 
-        #---------
+        # ---------
         # ok start wiring things together...
         # "now hear de word of de looord... dem bones dem bones dem dryy bones"
         # https://www.youtube.com/watch?v=pYb8Wm6-QfA
-        #---------
+        # ---------
 
-        #---------
+        # ---------
         # Issue Unit is where it starts.  set up some in/outs for this module
-        #---------
+        # ---------
         m.d.comb += [issueunit.i.store_i.eq(self.int_store_i),
                      regdecode.dest_i.eq(self.int_dest_i),
                      regdecode.src1_i.eq(self.int_src1_i),
                      regdecode.src2_i.eq(self.int_src2_i),
                      regdecode.enable_i.eq(1),
                      self.issue_o.eq(issueunit.issue_o),
-                    issueunit.i.dest_i.eq(regdecode.dest_o),
-                    ]
-        self.int_insn_i = issueunit.i.insn_i # enabled by instruction decode
+                     issueunit.i.dest_i.eq(regdecode.dest_o),
+                     ]
+        self.int_insn_i = issueunit.i.insn_i  # enabled by instruction decode
 
         # connect global rd/wr pending vectors
         m.d.comb += issueunit.i.g_wr_pend_i.eq(g_int_wr_pend_v.g_pend_o)
@@ -157,20 +157,20 @@ class Scoreboard(Elaboratable):
             # XXX sync, so as to stop a simulation infinite loop
             m.d.comb += issueunit.i.busy_i[i].eq(fu.busy_o)
 
-        #---------
+        # ---------
         # connect Function Units
-        #---------
+        # ---------
 
         # Group Picker... done manually for now.  TODO: cat array of pick sigs
-        m.d.comb += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0]) # add rd
-        m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0]) # add wr
+        m.d.comb += if_l[0].go_rd_i.eq(intpick1.go_rd_o[0])  # add rd
+        m.d.comb += if_l[0].go_wr_i.eq(intpick1.go_wr_o[0])  # add wr
 
-        m.d.comb += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1]) # subtract rd
-        m.d.comb += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1]) # subtract wr
+        m.d.comb += if_l[1].go_rd_i.eq(intpick1.go_rd_o[1])  # subtract rd
+        m.d.comb += if_l[1].go_wr_i.eq(intpick1.go_wr_o[1])  # subtract wr
 
         # create read-pending FU-FU vectors
-        intfu_rd_pend_v = Signal(n_int_fus, reset_less = True)
-        intfu_wr_pend_v = Signal(n_int_fus, reset_less = True)
+        intfu_rd_pend_v = Signal(n_int_fus, reset_less=True)
+        intfu_wr_pend_v = Signal(n_int_fus, reset_less=True)
         for i in range(n_int_fus):
             #m.d.comb += intfu_rd_pend_v[i].eq(if_l[i].int_rd_pend_o.bool())
             #m.d.comb += intfu_wr_pend_v[i].eq(if_l[i].int_wr_pend_o.bool())
@@ -192,25 +192,25 @@ class Scoreboard(Elaboratable):
             m.d.comb += intfudeps.go_wr_i[i].eq(intpick1.go_wr_o[i])
 
         # Connect Picker (note connection to FU-FU)
-        #---------
+        # ---------
         readable_o = intfudeps.readable_o
         writable_o = intfudeps.writable_o
         m.d.comb += intpick1.rd_rel_i[0].eq(int_alus[0].rd_rel_o)
         m.d.comb += intpick1.rd_rel_i[1].eq(int_alus[1].rd_rel_o)
         m.d.comb += intpick1.req_rel_i[0].eq(int_alus[0].req_rel_o)
         m.d.comb += intpick1.req_rel_i[1].eq(int_alus[1].req_rel_o)
-        m.d.comb += intpick1.readable_i[0].eq(readable_o[0]) # add rd
-        m.d.comb += intpick1.writable_i[0].eq(writable_o[0]) # add wr
-        m.d.comb += intpick1.readable_i[1].eq(readable_o[1]) # sub rd
-        m.d.comb += intpick1.writable_i[1].eq(writable_o[1]) # sub wr
+        m.d.comb += intpick1.readable_i[0].eq(readable_o[0])  # add rd
+        m.d.comb += intpick1.writable_i[0].eq(writable_o[0])  # add wr
+        m.d.comb += intpick1.readable_i[1].eq(readable_o[1])  # sub rd
+        m.d.comb += intpick1.writable_i[1].eq(writable_o[1])  # sub wr
 
-        #---------
+        # ---------
         # Connect Register File(s)
-        #---------
-        #with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
+        # ---------
+        # with m.If(if_l[0].go_wr_i | if_l[1].go_wr_i):
         m.d.sync += int_dest.wen.eq(g_int_wr_pend_v.g_pend_o)
-        #with m.If(intpick1.go_rd_o):
-        #with m.If(if_l[0].go_rd_i | if_l[1].go_rd_i):
+        # with m.If(intpick1.go_rd_o):
+        # with m.If(if_l[0].go_rd_i | if_l[1].go_rd_i):
         m.d.sync += int_src1.ren.eq(g_int_src1_pend_v.g_pend_o)
         m.d.sync += int_src2.ren.eq(g_int_src2_pend_v.g_pend_o)
 
@@ -224,13 +224,12 @@ class Scoreboard(Elaboratable):
             m.d.comb += alu.go_rd_i.eq(intpick1.go_rd_o[i])
             m.d.comb += alu.go_wr_i.eq(intpick1.go_wr_o[i])
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
-            #m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
+            # m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
             m.d.comb += alu.src1_i.eq(int_src1.data_o)
             m.d.comb += alu.src2_i.eq(int_src2.data_o)
-            m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o) # pipe out ready
+            m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o)  # pipe out ready
 
         return m
-
 
     def __iter__(self):
         yield from self.intregs
@@ -240,19 +239,21 @@ class Scoreboard(Elaboratable):
         yield self.int_src1_i
         yield self.int_src2_i
         yield self.issue_o
-        #yield from self.int_src1
-        #yield from self.int_dest
-        #yield from self.int_src1
-        #yield from self.int_src2
-        #yield from self.fp_dest
-        #yield from self.fp_src1
-        #yield from self.fp_src2
+        # yield from self.int_src1
+        # yield from self.int_dest
+        # yield from self.int_src1
+        # yield from self.int_src2
+        # yield from self.fp_dest
+        # yield from self.fp_src1
+        # yield from self.fp_src2
 
     def ports(self):
         return list(self)
 
+
 IADD = 0
 ISUB = 1
+
 
 class RegSim:
     def __init__(self, rwidth, nregs):
@@ -263,9 +264,9 @@ class RegSim:
         src1 = self.regs[src1]
         src2 = self.regs[src2]
         if op == IADD:
-            val = (src1 + src2) & ((1<<(self.rwidth))-1)
+            val = (src1 + src2) & ((1 << (self.rwidth))-1)
         elif op == ISUB:
-            val = (src1 - src2) & ((1<<(self.rwidth))-1)
+            val = (src1 - src2) & ((1 << (self.rwidth))-1)
         self.regs[dest] = val
 
     def setval(self, dest, val):
@@ -285,6 +286,7 @@ class RegSim:
                 yield from self.dump(dut)
                 assert False
 
+
 def int_instr(dut, alusim, op, src1, src2, dest):
     for i in range(len(dut.int_insn_i)):
         yield dut.int_insn_i[i].eq(0)
@@ -301,7 +303,7 @@ def print_reg(dut, rnums):
         reg = yield dut.intregs.regs[rnum].reg
         rs.append("%x" % reg)
     rnums = map(str, rnums)
-    print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
+    print("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 
 def scoreboard_sim(dut, alusim):
@@ -313,21 +315,21 @@ def scoreboard_sim(dut, alusim):
 
     if False:
         yield from int_instr(dut, alusim, IADD, 4, 3, 5)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
         yield from int_instr(dut, alusim, IADD, 5, 2, 5)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
         yield from int_instr(dut, alusim, ISUB, 5, 1, 3)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
         for i in range(len(dut.int_insn_i)):
             yield dut.int_insn_i[i].eq(0)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         yield
 
         yield from alusim.check(dut)
@@ -369,32 +371,31 @@ def scoreboard_sim(dut, alusim):
             #op = (i+1) % 2
             op = i
 
-        print ("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
+        print("random %d: %d %d %d %d\n" % (i, op, src1, src2, dest))
         yield from int_instr(dut, alusim, op, src1, src2, dest)
-        yield from print_reg(dut, [3,4,5])
+        yield from print_reg(dut, [3, 4, 5])
         while True:
             yield
             issue_o = yield dut.issue_o
             if issue_o:
-                yield from print_reg(dut, [3,4,5])
+                yield from print_reg(dut, [3, 4, 5])
                 for i in range(len(dut.int_insn_i)):
                     yield dut.int_insn_i[i].eq(0)
                 break
-            print ("busy",)
-            yield from print_reg(dut, [3,4,5])
+            print("busy",)
+            yield from print_reg(dut, [3, 4, 5])
         yield
         yield
         yield
 
-
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [3, 4, 5])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [3, 4, 5])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [3, 4, 5])
     yield
-    yield from print_reg(dut, [3,4,5])
+    yield from print_reg(dut, [3, 4, 5])
     yield
     yield
     yield
@@ -417,7 +418,7 @@ def explore_groups(dut):
 
     groups = LHSGroupAnalyzer()(fragment._statements)
 
-    print (groups)
+    print(groups)
 
 
 def test_scoreboard():
@@ -428,7 +429,7 @@ def test_scoreboard():
         f.write(vl)
 
     run_simulation(dut, scoreboard_sim(dut, alusim),
-                        vcd_name='test_scoreboard.vcd')
+                   vcd_name='test_scoreboard.vcd')
 
 
 if __name__ == '__main__':

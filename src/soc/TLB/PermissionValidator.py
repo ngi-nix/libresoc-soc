@@ -1,7 +1,7 @@
 from nmigen import Module, Signal, Elaboratable
 from nmigen.cli import main
 
-from TLB.PteEntry import PteEntry
+from soc.TLB.PteEntry import PteEntry
 
 
 class PermissionValidator(Elaboratable):
@@ -25,14 +25,14 @@ class PermissionValidator(Elaboratable):
         self.pte_entry = PteEntry(asid_size, pte_size)
 
         # Input
-        self.data = Signal(asid_size + pte_size);
-        self.xwr = Signal(3) # Execute, Write, Read
-        self.super_mode = Signal(1) # Supervisor Mode
-        self.super_access = Signal(1) # Supervisor Access
-        self.asid = Signal(15) # Address Space IDentifier (ASID)
+        self.data = Signal(asid_size + pte_size)
+        self.xwr = Signal(3)  # Execute, Write, Read
+        self.super_mode = Signal(1)  # Supervisor Mode
+        self.super_access = Signal(1)  # Supervisor Access
+        self.asid = Signal(15)  # Address Space IDentifier (ASID)
 
         # Output
-        self.valid = Signal(1) # Denotes if the permissions are correct
+        self.valid = Signal(1)  # Denotes if the permissions are correct
 
     def elaborate(self, platform=None):
         m = Module()
@@ -53,7 +53,7 @@ class PermissionValidator(Elaboratable):
                         # Valid if entry is not in user mode or supervisor
                         # has Supervisor User Memory (SUM) access via the
                         # SUM bit in the sstatus register
-                        m.d.comb += self.valid.eq((~self.pte_entry.u) \
+                        m.d.comb += self.valid.eq((~self.pte_entry.u)
                                                   | self.super_access)
                     # User logic
                     with m.Else():

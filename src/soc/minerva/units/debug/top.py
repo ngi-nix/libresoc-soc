@@ -8,7 +8,15 @@ from .jtag import JTAGReg, dtmcs_layout, dmi_layout, jtag_layout
 from .regfile import DebugRegisterFile
 from .wbmaster import wishbone_layout, DebugWishboneMaster
 
-from jtagtap import JTAGTap
+# FIXME: figure out where JTAGTap is
+# from jtagtap import JTAGTap
+
+
+class JTAGTap:
+    def __init__(self):
+        raise NotImplementedError(
+            "jtagtap package not found: figure out where JTAGTap is")
+
 
 __all__ = ["DebugUnit"]
 
@@ -67,15 +75,17 @@ class DebugUnit(Elaboratable, AutoCSR):
     def elaborate(self, platform):
         m = Module()
 
-        tap        = m.submodules.tap        = JTAGTap(jtag_regs)
-        regfile    = m.submodules.regfile    = DebugRegisterFile(tap.regs[JTAGReg.DMI])
+        tap = m.submodules.tap = JTAGTap(jtag_regs)
+        regfile = m.submodules.regfile = DebugRegisterFile(
+            tap.regs[JTAGReg.DMI])
         controller = m.submodules.controller = DebugController(regfile)
-        wbmaster   = m.submodules.wbmaster   = DebugWishboneMaster(regfile)
+        wbmaster = m.submodules.wbmaster = DebugWishboneMaster(regfile)
 
         m.d.comb += [
             tap.port.connect(self.jtag),
-            tap.regs[JTAGReg.IDCODE].r.eq(0x10e31913), # Usurpate a Spike core for now.
-            tap.regs[JTAGReg.DTMCS].r.eq(0x61) # (abits=6, version=1) TODO
+            # Usurpate a Spike core for now.
+            tap.regs[JTAGReg.IDCODE].r.eq(0x10e31913),
+            tap.regs[JTAGReg.DTMCS].r.eq(0x61)  # (abits=6, version=1) TODO
         ]
 
         m.d.comb += [

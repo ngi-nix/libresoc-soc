@@ -57,7 +57,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[3] = 0x1234
         initial_regs[2] = 0x4321
         with Program(lst) as program:
-            sim = self.run_test_program(program, initial_regs)
+            sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
 
     def test_addi(self):
@@ -65,7 +65,7 @@ class DecoderTestCase(FHDLTestCase):
                "addi 2, 0, 0x4321",
                "add  1, 3, 2"]
         with Program(lst) as program:
-            sim = self.run_test_program(program)
+            sim = self.run_tst_program(program)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
 
@@ -75,11 +75,11 @@ class DecoderTestCase(FHDLTestCase):
                "stw 2, 0(1)",
                "lwz 3, 0(1)"]
         with Program(lst) as program:
-            sim = self.run_test_program(program)
+            sim = self.run_tst_program(program)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
 
-    def run_test_program(self, prog, initial_regs=[0] * 32):
+    def run_tst_program(self, prog, initial_regs=[0] * 32):
         simulator = self.run_tst(prog, initial_regs)
         simulator.gpr.dump()
         return simulator

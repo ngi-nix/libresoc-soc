@@ -2,13 +2,14 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable
 
-from regfile.regfile import RegFileArray, treereduce
+from soc.regfile.regfile import RegFileArray, treereduce
 from soc.scoreboard.ldst_matrix import LDSTDepMatrix
 from soc.scoreboard.fu_mem_matrix import FUMemDepMatrix
 from soc.scoreboard.global_pending import GlobalPending
 from soc.scoreboard.group_picker import GroupPicker
 from soc.scoreboard.issue_unit import IssueUnitGroup, IssueUnitArray, RegDecode
 from soc.scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
+
 
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
@@ -17,23 +18,26 @@ from random import randint, seed
 from copy import deepcopy
 from math import log
 
+# FIXME: fixed up imports
+from ..experiment.score6600 import IssueToScoreboard, RegSim, instr_q, wait_for_busy_clear, wait_for_issue, CompUnitALUs, CompUnitBR
+
 
 class Memory(Elaboratable):
     def __init__(self, regwid, addrw):
         self.ddepth = regwid/8
-        depth = (1<<addrw) / self.ddepth
-        self.adr   = Signal(addrw)
+        depth = (1 << addrw) / self.ddepth
+        self.adr = Signal(addrw)
         self.dat_r = Signal(regwid)
         self.dat_w = Signal(regwid)
-        self.we    = Signal()
-        self.mem   = Memory(width=regwid, depth=depth, init=range(0, depth))
+        self.we = Signal()
+        self.mem = Memory(width=regwid, depth=depth, init=range(0, depth))
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.rdport = rdport = self.mem.read_port()
         m.submodules.wrport = wrport = self.mem.write_port()
         m.d.comb += [
-            rdport.addr.eq(self.adr[self.ddepth:]), # ignore low bits
+            rdport.addr.eq(self.adr[self.ddepth:]),  # ignore low bits
             self.dat_r.eq(rdport.data),
             wrport.addr.eq(self.adr),
             wrport.data.eq(self.dat_w),
@@ -46,14 +50,14 @@ class MemSim:
     def __init__(self, regwid, addrw):
         self.regwid = regwid
         self.ddepth = regwid//8
-        depth = (1<<addrw) // self.ddepth
+        depth = (1 << addrw) // self.ddepth
         self.mem = list(range(0, depth))
 
     def ld(self, addr):
-        return self.mem[addr>>self.ddepth]
+        return self.mem[addr >> self.ddepth]
 
     def st(self, addr, data):
-        self.mem[addr>>self.ddepth] = data & ((1<<self.regwid)-1)
+        self.mem[addr >> self.ddepth] = data & ((1 << self.regwid)-1)
 
 
 class MemFunctionUnits(Elaboratable):
@@ -61,19 +65,19 @@ class MemFunctionUnits(Elaboratable):
     def __init__(self, n_int_alus):
         self.n_int_alus = n_int_alus
 
-        self.ld_i = Signal(n_int_alus, reset_less=True) # Dest R# in
-        self.st_i = Signal(n_int_alus, reset_less=True) # oper1 R# in
+        self.ld_i = Signal(n_int_alus, reset_less=True)  # Dest R# in
+        self.st_i = Signal(n_int_alus, reset_less=True)  # oper1 R# in
 
-        self.load_hit_i = Signal(n_int_alus, reset_less=True) # Load Hit
-        self.stwd_hit_i = Signal(n_int_alus, reset_less=True) # Store Hit
+        self.load_hit_i = Signal(n_int_alus, reset_less=True)  # Load Hit
+        self.stwd_hit_i = Signal(n_int_alus, reset_less=True)  # Store Hit
 
         #self.g_int_st_pend_o = Signal(n_int_alus, reset_less=True)
         #self.g_int_ld_pend_o = Signal(n_int_alus, reset_less=True)
 
-        #self.ld_rsel_o = Signal(n_int_alus, reset_less=True) # dest reg (bot)
-        #self.st_rsel_o = Signal(n_int_alus, reset_less=True) # src1 reg (bot)
+        # self.ld_rsel_o = Signal(n_int_alus, reset_less=True) # dest reg (bot)
+        # self.st_rsel_o = Signal(n_int_alus, reset_less=True) # src1 reg (bot)
 
-        self.req_rel_i = Signal(n_int_alus, reset_less = True)
+        self.req_rel_i = Signal(n_int_alus, reset_less=True)
         self.loadable_o = Signal(n_int_alus, reset_less=True)
         self.storable_o = Signal(n_int_alus, reset_less=True)
 
@@ -107,7 +111,7 @@ class MemFunctionUnits(Elaboratable):
 
         #comb += ldstdeps.st_pend_i.eq(fumemdeps.st_pend_o)
         #comb += ldstdeps.ld_pend_i.eq(fumemdeps.ld_pend_o)
-        #self.ld_pend_o = fumemdeps.ld_pend_o # also output for use in WaWGrid
+        # self.ld_pend_o = fumemdeps.ld_pend_o # also output for use in WaWGrid
 
         comb += ldstdeps.ld_pend_i.eq(self.ld_i)
         comb += ldstdeps.st_pend_i.eq(self.st_i)
@@ -135,10 +139,10 @@ class MemFunctionUnits(Elaboratable):
     def __iter__(self):
         yield self.ld_i
         yield self.st_i
-        #yield self.g_int_st_pend_o
-        #yield self.g_int_ld_pend_o
-        #yield self.ld_rsel_o
-        #yield self.st_rsel_o
+        # yield self.g_int_st_pend_o
+        # yield self.g_int_ld_pend_o
+        # yield self.ld_rsel_o
+        # yield self.st_rsel_o
         yield self.req_rel_i
         yield self.loadable_o
         yield self.storable_o
@@ -178,14 +182,14 @@ class Scoreboard(Elaboratable):
         self.br_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
-        self.int_dest_i = Signal(max=n_regs, reset_less=True) # Dest R# in
-        self.int_src1_i = Signal(max=n_regs, reset_less=True) # oper1 R# in
-        self.int_src2_i = Signal(max=n_regs, reset_less=True) # oper2 R# in
-        self.reg_enable_i = Signal(reset_less=True) # enable reg decode
+        self.int_dest_i = Signal(range(n_regs), reset_less=True)  # Dest R# in
+        self.int_src1_i = Signal(range(n_regs), reset_less=True)  # oper1 R# in
+        self.int_src2_i = Signal(range(n_regs), reset_less=True)  # oper2 R# in
+        self.reg_enable_i = Signal(reset_less=True)  # enable reg decode
 
         # outputs
-        self.issue_o = Signal(reset_less=True) # instruction was accepted
-        self.busy_o = Signal(reset_less=True) # at least one CU is busy
+        self.issue_o = Signal(reset_less=True)  # instruction was accepted
+        self.busy_o = Signal(reset_less=True)  # at least one CU is busy
 
         # for branch speculation experiment.  branch_direction = 0 if
         # the branch hasn't been met yet.  1 indicates "success", 2 is "fail"
@@ -217,7 +221,7 @@ class Scoreboard(Elaboratable):
         cua = CompUnitALUs(self.rwid, 3)
         cub = CompUnitBR(self.rwid, 3)
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cub])
-        bgt = cub.bgt # get at the branch computation unit
+        bgt = cub.bgt  # get at the branch computation unit
         br1 = cub.br1
 
         # Int FUs
@@ -225,10 +229,10 @@ class Scoreboard(Elaboratable):
 
         # Count of number of FUs
         n_intfus = n_int_alus
-        n_fp_fus = 0 # for now
+        n_fp_fus = 0  # for now
 
         # Integer Priority Picker 1: Adder + Subtractor
-        intpick1 = GroupPicker(n_intfus) # picks between add, sub, mul and shf
+        intpick1 = GroupPicker(n_intfus)  # picks between add, sub, mul and shf
         m.submodules.intpick1 = intpick1
 
         # INT/FP Issue Unit
@@ -251,21 +255,21 @@ class Scoreboard(Elaboratable):
         # allow/cancel can be issued as appropriate.
         m.submodules.specrec = bspec = BranchSpeculationRecord(n_intfus)
 
-        #---------
+        # ---------
         # ok start wiring things together...
         # "now hear de word of de looord... dem bones dem bones dem dryy bones"
         # https://www.youtube.com/watch?v=pYb8Wm6-QfA
-        #---------
+        # ---------
 
-        #---------
+        # ---------
         # Issue Unit is where it starts.  set up some in/outs for this module
-        #---------
-        comb += [    regdecode.dest_i.eq(self.int_dest_i),
-                     regdecode.src1_i.eq(self.int_src1_i),
-                     regdecode.src2_i.eq(self.int_src2_i),
-                     regdecode.enable_i.eq(self.reg_enable_i),
-                     self.issue_o.eq(issueunit.issue_o)
-                    ]
+        # ---------
+        comb += [regdecode.dest_i.eq(self.int_dest_i),
+                 regdecode.src1_i.eq(self.int_src1_i),
+                 regdecode.src2_i.eq(self.int_src2_i),
+                 regdecode.enable_i.eq(self.reg_enable_i),
+                 self.issue_o.eq(issueunit.issue_o)
+                 ]
 
         # take these to outside (issue needs them)
         comb += cua.oper_i.eq(self.alu_oper_i)
@@ -286,9 +290,9 @@ class Scoreboard(Elaboratable):
         comb += issueunit.busy_i.eq(cu.busy_o)
         comb += self.busy_o.eq(cu.busy_o.bool())
 
-        #---------
+        # ---------
         # merge shadow matrices outputs
-        #---------
+        # ---------
 
         # these are explained in ShadowMatrix docstring, and are to be
         # connected to the FUReg and FUFU Matrices, to get them to reset
@@ -299,9 +303,9 @@ class Scoreboard(Elaboratable):
         comb += anydie.eq(shadows.go_die_o | bshadow.go_die_o)
         comb += shreset.eq(bspec.match_g_o | bspec.match_f_o)
 
-        #---------
+        # ---------
         # connect fu-fu matrix
-        #---------
+        # ---------
 
         # Group Picker... done manually for now.
         go_rd_o = intpick1.go_rd_o
@@ -310,12 +314,12 @@ class Scoreboard(Elaboratable):
         go_wr_i = intfus.go_wr_i
         go_die_i = intfus.go_die_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus]) # rd
-        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus]) # wr
-        comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus]) # die
+        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])  # rd
+        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])  # wr
+        comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus])  # die
 
         # Connect Picker
-        #---------
+        # ---------
         comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
         comb += intpick1.req_rel_i[0:n_intfus].eq(cu.req_rel_o[0:n_intfus])
         int_rd_o = intfus.readable_o
@@ -323,14 +327,14 @@ class Scoreboard(Elaboratable):
         comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])
         comb += intpick1.writable_i[0:n_intfus].eq(int_wr_o[0:n_intfus])
 
-        #---------
+        # ---------
         # Shadow Matrix
-        #---------
+        # ---------
 
         comb += shadows.issue_i.eq(fn_issue_o)
         #comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
         comb += shadows.reset_i[0:n_intfus].eq(bshadow.go_die_o[0:n_intfus])
-        #---------
+        # ---------
         # NOTE; this setup is for the instruction order preservation...
 
         # connect shadows / go_dies to Computation Units
@@ -352,7 +356,7 @@ class Scoreboard(Elaboratable):
         for i in range(n_intfus):
             comb += shadows.shadow_i[i][0:n_intfus].eq(prev_shadow)
 
-        #---------
+        # ---------
         # ... and this is for branch speculation.  it uses the extra bit
         # tacked onto the ShadowMatrix (hence shadow_wid=n_intfus+1)
         # only needs to set shadow_i, s_fail_i and s_good_i
@@ -367,7 +371,7 @@ class Scoreboard(Elaboratable):
         with m.If(bactive & (self.branch_succ_i | self.branch_fail_i)):
             comb += bshadow.issue_i.eq(fn_issue_o)
             for i in range(n_intfus):
-                with m.If(fn_issue_o & (Const(1<<i))):
+                with m.If(fn_issue_o & (Const(1 << i))):
                     comb += bshadow.shadow_i[i][0].eq(1)
 
         # finally, we need an indicator to the test infrastructure as to
@@ -395,9 +399,9 @@ class Scoreboard(Elaboratable):
                 # ... or it didn't
                 comb += bshadow.s_fail_i[i][0].eq(bspec.match_f_o[i])
 
-        #---------
+        # ---------
         # Connect Register File(s)
-        #---------
+        # ---------
         comb += int_dest.wen.eq(intfus.dest_rsel_o)
         comb += int_src1.ren.eq(intfus.src1_rsel_o)
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
@@ -429,14 +433,12 @@ class Scoreboard(Elaboratable):
         return list(self)
 
 
-
-
 def int_instr(dut, op, imm, src1, src2, dest, branch_success, branch_fail):
     yield from disable_issue(dut)
     yield dut.int_dest_i.eq(dest)
     yield dut.int_src1_i.eq(src1)
     yield dut.int_src2_i.eq(src2)
-    if (op & (0x3<<2)) != 0: # branch
+    if (op & (0x3 << 2)) != 0:  # branch
         yield dut.brissue.insn_i.eq(1)
         yield dut.br_oper_i.eq(Const(op & 0x3, 2))
         yield dut.br_imm_i.eq(imm)
@@ -463,7 +465,7 @@ def print_reg(dut, rnums):
         reg = yield dut.intregs.regs[rnum].reg
         rs.append("%x" % reg)
     rnums = map(str, rnums)
-    print ("reg %s: %s" % (','.join(rnums), ','.join(rs)))
+    print("reg %s: %s" % (','.join(rnums), ','.join(rs)))
 
 
 def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
@@ -471,17 +473,16 @@ def create_random_ops(dut, n_ops, shadowing=False, max_opnums=3):
     for i in range(n_ops):
         src1 = randint(1, dut.n_regs-1)
         src2 = randint(1, dut.n_regs-1)
-        imm = randint(1, (1<<dut.rwid)-1)
+        imm = randint(1, (1 << dut.rwid)-1)
         dest = randint(1, dut.n_regs-1)
         op = randint(0, max_opnums)
-        opi = 0 if randint(0, 2) else 1 # set true if random is nonzero
+        opi = 0 if randint(0, 2) else 1  # set true if random is nonzero
 
         if shadowing:
             insts.append((src1, src2, dest, op, opi, imm, (0, 0)))
         else:
             insts.append((src1, src2, dest, op, opi, imm))
     return insts
-
 
 
 def scoreboard_sim(dut, alusim):
@@ -492,7 +493,7 @@ def scoreboard_sim(dut, alusim):
 
         # set random values in the registers
         for i in range(1, dut.n_regs):
-            val = randint(0, (1<<alusim.rwidth)-1)
+            val = randint(0, (1 << alusim.rwidth)-1)
             #val = 31+i*3
             #val = i
             yield dut.intregs.regs[i].reg.eq(val)
@@ -504,12 +505,12 @@ def scoreboard_sim(dut, alusim):
             instrs = create_random_ops(dut, 15, True, 4)
 
         if False:
-            instrs.append( (1, 2, 2, 1, 1, 20, (0, 0)) )
+            instrs.append((1, 2, 2, 1, 1, 20, (0, 0)))
 
         if False:
-            instrs.append( (7, 3, 2, 4, (0, 0)) )
-            instrs.append( (7, 6, 6, 2, (0, 0)) )
-            instrs.append( (1, 7, 2, 2, (0, 0)) )
+            instrs.append((7, 3, 2, 4, (0, 0)))
+            instrs.append((7, 6, 6, 2, (0, 0)))
+            instrs.append((1, 7, 2, 2, (0, 0)))
 
         if False:
             instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
@@ -519,9 +520,9 @@ def scoreboard_sim(dut, alusim):
             instrs.append((3, 5, 5, 0, 0, 0, (0, 0)))
 
         if False:
-            instrs.append( (3, 3, 4, 0, 0, 13979, (0, 0)))
-            instrs.append( (6, 4, 1, 2, 0, 40976, (0, 0)))
-            instrs.append( (1, 4, 7, 4, 1, 23652, (0, 0)))
+            instrs.append((3, 3, 4, 0, 0, 13979, (0, 0)))
+            instrs.append((6, 4, 1, 2, 0, 40976, (0, 0)))
+            instrs.append((1, 4, 7, 4, 1, 23652, (0, 0)))
 
         if False:
             instrs.append((5, 6, 2, 1))
@@ -547,8 +548,8 @@ def scoreboard_sim(dut, alusim):
 
         if False:
             # Write-after-Write Hazard
-            instrs.append( (3, 6, 7, 2) )
-            instrs.append( (4, 4, 7, 1) )
+            instrs.append((3, 6, 7, 2))
+            instrs.append((4, 4, 7, 1))
 
         if False:
             # self-read/write-after-write followed by Read-after-Write
@@ -568,9 +569,9 @@ def scoreboard_sim(dut, alusim):
 
         if False:
             # very weird failure
-            instrs.append( (5, 2, 5, 2) )
-            instrs.append( (2, 6, 3, 0) )
-            instrs.append( (4, 2, 2, 1) )
+            instrs.append((5, 2, 5, 2))
+            instrs.append((2, 6, 3, 0))
+            instrs.append((4, 2, 2, 1))
 
         if False:
             v1 = 4
@@ -591,22 +592,22 @@ def scoreboard_sim(dut, alusim):
             instrs.append((4, 2, 1, 2, (1, 0)))
 
         if False:
-            instrs.append( (4, 3, 5, 1, 0, (0, 0)) )
-            instrs.append( (5, 2, 3, 1, 0, (0, 0)) )
-            instrs.append( (7, 1, 5, 2, 0, (0, 0)) )
-            instrs.append( (5, 6, 6, 4, 0, (0, 0)) )
-            instrs.append( (7, 5, 2, 2, 0, (1, 0)) )
-            instrs.append( (1, 7, 5, 0, 0, (0, 1)) )
-            instrs.append( (1, 6, 1, 2, 0, (1, 0)) )
-            instrs.append( (1, 6, 7, 3, 0, (0, 0)) )
-            instrs.append( (6, 7, 7, 0, 0, (0, 0)) )
+            instrs.append((4, 3, 5, 1, 0, (0, 0)))
+            instrs.append((5, 2, 3, 1, 0, (0, 0)))
+            instrs.append((7, 1, 5, 2, 0, (0, 0)))
+            instrs.append((5, 6, 6, 4, 0, (0, 0)))
+            instrs.append((7, 5, 2, 2, 0, (1, 0)))
+            instrs.append((1, 7, 5, 0, 0, (0, 1)))
+            instrs.append((1, 6, 1, 2, 0, (1, 0)))
+            instrs.append((1, 6, 7, 3, 0, (0, 0)))
+            instrs.append((6, 7, 7, 0, 0, (0, 0)))
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
             src1, src2, dest, op, opi, imm, (br_ok, br_fail) = instr
 
-            print ("instr %d: (%d, %d, %d, %d, %d, %d)" % \
-                    (i, src1, src2, dest, op, opi, imm))
+            print("instr %d: (%d, %d, %d, %d, %d, %d)" %
+                  (i, src1, src2, dest, op, opi, imm))
             alusim.op(op, opi, imm, src1, src2, dest)
             yield from instr_q(dut, op, opi, imm, src1, src2, dest,
                                br_ok, br_fail)
@@ -637,9 +638,9 @@ def test_scoreboard():
         f.write(vl)
 
     run_simulation(dut, scoreboard_sim(dut, alusim),
-                        vcd_name='test_scoreboard6600.vcd')
+                   vcd_name='test_scoreboard6600.vcd')
 
-    #run_simulation(dut, scoreboard_branch_sim(dut, alusim),
+    # run_simulation(dut, scoreboard_branch_sim(dut, alusim),
     #                    vcd_name='test_scoreboard6600.vcd')
 
 
@@ -647,11 +648,11 @@ def mem_sim(dut):
     yield dut.ld_i.eq(0x1)
     yield dut.fn_issue_i.eq(0x1)
     yield
-    #yield dut.ld_i.eq(0x0)
+    # yield dut.ld_i.eq(0x0)
     yield dut.st_i.eq(0x2)
     yield dut.fn_issue_i.eq(0x2)
     yield
-    #yield dut.st_i.eq(0x0)
+    # yield dut.st_i.eq(0x0)
     yield dut.fn_issue_i.eq(0x0)
     yield
 
@@ -672,7 +673,7 @@ def test_mem_fus():
         f.write(vl)
 
     run_simulation(dut, mem_sim(dut),
-                        vcd_name='test_mem_fus.vcd')
+                   vcd_name='test_mem_fus.vcd')
 
 
 if __name__ == '__main__':
