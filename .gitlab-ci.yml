@@ -48,6 +48,11 @@ build:
         - popd
         - yosys -V
 
+        - git clone --depth 1 https://github.com/YosysHQ/SymbiYosys.git SymbiYosys
+        - pushd SymbiYosys
+        - make install
+        - popd
+
         - git clone --depth 1 https://github.com/nmigen/nmigen.git nmigen
         - pushd nmigen
         - python setup.py develop
