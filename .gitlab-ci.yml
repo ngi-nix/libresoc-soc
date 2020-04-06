@@ -4,7 +4,7 @@ cache:
     paths:
         - ccache
         - .cache/pip
-        - apt-cache
+        - apt-cache/
 
 variables:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
