@@ -4,6 +4,9 @@ cache:
     paths:
         - ccache
 
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
 build:
     stage: build
     before_script:
