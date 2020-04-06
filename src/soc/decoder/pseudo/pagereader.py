@@ -154,6 +154,7 @@ class ISA:
         opcode, regs = o[0], o[1:]
         op = copy(d)
         op['regs'] = regs
+        regs[0] = regs[0].split(",")
         op['opcode'] = opcode
         self.instr[opcode] = Ops(**op)
 
