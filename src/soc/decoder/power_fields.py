@@ -208,9 +208,18 @@ class DecodeFields:
         res = {}
         for field in fields:
             f, spec = field.strip().split(" ")
+            ss = spec[1:-1].split(",")
+            fs = f.split(",")
+            if len(fs) > 1:
+                individualfields = []
+                for f0, s0 in zip(fs, ss):
+                    txt = "%s (%s)" % (f0, s0)
+                    individualfields.append(txt)
+                if len(fs) > 1:
+                  res.update(self.decode_instruction_fields(individualfields))
             d = self.bitkls(*self.bitargs)
             idx = 0
-            for s in spec[1:-1].split(","):
+            for s in ss:
                 s = s.split(':')
                 if len(s) == 1:
                     d[idx] = int(s[0])
@@ -233,3 +242,7 @@ if __name__ == '__main__':
     dec = DecodeFields()
     dec.create_specs()
     forms, instrs = dec.forms, dec.instrs
+    for form, fields in instrs.items():
+        print ("Form", form)
+        for field, bits in fields.items():
+            print ("\tfield", field, bits)
