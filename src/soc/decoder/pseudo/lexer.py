@@ -140,6 +140,8 @@ def annoying_case_hack_filter(code):
     as a "small expression".  it can then be spotted and used to indicate
     "fall through" to the next case (in the parser)
 
+    also skips blank lines
+
     bugs: any function that starts with the letters "case" or "default"
     will be detected erroneously.  fixing that involves doing a token
     lexer which spots the fact that "case" and "default" are words,
@@ -152,6 +154,8 @@ def annoying_case_hack_filter(code):
     for l in code.split("\n"):
         spc_count = count_spaces(l)
         nwhite = l[spc_count:]
+        if len(nwhite) == 0: # skip blank lines
+            continue
         if nwhite.startswith("case") or nwhite.startswith("default"):
             #print ("case/default", nwhite, spc_count, prev_spc_count)
             if (prev_spc_count is not None and
@@ -473,9 +477,11 @@ switch (n)
     case(1): x <- 5
     case(3): x <- 2
     case(2):
+
     case(4):
         x <- 3
     case(9):
+
     default:
         x <- 9
 print (5)
