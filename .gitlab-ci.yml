@@ -87,4 +87,4 @@ build:
 
         - python setup.py develop
         - python src/soc/decoder/pseudo/pywriter.py
-        - nosetests -v --processes=-1
+        - nosetests -v --processes=-1 --process-timeout=120
