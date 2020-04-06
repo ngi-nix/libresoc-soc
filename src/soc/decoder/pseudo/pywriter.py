@@ -72,8 +72,9 @@ class PyISAWriter(ISA):
                 # accumulate the instruction info
                 ops = repr(rused['op_fields'])
                 iinfo = iinfo_template % (op_fname, rused['read_regs'],
-                                rused['uninit_regs'], rused['write_regs'],
-                                ops, d.regs, d.form)
+                                          rused['uninit_regs'],
+                                          rused['write_regs'],
+                                          ops, d.form, d.regs)
                 iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
             f.write("    %s_instrs = {}\n" % pagename)
