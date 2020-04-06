@@ -127,6 +127,44 @@ def DEDENT(lineno):
 def INDENT(lineno):
     return _new_token("INDENT", lineno)
 
+def count_spaces(l):
+    for i in range(len(l)):
+        if l[i] != ' ':
+            return i
+    return 0
+
+def annoying_case_hack_filter(code):
+    """add annoying "silent keyword" (fallthrough)
+
+    this which tricks the parser into taking the (silent) case statement
+    as a "small expression".  it can then be spotted and used to indicate
+    "fall through" to the next case (in the parser)
+
+    bugs: any function that starts with the letters "case" or "default"
+    will be detected erroneously.  fixing that involves doing a token
+    lexer which spots the fact that "case" and "default" are words,
+    separating them from space, colon, bracket etc.
+
+    http://bugs.libre-riscv.org/show_bug.cgi?id=280
+    """
+    res = []
+    prev_spc_count = None
+    for l in code.split("\n"):
+        spc_count = count_spaces(l)
+        nwhite = l[spc_count:]
+        if nwhite.startswith("case") or nwhite.startswith("default"):
+            #print ("case/default", nwhite, spc_count, prev_spc_count)
+            if (prev_spc_count is not None and
+                prev_spc_count == spc_count and
+                (res[-1].endswith(":") or res[-1].endswith(": fallthrough"))):
+                res[-1] += " fallthrough" # add to previous line
+            prev_spc_count = spc_count
+        else:
+            #print ("notstarts", spc_count, nwhite)
+            prev_spc_count = None
+        res.append(l)
+    return '\n'.join(res)
+
 
 # Track the indentation level and emit the right INDENT / DEDENT events.
 def indentation_filter(tokens):
@@ -410,11 +448,15 @@ class PowerLexer:
 
 class IndentLexer(PowerLexer):
     def __init__(self, debug=0, optimize=0, lextab='lextab', reflags=0):
+        self.debug = debug
         self.build(debug=debug, optimize=optimize,
                                 lextab=lextab, reflags=reflags)
         self.token_stream = None
 
     def input(self, s, add_endmarker=True):
+        s = annoying_case_hack_filter(s)
+        if self.debug:
+            print (s)
         self.lexer.paren_count = 0
         self.lexer.brack_count = 0
         self.lexer.input(s)
@@ -429,9 +471,11 @@ class IndentLexer(PowerLexer):
 switchtest = """
 switch (n)
     case(1): x <- 5
-    case(2): fallthrough
-    case(3):
+    case(3): x <- 2
+    case(2):
+    case(4):
         x <- 3
+    case(9):
     default:
         x <- 9
 print (5)
@@ -452,6 +496,7 @@ if __name__ == '__main__':
     # quick test/demo
     #code = cnttzd
     code = switchtest
+    print (code)
 
     lexer = IndentLexer(debug=1)
     # Give the lexer some input
