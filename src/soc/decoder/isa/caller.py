@@ -1,7 +1,12 @@
 from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import SelectableInt, selectconcat
+from collections import namedtuple
 import math
+
+instruction_info = namedtuple('instruction_info',
+                              'func read_regs uninit_regs write_regs op_fields form asmregs')
+
 
 def create_args(reglist, extra=None):
     args = OrderedSet()
@@ -11,6 +16,7 @@ def create_args(reglist, extra=None):
     if extra:
         args = [extra] + args
     return args
+
 
 class Mem:
 
@@ -154,11 +160,10 @@ class ISACaller:
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
-        fn, read_regs, uninit_regs, write_regs, op_fields, form, asmregs \
-            = self.instrs[name]
-        yield from self.prep_namespace(form, op_fields)
+        info = self.instrs[name]
+        yield from self.prep_namespace(info.form, info.op_fields)
 
-        input_names = create_args(read_regs | uninit_regs)
+        input_names = create_args(info.read_regs | info.uninit_regs)
         print(input_names)
 
         inputs = []
@@ -169,11 +174,11 @@ class ISACaller:
             print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
         print(inputs)
-        results = fn(self, *inputs)
+        results = info.func(self, *inputs)
         print(results)
 
-        if write_regs:
-            output_names = create_args(write_regs)
+        if info.write_regs:
+            output_names = create_args(info.write_regs)
             for name, output in zip(output_names, results):
                 regnum = yield getattr(self.decoder, name)
                 print('writing reg %d' % regnum)
