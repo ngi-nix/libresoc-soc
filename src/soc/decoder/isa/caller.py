@@ -107,6 +107,17 @@ class GPR(dict):
             s = ' '.join(s)
             print("reg", "%2d" % i, s)
 
+class PC:
+    def __init__(self, pc_init=0):
+        self.CIA = SelectableInt(pc_init, 64)
+        self.NIA = self.CIA + SelectableInt(4, 64)
+
+    def update(self, namespace):
+        self.CIA = self.NIA
+        self.NIA = self.CIA + SelectableInt(4, 64)
+        namespace['CIA'] = self.CIA
+        namespace['NIA'] = self.NIA
+
 
 class ISACaller:
     # decoder2 - an instance of power_decoder2
@@ -114,10 +125,14 @@ class ISACaller:
     def __init__(self, decoder2, regfile):
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem()
+        self.pc = PC()
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
-                          'memassign': self.memassign
+                          'memassign': self.memassign,
+                          'NIA': self.pc.NIA,
+                          'CIA': self.pc.CIA,
                           }
+
         self.decoder = decoder2
 
     def memassign(self, ea, sz, val):
@@ -165,6 +180,7 @@ class ISACaller:
                 if output.bits > 64:
                     output = SelectableInt(output.value, 64)
                 self.gpr[regnum] = output
+        self.pc.update(self.namespace)
 
 
 def inject():
