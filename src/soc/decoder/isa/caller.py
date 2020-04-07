@@ -177,11 +177,10 @@ class ISACaller:
         # then "yield" fields only from op_fields rather than hard-coded
         # list, here.
         fields = self.decoder.sigforms[formname]
-        for name in fields._fields:
-            if name not in ["RA", "RB", "RT"]:
-                sig = getattr(fields, name)
-                val = yield sig
-                self.namespace[name] = SelectableInt(val, sig.width)
+        for name in op_fields:
+            sig = getattr(fields, name)
+            val = yield sig
+            self.namespace[name] = SelectableInt(val, sig.width)
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
