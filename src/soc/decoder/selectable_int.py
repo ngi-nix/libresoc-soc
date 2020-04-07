@@ -33,11 +33,11 @@ class FieldSelectableInt:
         return self.merge(vi)
 
     def __getitem__(self, key):
-        key = self.br[key]
+        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
         return self.si[key]
 
     def __setitem__(self, key, value):
-        key = self.br[key]
+        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
         return self.si__setitem__(key, value)
 
     def __negate__(self):
