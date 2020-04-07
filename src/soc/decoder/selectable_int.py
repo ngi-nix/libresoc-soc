@@ -1,10 +1,90 @@
 import unittest
 from copy import copy
+from soc.decoder.power_fields import BitRange
+from operator import (add, sub, mul, div, mod, or_, and_, xor, neg, inv)
+
 
 def check_extsign(a, b):
     if b.bits != 256:
         return b
     return SelectableInt(b.value, a.bits)
+
+
+class FieldSelectableInt:
+    """FieldSelectableInt: allows bit-range selection onto another target
+    """
+    def __init__(self, si, br):
+        self.si = si # target selectable int
+        self.br = br # map of indices.
+
+    def _op(self, op, b):
+        vi = self.get_range()
+        vi = op(vi + b)
+        return self.merge(vi)
+
+    def _op1(self, op):
+        vi = self.get_range()
+        vi = op(vi)
+        return self.merge(vi)
+
+    def __getitem__(self, key):
+        key = self.br[key]
+        return self.si[key]
+
+    def __setitem__(self, key, value)
+        key = self.br[key]
+        return self.si__setitem__(key, value)
+
+    def __negate__(self):
+        return self._op1(negate)
+    def __invert__(self):
+        return self._op1(inv)
+    def __add__(self, b):
+        return self._op(add, b)
+    def __sub__(self, b):
+        return self._op(sub, b)
+    def __mul__(self, b):
+        return self._op(mul, b)
+    def __div__(self, b):
+        return self._op(div, b)
+    def __and__(self, b):
+        return self._op(and_, b)
+    def __or__(self, b):
+        return self._op(or_, b)
+    def __xor__(self, b):
+        return self._op(xor, b)
+
+    def get_range(self):
+        print ("get_range", self.si)
+        vi = SelectableInt(0, len(self.br))
+        for k, v in self.br.items():
+            print ("get_range", k, v, self.si[v])
+            vi[k] = self.si[v]
+        print ("get_range", vi)
+        return vi
+
+    def merge(self, vi):
+        fi = copy(self)
+        for i, v in fi.br.items():
+            fi.si[v] = vi[i]
+        return fi
+
+    def __repr__(self):
+        return "FieldSelectableInt(si=%s, br=%s)" % (self.si, self.br)
+
+
+class FieldSelectableIntTestCase(unittest.TestCase):
+    def test_arith(self):
+        a = SelectableInt(0b10101, 5)
+        b = SelectableInt(0b011, 3)
+        br = BitRange()
+        br[0] = 0
+        br[1] = 2
+        br[2] = 3
+        fs = FieldSelectableInt(a, br)
+        c = fs + b
+        print (c)
+        #self.assertEqual(c.value, a.value + b.value)
 
 
 class SelectableInt:
@@ -67,6 +147,8 @@ class SelectableInt:
         if isinstance(key, int):
             assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
+            # NOTE: POWER 3.0B annotation order!  see p4 1.3.2
+            # MSB is indexed **LOWEST** (sigh)
             key = self.bits - (key + 1)
 
             value = (self.value >> key) & 1
