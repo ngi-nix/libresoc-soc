@@ -6,7 +6,8 @@ from collections import namedtuple
 import math
 
 instruction_info = namedtuple('instruction_info',
-                              'func read_regs uninit_regs write_regs op_fields form asmregs')
+                              'func read_regs uninit_regs write_regs ' + \
+                              'special_regs op_fields form asmregs')
 
 
 def create_args(reglist, extra=None):
@@ -188,7 +189,8 @@ class ISACaller:
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)
 
-        input_names = create_args(info.read_regs | info.uninit_regs)
+        input_names = create_args(info.read_regs | info.uninit_regs |
+                                  info.special_regs)
         print(input_names)
 
         inputs = []

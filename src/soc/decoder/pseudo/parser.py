@@ -244,6 +244,7 @@ class PowerParser:
         self.read_regs = OrderedSet()
         self.uninit_regs = OrderedSet()
         self.write_regs = OrderedSet()
+        self.special_regs = OrderedSet() # see p_atom_name
 
     # The grammar comments come from Python's Grammar/Grammar file
 
@@ -605,6 +606,8 @@ class PowerParser:
         name = p[1]
         if name in self.available_op_fields:
             self.op_fields.add(name)
+        if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR']:
+            self.special_regs.add(name)
         p[0] = ast.Name(id=name, ctx=ast.Load())
 
     def p_atom_number(self, p):

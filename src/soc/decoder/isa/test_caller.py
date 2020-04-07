@@ -89,6 +89,15 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(2), SelectableInt(0x10008, 64))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1000c, 64))
 
+    def test_mtcrf(self):
+        lst = ["addi 1, 0, 0xffffffff",
+               "mtcrf 1, 0x1",
+                               ]
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+        print ("cr", sim.cr)
+        self.assertEqual(sim.cr, SelectableInt(0xffffffff, 32))
+
     def run_tst_program(self, prog, initial_regs=[0] * 32):
         simulator = self.run_tst(prog, initial_regs)
         simulator.gpr.dump()
