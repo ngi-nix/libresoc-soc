@@ -5,6 +5,8 @@ from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv)
 
 
 def check_extsign(a, b):
+    if isinstance(b, FieldSelectableInt):
+        b = b.get_range()
     if b.bits != 256:
         return b
     return SelectableInt(b.value, a.bits)
@@ -23,8 +25,12 @@ class FieldSelectableInt:
         self.br = br # map of indices.
 
     def eq(self, b):
-        self.si = copy(b.si)
-        self.br = copy(b.br)
+        if isinstance(b, SelectableInt):
+            for i in range(b.bits):
+                self[i] = b[i]
+        else:
+            self.si = copy(b.si)
+            self.br = copy(b.br)
 
     def _op(self, op, b):
         vi = self.get_range()
@@ -37,12 +43,13 @@ class FieldSelectableInt:
         return self.merge(vi)
 
     def __getitem__(self, key):
+        print ("getitem", key, self.br)
         key = self.br[key] # don't do POWER 1.3.4 bit-inversion
         return self.si[key]
 
     def __setitem__(self, key, value):
         key = self.br[key] # don't do POWER 1.3.4 bit-inversion
-        return self.si__setitem__(key, value)
+        return self.si.__setitem__(key, value)
 
     def __negate__(self):
         return self._op1(negate)
