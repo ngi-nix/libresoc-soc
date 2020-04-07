@@ -148,7 +148,7 @@ class ISACaller:
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
         # create CR then allow portions of it to be "selectable" (below)
-        self.cr = SelectableInt(0, 32)
+        self.cr = SelectableInt(0, 32) # TODO, must be bits range 32-63 not 0-31
 
         # "undefined", just set to variable-bit-width int (use exts "max")
         self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
