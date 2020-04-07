@@ -150,12 +150,16 @@ class ISACaller:
         # create CR then allow portions of it to be "selectable" (below)
         self.cr = SelectableInt(0, 32)
 
+        # "undefined", just set to variable-bit-width int (use exts "max")
+        self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
+
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
                           'memassign': self.memassign,
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
                           'CR': self.cr,
+                          'undefined': self.undefined,
                           }
 
         # field-selectable versions of Condition Register TODO check bitranges?
