@@ -22,6 +22,10 @@ class FieldSelectableInt:
             br = _br
         self.br = br # map of indices.
 
+    def eq(self, b):
+        self.si = copy(b.si)
+        self.br = copy(b.br)
+
     def _op(self, op, b):
         vi = self.get_range()
         vi = op(vi, b)
@@ -99,6 +103,10 @@ class SelectableInt:
         mask = (1 << bits) - 1
         self.value = value & mask
         self.bits = bits
+
+    def eq(self, b):
+        self.value = b.value
+        self.bits = b.bits
 
     def __add__(self, b):
         if isinstance(b, int):
@@ -207,6 +215,8 @@ class SelectableInt:
             self.value = (self.value & ~mask) | (value & mask)
 
     def __ge__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -216,6 +226,8 @@ class SelectableInt:
         assert False
 
     def __le__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -225,6 +237,8 @@ class SelectableInt:
         assert False
 
     def __gt__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -234,6 +248,8 @@ class SelectableInt:
         assert False
 
     def __lt__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -243,6 +259,9 @@ class SelectableInt:
         assert False
 
     def __eq__(self, other):
+        print ("__eq__", self, other)
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits

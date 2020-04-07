@@ -55,6 +55,7 @@ class PyISAWriter(ISA):
                 pycode, rused = convert_to_python(pcode, d.form)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
+                regs += list(rused['special_regs'])
                 args = ', '.join(create_args(regs, 'self'))
                 # create list of arguments to return
                 retargs = ', '.join(create_args(rused['write_regs']))

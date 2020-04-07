@@ -608,6 +608,7 @@ class PowerParser:
             self.op_fields.add(name)
         if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR']:
             self.special_regs.add(name)
+            self.write_regs.add(name) # and add to list to write
         p[0] = ast.Name(id=name, ctx=ast.Load())
 
     def p_atom_number(self, p):

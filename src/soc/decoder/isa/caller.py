@@ -189,10 +189,11 @@ class ISACaller:
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)
 
-        input_names = create_args(info.read_regs | info.uninit_regs |
-                                  info.special_regs)
+        # preserve order of register names
+        input_names = create_args(list(info.read_regs) + list(info.uninit_regs))
         print(input_names)
 
+        # main registers (RT, RA ...)
         inputs = []
         for name in input_names:
             regnum = yield getattr(self.decoder, name)
@@ -200,18 +201,30 @@ class ISACaller:
             self.namespace[regname] = regnum
             print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
+
+        # "special" registers
+        for special in info.special_regs:
+            inputs.append(self.namespace[special])
+
         print(inputs)
         results = info.func(self, *inputs)
         print(results)
 
+        # any modified return results?
         if info.write_regs:
             output_names = create_args(info.write_regs)
             for name, output in zip(output_names, results):
-                regnum = yield getattr(self.decoder, name)
-                print('writing reg %d' % regnum)
-                if output.bits > 64:
-                    output = SelectableInt(output.value, 64)
-                self.gpr[regnum] = output
+                if name in info.special_regs:
+                    print('writing special %s' % name, output)
+                    self.namespace[name].eq(output)
+                else:
+                    regnum = yield getattr(self.decoder, name)
+                    print('writing reg %d' % regnum)
+                    if output.bits > 64:
+                        output = SelectableInt(output.value, 64)
+                    self.gpr[regnum] = output
+
+        # update program counter
         self.pc.update(self.namespace)
 
 
