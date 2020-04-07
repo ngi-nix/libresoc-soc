@@ -1,6 +1,7 @@
 from functools import wraps
 from soc.decoder.orderedset import OrderedSet
-from soc.decoder.selectable_int import SelectableInt, selectconcat
+from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
+                                        selectconcat)
 from collections import namedtuple
 import math
 
@@ -145,12 +146,24 @@ class ISACaller:
         # 3.2.2 p45 XER  (actually SPR #0)
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
+        # create CR then allow portions of it to be "selectable" (below)
+        self.cr = SelectableInt(0, 32)
+
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
                           'memassign': self.memassign,
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
+                          'CR': self.cr,
                           }
+
+        # field-selectable versions of Condition Register TODO check bitranges?
+        self.crl = []
+        for i in range(8):
+            bits = tuple(range(i*4, (i+1)*4))# errr... maybe?
+            _cr = FieldSelectableInt(self.cr, bits)
+            self.crl.append(_cr)
+            self.namespace["CR%d" % i] = _cr
 
         self.decoder = decoder2
 
