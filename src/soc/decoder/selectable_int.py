@@ -24,7 +24,7 @@ class FieldSelectableInt:
 
     def _op(self, op, b):
         vi = self.get_range()
-        vi = op(vi + b)
+        vi = op(vi, b)
         return self.merge(vi)
 
     def _op1(self, op):
@@ -135,6 +135,7 @@ class SelectableInt:
         return SelectableInt(self.value | b.value, self.bits)
 
     def __and__(self, b):
+        print ("__and__", self, b)
         b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value & b.value, self.bits)
@@ -169,7 +170,8 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start + 1
+            bits = stop - start
+            #print ("__getitem__ slice num bits", bits)
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
             return SelectableInt(value, bits)
@@ -195,7 +197,8 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start + 1
+            bits = stop - start
+            #print ("__setitem__ slice num bits", bits)
             if isinstance(value, SelectableInt):
                 assert value.bits == bits, "%d into %d" % (value.bits, bits)
                 value = value.value
@@ -355,7 +358,7 @@ class SelectableIntTestCase(unittest.TestCase):
         a[0:4] = 3
         self.assertEqual(a, 0x39)
         a[0:4] = a[4:8]
-        self.assertEqual(a, 0x199)
+        self.assertEqual(a, 0x99)
 
     def test_concat(self):
         a = SelectableInt(0x1, 1)
