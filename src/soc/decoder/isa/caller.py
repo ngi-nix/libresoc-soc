@@ -161,7 +161,7 @@ class ISACaller:
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
         for i in range(8):
-            bits = tuple(range(i*4, (i+1)*4))# errr... maybe?
+            bits = tuple(range((7-i)*4, (8-i)*4))# errr... maybe?
             _cr = FieldSelectableInt(self.cr, bits)
             self.crl.append(_cr)
             self.namespace["CR%d" % i] = _cr
