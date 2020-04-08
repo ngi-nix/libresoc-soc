@@ -62,8 +62,8 @@ class ComputationUnitNoDelay(Elaboratable):
         # operation / data input
         self.oper_i = e.insn_type    # operand
         self.imm_i =  e.imm_data      # immediate in
-        self.src1_i = e.read_reg1    # oper1 in
-        self.src2_i = e.read_reg2    # oper2 in
+        self.src1_i = Signal(rwid, reset_less=True) # oper1 in
+        self.src2_i = Signal(rwid, reset_less=True) # oper2 in
 
         self.busy_o = Signal(reset_less=True) # fn busy out
         self.data_o = Signal(rwid, reset_less=True) # Dest out
@@ -164,8 +164,8 @@ class ComputationUnitNoDelay(Elaboratable):
         yield self.go_die_i
         yield self.oper_i
         yield from self.imm_i.ports()
-        yield from self.src1_i.ports()
-        yield from self.src2_i.ports()
+        yield self.src1_i
+        yield self.src2_i
         yield self.busy_o
         yield self.rd_rel_o
         yield self.req_rel_o
