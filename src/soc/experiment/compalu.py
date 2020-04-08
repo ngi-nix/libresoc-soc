@@ -3,6 +3,9 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
+from soc.decoder.power_decoder2 import Data
+from soc.decoder.power_enums import InternalOp
+
 
 """ Computation Unit (aka "ALU Manager").
 
@@ -44,10 +47,10 @@ from nmutil.latch import SRLatch, latchregister
 """
 
 class ComputationUnitNoDelay(Elaboratable):
-    def __init__(self, rwid, opwid, alu):
-        self.opwid = opwid
+    def __init__(self, rwid, e, alu):
         self.rwid = rwid
-        self.alu = alu
+        self.alu = alu # actual ALU - set as a "submodule" of the CU
+        self.e = e # decoded instruction
 
         self.counter = Signal(4)
         self.go_rd_i = Signal(reset_less=True) # go read in
@@ -56,10 +59,11 @@ class ComputationUnitNoDelay(Elaboratable):
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
 
-        self.oper_i = Signal(opwid, reset_less=True) # opcode in
-        self.imm_i = Signal(rwid, reset_less=True) # immediate in
-        self.src1_i = Signal(rwid, reset_less=True) # oper1 in
-        self.src2_i = Signal(rwid, reset_less=True) # oper2 in
+        # operation / data input
+        self.oper_i = e.insn_type    # operand
+        self.imm_i =  e.imm_data      # immediate in
+        self.src1_i = e.read_reg1    # oper1 in
+        self.src2_i = e.read_reg2    # oper2 in
 
         self.busy_o = Signal(reset_less=True) # fn busy out
         self.data_o = Signal(rwid, reset_less=True) # Dest out
@@ -96,9 +100,8 @@ class ComputationUnitNoDelay(Elaboratable):
         m.d.sync += req_l.s.eq(self.go_rd_i)
         m.d.sync += req_l.r.eq(reset_w)
 
-
         # create a latch/register for the operand
-        oper_r = Signal(self.opwid+1, reset_less=True) # opcode reg
+        oper_r = Signal(InternalOp, reset_less=True) # opcode reg
         latchregister(m, self.oper_i, oper_r, self.issue_i)
 
         # and one for the output from the ALU
@@ -160,9 +163,9 @@ class ComputationUnitNoDelay(Elaboratable):
         yield self.shadown_i
         yield self.go_die_i
         yield self.oper_i
-        yield self.imm_i
-        yield self.src1_i
-        yield self.src2_i
+        yield from self.imm_i.ports()
+        yield from self.src1_i.ports()
+        yield from self.src2_i.ports()
         yield self.busy_o
         yield self.rd_rel_o
         yield self.req_rel_o
@@ -196,8 +199,11 @@ def scoreboard_sim(dut):
 
 def test_scoreboard():
     from alu_hier import ALU
+    from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+
+    e = Decode2ToExecute1Type()
     alu = ALU(16)
-    dut = ComputationUnitNoDelay(16, 8, alu)
+    dut = ComputationUnitNoDelay(16, e, alu)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_compalu.il", "w") as f:
         f.write(vl)
