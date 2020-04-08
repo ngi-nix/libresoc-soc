@@ -12,6 +12,7 @@ only one cycle (sync)
 from nmigen import Elaboratable, Signal, Module, Const, Mux
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
+from soc.decoder.power_enums import InternalOp
 
 import operator
 
@@ -74,7 +75,7 @@ class ALU(Elaboratable):
         self.n_ready_i = Signal()
         self.n_valid_o = Signal()
         self.counter   = Signal(4)
-        self.op  = Signal(2)
+        self.op  = Signal(InternalOp)
         self.a   = Signal(width)
         self.b   = Signal(width)
         self.o   = Signal(width)
@@ -91,6 +92,8 @@ class ALU(Elaboratable):
         m.submodules.sub = sub
         m.submodules.mul = mul
         m.submodules.shf = shf
+
+        # really should not activate absolutely all ALU inputs like this
         for mod in [add, sub, mul, shf]:
             m.d.comb += [
                 mod.a.eq(self.a),
@@ -105,6 +108,14 @@ class ALU(Elaboratable):
                 m.d.sync += self.p_ready_o.eq(1)
 
                 # as this is a "fake" pipeline, just grab the output right now
+                with m.If(self.op == InternalOp.OP_ADD):
+                    m.d.sync += self.o.eq(add.o)
+                with m.Elif(self.op == InternalOp.OP_MUL_L64):
+                    m.d.sync += self.o.eq(mul.o)
+                with m.Elif(self.op == InternalOp.OP_SHR):
+                    m.d.sync += self.o.eq(shf.o)
+                # TODO: SUB
+
                 with m.Switch(self.op):
                     for i, mod in enumerate([add, sub, mul, shf]):
                         with m.Case(i):
