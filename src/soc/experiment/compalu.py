@@ -108,19 +108,15 @@ class ComputationUnitNoDelay(Elaboratable):
         data_r = Signal(self.rwid, reset_less=True) # Dest register
         latchregister(m, self.alu.o, data_r, req_l.q)
 
-        # get the top 2 bits for the ALU
-        m.d.comb += self.alu.op.eq(oper_r[0:2])
-
-        # 3rd bit is whether this is an immediate or not
-        op_is_imm = Signal(reset_less=True)
-        m.d.comb += op_is_imm.eq(oper_r[2])
+        # pass the operation to the ALU
+        m.d.comb += self.alu.op.eq(oper_r)
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
         src2_or_imm = Signal(self.rwid, reset_less=True)
         src_sel = Signal(reset_less=True)
-        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
+        m.d.comb += src_sel.eq(Mux(self.imm.ok, opc_l.qn, src_l.q))
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i.data, self.src2_i))
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
