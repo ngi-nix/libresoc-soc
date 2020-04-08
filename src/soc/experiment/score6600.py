@@ -13,11 +13,11 @@ from soc.scoreboard.shadow import ShadowMatrix, BranchSpeculationRecord
 from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
-from .compalu import ComputationUnitNoDelay
-from .compldst import LDSTCompUnit
-from .testmem import TestMemory
+from soc.experiment.compalu import ComputationUnitNoDelay
+from soc.experiment.compldst import LDSTCompUnit
+from soc.experiment.testmem import TestMemory
 
-from .alu_hier import ALU, BranchALU
+from soc.experiment.alu_hier import ALU, BranchALU
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
 
