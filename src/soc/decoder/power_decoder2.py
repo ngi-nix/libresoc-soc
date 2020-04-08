@@ -3,7 +3,7 @@
 based on Anton Blanchard microwatt decode2.vhdl
 
 """
-from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl
+from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
 
 from soc.decoder.power_decoder import create_pdecode
@@ -61,16 +61,17 @@ class DecodeA(Elaboratable):
 
         return m
 
-class Data:
+
+class Data(Record):
 
     def __init__(self, width, name):
-
-        self.data = Signal(width, name=name, reset_less=True)
-        self.ok = Signal(name="%s_ok" % name, reset_less=True)
-
-    def eq(self, rhs):
-        return [self.data.eq(rhs.data),
-                self.ok.eq(rhs.ok)]
+        name_ok = "%s_ok" % name
+        layout = ((name, width), (name_ok, 1))
+        Record.__init__(self, layout)
+        self.data = getattr(self, name) # convenience
+        self.ok = getattr(self, name_ok) # convenience
+        self.data.reset_less = True # grrr
+        self.reset_less = True # grrr
 
     def ports(self):
         return [self.data, self.ok]
@@ -342,6 +343,7 @@ class Decode2ToExecute1Type:
                 self.read_reg3.ports() + \
                 self.imm_data.ports()
                 # + self.xerc.ports()
+
 
 class PowerDecode2(Elaboratable):
 
