@@ -191,18 +191,19 @@ class ALU(Elaboratable):
                 # NOTE: all of these are fake, just something to test
 
                 # MUL, to take 5 instructions
-                with m.If(self.op.insn_type == InternalOp.OP_MUL_L64.value):
+                with m.If(self.op.insn_type == InternalOp.OP_MUL_L64):
                     m.d.sync += self.counter.eq(5)
                 # SHIFT to take 7
-                with m.Elif(self.op.insn_type == InternalOp.OP_SHR.value):
+                with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
                     m.d.sync += self.counter.eq(7)
-                # SUB to take 1, straight away
-                with m.If(self.op.insn_type == InternalOp.OP_ADD.value):
-                    m.d.sync += self.counter.eq(1)
-                    m.d.comb += go_now.eq(1)
-                # ADD to take 2
+                # ADD/SUB to take 2, straight away
+                with m.If(self.op.insn_type == InternalOp.OP_ADD):
+                    m.d.sync += self.counter.eq(3)
+                # others to take 1, straight away
                 with m.Else():
-                    m.d.sync += self.counter.eq(2)
+                    m.d.comb += go_now.eq(1)
+                    m.d.sync += self.counter.eq(1)
+
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
