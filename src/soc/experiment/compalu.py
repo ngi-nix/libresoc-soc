@@ -6,6 +6,7 @@ from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
+from alu_hier import CompALUOpSubset
 
 """ Computation Unit (aka "ALU Manager").
 
@@ -39,12 +40,8 @@ from soc.decoder.power_enums import InternalOp
       register is placed combinatorially onto the output, and (2) the
       req_l latch is cleared, busy is dropped, and the Comp Unit is back
       through its revolving door to do another task.
-
-    Notes on oper_i:
-
-    * bits[0:2] are for the ALU, add=0, sub=1, shift=2, mul=3
-    * bit[2] are the immediate (bit[2]=1 == immediate mode)
 """
+
 
 class ComputationUnitNoDelay(Elaboratable):
     def __init__(self, rwid, e, alu):
@@ -60,8 +57,8 @@ class ComputationUnitNoDelay(Elaboratable):
         self.go_die_i = Signal() # go die (reset)
 
         # operation / data input
-        self.oper_i = e.insn_type    # operand
-        self.imm_i =  e.imm_data      # immediate in
+        self.oper_i = CompALUOpSubset() # operand
+        self.imm_i =  self.oper_i.imm_data      # immediate in
         self.src1_i = Signal(rwid, reset_less=True) # oper1 in
         self.src2_i = Signal(rwid, reset_less=True) # oper2 in
 
