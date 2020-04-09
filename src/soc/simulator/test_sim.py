@@ -46,7 +46,7 @@ class DecoderTestCase(FHDLTestCase):
 
         sim.add_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                           traces=[pdecode2.ports()]):
+                           traces=pdecode2.ports()):
             sim.run()
 
     def test_example(self):
