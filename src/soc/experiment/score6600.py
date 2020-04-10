@@ -17,7 +17,7 @@ from soc.experiment.compalu import ComputationUnitNoDelay
 from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 
-from soc.experiment.alu_hier import ALU, BranchALU
+from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
 
 from soc.decoder.power_enums import InternalOp, Function
 
@@ -239,6 +239,7 @@ class CompUnitALUs(CompUnitsBase):
         self.opwid = opwid
 
         # inputs
+        self.op = CompALUOpSubset("cua_i")
         self.oper_i = Signal(opwid, reset_less=True)
         self.imm_i = Signal(rwid, reset_less=True)
 
@@ -258,10 +259,11 @@ class CompUnitALUs(CompUnitsBase):
         m = CompUnitsBase.elaborate(self, platform)
         comb = m.d.comb
 
-        # hand the same operation to all units, only lower 3 bits though
+        # hand the subset of operation to ALUs
         for alu in self.units:
-            comb += alu.oper_i[0:3].eq(self.oper_i)
-            comb += alu.imm_i.eq(self.imm_i)
+            comb += alu.oper_i.eq(self.op)
+            #comb += alu.oper_i[0:3].eq(self.oper_i)
+            #comb += alu.imm_i.eq(self.imm_i)
 
         return m
 
@@ -398,8 +400,7 @@ class Scoreboard(Elaboratable):
         self.lsissue = IssueUnitGroup(2)
         self.brissue = IssueUnitGroup(1)
         # and these
-        self.alu_oper_i = Signal(4, reset_less=True)
-        self.alu_imm_i = Signal(rwid, reset_less=True)
+        self.alu_op = CompALUOpSubset("alu")
         self.br_oper_i = Signal(4, reset_less=True)
         self.br_imm_i = Signal(rwid, reset_less=True)
         self.ls_oper_i = Signal(4, reset_less=True)
@@ -512,8 +513,7 @@ class Scoreboard(Elaboratable):
                  ]
 
         # take these to outside (issue needs them)
-        comb += cua.oper_i.eq(self.alu_oper_i)
-        comb += cua.imm_i.eq(self.alu_imm_i)
+        comb += cua.op.eq(self.alu_op)
         comb += cub.oper_i.eq(self.br_oper_i)
         comb += cub.imm_i.eq(self.br_imm_i)
         comb += cul.oper_i.eq(self.ls_oper_i)
@@ -788,13 +788,14 @@ class IssueToScoreboard(Elaboratable):
         # "resetting" done above (insn_i=0) could be re-ASSERTed.
         with m.If(iq.qlen_o != 0):
             # get the operands and operation
-            imm = iq.data_o[0].imm_data.data
-            dest = iq.data_o[0].write_reg.data
-            src1 = iq.data_o[0].read_reg1.data
-            src2 = iq.data_o[0].read_reg2.data
-            op = iq.data_o[0].insn_type
-            fu = iq.data_o[0].fn_unit
-            opi = iq.data_o[0].imm_data.ok  # immediate set
+            instr = iq.data_o[0]
+            imm = instr.imm_data.data
+            dest = instr.write_reg.data
+            src1 = instr.read_reg1.data
+            src2 = instr.read_reg2.data
+            op = instr.insn_type
+            fu = instr.fn_unit
+            opi = instr.imm_data.ok  # immediate set
 
             # set the src/dest regs
             comb += sc.int_dest_i.eq(dest)
@@ -803,7 +804,11 @@ class IssueToScoreboard(Elaboratable):
             comb += sc.reg_enable_i.eq(1)  # enable the regfile
 
             # choose a Function-Unit-Group
-            with m.If((op & (0x3 << 2)) != 0):  # branch
+            with m.If(fu == Function.ALU):  # alu
+                comb += sc.alu_op.eq_from_execute1(instr)
+                comb += sc.aluissue.insn_i.eq(1)
+                comb += wait_issue_alu.eq(1)
+            with m.Elif((op & (0x3 << 2)) != 0):  # branch
                 comb += sc.br_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.br_imm_i.eq(imm)
                 comb += sc.brissue.insn_i.eq(1)
@@ -818,11 +823,6 @@ class IssueToScoreboard(Elaboratable):
                 comb += sc.ls_imm_i.eq(imm)
                 comb += sc.lsissue.insn_i.eq(1)
                 comb += wait_issue_ls.eq(1)
-            with m.Else():  # alu
-                comb += sc.alu_oper_i.eq(Cat(op[0:2], opi))
-                comb += sc.alu_imm_i.eq(imm)
-                comb += sc.aluissue.insn_i.eq(1)
-                comb += wait_issue_alu.eq(1)
 
             # XXX TODO
             # these indicate that the instruction is to be made
@@ -1108,6 +1108,9 @@ def scoreboard_sim(dut, alusim):
             instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
             instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
+                           0, 0, (0, 0)))
+        if True:
+            instrs.append((3, 5, 5, InternalOp.OP_MUL_L64, Function.ALU,
                            0, 0, (0, 0)))
 
         if False:

@@ -44,10 +44,10 @@ class RegSim:
             src2 = self.regs[src2] & maxbits
         if op == InternalOp.OP_ADD:
             val = src1 + src2
+        elif op == InternalOp.OP_MUL_L64:
+            val = src1 * src2
         elif op == ISUB:
             val = src1 - src2
-        elif op == IMUL:
-            val = src1 * src2
         elif op == ISHF:
             val = src1 >> (src2 & maxbits)
         elif op == IBGT:
