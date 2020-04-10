@@ -293,6 +293,7 @@ class Decode2ToExecute1Type(RecordObject):
 
         self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
+        self.fn_unit = Signal(Function, reset_less=True)
         self.nia = Signal(64, reset_less=True)
         self.write_reg = Data(5, name="rego")
         self.read_reg1 = Data(5, name="reg1")
@@ -374,10 +375,12 @@ class PowerDecode2(Elaboratable):
                 comb += self.e.data_len.eq(8)
 
         #comb += self.e.nia.eq(self.dec.nia) # XXX TODO
-        itype = Mux(self.dec.op.function_unit == Function.NONE,
+        fu = self.dec.op.function_unit
+        itype = Mux(fu == Function.NONE,
                     InternalOp.OP_ILLEGAL,
                     self.dec.op.internal_op)
         comb += self.e.insn_type.eq(itype)
+        comb += self.e.fn_unit.eq(fu)
 
         # registers a, b, c and out
         comb += self.e.read_reg1.eq(dec_a.reg_out)

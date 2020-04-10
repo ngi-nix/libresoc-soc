@@ -42,7 +42,7 @@ class RegSim:
             src2 = imm
         else:
             src2 = self.regs[src2] & maxbits
-        if op == IADD:
+        if op == InternalOp.OP_ADD:
             val = src1 + src2
         elif op == ISUB:
             val = src1 - src2

@@ -18,6 +18,9 @@ from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 
 from soc.experiment.alu_hier import ALU, BranchALU
+
+from soc.decoder.power_enums import InternalOp, Function
+
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
 
@@ -247,7 +250,7 @@ class CompUnitALUs(CompUnitsBase):
         units = []
         for alu in alus:
             aluopwid = 3  # extra bit for immediate mode
-            units.append(ComputationUnitNoDelay(rwid, aluopwid, alu))
+            units.append(ComputationUnitNoDelay(rwid, alu))
 
         CompUnitsBase.__init__(self, rwid, units)
 
@@ -283,7 +286,7 @@ class CompUnitBR(CompUnitsBase):
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
         aluopwid = 3  # extra bit for immediate mode
-        self.br1 = ComputationUnitNoDelay(rwid, aluopwid, self.bgt)
+        self.br1 = ComputationUnitNoDelay(rwid, self.bgt)
         CompUnitsBase.__init__(self, rwid, [self.br1])
 
     def elaborate(self, platform):
@@ -729,7 +732,7 @@ class IssueToScoreboard(Elaboratable):
         mqbits = unsigned(int(log(qlen) / log(2))+2)
         self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
         self.p_ready_o = Signal()  # instructions were added
-        self.data_i = Instruction.nq(n_in, "data_i", rwid, opwid)
+        self.data_i = Instruction._nq(n_in, "data_i")
 
         self.busy_o = Signal(reset_less=True)  # at least one CU is busy
         self.qlen_o = Signal(mqbits, reset_less=True)
@@ -785,12 +788,13 @@ class IssueToScoreboard(Elaboratable):
         # "resetting" done above (insn_i=0) could be re-ASSERTed.
         with m.If(iq.qlen_o != 0):
             # get the operands and operation
-            imm = iq.data_o[0].imm_i
-            dest = iq.data_o[0].dest_i
-            src1 = iq.data_o[0].src1_i
-            src2 = iq.data_o[0].src2_i
-            op = iq.data_o[0].oper_i
-            opi = iq.data_o[0].opim_i  # immediate set
+            imm = iq.data_o[0].imm_data.data
+            dest = iq.data_o[0].write_reg.data
+            src1 = iq.data_o[0].read_reg1.data
+            src2 = iq.data_o[0].read_reg2.data
+            op = iq.data_o[0].insn_type
+            fu = iq.data_o[0].fn_unit
+            opi = iq.data_o[0].imm_data.ok  # immediate set
 
             # set the src/dest regs
             comb += sc.int_dest_i.eq(dest)
@@ -839,14 +843,30 @@ class IssueToScoreboard(Elaboratable):
         return list(self)
 
 
-def instr_q(dut, op, op_imm, imm, src1, src2, dest,
+def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
             branch_success, branch_fail):
-    instrs = [{'oper_i': op, 'dest_i': dest, 'imm_i': imm, 'opim_i': op_imm,
-               'src1_i': src1, 'src2_i': src2}]
+    instrs = [{'insn_type': op, 'fn_unit': funit, 'write_reg': dest,
+                'imm_data': (imm, op_imm),
+               'read_reg1': src1, 'read_reg2': src2}]
 
     sendlen = 1
-    for idx in range(sendlen):
-        yield from eq(dut.data_i[idx], instrs[idx])
+    for idx, instr in enumerate(instrs):
+        imm, op_imm = instr['imm_data']
+        reg1 = instr['read_reg1']
+        reg2 = instr['read_reg2']
+        dest = instr['write_reg']
+        insn_type = instr['insn_type']
+        fn_unit = instr['fn_unit']
+        yield dut.data_i[idx].insn_type.eq(insn_type)
+        yield dut.data_i[idx].fn_unit.eq(fn_unit)
+        yield dut.data_i[idx].read_reg1.data.eq(reg1)
+        yield dut.data_i[idx].read_reg1.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].read_reg2.data.eq(reg2)
+        yield dut.data_i[idx].read_reg2.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].write_reg.data.eq(dest)
+        yield dut.data_i[idx].write_reg.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].imm_data.data.eq(imm)
+        yield dut.data_i[idx].imm_data.ok.eq(op_imm)
         di = yield dut.data_i[idx]
         print("senddata %d %x" % (idx, di))
     yield dut.p_add_i.eq(sendlen)
@@ -1072,19 +1092,23 @@ def scoreboard_sim(dut, alusim):
         if False:
             instrs = create_random_ops(dut, 15, True, 4)
 
-        if True:  # LD/ST test (with immediate)
+        if False:  # LD/ST test (with immediate)
             instrs.append((1, 2, 0, 0x20, 1, 1, (0, 0)))  # LD
             #instrs.append( (1, 2, 0, 0x10, 1, 1, (0, 0)) )
 
-        if True:
+        if False:
             instrs.append((1, 2, 2, 1, 1, 20, (0, 0)))
 
-        if True:
+        if False:
             instrs.append((7, 3, 2, 4, 0, 0, (0, 0)))
             instrs.append((7, 6, 6, 2, 0, 0, (0, 0)))
             instrs.append((1, 7, 2, 2, 0, 0, (0, 0)))
 
         if True:
+            instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
+                           0, 0, (0, 0)))
+
+        if False:
             instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
             instrs.append((5, 3, 3, 1, 0, 0, (0, 0)))
             instrs.append((3, 5, 5, 2, 0, 0, (0, 0)))
@@ -1176,12 +1200,13 @@ def scoreboard_sim(dut, alusim):
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
-            src1, src2, dest, op, opi, imm, (br_ok, br_fail) = instr
+            print (i, instr)
+            src1, src2, dest, op, fn_unit, opi, imm, (br_ok, br_fail) = instr
 
-            print("instr %d: (%d, %d, %d, %d, %d, %d)" %
-                  (i, src1, src2, dest, op, opi, imm))
+            print("instr %d: (%d, %d, %d, %s, %s, %d, %d)" %
+                  (i, src1, src2, dest, op, fn_unit, opi, imm))
             alusim.op(op, opi, imm, src1, src2, dest)
-            yield from instr_q(dut, op, opi, imm, src1, src2, dest,
+            yield from instr_q(dut, op, fn_unit, opi, imm, src1, src2, dest,
                                br_ok, br_fail)
 
         # wait for all instructions to stop before checking

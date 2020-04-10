@@ -15,7 +15,7 @@ from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
 
-from soc.decoder.power_enums import InternalOp, CryIn
+from soc.decoder.power_enums import InternalOp, Function, CryIn
 
 import operator
 
@@ -29,6 +29,7 @@ class CompALUOpSubset(Record):
     """
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
+                  ('fn_unit', Function),
                   ('nia', 64),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                     #'cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
@@ -51,6 +52,7 @@ class CompALUOpSubset(Record):
 
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
+        self.fn_unit.reset_less = True
         self.nia.reset_less = True
         #self.cr = Signal(32, reset_less = True
         #self.xerc = XerBits(
@@ -92,6 +94,7 @@ class CompALUOpSubset(Record):
                 self.byte_reverse,
                 self.sign_extend,
         ]
+
 
 class Adder(Elaboratable):
     def __init__(self, width):
