@@ -1107,6 +1107,8 @@ def scoreboard_sim(dut, alusim):
         if True:
             instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
+            instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
+                           0, 0, (0, 0)))
 
         if False:
             instrs.append((2, 3, 3, 0, 0, 0, (0, 0)))
