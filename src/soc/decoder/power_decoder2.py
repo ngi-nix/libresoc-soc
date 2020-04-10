@@ -6,6 +6,8 @@ based on Anton Blanchard microwatt decode2.vhdl
 from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
 
+from nmutil.iocontrol import RecordObject
+
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (InternalOp, CryIn, Function,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
@@ -283,9 +285,11 @@ class XerBits:
         return [self.ca, self.ca32, self.ov, self.ov32, self.so, ]
 
 
-class Decode2ToExecute1Type:
+class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self):
+    def __init__(self, name=None):
+
+        RecordObject.__init__(self, name=name)
 
         self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
@@ -319,30 +323,6 @@ class Decode2ToExecute1Type:
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.update  = Signal(reset_less=True) # is this an update instruction?
-
-    def ports(self):
-        return [self.valid, self.insn_type, self.nia,
-                #self.read_data1, self.read_data2, self.read_data3,
-                #self.cr,
-                self.lk,
-                self.invert_a, self.invert_out,
-                self.input_carry, self.output_carry,
-                self.input_cr, self.output_cr,
-                self.is_32bit, self.is_signed,
-                self.insn,
-                self.data_len, self.byte_reverse , self.sign_extend ,
-                self.update] + \
-                self.oe.ports() + \
-                self.rc.ports() + \
-                self.write_spr.ports() + \
-                self.read_spr1.ports() + \
-                self.read_spr2.ports() + \
-                self.write_reg.ports() + \
-                self.read_reg1.ports() + \
-                self.read_reg2.ports() + \
-                self.read_reg3.ports() + \
-                self.imm_data.ports()
-                # + self.xerc.ports()
 
 
 class PowerDecode2(Elaboratable):

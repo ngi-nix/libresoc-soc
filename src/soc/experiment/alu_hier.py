@@ -27,7 +27,7 @@ class CompALUOpSubset(Record):
     needed for ALU operations.  use with eq_from_execute1 (below) to
     grab subsets.
     """
-    def __init__(self):
+    def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('nia', 64),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
@@ -47,7 +47,7 @@ class CompALUOpSubset(Record):
                   ('byte_reverse', 1),
                   ('sign_extend', 1))
 
-        Record.__init__(self, Layout(layout))
+        Record.__init__(self, Layout(layout), name=name)
 
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
