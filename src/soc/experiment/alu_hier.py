@@ -24,7 +24,8 @@ class CompALUOpSubset(Record):
     """CompALUOpSubset
 
     a copy of the relevant subset information from Decode2Execute1Type
-    needed for ALU operations.
+    needed for ALU operations.  use with eq_from_execute1 (below) to
+    grab subsets.
     """
     def __init__(self):
         layout = (('insn_type', InternalOp),
@@ -64,6 +65,15 @@ class CompALUOpSubset(Record):
         self.is_signed.reset_less = True
         self.byte_reverse.reset_less = True
         self.sign_extend.reset_less = True
+
+    def eq_from_execute1(self, other):
+        """ use this to copy in from Decode2Execute1Type
+        """
+        res = []
+        for fname, sig in self.fields.items():
+            eqfrom = other.fields[fname]
+            res.append(sig.eq(eqfrom)
+        return res
 
     def ports(self):
         return [self.insn_type,
