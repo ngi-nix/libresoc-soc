@@ -72,7 +72,7 @@ class CompALUOpSubset(Record):
         res = []
         for fname, sig in self.fields.items():
             eqfrom = other.fields[fname]
-            res.append(sig.eq(eqfrom)
+            res.append(sig.eq(eqfrom))
         return res
 
     def ports(self):
