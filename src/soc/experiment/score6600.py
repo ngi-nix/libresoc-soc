@@ -298,7 +298,7 @@ class CompUnitBR(CompUnitsBase):
         # hand the same operation to all units
         for alu in self.units:
             comb += alu.oper_i.eq(self.oper_i)
-            comb += alu.imm_i.eq(self.imm_i)
+            #comb += alu.imm_i.eq(self.imm_i)
 
         return m
 
@@ -1104,7 +1104,7 @@ def scoreboard_sim(dut, alusim):
             instrs.append((7, 6, 6, 2, 0, 0, (0, 0)))
             instrs.append((1, 7, 2, 2, 0, 0, (0, 0)))
 
-        if False:
+        if True:
             instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
             instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
