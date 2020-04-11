@@ -697,7 +697,7 @@ class Scoreboard(Elaboratable):
         comb += int_src1.ren.eq(intfus.src1_rsel_o)
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
-        # connect ALUs to regfule
+        # connect ALUs to regfile
         comb += int_dest.data_i.eq(cu.data_o)
         comb += cu.src1_i.eq(int_src1.data_o)
         comb += cu.src2_i.eq(int_src2.data_o)
