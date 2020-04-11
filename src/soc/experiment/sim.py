@@ -46,6 +46,7 @@ class RegSim:
             val = src1 + src2
         elif op == InternalOp.OP_MUL_L64:
             val = src1 * src2
+            print ("mul src1, src2", src1, src2, val)
         elif op == ISUB:
             val = src1 - src2
         elif op == ISHF:

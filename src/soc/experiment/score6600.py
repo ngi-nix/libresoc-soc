@@ -1104,13 +1104,16 @@ def scoreboard_sim(dut, alusim):
             instrs.append((7, 6, 6, 2, 0, 0, (0, 0)))
             instrs.append((1, 7, 2, 2, 0, 0, (0, 0)))
 
-        if True:
+        if False:
             instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
             instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
         if True:
             instrs.append((3, 5, 5, InternalOp.OP_MUL_L64, Function.ALU,
+                           1, 7, (0, 0)))
+        if False:
+            instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
 
         if False:
@@ -1232,8 +1235,9 @@ def scoreboard_sim(dut, alusim):
 
 
 def test_scoreboard():
-    dut = IssueToScoreboard(2, 1, 1, 16, 8, 8)
-    alusim = RegSim(16, 8)
+    regwidth = 64
+    dut = IssueToScoreboard(2, 1, 1, regwidth, 8, 8)
+    alusim = RegSim(regwidth, 8)
     memsim = MemSim(16, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
