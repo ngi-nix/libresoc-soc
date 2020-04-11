@@ -2,6 +2,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen.hdl.ast import unsigned
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable, Memory
+from nmigen.back.pysim import Delay
 
 from soc.regfile.regfile import RegFileArray, treereduce
 from soc.scoreboard.fu_fu_matrix import FUFUDepMatrix
@@ -20,6 +21,10 @@ from soc.experiment.testmem import TestMemory
 from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
 
 from soc.decoder.power_enums import InternalOp, Function
+from soc.decoder.power_decoder import (create_pdecode)
+from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.simulator.program import Program
+
 
 from nmutil.latch import SRLatch
 from nmutil.nmoperator import eq
@@ -843,6 +848,25 @@ class IssueToScoreboard(Elaboratable):
         return list(self)
 
 
+def power_instr_q(dut, pdecode2, ins, code):
+    instrs = [pdecode2.e]
+
+    sendlen = 1
+    for idx, instr in enumerate(instrs):
+        yield dut.data_i[idx].eq(instr)
+        insn_type = yield instr.insn_type
+        fn_unit = yield instr.fn_unit
+        print("senddata ", idx, insn_type, fn_unit, instr)
+    yield dut.p_add_i.eq(sendlen)
+    yield
+    o_p_ready = yield dut.p_ready_o
+    while not o_p_ready:
+        yield
+        o_p_ready = yield dut.p_ready_o
+
+    yield dut.p_add_i.eq(0)
+
+
 def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
             branch_success, branch_fail):
     instrs = [{'insn_type': op, 'fn_unit': funit, 'write_reg': dest,
@@ -1073,6 +1097,55 @@ def scoreboard_branch_sim(dut, alusim):
         yield from alusim.dump(dut)
 
 
+def power_sim(m, dut, pdecode2, instruction, alusim):
+
+    seed(0)
+
+    for i in range(1):
+
+        # set random values in the registers
+        for i in range(1, dut.n_regs):
+            #val = randint(0, (1<<alusim.rwidth)-1)
+            #val = 31+i*3
+            val = i # XXX actually, not random at all
+            yield dut.intregs.regs[i].reg.eq(val)
+            alusim.setval(i, val)
+
+        # create some instructions
+        lst = ["addi 3, 0, 0x1234",
+               "addi 2, 0, 0x4321",
+               "add  1, 3, 2"]
+        with Program(lst) as program:
+            gen = program.generate_instructions()
+
+            # issue instruction(s), wait for issue to be free before proceeding
+            for ins, code in zip(gen, program.assembly.splitlines()):
+                yield instruction.eq(ins)          # raw binary instr.
+                yield Delay(1e-6)
+
+                print("binary 0x{:X}".format(ins & 0xffffffff))
+                print("assembly", code)
+
+                #alusim.op(op, opi, imm, src1, src2, dest)
+                yield from power_instr_q(dut, pdecode2, ins, code)
+
+        # wait for all instructions to stop before checking
+        while True:
+            iqlen = yield dut.qlen_o
+            if iqlen == 0:
+                break
+            yield
+        yield
+        yield
+        yield
+        yield
+        yield from wait_for_busy_clear(dut)
+
+        # check status
+        yield from alusim.check(dut)
+        yield from alusim.dump(dut)
+
+
 def scoreboard_sim(dut, alusim):
 
     seed(0)
@@ -1109,7 +1182,7 @@ def scoreboard_sim(dut, alusim):
                            0, 0, (0, 0)))
             instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
-        if True:
+        if False:
             instrs.append((3, 5, 5, InternalOp.OP_MUL_L64, Function.ALU,
                            1, 7, (0, 0)))
         if False:
@@ -1239,12 +1312,30 @@ def test_scoreboard():
     dut = IssueToScoreboard(2, 1, 1, regwidth, 8, 8)
     alusim = RegSim(regwidth, 8)
     memsim = MemSim(16, 8)
-    vl = rtlil.convert(dut, ports=dut.ports())
+
+    m = Module()
+    comb = m.d.comb
+    instruction = Signal(32)
+
+    # set up the decoder (and simulator, later)
+    pdecode = create_pdecode()
+    #simulator = ISA(pdecode, initial_regs)
+
+    m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+    m.submodules.sim = dut
+
+    comb += pdecode2.dec.raw_opcode_in.eq(instruction)
+    comb += pdecode2.dec.bigendian.eq(0)  # little / big?
+
+    vl = rtlil.convert(m, ports=dut.ports())
     with open("test_scoreboard6600.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut, alusim),
-                   vcd_name='test_scoreboard6600.vcd')
+    run_simulation(m, power_sim(m, dut, pdecode2, instruction, alusim),
+                   vcd_name='test_powerboard6600.vcd')
+
+    #run_simulation(dut, scoreboard_sim(dut, alusim),
+    #               vcd_name='test_scoreboard6600.vcd')
 
     # run_simulation(dut, scoreboard_branch_sim(dut, alusim),
     #                    vcd_name='test_scoreboard6600.vcd')
