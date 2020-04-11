@@ -57,7 +57,6 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # operation / data input
         self.oper_i = CompALUOpSubset() # operand
-        self.imm_i =  self.oper_i.imm_data      # immediate in
         self.src1_i = Signal(rwid, reset_less=True) # oper1 in
         self.src2_i = Signal(rwid, reset_less=True) # oper2 in
 
@@ -109,11 +108,12 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
-        op_is_imm = self.imm_i.imm_ok
+        op_is_imm = oper_r.imm_data.imm_ok
         src2_or_imm = Signal(self.rwid, reset_less=True)
         src_sel = Signal(reset_less=True)
         m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q))
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i.imm, self.src2_i))
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
+                                                  self.src2_i))
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
@@ -168,16 +168,14 @@ class ComputationUnitNoDelay(Elaboratable):
 
 
 def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
-    yield dut.issue_i.eq(1)
-    yield
     yield dut.issue_i.eq(0)
     yield
     yield dut.src1_i.eq(a)
     yield dut.src2_i.eq(b)
     yield dut.oper_i.insn_type.eq(op)
     yield dut.oper_i.invert_a.eq(inv_a)
-    yield dut.imm_i.imm.eq(imm)
-    yield dut.imm_i.imm_ok.eq(imm_ok)
+    yield dut.oper_i.imm_data.imm.eq(imm)
+    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)

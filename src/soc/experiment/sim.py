@@ -36,6 +36,7 @@ class RegSim:
         self.regs = [0] * nregs
 
     def op(self, op, op_imm, imm, src1, src2, dest):
+        print ("regsim op src1, src2", op, op_imm, imm, src1, src2, dest)
         maxbits = (1 << self.rwidth) - 1
         src1 = self.regs[src1] & maxbits
         if op_imm:
