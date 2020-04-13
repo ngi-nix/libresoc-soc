@@ -61,7 +61,6 @@ class DependencyRow(Elaboratable):
         # for Register File Select Lines (vertical)
         self.dest_rsel_o = Signal(n_reg, reset_less=True)  # dest reg sel (bot)
         self.src_rsel_o = Array(rsel)   # src reg sel (bot)
-        self.src2_rsel_o = Signal(n_reg, reset_less=True)  # src2 reg sel (bot)
 
         # for Function Unit "forward progress" (horizontal)
         self.dest_fwd_o = Signal(n_reg, reset_less=True)   # dest FU fw (right)
