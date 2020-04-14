@@ -37,16 +37,20 @@ class FURegDepMatrix(Elaboratable):
         # arrays
         src = []
         rsel = []
+        rd = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
             rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
+            rd.append(Signal(nf, name="gord%d_i" % j, reset_less=True))
         dst = []
         dsel = []
+        wr = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             dst.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
             dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
+            wr.append(Signal(nf, name="gowr%d_i" % j, reset_less=True))
         wpnd = []
         pend = []
         for i in range(nf):
@@ -67,8 +71,8 @@ class FURegDepMatrix(Elaboratable):
         self.v_rd_rsel_o = Signal(n_reg_col, reset_less=True) # rd pending (bot)
 
         self.issue_i = Signal(n_fu_row, reset_less=True)  # Issue in (top)
-        self.go_wr_i = Signal(n_fu_row, reset_less=True)  # Go Write in (left)
-        self.go_rd_i = Signal(n_fu_row, reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Array(wr)  # Go Write in (left)
+        self.go_rd_i = Array(rd)  # Go Read in (left)
         self.go_die_i = Signal(n_fu_row, reset_less=True) # Go Die in (left)
 
         # for Register File Select Lines (horizontal), per-reg
@@ -243,20 +247,30 @@ class FURegDepMatrix(Elaboratable):
         # ---
         # connect Dep issue_i/go_rd_i/go_wr_i to module issue_i/go_rd/go_wr
         # ---
-        go_rd_i = []
-        go_wr_i = []
         issue_i = []
         for fu in range(self.n_fu_row):
             dc = dm[fu]
-            # accumulate cell fwd outputs for dest/src1/src2
-            go_rd_i.append(dc.go_rd_i)
-            go_wr_i.append(dc.go_wr_i)
             issue_i.append(dc.issue_i)
         # wire up inputs from module to row cell inputs (Cat is gooood)
-        m.d.comb += [Cat(*go_rd_i).eq(self.go_rd_i),
-                     Cat(*go_wr_i).eq(self.go_wr_i),
-                     Cat(*issue_i).eq(self.issue_i),
-                    ]
+        m.d.comb += Cat(*issue_i).eq(self.issue_i)
+
+        for i in range(self.n_src):
+            go_rd_i = []
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                # accumulate cell fwd outputs for dest/src1/src2
+                go_rd_i.append(dc.go_rd_i[i])
+            # wire up inputs from module to row cell inputs (Cat is gooood)
+            m.d.comb += Cat(*go_rd_i).eq(self.go_rd_i[i])
+
+        for i in range(self.n_dest):
+            go_wr_i = []
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                # accumulate cell fwd outputs for dest/src1/src2
+                go_wr_i.append(dc.go_wr_i[i])
+            # wire up inputs from module to row cell inputs (Cat is gooood)
+            m.d.comb += Cat(*go_wr_i).eq(self.go_wr_i[i])
 
         # ---
         # connect Dep go_die_i
@@ -281,8 +295,8 @@ class FURegDepMatrix(Elaboratable):
         yield from self.dest_i
         yield from self.src_i
         yield self.issue_i
-        yield self.go_wr_i
-        yield self.go_rd_i
+        yield from self.go_wr_i
+        yield from self.go_rd_i
         yield self.go_die_i
         yield from self.dest_rsel_o
         yield from self.src_rsel_o
