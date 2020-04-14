@@ -9,7 +9,7 @@ A "real" integer ALU would place the answers onto the output bus after
 only one cycle (sync)
 """
 
-from nmigen import Elaboratable, Signal, Module, Const, Mux
+from nmigen import Elaboratable, Signal, Module, Const, Mux, Array
 from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
@@ -159,9 +159,13 @@ class ALU(Elaboratable):
         self.n_valid_o = Signal()
         self.counter   = Signal(4)
         self.op  = CompALUOpSubset()
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width)
+        i = []
+        i.append(Signal(width, name="i1"))
+        i.append(Signal(width, name="i2"))
+        self.i = Array(i)
+        self.a, self.b = i[0], i[1]
+        self.out = Array([Signal(width)])
+        self.o = self.out[0]
         self.width = width
 
     def elaborate(self, platform):
