@@ -217,10 +217,11 @@ class FURegDepMatrix(Elaboratable):
                          dc.wr_pend_i.eq(self.wr_pend_i),
                         ]
         # same for dest
-        for fu in range(self.n_fu_row):
-            dc = dm[fu]
-            # wire up inputs from module to row cell inputs (Cat is gooood)
-            m.d.comb += dc.dest_i[i].eq(self.dest_i[i])
+        for i in range(self.n_dest):
+            for fu in range(self.n_fu_row):
+                dc = dm[fu]
+                # wire up inputs from module to row cell inputs (Cat is gooood)
+                m.d.comb += dc.dest_i[i].eq(self.dest_i[i])
 
         # same for src
         for i in range(self.n_src):
