@@ -2,7 +2,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat, Const
 
-from soc.scoreboard.fu_dep_cell_multi import FUDependenceCell
+from soc.scoremulti.fu_dep_cell_multi import FUDependenceCell
 from soc.scoreboard.fu_picker_vec import FU_Pick_Vec
 
 """

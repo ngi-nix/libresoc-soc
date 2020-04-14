@@ -2,9 +2,9 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array, Cat, Repl
 
-from soc.scoreboard.dep_multi_cell import DependencyRow
-from soc.scoreboard.fu_wr_pend_multi import FU_RW_Pend
-from soc.scoreboard.reg_sel_multi import Reg_Rsv
+from soc.scoremulti.dep_multi_cell import DependencyRow
+from soc.scoremulti.fu_wr_pend_multi import FU_RW_Pend
+from soc.scoremulti.reg_sel_multi import Reg_Rsv
 from soc.scoreboard.global_pending import GlobalPending
 
 """

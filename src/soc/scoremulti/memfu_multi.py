@@ -2,7 +2,7 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Array, Elaboratable
 
-from soc.scoreboard.fu_fu_matrix_multi import FUFUDepMatrix
+from soc.scoremulti.fu_fu_matrix_multi import FUFUDepMatrix
 from soc.scoreboard.mdm import FUMemMatchMatrix
 
 
