@@ -32,10 +32,12 @@ class QemuController:
         return self.gdb.write('-data-list-register-values x')
 
     def get_register(self, num):
-        res = self.gdb.write('-data-list-register-values x {}'.format(num))
-        assert 'register-values' in res[0]['payload']
-        val = int(res[0]['payload']['register-values'][0]['value'], 0)
-        return val
+        res = self.gdb.write('-data-list-register-values x {}'.format(num),timeout_sec=1.0) # increase this timeout if needed
+        for x in res:
+            if(x["type"]=="result"):
+                assert 'register-values' in x['payload']
+                return int(x['payload']['register-values'][0]['value'], 0)
+        return None
 
     def step(self):
         return self.gdb.write('-exec-next-instruction')
