@@ -84,7 +84,9 @@ class CompUnitsBase(Elaboratable):
 
         # inputs
         self.issue_i = Signal(n_units, reset_less=True)
-        self.go_rd_i = Signal(n_units, reset_less=True)
+        self.go_rd0_i = Signal(n_units, reset_less=True)
+        self.go_rd1_i = Signal(n_units, reset_less=True)
+        self.go_rd_i = [self.go_rd0_i, self.go_rd1_i] # XXX HACK!
         self.go_wr_i = Signal(n_units, reset_less=True)
         self.shadown_i = Signal(n_units, reset_less=True)
         self.go_die_i = Signal(n_units, reset_less=True)
@@ -94,7 +96,9 @@ class CompUnitsBase(Elaboratable):
 
         # outputs
         self.busy_o = Signal(n_units, reset_less=True)
-        self.rd_rel_o = Signal(n_units, reset_less=True)
+        self.rd_rel0_o = Signal(n_units, reset_less=True)
+        self.rd_rel1_o = Signal(n_units, reset_less=True)
+        self.rd_rel_o = [self.rd_rel0_o, self.rd_rel1_o] # HACK!
         self.req_rel_o = Signal(n_units, reset_less=True)
         self.done_o = Signal(n_units, reset_less=True)
         if ldstmode:
@@ -119,38 +123,50 @@ class CompUnitsBase(Elaboratable):
         for i, alu in enumerate(self.units):
             setattr(m.submodules, "comp%d" % i, alu)
 
-        go_rd_l = []
+        go_rd_l0 = []
+        go_rd_l1 = []
         go_wr_l = []
         issue_l = []
         busy_l = []
         req_rel_l = []
         done_l = []
-        rd_rel_l = []
+        rd_rel0_l = []
+        rd_rel1_l = []
         shadow_l = []
         godie_l = []
         for alu in self.units:
             req_rel_l.append(alu.req_rel_o)
             done_l.append(alu.done_o)
-            rd_rel_l.append(alu.rd_rel_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
-            go_wr_l.append(alu.go_wr_i)
-            go_rd_l.append(alu.go_rd_i)
+            if isinstance(alu, CompUnitALUs):
+                rd_rel0_l.append(alu.rd_rel_o[0])
+                rd_rel1_l.append(alu.rd_rel_o[1])
+                go_wr_l.append(alu.go_wr_i[0])
+                go_rd_l0.append(alu.go_rd_i[0])
+                go_rd_l1.append(alu.go_rd_i[1])
             issue_l.append(alu.issue_i)
             busy_l.append(alu.busy_o)
-        comb += self.rd_rel_o.eq(Cat(*rd_rel_l))
+        if isinstance(alu, CompUnitALUs):
+            comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
+            comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
         comb += self.done_o.eq(Cat(*done_l))
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
-        comb += Cat(*go_wr_l).eq(self.go_wr_i)
-        comb += Cat(*go_rd_l).eq(self.go_rd_i)
+        if isinstance(alu, CompUnitALUs):
+            comb += Cat(*go_wr_l).eq(self.go_wr_i)
+            comb += Cat(*go_rd0_l).eq(self.go_rd0_i)
+            comb += Cat(*go_rd1_l).eq(self.go_rd1_i)
         comb += Cat(*issue_l).eq(self.issue_i)
 
         # connect data register input/output
 
         # merge (OR) all integer FU / ALU outputs to a single value
+        # XXX NOTE: this only works because there is a single "port"
+        # protected by a single go_wr.  multi-issue requires a bus
+        # to be inserted here.
         if self.units:
             data_o = treereduce(self.units, "data_o")
             comb += self.data_o.eq(data_o)
@@ -310,26 +326,51 @@ class CompUnitBR(CompUnitsBase):
 
 class FunctionUnits(Elaboratable):
 
-    def __init__(self, n_regs, n_int_alus):
-        self.n_regs = n_regs
-        self.n_int_alus = n_int_alus
+    def __init__(self, n_reg, n_int_alus, n_src, n_dst):
+        self.n_src, self.n_dst = n_src, n_dst
+        self.n_reg = n_reg
+        self.n_int_alus = nf = n_int_alus
 
-        self.dest_i = Signal(n_regs, reset_less=True)  # Dest R# in
-        self.src1_i = Signal(n_regs, reset_less=True)  # oper1 R# in
-        self.src2_i = Signal(n_regs, reset_less=True)  # oper2 R# in
-
-        self.g_int_rd_pend_o = Signal(n_regs, reset_less=True)
-        self.g_int_wr_pend_o = Signal(n_regs, reset_less=True)
-
-        self.dest_rsel_o = Signal(n_regs, reset_less=True)  # dest reg (bot)
-        self.src1_rsel_o = Signal(n_regs, reset_less=True)  # src1 reg (bot)
-        self.src2_rsel_o = Signal(n_regs, reset_less=True)  # src2 reg (bot)
+        self.g_int_rd_pend_o = Signal(n_reg, reset_less=True)
+        self.g_int_wr_pend_o = Signal(n_reg, reset_less=True)
 
         self.readable_o = Signal(n_int_alus, reset_less=True)
         self.writable_o = Signal(n_int_alus, reset_less=True)
 
-        self.go_rd_i = Signal(n_int_alus, reset_less=True)
-        self.go_wr_i = Signal(n_int_alus, reset_less=True)
+        # arrays
+        src = []
+        rsel = []
+        rd = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
+            rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
+            rd.append(Signal(nf, name="gord%d_i" % j, reset_less=True))
+        dst = []
+        dsel = []
+        wr = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            dst.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
+            dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
+            wr.append(Signal(nf, name="gowr%d_i" % j, reset_less=True))
+        wpnd = []
+        pend = []
+        for i in range(nf):
+            j = i + 1 # name numbering to match src1/src2
+            pend.append(Signal(nf, name="rd_src%d_pend_o" % j, reset_less=True))
+            wpnd.append(Signal(nf, name="wr_dst%d_pend_o" % j, reset_less=True))
+
+        self.dest_i = Array(dst)     # Dest in (top)
+        self.src_i = Array(src)      # oper in (top)
+
+        # for Register File Select Lines (horizontal), per-reg
+        self.dst_rsel_o = Array(dsel) # dest reg (bot)
+        self.src_rsel_o = Array(rsel)  # src reg (bot)
+
+        self.go_rd_i = Array(rd)
+        self.go_wr_i = Array(wr)
+
         self.go_die_i = Signal(n_int_alus, reset_less=True)
         self.fn_issue_i = Signal(n_int_alus, reset_less=True)
 
@@ -343,10 +384,10 @@ class FunctionUnits(Elaboratable):
         n_intfus = self.n_int_alus
 
         # Integer FU-FU Dep Matrix
-        intfudeps = FUFUDepMatrix(n_intfus, n_intfus, 1, 1)
+        intfudeps = FUFUDepMatrix(n_intfus, n_intfus, 2, 1)
         m.submodules.intfudeps = intfudeps
         # Integer FU-Reg Dep Matrix
-        intregdeps = FURegDepMatrix(n_intfus, self.n_regs, 2, 1)
+        intregdeps = FURegDepMatrix(n_intfus, self.n_reg, 2, 1)
         m.submodules.intregdeps = intregdeps
 
         comb += self.g_int_rd_pend_o.eq(intregdeps.v_rd_rsel_o)
@@ -360,26 +401,25 @@ class FunctionUnits(Elaboratable):
         self.wr_pend_o = intregdeps.wr_pend_o  # also output for use in WaWGrid
 
         comb += intfudeps.issue_i.eq(self.fn_issue_i)
-        comb += intfudeps.go_rd_i[0].eq(self.go_rd_i)
-        comb += intfudeps.go_wr_i[0].eq(self.go_wr_i)
         comb += intfudeps.go_die_i.eq(self.go_die_i)
         comb += self.readable_o.eq(intfudeps.readable_o)
         comb += self.writable_o.eq(intfudeps.writable_o)
 
         # Connect function issue / arrays, and dest/src1/src2
-        comb += intregdeps.dest_i[0].eq(self.dest_i)
-        comb += intregdeps.src_i[0].eq(self.src1_i)
-        comb += intregdeps.src_i[1].eq(self.src2_i)
-
-        comb += intregdeps.go_rd_i[0].eq(self.go_rd_i)
-        comb += intregdeps.go_rd_i[1].eq(self.go_rd_i)
-        comb += intregdeps.go_wr_i[0].eq(self.go_wr_i)
+        for i in range(self.n_src):
+            print (i, self.go_rd_i, intfudeps.go_rd_i)
+            comb += intfudeps.go_rd_i[i].eq(self.go_rd_i[i])
+            comb += intregdeps.dest_i[i].eq(self.dest_i[i])
+            comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
+            comb += self.dst_rsel_o[i].eq(intregdeps.dest_rsel_o[i])
+        for i in range(self.n_dst):
+            print (i, self.go_wr_i, intfudeps.go_wr_i)
+            comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
+            comb += intregdeps.src_i[i].eq(self.src_i[i])
+            comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
+            comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[0])
         comb += intregdeps.go_die_i.eq(self.go_die_i)
         comb += intregdeps.issue_i.eq(self.fn_issue_i)
-
-        comb += self.dest_rsel_o.eq(intregdeps.dest_rsel_o[0])
-        comb += self.src1_rsel_o.eq(intregdeps.src_rsel_o[0])
-        comb += self.src2_rsel_o.eq(intregdeps.src_rsel_o[1])
 
         return m
 
@@ -463,14 +503,17 @@ class Scoreboard(Elaboratable):
         br1 = cub.br1
 
         # Int FUs
-        m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus)
+        fu_n_src = 2
+        fu_n_dst = 1
+        m.submodules.intfus = intfus = FunctionUnits(self.n_regs, n_int_alus,
+                                                     fu_n_src, fu_n_dst)
 
         # Memory FUs
         m.submodules.memfus = memfus = MemFunctionUnits(n_ldsts, 5)
 
         # Memory Priority Picker 1: one gateway per memory port
         # picks 1 reader and 1 writer to intreg
-        mempick1 = GroupPicker(n_ldsts)
+        mempick1 = GroupPicker(n_ldsts, 1, 1)
         m.submodules.mempick1 = mempick1
 
         # Count of number of FUs
@@ -479,8 +522,8 @@ class Scoreboard(Elaboratable):
 
         # Integer Priority Picker 1: Adder + Subtractor (and LD/ST)
         # picks 1 reader and 1 writer to intreg
-        intpick1 = GroupPicker(n_intfus)
-        m.submodules.intpick1 = intpick1
+        ipick1 = GroupPicker(n_intfus, fu_n_src, fu_n_dst)
+        m.submodules.intpick1 = ipick1
 
         # INT/FP Issue Unit
         regdecode = RegDecode(self.n_regs)
@@ -528,9 +571,9 @@ class Scoreboard(Elaboratable):
         # TODO: issueunit.f (FP)
 
         # and int function issue / busy arrays, and dest/src1/src2
-        comb += intfus.dest_i.eq(regdecode.dest_o)
-        comb += intfus.src1_i.eq(regdecode.src1_o)
-        comb += intfus.src2_i.eq(regdecode.src2_o)
+        comb += intfus.dest_i[0].eq(regdecode.dest_o)
+        comb += intfus.src_i[0].eq(regdecode.src1_o)
+        comb += intfus.src_i[1].eq(regdecode.src2_o)
 
         fn_issue_o = issueunit.fn_issue_o
 
@@ -601,24 +644,29 @@ class Scoreboard(Elaboratable):
         # ---------
 
         # Group Picker... done manually for now.
-        go_rd_o = intpick1.go_rd_o
-        go_wr_o = intpick1.go_wr_o
+        go_rd_o = ipick1.go_rd_o
+        go_wr_o = ipick1.go_wr_o
         go_rd_i = intfus.go_rd_i
         go_wr_i = intfus.go_wr_i
         go_die_i = intfus.go_die_i
         # NOTE: connect to the shadowed versions so that they can "die" (reset)
-        comb += go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])  # rd
-        comb += go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])  # wr
+        for i in range(fu_n_src):
+            comb += go_rd_i[i][0:n_intfus].eq(go_rd_o[i][0:n_intfus])  # rd
+        for i in range(fu_n_dst):
+            comb += go_wr_i[i][0:n_intfus].eq(go_wr_o[i][0:n_intfus])  # wr
         comb += go_die_i[0:n_intfus].eq(anydie[0:n_intfus])  # die
 
         # Connect Picker
         # ---------
-        comb += intpick1.rd_rel_i[0:n_intfus].eq(cu.rd_rel_o[0:n_intfus])
-        comb += intpick1.req_rel_i[0:n_intfus].eq(cu.done_o[0:n_intfus])
         int_rd_o = intfus.readable_o
+        rrel_o = cu.rd_rel_o
+        for i in range(fu_n_src):
+            comb += ipick1.rd_rel_i[i][0:n_intfus].eq(rrel_o[i][0:n_intfus])
+            comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[i][0:n_intfus])
         int_wr_o = intfus.writable_o
-        comb += intpick1.readable_i[0:n_intfus].eq(int_rd_o[0:n_intfus])
-        comb += intpick1.writable_i[0:n_intfus].eq(int_wr_o[0:n_intfus])
+        for i in range(fu_n_dst):
+            comb += ipick1.req_rel_i[i][0:n_intfus].eq(cu.done_o[0:n_intfus])
+            comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[i][0:n_intfus])
 
         # ---------
         # Shadow Matrix
@@ -640,7 +688,10 @@ class Scoreboard(Elaboratable):
 
         # when written, the shadow can be cancelled (and was good)
         for i in range(n_intfus):
-            comb += shadows.s_good_i[i][0:n_intfus].eq(go_wr_o[0:n_intfus])
+            #comb += shadows.s_good_i[i][0:n_intfus].eq(go_wr_o[0:n_intfus])
+            # XXX experiment: use ~cu.busy_o instead.  *should* be good
+            # because the comp unit is only free once completed
+            comb += shadows.s_good_i[i][0:n_intfus].eq(~cu.busy_o[0:n_intfus])
 
         # *previous* instruction shadows *current* instruction, and, obviously,
         # if the previous is completed (!busy) don't cast the shadow!
@@ -694,9 +745,9 @@ class Scoreboard(Elaboratable):
         # ---------
         # Connect Register File(s)
         # ---------
-        comb += int_dest.wen.eq(intfus.dest_rsel_o)
-        comb += int_src1.ren.eq(intfus.src1_rsel_o)
-        comb += int_src2.ren.eq(intfus.src2_rsel_o)
+        comb += int_dest.wen.eq(intfus.dst_rsel_o[0])
+        comb += int_src1.ren.eq(intfus.src_rsel_o[0])
+        comb += int_src2.ren.eq(intfus.src_rsel_o[1])
 
         # connect ALUs to regfile
         comb += int_dest.data_i.eq(cu.data_o)
@@ -704,8 +755,10 @@ class Scoreboard(Elaboratable):
         comb += cu.src2_i.eq(int_src2.data_o)
 
         # connect ALU Computation Units
-        comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
-        comb += cu.go_wr_i[0:n_intfus].eq(go_wr_o[0:n_intfus])
+        for i in range(fu_n_src):
+            comb += cu.go_rd_i[i][0:n_intfus].eq(go_rd_o[i][0:n_intfus])
+        for i in range(fu_n_dst):
+            comb += cu.go_wr_i[i][0:n_intfus].eq(go_wr_o[i][0:n_intfus])
         comb += cu.issue_i[0:n_intfus].eq(fn_issue_o[0:n_intfus])
 
         return m

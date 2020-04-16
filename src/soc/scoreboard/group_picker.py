@@ -55,24 +55,28 @@ class GroupPicker(Elaboratable):
     def __init__(self, wid, n_src, n_dst):
         self.n_src, self.n_dst = n_src, n_dst
         self.gp_wid = wid
-        self.readable_i = Signal(wid, reset_less=True) # readable in (top)
-        self.writable_i = Signal(wid, reset_less=True) # writable in (top)
 
         # arrays
         rdr = []
         rd = []
+        ri = []
         for i in range(n_src):
             rdr.append(Signal(wid, name="rdrel%d_i" % i, reset_less=True))
             rd.append(Signal(wid, name="gordl%d_i" % i, reset_less=True))
+            ri.append(Signal(wid, name="readable%d_i" % i, reset_less=True))
         wrr = []
         wr = []
+        wi = []
         for i in range(n_dst):
             wrr.append(Signal(wid, name="reqrel%d_i" % i, reset_less=True))
             wr.append(Signal(wid, name="gowr%d_i" % i, reset_less=True))
+            wi.append(Signal(wid, name="writable%d_i" % i, reset_less=True))
 
         # inputs
-        self.rd_rel_i = Array(rdr)   # go read in (top)
+        self.rd_rel_i = Array(rdr)  # go read in (top)
         self.req_rel_i = Array(wrr) # release request in (top)
+        self.readable_i = Array(ri) # readable in (top)
+        self.writable_i = Array(wi) # writable in (top)
 
         # outputs
         self.go_rd_o = Array(rd)  # go read (bottom)
@@ -86,18 +90,18 @@ class GroupPicker(Elaboratable):
 
         # combine release (output ready signal) with writeable
         for i in range(self.n_dst):
-            m.d.comb += wpick.i[i].eq(self.writable_i & self.req_rel_i[i])
+            m.d.comb += wpick.i[i].eq(self.writable_i[i] & self.req_rel_i[i])
             m.d.comb += self.go_wr_o[i].eq(wpick.o[i])
 
         for i in range(self.n_src):
-            m.d.comb += rpick.i[i].eq(self.readable_i & self.rd_rel_i[i])
+            m.d.comb += rpick.i[i].eq(self.readable_i[i] & self.rd_rel_i[i])
             m.d.comb += self.go_rd_o[i].eq(rpick.o[i])
 
         return m
 
     def __iter__(self):
-        yield self.readable_i
-        yield self.writable_i
+        yield from self.readable_i
+        yield from self.writable_i
         yield from self.req_rel_i
         yield from self.rd_rel_i
         yield from self.go_rd_o
