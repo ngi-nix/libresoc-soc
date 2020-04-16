@@ -60,8 +60,8 @@ class ComputationUnitNoDelay(Elaboratable):
             j = i + 1 # name numbering to match dest1/2...
             dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
 
-        self.go_rd_i = Signal(n_src, name="gord_i", reset_less=True) # read in
-        self.go_wr_i = Signal(n_dst, name="gowr_i", reset_less=True) # write in
+        self.go_rd_i = Signal(n_src, reset_less=True) # read in
+        self.go_wr_i = Signal(n_dst, reset_less=True) # write in
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
@@ -88,9 +88,11 @@ class ComputationUnitNoDelay(Elaboratable):
         m.submodules.rst_l = rst_l = SRLatch(sync=False, name="rst")
         m.submodules.rok_l = rok_l = SRLatch(sync=False, name="rdok")
 
-        # ALU only proceeds when all src are ready.
+        # ALU only proceeds when all src are ready.  rd_rel_o is delayed
+        # so combine it with go_rd_i.  if all bits are set we're good
         all_rd = Signal(reset_less=True)
-        m.d.comb += all_rd.eq(self.busy_o & rok_l.q & ~(self.rd_rel_o.bool()))
+        m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
+                    (((~self.rd_rel_o) | self.go_rd_i).all()))
 
         # write_requests all done
         wr_any = Signal(reset_less=True)
@@ -228,7 +230,9 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(0b11)
+    yield dut.go_rd_i.eq(0b10)
+    yield
+    yield dut.go_rd_i.eq(0b01)
     while True:
         yield
         rd_rel_o = yield dut.rd_rel_o
@@ -276,11 +280,11 @@ def test_scoreboard():
     alu = ALU(16)
     dut = ComputationUnitNoDelay(16, alu)
     m.submodules.cu = dut
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
+
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_compalu.il", "w") as f:
         f.write(vl)
-
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
 
 if __name__ == '__main__':
     test_scoreboard()
