@@ -17,6 +17,7 @@ class Register:
     def __init__(self, num):
         self.num = num
 
+
 class Checker:
     def __init__(self):
         self.imm = 0
@@ -421,15 +422,17 @@ class DecoderTestCase(FHDLTestCase):
                     print("code", mode, hex(ibin), bin(ibin))
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(mode) # little / big?
+                    yield pdecode2.dec.bigendian.eq(mode)  # little / big?
                     yield instruction.eq(ibin)            # raw binary instr.
                     yield Delay(1e-6)
 
                     yield from checker.check_results(pdecode2)
 
         sim.add_process(process)
+        ports = pdecode2.ports()
+        print(ports)
         with sim.write_vcd("%s.vcd" % name, "%s.gtkw" % name,
-                           traces=pdecode2.ports()):
+                           traces=ports):
             sim.run()
 
     def test_reg_reg(self):

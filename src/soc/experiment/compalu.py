@@ -6,7 +6,7 @@ from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
-from alu_hier import CompALUOpSubset
+from .alu_hier import CompALUOpSubset
 
 """ Computation Unit (aka "ALU Manager").
 
@@ -46,25 +46,26 @@ from alu_hier import CompALUOpSubset
 class ComputationUnitNoDelay(Elaboratable):
     def __init__(self, rwid, alu):
         self.rwid = rwid
-        self.alu = alu # actual ALU - set as a "submodule" of the CU
+        self.alu = alu  # actual ALU - set as a "submodule" of the CU
 
         self.counter = Signal(4)
-        self.go_rd_i = Signal(reset_less=True) # go read in
-        self.go_wr_i = Signal(reset_less=True) # go write in
-        self.issue_i = Signal(reset_less=True) # fn issue in
-        self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
-        self.go_die_i = Signal() # go die (reset)
+        self.go_rd_i = Signal(reset_less=True)  # go read in
+        self.go_wr_i = Signal(reset_less=True)  # go write in
+        self.issue_i = Signal(reset_less=True)  # fn issue in
+        self.shadown_i = Signal(reset=1)  # shadow function, defaults to ON
+        self.go_die_i = Signal()  # go die (reset)
 
         # operation / data input
-        self.oper_i = CompALUOpSubset() # operand
-        self.src1_i = Signal(rwid, reset_less=True) # oper1 in
-        self.src2_i = Signal(rwid, reset_less=True) # oper2 in
+        self.oper_i = CompALUOpSubset()  # operand
+        self.src1_i = Signal(rwid, reset_less=True)  # oper1 in
+        self.src2_i = Signal(rwid, reset_less=True)  # oper2 in
 
-        self.busy_o = Signal(reset_less=True) # fn busy out
-        self.data_o = Signal(rwid, reset_less=True) # Dest out
-        self.rd_rel_o = Signal(reset_less=True) # release src1/src2 request
-        self.req_rel_o = Signal(reset_less=True) # release request out (valid_o)
-        self.done_o = self.req_rel_o # 'normalise' API
+        self.busy_o = Signal(reset_less=True)  # fn busy out
+        self.data_o = Signal(rwid, reset_less=True)  # Dest out
+        self.rd_rel_o = Signal(reset_less=True)  # release src1/src2 request
+        # release request out (valid_o)
+        self.req_rel_o = Signal(reset_less=True)
+        self.done_o = self.req_rel_o  # 'normalise' API
 
     def elaborate(self, platform):
         m = Module()
@@ -84,7 +85,7 @@ class ComputationUnitNoDelay(Elaboratable):
         # latches be set at the same time.
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
-        m.d.sync += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
+        m.d.sync += opc_l.s.eq(self.issue_i)  # XXX NOTE: INVERTED FROM book!
         m.d.sync += opc_l.r.eq(reset_w)      # XXX NOTE: INVERTED FROM book!
 
         # src operand latch (not using go_wr_i)
@@ -100,7 +101,7 @@ class ComputationUnitNoDelay(Elaboratable):
         latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_r")
 
         # and one for the output from the ALU
-        data_r = Signal(self.rwid, reset_less=True) # Dest register
+        data_r = Signal(self.rwid, reset_less=True)  # Dest register
         latchregister(m, self.alu.o, data_r, req_l.q, "data_r")
 
         # pass the operation to the ALU
@@ -113,7 +114,7 @@ class ComputationUnitNoDelay(Elaboratable):
         src_sel = Signal(reset_less=True)
         m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q))
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
-                                                  self.src2_i))
+                                       self.src2_i))
 
         # create a latch/register for src1/src2
         latchregister(m, self.src1_i, self.alu.a, src_l.q)
@@ -125,15 +126,15 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # all request signals gated by busy_o.  prevents picker problems
         busy_o = self.busy_o
-        m.d.comb += busy_o.eq(opc_l.q) # busy out
-        m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
+        m.d.comb += busy_o.eq(opc_l.q)  # busy out
+        m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o)  # src1/src2 req rel
 
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
         with m.If(self.go_rd_i):                     # src operands ready, GO!
             with m.If(~self.alu.p_ready_o):          # no ACK yet
-                m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
+                m.d.comb += self.alu.p_valid_i.eq(1)  # so indicate valid
 
         # only proceed if ALU says its output is valid
         with m.If(self.alu.n_valid_o):
@@ -141,7 +142,8 @@ class ComputationUnitNoDelay(Elaboratable):
             m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(self.req_rel_o & self.go_wr_i):
-                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
+                # tells ALU "thanks got it"
+                m.d.comb += self.alu.n_ready_i.eq(1)
 
         # output the data from the latch on go_write
         with m.If(self.go_wr_i):
@@ -184,25 +186,25 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     while True:
         yield
         rd_rel_o = yield dut.rd_rel_o
-        print ("rd_rel", rd_rel_o)
+        print("rd_rel", rd_rel_o)
         if rd_rel_o:
             break
     yield
     yield dut.go_rd_i.eq(0)
     req_rel_o = yield dut.req_rel_o
     result = yield dut.data_o
-    print ("req_rel", req_rel_o, result)
+    print("req_rel", req_rel_o, result)
     while True:
         req_rel_o = yield dut.req_rel_o
         result = yield dut.data_o
-        print ("req_rel", req_rel_o, result)
+        print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
     yield dut.go_wr_i.eq(1)
     yield
     result = yield dut.data_o
-    print ("result", result)
+    print("result", result)
     yield dut.go_wr_i.eq(0)
     yield
     return result
@@ -210,7 +212,7 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
 
 def scoreboard_sim(dut):
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=0,
-                                    imm=8, imm_ok=1)
+                               imm=8, imm_ok=1)
     assert result == 13
 
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
@@ -231,6 +233,7 @@ def test_scoreboard():
         f.write(vl)
 
     run_simulation(dut, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
+
 
 if __name__ == '__main__':
     test_scoreboard()
