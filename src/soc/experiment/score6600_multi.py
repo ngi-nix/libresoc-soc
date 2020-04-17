@@ -673,11 +673,11 @@ class Scoreboard(Elaboratable):
         rrel_o = cu.rd_rel_o
         for i in range(fu_n_src):
             comb += ipick1.rd_rel_i[i][0:n_intfus].eq(rrel_o[i][0:n_intfus])
-            comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[i][0:n_intfus])
+            comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[0:n_intfus])
         int_wr_o = intfus.writable_o
         for i in range(fu_n_dst):
             comb += ipick1.req_rel_i[i][0:n_intfus].eq(cu.done_o[0:n_intfus])
-            comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[i][0:n_intfus])
+            comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[0:n_intfus])
 
         # ---------
         # Shadow Matrix
