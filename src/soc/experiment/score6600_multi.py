@@ -1186,7 +1186,7 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             # issue instruction(s), wait for issue to be free before proceeding
             for ins, code in zip(gen, program.assembly.splitlines()):
                 yield instruction.eq(ins)          # raw binary instr.
-                yield Delay(1e-6)
+                yield #Delay(1e-6)
 
                 print("binary 0x{:X}".format(ins & 0xffffffff))
                 print("assembly", code)
