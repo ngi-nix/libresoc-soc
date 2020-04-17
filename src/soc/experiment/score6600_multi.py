@@ -140,26 +140,36 @@ class CompUnitsBase(Elaboratable):
             done_l.append(alu.done_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
-            if isinstance(alu, CompUnitALUs):
+            print (alu, alu.rd_rel_o)
+            if isinstance(alu, LDSTCompUnit) or \
+               isinstance(alu, CompUnitBR) or \
+               isinstance(alu, ComputationUnitNoDelay):
+                dummy1 = Signal(64, reset_less=True)
+                dummy2 = Signal(64, reset_less=True)
+                dummy3 = Signal(64, reset_less=True)
+                go_wr_l.append(dummy1)
+                go_rd_l0.append(dummy2)
+                go_rd_l1.append(dummy3)
+            else:
                 rd_rel0_l.append(alu.rd_rel_o[0])
                 rd_rel1_l.append(alu.rd_rel_o[1])
                 go_wr_l.append(alu.go_wr_i[0])
                 go_rd_l0.append(alu.go_rd_i[0])
                 go_rd_l1.append(alu.go_rd_i[1])
+                rd_rel0_l.append(Const(0, 64)) # FIXME
+                rd_rel1_l.append(Const(0, 64)) # FIXME
             issue_l.append(alu.issue_i)
             busy_l.append(alu.busy_o)
-        if isinstance(alu, CompUnitALUs):
-            comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
-            comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
+        comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
+        comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
         comb += self.done_o.eq(Cat(*done_l))
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
-        if isinstance(alu, CompUnitALUs):
-            comb += Cat(*go_wr_l).eq(self.go_wr_i)
-            comb += Cat(*go_rd0_l).eq(self.go_rd0_i)
-            comb += Cat(*go_rd1_l).eq(self.go_rd1_i)
+        comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        comb += Cat(*go_rd_l0).eq(self.go_rd0_i)
+        comb += Cat(*go_rd_l1).eq(self.go_rd1_i)
         comb += Cat(*issue_l).eq(self.issue_i)
 
         # connect data register input/output
