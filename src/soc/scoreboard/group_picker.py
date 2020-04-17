@@ -63,14 +63,14 @@ class GroupPicker(Elaboratable):
         ri = []
         for i in range(n_src):
             rdr.append(Signal(wid, name="rdrel%d_i" % i, reset_less=True))
-            rd.append(Signal(wid, name="gordl%d_i" % i, reset_less=True))
+            rd.append(Signal(wid, name="gord%d_o" % i, reset_less=True))
             ri.append(Signal(wid, name="readable%d_i" % i, reset_less=True))
         wrr = []
         wr = []
         wi = []
         for i in range(n_dst):
             wrr.append(Signal(wid, name="reqrel%d_i" % i, reset_less=True))
-            wr.append(Signal(wid, name="gowr%d_i" % i, reset_less=True))
+            wr.append(Signal(wid, name="gowr%d_o" % i, reset_less=True))
             wi.append(Signal(wid, name="writable%d_i" % i, reset_less=True))
 
         # inputs
