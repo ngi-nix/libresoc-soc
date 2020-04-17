@@ -15,6 +15,7 @@ from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
 from soc.experiment.compalu import ComputationUnitNoDelay
+from soc.experiment.compalu_multi import ComputationUnitNoDelay as MultiCompUnit
 from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 
@@ -272,7 +273,7 @@ class CompUnitALUs(CompUnitsBase):
         units = []
         for alu in alus:
             aluopwid = 3  # extra bit for immediate mode
-            units.append(ComputationUnitNoDelay(rwid, alu))
+            units.append(MultiCompUnit(rwid, alu))
 
         CompUnitsBase.__init__(self, rwid, units)
 

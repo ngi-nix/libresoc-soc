@@ -97,7 +97,7 @@ class ComputationUnitNoDelay(Elaboratable):
         # write_requests all done
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
-        m.d.comb += self.done_o.eq(~(self.req_rel_o.bool())
+        m.d.comb += self.done_o.eq(~(self.req_rel_o.bool()))
         m.d.comb += wr_any.eq(self.go_wr_i.bool())
         m.d.comb += req_done.eq(self.done_o & rst_l.q & wr_any)
 
