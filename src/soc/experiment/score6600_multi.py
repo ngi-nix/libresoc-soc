@@ -349,7 +349,7 @@ class FunctionUnits(Elaboratable):
         dst = []
         dsel = []
         wr = []
-        for i in range(n_src):
+        for i in range(n_dst):
             j = i + 1 # name numbering to match src1/src2
             dst.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
             dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
@@ -409,15 +409,15 @@ class FunctionUnits(Elaboratable):
         for i in range(self.n_src):
             print (i, self.go_rd_i, intfudeps.go_rd_i)
             comb += intfudeps.go_rd_i[i].eq(self.go_rd_i[i])
-            comb += intregdeps.dest_i[i].eq(self.dest_i[i])
-            comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
-            comb += self.dst_rsel_o[i].eq(intregdeps.dest_rsel_o[i])
-        for i in range(self.n_dst):
-            print (i, self.go_wr_i, intfudeps.go_wr_i)
-            comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
             comb += intregdeps.src_i[i].eq(self.src_i[i])
             comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
             comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[0])
+        for i in range(self.n_dst):
+            print (i, self.go_wr_i, intfudeps.go_wr_i)
+            comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
+            comb += intregdeps.dest_i[i].eq(self.dest_i[i])
+            comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
+            comb += self.dst_rsel_o[i].eq(intregdeps.dest_rsel_o[i])
         comb += intregdeps.go_die_i.eq(self.go_die_i)
         comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
