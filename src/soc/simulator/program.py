@@ -1,3 +1,9 @@
+"""POWER Program
+
+takes powerpc assembly instructions and turns them into LE/BE binary
+data.  calls powerpc64-linux-gnu-as, ld and objcopy to do so.
+"""
+
 import tempfile
 import subprocess
 import struct

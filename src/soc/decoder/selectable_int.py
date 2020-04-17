@@ -1,10 +1,108 @@
 import unittest
 from copy import copy
+from soc.decoder.power_fields import BitRange
+from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv)
+
 
 def check_extsign(a, b):
+    if isinstance(b, FieldSelectableInt):
+        b = b.get_range()
     if b.bits != 256:
         return b
     return SelectableInt(b.value, a.bits)
+
+
+class FieldSelectableInt:
+    """FieldSelectableInt: allows bit-range selection onto another target
+    """
+    def __init__(self, si, br):
+        self.si = si # target selectable int
+        if isinstance(br, list) or isinstance(br, tuple):
+            _br = BitRange()
+            for i, v in enumerate(br):
+                _br[i] = v
+            br = _br
+        self.br = br # map of indices.
+
+    def eq(self, b):
+        if isinstance(b, SelectableInt):
+            for i in range(b.bits):
+                self[i] = b[i]
+        else:
+            self.si = copy(b.si)
+            self.br = copy(b.br)
+
+    def _op(self, op, b):
+        vi = self.get_range()
+        vi = op(vi, b)
+        return self.merge(vi)
+
+    def _op1(self, op):
+        vi = self.get_range()
+        vi = op(vi)
+        return self.merge(vi)
+
+    def __getitem__(self, key):
+        print ("getitem", key, self.br)
+        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
+        return self.si[key]
+
+    def __setitem__(self, key, value):
+        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
+        return self.si.__setitem__(key, value)
+
+    def __negate__(self):
+        return self._op1(negate)
+    def __invert__(self):
+        return self._op1(inv)
+    def __add__(self, b):
+        return self._op(add, b)
+    def __sub__(self, b):
+        return self._op(sub, b)
+    def __mul__(self, b):
+        return self._op(mul, b)
+    def __div__(self, b):
+        return self._op(truediv, b)
+    def __mod__(self, b):
+        return self._op(mod, b)
+    def __and__(self, b):
+        return self._op(and_, b)
+    def __or__(self, b):
+        return self._op(or_, b)
+    def __xor__(self, b):
+        return self._op(xor, b)
+
+    def get_range(self):
+        print ("get_range", self.si)
+        vi = SelectableInt(0, len(self.br))
+        for k, v in self.br.items():
+            print ("get_range", k, v, self.si[v])
+            vi[k] = self.si[v]
+        print ("get_range", vi)
+        return vi
+
+    def merge(self, vi):
+        fi = copy(self)
+        for i, v in fi.br.items():
+            fi.si[v] = vi[i]
+        return fi
+
+    def __repr__(self):
+        return "FieldSelectableInt(si=%s, br=%s)" % (self.si, self.br)
+
+
+class FieldSelectableIntTestCase(unittest.TestCase):
+    def test_arith(self):
+        a = SelectableInt(0b10101, 5)
+        b = SelectableInt(0b011, 3)
+        br = BitRange()
+        br[0] = 0
+        br[1] = 2
+        br[2] = 3
+        fs = FieldSelectableInt(a, br)
+        c = fs + b
+        print (c)
+        #self.assertEqual(c.value, a.value + b.value)
 
 
 class SelectableInt:
@@ -12,6 +110,10 @@ class SelectableInt:
         mask = (1 << bits) - 1
         self.value = value & mask
         self.bits = bits
+
+    def eq(self, b):
+        self.value = b.value
+        self.bits = b.bits
 
     def __add__(self, b):
         if isinstance(b, int):
@@ -48,6 +150,7 @@ class SelectableInt:
         return SelectableInt(self.value | b.value, self.bits)
 
     def __and__(self, b):
+        print ("__and__", self, b)
         b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(self.value & b.value, self.bits)
@@ -67,6 +170,8 @@ class SelectableInt:
         if isinstance(key, int):
             assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
+            # NOTE: POWER 3.0B annotation order!  see p4 1.3.2
+            # MSB is indexed **LOWEST** (sigh)
             key = self.bits - (key + 1)
 
             value = (self.value >> key) & 1
@@ -80,7 +185,8 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start + 1
+            bits = stop - start
+            #print ("__getitem__ slice num bits", bits)
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
             return SelectableInt(value, bits)
@@ -106,7 +212,8 @@ class SelectableInt:
             stop = self.bits - key.start
             start = self.bits - key.stop
 
-            bits = stop - start + 1
+            bits = stop - start
+            #print ("__setitem__ slice num bits", bits)
             if isinstance(value, SelectableInt):
                 assert value.bits == bits, "%d into %d" % (value.bits, bits)
                 value = value.value
@@ -115,6 +222,8 @@ class SelectableInt:
             self.value = (self.value & ~mask) | (value & mask)
 
     def __ge__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -124,6 +233,8 @@ class SelectableInt:
         assert False
 
     def __le__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -133,6 +244,8 @@ class SelectableInt:
         assert False
 
     def __gt__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -142,6 +255,8 @@ class SelectableInt:
         assert False
 
     def __lt__(self, other):
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -151,6 +266,9 @@ class SelectableInt:
         assert False
 
     def __eq__(self, other):
+        print ("__eq__", self, other)
+        if isinstance(other, FieldSelectableInt):
+            other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
@@ -266,7 +384,7 @@ class SelectableIntTestCase(unittest.TestCase):
         a[0:4] = 3
         self.assertEqual(a, 0x39)
         a[0:4] = a[4:8]
-        self.assertEqual(a, 0x199)
+        self.assertEqual(a, 0x99)
 
     def test_concat(self):
         a = SelectableInt(0x1, 1)

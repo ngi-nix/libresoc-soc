@@ -9,22 +9,106 @@ A "real" integer ALU would place the answers onto the output bus after
 only one cycle (sync)
 """
 
-from nmigen import Elaboratable, Signal, Module, Const, Mux
+from nmigen import Elaboratable, Signal, Module, Const, Mux, Array
+from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
+from nmigen.compat.sim import run_simulation
+
+from soc.decoder.power_enums import InternalOp, Function, CryIn
 
 import operator
 
 
+class CompALUOpSubset(Record):
+    """CompALUOpSubset
+
+    a copy of the relevant subset information from Decode2Execute1Type
+    needed for ALU operations.  use with eq_from_execute1 (below) to
+    grab subsets.
+    """
+    def __init__(self, name=None):
+        layout = (('insn_type', InternalOp),
+                  ('fn_unit', Function),
+                  ('nia', 64),
+                  ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
+                    #'cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
+                    #'xerc = XerBits() # NO: this is from the XER SPR
+                  ('lk', 1),
+                  ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
+                  ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
+                  ('invert_a', 1),
+                  ('invert_out', 1),
+                  ('input_carry', CryIn),
+                  ('output_carry', 1),
+                  ('input_cr', 1),
+                  ('output_cr', 1),
+                  ('is_32bit', 1),
+                  ('is_signed', 1),
+                  ('byte_reverse', 1),
+                  ('sign_extend', 1))
+
+        Record.__init__(self, Layout(layout), name=name)
+
+        # grrr.  Record does not have kwargs
+        self.insn_type.reset_less = True
+        self.fn_unit.reset_less = True
+        self.nia.reset_less = True
+        #self.cr = Signal(32, reset_less = True
+        #self.xerc = XerBits(
+        self.lk.reset_less = True
+        self.invert_a.reset_less = True
+        self.invert_out.reset_less = True
+        self.input_carry.reset_less = True
+        self.output_carry.reset_less = True
+        self.input_cr.reset_less = True
+        self.output_cr.reset_less = True
+        self.is_32bit.reset_less = True
+        self.is_signed.reset_less = True
+        self.byte_reverse.reset_less = True
+        self.sign_extend.reset_less = True
+
+    def eq_from_execute1(self, other):
+        """ use this to copy in from Decode2Execute1Type
+        """
+        res = []
+        for fname, sig in self.fields.items():
+            eqfrom = other.fields[fname]
+            res.append(sig.eq(eqfrom))
+        return res
+
+    def ports(self):
+        return [self.insn_type,
+                self.nia,
+                #self.cr,
+                #self.xerc,
+                self.lk,
+                self.invert_a,
+                self.invert_out,
+                self.input_carry,
+                self.output_carry,
+                self.input_cr,
+                self.output_cr,
+                self.is_32bit,
+                self.is_signed,
+                self.byte_reverse,
+                self.sign_extend,
+        ]
+
+
 class Adder(Elaboratable):
     def __init__(self, width):
+        self.invert_a = Signal()
         self.a   = Signal(width)
         self.b   = Signal(width)
         self.o   = Signal(width)
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += self.o.eq(self.a + self.b)
+        with m.If(self.invert_a):
+            m.d.comb += self.o.eq((~self.a) + self.b)
+        with m.Else():
+            m.d.comb += self.o.eq(self.a + self.b)
         return m
 
 
@@ -74,28 +158,36 @@ class ALU(Elaboratable):
         self.n_ready_i = Signal()
         self.n_valid_o = Signal()
         self.counter   = Signal(4)
-        self.op  = Signal(2)
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.op  = CompALUOpSubset()
+        i = []
+        i.append(Signal(width, name="i1"))
+        i.append(Signal(width, name="i2"))
+        self.i = Array(i)
+        self.a, self.b = i[0], i[1]
+        self.out = Array([Signal(width)])
+        self.o = self.out[0]
         self.width = width
 
     def elaborate(self, platform):
         m = Module()
         add = Adder(self.width)
-        sub = Subtractor(self.width)
         mul = Multiplier(self.width)
         shf = Shifter(self.width)
 
         m.submodules.add = add
-        m.submodules.sub = sub
         m.submodules.mul = mul
         m.submodules.shf = shf
-        for mod in [add, sub, mul, shf]:
+
+        # really should not activate absolutely all ALU inputs like this
+        for mod in [add, mul, shf]:
             m.d.comb += [
                 mod.a.eq(self.a),
                 mod.b.eq(self.b),
             ]
+
+        # pass invert (and carry later)
+        m.d.comb += add.invert_a.eq(self.op.invert_a)
+
         go_now = Signal(reset_less=True) # testing no-delay ALU
 
         with m.If(self.p_valid_i):
@@ -105,19 +197,30 @@ class ALU(Elaboratable):
                 m.d.sync += self.p_ready_o.eq(1)
 
                 # as this is a "fake" pipeline, just grab the output right now
-                with m.Switch(self.op):
-                    for i, mod in enumerate([add, sub, mul, shf]):
-                        with m.Case(i):
-                            m.d.sync += self.o.eq(mod.o)
-                with m.If(self.op == 2): # MUL, to take 5 instructions
+                with m.If(self.op.insn_type == InternalOp.OP_ADD):
+                    m.d.sync += self.o.eq(add.o)
+                with m.Elif(self.op.insn_type == InternalOp.OP_MUL_L64):
+                    m.d.sync += self.o.eq(mul.o)
+                with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
+                    m.d.sync += self.o.eq(shf.o)
+                # TODO: SUB
+
+                # NOTE: all of these are fake, just something to test
+
+                # MUL, to take 5 instructions
+                with m.If(self.op.insn_type == InternalOp.OP_MUL_L64):
                     m.d.sync += self.counter.eq(5)
-                with m.Elif(self.op == 3): # SHIFT to take 7
+                # SHIFT to take 7
+                with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
                     m.d.sync += self.counter.eq(7)
-                with m.Elif(self.op == 1): # SUB to take 1, straight away
-                    m.d.sync += self.counter.eq(1)
+                # ADD/SUB to take 2, straight away
+                with m.If(self.op.insn_type == InternalOp.OP_ADD):
+                    m.d.sync += self.counter.eq(3)
+                # others to take 1, straight away
+                with m.Else():
                     m.d.comb += go_now.eq(1)
-                with m.Else(): # ADD to take 2
-                    m.d.sync += self.counter.eq(2)
+                    m.d.sync += self.counter.eq(1)
+
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
@@ -140,7 +243,7 @@ class ALU(Elaboratable):
         return m
 
     def __iter__(self):
-        yield self.op
+        yield from self.op.ports()
         yield self.a
         yield self.b
         yield self.o
@@ -236,12 +339,54 @@ class BranchALU(Elaboratable):
     def ports(self):
         return list(self)
 
+def run_op(dut, a, b, op, inv_a=0):
+    yield dut.a.eq(a)
+    yield dut.b.eq(b)
+    yield dut.op.insn_type.eq(op)
+    yield dut.op.invert_a.eq(inv_a)
+    yield dut.n_ready_i.eq(0)
+    yield dut.p_valid_i.eq(1)
+    yield
+    while True:
+        yield
+        n_valid_o = yield dut.n_valid_o
+        if n_valid_o:
+            break
+    yield
 
-if __name__ == "__main__":
+    result = yield dut.o
+    yield dut.p_valid_i.eq(0)
+    yield dut.n_ready_i.eq(0)
+    yield
+
+    return result
+
+
+def alu_sim(dut):
+    result = yield from run_op(dut, 5, 3, InternalOp.OP_ADD)
+    print ("alu_sim add", result)
+    assert (result == 8)
+
+    result = yield from run_op(dut, 2, 3, InternalOp.OP_MUL_L64)
+    print ("alu_sim mul", result)
+    assert (result == 6)
+
+    result = yield from run_op(dut, 5, 3, InternalOp.OP_ADD, inv_a=1)
+    print ("alu_sim add-inv", result)
+    assert (result == 65533)
+
+
+def test_alu():
     alu = ALU(width=16)
+    run_simulation(alu, alu_sim(alu), vcd_name='test_alusim.vcd')
+
     vl = rtlil.convert(alu, ports=alu.ports())
     with open("test_alu.il", "w") as f:
         f.write(vl)
+
+
+if __name__ == "__main__":
+    test_alu()
 
     alu = BranchALU(width=16)
     vl = rtlil.convert(alu, ports=alu.ports())

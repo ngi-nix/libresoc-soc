@@ -221,6 +221,7 @@ def convert_to_python(pcode, form):
     regsused = {'read_regs': gsc.parser.read_regs,
                 'write_regs': gsc.parser.write_regs,
                 'uninit_regs': gsc.parser.uninit_regs,
+                'special_regs': gsc.parser.special_regs,
                 'op_fields': gsc.parser.op_fields }
     return astor.to_source(tree), regsused
 

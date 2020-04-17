@@ -29,7 +29,8 @@ class %s:
 iinfo_template = """instruction_info(func=%s,
                 read_regs=%s,
                 uninit_regs=%s, write_regs=%s,
-                op_fields=%s, form='%s',
+                special_regs=%s, op_fields=%s,
+                form='%s',
                 asmregs=%s)"""
 
 class PyISAWriter(ISA):
@@ -54,6 +55,7 @@ class PyISAWriter(ISA):
                 pycode, rused = convert_to_python(pcode, d.form)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
+                regs += list(rused['special_regs'])
                 args = ', '.join(create_args(regs, 'self'))
                 # create list of arguments to return
                 retargs = ', '.join(create_args(rused['write_regs']))
@@ -75,6 +77,7 @@ class PyISAWriter(ISA):
                 iinfo = iinfo_template % (op_fname, rused['read_regs'],
                                           rused['uninit_regs'],
                                           rused['write_regs'],
+                                          rused['special_regs'],
                                           ops, d.form, d.regs)
                 iinf += "    %s_instrs['%s'] = %s\n" % (pagename, page, iinfo)
             # write out initialisation of info, for ISACaller to use
@@ -110,4 +113,4 @@ if __name__ == '__main__':
         sources = sys.argv[1:]
     for source in sources:
         isa.write_pysource(source)
-    isa.write_isa_class()
+    #isa.write_isa_class()

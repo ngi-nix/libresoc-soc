@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable
+from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
@@ -44,108 +44,158 @@ from alu_hier import CompALUOpSubset
 
 
 class ComputationUnitNoDelay(Elaboratable):
-    def __init__(self, rwid, alu):
+    def __init__(self, rwid, alu, n_src=2, n_dst=1):
+        self.n_src, self.n_dst = n_src, n_dst
         self.rwid = rwid
         self.alu = alu # actual ALU - set as a "submodule" of the CU
 
         self.counter = Signal(4)
-        self.go_rd_i = Signal(reset_less=True) # go read in
-        self.go_wr_i = Signal(reset_less=True) # go write in
+        src = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            src.append(Signal(rwid, name="src%d_i" % j, reset_less=True))
+
+        dst = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match dest1/2...
+            dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
+
+        self.go_rd_i = Signal(n_src, reset_less=True) # read in
+        self.go_wr_i = Signal(n_dst, reset_less=True) # write in
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
 
         # operation / data input
         self.oper_i = CompALUOpSubset() # operand
-        self.src1_i = Signal(rwid, reset_less=True) # oper1 in
-        self.src2_i = Signal(rwid, reset_less=True) # oper2 in
+        self.src_i = Array(src)
+        self.src1_i = src[0] # oper1 in
+        self.src2_i = src[1] # oper2 in
 
         self.busy_o = Signal(reset_less=True) # fn busy out
-        self.data_o = Signal(rwid, reset_less=True) # Dest out
-        self.rd_rel_o = Signal(reset_less=True) # release src1/src2 request
-        self.req_rel_o = Signal(reset_less=True) # release request out (valid_o)
+        self.dest = Array(dst)
+        self.data_o = dst[0] # Dest out
+        self.rd_rel_o = Signal(n_src, reset_less=True) # release src1/src2 
+        self.req_rel_o = Signal(n_dst, reset_less=True) # release out (valid_o)
         self.done_o = self.req_rel_o # 'normalise' API
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.alu = self.alu
-        m.submodules.src_l = src_l = SRLatch(sync=False, name="src")
+        m.submodules.src_l = src_l = SRLatch(False, self.n_src, name="src")
         m.submodules.opc_l = opc_l = SRLatch(sync=False, name="opc")
-        m.submodules.req_l = req_l = SRLatch(sync=False, name="req")
+        m.submodules.req_l = req_l = SRLatch(False, self.n_dst, name="req")
+        m.submodules.rst_l = rst_l = SRLatch(sync=False, name="rst")
+        m.submodules.rok_l = rok_l = SRLatch(sync=False, name="rdok")
+
+        # ALU only proceeds when all src are ready.  rd_rel_o is delayed
+        # so combine it with go_rd_i.  if all bits are set we're good
+        all_rd = Signal(reset_less=True)
+        m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
+                    (((~self.rd_rel_o) | self.go_rd_i).all()))
+
+        # write_requests all done
+        wr_any = Signal(reset_less=True)
+        req_done = Signal(reset_less=True)
+        m.d.comb += wr_any.eq(self.go_wr_i.bool())
+        m.d.comb += req_done.eq(~(self.req_rel_o.bool()) & rst_l.q & wr_any)
 
         # shadow/go_die
-        reset_w = Signal(reset_less=True)
-        reset_r = Signal(reset_less=True)
-        m.d.comb += reset_w.eq(self.go_wr_i | self.go_die_i)
-        m.d.comb += reset_r.eq(self.go_rd_i | self.go_die_i)
+        reset = Signal(reset_less=True)
+        rst_r = Signal(reset_less=True) # reset latch off
+        reset_w = Signal(self.n_dst, reset_less=True)
+        reset_r = Signal(self.n_src, reset_less=True)
+        m.d.comb += reset.eq(req_done | self.go_die_i)
+        m.d.comb += rst_r.eq(self.issue_i | self.go_die_i)
+        m.d.comb += reset_w.eq(self.go_wr_i | Repl(self.go_die_i, self.n_dst))
+        m.d.comb += reset_r.eq(self.go_rd_i | Repl(self.go_die_i, self.n_src))
 
-        # This is fascinating and very important to observe that this
-        # is in effect a "3-way revolving door".  At no time may all 3
-        # latches be set at the same time.
+        # read-done,wr-proceed latch
+        m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
+        m.d.comb += rok_l.r.eq(self.alu.p_ready_o) # off when ALU acknowledges
+
+        # wr-done, back-to-start latch
+        m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
+        m.d.comb += rst_l.r.eq(rst_r)        # *off* on issue
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
-        m.d.sync += opc_l.s.eq(self.issue_i) # XXX NOTE: INVERTED FROM book!
-        m.d.sync += opc_l.r.eq(reset_w)      # XXX NOTE: INVERTED FROM book!
+        m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
+        m.d.sync += opc_l.r.eq(self.alu.n_valid_o) # reset on ALU finishes
 
         # src operand latch (not using go_wr_i)
-        m.d.sync += src_l.s.eq(self.issue_i)
+        m.d.sync += src_l.s.eq(Repl(self.issue_i, self.n_src))
         m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
-        m.d.sync += req_l.s.eq(self.go_rd_i)
+        m.d.sync += req_l.s.eq(Repl(all_rd, self.n_dst))
         m.d.sync += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
         oper_r = CompALUOpSubset()
         latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_r")
 
-        # and one for the output from the ALU
-        data_r = Signal(self.rwid, reset_less=True) # Dest register
-        latchregister(m, self.alu.o, data_r, req_l.q, "data_r")
+        # and for each output from the ALU
+        drl = []
+        for i in range(self.n_dst):
+            name = "data_r%d" % i
+            data_r = Signal(self.rwid, name=name, reset_less=True) 
+            latchregister(m, self.alu.out[i], data_r, req_l.q[i], name)
+            drl.append(data_r)
 
         # pass the operation to the ALU
         m.d.comb += self.alu.op.eq(oper_r)
+
+        # create list of src/alu-src/src-latch.  override 2nd one below
+        sl = []
+        for i in range(self.n_src):
+            sl.append([self.src_i[i], self.alu.i[i], src_l.q[i]])
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
         op_is_imm = oper_r.imm_data.imm_ok
         src2_or_imm = Signal(self.rwid, reset_less=True)
         src_sel = Signal(reset_less=True)
-        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q))
+        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[1]))
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
                                                   self.src2_i))
+        # overwrite 2nd src-latch with immediate-muxed stuff
+        sl[1][0] = src2_or_imm
+        sl[1][2] = src_sel
 
         # create a latch/register for src1/src2
-        latchregister(m, self.src1_i, self.alu.a, src_l.q)
-        latchregister(m, src2_or_imm, self.alu.b, src_sel)
+        for i in range(self.n_src):
+            src, alusrc, latch = sl[i]
+            latchregister(m, src, alusrc, latch, name="src_r%d" % i)
 
         # -----
         # outputs
         # -----
 
         # all request signals gated by busy_o.  prevents picker problems
-        busy_o = self.busy_o
-        m.d.comb += busy_o.eq(opc_l.q) # busy out
-        m.d.comb += self.rd_rel_o.eq(src_l.q & busy_o) # src1/src2 req rel
+        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
+        bro = Repl(self.busy_o, self.n_src)
+        m.d.comb += self.rd_rel_o.eq(src_l.q & bro) # src1/src2 req rel
 
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
-        with m.If(self.go_rd_i):                     # src operands ready, GO!
+        with m.If(all_rd):                           # src operands ready, GO!
             with m.If(~self.alu.p_ready_o):          # no ACK yet
                 m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
 
+        brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
         # only proceed if ALU says its output is valid
         with m.If(self.alu.n_valid_o):
             # when ALU ready, write req release out. waits for shadow
-            m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
+            m.d.comb += self.req_rel_o.eq(req_l.q & brd)
             # when output latch is ready, and ALU says ready, accept ALU output
-            with m.If(self.req_rel_o & self.go_wr_i):
+            with m.If(reset):
                 m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
 
         # output the data from the latch on go_write
-        with m.If(self.go_wr_i):
-            m.d.comb += self.data_o.eq(data_r)
+        for i in range(self.n_dst):
+            with m.If(self.go_wr_i[i]):
+                m.d.comb += self.dest[i].eq(drl[i])
 
         return m
 
@@ -170,8 +220,8 @@ class ComputationUnitNoDelay(Elaboratable):
 def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield dut.issue_i.eq(0)
     yield
-    yield dut.src1_i.eq(a)
-    yield dut.src2_i.eq(b)
+    yield dut.src_i[0].eq(a)
+    yield dut.src_i[1].eq(b)
     yield dut.oper_i.insn_type.eq(op)
     yield dut.oper_i.invert_a.eq(inv_a)
     yield dut.oper_i.imm_data.imm.eq(imm)
@@ -180,7 +230,9 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(1)
+    yield dut.go_rd_i.eq(0b10)
+    yield
+    yield dut.go_rd_i.eq(0b01)
     while True:
         yield
         rd_rel_o = yield dut.rd_rel_o
@@ -199,11 +251,11 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
         if req_rel_o:
             break
         yield
-    yield dut.go_wr_i.eq(1)
+    yield dut.go_wr_i[0].eq(1)
     yield
     result = yield dut.data_o
     print ("result", result)
-    yield dut.go_wr_i.eq(0)
+    yield dut.go_wr_i[0].eq(0)
     yield
     return result
 
@@ -213,24 +265,26 @@ def scoreboard_sim(dut):
                                     imm=8, imm_ok=1)
     assert result == 13
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
-    assert result == 65532
-
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD)
     assert result == 7
+
+    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
+    assert result == 65532
 
 
 def test_scoreboard():
     from alu_hier import ALU
     from soc.decoder.power_decoder2 import Decode2ToExecute1Type
 
+    m = Module()
     alu = ALU(16)
     dut = ComputationUnitNoDelay(16, alu)
+    m.submodules.cu = dut
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
+
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_compalu.il", "w") as f:
         f.write(vl)
-
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
 
 if __name__ == '__main__':
     test_scoreboard()

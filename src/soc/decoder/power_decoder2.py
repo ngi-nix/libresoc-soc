@@ -3,8 +3,10 @@
 based on Anton Blanchard microwatt decode2.vhdl
 
 """
-from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl
+from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
+
+from nmutil.iocontrol import RecordObject
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (InternalOp, CryIn, Function,
@@ -61,16 +63,17 @@ class DecodeA(Elaboratable):
 
         return m
 
-class Data:
+
+class Data(Record):
 
     def __init__(self, width, name):
-
-        self.data = Signal(width, name=name, reset_less=True)
-        self.ok = Signal(name="%s_ok" % name, reset_less=True)
-
-    def eq(self, rhs):
-        return [self.data.eq(rhs.data),
-                self.ok.eq(rhs.ok)]
+        name_ok = "%s_ok" % name
+        layout = ((name, width), (name_ok, 1))
+        Record.__init__(self, layout)
+        self.data = getattr(self, name) # convenience
+        self.ok = getattr(self, name_ok) # convenience
+        self.data.reset_less = True # grrr
+        self.reset_less = True # grrr
 
     def ports(self):
         return [self.data, self.ok]
@@ -282,12 +285,15 @@ class XerBits:
         return [self.ca, self.ca32, self.ov, self.ov32, self.so, ]
 
 
-class Decode2ToExecute1Type:
+class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self):
+    def __init__(self, name=None):
+
+        RecordObject.__init__(self, name=name)
 
         self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
+        self.fn_unit = Signal(Function, reset_less=True)
         self.nia = Signal(64, reset_less=True)
         self.write_reg = Data(5, name="rego")
         self.read_reg1 = Data(5, name="reg1")
@@ -319,29 +325,6 @@ class Decode2ToExecute1Type:
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.update  = Signal(reset_less=True) # is this an update instruction?
 
-    def ports(self):
-        return [self.valid, self.insn_type, self.nia,
-                #self.read_data1, self.read_data2, self.read_data3,
-                #self.cr,
-                self.lk,
-                self.invert_a, self.invert_out,
-                self.input_carry, self.output_carry,
-                self.input_cr, self.output_cr,
-                self.is_32bit, self.is_signed,
-                self.insn,
-                self.data_len, self.byte_reverse , self.sign_extend ,
-                self.update] + \
-                self.oe.ports() + \
-                self.rc.ports() + \
-                self.write_spr.ports() + \
-                self.read_spr1.ports() + \
-                self.read_spr2.ports() + \
-                self.write_reg.ports() + \
-                self.read_reg1.ports() + \
-                self.read_reg2.ports() + \
-                self.read_reg3.ports() + \
-                self.imm_data.ports()
-                # + self.xerc.ports()
 
 class PowerDecode2(Elaboratable):
 
@@ -392,10 +375,12 @@ class PowerDecode2(Elaboratable):
                 comb += self.e.data_len.eq(8)
 
         #comb += self.e.nia.eq(self.dec.nia) # XXX TODO
-        itype = Mux(self.dec.op.function_unit == Function.NONE,
+        fu = self.dec.op.function_unit
+        itype = Mux(fu == Function.NONE,
                     InternalOp.OP_ILLEGAL,
                     self.dec.op.internal_op)
         comb += self.e.insn_type.eq(itype)
+        comb += self.e.fn_unit.eq(fu)
 
         # registers a, b, c and out
         comb += self.e.read_reg1.eq(dec_a.reg_out)

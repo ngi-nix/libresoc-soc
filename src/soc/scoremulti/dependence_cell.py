@@ -26,24 +26,41 @@ class DependencyRow(Elaboratable):
         the latch output.  Without the cq register, the SR Latch (which is
         asynchronous) would be reset at the exact moment that GO was requested,
         and the RSEL would be garbage.
+
+        cancel_mode: individual bit-array of cancels rather than a global one
     """
-    def __init__(self, n_reg, n_src, cancel_mode=False):
+    def __init__(self, n_reg, n_src, n_dest, cancel_mode=False):
         self.cancel_mode = cancel_mode
         self.n_reg = n_reg
         self.n_src = n_src
-        # arrays
+        self.n_dest = n_dest
+        # src arrays
         src = []
         rsel = []
         fwd = []
+        rd = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
             rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
             fwd.append(Signal(n_reg, name="src%d_fwd_o" % j, reset_less=True))
+            rd.append(Signal(n_reg, name="go_rd%d_i" % j, reset_less=True))
+
+        # dest arrays
+        dest = []
+        dsel = []
+        dfwd = []
+        wr = []
+        for i in range(n_dest):
+            j = i + 1 # name numbering to match src1/src2
+            dest.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
+            dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
+            dfwd.append(Signal(n_reg, name="dst%d_fwd_o" % j, reset_less=True))
+            wr.append(Signal(n_reg, name="go_wr%d_i" % j, reset_less=True))
 
         # inputs
-        self.dest_i = Signal(n_reg, reset_less=True)     # Dest in (top)
-        self.src_i = Array(src)     # operands in (top)
+        self.dest_i = Array(dest)     # Dest in (top)
+        self.src_i = Array(src)       # operands in (top)
         self.issue_i = Signal(reset_less=True)    # Issue in (top)
 
         self.rd_pend_i = Signal(n_reg, reset_less=True) # Read pend in (top)
@@ -51,59 +68,77 @@ class DependencyRow(Elaboratable):
         self.v_rd_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
         self.v_wr_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
 
-        self.go_wr_i = Signal(reset_less=True) # Go Write in (left)
-        self.go_rd_i = Signal(reset_less=True)  # Go Read in (left)
+        self.go_wr_i = Array(wr) # Go Write in (left)
+        self.go_rd_i = Array(rd)  # Go Read in (left)
         if self.cancel_mode:
             self.go_die_i = Signal(n_reg, reset_less=True) # Go Die in (left)
         else:
             self.go_die_i = Signal(reset_less=True) # Go Die in (left)
 
         # for Register File Select Lines (vertical)
-        self.dest_rsel_o = Signal(n_reg, reset_less=True)  # dest reg sel (bot)
-        self.src_rsel_o = Array(rsel)   # src reg sel (bot)
+        self.dest_rsel_o = Array(dsel)  # dest reg sel (bot)
+        self.src_rsel_o  = Array(rsel)   # src reg sel (bot)
 
         # for Function Unit "forward progress" (horizontal)
-        self.dest_fwd_o = Signal(n_reg, reset_less=True)   # dest FU fw (right)
-        self.src_fwd_o = Array(fwd)    # src FU fw (right)
+        self.dest_fwd_o = Array(dfwd)   # dest FU fw (right)
+        self.src_fwd_o  = Array(fwd)    # src FU fw (right)
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.dest_c = dest_c = SRLatch(sync=False, llen=self.n_reg)
+
+        # set up dest latches
+        dest_c = []
+        for i in range(self.n_dest):
+            dst_l = SRLatch(sync=False, llen=self.n_reg, name="dst%d" % i)
+            setattr(m.submodules, "dst%d_c" % (i+1), dst_l)
+            dest_c.append(dst_l)
+
+        # set up src latches
         src_c = []
         for i in range(self.n_src):
-            src_l = SRLatch(sync=False, llen=self.n_reg)
+            src_l = SRLatch(sync=False, llen=self.n_reg, name="src%d" % i)
             setattr(m.submodules, "src%d_c" % (i+1), src_l)
             src_c.append(src_l)
 
         # connect go_rd / go_wr (dest->wr, src->rd)
-        wr_die = Signal(self.n_reg, reset_less=True)
-        rd_die = Signal(self.n_reg, reset_less=True)
         if self.cancel_mode:
             go_die = self.go_die_i
         else:
             go_die = Repl(self.go_die_i, self.n_reg)
-        m.d.comb += wr_die.eq(Repl(self.go_wr_i, self.n_reg) | go_die)
-        m.d.comb += rd_die.eq(Repl(self.go_rd_i, self.n_reg) | go_die)
-        m.d.comb += dest_c.r.eq(wr_die)
+        wr_die = []
+        for i in range(self.n_dest):
+            wrd = Signal(self.n_reg, reset_less=True, name="wdi%d" % i)
+            wr_die.append(wrd)
+            m.d.comb += wrd.eq(Repl(self.go_wr_i[i], self.n_reg) | go_die)
+        rd_die = []
         for i in range(self.n_src):
-            m.d.comb += src_c[i].r.eq(rd_die)
+            rdd = Signal(self.n_reg, reset_less=True, name="rdi%d" % i)
+            rd_die.append(rdd)
+            m.d.comb += rdd.eq(Repl(self.go_rd_i[i], self.n_reg) | go_die)
+        for i in range(self.n_src):
+            m.d.comb += src_c[i].r.eq(rd_die[i])
+        for i in range(self.n_dest):
+            m.d.comb += dest_c[i].r.eq(wr_die[i])
 
         # connect input reg bit (unary)
         i_ext = Repl(self.issue_i, self.n_reg)
-        m.d.comb += dest_c.s.eq(i_ext & self.dest_i)
+        for i in range(self.n_dest):
+            m.d.comb += dest_c[i].s.eq(i_ext & self.dest_i[i])
         for i in range(self.n_src):
             m.d.comb += src_c[i].s.eq(i_ext & self.src_i[i])
 
         # connect up hazard checks: read-after-write and write-after-read
-        m.d.comb += self.dest_fwd_o.eq(dest_c.q & self.rd_pend_i)
+        for i in range(self.n_dest):
+            m.d.comb += self.dest_fwd_o[i].eq(dest_c[i].q & self.rd_pend_i)
         for i in range(self.n_src):
             m.d.comb += self.src_fwd_o[i].eq(src_c[i].q & self.wr_pend_i)
 
         # connect reg-sel outputs
-        rd_ext = Repl(self.go_rd_i, self.n_reg)
-        wr_ext = Repl(self.go_wr_i, self.n_reg)
-        m.d.comb += self.dest_rsel_o.eq(dest_c.qlq & wr_ext)
+        for i in range(self.n_dest):
+            wr_ext = Repl(self.go_wr_i[i], self.n_reg)
+            m.d.comb += self.dest_rsel_o[i].eq(dest_c[i].qlq & wr_ext)
         for i in range(self.n_src):
+            rd_ext = Repl(self.go_rd_i[i], self.n_reg)
             m.d.comb += self.src_rsel_o[i].eq(src_c[i].qlq & rd_ext)
 
         # to be accumulated to indicate if register is in use (globally)
@@ -111,23 +146,26 @@ class DependencyRow(Elaboratable):
         src_q = []
         for i in range(self.n_src):
             src_q.append(src_c[i].qlq)
-        m.d.comb += self.v_rd_rsel_o.eq(reduce(or_, src_q))
-        m.d.comb += self.v_wr_rsel_o.eq(dest_c.qlq)
+        m.d.comb += self.v_rd_rsel_o.eq(reduce(or_, src_q)) # do not use bool()
+        dst_q = []
+        for i in range(self.n_dest):
+            dst_q.append(dest_c[i].qlq)
+        m.d.comb += self.v_wr_rsel_o.eq(reduce(or_, dst_q)) # do not use bool()
 
         return m
 
     def __iter__(self):
-        yield self.dest_i
+        yield from self.dest_i
         yield from self.src_i
         yield self.rd_pend_i
         yield self.wr_pend_i
         yield self.issue_i
-        yield self.go_wr_i
-        yield self.go_rd_i
+        yield from self.go_wr_i
+        yield from self.go_rd_i
         yield self.go_die_i
-        yield self.dest_rsel_o
+        yield from self.dest_rsel_o
         yield from self.src_rsel_o
-        yield self.dest_fwd_o
+        yield from self.dest_fwd_o
         yield from self.src_fwd_o
 
     def ports(self):
@@ -157,7 +195,7 @@ def dcell_sim(dut):
     yield
 
 def test_dcell():
-    dut = DependencyRow(4, 2, True)
+    dut = DependencyRow(4, 3, 2, True)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_drow.il", "w") as f:
         f.write(vl)

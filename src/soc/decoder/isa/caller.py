@@ -1,11 +1,13 @@
 from functools import wraps
 from soc.decoder.orderedset import OrderedSet
-from soc.decoder.selectable_int import SelectableInt, selectconcat
+from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
+                                        selectconcat)
 from collections import namedtuple
 import math
 
 instruction_info = namedtuple('instruction_info',
-                              'func read_regs uninit_regs write_regs op_fields form asmregs')
+                              'func read_regs uninit_regs write_regs ' + \
+                              'special_regs op_fields form asmregs')
 
 
 def create_args(reglist, extra=None):
@@ -135,20 +137,39 @@ class ISACaller:
         # TODO, needed here:
         # 4.4.4 III p971 SPR (same as GPR except for SPRs - best done as a dict
         # FPR (same as GPR except for FP nums)
-        # 4.2.2 p124 FPSCR
-        # 2.3.1 CR (and sub-fields CR0..CR6)
-        # 2.3.2 LR   (SPR #8)
-        # 2.3.3 CTR  (SPR #9)
-        # 2.3.4 TAR  (SPR #815)
-        # 3.2.2 p45 XER  (SPR #0)
-        # 3.2.3 p46 p232 VRSAVE (SPR #256)
+        # 4.2.2 p124 FPSCR (definitely "separate" - not in SPR)
+        #            note that mffs, mcrfs, mtfsf "manage" this FPSCR
+        # 2.3.1 CR (and sub-fields CR0..CR6 - CR0 SO comes from XER.SO)
+        #         note that mfocrf, mfcr, mtcr, mtocrf, mcrxrx "manage" CRs
+        # 2.3.2 LR   (actually SPR #8)
+        # 2.3.3 CTR  (actually SPR #9)
+        # 2.3.4 TAR  (actually SPR #815)
+        # 3.2.2 p45 XER  (actually SPR #0)
+        # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
+
+        # create CR then allow portions of it to be "selectable" (below)
+        self._cr = SelectableInt(0, 64) # underlying reg
+        self.cr = FieldSelectableInt(self._cr, list(range(32,64)))
+
+        # "undefined", just set to variable-bit-width int (use exts "max")
+        self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
 
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
                           'memassign': self.memassign,
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
+                          'CR': self.cr,
+                          'undefined': self.undefined,
                           }
+
+        # field-selectable versions of Condition Register TODO check bitranges?
+        self.crl = []
+        for i in range(8):
+            bits = tuple(range((7-i)*4, (8-i)*4))# errr... maybe?
+            _cr = FieldSelectableInt(self.cr, bits)
+            self.crl.append(_cr)
+            self.namespace["CR%d" % i] = _cr
 
         self.decoder = decoder2
 
@@ -162,11 +183,10 @@ class ISACaller:
         # then "yield" fields only from op_fields rather than hard-coded
         # list, here.
         fields = self.decoder.sigforms[formname]
-        for name in fields._fields:
-            if name not in ["RA", "RB", "RT"]:
-                sig = getattr(fields, name)
-                val = yield sig
-                self.namespace[name] = SelectableInt(val, sig.width)
+        for name in op_fields:
+            sig = getattr(fields, name)
+            val = yield sig
+            self.namespace[name] = SelectableInt(val, sig.width)
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
@@ -174,9 +194,11 @@ class ISACaller:
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)
 
-        input_names = create_args(info.read_regs | info.uninit_regs)
+        # preserve order of register names
+        input_names = create_args(list(info.read_regs) + list(info.uninit_regs))
         print(input_names)
 
+        # main registers (RT, RA ...)
         inputs = []
         for name in input_names:
             regnum = yield getattr(self.decoder, name)
@@ -184,18 +206,30 @@ class ISACaller:
             self.namespace[regname] = regnum
             print('reading reg %d' % regnum)
             inputs.append(self.gpr(regnum))
+
+        # "special" registers
+        for special in info.special_regs:
+            inputs.append(self.namespace[special])
+
         print(inputs)
         results = info.func(self, *inputs)
         print(results)
 
+        # any modified return results?
         if info.write_regs:
             output_names = create_args(info.write_regs)
             for name, output in zip(output_names, results):
-                regnum = yield getattr(self.decoder, name)
-                print('writing reg %d' % regnum)
-                if output.bits > 64:
-                    output = SelectableInt(output.value, 64)
-                self.gpr[regnum] = output
+                if name in info.special_regs:
+                    print('writing special %s' % name, output)
+                    self.namespace[name].eq(output)
+                else:
+                    regnum = yield getattr(self.decoder, name)
+                    print('writing reg %d' % regnum)
+                    if output.bits > 64:
+                        output = SelectableInt(output.value, 64)
+                    self.gpr[regnum] = output
+
+        # update program counter
         self.pc.update(self.namespace)
 
 

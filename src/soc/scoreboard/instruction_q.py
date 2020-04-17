@@ -6,22 +6,15 @@ from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
 from nmutil.iocontrol import RecordObject
 from nmutil.nmoperator import eq, shape, cat
 
+from soc.decoder.power_decoder2 import Decode2ToExecute1Type
 
-class Instruction(RecordObject):
-    def __init__(self, name, wid, opwid):
-        RecordObject.__init__(self, name=name)
-        self.oper_i = Signal(opwid, reset_less=True)
-        self.opim_i = Signal(1, reset_less=True) # src2 is an immediate
-        self.imm_i = Signal(wid, reset_less=True)
-        self.dest_i = Signal(wid, reset_less=True)
-        self.src1_i = Signal(wid, reset_less=True)
-        self.src2_i = Signal(wid, reset_less=True)
+class Instruction(Decode2ToExecute1Type):
 
     @staticmethod
-    def nq(n_insns, name, wid, opwid):
+    def _nq(n_insns, name):
         q = []
         for i in range(n_insns):
-            q.append(Instruction("%s%d" % (name, i), wid, opwid))
+            q.append(Instruction("%s%d" % (name, i)))
         return Array(q)
 
 
@@ -53,9 +46,9 @@ class InstructionQ(Elaboratable):
 
         self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
         self.p_ready_o = Signal() # instructions were added
-        self.data_i = Instruction.nq(n_in, "data_i", wid, opwid)
+        self.data_i = Instruction._nq(n_in, "data_i")
         
-        self.data_o = Instruction.nq(n_out, "data_o", wid, opwid)
+        self.data_o = Instruction._nq(n_out, "data_o")
         self.n_sub_i = Signal(mqbits) # number of instructions to remove
         self.n_sub_o = Signal(mqbits) # number of instructions removed
 

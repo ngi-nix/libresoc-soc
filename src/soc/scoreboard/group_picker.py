@@ -44,47 +44,68 @@
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Elaboratable
+from nmigen import Module, Signal, Elaboratable, Array
 
-from nmutil.picker import PriorityPicker
+from nmutil.picker import MultiPriorityPicker as MPP
 
 
 class GroupPicker(Elaboratable):
     """ implements 10.5 mitch alsup group picker, p27
     """
-    def __init__(self, wid):
+    def __init__(self, wid, n_src, n_dst):
+        self.n_src, self.n_dst = n_src, n_dst
         self.gp_wid = wid
+
+        # arrays
+        rdr = []
+        rd = []
+        ri = []
+        for i in range(n_src):
+            rdr.append(Signal(wid, name="rdrel%d_i" % i, reset_less=True))
+            rd.append(Signal(wid, name="gordl%d_i" % i, reset_less=True))
+            ri.append(Signal(wid, name="readable%d_i" % i, reset_less=True))
+        wrr = []
+        wr = []
+        wi = []
+        for i in range(n_dst):
+            wrr.append(Signal(wid, name="reqrel%d_i" % i, reset_less=True))
+            wr.append(Signal(wid, name="gowr%d_i" % i, reset_less=True))
+            wi.append(Signal(wid, name="writable%d_i" % i, reset_less=True))
+
         # inputs
-        self.readable_i = Signal(wid, reset_less=True) # readable in (top)
-        self.writable_i = Signal(wid, reset_less=True) # writable in (top)
-        self.rd_rel_i = Signal(wid, reset_less=True)   # go read in (top)
-        self.req_rel_i = Signal(wid, reset_less=True) # release request in (top)
+        self.rd_rel_i = Array(rdr)  # go read in (top)
+        self.req_rel_i = Array(wrr) # release request in (top)
+        self.readable_i = Array(ri) # readable in (top)
+        self.writable_i = Array(wi) # writable in (top)
 
         # outputs
-        self.go_rd_o = Signal(wid, reset_less=True)  # go read (bottom)
-        self.go_wr_o = Signal(wid, reset_less=True)  # go write (bottom)
+        self.go_rd_o = Array(rd)  # go read (bottom)
+        self.go_wr_o = Array(wr)  # go write (bottom)
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.rpick = rpick = PriorityPicker(self.gp_wid)
-        m.submodules.wpick = wpick = PriorityPicker(self.gp_wid)
+        m.submodules.rpick = rpick = MPP(self.gp_wid, self.n_src, False, True)
+        m.submodules.wpick = wpick = MPP(self.gp_wid, self.n_dst, False, True)
 
         # combine release (output ready signal) with writeable
-        m.d.comb += wpick.i.eq(self.writable_i & self.req_rel_i)
-        m.d.comb += self.go_wr_o.eq(wpick.o)
+        for i in range(self.n_dst):
+            m.d.comb += wpick.i[i].eq(self.writable_i[i] & self.req_rel_i[i])
+            m.d.comb += self.go_wr_o[i].eq(wpick.o[i])
 
-        m.d.comb += rpick.i.eq(self.readable_i & self.rd_rel_i)
-        m.d.comb += self.go_rd_o.eq(rpick.o)
+        for i in range(self.n_src):
+            m.d.comb += rpick.i[i].eq(self.readable_i[i] & self.rd_rel_i[i])
+            m.d.comb += self.go_rd_o[i].eq(rpick.o[i])
 
         return m
 
     def __iter__(self):
-        yield self.readable_i
-        yield self.writable_i
-        yield self.req_rel_i
-        yield self.go_rd_o
-        yield self.go_wr_o
+        yield from self.readable_i
+        yield from self.writable_i
+        yield from self.req_rel_i
+        yield from self.rd_rel_i
+        yield from self.go_rd_o
+        yield from self.go_wr_o
 
     def ports(self):
         return list(self)
@@ -112,8 +133,9 @@ def grp_pick_sim(dut):
     yield dut.go_wr_i.eq(0)
     yield
 
+
 def test_grp_pick():
-    dut = GroupPicker(4)
+    dut = GroupPicker(4, 2, 2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_grp_pick.il", "w") as f:
         f.write(vl)

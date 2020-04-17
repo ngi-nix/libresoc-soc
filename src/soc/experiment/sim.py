@@ -36,18 +36,20 @@ class RegSim:
         self.regs = [0] * nregs
 
     def op(self, op, op_imm, imm, src1, src2, dest):
+        print ("regsim op src1, src2", op, op_imm, imm, src1, src2, dest)
         maxbits = (1 << self.rwidth) - 1
         src1 = self.regs[src1] & maxbits
         if op_imm:
             src2 = imm
         else:
             src2 = self.regs[src2] & maxbits
-        if op == IADD:
+        if op == InternalOp.OP_ADD:
             val = src1 + src2
+        elif op == InternalOp.OP_MUL_L64:
+            val = src1 * src2
+            print ("mul src1, src2", src1, src2, val)
         elif op == ISUB:
             val = src1 - src2
-        elif op == IMUL:
-            val = src1 * src2
         elif op == ISHF:
             val = src1 >> (src2 & maxbits)
         elif op == IBGT:

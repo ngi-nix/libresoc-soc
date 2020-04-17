@@ -10,7 +10,7 @@ class BitRange(OrderedDict):
         if isinstance(subscript, slice):
             return list(self)[subscript]
         else:
-            return self[subscript]
+            return OrderedDict.__getitem__(self, subscript)
 
 
 def decode_instructions(form):
