@@ -422,7 +422,7 @@ class FunctionUnits(Elaboratable):
             comb += intfudeps.go_rd_i[i].eq(self.go_rd_i[i])
             comb += intregdeps.src_i[i].eq(self.src_i[i])
             comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
-            comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[0])
+            comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[i])
         for i in range(self.n_dst):
             print (i, self.go_wr_i, intfudeps.go_wr_i)
             comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
