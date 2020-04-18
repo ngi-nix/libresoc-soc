@@ -136,28 +136,31 @@ class CompUnitsBase(Elaboratable):
         shadow_l = []
         godie_l = []
         for alu in self.units:
+            req_rel_l.append(alu.req_rel_o)
             done_l.append(alu.done_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
-            print (alu, alu.rd_rel_o)
+            print (alu, "rel", alu.req_rel_o, alu.rd_rel_o)
             if isinstance(alu, LDSTCompUnit) or \
                isinstance(alu, CompUnitBR) or \
                isinstance(alu, ComputationUnitNoDelay):
+                if isinstance(alu, CompUnitsBase):
+                    ulen = alu.n_units
+                else:
+                    ulen = 1
                 rd_rel0_l.append(Const(0, 64)) # FIXME
                 rd_rel1_l.append(Const(0, 64)) # FIXME
-                dummy1 = Signal(reset_less=True)
-                dummy2 = Signal(reset_less=True)
-                dummy3 = Signal(reset_less=True)
-                dummy4 = Signal(reset_less=True)
-                dummy5 = Signal(reset_less=True)
+                dummy1 = Signal(ulen, reset_less=True)
+                dummy2 = Signal(ulen, reset_less=True)
+                dummy3 = Signal(ulen, reset_less=True)
+                dummy4 = Signal(ulen, reset_less=True)
+                dummy5 = Signal(ulen, reset_less=True)
                 go_wr_l.append(dummy1)
                 go_rd_l0.append(dummy2)
                 go_rd_l1.append(dummy3)
                 issue_l.append(dummy4)
                 busy_l.append(dummy5)
-                req_rel_l.append(alu.req_rel_o)
             else:
-                req_rel_l.append(alu.req_rel_o[0])
                 rd_rel0_l.append(alu.rd_rel_o[0])
                 rd_rel1_l.append(alu.rd_rel_o[1])
                 go_wr_l.append(alu.go_wr_i[0])
@@ -1186,7 +1189,8 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
         lst = [#"addi 2, 0, 0x4321",
                #"addi 3, 0, 0x1234",
                "add  1, 3, 2",
-               "add  4, 3, 3"]
+               "add  4, 3, 5"
+                ]
         with Program(lst) as program:
             gen = program.generate_instructions()
 
