@@ -136,7 +136,6 @@ class CompUnitsBase(Elaboratable):
         shadow_l = []
         godie_l = []
         for alu in self.units:
-            req_rel_l.append(alu.req_rel_o)
             done_l.append(alu.done_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
@@ -144,22 +143,28 @@ class CompUnitsBase(Elaboratable):
             if isinstance(alu, LDSTCompUnit) or \
                isinstance(alu, CompUnitBR) or \
                isinstance(alu, ComputationUnitNoDelay):
-                dummy1 = Signal(64, reset_less=True)
-                dummy2 = Signal(64, reset_less=True)
-                dummy3 = Signal(64, reset_less=True)
+                rd_rel0_l.append(Const(0, 64)) # FIXME
+                rd_rel1_l.append(Const(0, 64)) # FIXME
+                dummy1 = Signal(reset_less=True)
+                dummy2 = Signal(reset_less=True)
+                dummy3 = Signal(reset_less=True)
+                dummy4 = Signal(reset_less=True)
+                dummy5 = Signal(reset_less=True)
                 go_wr_l.append(dummy1)
                 go_rd_l0.append(dummy2)
                 go_rd_l1.append(dummy3)
+                issue_l.append(dummy4)
+                busy_l.append(dummy5)
+                req_rel_l.append(alu.req_rel_o)
             else:
+                req_rel_l.append(alu.req_rel_o[0])
                 rd_rel0_l.append(alu.rd_rel_o[0])
                 rd_rel1_l.append(alu.rd_rel_o[1])
                 go_wr_l.append(alu.go_wr_i[0])
                 go_rd_l0.append(alu.go_rd_i[0])
                 go_rd_l1.append(alu.go_rd_i[1])
-                rd_rel0_l.append(Const(0, 64)) # FIXME
-                rd_rel1_l.append(Const(0, 64)) # FIXME
-            issue_l.append(alu.issue_i)
-            busy_l.append(alu.busy_o)
+                issue_l.append(alu.issue_i)
+                busy_l.append(alu.busy_o)
         comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
         comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
@@ -1178,9 +1183,10 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             alusim.setval(i, val)
 
         # create some instructions
-        lst = [#"addi 3, 0, 0x1234",
-               #"addi 2, 0, 0x4321",
-               "add  1, 3, 2"]
+        lst = [#"addi 2, 0, 0x4321",
+               #"addi 3, 0, 0x1234",
+               "add  1, 3, 2",
+               "add  4, 3, 3"]
         with Program(lst) as program:
             gen = program.generate_instructions()
 
