@@ -38,25 +38,21 @@ class DependencyRow(Elaboratable):
         src = []
         rsel = []
         fwd = []
-        rd = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
             rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
             fwd.append(Signal(n_reg, name="src%d_fwd_o" % j, reset_less=True))
-            rd.append(Signal(n_reg, name="go_rd%d_i" % j, reset_less=True))
 
         # dest arrays
         dest = []
         dsel = []
         dfwd = []
-        wr = []
         for i in range(n_dest):
             j = i + 1 # name numbering to match src1/src2
             dest.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
             dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
             dfwd.append(Signal(n_reg, name="dst%d_fwd_o" % j, reset_less=True))
-            wr.append(Signal(n_reg, name="go_wr%d_i" % j, reset_less=True))
 
         # inputs
         self.dest_i = Array(dest)     # Dest in (top)
@@ -68,8 +64,9 @@ class DependencyRow(Elaboratable):
         self.v_rd_rsel_o = Signal(n_reg, reset_less=True) # Read pend out (bot)
         self.v_wr_rsel_o = Signal(n_reg, reset_less=True) # Write pend out (bot)
 
-        self.go_wr_i = Array(wr) # Go Write in (left)
-        self.go_rd_i = Array(rd)  # Go Read in (left)
+        self.go_wr_i = Signal(n_dest, reset_less=True)  # Go Write in (left)
+        self.go_rd_i = Signal(n_src, reset_less=True)  # Go Read in (left)
+
         if self.cancel_mode:
             self.go_die_i = Signal(n_reg, reset_less=True) # Go Die in (left)
         else:
@@ -108,13 +105,13 @@ class DependencyRow(Elaboratable):
         wr_die = []
         for i in range(self.n_dest):
             wrd = Signal(self.n_reg, reset_less=True, name="wdi%d" % i)
-            wr_die.append(wrd)
             m.d.comb += wrd.eq(Repl(self.go_wr_i[i], self.n_reg) | go_die)
+            wr_die.append(wrd)
         rd_die = []
         for i in range(self.n_src):
             rdd = Signal(self.n_reg, reset_less=True, name="rdi%d" % i)
-            rd_die.append(rdd)
             m.d.comb += rdd.eq(Repl(self.go_rd_i[i], self.n_reg) | go_die)
+            rd_die.append(rdd)
         for i in range(self.n_src):
             m.d.comb += src_c[i].r.eq(rd_die[i])
         for i in range(self.n_dest):
