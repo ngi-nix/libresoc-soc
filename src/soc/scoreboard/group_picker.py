@@ -46,7 +46,8 @@ from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Elaboratable, Array
 
-from nmutil.picker import MultiPriorityPicker as MPP
+#from nmutil.picker import MultiPriorityPicker as MPP
+from nmutil.picker import PriorityPicker
 
 
 class GroupPicker(Elaboratable):
@@ -62,14 +63,14 @@ class GroupPicker(Elaboratable):
         ri = []
         for i in range(n_src):
             rdr.append(Signal(wid, name="rdrel%d_i" % i, reset_less=True))
-            rd.append(Signal(wid, name="gordl%d_i" % i, reset_less=True))
+            rd.append(Signal(wid, name="gord%d_o" % i, reset_less=True))
             ri.append(Signal(wid, name="readable%d_i" % i, reset_less=True))
         wrr = []
         wr = []
         wi = []
         for i in range(n_dst):
             wrr.append(Signal(wid, name="reqrel%d_i" % i, reset_less=True))
-            wr.append(Signal(wid, name="gowr%d_i" % i, reset_less=True))
+            wr.append(Signal(wid, name="gowr%d_o" % i, reset_less=True))
             wi.append(Signal(wid, name="writable%d_i" % i, reset_less=True))
 
         # inputs
@@ -85,17 +86,18 @@ class GroupPicker(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.rpick = rpick = MPP(self.gp_wid, self.n_src, False, True)
-        m.submodules.wpick = wpick = MPP(self.gp_wid, self.n_dst, False, True)
-
         # combine release (output ready signal) with writeable
         for i in range(self.n_dst):
-            m.d.comb += wpick.i[i].eq(self.writable_i[i] & self.req_rel_i[i])
-            m.d.comb += self.go_wr_o[i].eq(wpick.o[i])
+            wpick = PriorityPicker(self.gp_wid)
+            setattr(m.submodules, "wpick%d" % i, wpick)
+            m.d.comb += wpick.i.eq(self.writable_i[i] & self.req_rel_i[i])
+            m.d.comb += self.go_wr_o[i].eq(wpick.o)
 
         for i in range(self.n_src):
-            m.d.comb += rpick.i[i].eq(self.readable_i[i] & self.rd_rel_i[i])
-            m.d.comb += self.go_rd_o[i].eq(rpick.o[i])
+            rpick = PriorityPicker(self.gp_wid)
+            setattr(m.submodules, "rpick%d" % i, rpick)
+            m.d.comb += rpick.i.eq(self.readable_i[i] & self.rd_rel_i[i])
+            m.d.comb += self.go_rd_o[i].eq(rpick.o)
 
         return m
 

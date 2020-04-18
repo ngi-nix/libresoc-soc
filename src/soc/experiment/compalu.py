@@ -6,7 +6,7 @@ from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
-from .alu_hier import CompALUOpSubset
+from soc.experiment.alu_hier import CompALUOpSubset
 
 """ Computation Unit (aka "ALU Manager").
 

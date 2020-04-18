@@ -77,7 +77,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.data_o = dst[0] # Dest out
         self.rd_rel_o = Signal(n_src, reset_less=True) # release src1/src2 
         self.req_rel_o = Signal(n_dst, reset_less=True) # release out (valid_o)
-        self.done_o = self.req_rel_o # 'normalise' API
+        self.done_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
@@ -97,8 +97,9 @@ class ComputationUnitNoDelay(Elaboratable):
         # write_requests all done
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
+        m.d.comb += self.done_o.eq(~(self.req_rel_o.bool()))
         m.d.comb += wr_any.eq(self.go_wr_i.bool())
-        m.d.comb += req_done.eq(~(self.req_rel_o.bool()) & rst_l.q & wr_any)
+        m.d.comb += req_done.eq(self.done_o & rst_l.q & wr_any)
 
         # shadow/go_die
         reset = Signal(reset_less=True)

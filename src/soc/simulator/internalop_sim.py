@@ -100,6 +100,8 @@ class InternalOpSimulator:
             return op1 & op2
         elif internal_op == InternalOp.OP_OR.value:
             return op1 | op2
+        elif internal_op == InternalOp.OP_MUL_L64.value:
+            return op1 * op2
         else:
             assert False, "Not implemented"
 
@@ -134,10 +136,20 @@ class InternalOpSimulator:
         if cry_in == CryIn.ONE.value:
             carry = 1
         elif cry_in == CryIn.CA.value:
-            carry = TODO # deliberately cause error here
+            carry = self.carry_out
 
         result = self.execute_alu_op(operand1, operand2, internal_op,
                                      carry=carry)
+
+        cry_out = yield pdecode2.dec.op.cry_out
+        ## TODO   yield pdecode2.dec.op.rc
+        if(cry_out==1):
+            if(result > 0xFFFFFFFF):
+                self.carry_out = 1
+            else:
+                self.carry_out = 0
+            
+            
         ro_ok = yield pdecode2.e.write_reg.ok
         if ro_ok:
             ro_sel = yield pdecode2.e.write_reg.data

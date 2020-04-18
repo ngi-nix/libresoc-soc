@@ -15,6 +15,7 @@ from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
 from soc.experiment.compalu import ComputationUnitNoDelay
+from soc.experiment.compalu_multi import ComputationUnitNoDelay as MultiCompUnit
 from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 
@@ -139,26 +140,36 @@ class CompUnitsBase(Elaboratable):
             done_l.append(alu.done_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
-            if isinstance(alu, CompUnitALUs):
+            print (alu, alu.rd_rel_o)
+            if isinstance(alu, LDSTCompUnit) or \
+               isinstance(alu, CompUnitBR) or \
+               isinstance(alu, ComputationUnitNoDelay):
+                dummy1 = Signal(64, reset_less=True)
+                dummy2 = Signal(64, reset_less=True)
+                dummy3 = Signal(64, reset_less=True)
+                go_wr_l.append(dummy1)
+                go_rd_l0.append(dummy2)
+                go_rd_l1.append(dummy3)
+            else:
                 rd_rel0_l.append(alu.rd_rel_o[0])
                 rd_rel1_l.append(alu.rd_rel_o[1])
                 go_wr_l.append(alu.go_wr_i[0])
                 go_rd_l0.append(alu.go_rd_i[0])
                 go_rd_l1.append(alu.go_rd_i[1])
+                rd_rel0_l.append(Const(0, 64)) # FIXME
+                rd_rel1_l.append(Const(0, 64)) # FIXME
             issue_l.append(alu.issue_i)
             busy_l.append(alu.busy_o)
-        if isinstance(alu, CompUnitALUs):
-            comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
-            comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
+        comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
+        comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
         comb += self.done_o.eq(Cat(*done_l))
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
-        if isinstance(alu, CompUnitALUs):
-            comb += Cat(*go_wr_l).eq(self.go_wr_i)
-            comb += Cat(*go_rd0_l).eq(self.go_rd0_i)
-            comb += Cat(*go_rd1_l).eq(self.go_rd1_i)
+        comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        comb += Cat(*go_rd_l0).eq(self.go_rd0_i)
+        comb += Cat(*go_rd_l1).eq(self.go_rd1_i)
         comb += Cat(*issue_l).eq(self.issue_i)
 
         # connect data register input/output
@@ -272,7 +283,7 @@ class CompUnitALUs(CompUnitsBase):
         units = []
         for alu in alus:
             aluopwid = 3  # extra bit for immediate mode
-            units.append(ComputationUnitNoDelay(rwid, alu))
+            units.append(MultiCompUnit(rwid, alu))
 
         CompUnitsBase.__init__(self, rwid, units)
 
@@ -349,7 +360,7 @@ class FunctionUnits(Elaboratable):
         dst = []
         dsel = []
         wr = []
-        for i in range(n_src):
+        for i in range(n_dst):
             j = i + 1 # name numbering to match src1/src2
             dst.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
             dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
@@ -409,15 +420,15 @@ class FunctionUnits(Elaboratable):
         for i in range(self.n_src):
             print (i, self.go_rd_i, intfudeps.go_rd_i)
             comb += intfudeps.go_rd_i[i].eq(self.go_rd_i[i])
-            comb += intregdeps.dest_i[i].eq(self.dest_i[i])
-            comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
-            comb += self.dst_rsel_o[i].eq(intregdeps.dest_rsel_o[i])
+            comb += intregdeps.src_i[i].eq(self.src_i[i])
+            comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
+            comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[i])
         for i in range(self.n_dst):
             print (i, self.go_wr_i, intfudeps.go_wr_i)
             comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
-            comb += intregdeps.src_i[i].eq(self.src_i[i])
-            comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
-            comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[0])
+            comb += intregdeps.dest_i[i].eq(self.dest_i[i])
+            comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
+            comb += self.dst_rsel_o[i].eq(intregdeps.dest_rsel_o[i])
         comb += intregdeps.go_die_i.eq(self.go_die_i)
         comb += intregdeps.issue_i.eq(self.fn_issue_i)
 
@@ -660,13 +671,14 @@ class Scoreboard(Elaboratable):
         # ---------
         int_rd_o = intfus.readable_o
         rrel_o = cu.rd_rel_o
+        rqrl_o = cu.req_rel_o
         for i in range(fu_n_src):
             comb += ipick1.rd_rel_i[i][0:n_intfus].eq(rrel_o[i][0:n_intfus])
-            comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[i][0:n_intfus])
+            comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[0:n_intfus])
         int_wr_o = intfus.writable_o
         for i in range(fu_n_dst):
-            comb += ipick1.req_rel_i[i][0:n_intfus].eq(cu.done_o[0:n_intfus])
-            comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[i][0:n_intfus])
+            comb += ipick1.req_rel_i[i][0:n_intfus].eq(rqrl_o[i][0:n_intfus])
+            comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[0:n_intfus])
 
         # ---------
         # Shadow Matrix
@@ -1175,7 +1187,7 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             # issue instruction(s), wait for issue to be free before proceeding
             for ins, code in zip(gen, program.assembly.splitlines()):
                 yield instruction.eq(ins)          # raw binary instr.
-                yield Delay(1e-6)
+                yield #Delay(1e-6)
 
                 print("binary 0x{:X}".format(ins & 0xffffffff))
                 print("assembly", code)

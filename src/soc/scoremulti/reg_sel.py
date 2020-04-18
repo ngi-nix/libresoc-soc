@@ -9,7 +9,6 @@ class Reg_Rsv(Elaboratable):
         self.n_src = n_src
         self.n_dest = n_dest
         self.fu_count = fu_count
-        self.dest_rsel_i = Signal(fu_count, reset_less=True)
         self.dest_rsel_i = Array(Signal(fu_count, name="dst_rsel_i",
                                        reset_less=True) \
                                 for i in range(n_dest))

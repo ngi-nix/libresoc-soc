@@ -9,16 +9,15 @@ class FU_RW_Pend(Elaboratable):
         self.n_src = n_src
         self.n_dest = n_dest
         self.reg_count = reg_count
-        self.dest_fwd_i = Signal(reg_count, reset_less=True)
         dst = []
-        for i in range(n_src):
+        for i in range(n_dest):
             j = i + 1 # name numbering to match dest1/dest2
-            dst.append(Signal(reg_count, name="dst%d" % j, reset_less=True))
+            dst.append(Signal(reg_count, name="dfwd%d_i" % j, reset_less=True))
         self.dest_fwd_i = Array(dst)
         src = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
-            src.append(Signal(reg_count, name="src%d" % j, reset_less=True))
+            src.append(Signal(reg_count, name="sfwd%d_i" % j, reset_less=True))
         self.src_fwd_i = Array(src)
 
         self.reg_wr_pend_o = Signal(reset_less=True)
