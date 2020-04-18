@@ -157,8 +157,8 @@ class DependencyRow(Elaboratable):
         yield self.rd_pend_i
         yield self.wr_pend_i
         yield self.issue_i
-        yield from self.go_wr_i
-        yield from self.go_rd_i
+        yield self.go_wr_i
+        yield self.go_rd_i
         yield self.go_die_i
         yield from self.dest_rsel_o
         yield from self.src_rsel_o
