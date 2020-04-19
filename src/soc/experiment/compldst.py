@@ -24,7 +24,7 @@ from nmigen import Module, Signal, Mux, Cat, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
 
-from .testmem import TestMemory
+from soc.experiment.testmem import TestMemory
 
 # internal opcodes.  hypothetically this could do more combinations.
 # meanings:
