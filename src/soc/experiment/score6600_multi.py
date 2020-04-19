@@ -142,7 +142,6 @@ class CompUnitsBase(Elaboratable):
             godie_l.append(alu.go_die_i)
             print (alu, "rel", alu.req_rel_o, alu.rd_rel_o)
             if isinstance(alu, LDSTCompUnit) or \
-               isinstance(alu, CompUnitBR) or \
                isinstance(alu, ComputationUnitNoDelay):
                 if isinstance(alu, CompUnitsBase):
                     ulen = alu.n_units
@@ -322,13 +321,14 @@ class CompUnitBR(CompUnitsBase):
         self.opwid = opwid
 
         # inputs
+        self.op = CompALUOpSubset("cua_i") # TODO - CompALUBranchSubset
         self.oper_i = Signal(opwid, reset_less=True)
         self.imm_i = Signal(rwid, reset_less=True)
 
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
         aluopwid = 3  # extra bit for immediate mode
-        self.br1 = ComputationUnitNoDelay(rwid, self.bgt)
+        self.br1 = MultiCompUnit(rwid, self.bgt)
         CompUnitsBase.__init__(self, rwid, [self.br1])
 
     def elaborate(self, platform):
@@ -337,6 +337,7 @@ class CompUnitBR(CompUnitsBase):
 
         # hand the same operation to all units
         for alu in self.units:
+            #comb += alu.oper_i.eq(self.op) # TODO
             comb += alu.oper_i.eq(self.oper_i)
             #comb += alu.imm_i.eq(self.imm_i)
 

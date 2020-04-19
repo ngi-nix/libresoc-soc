@@ -273,9 +273,13 @@ class BranchALU(Elaboratable):
         self.n_valid_o = Signal()
         self.counter   = Signal(4)
         self.op  = Signal(2)
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width)
+        i = []
+        i.append(Signal(width, name="i1"))
+        i.append(Signal(width, name="i2"))
+        self.i = Array(i)
+        self.a, self.b = i[0], i[1]
+        self.out = Array([Signal(width)])
+        self.o = self.out[0]
         self.width = width
 
     def elaborate(self, platform):
