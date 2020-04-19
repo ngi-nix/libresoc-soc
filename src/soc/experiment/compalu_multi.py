@@ -231,9 +231,7 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(0b10)
-    yield
-    yield dut.go_rd_i.eq(0b01)
+    yield dut.go_rd_i.eq(0b11)
     while True:
         yield
         rd_rel_o = yield dut.rd_rel_o
@@ -281,11 +279,12 @@ def test_scoreboard():
     alu = ALU(16)
     dut = ComputationUnitNoDelay(16, alu)
     m.submodules.cu = dut
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
 
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_compalu.il", "w") as f:
         f.write(vl)
+
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
 
 if __name__ == '__main__':
     test_scoreboard()

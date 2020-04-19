@@ -20,11 +20,15 @@
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Cat, Elaboratable
+from nmigen import Module, Signal, Mux, Cat, Elaboratable, Array
 
 from nmutil.latch import SRLatch, latchregister
 
 from soc.experiment.testmem import TestMemory
+from soc.decoder.power_enums import InternalOp
+
+from alu_hier import CompALUOpSubset
+
 
 # internal opcodes.  hypothetically this could do more combinations.
 # meanings:
@@ -91,15 +95,24 @@ class LDSTCompUnit(Elaboratable):
         * :addr_o:     Address out (LD or ST)
     """
 
-    def __init__(self, rwid, opwid, alu, mem):
-        self.opwid = opwid
+    def __init__(self, rwid, alu, mem, n_src=2, n_dst=1):
         self.rwid = rwid
         self.alu = alu
         self.mem = mem
 
         self.counter = Signal(4)
-        self.go_rd_i = Signal(reset_less=True)  # go read in
-        self.go_ad_i = Signal(reset_less=True)  # go address in
+        src = []
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            src.append(Signal(rwid, name="src%d_i" % j, reset_less=True))
+
+        dst = []
+        for i in range(n_dst):
+            j = i + 1 # name numbering to match dest1/2...
+            dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
+
+        self.go_rd_i = Signal(n_src, reset_less=True)  # go read in
+        self.go_ad_i = Signal(n_dst, reset_less=True)  # go address in
         self.go_wr_i = Signal(reset_less=True)  # go write in
         self.go_st_i = Signal(reset_less=True)  # go store in
         self.issue_i = Signal(reset_less=True)  # fn issue in
@@ -107,16 +120,19 @@ class LDSTCompUnit(Elaboratable):
         self.shadown_i = Signal(reset=1)  # shadow function, defaults to ON
         self.go_die_i = Signal()  # go die (reset)
 
-        self.oper_i = Signal(opwid, reset_less=True)  # opcode in
-        self.imm_i = Signal(rwid, reset_less=True)  # immediate in
-        self.src1_i = Signal(rwid, reset_less=True)  # oper1 in
-        self.src2_i = Signal(rwid, reset_less=True)  # oper2 in
+        # operation / data input
+        self.oper_i = CompALUOpSubset() # operand
+        self.src_i = Array(src)
+        self.src1_i = src[0] # oper1 in
+        self.src2_i = src[1] # oper2 in
 
         self.busy_o = Signal(reset_less=True)       # fn busy out
-        self.rd_rel_o = Signal(reset_less=True)  # request src1/src2
+        self.dest = Array(dst)
+        self.data_o = dst[0] # Dest out
+        self.rd_rel_o = Signal(n_src, reset_less=True)  # request src1/src2
         self.adr_rel_o = Signal(reset_less=True)  # request address (from mem)
         self.sto_rel_o = Signal(reset_less=True)  # request store (to mem)
-        self.req_rel_o = Signal(reset_less=True)  # request write (result)
+        self.req_rel_o = Signal(n_dst, reset_less=True)  # req write (result)
         self.done_o = Signal(reset_less=True)  # final release signal
         self.data_o = Signal(rwid, reset_less=True)  # Dest out (LD or ALU)
         self.addr_o = Signal(rwid, reset_less=True)  # Address out (LD or ST)
@@ -161,6 +177,7 @@ class LDSTCompUnit(Elaboratable):
         op_is_st = Signal(reset_less=True)
         op_ldst = Signal(reset_less=True)
         op_is_imm = Signal(reset_less=True)
+        alulatch = Signal(reset_less=True)
 
         # src2 register
         src2_r = Signal(self.rwid, reset_less=True)
@@ -196,6 +213,18 @@ class LDSTCompUnit(Elaboratable):
         sync += sto_l.s.eq(self.go_rd_i)  # XXX not sure which
         sync += sto_l.r.eq(reset_s)
 
+        # create a latch/register for the operand
+        oper_r = CompALUOpSubset()  # Dest register
+        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_r")
+
+        # and one for the output from the ALU
+        data_r = Signal(self.rwid, reset_less=True)  # Dest register
+        latchregister(m, self.alu.o, data_r, alulatch, "aluo_r")
+
+        # and pass the operation to the ALU
+        comb += self.alu.op.eq(oper_r)
+        comb += self.alu.op.insn_type.eq(InternalOp.OP_ADD) # override insn_type
+
         # outputs: busy and release signals
         busy_o = self.busy_o
         comb += self.busy_o.eq(opc_l.q)  # busy out
@@ -207,35 +236,24 @@ class LDSTCompUnit(Elaboratable):
         wr_q = Signal(reset_less=True)
         comb += wr_q.eq(req_l.q & (~op_ldst | op_is_ld))
 
-        alulatch = Signal(reset_less=True)
         comb += alulatch.eq((op_ldst & self.adr_rel_o) |
                             (~op_ldst & self.req_rel_o))
 
         # select immediate if opcode says so.  however also change the latch
         # to trigger *from* the opcode latch instead.
         comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
-        comb += src2_or_imm.eq(Mux(op_is_imm, self.imm_i, self.src2_i))
+        comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
+                                              self.src2_i))
 
         # create a latch/register for src1/src2 (include immediate select)
         latchregister(m, self.src1_i, self.alu.a, src_l.q, name="src1_r")
         latchregister(m, self.src2_i, src2_r, src_l.q, name="src2_r")
         latchregister(m, src2_or_imm, self.alu.b, src_sel, name="imm_r")
 
-        # create a latch/register for the operand
-        oper_r = Signal(self.opwid, reset_less=True)  # Dest register
-        latchregister(m, self.oper_i, oper_r, self.issue_i, name="operi_r")
-        alu_op = Cat(op_alu, 0, op_is_imm)  # using alu_hier, here.
-        comb += self.alu.op.eq(alu_op)
-
-        # and one for the output from the ALU
-        data_r = Signal(self.rwid, reset_less=True)  # Dest register
-        latchregister(m, self.alu.o, data_r, alulatch, "aluo_r")
-
         # decode bits of operand (latched)
-        comb += op_alu.eq(oper_r[BIT0_ADD])    # ADD/SUB
-        comb += op_is_imm.eq(oper_r[BIT1_SRC])  # IMMED/reg
-        comb += op_is_st.eq(oper_r[BIT2_ST])  # OP is ST
-        comb += op_is_ld.eq(oper_r[BIT3_LD])  # OP is LD
+        comb += op_is_imm.eq(oper_r.imm_data.imm_ok)
+        comb += op_is_st.eq(oper_r.insn_type == InternalOp.OP_STORE)   # ST
+        comb += op_is_ld.eq(oper_r.insn_type == InternalOp.OP_LOAD) # LD
         comb += op_ldst.eq(op_is_ld | op_is_st)
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
         comb += self.stwd_mem_o.eq(op_is_st & self.go_st_i)
@@ -303,10 +321,8 @@ class LDSTCompUnit(Elaboratable):
         yield self.isalu_i
         yield self.shadown_i
         yield self.go_die_i
-        yield self.oper_i
-        yield self.imm_i
-        yield self.src1_i
-        yield self.src2_i
+        yield from self.oper_i.ports()
+        yield from self.src_i
         yield self.busy_o
         yield self.rd_rel_o
         yield self.adr_rel_o
@@ -331,16 +347,17 @@ def wait_for(sig):
             break
 
 
-def store(dut, src1, src2, imm):
-    yield dut.oper_i.eq(LDST_OP_ST)
+def store(dut, src1, src2, imm, imm_ok=True):
+    yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
-    yield dut.imm_i.eq(imm)
+    yield dut.oper_i.imm_data.imm.eq(imm)
+    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(1)
+    yield dut.go_rd_i.eq(0b11)
     yield from wait_for(dut.rd_rel_o)
     yield dut.go_rd_i.eq(0)
     yield from wait_for(dut.adr_rel_o)
@@ -351,16 +368,17 @@ def store(dut, src1, src2, imm):
     yield
 
 
-def load(dut, src1, src2, imm):
-    yield dut.oper_i.eq(LDST_OP_LD)
+def load(dut, src1, src2, imm, imm_ok=True):
+    yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
-    yield dut.imm_i.eq(imm)
+    yield dut.oper_i.imm_data.imm.eq(imm)
+    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(1)
+    yield dut.go_rd_i.eq(0b11)
     yield from wait_for(dut.rd_rel_o)
     yield dut.go_rd_i.eq(0)
     yield from wait_for(dut.adr_rel_o)
@@ -373,11 +391,12 @@ def load(dut, src1, src2, imm):
     return data
 
 
-def add(dut, src1, src2, imm, imm_mode=False):
-    yield dut.oper_i.eq(LDST_OP_ADDI if imm_mode else LDST_OP_ADD)
+def add(dut, src1, src2, imm, imm_ok=False):
+    yield dut.oper_i.insn_type.eq(InternalOp.OP_ADD)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
-    yield dut.imm_i.eq(imm)
+    yield dut.oper_i.imm_data.imm.eq(imm)
+    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
@@ -413,17 +432,17 @@ def scoreboard_sim(dut):
     assert data == 0x7
 
     # and an add-immediate
-    data = yield from add(dut, 4, 0xdeef, 2, imm_mode=True)
+    data = yield from add(dut, 4, 0xdeef, 2, imm_ok=True)
     assert data == 0x6
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
 
-    def __init__(self, rwid, opwid):
+    def __init__(self, rwid):
         from alu_hier import ALU
         self.alu = alu = ALU(rwid)
         self.mem = mem = TestMemory(rwid, 8)
-        LDSTCompUnit.__init__(self, rwid, opwid, alu, mem)
+        LDSTCompUnit.__init__(self, rwid, alu, mem)
 
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
@@ -433,7 +452,7 @@ class TestLDSTCompUnit(LDSTCompUnit):
 
 def test_scoreboard():
 
-    dut = TestLDSTCompUnit(16, 4)
+    dut = TestLDSTCompUnit(16)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
