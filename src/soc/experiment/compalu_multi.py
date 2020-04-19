@@ -56,7 +56,7 @@ class ComputationUnitNoDelay(Elaboratable):
             src.append(Signal(rwid, name="src%d_i" % j, reset_less=True))
 
         dst = []
-        for i in range(n_src):
+        for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
             dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
 
