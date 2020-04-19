@@ -685,7 +685,8 @@ class Scoreboard(Elaboratable):
             comb += ipick1.readable_i[i][0:n_intfus].eq(int_rd_o[0:n_intfus])
         int_wr_o = intfus.writable_o
         for i in range(fu_n_dst):
-            comb += ipick1.req_rel_i[i][0:n_intfus].eq(rqrl_o[i][0:n_intfus])
+            # XXX FIXME: rqrl_o[i] here
+            comb += ipick1.req_rel_i[i][0:n_intfus].eq(rqrl_o[0:n_intfus])
             comb += ipick1.writable_i[i][0:n_intfus].eq(int_wr_o[0:n_intfus])
 
         # ---------
