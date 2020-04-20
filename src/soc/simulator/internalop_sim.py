@@ -59,7 +59,7 @@ class RegFile:
         self.sprs = {}
 
     def write_reg(self, regnum, value):
-        all1s = (1<<64)-1 # 64 bits worth of 1s
+        all1s = (1 << 64)-1  # 64 bits worth of 1s
         value &= all1s
         print("Writing {:x} to reg r{}".format(value, regnum))
         self.regfile[regnum] = value
@@ -106,7 +106,7 @@ class InternalOpSimulator:
             assert False, "Not implemented"
 
     def alu_op(self, pdecode2):
-        all1s = (1<<64)-1 # 64 bits worth of 1s
+        all1s = (1 << 64)-1  # 64 bits worth of 1s
         internal_op = yield pdecode2.dec.op.internal_op
         operand1 = 0
         operand2 = 0
@@ -142,14 +142,11 @@ class InternalOpSimulator:
                                      carry=carry)
 
         cry_out = yield pdecode2.dec.op.cry_out
-        ## TODO   yield pdecode2.dec.op.rc
-        if(cry_out==1):
-            if(result > 0xFFFFFFFF):
-                self.carry_out = 1
-            else:
-                self.carry_out = 0
-            
-            
+        # TODO   yield pdecode2.dec.op.rc
+        if cry_out == 1:
+            self.carry_out = (result >> 64)
+            print("setting carry_out", self.carry_out)
+
         ro_ok = yield pdecode2.e.write_reg.ok
         if ro_ok:
             ro_sel = yield pdecode2.e.write_reg.data
