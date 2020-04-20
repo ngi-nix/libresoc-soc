@@ -249,8 +249,7 @@ class CompUnitLDSTs(CompUnitsBase):
 
         units = []
         for alu in self.alus:
-            aluopwid = 4  # see compldst.py for "internal" opcode
-            units.append(LDSTCompUnit(rwid, aluopwid, alu, mem))
+            units.append(LDSTCompUnit(rwid, alu, mem))
 
         CompUnitsBase.__init__(self, rwid, units, ldstmode=True)
 
@@ -261,7 +260,7 @@ class CompUnitLDSTs(CompUnitsBase):
         # hand the same operation to all units, 4 lower bits though
         for alu in self.units:
             comb += alu.oper_i[0:4].eq(self.oper_i)
-            comb += alu.imm_i.eq(self.imm_i)
+            #comb += alu.imm_i.eq(self.imm_i)
             comb += alu.isalu_i.eq(0)
 
         return m
