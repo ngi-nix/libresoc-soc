@@ -108,6 +108,13 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
+    def test_addis(self):
+        lst = ["addi 1, 0, 0x0FFF",
+               "addis 1, 1, 0x0F"
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1])
+
     def run_tst_program(self, prog, reglist):
         simulator = InternalOpSimulator()
         self.run_tst(prog, simulator)
