@@ -113,4 +113,4 @@ if __name__ == '__main__':
         sources = sys.argv[1:]
     for source in sources:
         isa.write_pysource(source)
-    #isa.write_isa_class()
+    isa.write_isa_class()
