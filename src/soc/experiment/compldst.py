@@ -27,7 +27,7 @@ from nmutil.latch import SRLatch, latchregister
 from soc.experiment.testmem import TestMemory
 from soc.decoder.power_enums import InternalOp
 
-from alu_hier import CompALUOpSubset
+from .alu_hier import CompALUOpSubset
 
 
 # internal opcodes.  hypothetically this could do more combinations.
