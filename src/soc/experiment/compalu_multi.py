@@ -1,6 +1,7 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array
+from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Record
+from nmigen.hdl.rec import (DIR_FANIN, DIR_FANOUT)
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
@@ -42,6 +43,13 @@ from alu_hier import CompALUOpSubset
       through its revolving door to do another task.
 """
 
+def go_record(n, name):
+    r = Record([('go', n, DIR_FANIN),
+                ('rel', n, DIR_FANOUT)], name=name)
+    r.go.reset_less = True
+    r.rel.reset_less = True
+    return r
+
 
 class ComputationUnitNoDelay(Elaboratable):
     def __init__(self, rwid, alu, n_src=2, n_dst=1):
@@ -60,8 +68,8 @@ class ComputationUnitNoDelay(Elaboratable):
             j = i + 1 # name numbering to match dest1/2...
             dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
 
-        self.go_rd_i = Signal(n_src, reset_less=True) # read in
-        self.go_wr_i = Signal(n_dst, reset_less=True) # write in
+        self.rd = go_record(n_src, name="rd") # read in, req out
+        self.wr = go_record(n_dst, name="wr") # write in, req out
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
@@ -75,8 +83,6 @@ class ComputationUnitNoDelay(Elaboratable):
         self.busy_o = Signal(reset_less=True) # fn busy out
         self.dest = Array(dst)
         self.data_o = dst[0] # Dest out
-        self.rd_rel_o = Signal(n_src, reset_less=True) # release src1/src2 
-        self.req_rel_o = Signal(n_dst, reset_less=True) # release out (valid_o)
         self.done_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
@@ -92,13 +98,13 @@ class ComputationUnitNoDelay(Elaboratable):
         # so combine it with go_rd_i.  if all bits are set we're good
         all_rd = Signal(reset_less=True)
         m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
-                    (((~self.rd_rel_o) | self.go_rd_i).all()))
+                    (((~self.rd.rel) | self.rd.go).all()))
 
         # write_requests all done
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
-        m.d.comb += self.done_o.eq(self.busy_o & ~(self.req_rel_o.bool()))
-        m.d.comb += wr_any.eq(self.go_wr_i.bool())
+        m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
+        m.d.comb += wr_any.eq(self.wr.go.bool())
         m.d.comb += req_done.eq(self.done_o & rst_l.q & wr_any)
 
         # shadow/go_die
@@ -108,8 +114,8 @@ class ComputationUnitNoDelay(Elaboratable):
         reset_r = Signal(self.n_src, reset_less=True)
         m.d.comb += reset.eq(req_done | self.go_die_i)
         m.d.comb += rst_r.eq(self.issue_i | self.go_die_i)
-        m.d.comb += reset_w.eq(self.go_wr_i | Repl(self.go_die_i, self.n_dst))
-        m.d.comb += reset_r.eq(self.go_rd_i | Repl(self.go_die_i, self.n_src))
+        m.d.comb += reset_w.eq(self.wr.go | Repl(self.go_die_i, self.n_dst))
+        m.d.comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
@@ -175,7 +181,7 @@ class ComputationUnitNoDelay(Elaboratable):
         # all request signals gated by busy_o.  prevents picker problems
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
         bro = Repl(self.busy_o, self.n_src)
-        m.d.comb += self.rd_rel_o.eq(src_l.q & bro) # src1/src2 req rel
+        m.d.comb += self.rd.rel.eq(src_l.q & bro) # src1/src2 req rel
 
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
@@ -188,21 +194,21 @@ class ComputationUnitNoDelay(Elaboratable):
         # only proceed if ALU says its output is valid
         with m.If(self.alu.n_valid_o):
             # when ALU ready, write req release out. waits for shadow
-            m.d.comb += self.req_rel_o.eq(req_l.q & brd)
+            m.d.comb += self.wr.rel.eq(req_l.q & brd)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(reset):
                 m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
-            with m.If(self.go_wr_i[i]):
+            with m.If(self.wr.go[i]):
                 m.d.comb += self.dest[i].eq(drl[i])
 
         return m
 
     def __iter__(self):
-        yield self.go_rd_i
-        yield self.go_wr_i
+        yield self.rd.go
+        yield self.wr.go
         yield self.issue_i
         yield self.shadown_i
         yield self.go_die_i
@@ -210,8 +216,8 @@ class ComputationUnitNoDelay(Elaboratable):
         yield self.src1_i
         yield self.src2_i
         yield self.busy_o
-        yield self.rd_rel_o
-        yield self.req_rel_o
+        yield self.rd.rel
+        yield self.wr.rel
         yield self.data_o
 
     def ports(self):
@@ -231,30 +237,30 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.go_rd_i.eq(0b11)
+    yield dut.rd.go.eq(0b11)
     while True:
         yield
-        rd_rel_o = yield dut.rd_rel_o
+        rd_rel_o = yield dut.rd.rel
         print ("rd_rel", rd_rel_o)
         if rd_rel_o:
             break
     yield
-    yield dut.go_rd_i.eq(0)
-    req_rel_o = yield dut.req_rel_o
+    yield dut.rd.go.eq(0)
+    req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
     print ("req_rel", req_rel_o, result)
     while True:
-        req_rel_o = yield dut.req_rel_o
+        req_rel_o = yield dut.wr.rel
         result = yield dut.data_o
         print ("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
-    yield dut.go_wr_i[0].eq(1)
+    yield dut.wr.go[0].eq(1)
     yield
     result = yield dut.data_o
     print ("result", result)
-    yield dut.go_wr_i[0].eq(0)
+    yield dut.wr.go[0].eq(0)
     yield
     return result
 
