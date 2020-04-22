@@ -70,6 +70,10 @@ class ComputationUnitNoDelay(Elaboratable):
 
         self.rd = go_record(n_src, name="rd") # read in, req out
         self.wr = go_record(n_dst, name="wr") # write in, req out
+        self.go_rd_i = self.rd.go # temporary naming
+        self.go_wr_i = self.wr.go # temporary naming
+        self.rd_rel_o = self.rd.rel # temporary naming
+        self.req_rel_o = self.wr.rel # temporary naming
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
@@ -105,7 +109,7 @@ class ComputationUnitNoDelay(Elaboratable):
         req_done = Signal(reset_less=True)
         m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
         m.d.comb += wr_any.eq(self.wr.go.bool())
-        m.d.comb += req_done.eq(self.done_o & rst_l.q & wr_any)
+        m.d.comb += req_done.eq(rst_l.q & wr_any)
 
         # shadow/go_die
         reset = Signal(reset_less=True)
