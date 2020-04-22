@@ -141,8 +141,7 @@ class CompUnitsBase(Elaboratable):
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
             print (alu, "rel", alu.req_rel_o, alu.rd_rel_o)
-            if isinstance(alu, LDSTCompUnit) or \
-               isinstance(alu, ComputationUnitNoDelay):
+            if isinstance(alu, ComputationUnitNoDelay):
                 if isinstance(alu, CompUnitsBase):
                     ulen = alu.n_units
                 else:
