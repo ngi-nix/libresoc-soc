@@ -131,7 +131,7 @@ class MultiCompUnit(Elaboratable):
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
-        m.d.sync += opc_l.r.eq(self.alu.n_valid_o) # reset on ALU finishes
+        m.d.sync += opc_l.r.eq(self.alu.n_valid_o & req_done) # reset on ALU
 
         # src operand latch (not using go_wr_i)
         m.d.sync += src_l.s.eq(Repl(self.issue_i, self.n_src))
@@ -149,7 +149,7 @@ class MultiCompUnit(Elaboratable):
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
-            data_r = Signal(self.rwid, name=name, reset_less=True) 
+            data_r = Signal(self.rwid, name=name, reset_less=True)
             latchregister(m, self.alu.out[i], data_r, req_l.q[i], name)
             drl.append(data_r)
 
@@ -287,7 +287,7 @@ def test_scoreboard():
 
     m = Module()
     alu = ALU(16)
-    dut = ComputationUnitNoDelay(16, alu)
+    dut = MultiCompUnit(16, alu)
     m.submodules.cu = dut
 
     vl = rtlil.convert(dut, ports=dut.ports())

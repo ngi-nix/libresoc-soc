@@ -89,7 +89,7 @@ class CompUnitsBase(Elaboratable):
         self.rd1 = go_record(n_units, "rd1")
         self.go_rd_i = [self.rd0.go, self.rd1.go] # XXX HACK!
         self.wr0 = go_record(n_units, "wr0")
-        self.go_wr_i = self.wr0.go
+        self.go_wr_i = [self.wr0.go]
         self.shadown_i = Signal(n_units, reset_less=True)
         self.go_die_i = Signal(n_units, reset_less=True)
         if ldstmode:
@@ -140,31 +140,13 @@ class CompUnitsBase(Elaboratable):
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
             print (alu, "rel", alu.req_rel_o, alu.rd_rel_o)
-            if isinstance(alu, ComputationUnitNoDelay):
-                if isinstance(alu, CompUnitsBase):
-                    ulen = alu.n_units
-                else:
-                    ulen = 1
-                rd_rel0_l.append(Const(0, 64)) # FIXME
-                rd_rel1_l.append(Const(0, 64)) # FIXME
-                dummy1 = Signal(ulen, reset_less=True)
-                dummy2 = Signal(ulen, reset_less=True)
-                dummy3 = Signal(ulen, reset_less=True)
-                dummy4 = Signal(ulen, reset_less=True)
-                dummy5 = Signal(ulen, reset_less=True)
-                go_wr_l.append(dummy1)
-                go_rd_l0.append(dummy2)
-                go_rd_l1.append(dummy3)
-                issue_l.append(dummy4)
-                busy_l.append(dummy5)
-            else:
-                rd_rel0_l.append(alu.rd_rel_o[0])
-                rd_rel1_l.append(alu.rd_rel_o[1])
-                go_wr_l.append(alu.go_wr_i[0])
-                go_rd_l0.append(alu.go_rd_i[0])
-                go_rd_l1.append(alu.go_rd_i[1])
-                issue_l.append(alu.issue_i)
-                busy_l.append(alu.busy_o)
+            rd_rel0_l.append(alu.rd_rel_o[0])
+            rd_rel1_l.append(alu.rd_rel_o[1])
+            go_wr_l.append(alu.go_wr_i)
+            go_rd_l0.append(alu.go_rd_i[0])
+            go_rd_l1.append(alu.go_rd_i[1])
+            issue_l.append(alu.issue_i)
+            busy_l.append(alu.busy_o)
         comb += self.rd0.rel.eq(Cat(*rd_rel0_l))
         comb += self.rd1.rel.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
@@ -172,7 +154,7 @@ class CompUnitsBase(Elaboratable):
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
-        comb += Cat(*go_wr_l).eq(self.go_wr_i)
+        comb += Cat(*go_wr_l).eq(self.wr0.go) # XXX TODO
         comb += Cat(*go_rd_l0).eq(self.rd0.go)
         comb += Cat(*go_rd_l1).eq(self.rd1.go)
         comb += Cat(*issue_l).eq(self.issue_i)
@@ -602,7 +584,9 @@ class Scoreboard(Elaboratable):
         # Memory Function Unit
         # ---------
         reset_b = Signal(cul.n_units, reset_less=True)
-        sync += reset_b.eq(cul.go_st_i | cul.go_wr_i | cul.go_die_i)
+        # XXX was cul.go_wr_i not done.o
+        # sync += reset_b.eq(cul.go_st_i | cul.done_o | cul.go_die_i)
+        sync += reset_b.eq(cul.go_st_i | cul.done_o | cul.go_die_i)
 
         comb += memfus.fn_issue_i.eq(cul.issue_i)  # Comp Unit Issue -> Mem FUs
         comb += memfus.addr_en_i.eq(cul.adr_rel_o)  # Match enable on adr rel
@@ -1185,8 +1169,8 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             alusim.setval(i, val)
 
         # create some instructions
-        lst = [#"addi 2, 0, 0x4321",
-               #"addi 3, 0, 0x1234",
+        lst = ["addi 2, 0, 0x4321",
+               "addi 3, 0, 0x1234",
                "add  1, 3, 2",
                "add  4, 3, 5"
                 ]
