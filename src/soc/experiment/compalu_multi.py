@@ -105,6 +105,8 @@ class MultiCompUnit(Elaboratable):
                     (((~self.rd.rel) | self.rd.go).all()))
 
         # write_requests all done
+        # req_done works because any one of the last of the writes
+        # is enough, when combined with when read-phase is done (rst_l.q)
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
         m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
