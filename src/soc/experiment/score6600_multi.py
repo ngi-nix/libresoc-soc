@@ -15,7 +15,7 @@ from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
 from soc.experiment.compalu import ComputationUnitNoDelay
-from soc.experiment.compalu_multi import MultiCompUnit
+from soc.experiment.compalu_multi import MultiCompUnit, go_record
 from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 
@@ -85,10 +85,11 @@ class CompUnitsBase(Elaboratable):
 
         # inputs
         self.issue_i = Signal(n_units, reset_less=True)
-        self.go_rd0_i = Signal(n_units, reset_less=True)
-        self.go_rd1_i = Signal(n_units, reset_less=True)
-        self.go_rd_i = [self.go_rd0_i, self.go_rd1_i] # XXX HACK!
-        self.go_wr_i = Signal(n_units, reset_less=True)
+        self.rd0 = go_record(n_units, "rd0")
+        self.rd1 = go_record(n_units, "rd1")
+        self.go_rd_i = [self.rd0.go, self.rd1.go] # XXX HACK!
+        self.wr0 = go_record(n_units, "wr0")
+        self.go_wr_i = self.wr0.go
         self.shadown_i = Signal(n_units, reset_less=True)
         self.go_die_i = Signal(n_units, reset_less=True)
         if ldstmode:
@@ -97,10 +98,8 @@ class CompUnitsBase(Elaboratable):
 
         # outputs
         self.busy_o = Signal(n_units, reset_less=True)
-        self.rd_rel0_o = Signal(n_units, reset_less=True)
-        self.rd_rel1_o = Signal(n_units, reset_less=True)
-        self.rd_rel_o = [self.rd_rel0_o, self.rd_rel1_o] # HACK!
-        self.req_rel_o = Signal(n_units, reset_less=True)
+        self.rd_rel_o = [self.rd0.rel, self.rd1.rel] # HACK!
+        self.req_rel_o = self.wr0.rel
         self.done_o = Signal(n_units, reset_less=True)
         if ldstmode:
             self.ld_o = Signal(n_units, reset_less=True)  # op is LD
@@ -166,16 +165,16 @@ class CompUnitsBase(Elaboratable):
                 go_rd_l1.append(alu.go_rd_i[1])
                 issue_l.append(alu.issue_i)
                 busy_l.append(alu.busy_o)
-        comb += self.rd_rel0_o.eq(Cat(*rd_rel0_l))
-        comb += self.rd_rel1_o.eq(Cat(*rd_rel1_l))
+        comb += self.rd0.rel.eq(Cat(*rd_rel0_l))
+        comb += self.rd1.rel.eq(Cat(*rd_rel1_l))
         comb += self.req_rel_o.eq(Cat(*req_rel_l))
         comb += self.done_o.eq(Cat(*done_l))
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
         comb += Cat(*go_wr_l).eq(self.go_wr_i)
-        comb += Cat(*go_rd_l0).eq(self.go_rd0_i)
-        comb += Cat(*go_rd_l1).eq(self.go_rd1_i)
+        comb += Cat(*go_rd_l0).eq(self.rd0.go)
+        comb += Cat(*go_rd_l1).eq(self.rd1.go)
         comb += Cat(*issue_l).eq(self.issue_i)
 
         # connect data register input/output
