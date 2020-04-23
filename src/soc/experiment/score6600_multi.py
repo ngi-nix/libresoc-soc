@@ -15,7 +15,7 @@ from soc.scoreboard.instruction_q import Instruction, InstructionQ
 from soc.scoreboard.memfu import MemFunctionUnits
 
 from soc.experiment.compalu import ComputationUnitNoDelay
-from soc.experiment.compalu_multi import ComputationUnitNoDelay as MultiCompUnit
+from soc.experiment.compalu_multi import MultiCompUnit
 from soc.experiment.compldst import LDSTCompUnit
 from soc.experiment.testmem import TestMemory
 

@@ -51,7 +51,7 @@ def go_record(n, name):
     return r
 
 
-class ComputationUnitNoDelay(Elaboratable):
+class MultiCompUnit(Elaboratable):
     def __init__(self, rwid, alu, n_src=2, n_dst=1):
         self.n_src, self.n_dst = n_src, n_dst
         self.rwid = rwid
