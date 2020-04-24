@@ -31,25 +31,6 @@ from soc.decoder.power_enums import InternalOp
 from soc.experiment.alu_hier import CompALUOpSubset
 
 
-# internal opcodes.  hypothetically this could do more combinations.
-# meanings:
-# * bit 0: 0 = ADD , 1 = SUB
-# * bit 1: 0 = src1, 1 = IMM
-# * bit 2: 1 = LD
-# * bit 3: 1 = ST
-BIT0_ADD = 0
-BIT1_SRC = 1
-BIT2_ST = 2
-BIT3_LD = 3
-# convenience thingies.
-LDST_OP_ADD = 0b0000  # plain ADD (src1 + src2) - use this ALU as an ADD
-LDST_OP_SUB = 0b0001  # plain SUB (src1 - src2) - use this ALU as a SUB
-LDST_OP_ADDI = 0b0010  # immed ADD (imm + src1)
-LDST_OP_SUBI = 0b0011  # immed SUB (imm - src1)
-LDST_OP_ST = 0b0110  # immed ADD plus LD op.  ADD result is address
-LDST_OP_LD = 0b1010  # immed ADD plus ST op.  ADD result is address
-
-
 class LDSTCompUnit(Elaboratable):
     """ LOAD / STORE / ADD / SUB Computation Unit
 
