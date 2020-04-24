@@ -77,10 +77,11 @@ class LDSTCompUnit(Elaboratable):
         * :addr_o:     Address out (LD or ST)
     """
 
-    def __init__(self, rwid, alu, mem, n_src=2, n_dst=1):
+    def __init__(self, rwid, alu, mem, n_src=2, n_dst=1, debugtest=False):
         self.rwid = rwid
         self.alu = alu
         self.mem = mem
+        self.debugtest = debugtest
 
         self.counter = Signal(4)
         src = []
@@ -162,7 +163,10 @@ class LDSTCompUnit(Elaboratable):
         op_is_st = Signal(reset_less=True)
         op_ldst = Signal(reset_less=True)
         op_is_imm = Signal(reset_less=True)
+
+        # ALU/LD data output control
         alulatch = Signal(reset_less=True)
+        ldlatch = Signal(reset_less=True)
 
         # src2 register
         src2_r = Signal(self.rwid, reset_less=True)
@@ -279,6 +283,9 @@ class LDSTCompUnit(Elaboratable):
 
         # TODO: think about moving these to another module
 
+        if self.debugtest:
+            return m
+
         # connect ST to memory.  NOTE: unit *must* be set back
         # to start again by dropping go_st_i on next clock
         with m.If(self.stwd_mem_o):
@@ -289,11 +296,18 @@ class LDSTCompUnit(Elaboratable):
 
         # connect LD to memory.  NOTE: unit *must* be set back
         # to start again by dropping go_ad_i on next clock
+        rdport = self.mem.rdport
+        ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
+        # latch LD-out
+        latchregister(m, rdport.data, ldd_r, ldlatch, "ldo_r")
+        sync += ldlatch.eq(self.load_mem_o)
         with m.If(self.load_mem_o):
-            rdport = self.mem.rdport
             comb += rdport.addr.eq(self.addr_o)
-            comb += self.data_o.eq(rdport.data)
             # comb += rdport.en.eq(1) # only when transparent=False
+
+        # if LD-latch, put ld-reg out onto output
+        with m.If(ldlatch | self.load_mem_o):
+            comb += self.data_o.eq(ldd_r)
 
         return m
 

@@ -219,8 +219,7 @@ class CompUnitLDSTs(CompUnitsBase):
         self.opwid = opwid
 
         # inputs
-        self.oper_i = Signal(opwid, reset_less=True)
-        self.imm_i = Signal(rwid, reset_less=True)
+        self.op = CompALUOpSubset("cua_i")
 
         # Int ALUs
         self.alus = []
@@ -228,8 +227,13 @@ class CompUnitLDSTs(CompUnitsBase):
             self.alus.append(ALU(rwid))
 
         units = []
-        for alu in self.alus:
-            units.append(LDSTCompUnit(rwid, alu, mem))
+        for i, alu in enumerate(self.alus):
+            # XXX disable the 2nd memory temporarily
+            if i == 0:
+                debugtest = False
+            else:
+                debugtest = True
+            units.append(LDSTCompUnit(rwid, alu, mem, debugtest=debugtest))
 
         CompUnitsBase.__init__(self, rwid, units, ldstmode=True)
 
@@ -239,8 +243,7 @@ class CompUnitLDSTs(CompUnitsBase):
 
         # hand the same operation to all units, 4 lower bits though
         for alu in self.units:
-            comb += alu.oper_i[0:4].eq(self.oper_i)
-            #comb += alu.imm_i.eq(self.imm_i)
+            comb += alu.oper_i.eq(self.op)
             comb += alu.isalu_i.eq(0)
 
         return m
@@ -449,7 +452,6 @@ class Scoreboard(Elaboratable):
         self.br_oper_i = Signal(4, reset_less=True)
         self.br_imm_i = Signal(rwid, reset_less=True)
         self.ls_oper_i = Signal(4, reset_less=True)
-        self.ls_imm_i = Signal(rwid, reset_less=True)
 
         # inputs
         self.int_dest_i = Signal(range(n_regs), reset_less=True)  # Dest R# in
@@ -564,8 +566,7 @@ class Scoreboard(Elaboratable):
         comb += cua.op.eq(self.alu_op)
         comb += cub.oper_i.eq(self.br_oper_i)
         comb += cub.imm_i.eq(self.br_imm_i)
-        comb += cul.oper_i.eq(self.ls_oper_i)
-        comb += cul.imm_i.eq(self.ls_imm_i)
+        comb += cul.op.eq(self.alu_op) # TODO: separate ls_op?
 
         # TODO: issueunit.f (FP)
 
@@ -868,24 +869,18 @@ class IssueToScoreboard(Elaboratable):
             # choose a Function-Unit-Group
             with m.If(fu == Function.ALU):  # alu
                 comb += sc.alu_op.eq_from_execute1(instr)
-                comb += sc.aluissue.insn_i.eq(1)
+                comb += sc.aluissue.insn_i.eq(1) # enable alu issue
                 comb += wait_issue_alu.eq(1)
+            with m.Elif(fu == Function.LDST):  # ld/st
+                comb += sc.alu_op.eq_from_execute1(instr) # XXX separate ls_op?
+                comb += sc.lsissue.insn_i.eq(1) # enable ldst issue
+                comb += wait_issue_ls.eq(1)
+
             with m.Elif((op & (0x3 << 2)) != 0):  # branch
                 comb += sc.br_oper_i.eq(Cat(op[0:2], opi))
                 comb += sc.br_imm_i.eq(imm)
                 comb += sc.brissue.insn_i.eq(1)
                 comb += wait_issue_br.eq(1)
-            with m.Elif((op & (0x3 << 4)) != 0):  # ld/st
-                # see compldst.py
-                # bit 0: ADD/SUB
-                # bit 1: immed
-                # bit 4: LD
-                # bit 5: ST
-                comb += sc.ls_oper_i.eq(Cat(op[0], opi[0], op[4:6]))
-                comb += sc.ls_imm_i.eq(imm)
-                comb += sc.lsissue.insn_i.eq(1)
-                comb += wait_issue_ls.eq(1)
-
             # XXX TODO
             # these indicate that the instruction is to be made
             # shadow-dependent on
@@ -1169,11 +1164,17 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             alusim.setval(i, val)
 
         # create some instructions
-        lst = ["addi 2, 0, 0x4321",
-               "addi 3, 0, 0x1234",
-               "add  1, 3, 2",
-               "add  4, 3, 5"
-                ]
+        lst = []
+        if False:
+            lst += ["addi 2, 0, 0x4321",
+                   "addi 3, 0, 0x1234",
+                   "add  1, 3, 2",
+                   "add  4, 3, 5"
+                    ]
+        if True:
+            lst += [ "lbz 6, 7(2)",
+                   ]
+
         with Program(lst) as program:
             gen = program.generate_instructions()
 
