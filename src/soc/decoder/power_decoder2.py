@@ -323,7 +323,7 @@ class Decode2ToExecute1Type(RecordObject):
         self.data_len = Signal(4, reset_less=True) # bytes
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
-        self.update  = Signal(reset_less=True) # is this an update instruction?
+        self.update  = Signal(reset_less=True) # LD/ST is "update" variant
 
 
 class PowerDecode2(Elaboratable):
