@@ -1,5 +1,5 @@
 from collections import OrderedDict, namedtuple
-from soc.decoder.power_enums import download_wiki_file
+from soc.decoder.power_enums import find_wiki_file
 
 
 class BitRange(OrderedDict):
@@ -115,7 +115,7 @@ class DecodeFields:
             assert name_on_wiki is None
             fname = "fields.txt"
             name_on_wiki = "fields.text"
-        self.fname = download_wiki_file(fname, name_on_wiki)
+        self.fname = find_wiki_file(name_on_wiki)
 
     def create_specs(self):
         self.forms, self.instrs = self.decode_fields()

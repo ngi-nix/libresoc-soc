@@ -2,23 +2,21 @@ from enum import Enum, unique
 import csv
 import os
 import requests
+from os.path import dirname, join
 
+def find_wiki_file(name):
+    filedir = os.path.dirname(os.path.abspath(__file__))
+    basedir = dirname(dirname(dirname(filedir)))
+    tabledir = join(basedir, 'libreriscv')
+    tabledir = join(tabledir, 'openpower')
+    tabledir = join(tabledir, 'isatables')
 
-def download_wiki_file(name, name_on_wiki=None):
-    if name_on_wiki is None:
-        name_on_wiki = name
-    file_dir = os.path.dirname(os.path.realpath(__file__))
-    file_path = os.path.join(file_dir, name)
-    if not os.path.isfile(file_path):
-        url = 'https://libre-riscv.org/openpower/isatables/' + name_on_wiki
-        r = requests.get(url, allow_redirects=True)
-        with open(file_path, 'w') as outfile:
-            outfile.write(r.content.decode("utf-8"))
+    file_path = join(tabledir, name)
     return file_path
 
 
 def get_csv(name):
-    file_path = download_wiki_file(name)
+    file_path = find_wiki_file(name)
     with open(file_path, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         return list(reader)
