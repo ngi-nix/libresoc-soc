@@ -2,8 +2,8 @@
 
 This module uses CSV tables in a hierarchical/peer cascading fashion,
 to create a multi-level instruction decoder by recognising appropriate
-patterns.  The output is a flattened (1-level) series of fields suitable
-for a simple RISC engine.
+patterns.  The output is a wide, flattened (1-level) series of bitfields,
+suitable for a simple RISC engine.
 
 This is based on Anton Blanchard's excellent microwatt work:
 https://github.com/antonblanchard/microwatt/blob/master/decode1.vhdl
@@ -12,15 +12,41 @@ The basic principle is that the python code does the heavy lifting
 (reading the CSV files, constructing the hierarchy), creating the HDL
 AST with for-loops generating switch-case statements.
 
-PowerDecoder takes a *list* of CSV files with an associated bit-range
-that it is requested to match against the "opcode" row of the CSV file.
-This pattern can be either an integer, a binary number, *or* a wildcard
-nmigen Case pattern of the form "001--1-100".
+Where "normal" HDL would do this, in laborious excruciating detail:
 
-Subdecoders are *additional* cases with further decoding.  The "pattern"
-argument is specified as one of the Case statements (a peer of the opcode
-row in the CSV file), and thus further fields of the opcode may be decoded
-giving increasing levels of detail.
+    switch (opcode & major_mask_bits):
+        case opcode_2: decode_opcode_2()
+        case opcode_19:
+                switch (opcode & minor_19_mask_bits)
+                    case minor_opcode_19_operation_X:
+                    case minor_opcode_19_operation_y:
+
+we take *full* advantage of the decoupling between python and the
+nmigen AST data structure, to do this:
+
+    with m.Switch(opcode & self.mask):
+        for case_bitmask in subcases:
+            with m.If(opcode & case_bitmask): {do_something}
+
+this includes specifying the information sufficient to perform subdecoding.
+
+create_pdecode()
+
+    the full hierarchical tree for decoding POWER9 is specified here
+
+PowerDecoder
+
+    takes a *list* of CSV files with an associated bit-range that it
+    is requested to match against the "opcode" row of the CSV file.
+    This pattern can be either an integer, a binary number, *or* a
+    wildcard nmigen Case pattern of the form "001--1-100".
+
+Subdecoders
+
+    these are *additional* cases with further decoding.  The "pattern"
+    argument is specified as one of the Case statements (a peer of the
+    opcode row in the CSV file), and thus further fields of the opcode
+    may be decoded giving increasing levels of detail.
 
 Top Level:
 
@@ -65,8 +91,17 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
 
-Subdecoder = namedtuple("Subdecoder", ["pattern", "opcodes", "opint",
-                                       "bitsel", "suffix", "subdecoders"])
+# key data structure in which the POWER decoder is specified,
+# in a hierarchical fashion
+Subdecoder = namedtuple("Subdecoder",
+        ["pattern",    # the major pattern to search for (e.g. major opcode)
+         "opcodes",    # a dictionary of minor patterns to find
+         "opint",      # true => the pattern must not be in "10----11" format
+         "bitsel",     # the bits (as a range) against which "pattern" matches
+         "suffix",     # shift the opcode down before decoding
+         "subdecoders" # list of further subdecoders for *additional* matches,
+                       # *ONLY* after "pattern" has *ALSO* been matched against.
+        ])
 
 
 class PowerOp:
@@ -190,6 +225,7 @@ class PowerDecoder(Elaboratable):
                 opcodes = self.divide_opcodes(d)
                 opc_in = Signal(d.suffix, reset_less=True)
                 comb += opc_in.eq(opcode_switch[:d.suffix])
+                # begin the dynamic Switch statement here
                 with m.Switch(opc_in):
                     for key, row in opcodes.items():
                         bitsel = (d.suffix+d.bitsel[0], d.bitsel[1])
@@ -199,6 +235,7 @@ class PowerDecoder(Elaboratable):
                         subdecoder = PowerDecoder(width=32, dec=sd)
                         setattr(m.submodules, "dec_sub%d" % key, subdecoder)
                         comb += subdecoder.opcode_in.eq(self.opcode_in)
+                        # add in the dynamic Case statement here
                         with m.Case(key):
                             comb += self.op.eq(subdecoder.op)
             else:
@@ -212,6 +249,7 @@ class PowerDecoder(Elaboratable):
                             opcode = int(opcode, 0)
                         if not row['unit']:
                             continue
+                        # add in the dynamic Case statement here
                         with m.Case(opcode):
                             comb += self.op._eq(row)
         return m
@@ -296,7 +334,12 @@ class TopPowerDecoder(PowerDecoder):
         return [self.raw_opcode_in, self.bigendian] + PowerDecoder.ports(self)
 
 
+####################################################
+# PRIMARY FUNCTION SPECIFYING THE FULL POWER DECODER
+
 def create_pdecode():
+    """create_pdecode - creates a cascading hierarchical POWER ISA decoder
+    """
 
     # minor 19 has extra patterns
     m19 = []
