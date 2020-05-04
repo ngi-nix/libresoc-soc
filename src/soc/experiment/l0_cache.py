@@ -75,7 +75,7 @@ class PortInterface(RecordObject):
       at any point in the future that is acceptable to the underlying
       Memory subsystem.  the recipient MUST latch ld.data on that cycle.
 
-      busy_o is deasserted on the same cycle as ld.ok is asserted.
+      busy_o is deasserted on the cycle AFTER ld.ok is asserted.
 
     * for a ST, st.ok may be asserted only after addr_ok_o had been
       asserted, alongside valid st.data at the same time.  st.ok
@@ -84,7 +84,7 @@ class PortInterface(RecordObject):
       the underlying Memory is REQUIRED to pick up that data and
       guarantee its delivery.  no back-acknowledgement is required.
 
-      busy_o is deasserted on the same cycle as ld.ok is asserted.
+      busy_o is deasserted on the cycle AFTER st.ok is asserted.
     """
 
     def __init__(self, name=None, regwid=64, addrwid=48):
@@ -121,6 +121,7 @@ class LDSTPort(Elaboratable):
 
         # latches
         m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
+        m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc_l")
 
         # this is a little weird: we let the L0Cache/Buffer set
         # the outputs: this module just monitors "state".
@@ -129,11 +130,20 @@ class LDSTPort(Elaboratable):
         with m.If(self.pi.is_ld_i | self.pi.is_st_i):
             comb += busy_l.s.eq(1)
 
-        # monitor for an exception or the completion of LD/ST.
-        with m.If(self.pi.addr_exc_o | self.pi.ld.ok | self.pi.st.ok):
+        # monitor for an exception
+        with m.If(self.pi.addr_exc_o):
             comb += busy_l.r.eq(1)
 
-        # busy latch outputs to interface
+        # LD/ST needs to stay busy for one more cycle
+        with m.If(self.pi.st.ok | self.pi.ld.ok):
+            comb += cyc_l.s.eq(1) # activate ST-delay-latch (sync-mode)
+
+        # ST-busy (comes in on next cycle): now we can reset
+        with m.If(cyc_l.q):
+            comb += busy_l.r.eq(1)
+            comb += cyc_l.r.eq(1)
+
+        # busy latch outputs to PortInterface
         comb += self.pi.busy_o.eq(busy_l.q)
 
         return m
@@ -349,16 +359,17 @@ def l0_cache_st(dut, addr, data):
     yield port1.pi.addr.ok.eq(1) # set ok
     yield from wait_addr(port1)             # wait until addr ok
 
-    yield # no idea why this needs to be done.
+    #yield # no idea why this needs to be done.
 
     # assert "ST" for one cycle (required by the API)
     yield port1.pi.st.data.eq(data)
     yield port1.pi.st.ok.eq(1)
-    yield
 
+    yield
+    yield port1.pi.st.ok.eq(0)
     # cleanup
     yield from wait_busy(port1, no=True)    # wait until not busy
-    yield port1.pi.st.ok.eq(0)
+    yield
     yield port1.pi.is_st_i.eq(0) #end
     yield port1.pi.addr.ok.eq(0) # set !ok
 
@@ -393,9 +404,6 @@ def l0_cache_ldst(dut):
     data = 0xbeef
     #data = 0x4
     yield from l0_cache_st(dut, addr, data)
-    yield
-    yield
-    yield
     yield
     yield from l0_cache_ld(dut, addr, data)
     yield
