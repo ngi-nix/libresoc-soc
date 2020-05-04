@@ -8,6 +8,11 @@ test infrastructure, and, just as with minerva's memory arrangement,
 a dynamic runtime config *selects* alternative memory arrangements
 rather than *replaces and discards* this code.
 
+Links:
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=216
+* https://libre-soc.org/3d_gpu/architecture/memory_and_cache/
+
 """
 
 from nmigen.compat.sim import run_simulation
