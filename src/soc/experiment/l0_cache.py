@@ -184,8 +184,9 @@ class L0CacheBuffer(Elaboratable):
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
         m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
-        m.submodules.idx_l = idx_l = SRLatch(False, name="idx_l")
-        m.submodules.addr_okd = addr_okd = SRLatch(name="addr_acked")
+        m.submodules.reset_l = reset_l = SRLatch(True, name="reset")
+        m.submodules.idx_l   = idx_l   = SRLatch(False, name="idx_l")
+        m.submodules.adrok_l = adrok_l = SRLatch(True, name="addr_acked")
 
         # find one LD (or ST) and do it.  only one per cycle.
         # TODO: in the "live" (production) L0Cache/Buffer, merge multiple
@@ -207,11 +208,12 @@ class L0CacheBuffer(Elaboratable):
         comb += stpick.i.eq(Cat(*sti))
 
         # hmm, have to select (record) the right port index
-        ld_idx = Signal(log2_int(self.n_units), reset_less=False)
-        st_idx = Signal(log2_int(self.n_units), reset_less=False)
+        nbits = log2_int(self.n_units, False)
+        ld_idx = Signal(nbits, reset_less=False)
+        st_idx = Signal(nbits, reset_less=False)
         # use these because of the sync-and-comb pass-through capability
-        latchregister(m, ldpick.o, ld_idx, idx_l.q, name="ld_idx")
-        latchregister(m, stpick.o, st_idx, idx_l.q, name="st_idx")
+        latchregister(m, ldpick.o, ld_idx, idx_l.qn, name="ld_idx")
+        latchregister(m, stpick.o, st_idx, idx_l.qn, name="st_idx")
 
         # convenience variables to reference the "picked" port
         ldport = self.dports[ld_idx].pi
@@ -225,11 +227,11 @@ class L0CacheBuffer(Elaboratable):
 
         with m.If(~ldpick.n):
             comb += ld_active.s.eq(1) # activate LD mode
-            comb += addr_okd.r.eq(1) # address not yet "ok'd"
+            comb += adrok_l.r.eq(1) # address not yet "ok'd"
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
         with m.Elif(~stpick.n):
             comb += st_active.s.eq(1) # activate ST mode
-            comb += addr_okd.r.eq(1) # address not yet "ok'd"
+            comb += adrok_l.r.eq(1) # address not yet "ok'd"
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
 
         # from this point onwards, with the port "picked", it stays picked
@@ -240,18 +242,18 @@ class L0CacheBuffer(Elaboratable):
         with m.If(ld_active.q):
             with m.If(ldport.addr.ok):
                 comb += rdport.addr.eq(ldport.addr.data) # addr ok, send thru
-                with m.If(addr_okd.qn):
+                with m.If(adrok_l.qn):
                     comb += ldport.addr_ok_o.eq(1) # acknowledge addr ok
-                    comb += addr_okd.s.eq(1)       # and pull "ack" latch
+                    comb += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
         with m.If(st_active.q):
             with m.If(stport.addr.ok):
-                comb += rdport.addr.eq(stport.addr.data) # addr ok, send thru
-                with m.If(addr_okd.qn):
+                comb += wrport.addr.eq(stport.addr.data) # addr ok, send thru
+                with m.If(adrok_l.qn):
                     comb += stport.addr_ok_o.eq(1) # acknowledge addr ok
-                    comb += addr_okd.s.eq(1)       # and pull "ack" latch
+                    comb += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # NOTE: in both these, below, the port itself takes care
         # of de-asserting its "busy_o" signal, based on either ld.ok going
@@ -259,17 +261,22 @@ class L0CacheBuffer(Elaboratable):
 
         # for LD mode, when addr has been "ok'd", assume that (because this
         # is a "Memory" test-class) the memory read data is valid.
-        with m.If(ld_active.q & addr_okd.q):
+        with m.If(ld_active.q & adrok_l.q):
             comb += ldport.ld.data.eq(rdport.data) # put data out
             comb += ldport.ld.ok.eq(1)             # indicate data valid
-            sync += ld_active.r.eq(1)   # leave the LD active for 1 cycle
-            sync += idx_l.s.eq(1)  # deactivate port-index selector
+            comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
-        with m.If(st_active.q & addr_okd.q & stport.st.ok):
+        with m.If(st_active.q & adrok_l.q & stport.st.ok):
             comb += wrport.data.eq(stport.st.data) # write st to mem
-            sync += st_active.r.eq(1)   # leave the ST active for 1 cycle
-            sync += idx_l.s.eq(1)  # deactivate port-index selector
+            comb += wrport.en.eq(1)                # enable write
+            comb += reset_l.s.eq(1)   # reset mode after 1 cycle
+
+        with m.If(reset_l.q):
+            comb += idx_l.s.eq(1)  # deactivate port-index selector
+            comb += ld_active.r.eq(1)   # leave the ST active for 1 cycle
+            comb += st_active.r.eq(1)   # leave the ST active for 1 cycle
+            comb += reset_l.r.eq(1)     # clear reset
 
         return m
 
@@ -279,9 +286,9 @@ class L0CacheBuffer(Elaboratable):
 
 
 class TstL0CacheBuffer(Elaboratable):
-    def __init__(self, regwid=8, addrwid=8):
+    def __init__(self, n_units=3, regwid=16, addrwid=4):
         self.mem = TestMemory(regwid, addrwid)
-        self.l0 = L0CacheBuffer(2, self.mem, regwid, addrwid)
+        self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid)
 
     def elaborate(self, platform):
         m = Module()
@@ -292,7 +299,103 @@ class TstL0CacheBuffer(Elaboratable):
 
     def ports(self):
         yield from self.l0.ports()
+        yield self.mem.rdport.addr
+        yield self.mem.rdport.data
+        yield self.mem.wrport.addr
+        yield self.mem.wrport.data
         # TODO: mem ports
+
+def wait_busy(port, no=False):
+    while True:
+        busy = yield port.pi.busy_o
+        print ("busy", no, busy)
+        if bool(busy) == no:
+            break
+        yield
+
+
+def wait_addr(port):
+    while True:
+        addr_ok = yield port.pi.addr_ok_o
+        print ("addrok", addr_ok)
+        if not addr_ok:
+            break
+        yield
+
+def wait_ldok(port):
+    while True:
+        ldok = yield port.pi.ld.ok
+        print ("ldok", ldok)
+        if ldok:
+            break
+        yield
+
+def l0_cache_st(dut, addr, data):
+    l0 = dut.l0
+    mem = dut.mem
+    port0 = l0.dports[0]
+    port1 = l0.dports[1]
+
+    # set up a ST on the port.  address first:
+    yield port1.pi.is_st_i.eq(1) # indicate LD
+    yield from wait_busy(port1)             # wait until busy
+
+    yield port1.pi.addr.data.eq(addr) # set address
+    yield port1.pi.addr.ok.eq(1) # set ok
+    yield from wait_addr(port1)             # wait until addr ok
+
+    yield # no idea why this needs to be done.
+
+    # assert "ST" for one cycle (required by the API)
+    yield port1.pi.st.data.eq(data)
+    yield port1.pi.st.ok.eq(1)
+    yield
+
+    # cleanup
+    yield from wait_busy(port1, no=True)    # wait until not busy
+    yield port1.pi.st.ok.eq(0)
+    yield port1.pi.is_st_i.eq(0) #end
+    yield port1.pi.addr.ok.eq(0) # set !ok
+
+
+def l0_cache_ld(dut, addr, expected):
+    l0 = dut.l0
+    mem = dut.mem
+    port0 = l0.dports[0]
+    port1 = l0.dports[1]
+
+    # set up a LD on the port.  address first:
+    yield port1.pi.is_ld_i.eq(1) # indicate LD
+    yield from wait_busy(port1)             # wait until busy
+
+    yield port1.pi.addr.data.eq(addr) # set address
+    yield port1.pi.addr.ok.eq(1) # set ok
+    yield from wait_addr(port1)             # wait until addr ok
+
+    yield from wait_ldok(port1)             # wait until ld ok
+    data = yield port1.pi.ld.data
+
+    # cleanup
+    yield from wait_busy(port1, no=True)    # wait until not busy
+    yield port1.pi.is_ld_i.eq(0) #end
+    yield port1.pi.addr.ok.eq(0) # set !ok
+
+    assert data == expected, "data %x != %x" % (data, expected)
+
+def l0_cache_ldst(dut):
+    yield
+    addr = 0x2
+    data = 0xbeef
+    #data = 0x4
+    yield from l0_cache_st(dut, addr, data)
+    yield
+    yield
+    yield
+    yield
+    yield from l0_cache_ld(dut, addr, data)
+    yield
+    yield
+
 
 def test_l0_cache():
 
@@ -301,7 +404,8 @@ def test_l0_cache():
     with open("test_basic_l0_cache.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, l0_cache_sim(dut), vcd_name='test_l0_cache_basic.vcd')
+    run_simulation(dut, l0_cache_ldst(dut),
+                   vcd_name='test_l0_cache_basic.vcd')
 
 
 if __name__ == '__main__':
