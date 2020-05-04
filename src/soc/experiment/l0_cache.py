@@ -378,7 +378,7 @@ def l0_cache_st(dut, addr, data):
     # can go straight to reset.
     yield port1.pi.is_st_i.eq(0) #end
     yield port1.pi.addr.ok.eq(0) # set !ok
-    yield from wait_busy(port1, True)    # wait until not busy
+    #yield from wait_busy(port1, False)    # wait until not busy
 
 
 def l0_cache_ld(dut, addr, expected):
@@ -404,7 +404,7 @@ def l0_cache_ld(dut, addr, expected):
     # cleanup
     yield port1.pi.is_ld_i.eq(0) #end
     yield port1.pi.addr.ok.eq(0) # set !ok
-    yield from wait_busy(port1, no=True)    # wait until not busy
+    #yield from wait_busy(port1, no=False)    # wait until not busy
 
     return data
 
