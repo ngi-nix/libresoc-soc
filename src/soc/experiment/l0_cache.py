@@ -325,6 +325,7 @@ class TstL0CacheBuffer(Elaboratable):
         yield self.mem.wrport.data
         # TODO: mem ports
 
+
 def wait_busy(port, no=False):
     while True:
         busy = yield port.pi.busy_o
@@ -342,6 +343,7 @@ def wait_addr(port):
             break
         yield
 
+
 def wait_ldok(port):
     while True:
         ldok = yield port.pi.ld.ok
@@ -349,6 +351,7 @@ def wait_ldok(port):
         if ldok:
             break
         yield
+
 
 def l0_cache_st(dut, addr, data):
     l0 = dut.l0
@@ -413,8 +416,6 @@ def l0_cache_ldst(dut):
     #data = 0x4
     yield from l0_cache_st(dut, addr, data)
     result = yield from l0_cache_ld(dut, addr, data)
-    yield
-    yield
     yield
     assert data == result, "data %x != %x" % (result, data)
 
