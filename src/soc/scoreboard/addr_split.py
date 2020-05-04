@@ -53,6 +53,7 @@ class LDLatch(Elaboratable):
     def ports(self):
         return list(self)
 
+
 class LDSTSplitter(Elaboratable):
 
     def __init__(self, dwidth, awidth, dlen):
