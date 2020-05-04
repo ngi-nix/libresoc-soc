@@ -12,16 +12,21 @@ rather than *replaces and discards* this code.
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Array
+from nmigen import Module, Signal, Mux, Elaboratable, Array, Cat
 from nmutil.iocontrol import RecordObject
+from nmigen.utils import log2_int
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
 from soc.experiment.compldst import CompLDSTOpSubset
-from soc.decoder.power_decode2 import Data
-from nmutil.picker import PriorityPicker
+from soc.decoder.power_decoder2 import Data
+#from nmutil.picker import PriorityPicker
+from nmigen.lib.coding import PriorityEncoder
+
+# for testing purposes
+from soc.experiment.testmem import TestMemory
 
 
 class PortInterface(RecordObject):
@@ -41,7 +46,14 @@ class PortInterface(RecordObject):
     * only one of is_ld_i or is_st_i may be asserted.  busy_o
       will immediately be asserted and remain asserted.
 
-    * addr.ok is to be asserted when the LD/ST address is known
+    * addr.ok is to be asserted when the LD/ST address is known.
+      addr.data is to be valid on the same cycle.
+
+      addr.ok and addr.data must REMAIN asserted until busy_o
+      is de-asserted.  this ensures that there is no need
+      for the L0 Cache/Buffer to have an additional address latch
+      (because the LDSTCompUnit already has it)
+
     * addr_ok_o (or addr_exc_o) must be waited for.  these will
       be asserted *only* for one cycle and one cycle only.
 
@@ -70,7 +82,10 @@ class PortInterface(RecordObject):
       busy_o is deasserted on the same cycle as ld.ok is asserted.
     """
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, regwid=64, addrwid=48):
+
+        self._regwid = regwid
+        self._addrwid = addrwid
 
         RecordObject.__init__(self, name=name)
 
@@ -82,84 +97,211 @@ class PortInterface(RecordObject):
         # common signals
         self.busy_o = Signal(reset_less=True)     # do not use if busy
         self.go_die_i = Signal(reset_less=True)   # back to reset
-        self.addr = Data(48, "addr_i")            # addr/addr-ok
+        self.addr = Data(addrwid, "addr_i")            # addr/addr-ok
         self.addr_ok_o = Signal(reset_less=True)  # addr is valid (TLB, L1 etc.)
         self.addr_exc_o = Signal(reset_less=True) # TODO, "type" of exception
 
         # LD/ST
-        self.ld = Data(64, "ld_data_o") # ok to be set by L0 Cache/Buf
-        self.st = Data(64, "st_data_i") # ok to be set by CompUnit
+        self.ld = Data(regwid, "ld_data_o") # ok to be set by L0 Cache/Buf
+        self.st = Data(regwid, "st_data_i") # ok to be set by CompUnit
+
+
+class LDSTPort(Elaboratable):
+    def __init__(self, idx, regwid=64, addrwid=48):
+        self.pi = PortInterface("ldst_port%d" % idx, regwid, addrwid)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb, sync = m.d.comb, m.d.sync
+
+        # latches
+        m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
+
+        # this is a little weird: we let the L0Cache/Buffer set
+        # the outputs: this module just monitors "state".
+
+        # LD/ST requested activates "busy"
+        with m.If(self.pi.is_ld_i | self.pi.is_st_i):
+            comb += busy_l.s.eq(1)
+
+        # monitor for an exception or the completion of LD/ST.
+        with m.If(self.pi.addr_exc_o | self.pi.ld.ok | self.pi.st.ok):
+            comb += busy_l.r.eq(1)
+
+        # busy latch outputs to interface
+        comb += self.pi.busy_o.eq(busy_l.q)
+
+        return m
+
+    def __iter__(self):
+        yield self.pi.is_ld_i
+        yield self.pi.is_st_i
+        yield from self.pi.op.ports()
+        yield self.pi.busy_o
+        yield self.pi.go_die_i
+        yield from self.pi.addr.ports()
+        yield self.pi.addr_ok_o
+        yield self.pi.addr_exc_o
+
+        yield from self.pi.ld.ports()
+        yield from self.pi.st.ports()
+
+    def ports(self):
+        return list(self)
 
 
 class L0CacheBuffer(Elaboratable):
     """L0 Cache / Buffer
 
     Note that the final version will have *two* interfaces per LDSTCompUnit,
-    to cover mis-aligned requests.  This version is to be used for test
-    purposes (and actively maintained for test purposes)
+    to cover mis-aligned requests, as well as *two* 128-bit L1 Cache
+    interfaces: one for odd (addr[4] == 1) and one for even (addr[4] == 1).
 
+    This version is to be used for test purposes (and actively maintained
+    for such, rather than "replaced")
+
+    There are much better ways to implement this.  However it's only
+    a "demo" / "test" class, and one important aspect: it responds
+    combinatorially, where a nmigen FSM's state-changes only activate
+    on clock-sync boundaries.
     """
-
-    def __init__(self, n_units, mem):
+    def __init__(self, n_units, mem, regwid=64, addrwid=48):
         self.n_units = n_units
         self.mem = mem
         ul = []
         for i in range(n_units):
-            ul.append(PortInterface("ldst_port%d" % i))
-        self.ports = Array(ul)
+            ul.append(LDSTPort(i, regwid, addrwid))
+        self.dports = Array(ul)
 
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
+        # connect the ports as modules
+        for i in range(self.n_units):
+            setattr(m.submodules, "port%d" % i, self.dports[i])
+
+        # state-machine latches
+        m.submodules.st_active = st_active = SRLatch(False, name="st_active")
+        m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
+        m.submodules.idx_l = idx_l = SRLatch(False, name="idx_l")
+        m.submodules.addr_okd = addr_okd = SRLatch(name="addr_acked")
+
         # find one LD (or ST) and do it.  only one per cycle.
         # TODO: in the "live" (production) L0Cache/Buffer, merge multiple
         # LD/STs using mask-expansion - see LenExpand class
 
-        m.submodules.ldpick = ldpick = PriorityPicker()
-        m.submodules.stpick = stpick = PriorityPicker()
+        m.submodules.ldpick = ldpick = PriorityEncoder(self.n_units)
+        m.submodules.stpick = stpick = PriorityEncoder(self.n_units)
 
         lds = Signal(self.n_units, reset_less=True)
         sts = Signal(self.n_units, reset_less=True)
         ldi = []
         sti = []
         for i in range(self.n_units):
-            ldi.append(self.ports[i].is_ld_i) # accumulate ld-req signals
-            sti.append(self.ports[i].is_st_i) # accumulate st-req signals
+            pi = self.dports[i].pi
+            ldi.append(pi.is_ld_i & pi.busy_o) # accumulate ld-req signals
+            sti.append(pi.is_st_i & pi.busy_o) # accumulate st-req signals
         # put the requests into the priority-pickers
         comb += ldpick.i.eq(Cat(*ldi))
         comb += stpick.i.eq(Cat(*sti))
 
-        # Priority-Pickers pick one and only one request
-        with m.If(ldpick.en_o):
-            rdport = self.mem.rdport
-            ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
-            # latch LD-out
-            latchregister(m, rdport.data, ldd_r, ldlatch, "ldo_r")
-            sync += ldlatch.eq(self.load_mem_o)
-            with m.If(self.load_mem_o):
-                comb += rdport.addr.eq(self.addr_o)
+        # hmm, have to select (record) the right port index
+        ld_idx = Signal(log2_int(self.n_units), reset_less=False)
+        st_idx = Signal(log2_int(self.n_units), reset_less=False)
+        # use these because of the sync-and-comb pass-through capability
+        latchregister(m, ldpick.o, ld_idx, idx_l.q, name="ld_idx")
+        latchregister(m, stpick.o, st_idx, idx_l.q, name="st_idx")
 
-        with m.ElIf(stpick.en_o):
-            wrport = self.mem.wrport
-            comb += wrport.addr.eq(self.addr_o)
-            comb += wrport.data.eq(src2_r)
-            comb += wrport.en.eq(1)
+        # convenience variables to reference the "picked" port
+        ldport = self.dports[ld_idx].pi
+        stport = self.dports[st_idx].pi
+        # and the memory ports
+        rdport = self.mem.rdport
+        wrport = self.mem.wrport
 
+        # Priority-Pickers pick one and only one request, capture its index.
+        # from that point on this code *only* "listens" to that port.
+
+        with m.If(~ldpick.n):
+            comb += ld_active.s.eq(1) # activate LD mode
+            comb += addr_okd.r.eq(1) # address not yet "ok'd"
+            comb += idx_l.r.eq(1)  # pick (and capture) the port index
+        with m.Elif(~stpick.n):
+            comb += st_active.s.eq(1) # activate ST mode
+            comb += addr_okd.r.eq(1) # address not yet "ok'd"
+            comb += idx_l.r.eq(1)  # pick (and capture) the port index
+
+        # from this point onwards, with the port "picked", it stays picked
+        # until ld_active (or st_active) are de-asserted.
+
+        # if now in "LD" mode: wait for addr_ok, then send the address out
+        # to memory, acknowledge address, and send out LD data
+        with m.If(ld_active.q):
+            with m.If(ldport.addr.ok):
+                comb += rdport.addr.eq(ldport.addr.data) # addr ok, send thru
+                with m.If(addr_okd.qn):
+                    comb += ldport.addr_ok_o.eq(1) # acknowledge addr ok
+                    comb += addr_okd.s.eq(1)       # and pull "ack" latch
+
+        # if now in "ST" mode: likewise do the same but with "ST"
+        # to memory, acknowledge address, and send out LD data
+        with m.If(st_active.q):
+            with m.If(stport.addr.ok):
+                comb += rdport.addr.eq(stport.addr.data) # addr ok, send thru
+                with m.If(addr_okd.qn):
+                    comb += stport.addr_ok_o.eq(1) # acknowledge addr ok
+                    comb += addr_okd.s.eq(1)       # and pull "ack" latch
+
+        # NOTE: in both these, below, the port itself takes care
+        # of de-asserting its "busy_o" signal, based on either ld.ok going
+        # high (by us, here) or by st.ok going high (by the LDSTCompUnit).
+
+        # for LD mode, when addr has been "ok'd", assume that (because this
+        # is a "Memory" test-class) the memory read data is valid.
+        with m.If(ld_active.q & addr_okd.q):
+            comb += ldport.ld.data.eq(rdport.data) # put data out
+            comb += ldport.ld.ok.eq(1)             # indicate data valid
+            sync += ld_active.r.eq(1)   # leave the LD active for 1 cycle
+            sync += idx_l.s.eq(1)  # deactivate port-index selector
+
+        # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
+        with m.If(st_active.q & addr_okd.q & stport.st.ok):
+            comb += wrport.data.eq(stport.st.data) # write st to mem
+            sync += st_active.r.eq(1)   # leave the ST active for 1 cycle
+            sync += idx_l.s.eq(1)  # deactivate port-index selector
 
         return m
 
+    def ports(self):
+        for p in self.dports:
+            yield from p.ports()
+
+
+class TstL0CacheBuffer(Elaboratable):
+    def __init__(self, regwid=8, addrwid=8):
+        self.mem = TestMemory(regwid, addrwid)
+        self.l0 = L0CacheBuffer(2, self.mem, regwid, addrwid)
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.mem = self.mem
+        m.submodules.l0 = self.l0
+
+        return m
+
+    def ports(self):
+        yield from self.l0.ports()
+        # TODO: mem ports
 
 def test_l0_cache():
-    from alu_hier import ALU
 
-    alu = ALU(16)
-    dut = ComputationUnitNoDelay(16, alu)
+    dut = TstL0CacheBuffer()
     vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_compalu.il", "w") as f:
+    with open("test_basic_l0_cache.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
+    #run_simulation(dut, l0_cache_sim(dut), vcd_name='test_l0_cache_basic.vcd')
 
 
 if __name__ == '__main__':
