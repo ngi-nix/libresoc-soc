@@ -80,10 +80,14 @@ class FURegDepMatrix(Elaboratable):
         self.src_rsel_o = Array(rsel)  # src reg (bot)
 
         # for Function Unit "forward progress" (vertical), per-FU
-        self.wr_pend_o = Signal(n_fu_row, reset_less=True) # wr pending (right)
+
+        # global "merged" (all regs) src/dest pending vectors
         self.wr_dst_pend_o = Array(wpnd) # dest pending
-        self.rd_pend_o = Signal(n_fu_row, reset_less=True) # rd pending (right)
         self.rd_src_pend_o = Array(pend) # src1 pending
+
+        # per-port src/dest pending vectors
+        self.wr_pend_o = Signal(n_fu_row, reset_less=True) # wr pending (right)
+        self.rd_pend_o = Signal(n_fu_row, reset_less=True) # rd pending (right)
 
     def elaborate(self, platform):
         m = Module()
