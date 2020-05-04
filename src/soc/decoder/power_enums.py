@@ -1,7 +1,6 @@
 from enum import Enum, unique
 import csv
 import os
-import requests
 from os.path import dirname, join
 
 def find_wiki_file(name):
