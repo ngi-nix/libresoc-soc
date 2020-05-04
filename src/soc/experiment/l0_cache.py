@@ -292,6 +292,7 @@ class L0CacheBuffer(Elaboratable):
             comb += wrport.en.eq(1)                # enable write
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
+        # after waiting one cycle (reset_l is "sync" mode), reset the port
         with m.If(reset_l.q):
             comb += idx_l.s.eq(1)  # deactivate port-index selector
             comb += ld_active.r.eq(1)   # leave the ST active for 1 cycle
