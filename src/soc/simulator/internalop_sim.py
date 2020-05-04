@@ -105,6 +105,15 @@ class InternalOpSimulator:
         else:
             assert False, "Not implemented"
 
+    def update_cr0(self, result):
+        if result == 0:
+            self.cr0 = 0b001
+        elif result >> 63:
+            self.cr0 = 0b100
+        else:
+            self.cr0 = 0b010
+        print("update_cr0", self.cr0)
+
     def alu_op(self, pdecode2):
         all1s = (1 << 64)-1  # 64 bits worth of 1s
         internal_op = yield pdecode2.dec.op.internal_op
@@ -138,11 +147,15 @@ class InternalOpSimulator:
         elif cry_in == CryIn.CA.value:
             carry = self.carry_out
 
+        # TODO rc_sel = yield pdecode2.dec.op.rc_sel
         result = self.execute_alu_op(operand1, operand2, internal_op,
                                      carry=carry)
 
         cry_out = yield pdecode2.dec.op.cry_out
-        # TODO   yield pdecode2.dec.op.rc
+        rc = yield pdecode2.e.rc.data
+
+        if rc:
+            self.update_cr0(result)
         if cry_out == 1:
             self.carry_out = (result >> 64)
             print("setting carry_out", self.carry_out)
