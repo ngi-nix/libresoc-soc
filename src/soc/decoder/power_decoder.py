@@ -86,7 +86,6 @@ from soc.decoder.power_enums import (Function, Form, InternalOp,
                          In1Sel, In2Sel, In3Sel, OutSel, RC, LdstLen,
                          CryIn, get_csv, single_bit_flags,
                          get_signal_name, default_values)
-from collections import namedtuple
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
