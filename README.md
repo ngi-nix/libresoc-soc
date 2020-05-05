@@ -1,3 +1,11 @@
+# About
+The main SOC portion of Libre-SOC. A quad-core open source SOC with a GPU, VPU, and
+open source VLSI design cells.
+
+Open source down to VLSI Cells.
+
+# [Documentation](https://libre-soc.org/Documentation/index/)
+
 # Installation
 
     make update
