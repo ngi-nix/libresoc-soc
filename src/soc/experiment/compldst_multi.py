@@ -234,27 +234,31 @@ class LDSTCompUnit(Elaboratable):
         m.submodules.rst_l = sto_l = SRLatch(sync=False, name="rst")
 
         # shadow/go_die
-        reset_b = Signal(reset_less=True)
+        reset_b = Signal(reset_less=True)             # reset opcode
         reset_w = Signal(self.n_dst, reset_less=True) # reset write
         reset_a = Signal(reset_less=True)             # reset adr latch
-        reset_s = Signal(reset_less=True)
-        reset_r = Signal(reset_less=True)
-        comb += reset_b.eq(self.go_st_i | self.wr.go |
-                           self.go_ad_i | self.go_die_i)
+        reset_r = Signal(self.n_src, reset_less=True) # reset src
+        reset_s = Signal(reset_less=True)             # reset store
+        wr_reset = Signal(reset_less=True) # final reset condition
+        comb += reset_b.eq(wr_reset | self.go_die_i)
         comb += reset_w.eq(self.wr.go | self.go_die_i)
         comb += reset_s.eq(self.go_st_i | self.go_die_i)
-        comb += reset_r.eq(self.rd.go | self.go_die_i)
+        comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
         comb += reset_a.eq(self.go_ad_i | self.go_die_i)
 
         # opcode decode
         op_alu = Signal(reset_less=True)
         op_is_ld = Signal(reset_less=True)
         op_is_st = Signal(reset_less=True)
-        op_is_imm = Signal(reset_less=True)
 
         # ALU/LD data output control
+        alu_valid = Signal(reset_less=True) # ALU operands are valid
+        alu_ok = Signal(reset_less=True)    # ALU out ok (1 clock delay valid)
         alulatch = Signal(reset_less=True)
         ldlatch = Signal(reset_less=True)
+        wr_any = Signal(reset_less=True)   # any write (incl. store)
+        rd_done = Signal(reset_less=True)  # all *necessary* operands read
+        wr_reset = Signal(reset_less=True) # final reset condition
 
         # src2 register
         src2_r = Signal(self.rwid, reset_less=True)
@@ -275,7 +279,7 @@ class LDSTCompUnit(Elaboratable):
         sync += opc_l.r.eq(reset_b)  # XXX NOTE: INVERTED FROM book!
 
         # src operand latch
-        sync += src_l.s.eq(issue_i)
+        sync += src_l.s.eq(Repl(issue_i, self.n_src))
         sync += src_l.r.eq(reset_r)
 
         # addr latch
@@ -294,6 +298,14 @@ class LDSTCompUnit(Elaboratable):
         oper_r = CompALUOpSubset()  # Dest register
         latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_r")
 
+        # and for each input from the incoming src operands
+        srl = []
+        for i in range(self.n_src):
+            name = "src_r%d" % i
+            src_r = Signal(self.rwid, name=name, reset_less=True)
+            latchregister(m, self.src_i[i], data_r, src_l.q[i], name)
+            srl.append(data_r)
+
         # and for each output from the ALU
         drl = []
         for i in range(self.n_dst):
@@ -309,6 +321,17 @@ class LDSTCompUnit(Elaboratable):
         # and pass the operation to the ALU
         comb += self.alu.op.eq(oper_r)
         comb += self.alu.op.insn_type.eq(InternalOp.OP_ADD) # override insn_type
+
+        # ok let's connect (and name) the 3 src latched regs created above
+        comb += self.alu.i[0].eq(srl[0]) # Op1 goes straight to ALU input 1
+        op2 = srl[0]                     # op2 needs to be muxed (imm select)
+        st_data = srl[2]                 # op3 is for STORE operations
+
+        # select immediate if opcode says so (and put that into ALU input 2)
+        op_is_imm = oper_r.imm_data.imm_ok
+        src2_or_imm = Signal(self.rwid, reset_less=True)
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, op2))
+        comb += self.alu.i[1].eq(src2_or_imm) # src2_or_imm into ALU input 2
 
         # outputs: busy and release signals
         busy_o = self.busy_o
@@ -336,7 +359,6 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, src2_or_imm, self.alu.b, src_sel, name="imm_r")
 
         # decode bits of operand (latched)
-        comb += op_is_imm.eq(oper_r.imm_data.imm_ok)                 # IMM mode
         comb += op_is_st.eq(oper_r.insn_type == InternalOp.OP_STORE) # ST
         comb += op_is_ld.eq(oper_r.insn_type == InternalOp.OP_LOAD)  # LD
         op_is_update = oper_r.update                                 # UPDATE
