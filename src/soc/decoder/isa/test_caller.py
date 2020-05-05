@@ -33,7 +33,11 @@ class DecoderTestCase(FHDLTestCase):
         gen = generator.generate_instructions()
 
         def process():
-            for ins, code in zip(gen, generator.assembly.splitlines()):
+            instructions = list(zip(gen, generator.assembly.splitlines()))
+
+            index = simulator.pc.CIA.value//4
+            while index < len(instructions):
+                ins, code = instructions[index]
 
                 print("0x{:X}".format(ins & 0xffffffff))
                 print(code)
@@ -44,6 +48,7 @@ class DecoderTestCase(FHDLTestCase):
                 yield Delay(1e-6)
                 opname = code.split(' ')[0]
                 yield from simulator.call(opname)
+                index = simulator.pc.CIA.value//4
 
         sim.add_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -88,6 +93,18 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(1), SelectableInt(0x10004, 64))
             self.assertEqual(sim.gpr(2), SelectableInt(0x10008, 64))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1000c, 64))
+
+    def test_branch(self):
+        lst = ["ba 0xc",             # branch to line 4
+               "addi 1, 0, 0x1234",  # Should never execute
+               "ba 0x1000",          # exit the program
+               "addi 2, 0, 0x1234",  # line 4
+               "ba 0x8"]             # branch to line 3
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+            self.assertEqual(sim.pc.CIA, SelectableInt(0x1000, 64))
+            self.assertEqual(sim.gpr(1), SelectableInt(0x0, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0x1234, 64))
 
     @unittest.skip("broken")  # FIXME
     def test_mtcrf(self):

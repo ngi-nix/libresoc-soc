@@ -64,6 +64,8 @@ class PyISAWriter(ISA):
                 op_fname ="op_%s" % page.replace(".", "_")
                 f.write("    @inject()\n")
                 f.write("    def %s(%s):\n" % (op_fname, args))
+                if 'NIA' in pycode:  # HACK - TODO fix
+                    f.write("        global NIA\n")
                 pycode = pycode.split("\n")
                 pycode = '\n'.join(map(lambda x: "        %s" % x, pycode))
                 pycode = pycode.rstrip()

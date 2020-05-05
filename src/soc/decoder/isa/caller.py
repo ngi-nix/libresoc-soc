@@ -121,7 +121,7 @@ class PC:
         self.NIA = self.CIA + SelectableInt(4, 64)
 
     def update(self, namespace):
-        self.CIA = self.NIA
+        self.CIA = namespace['NIA'].narrow(64)
         self.NIA = self.CIA + SelectableInt(4, 64)
         namespace['CIA'] = self.CIA
         namespace['NIA'] = self.NIA
@@ -160,6 +160,7 @@ class ISACaller:
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
                           'CR': self.cr,
+                          'LR': self.undefined,
                           'undefined': self.undefined,
                           }
 
@@ -246,8 +247,8 @@ def inject():
             context = args[0].namespace
             saved_values = func_globals.copy()  # Shallow copy of dict.
             func_globals.update(context)
-
             result = func(*args, **kwargs)
+            args[0].namespace = func_globals
             #exec (func.__code__, func_globals)
 
             #finally:
