@@ -54,7 +54,23 @@ def MASK(x, y):
         mask_b = (~((1 << y) - 1)) & ((1 << 64) - 1)
     return mask_a ^ mask_b
 
+def ne(a, b):
+    return SelectableInt((a != b), bits=1)
 
+def eq(a, b):
+    return SelectableInt((a == b), bits=1)
+
+def gt(a, b):
+    return SelectableInt((a > b), bits=1)
+
+def ge(a, b):
+    return SelectableInt((a >= b), bits=1)
+
+def lt(a, b):
+    return SelectableInt((a < b), bits=1)
+
+def le(a, b):
+    return SelectableInt((a <= b), bits=1)
 # For these tests I tried to find power instructions that would let me
 # isolate each of these helper operations. So for instance, when I was
 # testing the MASK() function, I chose rlwinm and rldicl because if I

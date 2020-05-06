@@ -83,32 +83,32 @@ def Assign(left, right, iea_mode):
 
 def make_le_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.LtE()], [right])
+    return ast.Call(ast.Name("le", ast.Load()), (left, right), [])
 
 
 def make_ge_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.GtE()], [right])
+    return ast.Call(ast.Name("ge", ast.Load()), (left, right), [])
 
 
 def make_lt_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.Lt()], [right])
+    return ast.Call(ast.Name("lt", ast.Load()), (left, right), [])
 
 
 def make_gt_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.Gt()], [right])
+    return ast.Call(ast.Name("gt", ast.Load()), (left, right), [])
 
 
 def make_eq_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.Eq()], [right])
+    return ast.Call(ast.Name("eq", ast.Load()), (left, right), [])
 
 
 def make_ne_compare(arg):
     (left, right) = arg
-    return ast.Compare(left, [ast.NotEq()], [right])
+    return ast.Call(ast.Name("ne", ast.Load()), (left, right), [])
 
 
 binary_ops = {

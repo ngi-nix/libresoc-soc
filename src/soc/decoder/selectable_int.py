@@ -7,6 +7,8 @@ from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv)
 def check_extsign(a, b):
     if isinstance(b, FieldSelectableInt):
         b = b.get_range()
+    if isinstance(b, int):
+        return SelectableInt(b, a.bits)
     if b.bits != 256:
         return b
     return SelectableInt(b.value, a.bits)
