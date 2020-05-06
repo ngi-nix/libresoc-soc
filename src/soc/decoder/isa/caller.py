@@ -9,6 +9,13 @@ instruction_info = namedtuple('instruction_info',
                               'func read_regs uninit_regs write_regs ' + \
                               'special_regs op_fields form asmregs')
 
+special_sprs = {
+    'LR': 8,
+    'CTR': 9,
+    'TAR': 815,
+    'XER': 0,
+    'VRSAVE': 256}
+
 
 def create_args(reglist, extra=None):
     args = OrderedSet()
@@ -127,6 +134,25 @@ class PC:
         namespace['NIA'] = self.NIA
 
 
+class SPR(dict):
+    def __init__(self, dec2):
+        self.sd = dec2
+        dict.__init__(self)
+
+    def __getitem__(self, key):
+        # if key in special_sprs get the special spr, otherwise return key
+        key = special_sprs.get(key, key)
+        if key in self:
+            return dict.__getitem__(self, key)
+        else:
+            return SelectableInt(0, 256)
+
+    def __setitem__(self, key, value):
+        key = special_sprs.get(key, key)
+        dict.__setitem__(self, key, value)
+        
+        
+
 class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
@@ -134,8 +160,8 @@ class ISACaller:
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem()
         self.pc = PC()
+        self.spr = SPR(decoder2)
         # TODO, needed here:
-        # 4.4.4 III p971 SPR (same as GPR except for SPRs - best done as a dict
         # FPR (same as GPR except for FP nums)
         # 4.2.2 p124 FPSCR (definitely "separate" - not in SPR)
         #            note that mffs, mcrfs, mtfsf "manage" this FPSCR
@@ -160,8 +186,6 @@ class ISACaller:
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
                           'CR': self.cr,
-                          'LR': self.undefined,
-                          'CTR': self.undefined,
                           'undefined': self.undefined,
                           'mode_is_64bit': True,
                           }
@@ -212,7 +236,10 @@ class ISACaller:
 
         # "special" registers
         for special in info.special_regs:
-            inputs.append(self.namespace[special])
+            if special in special_sprs:
+                inputs.append(self.spr[special])
+            else:
+                inputs.append(self.namespace[special])
 
         print(inputs)
         results = info.func(self, *inputs)
@@ -224,7 +251,10 @@ class ISACaller:
             for name, output in zip(output_names, results):
                 if name in info.special_regs:
                     print('writing special %s' % name, output)
-                    self.namespace[name].eq(output)
+                    if name in special_sprs:
+                        self.spr[name] = output
+                    else:
+                        self.namespace[name].eq(output)
                 else:
                     regnum = yield getattr(self.decoder, name)
                     print('writing reg %d' % regnum)

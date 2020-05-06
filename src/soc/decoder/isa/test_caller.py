@@ -114,6 +114,7 @@ class DecoderTestCase(FHDLTestCase):
                "bclr 20, 0, 0"]
         with Program(lst) as program:
             sim = self.run_tst_program(program)
+            self.assertEqual(sim.spr['LR'], SelectableInt(0x4, 64))
 
 
     @unittest.skip("broken")  # FIXME
