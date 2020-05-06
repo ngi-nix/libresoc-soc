@@ -44,10 +44,14 @@ class FieldSelectableInt:
 
     def __getitem__(self, key):
         print ("getitem", key, self.br)
+        if isinstance(key, SelectableInt):
+            key = key.value
         key = self.br[key] # don't do POWER 1.3.4 bit-inversion
         return self.si[key]
 
     def __setitem__(self, key, value):
+        if isinstance(key, SelectableInt):
+            key = key.value
         key = self.br[key] # don't do POWER 1.3.4 bit-inversion
         return self.si.__setitem__(key, value)
 

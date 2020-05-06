@@ -161,7 +161,9 @@ class ISACaller:
                           'CIA': self.pc.CIA,
                           'CR': self.cr,
                           'LR': self.undefined,
+                          'CTR': self.undefined,
                           'undefined': self.undefined,
+                          'mode_is_64bit': True,
                           }
 
         # field-selectable versions of Condition Register TODO check bitranges?

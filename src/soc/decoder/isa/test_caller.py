@@ -106,6 +106,16 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(1), SelectableInt(0x0, 64))
             self.assertEqual(sim.gpr(2), SelectableInt(0x1234, 64))
 
+    def test_branch_link(self):
+        lst = ["bl 0xc",
+               "addi 2, 1, 0x1234",
+               "ba 0x1000",
+               "addi 1, 0, 0x1234",
+               "bclr 20, 0, 0"]
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+
+
     @unittest.skip("broken")  # FIXME
     def test_mtcrf(self):
         for i in range(4):
