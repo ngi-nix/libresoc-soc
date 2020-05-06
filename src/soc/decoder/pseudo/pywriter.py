@@ -2,6 +2,8 @@
 
 import os
 import sys
+import shutil
+import subprocess
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_pseudo import convert_to_python
 from soc.decoder.orderedset import OrderedSet
@@ -86,6 +88,21 @@ class PyISAWriter(ISA):
             f.write("    %s_instrs = {}\n" % pagename)
             f.write(iinf)
 
+    def patch_if_needed(self, source):
+        isadir = get_isasrc_dir()
+        fname = os.path.join(isadir, "%s.py" % source)
+        patchname = os.path.join(isadir, "%s.patch" % source)
+
+        try:
+            with open(patchname, 'r') as patch:
+                newfname = fname + '.orig'
+                shutil.copyfile(fname, newfname)
+                subprocess.check_call(['patch', fname],
+                                      stdin=patch)
+        except:
+            pass
+
+
     def write_isa_class(self):
         isadir = get_isasrc_dir()
         fname = os.path.join(isadir, "all.py")
@@ -115,4 +132,5 @@ if __name__ == '__main__':
         sources = sys.argv[1:]
     for source in sources:
         isa.write_pysource(source)
+        isa.patch_if_needed(source)
     isa.write_isa_class()
