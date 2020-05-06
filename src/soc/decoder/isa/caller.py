@@ -2,6 +2,7 @@ from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
+from soc.decoder.power_enums import spr_dict
 from collections import namedtuple
 import math
 
@@ -147,8 +148,8 @@ class SPR(dict):
         if key in self:
             return dict.__getitem__(self, key)
         else:
-            import pdb; pdb.set_trace()
-            return SelectableInt(0, 64)
+            info = spr_dict[key]
+            return SelectableInt(0, info.length)
 
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
