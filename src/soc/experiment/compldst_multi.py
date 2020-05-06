@@ -159,7 +159,6 @@ class LDSTCompUnit(Elaboratable):
 
     def __init__(self, rwid, alu, mem, debugtest=False):
         self.rwid = rwid
-        self.alu = alu
         self.mem = mem
         self.debugtest = debugtest
 
@@ -222,7 +221,6 @@ class LDSTCompUnit(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        m.submodules.alu = self.alu
         #m.submodules.mem = self.mem
         m.submodules.opc_l = opc_l = SRLatch(sync=False, name="opc")
         m.submodules.src_l = src_l = SRLatch(sync=False, self.n_src, name="src")
@@ -256,12 +254,13 @@ class LDSTCompUnit(Elaboratable):
         alu_ok = Signal(reset_less=True)    # ALU out ok (1 clock delay valid)
         alulatch = Signal(reset_less=True)
         ldlatch = Signal(reset_less=True)
+        ld_ok = Signal(reset_less=True)    # 
         wr_any = Signal(reset_less=True)   # any write (incl. store)
         rd_done = Signal(reset_less=True)  # all *necessary* operands read
         wr_reset = Signal(reset_less=True) # final reset condition
 
-        # src2 register
-        src2_r = Signal(self.rwid, reset_less=True)
+        # ALU out
+        alu_o = Signal(self.rwid, reset_less=True)
 
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
@@ -306,17 +305,9 @@ class LDSTCompUnit(Elaboratable):
             latchregister(m, self.src_i[i], data_r, src_l.q[i], name)
             srl.append(data_r)
 
-        # and for each output from the ALU
-        drl = []
-        for i in range(self.n_dst):
-            name = "data_r%d" % i
-            data_r = Signal(self.rwid, name=name, reset_less=True)
-            latchregister(m, self.alu.out[i], data_r, req_l.q[i], name)
-            drl.append(data_r)
-
         # and one for the output from the ALU (for the EA)
         addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
-        latchregister(m, self.alu.o, addr_r, alulatch, "ea_r")
+        latchregister(m, alu_o, addr_r, alulatch, "ea_r")
 
         # and pass the operation to the ALU
         comb += self.alu.op.eq(oper_r)
@@ -333,30 +324,24 @@ class LDSTCompUnit(Elaboratable):
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, op2))
         comb += self.alu.i[1].eq(src2_or_imm) # src2_or_imm into ALU input 2
 
+        # now do the ALU addr add: one cycle, and say "ready" at same time
+        sync += alu_o.eq(src_r[0] + src2_or_imm) # actual EA
+        sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
+
         # outputs: busy and release signals
         busy_o = self.busy_o
         comb += self.busy_o.eq(opc_l.q)  # busy out
         comb += self.rd.rel.eq(src_l.q & busy_o)  # src1/src2 req rel
         comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i & op_is_st)
 
-        # request release enabled based on if op is a LD/ST or a plain ALU
-        # if op is an ADD/SUB or a LD, req_rel activates.
-        wr_q = Signal(reset_less=True)
-        comb += wr_q.eq(wri_l.q & (~op_ldst | op_is_ld))
+        if False:
+            # request release enabled based on if op is a LD/ST or a plain ALU
+            # if op is an ADD/SUB or a LD, req_rel activates.
+            wr_q = Signal(reset_less=True)
+            comb += wr_q.eq(wri_l.q & (~op_ldst | op_is_ld))
 
-        comb += alulatch.eq((op_ldst & self.adr_rel_o) |
-                            (~op_ldst & self.wr.rel))
-
-        # select immediate if opcode says so.  however also change the latch
-        # to trigger *from* the opcode latch instead.
-        comb += src_sel.eq(Mux(op_is_imm, opc_l.qn, src_l.q))
-        comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
-                                              self.src2_i))
-
-        # create a latch/register for src1/src2 (include immediate select)
-        latchregister(m, self.src1_i, self.alu.a, src_l.q, name="src1_r")
-        latchregister(m, self.src2_i, src2_r, src_l.q, name="src2_r")
-        latchregister(m, src2_or_imm, self.alu.b, src_sel, name="imm_r")
+            comb += alulatch.eq((op_ldst & self.adr_rel_o) |
+                                (~op_ldst & self.wr.rel))
 
         # decode bits of operand (latched)
         comb += op_is_st.eq(oper_r.insn_type == InternalOp.OP_STORE) # ST
@@ -368,28 +353,38 @@ class LDSTCompUnit(Elaboratable):
         comb += self.ld_o.eq(op_is_ld)
         comb += self.st_o.eq(op_is_st)
 
-        # on a go_read, tell the ALU we're accepting data.
-        # NOTE: this spells TROUBLE if the ALU isn't ready!
-        # go_read is only valid for one clock!
-        with m.If(self.rd.go):                     # src operands ready, GO!
-            with m.If(~self.alu.p_ready_o):          # no ACK yet
-                m.d.comb += self.alu.p_valid_i.eq(1)  # so indicate valid
+        # 1st operand read-request is simple: always need it
+        comb += self.rd[0].req.eq(op_l.q[0] & busy_o)
 
-        # only proceed if ALU says its output is valid
-        with m.If(self.alu.n_valid_o):
-            # write req release out.  waits until shadow is dropped.
-            comb += self.wr.rel.eq(wr_q & busy_o & self.shadown_i)
-            # address release only happens on LD/ST, and is shadowed.
-            comb += self.adr_rel_o.eq(adr_l.q & busy_o &
-                                      self.shadown_i)
-            # when output latch is ready, and ALU says ready, accept ALU output
-            with m.If(self.wr.rel):
-                # tells ALU "thanks got it"
-                m.d.comb += self.alu.n_ready_i.eq(1)
+        # 2nd operand only needed when immediate is not active
+        comb += self.rd[1].req.eq(op_l.q[1] & busy_o & ~op_is_imm)
+
+        # 3rd operand only needed when operation is a store
+        comb += self.rd[2].req.eq(op_l.q[2] & busy_o & op_is_st)
+
+        # all reads done when alu is valid and 3rd operand needed
+        comb += rd_done.eq(alu_valid & ~self.rd[2].req)
+
+        # address release only if not busy and addr ready
+        comb += self.adr_rel_o.eq(adr_l.q & busy_o)
+
+        # store release when st ready *and* all operands read (and no shadow)
+        comb += self.st.req.eq(sto_l.q & busy_o & rd_done & op_is_st &
+                               self.shadown_i)
+
+        # request write of LD result.  waits until shadow is dropped.
+        comb += self.wr[0].rel.eq(wr_q & busy_o & ld.qn & op_is_ld &
+                                  self.shadown_i)
+
+        # request write of EA result only in update mode
+        comb += self.wr[1].rel.eq(upd_l.q & busy_o & op_is_update &
+                                  self.shadown_i)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
-        comb += self.done_o.eq((self.wr.rel & ~op_ldst) |
-                               (self.adr_rel_o & op_ldst))
+        comb += wr_any.eq(self.st.go | self.wr[0].go | self.wr[1].go)
+        comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i & wr_any &
+                    ~(self.st.rel | self.wr[0].rel | self.wr[1].rel) & ld_l.qn
+        comb += self.done_o.eq(wr_reset)
 
         # put the register directly onto the output bus on a go_write
         # this is "ALU mode".  go_wr_i *must* be deasserted on next clock
