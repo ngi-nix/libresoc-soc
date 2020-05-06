@@ -110,6 +110,22 @@ class PortInterface(RecordObject):
         self.ld = Data(regwid, "ld_data_o") # ok to be set by L0 Cache/Buf
         self.st = Data(regwid, "st_data_i") # ok to be set by CompUnit
 
+# TODO:
+class DualPortSplitter(Elaboratable):
+    """DualPortSplitter
+
+    * one incoming PortInterface
+    * two *OUTGOING* PortInterfaces
+    * uses LDSTSplitter to do it
+
+    (actually, thinking about it LDSTSplitter could simply be
+     modified to conform to PortInterface: one in, two out)
+
+    once that is done each pair of ports may be wired directly
+    to the dual ports of L0CacheBuffer
+    """
+    pass
+
 
 class LDSTPort(Elaboratable):
     def __init__(self, idx, regwid=64, addrwid=48):
