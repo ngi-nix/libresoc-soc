@@ -2,6 +2,7 @@ from enum import Enum, unique
 import csv
 import os
 from os.path import dirname, join
+from collections import namedtuple
 
 def find_wiki_file(name):
     filedir = os.path.dirname(os.path.abspath(__file__))
@@ -220,5 +221,6 @@ class CryIn(Enum):
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
 spr_csv = get_csv("sprs.csv")
+spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr len')
 fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
 SPR = Enum('SPR', fields)

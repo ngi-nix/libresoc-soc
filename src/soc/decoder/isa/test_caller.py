@@ -116,6 +116,20 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program)
             self.assertEqual(sim.spr['LR'], SelectableInt(0x4, 64))
 
+    def test_branch_ctr(self):
+        lst = ["addi 1, 0, 0x10",    # target of jump
+               "mtspr 9, 1",         # mtctr 1
+               "bcctr 20, 0, 0",     # bctr
+               "addi 2, 0, 0x1",     # should never execute
+               "addi 1, 0, 0x1234"]  # target of ctr
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+            self.assertEqual(sim.spr['CTR'], SelectableInt(0x10, 64))
+            self.assertEqual(sim.gpr(1), SelectableInt(0x1234, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
+
+
+
 
     @unittest.skip("broken")  # FIXME
     def test_mtcrf(self):

@@ -141,15 +141,23 @@ class SPR(dict):
 
     def __getitem__(self, key):
         # if key in special_sprs get the special spr, otherwise return key
+        if isinstance(key, SelectableInt):
+            key = key.value
         key = special_sprs.get(key, key)
         if key in self:
             return dict.__getitem__(self, key)
         else:
-            return SelectableInt(0, 256)
+            import pdb; pdb.set_trace()
+            return SelectableInt(0, 64)
 
     def __setitem__(self, key, value):
+        if isinstance(key, SelectableInt):
+            key = key.value
         key = special_sprs.get(key, key)
         dict.__setitem__(self, key, value)
+
+    def __call__(self, ridx):
+        return self[ridx]
         
         
 
@@ -182,6 +190,7 @@ class ISACaller:
 
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
+                          'SPR': self.spr,
                           'memassign': self.memassign,
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
@@ -211,7 +220,10 @@ class ISACaller:
         # list, here.
         fields = self.decoder.sigforms[formname]
         for name in op_fields:
-            sig = getattr(fields, name)
+            if name == 'spr':
+                sig = getattr(fields, name.upper())
+            else:
+                sig = getattr(fields, name)
             val = yield sig
             self.namespace[name] = SelectableInt(val, sig.width)
 

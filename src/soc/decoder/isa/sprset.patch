@@ -1,0 +1,11 @@
+--- sprset.py.orig	2020-05-06 11:36:45.228253359 -0400
++++ sprset.py	2020-05-06 11:20:17.627640518 -0400
+@@ -18,7 +18,7 @@
+                 SPR[n] = RS
+             else:
+                 SPR[n] = RS[32:64]
+-        elif length(SPR(n)) == 64:
++        elif len(SPR(n)) == 64:
+             SPR[n] = RS
+         else:
+             SPR[n] = RS[32:64]

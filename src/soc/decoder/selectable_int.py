@@ -292,6 +292,9 @@ class SelectableInt:
         return "SelectableInt(value=0x{:x}, bits={})".format(self.value,
                                                            self.bits)
 
+    def __len__(self):
+        return self.bits
+
 def onebit(bit):
     return SelectableInt(1 if bit else 0, 1)
 
