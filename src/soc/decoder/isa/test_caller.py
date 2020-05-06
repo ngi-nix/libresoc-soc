@@ -131,7 +131,6 @@ class DecoderTestCase(FHDLTestCase):
 
 
 
-    @unittest.skip("broken")  # FIXME
     def test_mtcrf(self):
         for i in range(4):
             # 0x7654 gives expected (3+4) (2+4) (1+4) (0+4) for i=3,2,1,0
