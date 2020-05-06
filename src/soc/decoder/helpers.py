@@ -71,6 +71,10 @@ def lt(a, b):
 
 def le(a, b):
     return SelectableInt((a <= b), bits=1)
+
+def length(a):
+    return len(a)
+
 # For these tests I tried to find power instructions that would let me
 # isolate each of these helper operations. So for instance, when I was
 # testing the MASK() function, I chose rlwinm and rldicl because if I

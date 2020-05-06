@@ -20,7 +20,7 @@ header = """\
 
 from soc.decoder.isa.caller import inject, instruction_info
 from soc.decoder.helpers import (EXTS, EXTS64, EXTZ64, ROTL64, ROTL32, MASK,
-                                 ne, eq, gt, ge, lt, le)
+                                 ne, eq, gt, ge, lt, le, length)
 from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.selectable_int import selectconcat as concat
 from soc.decoder.orderedset import OrderedSet
