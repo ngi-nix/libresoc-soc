@@ -347,8 +347,8 @@ class LDSTCompUnit(Elaboratable):
         comb += alu_l.r.eq(reset_i)
 
         # addr latch
-        comb += adr_l.s.eq(reset_a)
-        comb += adr_l.r.eq(alu_ok)
+        comb += adr_l.s.eq(alu_ok)
+        comb += adr_l.r.eq(reset_a)
 
         # ld latch
         comb += lod_l.s.eq(reset_i)
@@ -399,12 +399,6 @@ class LDSTCompUnit(Elaboratable):
         sync += alu_o.eq(src_r[0] + src2_or_imm) # actual EA
         sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
-        # outputs: busy and release signals
-        busy_o = self.busy_o
-        comb += self.busy_o.eq(opc_l.q)  # busy out
-        comb += self.rd.rel.eq(src_l.q & busy_o)  # src1/src2 req rel
-        comb += self.sto_rel_o.eq(sto_l.q & busy_o & self.shadown_i & op_is_st)
-
         # decode bits of operand (latched)
         comb += op_is_st.eq(oper_r.insn_type == InternalOp.OP_STORE) # ST
         comb += op_is_ld.eq(oper_r.insn_type == InternalOp.OP_LOAD)  # LD
@@ -416,6 +410,10 @@ class LDSTCompUnit(Elaboratable):
 
         ############################
         # Control Signal calculation
+
+        # busy signal
+        busy_o = self.busy_o
+        comb += self.busy_o.eq(opc_l.q | self.pi.busy_o)  # busy out
 
         # 1st operand read-request is simple: always need it
         comb += self.rd.rel[0].eq(src_l.q[0] & busy_o)
@@ -433,7 +431,7 @@ class LDSTCompUnit(Elaboratable):
         comb += rd_done.eq(alu_valid & ~self.rd.rel[2])
 
         # address release only if addr ready, but Port must be idle
-        comb += self.adr_rel_o.eq(adr_l.q & busy_o & ~self.pi.busy_o)
+        comb += self.adr_rel_o.eq(adr_l.q & busy_o)
 
         # store release when st ready *and* all operands read (and no shadow)
         comb += self.st.rel.eq(sto_l.q & busy_o & rd_done & op_is_st &
@@ -516,7 +514,7 @@ def wait_for(sig):
     while True:
         yield
         v = (yield sig)
-        print(v)
+        print("...wait for", sig, v)
         if v:
             break
 
@@ -524,19 +522,23 @@ def wait_for(sig):
 def store(dut, src1, src2, imm, imm_ok=True):
     yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
     yield dut.src1_i.eq(src1)
-    yield dut.src2_i.eq(src2)
+    yield dut.src3_i.eq(src2)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.rd.go.eq(0b11)
+    yield dut.rd.go.eq(0b111)
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
     yield from wait_for(dut.adr_rel_o)
-    yield dut.go_st_i.eq(1)
+    yield dut.ad.go.eq(1)
+    yield
+    yield dut.ad.go.eq(0)
     yield from wait_for(dut.sto_rel_o)
+    yield dut.go_st_i.eq(1)
+    yield
     wait_for(dut.stwd_mem_o)
     yield dut.go_st_i.eq(0)
     yield
