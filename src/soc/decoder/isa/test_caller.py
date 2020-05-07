@@ -128,6 +128,34 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(1), SelectableInt(0x1234, 64))
             self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
 
+    def test_branch_cond(self):
+        for i in [0, 10]:
+            lst = [f"addi 1, 0, {i}",  # set r1 to i
+                "cmpi cr0, 1, 1, 10",  # compare r1 with 10 and store to cr0
+                "bc 12, 2, 0x8",       # beq 0x8 -
+                                       # branch if r1 equals 10 to the nop below
+                "addi 2, 0, 0x1234",   # if r1 == 10 this shouldn't execute
+                "or 0, 0, 0"]          # branch target
+            with Program(lst) as program:
+                sim = self.run_tst_program(program)
+                if i == 10:
+                    self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
+                else:
+                    self.assertEqual(sim.gpr(2), SelectableInt(0x1234, 64))
+
+    def test_branch_loop(self):
+        lst = ["addi 1, 0, 0",
+               "addi 1, 0, 0",
+               "addi 1, 1, 1",
+               "add  2, 2, 1",
+               "cmpi cr0, 1, 1, 10",
+               "bc 12, 0, -0xc"]
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+            # Verified with qemu
+            self.assertEqual(sim.gpr(2), SelectableInt(0x37, 64))
+                    
+
     def test_add_compare(self):
         lst = ["addis 1, 0, 0xffff",
                "addis 2, 0, 0xffff",
