@@ -1,0 +1,68 @@
+--- comparefixed.py.orig	2020-05-07 14:19:47.384535384 -0400
++++ comparefixed.py	2020-05-07 14:19:11.220806542 -0400
+@@ -21,7 +21,7 @@
+             c = SelectableInt(value=0x2, bits=3)
+         else:
+             c = SelectableInt(value=0x1, bits=3)
+-        CR[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
++        CR.si[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
+         return (CR,)
+ 
+     @inject()
+@@ -38,7 +38,7 @@
+             c = SelectableInt(value=0x2, bits=3)
+         else:
+             c = SelectableInt(value=0x1, bits=3)
+-        CR[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
++        CR.si[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
+         return (CR,)
+ 
+     @inject()
+@@ -53,7 +53,7 @@
+             c = SelectableInt(value=0x2, bits=3)
+         else:
+             c = SelectableInt(value=0x1, bits=3)
+-        CR[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
++        CR.si[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
+         return (CR,)
+ 
+     @inject()
+@@ -70,7 +70,7 @@
+             c = SelectableInt(value=0x2, bits=3)
+         else:
+             c = SelectableInt(value=0x1, bits=3)
+-        CR[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
++        CR.si[4 * BF + 32:4 * BF + 35 + 1] = concat(c, XER[SO])
+         return (CR,)
+ 
+     @inject()
+@@ -85,10 +85,10 @@
+         else:
+             in_range = le(src21lo, src1) & le(src1, src21hi) | le(src22lo, src1) & le(
+                 src1, src22hi)
+-        CR[4 * BF + 32] = SelectableInt(value=0x0, bits=1)
+-        CR[4 * BF + 33] = in_range
+-        CR[4 * BF + 34] = SelectableInt(value=0x0, bits=1)
+-        CR[4 * BF + 35] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 32] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 33] = in_range
++        CR.si[4 * BF + 34] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 35] = SelectableInt(value=0x0, bits=1)
+         return (CR,)
+ 
+     @inject()
+@@ -98,10 +98,10 @@
+         match = eq(src1, RB[0:8]) | eq(src1, RB[8:16]) | eq(src1, RB[16:24]) | eq(src1,
+             RB[24:32]) | eq(src1, RB[32:40]) | eq(src1, RB[40:48]) | eq(src1, RB[48:56]
+             ) | eq(src1, RB[56:64])
+-        CR[4 * BF + 32] = SelectableInt(value=0x0, bits=1)
+-        CR[4 * BF + 33] = match
+-        CR[4 * BF + 34] = SelectableInt(value=0x0, bits=1)
+-        CR[4 * BF + 35] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 32] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 33] = match
++        CR.si[4 * BF + 34] = SelectableInt(value=0x0, bits=1)
++        CR.si[4 * BF + 35] = SelectableInt(value=0x0, bits=1)
+         return (CR,)
+ 
+     comparefixed_instrs = {}
