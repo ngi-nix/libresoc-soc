@@ -229,3 +229,12 @@ for row in spr_csv:
     spr_dict[int(row['Idx'])] = info
 fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
 SPR = Enum('SPR', fields)
+
+
+XER_bits = {
+    'SO': 32,
+    'OV': 33,
+    'CA': 34,
+    'OV32': 44,
+    'CA32': 45
+    }

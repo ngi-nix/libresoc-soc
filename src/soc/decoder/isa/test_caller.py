@@ -138,7 +138,6 @@ class DecoderTestCase(FHDLTestCase):
             # Verified with QEMU
             self.assertEqual(sim.gpr(3), SelectableInt(0x80000000, 64))
 
-    @unittest.skip("broken (XER)")
     def test_cmp(self):
         lst = ["addis 1, 0, 0xffff",
                "addis 2, 0, 0xffff",

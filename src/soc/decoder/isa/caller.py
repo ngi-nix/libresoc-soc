@@ -2,7 +2,7 @@ from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
-from soc.decoder.power_enums import spr_dict
+from soc.decoder.power_enums import spr_dict, XER_bits
 from soc.decoder.helpers import exts
 from collections import namedtuple
 import math
@@ -15,7 +15,7 @@ special_sprs = {
     'LR': 8,
     'CTR': 9,
     'TAR': 815,
-    'XER': 0,
+    'XER': 1,
     'VRSAVE': 256}
 
 
@@ -200,6 +200,7 @@ class ISACaller:
                           'undefined': self.undefined,
                           'mode_is_64bit': True,
                           }
+        self.namespace.update(XER_bits)
 
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
@@ -228,7 +229,12 @@ class ISACaller:
             else:
                 sig = getattr(fields, name)
             val = yield sig
-            self.namespace[name] = SelectableInt(val, sig.width)
+            if name == 'BF':
+                self.namespace[name] = val
+            else:
+                self.namespace[name] = SelectableInt(val, sig.width)
+
+        self.namespace['XER'] = self.spr['XER']
 
     def handle_carry(self, inputs, outputs):
         inv_a = yield self.dec2.invert_a
