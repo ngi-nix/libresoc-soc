@@ -154,7 +154,19 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program)
             # Verified with qemu
             self.assertEqual(sim.gpr(2), SelectableInt(0x37, 64))
-                    
+
+    def test_branch_loop_ctr(self):
+        lst = ["addi 1, 0, 0",
+               "addi 2, 0, 7",
+               "mtspr 9, 2",    # set ctr to 7
+               "addi 1, 1, 5",
+               "bc 16, 0, -0x4"]  # bdnz to the addi above
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+            # Verified with qemu
+            self.assertEqual(sim.gpr(1), SelectableInt(0x23, 64))
+
+
 
     def test_add_compare(self):
         lst = ["addis 1, 0, 0xffff",
