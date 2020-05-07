@@ -235,7 +235,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return other >= self.value
+            return onebit(self.value >= other.value)
         assert False
 
     def __le__(self, other):
@@ -246,7 +246,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return onebit(other <= self.value)
+            return onebit(self.value <= other)
         assert False
 
     def __gt__(self, other):
@@ -257,7 +257,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return onebit(other > self.value)
+            return onebit(self.value > other)
         assert False
 
     def __lt__(self, other):
@@ -268,7 +268,7 @@ class SelectableInt:
             assert other.bits == self.bits
             other = other.value
         if isinstance(other, int):
-            return onebit(other < self.value)
+            return onebit(self.value < other)
         assert False
 
     def __eq__(self, other):
@@ -412,6 +412,22 @@ class SelectableIntTestCase(unittest.TestCase):
             a = SelectableInt(i, 16)
             b = eval(repr(a))
             self.assertEqual(a, b)
+
+    def test_cmp(self):
+        a = SelectableInt(10, bits=8)
+        b = SelectableInt(5, bits=8)
+        self.assertTrue(a > b)
+        self.assertFalse(a < b)
+        self.assertTrue(a != b)
+        self.assertFalse(a == b)
+
+    def test_unsigned(self):
+        a = SelectableInt(0x80, bits=8)
+        b = SelectableInt(0x7f, bits=8)
+        self.assertTrue(a > b)
+        self.assertFalse(a < b)
+        self.assertTrue(a != b)
+        self.assertFalse(a == b)
 
 if __name__ == "__main__":
     unittest.main()
