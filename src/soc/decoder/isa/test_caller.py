@@ -128,8 +128,11 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(1), SelectableInt(0x1234, 64))
             self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
 
-
-
+    def test_mfcr(self):
+        lst = ["mfcr 1"]
+        with Program(lst) as program:
+            sim = self.run_tst_program(program)
+            self.assertEqual(sim.gpr(1), SelectableInt(0, 64))
 
     def test_mtcrf(self):
         for i in range(4):

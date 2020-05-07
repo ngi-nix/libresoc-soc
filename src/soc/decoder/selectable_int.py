@@ -342,6 +342,8 @@ def selectconcat(*args, repeat=1):
         args = tmp
     res = copy(args[0])
     for i in args[1:]:
+        if isinstance(i, FieldSelectableInt):
+            i = i.si
         assert isinstance(i, SelectableInt), "can only concat SIs, sorry"
         res.bits += i.bits
         res.value = (res.value << i.bits) | i.value
