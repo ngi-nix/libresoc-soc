@@ -150,16 +150,19 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_mtcrf(self):
         for i in range(4):
-            # 0x7654 gives expected (3+4) (2+4) (1+4) (0+4) for i=3,2,1,0
-            lst = ["addi %d, 0, 0x7654" % (i+1),
-                   "mtcrf %d, %d" % (1 << i, i+1),
+            # 0x76540000 gives expected (3+4) (2+4) (1+4) (0+4) for
+            #     i=0, 1, 2, 3
+            # The positions of the CR fields have been verified using
+            # QEMU and 'cmp crx, a, b' instructions
+            lst = ["addis 1, 0, 0x7654",
+                   "mtcrf %d, 1" % (1 << (7-i)),
                    ]
             with Program(lst) as program:
                 sim = self.run_tst_program(program)
             print("cr", sim.cr)
-            expected = (i+4)
+            expected = (7-i)
             # check CR itself
-            self.assertEqual(sim.cr, SelectableInt(expected << (i*4), 32))
+            self.assertEqual(sim.cr, SelectableInt(expected << ((7-i)*4), 32))
             # check CR[0]/1/2/3 as well
             print("cr%d", sim.crl[i])
             self.assertTrue(SelectableInt(expected, 4) == sim.crl[i])
