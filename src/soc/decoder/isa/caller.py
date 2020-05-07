@@ -3,6 +3,7 @@ from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import spr_dict
+from soc.decoder.helpers import exts
 from collections import namedtuple
 import math
 
@@ -203,12 +204,13 @@ class ISACaller:
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
         for i in range(8):
-            bits = tuple(range((7-i)*4, (8-i)*4))# errr... maybe?
+            bits = tuple(range(i*4, (i+1)*4))# errr... maybe?
             _cr = FieldSelectableInt(self.cr, bits)
             self.crl.append(_cr)
             self.namespace["CR%d" % i] = _cr
 
-        self.decoder = decoder2
+        self.decoder = decoder2.dec
+        self.dec2 = decoder2
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
@@ -227,6 +229,29 @@ class ISACaller:
                 sig = getattr(fields, name)
             val = yield sig
             self.namespace[name] = SelectableInt(val, sig.width)
+
+    def handle_carry(self, inputs, outputs):
+        inv_a = yield self.dec2.invert_a
+        if inv_a:
+            inputs[0] = ~inputs[0]
+        assert len(outputs) >= 1
+        output = outputs[0]
+        gts = [(x > output) == SelectableInt(1, 1) for x in inputs]
+        print(gts)
+        if all(gts):
+            return True
+        return False
+
+    def handle_comparison(self, outputs):
+        out = outputs[0]
+        out = exts(out.value, out.bits)
+        zero = SelectableInt(out == 0, 1)
+        positive = SelectableInt(out > 0, 1)
+        negative = SelectableInt(out < 0, 1)
+        SO = SelectableInt(0, 1)
+        cr_field = selectconcat(negative, positive, zero, SO)
+        self.crl[0].eq(cr_field)
+        
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
@@ -257,6 +282,12 @@ class ISACaller:
         print(inputs)
         results = info.func(self, *inputs)
         print(results)
+
+        carry_en = yield self.dec2.e.rc.data
+        if carry_en:
+            cy = self.handle_carry(inputs, results)
+
+            self.handle_comparison(results)
 
         # any modified return results?
         if info.write_regs:
