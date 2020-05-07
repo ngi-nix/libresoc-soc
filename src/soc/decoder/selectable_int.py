@@ -48,14 +48,24 @@ class FieldSelectableInt:
         print ("getitem", key, self.br)
         if isinstance(key, SelectableInt):
             key = key.value
-        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
-        return self.si[key]
+        if isinstance(key, int):
+            key = self.br[key] # don't do POWER 1.3.4 bit-inversion
+            return self.si[key]
+        if isinstance(key, slice):
+            key = self.br[key]
+            return selectconcat(*[self.si[x] for x in key])
 
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
             key = key.value
         key = self.br[key] # don't do POWER 1.3.4 bit-inversion
-        return self.si.__setitem__(key, value)
+        if isinstance(key, int):
+            return self.si.__setitem__(key, value)
+        else:
+            if not isinstance(value, SelectableInt):
+                value = SelectableInt(value, bits=len(key))
+            for i, k in enumerate(key):
+                self.si[k] = value[i]
 
     def __negate__(self):
         return self._op1(negate)
@@ -109,6 +119,32 @@ class FieldSelectableIntTestCase(unittest.TestCase):
         c = fs + b
         print (c)
         #self.assertEqual(c.value, a.value + b.value)
+
+    def test_select(self):
+        a = SelectableInt(0b00001111, 8)
+        br = BitRange()
+        br[0] = 0
+        br[1] = 1
+        br[2] = 4
+        br[3] = 5
+        fs = FieldSelectableInt(a, br)
+
+        self.assertEqual(fs.get_range(), 0b0011)
+
+    def test_select_range(self):
+        a = SelectableInt(0b00001111, 8)
+        br = BitRange()
+        br[0] = 0
+        br[1] = 1
+        br[2] = 4
+        br[3] = 5
+        fs = FieldSelectableInt(a, br)
+
+        self.assertEqual(fs[2:4], 0b11)
+
+        fs[0:2] = 0b10
+        self.assertEqual(fs.get_range(), 0b1011)
+        
 
 
 class SelectableInt:

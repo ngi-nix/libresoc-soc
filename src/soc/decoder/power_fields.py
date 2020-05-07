@@ -8,7 +8,7 @@ class BitRange(OrderedDict):
 
     def __getitem__(self, subscript):
         if isinstance(subscript, slice):
-            return list(self)[subscript]
+            return list(self.values())[subscript]
         else:
             return OrderedDict.__getitem__(self, subscript)
 
