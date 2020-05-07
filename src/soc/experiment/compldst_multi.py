@@ -206,7 +206,7 @@ class LDSTCompUnit(Elaboratable):
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
+            dst.append(Signal(rwid, name="dest%d_o" % j, reset_less=True))
 
         # control (dual in/out)
         self.rd = go_record(n_src, name="rd") # read in, req out
@@ -291,7 +291,7 @@ class LDSTCompUnit(Elaboratable):
 
         # LD and ALU out
         alu_o = Signal(self.rwid, reset_less=True)
-        ld_o = Signal(self.rwid, reset_less=True)
+        ldd_o = Signal(self.rwid, reset_less=True)
 
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
@@ -376,7 +376,7 @@ class LDSTCompUnit(Elaboratable):
 
         # and for LD
         ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
-        latchregister(m, ld_o, ldd_r, lod_l.q, "ldo_r")
+        latchregister(m, ldd_o, ldd_r, lod_l.qn, name="ldo_r")
 
         # and for each input from the incoming src operands
         srl = []
@@ -413,7 +413,7 @@ class LDSTCompUnit(Elaboratable):
 
         # busy signal
         busy_o = self.busy_o
-        comb += self.busy_o.eq(opc_l.q | self.pi.busy_o)  # busy out
+        comb += self.busy_o.eq(opc_l.q) # | self.pi.busy_o)  # busy out
 
         # 1st operand read-request is simple: always need it
         comb += self.rd.rel[0].eq(src_l.q[0] & busy_o)
@@ -442,13 +442,14 @@ class LDSTCompUnit(Elaboratable):
                                   self.shadown_i)
 
         # request write of EA result only in update mode
-        comb += self.wr.rel[0].eq(upd_l.q & busy_o & op_is_update &
+        comb += self.wr.rel[1].eq(upd_l.q & busy_o & op_is_update &
                                   self.shadown_i)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
         comb += wr_any.eq(self.st.go | self.wr.go[0] | self.wr.go[1])
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i & wr_any &
-                    ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) & lod_l.qn)
+                    ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
+                     (lod_l.qn | op_is_st))
         comb += self.done_o.eq(wr_reset)
 
         ######################
@@ -467,8 +468,8 @@ class LDSTCompUnit(Elaboratable):
         pi = self.pi
 
         # connect to LD/ST PortInterface.
-        comb += pi.is_ld_i.eq(op_is_ld)  # decoded-LD
-        comb += pi.is_st_i.eq(op_is_st)  # decoded-ST
+        comb += pi.is_ld_i.eq(op_is_ld & busy_o)  # decoded-LD
+        comb += pi.is_st_i.eq(op_is_st & busy_o)  # decoded-ST
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
@@ -476,7 +477,7 @@ class LDSTCompUnit(Elaboratable):
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)     # no exc, address fine
         # ld - ld gets latched in via lod_l
-        comb += ld_o.eq(pi.ld.data)  # ld data goes into ld reg (above)
+        comb += ldd_o.eq(pi.ld.data)  # ld data goes into ld reg (above)
         comb += ld_ok.eq(pi.ld.ok) # ld.ok *closes* (freezes) ld data
         # store - data goes in based on go_st
         comb += pi.st.data.eq(srl[2]) # 3rd operand latch
@@ -508,14 +509,14 @@ class LDSTCompUnit(Elaboratable):
         return list(self)
 
 
-def wait_for(sig):
+def wait_for(sig, wait=True):
     v = (yield sig)
     print("wait for", sig, v)
     while True:
         yield
         v = (yield sig)
         print("...wait for", sig, v)
-        if v:
+        if bool(v) == wait:
             break
 
 
@@ -535,11 +536,12 @@ def store(dut, src1, src2, imm, imm_ok=True):
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
     yield
-    yield dut.ad.go.eq(0)
     yield from wait_for(dut.sto_rel_o)
     yield dut.go_st_i.eq(1)
     yield
-    wait_for(dut.stwd_mem_o)
+    yield from wait_for(dut.busy_o, False)
+    #wait_for(dut.stwd_mem_o)
+    yield dut.ad.go.eq(0)
     yield dut.go_st_i.eq(0)
     yield
 
@@ -558,7 +560,11 @@ def load(dut, src1, src2, imm, imm_ok=True):
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
     yield from wait_for(dut.adr_rel_o)
-    yield dut.go_ad_i.eq(1)
+    yield dut.ad.go.eq(1)
+    yield from wait_for(dut.wr.rel[0])
+    yield dut.wr.go.eq(1)
+    yield
+    yield dut.wr.go.eq(0)
     yield from wait_for(dut.busy_o)
     yield
     data = (yield dut.data_o)
@@ -593,9 +599,9 @@ def add(dut, src1, src2, imm, imm_ok=False):
 
 def scoreboard_sim(dut):
     # two STs (different addresses)
-    yield from store(dut, 4, 3, 2)
-    yield from store(dut, 2, 9, 2)
-    yield
+    #yield from store(dut, 4, 3, 2)
+    #yield from store(dut, 2, 9, 2)
+    #yield
     # two LDs (deliberately LD from the 1st address then 2nd)
     data = yield from load(dut, 4, 0, 2)
     assert data == 0x0003
