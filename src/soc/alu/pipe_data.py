@@ -43,7 +43,7 @@ class ALUInputData(IntegerData):
 class ALUOutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.o = Signal(64, reset_less=True)
+        self.o = Signal(64, reset_less=True, name="stage_o")
         self.carry_out = Signal(reset_less=True)
         self.carry_out32 = Signal(reset_less=True)
         self.cr0 = Signal(4, reset_less=True)
