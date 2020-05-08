@@ -43,6 +43,7 @@ def connect_alu(comb, alu, dec2):
     comb += op.data_len.eq(dec2.e.data_len)
     comb += op.byte_reverse.eq(dec2.e.byte_reverse)
     comb += op.sign_extend.eq(dec2.e.sign_extend)
+    comb += op.imm_data.eq(dec2.e.imm_data)
 
 
 
@@ -96,7 +97,7 @@ class ALUTestCase(FHDLTestCase):
                     vld = yield alu.n.valid_o
                 yield
                 alu_out = yield alu.n.data_o.o
-                self.assertEqual(simulator.gpr(3), alu_out)
+                self.assertEqual(simulator.gpr(3), SelectableInt(alu_out, 64))
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -110,13 +111,37 @@ class ALUTestCase(FHDLTestCase):
         return simulator
 
     def test_rand(self):
-        insns = ["add", "add.", "and", "or", "xor"]
-        for i in range(20):
+        insns = ["add", "add.", "and", "or", "xor", "subf"]
+        for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
             initial_regs[2] = random.randint(0, (1<<64)-1)
+            with Program(lst) as program:
+                sim = self.run_tst_program(program, initial_regs)
+
+    def test_rand_imm(self):
+        insns = ["addi", "addis", "subfic"]
+        for i in range(10):
+            choice = random.choice(insns)
+            imm = random.randint(-(1<<15), (1<<15)-1)
+            lst = [f"{choice} 3, 1, {imm}"]
+            print(lst)
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            with Program(lst) as program:
+                sim = self.run_tst_program(program, initial_regs)
+
+    def test_rand_imm_logical(self):
+        insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
+        for i in range(10):
+            choice = random.choice(insns)
+            imm = random.randint(0, (1<<16)-1)
+            lst = [f"{choice} 3, 1, {imm}"]
+            print(lst)
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
 
