@@ -12,3 +12,5 @@
 /sprset.py
 /stringldst.py
 /system.py
+*.orig
+*.rej
