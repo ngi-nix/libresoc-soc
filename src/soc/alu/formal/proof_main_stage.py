@@ -1,7 +1,7 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
-from nmigen import Module, Signal, Elaboratable, Mux
+from nmigen import Module, Signal, Elaboratable, Mux, Cat
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
@@ -37,10 +37,16 @@ class Driver(Elaboratable):
 
         a = Signal(64)
         b = Signal(64)
+        carry_in = Signal(64)
+        so_in = Signal(64)
         comb += [dut.i.a.eq(a),
                  dut.i.b.eq(b),
+                 dut.i.carry_in.eq(carry_in),
+                 dut.i.so.eq(so_in),
                  a.eq(AnyConst(64)),
-                 b.eq(AnyConst(64))]
+                 b.eq(AnyConst(64)),
+                 carry_in.eq(AnyConst(1)),
+                 so_in.eq(AnyConst(1))]
                       
 
         comb += dut.i.ctx.op.eq(rec)
@@ -54,7 +60,8 @@ class Driver(Elaboratable):
             comb += Assert(dut_sig == rec_sig)
 
         with m.If(rec.insn_type == InternalOp.OP_ADD):
-            comb += Assert(dut.o.o == (a + b) & ((1<<64)-1))
+            comb += Assert(Cat(dut.o.o, dut.o.carry_out) ==
+                           (a + b + carry_in))
 
 
         return m

@@ -20,12 +20,14 @@ class ALUMainStage(PipeModBase):
         comb = m.d.comb
 
         add_output = Signal(self.i.a.width + 1, reset_less=True)
-        comb += add_output.eq(self.i.a + self.i.b)
+        comb += add_output.eq(self.i.a + self.i.b + self.i.carry_in)
 
 
         with m.Switch(self.i.ctx.op.insn_type):
             with m.Case(InternalOp.OP_ADD):
                 comb += self.o.o.eq(add_output[0:64])
+                comb += self.o.carry_out.eq(add_output[64])
+
 
         comb += self.o.ctx.eq(self.i.ctx)
 
