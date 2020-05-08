@@ -20,4 +20,15 @@ class ALUInputStage(PipeModBase):
 
         comb += self.o.op.eq(self.i.op)
 
+        a = Signal.like(self.i.a)
+
+        with m.If(self.i.op.invert_a):
+            comb += a.eq(~self.i.a)
+        with m.Else():
+            comb += a.eq(self.i.a)
+
+        comb += self.o.a.eq(a)
+
+        comb += self.o.b.eq(self.i.b)
+
         return m

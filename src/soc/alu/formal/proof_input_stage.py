@@ -26,19 +26,36 @@ class Driver(Elaboratable):
         pspec = ALUPipeSpec()
         m.submodules.dut = dut = ALUInputStage(pspec)
 
+        a = Signal(64)
+        b = Signal(64)
+        comb += [dut.i.a.eq(a),
+                 dut.i.b.eq(b),
+                 a.eq(AnyConst(64)),
+                 b.eq(AnyConst(64))]
+                      
+        # Setup random inputs for dut.op
         rec = CompALUOpSubset()
-
         for p in rec.ports():
             width = p.width
             comb += p.eq(AnyConst(width))
 
         comb += dut.i.op.eq(rec)
 
+
+        # Assert that op gets copied from the input to output
         for p in rec.ports():
             name = p.name
             rec_sig = p
             dut_sig = getattr(dut.o.op, name)
             comb += Assert(dut_sig == rec_sig)
+
+        with m.If(rec.invert_a):
+            comb += Assert(dut.o.a == ~a)
+        with m.Else():
+            comb += Assert(dut.o.a == a)
+        comb += Assert(dut.o.b == b)
+
+
 
 
         return m
