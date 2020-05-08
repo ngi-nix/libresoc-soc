@@ -1,7 +1,7 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
-from nmigen import Module, Signal, Elaboratable, Mux, Cat
+from nmigen import Module, Signal, Elaboratable, Mux, Cat, signed
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
@@ -63,6 +63,20 @@ class Driver(Elaboratable):
             comb += Assert(dut.o.o == ~o)
         with m.Else():
             comb += Assert(dut.o.o == o)
+
+        cr_out = Signal.like(cr0)
+        comb += cr_out.eq(dut.o.cr0)
+
+        o_signed = Signal(signed(64))
+        comb += o_signed.eq(dut.o.o)
+        # Assert only one of the comparison bits is set
+        comb += Assert(cr_out[0] + cr_out[1] + cr_out[2] == 1)
+        with m.If(o_signed == 0):
+            comb += Assert(cr_out[2] == 1)
+        with m.Elif(o_signed > 0):
+            comb += Assert(cr_out[1] == 1)
+        with m.Elif(o_signed < 0):
+            comb += Assert(cr_out[0] == 1)
 
 
         # Assert that op gets copied from the input to output
