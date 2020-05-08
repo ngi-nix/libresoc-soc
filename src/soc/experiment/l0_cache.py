@@ -272,11 +272,10 @@ class L0CacheBuffer(Elaboratable):
         # if now in "LD" mode: wait for addr_ok, then send the address out
         # to memory, acknowledge address, and send out LD data
         with m.If(ld_active.q):
-            with m.If(ldport.addr.ok):
+            with m.If(ldport.addr.ok & adrok_l.qn):
                 comb += rdport.addr.eq(ldport.addr.data) # addr ok, send thru
-                with m.If(adrok_l.qn):
-                    comb += ldport.addr_ok_o.eq(1) # acknowledge addr ok
-                    sync += adrok_l.s.eq(1)       # and pull "ack" latch
+                comb += ldport.addr_ok_o.eq(1) # acknowledge addr ok
+                sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
