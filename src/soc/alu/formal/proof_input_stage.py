@@ -23,7 +23,7 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        pspec = ALUPipeSpec()
+        pspec = ALUPipeSpec(id_wid=2, op_wid=1)
         m.submodules.dut = dut = ALUInputStage(pspec)
 
         a = Signal(64)
