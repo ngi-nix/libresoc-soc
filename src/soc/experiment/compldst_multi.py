@@ -575,6 +575,10 @@ def load(dut, src1, src2, imm, imm_ok=True):
 
 
 def scoreboard_sim(dut):
+
+    ###################
+    # immediate version
+
     # two STs (different addresses)
     yield from store(dut, 4, 0, 3, 2)
     yield from store(dut, 2, 0, 9, 2)
@@ -583,8 +587,13 @@ def scoreboard_sim(dut):
     data = yield from load(dut, 4, 0, 2)
     assert data == 0x0003, "returned %x" % data
     data = yield from load(dut, 2, 0, 2)
-    assert data == 0x0009
+    assert data == 0x0009, "returned %x" % data
     yield
+
+    # indexed version
+    yield from store(dut, 4, 5, 3, 0, imm_ok=False)
+    data = yield from load(dut, 4, 5, 0, imm_ok=False)
+    assert data == 0x0003, "returned %x" % data
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
