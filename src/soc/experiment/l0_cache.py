@@ -262,11 +262,9 @@ class L0CacheBuffer(Elaboratable):
         with m.If(~ldpick.n):
             comb += ld_active.s.eq(1) # activate LD mode
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
-            comb += adrok_l.r.eq(1) # address not yet "ok'd"
         with m.Elif(~stpick.n):
             comb += st_active.s.eq(1) # activate ST mode
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
-            comb += adrok_l.r.eq(1) # address not yet "ok'd"
 
         # from this point onwards, with the port "picked", it stays picked
         # until ld_active (or st_active) are de-asserted.
@@ -314,6 +312,7 @@ class L0CacheBuffer(Elaboratable):
             comb += ld_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += st_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += reset_l.r.eq(1)     # clear reset
+            comb += adrok_l.r.eq(1)     # address reset
 
         return m
 
@@ -385,7 +384,8 @@ def l0_cache_st(dut, addr, data):
     yield port1.pi.addr.data.eq(addr) # set address
     yield port1.pi.addr.ok.eq(1) # set ok
     yield from wait_addr(port1)             # wait until addr ok
-
+    #yield # not needed, just for checking
+    #yield # not needed, just for checking
     # assert "ST" for one cycle (required by the API)
     yield port1.pi.st.data.eq(data)
     yield port1.pi.st.ok.eq(1)
@@ -430,11 +430,15 @@ def l0_cache_ldst(dut):
     yield
     addr = 0x2
     data = 0xbeef
+    data2 = 0xf00f
     #data = 0x4
-    yield from l0_cache_st(dut, addr, data)
-    result = yield from l0_cache_ld(dut, addr, data)
+    yield from l0_cache_st(dut, 0x2, data)
+    yield from l0_cache_st(dut, 0x3, data2)
+    result = yield from l0_cache_ld(dut, 0x2, data)
+    result2 = yield from l0_cache_ld(dut, 0x3, data2)
     yield
     assert data == result, "data %x != %x" % (result, data)
+    assert data2 == result2, "data2 %x != %x" % (result2, data2)
 
 
 def test_l0_cache():
