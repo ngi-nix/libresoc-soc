@@ -343,8 +343,8 @@ class LDSTCompUnit(Elaboratable):
         sync += src_l.r.eq(reset_r)
 
         # alu latch
-        comb += alu_l.s.eq(alu_ok)
-        comb += alu_l.r.eq(reset_i)
+        comb += alu_l.s.eq(reset_i)
+        comb += alu_l.r.eq(alu_ok)
 
         # addr latch
         comb += adr_l.s.eq(alu_ok)
@@ -363,8 +363,8 @@ class LDSTCompUnit(Elaboratable):
         sync += upd_l.r.eq(reset_u)
 
         # store latch
-        sync += sto_l.s.eq(addr_ok & op_is_st)
-        sync += sto_l.r.eq(reset_s)
+        comb += sto_l.s.eq(addr_ok & op_is_st)
+        comb += sto_l.r.eq(reset_s)
 
         # reset latch
         comb += rst_l.s.eq(addr_ok) # start when address is ready
@@ -376,7 +376,7 @@ class LDSTCompUnit(Elaboratable):
 
         # and for LD
         ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
-        latchregister(m, ldd_o, ldd_r, lod_l.qn, name="ldo_r")
+        latchregister(m, ldd_o, ldd_r, ld_ok, name="ldo_r")
 
         # and for each input from the incoming src operands
         srl = []
@@ -388,15 +388,15 @@ class LDSTCompUnit(Elaboratable):
 
         # and one for the output from the ADD (for the EA)
         addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
-        latchregister(m, alu_o, addr_r, alu_l.q, "ea_r")
+        latchregister(m, alu_o, addr_r, alu_ok, "ea_r")
 
         # select either immediate or src2 if opcode says so
         op_is_imm = oper_r.imm_data.imm_ok
         src2_or_imm = Signal(self.rwid, reset_less=True)
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[0]))
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
-        sync += alu_o.eq(src_r[0] + src2_or_imm) # actual EA
+        sync += alu_o.eq(srl[0] + src2_or_imm) # actual EA
         sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
         # decode bits of operand (latched)
@@ -520,10 +520,11 @@ def wait_for(sig, wait=True):
             break
 
 
-def store(dut, src1, src2, imm, imm_ok=True):
+def store(dut, src1, src2, src3, imm, imm_ok=True):
     yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
     yield dut.src1_i.eq(src1)
-    yield dut.src3_i.eq(src2)
+    yield dut.src2_i.eq(src2)
+    yield dut.src3_i.eq(src3)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
@@ -535,14 +536,13 @@ def store(dut, src1, src2, imm, imm_ok=True):
     yield dut.rd.go.eq(0)
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
-    yield
     yield from wait_for(dut.sto_rel_o)
     yield dut.go_st_i.eq(1)
     yield
+    yield dut.go_st_i.eq(0)
     yield from wait_for(dut.busy_o, False)
     #wait_for(dut.stwd_mem_o)
     yield dut.ad.go.eq(0)
-    yield dut.go_st_i.eq(0)
     yield
 
 
@@ -562,36 +562,13 @@ def load(dut, src1, src2, imm, imm_ok=True):
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
     yield from wait_for(dut.wr.rel[0])
-    yield dut.wr.go.eq(1)
-    yield
-    yield dut.wr.go.eq(0)
-    yield from wait_for(dut.busy_o)
-    yield
-    data = (yield dut.data_o)
     yield dut.go_ad_i.eq(0)
-    # wait_for(dut.stwd_mem_o)
-    return data
-
-
-def add(dut, src1, src2, imm, imm_ok=False):
-    yield dut.oper_i.insn_type.eq(InternalOp.OP_ADD)
-    yield dut.src1_i.eq(src1)
-    yield dut.src2_i.eq(src2)
-    yield dut.oper_i.imm_data.imm.eq(imm)
-    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
-    yield dut.issue_i.eq(1)
-    yield
-    yield dut.issue_i.eq(0)
-    yield
-    yield dut.rd.go.eq(1)
-    yield from wait_for(dut.rd.rel)
-    yield dut.rd.go.eq(0)
-    yield from wait_for(dut.wr.rel)
     yield dut.wr.go.eq(1)
-    yield from wait_for(dut.busy_o)
     yield
-    data = (yield dut.data_o)
+    data = yield dut.data_o
+    print (data)
     yield dut.wr.go.eq(0)
+    yield from wait_for(dut.busy_o)
     yield
     # wait_for(dut.stwd_mem_o)
     return data
@@ -599,23 +576,15 @@ def add(dut, src1, src2, imm, imm_ok=False):
 
 def scoreboard_sim(dut):
     # two STs (different addresses)
-    #yield from store(dut, 4, 3, 2)
-    #yield from store(dut, 2, 9, 2)
-    #yield
+    yield from store(dut, 4, 0, 3, 2)
+    yield from store(dut, 2, 0, 9, 2)
+    yield
     # two LDs (deliberately LD from the 1st address then 2nd)
     data = yield from load(dut, 4, 0, 2)
-    assert data == 0x0004, "returned %x" % data
-    #data = yield from load(dut, 2, 0, 2)
-    #assert data == 0x0009
+    assert data == 0x0009, "returned %x" % data
+    data = yield from load(dut, 2, 0, 2)
+    assert data == 0x0009
     yield
-
-    # now do an add
-    data = yield from add(dut, 4, 3, 0xfeed)
-    assert data == 0x7
-
-    # and an add-immediate
-    data = yield from add(dut, 4, 0xdeef, 2, imm_ok=True)
-    assert data == 0x6
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
