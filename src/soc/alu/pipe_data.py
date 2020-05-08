@@ -33,6 +33,20 @@ class ALUInitialData(IntegerData):
         lst = super().eq(i)
         return lst + [self.a.eq(i.a), self.b.eq(i.b)]
 
+
+class ALUOutputData(IntegerData):
+    def __init__(self, pspec):
+        super().__init__(pspec)
+        self.o = Signal(64, reset_less=True)
+
+    def __iter__(self):
+        yield from super().__iter__()
+        yield self.o
+
+    def eq(self, i):
+        lst = super().eq(i)
+        return lst + [self.o.eq(i.o)]
+
 class IntPipeSpec:
     def __init__(self, id_wid=2, op_wid=1):
         self.id_wid = id_wid
