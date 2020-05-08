@@ -1,3 +1,8 @@
+# This stage is intended to do most of the work of executing the ALU
+# instructions. This would be like the additions, logical operations,
+# and shifting, as well as carry and overflow generation. This module
+# however should not gate the carry or overflow, that's up to the
+# output stage
 from nmigen import (Module, Signal)
 from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData

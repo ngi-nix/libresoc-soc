@@ -1,3 +1,7 @@
+# This stage is intended to adjust the input data before sending it to
+# the acutal ALU. Things like handling inverting the input, carry_in
+# generation for subtraction, and handling of immediates should happen
+# here
 from nmigen import (Module, Signal, Cat, Const, Mux, Repl, signed,
                     unsigned)
 from nmutil.pipemodbase import PipeModBase

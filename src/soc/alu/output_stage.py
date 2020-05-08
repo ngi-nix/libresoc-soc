@@ -1,3 +1,6 @@
+# This stage is intended to handle the gating of carry and overflow
+# out, summary overflow generation, and updating the condition
+# register
 from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData
