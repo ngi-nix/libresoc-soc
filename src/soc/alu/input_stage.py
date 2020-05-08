@@ -18,11 +18,10 @@ class ALUInputStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
-        comb += self.o.op.eq(self.i.op)
 
         a = Signal.like(self.i.a)
 
-        with m.If(self.i.op.invert_a):
+        with m.If(self.i.ctx.op.invert_a):
             comb += a.eq(~self.i.a)
         with m.Else():
             comb += a.eq(self.i.a)
@@ -30,5 +29,7 @@ class ALUInputStage(PipeModBase):
         comb += self.o.a.eq(a)
 
         comb += self.o.b.eq(self.i.b)
+
+        comb += self.o.ctx.eq(self.i.ctx)
 
         return m

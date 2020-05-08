@@ -7,7 +7,6 @@ from ieee754.fpcommon.getop import FPPipeContext
 class IntegerData:
 
     def __init__(self, pspec):
-        self.op = CompALUOpSubset()
         self.ctx = FPPipeContext(pspec)
         self.muxid = self.ctx.muxid
 
@@ -38,7 +37,7 @@ class IntPipeSpec:
     def __init__(self, id_wid=2, op_wid=1):
         self.id_wid = id_wid
         self.op_wid = op_wid
-        self.opkls = CompALUOpSubset
+        self.opkls = lambda _: CompALUOpSubset(name="op")
 
 class ALUPipeSpec(IntPipeSpec):
     def __init__(self, id_wid, op_wid):

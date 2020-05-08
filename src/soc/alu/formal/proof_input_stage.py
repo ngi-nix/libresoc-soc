@@ -23,7 +23,15 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=1)
+        rec = CompALUOpSubset()
+        recwidth = 0
+        # Setup random inputs for dut.op
+        for p in rec.ports():
+            width = p.width
+            recwidth += width
+            comb += p.eq(AnyConst(width))
+
+        pspec = ALUPipeSpec(id_wid=2, op_wid=recwidth)
         m.submodules.dut = dut = ALUInputStage(pspec)
 
         a = Signal(64)
@@ -33,20 +41,15 @@ class Driver(Elaboratable):
                  a.eq(AnyConst(64)),
                  b.eq(AnyConst(64))]
                       
-        # Setup random inputs for dut.op
-        rec = CompALUOpSubset()
-        for p in rec.ports():
-            width = p.width
-            comb += p.eq(AnyConst(width))
 
-        comb += dut.i.op.eq(rec)
+        comb += dut.i.ctx.op.eq(rec)
 
 
         # Assert that op gets copied from the input to output
         for p in rec.ports():
             name = p.name
             rec_sig = p
-            dut_sig = getattr(dut.o.op, name)
+            dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
         with m.If(rec.invert_a):
@@ -61,7 +64,7 @@ class Driver(Elaboratable):
         return m
 
 class GTCombinerTestCase(FHDLTestCase):
-    def test_gt_combiner(self):
+    def test_formal(self):
         module = Driver()
         self.assertFormal(module, mode="bmc", depth=4)
         self.assertFormal(module, mode="cover", depth=4)
