@@ -11,11 +11,10 @@ class IntegerData:
         self.muxid = self.ctx.muxid
 
     def __iter__(self):
-        yield from self.op
         yield from self.ctx
 
     def eq(self, i):
-        return [self.op.eq(i.op), self.ctx.eq(i.ctx)]
+        return [self.ctx.eq(i.ctx)]
 
 
 class ALUInputData(IntegerData):
@@ -74,6 +73,7 @@ class IntPipeSpec:
         self.id_wid = id_wid
         self.op_wid = op_wid
         self.opkls = lambda _: CompALUOpSubset(name="op")
+        self.stage = None
 
 class ALUPipeSpec(IntPipeSpec):
     def __init__(self, id_wid, op_wid):
