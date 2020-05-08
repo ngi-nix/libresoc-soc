@@ -14,7 +14,7 @@ class ALUInputStage(PipeModBase):
         super().__init__(pspec, "input")
 
     def ispec(self):
-        return ALUInputData(self.pspec)
+        return ALUInputData(self.pspec) # XXX TODO, change to ALUFirstInputData
 
     def ospec(self):
         return ALUInputData(self.pspec)
@@ -32,6 +32,8 @@ class ALUInputStage(PipeModBase):
             comb += a.eq(self.i.a)
 
         comb += self.o.a.eq(a)
+
+        # TODO: remove this because it's handled by the Computational Unit?
 
         # If there's an immediate, set the B operand to that
         with m.If(self.i.ctx.op.imm_data.imm_ok):
