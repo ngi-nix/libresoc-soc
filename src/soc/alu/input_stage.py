@@ -1,7 +1,7 @@
 from nmigen import (Module, Signal, Cat, Const, Mux, Repl, signed,
                     unsigned)
 from nmutil.pipemodbase import PipeModBase
-from soc.alu.pipe_data import ALUInitialData
+from soc.alu.pipe_data import ALUInputData
 
 
 class ALUInputStage(PipeModBase):
@@ -9,10 +9,10 @@ class ALUInputStage(PipeModBase):
         super().__init__(pspec, "input")
 
     def ispec(self):
-        return ALUInitialData(self.pspec)
+        return ALUInputData(self.pspec)
 
     def ospec(self):
-        return ALUInitialData(self.pspec)
+        return ALUInputData(self.pspec)
 
     def elaborate(self, platform):
         m = Module()
