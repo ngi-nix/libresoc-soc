@@ -59,9 +59,16 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
-        with m.If(rec.insn_type == InternalOp.OP_ADD):
-            comb += Assert(Cat(dut.o.o, dut.o.carry_out) ==
-                           (a + b + carry_in))
+        with m.Switch(rec.insn_type):
+            with m.Case(InternalOp.OP_ADD):
+                comb += Assert(Cat(dut.o.o, dut.o.carry_out) ==
+                               (a + b + carry_in))
+            with m.Case(InternalOp.OP_AND):
+                comb += Assert(dut.o.o == a & b)
+            with m.Case(InternalOp.OP_OR):
+                comb += Assert(dut.o.o == a | b)
+            with m.Case(InternalOp.OP_XOR):
+                comb += Assert(dut.o.o == a ^ b)
 
 
         return m
