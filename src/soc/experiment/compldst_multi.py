@@ -355,7 +355,7 @@ class LDSTCompUnit(Elaboratable):
         comb += lod_l.r.eq(ld_ok)
 
         # dest operand latch
-        sync += wri_l.s.eq(issue_i)
+        comb += wri_l.s.eq(issue_i)
         sync += wri_l.r.eq(reset_w)
 
         # update-mode operand latch (EA written to reg 2)
@@ -509,9 +509,11 @@ class LDSTCompUnit(Elaboratable):
         return list(self)
 
 
-def wait_for(sig, wait=True):
+def wait_for(sig, wait=True, test1st=False):
     v = (yield sig)
     print("wait for", sig, v)
+    if test1st and bool(v) == wait:
+        return
     while True:
         yield
         v = (yield sig)
@@ -561,7 +563,7 @@ def load(dut, src1, src2, imm, imm_ok=True):
     yield dut.rd.go.eq(0)
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
-    yield from wait_for(dut.wr.rel[0])
+    yield from wait_for(dut.wr.rel[0], test1st=True)
     yield dut.go_ad_i.eq(0)
     yield dut.wr.go.eq(1)
     yield
