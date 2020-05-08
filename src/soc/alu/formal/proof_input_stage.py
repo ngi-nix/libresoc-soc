@@ -56,7 +56,11 @@ class Driver(Elaboratable):
             comb += Assert(dut.o.a == ~a)
         with m.Else():
             comb += Assert(dut.o.a == a)
-        comb += Assert(dut.o.b == b)
+
+        with m.If(rec.imm_data.imm_ok):
+            comb += Assert(dut.o.b == rec.imm_data.imm)
+        with m.Else():
+            comb += Assert(dut.o.b == b)
 
 
 

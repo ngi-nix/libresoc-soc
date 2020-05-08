@@ -28,7 +28,11 @@ class ALUInputStage(PipeModBase):
 
         comb += self.o.a.eq(a)
 
-        comb += self.o.b.eq(self.i.b)
+        # If there's an immediate, set the B operand to that
+        with m.If(self.i.ctx.op.imm_data.imm_ok):
+            comb += self.o.b.eq(self.i.ctx.op.imm_data.imm)
+        with m.Else():
+            comb += self.o.b.eq(self.i.b)
 
         comb += self.o.ctx.eq(self.i.ctx)
 
