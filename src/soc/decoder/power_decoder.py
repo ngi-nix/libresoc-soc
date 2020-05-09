@@ -105,6 +105,12 @@ Subdecoder = namedtuple("Subdecoder",
 
 class PowerOp:
     """PowerOp: spec for execution.  op type (ADD etc.) reg specs etc.
+
+    this is an internal data structure, set up by reading CSV files
+    (which uses _eq to initialise each instance, not eq)
+
+    the "public" API (as far as actual usage as a useful decoder is concerned)
+    is Decode2ToExecute1Type
     """
 
     def __init__(self):
@@ -125,6 +131,9 @@ class PowerOp:
     def _eq(self, row=None):
         if row is None:
             row = default_values
+        # TODO: this conversion process from a dict to an object
+        # should really be done using e.g. namedtuple and then
+        # call eq not _eq
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
