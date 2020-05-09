@@ -125,8 +125,8 @@ class ALUTestCase(FHDLTestCase):
                 sim = self.run_tst_program(program, initial_regs)
 
     def test_shift(self):
-        insns = ["slw", "sld"]
-        for i in range(10):
+        insns = ["slw", "sld", "srw", "srd"]
+        for i in range(20):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32

@@ -38,12 +38,13 @@ class ALUMainStage(PipeModBase):
         m.submodules.maskgen = maskgen = MaskGen(64)
         m.submodules.rotl = rotl = ROTL(64)
         m.submodules.rotl32 = rotl32 = ROTL(32)
+        rotate_amt = Signal.like(rotl.b)
 
         comb += [
             rotl.a.eq(self.i.a),
-            rotl.b.eq(self.i.b),
+            rotl.b.eq(rotate_amt),
             rotl32.a.eq(self.i.a[0:32]),
-            rotl32.b.eq(self.i.b)]
+            rotl32.b.eq(rotate_amt)]
 
         with m.If(is_32bit):
             comb += rotl_out.eq(Cat(rotl32.o, Repl(0, 32)))
@@ -65,6 +66,22 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_SHL):
                 comb += maskgen.mb.eq(Mux(is_32bit, 32, 0))
                 comb += maskgen.me.eq(63-self.i.b[0:6])
+                comb += rotate_amt.eq(self.i.b[0:6])
+                with m.If(is_32bit):
+                    with m.If(self.i.b[5]):
+                        comb += mask.eq(0)
+                    with m.Else():
+                        comb += mask.eq(maskgen.o)
+                with m.Else():
+                    with m.If(self.i.b[6]):
+                        comb += mask.eq(0)
+                    with m.Else():
+                        comb += mask.eq(maskgen.o)
+                comb += self.o.o.eq(rotl_out & mask)
+            with m.Case(InternalOp.OP_SHR):
+                comb += maskgen.mb.eq(Mux(is_32bit, 32, 0) + self.i.b[0:6])
+                comb += maskgen.me.eq(63)
+                comb += rotate_amt.eq(64-self.i.b[0:6])
                 with m.If(is_32bit):
                     with m.If(self.i.b[5]):
                         comb += mask.eq(0)
