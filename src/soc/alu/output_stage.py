@@ -22,14 +22,14 @@ class ALUOutputStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
+        # op requests inversion of the output
         o = Signal.like(self.i.o)
         with m.If(self.i.ctx.op.invert_out):
             comb += o.eq(~self.i.o)
         with m.Else():
             comb += o.eq(self.i.o)
-        
 
-
+        # create condition register cr0 and sticky-overflow
         is_zero = Signal(reset_less=True)
         is_positive = Signal(reset_less=True)
         is_negative = Signal(reset_less=True)
