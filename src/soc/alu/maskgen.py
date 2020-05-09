@@ -2,6 +2,15 @@ from nmigen import (Elaboratable, Signal, Module)
 import math
 
 class MaskGen(Elaboratable):
+    """MaskGen - create a diff mask
+
+    example: x=5 --> a=0b11111
+             y=3 --> b=0b00111
+             o:        0b11000
+             x=2 --> a=0b00011
+             y=4 --> b=0b01111
+             o:        0b10011
+    """
     def __init__(self, width):
         self.width = width
         self.shiftwidth = math.ceil(math.log2(width))
