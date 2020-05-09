@@ -54,8 +54,9 @@ class ALUInputStage(PipeModBase):
             with m.Case(CryIn.CA):
                 comb += self.o.carry_in.eq(self.i.carry_in)
 
-        ##### context #####
+        ##### sticky overflow and context (both pass-through) #####
 
+        comb += self.o.so.eq(self.i.so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
