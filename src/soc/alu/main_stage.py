@@ -39,7 +39,9 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
 
+        ###### sticky overflow and context, both pass-through #####
 
+        comb += so.eq(self.i.so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
