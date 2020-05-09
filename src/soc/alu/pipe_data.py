@@ -17,25 +17,6 @@ class IntegerData:
         return [self.ctx.eq(i.ctx)]
 
 
-class ALUFirstInputData(IntegerData):
-    def __init__(self, pspec):
-        super().__init__(pspec)
-        self.a = Signal(64, reset_less=True)
-        self.b = Signal(64, reset_less=True)
-        self.so = Signal(reset_less=True)
-
-    def __iter__(self):
-        yield from super().__iter__()
-        yield self.a
-        yield self.b
-        yield self.so
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.b.eq(i.b),
-                      self.so.eq(i.so)]
-
-
 class ALUInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
