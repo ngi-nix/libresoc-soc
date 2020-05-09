@@ -359,7 +359,7 @@ class LDSTCompUnit(Elaboratable):
         sync += wri_l.r.eq(reset_w)
 
         # update-mode operand latch (EA written to reg 2)
-        sync += upd_l.s.eq(alu_ok)
+        sync += upd_l.s.eq(alu_l.s)
         sync += upd_l.r.eq(reset_u)
 
         # store latch
@@ -517,18 +517,19 @@ def wait_for(sig, wait=True, test1st=False):
     while True:
         yield
         v = (yield sig)
-        print("...wait for", sig, v)
+        #print("...wait for", sig, v)
         if bool(v) == wait:
             break
 
 
-def store(dut, src1, src2, src3, imm, imm_ok=True):
+def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
     yield dut.src3_i.eq(src3)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
+    yield dut.oper_i.update.eq(update)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
@@ -536,6 +537,17 @@ def store(dut, src1, src2, src3, imm, imm_ok=True):
     yield dut.rd.go.eq(0b111)
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
+
+    if update:
+        yield from wait_for(dut.wr.rel[1])
+        yield dut.wr.go.eq(0b10)
+        yield
+        addr = yield dut.addr_o
+        print ("addr", addr)
+        yield dut.wr.go.eq(0)
+    else:
+        addr = None
+
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
     yield from wait_for(dut.sto_rel_o)
@@ -546,9 +558,10 @@ def store(dut, src1, src2, src3, imm, imm_ok=True):
     #wait_for(dut.stwd_mem_o)
     yield dut.ad.go.eq(0)
     yield
+    return addr
 
 
-def load(dut, src1, src2, imm, imm_ok=True):
+def load(dut, src1, src2, imm, imm_ok=True, update=False):
     yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
@@ -561,6 +574,17 @@ def load(dut, src1, src2, imm, imm_ok=True):
     yield dut.rd.go.eq(0b11)
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
+
+    if update:
+        yield from wait_for(dut.wr.rel[1])
+        yield dut.wr.go.eq(0b10)
+        yield
+        addr = yield dut.addr_o
+        print ("addr", addr)
+        yield dut.wr.go.eq(0)
+    else:
+        addr = None
+
     yield from wait_for(dut.adr_rel_o)
     yield dut.ad.go.eq(1)
     yield from wait_for(dut.wr.rel[0], test1st=True)
@@ -573,7 +597,7 @@ def load(dut, src1, src2, imm, imm_ok=True):
     yield from wait_for(dut.busy_o)
     yield
     # wait_for(dut.stwd_mem_o)
-    return data
+    return data, addr
 
 
 def scoreboard_sim(dut):
@@ -586,17 +610,24 @@ def scoreboard_sim(dut):
     yield from store(dut, 2, 0, 9, 2)
     yield
     # two LDs (deliberately LD from the 1st address then 2nd)
-    data = yield from load(dut, 4, 0, 2)
+    data, addr = yield from load(dut, 4, 0, 2)
     assert data == 0x0003, "returned %x" % data
-    data = yield from load(dut, 2, 0, 2)
+    data, addr  = yield from load(dut, 2, 0, 2)
     assert data == 0x0009, "returned %x" % data
     yield
 
     # indexed version
     yield from store(dut, 4, 5, 3, 0, imm_ok=False)
-    data = yield from load(dut, 4, 5, 0, imm_ok=False)
+    data, addr = yield from load(dut, 4, 5, 0, imm_ok=False)
     assert data == 0x0003, "returned %x" % data
 
+    # update-immediate version
+    addr = yield from store(dut, 4, 6, 3, 2, update=True)
+    assert addr == 0x0006, "returned %x" % addr
+
+    # update-indexed version
+    data, addr  = yield from load(dut, 4, 5, 0, imm_ok=False, update=True)
+    assert addr == 0x0009, "returned %x" % addr
 
 class TestLDSTCompUnit(LDSTCompUnit):
 
