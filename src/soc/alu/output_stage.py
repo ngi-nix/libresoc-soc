@@ -13,7 +13,7 @@ class ALUOutputStage(PipeModBase):
         super().__init__(pspec, "output")
 
     def ispec(self):
-        return ALUOutputData(self.pspec)
+        return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
 
     def ospec(self):
         return ALUOutputData(self.pspec)

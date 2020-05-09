@@ -18,7 +18,7 @@ class ALUMainStage(PipeModBase):
         return ALUInputData(self.pspec)
 
     def ospec(self):
-        return ALUOutputData(self.pspec)
+        return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
 
     def elaborate(self, platform):
         m = Module()
