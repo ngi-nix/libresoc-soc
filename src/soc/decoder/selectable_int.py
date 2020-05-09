@@ -171,6 +171,20 @@ class SelectableInt:
         assert b.bits == self.bits
         return SelectableInt(self.value - b.value, self.bits)
 
+    def __rsub__(self, b):
+        if isinstance(b, int):
+            b = SelectableInt(b, self.bits)
+        b = check_extsign(self, b)
+        assert b.bits == self.bits
+        return SelectableInt(b.value - self.value, self.bits)
+
+    def __radd__(self, b):
+        if isinstance(b, int):
+            b = SelectableInt(b, self.bits)
+        b = check_extsign(self, b)
+        assert b.bits == self.bits
+        return SelectableInt(b.value + self.value, self.bits)
+
     def __mul__(self, b):
         b = check_extsign(self, b)
         assert b.bits == self.bits
@@ -207,6 +221,14 @@ class SelectableInt:
 
     def __neg__(self):
         return SelectableInt(~self.value + 1, self.bits)
+
+    def __lshift__(self, b):
+        b = check_extsign(self, b)
+        return SelectableInt(self.value << b.value, self.bits)
+
+    def __rshift__(self, b):
+        b = check_extsign(self, b)
+        return SelectableInt(self.value >> b.value, self.bits)
 
     def __getitem__(self, key):
         if isinstance(key, int):
