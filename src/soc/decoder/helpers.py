@@ -53,6 +53,8 @@ def MASK(x, y):
         y = 63-y
         mask_a = ((1 << x) - 1) & ((1 << 64) - 1)
         mask_b = ((1 << y) - 1) & ((1 << 64) - 1)
+    elif x == y:
+        return 1 << (63-x)
     else:
         x = 64-x
         y = 63-y
@@ -108,6 +110,10 @@ class HelperTests(unittest.TestCase):
         # li 2, 5
         # slw 1, 1, 2
         self.assertHex(MASK(32, 63-5), 0xffffffe0)
+
+        self.assertHex(MASK(32, 33), 0xc0000000)
+        self.assertHex(MASK(32, 32), 0x80000000)
+        self.assertHex(MASK(33, 33), 0x40000000)
 
     def test_ROTL64(self):
         # r1 = 0xdeadbeef12345678
