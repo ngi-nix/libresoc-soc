@@ -1,7 +1,8 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
-from nmigen import Module, Signal, Elaboratable, Mux, Cat
+from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
+                    signed)
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
@@ -59,6 +60,11 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
+        a_signed = Signal(signed(64))
+        comb += a_signed.eq(a)
+        a_signed_32 = Signal(signed(32))
+        comb += a_signed_32.eq(a[0:32])
+
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_ADD):
                 comb += Assert(Cat(dut.o.o, dut.o.carry_out) ==
@@ -69,6 +75,29 @@ class Driver(Elaboratable):
                 comb += Assert(dut.o.o == a | b)
             with m.Case(InternalOp.OP_XOR):
                 comb += Assert(dut.o.o == a ^ b)
+            with m.Case(InternalOp.OP_SHL):
+                with m.If(rec.is_32bit):
+                    comb += Assert(dut.o.o[0:32] == ((a << b[0:6]) &
+                                                     0xffffffff))
+                    comb += Assert(dut.o.o[32:64] == 0)
+                with m.Else():
+                    comb += Assert(dut.o.o == ((a << b[0:7]) &
+                                               ((1 << 64)-1)))
+            with m.Case(InternalOp.OP_SHR):
+                with m.If(~rec.is_signed):
+                    with m.If(rec.is_32bit):
+                        comb += Assert(dut.o.o[0:32] ==
+                                       (a[0:32] >> b[0:6]))
+                        comb += Assert(dut.o.o[32:64] == 0)
+                    with m.Else():
+                        comb += Assert(dut.o.o == (a >> b[0:7]))
+                with m.Else():
+                    with m.If(rec.is_32bit):
+                        comb += Assert(dut.o.o[0:32] ==
+                                       (a_signed_32 >> b[0:6]))
+                        comb += Assert(dut.o.o[32:64] == Repl(a[31], 32))
+                    with m.Else():
+                        comb += Assert(dut.o.o == (a_signed >> b[0:7]))
 
 
         return m
