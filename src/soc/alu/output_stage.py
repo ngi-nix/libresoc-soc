@@ -1,7 +1,7 @@
 # This stage is intended to handle the gating of carry and overflow
 # out, summary overflow generation, and updating the condition
 # register
-from nmigen import (Module, Signal, Cat)
+from nmigen import (Module, Signal, Cat, Repl)
 from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
@@ -23,10 +23,16 @@ class ALUOutputStage(PipeModBase):
         comb = m.d.comb
 
         o = Signal.like(self.i.o)
+        o2 = Signal.like(self.i.o)
         with m.If(self.i.ctx.op.invert_out):
-            comb += o.eq(~self.i.o)
+            comb += o2.eq(~self.i.o)
         with m.Else():
-            comb += o.eq(self.i.o)
+            comb += o2.eq(self.i.o)
+
+        with m.If(self.i.ctx.op.is_32bit):
+            comb += o.eq(Cat(o2[0:32], Repl(0, 32)))
+        with m.Else():
+            comb += o.eq(o2)
 
         is_zero = Signal(reset_less=True)
         is_positive = Signal(reset_less=True)

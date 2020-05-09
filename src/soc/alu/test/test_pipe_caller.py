@@ -76,7 +76,7 @@ class ALUTestCase(FHDLTestCase):
                     vld = yield alu.n.valid_o
                 yield
                 alu_out = yield alu.n.data_o.o
-                self.assertEqual(simulator.gpr(3), SelectableInt(alu_out, 64))
+                self.assertEqual(simulator.gpr(3).value, alu_out)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -121,6 +121,16 @@ class ALUTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
+            with Program(lst) as program:
+                sim = self.run_tst_program(program, initial_regs)
+
+    def test_rlwinm(self):
+        for i in range(0, 10):
+
+            lst = ["slw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, 63)
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
 
