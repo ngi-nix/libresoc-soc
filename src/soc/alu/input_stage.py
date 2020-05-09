@@ -23,7 +23,9 @@ class ALUInputStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
+        ##### operand A #####
 
+        # operand a to be as-is or inverted
         a = Signal.like(self.i.a)
 
         with m.If(self.i.ctx.op.invert_a):
@@ -33,7 +35,7 @@ class ALUInputStage(PipeModBase):
 
         comb += self.o.a.eq(a)
 
-        # TODO: remove this because it's handled by the Computational Unit?
+        ##### operand B #####
 
         # If there's an immediate, set the B operand to that
         with m.If(self.i.ctx.op.imm_data.imm_ok):
@@ -41,6 +43,9 @@ class ALUInputStage(PipeModBase):
         with m.Else():
             comb += self.o.b.eq(self.i.b)
 
+        ##### carry-in #####
+
+        # either copy incoming carry or set to 1/0 as defined by op
         with m.Switch(self.i.ctx.op.input_carry):
             with m.Case(CryIn.ZERO):
                 comb += self.o.carry_in.eq(0)
@@ -48,6 +53,8 @@ class ALUInputStage(PipeModBase):
                 comb += self.o.carry_in.eq(1)
             with m.Case(CryIn.CA):
                 comb += self.o.carry_in.eq(self.i.carry_in)
+
+        ##### context #####
 
         comb += self.o.ctx.eq(self.i.ctx)
 
