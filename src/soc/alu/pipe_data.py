@@ -38,6 +38,10 @@ class ALUInputData(IntegerData):
                       self.carry_in.eq(i.carry_in),
                       self.so.eq(i.so)]
 
+# TODO: ALUIntermediateData which does not have
+# cr0, ov, ov32 in it (because they are generated as outputs by
+# the final output stage, not by the intermediate stage)
+# https://bugs.libre-soc.org/show_bug.cgi?id=305#c19
 
 class ALUOutputData(IntegerData):
     def __init__(self, pspec):
