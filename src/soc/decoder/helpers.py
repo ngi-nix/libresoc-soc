@@ -28,6 +28,8 @@ def EXTZ64(value):
 
 
 def rotl(value, bits, wordlen):
+    if isinstance(bits, SelectableInt):
+        bits = bits.value
     mask = (1 << wordlen) - 1
     bits = bits & (wordlen - 1)
     return ((value << bits) | (value >> (wordlen-bits))) & mask
@@ -42,6 +44,10 @@ def ROTL32(value, bits):
 
 
 def MASK(x, y):
+    if isinstance(x, SelectableInt):
+        x = x.value
+    if isinstance(y, SelectableInt):
+        y = y.value
     if x < y:
         x = 64-x
         y = 63-y
@@ -99,6 +105,10 @@ class HelperTests(unittest.TestCase):
         self.assertHex(MASK(0, 10), 0xffe0000000000000)
         self.assertHex(MASK(0, 58), 0xffffffffffffffe0)
 
+        # li 2, 5
+        # slw 1, 1, 2
+        self.assertHex(MASK(32, 63-5), 0xffffffe0)
+
     def test_ROTL64(self):
         # r1 = 0xdeadbeef12345678
         value = 0xdeadbeef12345678
@@ -122,19 +132,25 @@ class HelperTests(unittest.TestCase):
         self.assertHex(ROTL32(value, 30), 0xf7ab6fbb)
 
     def test_EXTS64(self):
-        value_a = 0xdeadbeef  # r1
-        value_b = 0x73123456  # r2
-        value_c = 0x80000000  # r3
+        value_a = SelectableInt(0xdeadbeef, 32)  # r1
+        value_b = SelectableInt(0x73123456, 32)  # r2
+        value_c = SelectableInt(0x80000000, 32)  # r3
 
         # extswsli reg, 1, 0
         self.assertHex(EXTS64(value_a), 0xffffffffdeadbeef)
         # extswsli reg, 2, 0
-        self.assertHex(EXTS64(value_b), value_b)
+        self.assertHex(EXTS64(value_b), SelectableInt(value_b.value, 64))
         # extswsli reg, 3, 0
         self.assertHex(EXTS64(value_c), 0xffffffff80000000)
 
     def assertHex(self, a, b):
-        msg = "{:x} != {:x}".format(a, b)
+        a_val = a
+        if isinstance(a, SelectableInt):
+            a_val = a.value
+        b_val = b
+        if isinstance(b, SelectableInt):
+            b_val = b.value
+        msg = "{:x} != {:x}".format(a_val, b_val)
         return self.assertEqual(a, b, msg)
 
 
