@@ -25,27 +25,6 @@ def get_rec_width(rec):
     return recwidth
 
 
-def connect_alu(comb, alu, dec2):
-    op = alu.p.data_i.ctx.op
-
-    comb += op.insn_type.eq(dec2.e.insn_type)
-    comb += op.fn_unit.eq(dec2.e.fn_unit)
-    comb += op.nia.eq(dec2.e.nia)
-    comb += op.lk.eq(dec2.e.lk)
-    comb += op.invert_a.eq(dec2.e.invert_a)
-    comb += op.invert_out.eq(dec2.e.invert_out)
-    comb += op.input_carry.eq(dec2.e.input_carry)
-    comb += op.output_carry.eq(dec2.e.output_carry)
-    comb += op.input_cr.eq(dec2.e.input_cr)
-    comb += op.output_cr.eq(dec2.e.output_cr)
-    comb += op.is_32bit.eq(dec2.e.is_32bit)
-    comb += op.is_signed.eq(dec2.e.is_signed)
-    comb += op.data_len.eq(dec2.e.data_len)
-    comb += op.byte_reverse.eq(dec2.e.byte_reverse)
-    comb += op.sign_extend.eq(dec2.e.sign_extend)
-    comb += op.imm_data.eq(dec2.e.imm_data)
-
-
 
 class ALUTestCase(FHDLTestCase):
     def run_tst(self, program, initial_regs):
@@ -62,7 +41,7 @@ class ALUTestCase(FHDLTestCase):
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         m.submodules.alu = alu = ALUBasePipe(pspec)
 
-        connect_alu(comb, alu, pdecode2)
+        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.data_i.a.eq(initial_regs[1])
         comb += alu.p.data_i.b.eq(initial_regs[2])
         comb += alu.p.valid_i.eq(1)

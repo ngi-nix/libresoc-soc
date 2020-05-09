@@ -37,8 +37,8 @@ class Driver(Elaboratable):
 
         a = Signal(64)
         b = Signal(64)
-        carry_in = Signal(64)
-        so_in = Signal(64)
+        carry_in = Signal()
+        so_in = Signal()
         comb += [dut.i.a.eq(a),
                  dut.i.b.eq(b),
                  dut.i.carry_in.eq(carry_in),
