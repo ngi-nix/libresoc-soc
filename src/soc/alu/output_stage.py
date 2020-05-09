@@ -23,16 +23,12 @@ class ALUOutputStage(PipeModBase):
         comb = m.d.comb
 
         o = Signal.like(self.i.o)
-        o2 = Signal.like(self.i.o)
         with m.If(self.i.ctx.op.invert_out):
-            comb += o2.eq(~self.i.o)
+            comb += o.eq(~self.i.o)
         with m.Else():
-            comb += o2.eq(self.i.o)
+            comb += o.eq(self.i.o)
+        
 
-        with m.If(self.i.ctx.op.is_32bit):
-            comb += o.eq(Cat(o2[0:32], Repl(0, 32)))
-        with m.Else():
-            comb += o.eq(o2)
 
         is_zero = Signal(reset_less=True)
         is_positive = Signal(reset_less=True)

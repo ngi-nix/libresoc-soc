@@ -28,6 +28,8 @@ class ALUMainStage(PipeModBase):
 
         is_32bit = Signal(reset_less=True)
         comb += is_32bit.eq(self.i.ctx.op.is_32bit)
+        sign_bit = Signal(reset_less=True)
+        comb += sign_bit.eq(Mux(is_32bit, self.i.a[31], self.i.a[63]))
 
         add_output = Signal(self.i.a.width + 1, reset_less=True)
         comb += add_output.eq(self.i.a + self.i.b + self.i.carry_in)
@@ -92,7 +94,12 @@ class ALUMainStage(PipeModBase):
                         comb += mask.eq(0)
                     with m.Else():
                         comb += mask.eq(maskgen.o)
-                comb += self.o.o.eq(rotl_out & mask)
+                with m.If(self.i.ctx.op.is_signed):
+                    comb += self.o.o.eq(rotl_out & mask |
+                                        Mux(sign_bit, ~mask, 0))
+                    comb += self.o.carry_out.eq(sign_bit & ((rotl_out & mask) != 0))
+                with m.Else():
+                    comb += self.o.o.eq(rotl_out & mask)
 
         ###### sticky overflow and context, both pass-through #####
 

@@ -125,7 +125,7 @@ class ALUTestCase(FHDLTestCase):
                 sim = self.run_tst_program(program, initial_regs)
 
     def test_shift(self):
-        insns = ["slw", "sld", "srw", "srd"]
+        insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
         for i in range(20):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
@@ -135,6 +135,15 @@ class ALUTestCase(FHDLTestCase):
             print(initial_regs[1], initial_regs[2])
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
+
+    def test_shift_arith(self):
+        lst = ["sraw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[2] = random.randint(0, 63)
+        print(initial_regs[1], initial_regs[2])
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
 
     @unittest.skip("broken")
     def test_ilang(self):
