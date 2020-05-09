@@ -3,7 +3,7 @@
 # and shifting, as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
-from nmigen import (Module, Signal, Cat, Repl, Mux)
+from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
@@ -62,9 +62,9 @@ class ALUMainStage(PipeModBase):
                 add_b = Signal(self.i.a.width + 2, reset_less=True)
                 add_output = Signal(self.i.a.width + 2, reset_less=True)
                 # in bit 0, 1+carry_in creates carry into bit 1 and above
-                comb += add_a.eq(Cat(self.i.carry_in, a, Const(0, 1)))
-                comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
-                comb += add_output.eq(a + b)
+                comb += add_a.eq(Cat(self.i.carry_in, self.i.a, Const(0, 1)))
+                comb += add_b.eq(Cat(Const(1, 1), self.i.b, Const(0, 1)))
+                comb += add_output.eq(add_a + add_b)
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += self.o.o.eq(add_output[1:-1])
                 comb += self.o.carry_out.eq(add_output[-1])
@@ -114,8 +114,8 @@ class ALUMainStage(PipeModBase):
                     with m.Else():
                         comb += mask.eq(maskgen.o)
                 with m.If(self.i.ctx.op.is_signed):
-                    out = rotl_out & mask | Mux(sign_bit, ~mask, 0))
-                    cout = sign_bit & ((rotl_out & mask) != 0))
+                    out = rotl_out & mask | Mux(sign_bit, ~mask, 0)
+                    cout = sign_bit & ((rotl_out & mask) != 0)
                     comb += self.o.o.eq(out)
                     comb += self.o.carry_out.eq(cout)
                 with m.Else():
