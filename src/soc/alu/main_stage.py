@@ -3,7 +3,7 @@
 # and shifting, as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
-from nmigen import (Module, Signal, Cat, Repl)
+from nmigen import (Module, Signal, Cat, Repl, Mux)
 from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
@@ -26,6 +26,9 @@ class ALUMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
+        is_32bit = Signal(reset_less=True)
+        comb += is_32bit.eq(self.i.ctx.op.is_32bit)
+
         add_output = Signal(self.i.a.width + 1, reset_less=True)
         comb += add_output.eq(self.i.a + self.i.b + self.i.carry_in)
 
@@ -42,7 +45,7 @@ class ALUMainStage(PipeModBase):
             rotl32.a.eq(self.i.a[0:32]),
             rotl32.b.eq(self.i.b)]
 
-        with m.If(self.i.ctx.op.is_32bit):
+        with m.If(is_32bit):
             comb += rotl_out.eq(Cat(rotl32.o, Repl(0, 32)))
         with m.Else():
             comb += rotl_out.eq(rotl.o)
@@ -60,10 +63,15 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
             with m.Case(InternalOp.OP_SHL):
-                comb += maskgen.mb.eq(32)
-                comb += maskgen.me.eq(63-self.i.b[0:5])
-                with m.If(self.i.ctx.op.is_32bit):
+                comb += maskgen.mb.eq(Mux(is_32bit, 32, 0))
+                comb += maskgen.me.eq(63-self.i.b[0:6])
+                with m.If(is_32bit):
                     with m.If(self.i.b[5]):
+                        comb += mask.eq(0)
+                    with m.Else():
+                        comb += mask.eq(maskgen.o)
+                with m.Else():
+                    with m.If(self.i.b[6]):
                         comb += mask.eq(0)
                     with m.Else():
                         comb += mask.eq(maskgen.o)
