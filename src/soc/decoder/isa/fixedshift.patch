@@ -1,0 +1,96 @@
+--- fixedshift.py.orig	2020-05-09 09:56:10.393656481 -0400
++++ fixedshift.py	2020-05-09 10:51:18.674826544 -0400
+@@ -168,9 +168,9 @@
+     @inject()
+     def op_slw(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], n)
++        r = ROTL32(RS[32:64], n.value)
+         if eq(RB[58], 0):
+-            m = MASK(32, 63 - n)
++            m = MASK(32, 63 - n.value)
+         else:
+             m = concat(0, repeat=64)
+         RA = r & m
+@@ -179,9 +179,9 @@
+     @inject()
+     def op_slw_(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], n)
++        r = ROTL32(RS[32:64], n.value)
+         if eq(RB[58], 0):
+-            m = MASK(32, 63 - n)
++            m = MASK(32, 63 - n.value)
+         else:
+             m = concat(0, repeat=64)
+         RA = r & m
+@@ -190,9 +190,9 @@
+     @inject()
+     def op_srw(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], 64 - n)
++        r = ROTL32(RS[32:64], 64 - n.value)
+         if eq(RB[58], 0):
+-            m = MASK(n + 32, 63)
++            m = MASK(n.value + 32, 63)
+         else:
+             m = concat(0, repeat=64)
+         RA = r & m
+@@ -201,9 +201,9 @@
+     @inject()
+     def op_srw_(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], 64 - n)
++        r = ROTL32(RS[32:64], 64 - n.value)
+         if eq(RB[58], 0):
+-            m = MASK(n + 32, 63)
++            m = MASK(n.value + 32, 63)
+         else:
+             m = concat(0, repeat=64)
+         RA = r & m
+@@ -212,8 +212,8 @@
+     @inject()
+     def op_srawi(self, RS):
+         n = SH
+-        r = ROTL32(RS[32:64], 64 - n)
+-        m = MASK(n + 32, 63)
++        r = ROTL32(RS[32:64], 64 - n.value)
++        m = MASK(n.value + 32, 63)
+         s = RS[32]
+         RA = r & m | concat(s, repeat=64) & ~m
+         carry = s & ne((r & ~m)[32:64], 0)
+@@ -224,8 +224,8 @@
+     @inject()
+     def op_srawi_(self, RS):
+         n = SH
+-        r = ROTL32(RS[32:64], 64 - n)
+-        m = MASK(n + 32, 63)
++        r = ROTL32(RS[32:64], 64 - n.value)
++        m = MASK(n.value + 32, 63)
+         s = RS[32]
+         RA = r & m | concat(s, repeat=64) & ~m
+         carry = s & ne((r & ~m)[32:64], 0)
+@@ -236,9 +236,9 @@
+     @inject()
+     def op_sraw(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], 64 - n)
++        r = ROTL32(RS[32:64], 64 - n.value)
+         if eq(RB[58], 0):
+-            m = MASK(n + 32, 63)
++            m = MASK(n.value + 32, 63)
+         else:
+             m = concat(0, repeat=64)
+         s = RS[32]
+@@ -251,9 +251,9 @@
+     @inject()
+     def op_sraw_(self, RB, RS):
+         n = RB[59:64]
+-        r = ROTL32(RS[32:64], 64 - n)
++        r = ROTL32(RS[32:64], 64 - n.value)
+         if eq(RB[58], 0):
+-            m = MASK(n + 32, 63)
++            m = MASK(n.value + 32, 63)
+         else:
+             m = concat(0, repeat=64)
+         s = RS[32]

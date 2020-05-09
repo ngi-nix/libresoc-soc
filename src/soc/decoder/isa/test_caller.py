@@ -187,6 +187,15 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program)
             self.assertEqual(sim.gpr(3), SelectableInt(0x20000000, 64))
 
+    def test_shift(self):
+        lst = ["slw 1, 3, 2"]
+        initial_regs = [0] * 32
+        initial_regs[3] = 0xdeadbeefcafebabe
+        initial_regs[2] = 5
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.gpr(1), SelectableInt(0x5fd757c0, 32))
+
     def test_mtcrf(self):
         for i in range(4):
             # 0x76540000 gives expected (3+4) (2+4) (1+4) (0+4) for
