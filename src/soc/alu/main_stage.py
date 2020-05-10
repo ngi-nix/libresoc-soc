@@ -141,7 +141,7 @@ class ALUMainStage(PipeModBase):
                 comb += maskgen.mb.eq(mb+32)
                 comb += maskgen.me.eq(me+32)
                 comb += mask.eq(maskgen.o)
-                comb += self.o.o.eq(rotl_out & mask)
+                comb += self.o.o.eq((rotl_out & mask) | (self.i.b & ~mask))
                 
 
         ###### sticky overflow and context, both pass-through #####
