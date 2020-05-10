@@ -1,11 +1,67 @@
 --- fixedshift.py.orig	2020-05-09 09:56:10.393656481 -0400
-+++ fixedshift.py	2020-05-09 10:51:18.674826544 -0400
++++ fixedshift.py	2020-05-10 16:03:17.449405581 -0400
+@@ -12,8 +12,8 @@
+     @inject()
+     def op_rlwinm(self, RS):
+         n = SH
+-        r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m
+         return (RA,)
+ 
+@@ -21,7 +21,7 @@
+     def op_rlwinm_(self, RS):
+         n = SH
+         r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m
+         return (RA,)
+ 
+@@ -29,7 +29,7 @@
+     def op_rlwnm(self, RB, RS):
+         n = RB[59:64]
+         r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m
+         return (RA,)
+ 
+@@ -37,7 +37,7 @@
+     def op_rlwnm_(self, RB, RS):
+         n = RB[59:64]
+         r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m
+         return (RA,)
+ 
+@@ -45,7 +45,7 @@
+     def op_rlwimi(self, RS, RA):
+         n = SH
+         r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m | RA & ~m
+         return (RA,)
+ 
+@@ -53,7 +53,7 @@
+     def op_rlwimi_(self, RS, RA):
+         n = SH
+         r = ROTL32(RS[32:64], n)
+-        m = MASK(MB + 32, ME + 32)
++        m = MASK(MB.value + 32, ME.value + 32)
+         RA = r & m | RA & ~m
+         return (RA,)
+ 
 @@ -168,9 +168,9 @@
      @inject()
      def op_slw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], n)
-+        r = ROTL32(RS[32:64], n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), n.value)
          if eq(RB[58], 0):
 -            m = MASK(32, 63 - n)
 +            m = MASK(32, 63 - n.value)
@@ -17,7 +73,7 @@
      def op_slw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], n)
-+        r = ROTL32(RS[32:64], n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), n.value)
          if eq(RB[58], 0):
 -            m = MASK(32, 63 - n)
 +            m = MASK(32, 63 - n.value)
@@ -29,7 +85,7 @@
      def op_srw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -41,7 +97,7 @@
      def op_srw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -54,7 +110,7 @@
          n = SH
 -        r = ROTL32(RS[32:64], 64 - n)
 -        m = MASK(n + 32, 63)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
 +        m = MASK(n.value + 32, 63)
          s = RS[32]
          RA = r & m | concat(s, repeat=64) & ~m
@@ -65,7 +121,7 @@
          n = SH
 -        r = ROTL32(RS[32:64], 64 - n)
 -        m = MASK(n + 32, 63)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
 +        m = MASK(n.value + 32, 63)
          s = RS[32]
          RA = r & m | concat(s, repeat=64) & ~m
@@ -75,7 +131,7 @@
      def op_sraw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -87,7 +143,7 @@
      def op_sraw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(RS[32:64], 64 - n.value)
++        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
