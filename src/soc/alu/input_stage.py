@@ -5,6 +5,7 @@
 from nmigen import (Module, Signal, Cat, Const, Mux, Repl, signed,
                     unsigned)
 from nmutil.pipemodbase import PipeModBase
+from soc.decoder.power_enums import InternalOp
 from soc.alu.pipe_data import ALUInputData
 from soc.decoder.power_enums import CryIn
 
@@ -38,7 +39,8 @@ class ALUInputStage(PipeModBase):
         ##### operand B #####
 
         # If there's an immediate, set the B operand to that
-        with m.If(self.i.ctx.op.imm_data.imm_ok):
+        with m.If(self.i.ctx.op.imm_data.imm_ok &
+                  ~(self.i.ctx.op.insn_type == InternalOp.OP_RLC)):
             comb += self.o.b.eq(self.i.ctx.op.imm_data.imm)
         with m.Else():
             comb += self.o.b.eq(self.i.b)

@@ -1,6 +1,6 @@
 --- fixedshift.py.orig	2020-05-09 09:56:10.393656481 -0400
-+++ fixedshift.py	2020-05-10 16:03:17.449405581 -0400
-@@ -12,8 +12,8 @@
++++ fixedshift.py	2020-05-10 18:51:24.725396454 -0400
+@@ -12,48 +12,48 @@
      @inject()
      def op_rlwinm(self, RS):
          n = SH
@@ -11,47 +11,52 @@
          RA = r & m
          return (RA,)
  
-@@ -21,7 +21,7 @@
+     @inject()
      def op_rlwinm_(self, RS):
          n = SH
-         r = ROTL32(RS[32:64], n)
+-        r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-@@ -29,7 +29,7 @@
+     @inject()
      def op_rlwnm(self, RB, RS):
          n = RB[59:64]
-         r = ROTL32(RS[32:64], n)
+-        r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-@@ -37,7 +37,7 @@
+     @inject()
      def op_rlwnm_(self, RB, RS):
          n = RB[59:64]
-         r = ROTL32(RS[32:64], n)
+-        r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-@@ -45,7 +45,7 @@
+     @inject()
      def op_rlwimi(self, RS, RA):
          n = SH
-         r = ROTL32(RS[32:64], n)
+-        r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m | RA & ~m
          return (RA,)
  
-@@ -53,7 +53,7 @@
+     @inject()
      def op_rlwimi_(self, RS, RA):
          n = SH
-         r = ROTL32(RS[32:64], n)
+-        r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
++        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m | RA & ~m
          return (RA,)

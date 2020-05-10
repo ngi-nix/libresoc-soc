@@ -134,7 +134,10 @@ class ALUMainStage(PipeModBase):
                     comb += self.o.o.eq(rotl_out & mask)
 
             with m.Case(InternalOp.OP_RLC):
-                comb += rotate_amt.eq(self.i.b[0:5])
+                with m.If(self.i.ctx.op.imm_data.imm_ok):
+                    comb += rotate_amt.eq(self.i.ctx.op.imm_data.imm[0:5])
+                with m.Else():
+                    comb += rotate_amt.eq(self.i.b[0:5])
                 comb += maskgen.mb.eq(mb+32)
                 comb += maskgen.me.eq(me+32)
                 comb += mask.eq(maskgen.o)
