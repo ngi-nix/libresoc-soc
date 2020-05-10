@@ -100,8 +100,8 @@ class Driver(Elaboratable):
 class ALUTestCase(FHDLTestCase):
     def test_formal(self):
         module = Driver()
-        self.assertFormal(module, mode="bmc", depth=4)
-        self.assertFormal(module, mode="cover", depth=4)
+        self.assertFormal(module, mode="bmc", depth=2)
+        self.assertFormal(module, mode="cover", depth=2)
     def test_ilang(self):
         dut = Driver()
         vl = rtlil.convert(dut, ports=[])
