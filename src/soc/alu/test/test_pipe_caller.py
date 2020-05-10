@@ -166,6 +166,15 @@ class ALUTestCase(FHDLTestCase):
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
 
+    def test_rlwnm(self):
+        lst = ["rlwnm 3, 1, 2, 20, 6"]
+        initial_regs = [0] * 32
+        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[2] = random.randint(0, 63)
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+        
+
     def test_ilang(self):
         rec = CompALUOpSubset()
 
