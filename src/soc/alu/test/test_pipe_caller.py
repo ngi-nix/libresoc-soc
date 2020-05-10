@@ -76,6 +76,7 @@ class ALUTestCase(FHDLTestCase):
                     vld = yield alu.n.valid_o
                 yield
                 alu_out = yield alu.n.data_o.o
+                print(f"expected {simulator.gpr(3).value:x}, actual: {alu_out:x}")
                 self.assertEqual(simulator.gpr(3).value, alu_out)
 
         sim.add_sync_process(process)
@@ -144,6 +145,17 @@ class ALUTestCase(FHDLTestCase):
         print(initial_regs[1], initial_regs[2])
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
+
+    def test_rlwinm(self):
+        for i in range(10):
+            mb = random.randint(0,31)
+            me = random.randint(0,31)
+            sh = random.randint(0,31)
+            lst = [f"rlwinm 3, 1, {mb}, {me}, {sh}"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            with Program(lst) as program:
+                sim = self.run_tst_program(program, initial_regs)
 
     def test_ilang(self):
         rec = CompALUOpSubset()

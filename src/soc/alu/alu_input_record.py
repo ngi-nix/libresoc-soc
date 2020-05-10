@@ -29,6 +29,7 @@ class CompALUOpSubset(Record):
                   ('is_32bit', 1),
                   ('is_signed', 1),
                   ('data_len', 4), # TODO: should be in separate CompLDSTSubset
+                  ('insn', 32),
                   ('byte_reverse', 1),
                   ('sign_extend', 1))
 

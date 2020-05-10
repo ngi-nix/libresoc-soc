@@ -11,10 +11,15 @@ from soc.decoder.power_enums import InternalOp
 from soc.alu.maskgen import MaskGen
 from soc.alu.rotl import ROTL
 
+from soc.decoder.power_fields import DecodeFields
+from soc.decoder.power_fieldsn import SignalBitRange
+
 
 class ALUMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
+        self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
+        self.fields.create_specs()
 
     def ispec(self):
         return ALUInputData(self.pspec)
@@ -25,6 +30,13 @@ class ALUMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+
+
+        fields = self.fields.instrs['M']
+        mb = Signal(fields['MB'][0:-1].shape())
+        comb += mb.eq(fields['MB'][0:-1])
+        me = Signal(fields['ME'][0:-1].shape())
+        comb += me.eq(fields['ME'][0:-1])
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -120,6 +132,14 @@ class ALUMainStage(PipeModBase):
                     comb += self.o.carry_out.eq(cout)
                 with m.Else():
                     comb += self.o.o.eq(rotl_out & mask)
+
+            with m.Case(InternalOp.OP_RLC):
+                comb += rotate_amt.eq(self.i.b[0:5])
+                comb += maskgen.mb.eq(mb+32)
+                comb += maskgen.me.eq(me+32)
+                comb += mask.eq(maskgen.o)
+                comb += self.o.o.eq(rotl_out & mask)
+                
 
         ###### sticky overflow and context, both pass-through #####
 
