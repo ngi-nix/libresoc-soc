@@ -9,6 +9,7 @@ from nmigen.cli import rtlil
 from soc.alu.input_stage import ALUInputStage
 from soc.alu.pipe_data import ALUPipeSpec
 from soc.alu.alu_input_record import CompALUOpSubset
+from soc.decoder.power_enums import InternalOp
 import unittest
 
 
@@ -57,7 +58,8 @@ class Driver(Elaboratable):
         with m.Else():
             comb += Assert(dut.o.a == a)
 
-        with m.If(rec.imm_data.imm_ok):
+        with m.If(rec.imm_data.imm_ok &
+                  ~(rec.insn_type == InternalOp.OP_RLC)):
             comb += Assert(dut.o.b == rec.imm_data.imm)
         with m.Else():
             comb += Assert(dut.o.b == b)
