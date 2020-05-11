@@ -46,10 +46,10 @@ class Rotator(Elaboratable):
     """
     def __init__(self):
         # input
-        self.rs = Signal(64, reset_less=True)
-        self.ra = Signal(64, reset_less=True)
-        self.shift = Signal(7, reset_less=True)
-        self.insn = Signal(32, reset_less=True)
+        self.rs = Signal(64, reset_less=True)       # RS
+        self.ra = Signal(64, reset_less=True)       # RA
+        self.shift = Signal(7, reset_less=True)     # RB[0:7]
+        self.insn = Signal(32, reset_less=True)     # for mb and me fields
         self.is_32bit = Signal(reset_less=True)
         self.right_shift = Signal(reset_less=True)
         self.arith = Signal(reset_less=True)
