@@ -30,14 +30,14 @@ def set_alu_inputs(alu, dec2, sim):
     if reg1_ok:
         reg1_sel = yield dec2.e.read_reg1.data
         inputs.append(sim.gpr(reg1_sel).value)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        reg2_sel = yield dec2.e.read_reg2.data
-        inputs.append(sim.gpr(reg2_sel).value)
     reg3_ok = yield dec2.e.read_reg3.ok
     if reg3_ok:
         reg3_sel = yield dec2.e.read_reg3.data
         inputs.append(sim.gpr(reg3_sel).value)
+    reg2_ok = yield dec2.e.read_reg2.ok
+    if reg2_ok:
+        reg2_sel = yield dec2.e.read_reg2.data
+        inputs.append(sim.gpr(reg2_sel).value)
 
     print(inputs)
 
@@ -152,7 +152,7 @@ class ALUTestCase(FHDLTestCase):
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
 
-    @unittest.skip("broken")
+    unittest.skip("broken")
     def test_shift(self):
         insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
         for i in range(20):
@@ -164,6 +164,14 @@ class ALUTestCase(FHDLTestCase):
             print(initial_regs[1], initial_regs[2])
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
+
+    unittest.skip("broken")
+    def test_shift_imm(self):
+        lst = ["sradi 3, 1, 5"]
+        initial_regs = [0] * 32
+        initial_regs[1] = random.randint(0, (1<<64)-1)
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
 
     @unittest.skip("broken")
     def test_shift_arith(self):
