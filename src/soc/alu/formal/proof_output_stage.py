@@ -70,13 +70,13 @@ class Driver(Elaboratable):
         o_signed = Signal(signed(64))
         comb += o_signed.eq(dut.o.o)
         # Assert only one of the comparison bits is set
-        comb += Assert(cr_out[0] + cr_out[1] + cr_out[2] == 1)
+        comb += Assert(cr_out[3] + cr_out[2] + cr_out[1] == 1)
         with m.If(o_signed == 0):
-            comb += Assert(cr_out[2] == 1)
-        with m.Elif(o_signed > 0):
             comb += Assert(cr_out[1] == 1)
+        with m.Elif(o_signed > 0):
+            comb += Assert(cr_out[2] == 1)
         with m.Elif(o_signed < 0):
-            comb += Assert(cr_out[0] == 1)
+            comb += Assert(cr_out[3] == 1)
 
 
         # Assert that op gets copied from the input to output
