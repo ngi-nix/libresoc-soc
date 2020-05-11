@@ -1,3 +1,5 @@
+from soc.alu.rotl import ROTL
+
 #note BE bit numbering
 def right_mask(m, mask_begin):
     ret = Signal(64, name="right_mask", reset_less=True)
@@ -35,11 +37,13 @@ class Rotator(Elaboratable):
         self.carry_out = Signal(reset_less=True)
 
     def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # temporaries
         repl32 = Signal(64, reset_less=True)
         rot_count = Signal(6, reset_less=True)
-        rot1 = Signal(64, reset_less=True)
-        rot2 = Signal(64, reset_less=True)
-        rot3 = Signal(64, reset_less=True)
+        rot = Signal(64, reset_less=True)
         sh = Signal(7, reset_less=True)
         mb = Signal(7, reset_less=True)
         me = Signal(7, reset_less=True)
@@ -47,11 +51,10 @@ class Rotator(Elaboratable):
         ml = Signal(64, reset_less=True)
         output_mode = Signal(2, reset_less=True)
 
-        # First replicate bottom 32 bits to both halves with m.If(32-bit
+        # First replicate bottom 32 bits to both halves if 32-bit
+        comb += repl32[0:32].eq(rs[0:32])
         with m.If(is_32bit):
-            comb += repl32.eq(Cat(rs[:32], rs[:32]))
-        with m.Else():
-            comb += repl32.eq(rs)
+            comb += repl32[32:64].eq(rs[:32])
 
         # Negate shift count for right shifts
         with m.If(right_shift):
@@ -59,37 +62,41 @@ class Rotator(Elaboratable):
         with m.Else():
             comb += rot_count.eq(shift[0:6])
 
+        # ROTL submodule
         m.submodules.rotl = rotl = ROTL(64)
         comb += rotl.a.eq(repl32)
         comb += rotl.b.eq(rot_count)
         comb += rot.eq(rotl.o)
 
         # Trim shift count to 6 bits for 32-bit shifts
-        comb += sh.eq(Cat((shift[6] & ~is_32bit, shift[0:6])))
+        comb += sh.eq(Cat(shift[0:6], shift[6] & ~is_32bit))
 
         # XXX errr... we should already have these, in Fields?  oh well
         # Work out mask begin/end indexes (caution, big-endian bit numbering)
+
+        # mask-begin (mb)
         with m.If(clear_left):
             with m.If(is_32bit):
-                comb += mb.eq(Cat(Const(0b01, 2), insn[6:11]))
+                comb += mb.eq(Cat(insn[6:11], Const(0b01, 2)))
             with m.Else():
-                comb += mb.eq(Cat(Const(0b0, 1), insn[5], insn[6:11]))
+                comb += mb.eq(Cat(insn[6:11], insn[5], Const(0b0, 1)))
         with m.Elif(right_shift):
             # this is basically mb <= sh + (is_32bit? 32: 0);
-            with m.If(is_32bit = '1'):
-                comb += mb.eq(Cat(sh(5), ~sh(5), sh[0:5]))
+            with m.If(is_32bit):
+                comb += mb.eq(Cat(sh[0:5], ~sh[5], sh[5]))
             with m.Else():
                 comb += mb.eq(sh)
         with m.Else():
-            comb += mb.eq(Cat(Const(0b0, 1) & is_32bit & Const(0b0, 5)))
+            comb += mb.eq(Cat(Const(0b0, 5), is_32bit, Const(0b0, 1)))
 
+        # mask-end (me)
         with m.If(clear_right & is_32bit):
-            comb += me.eq(Cat(Const(0b01, 2), insn[1:6]))
+            comb += me.eq(Cat(insn[1:6], Const(0b01, 2)))
         with m.Elif(clear_right & ~clear_left):
-            comb += me.eq(Cat(Const(0b0, 1), insn[5], insn[6:11]))
+            comb += me.eq(Cat(insn[6:11], insn[5], Const(0b0, 1)))
         with m.Else():
             # effectively, 63 - sh
-            comb += me.eq(Cat((shift[6], ~shift[0:6])))
+            comb += me.eq(Cat(~shift[0:6], shift[6]))
 
         # Calculate left and right masks
         comb += mr.eq(right_mask(m, mb))
