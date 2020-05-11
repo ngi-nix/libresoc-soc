@@ -194,7 +194,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[2] = 5
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
-            self.assertEqual(sim.gpr(1), SelectableInt(0x5fd757c0, 32))
+            self.assertEqual(sim.gpr(1), SelectableInt(0x5fd757c0, 64))
 
     def test_srw(self):
         lst = ["srw 1, 3, 2"]
@@ -203,7 +203,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[2] = 5
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
-            self.assertEqual(sim.gpr(1), SelectableInt(0x657f5d5, 32))
+            self.assertEqual(sim.gpr(1), SelectableInt(0x657f5d5, 64))
 
     def test_rlwinm(self):
         lst = ["rlwinm 3, 1, 5, 20, 6"]
@@ -212,6 +212,15 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(3), SelectableInt(0xfe000fff, 64))
+
+    def test_rlwimi(self):
+        lst = ["rlwimi 3, 1, 5, 20, 6"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xdeadbeef
+        initial_regs[3] = 0x12345678
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.gpr(3), SelectableInt(0xd4345dfb, 64))
 
     def test_mtcrf(self):
         for i in range(4):
