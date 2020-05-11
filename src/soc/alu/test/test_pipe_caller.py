@@ -54,7 +54,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 
 class ALUTestCase(FHDLTestCase):
-    def run_tst(self, program, initial_regs):
+    def run_tst(self, program, initial_regs, initial_sprs):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -71,7 +71,7 @@ class ALUTestCase(FHDLTestCase):
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
-        simulator = ISA(pdecode2, initial_regs)
+        simulator = ISA(pdecode2, initial_regs, initial_sprs)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
         gen = program.generate_instructions()
@@ -116,8 +116,8 @@ class ALUTestCase(FHDLTestCase):
             sim.run()
         return simulator
 
-    def run_tst_program(self, prog, initial_regs=[0] * 32):
-        simulator = self.run_tst(prog, initial_regs)
+    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
+        simulator = self.run_tst(prog, initial_regs, initial_sprs)
         simulator.gpr.dump()
         return simulator
 

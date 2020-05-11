@@ -137,9 +137,10 @@ class PC:
 
 
 class SPR(dict):
-    def __init__(self, dec2):
+    def __init__(self, dec2, initial_sprs={}):
         self.sd = dec2
         dict.__init__(self)
+        self.update(initial_sprs)
 
     def __getitem__(self, key):
         # if key in special_sprs get the special spr, otherwise return key
@@ -166,11 +167,11 @@ class SPR(dict):
 class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
-    def __init__(self, decoder2, regfile):
+    def __init__(self, decoder2, regfile, initial_sprs={}):
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem()
         self.pc = PC()
-        self.spr = SPR(decoder2)
+        self.spr = SPR(decoder2, initial_sprs)
         # TODO, needed here:
         # FPR (same as GPR except for FP nums)
         # 4.2.2 p124 FPSCR (definitely "separate" - not in SPR)
@@ -199,8 +200,8 @@ class ISACaller:
                           'CR': self.cr,
                           'undefined': self.undefined,
                           'mode_is_64bit': True,
+                          'SO': XER_bits['SO']
                           }
-        self.namespace.update(XER_bits)
 
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
@@ -235,6 +236,7 @@ class ISACaller:
                 self.namespace[name] = SelectableInt(val, sig.width)
 
         self.namespace['XER'] = self.spr['XER']
+        self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
 
     def handle_carry(self, inputs, outputs):
         inv_a = yield self.dec2.invert_a

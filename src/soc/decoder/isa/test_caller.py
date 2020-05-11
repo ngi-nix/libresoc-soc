@@ -19,7 +19,7 @@ class Register:
 
 class DecoderTestCase(FHDLTestCase):
 
-    def run_tst(self, generator, initial_regs):
+    def run_tst(self, generator, initial_regs, initial_sprs={}):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -27,7 +27,7 @@ class DecoderTestCase(FHDLTestCase):
         pdecode = create_pdecode()
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        simulator = ISA(pdecode2, initial_regs)
+        simulator = ISA(pdecode2, initial_regs, initial_sprs)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
         gen = generator.generate_instructions()
