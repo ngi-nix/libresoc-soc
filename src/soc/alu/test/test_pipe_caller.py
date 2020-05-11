@@ -26,14 +26,14 @@ def get_rec_width(rec):
 
 def set_alu_inputs(alu, dec2, sim):
     inputs = []
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        reg1_sel = yield dec2.e.read_reg1.data
-        inputs.append(sim.gpr(reg1_sel).value)
     reg3_ok = yield dec2.e.read_reg3.ok
     if reg3_ok:
         reg3_sel = yield dec2.e.read_reg3.data
         inputs.append(sim.gpr(reg3_sel).value)
+    reg1_ok = yield dec2.e.read_reg1.ok
+    if reg1_ok:
+        reg1_sel = yield dec2.e.read_reg1.data
+        inputs.append(sim.gpr(reg1_sel).value)
     reg2_ok = yield dec2.e.read_reg2.ok
     if reg2_ok:
         reg2_sel = yield dec2.e.read_reg2.data
@@ -189,7 +189,6 @@ class ALUTestCase(FHDLTestCase):
             with Program(lst) as program:
                 sim = self.run_tst_program(program, initial_regs)
 
-    @unittest.skip("broken")
     def test_rlwimi(self):
         lst = ["rlwimi 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
