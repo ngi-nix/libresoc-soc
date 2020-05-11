@@ -41,7 +41,7 @@ class ALUOutputStage(PipeModBase):
         comb += so.eq(self.i.so | self.i.ov)
 
         comb += self.o.o.eq(o)
-        comb += self.o.cr0.eq(Cat(is_negative, is_positive, is_zero, so))
+        comb += self.o.cr0.eq(Cat(so, is_zero, is_positive, is_negative))
         comb += self.o.so.eq(so)
 
         comb += self.o.ctx.eq(self.i.ctx)

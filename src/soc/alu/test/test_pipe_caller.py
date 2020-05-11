@@ -59,7 +59,6 @@ def set_extra_alu_inputs(alu, dec2, sim):
     yield alu.p.data_i.so.eq(so)
     
 
-
 class ALUTestCase(FHDLTestCase):
     def run_tst(self, program, initial_regs, initial_sprs):
         m = Module()
@@ -117,12 +116,20 @@ class ALUTestCase(FHDLTestCase):
                     expected = simulator.gpr(write_reg_idx).value
                     print(f"expected {expected:x}, actual: {alu_out:x}")
                     self.assertEqual(expected, alu_out)
+                yield from self.check_extra_alu_outputs(alu, pdecode2,
+                                                        simulator)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                            traces=[]):
             sim.run()
         return simulator
+    def check_extra_alu_outputs(self, alu, dec2, sim):
+        rc = yield dec2.e.rc.data
+        if rc:
+            cr_expected = sim.crl[0].get_range().value
+            cr_actual = yield alu.n.data_o.cr0
+            self.assertEqual(cr_expected, cr_actual)
 
     def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
         simulator = self.run_tst(prog, initial_regs, initial_sprs)
@@ -214,10 +221,10 @@ class ALUTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs)
         
     def test_adde(self):
-        lst = ["adde 3, 1, 2"]
+        lst = ["adde. 5, 6, 7"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0xbeef
-        initial_regs[2] = 0xdead
+        initial_regs[6] = random.randint(0, (1<<64)-1)
+        initial_regs[7] = random.randint(0, (1<<64)-1)
         initial_sprs = {}
         xer = SelectableInt(0, 64)
         xer[XER_bits['CA']] = 1
