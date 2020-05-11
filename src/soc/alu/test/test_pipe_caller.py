@@ -3,9 +3,10 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import ISACaller
+from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.decoder.power_enums import (XER_bits)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
@@ -50,6 +51,12 @@ def set_alu_inputs(alu, dec2, sim):
     if len(inputs) == 2:
         yield alu.p.data_i.a.eq(inputs[0])
         yield alu.p.data_i.b.eq(inputs[1])
+
+def set_extra_alu_inputs(alu, dec2, sim):
+    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+    yield alu.p.data_i.carry_in.eq(carry)
+    so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+    yield alu.p.data_i.so.eq(so)
     
 
 
@@ -92,6 +99,7 @@ class ALUTestCase(FHDLTestCase):
                 yield instruction.eq(ins)          # raw binary instr.
                 yield Settle()
                 yield from set_alu_inputs(alu, pdecode2, simulator)
+                yield from set_extra_alu_inputs(alu, pdecode2, simulator)
                 yield 
                 opname = code.split(' ')[0]
                 yield from simulator.call(opname)
@@ -205,13 +213,17 @@ class ALUTestCase(FHDLTestCase):
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
         
-    def test_add(self):
-        lst = ["add 3, 1, 2"]
+    def test_adde(self):
+        lst = ["adde 3, 1, 2"]
         initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        initial_regs[2] = random.randint(0, 63)
+        initial_regs[1] = 0xbeef
+        initial_regs[2] = 0xdead
+        initial_sprs = {}
+        xer = SelectableInt(0, 64)
+        xer[XER_bits['CA']] = 1
+        initial_sprs[special_sprs['XER']] = xer
         with Program(lst) as program:
-            sim = self.run_tst_program(program, initial_regs)
+            sim = self.run_tst_program(program, initial_regs, initial_sprs)
 
     def test_ilang(self):
         rec = CompALUOpSubset()
