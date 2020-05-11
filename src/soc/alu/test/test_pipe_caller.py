@@ -27,6 +27,10 @@ def get_rec_width(rec):
 
 def set_alu_inputs(alu, dec2, sim):
     inputs = []
+    # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
+    # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
+    # and place it into data_i.b
+
     reg3_ok = yield dec2.e.read_reg3.ok
     if reg3_ok:
         reg3_sel = yield dec2.e.read_reg3.data

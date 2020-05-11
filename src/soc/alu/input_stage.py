@@ -38,6 +38,9 @@ class ALUInputStage(PipeModBase):
 
         ##### operand B #####
 
+        # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
+        # remove this, just do self.o.b.eq(self.i.b) and move the
+        # immediate-detection into set_alu_inputs in the unit test
         # If there's an immediate, set the B operand to that
         with m.If(self.i.ctx.op.imm_data.imm_ok &
                   ~(self.i.ctx.op.insn_type == InternalOp.OP_RLC)):
