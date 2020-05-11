@@ -1,3 +1,6 @@
+# Manual translation and adaptation of rotator.vhdl from microwatt into nmigen
+#
+
 from soc.alu.rotl import ROTL
 
 #note BE bit numbering
@@ -130,3 +133,4 @@ class Rotator(Elaboratable):
         with m.If(output_mode = 0b11):
             comb += carry_out.eq(rs & ~ml)
 
+        return m
