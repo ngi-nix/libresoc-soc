@@ -74,25 +74,6 @@ class Driver(Elaboratable):
                 comb += Assert(dut.o.o == a | b)
             with m.Case(InternalOp.OP_XOR):
                 comb += Assert(dut.o.o == a ^ b)
-            with m.Case(InternalOp.OP_SHL):
-                with m.If(rec.is_32bit):
-                    comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
-                    comb += Assert(o[32:64] == 0)
-                with m.Else():
-                    comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
-            with m.Case(InternalOp.OP_SHR):
-                with m.If(~rec.is_signed):
-                    with m.If(rec.is_32bit):
-                        comb += Assert(o[0:32] == (a[0:32] >> b[0:6]))
-                        comb += Assert(o[32:64] == 0)
-                    with m.Else():
-                        comb += Assert(o == (a >> b[0:7]))
-                with m.Else():
-                    with m.If(rec.is_32bit):
-                        comb += Assert(o[0:32] == (a_signed_32 >> b[0:6]))
-                        comb += Assert(o[32:64] == Repl(a[31], 32))
-                    with m.Else():
-                        comb += Assert(o == (a_signed >> b[0:7]))
 
         return m
 

@@ -130,50 +130,6 @@ class ALUTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
-
-    def test_shift(self):
-        insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
-        for i in range(20):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, 63)
-            print(initial_regs[1], initial_regs[2])
-            self.run_tst_program(Program(lst), initial_regs)
-
-
-    def test_shift_arith(self):
-        lst = ["sraw 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        initial_regs[2] = random.randint(0, 63)
-        print(initial_regs[1], initial_regs[2])
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwinm(self):
-        for i in range(10):
-            mb = random.randint(0,31)
-            me = random.randint(0,31)
-            sh = random.randint(0,31)
-            lst = [f"rlwinm 3, 1, {mb}, {me}, {sh}"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwimi(self):
-        lst = ["rlwimi 3, 1, 5, 20, 6"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeef
-        initial_regs[3] = 0x12345678
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwnm(self):
-        lst = ["rlwnm 3, 1, 2, 20, 6"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        initial_regs[2] = random.randint(0, 63)
-        self.run_tst_program(Program(lst), initial_regs)
         
     def test_adde(self):
         lst = ["adde. 5, 6, 7"]
