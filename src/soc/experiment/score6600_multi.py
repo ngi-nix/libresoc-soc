@@ -16,14 +16,17 @@ from soc.scoreboard.memfu import MemFunctionUnits
 
 from soc.experiment.compalu import ComputationUnitNoDelay
 from soc.experiment.compalu_multi import MultiCompUnit, go_record
-from soc.experiment.compldst import LDSTCompUnit
-from soc.experiment.testmem import TestMemory
+from soc.experiment.compldst_multi import LDSTCompUnit
+from soc.experiment.compldst_multi import CompLDSTOpSubset
+from soc.experiment.l0_cache import TstL0CacheBuffer
 
 from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
 
 from soc.decoder.power_enums import InternalOp, Function
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+
 from soc.simulator.program import Program
 
 
@@ -210,7 +213,7 @@ class CompUnitsBase(Elaboratable):
 
 class CompUnitLDSTs(CompUnitsBase):
 
-    def __init__(self, rwid, opwid, n_ldsts, mem):
+    def __init__(self, rwid, opwid, n_ldsts, l0):
         """ Inputs:
 
             * :rwid:   bit width of register file(s) - both FP and INT
@@ -219,21 +222,13 @@ class CompUnitLDSTs(CompUnitsBase):
         self.opwid = opwid
 
         # inputs
-        self.op = CompALUOpSubset("cua_i")
+        self.op = CompLDSTOpSubset("cul_i")
 
-        # Int ALUs
-        self.alus = []
-        for i in range(n_ldsts):
-            self.alus.append(ALU(rwid))
-
+        # LD/ST Units
         units = []
-        for i, alu in enumerate(self.alus):
-            # XXX disable the 2nd memory temporarily
-            if i == 0:
-                debugtest = False
-            else:
-                debugtest = True
-            units.append(LDSTCompUnit(rwid, alu, mem, debugtest=debugtest))
+        for i in range(n_ldsts):
+            pi = l0.l0.dports[i].pi
+            units.append(LDSTCompUnit(pi, rwid, awid=48))
 
         CompUnitsBase.__init__(self, rwid, units, ldstmode=True)
 
@@ -241,10 +236,9 @@ class CompUnitLDSTs(CompUnitsBase):
         m = CompUnitsBase.elaborate(self, platform)
         comb = m.d.comb
 
-        # hand the same operation to all units, 4 lower bits though
-        for alu in self.units:
-            comb += alu.oper_i.eq(self.op)
-            comb += alu.isalu_i.eq(0)
+        # hand the same operation to all units
+        for ldst in self.units:
+            comb += ldst.oper_i.eq(self.op)
 
         return m
 
@@ -261,8 +255,6 @@ class CompUnitALUs(CompUnitsBase):
 
         # inputs
         self.op = CompALUOpSubset("cua_i")
-        self.oper_i = Signal(opwid, reset_less=True)
-        self.imm_i = Signal(rwid, reset_less=True)
 
         # Int ALUs
         alus = []
@@ -283,8 +275,6 @@ class CompUnitALUs(CompUnitsBase):
         # hand the subset of operation to ALUs
         for alu in self.units:
             comb += alu.oper_i.eq(self.op)
-            #comb += alu.oper_i[0:3].eq(self.oper_i)
-            #comb += alu.imm_i.eq(self.imm_i)
 
         return m
 
@@ -441,14 +431,14 @@ class Scoreboard(Elaboratable):
         self.fpregs = RegFileArray(rwid, n_regs)
 
         # Memory (test for now)
-        self.mem = TestMemory(self.rwid, 8)  # not too big, takes too long
+        self.l0 = TstL0CacheBuffer()
 
         # issue q needs to get at these
         self.aluissue = IssueUnitGroup(2)
         self.lsissue = IssueUnitGroup(2)
         self.brissue = IssueUnitGroup(1)
         # and these
-        self.alu_op = CompALUOpSubset("alu")
+        self.instr = Decode2ToExecute1Type("sc_instr")
         self.br_oper_i = Signal(4, reset_less=True)
         self.br_imm_i = Signal(rwid, reset_less=True)
         self.ls_oper_i = Signal(4, reset_less=True)
@@ -478,7 +468,7 @@ class Scoreboard(Elaboratable):
 
         m.submodules.intregs = self.intregs
         m.submodules.fpregs = self.fpregs
-        m.submodules.mem = mem = self.mem
+        m.submodules.l0 = l0 = self.l0
 
         # register ports
         int_dest = self.intregs.write_port("dest")
@@ -496,7 +486,7 @@ class Scoreboard(Elaboratable):
 
         # LDST Comp Units
         n_ldsts = 2
-        cul = CompUnitLDSTs(self.rwid, 4, self.lsissue.n_insns, self.mem)
+        cul = CompUnitLDSTs(self.rwid, 4, self.lsissue.n_insns, l0)
 
         # Comp Units
         m.submodules.cu = cu = CompUnitsBase(self.rwid, [cua, cul, cub])
@@ -563,10 +553,10 @@ class Scoreboard(Elaboratable):
                  ]
 
         # take these to outside (issue needs them)
-        comb += cua.op.eq(self.alu_op)
+        comb += cua.op.eq_from_execute1(self.instr)
         comb += cub.oper_i.eq(self.br_oper_i)
         comb += cub.imm_i.eq(self.br_imm_i)
-        comb += cul.op.eq(self.alu_op) # TODO: separate ls_op?
+        comb += cul.op.eq_from_execute1(self.instr)
 
         # TODO: issueunit.f (FP)
 
@@ -605,7 +595,7 @@ class Scoreboard(Elaboratable):
 
         # TODO: adr_rel_o needs to go into L1 Cache.  for now,
         # just immediately activate go_adr
-        comb += cul.go_ad_i.eq(cul.adr_rel_o)
+        sync += cul.go_ad_i.eq(cul.adr_rel_o)
 
         # connect up address data
         comb += memfus.addrs_i[0].eq(cul.units[0].addr_o)
@@ -865,14 +855,13 @@ class IssueToScoreboard(Elaboratable):
             comb += sc.int_src1_i.eq(src1)
             comb += sc.int_src2_i.eq(src2)
             comb += sc.reg_enable_i.eq(1)  # enable the regfile
+            comb += sc.instr.eq(instr)
 
             # choose a Function-Unit-Group
             with m.If(fu == Function.ALU):  # alu
-                comb += sc.alu_op.eq_from_execute1(instr)
                 comb += sc.aluissue.insn_i.eq(1) # enable alu issue
                 comb += wait_issue_alu.eq(1)
             with m.Elif(fu == Function.LDST):  # ld/st
-                comb += sc.alu_op.eq_from_execute1(instr) # XXX separate ls_op?
                 comb += sc.lsissue.insn_i.eq(1) # enable ldst issue
                 comb += wait_issue_ls.eq(1)
 
