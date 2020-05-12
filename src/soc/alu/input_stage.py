@@ -15,7 +15,7 @@ class ALUInputStage(PipeModBase):
         super().__init__(pspec, "input")
 
     def ispec(self):
-        return ALUInputData(self.pspec) # XXX TODO, change to ALUFirstInputData
+        return ALUInputData(self.pspec)
 
     def ospec(self):
         return ALUInputData(self.pspec)
@@ -42,11 +42,11 @@ class ALUInputStage(PipeModBase):
         # remove this, just do self.o.b.eq(self.i.b) and move the
         # immediate-detection into set_alu_inputs in the unit test
         # If there's an immediate, set the B operand to that
-        with m.If(self.i.ctx.op.imm_data.imm_ok &
-                  ~(self.i.ctx.op.insn_type == InternalOp.OP_RLC)):
-            comb += self.o.b.eq(self.i.ctx.op.imm_data.imm)
-        with m.Else():
-            comb += self.o.b.eq(self.i.b)
+        comb += self.o.b.eq(self.i.b)
+
+        ##### operand C? #####
+
+        comb += self.o.c.eq(self.i.c)
 
         ##### carry-in #####
 

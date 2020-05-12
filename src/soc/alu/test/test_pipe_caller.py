@@ -40,18 +40,34 @@ def set_alu_inputs(alu, dec2, sim):
 
     reg3_ok = yield dec2.e.read_reg3.ok
     if reg3_ok:
-        reg3_sel = yield dec2.e.read_reg3.data
-        inputs.append(sim.gpr(reg3_sel).value)
+        data3 = yield dec2.e.read_reg3.data
+        data3 = sim.gpr(data3).value
+        inputs.append(data3)
+    else:
+        data3 = 0
+
     reg1_ok = yield dec2.e.read_reg1.ok
     if reg1_ok:
-        reg1_sel = yield dec2.e.read_reg1.data
-        inputs.append(sim.gpr(reg1_sel).value)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        reg2_sel = yield dec2.e.read_reg2.data
-        inputs.append(sim.gpr(reg2_sel).value)
+        data1 = yield dec2.e.read_reg1.data
+        data1 = sim.gpr(data1).value
+        inputs.append(data1)
+    else:
+        data1 = 0
 
-    print(inputs)
+    # If there's an immediate, set the B operand to that
+    reg2_ok = yield dec2.e.read_reg2.ok
+    imm_ok = yield dec2.e.imm_data.imm_ok
+    if imm_ok:
+        data2 = yield dec2.e.imm_data.imm
+        inputs.append(data2)
+    elif reg2_ok:
+        data2 = yield dec2.e.read_reg2.data
+        data2 = sim.gpr(data2).value
+        inputs.append(data2)
+    else:
+        data2 = 0
+
+    print("inputs", inputs)
 
     if len(inputs) == 0:
         yield alu.p.data_i.a.eq(0)
@@ -62,6 +78,7 @@ def set_alu_inputs(alu, dec2, sim):
     if len(inputs) == 2:
         yield alu.p.data_i.a.eq(inputs[0])
         yield alu.p.data_i.b.eq(inputs[1])
+
 
 def set_extra_alu_inputs(alu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
