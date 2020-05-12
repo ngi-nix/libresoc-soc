@@ -571,7 +571,10 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.rd.go.eq(0b11)
+    if imm_ok:
+        yield dut.rd.go.eq(0b01)
+    else:
+        yield dut.rd.go.eq(0b11)
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
 
