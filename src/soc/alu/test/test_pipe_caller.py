@@ -144,6 +144,13 @@ class ALUTestCase(FHDLTestCase):
         initial_sprs[special_sprs['XER']] = xer
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
+    def test_cmp(self):
+        lst = ["cmp cr2, 1, 6, 7"]
+        initial_regs = [0] * 32
+        initial_regs[6] = random.randint(0, (1<<64)-1)
+        initial_regs[7] = random.randint(0, (1<<64)-1)
+        self.run_tst_program(Program(lst), initial_regs, {})
+
     def test_ilang(self):
         rec = CompALUOpSubset()
 
