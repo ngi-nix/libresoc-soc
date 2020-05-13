@@ -33,51 +33,36 @@ def get_rec_width(rec):
     return recwidth
 
 def set_alu_inputs(alu, dec2, sim):
-    inputs = []
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
     reg3_ok = yield dec2.e.read_reg3.ok
-    if reg3_ok:
-        data3 = yield dec2.e.read_reg3.data
-        data3 = sim.gpr(data3).value
-        inputs.append(data3)
-    else:
-        data3 = 0
-
     reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
+    assert reg3_ok != reg1_ok
+    if reg3_ok:
+        data1 = yield dec2.e.read_reg3.data
+        data1 = sim.gpr(data1).value
+    elif reg1_ok:
         data1 = yield dec2.e.read_reg1.data
         data1 = sim.gpr(data1).value
-        inputs.append(data1)
     else:
         data1 = 0
+
+    yield alu.p.data_i.a.eq(data1)
 
     # If there's an immediate, set the B operand to that
     reg2_ok = yield dec2.e.read_reg2.ok
     imm_ok = yield dec2.e.imm_data.imm_ok
     if imm_ok:
         data2 = yield dec2.e.imm_data.imm
-        inputs.append(data2)
     elif reg2_ok:
         data2 = yield dec2.e.read_reg2.data
         data2 = sim.gpr(data2).value
-        inputs.append(data2)
     else:
         data2 = 0
+    yield alu.p.data_i.b.eq(data2)
 
-    print("inputs", inputs)
-
-    if len(inputs) == 0:
-        yield alu.p.data_i.a.eq(0)
-        yield alu.p.data_i.b.eq(0)
-    if len(inputs) == 1:
-        yield alu.p.data_i.a.eq(inputs[0])
-        yield alu.p.data_i.b.eq(0)
-    if len(inputs) == 2:
-        yield alu.p.data_i.a.eq(inputs[0])
-        yield alu.p.data_i.b.eq(inputs[1])
 
 
 def set_extra_alu_inputs(alu, dec2, sim):
