@@ -22,7 +22,6 @@ class ALUInputData(IntegerData):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
         self.b = Signal(64, reset_less=True) # RB/immediate
-        self.c = Signal(64, reset_less=True) # RC/RS
         self.so = Signal(reset_less=True)
         self.carry_in = Signal(reset_less=True)
 
@@ -30,13 +29,12 @@ class ALUInputData(IntegerData):
         yield from super().__iter__()
         yield self.a
         yield self.b
-        yield self.c
         yield self.carry_in
         yield self.so
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.b.eq(i.b), self.c.eq(i.c),
+        return lst + [self.a.eq(i.a), self.b.eq(i.b),
                       self.carry_in.eq(i.carry_in),
                       self.so.eq(i.so)]
 

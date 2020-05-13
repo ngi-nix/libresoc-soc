@@ -44,10 +44,6 @@ class ALUInputStage(PipeModBase):
         # If there's an immediate, set the B operand to that
         comb += self.o.b.eq(self.i.b)
 
-        ##### operand C? #####
-
-        comb += self.o.c.eq(self.i.c)
-
         ##### carry-in #####
 
         # either copy incoming carry or set to 1/0 as defined by op
