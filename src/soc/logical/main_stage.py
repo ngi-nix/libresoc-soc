@@ -28,7 +28,7 @@ class LogicalMainStage(PipeModBase):
         comb = m.d.comb
 
         ##########################
-        # main switch-statement for handling logic operations AND, OR and XOR
+        # main switch for logic ops AND, OR and XOR, parity, and popcount
 
         with m.Switch(self.i.ctx.op.insn_type):
             with m.Case(InternalOp.OP_AND):
@@ -37,6 +37,10 @@ class LogicalMainStage(PipeModBase):
                 comb += self.o.o.eq(self.i.a | self.i.b)
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
+            ###### popcount #######
+            # TODO with m.Case(InternalOp.OP_POPCNT):
+            ###### parity #######
+            # TODO with m.Case(InternalOp.OP_PRTY):
 
         ###### sticky overflow and context, both pass-through #####
 
