@@ -6,7 +6,7 @@ import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits)
+from soc.decoder.power_enums import (XER_bits, Function)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
@@ -200,6 +200,8 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
+                    fn_unit = yield pdecode2.e.fn_unit
+                    self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
                     yield from set_extra_alu_inputs(alu, pdecode2, simulator)
                     yield 
