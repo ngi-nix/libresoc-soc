@@ -36,17 +36,17 @@ class ShiftRotMainStage(PipeModBase):
         md_fields = self.fields.instrs['MD']
         mb = Signal(m_fields['MB'][0:-1].shape())
         me = Signal(m_fields['ME'][0:-1].shape())
-        XO = Signal(md_fields['XO'][0:-1].shape())
+        mb_extra = Signal(1)
         comb += mb.eq(m_fields['MB'][0:-1])
         comb += me.eq(m_fields['ME'][0:-1])
-        comb += XO.eq(md_fields['XO'][0:-1])
+        comb += mb_extra.eq(md_fields['mb'][0:-1][0])
 
         # set up microwatt rotator module
         m.submodules.rotator = rotator = Rotator()
         comb += [
             rotator.me.eq(me),
             rotator.mb.eq(mb),
-            rotator.XO.eq(XO),
+            rotator.mb_extra.eq(mb_extra),
             rotator.rs.eq(self.i.rs),
             rotator.ra.eq(self.i.ra),
             rotator.shift.eq(self.i.rb),
@@ -67,6 +67,14 @@ class ShiftRotMainStage(PipeModBase):
             with m.Case(InternalOp.OP_RLC):
                 comb += [rotator.right_shift.eq(0),
                         rotator.clear_left.eq(1),
+                        rotator.clear_right.eq(1)]
+            with m.Case(InternalOp.OP_RLCL):
+                comb += [rotator.right_shift.eq(0),
+                        rotator.clear_left.eq(1),
+                        rotator.clear_right.eq(0)]
+            with m.Case(InternalOp.OP_RLCR):
+                comb += [rotator.right_shift.eq(0),
+                        rotator.clear_left.eq(0),
                         rotator.clear_right.eq(1)]
                 
         # outputs from the microwatt rotator module

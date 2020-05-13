@@ -38,9 +38,9 @@ class Rotator(Elaboratable):
     """
     def __init__(self):
         # input
-        self.me = Signal(5, reset_less=True)       # ME field
-        self.mb = Signal(5, reset_less=True)       # MB field
-        self.XO = Signal(1, reset_less=True)       # XO field
+        self.me = Signal(5, reset_less=True)        # ME field
+        self.mb = Signal(5, reset_less=True)        # MB field
+        self.mb_extra = Signal(1, reset_less=True)  # NOT XO field, extra bit of mb in MD-form
         self.ra = Signal(64, reset_less=True)       # RA
         self.rs = Signal(64, reset_less=True)       # RS
         self.ra = Signal(64, reset_less=True)       # RA
@@ -103,7 +103,7 @@ class Rotator(Elaboratable):
             with m.If(self.is_32bit):
                 comb += mb.eq(Cat(self.mb, Const(0b01, 2)))
             with m.Else():
-                comb += mb.eq(Cat(self.mb, self.XO, Const(0b0, 1)))
+                comb += mb.eq(Cat(self.mb, self.mb_extra, Const(0b0, 1)))
         with m.Elif(self.right_shift):
             # this is basically mb = sh + (is_32bit? 32: 0);
             with m.If(self.is_32bit):
@@ -119,7 +119,7 @@ class Rotator(Elaboratable):
             comb += me.eq(Cat(self.me, Const(0b01, 2)))
         with m.Elif(self.clear_right & ~self.clear_left):
             # this is me, have to use fields
-            comb += me.eq(Cat(self.mb, self.XO, Const(0b0, 1)))
+            comb += me.eq(Cat(self.mb, self.mb_extra, Const(0b0, 1)))
         with m.Else():
             # effectively, 63 - sh
             comb += me.eq(Cat(~self.shift[0:6], self.shift[6]))
