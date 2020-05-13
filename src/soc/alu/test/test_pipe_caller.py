@@ -151,6 +151,16 @@ class ALUTestCase(FHDLTestCase):
         initial_regs[7] = random.randint(0, (1<<64)-1)
         self.run_tst_program(Program(lst), initial_regs, {})
 
+    def test_extsb(self):
+        insns = ["extsb", "extsh", "extsw"]
+        for i in range(10):
+            choice = random.choice(insns)
+            lst = [f"{choice} 3, 1"]
+            print(lst)
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
     def test_ilang(self):
         rec = CompALUOpSubset()
 
