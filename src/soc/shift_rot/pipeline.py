@@ -1,12 +1,12 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.alu.input_stage import ALUInputStage
+from soc.shift_rot.input_stage import ShiftRotInputStage
 from soc.shift_rot.main_stage import ShiftRotMainStage
 from soc.alu.output_stage import ALUOutputStage
 
 class ShiftRotStages(PipeModBaseChain):
     def get_chain(self):
-        inp = ALUInputStage(self.pspec)
+        inp = ShiftRotInputStage(self.pspec)
         main = ShiftRotMainStage(self.pspec)
         out = ALUOutputStage(self.pspec)
         return [inp, main, out]

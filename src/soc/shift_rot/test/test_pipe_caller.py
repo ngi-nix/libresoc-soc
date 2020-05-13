@@ -41,27 +41,29 @@ def set_alu_inputs(alu, dec2, sim):
     reg3_ok = yield dec2.e.read_reg3.ok
     if reg3_ok:
         reg3_sel = yield dec2.e.read_reg3.data
-        inputs.append(sim.gpr(reg3_sel).value)
+        data3 = sim.gpr(reg3_sel).value
+    else:
+        data3 = 0
     reg1_ok = yield dec2.e.read_reg1.ok
     if reg1_ok:
         reg1_sel = yield dec2.e.read_reg1.data
-        inputs.append(sim.gpr(reg1_sel).value)
+        data1 = sim.gpr(reg1_sel).value
+    else:
+        data1 = 0
     reg2_ok = yield dec2.e.read_reg2.ok
+    imm_ok = yield dec2.e.imm_data.ok
     if reg2_ok:
         reg2_sel = yield dec2.e.read_reg2.data
-        inputs.append(sim.gpr(reg2_sel).value)
+        data2 = sim.gpr(reg2_sel).value
+    elif imm_ok:
+        data2 = yield dec2.e.imm_data.imm
+    else:
+        data2 = 0
 
-    print(inputs)
+    yield alu.p.data_i.ra.eq(data1)
+    yield alu.p.data_i.rb.eq(data2)
+    yield alu.p.data_i.rs.eq(data3)
 
-    if len(inputs) == 0:
-        yield alu.p.data_i.a.eq(0)
-        yield alu.p.data_i.b.eq(0)
-    if len(inputs) == 1:
-        yield alu.p.data_i.a.eq(inputs[0])
-        yield alu.p.data_i.b.eq(0)
-    if len(inputs) == 2:
-        yield alu.p.data_i.a.eq(inputs[0])
-        yield alu.p.data_i.b.eq(inputs[1])
 
 def set_extra_alu_inputs(alu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
@@ -117,6 +119,14 @@ class ALUTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1<<64)-1)
         initial_regs[2] = random.randint(0, 63)
+        print(initial_regs[1], initial_regs[2])
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_shift_once(self):
+        lst = ["sraw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xdeadbeefcafec0de
+        initial_regs[2] = 53
         print(initial_regs[1], initial_regs[2])
         self.run_tst_program(Program(lst), initial_regs)
 
@@ -219,8 +229,8 @@ class TestRunner(FHDLTestCase):
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = simulator.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out)
+                        msg = f"expected {expected:x}, actual: {alu_out:x}"
+                        self.assertEqual(expected, alu_out, msg)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
                                                             simulator)
 
