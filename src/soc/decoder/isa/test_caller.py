@@ -222,6 +222,14 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(3), SelectableInt(0xd5b7ddfbd4345dfb, 64))
 
+    def test_rldic(self):
+        lst = ["rldic 3, 1, 5, 20"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xdeadbeefcafec0de
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.gpr(3), SelectableInt(0xdf95fd81bc0, 64))
+
     def test_mtcrf(self):
         for i in range(4):
             # 0x76540000 gives expected (3+4) (2+4) (1+4) (0+4) for
