@@ -38,10 +38,13 @@ class Rotator(Elaboratable):
     """
     def __init__(self):
         # input
+        self.me = Signal(5, reset_less=True)       # ME field
+        self.mb = Signal(5, reset_less=True)       # MB field
+        self.XO = Signal(1, reset_less=True)       # XO field
+        self.ra = Signal(64, reset_less=True)       # RA
         self.rs = Signal(64, reset_less=True)       # RS
         self.ra = Signal(64, reset_less=True)       # RA
         self.shift = Signal(7, reset_less=True)     # RB[0:7]
-        self.insn = Signal(32, reset_less=True)     # for mb and me fields
         self.is_32bit = Signal(reset_less=True)
         self.right_shift = Signal(reset_less=True)
         self.arith = Signal(reset_less=True)
@@ -98,9 +101,9 @@ class Rotator(Elaboratable):
         # mask-begin (mb)
         with m.If(self.clear_left):
             with m.If(self.is_32bit):
-                comb += mb.eq(Cat(self.insn[6:11], Const(0b01, 2)))
+                comb += mb.eq(Cat(self.mb, Const(0b01, 2)))
             with m.Else():
-                comb += mb.eq(Cat(self.insn[6:11], self.insn[5], Const(0b0, 1)))
+                comb += mb.eq(Cat(self.mb, self.XO, Const(0b0, 1)))
         with m.Elif(self.right_shift):
             # this is basically mb = sh + (is_32bit? 32: 0);
             with m.If(self.is_32bit):
@@ -112,9 +115,11 @@ class Rotator(Elaboratable):
 
         # mask-end (me)
         with m.If(self.clear_right & self.is_32bit):
-            comb += me.eq(Cat(self.insn[1:6], Const(0b01, 2)))
+            # TODO: track down where this is.  have to use fields.
+            comb += me.eq(Cat(self.me, Const(0b01, 2)))
         with m.Elif(self.clear_right & ~self.clear_left):
-            comb += me.eq(Cat(self.insn[6:11], self.insn[5], Const(0b0, 1)))
+            # this is me, have to use fields
+            comb += me.eq(Cat(self.mb, self.XO, Const(0b0, 1)))
         with m.Else():
             # effectively, 63 - sh
             comb += me.eq(Cat(~self.shift[0:6], self.shift[6]))

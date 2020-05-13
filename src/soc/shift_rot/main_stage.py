@@ -31,13 +31,25 @@ class ShiftRotMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
+        # obtain me and mb fields from instruction.
+        m_fields = self.fields.instrs['M']
+        md_fields = self.fields.instrs['MD']
+        mb = Signal(m_fields['MB'][0:-1].shape())
+        me = Signal(m_fields['ME'][0:-1].shape())
+        XO = Signal(md_fields['XO'][0:-1].shape())
+        comb += mb.eq(m_fields['MB'][0:-1])
+        comb += me.eq(m_fields['ME'][0:-1])
+        comb += XO.eq(md_fields['XO'][0:-1])
+
         # set up microwatt rotator module
         m.submodules.rotator = rotator = Rotator()
         comb += [
+            rotator.me.eq(me),
+            rotator.mb.eq(mb),
+            rotator.XO.eq(XO),
             rotator.rs.eq(self.i.rs),
             rotator.ra.eq(self.i.ra),
             rotator.shift.eq(self.i.rb),
-            rotator.insn.eq(self.i.ctx.op.insn),
             rotator.is_32bit.eq(self.i.ctx.op.is_32bit),
             rotator.arith.eq(self.i.ctx.op.is_signed),
         ]
