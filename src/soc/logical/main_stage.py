@@ -1,8 +1,10 @@
-# This stage is intended to do most of the work of executing the ALU
-# instructions. This would be like the additions, logical operations,
-# and shifting, as well as carry and overflow generation. This module
-# however should not gate the carry or overflow, that's up to the
-# output stage
+# This stage is intended to do most of the work of executing Logical
+# instructions. This is OR, AND and XOR, however input and output
+# stages also perform bit-negation on input(s) and output, as well as
+# carry and overflow generation.
+# This module however should not gate the carry or overflow, that's up
+# to the output stage
+
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
 from soc.logical.pipe_data import ALUInputData
@@ -26,18 +28,13 @@ class LogicalMainStage(PipeModBase):
         comb = m.d.comb
 
         ##########################
-        # main switch-statement for handling arithmetic and logic operations
+        # main switch-statement for handling logic operations AND, OR and XOR
 
         with m.Switch(self.i.ctx.op.insn_type):
-            #### and ####
             with m.Case(InternalOp.OP_AND):
                 comb += self.o.o.eq(self.i.a & self.i.b)
-
-            #### or ####
             with m.Case(InternalOp.OP_OR):
                 comb += self.o.o.eq(self.i.a | self.i.b)
-
-            #### xor ####
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
 
