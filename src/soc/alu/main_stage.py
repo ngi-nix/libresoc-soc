@@ -24,6 +24,7 @@ class ALUMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        carry_out, o = self.o.carry_out, self.o.o
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -32,7 +33,7 @@ class ALUMainStage(PipeModBase):
         comb += sign_bit.eq(Mux(is_32bit, self.i.a[31], self.i.a[63]))
 
         ##########################
-        # main switch-statement for handling arithmetic and logic operations
+        # main switch-statement for handling arithmetic operations
 
         with m.Switch(self.i.ctx.op.insn_type):
             #### CMP, CMPL ####
@@ -49,20 +50,17 @@ class ALUMainStage(PipeModBase):
                 comb += add_b.eq(Cat(Const(1, 1), self.i.b, Const(0, 1)))
                 comb += add_output.eq(add_a + add_b)
                 # bit 0 is not part of the result, top bit is the carry-out
-                comb += self.o.o.eq(add_output[1:-1])
-                comb += self.o.carry_out.eq(add_output[-1])
+                comb += o.eq(add_output[1:-1])
+                comb += carry_out.eq(add_output[-1])
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
                 with m.If(self.i.ctx.op.data_len == 1):
-                    comb += self.o.o.eq(Cat(self.i.a[0:8],
-                                            Repl(self.i.a[7], 64-8)))
+                    comb += o.eq(Cat(self.i.a[0:8], Repl(self.i.a[7], 64-8)))
                 with m.If(self.i.ctx.op.data_len == 2):
-                    comb += self.o.o.eq(Cat(self.i.a[0:16],
-                                            Repl(self.i.a[15], 64-16)))
+                    comb += o.eq(Cat(self.i.a[0:16], Repl(self.i.a[15], 64-16)))
                 with m.If(self.i.ctx.op.data_len == 4):
-                    comb += self.o.o.eq(Cat(self.i.a[0:32],
-                                            Repl(self.i.a[31], 64-32)))
+                    comb += o.eq(Cat(self.i.a[0:32], Repl(self.i.a[31], 64-32)))
 
         ###### sticky overflow and context, both pass-through #####
 
