@@ -211,16 +211,16 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[1] = -1
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
-            self.assertEqual(sim.gpr(3), SelectableInt(0xfe000fff, 64))
+            self.assertEqual(sim.gpr(3), SelectableInt(0xfffffffffe000fff, 64))
 
     def test_rlwimi(self):
         lst = ["rlwimi 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeef
+        initial_regs[1] = 0xffffffffdeadbeef
         initial_regs[3] = 0x12345678
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
-            self.assertEqual(sim.gpr(3), SelectableInt(0xd4345dfb, 64))
+            self.assertEqual(sim.gpr(3), SelectableInt(0xd5b7ddfbd4345dfb, 64))
 
     def test_mtcrf(self):
         for i in range(4):

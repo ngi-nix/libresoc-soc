@@ -1,62 +1,55 @@
---- fixedshift.py.orig	2020-05-09 09:56:10.393656481 -0400
-+++ fixedshift.py	2020-05-10 18:51:24.725396454 -0400
-@@ -12,48 +12,48 @@
-     @inject()
+--- fixedshift.py.orig	2020-05-11 10:20:55.781417649 -0400
++++ fixedshift.py	2020-05-13 14:02:01.147691354 -0400
+@@ -13,7 +13,7 @@
      def op_rlwinm(self, RS):
          n = SH
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-     @inject()
+@@ -21,7 +21,7 @@
      def op_rlwinm_(self, RS):
          n = SH
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-     @inject()
+@@ -29,7 +29,7 @@
      def op_rlwnm(self, RB, RS):
          n = RB[59:64]
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-     @inject()
+@@ -37,7 +37,7 @@
      def op_rlwnm_(self, RB, RS):
          n = RB[59:64]
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m
          return (RA,)
  
-     @inject()
+@@ -45,7 +45,7 @@
      def op_rlwimi(self, RS, RA):
          n = SH
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m | RA & ~m
          return (RA,)
  
-     @inject()
+@@ -53,7 +53,7 @@
      def op_rlwimi_(self, RS, RA):
          n = SH
--        r = ROTL32(RS[32:64], n)
+         r = ROTL32(RS[32:64], n)
 -        m = MASK(MB + 32, ME + 32)
-+        r = ROTL32(EXTZ64(RS[32:64]), n)
 +        m = MASK(MB.value + 32, ME.value + 32)
          RA = r & m | RA & ~m
          return (RA,)
@@ -66,7 +59,7 @@
      def op_slw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], n)
-+        r = ROTL32(EXTZ64(RS[32:64]), n.value)
++        r = ROTL32(RS[32:64], n.value)
          if eq(RB[58], 0):
 -            m = MASK(32, 63 - n)
 +            m = MASK(32, 63 - n.value)
@@ -78,7 +71,7 @@
      def op_slw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], n)
-+        r = ROTL32(EXTZ64(RS[32:64]), n.value)
++        r = ROTL32(RS[32:64], n.value)
          if eq(RB[58], 0):
 -            m = MASK(32, 63 - n)
 +            m = MASK(32, 63 - n.value)
@@ -90,7 +83,7 @@
      def op_srw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -102,7 +95,7 @@
      def op_srw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -115,7 +108,7 @@
          n = SH
 -        r = ROTL32(RS[32:64], 64 - n)
 -        m = MASK(n + 32, 63)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
 +        m = MASK(n.value + 32, 63)
          s = RS[32]
          RA = r & m | concat(s, repeat=64) & ~m
@@ -126,7 +119,7 @@
          n = SH
 -        r = ROTL32(RS[32:64], 64 - n)
 -        m = MASK(n + 32, 63)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
 +        m = MASK(n.value + 32, 63)
          s = RS[32]
          RA = r & m | concat(s, repeat=64) & ~m
@@ -136,7 +129,7 @@
      def op_sraw(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
@@ -148,7 +141,7 @@
      def op_sraw_(self, RB, RS):
          n = RB[59:64]
 -        r = ROTL32(RS[32:64], 64 - n)
-+        r = ROTL32(EXTZ64(RS[32:64]), 64 - n.value)
++        r = ROTL32(RS[32:64], 64 - n.value)
          if eq(RB[58], 0):
 -            m = MASK(n + 32, 63)
 +            m = MASK(n.value + 32, 63)
