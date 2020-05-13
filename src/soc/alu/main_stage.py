@@ -61,6 +61,8 @@ class ALUMainStage(PipeModBase):
             #### xor ####
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
+
+            #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
                 with m.If(self.i.ctx.op.data_len == 1):
                     comb += self.o.o.eq(Cat(self.i.a[0:8],
@@ -71,8 +73,6 @@ class ALUMainStage(PipeModBase):
                 with m.If(self.i.ctx.op.data_len == 4):
                     comb += self.o.o.eq(Cat(self.i.a[0:32],
                                             Repl(self.i.a[31], 64-32)))
-                    
-                
 
         ###### sticky overflow and context, both pass-through #####
 
