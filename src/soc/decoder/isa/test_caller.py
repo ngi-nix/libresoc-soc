@@ -181,11 +181,11 @@ class DecoderTestCase(FHDLTestCase):
     def test_cmp(self):
         lst = ["addis 1, 0, 0xffff",
                "addis 2, 0, 0xffff",
-               "cmp cr0, 0, 1, 2",
+               "cmp cr2, 0, 1, 2",
                "mfcr 3"]
         with Program(lst) as program:
             sim = self.run_tst_program(program)
-            self.assertEqual(sim.gpr(3), SelectableInt(0x20000000, 64))
+            self.assertEqual(sim.gpr(3), SelectableInt(0x200000, 64))
 
     def test_slw(self):
         lst = ["slw 1, 3, 2"]
