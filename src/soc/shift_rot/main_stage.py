@@ -30,6 +30,8 @@ class ShiftRotMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+
+        # set up microwatt rotator module
         m.submodules.rotator = rotator = Rotator()
         comb += [
             rotator.rs.eq(self.i.rs),
@@ -40,14 +42,7 @@ class ShiftRotMainStage(PipeModBase):
             rotator.arith.eq(self.i.ctx.op.is_signed),
         ]
 
-        # Defaults
-        comb += [rotator.right_shift.eq(0),
-                 rotator.clear_left.eq(0),
-                 rotator.clear_right.eq(0)]
-
-        comb += [self.o.o.eq(rotator.result_o),
-                 self.o.carry_out.eq(rotator.carry_out_o)]
-
+        # instruction rotate type
         with m.Switch(self.i.ctx.op.insn_type):
             with m.Case(InternalOp.OP_SHL):
                 comb += [rotator.right_shift.eq(0),
@@ -62,10 +57,9 @@ class ShiftRotMainStage(PipeModBase):
                         rotator.clear_left.eq(1),
                         rotator.clear_right.eq(1)]
                 
-
-
-
-
+        # outputs from the microwatt rotator module
+        comb += [self.o.o.eq(rotator.result_o),
+                 self.o.carry_out.eq(rotator.carry_out_o)]
 
         ###### sticky overflow and context, both pass-through #####
 
