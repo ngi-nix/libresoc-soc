@@ -1,5 +1,5 @@
-# This stage is intended to do most of the work of executing the ALU
-# instructions. This would be like the additions, logical operations,
+# This stage is intended to do most of the work of executing the Arithmetic
+# instructions. This would be like the additions, compares, and sign-extension
 # and shifting, as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
@@ -25,7 +25,6 @@ class ALUMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
 
-
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
         sign_bit = Signal(reset_less=True)
@@ -36,6 +35,9 @@ class ALUMainStage(PipeModBase):
         # main switch-statement for handling arithmetic and logic operations
 
         with m.Switch(self.i.ctx.op.insn_type):
+            #### CMP, CMPL ####
+            # TODO with m.Case(InternalOp.OP_CMP):
+
             #### add ####
             with m.Case(InternalOp.OP_ADD):
                 # little trick: do the add using only one add (not 2)
