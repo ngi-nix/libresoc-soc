@@ -178,10 +178,11 @@ class ISACaller:
         #            note that mffs, mcrfs, mtfsf "manage" this FPSCR
         # 2.3.1 CR (and sub-fields CR0..CR6 - CR0 SO comes from XER.SO)
         #         note that mfocrf, mfcr, mtcr, mtocrf, mcrxrx "manage" CRs
-        # 2.3.2 LR   (actually SPR #8)
-        # 2.3.3 CTR  (actually SPR #9)
+        #         -- Done
+        # 2.3.2 LR   (actually SPR #8) -- Done
+        # 2.3.3 CTR  (actually SPR #9) -- Done
         # 2.3.4 TAR  (actually SPR #815)
-        # 3.2.2 p45 XER  (actually SPR #0)
+        # 3.2.2 p45 XER  (actually SPR #1) -- Done
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
         # create CR then allow portions of it to be "selectable" (below)
