@@ -50,18 +50,6 @@ class ALUMainStage(PipeModBase):
                 comb += self.o.o.eq(add_output[1:-1])
                 comb += self.o.carry_out.eq(add_output[-1])
 
-            #### and ####
-            with m.Case(InternalOp.OP_AND):
-                comb += self.o.o.eq(self.i.a & self.i.b)
-
-            #### or ####
-            with m.Case(InternalOp.OP_OR):
-                comb += self.o.o.eq(self.i.a | self.i.b)
-
-            #### xor ####
-            with m.Case(InternalOp.OP_XOR):
-                comb += self.o.o.eq(self.i.a ^ self.i.b)
-
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
                 with m.If(self.i.ctx.op.data_len == 1):

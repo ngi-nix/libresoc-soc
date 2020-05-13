@@ -102,7 +102,7 @@ class ALUTestCase(FHDLTestCase):
         test_data.append(tc)
 
     def test_rand(self):
-        insns = ["add", "add.", "and", "or", "xor", "subf"]
+        insns = ["add", "add.", "subf"]
         for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
@@ -122,17 +122,6 @@ class ALUTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_rand_imm_logical(self):
-        insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
-        for i in range(10):
-            choice = random.choice(insns)
-            imm = random.randint(0, (1<<16)-1)
-            lst = [f"{choice} 3, 1, {imm}"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-        
     def test_adde(self):
         lst = ["adde. 5, 6, 7"]
         initial_regs = [0] * 32
