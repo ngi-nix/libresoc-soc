@@ -360,7 +360,7 @@ def create_pdecode():
     pminor = [
         m19,
         Subdecoder(pattern=30, opcodes=get_csv("minor_30.csv"),
-                   opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]),
+                   opint=True, bitsel=(1, 5), suffix=None, subdecoders=[]),
         Subdecoder(pattern=31, opcodes=get_csv("minor_31.csv"),
                    opint=True, bitsel=(1, 11), suffix=0b00101, subdecoders=[]),
         Subdecoder(pattern=58, opcodes=get_csv("minor_58.csv"),
