@@ -7,16 +7,12 @@ from soc.shift_rot.rotl import ROTL
 
 # note BE bit numbering
 def right_mask(m, mask_begin):
-    """ this can be replaced by something like (mask_begin << 1) - 1"""
     ret = Signal(64, name="right_mask", reset_less=True)
-    with m.If(mask_begin > 64):
-        m.d.comb += ret.eq(0)
-    with m.Else():
+    with m.If(mask_begin <= 64):
         m.d.comb += ret.eq((1<<(64-mask_begin)) - 1)
     return ret
 
 def left_mask(m, mask_end):
-    """ this can be replaced by something like ~((mask_end << 1) - 1)"""
     ret = Signal(64, name="left_mask", reset_less=True)
     m.d.comb += ret.eq(~((1<<(63-mask_end)) - 1))
     return ret
