@@ -26,25 +26,29 @@ class LogicalMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        a, b, o = self.i.a, self.i.b, self.o.o
 
         ##########################
-        # main switch for logic ops AND, OR and XOR, parity, and popcount
+        # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
 
         with m.Switch(self.i.ctx.op.insn_type):
+
+            ###### AND, OR, XOR #######
             with m.Case(InternalOp.OP_AND):
-                comb += self.o.o.eq(self.i.a & self.i.b)
+                comb += o.eq(a & b)
             with m.Case(InternalOp.OP_OR):
-                comb += self.o.o.eq(self.i.a | self.i.b)
+                comb += o.eq(a | b)
             with m.Case(InternalOp.OP_XOR):
-                comb += self.o.o.eq(self.i.a ^ self.i.b)
+                comb += o.eq(a ^ b)
+
             ###### cmpb #######
             with m.Case(InternalOp.OP_CMPB):
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
-                    with m.If(self.i.a[slc] == self.i.b[slc]):
-                        comb += self.o.o[slc].eq(Repl(1, 8))
+                    with m.If(a[slc] == b[slc]):
+                        comb += o[slc].eq(Repl(1, 8))
                     with m.Else():
-                        comb += self.o.o[slc].eq(Repl(0, 8))
+                        comb += o[slc].eq(Repl(0, 8))
 
             ###### popcount #######
             # TODO with m.Case(InternalOp.OP_POPCNT):
