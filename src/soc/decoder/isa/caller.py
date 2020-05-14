@@ -310,7 +310,7 @@ class ISACaller:
                         self.namespace[name].eq(output)
                 else:
                     regnum = yield getattr(self.decoder, name)
-                    print('writing reg %d' % regnum)
+                    print('writing reg %d %s' % (regnum, str(output)))
                     if output.bits > 64:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
