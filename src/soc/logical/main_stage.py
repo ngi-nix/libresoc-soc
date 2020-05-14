@@ -49,9 +49,11 @@ class LogicalMainStage(PipeModBase):
 
             ###### cmpb #######
             with m.Case(InternalOp.OP_CMPB):
+                l = []
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
-                    comb += o[slc].eq(Repl(a[slc] == b[slc], 8))
+                    l.append(Repl(a[slc] == b[slc], 8))
+                comb += o.eq(Cat(*l))
 
             ###### popcount #######
             with m.Case(InternalOp.OP_POPCNT):
@@ -88,8 +90,8 @@ class LogicalMainStage(PipeModBase):
             ###### parity #######
             with m.Case(InternalOp.OP_PRTY):
                 # strange instruction which XORs together the LSBs of each byte
-                par0 = Signal(8, reset_less=True)
-                par1 = Signal(8, reset_less=True)
+                par0 = Signal(reset_less=True)
+                par1 = Signal(reset_less=True)
                 comb += par0.eq(Cat(a[0] , a[8] , a[16], a[24]).xor())
                 comb += par1.eq(Cat(a[32], a[40], a[48], a[32]).xor())
                 with m.If(op.data_len[3] == 1):
