@@ -87,7 +87,18 @@ class LogicalMainStage(PipeModBase):
                     comb += o.eq(popcnt[0])
 
             ###### parity #######
-            # TODO with m.Case(InternalOp.OP_PRTY):
+            with m.Case(InternalOp.OP_PRTY):
+                # strange instruction which XORs together the LSBs of each byte
+                par0 = Signal(8, reset_less=True)
+                par1 = Signal(8, reset_less=True)
+                comb += par0.eq(Cat(a[0] , a[8] , a[16], a[24]).xor())
+                comb += par1.eq(Cat(a[32], a[40], a[48], a[32]).xor())
+                with m.If(op.data_len[3] == 1):
+                    comb += o.eq(par0 ^ par1)
+                with m.Else():
+                    comb += o[0].eq(par0)
+                    comb += o[32].eq(par1)
+
             ###### cntlz #######
             # TODO with m.Case(InternalOp.OP_CNTZ):
             ###### bpermd #######
