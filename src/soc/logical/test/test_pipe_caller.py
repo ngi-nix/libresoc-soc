@@ -187,7 +187,7 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.LOGICAL.value)
+                    self.assertEqual(fn_unit, Function.LOGICAL.value, code)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
                     yield from set_extra_alu_inputs(alu, pdecode2, simulator)
                     yield 
@@ -206,7 +206,7 @@ class TestRunner(FHDLTestCase):
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = simulator.gpr(write_reg_idx).value
                         print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out)
+                        self.assertEqual(expected, alu_out, code)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
                                                             simulator)
 
