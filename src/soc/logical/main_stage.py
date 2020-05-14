@@ -37,12 +37,19 @@ class LogicalMainStage(PipeModBase):
                 comb += self.o.o.eq(self.i.a | self.i.b)
             with m.Case(InternalOp.OP_XOR):
                 comb += self.o.o.eq(self.i.a ^ self.i.b)
+            ###### cmpb #######
+            with m.Case(InternalOp.OP_CMPB):
+                for i in range(8):
+                    slc = slice(i*8, (i+1)*8)
+                    with m.If(self.i.a[slc] == self.i.b[slc]):
+                        comb += self.o.o[slc].eq(Repl(1, 8))
+                    with m.Else():
+                        comb += self.o.o[slc].eq(Repl(0, 8))
+
             ###### popcount #######
             # TODO with m.Case(InternalOp.OP_POPCNT):
             ###### parity #######
             # TODO with m.Case(InternalOp.OP_PRTY):
-            ###### cmpb #######
-            # TODO with m.Case(InternalOp.OP_CMPB):
             ###### cntlz #######
             # TODO with m.Case(InternalOp.OP_CNTZ):
             ###### bpermd #######
