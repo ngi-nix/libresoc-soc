@@ -74,9 +74,19 @@ class Driver(Elaboratable):
         with m.If(o_signed == 0):
             comb += Assert(cr_out[1] == 1)
         with m.Elif(o_signed > 0):
-            comb += Assert(cr_out[2] == 1)
+            # sigh.  see https://bugs.libre-soc.org/show_bug.cgi?id=305#c61
+            # for OP_CMP we do b-a rather than a-b (just like ADD) and
+            # then invert the *test condition*.
+            with m.If(rec.insn_type == InternalOp.OP_CMP):
+                comb += Assert(cr_out[3] == 1)
+            with m.Else():
+                comb += Assert(cr_out[2] == 1)
         with m.Elif(o_signed < 0):
-            comb += Assert(cr_out[3] == 1)
+            # ditto as above
+            with m.If(rec.insn_type == InternalOp.OP_CMP):
+                comb += Assert(cr_out[2] == 1)
+            with m.Else():
+                comb += Assert(cr_out[3] == 1)
 
 
         # Assert that op gets copied from the input to output
