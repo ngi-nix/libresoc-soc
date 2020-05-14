@@ -40,7 +40,7 @@ class Rotator(Elaboratable):
         # input
         self.me = Signal(5, reset_less=True)        # ME field
         self.mb = Signal(5, reset_less=True)        # MB field
-        self.mb_extra = Signal(1, reset_less=True)  # NOT XO field, extra bit of mb in MD-form
+        self.mb_extra = Signal(1, reset_less=True)  # extra bit of mb in MD-form
         self.ra = Signal(64, reset_less=True)       # RA
         self.rs = Signal(64, reset_less=True)       # RS
         self.ra = Signal(64, reset_less=True)       # RA
@@ -100,16 +100,16 @@ class Rotator(Elaboratable):
 
         # mask-begin (mb)
         with m.If(self.clear_left):
+            comb += mb.eq(self.mb)
             with m.If(self.is_32bit):
-                comb += mb.eq(Cat(self.mb, Const(0b01, 2)))
+                comb += mb[5:7].eq(Const(0b01, 2))
             with m.Else():
-                comb += mb.eq(Cat(self.mb, self.mb_extra, Const(0b0, 1)))
+                comb += mb[5:7].eq(Cat(self.mb_extra, Const(0b0, 1)))
         with m.Elif(self.right_shift):
             # this is basically mb = sh + (is_32bit? 32: 0);
+            comb += mb.eq(sh)
             with m.If(self.is_32bit):
-                comb += mb.eq(Cat(sh[0:5], ~sh[5], sh[5]))
-            with m.Else():
-                comb += mb.eq(sh)
+                comb += mb[5:7].eq(Cat(~sh[5], sh[5]))
         with m.Else():
             comb += mb.eq(Cat(Const(0b0, 5), self.is_32bit, Const(0b0, 1)))
 
