@@ -123,11 +123,12 @@ class ALUTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst), initial_regs)
 
     def test_shift_once(self):
-        lst = ["sraw 3, 1, 2"]
+        lst = ["slw 3, 1, 4",
+               "slw 3, 1, 2"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeefcafec0de
-        initial_regs[2] = 53
-        print(initial_regs[1], initial_regs[2])
+        initial_regs[1] = 0x80000000
+        initial_regs[2] = 0x40
+        initial_regs[4] = 0x00
         self.run_tst_program(Program(lst), initial_regs)
 
     def test_rlwinm(self):

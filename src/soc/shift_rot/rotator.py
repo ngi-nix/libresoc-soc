@@ -122,7 +122,7 @@ class Rotator(Elaboratable):
             comb += me.eq(Cat(self.mb, self.mb_extra, Const(0b0, 1)))
         with m.Else():
             # effectively, 63 - sh
-            comb += me.eq(Cat(~self.shift[0:6], self.shift[6]))
+            comb += me.eq(Cat(~sh[0:6], sh[6]))
 
         # Calculate left and right masks
         comb += mr.eq(right_mask(m, mb))

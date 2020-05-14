@@ -37,8 +37,9 @@ class Driver(Elaboratable):
         m.submodules.dut = dut = ShiftRotMainStage(pspec)
 
         # convenience variables
-        a = dut.i.a
-        b = dut.i.b
+        a = dut.i.rs
+        b = dut.i.rb
+        ra = dut.i.ra
         carry_in = dut.i.carry_in
         so_in = dut.i.so
         carry_out = dut.o.carry_out
@@ -67,12 +68,14 @@ class Driver(Elaboratable):
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_SHL):
+                comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
                     comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
                     comb += Assert(o[32:64] == 0)
                 with m.Else():
                     comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
             with m.Case(InternalOp.OP_SHR):
+                comb += Assume(ra == 0)
                 with m.If(~rec.is_signed):
                     with m.If(rec.is_32bit):
                         comb += Assert(o[0:32] == (a[0:32] >> b[0:6]))
