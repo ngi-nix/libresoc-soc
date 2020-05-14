@@ -1,7 +1,7 @@
 # This stage is intended to do most of the work of executing Logical
-# instructions. This is OR, AND and XOR, however input and output
-# stages also perform bit-negation on input(s) and output, as well as
-# carry and overflow generation.
+# instructions. This is OR, AND, XOR, POPCNT, PRTY, CMPB, BPERMD, CNTLZ
+# however input and output stages also perform bit-negation on input(s)
+# and output, as well as carry and overflow generation.
 # This module however should not gate the carry or overflow, that's up
 # to the output stage
 
@@ -41,6 +41,12 @@ class LogicalMainStage(PipeModBase):
             # TODO with m.Case(InternalOp.OP_POPCNT):
             ###### parity #######
             # TODO with m.Case(InternalOp.OP_PRTY):
+            ###### cmpb #######
+            # TODO with m.Case(InternalOp.OP_CMPB):
+            ###### cntlz #######
+            # TODO with m.Case(InternalOp.OP_CNTZ):
+            ###### bpermd #######
+            # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt
 
         ###### sticky overflow and context, both pass-through #####
 

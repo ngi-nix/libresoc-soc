@@ -1,6 +1,6 @@
 # This stage is intended to do most of the work of executing the Arithmetic
 # instructions. This would be like the additions, compares, and sign-extension
-# and shifting, as well as carry and overflow generation. This module
+# as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
@@ -8,7 +8,6 @@ from nmutil.pipemodbase import PipeModBase
 from soc.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
-
 
 
 class ALUMainStage(PipeModBase):
