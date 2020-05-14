@@ -23,13 +23,14 @@ class ALUInputStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        ctx = self.i.ctx
 
         ##### operand A #####
 
         # operand a to be as-is or inverted
         a = Signal.like(self.i.a)
 
-        with m.If(self.i.ctx.op.invert_a):
+        with m.If(ctx.op.invert_a):
             comb += a.eq(~self.i.a)
         with m.Else():
             comb += a.eq(self.i.a)
@@ -40,7 +41,7 @@ class ALUInputStage(PipeModBase):
         ##### carry-in #####
 
         # either copy incoming carry or set to 1/0 as defined by op
-        with m.Switch(self.i.ctx.op.input_carry):
+        with m.Switch(ctx.op.input_carry):
             with m.Case(CryIn.ZERO):
                 comb += self.o.carry_in.eq(0)
             with m.Case(CryIn.ONE):
@@ -51,6 +52,6 @@ class ALUInputStage(PipeModBase):
         ##### sticky overflow and context (both pass-through) #####
 
         comb += self.o.so.eq(self.i.so)
-        comb += self.o.ctx.eq(self.i.ctx)
+        comb += self.o.ctx.eq(ctx)
 
         return m
