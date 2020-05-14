@@ -33,8 +33,12 @@ class ALUOutputStage(PipeModBase):
         is_zero = Signal(reset_less=True)
         is_positive = Signal(reset_less=True)
         is_negative = Signal(reset_less=True)
+        msb_test = Signal(reset_less=True) # set equal to MSB, invert if OP=CMP
         so = Signal(reset_less=True)
 
+        # TODO: if o[63] is XORed with "operand == OP_CMP"
+        # that can be used as a test
+        # see https://bugs.libre-soc.org/show_bug.cgi?id=305#c60
         comb += is_zero.eq(o == 0)
         comb += is_positive.eq(~is_zero & ~o[63])
         comb += is_negative.eq(~is_zero & o[63])
