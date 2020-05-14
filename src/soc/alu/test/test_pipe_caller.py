@@ -6,7 +6,7 @@ import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function)
+from soc.decoder.power_enums import (XER_bits, Function, InternalOp)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
@@ -70,7 +70,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
     yield alu.p.data_i.carry_in.eq(carry)
     so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
     yield alu.p.data_i.so.eq(so)
-    
+
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -134,10 +134,11 @@ class ALUTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_cmp(self):
-        lst = ["cmp cr2, 1, 6, 7"]
+        lst = ["subf. 1, 6, 7",
+               "cmp cr2, 1, 6, 7"]
         initial_regs = [0] * 32
-        initial_regs[6] = random.randint(0, (1<<64)-1)
-        initial_regs[7] = random.randint(0, (1<<64)-1)
+        initial_regs[6] = 0x10
+        initial_regs[7] = 0x05
         self.run_tst_program(Program(lst), initial_regs, {})
 
     def test_extsb(self):
@@ -210,7 +211,7 @@ class TestRunner(FHDLTestCase):
                     self.assertEqual(fn_unit, Function.ALU.value)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
                     yield from set_extra_alu_inputs(alu, pdecode2, simulator)
-                    yield 
+                    yield
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
@@ -240,6 +241,14 @@ class TestRunner(FHDLTestCase):
             cr_expected = sim.crl[0].get_range().value
             cr_actual = yield alu.n.data_o.cr0
             self.assertEqual(cr_expected, cr_actual)
+
+        op = yield dec2.e.insn_type
+        if op == InternalOp.OP_CMP.value:
+            bf = yield dec2.dec.BF
+            cr_actual = yield alu.n.data_o.cr0
+            cr_expected = sim.crl[bf].get_range().value
+            self.assertEqual(cr_expected, cr_actual)
+
 
 
 if __name__ == "__main__":

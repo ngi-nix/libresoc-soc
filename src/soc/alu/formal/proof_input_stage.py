@@ -53,16 +53,22 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
-        with m.If(rec.invert_a):
-            comb += Assert(dut.o.a == ~a)
-        with m.Else():
-            comb += Assert(dut.o.a == a)
+        with m.If(rec.insn_type != InternalOp.OP_CMP):
+            with m.If(rec.invert_a):
+                comb += Assert(dut.o.a == ~a)
+            with m.Else():
+                comb += Assert(dut.o.a == a)
 
-        with m.If(rec.imm_data.imm_ok &
-                  ~(rec.insn_type == InternalOp.OP_RLC)):
-            comb += Assert(dut.o.b == rec.imm_data.imm)
-        with m.Else():
             comb += Assert(dut.o.b == b)
+        with m.Else():
+            with m.If(rec.invert_a):
+                comb += Assert(dut.o.a == ~b)
+            with m.Else():
+                comb += Assert(dut.o.a == b)
+
+            comb += Assert(dut.o.b == a)
+
+            
 
 
 

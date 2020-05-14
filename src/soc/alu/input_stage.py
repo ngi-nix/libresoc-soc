@@ -29,20 +29,22 @@ class ALUInputStage(PipeModBase):
         # operand a to be as-is or inverted
         a = Signal.like(self.i.a)
 
-        with m.If(self.i.ctx.op.invert_a):
-            comb += a.eq(~self.i.a)
+        with m.If(self.i.ctx.op.insn_type != InternalOp.OP_CMP):
+            with m.If(self.i.ctx.op.invert_a):
+                comb += a.eq(~self.i.a)
+            with m.Else():
+                comb += a.eq(self.i.a)
+
+            comb += self.o.a.eq(a)
+            comb += self.o.b.eq(self.i.b)
         with m.Else():
-            comb += a.eq(self.i.a)
+            with m.If(self.i.ctx.op.invert_a):
+                comb += self.o.a.eq(~self.i.b)
+            with m.Else():
+                comb += self.o.a.eq(self.i.b)
 
-        comb += self.o.a.eq(a)
+            comb += self.o.b.eq(self.i.a)
 
-        ##### operand B #####
-
-        # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
-        # remove this, just do self.o.b.eq(self.i.b) and move the
-        # immediate-detection into set_alu_inputs in the unit test
-        # If there's an immediate, set the B operand to that
-        comb += self.o.b.eq(self.i.b)
 
         ##### carry-in #####
 

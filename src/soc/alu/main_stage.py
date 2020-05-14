@@ -31,23 +31,29 @@ class ALUMainStage(PipeModBase):
         comb += is_32bit.eq(self.i.ctx.op.is_32bit)
         comb += sign_bit.eq(Mux(is_32bit, self.i.a[31], self.i.a[63]))
 
+
+
+        # little trick: do the add using only one add (not 2)
+        add_a = Signal(self.i.a.width + 2, reset_less=True)
+        add_b = Signal(self.i.a.width + 2, reset_less=True)
+        add_output = Signal(self.i.a.width + 2, reset_less=True)
+        with m.If((self.i.ctx.op.insn_type == InternalOp.OP_ADD) |
+                  (self.i.ctx.op.insn_type == InternalOp.OP_CMP)):
+            # in bit 0, 1+carry_in creates carry into bit 1 and above
+            comb += add_a.eq(Cat(self.i.carry_in, self.i.a, Const(0, 1)))
+            comb += add_b.eq(Cat(Const(1, 1), self.i.b, Const(0, 1)))
+            comb += add_output.eq(add_a + add_b)
+
         ##########################
         # main switch-statement for handling arithmetic operations
 
         with m.Switch(self.i.ctx.op.insn_type):
             #### CMP, CMPL ####
-            # TODO with m.Case(InternalOp.OP_CMP):
+            with m.Case(InternalOp.OP_CMP):
+                comb += o.eq(add_output[1:-1])
 
             #### add ####
             with m.Case(InternalOp.OP_ADD):
-                # little trick: do the add using only one add (not 2)
-                add_a = Signal(self.i.a.width + 2, reset_less=True)
-                add_b = Signal(self.i.a.width + 2, reset_less=True)
-                add_output = Signal(self.i.a.width + 2, reset_less=True)
-                # in bit 0, 1+carry_in creates carry into bit 1 and above
-                comb += add_a.eq(Cat(self.i.carry_in, self.i.a, Const(0, 1)))
-                comb += add_b.eq(Cat(Const(1, 1), self.i.b, Const(0, 1)))
-                comb += add_output.eq(add_a + add_b)
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.eq(add_output[1:-1])
                 comb += carry_out.eq(add_output[-1])
