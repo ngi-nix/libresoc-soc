@@ -286,6 +286,7 @@ class LDSTCompUnit(Elaboratable):
         addr_ok = Signal(reset_less=True)   # addr ok (from PortInterface)
         ld_ok = Signal(reset_less=True)     # LD out ok from PortInterface
         wr_any = Signal(reset_less=True)    # any write (incl. store)
+        rda_any = Signal(reset_less=True)   # any read for address ops
         rd_done = Signal(reset_less=True)   # all *necessary* operands read
         wr_reset = Signal(reset_less=True)  # final reset condition
 
@@ -344,11 +345,11 @@ class LDSTCompUnit(Elaboratable):
 
         # alu latch
         comb += alu_l.s.eq(reset_i)
-        comb += alu_l.r.eq(alu_ok)
+        comb += alu_l.r.eq(alu_ok & ~rda_any)
 
         # addr latch
-        comb += adr_l.s.eq(alu_ok)
-        comb += adr_l.r.eq(reset_a)
+        comb += adr_l.s.eq(reset_i | ld_ok)
+        sync += adr_l.r.eq(reset_a)
 
         # ld latch
         comb += lod_l.s.eq(reset_i)
@@ -388,7 +389,7 @@ class LDSTCompUnit(Elaboratable):
 
         # and one for the output from the ADD (for the EA)
         addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
-        latchregister(m, alu_o, addr_r, alu_ok, "ea_r")
+        latchregister(m, alu_o, addr_r, alu_l.qn, "ea_r")
 
         # select either immediate or src2 if opcode says so
         op_is_imm = oper_r.imm_data.imm_ok
@@ -420,6 +421,9 @@ class LDSTCompUnit(Elaboratable):
 
         # 2nd operand only needed when immediate is not active
         comb += self.rd.rel[1].eq(src_l.q[1] & busy_o & ~op_is_imm)
+
+        # note when the address-related read "go" signals are active
+        comb += rda_any.eq(self.rd.go[0] | self.rd.go[1])
 
         # alu input valid when 1st and 2nd ops done (or imm not active)
         comb += alu_valid.eq(busy_o & ~(self.rd.rel[0] | self.rd.rel[1]))
@@ -473,7 +477,7 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(self.ad.go)         # "go do address stuff"
+        comb += pi.addr.ok.eq(adr_l.qn | self.ad.go) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)     # no exc, address fine
         # ld - ld gets latched in via lod_l
@@ -538,6 +542,11 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
 
+    yield from wait_for(dut.adr_rel_o)
+    yield dut.ad.go.eq(1)
+    yield
+    yield dut.ad.go.eq(0)
+
     if update:
         yield from wait_for(dut.wr.rel[1])
         yield dut.wr.go.eq(0b10)
@@ -548,15 +557,12 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     else:
         addr = None
 
-    yield from wait_for(dut.adr_rel_o)
-    yield dut.ad.go.eq(1)
     yield from wait_for(dut.sto_rel_o)
     yield dut.go_st_i.eq(1)
     yield
     yield dut.go_st_i.eq(0)
     yield from wait_for(dut.busy_o, False)
     #wait_for(dut.stwd_mem_o)
-    yield dut.ad.go.eq(0)
     yield
     return addr
 
@@ -578,6 +584,11 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False):
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
 
+    yield from wait_for(dut.adr_rel_o)
+    yield dut.ad.go.eq(1)
+    yield
+    yield dut.ad.go.eq(0)
+
     if update:
         yield from wait_for(dut.wr.rel[1])
         yield dut.wr.go.eq(0b10)
@@ -588,10 +599,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False):
     else:
         addr = None
 
-    yield from wait_for(dut.adr_rel_o)
-    yield dut.ad.go.eq(1)
     yield from wait_for(dut.wr.rel[0], test1st=True)
-    yield dut.go_ad_i.eq(0)
     yield dut.wr.go.eq(1)
     yield
     data = yield dut.data_o
