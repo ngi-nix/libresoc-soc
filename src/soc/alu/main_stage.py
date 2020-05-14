@@ -31,8 +31,6 @@ class ALUMainStage(PipeModBase):
         comb += is_32bit.eq(self.i.ctx.op.is_32bit)
         comb += sign_bit.eq(Mux(is_32bit, self.i.a[31], self.i.a[63]))
 
-
-
         # little trick: do the add using only one add (not 2)
         add_a = Signal(self.i.a.width + 2, reset_less=True)
         add_b = Signal(self.i.a.width + 2, reset_less=True)

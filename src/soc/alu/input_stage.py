@@ -29,22 +29,13 @@ class ALUInputStage(PipeModBase):
         # operand a to be as-is or inverted
         a = Signal.like(self.i.a)
 
-        with m.If(self.i.ctx.op.insn_type != InternalOp.OP_CMP):
-            with m.If(self.i.ctx.op.invert_a):
-                comb += a.eq(~self.i.a)
-            with m.Else():
-                comb += a.eq(self.i.a)
-
-            comb += self.o.a.eq(a)
-            comb += self.o.b.eq(self.i.b)
+        with m.If(self.i.ctx.op.invert_a):
+            comb += a.eq(~self.i.a)
         with m.Else():
-            with m.If(self.i.ctx.op.invert_a):
-                comb += self.o.a.eq(~self.i.b)
-            with m.Else():
-                comb += self.o.a.eq(self.i.b)
+            comb += a.eq(self.i.a)
 
-            comb += self.o.b.eq(self.i.a)
-
+        comb += self.o.a.eq(a)
+        comb += self.o.b.eq(self.i.b)
 
         ##### carry-in #####
 

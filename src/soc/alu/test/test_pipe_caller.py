@@ -229,25 +229,26 @@ class TestRunner(FHDLTestCase):
                         print(f"expected {expected:x}, actual: {alu_out:x}")
                         self.assertEqual(expected, alu_out)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator)
+                                                            simulator, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
-    def check_extra_alu_outputs(self, alu, dec2, sim):
+
+    def check_extra_alu_outputs(self, alu, dec2, sim, code):
         rc = yield dec2.e.rc.data
         if rc:
             cr_expected = sim.crl[0].get_range().value
             cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual)
+            self.assertEqual(cr_expected, cr_actual, code)
 
         op = yield dec2.e.insn_type
         if op == InternalOp.OP_CMP.value:
             bf = yield dec2.dec.BF
             cr_actual = yield alu.n.data_o.cr0
             cr_expected = sim.crl[bf].get_range().value
-            self.assertEqual(cr_expected, cr_actual)
+            self.assertEqual(cr_expected, cr_actual, code)
 
 
 

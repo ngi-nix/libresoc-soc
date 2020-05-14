@@ -41,10 +41,8 @@ class Driver(Elaboratable):
                  dut.i.b.eq(b),
                  a.eq(AnyConst(64)),
                  b.eq(AnyConst(64))]
-                      
 
         comb += dut.i.ctx.op.eq(rec)
-
 
         # Assert that op gets copied from the input to output
         for p in rec.ports():
@@ -53,27 +51,15 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
-        with m.If(rec.insn_type != InternalOp.OP_CMP):
-            with m.If(rec.invert_a):
-                comb += Assert(dut.o.a == ~a)
-            with m.Else():
-                comb += Assert(dut.o.a == a)
-
-            comb += Assert(dut.o.b == b)
+        with m.If(rec.invert_a):
+            comb += Assert(dut.o.a == ~a)
         with m.Else():
-            with m.If(rec.invert_a):
-                comb += Assert(dut.o.a == ~b)
-            with m.Else():
-                comb += Assert(dut.o.a == b)
+            comb += Assert(dut.o.a == a)
 
-            comb += Assert(dut.o.b == a)
-
-            
-
-
-
+        comb += Assert(dut.o.b == b)
 
         return m
+
 
 class GTCombinerTestCase(FHDLTestCase):
     def test_formal(self):
