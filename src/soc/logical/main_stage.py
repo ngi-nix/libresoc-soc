@@ -5,12 +5,18 @@
 # This module however should not gate the carry or overflow, that's up
 # to the output stage
 
-from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
+from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.logical.pipe_data import ALUInputData
 from soc.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
+
+def array_of(count, bitwidth):
+    res = []
+    for i in range(count):
+        res.append(Signal(bitwidth, reset_less=True))
+    return res
 
 
 class LogicalMainStage(PipeModBase):
@@ -51,7 +57,46 @@ class LogicalMainStage(PipeModBase):
                         comb += o[slc].eq(Repl(0, 8))
 
             ###### popcount #######
-            # TODO with m.Case(InternalOp.OP_POPCNT):
+            with m.Case(InternalOp.OP_POPCNT):
+                pc2 = array_of(32, 2)
+                pc4 = array_of(16, 3)
+                pc8 = array_of(8, 4)
+                pc16 = array_of(4, 5)
+                pc32 = array_of(2, 6)
+                popcnt = Signal(64, reset_less=True)
+                for i in range(32):
+                    stt, end = i*2, i*2+1
+                    comb += pc2[i].eq(Cat(a[stt], Const(0, 1)) +
+                                      Cat(a[end], Const(0, 1)))
+                for i in range(16):
+                    stt, end = i*2, i*2+1
+                    comb += pc4[i].eq(Cat(pc2[stt], Const(0, 1)) +
+                                      Cat(pc2[end], Const(0, 1)))
+                for i in range(8):
+                    stt, end = i*2, i*2+1
+                    comb += pc8[i].eq(Cat(pc4[stt], Const(0, 1)) +
+                                      Cat(pc4[end], Const(0, 1)))
+                for i in range(4):
+                    stt, end = i*2, i*2+1
+                    comb += pc16[i].eq(Cat(pc8[stt], Const(0, 1)) +
+                                       Cat(pc8[end], Const(0, 1)))
+                for i in range(2):
+                    stt, end = i*2, i*2+1
+                    comb += pc32[i].eq(Cat(pc16[stt], Const(0, 1)) +
+                                       Cat(pc16[end], Const(0, 1)))
+                with m.If(self.i.ctx.op.data_len[2:4] == 0b00):
+                    # popcntb
+                    for i in range(8):
+                        comb += popcnt[i*8:i*8+4].eq(pc8[i])
+                with m.Elif(self.i.ctx.op.data_len[3] == 0):
+                    # popcntw
+                    for i in range(2):
+                        comb += popcnt[i*32:i*32+5].eq(pc32[i])
+                with m.Else():
+                    comb += popcnt.eq(Cat(pc32[0], Const(0, 1)) +
+                                      Cat(pc32[1], Const(0, 1)))
+                comb += o.eq(popcnt)
+
             ###### parity #######
             # TODO with m.Case(InternalOp.OP_PRTY):
             ###### cntlz #######
