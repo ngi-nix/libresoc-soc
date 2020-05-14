@@ -39,13 +39,16 @@ def get_signal_name(name):
         name = "is_" + name
     return name.lower().replace(' ', '_')
 
-
+# this corresponds to which Function Unit (pipeline-with-Reservation-Stations)
+# is to process and guard the operation.  they are roughly divided by having
+# the same register input/output signature (X-Form, etc.)
 @unique
 class Function(Enum):
     NONE = 0
     ALU = 1
     LDST = 2
     SHIFT_ROT = 3
+    LOGICAL = 4
 
 
 @unique
