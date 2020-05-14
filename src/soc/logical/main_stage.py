@@ -32,12 +32,12 @@ class LogicalMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        a, b, o = self.i.a, self.i.b, self.o.o
+        op, a, b, o = self.i.ctx.op, self.i.a, self.i.b, self.o.o
 
         ##########################
         # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
 
-        with m.Switch(self.i.ctx.op.insn_type):
+        with m.Switch(op.insn_type):
 
             ###### AND, OR, XOR #######
             with m.Case(InternalOp.OP_AND):
@@ -74,11 +74,11 @@ class LogicalMainStage(PipeModBase):
                         comb += dst[i].eq(Cat(src[stt], Const(0, 1)) +
                                           Cat(src[end], Const(0, 1)))
                 # decode operation length
-                with m.If(self.i.ctx.op.data_len[2:4] == 0b00):
+                with m.If(op.data_len[2:4] == 0b00):
                     # popcntb - pack 8x 4-bit answers into output
                     for i in range(8):
                         comb += o[i*8:i*8+4].eq(pc8[i])
-                with m.Elif(self.i.ctx.op.data_len[3] == 0):
+                with m.Elif(op.data_len[3] == 0):
                     # popcntw - pack 2x 5-bit answers into output
                     for i in range(2):
                         comb += o[i*32:i*32+5].eq(pc32[i])
