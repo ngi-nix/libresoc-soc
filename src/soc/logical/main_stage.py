@@ -51,15 +51,14 @@ class LogicalMainStage(PipeModBase):
             with m.Case(InternalOp.OP_CMPB):
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
-                    with m.If(a[slc] == b[slc]):
-                        comb += o[slc].eq(Repl(1, 8))
-                    with m.Else():
-                        comb += o[slc].eq(Repl(0, 8))
+                    comb += o[slc].eq(Repl(a[slc] == b[slc], 8))
 
             ###### popcount #######
             with m.Case(InternalOp.OP_POPCNT):
                 # starting from a, perform successive addition-reductions
+                # creating arrays big enough to store the sum, each time
                 pc = [a]
+                # QTY32 2-bit (to take 2x 1-bit sums) etc.
                 work = [(32, 2), (16, 3), (8, 4), (4, 5), (2, 6), (1, 6)]
                 for l, b in work:
                     pc.append(array_of(l, b))
