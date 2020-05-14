@@ -1,6 +1,5 @@
-# This stage is intended to do most of the work of executing the ALU
-# instructions. This would be like the additions, logical operations,
-# and shifting, as well as carry and overflow generation. This module
+# This stage is intended to do most of the work of executing shift
+# instructions, as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
@@ -36,7 +35,7 @@ class ShiftRotMainStage(PipeModBase):
         md_fields = self.fields.instrs['MD']
         mb = Signal(m_fields['MB'][0:-1].shape())
         me = Signal(m_fields['ME'][0:-1].shape())
-        mb_extra = Signal(1)
+        mb_extra = Signal(1, reset_less=True)
         comb += mb.eq(m_fields['MB'][0:-1])
         comb += me.eq(m_fields['ME'][0:-1])
         comb += mb_extra.eq(md_fields['mb'][0:-1][0])
@@ -55,27 +54,17 @@ class ShiftRotMainStage(PipeModBase):
         ]
 
         # instruction rotate type
+        mode = Signal(3, reset_less=True)
         with m.Switch(self.i.ctx.op.insn_type):
-            with m.Case(InternalOp.OP_SHL):
-                comb += [rotator.right_shift.eq(0),
-                        rotator.clear_left.eq(0),
-                        rotator.clear_right.eq(0)]
-            with m.Case(InternalOp.OP_SHR):
-                comb += [rotator.right_shift.eq(1),
-                        rotator.clear_left.eq(0),
-                        rotator.clear_right.eq(0)]
-            with m.Case(InternalOp.OP_RLC):
-                comb += [rotator.right_shift.eq(0),
-                        rotator.clear_left.eq(1),
-                        rotator.clear_right.eq(1)]
-            with m.Case(InternalOp.OP_RLCL):
-                comb += [rotator.right_shift.eq(0),
-                        rotator.clear_left.eq(1),
-                        rotator.clear_right.eq(0)]
-            with m.Case(InternalOp.OP_RLCR):
-                comb += [rotator.right_shift.eq(0),
-                        rotator.clear_left.eq(0),
-                        rotator.clear_right.eq(1)]
+            with m.Case(InternalOp.OP_SHL):  comb += mode.eq(0b000)
+            with m.Case(InternalOp.OP_SHR):  comb += mode.eq(0b001) # R-shift
+            with m.Case(InternalOp.OP_RLC):  comb += mode.eq(0b110) # clear LR
+            with m.Case(InternalOp.OP_RLCL): comb += mode.eq(0b010) # clear L
+            with m.Case(InternalOp.OP_RLCR): comb += mode.eq(0b100) # clear R
+
+        comb += Cat(rotator.right_shift,
+                    rotator.clear_left,
+                    rotator.clear_right).eq(mode)
                 
         # outputs from the microwatt rotator module
         comb += [self.o.o.eq(rotator.result_o),
