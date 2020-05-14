@@ -48,6 +48,10 @@ class ALUMainStage(PipeModBase):
         with m.Switch(self.i.ctx.op.insn_type):
             #### CMP, CMPL ####
             with m.Case(InternalOp.OP_CMP):
+                # this is supposed to be inverted (b-a, not a-b)
+                # however we have a trick: instead of adding either 2x 64-bit
+                # MUXes to invert a and b, or messing with a 64-bit output,
+                # swap +ve and -ve test in the *output* stage using an XOR gate
                 comb += o.eq(add_output[1:-1])
 
             #### add ####
