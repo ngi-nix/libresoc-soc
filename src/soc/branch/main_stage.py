@@ -14,8 +14,7 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 def br_ext(bd):
-    bd_sgn = bd[-1]
-    return Cat(Const(0, 2), bd, Repl(bd_sgn, 64-(bd.width + 2)))
+    return Cat(Const(0, 2), bd, Repl(bd[-1], 64-(bd.width + 2)))
 
 
 class BranchMainStage(PipeModBase):
@@ -46,7 +45,6 @@ class BranchMainStage(PipeModBase):
         br_imm_addr = Signal(64, reset_less=True)
         br_addr = Signal(64, reset_less=True)
         br_taken = Signal(reset_less=True)
-        comb += br_taken.eq(0)
 
         # Handle absolute or relative branches
         with m.If(aa):
@@ -70,7 +68,6 @@ class BranchMainStage(PipeModBase):
 
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
-        comb += bc_taken.eq(0)
         with m.If(bo[2]):
             comb += bc_taken.eq((cr_bit == bo[3]) | bo[4])
 
