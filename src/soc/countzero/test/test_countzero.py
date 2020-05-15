@@ -1,5 +1,6 @@
 # https://github.com/antonblanchard/microwatt/blob/master/countzero_tb.vhdl
 from nmigen import Module, Signal
+from nmigen.cli import rtlil
 from nmigen.back.pysim import Simulator, Delay
 from nmigen.test.utils import FHDLTestCase
 import unittest
@@ -95,5 +96,10 @@ class ZeroCounterTestCase(FHDLTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
 
+    dut = ZeroCounter()
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("countzero.il", "w") as f:
+        f.write(vl)
+
+    unittest.main()
