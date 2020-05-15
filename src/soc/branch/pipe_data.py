@@ -22,10 +22,11 @@ class BranchInputData(IntegerData):
         # We need both lr and spr for bclr and bcctrl. Bclr can read
         # from both ctr and lr, and bcctrl can write to both ctr and
         # lr.
-        self.lr = Signal(64, reset_less=True)
-        self.spr = Signal(64, reset_less=True)
-        self.cr = Signal(32, reset_less=True)
-        self.cia = Signal(64, reset_less=True)
+        self.lr = Signal(64, reset_less=True)  # Link Register
+        self.spr = Signal(64, reset_less=True) # CTR
+        self.cr = Signal(32, reset_less=True)  # Condition Register(s) CR0-7
+        self.cia = Signal(64, reset_less=True) # Current Instruction Address
+        self.tar = Signal(64, reset_less=True) # Target Address Register
 
     def __iter__(self):
         yield from super().__iter__()
@@ -33,10 +34,11 @@ class BranchInputData(IntegerData):
         yield self.spr
         yield self.cr
         yield self.cia
+        yield self.tar
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr),
+        return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr), self.tar.eq(i.tar),
                       self.cr.eq(i.cr), self.cia.eq(i.cia)]
 
 
