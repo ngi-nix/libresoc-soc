@@ -8,7 +8,7 @@ from nmigen.cli import rtlil
 
 from soc.alu.input_stage import ALUInputStage
 from soc.alu.pipe_data import ALUPipeSpec
-from soc.alu.alu_input_record import CompALUOpSubset
+from soc.branch.br_input_record import CompBROpSubset
 from soc.decoder.power_enums import InternalOp
 import unittest
 
@@ -24,7 +24,7 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        rec = CompALUOpSubset()
+        rec = CompBROpSubset()
         recwidth = 0
         # Setup random inputs for dut.op
         for p in rec.ports():
@@ -41,10 +41,8 @@ class Driver(Elaboratable):
                  dut.i.b.eq(b),
                  a.eq(AnyConst(64)),
                  b.eq(AnyConst(64))]
-                      
 
         comb += dut.i.ctx.op.eq(rec)
-
 
         # Assert that op gets copied from the input to output
         for p in rec.ports():
@@ -63,9 +61,6 @@ class Driver(Elaboratable):
             comb += Assert(dut.o.b == rec.imm_data.imm)
         with m.Else():
             comb += Assert(dut.o.b == b)
-
-
-
 
         return m
 
