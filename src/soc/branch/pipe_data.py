@@ -15,6 +15,22 @@ class IntegerData:
     def eq(self, i):
         return [self.ctx.eq(i.ctx)]
 
+"""
+    def op_b(LR):
+    def op_ba(LR):
+    def op_bl(LR):
+    def op_bla(LR):
+    def op_bc(LR, CR, CTR):
+    def op_bca(LR, CR, CTR):
+    def op_bcl(LR, CR, CTR):
+    def op_bcla(LR, CR, CTR):
+    def op_bclr(LR, CR, CTR):
+    def op_bclrl(LR, CR, CTR):
+    def op_bcctr(LR, CR, CTR):
+    def op_bcctrl(LR, CR, CTR):
+    def op_bctar(LR, CR, CTR, TAR):
+    def op_bctarl(LR, CR, CTR, TAR):
+"""
 
 class BranchInputData(IntegerData):
     def __init__(self, pspec):
