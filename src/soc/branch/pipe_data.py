@@ -36,7 +36,7 @@ class BranchInputData(IntegerData):
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.lr.eq(i.lr), self.spr.eq(i.lr),
+        return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr),
                       self.cr.eq(i.cr), self.cia.eq(i.cia)]
 
 
