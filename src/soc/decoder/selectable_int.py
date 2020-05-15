@@ -149,6 +149,8 @@ class FieldSelectableIntTestCase(unittest.TestCase):
 
 class SelectableInt:
     def __init__(self, value, bits):
+        if isinstance(value, SelectableInt):
+            value = value.value
         mask = (1 << bits) - 1
         self.value = value & mask
         self.bits = bits

@@ -264,6 +264,17 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(2), SelectableInt(16, 64))
             self.assertEqual(sim.gpr(4), SelectableInt(8, 64))
+
+    def test_cmpeqb(self):
+        lst = ["cmpeqb cr0, 2, 1",
+               "cmpeqb cr1, 3, 1"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0102030405060708
+        initial_regs[2] = 0x04
+        initial_regs[3] = 0x10
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+        
         
 
     def test_mtcrf(self):

@@ -1,5 +1,5 @@
---- comparefixed.py.orig	2020-05-07 14:19:47.384535384 -0400
-+++ comparefixed.py	2020-05-07 14:19:11.220806542 -0400
+--- comparefixed.py.orig	2020-05-15 10:02:00.087668937 -0400
++++ comparefixed.py	2020-05-15 12:32:36.834556205 -0400
 @@ -21,7 +21,7 @@
              c = SelectableInt(value=0x2, bits=3)
          else:
@@ -36,7 +36,7 @@
          return (CR,)
  
      @inject()
-@@ -85,10 +85,10 @@
+@@ -85,23 +85,22 @@
          else:
              in_range = le(src21lo, src1) & le(src1, src21hi) | le(src22lo, src1) & le(
                  src1, src22hi)
@@ -51,7 +51,11 @@
          return (CR,)
  
      @inject()
-@@ -98,10 +98,10 @@
+-    def op_cmpeqb(self, RB, CR):
+-        src1 = GPR[RA]
+-        src1 = src1[56:64]
++    def op_cmpeqb(self, RA, RB, CR):
++        src1 = RA[56:64]
          match = eq(src1, RB[0:8]) | eq(src1, RB[8:16]) | eq(src1, RB[16:24]) | eq(src1,
              RB[24:32]) | eq(src1, RB[32:40]) | eq(src1, RB[40:48]) | eq(src1, RB[48:56]
              ) | eq(src1, RB[56:64])
@@ -66,3 +70,12 @@
          return (CR,)
  
      comparefixed_instrs = {}
+@@ -136,7 +135,7 @@
+                 form='X',
+                 asmregs=[['BF', 'L', 'RA', 'RB']])
+     comparefixed_instrs['cmpeqb'] = instruction_info(func=op_cmpeqb,
+-                read_regs=OrderedSet(['RB']),
++                read_regs=OrderedSet(['RA', 'RB']),
+                 uninit_regs=OrderedSet(), write_regs=OrderedSet(['CR']),
+                 special_regs=OrderedSet(['CR']), op_fields=OrderedSet(['BF']),
+                 form='X',
