@@ -164,7 +164,7 @@ class TestRunner(FHDLTestCase):
                     print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    #self.assertEqual(fn_unit, Function.BRANCH.value, code)
+                    self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield 
                     yield
                     opname = code.split(' ')[0]
