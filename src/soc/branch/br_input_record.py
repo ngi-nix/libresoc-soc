@@ -31,7 +31,6 @@ class CompBROpSubset(Record):
                   ('output_cr', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
-                  ('cia', 64),
                   ('insn', 32),
                   ('byte_reverse', 1),
                   ('sign_extend', 1))
@@ -52,7 +51,6 @@ class CompBROpSubset(Record):
         self.output_cr.reset_less = True
         self.is_32bit.reset_less = True
         self.is_signed.reset_less = True
-        self.cia.reset_less = True
         self.byte_reverse.reset_less = True
         self.sign_extend.reset_less = True
 
@@ -78,7 +76,6 @@ class CompBROpSubset(Record):
                 self.output_cr,
                 self.is_32bit,
                 self.is_signed,
-                self.cia,
                 self.byte_reverse,
                 self.sign_extend,
         ]
