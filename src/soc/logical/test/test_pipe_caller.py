@@ -144,7 +144,6 @@ class LogicalTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    @unittest.skip("broken")
     def test_popcnt(self):
         insns = ["popcntb", "popcntw", "popcntd"]
         for i in range(10):
