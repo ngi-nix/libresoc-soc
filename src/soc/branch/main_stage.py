@@ -77,9 +77,10 @@ class BranchMainStage(PipeModBase):
             comb += self.o.spr.data.eq(ctr)
             comb += self.o.spr.ok.eq(1)
             ctr_eq_zero = Signal(reset_less=True)
-            with m.If(bo[3:4] == 0b00):
+            comb += ctr_eq_zero.eq(ctr == 0)
+            with m.If(bo[3:5] == 0b00):
                 comb += bc_taken.eq(~cr_bit & (ctr_eq_zero == bo[1]))
-            with m.Elif(bo[3:4] == 0b01):
+            with m.Elif(bo[3:5] == 0b01):
                 comb += bc_taken.eq(cr_bit & (ctr_eq_zero == bo[1]))
             with m.Elif(bo[4] == 1):
                 comb += bc_taken.eq(ctr_eq_zero == bo[1])
