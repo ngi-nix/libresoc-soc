@@ -216,6 +216,11 @@ class SelectableInt:
         assert b.bits == self.bits
         return SelectableInt(self.value ^ b.value, self.bits)
 
+    def __rxor__(self, b):
+        b = check_extsign(self, b)
+        assert b.bits == self.bits
+        return SelectableInt(self.value ^ b.value, self.bits)
+
     def __invert__(self):
         return SelectableInt(~self.value, self.bits)
 
