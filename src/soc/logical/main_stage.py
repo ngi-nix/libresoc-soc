@@ -11,6 +11,11 @@ from soc.logical.pipe_data import ALUInputData
 from soc.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
+from soc.countzero.countzero import ZeroCounter
+
+from soc.decoder.power_fields import DecodeFields
+from soc.decoder.power_fieldsn import SignalBitRange
+
 
 def array_of(count, bitwidth):
     res = []
@@ -22,6 +27,8 @@ def array_of(count, bitwidth):
 class LogicalMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
+        self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
+        self.fields.create_specs()
 
     def ispec(self):
         return ALUInputData(self.pspec)
@@ -101,7 +108,15 @@ class LogicalMainStage(PipeModBase):
                     comb += o[32].eq(par1)
 
             ###### cntlz #######
-            # TODO with m.Case(InternalOp.OP_CNTZ):
+            with m.Case(InternalOp.OP_CNTZ):
+                x_fields = self.fields.instrs['X']
+                XO = Signal(x_fields['XO'][0:-1].shape())
+                m.submodules.countz = countz = ZeroCounter()
+                comb += countz.rs_i.eq(a)
+                comb += countz.is_32bit_i.eq(op.is_32bit)
+                comb += countz.count_right_i.eq(XO[-1])
+                comb += o.eq(countz.result_o)
+
             ###### bpermd #######
             # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt
 
