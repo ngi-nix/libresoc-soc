@@ -22,7 +22,7 @@
     op_bctar   CR, LR,    CTR,   TAR
     op_bctarl  CR, LR,    CTR,   TAR
 
-    op_sc      xx  xx     MSR    xx
+    op_sc      xx  xx     xx     MSR
     op_scv     xx  LR,    SRR1,  MSR
     op_rfscv   xx  LR,    CTR,   MSR
     op_rfid    xx  SRR0,  SRR1,  MSR
