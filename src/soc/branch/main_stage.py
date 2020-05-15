@@ -34,11 +34,13 @@ class BranchMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        nia_out, lr = self.o.nia_out, self.o.lr
 
+        # obtain relevant instruction fields
         i_fields = self.fields.instrs['I']
         lk = Signal(i_fields['LK'][0:-1].shape())
-        comb += lk.eq(i_fields['LK'][0:-1])
         aa = Signal(i_fields['AA'][0:-1].shape())
+        comb += lk.eq(i_fields['LK'][0:-1])
         comb += aa.eq(i_fields['AA'][0:-1])
 
         br_imm_addr = Signal(64, reset_less=True)
@@ -52,13 +54,14 @@ class BranchMainStage(PipeModBase):
         with m.Else():
             comb += br_addr.eq(br_imm_addr + self.i.cia)
 
-
-        # handle conditional branches (BO and BI are same for BC and
-        # BCREG)
+        # fields for conditional branches (BO and BI are same for BC and BCREG)
+        # NOTE: here, BO and BI we would like be treated as CR regfile
+        # selectors (similar to RA, RB, RS, RT).  see comment here:
+        # https://bugs.libre-soc.org/show_bug.cgi?id=313#c2
         b_fields = self.fields.instrs['B']
         bo = Signal(b_fields['BO'][0:-1].shape())
-        comb += bo.eq(b_fields['BO'][0:-1])
         bi = Signal(b_fields['BI'][0:-1].shape())
+        comb += bo.eq(b_fields['BO'][0:-1])
         comb += bi.eq(b_fields['BI'][0:-1])
 
         # The bit of CR selected by BI
@@ -85,15 +88,18 @@ class BranchMainStage(PipeModBase):
                 comb += br_imm_addr.eq(br_ext(bd))
                 comb += br_taken.eq(bc_taken)
 
-        comb += self.o.nia_out.data.eq(br_addr)
-        comb += self.o.nia_out.ok.eq(br_taken)
+        ###### output next instruction address #####
+
+        comb += nia_out.data.eq(br_addr)
+        comb += nia_out.ok.eq(br_taken)
+
+        ###### link register #####
 
         with m.If(lk):
-            comb += self.o.lr.data.eq(self.i.cia + 4)
+            comb += lr.data.eq(self.i.cia + 4)
+        comb += lr.ok.eq(lk)
 
-        ###### link register and context #####
-
+        ###### and context #####
         comb += self.o.ctx.eq(self.i.ctx)
-        comb += self.o.lr.ok.eq(lk)
 
         return m
