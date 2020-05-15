@@ -121,7 +121,7 @@ class TestRunner(FHDLTestCase):
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 index = (simulator.pc.CIA.value - initial_cia)//4
-                while index < len(instructions):
+                while index < len(instructions) and index >= 0:
                     print(index)
                     ins, code = instructions[index]
 
