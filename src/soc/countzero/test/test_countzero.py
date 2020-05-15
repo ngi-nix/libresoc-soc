@@ -13,7 +13,7 @@ class ZeroCounterTestCase(FHDLTestCase):
         m.submodules.dut = dut = ZeroCounter()
 
         sim = Simulator(m)
-        sim.add_clock(1e-6)
+        # sim.add_clock(1e-6)
 
         def process():
             print("test zero input")
@@ -42,6 +42,18 @@ class ZeroCounterTestCase(FHDLTestCase):
             # report "bad cntlzw 0 = " & to_hstring(result);
             assert(result == 0x20)
             # TODO next tests
+
+            yield dut.rs_i.eq(0b00010000)
+            yield dut.is_32bit_i.eq(0)
+            yield dut.count_right_i.eq(0)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 4, "result %d" % result
+
+            yield dut.count_right_i.eq(1)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 59, "result %d" % result
 
         sim.add_process(process)  # or sim.add_sync_process(process), see below
 
