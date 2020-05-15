@@ -151,6 +151,14 @@ class ALUTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
+    def test_cmpeqb(self):
+        lst = ["cmpeqb cr0, 1, 2"]
+        for i in range(20):
+            initial_regs = [0] * 32
+            initial_regs[1] = i
+            initial_regs[2] = 0x01030507090b0d0f11
+            self.run_tst_program(Program(lst), initial_regs, {})
+
     def test_ilang(self):
         rec = CompALUOpSubset()
 
@@ -244,7 +252,8 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(cr_expected, cr_actual, code)
 
         op = yield dec2.e.insn_type
-        if op == InternalOp.OP_CMP.value:
+        if op == InternalOp.OP_CMP.value or \
+           op == InternalOp.OP_CMPEQB.value:
             bf = yield dec2.dec.BF
             cr_actual = yield alu.n.data_o.cr0
             cr_expected = sim.crl[bf].get_range().value

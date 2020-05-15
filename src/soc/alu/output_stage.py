@@ -40,6 +40,7 @@ class ALUOutputStage(PipeModBase):
         # TODO: if o[63] is XORed with "operand == OP_CMP"
         # that can be used as a test
         # see https://bugs.libre-soc.org/show_bug.cgi?id=305#c60
+
         comb += is_cmp.eq(self.i.ctx.op.insn_type == InternalOp.OP_CMP)
         comb += msb_test.eq(o[-1] ^ is_cmp)
         comb += is_zero.eq(o == 0)
@@ -48,7 +49,11 @@ class ALUOutputStage(PipeModBase):
         comb += so.eq(self.i.so | self.i.ov)
 
         comb += self.o.o.eq(o)
-        comb += self.o.cr0.eq(Cat(so, is_zero, is_positive, is_negative))
+        with m.If(self.i.ctx.op.insn_type != InternalOp.OP_CMPEQB):
+            comb += self.o.cr0.eq(Cat(so, is_zero, is_positive, is_negative))
+        with m.Else():
+            comb += self.o.cr0.eq(self.i.cr0)
+            
         comb += self.o.so.eq(so)
 
         comb += self.o.ctx.eq(self.i.ctx)

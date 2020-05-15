@@ -68,6 +68,15 @@ class ALUMainStage(PipeModBase):
                     comb += o.eq(Cat(self.i.a[0:16], Repl(self.i.a[15], 64-16)))
                 with m.If(self.i.ctx.op.data_len == 4):
                     comb += o.eq(Cat(self.i.a[0:32], Repl(self.i.a[31], 64-32)))
+            with m.Case(InternalOp.OP_CMPEQB):
+                eqs = Signal(8, reset_less=True)
+                src1 = Signal(8, reset_less=True)
+                comb += src1.eq(self.i.a[0:8])
+                for i in range(8):
+                    comb += eqs[i].eq(src1 == self.i.b[8*i:8*(i+1)])
+                comb += self.o.cr0.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
+                    
+                
 
         ###### sticky overflow and context, both pass-through #####
 
