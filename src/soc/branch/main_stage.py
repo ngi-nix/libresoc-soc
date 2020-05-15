@@ -83,11 +83,10 @@ class BranchMainStage(PipeModBase):
                 comb += bd.eq(b_fields['BD'][0:-1])
                 bd_sgn = bd[-1]
 
-                comb += branch_imm_addr.eq(
+                comb += br_imm_addr.eq(
                     Cat(Const(0, 2), bd,
                         Repl(bd_sgn, 64-(bd.width + 2))))
-                comb += branch_taken.eq(bc_taken)
-
+                comb += br_taken.eq(bc_taken)
 
         comb += self.o.nia_out.data.eq(br_addr)
         comb += self.o.nia_out.ok.eq(br_taken)
