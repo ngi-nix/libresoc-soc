@@ -274,6 +274,10 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[3] = 0x10
         with Program(lst) as program:
             sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.crl[0].get_range().value,
+                             SelectableInt(4, 4))
+            self.assertEqual(sim.crl[1].get_range().value,
+                             SelectableInt(0, 4))
         
         
 
