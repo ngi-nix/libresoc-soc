@@ -100,7 +100,7 @@ class LogicalMainStage(PipeModBase):
                 par0 = Signal(reset_less=True)
                 par1 = Signal(reset_less=True)
                 comb += par0.eq(Cat(a[0] , a[8] , a[16], a[24]).xor())
-                comb += par1.eq(Cat(a[32], a[40], a[48], a[32]).xor())
+                comb += par1.eq(Cat(a[32], a[40], a[48], a[56]).xor())
                 with m.If(op.data_len[3] == 1):
                     comb += o.eq(par0 ^ par1)
                 with m.Else():
