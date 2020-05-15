@@ -30,6 +30,12 @@ class IntegerData:
     def op_bcctrl(LR, CR, CTR):
     def op_bctar(LR, CR, CTR, TAR):
     def op_bctarl(LR, CR, CTR, TAR):
+
+    def op_sc(           MSR):
+    def op_scv(LR, SRR1, MSR):
+    def op_rfscv(LR, CTR, MSR):
+    def op_rfid(SRR0, SRR1, MSR):
+    def op_hrfid(HSRR0, HSRR1, MSR):
 """
 
 class BranchInputData(IntegerData):
