@@ -74,16 +74,20 @@ class BranchMainStage(PipeModBase):
         ######## main switch statement ########
 
         with m.Switch(op.insn_type):
+            #### branch ####
             with m.Case(InternalOp.OP_B):
                 li = Signal(i_fields['LI'][0:-1].shape())
                 comb += li.eq(i_fields['LI'][0:-1])
                 comb += br_imm_addr.eq(br_ext(li))
                 comb += br_taken.eq(1)
+            #### branch conditional ####
             with m.Case(InternalOp.OP_BC):
                 bd = Signal(b_fields['BD'][0:-1].shape())
                 comb += bd.eq(b_fields['BD'][0:-1])
                 comb += br_imm_addr.eq(br_ext(bd))
                 comb += br_taken.eq(bc_taken)
+            #### branch conditional reg ####
+            # TODOwith m.Case(InternalOp.OP_BCREG):
 
         ###### output next instruction address #####
 
