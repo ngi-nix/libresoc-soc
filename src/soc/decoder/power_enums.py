@@ -50,6 +50,7 @@ class Function(Enum):
     SHIFT_ROT = 3
     LOGICAL = 4
     BRANCH = 5
+    CR = 6
 
 
 @unique
