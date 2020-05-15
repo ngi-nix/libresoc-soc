@@ -69,7 +69,7 @@ class BranchTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst), initial_regs)
 
     def test_b(self):
-        lst = ["b 0x1234"]
+        lst = ["bl 0x1234"]
         initial_regs = [0] * 32
         self.run_tst_program(Program(lst), initial_regs)
 
@@ -131,7 +131,7 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield branch.p.data_i.nia.eq(simulator.pc.CIA.value)
+                    yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     #self.assertEqual(fn_unit, Function.BRANCH.value, code)
@@ -158,6 +158,13 @@ class TestRunner(FHDLTestCase):
         if branch_taken:
             branch_addr = yield branch.n.data_o.nia_out.data
             self.assertEqual(branch_addr, sim.pc.CIA.value)
+
+        lk = yield dec2.e.lk
+        branch_lk = yield branch.n.data_o.lr.ok
+        self.assertEqual(lk, branch_lk)
+        if lk:
+            branch_lr = yield branch.n.data_o.lr.data
+            self.assertEqual(sim.spr['LR'], branch_lr)
 
 
 if __name__ == "__main__":

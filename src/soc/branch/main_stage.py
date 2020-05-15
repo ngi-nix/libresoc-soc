@@ -49,15 +49,11 @@ class BranchMainStage(PipeModBase):
         branch_taken = Signal(reset_less=True)
         comb += branch_taken.eq(0)
 
+        # Handle absolute or relative branches
         with m.If(aa):
             comb += branch_addr.eq(branch_imm_addr)
         with m.Else():
-            comb += branch_addr.eq(branch_imm_addr + self.i.nia)
-            
-        
-
-        ##########################
-        # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
+            comb += branch_addr.eq(branch_imm_addr + self.i.cia)
 
         with m.Switch(op.insn_type):
             with m.Case(InternalOp.OP_B):
@@ -68,6 +64,12 @@ class BranchMainStage(PipeModBase):
 
         comb += self.o.nia_out.data.eq(branch_addr)
         comb += self.o.nia_out.ok.eq(branch_taken)
+
+        with m.If(lk):
+            comb += self.o.lr.data.eq(self.i.cia + 4)
+            comb += self.o.lr.ok.eq(1)
+        with m.Else():
+            comb += self.o.lr.ok.eq(0)
 
 
         ###### sticky overflow and context, both pass-through #####

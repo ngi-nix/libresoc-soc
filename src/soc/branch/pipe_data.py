@@ -25,19 +25,19 @@ class BranchInputData(IntegerData):
         self.lr = Signal(64, reset_less=True)
         self.spr = Signal(64, reset_less=True)
         self.cr = Signal(32, reset_less=True)
-        self.nia = Signal(64, reset_less=True)
+        self.cia = Signal(64, reset_less=True)
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.lr
         yield self.spr
         yield self.cr
-        yield self.nia
+        yield self.cia
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.lr.eq(i.lr), self.spr.eq(i.lr),
-                      self.cr.eq(i.cr), self.nia.eq(i.nia)]
+                      self.cr.eq(i.cr), self.cia.eq(i.cia)]
 
 
 class BranchOutputData(IntegerData):
