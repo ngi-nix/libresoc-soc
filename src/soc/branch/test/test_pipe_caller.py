@@ -63,8 +63,8 @@ class LogicalTestCase(FHDLTestCase):
         tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
         test_data.append(tc)
 
-    def test_cmpb(self):
-        lst = ["b 0x1234"]
+    def test_ba(self):
+        lst = ["ba 0x1234"]
         initial_regs = [0] * 32
         self.run_tst_program(Program(lst), initial_regs)
 
@@ -95,11 +95,11 @@ class TestRunner(FHDLTestCase):
         rec = CompALUOpSubset()
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
-        m.submodules.alu = alu = BranchBasePipe(pspec)
+        m.submodules.branch = branch = BranchBasePipe(pspec)
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
-        comb += alu.n.ready_i.eq(1)
+        comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
+        comb += branch.p.valid_i.eq(1)
+        comb += branch.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
@@ -127,21 +127,28 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield 
+                    yield
                     opname = code.split(' ')[0]
+                    prev_nia = simulator.pc.NIA.value
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
+
+                    yield from self.assert_outputs(branch, pdecode2,
+                                                   simulator, prev_nia)
 
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
-    def check_extra_alu_outputs(self, alu, dec2, sim):
-        rc = yield dec2.e.rc.data
-        if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual)
+
+    def assert_outputs(self, branch, dec2, sim, prev_nia):
+        branch_taken = yield branch.n.data_o.nia_out.ok
+        sim_branch_taken = prev_nia != sim.pc.CIA
+        self.assertEqual(branch_taken, sim_branch_taken)
+        if branch_taken:
+            branch_addr = yield branch.n.data_o.nia_out.data
+            self.assertEqual(branch_addr, sim.pc.CIA.value)
 
 
 if __name__ == "__main__":
