@@ -5,7 +5,7 @@ from nmigen.cli import main
 
 
 def or4(a, b, c, d):
-    return Cat(a != 0, b != 0, c != 0, d != 0)
+    return Cat(a.any(), b.any(), c.any(), d.any())
 
 
 class IntermediateResult(Record):
@@ -19,10 +19,10 @@ class IntermediateResult(Record):
 
 class ZeroCounter(Elaboratable):
     def __init__(self):
-        self.rs_i = Signal(64)
-        self.count_right_i = Signal(1)
-        self.is_32bit_i = Signal(1)
-        self.result_o = Signal(64)
+        self.rs_i = Signal(64, reset_less=True)
+        self.count_right_i = Signal(1, reset_less=True)
+        self.is_32bit_i = Signal(1, reset_less=True)
+        self.result_o = Signal(64, reset_less=True)
 
     def ports(self):
         return [self.rs_i, self.count_right_i, self.is_32bit_i, self.result_o]
@@ -30,12 +30,19 @@ class ZeroCounter(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
+        # TODO: replace this with m.submodule.pe1 = PriorityEncoder(4)
+        # m.submodule.pe2 = PriorityEncoder(4)
+        # m.submodule.pe3 = PriorityEncoder(4)
+        # etc.
+        # and where right will assign input to v and !right will assign v[::-1]
+        # so as to reverse the order of the input bits.
+
         def encoder(v, right):
             """
             Return the index of the leftmost or rightmost 1 in a set of 4 bits.
             Assumes v is not "0000"; if it is, return (right ? "11" : "00").
             """
-            ret = Signal(2)
+            ret = Signal(2, reset_less=True)
             with m.If(right):
                 with m.If(v[0]):
                     m.d.comb += ret.eq(0)
@@ -62,10 +69,10 @@ class ZeroCounter(Elaboratable):
         m.d.comb += r.eq(r_in)# make the module entirely combinatorial for now
 
         v = IntermediateResult()
-        y = Signal(4)
-        z = Signal(4)
-        sel = Signal(6)
-        v4 = Signal(4)
+        y = Signal(4, reset_less=True)
+        z = Signal(4, reset_less=True)
+        sel = Signal(6, reset_less=True)
+        v4 = Signal(4, reset_less=True)
 
         # Test 4 groups of 16 bits each.
         # The top 2 groups are considered to be zero in 32-bit mode.
@@ -81,7 +88,6 @@ class ZeroCounter(Elaboratable):
             m.d.comb += v.sel_hi.eq(encoder(z, self.count_right_i))
 
         # Select the leftmost/rightmost non-zero group of 16 bits
-
         with m.Switch(v.sel_hi):
             with m.Case(0):
                 m.d.comb += v.v16.eq(self.rs_i[0:16])
@@ -117,18 +123,14 @@ class ZeroCounter(Elaboratable):
         m.d.comb += sel[0:2].eq(encoder(v4, r.count_right))
 
         # sel is now the index of the leftmost/rightmost 1 bit in rs
-
+        o = self.result_o
         with m.If(v4 == 0):
             # operand is zero, return 32 for 32-bit, else 64
-            with m.If(r.is_32bit):
-                m.d.comb += self.result_o.eq(32)
-            with m.Else():
-                m.d.comb += self.result_o.eq(64)
+            m.d.comb += o[5:7].eq(Cat(r.is_32bit, ~r.is_32bit))
         with m.Elif(r.count_right):
             # return (63 - sel), trimmed to 5 bits in 32-bit mode
-            m.d.comb += self.result_o.eq(
-                Cat((~sel[5] & ~r.is_32bit), ~sel[0:5]))
+            m.d.comb += o.eq(Cat(~sel[0:5], (~sel[5] & ~r.is_32bit)))
         with m.Else():
-            m.d.comb += self.result_o.eq(sel)
+            m.d.comb += o.eq(sel)
 
         return m
