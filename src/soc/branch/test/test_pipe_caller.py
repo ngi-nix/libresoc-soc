@@ -63,15 +63,14 @@ class BranchTestCase(FHDLTestCase):
         tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
         test_data.append(tc)
 
-    def test_ba(self):
-        lst = ["ba 0x1234"]
-        initial_regs = [0] * 32
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_b(self):
-        lst = ["bl 0x1234"]
-        initial_regs = [0] * 32
-        self.run_tst_program(Program(lst), initial_regs)
+    def test_unconditional(self):
+        choices = ["b", "ba", "bl", "bla"]
+        for i in range(20):
+            choice = random.choice(choices)
+            imm = random.randrange(-1<<23, (1<<23)-1) * 4
+            lst = [f"{choice} {imm}"]
+            initial_regs = [0] * 32
+            self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
         rec = CompALUOpSubset()

@@ -59,7 +59,10 @@ class BranchMainStage(PipeModBase):
             with m.Case(InternalOp.OP_B):
                 li = Signal(i_fields['LI'][0:-1].shape())
                 comb += li.eq(i_fields['LI'][0:-1])
-                comb += branch_imm_addr.eq(Cat(Const(0, 2), li))
+                li_sgn = li[-1]
+                comb += branch_imm_addr.eq(
+                    Cat(Const(0, 2), li,
+                        Repl(li_sgn, 64-(li.width + 2))))
                 comb += branch_taken.eq(1)
 
         comb += self.o.nia_out.data.eq(branch_addr)
