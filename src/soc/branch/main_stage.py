@@ -13,6 +13,10 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
+def br_ext(bd):
+    bd_sgn = bd[-1]
+    return Cat(Const(0, 2), bd, Repl(bd_sgn, 64-(bd.width + 2)))
+
 
 class BranchMainStage(PipeModBase):
     def __init__(self, pspec):
@@ -73,19 +77,12 @@ class BranchMainStage(PipeModBase):
             with m.Case(InternalOp.OP_B):
                 li = Signal(i_fields['LI'][0:-1].shape())
                 comb += li.eq(i_fields['LI'][0:-1])
-                li_sgn = li[-1]
-                comb += br_imm_addr.eq(
-                    Cat(Const(0, 2), li,
-                        Repl(li_sgn, 64-(li.width + 2))))
+                comb += br_imm_addr.eq(br_ext(li))
                 comb += br_taken.eq(1)
             with m.Case(InternalOp.OP_BC):
                 bd = Signal(b_fields['BD'][0:-1].shape())
                 comb += bd.eq(b_fields['BD'][0:-1])
-                bd_sgn = bd[-1]
-
-                comb += br_imm_addr.eq(
-                    Cat(Const(0, 2), bd,
-                        Repl(bd_sgn, 64-(bd.width + 2))))
+                comb += br_imm_addr.eq(br_ext(bd))
                 comb += br_taken.eq(bc_taken)
 
         comb += self.o.nia_out.data.eq(br_addr)
