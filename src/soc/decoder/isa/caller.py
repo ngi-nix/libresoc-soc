@@ -302,6 +302,8 @@ class ISACaller:
         if info.write_regs:
             output_names = create_args(info.write_regs)
             for name, output in zip(output_names, results):
+                if isinstance(output, int):
+                    output = SelectableInt(output, 256)
                 if name in info.special_regs:
                     print('writing special %s' % name, output)
                     if name in special_sprs:

@@ -238,6 +238,22 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(2), SelectableInt(0x100000001, 64))
 
+    def test_popcnt(self):
+        lst = ["popcntb 2, 1",
+               "popcntw 3, 1",
+               "popcntd 4, 1"
+        ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xdeadbeefcafec0de
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.gpr(2),
+                             SelectableInt(0x605060704070206, 64))
+            self.assertEqual(sim.gpr(3),
+                             SelectableInt(0x1800000013, 64))
+            self.assertEqual(sim.gpr(4),
+                             SelectableInt(0x2b, 64))
+
         
 
     def test_mtcrf(self):
