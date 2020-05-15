@@ -19,26 +19,22 @@ class IntegerData:
 class BranchInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        # We need both lr and spr for bclr and bcctrl. Bclr can read
-        # from both ctr and lr, and bcctrl can write to both ctr and
-        # lr.
-        self.lr = Signal(64, reset_less=True)  # Link Register
-        self.spr = Signal(64, reset_less=True) # CTR
-        self.cr = Signal(32, reset_less=True)  # Condition Register(s) CR0-7
-        self.cia = Signal(64, reset_less=True) # Current Instruction Address
-        self.tar = Signal(64, reset_less=True) # Target Address Register
+        # For OP_BCREG, this will either be CTR, LR, or TAR
+        self.spr = Signal(64, reset_less=True)
+        self.ctr = Signal(64, reset_less=True)  # CTR
+        self.cr = Signal(32, reset_less=True)   # Condition Register(s) CR0-7
+        self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
     def __iter__(self):
         yield from super().__iter__()
-        yield self.lr
+        yield self.ctr
         yield self.spr
         yield self.cr
         yield self.cia
-        yield self.tar
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr), self.tar.eq(i.tar),
+        return lst + [self.ctr.eq(i.ctr), self.spr.eq(i.spr),
                       self.cr.eq(i.cr), self.cia.eq(i.cia)]
 
 

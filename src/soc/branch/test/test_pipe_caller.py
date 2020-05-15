@@ -159,8 +159,7 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     yield branch.p.data_i.cr.eq(simulator.cr.get_range().value)
-                    yield branch.p.data_i.spr.eq(simulator.spr['CTR'].value)
-                    yield branch.p.data_i.lr.eq(simulator.spr['LR'].value)
+                    yield branch.p.data_i.ctr.eq(simulator.spr['CTR'].value)
                     print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
