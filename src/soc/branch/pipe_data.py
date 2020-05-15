@@ -43,14 +43,14 @@ class BranchInputData(IntegerData):
 class BranchOutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.lr = Signal(64, reset_less=True)
-        self.spr = Signal(64, reset_less=True)
+        self.lr = Data(64, name="lr")
+        self.spr = Data(64, name="spr")
         self.nia_out = Data(64, name="nia_out")
 
     def __iter__(self):
         yield from super().__iter__()
-        yield self.lr
-        yield self.spr
+        yield from self.lr
+        yield from self.spr
         yield from self.nia_out
 
     def eq(self, i):

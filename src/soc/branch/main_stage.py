@@ -44,9 +44,16 @@ class BranchMainStage(PipeModBase):
         aa = Signal(i_fields['AA'][0:-1].shape())
         comb += aa.eq(i_fields['AA'][0:-1])
 
+        branch_imm_addr = Signal(64, reset_less=True)
         branch_addr = Signal(64, reset_less=True)
         branch_taken = Signal(reset_less=True)
         comb += branch_taken.eq(0)
+
+        with m.If(aa):
+            comb += branch_addr.eq(branch_imm_addr)
+        with m.Else():
+            comb += branch_addr.eq(branch_imm_addr + self.i.nia)
+            
         
 
         ##########################
@@ -56,12 +63,8 @@ class BranchMainStage(PipeModBase):
             with m.Case(InternalOp.OP_B):
                 li = Signal(i_fields['LI'][0:-1].shape())
                 comb += li.eq(i_fields['LI'][0:-1])
-                with m.If(aa):
-                    comb += branch_addr.eq(Cat(Const(0, 2), li))
-                    comb += branch_taken.eq(1)
-                with m.Else():
-                    comb += branch_addr.eq(Cat(Const(0, 2), li) + self.i.nia)
-                    comb += branch_taken.eq(1)
+                comb += branch_imm_addr.eq(Cat(Const(0, 2), li))
+                comb += branch_taken.eq(1)
 
         comb += self.o.nia_out.data.eq(branch_addr)
         comb += self.o.nia_out.ok.eq(branch_taken)
