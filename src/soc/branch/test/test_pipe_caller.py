@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.logical.pipeline import LogicalBasePipe
+from soc.branch.pipeline import BranchBasePipe
 from soc.alu.alu_input_record import CompALUOpSubset
 from soc.alu.pipe_data import ALUPipeSpec
 import random
@@ -33,45 +33,6 @@ def get_rec_width(rec):
         recwidth += width
     return recwidth
 
-def set_alu_inputs(alu, dec2, sim):
-    # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
-    # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
-    # and place it into data_i.b
-
-    reg3_ok = yield dec2.e.read_reg3.ok
-    reg1_ok = yield dec2.e.read_reg1.ok
-    assert reg3_ok != reg1_ok
-    if reg3_ok:
-        data1 = yield dec2.e.read_reg3.data
-        data1 = sim.gpr(data1).value
-    elif reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        data1 = sim.gpr(data1).value
-    else:
-        data1 = 0
-
-    yield alu.p.data_i.a.eq(data1)
-
-    # If there's an immediate, set the B operand to that
-    reg2_ok = yield dec2.e.read_reg2.ok
-    imm_ok = yield dec2.e.imm_data.imm_ok
-    if imm_ok:
-        data2 = yield dec2.e.imm_data.imm
-    elif reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        data2 = sim.gpr(data2).value
-    else:
-        data2 = 0
-    yield alu.p.data_i.b.eq(data2)
-
-
-
-def set_extra_alu_inputs(alu, dec2, sim):
-    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    yield alu.p.data_i.carry_in.eq(carry)
-    so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.so.eq(so)
-    
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -102,71 +63,16 @@ class LogicalTestCase(FHDLTestCase):
         tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
         test_data.append(tc)
 
-    def test_rand(self):
-        insns = ["and", "or", "xor"]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rand_imm_logical(self):
-        insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
-        for i in range(10):
-            choice = random.choice(insns)
-            imm = random.randint(0, (1<<16)-1)
-            lst = [f"{choice} 3, 1, {imm}"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    @unittest.skip("broken")
-    def test_cntz(self):
-        insns = ["cntlzd", "cnttzd"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_parity(self):
-        insns = ["prtyw", "prtyd"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    @unittest.skip("broken")
-    def test_popcnt(self):
-        insns = ["popcntb", "popcntw", "popcntd"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
     def test_cmpb(self):
-        lst = ["cmpb 3, 1, 2"]
+        lst = ["b 0x1234"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeefcafec0de
-        initial_regs[2] = 0xd0adb0000afec1de
         self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
         rec = CompALUOpSubset()
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
-        alu = LogicalBasePipe(pspec)
+        alu = BranchBasePipe(pspec)
         vl = rtlil.convert(alu, ports=[])
         with open("logical_pipeline.il", "w") as f:
             f.write(vl)
@@ -189,7 +95,7 @@ class TestRunner(FHDLTestCase):
         rec = CompALUOpSubset()
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
-        m.submodules.alu = alu = LogicalBasePipe(pspec)
+        m.submodules.alu = alu = BranchBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
@@ -219,28 +125,12 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.LOGICAL.value, code)
-                    yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield from set_extra_alu_inputs(alu, pdecode2, simulator)
+                    self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield 
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
 
-                    vld = yield alu.n.valid_o
-                    while not vld:
-                        yield
-                        vld = yield alu.n.valid_o
-                    yield
-                    alu_out = yield alu.n.data_o.o
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out, code)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",

@@ -1,5 +1,6 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
+from soc.decoder.power_decoder2 import Data
 
 
 class IntegerData:
@@ -15,23 +16,43 @@ class IntegerData:
         return [self.ctx.eq(i.ctx)]
 
 
-class ALUInputData(IntegerData):
+class BranchInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.a = Signal(64, reset_less=True) # RA
-        self.b = Signal(64, reset_less=True) # RB/immediate
-        self.so = Signal(reset_less=True)
-        self.carry_in = Signal(reset_less=True)
+        # We need both lr and spr for bclr and bcctrl. Bclr can read
+        # from both ctr and lr, and bcctrl can write to both ctr and
+        # lr.
+        self.lr = Signal(64, reset_less=True)
+        self.spr = Signal(64, reset_less=True)
+        self.cr = Signal(32, reset_less=True)
+        # NIA not needed, it's already part of ctx
 
     def __iter__(self):
         yield from super().__iter__()
-        yield self.a
-        yield self.b
-        yield self.carry_in
-        yield self.so
+        yield self.lr
+        yield self.spr
+        yield self.cr
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.b.eq(i.b),
-                      self.carry_in.eq(i.carry_in),
-                      self.so.eq(i.so)]
+        return lst + [self.lr.eq(i.lr), self.spr.eq(i.lr),
+                      self.cr.eq(i.cr)]
+
+
+class BranchOutputData(IntegerData):
+    def __init__(self, pspec):
+        super().__init__(pspec)
+        self.lr = Signal(64, reset_less=True)
+        self.spr = Signal(64, reset_less=True)
+        self.nia_out = Data(64, name="nia_out")
+
+    def __iter__(self):
+        yield from super().__iter__()
+        yield self.lr
+        yield self.spr
+        yield from self.nia_out
+
+    def eq(self, i):
+        lst = super().eq(i)
+        return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr),
+                      self.nia_out.eq(i.nia_out)]

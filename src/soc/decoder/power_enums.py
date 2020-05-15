@@ -49,6 +49,7 @@ class Function(Enum):
     LDST = 2
     SHIFT_ROT = 3
     LOGICAL = 4
+    BRANCH = 5
 
 
 @unique
