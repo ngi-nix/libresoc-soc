@@ -100,7 +100,9 @@ class BranchMainStage(PipeModBase):
                 comb += br_imm_addr.eq(br_ext(bd))
                 comb += br_taken.eq(bc_taken)
             #### branch conditional reg ####
-            # TODOwith m.Case(InternalOp.OP_BCREG):
+            with m.Case(InternalOp.OP_BCREG):
+                comb += br_imm_addr.eq(self.i.spr)
+                comb += br_taken.eq(bc_taken)
 
         ###### output next instruction address #####
 
