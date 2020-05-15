@@ -75,10 +75,15 @@ class BranchTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             self.run_tst_program(Program(lst), initial_regs)
 
-    @unittest.skip("broken")
-    def test_bc(self):
-        lst = ["bc 12, 2, 0x1234"]
-        self.run_tst_program(Program(lst), initial_cr=0xffffffff)
+    def test_bc_cr(self):
+        for i in range(20):
+            bc = random.randrange(-1<<13, (1<<13)-1) * 4
+            bo = random.choice([0b01100, 0b00100, 0b10100])
+            bi = random.randrange(0, 31)
+            cr = random.randrange(0, (1<<32)-1)
+            lst = [f"bc {bo}, {bi}, {bc}"]
+            initial_regs = [0] * 32
+            self.run_tst_program(Program(lst), initial_cr=cr)
         
 
     def test_ilang(self):
@@ -140,6 +145,8 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
+                    yield branch.p.data_i.cr.eq(simulator.cr.get_range().value)
+                    print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     #self.assertEqual(fn_unit, Function.BRANCH.value, code)

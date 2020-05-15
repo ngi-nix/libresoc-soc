@@ -64,8 +64,15 @@ class BranchMainStage(PipeModBase):
         bi = Signal(b_fields['BI'][0:-1].shape())
         comb += bi.eq(b_fields['BI'][0:-1])
 
+        # The bit of CR selected by BI
         cr_bit = Signal(reset_less=True)
-        comb += cr_bit.eq((self.i.cr & (1<<bi)) != 0)
+        comb += cr_bit.eq((self.i.cr & (1<<(31-bi))) != 0)
+
+        # Whether the conditional branch should be taken
+        bc_taken = Signal(reset_less=True)
+        comb += bc_taken.eq(0)
+        with m.If(bo[2]):
+            comb += bc_taken.eq((cr_bit == bo[3]) | bo[4])
 
             
 
@@ -79,7 +86,15 @@ class BranchMainStage(PipeModBase):
                         Repl(li_sgn, 64-(li.width + 2))))
                 comb += branch_taken.eq(1)
             with m.Case(InternalOp.OP_BC):
-                pass
+                bd = Signal(b_fields['BD'][0:-1].shape())
+                comb += bd.eq(b_fields['BD'][0:-1])
+                bd_sgn = bd[-1]
+
+                comb += branch_imm_addr.eq(
+                    Cat(Const(0, 2), bd,
+                        Repl(bd_sgn, 64-(bd.width + 2))))
+                comb += branch_taken.eq(bc_taken)
+
 
         comb += self.o.nia_out.data.eq(branch_addr)
         comb += self.o.nia_out.ok.eq(branch_taken)
