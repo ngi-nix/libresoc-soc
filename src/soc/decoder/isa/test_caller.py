@@ -254,6 +254,16 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(4),
                              SelectableInt(0x2b, 64))
 
+    def test_cntlz(self):
+        lst = ["cntlzd 2, 1",
+               "cntlzw 4, 3"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0000beeecaffc0de
+        initial_regs[3] = 0x0000000000ffc0de
+        with Program(lst) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self.assertEqual(sim.gpr(2), SelectableInt(16, 64))
+            self.assertEqual(sim.gpr(4), SelectableInt(8, 64))
         
 
     def test_mtcrf(self):
