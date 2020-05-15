@@ -13,7 +13,6 @@ class CompALUOpSubset(Record):
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
-                  ('nia', 64),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                     #'cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
                     #'xerc = XerBits() # NO: this is from the XER SPR
@@ -38,7 +37,6 @@ class CompALUOpSubset(Record):
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
         self.fn_unit.reset_less = True
-        self.nia.reset_less = True
         #self.cr = Signal(32, reset_less = True
         #self.xerc = XerBits(
         self.lk.reset_less = True
@@ -65,7 +63,6 @@ class CompALUOpSubset(Record):
 
     def ports(self):
         return [self.insn_type,
-                self.nia,
                 #self.cr,
                 #self.xerc,
                 self.lk,

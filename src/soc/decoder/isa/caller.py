@@ -260,6 +260,10 @@ class ISACaller:
         SO = SelectableInt(0, 1)
         cr_field = selectconcat(negative, positive, zero, SO)
         self.crl[0].eq(cr_field)
+
+    def set_pc(self, pc_val):
+        self.namespace['NIA'] = SelectableInt(pc_val, 64)
+        self.pc.update(self.namespace)
         
 
     def call(self, name):

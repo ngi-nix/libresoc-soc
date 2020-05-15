@@ -55,7 +55,7 @@ def get_rec_width(rec):
 test_data = []
 
 
-class LogicalTestCase(FHDLTestCase):
+class BranchTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -65,6 +65,11 @@ class LogicalTestCase(FHDLTestCase):
 
     def test_ba(self):
         lst = ["ba 0x1234"]
+        initial_regs = [0] * 32
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_b(self):
+        lst = ["b 0x1234"]
         initial_regs = [0] * 32
         self.run_tst_program(Program(lst), initial_regs)
 
@@ -110,11 +115,14 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 simulator = ISA(pdecode2, test.regs, test.sprs)
+                initial_cia = 0x2000
+                simulator.set_pc(initial_cia)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                index = simulator.pc.CIA.value//4
+                index = (simulator.pc.CIA.value - initial_cia)//4
                 while index < len(instructions):
+                    print(index)
                     ins, code = instructions[index]
 
                     print("0x{:X}".format(ins & 0xffffffff))
@@ -123,15 +131,16 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
+                    yield branch.p.data_i.nia.eq(simulator.pc.CIA.value)
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.BRANCH.value, code)
+                    #self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield 
                     yield
                     opname = code.split(' ')[0]
                     prev_nia = simulator.pc.NIA.value
                     yield from simulator.call(opname)
-                    index = simulator.pc.CIA.value//4
+                    index = (simulator.pc.CIA.value - initial_cia)//4
 
                     yield from self.assert_outputs(branch, pdecode2,
                                                    simulator, prev_nia)
