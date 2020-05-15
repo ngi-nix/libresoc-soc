@@ -158,6 +158,7 @@ class InternalOp(Enum):
     OP_TWI = 66
     OP_XOR = 67
     OP_SIM_CONFIG = 68
+    OP_CROP = 69
 
 
 @unique
