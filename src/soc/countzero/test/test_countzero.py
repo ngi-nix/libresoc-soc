@@ -65,7 +65,7 @@ class ZeroCounterTestCase(FHDLTestCase):
             yield dut.count_right_i.eq(0)
             yield Delay(1e-6)
             result = yield dut.result_o
-            assert result == 8, "result %d" % result
+            assert result == 14, "result %d" % result
 
             yield dut.count_right_i.eq(1)
             yield Delay(1e-6)
@@ -76,6 +76,11 @@ class ZeroCounterTestCase(FHDLTestCase):
             yield Delay(1e-6)
             result = yield dut.result_o
             assert result == 23, "result %d" % result
+
+            yield dut.count_right_i.eq(0)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 14, "result %d" % result
 
 
         sim.add_process(process)  # or sim.add_sync_process(process), see below

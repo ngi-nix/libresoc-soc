@@ -53,14 +53,14 @@ class ZeroCounter(Elaboratable):
                 with m.Else():
                     m.d.comb += ret.eq(3)
             with m.Else():
-                with m.If(v[0]):
-                    m.d.comb += ret.eq(0)
-                with m.Elif(v[1]):
-                    m.d.comb += ret.eq(1)
+                with m.If(v[3]):
+                    m.d.comb += ret.eq(3)
                 with m.Elif(v[2]):
                     m.d.comb += ret.eq(2)
+                with m.Elif(v[1]):
+                    m.d.comb += ret.eq(1)
                 with m.Else():
-                    m.d.comb += ret.eq(3)
+                    m.d.comb += ret.eq(0)
             return ret
 
         r = IntermediateResult()
