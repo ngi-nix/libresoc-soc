@@ -7,20 +7,20 @@
 
     insn       CR  SPR1  SPR2    SPR3
     ----       --  ----  ----    ----
-    op_b       xx  LR     xx     xx
-    op_ba      xx  LR     xx     xx
-    op_bl      xx  LR     xx     xx
-    op_bla     xx  LR     xx     xx
-    op_bc      CR, LR,    CTR    xx
-    op_bca     CR, LR,    CTR    xx
-    op_bcl     CR, LR,    CTR    xx
-    op_bcla    CR, LR,    CTR    xx
+    op_b       xx  xx     xx     xx
+    op_ba      xx  xx     xx     xx
+    op_bl      xx  xx     xx     xx
+    op_bla     xx  xx     xx     xx
+    op_bc      CR, xx,    CTR    xx
+    op_bca     CR, xx,    CTR    xx
+    op_bcl     CR, xx,    CTR    xx
+    op_bcla    CR, xx,    CTR    xx
     op_bclr    CR, LR,    CTR    xx
     op_bclrl   CR, LR,    CTR    xx
-    op_bcctr   CR, LR,    CTR    xx
-    op_bcctrl  CR, LR,    CTR    xx
-    op_bctar   CR, LR,    CTR,   TAR
-    op_bctarl  CR, LR,    CTR,   TAR
+    op_bcctr   CR, xx,    CTR    xx
+    op_bcctrl  CR, xx,    CTR    xx
+    op_bctar   CR, TAR,   CTR,   xx
+    op_bctarl  CR, TAR,   CTR,   xx
 
     op_sc      xx  xx     xx     MSR
     op_scv     xx  LR,    SRR1,  MSR
