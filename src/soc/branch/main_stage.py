@@ -70,9 +70,21 @@ class BranchMainStage(PipeModBase):
         bc_taken = Signal(reset_less=True)
         with m.If(bo[2]):
             comb += bc_taken.eq((cr_bit == bo[3]) | bo[4])
+        with m.Else():
+            # Yes, the CTR only counts 32 bits
+            ctr = Signal(64, reset_less=True)
+            comb += ctr.eq(self.i.spr - 1)
+            comb += self.o.spr.data.eq(ctr)
+            comb += self.o.spr.ok.eq(1)
+            ctr_eq_zero = Signal(reset_less=True)
+            with m.If(bo[3:4] == 0b00):
+                comb += bc_taken.eq(~cr_bit & (ctr_eq_zero == bo[1]))
+            with m.Elif(bo[3:4] == 0b01):
+                comb += bc_taken.eq(cr_bit & (ctr_eq_zero == bo[1]))
+            with m.Elif(bo[4] == 1):
+                comb += bc_taken.eq(ctr_eq_zero == bo[1])
 
-        ######## main switch statement ########
-
+        ### Main Switch Statement ###
         with m.Switch(op.insn_type):
             #### branch ####
             with m.Case(InternalOp.OP_B):
