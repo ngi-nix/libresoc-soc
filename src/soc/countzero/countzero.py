@@ -59,7 +59,7 @@ class ZeroCounter(Elaboratable):
         r = IntermediateResult()
         r_in = IntermediateResult()
 
-        m.d.sync += r.eq(r_in)
+        m.d.comb += r.eq(r_in)# make the module entirely combinatorial for now
 
         v = IntermediateResult()
         y = Signal(4)
