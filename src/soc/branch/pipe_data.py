@@ -1,3 +1,34 @@
+"""
+    Optional Register allocation listed below.  mandatory input
+    (CompBROpSubset, CIA) not included.
+
+    * CR is Condition Register (not an SPR)
+    * SPR1, SPR2 and SPR3 are all from the SPR regfile.  3 ports are needed
+
+    insn       CR  SPR1  SPR2    SPR3
+    ----       --  ----  ----    ----
+    op_b       xx  LR     xx     xx
+    op_ba      xx  LR     xx     xx
+    op_bl      xx  LR     xx     xx
+    op_bla     xx  LR     xx     xx
+    op_bc      CR, LR,    CTR    xx
+    op_bca     CR, LR,    CTR    xx
+    op_bcl     CR, LR,    CTR    xx
+    op_bcla    CR, LR,    CTR    xx
+    op_bclr    CR, LR,    CTR    xx
+    op_bclrl   CR, LR,    CTR    xx
+    op_bcctr   CR, LR,    CTR    xx
+    op_bcctrl  CR, LR,    CTR    xx
+    op_bctar   CR, LR,    CTR,   TAR
+    op_bctarl  CR, LR,    CTR,   TAR
+
+    op_sc      xx  xx     MSR    xx
+    op_scv     xx  LR,    SRR1,  MSR
+    op_rfscv   xx  LR,    CTR,   MSR
+    op_rfid    xx  SRR0,  SRR1,  MSR
+    op_hrfid   xx  HSRR0, HSRR1, MSR
+"""
+
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
@@ -14,29 +45,6 @@ class IntegerData:
 
     def eq(self, i):
         return [self.ctx.eq(i.ctx)]
-
-"""
-    def op_b(LR):
-    def op_ba(LR):
-    def op_bl(LR):
-    def op_bla(LR):
-    def op_bc(LR, CR, CTR):
-    def op_bca(LR, CR, CTR):
-    def op_bcl(LR, CR, CTR):
-    def op_bcla(LR, CR, CTR):
-    def op_bclr(LR, CR, CTR):
-    def op_bclrl(LR, CR, CTR):
-    def op_bcctr(LR, CR, CTR):
-    def op_bcctrl(LR, CR, CTR):
-    def op_bctar(LR, CR, CTR, TAR):
-    def op_bctarl(LR, CR, CTR, TAR):
-
-    def op_sc(           MSR):
-    def op_scv(LR, SRR1, MSR):
-    def op_rfscv(LR, CTR, MSR):
-    def op_rfid(SRR0, SRR1, MSR):
-    def op_hrfid(HSRR0, HSRR1, MSR):
-"""
 
 class BranchInputData(IntegerData):
     def __init__(self, pspec):
