@@ -18,7 +18,7 @@ class CompBROpSubset(Record):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
-                    #'cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
+                   #'cr = Signal(32) # NO: this is from the CR SPR
                     #'xerc = XerBits() # NO: this is from the XER SPR
                   ('lk', 1),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
@@ -31,7 +31,7 @@ class CompBROpSubset(Record):
                   ('output_cr', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
-                  ('data_len', 4), # TODO: should be in separate CompLDSTSubset
+                  ('cia', 64),
                   ('insn', 32),
                   ('byte_reverse', 1),
                   ('sign_extend', 1))
@@ -52,7 +52,7 @@ class CompBROpSubset(Record):
         self.output_cr.reset_less = True
         self.is_32bit.reset_less = True
         self.is_signed.reset_less = True
-        self.data_len.reset_less = True
+        self.cia.reset_less = True
         self.byte_reverse.reset_less = True
         self.sign_extend.reset_less = True
 
@@ -78,7 +78,7 @@ class CompBROpSubset(Record):
                 self.output_cr,
                 self.is_32bit,
                 self.is_signed,
-                self.data_len,
+                self.cia,
                 self.byte_reverse,
                 self.sign_extend,
         ]
