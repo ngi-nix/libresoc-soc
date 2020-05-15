@@ -55,6 +55,29 @@ class ZeroCounterTestCase(FHDLTestCase):
             result = yield dut.result_o
             assert result == 59, "result %d" % result
 
+            yield dut.is_32bit_i.eq(1)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 27, "result %d" % result
+
+            yield dut.rs_i.eq(0b1100000100000000)
+            yield dut.is_32bit_i.eq(0)
+            yield dut.count_right_i.eq(0)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 8, "result %d" % result
+
+            yield dut.count_right_i.eq(1)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 55, "result %d" % result
+
+            yield dut.is_32bit_i.eq(1)
+            yield Delay(1e-6)
+            result = yield dut.result_o
+            assert result == 23, "result %d" % result
+
+
         sim.add_process(process)  # or sim.add_sync_process(process), see below
 
         # run test and write vcd
