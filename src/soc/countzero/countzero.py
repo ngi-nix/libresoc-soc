@@ -66,7 +66,7 @@ class ZeroCounter(Elaboratable):
         r = IntermediateResult()
         r_in = IntermediateResult()
 
-        m.d.comb += r.eq(r_in)# make the module entirely combinatorial for now
+        m.d.comb += r.eq(r_in) # make the module entirely combinatorial for now
 
         v = IntermediateResult()
         y = Signal(4, reset_less=True)
@@ -129,7 +129,7 @@ class ZeroCounter(Elaboratable):
             m.d.comb += o[5:7].eq(Cat(r.is_32bit, ~r.is_32bit))
         with m.Elif(r.count_right):
             # return (63 - sel), trimmed to 5 bits in 32-bit mode
-            m.d.comb += o.eq(Cat(~sel[0:5], (~sel[5] & ~r.is_32bit)))
+            m.d.comb += o.eq(Cat(~sel[0:5], ~(sel[5] | r.is_32bit)))
         with m.Else():
             m.d.comb += o.eq(sel)
 
