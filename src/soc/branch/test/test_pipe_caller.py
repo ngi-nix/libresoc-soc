@@ -19,11 +19,12 @@ import random
 
 
 class TestCase:
-    def __init__(self, program, regs, sprs, name):
+    def __init__(self, program, regs, sprs, cr, name):
         self.program = program
         self.regs = regs
         self.sprs = sprs
         self.name = name
+        self.cr = cr
 
 def get_rec_width(rec):
     recwidth = 0
@@ -59,8 +60,10 @@ class BranchTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
-    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
-        tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
+    def run_tst_program(self, prog, initial_regs=[0] * 32,
+                        initial_sprs={}, initial_cr=0):
+        tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
+                      self.test_name)
         test_data.append(tc)
 
     def test_unconditional(self):
@@ -71,6 +74,12 @@ class BranchTestCase(FHDLTestCase):
             lst = [f"{choice} {imm}"]
             initial_regs = [0] * 32
             self.run_tst_program(Program(lst), initial_regs)
+
+    @unittest.skip("broken")
+    def test_bc(self):
+        lst = ["bc 12, 2, 0x1234"]
+        self.run_tst_program(Program(lst), initial_cr=0xffffffff)
+        
 
     def test_ilang(self):
         rec = CompALUOpSubset()
@@ -113,7 +122,7 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs)
+                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr)
                 initial_cia = 0x2000
                 simulator.set_pc(initial_cia)
                 gen = program.generate_instructions()

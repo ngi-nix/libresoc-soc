@@ -167,7 +167,7 @@ class SPR(dict):
 class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
-    def __init__(self, decoder2, regfile, initial_sprs={}):
+    def __init__(self, decoder2, regfile, initial_sprs={}, initial_cr=0):
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem()
         self.pc = PC()
@@ -186,7 +186,7 @@ class ISACaller:
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
         # create CR then allow portions of it to be "selectable" (below)
-        self._cr = SelectableInt(0, 64) # underlying reg
+        self._cr = SelectableInt(initial_cr, 64) # underlying reg
         self.cr = FieldSelectableInt(self._cr, list(range(32,64)))
 
         # "undefined", just set to variable-bit-width int (use exts "max")
