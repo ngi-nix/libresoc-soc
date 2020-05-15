@@ -200,7 +200,7 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs)
+                simulator = ISA(pdecode2, test.regs, test.sprs, 0)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
