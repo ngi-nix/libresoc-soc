@@ -36,13 +36,12 @@ class Bpermd(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         index = Signal(8, reset_less=True)
-        signals = [Signal(1, reset_less=True) for i in range(64)]
-        for i, n in enumerate(signals):
-            m.d.comb += n.eq(self.rb[i])
-        rb64 = Array(signals) # makes this indexable dynamically (a pmux)
+        rb64 = Array([Signal(1, reset_less=True, name=f"rb64_{i}") for i in range(64)])
+        for i in range(64):
+            m.d.comb += rb64[i].eq(self.rb[i])
         for i in range(8):
             index = self.rs[8*i:8*i+8]
-            idx = Signal(8, name="idx%d" % i, reset_less=True)
+            idx = Signal(8, name=f"idx_{i}", reset_less=True)
             m.d.comb += idx.eq(index)
             with m.If(idx < 64):
                 m.d.comb += self.perm[i].eq(rb64[idx])
