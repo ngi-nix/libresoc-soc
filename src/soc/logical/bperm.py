@@ -37,7 +37,7 @@ class Bpermd(Elaboratable):
         index = Signal(8)
         signals = [ Signal(1) for i in range(64) ]
         for i,n in enumerate(signals):
-            n.eq(self.rb[i])
+            m.d.comb += n.eq(self.rb[i])
         rb64 = Array(signals)
         for i in range(0, 8):
             index = self.rs[8 * i:8 * i + 8]
