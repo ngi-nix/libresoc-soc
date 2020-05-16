@@ -65,6 +65,13 @@ class CRMainStage(PipeModBase):
         # There's no field, just have to grab it directly from the insn
         comb += lut.eq(self.i.ctx.op.insn[6:10])
 
+
+        # Ugh. mtocrf and mtcrf have one random bit differentiating
+        # them. This bit is not in any particular field, so this
+        # extracts that bit from the instruction
+        move_one = Signal(reset_less=True)
+        comb += move_one.eq(self.i.ctx.op.insn[20])
+
         with m.Switch(op.insn_type):
             with m.Case(InternalOp.OP_MCRF):
                 # MCRF copies the 4 bits of crA to crB (for instance
@@ -108,6 +115,7 @@ class CRMainStage(PipeModBase):
                 fxm = Signal(xfx_fields['FXM'][0:-1].shape())
                 comb += fxm.eq(xfx_fields['FXM'][0:-1])
 
+                # mtcrf
                 mask = Signal(32, reset_less=True)
 
                 for i in range(8):
@@ -115,6 +123,7 @@ class CRMainStage(PipeModBase):
 
                 comb += cr_output.eq((self.i.a[0:32] & mask) |
                                      (self.i.cr & ~mask))
+                    
 
         comb += self.o.cr.eq(cr_output)
         comb += self.o.ctx.eq(self.i.ctx)
