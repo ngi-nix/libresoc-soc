@@ -89,12 +89,9 @@ class FieldSelectableInt:
         return self._op(xor, b)
 
     def get_range(self):
-        print ("get_range", self.si)
         vi = SelectableInt(0, len(self.br))
         for k, v in self.br.items():
-            print ("get_range", k, v, self.si[v])
             vi[k] = self.si[v]
-        print ("get_range", vi)
         return vi
 
     def merge(self, vi):
