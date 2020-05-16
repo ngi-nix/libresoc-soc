@@ -8,9 +8,7 @@
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.cr.pipe_data import CRInputData, CROutputData
-from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
-from soc.countzero.countzero import ZeroCounter
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -57,7 +55,6 @@ class CRMainStage(PipeModBase):
             comb += cr_output[31-i].eq(cr_out_arr[i])
             comb += cr_out_arr[i].eq(cr_arr[i])
 
-
         # crand/cror and friends get decoded to the same opcode, but
         # one of the fields inside the instruction is a 4 bit lookup
         # table. This lookup table gets indexed by bits a and b from
@@ -67,7 +64,6 @@ class CRMainStage(PipeModBase):
         lut = Signal(4, reset_less=True)
         # There's no field, just have to grab it directly from the insn
         comb += lut.eq(self.i.ctx.op.insn[6:10])
-
 
         with m.Switch(op.insn_type):
             with m.Case(InternalOp.OP_MCRF):
@@ -116,11 +112,9 @@ class CRMainStage(PipeModBase):
 
                 for i in range(8):
                     comb += mask[i*4:(i+1)*4].eq(Repl(fxm[i], 4))
-                
+
                 comb += cr_output.eq((self.i.a[0:32] & mask) |
-                                      (self.i.cr & ~mask))
-
-
+                                     (self.i.cr & ~mask))
 
         comb += self.o.cr.eq(cr_output)
         comb += self.o.ctx.eq(self.i.ctx)
