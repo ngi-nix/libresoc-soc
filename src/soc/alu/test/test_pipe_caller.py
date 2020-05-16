@@ -164,7 +164,7 @@ class ALUTestCase(FHDLTestCase):
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = ALUBasePipe(pspec)
-        vl = rtlil.convert(alu, ports=[])
+        vl = rtlil.convert(alu, ports=alu.ports())
         with open("pipeline.il", "w") as f:
             f.write(vl)
 
