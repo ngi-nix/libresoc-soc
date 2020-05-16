@@ -1,6 +1,7 @@
 from nmigen import Signal, Module
 from nmigen.back.pysim import Simulator, Delay, Settle
 from nmigen.test.utils import FHDLTestCase
+from nmigen.cli import rtlil
 from soc.alu.maskgen import MaskGen
 from soc.decoder.helpers import MASK
 import random
@@ -36,6 +37,12 @@ class MaskGenTestCase(FHDLTestCase):
         sim.add_process(process) # or sim.add_sync_process(process), see below
         with sim.write_vcd("maskgen.vcd", "maskgen.gtkw", traces=dut.ports()):
             sim.run()
+
+    def test_ilang(self):
+        dut = MaskGen(64)
+        vl = rtlil.convert(dut, ports=dut.ports())
+        with open("maskgen.il", "w") as f:
+            f.write(vl)
 
 if __name__ == '__main__':
     unittest.main()
