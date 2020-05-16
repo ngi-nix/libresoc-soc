@@ -1,12 +1,7 @@
-# This stage is intended to do most of the work of executing Logical
-# instructions. This is OR, AND, XOR, POPCNT, PRTY, CMPB, BPERMD, CNTLZ
-# however input and output stages also perform bit-negation on input(s)
+# This stage is intended to do Condition Register instructions
 # and output, as well as carry and overflow generation.
-# This module however should not gate the carry or overflow, that's up
-# to the output stage
-
 # NOTE: we really should be doing the field decoding which
-# selectswhich bits of CR are to be read / written, back in the
+# selects which bits of CR are to be read / written, back in the
 # decoder / insn-isue, have both self.i.cr and self.o.cr
 # be broken down into 4-bit-wide "registers", with their
 # own "Register File" (indexed by bt, ba and bb),
@@ -20,13 +15,6 @@ from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
-
-
-def array_of(count, bitwidth):
-    res = []
-    for i in range(count):
-        res.append(Signal(bitwidth, reset_less=True))
-    return res
 
 
 class CRMainStage(PipeModBase):
@@ -52,6 +40,8 @@ class CRMainStage(PipeModBase):
         cr_o = Signal.like(self.i.cr)
         comb += cr_o.eq(self.i.cr)
 
+        ##### prepare inputs / temp #####
+
         # Generate array for cr input so bits can be selected
         cr_arr = Array([Signal(name=f"cr_arr_{i}") for i in range(32)])
         for i in range(32):
@@ -70,15 +60,27 @@ class CRMainStage(PipeModBase):
         move_one = Signal(reset_less=True)
         comb += move_one.eq(self.i.ctx.op.insn[20])
 
+        # crand/cror and friends get decoded to the same opcode, but
+        # one of the fields inside the instruction is a 4 bit lookup
+        # table. This lookup table gets indexed by bits a and b from
+        # the CR to determine what the resulting bit should be.
+
+        # Grab the lookup table for cr_op type instructions
+        lut = Signal(4, reset_less=True)
+        # There's no field, just have to grab it directly from the insn
+        comb += lut.eq(self.i.ctx.op.insn[6:10])
+
         # Generate the mask for mtcrf, mtocrf, and mfocrf
         fxm = Signal(xfx_fields['FXM'][0:-1].shape())
         comb += fxm.eq(xfx_fields['FXM'][0:-1])
 
-        mask = Signal(32, reset_less=True)
-
         # replicate every fxm field in the insn to 4-bit, as a mask
+        mask = Signal(32, reset_less=True)
         for i in range(8):
             comb += mask[i*4:(i+1)*4].eq(Repl(fxm[i], 4))
+
+        #################################
+        ##### main switch statement #####
 
         with m.Switch(op.insn_type):
             ##### mcrf #####
@@ -112,16 +114,6 @@ class CRMainStage(PipeModBase):
                 comb += bit_a.eq(cr_arr[ba])
                 comb += bit_b.eq(cr_arr[bb])
 
-                # crand/cror and friends get decoded to the same opcode, but
-                # one of the fields inside the instruction is a 4 bit lookup
-                # table. This lookup table gets indexed by bits a and b from
-                # the CR to determine what the resulting bit should be.
-
-                # Grab the lookup table for cr_op type instructions
-                lut = Signal(4, reset_less=True)
-                # There's no field, just have to grab it directly from the insn
-                comb += lut.eq(self.i.ctx.op.insn[6:10])
-
                 # Use the two input bits to look up the result in the
                 # lookup table
                 bit_out = Signal(reset_less=True)
@@ -138,6 +130,7 @@ class CRMainStage(PipeModBase):
                 # rest of CR alone.
                 comb += cr_o.eq((self.i.a[0:32] & mask) |
                                      (self.i.cr & ~mask))
+
             with m.Case(InternalOp.OP_MFCR):
                 # mfocrf
                 with m.If(move_one):
@@ -145,9 +138,8 @@ class CRMainStage(PipeModBase):
                 # mfcrf
                 with m.Else():
                     comb += self.o.o.eq(self.i.cr)
-                    
-                    
 
+        # output and context
         comb += self.o.cr.eq(cr_o)
         comb += self.o.ctx.eq(self.i.ctx)
 
