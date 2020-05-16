@@ -231,7 +231,7 @@ class ISACaller:
             else:
                 sig = getattr(fields, name)
             val = yield sig
-            if name == 'BF':
+            if name in ['BF', 'BFA']:
                 self.namespace[name] = val
             else:
                 self.namespace[name] = SelectableInt(val, sig.width)
