@@ -50,7 +50,7 @@ class BranchInputData(IntegerData):
 
         # convenience variables.  not all of these are used at once
         self.ctr = self.srr0 = self.hsrr0 = self.spr2
-        self.lr = self.tar = self.srr1 = self.hsrr1 = self.i.spr1
+        self.lr = self.tar = self.srr1 = self.hsrr1 = self.spr1
         self.msr = self.spr3
 
     def __iter__(self):
