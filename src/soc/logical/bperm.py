@@ -35,7 +35,6 @@ class Bpermd(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        index = Signal(8, reset_less=True)
         rb64 = Array([Signal(1, reset_less=True, name=f"rb64_{i}") for i in range(64)])
         for i in range(64):
             m.d.comb += rb64[i].eq(self.rb[i])
