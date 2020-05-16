@@ -40,6 +40,7 @@ class CRMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
         xl_fields = self.fields.instrs['XL']
+        xfx_fields = self.fields.instrs['XFX']
 
         cr_output = Signal.like(self.i.cr)
         comb += cr_output.eq(self.i.cr)
@@ -106,6 +107,18 @@ class CRMainStage(PipeModBase):
                                        Mux(bit_a, lut[2], lut[0])))
                 # Set the output to the result above
                 comb += cr_out_arr[bt].eq(bit_out)
+
+            with m.Case(InternalOp.OP_MTCRF):
+                fxm = Signal(xfx_fields['FXM'][0:-1].shape())
+                comb += fxm.eq(xfx_fields['FXM'][0:-1])
+
+                mask = Signal(32, reset_less=True)
+
+                for i in range(8):
+                    comb += mask[i*4:(i+1)*4].eq(Repl(fxm[i], 4))
+                
+                comb += cr_output.eq((self.i.a[0:32] & mask) |
+                                      (self.i.cr & ~mask))
 
 
 

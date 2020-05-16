@@ -78,11 +78,21 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, 7)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
-
     def test_mcrf(self):
         lst = ["mcrf 0, 5"]
         cr = 0xffff0000
         self.run_tst_program(Program(lst), initial_cr=cr)
+
+    def test_mtcrf(self):
+        for i in range(20):
+            mask = random.randint(0, 255)
+            lst = [f"mtcrf {mask}, 2"]
+            cr = random.randint(0, (1<<32)-1)
+            initial_regs = [0] * 32
+            initial_regs[2] = random.randint(0, (1<<32)-1)
+            self.run_tst_program(Program(lst), initial_regs=initial_regs,
+                                 initial_cr=cr)
+        
 
     def test_ilang(self):
         rec = CompALUOpSubset()
@@ -99,6 +109,15 @@ class TestRunner(FHDLTestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
+
+    def set_inputs(self, alu, dec2, simulator):
+        yield alu.p.data_i.cr.eq(simulator.cr.get_range().value)
+
+        reg3_ok = yield dec2.e.read_reg3.ok
+        if reg3_ok:
+            reg3_sel = yield dec2.e.read_reg3.data
+            reg3 = simulator.gpr(reg3_sel).value
+            yield alu.p.data_i.a.eq(reg3)
 
     def run_all(self):
         m = Module()
@@ -140,8 +159,8 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield alu.p.data_i.cr.eq(simulator.cr.get_range().value)
                     yield Settle()
+                    yield from self.set_inputs(alu, pdecode2, simulator)
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.CR.value, code)
                     yield 
