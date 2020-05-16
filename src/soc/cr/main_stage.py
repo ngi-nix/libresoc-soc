@@ -39,10 +39,36 @@ class CRMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        xl_fields = self.fields.instrs['XL']
 
+        cr_output = Signal.like(self.i.cr)
+        comb += cr_output.eq(self.i.cr)
+
+        # Generate array for cr input so bits can be selected
+        cr_arr = Array([Signal() for _ in range(32)])
+        for i in range(32):
+            comb += cr_arr[i].eq(self.i.cr[31-i])
+
+        # Generate array for cr output so the bit to write to can be
+        # selected by a signal
+        cr_out_arr = Array([Signal() for _ in range(32)])
+        for i in range(32):
+            comb += cr_output[31-i].eq(cr_out_arr[i])
+            comb += cr_out_arr[i].eq(cr_arr[i])
+            
 
         with m.Switch(op.insn_type):
-            pass
+            with m.Case(InternalOp.OP_MCRF):
+                bf = Signal(xl_fields['BF'][0:-1].shape())
+                comb += bf.eq(xl_fields['BF'][0:-1])
+                bfa = Signal(xl_fields['BFA'][0:-1].shape())
+                comb += bfa.eq(xl_fields['BFA'][0:-1])
+
+                for i in range(4):
+                    comb += cr_out_arr[bf*4 + i].eq(cr_arr[bfa*4 + i])
+
+                
+        comb += self.o.cr.eq(cr_output)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

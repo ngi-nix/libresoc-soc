@@ -19,11 +19,12 @@ import random
 
 
 class TestCase:
-    def __init__(self, program, regs, sprs, name):
+    def __init__(self, program, regs, sprs, cr, name):
         self.program = program
         self.regs = regs
         self.sprs = sprs
         self.name = name
+        self.cr = cr
 
 def get_rec_width(rec):
     recwidth = 0
@@ -59,13 +60,20 @@ class CRTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
-    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
-        tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
+    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={},
+                        initial_cr=0):
+        tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
+                      self.test_name)
         test_data.append(tc)
 
     def test_crand(self):
         lst = ["crandc 1, 2, 3"]
         self.run_tst_program(Program(lst))
+
+    def test_mcrf(self):
+        lst = ["mcrf 0, 5"]
+        cr = 0xffff0000
+        self.run_tst_program(Program(lst), initial_cr=cr)
 
     def test_ilang(self):
         rec = CompALUOpSubset()
@@ -108,7 +116,7 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, 0)
+                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -122,6 +130,7 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
+                    yield alu.p.data_i.cr.eq(simulator.cr.get_range().value)
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.CR.value, code)
@@ -135,13 +144,12 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out, code)
+                    cr_out = yield pdecode2.e.output_cr
+                    if cr_out:
+                        cr_expected = simulator.cr.get_range().value
+                        cr_real = yield alu.n.data_o.cr
+                        msg = f"real: {cr_expected:x}, actual: {cr_real:x}"
+                        self.assertEqual(cr_expected, cr_real, msg)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
