@@ -49,22 +49,33 @@ class IntegerData:
 class BranchInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        # For OP_BCREG, this will either be CTR, LR, or TAR
-        self.spr = Signal(64, reset_less=True)
-        self.ctr = Signal(64, reset_less=True)  # CTR
+        # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
+        # this involves the *decode* unit selecting the register, based
+        # on detecting the operand being bcctr, bclr or bctar
+
+        self.spr1 = Signal(64, reset_less=True) # see table above, SPR1
+        self.spr2 = Signal(64, reset_less=True) # see table above, SPR2
+        self.spr3 = Signal(64, reset_less=True) # see table above, SPR3
         self.cr = Signal(32, reset_less=True)   # Condition Register(s) CR0-7
         self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
+        # convenience variables.  not all of these are used at once
+        self.ctr = self.srr0 = self.hsrr0 = self.spr2
+        self.lr = self.tar = self.srr1 = self.hsrr1 = self.i.spr1
+        self.msr = self.spr3
+
     def __iter__(self):
         yield from super().__iter__()
-        yield self.ctr
-        yield self.spr
+        yield self.spr1
+        yield self.spr2
+        yield self.spr3
         yield self.cr
         yield self.cia
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.ctr.eq(i.ctr), self.spr.eq(i.spr),
+        return lst + [self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
+                      self.spr3.eq(i.spr3),
                       self.cr.eq(i.cr), self.cia.eq(i.cia)]
 
 

@@ -33,13 +33,12 @@ class BranchMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        lk = op.lk # see PowerDecode2 as to why this is done
         nia_out, lr = self.o.nia_out, self.o.lr
 
         # obtain relevant instruction fields
         i_fields = self.fields.instrs['I']
-        lk = Signal(i_fields['LK'][0:-1].shape())
         aa = Signal(i_fields['AA'][0:-1].shape())
-        comb += lk.eq(i_fields['LK'][0:-1])
         comb += aa.eq(i_fields['AA'][0:-1])
 
         br_imm_addr = Signal(64, reset_less=True)
@@ -101,7 +100,7 @@ class BranchMainStage(PipeModBase):
                 comb += br_taken.eq(bc_taken)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
-                comb += br_imm_addr.eq(self.i.spr)
+                comb += br_imm_addr.eq(self.i.spr1) # SPR1 is set by decode unit
                 comb += br_taken.eq(bc_taken)
 
         ###### output next instruction address #####
@@ -109,11 +108,13 @@ class BranchMainStage(PipeModBase):
         comb += nia_out.data.eq(br_addr)
         comb += nia_out.ok.eq(br_taken)
 
-        ###### link register #####
+        ###### link register - only activate on operations marked as "lk" #####
 
         with m.If(lk):
+            # ctx.op.lk is the AND of the insn LK field *and* whether the
+            # op is to "listen" to the link field
             comb += lr.data.eq(self.i.cia + 4)
-        comb += lr.ok.eq(lk)
+            comb += lr.ok.eq(1)
 
         ###### and context #####
         comb += self.o.ctx.eq(self.i.ctx)
