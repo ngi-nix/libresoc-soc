@@ -27,7 +27,7 @@ class Bpermd(Elaboratable):
     """
 
     def __init__(self, width):
-        self.perm = Signal(width)
+        self.perm = Signal(width) # needs to be reset_less=True (all of them)
         self.rs   = Signal(width)
         self.ra   = Signal(width)
         self.rb   = Signal(width)
@@ -35,12 +35,13 @@ class Bpermd(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         index = Signal(8)
-        signals = [ Signal(1) for i in range(64) ]
-        for i,n in enumerate(signals):
+        signals = [ Signal(1) for i in range(64) ] # no spaces on braces [code]
+        for i,n in enumerate(signals): # add space after comma
             m.d.comb += n.eq(self.rb[i])
-        rb64 = Array(signals)
-        for i in range(0, 8):
-            index = self.rs[8 * i:8 * i + 8]
+        rb64 = Array(signals) # makes this indexable dynamically (a pmux)
+        for i in range(0, 8): # remove 0,
+            index = self.rs[8 * i:8 * i + 8] # remove spaces here
+            # TODO: assign index to a Signal, use the *signal* below
             with m.If(index < 64):
                 m.d.comb += self.perm[i].eq(rb64[index])
         m.d.comb += self.ra[0:8].eq(self.perm)
