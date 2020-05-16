@@ -43,8 +43,6 @@ class Bpermd(Elaboratable):
             index = self.rs[8 * i:8 * i + 8]
             with m.If(index < 64):
                 m.d.comb += self.perm[i].eq(rb64[index])
-            with m.Else():
-                continue
         m.d.comb += self.ra[0:8].eq(self.perm)
         return m
 
