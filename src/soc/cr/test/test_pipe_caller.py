@@ -186,6 +186,7 @@ class TestRunner(FHDLTestCase):
                         cr_expected = simulator.cr.get_range().value
                         cr_real = yield alu.n.data_o.cr
                         msg = f"real: {cr_expected:x}, actual: {cr_real:x}"
+                        msg += " code: %s" % code
                         self.assertEqual(cr_expected, cr_real, msg)
 
         sim.add_sync_process(process)
