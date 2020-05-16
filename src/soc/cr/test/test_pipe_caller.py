@@ -102,6 +102,20 @@ class CRTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs=initial_regs,
                                  initial_cr=cr)
 
+    def test_mfcr(self):
+        for i in range(5):
+            lst = ["mfcr 2"]
+            cr = random.randint(0, (1<<32)-1)
+            self.run_tst_program(Program(lst), initial_cr=cr)
+
+    def test_mfocrf(self):
+        for i in range(20):
+            mask = 1<<random.randint(0, 7)
+            lst = [f"mfocrf 2, {mask}"]
+            cr = random.randint(0, (1<<32)-1)
+            self.run_tst_program(Program(lst), initial_cr=cr)
+        
+
     def test_ilang(self):
         rec = CompALUOpSubset()
 
@@ -188,6 +202,14 @@ class TestRunner(FHDLTestCase):
                         msg = f"real: {cr_expected:x}, actual: {cr_real:x}"
                         msg += " code: %s" % code
                         self.assertEqual(cr_expected, cr_real, msg)
+
+                    reg_out = yield pdecode2.e.write_reg.ok
+                    if reg_out:
+                        reg_sel = yield pdecode2.e.write_reg.data
+                        reg_data = simulator.gpr(reg_sel).value
+                        output = yield alu.n.data_o.o
+                        msg = f"real: {reg_data:x}, actual: {output:x}"
+                        self.assertEqual(reg_data, output)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",

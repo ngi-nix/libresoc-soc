@@ -70,6 +70,16 @@ class CRMainStage(PipeModBase):
         move_one = Signal(reset_less=True)
         comb += move_one.eq(self.i.ctx.op.insn[20])
 
+        # Generate the mask for mtcrf, mtocrf, and mfocrf
+        fxm = Signal(xfx_fields['FXM'][0:-1].shape())
+        comb += fxm.eq(xfx_fields['FXM'][0:-1])
+
+        mask = Signal(32, reset_less=True)
+
+        # replicate every fxm field in the insn to 4-bit, as a mask
+        for i in range(8):
+            comb += mask[i*4:(i+1)*4].eq(Repl(fxm[i], 4))
+
         with m.Switch(op.insn_type):
             ##### mcrf #####
             with m.Case(InternalOp.OP_MCRF):
@@ -123,17 +133,20 @@ class CRMainStage(PipeModBase):
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
-                fxm = Signal(xfx_fields['FXM'][0:-1].shape())
-                comb += fxm.eq(xfx_fields['FXM'][0:-1])
-
-                # replicate every fxm field in the insn to 4-bit, as a mask
-                fxl = [Repl(fxm[i], 4) for i in range(8)]
-                mask = Signal(32, reset_less=True)
-                comb += mask.eq(Cat(*fxl))
-
+                # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
-                comb += cr_o.eq((self.i.a[0:32] & mask) | (self.i.cr & ~mask))
+                comb += cr_o.eq((self.i.a[0:32] & mask) |
+                                     (self.i.cr & ~mask))
+            with m.Case(InternalOp.OP_MFCR):
+                # mfocrf
+                with m.If(move_one):
+                    comb += self.o.o.eq(self.i.cr & mask)
+                # mfcrf
+                with m.Else():
+                    comb += self.o.o.eq(self.i.cr)
+                    
+                    
 
         comb += self.o.cr.eq(cr_o)
         comb += self.o.ctx.eq(self.i.ctx)
