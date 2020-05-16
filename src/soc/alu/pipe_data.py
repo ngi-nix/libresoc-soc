@@ -16,6 +16,9 @@ class IntegerData:
     def eq(self, i):
         return [self.ctx.eq(i.ctx)]
 
+    def ports(self):
+        return self.ctx.ports()
+
 
 class ALUInputData(IntegerData):
     def __init__(self, pspec):

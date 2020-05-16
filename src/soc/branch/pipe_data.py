@@ -32,19 +32,8 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
+from soc.alu.pipe_data import IntegerData
 
-
-class IntegerData:
-
-    def __init__(self, pspec):
-        self.ctx = FPPipeContext(pspec)
-        self.muxid = self.ctx.muxid
-
-    def __iter__(self):
-        yield from self.ctx
-
-    def eq(self, i):
-        return [self.ctx.eq(i.ctx)]
 
 class BranchInputData(IntegerData):
     def __init__(self, pspec):
