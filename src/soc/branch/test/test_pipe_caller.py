@@ -97,7 +97,6 @@ class BranchTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst),
                                  initial_sprs=initial_sprs,
                                  initial_cr=cr)
-        
 
     def test_ilang(self):
         rec = CompBROpSubset()
@@ -159,12 +158,18 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     yield branch.p.data_i.cr.eq(simulator.cr.get_range().value)
+                    # note, here, the op will need further decoding in order
+                    # to set the correct SPRs on SPR1/2/3.  op_bc* require
+                    # spr2 to be set to CTR, op_bctar require spr1 to be
+                    # set to TAR, op_bclr* require spr1 to be set to LR.
+                    # if op_sc*, op_rf* and op_hrfid are to be added here
+                    # then additional op-decoding is required, accordingly
                     yield branch.p.data_i.spr2.eq(simulator.spr['CTR'].value)
                     print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
-                    yield 
+                    yield
                     yield
                     opname = code.split(' ')[0]
                     prev_nia = simulator.pc.NIA.value
