@@ -66,9 +66,18 @@ class CRTestCase(FHDLTestCase):
                       self.test_name)
         test_data.append(tc)
 
-    def test_crand(self):
-        lst = ["crandc 1, 2, 3"]
-        self.run_tst_program(Program(lst))
+    def test_crop(self):
+        insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
+                 "crandc", "crorc"]
+        for i in range(40):
+            choice = random.choice(insns)
+            ba = random.randint(0, 31)
+            bb = random.randint(0, 31)
+            bt = random.randint(0, 31)
+            lst = [f"{choice} {ba}, {bb}, {bt}"]
+            cr = random.randint(0, 7)
+            self.run_tst_program(Program(lst), initial_cr=cr)
+
 
     def test_mcrf(self):
         lst = ["mcrf 0, 5"]
