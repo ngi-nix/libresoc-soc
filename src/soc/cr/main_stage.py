@@ -77,8 +77,7 @@ class CRMainStage(PipeModBase):
 
         # replicate every fxm field in the insn to 4-bit, as a mask
         mask = Signal(32, reset_less=True)
-        for i in range(8):
-            comb += mask[i*4:(i+1)*4].eq(Repl(fxm[i], 4))
+        comb += mask.eq(Cat(*[Repl(fxm[i], 4) for i in range(8)]))
 
         #################################
         ##### main switch statement #####
@@ -132,6 +131,7 @@ class CRMainStage(PipeModBase):
                 comb += cr_o.eq((self.i.a[0:32] & mask) |
                                      (self.i.cr & ~mask))
 
+            ##### mfcr #####
             with m.Case(InternalOp.OP_MFCR):
                 # mfocrf
                 with m.If(move_one):
