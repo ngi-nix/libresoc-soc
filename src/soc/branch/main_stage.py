@@ -16,6 +16,20 @@ from soc.decoder.power_fieldsn import SignalBitRange
 def br_ext(bd):
     return Cat(Const(0, 2), bd, Repl(bd[-1], 64-(bd.shape().width + 2)))
 
+"""
+Notes on BO Field:
+
+BO    Description
+0000z Decrement the CTR, then branch if decremented CTR[M:63]!=0 and CR[BI]=0
+0001z Decrement the CTR, then branch if decremented CTR[M:63]=0 and CR[BI]=0
+001at Branch if CR[BI]=0
+0100z Decrement the CTR, then branch if decremented CTR[M:63]!=0 and CR[BI]=1
+0101z Decrement the CTR, then branch if decremented CTR[M:63]=0 and CR[BI]=1
+011at Branch if CR[BI]=1
+1a00t Decrement the CTR, then branch if decremented CTR[M:63]!=0
+1a01t Decrement the CTR, then branch if decremented CTR[M:63]=0
+1z1zz Branch always
+"""
 
 class BranchMainStage(PipeModBase):
     def __init__(self, pspec):
