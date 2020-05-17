@@ -1,6 +1,7 @@
 # This stage is intended to do Condition Register instructions
 # and output, as well as carry and overflow generation.
-# NOTE: we really should be doing the field decoding which
+# NOTE: with the exception of mtcrf and mfcr, we really should be doing
+# the field decoding which
 # selects which bits of CR are to be read / written, back in the
 # decoder / insn-isue, have both self.i.cr and self.o.cr
 # be broken down into 4-bit-wide "registers", with their
