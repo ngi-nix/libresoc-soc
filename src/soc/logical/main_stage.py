@@ -109,8 +109,7 @@ class LogicalMainStage(PipeModBase):
 
             ###### cntlz #######
             with m.Case(InternalOp.OP_CNTZ):
-                x_fields = self.fields.instrs['X']
-                XO = Signal(x_fields['XO'][0:-1].shape())
+                XO = self.fields.FormX.XO[0:-1]
                 m.submodules.countz = countz = ZeroCounter()
                 comb += countz.rs_i.eq(a)
                 comb += countz.is_32bit_i.eq(op.is_32bit)
