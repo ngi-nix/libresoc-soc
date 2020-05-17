@@ -348,7 +348,7 @@ class LDSTCompUnit(Elaboratable):
         comb += alu_l.r.eq(alu_ok & ~rda_any)
 
         # addr latch
-        comb += adr_l.s.eq(reset_i | ld_ok)
+        comb += adr_l.s.eq(reset_i)
         sync += adr_l.r.eq(reset_a)
 
         # ld latch
@@ -360,7 +360,7 @@ class LDSTCompUnit(Elaboratable):
         sync += wri_l.r.eq(reset_w)
 
         # update-mode operand latch (EA written to reg 2)
-        sync += upd_l.s.eq(alu_l.s)
+        sync += upd_l.s.eq(reset_i)
         sync += upd_l.r.eq(reset_u)
 
         # store latch
@@ -477,9 +477,9 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(adr_l.qn | self.ad.go) # "go do address stuff"
+        comb += pi.addr.ok.eq(self.ad.go) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
-        comb += addr_ok.eq(self.pi.addr_ok_o)     # no exc, address fine
+        comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
         # ld - ld gets latched in via lod_l
         comb += ldd_o.eq(pi.ld.data)  # ld data goes into ld reg (above)
         comb += ld_ok.eq(pi.ld.ok) # ld.ok *closes* (freezes) ld data
@@ -515,7 +515,7 @@ class LDSTCompUnit(Elaboratable):
 
 def wait_for(sig, wait=True, test1st=False):
     v = (yield sig)
-    print("wait for", sig, v)
+    print("wait for", sig, v, wait, test1st)
     if test1st and bool(v) == wait:
         return
     while True:
@@ -538,14 +538,18 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.rd.go.eq(0b111)
+    if imm_ok:
+        yield dut.rd.go.eq(0b101)
+    else:
+        yield dut.rd.go.eq(0b111)
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
 
-    yield from wait_for(dut.adr_rel_o)
-    yield dut.ad.go.eq(1)
-    yield
-    yield dut.ad.go.eq(0)
+    yield from wait_for(dut.adr_rel_o, False, test1st=True)
+    #yield from wait_for(dut.adr_rel_o)
+    #yield dut.ad.go.eq(1)
+    #yield
+    #yield dut.ad.go.eq(0)
 
     if update:
         yield from wait_for(dut.wr.rel[1])
@@ -584,10 +588,10 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False):
     yield from wait_for(dut.rd.rel)
     yield dut.rd.go.eq(0)
 
-    yield from wait_for(dut.adr_rel_o)
-    yield dut.ad.go.eq(1)
-    yield
-    yield dut.ad.go.eq(0)
+    yield from wait_for(dut.adr_rel_o, False, test1st=True)
+    #yield dut.ad.go.eq(1)
+    #yield
+    #yield dut.ad.go.eq(0)
 
     if update:
         yield from wait_for(dut.wr.rel[1])
@@ -651,6 +655,7 @@ class TestLDSTCompUnit(LDSTCompUnit):
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
+        m.d.comb += self.ad.go.eq(self.ad.rel) # link addr-go direct to rel
         return m
 
 
