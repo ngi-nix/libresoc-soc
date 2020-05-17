@@ -29,16 +29,17 @@ class Bpermd(Elaboratable):
 
     def __init__(self, width):
         self.width = width
-        self.rs   = Signal(width, reset_less=True)
-        self.ra   = Signal(width, reset_less=True)
-        self.rb   = Signal(width, reset_less=True)
+        self.rs = Signal(width, reset_less=True)
+        self.ra = Signal(width, reset_less=True)
+        self.rb = Signal(width, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
         perm = Signal(self.width, reset_less=True)
-        rb64 = Array([Signal(1, reset_less=True, name=f"rb64_{i}") for i in range(64)])
+        rb64 = [Signal(1, reset_less=True, name=f"rb64_{i}") for i in range(64)]
         for i in range(64):
             m.d.comb += rb64[i].eq(self.rb[i])
+        rb64 = Array(rb64)
         for i in range(8):
             index = self.rs[8*i:8*i+8]
             idx = Signal(8, name=f"idx_{i}", reset_less=True)
@@ -51,4 +52,4 @@ class Bpermd(Elaboratable):
 
 if __name__ == "__main__":
     bperm = Bpermd(width=64)
-    main(bperm,ports=[bperm.perm, bperm.rs, bperm.ra, bperm.rb])
+    main(bperm, ports=[bperm.perm, bperm.rs, bperm.ra, bperm.rb])
