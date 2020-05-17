@@ -34,8 +34,8 @@ class CRMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        xl_fields = self.fields.instrs['XL']
-        xfx_fields = self.fields.instrs['XFX']
+        xl_fields = self.fields.FormXL
+        xfx_fields = self.fields.FormXFX
 
         # default: cr_o remains same as cr input unless modified, below
         cr_o = Signal.like(self.i.cr)
@@ -73,8 +73,8 @@ class CRMainStage(PipeModBase):
             comb += lut[i].eq(self.i.ctx.op.insn[6+i])
 
         # Generate the mask for mtcrf, mtocrf, and mfocrf
-        fxm = Signal(xfx_fields['FXM'][0:-1].shape())
-        comb += fxm.eq(xfx_fields['FXM'][0:-1])
+        fxm = Signal(xfx_fields.FXM[0:-1].shape())
+        comb += fxm.eq(xfx_fields.FXM[0:-1])
 
         # replicate every fxm field in the insn to 4-bit, as a mask
         mask = Signal(32, reset_less=True)
@@ -90,11 +90,12 @@ class CRMainStage(PipeModBase):
                 # copying cr2 to cr1)
 
                 # The destination CR
-                bf = Signal(xl_fields['BF'][0:-1].shape())
-                comb += bf.eq(xl_fields['BF'][0:-1])
+                print ("xl", xl_fields)
+                bf = Signal(xl_fields.BF[0:-1].shape())
+                comb += bf.eq(xl_fields.BF[0:-1])
                 # the source CR
-                bfa = Signal(xl_fields['BFA'][0:-1].shape())
-                comb += bfa.eq(xl_fields['BFA'][0:-1])
+                bfa = Signal(xl_fields.BFA[0:-1].shape())
+                comb += bfa.eq(xl_fields.BFA[0:-1])
 
                 for i in range(4):
                     comb += cr_out_arr[bf*4 + i].eq(cr_arr[bfa*4 + i])
@@ -102,12 +103,12 @@ class CRMainStage(PipeModBase):
             ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
                 # Get the bit selector fields from the instruction
-                bt = Signal(xl_fields['BT'][0:-1].shape())
-                ba = Signal(xl_fields['BA'][0:-1].shape())
-                bb = Signal(xl_fields['BB'][0:-1].shape())
-                comb += bt.eq(xl_fields['BT'][0:-1])
-                comb += ba.eq(xl_fields['BA'][0:-1])
-                comb += bb.eq(xl_fields['BB'][0:-1])
+                bt = Signal(xl_fields.BT[0:-1].shape())
+                ba = Signal(xl_fields.BA[0:-1].shape())
+                bb = Signal(xl_fields.BB[0:-1].shape())
+                comb += bt.eq(xl_fields.BT[0:-1])
+                comb += ba.eq(xl_fields.BA[0:-1])
+                comb += bb.eq(xl_fields.BB[0:-1])
 
                 # Use the two input bits to look up the result in the LUT
                 comb += cr_out_arr[bt].eq(lut[Cat(cr_arr[bb], cr_arr[ba])])
