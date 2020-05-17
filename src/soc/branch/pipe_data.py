@@ -75,6 +75,9 @@ class BranchOutputData(IntegerData):
         self.spr = Data(64, name="spr")
         self.nia_out = Data(64, name="nia_out")
 
+        # convenience variables.
+        self.ctr = self.spr
+
     def __iter__(self):
         yield from super().__iter__()
         yield from self.lr

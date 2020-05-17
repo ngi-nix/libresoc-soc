@@ -71,8 +71,8 @@ class BranchMainStage(PipeModBase):
             # Yes, the CTR only counts 32 bits
             ctr = Signal(64, reset_less=True)
             comb += ctr.eq(self.i.ctr - 1)
-            comb += self.o.spr.data.eq(ctr)
-            comb += self.o.spr.ok.eq(1)
+            comb += self.o.ctr.data.eq(ctr)
+            comb += self.o.ctr.ok.eq(1)
             ctr_zero_bo1 = Signal(reset_less=True) # BO[1] == (ctr==0)
             comb += ctr_zero_bo1.eq(BO[1] ^ ctr.any())
             with m.If(BO[3:5] == 0b00):
