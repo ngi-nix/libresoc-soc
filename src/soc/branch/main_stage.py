@@ -82,13 +82,20 @@ class BranchMainStage(PipeModBase):
         with m.If(BO[2]):
             comb += bc_taken.eq((cr_bit == BO[3]) | BO[4])
         with m.Else():
-            # Yes, the CTR only counts 32 bits
+            # decrement the counter and place into output
             ctr = Signal(64, reset_less=True)
             comb += ctr.eq(self.i.ctr - 1)
             comb += self.o.ctr.data.eq(ctr)
             comb += self.o.ctr.ok.eq(1)
+            # take either all 64 bits or only 32 of post-incremented counter
+            ctr_m = Signal(64, reset_less=True)
+            with m.If((op.is_32bit):
+                comb += ctr_m.eq(ctr[:32])
+            with m.Else():
+                comb += ctr_m.eq(ctr)
+            # check CTR zero/non-zero against BO[1]
             ctr_zero_bo1 = Signal(reset_less=True) # BO[1] == (ctr==0)
-            comb += ctr_zero_bo1.eq(BO[1] ^ ctr.any())
+            comb += ctr_zero_bo1.eq(BO[1] ^ ctr_m.any())
             with m.If(BO[3:5] == 0b00):
                 comb += bc_taken.eq(ctr_zero_bo1 & ~cr_bit)
             with m.Elif(BO[3:5] == 0b01):
