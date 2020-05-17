@@ -451,7 +451,7 @@ class LDSTCompUnit(Elaboratable):
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
         comb += wr_any.eq(self.st.go | self.wr.go[0] | self.wr.go[1])
-        comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i & wr_any &
+        comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
                     ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
                      (lod_l.qn | op_is_st))
         comb += self.done_o.eq(wr_reset)
