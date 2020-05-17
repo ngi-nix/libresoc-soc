@@ -14,7 +14,7 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 def br_ext(bd):
-    return Cat(Const(0, 2), bd, Repl(bd[-1], 64-(bd.width + 2)))
+    return Cat(Const(0, 2), bd, Repl(bd[-1], 64-(bd.shape().width + 2)))
 
 
 class BranchMainStage(PipeModBase):
@@ -37,9 +37,9 @@ class BranchMainStage(PipeModBase):
         nia_out, lr = self.o.nia_out, self.o.lr
 
         # obtain relevant instruction fields
-        i_fields = self.fields.instrs['I']
-        aa = Signal(i_fields['AA'][0:-1].shape())
-        comb += aa.eq(i_fields['AA'][0:-1])
+        i_fields = self.fields.FormI
+        aa = Signal(i_fields.AA[0:-1].shape())
+        comb += aa.eq(i_fields.AA[0:-1])
 
         br_imm_addr = Signal(64, reset_less=True)
         br_addr = Signal(64, reset_less=True)
@@ -56,19 +56,17 @@ class BranchMainStage(PipeModBase):
         # selectors (similar to RA, RB, RS, RT).  see comment here:
         # https://bugs.libre-soc.org/show_bug.cgi?id=313#c2
         b_fields = self.fields.instrs['B']
-        bo = Signal(b_fields['BO'][0:-1].shape())
-        bi = Signal(b_fields['BI'][0:-1].shape())
-        comb += bo.eq(b_fields['BO'][0:-1])
-        comb += bi.eq(b_fields['BI'][0:-1])
+        BO = b_fields['BO'][0:-1]
+        BI = b_fields['BI'][0:-1]
 
         # The bit of CR selected by BI
         cr_bit = Signal(reset_less=True)
-        comb += cr_bit.eq((self.i.cr & (1<<(31-bi))) != 0)
+        comb += cr_bit.eq((self.i.cr & (1<<(31-BI))) != 0)
 
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
-        with m.If(bo[2]):
-            comb += bc_taken.eq((cr_bit == bo[3]) | bo[4])
+        with m.If(BO[2]):
+            comb += bc_taken.eq((cr_bit == BO[3]) | BO[4])
         with m.Else():
             # Yes, the CTR only counts 32 bits
             ctr = Signal(64, reset_less=True)
@@ -77,26 +75,24 @@ class BranchMainStage(PipeModBase):
             comb += self.o.spr.ok.eq(1)
             ctr_eq_zero = Signal(reset_less=True)
             comb += ctr_eq_zero.eq(ctr == 0)
-            with m.If(bo[3:5] == 0b00):
-                comb += bc_taken.eq(~cr_bit & (ctr_eq_zero == bo[1]))
-            with m.Elif(bo[3:5] == 0b01):
-                comb += bc_taken.eq(cr_bit & (ctr_eq_zero == bo[1]))
-            with m.Elif(bo[4] == 1):
-                comb += bc_taken.eq(ctr_eq_zero == bo[1])
+            with m.If(BO[3:5] == 0b00):
+                comb += bc_taken.eq(~cr_bit & (ctr_eq_zero == BO[1]))
+            with m.Elif(BO[3:5] == 0b01):
+                comb += bc_taken.eq(cr_bit & (ctr_eq_zero == BO[1]))
+            with m.Elif(BO[4] == 1):
+                comb += bc_taken.eq(ctr_eq_zero == BO[1])
 
         ### Main Switch Statement ###
         with m.Switch(op.insn_type):
             #### branch ####
             with m.Case(InternalOp.OP_B):
-                li = Signal(i_fields['LI'][0:-1].shape())
-                comb += li.eq(i_fields['LI'][0:-1])
-                comb += br_imm_addr.eq(br_ext(li))
+                LI = i_fields.LI[0:-1]
+                comb += br_imm_addr.eq(br_ext(LI))
                 comb += br_taken.eq(1)
             #### branch conditional ####
             with m.Case(InternalOp.OP_BC):
-                bd = Signal(b_fields['BD'][0:-1].shape())
-                comb += bd.eq(b_fields['BD'][0:-1])
-                comb += br_imm_addr.eq(br_ext(bd))
+                BD = b_fields.BD[0:-1]
+                comb += br_imm_addr.eq(br_ext(BD))
                 comb += br_taken.eq(bc_taken)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
