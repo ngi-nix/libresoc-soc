@@ -477,7 +477,7 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(self.ad.go) # "go do address stuff"
+        comb += pi.addr.ok.eq(alu_valid) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
         # ld - ld gets latched in via lod_l
