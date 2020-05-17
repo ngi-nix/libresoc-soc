@@ -75,8 +75,6 @@ class ALUMainStage(PipeModBase):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == self.i.b[8*i:8*(i+1)])
                 comb += self.o.cr0.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
-                    
-                
 
         ###### sticky overflow and context, both pass-through #####
 
