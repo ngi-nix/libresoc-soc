@@ -73,7 +73,7 @@ class BranchOutputData(IntegerData):
         super().__init__(pspec)
         self.lr = Data(64, name="lr")
         self.spr = Data(64, name="spr")
-        self.nia_out = Data(64, name="nia_out")
+        self.nia = Data(64, name="nia")
 
         # convenience variables.
         self.ctr = self.spr
@@ -82,9 +82,9 @@ class BranchOutputData(IntegerData):
         yield from super().__iter__()
         yield from self.lr
         yield from self.spr
-        yield from self.nia_out
+        yield from self.nia
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.lr.eq(i.lr), self.spr.eq(i.spr),
-                      self.nia_out.eq(i.nia_out)]
+                      self.nia.eq(i.nia)]
