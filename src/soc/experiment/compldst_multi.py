@@ -477,7 +477,7 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok) # "go do address stuff"
+        comb += pi.addr.ok.eq(alu_ok & lod_l.q) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
         # ld - ld gets latched in via lod_l
@@ -527,6 +527,7 @@ def wait_for(sig, wait=True, test1st=False):
 
 
 def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
+    print ("ST", src1, src2, src3, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
@@ -572,6 +573,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
 
 
 def load(dut, src1, src2, imm, imm_ok=True, update=False):
+    print ("LD", src1, src2, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
@@ -621,8 +623,8 @@ def scoreboard_sim(dut):
     # immediate version
 
     # two STs (different addresses)
-    yield from store(dut, 4, 0, 3, 2)
-    yield from store(dut, 2, 0, 9, 2)
+    yield from store(dut, 4, 0, 3, 2)  # ST reg4 into addr rfile[reg3]+2
+    yield from store(dut, 2, 0, 9, 2)  # ST reg4 into addr rfile[reg9]+2
     yield
     # two LDs (deliberately LD from the 1st address then 2nd)
     data, addr = yield from load(dut, 4, 0, 2)
