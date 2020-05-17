@@ -55,9 +55,9 @@ class BranchMainStage(PipeModBase):
         # NOTE: here, BO and BI we would like be treated as CR regfile
         # selectors (similar to RA, RB, RS, RT).  see comment here:
         # https://bugs.libre-soc.org/show_bug.cgi?id=313#c2
-        b_fields = self.fields.instrs['B']
-        BO = b_fields['BO'][0:-1]
-        BI = b_fields['BI'][0:-1]
+        b_fields = self.fields.FormB
+        BO = b_fields.BO[0:-1]
+        BI = b_fields.BI[0:-1]
 
         # The bit of CR selected by BI
         cr_bit = Signal(reset_less=True)
@@ -73,14 +73,14 @@ class BranchMainStage(PipeModBase):
             comb += ctr.eq(self.i.ctr - 1)
             comb += self.o.spr.data.eq(ctr)
             comb += self.o.spr.ok.eq(1)
-            ctr_eq_zero = Signal(reset_less=True)
-            comb += ctr_eq_zero.eq(ctr == 0)
+            ctr_zero_bo1 = Signal(reset_less=True) # BO[1] == (ctr==0)
+            comb += ctr_zero_bo1.eq(BO[1] ^ ctr.any())
             with m.If(BO[3:5] == 0b00):
-                comb += bc_taken.eq(~cr_bit & (ctr_eq_zero == BO[1]))
+                comb += bc_taken.eq(ctr_zero_bo1 & ~cr_bit)
             with m.Elif(BO[3:5] == 0b01):
-                comb += bc_taken.eq(cr_bit & (ctr_eq_zero == BO[1]))
+                comb += bc_taken.eq(ctr_zero_bo1 & cr_bit)
             with m.Elif(BO[4] == 1):
-                comb += bc_taken.eq(ctr_eq_zero == BO[1])
+                comb += bc_taken.eq(ctr_zero_bo1)
 
         ### Main Switch Statement ###
         with m.Switch(op.insn_type):
