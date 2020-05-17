@@ -67,9 +67,10 @@ class CRMainStage(PipeModBase):
         # the CR to determine what the resulting bit should be.
 
         # Grab the lookup table for cr_op type instructions
-        lut = Signal(4, reset_less=True)
+        lut = Array([Signal(name=f"lut{i}") for i in range(4)])
         # There's no field, just have to grab it directly from the insn
-        comb += lut.eq(self.i.ctx.op.insn[6:10])
+        for i in range(4):
+            comb += lut[i].eq(self.i.ctx.op.insn[6+i])
 
         # Generate the mask for mtcrf, mtocrf, and mfocrf
         fxm = Signal(xfx_fields['FXM'][0:-1].shape())
@@ -108,28 +109,15 @@ class CRMainStage(PipeModBase):
                 comb += ba.eq(xl_fields['BA'][0:-1])
                 comb += bb.eq(xl_fields['BB'][0:-1])
 
-                # Extract the two input bits from the CR
-                bit_a = Signal(reset_less=True)
-                bit_b = Signal(reset_less=True)
-                comb += bit_a.eq(cr_arr[ba])
-                comb += bit_b.eq(cr_arr[bb])
-
-                # Use the two input bits to look up the result in the
-                # lookup table
-                bit_out = Signal(reset_less=True)
-                comb += bit_out.eq(Mux(bit_b,
-                                       Mux(bit_a, lut[3], lut[1]),
-                                       Mux(bit_a, lut[2], lut[0])))
-                # Set the output to the result above
-                comb += cr_out_arr[bt].eq(bit_out)
+                # Use the two input bits to look up the result in the LUT
+                comb += cr_out_arr[bt].eq(lut[Cat(cr_arr[bb], cr_arr[ba])])
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
                 # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
-                comb += cr_o.eq((self.i.a[0:32] & mask) |
-                                     (self.i.cr & ~mask))
+                comb += cr_o.eq((self.i.a[0:32] & mask) | (self.i.cr & ~mask))
 
             ##### mfcr #####
             with m.Case(InternalOp.OP_MFCR):
