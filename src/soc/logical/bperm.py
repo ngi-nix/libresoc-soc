@@ -52,4 +52,4 @@ class Bpermd(Elaboratable):
 
 if __name__ == "__main__":
     bperm = Bpermd(width=64)
-    main(bperm, ports=[bperm.perm, bperm.rs, bperm.ra, bperm.rb])
+    main(bperm, ports=[bperm.rs, bperm.ra, bperm.rb])
