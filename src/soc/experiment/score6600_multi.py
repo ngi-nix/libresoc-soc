@@ -1161,7 +1161,8 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
                    "add  4, 3, 5"
                     ]
         if True:
-            lst += [ "lbz 6, 7(2)",
+            lst += [ "lbzu 6, 7(2)",
+                     
                    ]
 
         with Program(lst) as program:
