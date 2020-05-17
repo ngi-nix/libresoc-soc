@@ -186,11 +186,11 @@ class TestRunner(FHDLTestCase):
             sim.run()
 
     def assert_outputs(self, branch, dec2, sim, prev_nia):
-        branch_taken = yield branch.n.data_o.nia_out.ok
+        branch_taken = yield branch.n.data_o.nia.ok
         sim_branch_taken = prev_nia != sim.pc.CIA
         self.assertEqual(branch_taken, sim_branch_taken)
         if branch_taken:
-            branch_addr = yield branch.n.data_o.nia_out.data
+            branch_addr = yield branch.n.data_o.nia.data
             self.assertEqual(branch_addr, sim.pc.CIA.value)
 
         lk = yield dec2.e.lk

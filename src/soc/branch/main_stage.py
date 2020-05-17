@@ -34,7 +34,7 @@ class BranchMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
         lk = op.lk # see PowerDecode2 as to why this is done
-        nia_out, lr = self.o.nia_out, self.o.lr
+        nia_o, lr_o = self.o.nia, self.o.lr
 
         # obtain relevant instruction fields
         i_fields = self.fields.FormI
@@ -101,16 +101,16 @@ class BranchMainStage(PipeModBase):
 
         ###### output next instruction address #####
 
-        comb += nia_out.data.eq(br_addr)
-        comb += nia_out.ok.eq(br_taken)
+        comb += nia_o.data.eq(br_addr)
+        comb += nia_o.ok.eq(br_taken)
 
         ###### link register - only activate on operations marked as "lk" #####
 
         with m.If(lk):
             # ctx.op.lk is the AND of the insn LK field *and* whether the
             # op is to "listen" to the link field
-            comb += lr.data.eq(self.i.cia + 4)
-            comb += lr.ok.eq(1)
+            comb += lr_o.data.eq(self.i.cia + 4)
+            comb += lr_o.ok.eq(1)
 
         ###### and context #####
         comb += self.o.ctx.eq(self.i.ctx)
