@@ -343,9 +343,9 @@ class LDSTCompUnit(Elaboratable):
         sync += src_l.s.eq(Repl(issue_i, self.n_src))
         sync += src_l.r.eq(reset_r)
 
-        # alu latch
+        # alu latch.  use sync-delay between alu_ok and valid to generate pulse
         comb += alu_l.s.eq(reset_i)
-        comb += alu_l.r.eq(alu_ok & ~rda_any)
+        comb += alu_l.r.eq(alu_ok & ~alu_valid & ~rda_any)
 
         # addr latch
         comb += adr_l.s.eq(reset_i)
@@ -389,7 +389,7 @@ class LDSTCompUnit(Elaboratable):
 
         # and one for the output from the ADD (for the EA)
         addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
-        latchregister(m, alu_o, addr_r, alu_l.qn, "ea_r")
+        latchregister(m, alu_o, addr_r, alu_l.q, "ea_r")
 
         # select either immediate or src2 if opcode says so
         op_is_imm = oper_r.imm_data.imm_ok
@@ -477,7 +477,7 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_valid) # "go do address stuff"
+        comb += pi.addr.ok.eq(alu_ok) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
         # ld - ld gets latched in via lod_l
