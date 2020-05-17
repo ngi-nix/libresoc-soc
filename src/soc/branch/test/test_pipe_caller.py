@@ -177,7 +177,7 @@ class TestRunner(FHDLTestCase):
                     index = (simulator.pc.CIA.value - initial_cia)//4
 
                     yield from self.assert_outputs(branch, pdecode2,
-                                                   simulator, prev_nia)
+                                                   simulator, prev_nia, code)
 
 
         sim.add_sync_process(process)
@@ -185,20 +185,20 @@ class TestRunner(FHDLTestCase):
                             traces=[]):
             sim.run()
 
-    def assert_outputs(self, branch, dec2, sim, prev_nia):
+    def assert_outputs(self, branch, dec2, sim, prev_nia, code):
         branch_taken = yield branch.n.data_o.nia.ok
         sim_branch_taken = prev_nia != sim.pc.CIA
-        self.assertEqual(branch_taken, sim_branch_taken)
+        self.assertEqual(branch_taken, sim_branch_taken, code)
         if branch_taken:
             branch_addr = yield branch.n.data_o.nia.data
-            self.assertEqual(branch_addr, sim.pc.CIA.value)
+            self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
         lk = yield dec2.e.lk
         branch_lk = yield branch.n.data_o.lr.ok
-        self.assertEqual(lk, branch_lk)
+        self.assertEqual(lk, branch_lk, code)
         if lk:
             branch_lr = yield branch.n.data_o.lr.data
-            self.assertEqual(sim.spr['LR'], branch_lr)
+            self.assertEqual(sim.spr['LR'], branch_lr, code)
 
 
 if __name__ == "__main__":
