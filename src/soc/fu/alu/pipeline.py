@@ -1,8 +1,8 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.alu.input_stage import ALUInputStage
-from soc.alu.main_stage import ALUMainStage
-from soc.alu.output_stage import ALUOutputStage
+from soc.fu.alu.input_stage import ALUInputStage
+from soc.fu.alu.main_stage import ALUMainStage
+from soc.fu.alu.output_stage import ALUOutputStage
 
 class ALUStages(PipeModBaseChain):
     def get_chain(self):

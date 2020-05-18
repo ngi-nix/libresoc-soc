@@ -6,7 +6,7 @@ from nmigen import (Module, Signal, Cat, Const, Mux, Repl, signed,
                     unsigned)
 from nmutil.pipemodbase import PipeModBase
 from soc.decoder.power_enums import InternalOp
-from soc.shift_rot.pipe_data import ShiftRotInputData
+from soc.fu.shift_rot.pipe_data import ShiftRotInputData
 from soc.decoder.power_enums import CryIn
 
 

@@ -7,7 +7,7 @@ from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 
-from soc.logical.bperm import Bpermd
+from soc.fu.logical.bperm import Bpermd
 
 import unittest
 

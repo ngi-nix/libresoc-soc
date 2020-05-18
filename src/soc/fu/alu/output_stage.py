@@ -3,7 +3,7 @@
 # register
 from nmigen import (Module, Signal, Cat, Repl)
 from nmutil.pipemodbase import PipeModBase
-from soc.alu.pipe_data import ALUInputData, ALUOutputData
+from soc.fu.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 

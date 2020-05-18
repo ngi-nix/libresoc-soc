@@ -1,6 +1,6 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.cr.main_stage import CRMainStage
+from soc.fu.cr.main_stage import CRMainStage
 
 class CRStages(PipeModBaseChain):
     def get_chain(self):

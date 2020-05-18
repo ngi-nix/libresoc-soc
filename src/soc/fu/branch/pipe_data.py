@@ -32,7 +32,7 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
-from soc.alu.pipe_data import IntegerData
+from soc.fu.alu.pipe_data import IntegerData
 
 
 class BranchInputData(IntegerData):

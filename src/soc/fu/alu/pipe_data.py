@@ -1,6 +1,6 @@
 from nmigen import Signal, Const
 from nmutil.dynamicpipe import SimpleHandshakeRedir
-from soc.alu.alu_input_record import CompALUOpSubset
+from soc.fu.alu.alu_input_record import CompALUOpSubset
 from ieee754.fpcommon.getop import FPPipeContext
 
 

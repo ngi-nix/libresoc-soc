@@ -2,7 +2,7 @@ from nmigen import Signal, Module
 from nmigen.back.pysim import Simulator, Delay, Settle
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
-from soc.alu.maskgen import MaskGen
+from soc.fu.alu.maskgen import MaskGen
 from soc.decoder.helpers import MASK
 import random
 import unittest

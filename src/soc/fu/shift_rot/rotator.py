@@ -3,7 +3,7 @@
 
 from nmigen import (Elaboratable, Signal, Module, Const, Cat,
                     unsigned, signed)
-from soc.shift_rot.rotl import ROTL
+from soc.fu.shift_rot.rotl import ROTL
 
 # note BE bit numbering
 def right_mask(m, mask_begin):

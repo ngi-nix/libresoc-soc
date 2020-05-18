@@ -11,7 +11,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
-from soc.cr.pipe_data import CRInputData, CROutputData
+from soc.fu.cr.pipe_data import CRInputData, CROutputData
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields

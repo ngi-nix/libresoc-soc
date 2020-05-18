@@ -1,6 +1,6 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.branch.main_stage import BranchMainStage
+from soc.fu.branch.main_stage import BranchMainStage
 
 class BranchStages(PipeModBaseChain):
     def get_chain(self):

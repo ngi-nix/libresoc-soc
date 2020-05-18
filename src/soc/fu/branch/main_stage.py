@@ -7,7 +7,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
-from soc.branch.pipe_data import BranchInputData, BranchOutputData
+from soc.fu.branch.pipe_data import BranchInputData, BranchOutputData
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields

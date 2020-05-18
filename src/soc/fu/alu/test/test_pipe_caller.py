@@ -12,9 +12,9 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.alu.pipeline import ALUBasePipe
-from soc.alu.alu_input_record import CompALUOpSubset
-from soc.alu.pipe_data import ALUPipeSpec
+from soc.fu.alu.pipeline import ALUBasePipe
+from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.alu.pipe_data import ALUPipeSpec
 import random
 
 class TestCase:

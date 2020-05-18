@@ -1,8 +1,8 @@
 from nmigen import Signal, Const
 from nmutil.dynamicpipe import SimpleHandshakeRedir
-from soc.alu.alu_input_record import CompALUOpSubset
+from soc.fu.alu.alu_input_record import CompALUOpSubset
 from ieee754.fpcommon.getop import FPPipeContext
-from soc.alu.pipe_data import IntegerData
+from soc.fu.alu.pipe_data import IntegerData
 
 
 class ShiftRotInputData(IntegerData):

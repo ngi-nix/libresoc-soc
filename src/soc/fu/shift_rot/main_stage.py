@@ -4,11 +4,11 @@
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
-from soc.alu.pipe_data import ALUOutputData
-from soc.shift_rot.pipe_data import ShiftRotInputData
+from soc.fu.alu.pipe_data import ALUOutputData
+from soc.fu.shift_rot.pipe_data import ShiftRotInputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
-from soc.shift_rot.rotator import Rotator
+from soc.fu.shift_rot.rotator import Rotator
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange

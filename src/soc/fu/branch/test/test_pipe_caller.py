@@ -12,9 +12,9 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.branch.pipeline import BranchBasePipe
-from soc.branch.br_input_record import CompBROpSubset
-from soc.alu.pipe_data import ALUPipeSpec
+from soc.fu.branch.pipeline import BranchBasePipe
+from soc.fu.branch.br_input_record import CompBROpSubset
+from soc.fu.alu.pipe_data import ALUPipeSpec
 import random
 
 

@@ -7,9 +7,9 @@ from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 
-from soc.logical.main_stage import LogicalMainStage
-from soc.alu.pipe_data import ALUPipeSpec
-from soc.alu.alu_input_record import CompALUOpSubset
+from soc.fu.logical.main_stage import LogicalMainStage
+from soc.fu.alu.pipe_data import ALUPipeSpec
+from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.decoder.power_enums import InternalOp
 import unittest
 
