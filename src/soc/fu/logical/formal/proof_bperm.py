@@ -87,7 +87,10 @@ class Driver(Elaboratable):
         # checking if the index is >= 64 (it's hardware, so use an
         # m.If()). Finally, I'd add an assert that checks whether
         # ra[i] is equal to 0
-
+        for i in range(8):
+            index = rb[i*8:i*8+8]
+            with m.If(index >= 64):
+                comb += Assert(ra[i] == 0)
 
 
         return m
@@ -108,7 +111,7 @@ class TestCase(FHDLTestCase):
         # and steps it through `depth` cycles, checking that the
         # assertions hold at every cycle. Since this is a
         # combinatorial module, it only needs 1 cycle to prove
-        # everything. 
+        # everything.
         self.assertFormal(module, mode="bmc", depth=2)
         self.assertFormal(module, mode="cover", depth=2)
 
