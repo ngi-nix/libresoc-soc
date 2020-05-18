@@ -4,7 +4,7 @@ from nmigen.cli import rtlil
 from nmigen.back.pysim import Simulator, Delay
 from nmigen.test.utils import FHDLTestCase
 import unittest
-from soc.fu.countzero.countzero import ZeroCounter
+from soc.fu.logical.countzero import ZeroCounter
 
 
 class ZeroCounterTestCase(FHDLTestCase):

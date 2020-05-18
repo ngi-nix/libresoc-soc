@@ -11,7 +11,7 @@ from soc.fu.logical.pipe_data import ALUInputData
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
-from soc.fu.countzero.countzero import ZeroCounter
+from soc.fu.logical.countzero import ZeroCounter
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
