@@ -235,6 +235,8 @@ class SelectableInt:
         return SelectableInt(self.value >> b.value, self.bits)
 
     def __getitem__(self, key):
+        if isinstance(key, SelectableInt):
+            key = key.value
         if isinstance(key, int):
             assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
@@ -260,6 +262,8 @@ class SelectableInt:
             return SelectableInt(value, bits)
 
     def __setitem__(self, key, value):
+        if isinstance(key, SelectableInt):
+            key = key.value
         if isinstance(key, int):
             assert key < self.bits
             assert key >= 0
