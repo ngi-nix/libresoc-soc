@@ -89,7 +89,7 @@ class BranchMainStage(PipeModBase):
             comb += self.o.ctr.ok.eq(1)
             # take either all 64 bits or only 32 of post-incremented counter
             ctr_m = Signal(64, reset_less=True)
-            with m.If((op.is_32bit):
+            with m.If(op.is_32bit):
                 comb += ctr_m.eq(ctr[:32])
             with m.Else():
                 comb += ctr_m.eq(ctr)
