@@ -113,9 +113,22 @@ class LogicalMainStage(PipeModBase):
                 XO = self.fields.FormX.XO[0:-1]
                 count_right = Signal(reset_less=True)
                 comb += count_right.eq(XO[-1])
+
+                cntz_input = Signal(64, reset_less=True)
+                with m.If(self.i.ctx.op.is_32bit):
+                    with m.If(count_right):
+                        comb += cntz_input.eq(a[0:32][::-1])
+                    with m.Else():
+                        comb += cntz_input.eq(a[0:32])
+                with m.Else():
+                    with m.If(count_right):
+                        comb += cntz_input.eq(a[::-1])
+                    with m.Else():
+                        comb += cntz_input.eq(a)
                 m.submodules.clz = clz = CLZ(64)
-                comb += clz.sig_in.eq(Mux(count_right, a[::-1], a))
-                comb += o.eq(clz.lz)
+                comb += clz.sig_in.eq(cntz_input)
+                comb += o.eq(Mux(self.i.ctx.op.is_32bit,
+                                 clz.lz-32, clz.lz))
 
             ###### bpermd #######
             # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt

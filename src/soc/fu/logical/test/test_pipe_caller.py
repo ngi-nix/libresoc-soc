@@ -124,7 +124,7 @@ class LogicalTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_cntz(self):
-        insns = ["cntlzd", "cnttzd"]
+        insns = ["cntlzd", "cnttzd", "cntlzw", "cnttzw"]
         for i in range(100):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1"]
