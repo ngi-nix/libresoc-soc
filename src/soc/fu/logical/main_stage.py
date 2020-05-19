@@ -8,7 +8,7 @@
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.clz import CLZ
-from soc.fu.logical.pipe_data import ALUInputData
+from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp

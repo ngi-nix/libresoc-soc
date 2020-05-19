@@ -3,7 +3,7 @@ from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.alu.pipe_data import IntegerData
 
 
-class ALUInputData(IntegerData):
+class LogicalInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
