@@ -153,10 +153,7 @@ class InternalOp(Enum):
     OP_SHL = 60
     OP_SHR = 61
     OP_SYNC = 62
-    OP_TD = 63
-    OP_TDI = 64
-    OP_TW = 65
-    OP_TWI = 66
+    OP_TRAP = 63
     OP_XOR = 67
     OP_SIM_CONFIG = 68
     OP_CROP = 69
