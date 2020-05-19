@@ -56,7 +56,6 @@ class Driver(Elaboratable):
         comb += [rs.eq(AnyConst(64)),
                  rb.eq(AnyConst(64))]
 
-
         # The pseudocode in the Power ISA manual (v3.1) is as follows:
         # do i = 0 to 7
         #    index <- RS[8*i:8*i+8]
@@ -88,10 +87,15 @@ class Driver(Elaboratable):
         # m.If()). Finally, I'd add an assert that checks whether
         # ra[i] is equal to 0
         for i in range(8):
-            index = rb[i*8:i*8+8]
+            index = rs[i*8:i*8+8]
             with m.If(index >= 64):
                 comb += Assert(ra[i] == 0)
-
+            with m.Else():
+                # to avoid having to create an Array of rb,
+                # cycle through from 0-63 on the index *whistle nonchalantly*
+                for j in range(64):
+                    with m.If(index == j):
+                        comb += Assert(ra[i] == rb[j])
 
         return m
 
