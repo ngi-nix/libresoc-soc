@@ -239,17 +239,19 @@ class ISACaller:
         self.namespace['XER'] = self.spr['XER']
         self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
 
-    def handle_carry(self, inputs, outputs):
-        inv_a = yield self.dec2.invert_a
+    def handle_carry_(self, inputs, outputs):
+        inv_a = yield self.dec2.e.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
         assert len(outputs) >= 1
         output = outputs[0]
         gts = [(x > output) == SelectableInt(1, 1) for x in inputs]
         print(gts)
-        if all(gts):
-            return True
-        return False
+        if any(gts):
+            cy = True
+        else:
+            cy = False
+        self.spr['XER'][XER_bits['CA']] = cy
 
     def handle_comparison(self, outputs):
         out = outputs[0]
@@ -296,11 +298,11 @@ class ISACaller:
         results = info.func(self, *inputs)
         print(results)
 
-        carry_en = yield self.dec2.e.rc.data
-        if carry_en:
-            cy = self.handle_carry(inputs, results)
-
+        rc_en = yield self.dec2.e.rc.data
+        if rc_en:
             self.handle_comparison(results)
+        carry_en = yield self.dec2.e.output_carry
+        yield from self.handle_carry_(inputs, results)
 
         # any modified return results?
         if info.write_regs:
