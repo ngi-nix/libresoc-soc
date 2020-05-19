@@ -33,57 +33,60 @@ class LogicalMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
 
+        # take copy of D-Form TO field
         i_fields = self.fields.FormD
         to = Signal(i_fields.TO[0:-1].shape())
         comb += to.eq(i_fields.TO[0:-1])
 
-        a_signed = Signal(signed(64), reset_less=True)
-        b_signed = Signal(signed(64), reset_less=True)
+        # signed/unsigned temporaries for RA and RB
+        a_s = Signal(signed(64), reset_less=True)
+        b_s = Signal(signed(64), reset_less=True)
 
         a = Signal(64, reset_less=True)
         b = Signal(64, reset_less=True)
 
-        with m.If(self.i.ctx.op.is_32bit):
-            comb += a_signed.eq(self.i.a[0:32],
-                                Repl(self.i.a[32], 32))
-            comb += b_signed.eq(self.i.b[0:32],
-                                Repl(self.i.b[32], 32))
+        # set up A and B comparison (truncate/sign-extend if 32 bit)
+        with m.If(op.is_32bit):
+            comb += a_s.eq(self.i.a[0:32], Repl(self.i.a[32], 32))
+            comb += b_s.eq(self.i.b[0:32], Repl(self.i.b[32], 32))
             comb += a.eq(self.i.a[0:32])
             comb += b.eq(self.i.b[0:32])
         with m.Else():
-            comb += a_signed.eq(self.i.a)
-            comb += b_signed.eq(self.i.b)
+            comb += a_s.eq(self.i.a)
+            comb += b_s.eq(self.i.b)
             comb += a.eq(self.i.a)
             comb += b.eq(self.i.b)
 
-        lt_signed = Signal()
-        gt_signed = Signal()
-        lt_unsigned = Signal()
-        gt_unsigned = Signal()
-        equal = Signal()
+        # establish comparison bits
+        lt_s = Signal(reset_less=True)
+        gt_s = Signal(reset_less=True)
+        lt_u = Signal(reset_less=True)
+        gt_u = Signal(reset_less=True)
+        equal = Signal(reset_less=True)
 
-        comb += lt_signed.eq(a_signed < b_signed)
-        comb += gt_signed.eq(a_signed > b_signed)
-        comb += lt_unsigned.eq(a < b)
-        comb += gt_unsigned.eq(a > b)
+        comb += lt_s.eq(a_s < b_s)
+        comb += gt_s.eq(a_s > b_s)
+        comb += lt_u.eq(a < b)
+        comb += gt_u.eq(a > b)
         comb += equal.eq(a == b)
 
-        trap_bits = Signal(5)
         # They're in reverse bit order because POWER. Check Book 1,
         # Appendix C.6 for chart
-        comb += trap_bits.eq(Cat(gt_unsigned, lt_unsigned, equal,
-                                 gt_signed, lt_signed))
+        trap_bits = Signal(5)
+        comb += trap_bits.eq(Cat(gt_u, lt_u, equal, gt_s, lt_s))
+
+        # establish if the trap should go ahead (any tests requested in TO)
         should_trap = Signal()
         comb += should_trap.eq((trap_bits & to).any())
-            
+
+        # TODO: some #defines for the bits n stuff.
         with m.Switch(op):
             with m.Case(InternalOp.OP_TRAP):
                 with m.If(should_trap):
-                    comb += self.o.nia.eq(0x700)
-                    comb += self.o.srr1.eq(self.i.msr)
-                    comb += self.o.srr1[63-46].eq(1)
-                    comb += self.o.srr0.eq(self.i.cia)
-
+                    comb += self.o.nia.eq(0x700)         # trap address
+                    comb += self.o.srr1.eq(self.i.msr)   # old MSR
+                    comb += self.o.srr1[63-46].eq(1)     # XXX which bit?
+                    comb += self.o.srr0.eq(self.i.cia)   # old PC
 
         comb += self.o.ctx.eq(self.i.ctx)
         comb += self.o.should_trap.eq(should_trap)
