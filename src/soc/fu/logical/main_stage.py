@@ -12,7 +12,6 @@ from soc.fu.logical.pipe_data import ALUInputData
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
-from soc.fu.logical.countzero import ZeroCounter
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -114,21 +113,18 @@ class LogicalMainStage(PipeModBase):
                 count_right = Signal(reset_less=True)
                 comb += count_right.eq(XO[-1])
 
-                cntz_input = Signal(64, reset_less=True)
-                with m.If(self.i.ctx.op.is_32bit):
-                    with m.If(count_right):
-                        comb += cntz_input.eq(a[0:32][::-1])
-                    with m.Else():
-                        comb += cntz_input.eq(a[0:32])
+                cntz_i = Signal(64, reset_less=True)
+                a32 = Signal(32, reset_less=True)
+                comb += a32.eq(a[0:32])
+
+                with m.If(op.is_32bit):
+                    comb += cntz_i.eq(Mux(count_right, a32[::-1], a32)
                 with m.Else():
-                    with m.If(count_right):
-                        comb += cntz_input.eq(a[::-1])
-                    with m.Else():
-                        comb += cntz_input.eq(a)
+                    comb += cntz_i.eq(Mux(count_right, a[::-1], a)
+
                 m.submodules.clz = clz = CLZ(64)
-                comb += clz.sig_in.eq(cntz_input)
-                comb += o.eq(Mux(self.i.ctx.op.is_32bit,
-                                 clz.lz-32, clz.lz))
+                comb += clz.sig_in.eq(cntz_i)
+                comb += o.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
 
             ###### bpermd #######
             # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt
