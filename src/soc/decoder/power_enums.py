@@ -157,6 +157,7 @@ class InternalOp(Enum):
     OP_XOR = 67
     OP_SIM_CONFIG = 68
     OP_CROP = 69
+    OP_RFID = 70
 
 
 @unique
