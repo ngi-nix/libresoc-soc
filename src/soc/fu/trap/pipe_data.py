@@ -1,7 +1,7 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.alu.pipe_data import IntegerData
-
+from soc.decoder.power_decoder2 import Data
 
 class TrapInputData(IntegerData):
     def __init__(self, pspec):
@@ -28,8 +28,8 @@ class TrapOutputData(IntegerData):
         super().__init__(pspec)
         self.nia = Signal(64, reset_less=True) # NIA (Next PC)
         self.msr = Signal(64, reset_less=True) # MSR
-        self.srr0 = Signal(64, reset_less=True) # SRR0 SPR
-        self.srr1 = Signal(64, reset_less=True) # SRR1 SPR
+        self.srr0 = Data(64, name="srr0") # SRR0 SPR
+        self.srr1 = Data(64, name="srr1") # SRR1 SPR
         self.should_trap = Signal(reset_less=True)
 
     def __iter__(self):

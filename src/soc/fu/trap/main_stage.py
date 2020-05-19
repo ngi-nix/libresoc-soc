@@ -84,9 +84,11 @@ class LogicalMainStage(PipeModBase):
             with m.Case(InternalOp.OP_TRAP):
                 with m.If(should_trap):
                     comb += self.o.nia.eq(0x700)         # trap address
-                    comb += self.o.srr1.eq(self.i.msr)   # old MSR
+                    comb += self.o.srr1.data.eq(self.i.msr)   # old MSR
                     comb += self.o.srr1[63-46].eq(1)     # XXX which bit?
-                    comb += self.o.srr0.eq(self.i.cia)   # old PC
+                    comb += self.o.srr1.ok.eq(1)
+                    comb += self.o.srr0.data.eq(self.i.cia)   # old PC
+                    comb += self.o.srr0.ok.eq(1)
 
         comb += self.o.ctx.eq(self.i.ctx)
         comb += self.o.should_trap.eq(should_trap)
