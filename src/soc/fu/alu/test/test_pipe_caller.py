@@ -124,14 +124,15 @@ class ALUTestCase(FHDLTestCase):
 
     def test_adde(self):
         lst = ["adde. 5, 6, 7"]
-        initial_regs = [0] * 32
-        initial_regs[6] = random.randint(0, (1<<64)-1)
-        initial_regs[7] = random.randint(0, (1<<64)-1)
-        initial_sprs = {}
-        xer = SelectableInt(0, 64)
-        xer[XER_bits['CA']] = 1
-        initial_sprs[special_sprs['XER']] = xer
-        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+        for i in range(10):
+            initial_regs = [0] * 32
+            initial_regs[6] = random.randint(0, (1<<64)-1)
+            initial_regs[7] = random.randint(0, (1<<64)-1)
+            initial_sprs = {}
+            xer = SelectableInt(0, 64)
+            xer[XER_bits['CA']] = 1
+            initial_sprs[special_sprs['XER']] = xer
+            self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_cmp(self):
         lst = ["subf. 1, 6, 7",
@@ -258,6 +259,12 @@ class TestRunner(FHDLTestCase):
             cr_actual = yield alu.n.data_o.cr0
             cr_expected = sim.crl[bf].get_range().value
             self.assertEqual(cr_expected, cr_actual, code)
+
+        cry_out = yield dec2.e.output_carry
+        if cry_out:
+            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            real_carry = yield alu.n.data_o.carry_out
+            self.assertEqual(expected_carry, real_carry)
 
 
 
