@@ -3,6 +3,7 @@ from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.alu.pipe_data import IntegerData
 from soc.decoder.power_decoder2 import Data
 
+
 class TrapInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
@@ -22,6 +23,7 @@ class TrapInputData(IntegerData):
         lst = super().eq(i)
         return lst + [self.a.eq(i.a), self.b.eq(i.b),
                       self.cia.eq(i.nia), self.msr.eq(i.msr)]
+
 
 class TrapOutputData(IntegerData):
     def __init__(self, pspec):
