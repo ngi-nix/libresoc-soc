@@ -104,7 +104,7 @@ class BranchTestCase(FHDLTestCase):
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = BranchBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("logical_pipeline.il", "w") as f:
+        with open("branch_pipeline.il", "w") as f:
             f.write(vl)
 
 
