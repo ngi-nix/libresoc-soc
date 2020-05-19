@@ -50,17 +50,16 @@ class BranchMainStage(PipeModBase):
         lk = op.lk # see PowerDecode2 as to why this is done
         nia_o, lr_o = self.o.nia, self.o.lr
 
-        # obtain relevant instruction fields
+        # obtain relevant instruction field AA, "Absolute Address" mode
         i_fields = self.fields.FormI
-        aa = Signal(i_fields.AA[0:-1].shape())
-        comb += aa.eq(i_fields.AA[0:-1])
+        AA = i_fields.AA[0:-1]
 
         br_imm_addr = Signal(64, reset_less=True)
         br_addr = Signal(64, reset_less=True)
         br_taken = Signal(reset_less=True)
 
         # Handle absolute or relative branches
-        with m.If(aa):
+        with m.If(AA):
             comb += br_addr.eq(br_imm_addr)
         with m.Else():
             comb += br_addr.eq(br_imm_addr + self.i.cia)
