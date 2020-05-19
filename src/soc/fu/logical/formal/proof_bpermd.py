@@ -7,7 +7,7 @@ from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 
-from soc.fu.logical.bperm import Bpermd
+from soc.fu.logical.bpermd import Bpermd
 
 import unittest
 
@@ -124,7 +124,7 @@ class TestCase(FHDLTestCase):
     def test_ilang(self):
         dut = Driver()
         vl = rtlil.convert(dut, ports=[])
-        with open("bperm.il", "w") as f:
+        with open("bpermd.il", "w") as f:
             f.write(vl)
 
 
