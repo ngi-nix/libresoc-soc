@@ -253,6 +253,14 @@ class ISACaller:
             cy = False
         self.spr['XER'][XER_bits['CA']] = cy
 
+
+        # 32 bit carry
+        gts = [(x[32:64] > output[32:64]) == SelectableInt(1, 1)
+               for x in inputs]
+        cy32 = 1 if any(gts) else 0
+        self.spr['XER'][XER_bits['CA32']] = cy32
+
+
     def handle_comparison(self, outputs):
         out = outputs[0]
         out = exts(out.value, out.bits)
