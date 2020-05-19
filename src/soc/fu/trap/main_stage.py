@@ -1,7 +1,6 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, signed)
 from nmutil.pipemodbase import PipeModBase
-from nmutil.clz import CLZ
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
 from soc.decoder.power_enums import InternalOp
 
@@ -9,14 +8,7 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 
-def array_of(count, bitwidth):
-    res = []
-    for i in range(count):
-        res.append(Signal(bitwidth, reset_less=True))
-    return res
-
-
-class LogicalMainStage(PipeModBase):
+class TrapMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
