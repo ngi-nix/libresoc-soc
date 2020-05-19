@@ -26,10 +26,10 @@ class TrapInputData(IntegerData):
 class TrapOutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.nia = Signal(64, reset_less=True) # RA
-        self.msr = Signal(64, reset_less=True) # RB/immediate
-        self.srr0 = Signal(64, reset_less=True) # RB/immediate
-        self.srr1 = Signal(64, reset_less=True) # RB/immediate
+        self.nia = Signal(64, reset_less=True) # NIA (Next PC)
+        self.msr = Signal(64, reset_less=True) # MSR
+        self.srr0 = Signal(64, reset_less=True) # SRR0 SPR
+        self.srr1 = Signal(64, reset_less=True) # SRR1 SPR
         self.should_trap = Signal(reset_less=True)
 
     def __iter__(self):
