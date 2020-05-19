@@ -118,9 +118,9 @@ class LogicalMainStage(PipeModBase):
                 comb += a32.eq(a[0:32])
 
                 with m.If(op.is_32bit):
-                    comb += cntz_i.eq(Mux(count_right, a32[::-1], a32)
+                    comb += cntz_i.eq(Mux(count_right, a32[::-1], a32))
                 with m.Else():
-                    comb += cntz_i.eq(Mux(count_right, a[::-1], a)
+                    comb += cntz_i.eq(Mux(count_right, a[::-1], a))
 
                 m.submodules.clz = clz = CLZ(64)
                 comb += clz.sig_in.eq(cntz_i)
