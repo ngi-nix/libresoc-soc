@@ -151,7 +151,8 @@ class SPR(dict):
             return dict.__getitem__(self, key)
         else:
             info = spr_dict[key]
-            return SelectableInt(0, info.length)
+            dict.__setitem__(self, key, SelectableInt(0, info.length))
+            return dict.__getitem__(self, key)
 
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
@@ -243,14 +244,16 @@ class ISACaller:
         inv_a = yield self.dec2.e.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
+
+        imm_ok = yield self.dec2.e.imm_data.ok
+        if imm_ok:
+            imm = yield self.dec2.e.imm_data.data
+            inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
         output = outputs[0]
-        gts = [(x > output) == SelectableInt(1, 1) for x in inputs]
+        gts = [(x > output) for x in inputs]
         print(gts)
-        if any(gts):
-            cy = True
-        else:
-            cy = False
+        cy = 1 if any(gts) else 0
         self.spr['XER'][XER_bits['CA']] = cy
 
 
@@ -310,7 +313,8 @@ class ISACaller:
         if rc_en:
             self.handle_comparison(results)
         carry_en = yield self.dec2.e.output_carry
-        yield from self.handle_carry_(inputs, results)
+        if carry_en:
+            yield from self.handle_carry_(inputs, results)
 
         # any modified return results?
         if info.write_regs:
