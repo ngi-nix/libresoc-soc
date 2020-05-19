@@ -51,6 +51,7 @@ class Function(Enum):
     LOGICAL = 4
     BRANCH = 5
     CR = 6
+    TRAP = 7
 
 
 @unique
