@@ -123,10 +123,9 @@ class LogicalTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    @unittest.skip("broken")
     def test_cntz(self):
         insns = ["cntlzd", "cnttzd"]
-        for i in range(10):
+        for i in range(100):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1"]
             print(lst)

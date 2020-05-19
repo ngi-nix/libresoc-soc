@@ -7,6 +7,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
+from nmutil.clz import CLZ
 from soc.fu.logical.pipe_data import ALUInputData
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
@@ -110,11 +111,11 @@ class LogicalMainStage(PipeModBase):
             ###### cntlz #######
             with m.Case(InternalOp.OP_CNTZ):
                 XO = self.fields.FormX.XO[0:-1]
-                m.submodules.countz = countz = ZeroCounter()
-                comb += countz.rs_i.eq(a)
-                comb += countz.is_32bit_i.eq(op.is_32bit)
-                comb += countz.count_right_i.eq(XO[-1])
-                comb += o.eq(countz.result_o)
+                count_right = Signal(reset_less=True)
+                comb += count_right.eq(XO[-1])
+                m.submodules.clz = clz = CLZ(64)
+                comb += clz.sig_in.eq(Mux(count_right, a[::-1], a))
+                comb += o.eq(clz.lz)
 
             ###### bpermd #######
             # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt
