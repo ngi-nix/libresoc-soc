@@ -78,9 +78,14 @@ class LogicalMainStage(PipeModBase):
             
         with m.Switch(op):
             with m.Case(InternalOp.OP_TRAP):
-                pass
+                with m.If(should_trap):
+                    comb += self.o.nia.eq(0x700)
+                    comb += self.o.srr1.eq(self.i.msr)
+                    comb += self.o.srr1[63-46].eq(1)
+                    comb += self.o.srr0.eq(self.i.cia)
 
 
         comb += self.o.ctx.eq(self.i.ctx)
+        comb += self.o.should_trap.eq(should_trap)
 
         return m
