@@ -9,6 +9,7 @@ from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.clz import CLZ
 from soc.fu.logical.pipe_data import LogicalInputData
+from soc.fu.logical.bpermd import Bpermd
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -35,7 +36,7 @@ class LogicalMainStage(PipeModBase):
         return LogicalInputData(self.pspec)
 
     def ospec(self):
-        return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
+        return ALUOutputData(self.pspec)  # TODO: ALUIntermediateData
 
     def elaborate(self, platform):
         m = Module()
@@ -74,7 +75,7 @@ class LogicalMainStage(PipeModBase):
                     pc.append(array_of(l, b))
                 pc8 = pc[3]     # array of 8 8-bit counts (popcntb)
                 pc32 = pc[5]    # array of 2 32-bit counts (popcntw)
-                popcnt = pc[-1] # array of 1 64-bit count (popcntd)
+                popcnt = pc[-1]  # array of 1 64-bit count (popcntd)
                 # cascade-tree of adds
                 for idx, (l, b) in enumerate(work):
                     for i in range(l):
@@ -100,7 +101,7 @@ class LogicalMainStage(PipeModBase):
                 # strange instruction which XORs together the LSBs of each byte
                 par0 = Signal(reset_less=True)
                 par1 = Signal(reset_less=True)
-                comb += par0.eq(Cat(a[0] , a[8] , a[16], a[24]).xor())
+                comb += par0.eq(Cat(a[0], a[8], a[16], a[24]).xor())
                 comb += par1.eq(Cat(a[32], a[40], a[48], a[56]).xor())
                 with m.If(op.data_len[3] == 1):
                     comb += o.eq(par0 ^ par1)
@@ -128,7 +129,11 @@ class LogicalMainStage(PipeModBase):
                 comb += o.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
 
             ###### bpermd #######
-            # TODO with m.Case(InternalOp.OP_BPERM): - not in microwatt
+            with m.Case(InternalOp.OP_BPERM):
+                m.submodules.bpermd = bpermd = Bpermd(64)
+                comb += bpermd.rs.eq(a)
+                comb += bpermd.rb.eq(b)
+                comb += o.eq(bpermd.ra)
 
         ###### sticky overflow and context, both pass-through #####
 

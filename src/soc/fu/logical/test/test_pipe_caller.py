@@ -25,6 +25,7 @@ class TestCase:
         self.sprs = sprs
         self.name = name
 
+
 def get_rec_width(rec):
     recwidth = 0
     # Setup random inputs for dut.op
@@ -32,6 +33,7 @@ def get_rec_width(rec):
         width = p.width
         recwidth += width
     return recwidth
+
 
 def set_alu_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
@@ -65,7 +67,6 @@ def set_alu_inputs(alu, dec2, sim):
     yield alu.p.data_i.b.eq(data2)
 
 
-
 def set_extra_alu_inputs(alu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
     carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
@@ -73,7 +74,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
     yield alu.p.data_i.xer_ca[1].eq(carry32)
     so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
     yield alu.p.data_i.xer_so.eq(so)
-    
+
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -100,6 +101,7 @@ class LogicalTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
+
     def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
         tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
         test_data.append(tc)
@@ -110,19 +112,19 @@ class LogicalTestCase(FHDLTestCase):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
+            initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_rand_imm_logical(self):
         insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
         for i in range(10):
             choice = random.choice(insns)
-            imm = random.randint(0, (1<<16)-1)
+            imm = random.randint(0, (1 << 16)-1)
             lst = [f"{choice} 3, 1, {imm}"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_cntz(self):
@@ -132,7 +134,7 @@ class LogicalTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_parity(self):
@@ -142,7 +144,7 @@ class LogicalTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_popcnt(self):
@@ -152,7 +154,7 @@ class LogicalTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_popcnt_edge(self):
@@ -165,6 +167,13 @@ class LogicalTestCase(FHDLTestCase):
 
     def test_cmpb(self):
         lst = ["cmpb 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xdeadbeefcafec0de
+        initial_regs[2] = 0xd0adb0000afec1de
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_bpermd(self):
+        lst = ["bpermd 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeefcafec0de
         initial_regs[2] = 0xd0adb0000afec1de
@@ -206,6 +215,7 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
@@ -230,7 +240,7 @@ class TestRunner(FHDLTestCase):
                     self.assertEqual(fn_unit, Function.LOGICAL.value, code)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
                     yield from set_extra_alu_inputs(alu, pdecode2, simulator)
-                    yield 
+                    yield
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
@@ -252,8 +262,9 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                            traces=[]):
+                           traces=[]):
             sim.run()
+
     def check_extra_alu_outputs(self, alu, dec2, sim, code):
         rc = yield dec2.e.rc.data
         if rc:
