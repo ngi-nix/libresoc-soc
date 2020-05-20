@@ -41,7 +41,8 @@ class Driver(Elaboratable):
         b = dut.i.b
         carry_in = dut.i.carry_in
         so_in = dut.i.so
-        carry_out = dut.o.carry_out
+        carry_out = dut.o.xer_co.data[0]
+        carry_out32 = dut.o.xer_co.data[1]
         o = dut.o.o
 
         # setup random inputs
@@ -64,10 +65,17 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        comb += Assume(a[32:64] == 0)
+        comb += Assume(b[32:64] == 0)
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_ADD):
+                
                 comb += Assert(Cat(o, carry_out) == (a + b + carry_in))
+
+                # CA32
+                comb += Assert((a[0:32] + b[0:32] + carry_in)[32]
+                               == carry_out32)
 
         return m
 

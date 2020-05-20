@@ -62,9 +62,10 @@ class ALUMainStage(PipeModBase):
                 comb += o.eq(add_output[1:-1])
                 comb += carry_out.data[0].eq(add_output[-1]) # XER.CO
 
-                # XXX no!  wrongggg, see microwatt OP_ADD code
+                # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-                comb += carry_out.data[1].eq(add_output[-1]) # XER.CO32
+                comb += carry_out.data[1].eq(add_output[33] ^
+                                             (a[32] ^ b[32])) # XER.CO32
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):

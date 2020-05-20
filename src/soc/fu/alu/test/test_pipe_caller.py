@@ -267,7 +267,7 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             real_carry32 = yield alu.n.data_o.xer_co.data[1] # XXX CO32
-            self.assertEqual(expected_carry, real_carry, code)
+            self.assertEqual(expected_carry32, real_carry32, code)
 
 
 
