@@ -39,16 +39,17 @@ class Driver(Elaboratable):
         # convenience variables
         a = dut.i.a
         b = dut.i.b
-        carry_in = dut.i.carry_in
-        so_in = dut.i.so
-        carry_out = dut.o.xer_co.data[0]
-        carry_out32 = dut.o.xer_co.data[1]
+        carry_in = dut.i.xer_ca[0]
+        carry_in32 = dut.i.xer_ca[1]
+        so_in = dut.i.xer_so
+        carry_out = dut.o.xer_ca.data[0]
+        carry_out32 = dut.o.xer_ca.data[1]
         o = dut.o.o
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
                  b.eq(AnyConst(64)),
-                 carry_in.eq(AnyConst(1)),
+                 carry_in.eq(AnyConst(0b11)),
                  so_in.eq(AnyConst(1))]
 
         comb += dut.i.ctx.op.eq(rec)
@@ -73,8 +74,8 @@ class Driver(Elaboratable):
 
                 comb += Assert(Cat(o, carry_out) == (a + b + carry_in))
 
-                # CA32
-                comb += Assert((a[0:32] + b[0:32] + carry_in)[32]
+                # CA32 - XXX note this fails! replace with carry_in and it works
+                comb += Assert((a[0:32] + b[0:32] + carry_in32)[32]
                                == carry_out32)
             with m.Case(InternalOp.OP_EXTS):
                 for i in [1, 2, 4]:
