@@ -68,11 +68,11 @@ class ShiftRotMainStage(PipeModBase):
                 
         # outputs from the microwatt rotator module
         comb += [self.o.o.eq(rotator.result_o),
-                 self.o.carry_out.eq(rotator.carry_out_o)]
+                 self.o.xer_co.eq(rotator.carry_out_o)]
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.so.eq(self.i.so)
+        comb += self.o.xer_so.data.eq(self.i.so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
