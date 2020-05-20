@@ -1,5 +1,10 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+"""
+Links:
+ * https://bugs.libre-soc.org/show_bug.cgi?id=331
+ * https://libre-soc.org/openpower/isa/fixedlogical/
+"""
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
