@@ -78,6 +78,15 @@ class Driver(Elaboratable):
                             comb += Assert(o[4*i:4*i+4] == 0)
                 with m.Else(): # mfcrf
                     comb += Assert(o == cr)
+            with m.Case(InternalOp.OP_MCRF):
+                BF = xl_fields.BF[0:-1]
+                BFA = xl_fields.BFA[0:-1]
+                for i in range(4):
+                    comb += Assert(cr_o_arr[BF*4+i] == cr_arr[BFA*4+i])
+                for i in range(8):
+                    with m.If(BF != 7-i):
+                        comb += Assert(cr_o[i*4:i*4+4] == cr[i*4:i*4+4])
+
             with m.Case(InternalOp.OP_CROP):
                 bt = Signal(xl_fields.BT[0:-1].shape(), reset_less=True)
                 ba = Signal(xl_fields.BA[0:-1].shape(), reset_less=True)
