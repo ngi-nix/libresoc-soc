@@ -108,7 +108,7 @@ class CRMainStage(PipeModBase):
 
                 # Use the two input bits to look up the result in the LUT
                 idx = Signal(2, reset_less=True)
-                comb += idx.eq(Cat(cr_arr[bb], cr_arr[bb]))
+                comb += idx.eq(Cat(cr_arr[bb], cr_arr[ba]))
                 comb += cr_out_arr[bt].eq(lut[idx])
 
             ##### mtcrf #####
