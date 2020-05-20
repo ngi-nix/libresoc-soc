@@ -5,8 +5,9 @@
 # This module however should not gate the carry or overflow, that's up
 # to the output stage
 
-from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
+from nmigen import (Module, Signal, Cat, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
+from nmutil.extend import exts
 from soc.fu.branch.pipe_data import BranchInputData, BranchOutputData
 from soc.decoder.power_enums import InternalOp
 
@@ -14,7 +15,10 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 def br_ext(bd):
-    return Cat(Const(0, 2), bd, Repl(bd[-1], 64-(bd.shape().width + 2)))
+    """computes sign-extended NIA (assumes word-alignment)
+    """
+    return Cat(Const(0, 2), exts(bd, bd.shape().width, 64 - 2))
+
 
 """
 Notes on BO Field:
