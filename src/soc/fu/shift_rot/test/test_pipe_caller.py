@@ -67,9 +67,11 @@ def set_alu_inputs(alu, dec2, sim):
 
 def set_extra_alu_inputs(alu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    yield alu.p.data_i.carry_in.eq(carry)
+    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+    yield alu.p.data_i.xer_ca[0].eq(carry)
+    yield alu.p.data_i.xer_ca[1].eq(carry32)
     so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.so.eq(so)
+    yield alu.p.data_i.xer_so.eq(so)
     
 
 # This test bench is a bit different than is usual. Initially when I
@@ -79,7 +81,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
 # should have. However, this was really slow, since it needed to
 # create and tear down the dut and simulator for every test case.
 
-# Now, instead of doing that, every test case in ALUTestCase puts some
+# Now, instead of doing that, every test case in ShiftRotTestCase puts some
 # data into the test_data list below, describing the instructions to
 # be tested and the initial state. Once all the tests have been run,
 # test_data gets passed to TestRunner which then sets up the DUT and
@@ -93,7 +95,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
 test_data = []
 
 
-class ALUTestCase(FHDLTestCase):
+class ShiftRotTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name

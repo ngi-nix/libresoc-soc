@@ -44,15 +44,15 @@ class ShiftRotInputStage(PipeModBase):
         # either copy incoming carry or set to 1/0 as defined by op
         with m.Switch(self.i.ctx.op.input_carry):
             with m.Case(CryIn.ZERO):
-                comb += self.o.carry_in.eq(0)
+                comb += self.o.xer_ca.eq(0b00)
             with m.Case(CryIn.ONE):
-                comb += self.o.carry_in.eq(1)
+                comb += self.o.xer_ca.eq(0b11) # XER CA/CA32
             with m.Case(CryIn.CA):
-                comb += self.o.carry_in.eq(self.i.carry_in)
+                comb += self.o.xer_ca.eq(self.i.xer_ca)
 
         ##### sticky overflow and context (both pass-through) #####
 
-        comb += self.o.so.eq(self.i.so)
+        comb += self.o.xer_so.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
