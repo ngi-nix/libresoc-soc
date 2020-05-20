@@ -75,7 +75,7 @@ class Driver(Elaboratable):
                 comb += Assert(Cat(o, carry_out) == (a + b + carry_in))
 
                 # CA32 - XXX note this fails! replace with carry_in and it works
-                comb += Assert((a[0:32] + b[0:32] + carry_in32)[32]
+                comb += Assert((a[0:32] + b[0:32] + carry_in)[32]
                                == carry_out32)
             with m.Case(InternalOp.OP_EXTS):
                 for i in [1, 2, 4]:
