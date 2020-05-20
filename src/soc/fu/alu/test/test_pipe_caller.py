@@ -249,22 +249,25 @@ class TestRunner(FHDLTestCase):
         rc = yield dec2.e.rc.data
         if rc:
             cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0
+            cr_actual = yield alu.n.data_o.cr0.data
             self.assertEqual(cr_expected, cr_actual, code)
 
         op = yield dec2.e.insn_type
         if op == InternalOp.OP_CMP.value or \
            op == InternalOp.OP_CMPEQB.value:
             bf = yield dec2.dec.BF
-            cr_actual = yield alu.n.data_o.cr0
+            cr_actual = yield alu.n.data_o.cr0.data
             cr_expected = sim.crl[bf].get_range().value
             self.assertEqual(cr_expected, cr_actual, code)
 
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.carry_out
-            self.assertEqual(expected_carry, real_carry)
+            real_carry = yield alu.n.data_o.xer_co.data[0] # XXX CO not CO32
+            self.assertEqual(expected_carry, real_carry, code)
+            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            real_carry32 = yield alu.n.data_o.xer_co.data[1] # XXX CO32
+            self.assertEqual(expected_carry, real_carry, code)
 
 
 

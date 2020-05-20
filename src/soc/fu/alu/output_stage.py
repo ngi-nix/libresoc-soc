@@ -38,8 +38,8 @@ class ALUOutputStage(PipeModBase):
             comb += target.eq(o)
 
         # Handle carry_out
-        with m.If(self.i.ctx.op.output_carry):
-            comb += self.o.carry_out.eq(self.i.carry_out)
+        comb += self.o.xer_co.data.eq(self.i.xer_co.data)
+        comb += self.o.xer_co.ok.eq(op.output_carry)
 
         # create condition register cr0 and sticky-overflow
         is_zero = Signal(reset_less=True)
@@ -47,7 +47,9 @@ class ALUOutputStage(PipeModBase):
         is_negative = Signal(reset_less=True)
         msb_test = Signal(reset_less=True) # set equal to MSB, invert if OP=CMP
         is_cmp = Signal(reset_less=True)   # true if OP=CMP
-        so = Signal(reset_less=True)
+        so = Signal(1, reset_less=True)
+        ov = Signal(2, reset_less=True) # OV, OV32
+        cr0 = Signal(4, reset_less=True)
 
         # TODO: if o[63] is XORed with "operand == OP_CMP"
         # that can be used as a test
@@ -58,16 +60,24 @@ class ALUOutputStage(PipeModBase):
         comb += is_zero.eq(target == 0)
         comb += is_positive.eq(~is_zero & ~msb_test)
         comb += is_negative.eq(~is_zero & msb_test)
-        comb += so.eq(self.i.so | self.i.ov)
+        # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
+        comb += ov[0].eq(self.i.xer_so.data | self.i.xer_ov.data[0]) # OV
+        comb += ov[1].eq(self.i.xer_so.data | self.i.xer_ov.data[1]) # OV32 XXX!
+        comb += so.eq(self.i.xer_so.data | self.i.xer_ov.data[0]) # OV
 
         with m.If(op.insn_type != InternalOp.OP_CMPEQB):
-            comb += self.o.cr0.eq(Cat(so, is_zero, is_positive, is_negative))
+            comb += cr0.eq(Cat(so, is_zero, is_positive, is_negative))
         with m.Else():
-            comb += self.o.cr0.eq(self.i.cr0)
+            comb += cr0.eq(self.i.cr0)
 
-        # copy [inverted] output, sticky-overflow and context out
+        # copy [inverted] cr0, output, sticky-overflow and context out
         comb += self.o.o.eq(o)
-        comb += self.o.so.eq(so)
+        comb += self.o.cr0.data.eq(cr0)
+        comb += self.o.cr0.ok.eq(op.rc.rc & op.rc.rc_ok) # CR0 to be set
+        comb += self.o.xer_so.data.eq(so)
+        comb += self.o.xer_so.ok.eq(op.oe.oe & op.oe.oe_ok) # SO is to be set
+        comb += self.o.xer_ov.data.eq(ov)
+        comb += self.o.xer_ov.ok.eq(op.oe.oe & op.oe.oe_ok) # OV/32 is to be set
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

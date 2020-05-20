@@ -23,7 +23,7 @@ class ALUMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        carry_out, o = self.o.carry_out, self.o.o
+        carry_out, o = self.o.xer_co, self.o.o
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -58,7 +58,11 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.eq(add_output[1:-1])
-                comb += carry_out.eq(add_output[-1])
+                comb += carry_out.data[0].eq(add_output[-1]) # XER.CO
+
+                # XXX no!  wrongggg, see microwatt OP_ADD code
+                # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
+                comb += carry_out.data[1].eq(add_output[-1]) # XER.CO32
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
@@ -78,7 +82,7 @@ class ALUMainStage(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.so.eq(self.i.so)
+        comb += self.o.xer_so.data.eq(self.i.so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

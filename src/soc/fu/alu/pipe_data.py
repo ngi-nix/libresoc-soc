@@ -2,7 +2,7 @@ from nmigen import Signal, Const
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from ieee754.fpcommon.getop import FPPipeContext
-
+from soc.decoder.power_decoder2 import Data
 
 class IntegerData:
 
@@ -50,30 +50,25 @@ class ALUOutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Signal(64, reset_less=True, name="stage_o")
-        self.carry_out = Signal(reset_less=True)
-        self.carry_out32 = Signal(reset_less=True)
-        self.cr0 = Signal(4, reset_less=True)
-        self.ov = Signal(reset_less=True)
-        self.ov32 = Signal(reset_less=True)
-        self.so = Signal(reset_less=True)
+        self.cr0 = Data(4, name="cr0")
+        self.xer_co = Data(2, name="xer_co") # bit0: co, bit1: co32
+        self.xer_ov = Data(2, name="xer_ov") # bit0: ov, bit1: ov32
+        self.xer_so = Data(1, name="xer_so")
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.o
-        yield self.carry_out
-        yield self.carry_out32
+        yield self.xer_co
         yield self.cr0
-        yield self.ov
-        yield self.ov32
-        yield self.so
+        yield self.xer_ov
+        yield self.xer_so
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.o.eq(i.o),
-                      self.carry_out.eq(i.carry_out),
-                      self.carry_out32.eq(i.carry_out32),
-                      self.cr0.eq(i.cr0), self.ov.eq(i.ov),
-                      self.ov32.eq(i.ov32), self.so.eq(i.so)]
+                      self.xer_co.eq(i.xer_co),
+                      self.cr0.eq(i.cr0),
+                      self.xer_ov.eq(i.xer_ov), self.xer_so.eq(i.xer_so)]
 
 
 class IntPipeSpec:
