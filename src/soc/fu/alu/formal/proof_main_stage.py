@@ -80,14 +80,11 @@ class Driver(Elaboratable):
                 comb += Assert((a[0:32] + b[0:32] + carry_in)[32]
                                == carry_out32)
 
-                with m.If(a[-1] == b[-1]):
-                    comb += Assert(ov_out == (o[-1] != a[-1]))
-                with m.Else():
-                    comb += Assert(ov_out == 0)
-                with m.If(a[31] == b[31]):
-                    comb += Assert(ov_out32 == (o[31] != a[31]))
-                with m.Else():
-                    comb += Assert(ov_out32 == 0)
+                # From microwatt execute1.vhdl line 130
+                comb += Assert(ov_out == ((carry_out ^ o[-1]) &
+                                          ~(a[-1] ^ b[-1])))
+                comb += Assert(ov_out32 == ((carry_out32 ^ o[31]) &
+                                            ~(a[31] ^ b[31])))
             with m.Case(InternalOp.OP_EXTS):
                 for i in [1, 2, 4]:
                     with m.If(rec.data_len == i):
