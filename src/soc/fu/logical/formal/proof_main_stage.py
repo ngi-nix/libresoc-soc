@@ -69,6 +69,7 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        comb += Assume(rec.insn_type == InternalOp.OP_PRTY)
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_AND):
@@ -91,6 +92,20 @@ class Driver(Elaboratable):
                         comb += Assert(dut.o.o[i*8:(i+1)*8] ==
                                        self.popcount(a[i*8:(i+1)*8], 8))
 
+            with m.Case(InternalOp.OP_PRTY):
+                with m.If(rec.data_len == 8):
+                    result = 0
+                    for i in range(8):
+                        result = result ^ a[i*8]
+                    comb += Assert(dut.o.o == result)
+                with m.If(rec.data_len == 4):
+                    result_low = 0
+                    result_high = 0
+                    for i in range(4):
+                        result_low = result_low ^ a[i*8]
+                        result_high = result_high ^ a[i*8 + 32]
+                    comb += Assert(dut.o.o[0:32] == result_low)
+                    comb += Assert(dut.o.o[32:64] == result_high)
 
         return m
 
