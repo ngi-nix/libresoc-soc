@@ -21,7 +21,9 @@ from math import log
 import unittest
 
 # FIXME: fixed up imports
-from ..experiment.score6600 import IssueToScoreboard, RegSim, instr_q, wait_for_busy_clear, wait_for_issue, CompUnitALUs, CompUnitBR
+from soc.experiment.score6600 import (IssueToScoreboard, RegSim, instr_q,
+                                      wait_for_busy_clear, wait_for_issue,
+                                      CompUnitALUs, CompUnitBR)
 
 
 class Memory(Elaboratable):

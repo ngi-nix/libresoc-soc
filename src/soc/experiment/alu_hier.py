@@ -17,7 +17,7 @@ from nmigen.compat.sim import run_simulation
 
 from soc.decoder.power_enums import InternalOp, Function, CryIn
 
-from soc.alu.alu_input_record import CompALUOpSubset
+from soc.fu.alu.alu_input_record import CompALUOpSubset
 
 import operator
 
