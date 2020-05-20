@@ -40,15 +40,17 @@ class Driver(Elaboratable):
         a = dut.i.rs
         b = dut.i.rb
         ra = dut.i.ra
-        carry_in = dut.i.carry_in
-        so_in = dut.i.so
-        carry_out = dut.o.carry_out
+        carry_in = dut.i.xer_ca[0]
+        carry_in32 = dut.i.xer_ca[1]
+        so_in = dut.i.xer_so
+        carry_out = dut.o.xer_ca
         o = dut.o.o
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
                  b.eq(AnyConst(64)),
                  carry_in.eq(AnyConst(1)),
+                 carry_in32.eq(AnyConst(1)),
                  so_in.eq(AnyConst(1))]
 
         comb += dut.i.ctx.op.eq(rec)
