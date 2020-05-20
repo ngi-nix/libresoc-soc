@@ -71,9 +71,14 @@ class CRMainStage(PipeModBase):
                 # copying cr2 to cr1)
                 BF = xl_fields.BF[0:-1]   # destination CR
                 BFA = xl_fields.BFA[0:-1] # source CR
+                bf = Signal(BF.shape(), reset_less=True)
+                bfa = Signal(BFA.shape(), reset_less=True)
+                # use temporary signals because ilang output is insane otherwise
+                comb += bf.eq(BF)
+                comb += bfa.eq(BFA)
 
                 for i in range(4):
-                    comb += cr_out_arr[BF*4 + i].eq(cr_arr[BFA*4 + i])
+                    comb += cr_out_arr[bf*4 + i].eq(cr_arr[bfa*4 + i])
 
             ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
@@ -92,9 +97,19 @@ class CRMainStage(PipeModBase):
                 BT = xl_fields.BT[0:-1]
                 BA = xl_fields.BA[0:-1]
                 BB = xl_fields.BB[0:-1]
+                bt = Signal(BT.shape(), reset_less=True)
+                ba = Signal(BA.shape(), reset_less=True)
+                bb = Signal(BB.shape(), reset_less=True)
+                # use temporary signals because ilang output is insane otherwise
+                # also when accessing LUT
+                comb += bt.eq(BT)
+                comb += ba.eq(BA)
+                comb += bb.eq(BB)
 
                 # Use the two input bits to look up the result in the LUT
-                comb += cr_out_arr[BT].eq(lut[Cat(cr_arr[BB], cr_arr[BA])])
+                idx = Signal(2, reset_less=True)
+                comb += idx.eq(Cat(cr_arr[bb], cr_arr[bb]))
+                comb += cr_out_arr[bt].eq(lut[idx])
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
