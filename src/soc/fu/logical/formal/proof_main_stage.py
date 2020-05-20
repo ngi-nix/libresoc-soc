@@ -69,7 +69,6 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
-        comb += Assume(rec.insn_type == InternalOp.OP_PRTY)
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_AND):
