@@ -4,6 +4,8 @@ from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Record
 from nmigen.hdl.rec import (DIR_FANIN, DIR_FANOUT)
 
 from nmutil.latch import SRLatch, latchregister
+from nmutil.iocontrol import RecordObject
+
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
@@ -51,43 +53,91 @@ def go_record(n, name):
     return r
 
 
-class MultiCompUnit(Elaboratable):
-    def __init__(self, rwid, alu, n_src=2, n_dst=1):
-        self.n_src, self.n_dst = n_src, n_dst
-        self.rwid = rwid
-        self.alu = alu # actual ALU - set as a "submodule" of the CU
+class CompUnitRecord(RecordObject):
+    """CompUnitRecord
 
-        self.counter = Signal(4)
+    base class for Computation Units, to provide a uniform API
+    and allow "record.connect" etc. to be used, particularly when
+    it comes to connecting multiple Computation Units up as a block
+    (very laborious)
+
+    LDSTCompUnitRecord should derive from this class and add the
+    additional signals it requires
+    """
+    def __init__(self, rwid, n_src, n_dst, name=None):
+        RecordObject.__init__(self, name)
+        self._n_src, self._n_dst = n_src, n_dst
+        self._rwid = rwid
+
         src = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
-            src.append(Signal(rwid, name="src%d_i" % j, reset_less=True))
+            name = "src%d_i" % j
+            sreg = Signal(rwid, name=name, reset_less=True)
+            setattr(self, name, sreg)
+            src.append(sreg)
+        self._src_i = src
 
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            dst.append(Signal(rwid, name="dest%d_i" % j, reset_less=True))
+            name = "dest%d_i" % j
+            dreg = Signal(rwid, name=name, reset_less=True)
+            setattr(self, name, sreg)
+            dst.append(dreg)
+        self._dest = dst
 
         self.rd = go_record(n_src, name="rd") # read in, req out
         self.wr = go_record(n_dst, name="wr") # write in, req out
-        self.go_rd_i = self.rd.go # temporary naming
-        self.go_wr_i = self.wr.go # temporary naming
-        self.rd_rel_o = self.rd.rel # temporary naming
-        self.req_rel_o = self.wr.rel # temporary naming
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
 
         # operation / data input
         self.oper_i = CompALUOpSubset() # operand
-        self.src_i = Array(src)
-        self.src1_i = src[0] # oper1 in
-        self.src2_i = src[1] # oper2 in
 
+        # output (busy/done)
         self.busy_o = Signal(reset_less=True) # fn busy out
-        self.dest = Array(dst)
-        self.data_o = dst[0] # Dest out
         self.done_o = Signal(reset_less=True)
+
+
+class MultiCompUnit(Elaboratable):
+    def __init__(self, rwid, alu, n_src=2, n_dst=1):
+        self.n_src, self.n_dst = n_src, n_dst
+        self.rwid = rwid
+        self.alu = alu # actual ALU - set as a "submodule" of the CU
+        self.cu = cu = CompUnitRecord(rwid, n_src, n_dst)
+
+        for i in range(n_src):
+            j = i + 1 # name numbering to match src1/src2
+            name = "src%d_i" % j
+            setattr(self, name, getattr(cu, name))
+
+        dst = []
+        for i in range(n_dst):
+            j = i + 1 # name numbering to match dest1/2...
+            name = "dest%d_i" % j
+            setattr(self, name, getattr(cu, name))
+
+        # convenience names
+        self.rd = cu.rd
+        self.wr = cu.wr
+        self.go_rd_i = self.rd.go # temporary naming
+        self.go_wr_i = self.wr.go # temporary naming
+        self.rd_rel_o = self.rd.rel # temporary naming
+        self.req_rel_o = self.wr.rel # temporary naming
+        self.issue_i = cu.issue_i
+        self.shadown_i = cu.shadown_i
+        self.go_die_i = cu.go_die_i
+
+        # operation / data input
+        self.oper_i = cu.oper_i
+        self.src_i = cu._src_i
+
+        self.busy_o = cu.busy_o
+        self.dest = cu._dest
+        self.data_o = self.dest[0] # Dest out
+        self.done_o = cu.done_o
 
     def elaborate(self, platform):
         m = Module()
