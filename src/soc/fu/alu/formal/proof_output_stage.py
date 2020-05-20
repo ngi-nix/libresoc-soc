@@ -43,12 +43,12 @@ class Driver(Elaboratable):
         cr0 = Signal(4)
         so = Signal()
         comb += [dut.i.o.eq(o),
-                 dut.i.carry_out.eq(carry_out),
-                 dut.i.so.eq(so),
-                 dut.i.carry_out32.eq(carry_out32),
+                 dut.i.xer_ca[0].eq(carry_out),
+                 dut.i.xer_so.eq(so),
+                 dut.i.xer_ca[1].eq(carry_out32),
                  dut.i.cr0.eq(cr0),
-                 dut.i.ov.eq(ov),
-                 dut.i.ov32.eq(ov32),
+                 dut.i.xer_ov[0].eq(ov),
+                 dut.i.xer_ov[1].eq(ov32),
                  o.eq(AnyConst(64)),
                  carry_out.eq(AnyConst(1)),
                  carry_out32.eq(AnyConst(1)),
