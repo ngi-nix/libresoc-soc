@@ -10,6 +10,7 @@ from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
+from nmigen.lib.coding import PriorityEncoder
 from nmigen.cli import rtlil
 
 from soc.fu.logical.main_stage import LogicalMainStage
@@ -110,6 +111,35 @@ class Driver(Elaboratable):
                         result_high = result_high ^ a[i*8 + 32]
                     comb += Assert(dut.o.o[0:32] == result_low)
                     comb += Assert(dut.o.o[32:64] == result_high)
+            with m.Case(InternalOp.OP_CNTZ):
+                XO = dut.fields.FormX.XO[0:-1]
+                with m.If(rec.is_32bit):
+                    m.submodules.pe32 = pe32 = PriorityEncoder(32)
+                    peo = Signal(range(0, 32+1))
+                    with m.If(pe32.n):
+                        comb += peo.eq(32)
+                    with m.Else():
+                        comb += peo.eq(pe32.o)
+                    with m.If(XO[-1]): # cnttzw
+                        comb += pe32.i.eq(a[0:32])
+                        comb += Assert(dut.o.o == peo)
+                    with m.Else(): # cntlzw
+                        comb += pe32.i.eq(a[0:32][::-1])
+                        comb += Assert(dut.o.o == peo)
+                with m.Else():
+                    m.submodules.pe64 = pe64 = PriorityEncoder(64)
+                    peo64 = Signal(7)
+                    with m.If(pe64.n):
+                        comb += peo64.eq(64)
+                    with m.Else():
+                        comb += peo64.eq(pe64.o)
+                    with m.If(XO[-1]): # cnttzd
+                        comb += pe64.i.eq(a[0:64])
+                        comb += Assert(dut.o.o == peo64)
+                    with m.Else(): # cntlzd
+                        comb += pe64.i.eq(a[0:64][::-1])
+                        comb += Assert(dut.o.o == peo64)
+
 
         return m
 
