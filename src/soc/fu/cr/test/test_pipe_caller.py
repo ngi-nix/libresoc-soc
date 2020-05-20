@@ -121,9 +121,8 @@ class CRTestCase(FHDLTestCase):
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = CRBasePipe(pspec)
-        ports = alu.ports()
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("logical_pipeline.il", "w") as f:
+        with open("cr_pipeline.il", "w") as f:
             f.write(vl)
 
 
