@@ -76,6 +76,11 @@ class Driver(Elaboratable):
                 # CA32
                 comb += Assert((a[0:32] + b[0:32] + carry_in)[32]
                                == carry_out32)
+            with m.Case(InternalOp.OP_EXTS):
+                for i in [1, 2, 4]:
+                    with m.If(rec.data_len == i):
+                        comb += Assert(o[0:i*8] == a[0:i*8])
+                        comb += Assert(o[i*8:64] == Repl(a[i*8-1], 64-(i*8)))
 
         return m
 
