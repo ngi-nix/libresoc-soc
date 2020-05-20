@@ -81,6 +81,17 @@ class Driver(Elaboratable):
                     with m.If(rec.data_len == i):
                         comb += Assert(o[0:i*8] == a[0:i*8])
                         comb += Assert(o[i*8:64] == Repl(a[i*8-1], 64-(i*8)))
+            with m.Case(InternalOp.OP_CMP):
+                # CMP is defined as not taking in carry
+                comb += Assume(carry_in == 0)
+                comb += Assert(o == (a+b)[0:64])
+
+            with m.Case(InternalOp.OP_CMPEQB):
+                src1 = a[0:8]
+                eqs = Signal(8)
+                for i in range(8):
+                    comb += eqs[i].eq(src1 == b[i*8:(i+1)*8])
+                comb += Assert(dut.o.cr0[2] == eqs.any())
 
         return m
 
