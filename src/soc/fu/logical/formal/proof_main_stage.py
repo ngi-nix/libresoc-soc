@@ -21,9 +21,9 @@ class Driver(Elaboratable):
         # inputs and outputs
         pass
 
-    def popcount(self, sig):
+    def popcount(self, sig, width):
         result = 0
-        for i in range(sig.width):
+        for i in range(width):
             result = result + sig[i]
         return result
 
@@ -79,9 +79,17 @@ class Driver(Elaboratable):
                 comb += Assert(dut.o.o == a ^ b)
 
             with m.Case(InternalOp.OP_POPCNT):
-                #comb += Assume(a < ((1<<64)-1))
                 with m.If(rec.data_len == 8):
-                    comb += Assert(dut.o.o == self.popcount(a))
+                    comb += Assert(dut.o.o == self.popcount(a, 64))
+                with m.If(rec.data_len == 4):
+
+                    for i in range(2):
+                        comb += Assert(dut.o.o[i*32:(i+1)*32] ==
+                                       self.popcount(a[i*32:(i+1)*32], 32))
+                with m.If(rec.data_len == 1):
+                    for i in range(8):
+                        comb += Assert(dut.o.o[i*8:(i+1)*8] ==
+                                       self.popcount(a[i*8:(i+1)*8], 8))
 
 
         return m

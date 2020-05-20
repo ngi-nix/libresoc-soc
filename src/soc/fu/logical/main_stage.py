@@ -20,7 +20,8 @@ from soc.decoder.power_fieldsn import SignalBitRange
 def array_of(count, bitwidth):
     res = []
     for i in range(count):
-        res.append(Signal(bitwidth, reset_less=True))
+        res.append(Signal(bitwidth, reset_less=True,
+                          name=f"pop_{bitwidth}_{i}"))
     return res
 
 
@@ -82,14 +83,14 @@ class LogicalMainStage(PipeModBase):
                         comb += dst[i].eq(Cat(src[stt], Const(0, 1)) +
                                           Cat(src[end], Const(0, 1)))
                 # decode operation length
-                with m.If(op.data_len[2:4] == 0b00):
+                with m.If(op.data_len == 1):
                     # popcntb - pack 8x 4-bit answers into output
                     for i in range(8):
-                        comb += o[i*8:i*8+4].eq(pc8[i])
-                with m.Elif(op.data_len[3] == 0):
+                        comb += o[i*8:(i+1)*8].eq(pc8[i])
+                with m.Elif(op.data_len == 4):
                     # popcntw - pack 2x 5-bit answers into output
                     for i in range(2):
-                        comb += o[i*32:i*32+5].eq(pc32[i])
+                        comb += o[i*32:(i+1)*32].eq(pc32[i])
                 with m.Else():
                     # popcntd - put 1x 6-bit answer into output
                     comb += o.eq(popcnt[0])
