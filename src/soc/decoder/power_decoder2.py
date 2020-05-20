@@ -402,8 +402,8 @@ class PowerDecode2(Elaboratable):
         # decoded/selected instruction flags
         comb += self.e.invert_a.eq(self.dec.op.inv_a)
         comb += self.e.invert_out.eq(self.dec.op.inv_out)
-        comb += self.e.input_carry.eq(self.dec.op.cry_in)
-        comb += self.e.output_carry.eq(self.dec.op.cry_out)
+        comb += self.e.input_carry.eq(self.dec.op.cry_in)   # carry comes in
+        comb += self.e.output_carry.eq(self.dec.op.cry_out) # carry goes out
         comb += self.e.is_32bit.eq(self.dec.op.is_32b)
         comb += self.e.is_signed.eq(self.dec.op.sgn)
         with m.If(self.dec.op.lk):
@@ -411,10 +411,10 @@ class PowerDecode2(Elaboratable):
 
         comb += self.e.byte_reverse.eq(self.dec.op.br)
         comb += self.e.sign_extend.eq(self.dec.op.sgn_ext)
-        comb += self.e.update.eq(self.dec.op.upd)
+        comb += self.e.update.eq(self.dec.op.upd) # LD/ST "update" mode
 
-        comb += self.e.input_cr.eq(self.dec.op.cr_in)
-        comb += self.e.output_cr.eq(self.dec.op.cr_out)
+        comb += self.e.input_cr.eq(self.dec.op.cr_in)   # condition reg comes in
+        comb += self.e.output_cr.eq(self.dec.op.cr_out) # condition reg goes in
 
 
         return m
