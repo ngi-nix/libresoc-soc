@@ -24,8 +24,8 @@ class ALUMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        carry_out, o, cr0 = self.o.xer_co, self.o.o, self.o.cr0
-        a, b, op = self.i.a, self.i.b, self.i.ctx.op
+        cry_o, o, cr0 = self.o.xer_co, self.o.o, self.o.cr0
+        a, b, cry_i, op = self.i.a, self.i.b, self.i.carry_in, self.i.ctx.op
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -36,13 +36,13 @@ class ALUMainStage(PipeModBase):
         # little trick: do the add using only one add (not 2)
         add_a = Signal(a.width + 2, reset_less=True)
         add_b = Signal(a.width + 2, reset_less=True)
-        add_output = Signal(a.width + 2, reset_less=True)
+        add_o = Signal(a.width + 2, reset_less=True)
         with m.If((op.insn_type == InternalOp.OP_ADD) |
                   (op.insn_type == InternalOp.OP_CMP)):
             # in bit 0, 1+carry_in creates carry into bit 1 and above
-            comb += add_a.eq(Cat(self.i.carry_in, a, Const(0, 1)))
+            comb += add_a.eq(Cat(cry_i, a, Const(0, 1)))
             comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
-            comb += add_output.eq(add_a + add_b)
+            comb += add_o.eq(add_a + add_b)
 
         ##########################
         # main switch-statement for handling arithmetic operations
@@ -54,18 +54,17 @@ class ALUMainStage(PipeModBase):
                 # however we have a trick: instead of adding either 2x 64-bit
                 # MUXes to invert a and b, or messing with a 64-bit output,
                 # swap +ve and -ve test in the *output* stage using an XOR gate
-                comb += o.eq(add_output[1:-1])
+                comb += o.eq(add_o[1:-1])
 
             #### add ####
             with m.Case(InternalOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
-                comb += o.eq(add_output[1:-1])
-                comb += carry_out.data[0].eq(add_output[-1]) # XER.CO
+                comb += o.eq(add_o[1:-1])
+                comb += cry_o.data[0].eq(add_o[-1]) # XER.CO
 
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-                comb += carry_out.data[1].eq(add_output[33] ^
-                                             (a[32] ^ b[32])) # XER.CO32
+                comb += cry_o.data[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CO32
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
