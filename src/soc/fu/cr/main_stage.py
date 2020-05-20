@@ -108,8 +108,8 @@ class CRMainStage(PipeModBase):
                 # Extract the two input bits from the CR
                 bit_a = Signal(reset_less=True)
                 bit_b = Signal(reset_less=True)
-                comb += bit_a.eq(cr_arr[ba])
-                comb += bit_b.eq(cr_arr[bb])
+                comb += bit_a.eq((1<<(31-ba) & cr) != 0)
+                comb += bit_b.eq((1<<(31-bb) & cr) != 0)
 
                 # Use the two input bits to look up the result in the LUT
                 bit_out = Signal(reset_less=True)
@@ -117,7 +117,9 @@ class CRMainStage(PipeModBase):
                                        Mux(bit_a, lut[3], lut[1]),
                                        Mux(bit_a, lut[2], lut[0])))
                 # Set the output to the result above
-                comb += cr_out_arr[bt].eq(bit_out)
+                mask_ = Signal(32, reset_less=True)
+                comb += mask_.eq(1<<(31-bt))
+                comb += cr_o.eq(Mux(bit_out, mask_, 0) | (~mask_ & cr))
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
