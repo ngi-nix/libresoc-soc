@@ -174,10 +174,11 @@ class LogicalTestCase(FHDLTestCase):
 
     def test_bpermd(self):
         lst = ["bpermd 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeefcafec0de
-        initial_regs[2] = 0xd0adb0000afec1de
-        self.run_tst_program(Program(lst), initial_regs)
+        for i in range(20):
+            initial_regs = [0] * 32
+            initial_regs[1] = 1<<random.randint(0,63)
+            initial_regs[2] = 0xdeadbeefcafec0de
+            self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
         rec = CompALUOpSubset()
