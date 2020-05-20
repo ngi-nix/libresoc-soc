@@ -38,8 +38,8 @@ class ALUOutputStage(PipeModBase):
             comb += target.eq(o)
 
         # Handle carry_out
-        comb += self.o.xer_co.data.eq(self.i.xer_co.data)
-        comb += self.o.xer_co.ok.eq(op.output_carry)
+        comb += self.o.xer_ca.data.eq(self.i.xer_ca.data)
+        comb += self.o.xer_ca.ok.eq(op.output_carry)
 
         # create condition register cr0 and sticky-overflow
         is_zero = Signal(reset_less=True)

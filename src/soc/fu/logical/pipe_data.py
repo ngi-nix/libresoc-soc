@@ -8,18 +8,18 @@ class LogicalInputData(IntegerData):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
         self.b = Signal(64, reset_less=True) # RB/immediate
-        self.so = Signal(reset_less=True)
-        self.carry_in = Signal(reset_less=True)
+        self.xer_so = Signal(reset_less=True)    # XER bit 32: SO
+        self.xer_ca = Signal(2, reset_less=True) # XER bit 34/45: CA/CA32
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.a
         yield self.b
-        yield self.carry_in
-        yield self.so
+        yield self.xer_ca
+        yield self.xer_so
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.a.eq(i.a), self.b.eq(i.b),
-                      self.carry_in.eq(i.carry_in),
-                      self.so.eq(i.so)]
+                      self.xer_ca.eq(i.xer_ca),
+                      self.xer_so.eq(i.xer_so)]

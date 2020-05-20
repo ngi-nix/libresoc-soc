@@ -24,8 +24,8 @@ class ALUMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        cry_o, o, cr0 = self.o.xer_co, self.o.o, self.o.cr0
-        a, b, cry_i, op = self.i.a, self.i.b, self.i.carry_in, self.i.ctx.op
+        cry_o, o, cr0 = self.o.xer_ca, self.o.o, self.o.cr0
+        a, b, cry_i, op = self.i.a, self.i.b, self.i.xer_ca, self.i.ctx.op
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -40,7 +40,7 @@ class ALUMainStage(PipeModBase):
         with m.If((op.insn_type == InternalOp.OP_ADD) |
                   (op.insn_type == InternalOp.OP_CMP)):
             # in bit 0, 1+carry_in creates carry into bit 1 and above
-            comb += add_a.eq(Cat(cry_i, a, Const(0, 1)))
+            comb += add_a.eq(Cat(cry_i[0], a, Const(0, 1)))
             comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
             comb += add_o.eq(add_a + add_b)
 
@@ -86,7 +86,7 @@ class ALUMainStage(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.so)
+        comb += self.o.xer_so.data.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

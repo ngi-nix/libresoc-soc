@@ -132,7 +132,7 @@ class LogicalMainStage(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.so)
+        comb += self.o.xer_so.data.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

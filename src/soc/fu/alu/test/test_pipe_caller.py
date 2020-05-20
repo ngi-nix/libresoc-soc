@@ -67,9 +67,11 @@ def set_alu_inputs(alu, dec2, sim):
 
 def set_extra_alu_inputs(alu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    yield alu.p.data_i.carry_in.eq(carry)
+    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+    yield alu.p.data_i.xer_ca[0].eq(carry)
+    yield alu.p.data_i.xer_ca[1].eq(carry32)
     so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.so.eq(so)
+    yield alu.p.data_i.xer_so.eq(so)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -236,7 +238,7 @@ class TestRunner(FHDLTestCase):
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = simulator.gpr(write_reg_idx).value
                         print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out)
+                        self.assertEqual(expected, alu_out, code)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
                                                             simulator, code)
 
@@ -263,10 +265,10 @@ class TestRunner(FHDLTestCase):
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.xer_co.data[0] # XXX CO not CO32
+            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CO not CO32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield alu.n.data_o.xer_co.data[1] # XXX CO32
+            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
 
