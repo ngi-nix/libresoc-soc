@@ -70,7 +70,7 @@ class Driver(Elaboratable):
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_ADD):
-                
+
                 comb += Assert(Cat(o, carry_out) == (a + b + carry_in))
 
                 # CA32
@@ -104,7 +104,7 @@ class ALUTestCase(FHDLTestCase):
     def test_ilang(self):
         dut = Driver()
         vl = rtlil.convert(dut, ports=[])
-        with open("main_stage.il", "w") as f:
+        with open("alu_main_stage.il", "w") as f:
             f.write(vl)
 
 
