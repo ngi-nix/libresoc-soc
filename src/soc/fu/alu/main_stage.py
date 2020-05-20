@@ -25,6 +25,7 @@ class ALUMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         cry_o, o, cr0 = self.o.xer_ca, self.o.o, self.o.cr0
+        ov_o = self.o.xer_ov
         a, b, cry_i, op = self.i.a, self.i.b, self.i.xer_ca, self.i.ctx.op
 
         # check if op is 32-bit, and get sign bit from operand a
@@ -65,6 +66,11 @@ class ALUMainStage(PipeModBase):
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
                 comb += cry_o.data[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CO32
+
+                comb += ov_o.data[0].eq((add_o[-2] != a[-1]) &
+                                        (a[-1] == b[-1]))
+                comb += ov_o.data[1].eq((add_o[32] != a[31]) &
+                                        (a[31] == b[31]))
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
