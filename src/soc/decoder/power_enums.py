@@ -52,6 +52,8 @@ class Function(Enum):
     BRANCH = 5
     CR = 6
     TRAP = 7
+    MUL = 8
+    DIV = 9
 
 
 @unique
