@@ -52,16 +52,52 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
-        cr_arr = Array([cr[i] for i in range(32)])
-        cr_o_arr = Array([cr[i] for i in range(32)])
+        # big endian indexing. *sigh*
+        cr_arr = Array([cr[31-i] for i in range(32)])
+        cr_o_arr = Array([cr_o[31-i] for i in range(32)])
 
+        xl_fields = dut.fields.FormXL
+        xfx_fields = dut.fields.FormXFX
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_MTCRF):
-                xfx_fields = dut.fields.FormXFX
                 FXM = xfx_fields.FXM[0:-1]
                 for i in range(8):
                     with m.If(FXM[i]):
                         comb += Assert(cr_o[4*i:4*i+4] == a[4*i:4*i+4])
+            with m.Case(InternalOp.OP_CROP):
+                bt = Signal(xl_fields.BT[0:-1].shape(), reset_less=True)
+                ba = Signal(xl_fields.BA[0:-1].shape(), reset_less=True)
+                bb = Signal(xl_fields.BB[0:-1].shape(), reset_less=True)
+                comb += bt.eq(xl_fields.BT[0:-1])
+                comb += ba.eq(xl_fields.BA[0:-1])
+                comb += bb.eq(xl_fields.BB[0:-1])
+
+                bit_a = Signal()
+                bit_b = Signal()
+                bit_o = Signal()
+                comb += bit_a.eq(cr_arr[ba])
+                comb += bit_b.eq(cr_arr[bb])
+                comb += bit_o.eq(cr_o_arr[bt])
+
+                lut = Signal(4)
+                comb += lut.eq(rec.insn[6:10])
+                with m.If(lut == 0b1000):
+                    comb += Assert(bit_o == bit_a & bit_b)
+                with m.If(lut == 0b0100):
+                    comb += Assert(bit_o == bit_a & ~bit_b)
+                with m.If(lut == 0b1001):
+                    comb += Assert(bit_o == ~(bit_a ^ bit_b))
+                with m.If(lut == 0b0111):
+                    comb += Assert(bit_o == ~(bit_a & bit_b))
+                with m.If(lut == 0b0001):
+                    comb += Assert(bit_o == ~(bit_a | bit_b))
+                with m.If(lut == 0b1110):
+                    comb += Assert(bit_o == bit_a | bit_b)
+                with m.If(lut == 0b1101):
+                    comb += Assert(bit_o == bit_a | ~bit_b)
+                with m.If(lut == 0b0110):
+                    comb += Assert(bit_o == bit_a ^ bit_b)
+
         return m
 
 
