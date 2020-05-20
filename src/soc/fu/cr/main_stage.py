@@ -78,9 +78,7 @@ class CRMainStage(PipeModBase):
                 comb += bfa.eq(BFA)
 
                 for i in range(4):
-                    idx = Signal(2, name="idx%s" % i, reset_less=True)
-                    comb += idx.eq(bf*4+1)
-                    comb += cr_out_arr[idx].eq(cr_arr[idx])
+                    comb += cr_out_arr[bf*4 + i].eq(cr_arr[bfa*4 + i])
 
             ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
