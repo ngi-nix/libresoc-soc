@@ -34,18 +34,19 @@ class CRMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        a, cr = self.i.a, self.i.cr
         xl_fields = self.fields.FormXL
         xfx_fields = self.fields.FormXFX
         # default: cr_o remains same as cr input unless modified, below
-        cr_o = Signal.like(self.i.cr)
-        comb += cr_o.eq(self.i.cr)
+        cr_o = Signal.like(cr)
+        comb += cr_o.eq(cr)
 
         ##### prepare inputs / temp #####
 
         # Generate array for cr input so bits can be selected
         cr_arr = Array([Signal(name=f"cr_arr_{i}") for i in range(32)])
         for i in range(32):
-            comb += cr_arr[i].eq(self.i.cr[31-i])
+            comb += cr_arr[i].eq(cr[31-i])
 
         # Generate array for cr output so the bit to write to can be
         # selected by a signal
@@ -85,7 +86,7 @@ class CRMainStage(PipeModBase):
                 lut = Array([Signal(name=f"lut{i}") for i in range(4)])
                 # There's no field, just have to grab it directly from the insn
                 for i in range(4):
-                    comb += lut[i].eq(self.i.ctx.op.insn[6+i])
+                    comb += lut[i].eq(op.insn[6+i])
 
                 # Get the bit selector fields from the instruction
                 BT = xl_fields.BT[0:-1]
@@ -100,7 +101,7 @@ class CRMainStage(PipeModBase):
                 # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
-                comb += cr_o.eq((self.i.a[0:32] & mask) | (self.i.cr & ~mask))
+                comb += cr_o.eq((a[0:32] & mask) | (cr & ~mask))
 
             ##### mfcr #####
             with m.Case(InternalOp.OP_MFCR):
@@ -108,14 +109,14 @@ class CRMainStage(PipeModBase):
                 # them. This bit is not in any particular field, so this
                 # extracts that bit from the instruction
                 move_one = Signal(reset_less=True)
-                comb += move_one.eq(self.i.ctx.op.insn[20])
+                comb += move_one.eq(op.insn[20])
 
                 # mfocrf
                 with m.If(move_one):
-                    comb += self.o.o.eq(self.i.cr & mask)
+                    comb += self.o.o.eq(cr & mask) # output register RT
                 # mfcrf
                 with m.Else():
-                    comb += self.o.o.eq(self.i.cr)
+                    comb += self.o.o.eq(cr)        # output register RT
 
         # output and context
         comb += self.o.cr.eq(cr_o)
