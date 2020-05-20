@@ -5,6 +5,10 @@ from soc.decoder.power_decoder2 import Data
 
 
 class TrapInputData(IntegerData):
+    regspec = [('INT', 'a', '0:63'),
+               ('INT', 'b', '0:63'),
+               ('PC', 'cia', '0:63'),
+               ('MSR', 'msr', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True)  # RA
@@ -26,12 +30,16 @@ class TrapInputData(IntegerData):
 
 
 class TrapOutputData(IntegerData):
+    regspec = [('SPR', 'srr0', '0:63'),
+               ('SPR', 'srr1', '0:63'),
+               ('PC', 'nia', '0:63'),
+               ('MSR', 'msr', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.nia = Data(64, name="nia") # NIA (Next PC)
-        self.msr = Signal(64, reset_less=True) # MSR
         self.srr0 = Data(64, name="srr0") # SRR0 SPR
         self.srr1 = Data(64, name="srr1") # SRR1 SPR
+        self.nia = Data(64, name="nia") # NIA (Next PC)
+        self.msr = Signal(64, reset_less=True) # MSR
 
     def __iter__(self):
         yield from super().__iter__()

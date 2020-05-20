@@ -21,6 +21,10 @@ class IntegerData:
 
 
 class ALUInputData(IntegerData):
+    regspec = [('INT', 'a', '0:63'),
+               ('INT', 'b', '0:63'),
+               ('XER', 'xer_so', '32'),
+               ('XER', 'xer_ca', '34,45')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
@@ -47,6 +51,11 @@ class ALUInputData(IntegerData):
 # https://bugs.libre-soc.org/show_bug.cgi?id=305#c19
 
 class ALUOutputData(IntegerData):
+    regspec = [('INT', 'o', '0:63'),
+               ('CR', 'cr0', '0:3'),
+               ('XER', 'xer_ca', '34,45'),
+               ('XER', 'xer_ov', '33,44'),
+               ('XER', 'xer_so', '32')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Signal(64, reset_less=True, name="stage_o")

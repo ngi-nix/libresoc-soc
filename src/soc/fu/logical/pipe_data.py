@@ -4,6 +4,10 @@ from soc.fu.alu.pipe_data import IntegerData
 
 
 class LogicalInputData(IntegerData):
+    regspec = [('INT', 'a', '0:63'),
+               ('INT', 'rb', '0:63'),
+               ('XER', 'xer_so', '32'),
+               ('XER', 'xer_ca', '34,45')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
