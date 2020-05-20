@@ -90,10 +90,9 @@ class CRMainStage(PipeModBase):
                 # the CR to determine what the resulting bit should be.
 
                 # Grab the lookup table for cr_op type instructions
-                lut = Array([Signal(name=f"lut{i}") for i in range(4)])
+                lut = Signal(4, reset_less=True)
                 # There's no field, just have to grab it directly from the insn
-                for i in range(4):
-                    comb += lut[i].eq(op.insn[6+i])
+                comb += lut.eq(op.insn[6:10])
 
                 # Get the bit selector fields from the instruction
                 BT = xl_fields.BT[0:-1]
@@ -108,12 +107,19 @@ class CRMainStage(PipeModBase):
                 comb += ba.eq(BA)
                 comb += bb.eq(BB)
 
+                # Extract the two input bits from the CR
+                bit_a = Signal(reset_less=True)
+                bit_b = Signal(reset_less=True)
+                comb += bit_a.eq(cr_arr[ba])
+                comb += bit_b.eq(cr_arr[bb])
+
                 # Use the two input bits to look up the result in the LUT
-                idx = Signal(2, reset_less=True)
-                lv = Signal(1, reset_less=True)
-                comb += idx.eq(Cat(cr_arr[bb], cr_arr[ba]))
-                comb += lv.eq(lut[idx])
-                comb += cr_out_arr[bt].eq(lv)
+                bit_out = Signal(reset_less=True)
+                comb += bit_out.eq(Mux(bit_b,
+                                       Mux(bit_a, lut[3], lut[1]),
+                                       Mux(bit_a, lut[2], lut[0])))
+                # Set the output to the result above
+                comb += cr_out_arr[bt].eq(bit_out)
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
