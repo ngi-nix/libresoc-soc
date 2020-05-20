@@ -31,7 +31,7 @@ class LogicalMainStage(PipeModBase):
         self.fields.create_specs()
 
     def ispec(self):
-        return ALUInputData(self.pspec)
+        return LogicalInputData(self.pspec)
 
     def ospec(self):
         return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
