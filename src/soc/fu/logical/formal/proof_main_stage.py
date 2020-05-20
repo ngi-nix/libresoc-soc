@@ -21,6 +21,12 @@ class Driver(Elaboratable):
         # inputs and outputs
         pass
 
+    def popcount(self, sig):
+        result = 0
+        for i in range(sig.width):
+            result = result + sig[i]
+        return result
+
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
@@ -41,7 +47,6 @@ class Driver(Elaboratable):
         b = dut.i.b
         carry_in = dut.i.carry_in
         so_in = dut.i.so
-        carry_out = dut.o.carry_out
         o = dut.o.o
 
         # setup random inputs
@@ -72,6 +77,12 @@ class Driver(Elaboratable):
                 comb += Assert(dut.o.o == a | b)
             with m.Case(InternalOp.OP_XOR):
                 comb += Assert(dut.o.o == a ^ b)
+
+            with m.Case(InternalOp.OP_POPCNT):
+                #comb += Assume(a < ((1<<64)-1))
+                with m.If(rec.data_len == 8):
+                    comb += Assert(dut.o.o == self.popcount(a))
+
 
         return m
 

@@ -68,7 +68,7 @@ class LogicalMainStage(PipeModBase):
                 # creating arrays big enough to store the sum, each time
                 pc = [a]
                 # QTY32 2-bit (to take 2x 1-bit sums) etc.
-                work = [(32, 2), (16, 3), (8, 4), (4, 5), (2, 6), (1, 6)]
+                work = [(32, 2), (16, 3), (8, 4), (4, 5), (2, 6), (1, 7)]
                 for l, b in work:
                     pc.append(array_of(l, b))
                 pc8 = pc[3]     # array of 8 8-bit counts (popcntb)
