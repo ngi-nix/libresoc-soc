@@ -43,6 +43,7 @@ class Driver(Elaboratable):
         a = dut.i.a
         cr = dut.i.cr
         cr_o = dut.o.cr
+        o = dut.o.o
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -62,12 +63,21 @@ class Driver(Elaboratable):
 
         xl_fields = dut.fields.FormXL
         xfx_fields = dut.fields.FormXFX
+        FXM = xfx_fields.FXM[0:-1]
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_MTCRF):
-                FXM = xfx_fields.FXM[0:-1]
                 for i in range(8):
                     with m.If(FXM[i]):
                         comb += Assert(cr_o[4*i:4*i+4] == a[4*i:4*i+4])
+            with m.Case(InternalOp.OP_MFCR):
+                with m.If(rec.insn[20]):  # mfocrf
+                    for i in range(8):
+                        with m.If(FXM[i]):
+                            comb += Assert(o[4*i:4*i+4] == cr[4*i:4*i+4])
+                        with m.Else():
+                            comb += Assert(o[4*i:4*i+4] == 0)
+                with m.Else(): # mfcrf
+                    comb += Assert(o == cr)
             with m.Case(InternalOp.OP_CROP):
                 bt = Signal(xl_fields.BT[0:-1].shape(), reset_less=True)
                 ba = Signal(xl_fields.BA[0:-1].shape(), reset_less=True)
