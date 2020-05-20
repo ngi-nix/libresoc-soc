@@ -672,7 +672,7 @@ def mem_sim(dut):
 
 
 def test_mem_fus():
-    dut = MemFunctionUnits(3)
+    dut = MemFunctionUnits(8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_mem_fus.il", "w") as f:
         f.write(vl)

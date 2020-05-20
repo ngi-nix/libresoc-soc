@@ -17,7 +17,9 @@ from math import log
 import unittest
 
 # FIXME: fixed up imports
-from ..experiment.score6600 import IssueToScoreboard, RegSim, instr_q, wait_for_busy_clear, wait_for_issue, CompUnitALUs, CompUnitBR, CompUnitsBase
+from soc.experiment.score6600 import (IssueToScoreboard, RegSim, instr_q,
+                                      wait_for_busy_clear, wait_for_issue, 
+                                      CompUnitALUs, CompUnitBR, CompUnitsBase)
 
 
 class Memory(Elaboratable):
@@ -576,9 +578,9 @@ def mem_sim(dut):
 
 
 def test_mem_fus():
-    dut = MemFunctionUnits(3, 11)
+    dut = MemFunctionUnits(8, 11)
     vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_mem_fus.il", "w") as f:
+    with open("test_mem2_fus.il", "w") as f:
         f.write(vl)
 
     run_simulation(dut, mem_sim(dut),
