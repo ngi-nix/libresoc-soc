@@ -27,7 +27,7 @@ class CROutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Signal(64, reset_less=True) # RA
-        self.cr = Signal(32, reset_less=True) # CR in
+        self.cr = Signal(32, reset_less=True, name="cr_out") # CR in
 
     def __iter__(self):
         yield from super().__iter__()
