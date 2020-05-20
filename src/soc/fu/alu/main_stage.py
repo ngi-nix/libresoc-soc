@@ -5,6 +5,7 @@
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
+from nmutil.extend import exts
 from soc.fu.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -68,11 +69,13 @@ class ALUMainStage(PipeModBase):
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
                 with m.If(op.data_len == 1):
-                    comb += o.eq(Cat(a[0:8], Repl(a[7], 64-8)))
+                    comb += o.eq(exts(a, 8, 64))
                 with m.If(op.data_len == 2):
-                    comb += o.eq(Cat(a[0:16], Repl(a[15], 64-16)))
+                    comb += o.eq(exts(a, 16, 64))
                 with m.If(op.data_len == 4):
-                    comb += o.eq(Cat(a[0:32], Repl(a[31], 64-32)))
+                    comb += o.eq(exts(a, 32, 64))
+
+            #### cmpeqb ####
             with m.Case(InternalOp.OP_CMPEQB):
                 eqs = Signal(8, reset_less=True)
                 src1 = Signal(8, reset_less=True)
