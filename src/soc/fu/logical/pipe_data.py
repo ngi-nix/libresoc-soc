@@ -2,7 +2,7 @@ from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData
 from soc.fu.alu.pipe_data import ALUOutputData, CommonPipeSpec
-from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
+from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 
 
 class LogicalInputData(IntegerData):
@@ -31,7 +31,6 @@ class LogicalInputData(IntegerData):
                       self.xer_so.eq(i.xer_so)]
 
 
-# TODO: replace CompALUOpSubset with CompLogicalOpSubset
 class LogicalPipeSpec(CommonPipeSpec):
     regspec = (LogicalInputData.regspec, ALUOutputData.regspec)
-    opsubsetkls = CompALUOpSubset
+    opsubsetkls = CompLogicalOpSubset
