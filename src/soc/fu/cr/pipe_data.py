@@ -8,7 +8,7 @@ class CRInputData(IntegerData):
     regspec = [('INT', 'a', '0:63'),      # 64 bit range
                ('CR', 'full_cr', '0:31'), # 32 bit range
                ('CR', 'cr_a', '0:3'),     # 4 bit range
-               ('CR', 'cr_b', '0:3')]     # 4 bit range
+               ('CR', 'cr_b', '0:3'),     # 4 bit range
                ('CR', 'cr_c', '0:3')]     # 4 bit range
     def __init__(self, pspec):
         super().__init__(pspec)
