@@ -400,6 +400,37 @@ class BranchRel:
         else:
             assert(lk == 0)
 
+class CROp:
+    def __init__(self):
+        self.ops = {
+            "crand": InternalOp.OP_CROP,
+        }
+        # Given in Figure 40 "BO field encodings" in section 2.4, page
+        # 33 of the Power ISA v3.0B manual
+        self.opcodestr = random.choice(list(self.ops.keys()))
+        self.opcode = self.ops[self.opcodestr]
+        self.ba = random.randrange(32)
+        self.bb = random.randrange(32)
+        self.bt = random.randrange(32)
+
+    def generate_instruction(self):
+        string = "{} {},{},{}\n".format(self.opcodestr,
+                                        self.bt,
+                                        self.ba,
+                                        self.bb)
+        return string
+
+    def check_results(self, pdecode2):
+        cr1 = yield pdecode2.e.read_cr1.data
+        assert cr1 == self.ba//8
+
+        cr2 = yield pdecode2.e.read_cr2.data
+        assert cr2 == self.bb//8
+
+        cr_out = yield pdecode2.e.write_cr.data
+        assert cr_out == self.bt//8
+
+
 
 class DecoderTestCase(FHDLTestCase):
 
@@ -462,6 +493,9 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_branch_rel(self):
         self.run_tst(BranchRel, "branch_rel")
+
+    def test_cr_op(self):
+        self.run_tst(CROp, "cr_op")
 
 
 if __name__ == "__main__":

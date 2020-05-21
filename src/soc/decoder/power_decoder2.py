@@ -298,16 +298,48 @@ class DecodeCRIn(Elaboratable):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BFA[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BA_BB):
-                comb += self.cr_bitfield.data.eq(self.dec.BA[0:-1])
+                comb += self.cr_bitfield.data.eq(self.dec.BA[3:5])
                 comb += self.cr_bitfield.ok.eq(1)
-                comb += self.cr_bitfield_b.data.eq(self.dec.BB[0:-1])
+                comb += self.cr_bitfield_b.data.eq(self.dec.BB[3:5])
                 comb += self.cr_bitfield_b.ok.eq(1)
             with m.Case(CRInSel.BC):
                 comb += self.cr_bitfield.data.eq(self.dec.BC[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.WHOLE_REG):
                 comb += self.whole_reg.eq(1)
-                
+
+        return m
+
+class DecodeCROut(Elaboratable):
+    """Decodes input CR from instruction"""
+
+    def __init__(self, dec):
+        self.dec = dec
+        self.sel_in = Signal(CROutSel, reset_less=True)
+        self.insn_in = Signal(32, reset_less=True)
+        self.cr_bitfield = Data(3, "cr_bitfield")
+        self.whole_reg = Signal(reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        comb += self.cr_bitfield.ok.eq(0)
+        comb += self.whole_reg.eq(0)
+        with m.Switch(self.sel_in):
+            with m.Case(CROutSel.NONE):
+                pass # No bitfield activated
+            with m.Case(CROutSel.CR0):
+                comb += self.cr_bitfield.data.eq(0)
+                comb += self.cr_bitfield.ok.eq(1)
+            with m.Case(CROutSel.BF):
+                comb += self.cr_bitfield.data.eq(self.dec.FormX.BF[0:-1])
+                comb += self.cr_bitfield.ok.eq(1)
+            with m.Case(CROutSel.BT):
+                comb += self.cr_bitfield.data.eq(self.dec.FormXL.BT[3:5])
+                comb += self.cr_bitfield.ok.eq(1)
+            with m.Case(CROutSel.WHOLE_REG):
+                comb += self.whole_reg.eq(1)
 
         return m
 
@@ -392,11 +424,12 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
         m.submodules.dec_cr_in = dec_cr_in = DecodeCRIn(self.dec)
+        m.submodules.dec_cr_out = dec_cr_out = DecodeCROut(self.dec)
 
         # copy instruction through...
         for i in [self.e.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_rc.insn_in,
-                  dec_oe.insn_in, dec_cr_in.insn_in]:
+                  dec_oe.insn_in, dec_cr_in.insn_in, dec_cr_out.insn_in]:
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
@@ -407,6 +440,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
+        comb += dec_cr_out.sel_in.eq(self.dec.op.cr_out)
 
         # decode LD/ST length
         with m.Switch(self.dec.op.ldst_len):
@@ -449,9 +483,8 @@ class PowerDecode2(Elaboratable):
         comb += self.e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
         comb += self.e.read_cr_whole.eq(dec_cr_in.whole_reg)
 
-        comb += self.e.write_cr.ok.eq(0)
-        comb += self.e.write_cr.data.eq(0)
-        comb += self.e.write_cr_whole.eq(0)
+        comb += self.e.write_cr.eq(dec_cr_out.cr_bitfield)
+        comb += self.e.write_cr_whole.eq(dec_cr_out.whole_reg)
 
         # decoded/selected instruction flags
         comb += self.e.invert_a.eq(self.dec.op.inv_a)
