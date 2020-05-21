@@ -34,26 +34,12 @@ class CRMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        a, cr = self.i.a, self.i.cr
+        a, full_cr = self.i.a, self.i.full_cr
+        cr_a, cr_b, cr_c = self.i.cr_a, self.i.cr_b, self.i.cr_c
         xl_fields = self.fields.FormXL
         xfx_fields = self.fields.FormXFX
-        # default: cr_o remains same as cr input unless modified, below
-        cr_o = Signal.like(cr)
-        comb += cr_o.eq(cr)
 
-        ##### prepare inputs / temp #####
-
-        # Generate array for cr input so bits can be selected
-        cr_arr = Array([Signal(name=f"cr_arr_{i}") for i in range(32)])
-        for i in range(32):
-            comb += cr_arr[i].eq(cr[31-i])
-
-        # Generate array for cr output so the bit to write to can be
-        # selected by a signal
-        cr_out_arr = Array([Signal(name=f"cr_out_{i}") for i in range(32)])
-        for i in range(32):
-            comb += cr_o[31-i].eq(cr_out_arr[i])
-            comb += cr_out_arr[i].eq(cr_arr[i])
+        cr_o = self.o.cr_o
 
         # Generate the mask for mtcrf, mtocrf, and mfocrf
         # replicate every fxm field in the insn to 4-bit, as a mask
@@ -61,26 +47,27 @@ class CRMainStage(PipeModBase):
         mask = Signal(32, reset_less=True)
         comb += mask.eq(Cat(*[Repl(FXM[i], 4) for i in range(8)]))
 
-        #################################
-        ##### main switch statement #####
+
+        # Generate array of bits for cr_a and cr_b
+        cr_a_arr = Array([cr_a[i] for i in range(4)])
+        cr_b_arr = Array([cr_b[i] for i in range(4)])
+        cr_o_arr = Array([cr_o[i] for i in range(4)])
+
+        comb += cr_o.eq(cr_c)
+
 
         with m.Switch(op.insn_type):
             ##### mcrf #####
             with m.Case(InternalOp.OP_MCRF):
                 # MCRF copies the 4 bits of crA to crB (for instance
                 # copying cr2 to cr1)
-                BF = xl_fields.BF[0:-1]   # destination CR
-                BFA = xl_fields.BFA[0:-1] # source CR
-                bf = Signal(BF.shape(), reset_less=True)
-                bfa = Signal(BFA.shape(), reset_less=True)
-                # use temporary signals because ilang output is insane otherwise
-                comb += bf.eq(BF)
-                comb += bfa.eq(BFA)
+                # Since it takes in a 4 bit cr, and outputs a 4 bit
+                # cr, we don't have to do anything special
+                comb += cr_o.eq(cr_a)
 
-                for i in range(4):
-                    comb += cr_out_arr[bf*4 + i].eq(cr_arr[bfa*4 + i])
 
-            ##### crand, cror, crnor etc. #####
+
+            # ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
                 # crand/cror and friends get decoded to the same opcode, but
                 # one of the fields inside the instruction is a 4 bit lookup
@@ -96,53 +83,49 @@ class CRMainStage(PipeModBase):
                 BT = xl_fields.BT[0:-1]
                 BA = xl_fields.BA[0:-1]
                 BB = xl_fields.BB[0:-1]
-                bt = Signal(BT.shape(), reset_less=True)
-                ba = Signal(BA.shape(), reset_less=True)
-                bb = Signal(BB.shape(), reset_less=True)
-                # use temporary signals because ilang output is insane otherwise
-                # also when accessing LUT
-                comb += bt.eq(BT)
-                comb += ba.eq(BA)
-                comb += bb.eq(BB)
+                bt = Signal(2, reset_less=True)
+                ba = Signal(2, reset_less=True)
+                bb = Signal(2, reset_less=True)
+
+                comb += bt.eq(3-BT[0:2])
+                comb += ba.eq(3-BA[0:2])
+                comb += bb.eq(3-BB[0:2])
 
                 # Extract the two input bits from the CR
                 bit_a = Signal(reset_less=True)
                 bit_b = Signal(reset_less=True)
-                comb += bit_a.eq(cr_arr[ba])
-                comb += bit_b.eq(cr_arr[bb])
+                comb += bit_a.eq(cr_a_arr[ba])
+                comb += bit_b.eq(cr_b_arr[bb])
 
-                # Use the two input bits to look up the result in the LUT
-                bit_out = Signal(reset_less=True)
-                comb += bit_out.eq(Mux(bit_b,
-                                       Mux(bit_a, lut[3], lut[1]),
-                                       Mux(bit_a, lut[2], lut[0])))
-                # Set the output to the result above
-                comb += cr_out_arr[bt].eq(bit_out)
+                bit_o = Signal()
+                comb += bit_o.eq(Mux(bit_b,
+                                     Mux(bit_a, lut[3], lut[1]),
+                                     Mux(bit_a, lut[2], lut[0])))
+                comb += cr_o_arr[bt].eq(bit_o)
 
-            ##### mtcrf #####
-            with m.Case(InternalOp.OP_MTCRF):
-                # mtocrf and mtcrf are essentially identical
-                # put input (RA) - mask-selected - into output CR, leave
-                # rest of CR alone.
-                comb += cr_o.eq((a[0:32] & mask) | (cr & ~mask))
 
-            ##### mfcr #####
-            with m.Case(InternalOp.OP_MFCR):
-                # Ugh. mtocrf and mtcrf have one random bit differentiating
-                # them. This bit is not in any particular field, so this
-                # extracts that bit from the instruction
-                move_one = Signal(reset_less=True)
-                comb += move_one.eq(op.insn[20])
+            # ##### mtcrf #####
+            # with m.Case(InternalOp.OP_MTCRF):
+            #     # mtocrf and mtcrf are essentially identical
+            #     # put input (RA) - mask-selected - into output CR, leave
+            #     # rest of CR alone.
+            #     comb += cr_o.eq((a[0:32] & mask) | (cr & ~mask))
 
-                # mfocrf
-                with m.If(move_one):
-                    comb += self.o.o.eq(cr & mask) # output register RT
-                # mfcrf
-                with m.Else():
-                    comb += self.o.o.eq(cr)        # output register RT
+            # ##### mfcr #####
+            # with m.Case(InternalOp.OP_MFCR):
+            #     # Ugh. mtocrf and mtcrf have one random bit differentiating
+            #     # them. This bit is not in any particular field, so this
+            #     # extracts that bit from the instruction
+            #     move_one = Signal(reset_less=True)
+            #     comb += move_one.eq(op.insn[20])
 
-        # output and context
-        comb += self.o.cr.eq(cr_o)
+            #     # mfocrf
+            #     with m.If(move_one):
+            #         comb += self.o.o.eq(cr & mask) # output register RT
+            #     # mfcrf
+            #     with m.Else():
+            #         comb += self.o.o.eq(cr)        # output register RT
+
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
