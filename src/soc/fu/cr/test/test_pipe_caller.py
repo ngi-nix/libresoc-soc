@@ -58,7 +58,6 @@ class CRTestCase(FHDLTestCase):
                       self.test_name)
         test_data.append(tc)
 
-    @unittest.skip("broken")
     def test_crop(self):
         insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
                  "crandc", "crorc"]
@@ -71,7 +70,6 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
-    @unittest.skip("broken")
     def test_crand(self):
         for i in range(20):
             lst = ["crand 0, 11, 13"]
@@ -136,6 +134,7 @@ class TestRunner(FHDLTestCase):
     def set_inputs(self, alu, dec2, simulator):
         full_reg = yield dec2.e.read_cr_whole
 
+        print(simulator.cr.get_range().value)
         if full_reg:
             yield alu.p.data_i.full_cr.eq(simulator.cr.get_range().value)
         else:
@@ -226,6 +225,7 @@ class TestRunner(FHDLTestCase):
                     while not vld:
                         yield
                         vld = yield alu.n.valid_o
+                    yield
                     yield from self.assert_outputs(alu, pdecode2, simulator)
 
         sim.add_sync_process(process)
