@@ -83,7 +83,7 @@ class CompUnitRecord(RecordObject):
             j = i + 1 # name numbering to match dest1/2...
             name = "dest%d_i" % j
             dreg = Signal(rwid, name=name, reset_less=True)
-            setattr(self, name, sreg)
+            setattr(self, name, dreg)
             dst.append(dreg)
         self._dest = dst
 
@@ -113,7 +113,6 @@ class MultiCompUnit(Elaboratable):
             name = "src%d_i" % j
             setattr(self, name, getattr(cu, name))
 
-        dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
             name = "dest%d_i" % j
