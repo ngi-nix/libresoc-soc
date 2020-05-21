@@ -63,11 +63,14 @@ class CompUnitRecord(RecordObject):
 
     LDSTCompUnitRecord should derive from this class and add the
     additional signals it requires
+
+    :subkls:      the class (not an instance) needed to construct the opcode
     """
     def __init__(self, subkls, rwid, n_src, n_dst, name=None):
         RecordObject.__init__(self, name)
         self._n_src, self._n_dst = n_src, n_dst
         self._rwid = rwid
+        self._subkls = subkls
 
         src = []
         for i in range(n_src):
