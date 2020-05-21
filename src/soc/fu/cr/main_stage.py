@@ -36,10 +36,10 @@ class CRMainStage(PipeModBase):
         op = self.i.ctx.op
         a, full_cr = self.i.a, self.i.full_cr
         cr_a, cr_b, cr_c = self.i.cr_a, self.i.cr_b, self.i.cr_c
+        cr_o, full_cr_o, rt_o = self.o.cr_o, self.o.full_cr, self.o.o
+
         xl_fields = self.fields.FormXL
         xfx_fields = self.fields.FormXFX
-
-        cr_o = self.o.cr_o
 
         # Generate the mask for mtcrf, mtocrf, and mfocrf
         # replicate every fxm field in the insn to 4-bit, as a mask
@@ -52,9 +52,6 @@ class CRMainStage(PipeModBase):
         cr_b_arr = Array([cr_b[i] for i in range(4)])
         cr_o_arr = Array([cr_o[i] for i in range(4)])
 
-        # this may have one bit be modified by OP_CROP
-        comb += cr_o.eq(cr_c)
-
         with m.Switch(op.insn_type):
             ##### mcrf #####
             with m.Case(InternalOp.OP_MCRF):
@@ -63,6 +60,7 @@ class CRMainStage(PipeModBase):
                 # Since it takes in a 4 bit cr, and outputs a 4 bit
                 # cr, we don't have to do anything special
                 comb += cr_o.eq(cr_a)
+                comb += cr_o.ok.eq(1) # indicate "this CR has changed"
 
             # ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
@@ -104,15 +102,19 @@ class CRMainStage(PipeModBase):
                                      Mux(bit_a, lut[3], lut[1]),
                                      Mux(bit_a, lut[2], lut[0])))
 
-                # insert the output bit into the 4-bit CR output
+                # may have one bit modified by OP_CROP. copy the other 3
+                comb += cr_o.data.eq(cr_c)
+                # insert the (index-targetted) output bit into 4-bit CR output
                 comb += cr_o_arr[bt].eq(bit_o)
+                comb += cr_o.ok.eq(1) # indicate "this CR has changed"
 
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
                 # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
-                comb += self.o.full_cr.eq((a[0:32] & mask) | (full_cr & ~mask))
+                comb += full_cr_o.data.eq((a[0:32] & mask) | (full_cr & ~mask))
+                comb += full_cr_o.ok.eq(1) # indicate "this CR has changed"
 
             # ##### mfcr #####
             with m.Case(InternalOp.OP_MFCR):
@@ -125,11 +127,11 @@ class CRMainStage(PipeModBase):
                 # mfocrf
                 with m.If(move_one):
                     # output register RT
-                    comb += self.o.o.eq(full_cr & mask)
+                    comb += rt_o.eq(full_cr & mask)
                 # mfcrf
                 with m.Else():
                     # output register RT
-                    comb += self.o.o.eq(full_cr)
+                    comb += rt_o.eq(full_cr)
 
         comb += self.o.ctx.eq(self.i.ctx)
 

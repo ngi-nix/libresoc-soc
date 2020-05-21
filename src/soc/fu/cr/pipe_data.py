@@ -2,6 +2,7 @@ from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
+from soc.decoder.power_decoder2 import Data
 
 
 class CRInputData(IntegerData):
@@ -42,8 +43,8 @@ class CROutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Signal(64, reset_less=True) # RA
-        self.full_cr = Signal(32, reset_less=True, name="cr_out") # CR in
-        self.cr_o = Signal(4, reset_less=True)
+        self.full_cr = Data(32, name="cr_out") # CR in
+        self.cr_o = Data(4, name="cr_o")
 
     def __iter__(self):
         yield from super().__iter__()

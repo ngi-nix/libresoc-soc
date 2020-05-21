@@ -160,13 +160,13 @@ class TestRunner(FHDLTestCase):
         whole_reg = yield dec2.e.write_cr_whole
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg:
-            full_cr = yield alu.n.data_o.full_cr
+            full_cr = yield alu.n.data_o.full_cr.data
             expected_cr = simulator.cr.get_range().value
             self.assertEqual(expected_cr, full_cr)
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
             expected_cr = simulator.crl[cr_sel].get_range().value
-            real_cr = yield alu.n.data_o.cr_o
+            real_cr = yield alu.n.data_o.cr_o.data
             self.assertEqual(expected_cr, real_cr)
             
 
