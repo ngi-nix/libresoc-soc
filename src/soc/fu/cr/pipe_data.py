@@ -5,15 +5,18 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 
 
 class CRInputData(IntegerData):
-    regspec = [('INT', 'a', '0:63'),
-               ('CR', 'full_cr', '32')]
+    regspec = [('INT', 'a', '0:63'),      # 64 bit range
+               ('CR', 'full_cr', '0:31'), # 32 bit range
+               ('CR', 'cr_a', '0:3'),     # 4 bit range
+               ('CR', 'cr_b', '0:3')]     # 4 bit range
+               ('CR', 'cr_c', '0:3')]     # 4 bit range
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
-        self.full_cr = Signal(32, reset_less=True) # CR in
+        self.full_cr = Signal(32, reset_less=True) # full CR in
         self.cr_a = Signal(4, reset_less=True)
         self.cr_b = Signal(4, reset_less=True)
-        self.cr_c = Signal(4, reset_less=True) # The output cr bits
+        self.cr_c = Signal(4, reset_less=True) # needed for CR_OP partial update
 
     def __iter__(self):
         yield from super().__iter__()
@@ -33,8 +36,9 @@ class CRInputData(IntegerData):
                       
 
 class CROutputData(IntegerData):
-    regspec = [('INT', 'o', '0:63'),
-               ('CR', 'cr', '32')]
+    regspec = [('INT', 'o', '0:63'),      # 64 bit range
+               ('CR', 'full_cr', '0:31'), # 32 bit range
+               ('CR', 'cr_o', '0:3')]     # 4 bit range
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Signal(64, reset_less=True) # RA
