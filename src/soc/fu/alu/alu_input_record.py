@@ -28,7 +28,7 @@ class CompALUOpSubset(Record):
                   ('output_cr', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
-                  ('data_len', 4), # TODO: should be in separate CompLDSTSubset
+                  ('data_len', 4), # actually used by ALU, in OP_EXTS
                   ('insn', 32),
                   ('byte_reverse', 1),
                   ('sign_extend', 1))
