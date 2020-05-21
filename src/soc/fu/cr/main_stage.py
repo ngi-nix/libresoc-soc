@@ -79,7 +79,10 @@ class CRMainStage(PipeModBase):
                 # There's no field, just have to grab it directly from the insn
                 comb += lut.eq(op.insn[6:10])
 
-                # Get the bit selector fields from the instruction
+                # Get the bit selector fields from the
+                # instruction. This operation takes in the little CR
+                # bitfields, so these fields need to get truncated to
+                # the least significant 2 bits
                 BT = xl_fields.BT[0:-1]
                 BA = xl_fields.BA[0:-1]
                 BB = xl_fields.BB[0:-1]
@@ -87,44 +90,51 @@ class CRMainStage(PipeModBase):
                 ba = Signal(2, reset_less=True)
                 bb = Signal(2, reset_less=True)
 
+                # Stupid bit ordering stuff
                 comb += bt.eq(3-BT[0:2])
                 comb += ba.eq(3-BA[0:2])
                 comb += bb.eq(3-BB[0:2])
 
-                # Extract the two input bits from the CR
+                # Extract the two input bits from the CRs
                 bit_a = Signal(reset_less=True)
                 bit_b = Signal(reset_less=True)
                 comb += bit_a.eq(cr_a_arr[ba])
                 comb += bit_b.eq(cr_b_arr[bb])
 
+                # look up the output bit in the lookup table
                 bit_o = Signal()
                 comb += bit_o.eq(Mux(bit_b,
                                      Mux(bit_a, lut[3], lut[1]),
                                      Mux(bit_a, lut[2], lut[0])))
+
+                # insert the output bit into the 4-bit CR output
                 comb += cr_o_arr[bt].eq(bit_o)
 
 
-            # ##### mtcrf #####
-            # with m.Case(InternalOp.OP_MTCRF):
-            #     # mtocrf and mtcrf are essentially identical
-            #     # put input (RA) - mask-selected - into output CR, leave
-            #     # rest of CR alone.
-            #     comb += cr_o.eq((a[0:32] & mask) | (cr & ~mask))
+            ##### mtcrf #####
+            with m.Case(InternalOp.OP_MTCRF):
+                # mtocrf and mtcrf are essentially identical
+                # put input (RA) - mask-selected - into output CR, leave
+                # rest of CR alone.
+                comb += self.o.full_cr.eq((a[0:32] & mask) |
+                                          (self.i.full_cr & ~mask))
 
             # ##### mfcr #####
-            # with m.Case(InternalOp.OP_MFCR):
-            #     # Ugh. mtocrf and mtcrf have one random bit differentiating
-            #     # them. This bit is not in any particular field, so this
-            #     # extracts that bit from the instruction
-            #     move_one = Signal(reset_less=True)
-            #     comb += move_one.eq(op.insn[20])
+            with m.Case(InternalOp.OP_MFCR):
+                # Ugh. mtocrf and mtcrf have one random bit differentiating
+                # them. This bit is not in any particular field, so this
+                # extracts that bit from the instruction
+                move_one = Signal(reset_less=True)
+                comb += move_one.eq(op.insn[20])
 
-            #     # mfocrf
-            #     with m.If(move_one):
-            #         comb += self.o.o.eq(cr & mask) # output register RT
-            #     # mfcrf
-            #     with m.Else():
-            #         comb += self.o.o.eq(cr)        # output register RT
+                # mfocrf
+                with m.If(move_one):
+                    # output register RT
+                    comb += self.o.o.eq(self.i.full_cr & mask) 
+                # mfcrf
+                with m.Else():
+                    # output register RT
+                    comb += self.o.o.eq(self.i.full_cr)
 
         comb += self.o.ctx.eq(self.i.ctx)
 

@@ -81,7 +81,6 @@ class CRTestCase(FHDLTestCase):
         cr = 0xfeff0000
         self.run_tst_program(Program(lst), initial_cr=cr)
 
-    @unittest.skip("broken")
     def test_mtcrf(self):
         for i in range(20):
             mask = random.randint(0, 255)
@@ -91,7 +90,6 @@ class CRTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_regs=initial_regs,
                                  initial_cr=cr)
-    @unittest.skip("broken")
     def test_mtocrf(self):
         for i in range(20):
             mask = 1<<random.randint(0, 7)
@@ -102,14 +100,12 @@ class CRTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs=initial_regs,
                                  initial_cr=cr)
 
-    @unittest.skip("broken")
     def test_mfcr(self):
         for i in range(5):
             lst = ["mfcr 2"]
             cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
-    @unittest.skip("broken")
     def test_mfocrf(self):
         for i in range(20):
             mask = 1<<random.randint(0, 7)
