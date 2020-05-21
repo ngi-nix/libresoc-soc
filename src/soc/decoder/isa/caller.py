@@ -263,6 +263,28 @@ class ISACaller:
         cy32 = 1 if any(gts) else 0
         self.spr['XER'][XER_bits['CA32']] = cy32
 
+    def handle_overflow(self, inputs, outputs):
+        inv_a = yield self.dec2.e.invert_a
+        if inv_a:
+            inputs[0] = ~inputs[0]
+
+        imm_ok = yield self.dec2.e.imm_data.ok
+        if imm_ok:
+            imm = yield self.dec2.e.imm_data.data
+            inputs.append(SelectableInt(imm, 64))
+        assert len(outputs) >= 1
+        output = outputs[0]
+        input_sgn = [exts(x.value, x.bits) < 0 for x in inputs]
+        output_sgn = exts(output.value, output.bits) < 0
+        ov = 1 if input_sgn[0] == input_sgn[1] and \
+            output_sgn != input_sgn[0] else 0
+
+        self.spr['XER'][XER_bits['OV']] = ov
+        so = self.spr['XER'][XER_bits['SO']]
+        so = so | ov
+        self.spr['XER'][XER_bits['SO']] = so
+
+
 
     def handle_comparison(self, outputs):
         out = outputs[0]
@@ -270,7 +292,7 @@ class ISACaller:
         zero = SelectableInt(out == 0, 1)
         positive = SelectableInt(out > 0, 1)
         negative = SelectableInt(out < 0, 1)
-        SO = SelectableInt(0, 1)
+        SO = self.spr['XER'][XER_bits['SO']]
         cr_field = selectconcat(negative, positive, zero, SO)
         self.crl[0].eq(cr_field)
 
@@ -309,12 +331,15 @@ class ISACaller:
         results = info.func(self, *inputs)
         print(results)
 
-        rc_en = yield self.dec2.e.rc.data
-        if rc_en:
-            self.handle_comparison(results)
         carry_en = yield self.dec2.e.output_carry
         if carry_en:
             yield from self.handle_carry_(inputs, results)
+        ov_en = yield self.dec2.e.oe
+        if ov_en:
+            yield from self.handle_overflow(inputs, results)
+        rc_en = yield self.dec2.e.rc.data
+        if rc_en:
+            self.handle_comparison(results)
 
         # any modified return results?
         if info.write_regs:
