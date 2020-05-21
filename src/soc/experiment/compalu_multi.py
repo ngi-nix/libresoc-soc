@@ -64,7 +64,7 @@ class CompUnitRecord(RecordObject):
     LDSTCompUnitRecord should derive from this class and add the
     additional signals it requires
     """
-    def __init__(self, rwid, n_src, n_dst, name=None):
+    def __init__(self, subkls, rwid, n_src, n_dst, name=None):
         RecordObject.__init__(self, name)
         self._n_src, self._n_dst = n_src, n_dst
         self._rwid = rwid
@@ -94,7 +94,7 @@ class CompUnitRecord(RecordObject):
         self.go_die_i = Signal() # go die (reset)
 
         # operation / data input
-        self.oper_i = CompALUOpSubset() # operand
+        self.oper_i = subkls() # operand
 
         # output (busy/done)
         self.busy_o = Signal(reset_less=True) # fn busy out
@@ -106,7 +106,7 @@ class MultiCompUnit(Elaboratable):
         self.n_src, self.n_dst = n_src, n_dst
         self.rwid = rwid
         self.alu = alu # actual ALU - set as a "submodule" of the CU
-        self.cu = cu = CompUnitRecord(rwid, n_src, n_dst)
+        self.cu = cu = CompUnitRecord(CompALUOpSubset, rwid, n_src, n_dst)
 
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2

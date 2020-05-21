@@ -79,7 +79,7 @@ from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
 
-from soc.experiment.compalu_multi import go_record
+from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
 from soc.experiment.testmem import TestMemory
 from soc.decoder.power_enums import InternalOp
@@ -133,6 +133,24 @@ class CompLDSTOpSubset(Record):
                 self.sign_extend,
                 self.update,
         ]
+
+
+class LDSTCompUnitRecord(CompUnitRecord):
+    def __init__(self, rwid, name=None):
+        CompUnitRecord.__init__(self, CompLDSTOpSubset, rwid,
+                                n_src=3, n_dst=2, name=name)
+
+        self.ad = go_record(1, name="ad") # address go in, req out
+        self.st = go_record(1, name="st") # store go in, req out
+
+        self.addr_exc_o = Signal(reset_less=True)   # address exception
+
+        self.ld_o = Signal(reset_less=True)  # operation is a LD
+        self.st_o = Signal(reset_less=True)  # operation is a ST
+
+        # hmm... are these necessary?
+        self.load_mem_o = Signal(reset_less=True)  # activate memory LOAD
+        self.stwd_mem_o = Signal(reset_less=True)  # activate memory STORE
 
 
 class LDSTCompUnit(Elaboratable):
@@ -191,6 +209,7 @@ class LDSTCompUnit(Elaboratable):
         self.rwid = rwid
         self.awid = awid
         self.pi = pi
+        self.cu = cu = LDSTCompUnitRecord(rwid)
         self.debugtest = debugtest
 
         # POWER-compliant LD/ST has index and update: *fixed* number of ports
@@ -198,60 +217,52 @@ class LDSTCompUnit(Elaboratable):
         self.n_dst = n_dst = 2 # RA, RT/RS
 
         # set up array of src and dest signals
-        src = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
-            src.append(Signal(rwid, name="src%d_i" % j, reset_less=True))
+            name = "src%d_i" % j
+            setattr(self, name, getattr(cu, name))
 
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            dst.append(Signal(rwid, name="dest%d_o" % j, reset_less=True))
+            name = "dest%d_i" % j
+            setattr(self, name, getattr(cu, name))
 
-        # control (dual in/out)
-        self.rd = go_record(n_src, name="rd") # read in, req out
-        self.wr = go_record(n_dst, name="wr") # write in, req out
-        self.ad = go_record(1, name="ad") # address go in, req out
-        self.st = go_record(1, name="st") # store go in, req out
+        # convenience names
+        self.rd = cu.rd
+        self.wr = cu.wr
+        self.ad = cu.ad
+        self.st = cu.st
 
         self.go_rd_i = self.rd.go # temporary naming
         self.go_wr_i = self.wr.go # temporary naming
-        self.rd_rel_o = self.rd.rel # temporary naming
-        self.req_rel_o = self.wr.rel # temporary naming
-
         self.go_ad_i = self.ad.go # temp naming: go address in
         self.go_st_i = self.st.go  # temp naming: go store in
 
-        # control inputs
-        self.issue_i = Signal(reset_less=True)  # fn issue in
-        self.shadown_i = Signal(reset=1)  # shadow function, defaults to ON
-        self.go_die_i = Signal()  # go die (reset)
-
-        # operation / data input
-        self.oper_i = CompLDSTOpSubset() # operand
-        self.src_i = Array(src)
-        self.src1_i = src[0] # oper1 in: RA
-        self.src2_i = src[1] # oper2 in: RB
-        self.src3_i = src[2] # oper2 in: RC (RS)
-
-        # outputs
-        self.busy_o = Signal(reset_less=True)       # fn busy out
-        self.done_o = Signal(reset_less=True)  # final release signal
-        # TODO (see bug #302)
-        self.addr_exc_o = Signal(reset_less=True)   # address exception
-        self.dest = Array(dst)
-        self.data_o = dst[0]  # Dest1 out: RT
-        self.addr_o = dst[1]  # Address out (LD or ST) - Update => RA
-
+        self.rd_rel_o = self.rd.rel # temporary naming
+        self.req_rel_o = self.wr.rel # temporary naming
         self.adr_rel_o = self.ad.rel  # request address (from mem)
         self.sto_rel_o = self.st.rel  # request store (to mem)
 
-        self.ld_o = Signal(reset_less=True)  # operation is a LD
-        self.st_o = Signal(reset_less=True)  # operation is a ST
+        self.issue_i = cu.issue_i
+        self.shadown_i = cu.shadown_i
+        self.go_die_i = cu.go_die_i
 
-        # hmm... are these necessary?
-        self.load_mem_o = Signal(reset_less=True)  # activate memory LOAD
-        self.stwd_mem_o = Signal(reset_less=True)  # activate memory STORE
+        self.oper_i = cu.oper_i
+        self.src_i = cu._src_i
+        self.dest = cu._dest
+
+        self.data_o = self.dest[0]  # Dest1 out: RT
+        self.addr_o = self.dest[1]  # Address out (LD or ST) - Update => RA
+        self.addr_exc_o = cu.addr_exc_o
+        self.done_o = cu.done_o
+        self.busy_o = cu.busy_o
+
+        self.ld_o = cu.ld_o
+        self.st_o = cu.st_o
+
+        self.load_mem_o = cu.load_mem_o
+        self.stwd_mem_o = cu.stwd_mem_o
 
     def elaborate(self, platform):
         m = Module()
