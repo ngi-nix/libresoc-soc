@@ -16,6 +16,8 @@ class CompCROpSubset(Record):
                   ('fn_unit', Function),
                   ('input_cr', CRInSel),
                   ('output_cr', CROutSel),
+                  ('read_cr_whole', 1),
+                  ('write_cr_whole', 1),
                   ('is_32bit', 1),
                   )
 
@@ -26,6 +28,8 @@ class CompCROpSubset(Record):
         self.fn_unit.reset_less = True
         self.input_cr.reset_less = True
         self.output_cr.reset_less = True
+        self.read_cr_whole.reset_less = True
+        self.write_cr_whole.reset_less = True
         self.is_32bit.reset_less = True
 
     def eq_from_execute1(self, other):
@@ -42,5 +46,7 @@ class CompCROpSubset(Record):
                 self.fn_unit,
                 self.input_cr,
                 self.output_cr,
+                self.read_cr_whole,
+                self.write_cr_whole,
                 self.is_32bit,
         ]
