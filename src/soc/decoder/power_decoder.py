@@ -83,9 +83,11 @@ from collections import namedtuple
 from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, InternalOp,
-                         In1Sel, In2Sel, In3Sel, OutSel, RC, LdstLen,
-                         CryIn, get_csv, single_bit_flags,
-                         get_signal_name, default_values)
+                                     In1Sel, In2Sel, In3Sel, OutSel,
+                                     RC, LdstLen, CryIn, get_csv,
+                                     single_bit_flags, CRInSel,
+                                     CROutSel, get_signal_name,
+                                     default_values)
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
@@ -121,6 +123,7 @@ class PowerOp:
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
         self.out_sel = Signal(OutSel, reset_less=True)
+        self.cr_in = Signal(CRInSel, reset_less=True)
         self.ldst_len = Signal(LdstLen, reset_less=True)
         self.rc_sel = Signal(RC, reset_less=True)
         self.cry_in = Signal(CryIn, reset_less=True)
@@ -134,6 +137,9 @@ class PowerOp:
         # TODO: this conversion process from a dict to an object
         # should really be done using e.g. namedtuple and then
         # call eq not _eq
+        if row['CR in'] == '1':
+            import pdb; pdb.set_trace()
+            print(row)
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
@@ -141,6 +147,7 @@ class PowerOp:
                self.in2_sel.eq(In2Sel[row['in2']]),
                self.in3_sel.eq(In3Sel[row['in3']]),
                self.out_sel.eq(OutSel[row['out']]),
+               self.cr_in.eq(CRInSel[row['CR in']]),
                self.ldst_len.eq(LdstLen[row['ldst len']]),
                self.rc_sel.eq(RC[row['rc']]),
                self.cry_in.eq(CryIn[row['cry in']]),
@@ -158,6 +165,7 @@ class PowerOp:
                self.in2_sel.eq(otherop.in2_sel),
                self.in3_sel.eq(otherop.in3_sel),
                self.out_sel.eq(otherop.out_sel),
+               self.cr_in.eq(otherop.cr_in),
                self.rc_sel.eq(otherop.rc_sel),
                self.ldst_len.eq(otherop.ldst_len),
                self.cry_in.eq(otherop.cry_in)]
@@ -172,6 +180,7 @@ class PowerOp:
                    self.in2_sel,
                    self.in3_sel,
                    self.out_sel,
+                   self.cr_in,
                    self.ldst_len,
                    self.rc_sel,
                    self.internal_op,

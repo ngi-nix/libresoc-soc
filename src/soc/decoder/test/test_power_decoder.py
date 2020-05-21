@@ -6,9 +6,11 @@ import os
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_enums import (Function, InternalOp,
-                         In1Sel, In2Sel,In3Sel,
-                         OutSel, RC, LdstLen, CryIn, single_bit_flags,
-                         get_signal_name, get_csv)
+                                     In1Sel, In2Sel, In3Sel,
+                                     CRInSel, CROutSel,
+                                     OutSel, RC, LdstLen, CryIn,
+                                     single_bit_flags,
+                                     get_signal_name, get_csv)
 
 
 class DecoderTestCase(FHDLTestCase):
@@ -23,6 +25,7 @@ class DecoderTestCase(FHDLTestCase):
         in2_sel = Signal(In2Sel)
         in3_sel = Signal(In3Sel)
         out_sel = Signal(OutSel)
+        cr_in = Signal(CRInSel)
         rc_sel = Signal(RC)
         ldst_len = Signal(LdstLen)
         cry_in = Signal(CryIn)
@@ -38,6 +41,7 @@ class DecoderTestCase(FHDLTestCase):
                  in2_sel.eq(dut.op.in2_sel),
                  in3_sel.eq(dut.op.in3_sel),
                  out_sel.eq(dut.op.out_sel),
+                 cr_in.eq(dut.op.cr_in),
                  rc_sel.eq(dut.op.rc_sel),
                  ldst_len.eq(dut.op.ldst_len),
                  cry_in.eq(dut.op.cry_in),
@@ -75,6 +79,7 @@ class DecoderTestCase(FHDLTestCase):
                            (in2_sel, In2Sel, 'in2'),
                            (in3_sel, In3Sel, 'in3'),
                            (out_sel, OutSel, 'out'),
+                           (cr_in, CRInSel, 'CR in'),
                            (rc_sel, RC, 'rc'),
                            (cry_in, CryIn, 'cry in'),
                            (ldst_len, LdstLen, 'ldst len')]

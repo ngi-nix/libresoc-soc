@@ -23,13 +23,14 @@ def get_csv(name):
 
 
 # names of the fields in the tables that don't correspond to an enum
-single_bit_flags = ['CR in', 'CR out', 'inv A', 'inv out',
+single_bit_flags = ['CR out', 'inv A', 'inv out',
                     'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
                     'sgn', 'lk', 'sgl pipe']
 
 # default values for fields in the table
 default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
                   'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
+                  'CR in': 'NONE',
                   'ldst len': 'NONE',
                   'rc': 'NONE', 'cry in': 'ZERO', 'form': 'NONE'}
 
@@ -222,6 +223,24 @@ class CryIn(Enum):
     ZERO = 0
     ONE = 1
     CA = 2
+
+@unique
+class CRInSel(Enum):
+    NONE = 0
+    CR0 = 1
+    BI = 2
+    BFA = 3
+    BA_BB = 4
+    BC = 5
+    WHOLE_REG = 6
+
+@unique
+class CROutSel(Enum):
+    NONE = 0
+    CR0 = 1
+    BF = 2
+    BT = 3
+    WHOLE_REG = 4
 
 
 # SPRs - Special-Purpose Registers.  See V3.0B Figure 18 p971 and
