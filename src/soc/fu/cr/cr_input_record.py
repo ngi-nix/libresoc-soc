@@ -1,7 +1,6 @@
 from nmigen.hdl.rec import Record, Layout
 
-from soc.decoder.power_enums import (InternalOp, Function, CryIn,
-                                     CRInSel, CROutSel)
+from soc.decoder.power_enums import (InternalOp, Function)
 
 
 class CompCROpSubset(Record):
@@ -14,11 +13,8 @@ class CompCROpSubset(Record):
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
-                  ('input_cr', CRInSel),
-                  ('output_cr', CROutSel),
                   ('read_cr_whole', 1),
                   ('write_cr_whole', 1),
-                  ('is_32bit', 1),
                   )
 
         Record.__init__(self, Layout(layout), name=name)
@@ -26,11 +22,8 @@ class CompCROpSubset(Record):
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
         self.fn_unit.reset_less = True
-        self.input_cr.reset_less = True
-        self.output_cr.reset_less = True
         self.read_cr_whole.reset_less = True
         self.write_cr_whole.reset_less = True
-        self.is_32bit.reset_less = True
 
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
@@ -44,9 +37,6 @@ class CompCROpSubset(Record):
     def ports(self):
         return [self.insn_type,
                 self.fn_unit,
-                self.input_cr,
-                self.output_cr,
                 self.read_cr_whole,
                 self.write_cr_whole,
-                self.is_32bit,
         ]
