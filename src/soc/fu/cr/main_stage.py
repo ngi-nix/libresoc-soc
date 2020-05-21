@@ -47,11 +47,12 @@ class CRMainStage(PipeModBase):
         mask = Signal(32, reset_less=True)
         comb += mask.eq(Cat(*[Repl(FXM[i], 4) for i in range(8)]))
 
-        # Generate array of bits for cr_a and cr_b
+        # Generate array of bits for cr_a, cr_b and cr_c
         cr_a_arr = Array([cr_a[i] for i in range(4)])
         cr_b_arr = Array([cr_b[i] for i in range(4)])
         cr_o_arr = Array([cr_o[i] for i in range(4)])
 
+        # this may have one bit be modified by OP_CROP
         comb += cr_o.eq(cr_c)
 
         with m.Switch(op.insn_type):
