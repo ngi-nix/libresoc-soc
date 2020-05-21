@@ -352,6 +352,10 @@ class BranchCond:
         else:
             assert(aa == 0)
 
+        cr_sel = yield pdecode2.e.read_cr1.data
+        assert cr_sel == (self.bi//8), f"{cr_sel} {self.bi}"
+
+
 
 class BranchRel:
     def __init__(self):
