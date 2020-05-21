@@ -62,8 +62,8 @@ class TrapMainStage(PipeModBase):
         comb += gt_u.eq(a > b)
         comb += equal.eq(a == b)
 
-        # They're in reverse bit order because POWER. Check Book 1,
-        # Appendix C.6 for chart
+        # They're in reverse bit order because POWER.
+        # Check V3.0B Book 1, Appendix C.6 for chart
         trap_bits = Signal(5)
         comb += trap_bits.eq(Cat(gt_u, lt_u, equal, gt_s, lt_s))
 

@@ -2,6 +2,8 @@ from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.alu.pipe_data import IntegerData
 from soc.decoder.power_decoder2 import Data
+from nmutil.dynamicpipe import SimpleHandshakeRedir
+from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 
 
 class TrapInputData(IntegerData):
@@ -52,3 +54,15 @@ class TrapOutputData(IntegerData):
         lst = super().eq(i)
         return lst + [ self.nia.eq(i.nia), self.msr.eq(i.msr),
                       self.srr0.eq(i.srr0), self.srr1.eq(i.srr1)]
+
+
+# TODO: replace CompALUOpSubset with CompTrapOpSubset
+class TrapPipeSpec:
+    regspec = (TrapInputData.regspec, TrapOutputData.regspec)
+    opsubsetkls = CompALUOpSubset
+    def __init__(self, id_wid, op_wid):
+        self.id_wid = id_wid
+        self.op_wid = op_wid
+        self.opkls = lambda _: self.opsubsetkls(name="op")
+        self.stage = None
+        self.pipekls = SimpleHandshakeRedir
