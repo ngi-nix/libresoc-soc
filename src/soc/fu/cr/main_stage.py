@@ -47,14 +47,12 @@ class CRMainStage(PipeModBase):
         mask = Signal(32, reset_less=True)
         comb += mask.eq(Cat(*[Repl(FXM[i], 4) for i in range(8)]))
 
-
         # Generate array of bits for cr_a and cr_b
         cr_a_arr = Array([cr_a[i] for i in range(4)])
         cr_b_arr = Array([cr_b[i] for i in range(4)])
         cr_o_arr = Array([cr_o[i] for i in range(4)])
 
         comb += cr_o.eq(cr_c)
-
 
         with m.Switch(op.insn_type):
             ##### mcrf #####
@@ -64,8 +62,6 @@ class CRMainStage(PipeModBase):
                 # Since it takes in a 4 bit cr, and outputs a 4 bit
                 # cr, we don't have to do anything special
                 comb += cr_o.eq(cr_a)
-
-
 
             # ##### crand, cror, crnor etc. #####
             with m.Case(InternalOp.OP_CROP):
@@ -110,14 +106,12 @@ class CRMainStage(PipeModBase):
                 # insert the output bit into the 4-bit CR output
                 comb += cr_o_arr[bt].eq(bit_o)
 
-
             ##### mtcrf #####
             with m.Case(InternalOp.OP_MTCRF):
                 # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
-                comb += self.o.full_cr.eq((a[0:32] & mask) |
-                                          (self.i.full_cr & ~mask))
+                comb += self.o.full_cr.eq((a[0:32] & mask) | (full_cr & ~mask))
 
             # ##### mfcr #####
             with m.Case(InternalOp.OP_MFCR):
@@ -130,11 +124,11 @@ class CRMainStage(PipeModBase):
                 # mfocrf
                 with m.If(move_one):
                     # output register RT
-                    comb += self.o.o.eq(self.i.full_cr & mask) 
+                    comb += self.o.o.eq(full_cr & mask)
                 # mfcrf
                 with m.Else():
                     # output register RT
-                    comb += self.o.o.eq(self.i.full_cr)
+                    comb += self.o.o.eq(full_cr)
 
         comb += self.o.ctx.eq(self.i.ctx)
 
