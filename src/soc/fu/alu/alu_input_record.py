@@ -20,6 +20,7 @@ class CompALUOpSubset(Record):
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
                   ('invert_a', 1),
+                  ('zero_a', 1),
                   ('invert_out', 1),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
@@ -40,6 +41,7 @@ class CompALUOpSubset(Record):
         #self.cr = Signal(32, reset_less = True
         #self.xerc = XerBits(
         self.lk.reset_less = True
+        self.zero_a.reset_less = True
         self.invert_a.reset_less = True
         self.invert_out.reset_less = True
         self.input_carry.reset_less = True
