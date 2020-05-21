@@ -77,16 +77,12 @@ class ALUOutputData(IntegerData):
                       self.xer_ov.eq(i.xer_ov), self.xer_so.eq(i.xer_so)]
 
 
-class IntPipeSpec:
-    def __init__(self, id_wid=2, op_wid=1):
+class ALUPipeSpec:
+    regspec = (ALUInputData.regspec, ALUOutputData.regspec)
+    opsubsetkls = CompALUOpSubset
+    def __init__(self, id_wid, op_wid):
+        self.pipekls = SimpleHandshakeRedir
         self.id_wid = id_wid
         self.op_wid = op_wid
-        self.opkls = lambda _: CompALUOpSubset(name="op")
+        self.opkls = lambda _: self.opsubsetkls(name="op")
         self.stage = None
-
-
-class ALUPipeSpec(IntPipeSpec):
-    regspec = (ALUInputData.regspec, ALUOutputData.regspec)
-    def __init__(self, id_wid, op_wid):
-        super().__init__(id_wid, op_wid)
-        self.pipekls = SimpleHandshakeRedir

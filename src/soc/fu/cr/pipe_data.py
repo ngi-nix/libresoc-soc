@@ -1,6 +1,8 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.alu.pipe_data import IntegerData
+from nmutil.dynamicpipe import SimpleHandshakeRedir
+from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 
 
 class CRInputData(IntegerData):
@@ -38,3 +40,14 @@ class CROutputData(IntegerData):
         lst = super().eq(i)
         return lst + [self.o.eq(i.o),
                       self.cr.eq(i.cr)]
+
+# TODO: replace CompALUOpSubset with CompCROpSubset
+class CRPipeSpec:
+    regspec = (CRInputData.regspec, CROutputData.regspec)
+    opsubsetkls = CompALUOpSubset
+    def __init__(self, id_wid, op_wid):
+        self.id_wid = id_wid
+        self.op_wid = op_wid
+        self.opkls = lambda _: self.opsubsetkls(name="op")
+        self.stage = None
+        self.pipekls = SimpleHandshakeRedir

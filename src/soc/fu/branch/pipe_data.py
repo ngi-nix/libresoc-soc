@@ -30,6 +30,7 @@ from soc.fu.alu.pipe_data import IntegerData
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 
+
 class BranchInputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
@@ -92,9 +93,10 @@ class BranchOutputData(IntegerData):
 # TODO: replace CompALUOpSubset with CompBranchOpSubset
 class BranchPipeSpec:
     regspec = (BranchInputData.regspec, BranchOutputData.regspec)
+    opsubsetkls = CompALUOpSubset
     def __init__(self, id_wid, op_wid):
         self.id_wid = id_wid
         self.op_wid = op_wid
-        self.opkls = lambda _: CompALUOpSubset(name="op")
+        self.opkls = lambda _: self.opsubsetkls(name="op")
         self.stage = None
         self.pipekls = SimpleHandshakeRedir

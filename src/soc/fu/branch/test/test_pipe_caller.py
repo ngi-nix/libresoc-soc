@@ -13,7 +13,6 @@ from soc.decoder.isa.all import ISA
 
 
 from soc.fu.branch.pipeline import BranchBasePipe
-from soc.fu.branch.br_input_record import CompBROpSubset
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
@@ -99,7 +98,7 @@ class BranchTestCase(FHDLTestCase):
                                  initial_cr=cr)
 
     def test_ilang(self):
-        rec = CompBROpSubset()
+        rec = BranchPipeSpec.opsubsetkls()
 
         pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = BranchBasePipe(pspec)
@@ -122,7 +121,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = CompBROpSubset()
+        rec = BranchPipeSpec.opsubsetkls()
 
         pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         m.submodules.branch = branch = BranchBasePipe(pspec)

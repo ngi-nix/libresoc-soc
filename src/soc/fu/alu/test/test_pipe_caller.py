@@ -163,7 +163,7 @@ class ALUTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs, {})
 
     def test_ilang(self):
-        rec = CompALUOpSubset()
+        rec = ALUPipeSpec.opsubsetkls()
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = ALUBasePipe(pspec)
@@ -186,7 +186,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = CompALUOpSubset()
+        rec = ALUPipeSpec.opsubsetkls()
 
         pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         m.submodules.alu = alu = ALUBasePipe(pspec)
