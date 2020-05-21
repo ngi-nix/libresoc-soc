@@ -14,7 +14,7 @@ from soc.decoder.isa.all import ISA
 
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.br_input_record import CompBROpSubset
-from soc.fu.alu.pipe_data import ALUPipeSpec
+from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
 
@@ -101,7 +101,7 @@ class BranchTestCase(FHDLTestCase):
     def test_ilang(self):
         rec = CompBROpSubset()
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = BranchBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("branch_pipeline.il", "w") as f:
@@ -124,7 +124,7 @@ class TestRunner(FHDLTestCase):
 
         rec = CompBROpSubset()
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
         comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)

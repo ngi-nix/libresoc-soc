@@ -27,7 +27,8 @@ from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
 from soc.fu.alu.pipe_data import IntegerData
-
+from nmutil.dynamicpipe import SimpleHandshakeRedir
+from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 
 class BranchInputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
@@ -86,3 +87,14 @@ class BranchOutputData(IntegerData):
         lst = super().eq(i)
         return lst + [self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
                       self.nia.eq(i.nia)]
+
+
+# TODO: replace CompALUOpSubset with CompBranchOpSubset
+class BranchPipeSpec:
+    regspec = (BranchInputData.regspec, BranchOutputData.regspec)
+    def __init__(self, id_wid, op_wid):
+        self.id_wid = id_wid
+        self.op_wid = op_wid
+        self.opkls = lambda _: CompALUOpSubset(name="op")
+        self.stage = None
+        self.pipekls = SimpleHandshakeRedir
