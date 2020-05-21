@@ -273,16 +273,17 @@ class ISACaller:
             imm = yield self.dec2.e.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
-        output = outputs[0]
-        input_sgn = [exts(x.value, x.bits) < 0 for x in inputs]
-        output_sgn = exts(output.value, output.bits) < 0
-        ov = 1 if input_sgn[0] == input_sgn[1] and \
-            output_sgn != input_sgn[0] else 0
+        if len(inputs) >= 2:
+            output = outputs[0]
+            input_sgn = [exts(x.value, x.bits) < 0 for x in inputs]
+            output_sgn = exts(output.value, output.bits) < 0
+            ov = 1 if input_sgn[0] == input_sgn[1] and \
+                output_sgn != input_sgn[0] else 0
 
-        self.spr['XER'][XER_bits['OV']] = ov
-        so = self.spr['XER'][XER_bits['SO']]
-        so = so | ov
-        self.spr['XER'][XER_bits['SO']] = so
+            self.spr['XER'][XER_bits['OV']] = ov
+            so = self.spr['XER'][XER_bits['SO']]
+            so = so | ov
+            self.spr['XER'][XER_bits['SO']] = so
 
 
 
