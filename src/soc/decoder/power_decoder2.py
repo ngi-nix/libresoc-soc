@@ -269,14 +269,12 @@ class DecodeOE(Elaboratable):
 
 class XerBits:
     def __init__(self):
-        self.ca = Signal(reset_less=True)
-        self.ca32 = Signal(reset_less=True)
-        self.ov = Signal(reset_less=True)
-        self.ov32 = Signal(reset_less=True)
+        self.ca = Signal(2, reset_less=True)
+        self.ov = Signal(2, reset_less=True)
         self.so = Signal(reset_less=True)
 
     def ports(self):
-        return [self.ca, self.ca32, self.ov, self.ov32, self.so, ]
+        return [self.ca, self.ov, self.so]
 
 
 class Decode2ToExecute1Type(RecordObject):
@@ -306,6 +304,7 @@ class Decode2ToExecute1Type(RecordObject):
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
         self.invert_a = Signal(reset_less=True)
+        self.zero_a = Signal(reset_less=True)
         self.invert_out = Signal(reset_less=True)
         self.input_carry = Signal(CryIn, reset_less=True)
         self.output_carry = Signal(reset_less=True)
@@ -382,7 +381,8 @@ class PowerDecode2(Elaboratable):
         comb += self.e.read_reg2.eq(dec_b.reg_out)
         comb += self.e.read_reg3.eq(dec_c.reg_out)
         comb += self.e.write_reg.eq(dec_o.reg_out)
-        comb += self.e.imm_data.eq(dec_b.imm_out)
+        comb += self.e.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
+        comb += self.e.zero_a.eq(dec_a.immz_out)  # RA==0 detected
 
         # rc and oe out
         comb += self.e.rc.eq(dec_rc.rc_out)
