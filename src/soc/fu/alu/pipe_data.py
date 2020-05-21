@@ -1,7 +1,6 @@
 from nmigen import Signal, Const
-from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.fu.pipe_data import IntegerData
+from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
 
@@ -62,12 +61,6 @@ class ALUOutputData(IntegerData):
                       self.xer_ov.eq(i.xer_ov), self.xer_so.eq(i.xer_so)]
 
 
-class ALUPipeSpec:
+class ALUPipeSpec(CommonPipeSpec):
     regspec = (ALUInputData.regspec, ALUOutputData.regspec)
     opsubsetkls = CompALUOpSubset
-    def __init__(self, id_wid, op_wid):
-        self.pipekls = SimpleHandshakeRedir
-        self.id_wid = id_wid
-        self.op_wid = op_wid
-        self.opkls = lambda _: self.opsubsetkls(name="op")
-        self.stage = None

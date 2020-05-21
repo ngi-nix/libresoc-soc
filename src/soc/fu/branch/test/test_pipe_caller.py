@@ -11,7 +11,6 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
@@ -98,9 +97,7 @@ class BranchTestCase(FHDLTestCase):
                                  initial_cr=cr)
 
     def test_ilang(self):
-        rec = BranchPipeSpec.opsubsetkls()
-
-        pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = BranchPipeSpec(id_wid=2)
         alu = BranchBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("branch_pipeline.il", "w") as f:
@@ -121,9 +118,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = BranchPipeSpec.opsubsetkls()
-
-        pspec = BranchPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = BranchPipeSpec(id_wid=2)
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
         comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)

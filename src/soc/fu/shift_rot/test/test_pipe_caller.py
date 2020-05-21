@@ -181,9 +181,7 @@ class ShiftRotTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
-        rec = ShiftRotPipeSpec.opsubsetkls()
-
-        pspec = ShiftRotPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ShiftRotPipeSpec(id_wid=2)
         alu = ShiftRotBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("pipeline.il", "w") as f:
@@ -204,9 +202,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = ShiftRotPipeSpec.opsubsetkls()
-
-        pspec = ShiftRotPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ShiftRotPipeSpec(id_wid=2)
         m.submodules.alu = alu = ShiftRotBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)

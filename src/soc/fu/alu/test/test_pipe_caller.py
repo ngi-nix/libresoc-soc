@@ -24,13 +24,6 @@ class TestCase:
         self.sprs = sprs
         self.name = name
 
-def get_rec_width(rec):
-    recwidth = 0
-    # Setup random inputs for dut.op
-    for p in rec.ports():
-        width = p.width
-        recwidth += width
-    return recwidth
 
 def set_alu_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
@@ -163,9 +156,7 @@ class ALUTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs, {})
 
     def test_ilang(self):
-        rec = ALUPipeSpec.opsubsetkls()
-
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ALUPipeSpec(id_wid=2)
         alu = ALUBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("alu_pipeline.il", "w") as f:
@@ -186,9 +177,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = ALUPipeSpec.opsubsetkls()
-
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ALUPipeSpec(id_wid=2)
         m.submodules.alu = alu = ALUBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)

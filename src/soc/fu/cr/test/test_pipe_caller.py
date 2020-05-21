@@ -26,14 +26,6 @@ class TestCase:
         self.name = name
         self.cr = cr
 
-def get_rec_width(rec):
-    recwidth = 0
-    # Setup random inputs for dut.op
-    for p in rec.ports():
-        width = p.width
-        recwidth += width
-    return recwidth
-
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -117,9 +109,7 @@ class CRTestCase(FHDLTestCase):
         
 
     def test_ilang(self):
-        rec = CRPipeSpec.opsubsetkls()
-
-        pspec = CRPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = CRPipeSpec(id_wid=2)
         alu = CRBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("cr_pipeline.il", "w") as f:
@@ -149,9 +139,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = CRPipeSpec.opsubsetkls()
-
-        pspec = CRPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = CRPipeSpec(id_wid=2)
         m.submodules.alu = alu = CRBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
