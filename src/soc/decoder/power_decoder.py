@@ -141,6 +141,9 @@ class PowerOp:
         if row['CR in'] == '1':
             import pdb; pdb.set_trace()
             print(row)
+        if row['CR out'] == '0':
+            import pdb; pdb.set_trace()
+            print(row)
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
