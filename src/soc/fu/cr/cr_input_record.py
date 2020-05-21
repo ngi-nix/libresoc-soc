@@ -1,0 +1,46 @@
+from nmigen.hdl.rec import Record, Layout
+
+from soc.decoder.power_enums import (InternalOp, Function, CryIn,
+                                     CRInSel, CROutSel)
+
+
+class CompCROpSubset(Record):
+    """CompCROpSubset
+
+    a copy of the relevant subset information from Decode2Execute1Type
+    needed for CR operations.  use with eq_from_execute1 (below) to
+    grab subsets.
+    """
+    def __init__(self, name=None):
+        layout = (('insn_type', InternalOp),
+                  ('fn_unit', Function),
+                  ('input_cr', CRInSel),
+                  ('output_cr', CROutSel),
+                  ('is_32bit', 1),
+                  )
+
+        Record.__init__(self, Layout(layout), name=name)
+
+        # grrr.  Record does not have kwargs
+        self.insn_type.reset_less = True
+        self.fn_unit.reset_less = True
+        self.input_cr.reset_less = True
+        self.output_cr.reset_less = True
+        self.is_32bit.reset_less = True
+
+    def eq_from_execute1(self, other):
+        """ use this to copy in from Decode2Execute1Type
+        """
+        res = []
+        for fname, sig in self.fields.items():
+            eqfrom = other.fields[fname]
+            res.append(sig.eq(eqfrom))
+        return res
+
+    def ports(self):
+        return [self.insn_type,
+                self.fn_unit,
+                self.input_cr,
+                self.output_cr,
+                self.is_32bit,
+        ]
