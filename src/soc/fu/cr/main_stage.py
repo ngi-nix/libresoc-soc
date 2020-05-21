@@ -86,7 +86,7 @@ class CRMainStage(PipeModBase):
                 ba = Signal(2, reset_less=True)
                 bb = Signal(2, reset_less=True)
 
-                # Stupid bit ordering stuff
+                # Stupid bit ordering stuff.  Because POWER.
                 comb += bt.eq(3-BT[0:2])
                 comb += ba.eq(3-BA[0:2])
                 comb += bb.eq(3-BB[0:2])
