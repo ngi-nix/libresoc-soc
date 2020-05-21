@@ -268,7 +268,11 @@ class DecodeOE(Elaboratable):
         return m
 
 class DecodeCRIn(Elaboratable):
-    """Decodes input CR from instruction"""
+    """Decodes input CR from instruction
+
+    CR indices - insn fields - (not the data *in* the CR) require only 3
+    bits because they refer to CR0-CR7
+    """
 
     def __init__(self, dec):
         self.dec = dec
@@ -310,8 +314,13 @@ class DecodeCRIn(Elaboratable):
 
         return m
 
+
 class DecodeCROut(Elaboratable):
-    """Decodes input CR from instruction"""
+    """Decodes input CR from instruction
+
+    CR indices - insn fields - (not the data *in* the CR) require only 3
+    bits because they refer to CR0-CR7
+    """
 
     def __init__(self, dec):
         self.dec = dec
@@ -342,6 +351,7 @@ class DecodeCROut(Elaboratable):
                 comb += self.whole_reg.eq(1)
 
         return m
+
 
 class XerBits:
     def __init__(self):
@@ -390,8 +400,8 @@ class Decode2ToExecute1Type(RecordObject):
         self.invert_out = Signal(reset_less=True)
         self.input_carry = Signal(CryIn, reset_less=True)
         self.output_carry = Signal(reset_less=True)
-        self.input_cr = Signal(reset_less=True)
-        self.output_cr = Signal(reset_less=True)
+        self.input_cr = Signal(reset_less=True)  # instr. has a CR as input
+        self.output_cr = Signal(reset_less=True) # instr. has a CR as output
         self.is_32bit = Signal(reset_less=True)
         self.is_signed = Signal(reset_less=True)
         self.insn = Signal(32, reset_less=True)
