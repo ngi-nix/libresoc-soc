@@ -67,7 +67,7 @@ class BranchInputData(IntegerData):
 class BranchOutputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
-               ('PC', 'cia', '0:63')]
+               ('PC', 'nia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.spr1 = Data(64, name="spr1")
