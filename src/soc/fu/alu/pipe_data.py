@@ -1,24 +1,9 @@
 from nmigen import Signal, Const
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.pipe_data import IntegerData
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
-
-
-class IntegerData:
-
-    def __init__(self, pspec):
-        self.ctx = FPPipeContext(pspec)
-        self.muxid = self.ctx.muxid
-
-    def __iter__(self):
-        yield from self.ctx
-
-    def eq(self, i):
-        return [self.ctx.eq(i.ctx)]
-
-    def ports(self):
-        return self.ctx.ports()
 
 
 class ALUInputData(IntegerData):

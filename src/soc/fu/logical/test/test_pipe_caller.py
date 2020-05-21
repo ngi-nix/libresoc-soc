@@ -11,9 +11,8 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-
 from soc.fu.logical.pipeline import LogicalBasePipe
-from soc.fu.alu.pipe_data import LogicalPipeSpec
+from soc.fu.logical.pipe_data import LogicalPipeSpec
 import random
 
 
