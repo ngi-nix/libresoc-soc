@@ -37,17 +37,69 @@ class Driver(Elaboratable):
             recwidth += width
             comb += p.eq(AnyConst(width))
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=recwidth)
+        pspec = ALUPipeSpec(id_wid=2)
         m.submodules.dut = dut = CRMainStage(pspec)
 
+        full_cr_in = Signal(32)
+
+        cr_o = Signal(32)
+        
         a = dut.i.a
-        cr = dut.i.cr
-        cr_o = dut.o.cr
+        cr = dut.i.full_cr
+        full_cr_out = dut.o.full_cr
         o = dut.o.o
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
-                 cr.eq(AnyConst(64))]
+                 full_cr_in.eq(AnyConst(32))]
+
+        xl_fields = dut.fields.FormXL
+        xfx_fields = dut.fields.FormXFX
+
+        # I'd like to be able to prove this module using the proof
+        # written before I made the change to use 4 bit cr inputs for
+        # OP_MCRF and OP_CROP. So I'm going to set up the machinery to
+        # let me do that here
+
+        cr_input_arr = Array([full_cr_in[(7-i)*4:(7-i)*4+4] for i in range(8)])
+        cr_output_arr = Array([cr_o[(7-i)*4:(7-i)*4+4] for i in range(8)])
+        
+        comb += Assume(rec.insn_type == InternalOp.OP_CROP)
+        with m.Switch(rec.insn_type):
+            with m.Case(InternalOp.OP_CROP):
+                comb += Assume(full_cr_in != 0)
+                bt = Signal(3, reset_less=True)
+                ba = Signal(3, reset_less=True)
+                bb = Signal(3, reset_less=True)
+                comb += bt.eq(xl_fields.BT[2:5])
+                comb += ba.eq(xl_fields.BA[2:5])
+                comb += bb.eq(xl_fields.BB[2:5])
+
+                comb += dut.i.cr_a.eq(cr_input_arr[ba])
+                comb += dut.i.cr_b.eq(cr_input_arr[bb])
+                comb += dut.i.cr_c.eq(cr_input_arr[bt])
+
+
+                for i in range(8):
+                    with m.If(i != bt):
+                        comb += cr_output_arr[i].eq(cr_input_arr[i])
+                    with m.Else():
+                        comb += cr_output_arr[i].eq(dut.o.cr_o)
+                        
+
+            with m.Case(InternalOp.OP_MCRF):
+                pass
+            with m.Default():
+                comb += cr.eq(full_cr_in)
+                comb += cr_o.eq(dut.o.full_cr)
+                
+
+
+
+
+
+
+        
 
         comb += dut.i.ctx.op.eq(rec)
 
@@ -61,8 +113,6 @@ class Driver(Elaboratable):
         cr_arr = Array([cr[31-i] for i in range(32)])
         cr_o_arr = Array([cr_o[31-i] for i in range(32)])
 
-        xl_fields = dut.fields.FormXL
-        xfx_fields = dut.fields.FormXFX
         FXM = xfx_fields.FXM[0:-1]
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_MTCRF):
