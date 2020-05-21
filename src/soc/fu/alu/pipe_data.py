@@ -4,6 +4,7 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
 
+
 class IntegerData:
 
     def __init__(self, pspec):
@@ -45,10 +46,6 @@ class ALUInputData(IntegerData):
                       self.xer_ca.eq(i.xer_ca),
                       self.xer_so.eq(i.xer_so)]
 
-# TODO: ALUIntermediateData which does not have
-# cr0, ov, ov32 in it (because they are generated as outputs by
-# the final output stage, not by the intermediate stage)
-# https://bugs.libre-soc.org/show_bug.cgi?id=305#c19
 
 class ALUOutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),
@@ -89,6 +86,7 @@ class IntPipeSpec:
 
 
 class ALUPipeSpec(IntPipeSpec):
+    regspec = (ALUInputData.regspec, ALUOutputData.regspec)
     def __init__(self, id_wid, op_wid):
         super().__init__(id_wid, op_wid)
         self.pipekls = SimpleHandshakeRedir
