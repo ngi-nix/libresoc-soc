@@ -14,7 +14,7 @@ from soc.decoder.isa.all import ISA
 
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.fu.alu.pipe_data import ALUPipeSpec
+from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 import random
 
 class TestCase:
@@ -181,9 +181,9 @@ class ShiftRotTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
-        rec = CompALUOpSubset()
+        rec = ShiftRotPipeSpec.opsubsetkls()
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ShiftRotPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         alu = ShiftRotBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("pipeline.il", "w") as f:
@@ -204,9 +204,9 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        rec = CompALUOpSubset()
+        rec = ShiftRotPipeSpec.opsubsetkls()
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
+        pspec = ShiftRotPipeSpec(id_wid=2, op_wid=get_rec_width(rec))
         m.submodules.alu = alu = ShiftRotBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
