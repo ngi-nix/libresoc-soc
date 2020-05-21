@@ -35,6 +35,7 @@ class ALUMainStage(PipeModBase):
         comb += sign_bit.eq(Mux(is_32bit, a[31], a[63]))
 
         # little trick: do the add using only one add (not 2)
+        # LSB: carry-in [0].  op/result: [1:-1].  MSB: carry-out [-1]
         add_a = Signal(a.width + 2, reset_less=True)
         add_b = Signal(a.width + 2, reset_less=True)
         add_o = Signal(a.width + 2, reset_less=True)
@@ -61,16 +62,13 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.eq(add_o[1:-1])
-                comb += cry_o.data[0].eq(add_o[-1]) # XER.CO
 
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
+                comb += cry_o.data[0].eq(add_o[-1]) # XER.CO
                 comb += cry_o.data[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CO32
-
-                comb += ov_o.data[0].eq((add_o[-2] != a[-1]) &
-                                        (a[-1] == b[-1]))
-                comb += ov_o.data[1].eq((add_o[32] != a[31]) &
-                                        (a[31] == b[31]))
+                comb += ov_o.data[0].eq((add_o[-2] != a[-1]) & (a[-1] == b[-1]))
+                comb += ov_o.data[1].eq((add_o[32] != a[31]) & (a[31] == b[31]))
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
