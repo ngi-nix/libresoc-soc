@@ -422,13 +422,15 @@ class CROp:
 
     def check_results(self, pdecode2):
         cr1 = yield pdecode2.e.read_cr1.data
-        assert cr1 == self.ba//8
+        assert cr1 == self.ba//4
 
         cr2 = yield pdecode2.e.read_cr2.data
-        assert cr2 == self.bb//8
+        assert cr2 == self.bb//4
 
         cr_out = yield pdecode2.e.write_cr.data
-        assert cr_out == self.bt//8
+        cr3 = yield pdecode2.e.read_cr3.data
+        assert cr_out == self.bt//4
+        assert cr3 == self.bt//4
 
 
 

@@ -280,6 +280,7 @@ class DecodeCRIn(Elaboratable):
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
         self.cr_bitfield_b = Data(3, "cr_bitfield_b")
+        self.cr_bitfield_o = Data(3, "cr_bitfield_o")
         self.whole_reg = Signal(reset_less=True)
 
     def elaborate(self, platform):
@@ -296,16 +297,18 @@ class DecodeCRIn(Elaboratable):
                 comb += self.cr_bitfield.data.eq(0)
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BI):
-                comb += self.cr_bitfield.data.eq(self.dec.BI[3:5])
+                comb += self.cr_bitfield.data.eq(self.dec.BI[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BFA):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BFA[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BA_BB):
-                comb += self.cr_bitfield.data.eq(self.dec.BA[3:5])
+                comb += self.cr_bitfield.data.eq(self.dec.BA[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
-                comb += self.cr_bitfield_b.data.eq(self.dec.BB[3:5])
+                comb += self.cr_bitfield_b.data.eq(self.dec.BB[2:5])
                 comb += self.cr_bitfield_b.ok.eq(1)
+                comb += self.cr_bitfield_o.data.eq(self.dec.BT[2:5])
+                comb += self.cr_bitfield_o.ok.eq(1)
             with m.Case(CRInSel.BC):
                 comb += self.cr_bitfield.data.eq(self.dec.BC[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
@@ -345,7 +348,7 @@ class DecodeCROut(Elaboratable):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BF[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CROutSel.BT):
-                comb += self.cr_bitfield.data.eq(self.dec.FormXL.BT[3:5])
+                comb += self.cr_bitfield.data.eq(self.dec.FormXL.BT[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CROutSel.WHOLE_REG):
                 comb += self.whole_reg.eq(1)
@@ -384,6 +387,7 @@ class Decode2ToExecute1Type(RecordObject):
 
         self.read_cr1 = Data(3, name="cr_in1")
         self.read_cr2 = Data(3, name="cr_in2")
+        self.read_cr3 = Data(3, name="cr_in2")
         self.read_cr_whole = Signal(reset_less=True)
         self.write_cr = Data(3, name="cr_out")
         self.write_cr_whole = Signal(reset_less=True)
@@ -491,6 +495,7 @@ class PowerDecode2(Elaboratable):
 
         comb += self.e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += self.e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
+        comb += self.e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
         comb += self.e.read_cr_whole.eq(dec_cr_in.whole_reg)
 
         comb += self.e.write_cr.eq(dec_cr_out.cr_bitfield)
