@@ -23,7 +23,7 @@ def get_csv(name):
 
 
 # names of the fields in the tables that don't correspond to an enum
-single_bit_flags = ['CR out', 'inv A', 'inv out',
+single_bit_flags = ['inv A', 'inv out',
                     'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
                     'sgn', 'lk', 'sgl pipe']
 

@@ -124,6 +124,7 @@ class PowerOp:
         self.in3_sel = Signal(In3Sel, reset_less=True)
         self.out_sel = Signal(OutSel, reset_less=True)
         self.cr_in = Signal(CRInSel, reset_less=True)
+        self.cr_out = Signal(CROutSel, reset_less=True)
         self.ldst_len = Signal(LdstLen, reset_less=True)
         self.rc_sel = Signal(RC, reset_less=True)
         self.cry_in = Signal(CryIn, reset_less=True)
@@ -148,6 +149,7 @@ class PowerOp:
                self.in3_sel.eq(In3Sel[row['in3']]),
                self.out_sel.eq(OutSel[row['out']]),
                self.cr_in.eq(CRInSel[row['CR in']]),
+               self.cr_out.eq(CROutSel[row['CR out']]),
                self.ldst_len.eq(LdstLen[row['ldst len']]),
                self.rc_sel.eq(RC[row['rc']]),
                self.cry_in.eq(CryIn[row['cry in']]),
@@ -166,6 +168,7 @@ class PowerOp:
                self.in3_sel.eq(otherop.in3_sel),
                self.out_sel.eq(otherop.out_sel),
                self.cr_in.eq(otherop.cr_in),
+               self.cr_out.eq(otherop.cr_out),
                self.rc_sel.eq(otherop.rc_sel),
                self.ldst_len.eq(otherop.ldst_len),
                self.cry_in.eq(otherop.cry_in)]
@@ -181,6 +184,7 @@ class PowerOp:
                    self.in3_sel,
                    self.out_sel,
                    self.cr_in,
+                   self.cr_out,
                    self.ldst_len,
                    self.rc_sel,
                    self.internal_op,
