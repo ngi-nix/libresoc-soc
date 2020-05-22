@@ -18,8 +18,6 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
     * Go_Read
     * Go_Write
     where one of them cannot be set on any given cycle.
-    (Note however that opc_l has been inverted (and qn used), due to SRLatch
-     default reset state being "0" rather than "1")
 
     * When issue is first raised, a busy signal is sent out.
       The src1 and src2 registers and the operand can be latched in
@@ -32,9 +30,12 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
     * Once Go_Read is set, the src1/src2/operand latch door shuts (locking
       src1/src2/operand in place), and the ALU is told to proceed.
 
-    * As this is currently a "demo" unit, a countdown timer is activated
-      to simulate an ALU "pipeline", which activates "write request release",
+    * when the ALU pipeline is ready, this activates "write request release",
       and the ALU's output is captured into a temporary register.
+
+    * Write request release is *HELD UP* (prevented from proceeding) if shadowN
+      is asserted LOW.  This is how all speculation, precise exceptions,
+      predication - everything - is achieved.
 
     * Write request release will go through a similar process as Read request,
       resulting (eventually) in Go_Write being asserted.
@@ -43,6 +44,21 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
       register is placed combinatorially onto the output, and (2) the
       req_l latch is cleared, busy is dropped, and the Comp Unit is back
       through its revolving door to do another task.
+
+    Note that the read and write latches are held synchronously for one cycle,
+    i.e. that when Go_Read comes in, one cycle is given in which the incoming
+    register (broadcast over a Regfile Read Port) may have time to be latched.
+
+    It is REQUIRED that Go_Read be held valid only for one cycle, and it is
+    REQUIRED that the corresponding Read_Req be dropped exactly one cycle after
+    Go_Read is asserted HI.
+
+    Likewise for Go_Write: this is asserted for one cycle, and Req_Writes must
+    likewise be dropped exactly one cycle after assertion of Go_Write.
+
+    When Go_Die is asserted then strictly speaking the entire FSM should be
+    fully reset and that includes sending a cancellation request to the ALU.
+    (XXX TODO: alu "go die" is not presently wired up)
 """
 
 def go_record(n, name):
