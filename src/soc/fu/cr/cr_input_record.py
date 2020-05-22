@@ -13,6 +13,7 @@ class CompCROpSubset(Record):
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
+                  ('insn', 32),
                   ('read_cr_whole', 1),
                   ('write_cr_whole', 1),
                   )
@@ -21,6 +22,7 @@ class CompCROpSubset(Record):
 
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
+        self.insn.reset_less = True
         self.fn_unit.reset_less = True
         self.read_cr_whole.reset_less = True
         self.write_cr_whole.reset_less = True
@@ -36,6 +38,7 @@ class CompCROpSubset(Record):
 
     def ports(self):
         return [self.insn_type,
+                self.insn,
                 self.fn_unit,
                 self.read_cr_whole,
                 self.write_cr_whole,

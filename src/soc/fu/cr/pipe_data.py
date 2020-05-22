@@ -1,7 +1,7 @@
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
+from soc.fu.cr.cr_input_record import CompCROpSubset
 from soc.decoder.power_decoder2 import Data
 
 
@@ -58,7 +58,6 @@ class CROutputData(IntegerData):
                       self.full_cr.eq(i.full_cr),
                       self.cr_o.eq(i.cr_o)]
 
-# TODO: replace CompALUOpSubset with CompCROpSubset
 class CRPipeSpec(CommonPipeSpec):
     regspec = (CRInputData.regspec, CROutputData.regspec)
-    opsubsetkls = CompALUOpSubset
+    opsubsetkls = CompCROpSubset
