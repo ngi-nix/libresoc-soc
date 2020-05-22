@@ -52,7 +52,8 @@ class BranchMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
         lk = op.lk # see PowerDecode2 as to why this is done
-        nia_o, lr_o = self.o.nia, self.o.lr
+        cr, cia, ctr, spr1 = self.i.cr, self.i.cia, self.i.ctr, self.i.spr1
+        nia_o, lr_o, ctr_o = self.o.nia, self.o.lr, self.o.ctr
 
         # obtain relevant instruction field AA, "Absolute Address" mode
         i_fields = self.fields.FormI
@@ -66,7 +67,7 @@ class BranchMainStage(PipeModBase):
         with m.If(AA):
             comb += br_addr.eq(br_imm_addr)
         with m.Else():
-            comb += br_addr.eq(br_imm_addr + self.i.cia)
+            comb += br_addr.eq(br_imm_addr + cia)
 
         # fields for conditional branches (BO and BI are same for BC and BCREG)
         # NOTE: here, BO and BI we would like be treated as CR regfile
@@ -78,7 +79,7 @@ class BranchMainStage(PipeModBase):
 
         # The bit of CR selected by BI
         cr_bit = Signal(reset_less=True)
-        comb += cr_bit.eq((self.i.cr & (1<<(31-BI))) != 0)
+        comb += cr_bit.eq((cr & (1<<(31-BI))) != 0)
 
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
@@ -86,10 +87,10 @@ class BranchMainStage(PipeModBase):
             comb += bc_taken.eq((cr_bit == BO[3]) | BO[4])
         with m.Else():
             # decrement the counter and place into output
-            ctr = Signal(64, reset_less=True)
-            comb += ctr.eq(self.i.ctr - 1)
-            comb += self.o.ctr.data.eq(ctr)
-            comb += self.o.ctr.ok.eq(1)
+            ctr_n = Signal(64, reset_less=True)
+            comb += ctr_n.eq(ctr - 1)
+            comb += ctr_o.data.eq(ctr_n)
+            comb += ctr_o.ok.eq(1)
             # take either all 64 bits or only 32 of post-incremented counter
             ctr_m = Signal(64, reset_less=True)
             with m.If(op.is_32bit):
@@ -120,7 +121,7 @@ class BranchMainStage(PipeModBase):
                 comb += br_taken.eq(bc_taken)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
-                comb += br_imm_addr.eq(self.i.spr1) # SPR1 is set by decode unit
+                comb += br_imm_addr.eq(spr1) # SPR1 is set by decode unit
                 comb += br_taken.eq(bc_taken)
 
         ###### output next instruction address #####
@@ -133,7 +134,7 @@ class BranchMainStage(PipeModBase):
         with m.If(lk):
             # ctx.op.lk is the AND of the insn LK field *and* whether the
             # op is to "listen" to the link field
-            comb += lr_o.data.eq(self.i.cia + 4)
+            comb += lr_o.data.eq(cia + 4)
             comb += lr_o.ok.eq(1)
 
         ###### and context #####
