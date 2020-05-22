@@ -126,6 +126,7 @@ class FUFUDepMatrix(Elaboratable):
         yield self.rd_pend_i
         yield self.wr_pend_i
         yield self.issue_i
+        yield self.go_die_i
         yield from self.go_wr_i
         yield from self.go_rd_i
         yield self.readable_o
@@ -157,7 +158,7 @@ def d_matrix_sim(dut):
     yield
 
 def test_fu_fu_matrix():
-    dut = FUFUDepMatrix(n_fu_row=3, n_fu_col=4, n_src=3, n_dest=2)
+    dut = FUFUDepMatrix(n_fu_row=4, n_fu_col=4, n_src=3, n_dest=2)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_fu_fu_matrix.il", "w") as f:
         f.write(vl)
