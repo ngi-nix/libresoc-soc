@@ -38,7 +38,8 @@ class CommonInputStage(PipeModBase):
 
         ##### sticky overflow and context (both pass-through) #####
 
-        comb += self.o.xer_so.eq(self.i.xer_so)
+        if hasattr(self.o, "xer_so"): # hack (for now - for LogicalInputData)
+            comb += self.o.xer_so.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

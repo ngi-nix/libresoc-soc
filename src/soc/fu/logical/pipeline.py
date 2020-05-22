@@ -1,14 +1,14 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.fu.alu.input_stage import ALUInputStage
+from soc.fu.logical.input_stage import LogicalInputStage
 from soc.fu.logical.main_stage import LogicalMainStage
-from soc.fu.alu.output_stage import ALUOutputStage
+from soc.fu.logical.output_stage import LogicalOutputStage
 
 class LogicalStages(PipeModBaseChain):
     def get_chain(self):
-        inp = ALUInputStage(self.pspec)
+        inp = LogicalInputStage(self.pspec)
         main = LogicalMainStage(self.pspec)
-        out = ALUOutputStage(self.pspec)
+        out = LogicalOutputStage(self.pspec)
         return [inp, main, out]
 
 

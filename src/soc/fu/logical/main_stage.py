@@ -10,7 +10,7 @@ from nmutil.pipemodbase import PipeModBase
 from nmutil.clz import CLZ
 from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.logical.bpermd import Bpermd
-from soc.fu.alu.pipe_data import ALUOutputData
+from soc.fu.logical.pipe_data import LogicalOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 
@@ -36,7 +36,7 @@ class LogicalMainStage(PipeModBase):
         return LogicalInputData(self.pspec)
 
     def ospec(self):
-        return ALUOutputData(self.pspec)  # TODO: ALUIntermediateData
+        return LogicalOutputData(self.pspec)
 
     def elaborate(self, platform):
         m = Module()
@@ -135,9 +135,8 @@ class LogicalMainStage(PipeModBase):
                 comb += bpermd.rb.eq(b)
                 comb += o.eq(bpermd.ra)
 
-        ###### sticky overflow and context, both pass-through #####
+        ###### context, pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
