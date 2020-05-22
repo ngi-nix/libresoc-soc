@@ -62,7 +62,6 @@ class Driver(Elaboratable):
         i_fields = dut.fields.FormI
         b_fields = dut.fields.FormB
         AA = i_fields.AA[0:-1]
-        LK = i_fields.LK[0:-1]
 
         # Handle CR bit selection
         BI = b_fields.BI[0:-1]
@@ -109,9 +108,12 @@ class Driver(Elaboratable):
                     comb += Assert(nia_o.data == (cia + imm)[0:64])
 
                 # Make sure linking works
-                with m.If(LK & rec.lk):
+                with m.If(rec.lk):
                     comb += Assert(lr_o.data == (cia + 4)[0:64])
                     comb += Assert(lr_o.ok == 1)
+                with m.Else():
+                    comb += Assert(lr_o.ok == 0)
+                    
             with m.Case(InternalOp.OP_BC):
                 # Assert that branches are conditional
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
@@ -126,9 +128,12 @@ class Driver(Elaboratable):
                         comb += Assert(nia_o.data == imm)
                     with m.Else():
                         comb += Assert(nia_o.data == (cia + imm)[0:64])
-                    with m.If(LK & rec.lk):
+                    with m.If(rec.lk):
                         comb += Assert(lr_o.data == (cia + 4)[0:64])
                         comb += Assert(lr_o.ok == 1)
+                    with m.Else():
+                        comb += Assert(lr_o.ok == 0)
+                        
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
@@ -142,9 +147,11 @@ class Driver(Elaboratable):
                     comb += Assert(nia_o.data == spr1)
 
                     # make sure branch+link works
-                    with m.If(LK & rec.lk):
+                    with m.If(rec.lk):
                         comb += Assert(lr_o.data == (cia + 4)[0:64])
                         comb += Assert(lr_o.ok == 1)
+                    with m.Else():
+                        comb += Assert(lr_o.ok == 0)
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
