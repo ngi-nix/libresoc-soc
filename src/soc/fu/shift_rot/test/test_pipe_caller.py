@@ -24,13 +24,6 @@ class TestCase:
         self.sprs = sprs
         self.name = name
 
-def get_rec_width(rec):
-    recwidth = 0
-    # Setup random inputs for dut.op
-    for p in rec.ports():
-        width = p.width
-        recwidth += width
-    return recwidth
 
 def set_alu_inputs(alu, dec2, sim):
     inputs = []
@@ -260,6 +253,7 @@ class TestRunner(FHDLTestCase):
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
+
     def check_extra_alu_outputs(self, alu, dec2, sim):
         rc = yield dec2.e.rc.data
         if rc:
