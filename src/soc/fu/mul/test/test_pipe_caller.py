@@ -11,11 +11,11 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-
-from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
+from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
+from soc.fu.mul.pipe_data import MulPipeSpec
 import random
+
 
 class TestCase:
     def __init__(self, program, regs, sprs, name):
@@ -24,13 +24,6 @@ class TestCase:
         self.sprs = sprs
         self.name = name
 
-def get_rec_width(rec):
-    recwidth = 0
-    # Setup random inputs for dut.op
-    for p in rec.ports():
-        width = p.width
-        recwidth += width
-    return recwidth
 
 def set_alu_inputs(alu, dec2, sim):
     inputs = []
@@ -81,7 +74,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
 # should have. However, this was really slow, since it needed to
 # create and tear down the dut and simulator for every test case.
 
-# Now, instead of doing that, every test case in ShiftRotTestCase puts some
+# Now, instead of doing that, every test case in MulTestCase puts some
 # data into the test_data list below, describing the instructions to
 # be tested and the initial state. Once all the tests have been run,
 # test_data gets passed to TestRunner which then sets up the DUT and
@@ -95,7 +88,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
 test_data = []
 
 
-class ShiftRotTestCase(FHDLTestCase):
+class MulTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -181,10 +174,10 @@ class ShiftRotTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
-        pspec = ShiftRotPipeSpec(id_wid=2)
-        alu = ShiftRotBasePipe(pspec)
+        pspec = MulPipeSpec(id_wid=2)
+        alu = MulBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("pipeline.il", "w") as f:
+        with open("mul_pipeline.il", "w") as f:
             f.write(vl)
 
 
@@ -202,8 +195,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = ShiftRotPipeSpec(id_wid=2)
-        m.submodules.alu = alu = ShiftRotBasePipe(pspec)
+        pspec = MulPipeSpec(id_wid=2)
+        m.submodules.alu = alu = MulBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
