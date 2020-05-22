@@ -1,5 +1,9 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+"""
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=340
+"""
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
@@ -86,6 +90,10 @@ class Driver(Elaboratable):
                         comb += Assert(o[32:64] == Repl(a[31], 32))
                     with m.Else():
                         comb += Assert(o == (a_signed >> b[0:7]))
+            #TODO 
+            #with m.Case(InternalOp.OP_RLC):
+            #with m.Case(InternalOp.OP_RLCR):
+            #with m.Case(InternalOp.OP_RLCL):
 
         return m
 
