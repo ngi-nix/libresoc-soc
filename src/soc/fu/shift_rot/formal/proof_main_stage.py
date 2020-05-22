@@ -39,7 +39,6 @@ class Driver(Elaboratable):
         ra = dut.i.a
         carry_in = dut.i.xer_ca[0]
         carry_in32 = dut.i.xer_ca[1]
-        so_in = dut.i.xer_so
         carry_out = dut.o.xer_ca
         o = dut.o.o
 
@@ -48,7 +47,7 @@ class Driver(Elaboratable):
                  b.eq(AnyConst(64)),
                  carry_in.eq(AnyConst(1)),
                  carry_in32.eq(AnyConst(1)),
-                 so_in.eq(AnyConst(1))]
+                 ]
 
         comb += dut.i.ctx.op.eq(rec)
 
