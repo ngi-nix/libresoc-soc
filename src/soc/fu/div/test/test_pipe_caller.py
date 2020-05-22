@@ -11,8 +11,8 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-from soc.fu.logical.pipeline import LogicalBasePipe
-from soc.fu.logical.pipe_data import LogicalPipeSpec
+from soc.fu.div.pipeline import DivBasePipe
+from soc.fu.div.pipe_data import DivPipeSpec
 import random
 
 
@@ -86,7 +86,7 @@ def set_extra_alu_inputs(alu, dec2, sim):
 test_data = []
 
 
-class LogicalTestCase(FHDLTestCase):
+class DivTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -170,8 +170,8 @@ class LogicalTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
-        pspec = LogicalPipeSpec(id_wid=2)
-        alu = LogicalBasePipe(pspec)
+        pspec = DivPipeSpec(id_wid=2)
+        alu = DivBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("logical_pipeline.il", "w") as f:
             f.write(vl)
@@ -191,8 +191,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = LogicalPipeSpec(id_wid=2)
-        m.submodules.alu = alu = LogicalBasePipe(pspec)
+        pspec = DivPipeSpec(id_wid=2)
+        m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
