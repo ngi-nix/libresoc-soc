@@ -45,7 +45,7 @@ class Driver(Elaboratable):
         cr_o = Signal(32)
         
         a = dut.i.a
-        cr = dut.i.full_cr
+        cr = full_cr_in
         full_cr_out = dut.o.full_cr
         o = dut.o.o
 
@@ -64,10 +64,11 @@ class Driver(Elaboratable):
         cr_input_arr = Array([full_cr_in[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_output_arr = Array([cr_o[(7-i)*4:(7-i)*4+4] for i in range(8)])
         
-        comb += Assume(rec.insn_type == InternalOp.OP_CROP)
         with m.Switch(rec.insn_type):
+            # For OP_CROP, we need to input the corresponding CR
+            # registers for BA, BB, and BT
             with m.Case(InternalOp.OP_CROP):
-                comb += Assume(full_cr_in != 0)
+                # grab the MSBs of the 3 bit selectors
                 bt = Signal(3, reset_less=True)
                 ba = Signal(3, reset_less=True)
                 bb = Signal(3, reset_less=True)
@@ -75,11 +76,14 @@ class Driver(Elaboratable):
                 comb += ba.eq(xl_fields.BA[2:5])
                 comb += bb.eq(xl_fields.BB[2:5])
 
+                # Grab the cr register containing the bit from BA, BB,
+                # and BT, and feed it to the cr inputs
                 comb += dut.i.cr_a.eq(cr_input_arr[ba])
                 comb += dut.i.cr_b.eq(cr_input_arr[bb])
                 comb += dut.i.cr_c.eq(cr_input_arr[bt])
 
-
+                # Insert the output into the output CR register so the
+                # proof below can use it
                 for i in range(8):
                     with m.If(i != bt):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
@@ -88,9 +92,28 @@ class Driver(Elaboratable):
                         
 
             with m.Case(InternalOp.OP_MCRF):
-                pass
+                # This does a similar thing to OP_CROP above, with
+                # less inputs. The CR selection fields are already 3
+                # bits so there's no need to grab only the MSBs
+                bf = Signal(xl_fields.BF[0:-1].shape())
+                bfa = Signal(xl_fields.BFA[0:-1].shape())
+                comb += bf.eq(xl_fields.BF[0:-1])
+                comb += bfa.eq(xl_fields.BFA[0:-1])
+
+                # set cr_a to the CR selected by BFA
+                comb += dut.i.cr_a.eq(cr_input_arr[bfa])
+                for i in range(8):
+                    # Similar to above, insert the result cr back into
+                    # the full cr register so the proof below can use
+                    # it
+                    with m.If(i != bf):
+                        comb += cr_output_arr[i].eq(cr_input_arr[i])
+                    with m.Else():
+                        comb += cr_output_arr[i].eq(dut.o.cr_o)
+            # For the other two, they take the full CR as input, and
+            # output a full CR. This handles that
             with m.Default():
-                comb += cr.eq(full_cr_in)
+                comb += dut.i.full_cr.eq(full_cr_in)
                 comb += cr_o.eq(dut.o.full_cr)
                 
 
