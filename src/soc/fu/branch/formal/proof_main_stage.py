@@ -128,11 +128,9 @@ class Driver(Elaboratable):
                         comb += Assert(nia_o.data == imm)
                     with m.Else():
                         comb += Assert(nia_o.data == (cia + imm)[0:64])
+                    comb += Assert(lr_o.ok == rec.lk)
                     with m.If(rec.lk):
                         comb += Assert(lr_o.data == (cia + 4)[0:64])
-                        comb += Assert(lr_o.ok == 1)
-                    with m.Else():
-                        comb += Assert(lr_o.ok == 0)
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
@@ -146,11 +144,9 @@ class Driver(Elaboratable):
                     comb += Assert(nia_o.data == spr1)
 
                     # make sure branch+link works
+                    comb += Assert(lr_o.ok == rec.lk)
                     with m.If(rec.lk):
                         comb += Assert(lr_o.data == (cia + 4)[0:64])
-                        comb += Assert(lr_o.ok == 1)
-                    with m.Else():
-                        comb += Assert(lr_o.ok == 0)
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
