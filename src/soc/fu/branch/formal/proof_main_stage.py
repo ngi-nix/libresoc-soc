@@ -52,10 +52,8 @@ class Driver(Elaboratable):
         cr_arr = Array([cr[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_bit_arr = Array([cr[31-i] for i in range(32)])
 
-        spr1 = dut.i.spr1
-        ctr = dut.i.spr2
-        cr_in = dut.i.cr
-        cia = dut.i.cia
+        cia, cr_in, spr1, ctr = dut.i.cia, dut.i.cr, dut.i.spr1, dut.i.spr2
+        lr_o, nia_o = dut.o.lr, dut.o.nia
 
         comb += [spr1.eq(AnyConst(64)),
                  ctr.eq(AnyConst(64)),
@@ -102,51 +100,51 @@ class Driver(Elaboratable):
                 imm = exts(LI, LI.shape().width, 64-2) * 4
 
                 # Assert that it always branches
-                comb += Assert(dut.o.nia.ok == 1)
+                comb += Assert(nia_o.ok == 1)
 
                 # Check absolute or relative branching
                 with m.If(AA):
-                    comb += Assert(dut.o.nia.data == imm)
+                    comb += Assert(nia_o.data == imm)
                 with m.Else():
-                    comb += Assert(dut.o.nia.data == (cia + imm)[0:64])
+                    comb += Assert(nia_o.data == (cia + imm)[0:64])
 
                 # Make sure linking works
                 with m.If(LK & rec.lk):
-                    comb += Assert(dut.o.lr.data == (cia + 4)[0:64])
-                    comb += Assert(dut.o.lr.ok == 1)
+                    comb += Assert(lr_o.data == (cia + 4)[0:64])
+                    comb += Assert(lr_o.ok == 1)
             with m.Case(InternalOp.OP_BC):
                 # Assert that branches are conditional
-                comb += Assert(dut.o.nia.ok == (cond_ok & ctr_ok))
+                comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
 
                 # extract target address
                 BD = b_fields.BD[0:-1]
                 imm = exts(BD, BD.shape().width, 64-2) * 4
 
                 # Check absolute or relative branching
-                with m.If(dut.o.nia.ok):
+                with m.If(nia_o.ok):
                     with m.If(AA):
-                        comb += Assert(dut.o.nia.data == imm)
+                        comb += Assert(nia_o.data == imm)
                     with m.Else():
-                        comb += Assert(dut.o.nia.data == (cia + imm)[0:64])
+                        comb += Assert(nia_o.data == (cia + imm)[0:64])
                     with m.If(LK & rec.lk):
-                        comb += Assert(dut.o.lr.data == (cia + 4)[0:64])
-                        comb += Assert(dut.o.lr.ok == 1)
+                        comb += Assert(lr_o.data == (cia + 4)[0:64])
+                        comb += Assert(lr_o.ok == 1)
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
             with m.Case(InternalOp.OP_BCREG):
                 # assert that the condition is good
-                comb += Assert(dut.o.nia.ok == (cond_ok & ctr_ok))
+                comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
 
-                with m.If(dut.o.nia.ok):
+                with m.If(nia_o.ok):
                     # make sure we branch to the spr input
-                    comb += Assert(dut.o.nia.data == spr1)
+                    comb += Assert(nia_o.data == spr1)
 
                     # make sure branch+link works
                     with m.If(LK & rec.lk):
-                        comb += Assert(dut.o.lr.data == (cia + 4)[0:64])
-                        comb += Assert(dut.o.lr.ok == 1)
+                        comb += Assert(lr_o.data == (cia + 4)[0:64])
+                        comb += Assert(lr_o.ok == 1)
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
