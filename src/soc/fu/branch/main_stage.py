@@ -64,7 +64,7 @@ class BranchMainStage(PipeModBase):
         br_taken = Signal(reset_less=True)
 
         # Handle absolute or relative branches
-        with m.If(AA):
+        with m.If(AA | (op.insn_type == InternalOp.OP_BCREG)):
             comb += br_addr.eq(br_imm_addr)
         with m.Else():
             comb += br_addr.eq(br_imm_addr + cia)
