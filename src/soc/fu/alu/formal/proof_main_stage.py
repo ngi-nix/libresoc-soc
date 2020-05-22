@@ -26,14 +26,12 @@ class Driver(Elaboratable):
         comb = m.d.comb
 
         rec = CompALUOpSubset()
-        recwidth = 0
         # Setup random inputs for dut.op
         for p in rec.ports():
             width = p.width
-            recwidth += width
             comb += p.eq(AnyConst(width))
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=recwidth)
+        pspec = ALUPipeSpec(id_wid=2)
         m.submodules.dut = dut = ALUMainStage(pspec)
 
         # convenience variables
