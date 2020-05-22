@@ -84,7 +84,7 @@ from soc.experiment.l0_cache import PortInterface
 from soc.experiment.testmem import TestMemory
 
 from soc.decoder.power_enums import InternalOp, Function
-from fu.ldst.ldst_input_record import CompLDSTOpSubset
+from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 
 
 class LDSTCompUnitRecord(CompUnitRecord):
