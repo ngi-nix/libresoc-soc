@@ -151,7 +151,6 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
-                    yield branch.p.data_i.cr.eq(simulator.cr.get_range().value)
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
                     # spr2 to be set to CTR, op_bctar require spr1 to be
@@ -161,6 +160,14 @@ class TestRunner(FHDLTestCase):
                     yield branch.p.data_i.spr2.eq(simulator.spr['CTR'].value)
                     print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
+
+                    cr_en = yield pdecode2.e.read_cr1.ok
+                    if cr_en:
+                        cr_sel = yield pdecode2.e.read_cr1.data
+                        cr = simulator.crl[cr_sel].get_range().value
+                        yield branch.p.data_i.cr.eq(cr)
+                        full_cr = simulator.cr.get_range().value
+                        print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield

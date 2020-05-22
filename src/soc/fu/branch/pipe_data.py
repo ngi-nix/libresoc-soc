@@ -33,7 +33,7 @@ from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 class BranchInputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
-               ('CR', 'cr', '32'),
+               ('CR', 'cr', '4'),
                ('PC', 'cia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
@@ -43,7 +43,7 @@ class BranchInputData(IntegerData):
 
         self.spr1 = Signal(64, reset_less=True) # see table above, SPR1
         self.spr2 = Signal(64, reset_less=True) # see table above, SPR2
-        self.cr = Signal(32, reset_less=True)   # Condition Register(s) CR0-7
+        self.cr = Signal(4, reset_less=True)   # Condition Register(s) CR0-7
         self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
         # convenience variables.  not all of these are used at once

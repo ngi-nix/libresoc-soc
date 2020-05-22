@@ -75,11 +75,13 @@ class BranchMainStage(PipeModBase):
         # https://bugs.libre-soc.org/show_bug.cgi?id=313#c2
         b_fields = self.fields.FormB
         BO = b_fields.BO[0:-1]
-        BI = b_fields.BI[0:-1]
+        BI = b_fields.BI[0:-1][0:2]
+
+        cr_bits = Array([cr[3-i] for i in range(4)])
 
         # The bit of CR selected by BI
         cr_bit = Signal(reset_less=True)
-        comb += cr_bit.eq((cr & (1<<(31-BI))) != 0)
+        comb += cr_bit.eq(cr_bits[BI])
 
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
