@@ -108,7 +108,8 @@ def decode_form(form):
 
 class DecodeFields:
 
-    def __init__(self, bitkls=BitRange, bitargs=(), fname=None, name_on_wiki=None):
+    def __init__(self, bitkls=BitRange, bitargs=(), fname=None,
+                       name_on_wiki=None):
         self.bitkls = bitkls
         self.bitargs = bitargs
         if fname is None:
