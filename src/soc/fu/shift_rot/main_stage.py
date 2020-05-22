@@ -29,6 +29,7 @@ class ShiftRotMainStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.i.ctx.op
 
         # obtain me and mb fields from instruction.
         m_fields = self.fields.instrs['M']
@@ -47,15 +48,15 @@ class ShiftRotMainStage(PipeModBase):
             rotator.mb.eq(mb),
             rotator.mb_extra.eq(mb_extra),
             rotator.rs.eq(self.i.rs),
-            rotator.ra.eq(self.i.ra),
+            rotator.ra.eq(self.i.a),
             rotator.shift.eq(self.i.rb),
-            rotator.is_32bit.eq(self.i.ctx.op.is_32bit),
-            rotator.arith.eq(self.i.ctx.op.is_signed),
+            rotator.is_32bit.eq(op.is_32bit),
+            rotator.arith.eq(op.is_signed),
         ]
 
         # instruction rotate type
         mode = Signal(3, reset_less=True)
-        with m.Switch(self.i.ctx.op.insn_type):
+        with m.Switch(op.insn_type):
             with m.Case(InternalOp.OP_SHL):  comb += mode.eq(0b000)
             with m.Case(InternalOp.OP_SHR):  comb += mode.eq(0b001) # R-shift
             with m.Case(InternalOp.OP_RLC):  comb += mode.eq(0b110) # clear LR

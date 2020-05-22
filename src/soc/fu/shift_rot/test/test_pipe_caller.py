@@ -53,7 +53,7 @@ def set_alu_inputs(alu, dec2, sim):
     else:
         data2 = 0
 
-    yield alu.p.data_i.ra.eq(data1)
+    yield alu.p.data_i.a.eq(data1)
     yield alu.p.data_i.rb.eq(data2)
     yield alu.p.data_i.rs.eq(data3)
 

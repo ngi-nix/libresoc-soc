@@ -2,15 +2,11 @@
 # the acutal ALU. Things like handling inverting the input, carry_in
 # generation for subtraction, and handling of immediates should happen
 # here
-from nmigen import (Module, Signal, Cat, Const, Mux, Repl, signed,
-                    unsigned)
-from nmutil.pipemodbase import PipeModBase
-from soc.decoder.power_enums import InternalOp
+from soc.fu.common_input_stage import CommonInputStage
 from soc.fu.shift_rot.pipe_data import ShiftRotInputData
-from soc.decoder.power_enums import CryIn
 
 
-class ShiftRotInputStage(PipeModBase):
+class ShiftRotInputStage(CommonInputStage):
     def __init__(self, pspec):
         super().__init__(pspec, "input")
 
@@ -21,38 +17,11 @@ class ShiftRotInputStage(PipeModBase):
         return ShiftRotInputData(self.pspec)
 
     def elaborate(self, platform):
-        m = Module()
+        m = super().elaborate(platform) # handles A, carry and sticky overflow
         comb = m.d.comb
 
-        ##### operand A #####
-
-        # operand a to be as-is or inverted
-        a = Signal.like(self.i.ra)
-
-        with m.If(self.i.ctx.op.invert_a):
-            comb += a.eq(~self.i.ra)
-        with m.Else():
-            comb += a.eq(self.i.ra)
-
-        comb += self.o.ra.eq(a)
+        # operands ra and rb
         comb += self.o.rb.eq(self.i.rb)
         comb += self.o.rs.eq(self.i.rs)
-
-
-        ##### carry-in #####
-
-        # either copy incoming carry or set to 1/0 as defined by op
-        with m.Switch(self.i.ctx.op.input_carry):
-            with m.Case(CryIn.ZERO):
-                comb += self.o.xer_ca.eq(0b00)
-            with m.Case(CryIn.ONE):
-                comb += self.o.xer_ca.eq(0b11) # XER CA/CA32
-            with m.Case(CryIn.CA):
-                comb += self.o.xer_ca.eq(self.i.xer_ca)
-
-        ##### sticky overflow and context (both pass-through) #####
-
-        comb += self.o.xer_so.eq(self.i.xer_so)
-        comb += self.o.ctx.eq(self.i.ctx)
 
         return m
