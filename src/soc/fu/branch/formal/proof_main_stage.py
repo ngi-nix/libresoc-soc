@@ -151,6 +151,7 @@ class Driver(Elaboratable):
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
+                comb += Assert(dut.o.ctr.ok != BO[2])
 
 
         return m
