@@ -88,7 +88,7 @@ class Driver(Elaboratable):
         # CTR combpare with 0
         ctr_ok = Signal()
         comb += ctr_ok.eq(BO[2] | ((ctr != 0) ^ BO[1]))
-        
+
         # Sorry, not bothering with 32 bit right now
         comb += Assume(~rec.is_32bit)
 
@@ -113,7 +113,7 @@ class Driver(Elaboratable):
                     comb += Assert(lr_o.ok == 1)
                 with m.Else():
                     comb += Assert(lr_o.ok == 0)
-                    
+
             with m.Case(InternalOp.OP_BC):
                 # Assert that branches are conditional
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
@@ -133,7 +133,6 @@ class Driver(Elaboratable):
                         comb += Assert(lr_o.ok == 1)
                     with m.Else():
                         comb += Assert(lr_o.ok == 0)
-                        
 
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
