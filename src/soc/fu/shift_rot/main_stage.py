@@ -4,7 +4,7 @@
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.alu.pipe_data import ALUOutputData
+from soc.fu.logical.pipe_data import LogicalOutputData
 from soc.fu.shift_rot.pipe_data import ShiftRotInputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -24,7 +24,7 @@ class ShiftRotMainStage(PipeModBase):
         return ShiftRotInputData(self.pspec)
 
     def ospec(self):
-        return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
+        return LogicalOutputData(self.pspec)
 
     def elaborate(self, platform):
         m = Module()
@@ -74,7 +74,6 @@ class ShiftRotMainStage(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

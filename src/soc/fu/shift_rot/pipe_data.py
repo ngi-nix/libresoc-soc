@@ -11,14 +11,12 @@ class ShiftRotInputData(IntegerData):
     regspec = [('INT', 'a', '0:63'),
                ('INT', 'rs', '0:63'),
                ('INT', 'rb', '0:63'),
-               ('XER', 'xer_so', '32'),
                ('XER', 'xer_ca', '34,45')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True) # RA
         self.rs = Signal(64, reset_less=True) # RS
         self.rb = Signal(64, reset_less=True) # RB/immediate
-        self.xer_so = Signal(reset_less=True)    # XER bit 32: SO
         self.xer_ca = Signal(2, reset_less=True) # XER bit 34/45: CA/CA32
 
     def __iter__(self):
@@ -27,14 +25,12 @@ class ShiftRotInputData(IntegerData):
         yield self.rs
         yield self.rb
         yield self.xer_ca
-        yield self.xer_so
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.rs.eq(i.rs), self.a.eq(i.a),
                       self.rb.eq(i.rb),
-                      self.xer_ca.eq(i.xer_ca),
-                      self.xer_so.eq(i.xer_so)]
+                      self.xer_ca.eq(i.xer_ca) ]
 
 
 # TODO: replace CompALUOpSubset with CompShiftRotOpSubset

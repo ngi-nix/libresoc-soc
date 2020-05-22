@@ -63,8 +63,6 @@ def set_extra_alu_inputs(alu, dec2, sim):
     carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
     yield alu.p.data_i.xer_ca[0].eq(carry)
     yield alu.p.data_i.xer_ca[1].eq(carry32)
-    so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.xer_so.eq(so)
     
 
 # This test bench is a bit different than is usual. Initially when I
