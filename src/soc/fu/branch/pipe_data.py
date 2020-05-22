@@ -27,7 +27,7 @@ from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
+from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 
 
 class BranchInputData(IntegerData):
@@ -89,7 +89,7 @@ class BranchOutputData(IntegerData):
                       self.nia.eq(i.nia)]
 
 
-# TODO: replace CompALUOpSubset with CompBranchOpSubset
+# TODO: replace CompALUOpSubset with CompBROpSubset
 class BranchPipeSpec(CommonPipeSpec):
     regspec = (BranchInputData.regspec, BranchOutputData.regspec)
-    opsubsetkls = CompALUOpSubset
+    opsubsetkls = CompBROpSubset
