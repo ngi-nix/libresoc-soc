@@ -173,7 +173,6 @@ class TestRunner(FHDLTestCase):
                     yield from self.assert_outputs(branch, pdecode2,
                                                    simulator, prev_nia, code)
 
-
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
