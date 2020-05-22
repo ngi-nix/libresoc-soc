@@ -124,20 +124,18 @@ class BranchMainStage(PipeModBase):
                 comb += br_imm_addr.eq(spr1) # SPR1 is set by decode unit
                 comb += br_taken.eq(bc_taken)
 
-        ###### output next instruction address #####
-
+        # output next instruction address
         comb += nia_o.data.eq(br_addr)
         comb += nia_o.ok.eq(br_taken)
 
-        ###### link register - only activate on operations marked as "lk" #####
-
+        # link register - only activate on operations marked as "lk"
         with m.If(lk):
             # ctx.op.lk is the AND of the insn LK field *and* whether the
             # op is to "listen" to the link field
             comb += lr_o.data.eq(cia + 4)
             comb += lr_o.ok.eq(1)
 
-        ###### and context #####
+        # and context
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

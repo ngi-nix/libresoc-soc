@@ -17,45 +17,30 @@ class Bpermd(Elaboratable):
             else permi[i] ← 0
     RA ←56[0] || perm[0:7]
 
-    Eight permuted bits are produced.
-    For each permutedbit i where i
-    ranges from 0 to 7 and for each
-    byte i of RS, do the following.
+    Eight permuted bits are produced.  For each permutedbit i where i
+    ranges from 0 to 7 and for each byte i of RS, do the following.
 
-        If byte i of RS is less than
-        64, permuted bit i is set to
-        the bit of RB specified by
-        byte i of RS; otherwise
+        If byte i of RS is less than 64, permuted bit i is set to
+        the bit of RB specified by byte i of RS; otherwise
         permuted bit i is set to 0.
 
-    The permuted bits are placed in
-    the least-significant byte of RA,
-    and the remaining bits are filled
-    with 0s.
+    The permuted bits are placed in the least-significant byte of RA,
+    and the remaining bits are filled with 0s.
 
     Special Registers Altered:
         None
 
     Programming Note:
 
-    The fact that the permuted bit is
-    0 if the corresponding index value
-    exceeds 63 permits the permuted
-    bits to be selected from a 128-bit
-    quantity, using a single index
-    register. For example, assume that
-    the 128-bit quantity Q, from which
-    the permuted bits are to be
-    selected, is in registers r2
-    (high-order 64 bits of Q) and r3
-    (low-order 64 bits of Q), that the
-    index values are in register r1,
-    with each byte of r1 containing a
-    value in the range 0:127, and that
-    each byte of register r4 contains
-    the value 64. The following code
-    sequence selects eight permuted
-    bits from Q and places them into
+    The fact that the permuted bit is 0 if the corresponding index value
+    exceeds 63 permits the permuted bits to be selected from a 128-bit
+    quantity, using a single index register. For example, assume that
+    the 128-bit quantity Q, from which the permuted bits are to be
+    selected, is in registers r2 (high-order 64 bits of Q) and r3
+    (low-order 64 bits of Q), that the index values are in register r1,
+    with each byte of r1 containing a value in the range 0:127, and that
+    each byte of register r4 contains the value 64. The following code
+    sequence selects eight permuted bits from Q and places them into
     the low-order byteof r6.
 
     bpermd  r6,r1,r2 # select from high-order half of Q
