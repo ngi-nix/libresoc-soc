@@ -91,6 +91,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         RecordObject.__init__(self, name)
         self._subkls = subkls
 
+        # create source operands
         src = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
@@ -101,6 +102,7 @@ class CompUnitRecord(RegSpec, RecordObject):
             src.append(sreg)
         self._src_i = src
 
+        # create dest operands
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
@@ -111,14 +113,15 @@ class CompUnitRecord(RegSpec, RecordObject):
             dst.append(dreg)
         self._dest = dst
 
+        # operation / data input
+        self.oper_i = subkls() # operand
+
+        # create read/write and other scoreboard signalling
         self.rd = go_record(n_src, name="rd") # read in, req out
         self.wr = go_record(n_dst, name="wr") # write in, req out
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
-
-        # operation / data input
-        self.oper_i = subkls() # operand
 
         # output (busy/done)
         self.busy_o = Signal(reset_less=True) # fn busy out
@@ -140,17 +143,19 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.opsubsetkls = opsubsetkls
         self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
 
+        # convenience names for src operands
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             name = "src%d_i" % j
             setattr(self, name, getattr(cu, name))
 
+        # convenience names for dest operands
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
             name = "dest%d_i" % j
             setattr(self, name, getattr(cu, name))
 
-        # convenience names
+        # more convenience names
         self.rd = cu.rd
         self.wr = cu.wr
         self.go_rd_i = self.rd.go # temporary naming
