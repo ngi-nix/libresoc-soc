@@ -1,4 +1,4 @@
-# This stage is intended to do Condition Register instructions
+# This stage is intended to do Condition Register instructions (and ISEL)
 # and output, as well as carry and overflow generation.
 # NOTE: with the exception of mtcrf and mfcr, we really should be doing
 # the field decoding which
@@ -34,7 +34,7 @@ class CRMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        a, full_cr = self.i.a, self.i.full_cr
+        a, b, full_cr = self.i.a, self.i.b, self.i.full_cr
         cr_a, cr_b, cr_c = self.i.cr_a, self.i.cr_b, self.i.cr_c
         cr_o, full_cr_o, rt_o = self.o.cr_o, self.o.full_cr, self.o.o
 
@@ -132,6 +132,21 @@ class CRMainStage(PipeModBase):
                 with m.Else():
                     # output register RT
                     comb += rt_o.eq(full_cr)
+
+            # ##### isel #####
+            with m.Case(InternalOp.OP_ISEL):
+                # just like in branch, CR0-7 is incoming into cr_a, we
+                # need to select from the last 2 bits of BC
+                a_fields = self.fields.FormA
+                BC = a_fields.BC[0:-1][0:2]
+                cr_bits = Array([cr_a[3-i] for i in range(4)])
+
+                # The bit of (cr_a=CR0-7) selected by BC
+                cr_bit = Signal(reset_less=True)
+                comb += cr_bit.eq(cr_bits[BC])
+
+                # select a or b as output
+                comb += rt_o.eq(Mux(cr_bit, a, b))
 
         comb += self.o.ctx.eq(self.i.ctx)
 

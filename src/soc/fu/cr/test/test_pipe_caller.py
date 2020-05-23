@@ -58,6 +58,18 @@ class CRTestCase(FHDLTestCase):
                       self.test_name)
         test_data.append(tc)
 
+    def test_isel(self):
+        for i in range(40):
+            bi = random.randint(0, 31)
+            lst = [f"isel 3, 1, 2, {bi}"]
+            cr = random.randint(0, (1<<32)-1)
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<32)-1)
+            initial_regs[2] = random.randint(0, (1<<32)-1)
+            initial_regs[3] = random.randint(0, (1<<32)-1)
+            self.run_tst_program(Program(lst), initial_regs=initial_regs,
+                                 initial_cr=cr)
+
     def test_crop(self):
         insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
                  "crandc", "crorc"]
@@ -112,7 +124,6 @@ class CRTestCase(FHDLTestCase):
             lst = [f"mfocrf 2, {mask}"]
             cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_cr=cr)
-        
 
     def test_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
@@ -168,7 +179,6 @@ class TestRunner(FHDLTestCase):
             expected_cr = simulator.crl[cr_sel].get_range().value
             real_cr = yield alu.n.data_o.cr_o.data
             self.assertEqual(expected_cr, real_cr)
-            
 
     def run_all(self):
         m = Module()
@@ -212,7 +222,7 @@ class TestRunner(FHDLTestCase):
                     yield alu.p.valid_i.eq(1)
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.CR.value, code)
-                    yield 
+                    yield
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
@@ -228,6 +238,7 @@ class TestRunner(FHDLTestCase):
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
+
     def check_extra_alu_outputs(self, alu, dec2, sim):
         rc = yield dec2.e.rc.data
         if rc:
