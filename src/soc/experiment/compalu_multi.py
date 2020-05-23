@@ -153,6 +153,7 @@ class CompUnitRecord(RecordObject):
             return self._rwid
         return get_regspec_bitwidth(self._rwid, 0, i)
 
+
 class MultiCompUnit(Elaboratable):
     def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1):
         """MultiCompUnit
@@ -203,14 +204,12 @@ class MultiCompUnit(Elaboratable):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
             return self.alu.out[i]
         # regspec-based API: look up variable through regspec according to row number
-        print ("get out", dir(self.alu.n.data_o))
         return getattr(self.alu.n.data_o, self.rwid[1][i][1])
 
     def get_in(self, i):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
             return self.alu.i[i]
         # regspec-based API: look up variable through regspec according to row number
-        print ("get in", dir(self.alu.p.data_i))
         return getattr(self.alu.p.data_i, self.rwid[0][i][1])
 
     def get_op(self):
