@@ -154,7 +154,35 @@ class CompUnitRecord(RecordObject):
         return get_regspec_bitwidth(self._rwid, 0, i)
 
 
-class MultiCompUnit(Elaboratable):
+class RegSpecALUAPI:
+    def __init__(self, rwid, alu):
+        """RegSpecAPI
+
+        * :rwid:       regspec
+        * :alu:        ALU covered by this regspec
+        """
+        self.rwid = rwid
+        self.alu = alu # actual ALU - set as a "submodule" of the CU
+
+    def get_out(self, i):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.out[i]
+        # regspec-based API: look up variable through regspec according to row number
+        return getattr(self.alu.n.data_o, self.rwid[1][i][1])
+
+    def get_in(self, i):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.i[i]
+        # regspec-based API: look up variable through regspec according to row number
+        return getattr(self.alu.p.data_i, self.rwid[0][i][1])
+
+    def get_op(self):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.op
+        return self.alu.p.data_i.ctx.op
+
+
+class MultiCompUnit(RegSpecALUAPI, Elaboratable):
     def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1):
         """MultiCompUnit
 
@@ -164,10 +192,9 @@ class MultiCompUnit(Elaboratable):
         * :n_src:       number of src operands
         * :n_dst:       number of destination operands
         """
+        RegSpecALUAPI.__init__(self, rwid, alu)
         self.n_src, self.n_dst = n_src, n_dst
-        self.rwid = rwid
         self.opsubsetkls = opsubsetkls
-        self.alu = alu # actual ALU - set as a "submodule" of the CU
         self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
 
         for i in range(n_src):
@@ -200,22 +227,6 @@ class MultiCompUnit(Elaboratable):
         self.data_o = self.dest[0] # Dest out
         self.done_o = cu.done_o
 
-    def get_out(self, i):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
-            return self.alu.out[i]
-        # regspec-based API: look up variable through regspec according to row number
-        return getattr(self.alu.n.data_o, self.rwid[1][i][1])
-
-    def get_in(self, i):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
-            return self.alu.i[i]
-        # regspec-based API: look up variable through regspec according to row number
-        return getattr(self.alu.p.data_i, self.rwid[0][i][1])
-
-    def get_op(self):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
-            return self.alu.op
-        return self.alu.p.data_i.ctx.op
     def elaborate(self, platform):
         m = Module()
         m.submodules.alu = self.alu
