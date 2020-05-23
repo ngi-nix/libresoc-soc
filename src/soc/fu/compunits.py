@@ -51,6 +51,12 @@ from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 
+from soc.fu.branch.pipeline import BranchBasePipe
+from soc.fu.branch.pipe_data import BranchPipeSpec
+
+from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
+from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
+
 
 ###################################################################
 ###### FunctionUnitBaseSingle - use to make single-stge pipes #####
@@ -94,6 +100,11 @@ class ALUFunctionUnit(FunctionUnitBaseSingle):
 class CRFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self): super().__init__(CRPipeSpec, CRBasePipe)
 
+class BranchFunctionUnit(FunctionUnitBaseSingle):
+    def __init__(self): super().__init__(BranchPipeSpec, BranchBasePipe)
+
+class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
+    def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
 
 #####################################################################
 ###### actual Function Units: these are "multi" stage pipelines #####
@@ -103,7 +114,9 @@ class CRFunctionUnit(FunctionUnitBaseSingle):
 
 def tst_single_fus_il():
     for (name, kls) in (('alu', ALUFunctionUnit),
-                        ('cr', CRFunctionUnit)):
+                        ('cr', CRFunctionUnit),
+                        ('branch', BranchFunctionUnit),
+                        ('shiftrot', ShiftRotFunctionUnit)):
         fu = kls()
         vl = rtlil.convert(fu, ports=fu.ports())
         with open("fu_%s.il" % name, "w") as f:
