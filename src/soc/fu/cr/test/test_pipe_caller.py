@@ -51,23 +51,12 @@ class CRTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
+
     def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={},
                         initial_cr=0):
         tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
                       self.test_name)
         test_data.append(tc)
-
-    def test_isel(self):
-        for i in range(40):
-            bi = random.randint(0, 31)
-            lst = [f"isel 3, 1, 2, {bi}"]
-            cr = random.randint(0, (1<<32)-1)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<32)-1)
-            initial_regs[2] = random.randint(0, (1<<32)-1)
-            initial_regs[3] = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_regs=initial_regs,
-                                 initial_cr=cr)
 
     def test_crop(self):
         insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
