@@ -78,13 +78,17 @@ class Shifter(Elaboratable):
         m.d.comb += self.o.eq(self.a >> btrunc)
         return m
 
+class Dummy:
+    pass
 
 class ALU(Elaboratable):
     def __init__(self, width):
-        self.p_valid_i = Signal()
-        self.p_ready_o = Signal()
-        self.n_ready_i = Signal()
-        self.n_valid_o = Signal()
+        self.p = Dummy() # make look like nmutil pipeline API
+        self.n = Dummy() # make look like nmutil pipeline API
+        self.p.valid_i = Signal()
+        self.p.ready_o = Signal()
+        self.n.ready_i = Signal()
+        self.n.valid_o = Signal()
         self.counter   = Signal(4)
         self.op  = CompALUOpSubset()
         i = []
@@ -118,11 +122,11 @@ class ALU(Elaboratable):
 
         go_now = Signal(reset_less=True) # testing no-delay ALU
 
-        with m.If(self.p_valid_i):
+        with m.If(self.p.valid_i):
             # input is valid. next check, if we already said "ready" or not
-            with m.If(~self.p_ready_o):
+            with m.If(~self.p.ready_o):
                 # we didn't say "ready" yet, so say so and initialise
-                m.d.sync += self.p_ready_o.eq(1)
+                m.d.sync += self.p.ready_o.eq(1)
 
                 # as this is a "fake" pipeline, just grab the output right now
                 with m.If(self.op.insn_type == InternalOp.OP_ADD):
@@ -152,14 +156,14 @@ class ALU(Elaboratable):
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
-            m.d.sync += self.p_ready_o.eq(0)
+            m.d.sync += self.p.ready_o.eq(0)
 
         # ok so the counter's running: when it gets to 1, fire the output
         with m.If((self.counter == 1) | go_now):
             # set the output as valid if the recipient is ready for it
-            m.d.sync += self.n_valid_o.eq(1)
-        with m.If(self.n_ready_i & self.n_valid_o):
-            m.d.sync += self.n_valid_o.eq(0)
+            m.d.sync += self.n.valid_o.eq(1)
+        with m.If(self.n.ready_i & self.n.valid_o):
+            m.d.sync += self.n.valid_o.eq(0)
             # recipient said it was ready: reset back to known-good.
             m.d.sync += self.counter.eq(0) # reset the counter
             m.d.sync += self.o.eq(0) # clear the output for tidiness sake
@@ -195,10 +199,10 @@ class BranchOp(Elaboratable):
 
 class BranchALU(Elaboratable):
     def __init__(self, width):
-        self.p_valid_i = Signal()
-        self.p_ready_o = Signal()
-        self.n_ready_i = Signal()
-        self.n_valid_o = Signal()
+        self.p.valid_i = Signal()
+        self.p.ready_o = Signal()
+        self.n.ready_i = Signal()
+        self.n.valid_o = Signal()
         self.counter   = Signal(4)
         self.op  = Signal(2)
         i = []
@@ -228,11 +232,11 @@ class BranchALU(Elaboratable):
             ]
 
         go_now = Signal(reset_less=True) # testing no-delay ALU
-        with m.If(self.p_valid_i):
+        with m.If(self.p.valid_i):
             # input is valid. next check, if we already said "ready" or not
-            with m.If(~self.p_ready_o):
+            with m.If(~self.p.ready_o):
                 # we didn't say "ready" yet, so say so and initialise
-                m.d.sync += self.p_ready_o.eq(1)
+                m.d.sync += self.p.ready_o.eq(1)
 
                 # as this is a "fake" pipeline, just grab the output right now
                 with m.Switch(self.op):
@@ -244,14 +248,14 @@ class BranchALU(Elaboratable):
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
-            m.d.sync += self.p_ready_o.eq(0)
+            m.d.sync += self.p.ready_o.eq(0)
 
         # ok so the counter's running: when it gets to 1, fire the output
         with m.If((self.counter == 1) | go_now):
             # set the output as valid if the recipient is ready for it
-            m.d.sync += self.n_valid_o.eq(1)
-        with m.If(self.n_ready_i & self.n_valid_o):
-            m.d.sync += self.n_valid_o.eq(0)
+            m.d.sync += self.n.valid_o.eq(1)
+        with m.If(self.n.ready_i & self.n.valid_o):
+            m.d.sync += self.n.valid_o.eq(0)
             # recipient said it was ready: reset back to known-good.
             m.d.sync += self.counter.eq(0) # reset the counter
             m.d.sync += self.o.eq(0) # clear the output for tidiness sake
@@ -276,19 +280,19 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.b.eq(b)
     yield dut.op.insn_type.eq(op)
     yield dut.op.invert_a.eq(inv_a)
-    yield dut.n_ready_i.eq(0)
-    yield dut.p_valid_i.eq(1)
+    yield dut.n.ready_i.eq(0)
+    yield dut.p.valid_i.eq(1)
     yield
     while True:
         yield
-        n_valid_o = yield dut.n_valid_o
-        if n_valid_o:
+        n.valid_o = yield dut.n.valid_o
+        if n.valid_o:
             break
     yield
 
     result = yield dut.o
-    yield dut.p_valid_i.eq(0)
-    yield dut.n_ready_i.eq(0)
+    yield dut.p.valid_i.eq(0)
+    yield dut.n.ready_i.eq(0)
     yield
 
     return result

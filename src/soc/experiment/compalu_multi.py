@@ -235,7 +235,7 @@ class MultiCompUnit(Elaboratable):
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
-        m.d.comb += rok_l.r.eq(self.alu.p_ready_o) # off when ALU acknowledges
+        m.d.comb += rok_l.r.eq(self.alu.p.ready_o) # off when ALU acknowledges
 
         # wr-done, back-to-start latch
         m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
@@ -243,7 +243,7 @@ class MultiCompUnit(Elaboratable):
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
-        m.d.sync += opc_l.r.eq(self.alu.n_valid_o & req_done) # reset on ALU
+        m.d.sync += opc_l.r.eq(self.alu.n.valid_o & req_done) # reset on ALU
 
         # src operand latch (not using go_wr_i)
         m.d.sync += src_l.s.eq(Repl(self.issue_i, self.n_src))
@@ -318,17 +318,17 @@ class MultiCompUnit(Elaboratable):
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
         with m.If(all_rd):                           # src operands ready, GO!
-            with m.If(~self.alu.p_ready_o):          # no ACK yet
-                m.d.comb += self.alu.p_valid_i.eq(1) # so indicate valid
+            with m.If(~self.alu.p.ready_o):          # no ACK yet
+                m.d.comb += self.alu.p.valid_i.eq(1) # so indicate valid
 
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
         # only proceed if ALU says its output is valid
-        with m.If(self.alu.n_valid_o):
+        with m.If(self.alu.n.valid_o):
             # when ALU ready, write req release out. waits for shadow
             m.d.comb += self.wr.rel.eq(req_l.q & brd)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(reset):
-                m.d.comb += self.alu.n_ready_i.eq(1) # tells ALU "thanks got it"
+                m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "thanks got it"
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
