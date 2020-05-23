@@ -13,6 +13,9 @@ from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 
 
+###################################################################
+###### FunctionUnitBaseSingle - use to make single-stge pipes #####
+
 class FunctionUnitBaseSingle(MultiCompUnit):
     """FunctionUnitBaseSingle
 
@@ -36,6 +39,13 @@ class FunctionUnitBaseSingle(MultiCompUnit):
         super().__init__(regspec, alu, opsubset) # pass to MultiCompUnit
 
 
+##############################################################
+# TODO: ReservationStations-based (FunctionUnitBaseConcurrent)
+
+class FunctionUnitBaseMulti:
+    pass
+
+
 ######################################################################
 ###### actual Function Units: these are "single" stage pipelines #####
 
@@ -44,6 +54,7 @@ class ALUFunctionUnit(FunctionUnitBaseSingle):
 
 class CRFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self): super().__init__(CRPipeSpec, CRBasePipe)
+
 
 #####################################################################
 ###### actual Function Units: these are "multi" stage pipelines #####
