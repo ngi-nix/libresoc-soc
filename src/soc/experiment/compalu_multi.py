@@ -199,6 +199,24 @@ class MultiCompUnit(Elaboratable):
         self.data_o = self.dest[0] # Dest out
         self.done_o = cu.done_o
 
+    def get_out(self, i):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.out[i]
+        # regspec-based API: look up variable through regspec according to row number
+        print ("get out", dir(self.alu.n.data_o))
+        return getattr(self.alu.n.data_o, self.rwid[1][i][1])
+
+    def get_in(self, i):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.i[i]
+        # regspec-based API: look up variable through regspec according to row number
+        print ("get in", dir(self.alu.p.data_i))
+        return getattr(self.alu.p.data_i, self.rwid[0][i][1])
+
+    def get_op(self):
+        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+            return self.alu.op
+        return self.alu.p.data_i.ctx.op
     def elaborate(self, platform):
         m = Module()
         m.submodules.alu = self.alu
@@ -262,11 +280,11 @@ class MultiCompUnit(Elaboratable):
         for i in range(self.n_dst):
             name = "data_r%d" % i
             data_r = Signal(self.cu._get_srcwid(i), name=name, reset_less=True)
-            latchregister(m, self.alu.out[i], data_r, req_l.q[i], name)
+            latchregister(m, self.get_out(i), data_r, req_l.q[i], name)
             drl.append(data_r)
 
         # pass the operation to the ALU
-        m.d.comb += self.alu.op.eq(oper_r)
+        m.d.comb += self.get_op().eq(oper_r)
 
         # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
         # in the case, for ALU and Logical pipelines, we assume RB is the 2nd operand
@@ -274,7 +292,7 @@ class MultiCompUnit(Elaboratable):
         # TODO: assume RA is the 1st operand, zero_a detection is needed.
         sl = []
         for i in range(self.n_src):
-            sl.append([self.src_i[i], self.alu.i[i], src_l.q[i]])
+            sl.append([self.src_i[i], self.get_in(i), src_l.q[i]])
 
         # if the operand subset has "zero_a" we implicitly assume that means
         # src_i[0] is an INT register type where zero can be multiplexed in, instead.

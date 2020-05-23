@@ -84,7 +84,10 @@ class Dummy:
 class ALU(Elaboratable):
     def __init__(self, width):
         self.p = Dummy() # make look like nmutil pipeline API
+        self.p.data_i = Dummy()
+        self.p.data_i.ctx = Dummy()
         self.n = Dummy() # make look like nmutil pipeline API
+        self.n.data_o = Dummy()
         self.p.valid_i = Signal()
         self.p.ready_o = Signal()
         self.n.ready_i = Signal()
@@ -99,6 +102,11 @@ class ALU(Elaboratable):
         self.out = Array([Signal(width)])
         self.o = self.out[0]
         self.width = width
+        # more "look like nmutil pipeline API"
+        self.p.data_i.ctx.op = self.op
+        self.p.data_i.a = self.a
+        self.p.data_i.b = self.b
+        self.n.data_o.o = self.o
 
     def elaborate(self, platform):
         m = Module()
