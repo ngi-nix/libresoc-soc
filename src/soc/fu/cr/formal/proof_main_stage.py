@@ -1,4 +1,4 @@
-# Proof of correctness for partitioned equal signal combiner
+# Proof of correctness for Condition Register pipeline
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 """
 Links:
@@ -41,18 +41,23 @@ class Driver(Elaboratable):
         m.submodules.dut = dut = CRMainStage(pspec)
 
         full_cr_in = Signal(32)
+        cr_a_in = Signal(4)
 
         cr_o = Signal(32)
-        
+
         a = dut.i.a
+        b = dut.i.b
         cr = full_cr_in
         full_cr_out = dut.o.full_cr
         o = dut.o.o
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
+                 b.eq(AnyConst(64)),
+                 cr_a_in.eq(AnyConst(4)),
                  full_cr_in.eq(AnyConst(32))]
 
+        a_fields = dut.fields.FormA
         xl_fields = dut.fields.FormXL
         xfx_fields = dut.fields.FormXFX
 
@@ -63,8 +68,12 @@ class Driver(Elaboratable):
 
         cr_input_arr = Array([full_cr_in[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_output_arr = Array([cr_o[(7-i)*4:(7-i)*4+4] for i in range(8)])
-        
+
         with m.Switch(rec.insn_type):
+            # CR_ISEL takes cr_a
+            with m.Case(InternalOp.OP_ISEL):
+                comb += dut.i.cr_a.eq(cr_a_in)
+
             # For OP_CROP, we need to input the corresponding CR
             # registers for BA, BB, and BT
             with m.Case(InternalOp.OP_CROP):
@@ -89,7 +98,6 @@ class Driver(Elaboratable):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
                         comb += cr_output_arr[i].eq(dut.o.cr_o)
-                        
 
             with m.Case(InternalOp.OP_MCRF):
                 # This does a similar thing to OP_CROP above, with
@@ -110,19 +118,12 @@ class Driver(Elaboratable):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
                         comb += cr_output_arr[i].eq(dut.o.cr_o)
+
             # For the other two, they take the full CR as input, and
             # output a full CR. This handles that
             with m.Default():
                 comb += dut.i.full_cr.eq(full_cr_in)
                 comb += cr_o.eq(dut.o.full_cr)
-                
-
-
-
-
-
-
-        
 
         comb += dut.i.ctx.op.eq(rec)
 
@@ -193,6 +194,19 @@ class Driver(Elaboratable):
                     comb += Assert(bit_o == bit_a | ~bit_b)
                 with m.If(lut == 0b0110):
                     comb += Assert(bit_o == bit_a ^ bit_b)
+
+            with m.Case(InternalOp.OP_ISEL):
+                # just like in branch, CR0-7 is incoming into cr_a, we
+                # need to select from the last 2 bits of BC
+                BC = a_fields.BC[0:-1][0:2]
+                cr_bits = Array([cr_a_in[3-i] for i in range(4)])
+
+                # The bit of (cr_a=CR0-7) selected by BC
+                cr_bit = Signal(reset_less=True)
+                comb += cr_bit.eq(cr_bits[BC])
+
+                # select a or b as output
+                comb += Assert(o == Mux(cr_bit, a, b))
 
         return m
 
