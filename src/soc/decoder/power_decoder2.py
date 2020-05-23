@@ -310,7 +310,7 @@ class DecodeCRIn(Elaboratable):
                 comb += self.cr_bitfield_o.data.eq(self.dec.BT[2:5])
                 comb += self.cr_bitfield_o.ok.eq(1)
             with m.Case(CRInSel.BC):
-                comb += self.cr_bitfield.data.eq(self.dec.BC[0:-1])
+                comb += self.cr_bitfield.data.eq(self.dec.BC[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.WHOLE_REG):
                 comb += self.whole_reg.eq(1)
