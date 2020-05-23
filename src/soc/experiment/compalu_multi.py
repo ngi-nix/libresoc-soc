@@ -234,24 +234,39 @@ class MultiCompUnit(Elaboratable):
         # pass the operation to the ALU
         m.d.comb += self.alu.op.eq(oper_r)
 
-        # create list of src/alu-src/src-latch.  override 2nd one below
+        # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
+        # in the case, for ALU and Logical pipelines, we assume RB is the 2nd operand
+        # in the input "regspec".  see for example soc.fu.alu.pipe_data.ALUInputData
+        # TODO: assume RA is the 1st operand, zero_a detection is needed.
         sl = []
         for i in range(self.n_src):
             sl.append([self.src_i[i], self.alu.i[i], src_l.q[i]])
 
-        # select immediate if opcode says so.  however also change the latch
-        # to trigger *from* the opcode latch instead.
-        op_is_imm = oper_r.imm_data.imm_ok
-        src2_or_imm = Signal(self.rwid, reset_less=True)
-        src_sel = Signal(reset_less=True)
-        m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[1]))
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
-                                                  self.src2_i))
-        # overwrite 2nd src-latch with immediate-muxed stuff
-        sl[1][0] = src2_or_imm
-        sl[1][2] = src_sel
+        # if the operand subset has "zero_a" we implicitly assume that means
+        # src_i[0] is an INT register type where zero can be multiplexed in, instead.
+        # see https://bugs.libre-soc.org/show_bug.cgi?id=336
+        #if hasattr(oper_r, "zero_a"):
+            # select zero immediate if opcode says so.  however also change the latch
+            # to trigger *from* the opcode latch instead.
+            # ...
+            # ...
 
-        # create a latch/register for src1/src2
+        # if the operand subset has "imm_data" we implicitly assume that means
+        # "this is an INT ALU/Logical FU jobbie, RB is multiplexed with the immediate"
+        if hasattr(oper_r, "imm_data"):
+            # select immediate if opcode says so.  however also change the latch
+            # to trigger *from* the opcode latch instead.
+            op_is_imm = oper_r.imm_data.imm_ok
+            src2_or_imm = Signal(self.rwid, reset_less=True)
+            src_sel = Signal(reset_less=True)
+            m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[1]))
+            m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
+                                                      self.src2_i))
+            # overwrite 2nd src-latch with immediate-muxed stuff
+            sl[1][0] = src2_or_imm
+            sl[1][2] = src_sel
+
+        # create a latch/register for src1/src2 (even if it is a copy of an immediate)
         for i in range(self.n_src):
             src, alusrc, latch = sl[i]
             latchregister(m, src, alusrc, latch, name="src_r%d" % i)
