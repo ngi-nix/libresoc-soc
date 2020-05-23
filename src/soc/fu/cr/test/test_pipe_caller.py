@@ -13,7 +13,6 @@ from soc.decoder.isa.all import ISA
 
 
 from soc.fu.cr.pipeline import CRBasePipe
-from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.cr.pipe_data import CRPipeSpec
 import random
 
