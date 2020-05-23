@@ -33,7 +33,7 @@ from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 class BranchInputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
-               ('CR', 'cr', '4'),
+               ('CR', 'cr', '0:3'),
                ('PC', 'cia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
