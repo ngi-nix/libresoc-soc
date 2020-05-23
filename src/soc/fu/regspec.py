@@ -1,4 +1,22 @@
-# see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
+"""RegSpecs
+
+see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
+
+this module is a key strategic module that links pipeline specifications
+(soc.fu.*.pipe_data and soc.fo.*.pipeline) to MultiCompUnits.  MultiCompUnits
+know absolutely nothing about the data passing through them: all they know
+is: how many inputs they need to manage, and how many outputs.
+
+regspecs tell MultiCompUnit what the ordering of the inputs is, how many to
+create, and how to connect them up to the ALU being "managed" by this CompUnit.
+likewise for outputs.
+
+later (TODO) the Register Files will be connected to MultiCompUnits, and,
+again, the regspecs will say which Regfile (which type) is connected to
+which MultiCompUnit port, how wide the connection is, and so on.
+
+"""
+
 
 def get_regspec_bitwidth(regspec, srcdest, idx):
     bitspec = regspec[srcdest][idx]
