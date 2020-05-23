@@ -175,6 +175,18 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.data_o = self.dest[0] # Dest out
         self.done_o = cu.done_o
 
+
+    def _mux_op(self, m, sl, op_is_imm, imm, i):
+        # select zero immediate if opcode says so.  however also change the latch
+        # to trigger *from* the opcode latch instead.
+        src_or_imm = Signal(self.cu._get_srcwid(i), reset_less=True)
+        src_sel = Signal(reset_less=True)
+        m.d.comb += src_sel.eq(Mux(op_is_imm, self.opc_l.q, self.src_l.q[i]))
+        m.d.comb += src_or_imm.eq(Mux(op_is_imm, imm, self.src_i[i]))
+        # overwrite 1st src-latch with immediate-muxed stuff
+        sl[i][0] = src_or_imm
+        sl[i][2] = src_sel
+
     def elaborate(self, platform):
         m = Module()
         m.submodules.alu = self.alu
@@ -183,6 +195,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.submodules.req_l = req_l = SRLatch(False, self.n_dst, name="req")
         m.submodules.rst_l = rst_l = SRLatch(sync=False, name="rst")
         m.submodules.rok_l = rok_l = SRLatch(sync=False, name="rdok")
+        self.opc_l, self.src_l = opc_l, src_l
 
         # ALU only proceeds when all src are ready.  rd_rel_o is delayed
         # so combine it with go_rd_i.  if all bits are set we're good
@@ -257,16 +270,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         if hasattr(oper_r, "zero_a"):
             # select zero immediate if opcode says so.  however also change the latch
             # to trigger *from* the opcode latch instead.
-            op_is_imm = oper_r.zero_a
-            src1_or_imm = Signal(self.cu._get_srcwid(0), reset_less=True)
-            src1_zero_imm = Const(0, src1_or_imm.shape())  # zero immediate
-            src_sel = Signal(reset_less=True)
-            m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[0]))
-            m.d.comb += src1_or_imm.eq(Mux(op_is_imm, src1_zero_imm,
-                                                      self.src1_i))
-            # overwrite 1st src-latch with immediate-muxed stuff
-            sl[0][0] = src1_or_imm
-            sl[0][2] = src_sel
+            self._mux_op(m, sl, oper_r.zero_a, 0, 0)
 
         # if the operand subset has "imm_data" we implicitly assume that means
         # "this is an INT ALU/Logical FU jobbie, RB is multiplexed with the immediate"
@@ -274,14 +278,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             # select immediate if opcode says so.  however also change the latch
             # to trigger *from* the opcode latch instead.
             op_is_imm = oper_r.imm_data.imm_ok
-            src2_or_imm = Signal(self.cu._get_srcwid(1), reset_less=True)
-            src_sel = Signal(reset_less=True)
-            m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[1]))
-            m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
-                                                      self.src2_i))
-            # overwrite 2nd src-latch with immediate-muxed stuff
-            sl[1][0] = src2_or_imm
-            sl[1][2] = src_sel
+            imm = oper_r.imm_data.imm
+            self._mux_op(m, sl, op_is_imm, imm, 1)
 
         # create a latch/register for src1/src2 (even if it is a copy of an immediate)
         for i in range(self.n_src):
