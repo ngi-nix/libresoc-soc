@@ -67,7 +67,7 @@ def go_record(n, name):
     r.rel.reset_less = True
     return r
 
-
+# see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 def get_regspec_bitwidth(regspec, srcdest, idx):
     bitspec = regspec[srcdest][idx]
     wid = 0
@@ -96,6 +96,8 @@ class CompUnitRecord(RecordObject):
 
     :subkls:      the class (not an instance) needed to construct the opcode
     :rwid:        either an integer (specifies width of all regs) or a "regspec"
+
+    see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
     """
     def __init__(self, subkls, rwid, n_src=None, n_dst=None, name=None):
         RecordObject.__init__(self, name)

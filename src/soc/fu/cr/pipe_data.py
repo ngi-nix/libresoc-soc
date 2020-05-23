@@ -1,3 +1,7 @@
+"""
+Links:
+* https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
+"""
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
