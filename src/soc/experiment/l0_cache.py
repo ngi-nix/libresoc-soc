@@ -127,6 +127,22 @@ class DualPortSplitter(Elaboratable):
     pass
 
 
+# TODO:
+class DataMerger(Elaboratable):
+    """DataMerger
+
+    Merges data based on an address-match matrix
+
+    """
+    def __init__(self, array_size):
+        """
+        :addr_array_i: an NxN Array of Signals with bits set indicating address match
+        :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
+        :data_o: an Output Record of same type {data: 128 bit, byte_enable: 16 bit}
+        """
+        pass
+
+
 class LDSTPort(Elaboratable):
     def __init__(self, idx, regwid=64, addrwid=48):
         self.pi = PortInterface("ldst_port%d" % idx, regwid, addrwid)
