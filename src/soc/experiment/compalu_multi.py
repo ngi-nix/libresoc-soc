@@ -68,6 +68,21 @@ def go_record(n, name):
     return r
 
 
+def get_regspec_bitwidth(regspec, srcdest, idx):
+    bitspec = regspec[srcdest][idx]
+    wid = 0
+    print (bitspec)
+    for ranges in bitspec[2].split(","):
+        ranges = ranges.split(":")
+        print (ranges)
+        if len(ranges) == 1: # only one bit
+            wid += 1
+        else:
+            start, end = map(int, ranges)
+            wid += (end-start)+1
+    return wid
+
+
 class CompUnitRecord(RecordObject):
     """CompUnitRecord
 
@@ -80,18 +95,25 @@ class CompUnitRecord(RecordObject):
     additional signals it requires
 
     :subkls:      the class (not an instance) needed to construct the opcode
+    :rwid:        either an integer (specifies width of all regs) or a "regspec"
     """
-    def __init__(self, subkls, rwid, n_src, n_dst, name=None):
+    def __init__(self, subkls, rwid, n_src=None, n_dst=None, name=None):
         RecordObject.__init__(self, name)
-        self._n_src, self._n_dst = n_src, n_dst
         self._rwid = rwid
+        if isinstance(rwid, int):
+            # rwid: integer (covers all registers)
+            self._n_src, self._n_dst = n_src, n_dst
+        else:
+            # rwid: a regspec.
+            self._n_src, self._n_dst = len(rwid[0]), len(rwid[1])
         self._subkls = subkls
 
         src = []
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
             name = "src%d_i" % j
-            sreg = Signal(rwid, name=name, reset_less=True)
+            rw = self._get_srcwid(i)
+            sreg = Signal(rw, name=name, reset_less=True)
             setattr(self, name, sreg)
             src.append(sreg)
         self._src_i = src
@@ -100,7 +122,8 @@ class CompUnitRecord(RecordObject):
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
             name = "dest%d_i" % j
-            dreg = Signal(rwid, name=name, reset_less=True)
+            rw = self._get_dstwid(i)
+            dreg = Signal(rw, name=name, reset_less=True)
             setattr(self, name, dreg)
             dst.append(dreg)
         self._dest = dst
@@ -118,6 +141,15 @@ class CompUnitRecord(RecordObject):
         self.busy_o = Signal(reset_less=True) # fn busy out
         self.done_o = Signal(reset_less=True)
 
+    def _get_dstwid(self, i):
+        if isinstance(self._rwid, int):
+            return self._rwid
+        return get_regspec_bitwidth(self._rwid, 1, i)
+
+    def _get_srcwid(self, i):
+        if isinstance(self._rwid, int):
+            return self._rwid
+        return get_regspec_bitwidth(self._rwid, 0, i)
 
 class MultiCompUnit(Elaboratable):
     def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1):
@@ -227,7 +259,7 @@ class MultiCompUnit(Elaboratable):
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
-            data_r = Signal(self.rwid, name=name, reset_less=True)
+            data_r = Signal(self.cu._get_srcwid(i), name=name, reset_less=True)
             latchregister(m, self.alu.out[i], data_r, req_l.q[i], name)
             drl.append(data_r)
 
@@ -257,7 +289,7 @@ class MultiCompUnit(Elaboratable):
             # select immediate if opcode says so.  however also change the latch
             # to trigger *from* the opcode latch instead.
             op_is_imm = oper_r.imm_data.imm_ok
-            src2_or_imm = Signal(self.rwid, reset_less=True)
+            src2_or_imm = Signal(self.cu._get_srcwid(1), reset_less=True)
             src_sel = Signal(reset_less=True)
             m.d.comb += src_sel.eq(Mux(op_is_imm, opc_l.q, src_l.q[1]))
             m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm,
@@ -374,7 +406,7 @@ def scoreboard_sim(dut):
     assert result == 65532
 
 
-def test_scoreboard():
+def test_compunit():
     from alu_hier import ALU
     from soc.fu.alu.alu_input_record import CompALUOpSubset
 
@@ -384,10 +416,35 @@ def test_scoreboard():
     m.submodules.cu = dut
 
     vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_compalu.il", "w") as f:
+    with open("test_compunit1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compalu.vcd')
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit1.vcd')
+
+
+def test_compunit_regspec1():
+    from alu_hier import ALU
+    from soc.fu.alu.alu_input_record import CompALUOpSubset
+
+    inspec = [('INT', 'a', '0:15'),
+              ('INT', 'b', '0:15')]
+    outspec = [('INT', 'o', '0:15'),
+              ]
+
+    regspec = (inspec, outspec)
+
+    m = Module()
+    alu = ALU(16)
+    dut = MultiCompUnit(regspec, alu, CompALUOpSubset)
+    m.submodules.cu = dut
+
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_compunit_regspec1.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit1.vcd')
+
 
 if __name__ == '__main__':
-    test_scoreboard()
+    test_compunit()
+    test_compunit_regspec1()
