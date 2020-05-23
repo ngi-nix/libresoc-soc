@@ -9,7 +9,6 @@ from nmutil.iocontrol import RecordObject
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 
-from soc.fu.alu.alu_input_record import CompALUOpSubset
 
 """ Computation Unit (aka "ALU Manager").
 
@@ -121,11 +120,20 @@ class CompUnitRecord(RecordObject):
 
 
 class MultiCompUnit(Elaboratable):
-    def __init__(self, rwid, alu, n_src=2, n_dst=1):
+    def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1):
+        """MultiCompUnit
+
+        * :rwid:        width of register latches (TODO: allocate per regspec)
+        * :alu:         the ALU (pipeline, FSM) - must conform to nmutil Pipe API
+        * :opsubsetkls: the subset of Decode2ExecuteType
+        * :n_src:       number of src operands
+        * :n_dst:       number of destination operands
+        """
         self.n_src, self.n_dst = n_src, n_dst
         self.rwid = rwid
+        self.opsubsetkls = opsubsetkls
         self.alu = alu # actual ALU - set as a "submodule" of the CU
-        self.cu = cu = CompUnitRecord(CompALUOpSubset, rwid, n_src, n_dst)
+        self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
 
         for i in range(n_src):
             j = i + 1 # name numbering to match src1/src2
@@ -212,7 +220,7 @@ class MultiCompUnit(Elaboratable):
         m.d.sync += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
-        oper_r = CompALUOpSubset()
+        oper_r = self.opsubsetkls()
         latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_r")
 
         # and for each output from the ALU
@@ -353,11 +361,11 @@ def scoreboard_sim(dut):
 
 def test_scoreboard():
     from alu_hier import ALU
-    from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+    from soc.fu.alu.alu_input_record import CompALUOpSubset
 
     m = Module()
     alu = ALU(16)
-    dut = MultiCompUnit(16, alu)
+    dut = MultiCompUnit(16, alu, CompALUOpSubset)
     m.submodules.cu = dut
 
     vl = rtlil.convert(dut, ports=dut.ports())

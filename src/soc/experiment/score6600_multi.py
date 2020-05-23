@@ -20,7 +20,8 @@ from soc.experiment.compldst_multi import LDSTCompUnit
 from soc.experiment.compldst_multi import CompLDSTOpSubset
 from soc.experiment.l0_cache import TstL0CacheBuffer
 
-from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
+from soc.experiment.alu_hier import ALU, BranchALU
+from soc.fu.alu.alu_input_record import CompALUOpSubset
 
 from soc.decoder.power_enums import InternalOp, Function
 from soc.decoder.power_decoder import (create_pdecode)
@@ -264,7 +265,7 @@ class CompUnitALUs(CompUnitsBase):
         units = []
         for alu in alus:
             aluopwid = 3  # extra bit for immediate mode
-            units.append(MultiCompUnit(rwid, alu))
+            units.append(MultiCompUnit(rwid, alu, CompALUOpSubset))
 
         CompUnitsBase.__init__(self, rwid, units)
 
@@ -300,7 +301,7 @@ class CompUnitBR(CompUnitsBase):
         # Branch ALU and CU
         self.bgt = BranchALU(rwid)
         aluopwid = 3  # extra bit for immediate mode
-        self.br1 = MultiCompUnit(rwid, self.bgt)
+        self.br1 = MultiCompUnit(rwid, self.bgt, CompALUOpSubset)
         CompUnitsBase.__init__(self, rwid, [self.br1])
 
     def elaborate(self, platform):
