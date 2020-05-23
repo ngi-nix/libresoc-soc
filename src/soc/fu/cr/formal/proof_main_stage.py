@@ -72,7 +72,13 @@ class Driver(Elaboratable):
         with m.Switch(rec.insn_type):
             # CR_ISEL takes cr_a
             with m.Case(InternalOp.OP_ISEL):
-                comb += dut.i.cr_a.eq(cr_a_in)
+                # grab the MSBs of the cr bit selector
+                bc = Signal(3, reset_less=True)
+                comb += bc.eq(a_fields.BC[2:5])
+
+                # Use the MSBs to select which CR register to feed
+                # into cr_a
+                comb += dut.i.cr_a.eq(cr_input_arr[bc])
 
             # For OP_CROP, we need to input the corresponding CR
             # registers for BA, BB, and BT
@@ -196,14 +202,13 @@ class Driver(Elaboratable):
                     comb += Assert(bit_o == bit_a ^ bit_b)
 
             with m.Case(InternalOp.OP_ISEL):
-                # just like in branch, CR0-7 is incoming into cr_a, we
-                # need to select from the last 2 bits of BC
-                BC = a_fields.BC[0:-1][0:2]
-                cr_bits = Array([cr_a_in[3-i] for i in range(4)])
+                # Extract the bit selector of the CR
+                bc = Signal(a_fields.BC[0:-1].shape(), reset_less=True)
+                comb += bc.eq(a_fields.BC[0:-1])
 
-                # The bit of (cr_a=CR0-7) selected by BC
+                # Extract the bit from CR
                 cr_bit = Signal(reset_less=True)
-                comb += cr_bit.eq(cr_bits[BC])
+                comb += cr_bit.eq(cr_arr[bc])
 
                 # select a or b as output
                 comb += Assert(o == Mux(cr_bit, a, b))
