@@ -1,10 +1,49 @@
-"""
-* see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
+###################################################################
+"""Function Units Construction
+
+This module pulls all of the pipelines together (soc.fu.*) and, using
+the regspec and Computation Unit APIs, constructs Scoreboard-aware
+Function Units that may systematically and automatically be wired up
+to appropriate Register Files.
+
+Two types exist:
+
+* Single-cycle Function Units.  these are FUs that will only block for
+  one cycle.  it is expected that multiple of these be instantiated,
+  because they are simple and trivial, and not many gates.
+
+  - ALU, Logical: definitely several
+  - CR: not so many needed (perhaps)
+  - Branch: one or two of these (depending on speculation run-ahead)
+  - Trap: yeah really only one of these
+  - ShiftRot (perhaps not too many of these)
+
+* Multi-cycle (and FSM) Function Units.  these are FUs that can only
+  handle a limited number of values, and take several cycles to complete.
+  Given that under Scoreboard Management, start and completion must be
+  fully managed, a "Reservation Station" style approach is required:
+  *one* multiple-stage (N stage) pipelines need a minimum of N (plural)
+  "CompUnit" front-ends.  this includes:
+
+  - MUL (all versions including MAC)
+  - DIV (including modulo)
+
+In either case, there will be multiple MultiCompUnits: it's just that
+single-cycle ones are instantiated individually (one single-cycle pipeline
+per MultiCompUnit, and multi-cycle ones need to be instantiated en-masse,
+where *only one* actual pipeline (or FSM) has *multiple* Reservation
+Stations.
+
+see:
+
+* https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 
 """
 
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
+
+# pipeline / spec imports
 
 from soc.fu.alu.pipeline import ALUBasePipe
 from soc.fu.alu.pipe_data import ALUPipeSpec
