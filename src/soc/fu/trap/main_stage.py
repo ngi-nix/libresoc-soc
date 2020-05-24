@@ -93,6 +93,22 @@ class TrapMainStage(PipeModBase):
             # XXX TODO, lines have now been added to the CSV files 
             with m.Case(InternalOp.OP_MTMSR):
                 # TODO: some of the bits need zeroing?
+                """
+                if e_in.insn(16) = '1' then
+                    -- just update EE and RI
+                    ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
+                    ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
+                else
+                    -- Architecture says to leave out bits 3 (HV), 51 (ME)
+                    -- and 63 (LE) (IBM bit numbering)
+                    ctrl_tmp.msr(63 downto 61) <= c_in(63 downto 61);
+                    ctrl_tmp.msr(59 downto 13) <= c_in(59 downto 13);
+                    ctrl_tmp.msr(11 downto 1)  <= c_in(11 downto 1);
+                    if c_in(MSR_PR) = '1' then
+                        ctrl_tmp.msr(MSR_EE) <= '1';
+                        ctrl_tmp.msr(MSR_IR) <= '1';
+                        ctrl_tmp.msr(MSR_DR) <= '1';
+                """
                 comb += self.o.msr.data.eq(a)
                 comb += self.o.msr.ok.eq(1)
             with m.Case(InternalOp.OP_MFMSR):
