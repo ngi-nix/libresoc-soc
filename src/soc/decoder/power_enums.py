@@ -161,6 +161,8 @@ class InternalOp(Enum):
     OP_SIM_CONFIG = 68
     OP_CROP = 69
     OP_RFID = 70
+    OP_MFMSR = 71
+    OP_MTMSRD = 72
 
 
 @unique
