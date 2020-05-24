@@ -32,7 +32,7 @@ class Driver(Elaboratable):
             recwidth += width
             comb += p.eq(AnyConst(width))
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=recwidth)
+        pspec = ALUPipeSpec(id_wid=2)
         m.submodules.dut = dut = ALUOutputStage(pspec)
 
         o = Signal(64)
@@ -88,14 +88,12 @@ class Driver(Elaboratable):
             with m.Else():
                 comb += Assert(cr_out[3] == 1)
 
-
         # Assert that op gets copied from the input to output
         for p in rec.ports():
             name = p.name
             rec_sig = p
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
-
 
         return m
 
