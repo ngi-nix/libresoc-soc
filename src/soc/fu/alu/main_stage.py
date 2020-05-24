@@ -46,6 +46,8 @@ class ALUMainStage(PipeModBase):
             comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
             comb += add_o.eq(add_a + add_b)
 
+        comb += o.ok.eq(1) # overridden to 0 if op not handled
+
         ##########################
         # main switch-statement for handling arithmetic operations
 
@@ -56,12 +58,12 @@ class ALUMainStage(PipeModBase):
                 # however we have a trick: instead of adding either 2x 64-bit
                 # MUXes to invert a and b, or messing with a 64-bit output,
                 # swap +ve and -ve test in the *output* stage using an XOR gate
-                comb += o.eq(add_o[1:-1])
+                comb += o.data.eq(add_o[1:-1])
 
             #### add ####
             with m.Case(InternalOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
-                comb += o.eq(add_o[1:-1])
+                comb += o.data.eq(add_o[1:-1])
 
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
@@ -73,11 +75,11 @@ class ALUMainStage(PipeModBase):
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
                 with m.If(op.data_len == 1):
-                    comb += o.eq(exts(a, 8, 64))
+                    comb += o.data.eq(exts(a, 8, 64))
                 with m.If(op.data_len == 2):
-                    comb += o.eq(exts(a, 16, 64))
+                    comb += o.data.eq(exts(a, 16, 64))
                 with m.If(op.data_len == 4):
-                    comb += o.eq(exts(a, 32, 64))
+                    comb += o.data.eq(exts(a, 32, 64))
 
             #### cmpeqb ####
             with m.Case(InternalOp.OP_CMPEQB):
@@ -87,6 +89,9 @@ class ALUMainStage(PipeModBase):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[8*i:8*(i+1)])
                 comb += cr0.data.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
+
+            with m.Default():
+                comb += o.ok.eq(0)
 
         ###### sticky overflow and context, both pass-through #####
 

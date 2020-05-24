@@ -45,7 +45,7 @@ class Driver(Elaboratable):
         ca32_o = dut.o.xer_ca.data[1] # CA32 carry out32
         ov_o = dut.o.xer_ov.data[0]   # OV overflow
         ov32_o = dut.o.xer_ov.data[1] # OV32 overflow32
-        o = dut.o.o
+        o = dut.o.o.data
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -69,6 +69,9 @@ class Driver(Elaboratable):
 
         comb += Assume(a[32:64] == 0)
         comb += Assume(b[32:64] == 0)
+
+        o_ok = Signal()
+        comb += o_ok.eq(1) # will be set to zero if no op takes place
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
@@ -100,6 +103,12 @@ class Driver(Elaboratable):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[i*8:(i+1)*8])
                 comb += Assert(dut.o.cr0[2] == eqs.any())
+
+            with m.Default():
+                comb += o_ok.eq(0)
+
+        # check that data ok was only enabled when op actioned
+        comb += Assert(dut.o.o.ok == o_ok)
 
         return m
 

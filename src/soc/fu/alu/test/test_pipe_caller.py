@@ -220,7 +220,7 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o
+                    alu_out = yield alu.n.data_o.o.data
                     out_reg_valid = yield pdecode2.e.write_reg.ok
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
