@@ -95,7 +95,7 @@ class Driver(Elaboratable):
                 # cycle through from 0-63 on the index *whistle nonchalantly*
                 for j in range(64):
                     with m.If(index == j):
-                        comb += Assert(ra[i] == rb[j])
+                        comb += Assert(ra[i] == rb[63-j])
 
         return m
 
