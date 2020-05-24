@@ -1,5 +1,10 @@
 # Proof of correctness for partitioned equal signal combiner
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+"""
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=335
+* https://libre-soc.org/openpower/isa/branch/
+"""
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, Array)
@@ -93,6 +98,8 @@ class Driver(Elaboratable):
         comb += Assume(~rec.is_32bit)
 
         with m.Switch(rec.insn_type):
+
+            #### b ####
             with m.Case(InternalOp.OP_B):
                 # Extract target address
                 LI = i_fields.LI[0:-1]
@@ -114,6 +121,7 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(lr_o.ok == 0)
 
+            #### bc ####
             with m.Case(InternalOp.OP_BC):
                 # Assert that branches are conditional
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
@@ -135,6 +143,8 @@ class Driver(Elaboratable):
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
+
+            #### bctar/bcctr/bclr ####
             with m.Case(InternalOp.OP_BCREG):
                 # assert that the condition is good
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
@@ -152,7 +162,6 @@ class Driver(Elaboratable):
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
                 comb += Assert(dut.o.ctr.ok != BO[2])
-
 
         return m
 
