@@ -1,3 +1,7 @@
+"""Trap Pipeline
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=325
+"""
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, signed)
 from nmutil.pipemodbase import PipeModBase
@@ -83,6 +87,9 @@ class TrapMainStage(PipeModBase):
                     comb += self.o.srr0.data.eq(self.i.cia)   # old PC
                     comb += self.o.srr0.ok.eq(1)
 
+            # XXX TODO, needs the lines adding to the CSV files first
+            #with m.Case(InternalOp.OP_MTMSR):
+            #with m.Case(InternalOp.OP_MFMSR):
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
