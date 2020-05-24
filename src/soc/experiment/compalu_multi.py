@@ -1,3 +1,14 @@
+"""Computation Unit (aka "ALU Manager").
+
+Manages a Pioeline or FSM, ensuring that the start and end time are 100%
+monitored.  At no time may the ALU proceed without this module notifying
+the Dependency Matrices.  At no time is a result production "abandoned".
+This module blocks (indicates busy) until it receives notificatiob that
+its result(s) have been successfully stored in the regfile(s)
+
+Documented at http://libre-soc.org/3d_gpu/architecture/compunit
+"""
+
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Record, Const
@@ -10,56 +21,6 @@ from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 from soc.fu.regspec import RegSpec, RegSpecALUAPI
 
-
-""" Computation Unit (aka "ALU Manager").
-
-    This module runs a "revolving door" set of three latches, based on
-    * Issue
-    * Go_Read
-    * Go_Write
-    where one of them cannot be set on any given cycle.
-
-    * When issue is first raised, a busy signal is sent out.
-      The src1 and src2 registers and the operand can be latched in
-      at this point
-
-    * Read request is set, which is acknowledged through the Scoreboard
-      to the priority picker, which generates (one and only one) Go_Read
-      at a time.  One of those will (eventually) be this Computation Unit.
-
-    * Once Go_Read is set, the src1/src2/operand latch door shuts (locking
-      src1/src2/operand in place), and the ALU is told to proceed.
-
-    * when the ALU pipeline is ready, this activates "write request release",
-      and the ALU's output is captured into a temporary register.
-
-    * Write request release is *HELD UP* (prevented from proceeding) if shadowN
-      is asserted LOW.  This is how all speculation, precise exceptions,
-      predication - everything - is achieved.
-
-    * Write request release will go through a similar process as Read request,
-      resulting (eventually) in Go_Write being asserted.
-
-    * When Go_Write is asserted, two things happen: (1) the data in the temp
-      register is placed combinatorially onto the output, and (2) the
-      req_l latch is cleared, busy is dropped, and the Comp Unit is back
-      through its revolving door to do another task.
-
-    Note that the read and write latches are held synchronously for one cycle,
-    i.e. that when Go_Read comes in, one cycle is given in which the incoming
-    register (broadcast over a Regfile Read Port) may have time to be latched.
-
-    It is REQUIRED that Go_Read be held valid only for one cycle, and it is
-    REQUIRED that the corresponding Read_Req be dropped exactly one cycle after
-    Go_Read is asserted HI.
-
-    Likewise for Go_Write: this is asserted for one cycle, and Req_Writes must
-    likewise be dropped exactly one cycle after assertion of Go_Write.
-
-    When Go_Die is asserted then strictly speaking the entire FSM should be
-    fully reset and that includes sending a cancellation request to the ALU.
-    (XXX TODO: alu "go die" is not presently wired up)
-"""
 
 def go_record(n, name):
     r = Record([('go', n, DIR_FANIN),
