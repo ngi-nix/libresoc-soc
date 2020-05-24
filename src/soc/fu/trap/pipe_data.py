@@ -28,7 +28,7 @@ class TrapInputData(IntegerData):
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.a.eq(i.a), self.b.eq(i.b),
-                      self.cia.eq(i.nia), self.msr.eq(i.msr)]
+                      self.cia.eq(i.cia), self.msr.eq(i.msr)]
 
 
 class TrapOutputData(IntegerData):
