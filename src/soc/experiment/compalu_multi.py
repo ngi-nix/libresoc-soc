@@ -3,7 +3,8 @@
 Manages a Pipeline or FSM, ensuring that the start and end time are 100%
 monitored.  At no time may the ALU proceed without this module notifying
 the Dependency Matrices.  At no time is a result production "abandoned".
-This module blocks (indicates busy) until it receives notificatiob that
+This module blocks (indicates busy) starting from when it first receives
+an opcode until it receives notification that
 its result(s) have been successfully stored in the regfile(s)
 
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
