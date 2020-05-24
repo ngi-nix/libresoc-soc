@@ -237,7 +237,7 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o
+                    alu_out = yield alu.n.data_o.o.data
                     out_reg_valid = yield pdecode2.e.write_reg.ok
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
@@ -246,6 +246,7 @@ class TestRunner(FHDLTestCase):
                         self.assertEqual(expected, alu_out, msg)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
                                                             simulator)
+                    break
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",

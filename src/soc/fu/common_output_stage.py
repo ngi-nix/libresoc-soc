@@ -18,9 +18,9 @@ class CommonOutputStage(PipeModBase):
         # op requests inversion of the output
         o = Signal.like(self.i.o)
         with m.If(op.invert_out):
-            comb += o.eq(~self.i.o)
+            comb += o.eq(~self.i.o.data)
         with m.Else():
-            comb += o.eq(self.i.o)
+            comb += o.eq(self.i.o.data)
 
         # target register if 32-bit is only the 32 LSBs
         target = Signal(64, reset_less=True)
@@ -58,7 +58,8 @@ class CommonOutputStage(PipeModBase):
             comb += cr0.eq(self.i.cr0)
 
         # copy out [inverted] cr0, output, and context out
-        comb += self.o.o.eq(o)
+        comb += self.o.o.data.eq(o)
+        comb += self.o.o.ok.eq(self.i.o.ok)
         comb += self.o.cr0.data.eq(cr0)
         comb += self.o.cr0.ok.eq(op.rc.rc & op.rc.rc_ok) # CR0 to be set
         comb += self.o.ctx.eq(self.i.ctx)
