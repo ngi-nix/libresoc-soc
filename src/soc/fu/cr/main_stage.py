@@ -127,11 +127,12 @@ class CRMainStage(PipeModBase):
                 # mfocrf
                 with m.If(move_one):
                     # output register RT
-                    comb += rt_o.eq(full_cr & mask)
+                    comb += rt_o.data.eq(full_cr & mask)
                 # mfcrf
                 with m.Else():
                     # output register RT
-                    comb += rt_o.eq(full_cr)
+                    comb += rt_o.data.eq(full_cr)
+                comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
             # ##### isel #####
             with m.Case(InternalOp.OP_ISEL):
@@ -147,6 +148,7 @@ class CRMainStage(PipeModBase):
 
                 # select a or b as output
                 comb += rt_o.eq(Mux(cr_bit, a, b))
+                comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
         comb += self.o.ctx.eq(self.i.ctx)
 

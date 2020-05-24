@@ -49,7 +49,7 @@ class Driver(Elaboratable):
         b = dut.i.b
         cr = full_cr_in
         full_cr_out = dut.o.full_cr
-        o = dut.o.o
+        o = dut.o.o.data
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -133,6 +133,8 @@ class Driver(Elaboratable):
 
         comb += dut.i.ctx.op.eq(rec)
 
+        o_ok = Signal()
+
         # Assert that op gets copied from the input to output
         for rec_sig in rec.ports():
             name = rec_sig.name
@@ -158,6 +160,8 @@ class Driver(Elaboratable):
                             comb += Assert(o[4*i:4*i+4] == 0)
                 with m.Else(): # mfcrf
                     comb += Assert(o == cr)
+                comb += o_ok.eq(1)
+
             with m.Case(InternalOp.OP_MCRF):
                 BF = xl_fields.BF[0:-1]
                 BFA = xl_fields.BFA[0:-1]
@@ -212,6 +216,10 @@ class Driver(Elaboratable):
 
                 # select a or b as output
                 comb += Assert(o == Mux(cr_bit, a, b))
+                comb += o_ok.eq(1)
+
+        # check that data ok was only enabled when op actioned
+        comb += Assert(dut.o.o.ok == o_ok)
 
         return m
 
