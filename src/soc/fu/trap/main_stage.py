@@ -1,6 +1,8 @@
 """Trap Pipeline
 
 * https://bugs.libre-soc.org/show_bug.cgi?id=325
+* https://bugs.libre-soc.org/show_bug.cgi?id=344
+* https://libre-soc.org/openpower/isa/fixedtrap/
 """
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, signed)
