@@ -143,8 +143,12 @@ class Driver(Elaboratable):
                         comb += Assert(o == peo64)
 
             with m.Case(InternalOp.OP_CMPB):
-                # TODO
-                pass
+                for i in range(8):
+                    slc = slice(i*8, (i+1)*8)
+                    with m.If(a[slc] == b[slc]):
+                        comb += Assert(o[slc] == 0xff)
+                    with m.Else():
+                        comb += Assert(o[slc] == 0)
 
             with m.Case(InternalOp.OP_BPERM):
                 # note that this is a copy of the beautifully-documented
