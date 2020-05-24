@@ -367,8 +367,8 @@ def run_op(dut, a, b, op, inv_a=0):
     yield
     while True:
         yield
-        n.valid_o = yield dut.n.valid_o
-        if n.valid_o:
+        dut.n.valid_o = yield dut.n.valid_o
+        if dut.n.valid_o:
             break
     yield
 
