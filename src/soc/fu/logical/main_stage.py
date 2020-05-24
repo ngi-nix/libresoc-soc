@@ -10,20 +10,13 @@ from nmutil.pipemodbase import PipeModBase
 from nmutil.clz import CLZ
 from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.logical.bpermd import Bpermd
+from soc.fu.logical.popcount import Popcount
 from soc.fu.logical.pipe_data import LogicalOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
-
-
-def array_of(count, bitwidth):
-    res = []
-    for i in range(count):
-        res.append(Signal(bitwidth, reset_less=True,
-                          name=f"pop_{bitwidth}_{i}"))
-    return res
 
 
 class LogicalMainStage(PipeModBase):
@@ -46,6 +39,7 @@ class LogicalMainStage(PipeModBase):
         comb += o.ok.eq(1) # overridden if no op activates
 
         m.submodules.bpermd = bpermd = Bpermd(64)
+        m.submodules.popcount = popcount = Popcount()
 
         ##########################
         # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
@@ -70,35 +64,10 @@ class LogicalMainStage(PipeModBase):
 
             ###### popcount #######
             with m.Case(InternalOp.OP_POPCNT):
-                # starting from a, perform successive addition-reductions
-                # creating arrays big enough to store the sum, each time
-                pc = [a]
-                # QTY32 2-bit (to take 2x 1-bit sums) etc.
-                work = [(32, 2), (16, 3), (8, 4), (4, 5), (2, 6), (1, 7)]
-                for l, bw in work:
-                    pc.append(array_of(l, bw))
-                pc8 = pc[3]     # array of 8 8-bit counts (popcntb)
-                pc32 = pc[5]    # array of 2 32-bit counts (popcntw)
-                popcnt = pc[-1]  # array of 1 64-bit count (popcntd)
-                # cascade-tree of adds
-                for idx, (l, bw) in enumerate(work):
-                    for i in range(l):
-                        stt, end = i*2, i*2+1
-                        src, dst = pc[idx], pc[idx+1]
-                        comb += dst[i].eq(Cat(src[stt], Const(0, 1)) +
-                                          Cat(src[end], Const(0, 1)))
-                # decode operation length
-                with m.If(op.data_len == 1):
-                    # popcntb - pack 8x 4-bit answers into output
-                    for i in range(8):
-                        comb += o[i*8:(i+1)*8].eq(pc8[i])
-                with m.Elif(op.data_len == 4):
-                    # popcntw - pack 2x 5-bit answers into output
-                    for i in range(2):
-                        comb += o[i*32:(i+1)*32].eq(pc32[i])
-                with m.Else():
-                    # popcntd - put 1x 6-bit answer into output
-                    comb += o.data.eq(popcnt[0])
+                comb += popcount.a.eq(a)
+                comb += popcount.b.eq(b)
+                comb += popcount.data_len.eq(op.data_len)
+                comb += o.data.eq(popcount.o)
 
             ###### parity #######
             with m.Case(InternalOp.OP_PRTY):
