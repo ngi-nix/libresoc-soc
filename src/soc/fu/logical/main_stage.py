@@ -45,7 +45,6 @@ class LogicalMainStage(PipeModBase):
 
         comb += o.ok.eq(1) # overridden if no op activates
 
-
         m.submodules.bpermd = bpermd = Bpermd(64)
 
         ##########################
@@ -76,13 +75,13 @@ class LogicalMainStage(PipeModBase):
                 pc = [a]
                 # QTY32 2-bit (to take 2x 1-bit sums) etc.
                 work = [(32, 2), (16, 3), (8, 4), (4, 5), (2, 6), (1, 7)]
-                for l, b in work:
-                    pc.append(array_of(l, b))
+                for l, bw in work:
+                    pc.append(array_of(l, bw))
                 pc8 = pc[3]     # array of 8 8-bit counts (popcntb)
                 pc32 = pc[5]    # array of 2 32-bit counts (popcntw)
                 popcnt = pc[-1]  # array of 1 64-bit count (popcntd)
                 # cascade-tree of adds
-                for idx, (l, b) in enumerate(work):
+                for idx, (l, bw) in enumerate(work):
                     for i in range(l):
                         stt, end = i*2, i*2+1
                         src, dst = pc[idx], pc[idx+1]
@@ -136,7 +135,7 @@ class LogicalMainStage(PipeModBase):
             ###### bpermd #######
             with m.Case(InternalOp.OP_BPERM):
                 comb += bpermd.rs.eq(a)
-                comb += bpermd.rb.eq(self.i.b)
+                comb += bpermd.rb.eq(b)
                 comb += o.data.eq(bpermd.ra)
 
             with m.Default():
