@@ -147,8 +147,17 @@ class Driver(Elaboratable):
                 pass
 
             with m.Case(InternalOp.OP_BPERM):
-                # TODO
-                pass
+                # note that this is a copy of the beautifully-documented
+                # proof_bpermd.py
+                comb += Assert(o[8:] == 0)
+                for i in range(8):
+                    index = a[i*8:i*8+8]
+                    with m.If(index >= 64):
+                        comb += Assert(o[i] == 0)
+                    with m.Else():
+                        for j in range(64):
+                            with m.If(index == j):
+                                comb += Assert(o[i] == b[63-j])
 
             with m.Default():
                 comb += o_ok.eq(0)
