@@ -1,9 +1,13 @@
-# This stage is intended to do most of the work of executing Logical
-# instructions. This is OR, AND, XOR, POPCNT, PRTY, CMPB, BPERMD, CNTLZ
-# however input and output stages also perform bit-negation on input(s)
-# and output, as well as carry and overflow generation.
-# This module however should not gate the carry or overflow, that's up
-# to the output stage
+"""Branch Pipeline
+
+This stage is intended to do most of the work of executing branch
+instructions. This is OP_B, OP_B, OP_BCREG
+
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=313
+* https://bugs.libre-soc.org/show_bug.cgi?id=335
+* https://libre-soc.org/openpower/isa/branch/
+"""
 
 from nmigen import (Module, Signal, Cat, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
@@ -13,6 +17,7 @@ from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
+
 
 def br_ext(bd):
     """computes sign-extended NIA (assumes word-alignment)
