@@ -18,6 +18,7 @@ from nmigen.compat.sim import run_simulation
 from soc.decoder.power_enums import InternalOp, Function, CryIn
 
 from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.cr.cr_input_record import CompCROpSubset
 
 import operator
 
@@ -80,6 +81,79 @@ class Shifter(Elaboratable):
 
 class Dummy:
     pass
+
+class DummyALU(Elaboratable):
+    def __init__(self, width):
+        self.p = Dummy() # make look like nmutil pipeline API
+        self.p.data_i = Dummy()
+        self.p.data_i.ctx = Dummy()
+        self.n = Dummy() # make look like nmutil pipeline API
+        self.n.data_o = Dummy()
+        self.p.valid_i = Signal()
+        self.p.ready_o = Signal()
+        self.n.ready_i = Signal()
+        self.n.valid_o = Signal()
+        self.counter   = Signal(4)
+        self.op  = CompCROpSubset()
+        i = []
+        i.append(Signal(width, name="i1"))
+        i.append(Signal(width, name="i2"))
+        self.i = Array(i)
+        self.a, self.b = i[0], i[1]
+        self.out = Array([Signal(width)])
+        self.o = self.out[0]
+        self.width = width
+        # more "look like nmutil pipeline API"
+        self.p.data_i.ctx.op = self.op
+        self.p.data_i.a = self.a
+        self.p.data_i.b = self.b
+        self.n.data_o.o = self.o
+
+    def elaborate(self, platform):
+        m = Module()
+
+        go_now = Signal(reset_less=True) # testing no-delay ALU
+
+        with m.If(self.p.valid_i):
+            # input is valid. next check, if we already said "ready" or not
+            with m.If(~self.p.ready_o):
+                # we didn't say "ready" yet, so say so and initialise
+                m.d.sync += self.p.ready_o.eq(1)
+
+                m.d.sync += self.o.eq(self.i.a)
+                m.d.comb += go_now.eq(1)
+                m.d.sync += self.counter.eq(1)
+
+        with m.Else():
+            # input says no longer valid, so drop ready as well.
+            # a "proper" ALU would have had to sync in the opcode and a/b ops
+            m.d.sync += self.p.ready_o.eq(0)
+
+        # ok so the counter's running: when it gets to 1, fire the output
+        with m.If((self.counter == 1) | go_now):
+            # set the output as valid if the recipient is ready for it
+            m.d.sync += self.n.valid_o.eq(1)
+        with m.If(self.n.ready_i & self.n.valid_o):
+            m.d.sync += self.n.valid_o.eq(0)
+            # recipient said it was ready: reset back to known-good.
+            m.d.sync += self.counter.eq(0) # reset the counter
+            m.d.sync += self.o.eq(0) # clear the output for tidiness sake
+
+        # countdown to 1 (transition from 1 to 0 only on acknowledgement)
+        with m.If(self.counter > 1):
+            m.d.sync += self.counter.eq(self.counter - 1)
+
+        return m
+
+    def __iter__(self):
+        yield from self.op.ports()
+        yield self.a
+        yield self.b
+        yield self.o
+
+    def ports(self):
+        return list(self)
+
 
 class ALU(Elaboratable):
     def __init__(self, width):
