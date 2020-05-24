@@ -121,6 +121,9 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(lr_o.ok == 0)
 
+                # Assert that ctr is not written to
+                comb += Assert(dut.o.ctr.ok == 0)
+
             #### bc ####
             with m.Case(InternalOp.OP_BC):
                 # Assert that branches are conditional
@@ -143,7 +146,9 @@ class Driver(Elaboratable):
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
-
+                    comb += Assert(dut.o.ctr.ok == 1)
+                with m.Else():
+                    comb += Assert(dut.o.ctr.ok == 0)
             #### bctar/bcctr/bclr ####
             with m.Case(InternalOp.OP_BCREG):
                 # assert that the condition is good
@@ -161,7 +166,9 @@ class Driver(Elaboratable):
                 # Check that CTR is decremented
                 with m.If(~BO[2]):
                     comb += Assert(dut.o.ctr.data == ctr_next)
-                comb += Assert(dut.o.ctr.ok != BO[2])
+                    comb += Assert(dut.o.ctr.ok == 1)
+                with m.Else():
+                    comb += Assert(dut.o.ctr.ok == 0)
 
         return m
 

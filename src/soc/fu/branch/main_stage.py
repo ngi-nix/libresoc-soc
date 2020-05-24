@@ -88,6 +88,10 @@ class BranchMainStage(PipeModBase):
         cr_bit = Signal(reset_less=True)
         comb += cr_bit.eq(cr_bits[BI])
 
+        # Whether ctr is written to on a conditional branch
+        ctr_write = Signal(reset_less=True)
+        comb += ctr_write.eq(0)
+
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
         with m.If(BO[2]):
@@ -97,7 +101,7 @@ class BranchMainStage(PipeModBase):
             ctr_n = Signal(64, reset_less=True)
             comb += ctr_n.eq(ctr - 1)
             comb += ctr_o.data.eq(ctr_n)
-            comb += ctr_o.ok.eq(1)
+            comb += ctr_write.eq(1)
             # take either all 64 bits or only 32 of post-incremented counter
             ctr_m = Signal(64, reset_less=True)
             with m.If(op.is_32bit):
@@ -126,10 +130,12 @@ class BranchMainStage(PipeModBase):
                 BD = b_fields.BD[0:-1]
                 comb += br_imm_addr.eq(br_ext(BD))
                 comb += br_taken.eq(bc_taken)
+                comb += ctr_o.ok.eq(ctr_write)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
                 comb += br_imm_addr.eq(spr1) # SPR1 is set by decode unit
                 comb += br_taken.eq(bc_taken)
+                comb += ctr_o.ok.eq(ctr_write)
 
         # output next instruction address
         comb += nia_o.data.eq(br_addr)
