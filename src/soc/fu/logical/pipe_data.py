@@ -35,7 +35,7 @@ class LogicalOutputData(IntegerData):
                ('XER', 'xer_so', '32')]
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.o = Signal(64, reset_less=True, name="stage_o")
+        self.o = Data(64, name="stage_o")  # RT
         self.cr0 = Data(4, name="cr0")
         self.xer_ca = Data(2, name="xer_co") # bit0: ca, bit1: ca32
         self.xer_so = Data(1, name="xer_so")

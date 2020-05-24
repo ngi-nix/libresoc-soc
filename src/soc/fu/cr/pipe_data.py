@@ -50,7 +50,7 @@ class CROutputData(IntegerData):
                ('CR', 'cr_o', '0:3')]     # 4 bit range
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.o = Signal(64, reset_less=True) # RA
+        self.o = Data(64, name="o") # RA
         self.full_cr = Data(32, name="cr_out") # CR in
         self.cr_o = Data(4, name="cr_o")
 
@@ -65,6 +65,7 @@ class CROutputData(IntegerData):
         return lst + [self.o.eq(i.o),
                       self.full_cr.eq(i.full_cr),
                       self.cr_o.eq(i.cr_o)]
+
 
 class CRPipeSpec(CommonPipeSpec):
     regspec = (CRInputData.regspec, CROutputData.regspec)
