@@ -1,6 +1,6 @@
 """Computation Unit (aka "ALU Manager").
 
-Manages a Pioeline or FSM, ensuring that the start and end time are 100%
+Manages a Pipeline or FSM, ensuring that the start and end time are 100%
 monitored.  At no time may the ALU proceed without this module notifying
 the Dependency Matrices.  At no time is a result production "abandoned".
 This module blocks (indicates busy) until it receives notificatiob that
