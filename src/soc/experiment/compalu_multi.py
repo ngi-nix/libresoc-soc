@@ -394,7 +394,7 @@ def test_compunit_regspec1():
     with open("test_compunit_regspec1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit1.vcd')
+    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit_regspec1.vcd')
 
 
 if __name__ == '__main__':
