@@ -43,6 +43,8 @@ class LogicalMainStage(PipeModBase):
         comb = m.d.comb
         op, a, b, o = self.i.ctx.op, self.i.a, self.i.b, self.o.o
 
+        comb += o.ok.eq(1) # overridden if no op activates
+
         ##########################
         # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
 
@@ -50,11 +52,11 @@ class LogicalMainStage(PipeModBase):
 
             ###### AND, OR, XOR #######
             with m.Case(InternalOp.OP_AND):
-                comb += o.eq(a & b)
+                comb += o.data.eq(a & b)
             with m.Case(InternalOp.OP_OR):
-                comb += o.eq(a | b)
+                comb += o.data.eq(a | b)
             with m.Case(InternalOp.OP_XOR):
-                comb += o.eq(a ^ b)
+                comb += o.data.eq(a ^ b)
 
             ###### cmpb #######
             with m.Case(InternalOp.OP_CMPB):
@@ -62,7 +64,7 @@ class LogicalMainStage(PipeModBase):
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
                     l.append(Repl(a[slc] == b[slc], 8))
-                comb += o.eq(Cat(*l))
+                comb += o.data.eq(Cat(*l))
 
             ###### popcount #######
             with m.Case(InternalOp.OP_POPCNT):
@@ -94,7 +96,7 @@ class LogicalMainStage(PipeModBase):
                         comb += o[i*32:(i+1)*32].eq(pc32[i])
                 with m.Else():
                     # popcntd - put 1x 6-bit answer into output
-                    comb += o.eq(popcnt[0])
+                    comb += o.data.eq(popcnt[0])
 
             ###### parity #######
             with m.Case(InternalOp.OP_PRTY):
@@ -104,7 +106,7 @@ class LogicalMainStage(PipeModBase):
                 comb += par0.eq(Cat(a[0], a[8], a[16], a[24]).xor())
                 comb += par1.eq(Cat(a[32], a[40], a[48], a[56]).xor())
                 with m.If(op.data_len[3] == 1):
-                    comb += o.eq(par0 ^ par1)
+                    comb += o.data.eq(par0 ^ par1)
                 with m.Else():
                     comb += o[0].eq(par0)
                     comb += o[32].eq(par1)
@@ -126,14 +128,17 @@ class LogicalMainStage(PipeModBase):
 
                 m.submodules.clz = clz = CLZ(64)
                 comb += clz.sig_in.eq(cntz_i)
-                comb += o.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
+                comb += o.data.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
 
             ###### bpermd #######
             with m.Case(InternalOp.OP_BPERM):
                 m.submodules.bpermd = bpermd = Bpermd(64)
                 comb += bpermd.rs.eq(a)
                 comb += bpermd.rb.eq(b)
-                comb += o.eq(bpermd.ra)
+                comb += o.data.eq(bpermd.ra)
+
+            with m.Default():
+                comb += o.ok.eq(0)
 
         ###### context, pass-through #####
 

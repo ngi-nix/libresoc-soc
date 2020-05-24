@@ -51,7 +51,7 @@ class Driver(Elaboratable):
         b = dut.i.b
         carry_in = dut.i.xer_ca[0]
         carry_in32 = dut.i.xer_ca[1]
-        o = dut.o.o
+        o = dut.o.o.data
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -73,26 +73,29 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        o_ok = Signal()
+        comb += o_ok.eq(1) # will be set to zero if no op takes place
+
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_AND):
-                comb += Assert(dut.o.o == a & b)
+                comb += Assert(o == a & b)
             with m.Case(InternalOp.OP_OR):
-                comb += Assert(dut.o.o == a | b)
+                comb += Assert(o == a | b)
             with m.Case(InternalOp.OP_XOR):
-                comb += Assert(dut.o.o == a ^ b)
+                comb += Assert(o == a ^ b)
 
             with m.Case(InternalOp.OP_POPCNT):
                 with m.If(rec.data_len == 8):
-                    comb += Assert(dut.o.o == self.popcount(a, 64))
+                    comb += Assert(o == self.popcount(a, 64))
                 with m.If(rec.data_len == 4):
 
                     for i in range(2):
-                        comb += Assert(dut.o.o[i*32:(i+1)*32] ==
+                        comb += Assert(o[i*32:(i+1)*32] ==
                                        self.popcount(a[i*32:(i+1)*32], 32))
                 with m.If(rec.data_len == 1):
                     for i in range(8):
-                        comb += Assert(dut.o.o[i*8:(i+1)*8] ==
+                        comb += Assert(o[i*8:(i+1)*8] ==
                                        self.popcount(a[i*8:(i+1)*8], 8))
 
             with m.Case(InternalOp.OP_PRTY):
@@ -100,15 +103,16 @@ class Driver(Elaboratable):
                     result = 0
                     for i in range(8):
                         result = result ^ a[i*8]
-                    comb += Assert(dut.o.o == result)
+                    comb += Assert(o == result)
                 with m.If(rec.data_len == 4):
                     result_low = 0
                     result_high = 0
                     for i in range(4):
                         result_low = result_low ^ a[i*8]
                         result_high = result_high ^ a[i*8 + 32]
-                    comb += Assert(dut.o.o[0:32] == result_low)
-                    comb += Assert(dut.o.o[32:64] == result_high)
+                    comb += Assert(o[0:32] == result_low)
+                    comb += Assert(o[32:64] == result_high)
+
             with m.Case(InternalOp.OP_CNTZ):
                 XO = dut.fields.FormX.XO[0:-1]
                 with m.If(rec.is_32bit):
@@ -120,10 +124,10 @@ class Driver(Elaboratable):
                         comb += peo.eq(pe32.o)
                     with m.If(XO[-1]): # cnttzw
                         comb += pe32.i.eq(a[0:32])
-                        comb += Assert(dut.o.o == peo)
+                        comb += Assert(o == peo)
                     with m.Else(): # cntlzw
                         comb += pe32.i.eq(a[0:32][::-1])
-                        comb += Assert(dut.o.o == peo)
+                        comb += Assert(o == peo)
                 with m.Else():
                     m.submodules.pe64 = pe64 = PriorityEncoder(64)
                     peo64 = Signal(7)
@@ -133,11 +137,24 @@ class Driver(Elaboratable):
                         comb += peo64.eq(pe64.o)
                     with m.If(XO[-1]): # cnttzd
                         comb += pe64.i.eq(a[0:64])
-                        comb += Assert(dut.o.o == peo64)
+                        comb += Assert(o == peo64)
                     with m.Else(): # cntlzd
                         comb += pe64.i.eq(a[0:64][::-1])
-                        comb += Assert(dut.o.o == peo64)
+                        comb += Assert(o == peo64)
 
+            with m.Case(InternalOp.OP_CMPB):
+                # TODO
+                pass
+
+            with m.Case(InternalOp.OP_BPERM):
+                # TODO
+                pass
+
+            with m.Default():
+                comb += o_ok.eq(0)
+
+        # check that data ok was only enabled when op actioned
+        comb += Assert(dut.o.o.ok == o_ok)
 
         return m
 
