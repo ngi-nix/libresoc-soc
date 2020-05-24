@@ -60,7 +60,7 @@ class Bpermd(Elaboratable):
         perm = Signal(self.width, reset_less=True)
         rb64 = [Signal(1, reset_less=True, name=f"rb64_{i}") for i in range(64)]
         for i in range(64):
-            m.d.comb += rb64[i].eq(self.rb[i])
+            m.d.comb += rb64[i].eq(self.rb[63-i])
         rb64 = Array(rb64)
         for i in range(8):
             index = self.rs[8*i:8*i+8]

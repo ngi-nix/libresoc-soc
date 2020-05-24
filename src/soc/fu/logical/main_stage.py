@@ -45,6 +45,9 @@ class LogicalMainStage(PipeModBase):
 
         comb += o.ok.eq(1) # overridden if no op activates
 
+
+        m.submodules.bpermd = bpermd = Bpermd(64)
+
         ##########################
         # main switch for logic ops AND, OR and XOR, cmpb, parity, and popcount
 
@@ -132,9 +135,8 @@ class LogicalMainStage(PipeModBase):
 
             ###### bpermd #######
             with m.Case(InternalOp.OP_BPERM):
-                m.submodules.bpermd = bpermd = Bpermd(64)
                 comb += bpermd.rs.eq(a)
-                comb += bpermd.rb.eq(b)
+                comb += bpermd.rb.eq(self.i.b)
                 comb += o.data.eq(bpermd.ra)
 
             with m.Default():
