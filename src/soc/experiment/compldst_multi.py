@@ -336,7 +336,7 @@ class LDSTCompUnit(Elaboratable):
 
         # create a latch/register for the operand
         oper_r = CompLDSTOpSubset()  # Dest register
-        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_r")
+        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_l")
 
         # and for LD
         ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
@@ -347,7 +347,7 @@ class LDSTCompUnit(Elaboratable):
         for i in range(self.n_src):
             name = "src_r%d" % i
             src_r = Signal(self.rwid, name=name, reset_less=True)
-            latchregister(m, self.src_i[i], src_r, src_l.q[i], name)
+            latchregister(m, self.src_i[i], src_r, src_l.q[i], name + '_l')
             srl.append(src_r)
 
         # and one for the output from the ADD (for the EA)

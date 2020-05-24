@@ -98,11 +98,11 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # create a latch/register for the operand
         oper_r = CompALUOpSubset()
-        latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_r")
+        latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_l")
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True)  # Dest register
-        latchregister(m, self.alu.o, data_r, req_l.q, "data_r")
+        latchregister(m, self.alu.o, data_r, req_l.q, "data_l")
 
         # pass the operation to the ALU
         m.d.comb += self.alu.op.eq(oper_r)

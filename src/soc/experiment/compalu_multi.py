@@ -205,14 +205,14 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # create a latch/register for the operand
         oper_r = self.opsubsetkls()
-        latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_r")
+        latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_l")
 
         # and for each output from the ALU
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
             data_r = Signal(self.cu._get_srcwid(i), name=name, reset_less=True)
-            latchregister(m, self.get_out(i), data_r, req_l.q[i], name)
+            latchregister(m, self.get_out(i), data_r, req_l.q[i], name + "_l")
             drl.append(data_r)
 
         # pass the operation to the ALU

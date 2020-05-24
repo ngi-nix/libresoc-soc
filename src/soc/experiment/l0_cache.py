@@ -260,8 +260,8 @@ class L0CacheBuffer(Elaboratable):
         ld_idx = Signal(nbits, reset_less=False)
         st_idx = Signal(nbits, reset_less=False)
         # use these because of the sync-and-comb pass-through capability
-        latchregister(m, ldpick.o, ld_idx, idx_l.qn, name="ld_idx")
-        latchregister(m, stpick.o, st_idx, idx_l.qn, name="st_idx")
+        latchregister(m, ldpick.o, ld_idx, idx_l.qn, name="ld_idx_l")
+        latchregister(m, stpick.o, st_idx, idx_l.qn, name="st_idx_l")
 
         # convenience variables to reference the "picked" port
         ldport = self.dports[ld_idx].pi

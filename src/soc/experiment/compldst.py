@@ -257,7 +257,7 @@ class LDSTCompUnit(Elaboratable):
 
         # create a latch/register for the operand
         oper_r = CompALUOpSubset()  # Dest register
-        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_r")
+        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_l")
 
         # and one for the output from the ALU
         data_r = Signal(self.rwid, reset_less=True)  # Dest register
@@ -288,8 +288,8 @@ class LDSTCompUnit(Elaboratable):
                                               self.src2_i))
 
         # create a latch/register for src1/src2 (include immediate select)
-        latchregister(m, self.src1_i, self.alu.a, src_l.q, name="src1_r")
-        latchregister(m, self.src2_i, src2_r, src_l.q, name="src2_r")
+        latchregister(m, self.src1_i, self.alu.a, src_l.q, name="src1_l")
+        latchregister(m, self.src2_i, src2_r, src_l.q, name="src2_l")
         latchregister(m, src2_or_imm, self.alu.b, src_sel, name="imm_r")
 
         # decode bits of operand (latched)
