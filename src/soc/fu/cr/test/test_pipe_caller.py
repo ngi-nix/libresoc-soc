@@ -167,18 +167,25 @@ class TestRunner(FHDLTestCase):
             reg3 = simulator.gpr(reg3_sel).value
             yield alu.p.data_i.a.eq(reg3)
 
-    def assert_outputs(self, alu, dec2, simulator):
+    def assert_outputs(self, alu, dec2, simulator, code):
         whole_reg = yield dec2.e.write_cr_whole
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg:
             full_cr = yield alu.n.data_o.full_cr.data
             expected_cr = simulator.cr.get_range().value
-            self.assertEqual(expected_cr, full_cr)
+            self.assertEqual(expected_cr, full_cr, code)
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
             expected_cr = simulator.crl[cr_sel].get_range().value
             real_cr = yield alu.n.data_o.cr_o.data
-            self.assertEqual(expected_cr, real_cr)
+            self.assertEqual(expected_cr, real_cr, code)
+        alu_out = yield alu.n.data_o.o.data
+        out_reg_valid = yield dec2.e.write_reg.ok
+        if out_reg_valid:
+            write_reg_idx = yield dec2.e.write_reg.data
+            expected = simulator.gpr(write_reg_idx).value
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            self.assertEqual(expected, alu_out, code)
 
     def run_all(self):
         m = Module()
@@ -203,11 +210,11 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr)
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                index = simulator.pc.CIA.value//4
+                index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
@@ -218,21 +225,21 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
-                    yield from self.set_inputs(alu, pdecode2, simulator)
+                    yield from self.set_inputs(alu, pdecode2, sim)
                     yield alu.p.valid_i.eq(1)
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.CR.value, code)
                     yield
                     opname = code.split(' ')[0]
-                    yield from simulator.call(opname)
-                    index = simulator.pc.CIA.value//4
+                    yield from sim.call(opname)
+                    index = sim.pc.CIA.value//4
 
                     vld = yield alu.n.valid_o
                     while not vld:
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    yield from self.assert_outputs(alu, pdecode2, simulator)
+                    yield from self.assert_outputs(alu, pdecode2, sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
