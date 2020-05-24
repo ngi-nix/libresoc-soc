@@ -1,3 +1,14 @@
+"""SPR Pipeline Data structures
+
+Covers MFSPR and MTSPR.  however given that the SPRs are split across
+XER (which is 3 separate registers), Fast-SPR and Slow-SPR regfiles,
+the data structures are slightly more involved than just "INT, SPR".
+
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=348
+* https://libre-soc.org/openpower/isa/sprset/
+"""
+
 from nmigen import Signal, Const
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData
