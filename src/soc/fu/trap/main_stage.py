@@ -77,19 +77,27 @@ class TrapMainStage(PipeModBase):
 
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op):
+            #### trap ####
             with m.Case(InternalOp.OP_TRAP):
                 with m.If(should_trap):
                     comb += self.o.nia.data.eq(0x700)         # trap address
                     comb += self.o.nia.ok.eq(1)
                     comb += self.o.srr1.data.eq(self.i.msr)   # old MSR
-                    comb += self.o.srr1[63-46].eq(1)     # XXX which bit?
+                    comb += self.o.srr1.data[63-46].eq(1)     # XXX which bit?
                     comb += self.o.srr1.ok.eq(1)
                     comb += self.o.srr0.data.eq(self.i.cia)   # old PC
                     comb += self.o.srr0.ok.eq(1)
 
-            # XXX TODO, needs the lines adding to the CSV files first
-            #with m.Case(InternalOp.OP_MTMSR):
-            #with m.Case(InternalOp.OP_MFMSR):
+            # XXX TODO, lines have now been added to the CSV files 
+            with m.Case(InternalOp.OP_MTMSR):
+                # TODO: some of the bits need zeroing?
+                comb += self.o.msr.data.eq(a)
+                comb += self.o.msr.ok.eq(1)
+            with m.Case(InternalOp.OP_MFMSR):
+                # TODO: some of the bits need zeroing?
+                comb += self.o.o.data.eq(self.i.msr)
+                comb += self.o.o.ok.eq(1)
+
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
