@@ -138,7 +138,7 @@ class DataMergerRecord(Record):
 
     def __init__(self, name=None):
         layout = (('data', 128),
-                  ('byte_enable', 16)
+                  ('en', 16)
                   )
 
         Record.__init__(self, Layout(layout), name=name)
@@ -163,15 +163,14 @@ class DataMerger(Elaboratable):
         """
         self.array_size = array_size
         ul = []
-        for i in range(0, array_size):
-            ul2 = []
-            for j in range(0, array_size):
-                ul2.append(Signal())
-            ul.append(ul2)
+        for i in range(array_size):
+            ul.append(Signal(array_size,
+                             reset_less=True,
+                             name="addr_match_%d" % i))
         self.addr_array_i = Array(ul)
 
         ul = []
-        for i in range(0, array_size):
+        for i in range(array_size):
             ul.append(DataMergerRecord())
         self.data_i = Array(ul)
         self.data_o = DataMergerRecord()
