@@ -120,7 +120,7 @@ class DummyALU(Elaboratable):
                 # we didn't say "ready" yet, so say so and initialise
                 m.d.sync += self.p.ready_o.eq(1)
 
-                m.d.sync += self.o.eq(self.i.a)
+                m.d.sync += self.o.eq(self.a)
                 m.d.comb += go_now.eq(1)
                 m.d.sync += self.counter.eq(1)
 
@@ -367,8 +367,8 @@ def run_op(dut, a, b, op, inv_a=0):
     yield
     while True:
         yield
-        dut.n.valid_o = yield dut.n.valid_o
-        if dut.n.valid_o:
+        vld = yield dut.n.valid_o
+        if vld:
             break
     yield
 
@@ -396,7 +396,7 @@ def alu_sim(dut):
 
 def test_alu():
     alu = ALU(width=16)
-    run_simulation(alu, alu_sim(alu), vcd_name='test_alusim.vcd')
+    run_simulation(alu, {"sync": alu_sim(alu)}, vcd_name='test_alusim.vcd')
 
     vl = rtlil.convert(alu, ports=alu.ports())
     with open("test_alu.il", "w") as f:
@@ -406,8 +406,8 @@ def test_alu():
 if __name__ == "__main__":
     test_alu()
 
-    alu = BranchALU(width=16)
-    vl = rtlil.convert(alu, ports=alu.ports())
-    with open("test_branch_alu.il", "w") as f:
-        f.write(vl)
+    # alu = BranchALU(width=16)
+    # vl = rtlil.convert(alu, ports=alu.ports())
+    # with open("test_branch_alu.il", "w") as f:
+    #     f.write(vl)
 
