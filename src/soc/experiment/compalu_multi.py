@@ -427,6 +427,16 @@ class CompUnitParallelTest:
         # TODO: also when dut.wr.go is set, check the output against the
         # self.expected_o and assert.  use dut.get_out(wr_idx) to do so.
 
+    def run_simulation(self, vcd_name):
+        run_simulation(self.dut, [self.driver(),
+                                  self.monitor(),
+                                  self.rd(0),  # one read port (a)
+                                  self.rd(1),  # one read port (b)
+                                  self.wr(0),  # one write port (o)
+                                  ],
+                       vcd_name=vcd_name)
+
+
 def test_compunit_regspec1():
     from alu_hier import ALU
     from soc.fu.alu.alu_input_record import CompALUOpSubset
@@ -451,13 +461,7 @@ def test_compunit_regspec1():
                    vcd_name='test_compunit_regspec1.vcd')
 
     test = CompUnitParallelTest(dut)
-    run_simulation(dut, [test.driver(),
-                         test.monitor(),
-                         test.rd(0), # one read port (a)
-                         test.rd(1), # one read port (b)
-                         test.wr(0)  # one write port (o)
-                        ],
-                   vcd_name="test_compunit_parallel.vcd")
+    test.run_simulation("test_compunit_parallel.vcd")
 
 
 if __name__ == '__main__':
