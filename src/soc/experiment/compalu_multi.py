@@ -419,13 +419,13 @@ class CompUnitParallelTest:
         # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
         yield
         # TODO: also when dut.rd.go is set, put the expected value into
-        # the src_i.
+        # the src_i.  use dut.get_in[rd_idx] to do so
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
         yield
         # TODO: also when dut.wr.go is set, check the output against the
-        # self.expected_o and assert
+        # self.expected_o and assert.  use dut.get_out(wr_idx) to do so.
 
 def test_compunit_regspec1():
     from alu_hier import ALU
