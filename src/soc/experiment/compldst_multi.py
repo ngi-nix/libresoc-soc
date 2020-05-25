@@ -61,6 +61,8 @@
 
     Links including to walk-through videos:
     * https://libre-soc.org/3d_gpu/architecture/6600scoreboard/
+    * http://libre-soc.org/openpower/isa/fixedload
+    * http://libre-soc.org/openpower/isa/fixedstore
 
     Related Bugreports:
     * https://bugs.libre-soc.org/show_bug.cgi?id=302
