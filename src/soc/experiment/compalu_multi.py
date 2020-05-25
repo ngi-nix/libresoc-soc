@@ -385,27 +385,59 @@ class CompUnitParallelTest:
             ):
         self.dut = dut
 
+        # Operation cycle should not take longer than this:
+        self.MAX_BUSY_WAIT = 50
+
     def driver(self):
+
+        print("Begin parallel test.")
+
+        # issue_i starts inactive
         yield self.dut.issue_i.eq(0)
         yield
 
+        # busy_o must start inactive
+        # TODO: Check a few times that busy_o doesn't rise on its own
         busy_o = yield self.dut.busy_o
-        print("Driver: busy_o =", busy_o)
+        assert not busy_o
 
-        print("Driver: activating issue_i")
+        # activate issue_i to begin the operation cycle
         yield self.dut.issue_i.eq(1)
         yield
 
+        # busy_o must keep being low in this cycle, because issue_i was
+        # low on the previous cycle.
+        # It cannot rise on its own.
+        # Also, busy_o and issue_i must never be active at the same time, ever.
         busy_o = yield self.dut.busy_o
-        print("Driver: busy_o =", busy_o)
+        assert not busy_o
 
-        print("Driver: de-activating issue_i")
+        # Lower issue_i
         yield self.dut.issue_i.eq(0)
         yield
 
-        # TODO: while-loop on busy (see ldst comp unit for suitable function)
-        busy_o = yield self.dut.busy_o
-        print("Driver: busy_o =", busy_o)
+        # wait for busy_o to lower
+        # timeout after self.MAX_BUSY_WAIT cycles
+        for n in range(self.MAX_BUSY_WAIT):
+            # sample busy_o in the current cycle
+            busy_o = yield self.dut.busy_o
+            if not busy_o:
+                # operation cycle ends when busy_o becomes inactive
+                break
+            yield
+
+        # if busy_o is still active, a timeout has occurred
+        # TODO: Uncomment this, once the test is complete:
+        # assert not busy_o
+
+        if busy_o:
+            print("If you are reading this, "
+                  "it's because the above test failed, as expected,\n"
+                  "with a timeout. It must pass, once the test is complete.")
+            return
+
+        print("If you are reading this, "
+              "it's because the above test unexpectedly passed.")
 
     def monitor(self):
         # TODO: as a while-loop.  first loop on busy *not* set,
