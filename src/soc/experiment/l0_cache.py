@@ -149,14 +149,27 @@ class DataMergerRecord(Record):
 class DataMerger(Elaboratable):
     """DataMerger
 
-    Merges data based on an address-match matrix
+    Merges data based on an address-match matrix.  Identifies (picks) one (any) row,
+    then uses that row, based on matching address bits, to merge (OR) all data
+    rows into the output.
 
+    Basically, by the time DataMerger is used, all of its incoming data is determined
+    not to conflict.  The last step before actually submitting the request to the
+    Memory Subsystem is to work out which requests, on the same 128-bit cache line,
+    can be "merged" due to them being: (A) on the same address (bits 4 and above)
+    (B) having byte-enable lines that (as previously mentioned) do not conflict.
+
+    Therefore, put simply, this module will:
+    (1) pick a row (any row) and identify it by an index labelled "idx"
+    (2) merge all byte-enable lines which are on that same address, as
+        indicated by addr_match_i[idx], onto the output
     """
 
     def __init__(self, array_size):
         """
-        :addr_array_i: an NxN Array of
-                       Signals with bits set indicating address match
+        :addr_array_i: an NxN Array of Signals with bits set indicating address
+                       match.  bits across the diagonal (addr_array_i[x][x])
+                       will always be set, to indicate "active".
         :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
         :data_o: an Output Record of same type
                  {data: 128 bit, byte_enable: 16 bit}
