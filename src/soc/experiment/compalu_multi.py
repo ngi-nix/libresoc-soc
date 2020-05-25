@@ -378,6 +378,38 @@ def test_compunit():
     run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit1.vcd')
 
 
+class CompUnitParallelTest:
+    def __init__(self, dut):
+        self.dut = dut
+
+    def driver(self):
+        yield self.dut.issue_i.eq(0)
+        yield
+
+        busy_o = yield self.dut.busy_o
+        print("Driver: busy_o =", busy_o)
+
+        print("Driver: activating issue_i")
+        yield self.dut.issue_i.eq(1)
+        yield
+
+        busy_o = yield self.dut.busy_o
+        print("Driver: busy_o =", busy_o)
+
+        print("Driver: de-activating issue_i")
+        yield self.dut.issue_i.eq(0)
+        yield
+
+        busy_o = yield self.dut.busy_o
+        print("Driver: busy_o =", busy_o)
+
+    def monitor(self):
+        busy_o = yield self.dut.busy_o
+        for i in range(10):
+            print("    Monitor: busy_o =", busy_o)
+            yield
+
+
 def test_compunit_regspec1():
     from alu_hier import ALU
     from soc.fu.alu.alu_input_record import CompALUOpSubset
@@ -400,6 +432,12 @@ def test_compunit_regspec1():
 
     run_simulation(m, scoreboard_sim(dut),
                    vcd_name='test_compunit_regspec1.vcd')
+
+    test = CompUnitParallelTest(dut)
+    run_simulation(dut, [test.driver(),
+                         test.monitor()
+                        ],
+                   vcd_name="test_compunit_parallel.vcd")
 
 
 if __name__ == '__main__':
