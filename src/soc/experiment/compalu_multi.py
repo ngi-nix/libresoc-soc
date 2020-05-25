@@ -404,8 +404,8 @@ class CompUnitParallelTest:
         print("Driver: busy_o =", busy_o)
 
     def monitor(self):
-        busy_o = yield self.dut.busy_o
         for i in range(10):
+            busy_o = yield self.dut.busy_o
             print("    Monitor: busy_o =", busy_o)
             yield
 
