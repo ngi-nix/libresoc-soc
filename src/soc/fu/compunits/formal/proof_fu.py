@@ -45,16 +45,17 @@ class Driver(Elaboratable):
         with m.Else():
             comb += Assume(rst == 0)
 
-            # Property One: Rd_rel should never be asserted before issue
-
             # detect when issue has been raised and remember it
             with m.If(issue):
                 sync += has_issued.eq(1)
                 comb += Cover(has_issued)
-            # If issue has never been raised, then rd_rel should never be raised
+
+            # Property One: Rd_rel should never be asserted before issue
+
+            # If issue has never been raised, then rd_rel should never
+            # be raised
             with m.If(rd_rel != 0):
                 comb += Assert(has_issued)
-
 
             # Property Two: when rd_rel is asserted, it should stay
             # that way until a go_rd
@@ -75,8 +76,6 @@ class Driver(Elaboratable):
                 with m.If(Past(go_die)):
                     comb += Assert(rd_rel == 0)
 
-            # Property 
-
             comb += Cover(Fell(rd_rel))
 
             # Assume no instruction is issued until rd_rel is
@@ -84,10 +83,6 @@ class Driver(Elaboratable):
 
             with m.If((rd_rel != 0) | (Past(rd_rel) != 0)):
                 comb += Assume(issue == 0)
-        
-
-
-
 
         return m
 
