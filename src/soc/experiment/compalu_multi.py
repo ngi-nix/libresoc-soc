@@ -12,8 +12,8 @@ Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Record, Const
-from nmigen.hdl.rec import (DIR_FANIN, DIR_FANOUT)
+from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Cat, Const
+from nmigen.hdl.rec import (Record, DIR_FANIN, DIR_FANOUT)
 
 from nmutil.latch import SRLatch, latchregister
 from nmutil.iocontrol import RecordObject
@@ -139,7 +139,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
 
     def _mux_op(self, m, sl, op_is_imm, imm, i):
-        # select zero immediate if opcode says so.  however also change the latch
+        # select zero immediate if opcode says so. however also change the latch
         # to trigger *from* the opcode latch instead.
         src_or_imm = Signal(self.cu._get_srcwid(i), reset_less=True)
         src_sel = Signal(reset_less=True)
@@ -148,6 +148,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # overwrite 1st src-latch with immediate-muxed stuff
         sl[i][0] = src_or_imm
         sl[i][2] = src_sel
+        sl[i][3] = ~op_is_imm # change rd.rel[i] gate condition
 
     def elaborate(self, platform):
         m = Module()
@@ -220,42 +221,44 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += self.get_op().eq(oper_r)
 
         # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
-        # in the case, for ALU and Logical pipelines, we assume RB is the 2nd operand
-        # in the input "regspec".  see for example soc.fu.alu.pipe_data.ALUInputData
+        # in the case, for ALU and Logical pipelines, we assume RB is the
+        # 2nd operand in the input "regspec".  see for example
+        # soc.fu.alu.pipe_data.ALUInputData
         sl = []
         for i in range(self.n_src):
-            sl.append([self.src_i[i], self.get_in(i), src_l.q[i]])
+            sl.append([self.src_i[i], self.get_in(i), src_l.q[i], Const(1,1)])
 
         # if the operand subset has "zero_a" we implicitly assume that means
-        # src_i[0] is an INT register type where zero can be multiplexed in, instead.
+        # src_i[0] is an INT reg type where zero can be multiplexed in, instead.
         # see https://bugs.libre-soc.org/show_bug.cgi?id=336
         if hasattr(oper_r, "zero_a"):
-            # select zero immediate if opcode says so.  however also change the latch
+            # select zero imm if opcode says so.  however also change the latch
             # to trigger *from* the opcode latch instead.
             self._mux_op(m, sl, oper_r.zero_a, 0, 0)
 
         # if the operand subset has "imm_data" we implicitly assume that means
-        # "this is an INT ALU/Logical FU jobbie, RB is multiplexed with the immediate"
+        # "this is an INT ALU/Logical FU jobbie, RB is muxed with the immediate"
         if hasattr(oper_r, "imm_data"):
-            # select immediate if opcode says so.  however also change the latch
+            # select immediate if opcode says so. however also change the latch
             # to trigger *from* the opcode latch instead.
             op_is_imm = oper_r.imm_data.imm_ok
             imm = oper_r.imm_data.imm
             self._mux_op(m, sl, op_is_imm, imm, 1)
 
-        # create a latch/register for src1/src2 (even if it is a copy of an immediate)
+        # create a latch/register for src1/src2 (even if it is a copy of imm)
         for i in range(self.n_src):
-            src, alusrc, latch = sl[i]
+            src, alusrc, latch, _ = sl[i]
             latchregister(m, src, alusrc, latch, name="src_r%d" % i)
 
         # -----
         # outputs
         # -----
 
+        slg = Cat(*map(lambda x: x[3], sl)) # get req gate conditions
         # all request signals gated by busy_o.  prevents picker problems
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
         bro = Repl(self.busy_o, self.n_src)
-        m.d.comb += self.rd.rel.eq(src_l.q & bro) # src1/src2 req rel
+        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg) # src1/src2 req rel
 
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
