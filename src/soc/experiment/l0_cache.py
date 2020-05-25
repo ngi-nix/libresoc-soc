@@ -155,9 +155,11 @@ class DataMerger(Elaboratable):
 
     def __init__(self, array_size):
         """
-        :addr_array_i: an NxN Array of Signals with bits set indicating address match
+        :addr_array_i: an NxN Array of
+                       Signals with bits set indicating address match
         :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
-        :data_o: an Output Record of same type {data: 128 bit, byte_enable: 16 bit}
+        :data_o: an Output Record of same type
+                 {data: 128 bit, byte_enable: 16 bit}
         """
         self.array_size = array_size
         ul = []
