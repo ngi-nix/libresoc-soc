@@ -267,3 +267,11 @@ XER_bits = {
     'OV32': 44,
     'CA32': 45
     }
+
+if __name__ == '__main__':
+    # find out what the heck is in SPR enum :)
+    print ("sprs", len(SPR))
+    print (dir(SPR))
+    print (dir(Enum))
+    for x in SPR:
+        print (x, x.value)
