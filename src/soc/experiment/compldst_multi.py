@@ -259,6 +259,8 @@ class LDSTCompUnit(Elaboratable):
         alu_o = Signal(self.rwid, reset_less=True)
         ldd_o = Signal(self.rwid, reset_less=True)
 
+        # XXX TODO ZEROing just lije in ComUnit
+
         # select immediate or src2 reg to add
         src2_or_imm = Signal(self.rwid, reset_less=True)
         src_sel = Signal(reset_less=True)
