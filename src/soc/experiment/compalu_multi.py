@@ -354,9 +354,11 @@ def scoreboard_sim(dut):
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
     assert result == 65532
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1,
-                                    imm=8, imm_ok=1)
-    assert result == 8
+    # XXX - immediate and zero is not a POWER mode (and won't work anyway)
+    # reason: no actual operands.
+    #result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1,
+    #                                imm=8, imm_ok=1)
+    #assert result == 8
 
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1)
     assert result == 2
