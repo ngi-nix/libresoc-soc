@@ -1,3 +1,21 @@
+"""Specialist Regfiles
+
+These are not "normal" binary-indexed regfiles (although that is included).
+They include *unary* indexed regfiles as well as Dependency-tracked ones
+(SPR files with 1024 registers, only around 4-5 of which need to be active)
+and special "split" regfiles that have 8R8W for 8 4-bit quantities and a
+1R1W to read/write *all* 8 4-bit registers in a single one-off 32-bit way.
+
+Due to the way that the Dependency Matrices are set up (bit-vectors), the
+primary focus here is on *unary* indexing.
+
+Links:
+
+* https://libre-soc.org/3d_gpu/architecture/regfile
+* https://bugs.libre-soc.org/show_bug.cgi?id=351
+* https://bugs.libre-soc.org/show_bug.cgi?id=349
+"""
+
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 
