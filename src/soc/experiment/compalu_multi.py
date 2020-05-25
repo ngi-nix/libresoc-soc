@@ -388,18 +388,22 @@ class CompUnitParallelTest:
         # Operation cycle should not take longer than this:
         self.MAX_BUSY_WAIT = 50
 
+        # Minimum duration in which issue_i will be kept inactive,
+        # during which busy_o must remain low.
+        self.MIN_BUSY_LOW = 5
+
     def driver(self):
 
         print("Begin parallel test.")
 
         # issue_i starts inactive
         yield self.dut.issue_i.eq(0)
-        yield
 
-        # busy_o must start inactive
-        # TODO: Check a few times that busy_o doesn't rise on its own
-        busy_o = yield self.dut.busy_o
-        assert not busy_o
+        for n in range(self.MIN_BUSY_LOW):
+            yield
+            # busy_o must remain inactive. It cannot rise on its own.
+            busy_o = yield self.dut.busy_o
+            assert not busy_o
 
         # activate issue_i to begin the operation cycle
         yield self.dut.issue_i.eq(1)
