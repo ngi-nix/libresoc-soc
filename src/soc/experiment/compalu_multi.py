@@ -412,6 +412,13 @@ class CompUnitParallelTest:
             print("    Monitor: busy_o =", busy_o)
             yield
 
+    def rd(self, rd_idx):
+        # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
+        pass
+
+    def wr(self, wr_idx):
+        # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
+        pass
 
 def test_compunit_regspec1():
     from alu_hier import ALU
@@ -438,7 +445,10 @@ def test_compunit_regspec1():
 
     test = CompUnitParallelTest(dut)
     run_simulation(dut, [test.driver(),
-                         test.monitor()
+                         test.monitor(),
+                         test.rd(0), # one read port (a)
+                         test.rd(1), # one read port (b)
+                         test.wr(0)  # one write port (o)
                         ],
                    vcd_name="test_compunit_parallel.vcd")
 
