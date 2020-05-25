@@ -189,10 +189,6 @@ class DataMerger(Elaboratable):
             ul.append(DataMergerRecord())
         self.data_i = Array(ul)
         self.data_o = DataMergerRecord()
-        
-        def elaborate(self, platform):
-        m = Module()
-        comb, sync = m.d.comb, m.d.sync
 
 
 class LDSTPort(Elaboratable):
