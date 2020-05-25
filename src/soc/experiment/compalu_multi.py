@@ -76,7 +76,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         self._dest = dst
 
         # operation / data input
-        self.oper_i = subkls() # operand
+        self.oper_i = subkls(name="oper_i") # operand
 
         # create read/write and other scoreboard signalling
         self.rd = go_record(n_src, name="rd") # read in, req out
@@ -205,7 +205,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
-        oper_r = self.opsubsetkls()
+        oper_r = self.opsubsetkls(name="oper_r")
         latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_l")
 
         # and for each output from the ALU

@@ -339,7 +339,7 @@ class LDSTCompUnit(Elaboratable):
         comb += rst_l.r.eq(issue_i)
 
         # create a latch/register for the operand
-        oper_r = CompLDSTOpSubset()  # Dest register
+        oper_r = CompLDSTOpSubset(name="oper_r")  # Dest register
         latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_l")
 
         # and for LD
