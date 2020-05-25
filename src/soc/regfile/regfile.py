@@ -12,8 +12,9 @@ primary focus here is on *unary* indexing.
 Links:
 
 * https://libre-soc.org/3d_gpu/architecture/regfile
+* https://bugs.libre-soc.org/show_bug.cgi?id=345
 * https://bugs.libre-soc.org/show_bug.cgi?id=351
-* https://bugs.libre-soc.org/show_bug.cgi?id=349
+* https://bugs.libre-soc.org/show_bug.cgi?id=352
 """
 
 from nmigen.compat.sim import run_simulation
