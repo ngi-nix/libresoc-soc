@@ -1,3 +1,10 @@
+# This is the proof for the computation unit/Function Unit/ALU
+# manager. Description here:
+# https://libre-soc.org/3d_gpu/architecture/compunit/
+
+# This attempts to prove most of the bullet points on that page
+
+
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, ResetSignal)
 from nmigen.asserts import (Assert, AnyConst, Assume, Cover, Initial,
