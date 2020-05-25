@@ -20,6 +20,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Elaboratable, Array, Cat
 from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
+from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
@@ -97,20 +98,23 @@ class PortInterface(RecordObject):
         # distinguish op type (ld/st)
         self.is_ld_i = Signal(reset_less=True)
         self.is_st_i = Signal(reset_less=True)
-        self.op = CompLDSTOpSubset() # hm insn_type ld/st duplicates here
+        self.op = CompLDSTOpSubset()  # hm insn_type ld/st duplicates here
 
         # common signals
         self.busy_o = Signal(reset_less=True)     # do not use if busy
         self.go_die_i = Signal(reset_less=True)   # back to reset
         self.addr = Data(addrwid, "addr_i")            # addr/addr-ok
-        self.addr_ok_o = Signal(reset_less=True)  # addr is valid (TLB, L1 etc.)
-        self.addr_exc_o = Signal(reset_less=True) # TODO, "type" of exception
+        # addr is valid (TLB, L1 etc.)
+        self.addr_ok_o = Signal(reset_less=True)
+        self.addr_exc_o = Signal(reset_less=True)  # TODO, "type" of exception
 
         # LD/ST
-        self.ld = Data(regwid, "ld_data_o") # ok to be set by L0 Cache/Buf
-        self.st = Data(regwid, "st_data_i") # ok to be set by CompUnit
+        self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
+        self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
 # TODO:
+
+
 class DualPortSplitter(Elaboratable):
     """DualPortSplitter
 
@@ -127,20 +131,48 @@ class DualPortSplitter(Elaboratable):
     pass
 
 
+class DataMergerRecord(Record):
+    """
+    {data: 128 bit, byte_enable: 16 bit}
+    """
+
+    def __init__(self, name=None):
+        layout = (('data', 128),
+                  ('byte_enable', 16)
+                  )
+
+        Record.__init__(self, Layout(layout), name=name)
+
 # TODO:
+
+
 class DataMerger(Elaboratable):
     """DataMerger
 
     Merges data based on an address-match matrix
 
     """
+
     def __init__(self, array_size):
         """
         :addr_array_i: an NxN Array of Signals with bits set indicating address match
         :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
         :data_o: an Output Record of same type {data: 128 bit, byte_enable: 16 bit}
         """
-        pass
+        self.array_size = array_size
+        ul = []
+        for i in range(0, array_size):
+            ul2 = []
+            for j in range(0, array_size):
+                ul2.append(Signal())
+            ul.append(ul2)
+        self.addr_array_i = Array(ul)
+
+        ul = []
+        for i in range(0, array_size):
+            ul.append(DataMergerRecord())
+        self.data_i = Array(ul)
+        self.data_o = DataMergerRecord()
 
 
 class LDSTPort(Elaboratable):
@@ -213,6 +245,7 @@ class L0CacheBuffer(Elaboratable):
     combinatorially, where a nmigen FSM's state-changes only activate
     on clock-sync boundaries.
     """
+
     def __init__(self, n_units, mem, regwid=64, addrwid=48):
         self.n_units = n_units
         self.mem = mem
@@ -233,7 +266,7 @@ class L0CacheBuffer(Elaboratable):
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
         m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
         m.submodules.reset_l = reset_l = SRLatch(True, name="reset")
-        m.submodules.idx_l   = idx_l   = SRLatch(False, name="idx_l")
+        m.submodules.idx_l = idx_l = SRLatch(False, name="idx_l")
         m.submodules.adrok_l = adrok_l = SRLatch(False, name="addr_acked")
 
         # find one LD (or ST) and do it.  only one per cycle.
@@ -249,8 +282,8 @@ class L0CacheBuffer(Elaboratable):
         sti = []
         for i in range(self.n_units):
             pi = self.dports[i].pi
-            ldi.append(pi.is_ld_i & pi.busy_o) # accumulate ld-req signals
-            sti.append(pi.is_st_i & pi.busy_o) # accumulate st-req signals
+            ldi.append(pi.is_ld_i & pi.busy_o)  # accumulate ld-req signals
+            sti.append(pi.is_st_i & pi.busy_o)  # accumulate st-req signals
         # put the requests into the priority-pickers
         comb += ldpick.i.eq(Cat(*ldi))
         comb += stpick.i.eq(Cat(*sti))
@@ -276,10 +309,10 @@ class L0CacheBuffer(Elaboratable):
         sync += adrok_l.s.eq(0)
         comb += adrok_l.r.eq(0)
         with m.If(~ldpick.n):
-            comb += ld_active.s.eq(1) # activate LD mode
+            comb += ld_active.s.eq(1)  # activate LD mode
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
         with m.Elif(~stpick.n):
-            comb += st_active.s.eq(1) # activate ST mode
+            comb += st_active.s.eq(1)  # activate ST mode
             comb += idx_l.r.eq(1)  # pick (and capture) the port index
 
         # from this point onwards, with the port "picked", it stays picked
@@ -289,17 +322,17 @@ class L0CacheBuffer(Elaboratable):
         # to memory, acknowledge address, and send out LD data
         with m.If(ld_active.q):
             with m.If(ldport.addr.ok & adrok_l.qn):
-                comb += rdport.addr.eq(ldport.addr.data) # addr ok, send thru
-                comb += ldport.addr_ok_o.eq(1) # acknowledge addr ok
+                comb += rdport.addr.eq(ldport.addr.data)  # addr ok, send thru
+                comb += ldport.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
         with m.If(st_active.q):
             with m.If(stport.addr.ok):
-                comb += wrport.addr.eq(stport.addr.data) # addr ok, send thru
+                comb += wrport.addr.eq(stport.addr.data)  # addr ok, send thru
                 with m.If(adrok_l.qn):
-                    comb += stport.addr_ok_o.eq(1) # acknowledge addr ok
+                    comb += stport.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # NOTE: in both these, below, the port itself takes care
@@ -311,13 +344,13 @@ class L0CacheBuffer(Elaboratable):
         comb += reset_l.s.eq(0)
         comb += reset_l.r.eq(0)
         with m.If(ld_active.q & adrok_l.q):
-            comb += ldport.ld.data.eq(rdport.data) # put data out
+            comb += ldport.ld.data.eq(rdport.data)  # put data out
             comb += ldport.ld.ok.eq(1)             # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
         with m.If(st_active.q & stport.st.ok):
-            comb += wrport.data.eq(stport.st.data) # write st to mem
+            comb += wrport.data.eq(stport.st.data)  # write st to mem
             comb += wrport.en.eq(1)                # enable write
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
@@ -360,7 +393,7 @@ class TstL0CacheBuffer(Elaboratable):
 def wait_busy(port, no=False):
     while True:
         busy = yield port.pi.busy_o
-        print ("busy", no, busy)
+        print("busy", no, busy)
         if bool(busy) == no:
             break
         yield
@@ -369,7 +402,7 @@ def wait_busy(port, no=False):
 def wait_addr(port):
     while True:
         addr_ok = yield port.pi.addr_ok_o
-        print ("addrok", addr_ok)
+        print("addrok", addr_ok)
         if not addr_ok:
             break
         yield
@@ -378,7 +411,7 @@ def wait_addr(port):
 def wait_ldok(port):
     while True:
         ldok = yield port.pi.ld.ok
-        print ("ldok", ldok)
+        print("ldok", ldok)
         if ldok:
             break
         yield
@@ -394,13 +427,13 @@ def l0_cache_st(dut, addr, data):
     yield from wait_busy(port1, no=False)    # wait until not busy
 
     # set up a ST on the port.  address first:
-    yield port1.pi.is_st_i.eq(1) # indicate LD
+    yield port1.pi.is_st_i.eq(1)  # indicate LD
 
-    yield port1.pi.addr.data.eq(addr) # set address
-    yield port1.pi.addr.ok.eq(1) # set ok
+    yield port1.pi.addr.data.eq(addr)  # set address
+    yield port1.pi.addr.ok.eq(1)  # set ok
     yield from wait_addr(port1)             # wait until addr ok
-    #yield # not needed, just for checking
-    #yield # not needed, just for checking
+    # yield # not needed, just for checking
+    # yield # not needed, just for checking
     # assert "ST" for one cycle (required by the API)
     yield port1.pi.st.data.eq(data)
     yield port1.pi.st.ok.eq(1)
@@ -408,9 +441,9 @@ def l0_cache_st(dut, addr, data):
     yield port1.pi.st.ok.eq(0)
 
     # can go straight to reset.
-    yield port1.pi.is_st_i.eq(0) #end
-    yield port1.pi.addr.ok.eq(0) # set !ok
-    #yield from wait_busy(port1, False)    # wait until not busy
+    yield port1.pi.is_st_i.eq(0)  # end
+    yield port1.pi.addr.ok.eq(0)  # set !ok
+    # yield from wait_busy(port1, False)    # wait until not busy
 
 
 def l0_cache_ld(dut, addr, expected):
@@ -424,19 +457,19 @@ def l0_cache_ld(dut, addr, expected):
     yield from wait_busy(port1, no=False)    # wait until not busy
 
     # set up a LD on the port.  address first:
-    yield port1.pi.is_ld_i.eq(1) # indicate LD
+    yield port1.pi.is_ld_i.eq(1)  # indicate LD
 
-    yield port1.pi.addr.data.eq(addr) # set address
-    yield port1.pi.addr.ok.eq(1) # set ok
+    yield port1.pi.addr.data.eq(addr)  # set address
+    yield port1.pi.addr.ok.eq(1)  # set ok
     yield from wait_addr(port1)             # wait until addr ok
 
     yield from wait_ldok(port1)             # wait until ld ok
     data = yield port1.pi.ld.data
 
     # cleanup
-    yield port1.pi.is_ld_i.eq(0) #end
-    yield port1.pi.addr.ok.eq(0) # set !ok
-    #yield from wait_busy(port1, no=False)    # wait until not busy
+    yield port1.pi.is_ld_i.eq(0)  # end
+    yield port1.pi.addr.ok.eq(0)  # set !ok
+    # yield from wait_busy(port1, no=False)    # wait until not busy
 
     return data
 
