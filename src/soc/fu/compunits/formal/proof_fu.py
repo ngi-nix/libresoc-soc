@@ -24,6 +24,7 @@ class Driver(Elaboratable):
                                                CompALUOpSubset)
 
         issue = dut.issue_i
+        busy = dut.busy_o
 
         go_rd = dut.rd.go
         rd_rel = dut.rd.rel
@@ -55,26 +56,39 @@ class Driver(Elaboratable):
                 sync += has_issued.eq(1)
                 comb += Cover(has_issued)
 
-            # Property 1: Rd_rel should never be asserted before issue
+            # Property 1: after an issue, busy should be raised
+            with m.If(Past(issue)):
+                comb += Assert(busy)
+
+            # Property 2: After a wr_rel and go_wr, busy should be lowered
+            with m.If(Past(wr_rel) & Past(go_wr)):
+                # Shadow interferes with this and I'm not sure what is
+                # correct
+                with m.If(~Past(shadow)):
+                    comb += Assert(busy == 0)
+            with m.Elif(Past(busy) == 1):
+                comb += Assert(busy == 1)
+
+            # Property 3: Rd_rel should never be asserted before issue
 
             # If issue has never been raised, then rd_rel should never
             # be raised
             with m.If(rd_rel != 0):
                 comb += Assert(has_issued)
 
-            # Property 2: when rd_rel is asserted, it should stay
+            # Property 4: when rd_rel is asserted, it should stay
             # that way until a go_rd
             with m.If((Past(go_rd) == 0) & ~Past(go_die)):
                 comb += Assert(~Fell(rd_rel))
 
-            # Property 3: when a bit in rd_rel is asserted, and
+            # Property 5: when a bit in rd_rel is asserted, and
             # the corresponding bit in go_rd is asserted, then that
             # bit of rd_rel should be deasserted
             for i in range(2):
                 with m.If(Past(go_rd)[i] & (Past(rd_rel) != 0)):
                     comb += Assert(rd_rel[i] == ~Past(go_rd)[i])
 
-            # Property 4: Similarly, if rd_rel is asserted,
+            # Property 6: Similarly, if rd_rel is asserted,
             # asserting go_die should make rd_rel be deasserted
 
             with m.If(Past(rd_rel) != 0):
@@ -83,13 +97,13 @@ class Driver(Elaboratable):
 
             comb += Cover(Fell(rd_rel))
 
-            # Property 5: Similar to property 1, wr_rel should
+            # Property 7: Similar to property 3, wr_rel should
             # never be asserted unless there was a preceeding issue
 
             with m.If(wr_rel != 0):
                 comb += Assert(has_issued)
 
-            # Property 6: Similar to property 2, wr_rel should stay
+            # Property 8: Similar to property 4, wr_rel should stay
             # asserted until a go_rd, go_die, or shadow
 
             with m.If((Past(go_wr) == 0) & ~Past(go_die, 2) &
@@ -100,19 +114,19 @@ class Driver(Elaboratable):
                 comb += Assume(go_wr == 0)
 
 
-            # Property 7: Similar to property 3, when wr_rel is
+            # Property 9: Similar to property 5, when wr_rel is
             # asserted and go_wr is asserted, then wr_rel should be
             # deasserted
             with m.If(Past(wr_rel) & Past(go_wr)):
                 comb += Assert(wr_rel == 0)
 
 
-            # Property 8: Similar to property 4, wr_rel should be
+            # Property 10: Similar to property 6, wr_rel should be
             # deasserted when go_die is asserted
             with m.If(Past(wr_rel) & Past(go_die)):
                 comb += Assert(wr_rel == 0)
 
-            # Property 9: wr_rel should not fall while shadow is
+            # Property 11: wr_rel should not fall while shadow is
             # asserted
             with m.If(wr_rel & shadow):
                 comb += Assert(~Fell(wr_rel))
@@ -120,7 +134,7 @@ class Driver(Elaboratable):
             # Assume no instruction is issued until rd_rel is
             # released. Idk if this is valid
 
-            with m.If((rd_rel != 0) | (Past(rd_rel) != 0)):
+            with m.If(busy):
                 comb += Assume(issue == 0)
 
         return m
