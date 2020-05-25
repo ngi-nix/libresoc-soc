@@ -95,8 +95,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         """MultiCompUnit
 
         * :rwid:        width of register latches (TODO: allocate per regspec)
-        * :alu:         the ALU (pipeline, FSM) - must conform to nmutil Pipe API
-        * :opsubsetkls: the subset of Decode2ExecuteType
+        * :alu:         ALU (pipeline, FSM) - must conform to nmutil Pipe API
+        * :opsubsetkls: subset of Decode2ExecuteType
         * :n_src:       number of src operands
         * :n_dst:       number of destination operands
         """
@@ -139,7 +139,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
 
     def _mux_op(self, m, sl, op_is_imm, imm, i):
-        # select zero immediate if opcode says so. however also change the latch
+        # select imm if opcode says so. however also change the latch
         # to trigger *from* the opcode latch instead.
         src_or_imm = Signal(self.cu._get_srcwid(i), reset_less=True)
         src_sel = Signal(reset_less=True)
@@ -274,7 +274,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             m.d.comb += self.wr.rel.eq(req_l.q & brd)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(reset):
-                m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "thanks got it"
+                m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "got it"
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
@@ -398,7 +398,8 @@ def test_compunit_regspec1():
     with open("test_compunit_regspec1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit_regspec1.vcd')
+    run_simulation(m, scoreboard_sim(dut),
+                   vcd_name='test_compunit_regspec1.vcd')
 
 
 if __name__ == '__main__':
