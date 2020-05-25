@@ -153,11 +153,12 @@ class DataMerger(Elaboratable):
     then uses that row, based on matching address bits, to merge (OR) all data
     rows into the output.
 
-    Basically, by the time DataMerger is used, all of its incoming data is determined
-    not to conflict.  The last step before actually submitting the request to the
-    Memory Subsystem is to work out which requests, on the same 128-bit cache line,
-    can be "merged" due to them being: (A) on the same address (bits 4 and above)
-    (B) having byte-enable lines that (as previously mentioned) do not conflict.
+    Basically, by the time DataMerger is used, all of its incoming data is
+    determined not to conflict.  The last step before actually submitting
+    the request to the Memory Subsystem is to work out which requests,
+    on the same 128-bit cache line, can be "merged" due to them being:
+    (A) on the same address (bits 4 and above) (B) having byte-enable
+    lines that (as previously mentioned) do not conflict.
 
     Therefore, put simply, this module will:
     (1) pick a row (any row) and identify it by an index labelled "idx"
