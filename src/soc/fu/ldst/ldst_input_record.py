@@ -13,6 +13,7 @@ class CompLDSTOpSubset(Record):
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
+                  ('zero_a', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
                   ('data_len', 4),
@@ -25,6 +26,7 @@ class CompLDSTOpSubset(Record):
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
         self.is_32bit.reset_less = True
+        self.zero_a.reset_less = True
         self.is_signed.reset_less = True
         self.data_len.reset_less = True
         self.byte_reverse.reset_less = True
@@ -43,6 +45,7 @@ class CompLDSTOpSubset(Record):
     def ports(self):
         return [self.insn_type,
                 self.is_32bit,
+                self.zero_a,
                 self.is_signed,
                 self.data_len,
                 self.byte_reverse,

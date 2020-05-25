@@ -261,9 +261,6 @@ class LDSTCompUnit(Elaboratable):
 
         # XXX TODO ZEROing just lije in ComUnit
 
-        # select immediate or src2 reg to add
-        src2_or_imm = Signal(self.rwid, reset_less=True)
-        src_sel = Signal(reset_less=True)
 
         ##############################
         # reset conditions for latches
@@ -358,13 +355,18 @@ class LDSTCompUnit(Elaboratable):
         addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
         latchregister(m, alu_o, addr_r, alu_l.q, "ea_r")
 
+        # select either zero or src1 if opcode says so
+        op_is_z = oper_r.zero_a
+        src1_or_z = Signal(self.rwid, reset_less=True)
+        m.d.comb += src1_or_z.eq(Mux(op_is_z, 0, srl[0]))
+
         # select either immediate or src2 if opcode says so
         op_is_imm = oper_r.imm_data.imm_ok
         src2_or_imm = Signal(self.rwid, reset_less=True)
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
-        sync += alu_o.eq(srl[0] + src2_or_imm) # actual EA
+        sync += alu_o.eq(src1_or_z + src2_or_imm) # actual EA
         sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
         # decode bits of operand (latched)
@@ -383,8 +385,8 @@ class LDSTCompUnit(Elaboratable):
         busy_o = self.busy_o
         comb += self.busy_o.eq(opc_l.q) # | self.pi.busy_o)  # busy out
 
-        # 1st operand read-request is simple: always need it
-        comb += self.rd.rel[0].eq(src_l.q[0] & busy_o)
+        # 1st operand read-request only when zero not active
+        comb += self.rd.rel[0].eq(src_l.q[0] & busy_o & ~op_is_z)
 
         # 2nd operand only needed when immediate is not active
         comb += self.rd.rel[1].eq(src_l.q[1] & busy_o & ~op_is_imm)
