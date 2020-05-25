@@ -40,7 +40,8 @@ class Driver(Elaboratable):
         wr_rel = dut.wr.rel
 
         go_die = dut.go_die_i
-        shadow = dut.shadown_i # note this is inverted (name shadow>N<)
+        shadow = Signal()
+        comb += shadow.eq(~dut.shadown_i)
 
         rst = ResetSignal()
 
@@ -71,7 +72,7 @@ class Driver(Elaboratable):
             with m.If(Past(wr_rel) & Past(go_wr)):
                 # Shadow interferes with this and I'm not sure what is
                 # correct
-                with m.If(~Past(shadow)):
+                with m.If(Past(shadow)):
                     comb += Assert(busy == 0)
             with m.Elif(Past(busy) == 1):
                 comb += Assert(busy == 1)
@@ -111,10 +112,10 @@ class Driver(Elaboratable):
                 comb += Assert(has_issued)
 
             # Property 8: Similar to property 4, wr_rel should stay
-            # asserted until a go_rd, go_die, or shadow
+            # asserted until a go_rd or go_die
 
-            with m.If((Past(go_wr) == 0) & ~Past(go_die, 2) &
-                      ~Past(shadow)):
+            with m.If((Past(go_wr) == 0) & ~Past(go_die, 1) &
+                      ~shadow):
                 comb += Assert(~Fell(wr_rel))
             # Assume go_wr is not asserted unless wr_rel is
             with m.If(wr_rel == 0):
