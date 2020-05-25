@@ -315,15 +315,15 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield
     yield dut.issue_i.eq(0)
     yield
-    yield dut.rd.go.eq(0b11)
-    while True:
-        yield
-        rd_rel_o = yield dut.rd.rel
-        print ("rd_rel", rd_rel_o)
-        if rd_rel_o:
-            break
-    yield
-    yield dut.rd.go.eq(0)
+    if not imm_ok or not zero_a:
+        yield dut.rd.go.eq(0b11)
+        while True:
+            yield
+            rd_rel_o = yield dut.rd.rel
+            print ("rd_rel", rd_rel_o)
+            if rd_rel_o:
+                break
+        yield dut.rd.go.eq(0)
     req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
     print ("req_rel", req_rel_o, result)
@@ -354,11 +354,9 @@ def scoreboard_sim(dut):
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
     assert result == 65532
 
-    # XXX - immediate and zero is not a POWER mode (and won't work anyway)
-    # reason: no actual operands.
-    #result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1,
-    #                                imm=8, imm_ok=1)
-    #assert result == 8
+    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1,
+                                    imm=8, imm_ok=1)
+    assert result == 8
 
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1)
     assert result == 2
