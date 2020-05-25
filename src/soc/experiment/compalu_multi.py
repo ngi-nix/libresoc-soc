@@ -379,7 +379,10 @@ def test_compunit():
 
 
 class CompUnitParallelTest:
-    def __init__(self, dut):
+    def __init__(self, dut,
+        # TODO add a, b, expected_o, and other parameters such as imm_mode, zero
+        # operand etc.
+            ):
         self.dut = dut
 
     def driver(self):
@@ -415,10 +418,14 @@ class CompUnitParallelTest:
     def rd(self, rd_idx):
         # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
         yield
+        # TODO: also when dut.rd.go is set, put the expected value into
+        # the src_i.
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
         yield
+        # TODO: also when dut.wr.go is set, check the output against the
+        # self.expected_o and assert
 
 def test_compunit_regspec1():
     from alu_hier import ALU
