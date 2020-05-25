@@ -414,11 +414,11 @@ class CompUnitParallelTest:
 
     def rd(self, rd_idx):
         # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
-        pass
+        yield
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
-        pass
+        yield
 
 def test_compunit_regspec1():
     from alu_hier import ALU
