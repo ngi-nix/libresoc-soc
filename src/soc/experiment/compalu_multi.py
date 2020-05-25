@@ -400,10 +400,13 @@ class CompUnitParallelTest:
         yield self.dut.issue_i.eq(0)
         yield
 
+        # TODO: while-loop on busy (see ldst comp unit for suitable function)
         busy_o = yield self.dut.busy_o
         print("Driver: busy_o =", busy_o)
 
     def monitor(self):
+        # TODO: as a while-loop.  first loop on busy *not* set,
+        # then loop on busy *is* set. (see ldst comp for suitable function)
         for i in range(10):
             busy_o = yield self.dut.busy_o
             print("    Monitor: busy_o =", busy_o)
