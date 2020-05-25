@@ -149,8 +149,9 @@ class DataMergerRecord(Record):
 class DataMerger(Elaboratable):
     """DataMerger
 
-    Merges data based on an address-match matrix.  Identifies (picks) one (any) row,
-    then uses that row, based on matching address bits, to merge (OR) all data
+    Merges data based on an address-match matrix.  
+    Identifies (picks) one (any) row, then uses that row, 
+    based on matching address bits, to merge (OR) all data
     rows into the output.
 
     Basically, by the time DataMerger is used, all of its incoming data is
@@ -188,6 +189,10 @@ class DataMerger(Elaboratable):
             ul.append(DataMergerRecord())
         self.data_i = Array(ul)
         self.data_o = DataMergerRecord()
+        
+        def elaborate(self, platform):
+        m = Module()
+        comb, sync = m.d.comb, m.d.sync
 
 
 class LDSTPort(Elaboratable):
