@@ -40,7 +40,7 @@ class Driver(Elaboratable):
         wr_rel = dut.wr.rel
 
         go_die = dut.go_die_i
-        shadow = dut.shadown_i
+        shadow = dut.shadown_i # note this is inverted (name shadow>N<)
 
         rst = ResetSignal()
 
