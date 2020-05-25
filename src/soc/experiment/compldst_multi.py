@@ -541,23 +541,28 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     return addr
 
 
-def load(dut, src1, src2, imm, imm_ok=True, update=False):
+def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False):
     print ("LD", src1, src2, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
+    yield dut.oper_i.zero_a.eq(zero_a)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-    if imm_ok:
-        yield dut.rd.go.eq(0b01)
-    else:
-        yield dut.rd.go.eq(0b11)
-    yield from wait_for(dut.rd.rel)
-    yield dut.rd.go.eq(0)
+    rd = 0b00
+    if not imm_ok:
+        rd |= 0b10
+    if not zero_a:
+        rd |= 0b01
+
+    if rd:
+        yield dut.rd.go.eq(rd)
+        yield from wait_for(dut.rd.rel)
+        yield dut.rd.go.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
     #yield dut.ad.go.eq(1)
@@ -613,7 +618,13 @@ def scoreboard_sim(dut):
 
     # update-indexed version
     data, addr  = yield from load(dut, 4, 5, 0, imm_ok=False, update=True)
+    assert data == 0x0003, "returned %x" % data
     assert addr == 0x0009, "returned %x" % addr
+
+    # immediate *and* zero version
+    data, addr  = yield from load(dut, 4, 5, 9, imm_ok=True, zero_a=True)
+    assert data == 0x0003, "returned %x" % data
+
 
 class TestLDSTCompUnit(LDSTCompUnit):
 
