@@ -31,33 +31,30 @@ class VirtualRegPort(RegFileArray):
         self.full_rd = RecordObject([("ren", n_regs),
                                      ("data_o", bitwidth)], # *full* wid
                                     name="full_rd")
-        # for internal use
-        self._wr_regs = self.write_reg_port(f"intw")
-        self._rd_regs = self.read_reg_port(f"intr")
-
     def elaborate(self, platform):
         m = super().elaborate(platform)
         comb = m.d.comb
 
-        # connect up: detect if read is requested on large (full) port
-        # nothing fancy needed because reads are same-cycle
+        # for internal use only.
+        wr_regs = self.write_reg_port(f"w")
+        rd_regs = self.read_reg_port(f"r")
+
+        # connect up full read port
         rfull = self.full_rd
 
         # wire up the enable signals and chain-accumulate the data
-        l = map(lambda port: port.data_o, self._rd_regs) # get port data(s)
-        le = map(lambda port: port.ren, self._rd_regs) # get port ren(s)
+        l = map(lambda port: port.data_o, rd_regs) # get port data(s)
+        le = map(lambda port: port.ren, rd_regs) # get port ren(s)
 
         comb += rfull.data_o.eq(Cat(*l)) # we like Cat on lists
         comb += Cat(*le).eq(rfull.ren)
 
-        # connect up: detect if write is requested on large (full) port
-        # however due to the delay (1 clock) on write, we also need to
-        # delay the test.  enable is not-delayed, but data is.
+        # connect up full write port
         wfull = self.full_wr
 
         # wire up the enable signals from the large (full) port
-        l = map(lambda port: port.data_i, self._wr_regs)
-        le = map(lambda port: port.wen, self._wr_regs) # get port wen(s)
+        l = map(lambda port: port.data_i, wr_regs)
+        le = map(lambda port: port.wen, wr_regs) # get port wen(s)
 
         # get list of all data_i (and wens) and assign to them via Cat
         comb += Cat(*l).eq(wfull.data_i)
