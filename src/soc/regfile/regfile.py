@@ -84,8 +84,8 @@ class Register(Elaboratable):
     def ports(self):
         res = list(self)
 
-def ortreereduce(tree):
-    return treereduce(tree, operator.or_, lambda x: getattr(x, "data_o"))
+def ortreereduce(tree, attr="data_o"):
+    return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
 
 class RegFileArray(Elaboratable):

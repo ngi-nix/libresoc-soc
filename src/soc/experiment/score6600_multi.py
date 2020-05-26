@@ -4,7 +4,7 @@ from nmigen.hdl.ast import unsigned
 from nmigen import Module, Const, Signal, Array, Cat, Elaboratable, Memory
 from nmigen.back.pysim import Delay
 
-from soc.regfile.regfile import RegFileArray, treereduce
+from soc.regfile.regfile import RegFileArray, ortreereduce
 from soc.scoremulti.fu_fu_matrix import FUFUDepMatrix
 from soc.scoremulti.fu_reg_matrix import FURegDepMatrix
 from soc.scoreboard.global_pending import GlobalPending
@@ -170,10 +170,10 @@ class CompUnitsBase(Elaboratable):
         # protected by a single go_wr.  multi-issue requires a bus
         # to be inserted here.
         if self.units:
-            data_o = treereduce(self.units, "data_o")
+            data_o = ortreereduce(self.units, "data_o")
             comb += self.data_o.eq(data_o)
             if self.ldstmode:
-                addr_o = treereduce(self.units, "addr_o")
+                addr_o = ortreereduce(self.units, "addr_o")
                 comb += self.addr_o.eq(addr_o)
 
         for i, alu in enumerate(self.units):

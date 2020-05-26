@@ -281,6 +281,11 @@ class BranchOp(Elaboratable):
 
 class BranchALU(Elaboratable):
     def __init__(self, width):
+        self.p = Dummy() # make look like nmutil pipeline API
+        self.p.data_i = Dummy()
+        self.p.data_i.ctx = Dummy()
+        self.n = Dummy() # make look like nmutil pipeline API
+        self.n.data_o = Dummy()
         self.p.valid_i = Signal()
         self.p.ready_o = Signal()
         self.n.ready_i = Signal()
