@@ -24,24 +24,14 @@ class VirtualRegPort(RegFileArray):
         self.regwidth = regwidth = bitwidth // n_regs
         super().__init__(self.regwidth, n_regs)
 
-        # create suite of 8 write and 8 read ports for external use
-        self.wr_ports = []
-        self.rd_ports = []
-        for i in range(n_regs):
-            self.wr_ports.append(RecordObject([("wen", n_regs),
-                                              ("data_i", regwidth)],
-                                             name="w%d" % i))
-            self.rd_ports.append(RecordObject([("ren", n_regs),
-                                              ("data_o", regwidth)],
-                                             name="r%d" % i))
-        # and append the "full" depth variant to the "external" ports
-        self.wr_ports.append(RecordObject([("wen", n_regs),
-                                          ("data_i", bitwidth)], # *full* wid
-                                         name="full_wr"))
-        self.rd_ports.append(RecordObject([("ren", n_regs),
-                                          ("data_o", bitwidth)], # *full* wid
-                                         name="full_rd"))
-        # now for internal use
+        # "full" depth variant of the "external" port
+        self.full_wr = RecordObject([("wen", n_regs),
+                                     ("data_i", bitwidth)], # *full* wid
+                                    name="full_wr")
+        self.full_rd = RecordObject([("ren", n_regs),
+                                     ("data_o", bitwidth)], # *full* wid
+                                    name="full_rd")
+        # for internal use
         self._wr_regs = self.write_reg_port(f"intw")
         self._rd_regs = self.read_reg_port(f"intr")
 
@@ -51,62 +41,34 @@ class VirtualRegPort(RegFileArray):
 
         # connect up: detect if read is requested on large (full) port
         # nothing fancy needed because reads are same-cycle
-        rlast = self.rd_ports[-1]
-        ren_sig = Signal(reset_less=True)
-        comb += ren_sig.eq(rlast.ren.bool())
-        print (rlast)
-        with m.If(ren_sig):
-            # wire up the enable signals and chain-accumulate the data
-            print (self._rd_regs)
-            l = map(lambda port: port.data_o, self._rd_regs) # get port data(s)
-            le = map(lambda port: port.ren, self._rd_regs) # get port ren(s)
-            comb += rlast.data_o.eq(Cat(*l)) # we like Cat on lists
-            comb += Cat(*le).eq(rlast.ren)
-        with m.Else():
-            # allow request through the corresponding lower indexed ports
-            # TODO: make data_o and ren fields "directional" then simply
-            # use record "connect"
-            for i, port in enumerate(self._rd_regs):
-                comb += port.ren.eq(self.rd_ports[i].ren)
-                comb += self.rd_ports[i].data_o.eq(port.data_o)
+        rfull = self.full_rd
+
+        # wire up the enable signals and chain-accumulate the data
+        l = map(lambda port: port.data_o, self._rd_regs) # get port data(s)
+        le = map(lambda port: port.ren, self._rd_regs) # get port ren(s)
+
+        comb += rfull.data_o.eq(Cat(*l)) # we like Cat on lists
+        comb += Cat(*le).eq(rfull.ren)
 
         # connect up: detect if write is requested on large (full) port
         # however due to the delay (1 clock) on write, we also need to
         # delay the test.  enable is not-delayed, but data is.
-        en_sig = Signal(reset_less=True)   # combinatorial
-        data_sig = Signal(reset_less=True) # sync (one clock delay)
+        wfull = self.full_wr
 
-        wlast = self.wr_ports[-1]
-        comb += en_sig.eq(wlast.wen.bool())
-        sync += data_sig.eq(en_sig)
+        # wire up the enable signals from the large (full) port
+        l = map(lambda port: port.data_i, self._wr_regs)
+        le = map(lambda port: port.wen, self._wr_regs) # get port wen(s)
 
-        with m.If(en_sig):
-            # wire up the enable signals from the large (full) port
-            le = map(lambda port: port.wen, self._wr_regs) # get port wen(s)
-            comb += Cat(*le).eq(wlast.wen)
-        with m.Else():
-            # allow request through the corresponding lower indexed ports
-            for i, port in enumerate(self._wr_regs):
-                comb += port.wen.eq(self.wr_ports[i].wen)
-
-        # and (sigh) data is on one clock-delay, connect that too
-        with m.If(data_sig):
-            # get list of all data_i (and wens) and assign to them via Cat
-            l = map(lambda port: port.data_i, self._wr_regs)
-            comb += Cat(*l).eq(wlast.data_i)
-        with m.Else():
-            # allow data through the corresponding lower indexed ports
-            for i, port in enumerate(self._wr_regs):
-                comb += port.data_i.eq(self.wr_ports[i].data_i)
+        # get list of all data_i (and wens) and assign to them via Cat
+        comb += Cat(*l).eq(wfull.data_i)
+        comb += Cat(*le).eq(wfull.wen)
 
         return m
 
     def __iter__(self):
         yield from super().__iter__()
-        for p in self.wr_ports:
-            yield from p
-        for p in self.rd_ports:
-            yield from p
+        yield from self.full_wr
+        yield from self.full_rd
 
 
 def test_regfile():
