@@ -4,7 +4,6 @@
 
 # This attempts to prove most of the bullet points on that page
 
-
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, ResetSignal)
 from nmigen.asserts import (Assert, AnyConst, Assume, Cover, Initial,
@@ -18,6 +17,7 @@ from soc.experiment.alu_hier import DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 
+
 class Driver(Elaboratable):
     def __init__(self):
         pass
@@ -27,8 +27,7 @@ class Driver(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
         alu = DummyALU(16)
-        m.submodules.dut = dut = MultiCompUnit(16, alu,
-                                               CompALUOpSubset)
+        m.submodules.dut = dut = MultiCompUnit(16, alu, CompALUOpSubset)
 
         issue = dut.issue_i
         busy = dut.busy_o
@@ -48,8 +47,6 @@ class Driver(Elaboratable):
         init = Initial()
 
         has_issued = Signal(reset=0)
-
-
 
         with m.If(init):
             comb += Assume(has_issued == 0)
@@ -121,13 +118,11 @@ class Driver(Elaboratable):
             with m.If(wr_rel == 0):
                 comb += Assume(go_wr == 0)
 
-
             # Property 9: Similar to property 5, when wr_rel is
             # asserted and go_wr is asserted, then wr_rel should be
             # deasserted
             with m.If(Past(wr_rel) & Past(go_wr)):
                 comb += Assert(wr_rel == 0)
-
 
             # Property 10: Similar to property 6, wr_rel should be
             # deasserted when go_die is asserted
@@ -141,11 +136,18 @@ class Driver(Elaboratable):
 
             # Assume no instruction is issued until rd_rel is
             # released. Idk if this is valid
+            # (lkcl notes: it's actually that no instruction is issued
+            # until *busy* is released.  oh i think i see what you
+            # mean: well... kinda.  because rd_rel relies on wr_rel
+            # and wr_rel relies on instruction, there exists a
+            # transitive relationship, which is not strictly necessary to
+            # explicitly check)
 
             with m.If(busy):
                 comb += Assume(issue == 0)
 
         return m
+
 
 class FUTestCase(FHDLTestCase):
     def test_formal(self):
