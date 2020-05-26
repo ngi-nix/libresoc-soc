@@ -37,7 +37,7 @@ class VirtualRegPort(RegFileArray):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
-        comb, sync = m.d.comb, m.d.sync
+        comb = m.d.comb
 
         # connect up: detect if read is requested on large (full) port
         # nothing fancy needed because reads are same-cycle
