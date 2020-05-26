@@ -92,9 +92,10 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield rp2.ren.eq(0)
     data1 = yield rp1.data_o
     print (data1)
+    assert data1 == 6, data1
     data2 = yield rp2.data_o
     print (data2)
-    assert data1 == 6
+    assert data2 == 2, data2
     yield
     data = yield rp1.data_o
     print (data)
