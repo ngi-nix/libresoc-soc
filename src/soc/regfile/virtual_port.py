@@ -24,30 +24,27 @@ class VirtualRegPort(RegFileArray):
         self.regwidth = bitwidth // n_regs
         super().__init__(self.regwidth, n_regs)
 
-        # create suite of 8 write ports
-        self.w_ports = [ self.write_port(f"extw_{i}") for i in range(n_regs) ]
-        self.r_ports = [ self.read_port(f"extr_{i}") for i in range(n_regs) ]
-        # now start again: one set will be internal, the other external
-        self._rdports = []
-        self._wrports = []
-        for i in range(n_regs):
-            self.write_port(f"intw_{i}")
-            self.read_port(f"intr_{i}")
+        # create suite of 8 write and 8 read ports for external use
+        self.wr_ports = self.write_reg_port(f"extw")
+        self.rd_ports = self.read_reg_port(f"extr")
+        # now for internal use
+        self._wr_regs = self.write_reg_port(f"intw")
+        self._rd_regs = self.read_reg_port(f"intr")
         # and append the "full" depth variant to the "external" ports
-        self.w_ports.append(RecordObject([("wen", n_regs),
+        self.wr_ports.append(RecordObject([("wen", n_regs),
                                           ("data_i", bitwidth)], # *full* wid
-                                         name="full"))
-        self.r_ports.append(RecordObject([("ren", n_regs),
+                                         name="full_wr"))
+        self.rd_ports.append(RecordObject([("ren", n_regs),
                                           ("data_o", bitwidth)], # *full* wid
-                                         name="full"))
+                                         name="full_rd"))
 
     def elaborate(self, platform):
-        m = Module()
+        m = super().elaborate(platform)
         comb, sync = m.d.comb, m.d.sync
 
         # connect up: detect if read is requested on large (full) port
         # nothing fancy needed because reads are same-cycle
-        rlast = self.r_ports[-1]
+        rlast = self.rd_ports[-1]
         print (rlast)
         with m.If(self._get_en_sig([rlast], "ren") != 0):
             # wire up the enable signals and accumulate the data
@@ -61,7 +58,7 @@ class VirtualRegPort(RegFileArray):
         with m.Else():
             # allow request through the corresponding lower indexed ports
             for i, port in enumerate(self._rdports[:-1]):
-                comb += port.eq(self.r_ports[i])
+                comb += port.eq(self.rd_ports[i])
 
         # connect up: detect if write is requested on large (full) port
         # however due to the delay (1 clock) on write, we also need to
@@ -69,8 +66,8 @@ class VirtualRegPort(RegFileArray):
         en_sig = Signal(reset_less=True)   # combinatorial
         data_sig = Signal(reset_less=True) # sync (one clock delay)
 
-        wlast = self.w_ports[-1]
-        comb += en_sig.eq(self._get_en_sig(wlast, "wen") != 0)
+        wlast = self.wr_ports[-1]
+        comb += en_sig.eq(self._get_en_sig([wlast], "wen") != 0)
         sync += data_sig.eq(en_sig)
 
         with m.If(en_sig):
@@ -80,7 +77,7 @@ class VirtualRegPort(RegFileArray):
         with m.Else():
             # allow request through the corresponding lower indexed ports
             for i, port in enumerate(self._wrports[:-1]):
-                comb += port.wen.eq(self.w_ports[i].wen)
+                comb += port.wen.eq(self.wn_ports[i].wen)
 
         # and (sigh) data is on one clock-delay, connect that too
         with m.If(data_sig):
@@ -90,12 +87,23 @@ class VirtualRegPort(RegFileArray):
         with m.Else():
             # allow data through the corresponding lower indexed ports
             for i, port in enumerate(self._wrports[:-1]):
-                comb += self.w_ports[i].data_i.eq(port.data_i)
+                comb += self.wr_ports[i].data_i.eq(port.data_i)
+
+        return m
+
+    def __iter__(self):
+        yield from super().__iter__()
+        for p in self.wr_ports:
+            yield from p
+        for p in self.rd_ports:
+            yield from p
 
 
 def test_regfile():
-    dut = VirtualRegPort(32, 8)
-    vl = rtlil.convert(dut, ports=dut.ports() + dut.w_ports + dut.r_ports)
+    dut = VirtualRegPort(32, 4)
+    ports=dut.ports()
+    print ("ports", ports)
+    vl = rtlil.convert(dut, ports=ports)
     with open("test_virtualregfile.il", "w") as f:
         f.write(vl)
 

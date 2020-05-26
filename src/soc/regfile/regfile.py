@@ -100,11 +100,22 @@ class RegFileArray(Elaboratable):
         self._rdports = []
         self._wrports = []
 
-    def read_port(self, name=None):
+    def read_reg_port(self, name=None):
         regs = []
         for i in range(self.depth):
-            port = self.regs[i].read_port(name)
+            port = self.regs[i].read_port("%s%d" % (name, i))
             regs.append(port)
+        return regs
+
+    def write_reg_port(self, name=None):
+        regs = []
+        for i in range(self.depth):
+            port = self.regs[i].write_port("%s%d" % (name, i))
+            regs.append(port)
+        return regs
+
+    def read_port(self, name=None):
+        regs = self.read_reg_port(name)
         regs = Array(regs)
         port = RecordObject([("ren", self.depth),
                              ("data_o", self.width)], name)
@@ -112,10 +123,7 @@ class RegFileArray(Elaboratable):
         return port
 
     def write_port(self, name=None):
-        regs = []
-        for i in range(self.depth):
-            port = self.regs[i].write_port(name)
-            regs.append(port)
+        regs = self.write_reg_port(name)
         regs = Array(regs)
         port = RecordObject([("wen", self.depth),
                              ("data_i", self.width)])
