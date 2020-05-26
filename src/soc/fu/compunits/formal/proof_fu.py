@@ -71,14 +71,11 @@ class Driver(Elaboratable):
             # cycle. Read requests may go out immediately after issue
             # goes low
 
-            # issue can only be raised for one cycle
-            with m.If(Past(issue)):
-                comb += Assume(issue == 0)
-            
+
             # The read_request should not happen while the unit is not busy
             with m.If(~busy):
                 comb += Assert(rd_rel == 0)
-                
+
             # Property 3: Read request is sent, which is acknowledged
             # through the scoreboard to the priority picker which
             # generates one go_read at a time. One of those will
@@ -96,7 +93,6 @@ class Driver(Elaboratable):
             with m.If(~Past(go_die)):
                 with m.If(Past(go_rd)[0] & Past(rd_rel)[0]):
                     comb += Assert(dut.alu.a == Past(dut.src1_i))
-                    comb += Assert(rd_rel[0] == 0)
                 with m.If(Past(go_rd)[1] & Past(rd_rel)[1]):
                     comb += Assert(dut.alu.b == Past(dut.src2_i))
 
@@ -110,7 +106,7 @@ class Driver(Elaboratable):
             alu_temp = Signal(16)
             write_req_valid = Signal(reset=0)
             with m.If(~Past(go_die) & Past(busy)):
-                with m.If(Past(dut.alu.n.valid_o)):
+                with m.If(Rose(dut.alu.n.valid_o)):
                     sync += alu_temp.eq(dut.alu.o)
                     sync += write_req_valid.eq(1)
 
@@ -146,7 +142,7 @@ class Driver(Elaboratable):
             # then the alu data should be output
             with m.If(Past(wr_rel) & Past(go_wr)):
                 # the alu data is output
-                comb += Assert(dut.data_o == alu_temp)
+                comb += Assert((dut.data_o == alu_temp) | (dut.data_o == dut.alu.o))
                 # wr_rel is dropped
                 comb += Assert(wr_rel == 0)
                 # busy is dropped.
@@ -154,14 +150,41 @@ class Driver(Elaboratable):
                     comb += Assert(busy == 0)
 
 
+        # It is REQUIRED that issue be held valid only for one cycle
+        with m.If(Past(issue)):
+            comb += Assume(issue == 0)
+
+        # It is REQUIRED that GO_Read be held valid only for one
+        # cycle, and it is REQUIRED that the corresponding read_req be
+        # dropped exactly one cycle after go_read is asserted high
+
+        for i in range(2):
+            with m.If(Past(go_rd)[i] & Past(rd_rel)[i]):
+                comb += Assume(go_rd[i] == 0)
+                comb += Assert(rd_rel[i] == 0)
+
+        # Likewise for go_write/wr_rel
+        with m.If(Past(go_wr) & Past(wr_rel)):
+            comb += Assume(go_wr == 0)
+            comb += Assert(wr_rel == 0)
+
+        # When go_die is asserted the the entire FSM should be fully
+        # reset.
+
+        with m.If(Past(go_die) & Past(busy)):
+            comb += Assert(rd_rel == 0)
+            # this doesn't work?
+            # comb += Assert(wr_rel == 0)
+            sync += write_req_valid.eq(0)
+
         return m
 
 
 class FUTestCase(FHDLTestCase):
     def test_formal(self):
         module = Driver()
-        self.assertFormal(module, mode="bmc", depth=5)
-        self.assertFormal(module, mode="cover", depth=5)
+        self.assertFormal(module, mode="bmc", depth=10)
+        self.assertFormal(module, mode="cover", depth=10)
     def test_ilang(self):
         dut = MultiCompUnit(16, DummyALU(16), CompALUOpSubset)
         vl = rtlil.convert(dut, ports=dut.ports())
