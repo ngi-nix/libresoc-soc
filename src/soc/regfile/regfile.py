@@ -22,9 +22,9 @@ from nmigen.cli import verilog, rtlil
 
 from nmigen import Cat, Const, Array, Signal, Elaboratable, Module
 from nmutil.iocontrol import RecordObject
+from nmutil.util import treereduce
 
 from math import log
-from functools import reduce
 import operator
 
 
@@ -84,16 +84,8 @@ class Register(Elaboratable):
     def ports(self):
         res = list(self)
 
-def treereduce(tree, attr="data_o"):
-    #print ("treereduce", tree)
-    if not isinstance(tree, list):
-        return tree
-    if len(tree) == 1:
-        return getattr(tree[0], attr)
-    if len(tree) == 2:
-        return getattr(tree[0], attr) | getattr(tree[1], attr)
-    split = len(tree) // 2
-    return treereduce(tree[:split], attr) | treereduce(tree[split:], attr)
+def ortreereduce(tree):
+    return treereduce(tree, operator.or_, lambda x: getattr(x, "data_o"))
 
 
 class RegFileArray(Elaboratable):
@@ -144,7 +136,7 @@ class RegFileArray(Elaboratable):
         for (regs, p) in self._rdports:
             #print (p)
             m.d.comb += self._get_en_sig(regs, 'ren').eq(p.ren)
-            ror = treereduce(list(regs))
+            ror = ortreereduce(list(regs))
             m.d.comb += p.data_o.eq(ror)
         for (regs, p) in self._wrports:
             m.d.comb += self._get_en_sig(regs, 'wen').eq(p.wen)
