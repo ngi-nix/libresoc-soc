@@ -71,14 +71,137 @@ class VirtualRegPort(RegFileArray):
         yield from self.full_rd
 
 
+def regfile_array_sim(dut, rp1, rp2, rp3, wp):
+    # part-port write
+    yield wp.data_i.eq(2)
+    yield wp.wen.eq(1<<1)
+    yield
+    yield wp.wen.eq(0)
+    # part-port read
+    yield rp1.ren.eq(1<<1)
+    yield
+    data = yield rp1.data_o
+    print (data)
+    assert data == 2
+
+    # simultaneous read/write - should be pass-thru
+    yield rp1.ren.eq(1<<5)
+    yield rp2.ren.eq(1<<1)
+    yield wp.wen.eq(1<<5)
+    yield wp.data_i.eq(6)
+    yield
+    yield wp.wen.eq(0)
+    yield rp1.ren.eq(0)
+    yield rp2.ren.eq(0)
+    data1 = yield rp1.data_o
+    print (data1)
+    data2 = yield rp2.data_o
+    print (data2)
+    assert data1 == 6
+    yield
+    data = yield rp1.data_o
+    print (data)
+
+    # full port read (whole reg)
+    yield dut.full_rd.ren.eq(0xff)
+    yield
+    yield dut.full_rd.ren.eq(0)
+    data = yield dut.full_rd.data_o
+    print (hex(data))
+
+    # full port read (part reg)
+    yield dut.full_rd.ren.eq(0x1<<5)
+    yield
+    yield dut.full_rd.ren.eq(0)
+    data = yield dut.full_rd.data_o
+    print (hex(data))
+
+    # full port part-write (part masked reg)
+    yield dut.full_wr.wen.eq(0x1<<1)
+    yield dut.full_wr.data_i.eq(0xe0)
+    yield
+    yield dut.full_wr.wen.eq(0x0)
+
+    # full port read (whole reg)
+    yield dut.full_rd.ren.eq(0xff)
+    yield
+    yield dut.full_rd.ren.eq(0)
+    data = yield dut.full_rd.data_o
+    print (hex(data))
+
+    # full port write
+    yield dut.full_wr.wen.eq(0xff)
+    yield dut.full_wr.data_i.eq(0xcafeface)
+    yield
+    yield dut.full_wr.wen.eq(0x0)
+
+    # full port read (whole reg)
+    yield dut.full_rd.ren.eq(0xff)
+    yield
+    yield dut.full_rd.ren.eq(0)
+    data = yield dut.full_rd.data_o
+    print (hex(data))
+
+    # part write
+    yield wp.data_i.eq(2)
+    yield wp.wen.eq(1<<1)
+    yield
+    yield wp.wen.eq(0)
+    yield rp1.ren.eq(1<<1)
+    yield
+    data = yield rp1.data_o
+    print (hex(data))
+    assert data == 2
+
+    # full port read (whole reg)
+    yield dut.full_rd.ren.eq(0xff)
+    yield
+    yield dut.full_rd.ren.eq(0)
+    data = yield dut.full_rd.data_o
+    print (hex(data))
+
+    # simultaneous read/write: full-write, part-write, 3x part-read
+    yield rp1.ren.eq(1<<5)
+    yield rp2.ren.eq(1<<1)
+    yield rp3.ren.eq(1<<3)
+    yield wp.wen.eq(1<<3)
+    yield wp.data_i.eq(6)
+    yield dut.full_wr.wen.eq((1<<1) | (1<<5))
+    yield dut.full_wr.data_i.eq((0xa<<(1*4)) | (0x3<<(5*4)))
+    yield
+    yield dut.full_wr.wen.eq(0)
+    yield wp.wen.eq(0)
+    yield rp1.ren.eq(0)
+    yield rp2.ren.eq(0)
+    yield rp3.ren.eq(0)
+    data1 = yield rp1.data_o
+    print (hex(data1))
+    assert data1 == 0x3
+    data2 = yield rp2.data_o
+    print (hex(data2))
+    assert data2 == 0xa
+    data3 = yield rp3.data_o
+    print (hex(data3))
+    assert data3 == 0x6
+
+
 def test_regfile():
     dut = VirtualRegPort(32, 8)
+    rp1 = dut.read_port("read1")
+    rp2 = dut.read_port("read2")
+    rp3 = dut.read_port("read3")
+    wp = dut.write_port("write")
+
     ports=dut.ports()
     print ("ports", ports)
     vl = rtlil.convert(dut, ports=ports)
     with open("test_virtualregfile.il", "w") as f:
         f.write(vl)
 
+    run_simulation(dut, regfile_array_sim(dut, rp1, rp2, rp3, wp),
+                   vcd_name='test_regfile_array.vcd')
+
 if __name__ == '__main__':
     test_regfile()
+
 
