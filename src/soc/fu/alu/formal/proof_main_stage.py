@@ -67,8 +67,9 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
-        comb += Assume(a[32:64] == 0)
-        comb += Assume(b[32:64] == 0)
+        with m.If(rec.is_32bit):
+            comb += Assume(a[32:64] == 0)
+            comb += Assume(b[32:64] == 0)
 
         o_ok = Signal()
         comb += o_ok.eq(1) # will be set to zero if no op takes place
