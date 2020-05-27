@@ -103,13 +103,14 @@ class Driver(Elaboratable):
                 eqs = Signal(8)
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[i*8:(i+1)*8])
-                comb += Assert(dut.o.cr0[2] == eqs.any())
+                comb += Assert(dut.o.cr0.data[2] == eqs.any())
 
             with m.Default():
                 comb += o_ok.eq(0)
 
         # check that data ok was only enabled when op actioned
         comb += Assert(dut.o.o.ok == o_ok)
+        #comb += Assert(dut.o.xer_ca.ok == o_ok)
 
         return m
 

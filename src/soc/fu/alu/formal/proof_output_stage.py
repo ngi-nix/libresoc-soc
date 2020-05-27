@@ -1,5 +1,11 @@
-# Proof of correctness for partitioned equal signal combiner
+# Proof of correctness for partitioned equal signal combiner, output stage
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+"""
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=306
+* https://bugs.libre-soc.org/show_bug.cgi?id=305
+* https://bugs.libre-soc.org/show_bug.cgi?id=343
+"""
 
 from nmigen import Module, Signal, Elaboratable, Mux, Cat, signed
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
