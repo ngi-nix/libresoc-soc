@@ -48,7 +48,7 @@ class Driver(Elaboratable):
         a = dut.i.a
         b = dut.i.b
         cr = full_cr_in
-        full_cr_out = dut.o.full_cr
+        full_cr_out = dut.o.full_cr.data
         o = dut.o.o.data
 
         # setup random inputs
@@ -103,7 +103,7 @@ class Driver(Elaboratable):
                     with m.If(i != bt):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
-                        comb += cr_output_arr[i].eq(dut.o.cr_o)
+                        comb += cr_output_arr[i].eq(dut.o.cr_o.data)
 
             with m.Case(InternalOp.OP_MCRF):
                 # This does a similar thing to OP_CROP above, with
@@ -123,17 +123,23 @@ class Driver(Elaboratable):
                     with m.If(i != bf):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
-                        comb += cr_output_arr[i].eq(dut.o.cr_o)
+                        comb += cr_output_arr[i].eq(dut.o.cr_o.data)
 
             # For the other two, they take the full CR as input, and
             # output a full CR. This handles that
             with m.Default():
                 comb += dut.i.full_cr.eq(full_cr_in)
-                comb += cr_o.eq(dut.o.full_cr)
+                comb += cr_o.eq(full_cr_out)
 
         comb += dut.i.ctx.op.eq(rec)
 
+        # test signals for output conditions.  these must only be enabled for
+        # specific instructions, indicating that they generated the output.
+        # this is critically important because the "ok" signals are used by
+        # MultiCompUnit to request a write to the regfile.
         o_ok = Signal()
+        cr_o_ok = Signal()
+        full_cr_o_ok = Signal()
 
         # Assert that op gets copied from the input to output
         for rec_sig in rec.ports():
@@ -151,6 +157,8 @@ class Driver(Elaboratable):
                 for i in range(8):
                     with m.If(FXM[i]):
                         comb += Assert(cr_o[4*i:4*i+4] == a[4*i:4*i+4])
+                comb += cr_o_ok.eq(1)
+
             with m.Case(InternalOp.OP_MFCR):
                 with m.If(rec.insn[20]):  # mfocrf
                     for i in range(8):
@@ -170,6 +178,7 @@ class Driver(Elaboratable):
                 for i in range(8):
                     with m.If(BF != 7-i):
                         comb += Assert(cr_o[i*4:i*4+4] == cr[i*4:i*4+4])
+                comb += cr_o_ok.eq(1)
 
             with m.Case(InternalOp.OP_CROP):
                 bt = Signal(xl_fields.BT[0:-1].shape(), reset_less=True)
