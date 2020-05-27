@@ -8,7 +8,7 @@ from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 
-from soc.regfile import Register
+from soc.regfile.regfile import Register
 
 
 class Driver(Elaboratable):
@@ -44,17 +44,17 @@ class Driver(Elaboratable):
         return m
 
 
-    def TestCase(FHDLTestCase):
-        def test_formal(self):
-            module = Driver()
-            self.assertFormal(module, mode="bmc", depth=2)
-            self.assertFormal(module, mode="cover", depth=2)
+class TestCase(FHDLTestCase):
+    def test_formal(self):
+        module = Driver()
+        self.assertFormal(module, mode="bmc", depth=2)
+        self.assertFormal(module, mode="cover", depth=2)
 
-        def test_ilang(self):
-            dut = Driver()
-            vl = rtlil.convert(dut, ports=[])
-            with open("regfile.il", "w") as f:
-                f.write(vl)
+    def test_ilang(self):
+        dut = Driver()
+        vl = rtlil.convert(dut, ports=[])
+        with open("regfile.il", "w") as f:
+            f.write(vl)
 
 
 if __name__ == '__main__':
