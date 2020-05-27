@@ -379,10 +379,7 @@ def test_compunit():
 
 
 class CompUnitParallelTest:
-    def __init__(self, dut,
-        # TODO add a, b, expected_o, and other parameters such as imm_mode, zero
-        # operand etc.
-            ):
+    def __init__(self, dut):
         self.dut = dut
 
         # Operation cycle should not take longer than this:
@@ -393,9 +390,15 @@ class CompUnitParallelTest:
         self.MIN_BUSY_LOW = 5
 
     def driver(self):
-
         print("Begin parallel test.")
+        yield from self.operation()
 
+    # TODO add a, b, expected_o, and other parameters such as imm_mode, zero
+    # operand etc.
+    def operation(self):
+        yield from self.issue()
+
+    def issue(self):
         # issue_i starts inactive
         yield self.dut.issue_i.eq(0)
 
