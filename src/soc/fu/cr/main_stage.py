@@ -36,7 +36,7 @@ class CRMainStage(PipeModBase):
         op = self.i.ctx.op
         a, b, full_cr = self.i.a, self.i.b, self.i.full_cr
         cr_a, cr_b, cr_c = self.i.cr_a, self.i.cr_b, self.i.cr_c
-        cr_o, full_cr_o, rt_o = self.o.cr_o, self.o.full_cr, self.o.o
+        cr_o, full_cr_o, rt_o = self.o.cr, self.o.full_cr, self.o.o
 
         xl_fields = self.fields.FormXL
         xfx_fields = self.fields.FormXFX

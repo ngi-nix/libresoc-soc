@@ -177,7 +177,7 @@ class TestRunner(FHDLTestCase):
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
             expected_cr = simulator.crl[cr_sel].get_range().value
-            real_cr = yield alu.n.data_o.cr_o.data
+            real_cr = yield alu.n.data_o.cr.data
             self.assertEqual(expected_cr, real_cr, code)
         alu_out = yield alu.n.data_o.o.data
         out_reg_valid = yield dec2.e.write_reg.ok

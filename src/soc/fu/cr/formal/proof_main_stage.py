@@ -103,7 +103,7 @@ class Driver(Elaboratable):
                     with m.If(i != bt):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
-                        comb += cr_output_arr[i].eq(dut.o.cr_o.data)
+                        comb += cr_output_arr[i].eq(dut.o.cr.data)
 
             with m.Case(InternalOp.OP_MCRF):
                 # This does a similar thing to OP_CROP above, with
@@ -123,7 +123,7 @@ class Driver(Elaboratable):
                     with m.If(i != bf):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
-                        comb += cr_output_arr[i].eq(dut.o.cr_o.data)
+                        comb += cr_output_arr[i].eq(dut.o.cr.data)
 
             # For the other two, they take the full CR as input, and
             # output a full CR. This handles that
@@ -231,7 +231,7 @@ class Driver(Elaboratable):
 
         # check that data ok was only enabled when op actioned
         comb += Assert(dut.o.o.ok == o_ok)
-        comb += Assert(dut.o.cr_o.ok == cr_o_ok)
+        comb += Assert(dut.o.cr.ok == cr_o_ok)
         comb += Assert(dut.o.full_cr.ok == full_cr_o_ok)
 
         return m

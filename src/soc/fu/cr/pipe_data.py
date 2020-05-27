@@ -47,24 +47,24 @@ class CRInputData(IntegerData):
 class CROutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),      # 64 bit range
                ('CR', 'full_cr', '0:31'), # 32 bit range
-               ('CR', 'cr_o', '0:3')]     # 4 bit range
+               ('CR', 'cr', '0:3')]     # 4 bit range
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Data(64, name="o") # RA
         self.full_cr = Data(32, name="cr_out") # CR in
-        self.cr_o = Data(4, name="cr_o")
+        self.cr = Data(4, name="cr_o")
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.o
         yield self.full_cr
-        yield self.cr_o
+        yield self.cr
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.o.eq(i.o),
                       self.full_cr.eq(i.full_cr),
-                      self.cr_o.eq(i.cr_o)]
+                      self.cr.eq(i.cr)]
 
 
 class CRPipeSpec(CommonPipeSpec):
