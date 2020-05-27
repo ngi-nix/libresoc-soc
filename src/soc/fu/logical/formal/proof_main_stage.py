@@ -89,14 +89,13 @@ class Driver(Elaboratable):
                 with m.If(rec.data_len == 8):
                     comb += Assert(o == self.popcount(a, 64))
                 with m.If(rec.data_len == 4):
-
                     for i in range(2):
-                        comb += Assert(o[i*32:(i+1)*32] ==
-                                       self.popcount(a[i*32:(i+1)*32], 32))
+                        slc = slice(i*32, (i+1)*32)
+                        comb += Assert(o[slc] == self.popcount(a[slc], 32))
                 with m.If(rec.data_len == 1):
                     for i in range(8):
-                        comb += Assert(o[i*8:(i+1)*8] ==
-                                       self.popcount(a[i*8:(i+1)*8], 8))
+                        slc = slice(i*8, (i+1)*8)
+                        comb += Assert(o[slc] == self.popcount(a[slc], 8))
 
             with m.Case(InternalOp.OP_PRTY):
                 with m.If(rec.data_len == 8):
