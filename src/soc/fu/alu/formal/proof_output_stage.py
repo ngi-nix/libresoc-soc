@@ -1,4 +1,4 @@
-# Proof of correctness for partitioned equal signal combiner, output stage
+# Proof of correctness for ALU pipeline, output stage
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 """
 Links:
