@@ -16,14 +16,16 @@ class ALUMainStage(PipeModBase):
         super().__init__(pspec, "main")
 
     def ispec(self):
-        return ALUInputData(self.pspec)
+        return ALUInputData(self.pspec) # defines pipeline stage input format
 
     def ospec(self):
-        return ALUOutputData(self.pspec) # TODO: ALUIntermediateData
+        return ALUOutputData(self.pspec) # defines pipeline stage output format
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+
+        # convenience variables
         cry_o, o, cr0 = self.o.xer_ca, self.o.o, self.o.cr0
         ov_o = self.o.xer_ov
         a, b, cry_i, op = self.i.a, self.i.b, self.i.xer_ca, self.i.ctx.op
