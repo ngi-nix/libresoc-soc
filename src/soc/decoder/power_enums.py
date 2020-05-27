@@ -46,15 +46,15 @@ def get_signal_name(name):
 @unique
 class Function(Enum):
     NONE = 0
-    ALU = 1
-    LDST = 2
-    SHIFT_ROT = 3
-    LOGICAL = 4
-    BRANCH = 5
-    CR = 6
-    TRAP = 7
-    MUL = 8
-    DIV = 9
+    ALU = 1<<1
+    LDST = 1<<2
+    SHIFT_ROT = 1<<3
+    LOGICAL = 1<<4
+    BRANCH = 1<<5
+    CR = 1<<6
+    TRAP = 1<<7
+    MUL = 1<<8
+    DIV = 1<<9
 
 
 @unique
