@@ -69,8 +69,10 @@ class ALUMainStage(PipeModBase):
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
                 comb += cry_o.data[0].eq(add_o[-1]) # XER.CO
                 comb += cry_o.data[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CO32
+                comb += cry_o.ok.eq(1)
                 comb += ov_o.data[0].eq((add_o[-2] != a[-1]) & (a[-1] == b[-1]))
                 comb += ov_o.data[1].eq((add_o[32] != a[31]) & (a[31] == b[31]))
+                comb += ov_o.ok.eq(1)
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
@@ -89,6 +91,7 @@ class ALUMainStage(PipeModBase):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[8*i:8*(i+1)])
                 comb += cr0.data.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
+                comb += cr0.ok.eq(1)
 
             with m.Default():
                 comb += o.ok.eq(0)
