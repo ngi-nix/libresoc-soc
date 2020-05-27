@@ -44,7 +44,7 @@ class Driver(Elaboratable):
         carry_in = dut.i.xer_ca[0]
         carry_in32 = dut.i.xer_ca[1]
         carry_out = dut.o.xer_ca
-        o = dut.o.o
+        o = dut.o.o.data
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -67,8 +67,13 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        # must check Data.ok
+        o_ok = Signal()
+        comb += o_ok.eq(1)
+
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
+
             with m.Case(InternalOp.OP_SHL):
                 comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
@@ -76,6 +81,7 @@ class Driver(Elaboratable):
                     comb += Assert(o[32:64] == 0)
                 with m.Else():
                     comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
+
             with m.Case(InternalOp.OP_SHR):
                 comb += Assume(ra == 0)
                 with m.If(~rec.is_signed):
@@ -90,10 +96,18 @@ class Driver(Elaboratable):
                         comb += Assert(o[32:64] == Repl(a[31], 32))
                     with m.Else():
                         comb += Assert(o == (a_signed >> b[0:7]))
-            #TODO 
-            #with m.Case(InternalOp.OP_RLC):
-            #with m.Case(InternalOp.OP_RLCR):
-            #with m.Case(InternalOp.OP_RLCL):
+            #TODO
+            with m.Case(InternalOp.OP_RLC):
+                pass
+            with m.Case(InternalOp.OP_RLCR):
+                pass
+            with m.Case(InternalOp.OP_RLCL):
+                pass
+            with m.Default():
+                comb += o_ok.eq(0)
+
+        # check that data ok was only enabled when op actioned
+        comb += Assert(dut.o.o.ok == o_ok)
 
         return m
 
