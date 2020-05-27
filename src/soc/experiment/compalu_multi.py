@@ -443,14 +443,6 @@ class CompUnitParallelTest:
         print("If you are reading this, "
               "it's because the above test unexpectedly passed.")
 
-    def monitor(self):
-        # TODO: as a while-loop.  first loop on busy *not* set,
-        # then loop on busy *is* set. (see ldst comp for suitable function)
-        for i in range(10):
-            busy_o = yield self.dut.busy_o
-            print("    Monitor: busy_o =", busy_o)
-            yield
-
     def rd(self, rd_idx):
         # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
         yield
@@ -465,7 +457,6 @@ class CompUnitParallelTest:
 
     def run_simulation(self, vcd_name):
         run_simulation(self.dut, [self.driver(),
-                                  self.monitor(),
                                   self.rd(0),  # one read port (a)
                                   self.rd(1),  # one read port (b)
                                   self.wr(0),  # one write port (o)
