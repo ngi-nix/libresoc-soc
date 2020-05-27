@@ -31,7 +31,7 @@ class Driver(Register):
 
         comb += reg.eq(AnyConst(8))
 
-        for i in range(0,len(_rdports)):
+        for i in range(len(_rdports)):
             with m.If(_rdports[i].ren & writethru):
                 with m.If(_wrports[i].wen):
                     comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
