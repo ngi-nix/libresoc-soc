@@ -11,33 +11,32 @@ import unittest
 from soc.regfile.regfile import Register
 
 
-class Driver(Elaboratable):
+class Driver(Register):
     def __init__(self):
-        pass
+        super().__init__(8)
 
     def elaborate(self, platform):
-        m = Module()
+        m = super().elaborate(platform)
         comb = m.d.comb
-        m.submodules.dut = dut = Register(32)
 
-        width     = dut.width
-        writethru = dut.writethru
-        _rdports  = dut._rdports
-        _wrports  = dut._wrports
-        reg       = dut.reg
+        width     = self.width
+        writethru = self.writethru
+        _rdports  = self._rdports
+        _wrports  = self._wrports
+        reg       = self.reg
 
         for i in range(8):
-            dut.read_port(f"{i}")
-            dut.write_port(f"{i}")
+            self.read_port(f"{i}")
+            self.write_port(f"{i}")
 
-        comb += reg.eq(AnyConst(32))
+        comb += reg.eq(AnyConst(8))
 
         for i in range(0,len(_rdports)):
             with m.If(_rdports[i].ren & writethru):
                 with m.If(_wrports[i].wen):
-                    comb += Assert(rdports[i].data_o == _wrports[i].data_i)
+                    comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
                 with m.Else():
-                    comb += Assert(rdports[i].data_o == reg)
+                    comb += Assert(_rdports[i].data_o == reg)
             with m.Else():
                 comb += Assert(_rdports[i].data_o == reg)
 
