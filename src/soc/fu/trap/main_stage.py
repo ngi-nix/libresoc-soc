@@ -5,8 +5,9 @@
 * https://libre-soc.org/openpower/isa/fixedtrap/
 """
 
-from nmigen import (Module, Signal, Cat, Repl, Mux, Const, signed)
+from nmigen import (Module, Signal, Cat, Mux, Const, signed)
 from nmutil.pipemodbase import PipeModBase
+from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
 from soc.decoder.power_enums import InternalOp
 
@@ -30,6 +31,7 @@ class TrapMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        a_i, b_i = self.i.a, self.i.b
 
         # take copy of D-Form TO field
         i_fields = self.fields.FormD
@@ -45,15 +47,15 @@ class TrapMainStage(PipeModBase):
 
         # set up A and B comparison (truncate/sign-extend if 32 bit)
         with m.If(op.is_32bit):
-            comb += a_s.eq(self.i.a[0:32], Repl(self.i.a[32], 32))
-            comb += b_s.eq(self.i.b[0:32], Repl(self.i.b[32], 32))
-            comb += a.eq(self.i.a[0:32])
-            comb += b.eq(self.i.b[0:32])
+            comb += a_s.eq(exts(a_i, 32, 64))
+            comb += b_s.eq(exts(b_i, 32, 64))
+            comb += a.eq(a_i[0:32])
+            comb += b.eq(b_i[0:32])
         with m.Else():
-            comb += a_s.eq(self.i.a)
-            comb += b_s.eq(self.i.b)
-            comb += a.eq(self.i.a)
-            comb += b.eq(self.i.b)
+            comb += a_s.eq(a_i)
+            comb += b_s.eq(b_i)
+            comb += a.eq(a_i)
+            comb += b.eq(b_i)
 
         # establish comparison bits
         lt_s = Signal(reset_less=True)
@@ -90,7 +92,7 @@ class TrapMainStage(PipeModBase):
                     comb += self.o.srr0.data.eq(self.i.cia)   # old PC
                     comb += self.o.srr0.ok.eq(1)
 
-            # XXX TODO, lines have now been added to the CSV files 
+            # move to SPR
             with m.Case(InternalOp.OP_MTMSR):
                 # TODO: some of the bits need zeroing?
                 """
@@ -111,10 +113,22 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += self.o.msr.data.eq(a)
                 comb += self.o.msr.ok.eq(1)
+
+            # move from SPR
             with m.Case(InternalOp.OP_MFMSR):
                 # TODO: some of the bits need zeroing?
                 comb += self.o.o.data.eq(self.i.msr)
                 comb += self.o.o.ok.eq(1)
+
+            # TODO
+            with m.Case(InternalOp.OP_RFID):
+                pass
+
+            with m.Case(InternalOp.OP_SC):
+                pass
+
+            #with m.Case(InternalOp.OP_ADDPCIS):
+            #    pass
 
         comb += self.o.ctx.eq(self.i.ctx)
 
