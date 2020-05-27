@@ -29,13 +29,41 @@ class IntRegs(RegFileArray):
     """IntRegs
 
     * QTY 32of 64-bit registers
-    * 3R1W
+    * 3R2W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
     """
     def __init__(self):
         super().__init__(64, 32)
-        self.w_ports = [self.write_port("dest")]
+        self.w_ports = [self.write_port("dest1",
+                        self.write_port("dest2")] # for now (LD/ST update)
+        self.r_ports = [self.write_port("src1"),
+                        self.write_port("src2"),
+                        self.write_port("src3")]
+
+
+# Fast SPRs Regfile
+class FastRegs(RegFileArray):
+    """FastRegs
+
+    FAST regfile  - PC, MSR, CTR, LR, TAR, SRR1, SRR2
+
+    * QTY 8of 64-bit registers
+    * 3R2W
+    * Array-based unary-indexed (not binary-indexed)
+    * write-through capability (read on same cycle as write)
+    """
+    PC = 0
+    MSR = 1
+    CTR = 2
+    LR = 3
+    TAR = 4
+    SRR1 = 5
+    SRR2 = 6
+    def __init__(self):
+        super().__init__(64, 8)
+        self.w_ports = [self.write_port("dest1",
+                        self.write_port("dest2")]
         self.r_ports = [self.write_port("src1"),
                         self.write_port("src2"),
                         self.write_port("src3")]
@@ -69,6 +97,9 @@ class XERRegs(VirtualRegPort):
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
     """
+    SO=0 # this is actually 2-bit but we ignore 1 bit of it
+    CA=1 # CA and CA32
+    OV=2 # OV and OV32
     def __init__(self):
         super().__init__(6, 2)
         self.w_ports = [self.full_wr, # 6-bit wide (masked, 3-en lines)
