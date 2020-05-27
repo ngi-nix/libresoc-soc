@@ -9,12 +9,14 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
 class TrapInputData(IntegerData):
     regspec = [('INT', 'a', '0:63'),
                ('INT', 'b', '0:63'),
+               ('FAST', 'srr0', '0:63'),
                ('PC', 'cia', '0:63'),
                ('MSR', 'msr', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.a = Signal(64, reset_less=True)  # RA
         self.b = Signal(64, reset_less=True)  # RB/immediate
+        self.srr0 = Data(64, name="srr0") # SRR0
         self.cia = Signal(64, reset_less=True)  # Program counter
         self.msr = Signal(64, reset_less=True)  # MSR
 
@@ -22,12 +24,13 @@ class TrapInputData(IntegerData):
         yield from super().__iter__()
         yield self.a
         yield self.b
+        yield self.srr0
         yield self.cia
         yield self.msr
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.b.eq(i.b),
+        return lst + [self.a.eq(i.a), self.b.eq(i.b), self.srr0.eq(i.srr0),
                       self.cia.eq(i.cia), self.msr.eq(i.msr)]
 
 
