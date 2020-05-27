@@ -73,29 +73,42 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        # do not check MSBs of a/b in 32-bit mode
         with m.If(rec.is_32bit):
             comb += Assume(a[32:64] == 0)
             comb += Assume(b[32:64] == 0)
 
+        # Data.ok checking.  these only to be valid when there is a change
+        # in the output that needs to go into a regfile
         o_ok = Signal()
+        cr0_ok = Signal()
+        ov_ok = Signal()
+        ca_ok = Signal()
         comb += o_ok.eq(1) # will be set to zero if no op takes place
+        comb += cr0_ok.eq(0)
+        comb += ov_ok.eq(0)
+        comb += ca_ok.eq(0)
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(InternalOp.OP_ADD):
 
+                # check result of 65-bit add-with-carry
                 comb += Assert(Cat(o, ca_o) == (a + b + ca_in))
 
                 # CA32 - XXX note this fails! replace with ca_in and it works
                 comb += Assert((a[0:32] + b[0:32] + ca_in)[32] == ca32_o)
 
-                # From microwatt execute1.vhdl line 130
+                # From microwatt execute1.vhdl line 130, calc_ov() function
                 comb += Assert(ov_o == ((ca_o ^ o[-1]) & ~(a[-1] ^ b[-1])))
                 comb += Assert(ov32_o == ((ca32_o ^ o[31]) & ~(a[31] ^ b[31])))
+                comb += ov_ok.eq(1)
+                comb += ca_ok.eq(1)
 
             with m.Case(InternalOp.OP_EXTS):
                 for i in [1, 2, 4]:
                     with m.If(rec.data_len == i):
+                        # main part, then sign-bit replicated up
                         comb += Assert(o[0:i*8] == a[0:i*8])
                         comb += Assert(o[i*8:64] == Repl(a[i*8-1], 64-(i*8)))
 
@@ -110,13 +123,16 @@ class Driver(Elaboratable):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[i*8:(i+1)*8])
                 comb += Assert(dut.o.cr0.data[2] == eqs.any())
+                comb += cr0_ok.eq(1)
 
             with m.Default():
                 comb += o_ok.eq(0)
 
         # check that data ok was only enabled when op actioned
         comb += Assert(dut.o.o.ok == o_ok)
-        #comb += Assert(dut.o.xer_ca.ok == o_ok)
+        comb += Assert(dut.o.cr0.ok == cr0_ok)
+        comb += Assert(dut.o.xer_ov.ok == ov_ok)
+        comb += Assert(dut.o.xer_ca.ok == ca_ok)
 
         return m
 
