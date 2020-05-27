@@ -157,7 +157,7 @@ class Driver(Elaboratable):
                 for i in range(8):
                     with m.If(FXM[i]):
                         comb += Assert(cr_o[4*i:4*i+4] == a[4*i:4*i+4])
-                comb += cr_o_ok.eq(1)
+                comb += full_cr_o_ok.eq(1)
 
             with m.Case(InternalOp.OP_MFCR):
                 with m.If(rec.insn[20]):  # mfocrf
@@ -214,6 +214,8 @@ class Driver(Elaboratable):
                 with m.If(lut == 0b0110):
                     comb += Assert(bit_o == bit_a ^ bit_b)
 
+                comb += cr_o_ok.eq(1)
+
             with m.Case(InternalOp.OP_ISEL):
                 # Extract the bit selector of the CR
                 bc = Signal(a_fields.BC[0:-1].shape(), reset_less=True)
@@ -229,6 +231,8 @@ class Driver(Elaboratable):
 
         # check that data ok was only enabled when op actioned
         comb += Assert(dut.o.o.ok == o_ok)
+        comb += Assert(dut.o.cr_o.ok == cr_o_ok)
+        comb += Assert(dut.o.full_cr.ok == full_cr_o_ok)
 
         return m
 
