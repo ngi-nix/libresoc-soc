@@ -68,7 +68,7 @@ class Register(Elaboratable):
                 else:
                     m.d.comb += rp.data_o.eq(reg)
 
-        # write ports, don't allow write to address 0 (ignore it)
+        # write ports, delayed by 1 cycle
         for wp in self._wrports:
             with m.If(wp.wen):
                 m.d.sync += reg.eq(wp.data_i)
@@ -203,9 +203,9 @@ class RegFile(Elaboratable):
                 with m.If(~wr_detect):
                     m.d.comb += rp.data_o.eq(regs[rp.raddr])
 
-        # write ports, don't allow write to address 0 (ignore it)
+        # write ports, delayed by one cycle
         for wp in self._wrports:
-            with m.If(wp.wen & (wp.waddr != Const(0, bsz))):
+            with m.If(wp.wen):
                 m.d.sync += regs[wp.waddr].eq(wp.data_i)
 
         return m
