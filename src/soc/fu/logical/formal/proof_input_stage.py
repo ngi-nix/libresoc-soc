@@ -32,7 +32,7 @@ class Driver(Elaboratable):
             recwidth += width
             comb += p.eq(AnyConst(width))
 
-        pspec = ALUPipeSpec(id_wid=2, op_wid=recwidth)
+        pspec = ALUPipeSpec(id_wid=2)
         m.submodules.dut = dut = ALUInputStage(pspec)
 
         a = Signal(64)
@@ -42,9 +42,7 @@ class Driver(Elaboratable):
                  a.eq(AnyConst(64)),
                  b.eq(AnyConst(64))]
                       
-
         comb += dut.i.ctx.op.eq(rec)
-
 
         # Assert that op gets copied from the input to output
         for p in rec.ports():
@@ -64,10 +62,8 @@ class Driver(Elaboratable):
         with m.Else():
             comb += Assert(dut.o.b == b)
 
-
-
-
         return m
+
 
 class GTCombinerTestCase(FHDLTestCase):
     def test_formal(self):

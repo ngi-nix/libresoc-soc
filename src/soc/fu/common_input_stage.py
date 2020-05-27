@@ -28,13 +28,14 @@ class CommonInputStage(PipeModBase):
         ##### carry-in #####
 
         # either copy incoming carry or set to 1/0 as defined by op
-        with m.Switch(self.i.ctx.op.input_carry):
-            with m.Case(CryIn.ZERO):
-                comb += self.o.xer_ca.eq(0b00)
-            with m.Case(CryIn.ONE):
-                comb += self.o.xer_ca.eq(0b11) # XER CA/CA32
-            with m.Case(CryIn.CA):
-                comb += self.o.xer_ca.eq(self.i.xer_ca)
+        if hasattr(self.i, "xer_ca"): # hack (for now - for LogicalInputData)
+            with m.Switch(self.i.ctx.op.input_carry):
+                with m.Case(CryIn.ZERO):
+                    comb += self.o.xer_ca.eq(0b00)
+                with m.Case(CryIn.ONE):
+                    comb += self.o.xer_ca.eq(0b11) # XER CA/CA32
+                with m.Case(CryIn.CA):
+                    comb += self.o.xer_ca.eq(self.i.xer_ca)
 
         ##### sticky overflow and context (both pass-through) #####
 

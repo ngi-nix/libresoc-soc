@@ -56,13 +56,6 @@ def set_alu_inputs(alu, dec2, sim):
     yield alu.p.data_i.b.eq(data2)
 
 
-def set_extra_alu_inputs(alu, dec2, sim):
-    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-    yield alu.p.data_i.xer_ca[0].eq(carry)
-    yield alu.p.data_i.xer_ca[1].eq(carry32)
-
-
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
 # device under test and simulator, initialize the dut, run the
@@ -223,7 +216,6 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.LOGICAL.value, code)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield from set_extra_alu_inputs(alu, pdecode2, simulator)
                     yield
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)

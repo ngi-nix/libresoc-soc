@@ -49,14 +49,14 @@ class Driver(Elaboratable):
         # convenience variables
         a = dut.i.a
         b = dut.i.b
-        carry_in = dut.i.xer_ca[0]
-        carry_in32 = dut.i.xer_ca[1]
+        #carry_in = dut.i.xer_ca[0]
+        #carry_in32 = dut.i.xer_ca[1]
         o = dut.o.o.data
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
                  b.eq(AnyConst(64)),
-                 carry_in.eq(AnyConst(0b11)),
+                 #carry_in.eq(AnyConst(0b11)),
                  ]
 
         comb += dut.i.ctx.op.eq(rec)
