@@ -121,6 +121,8 @@ class CRTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1<<64)-1)
             initial_regs[3] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst),
+                                 initial_regs=initial_regs, initial_cr=cr)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
             
@@ -166,6 +168,17 @@ class TestRunner(FHDLTestCase):
             reg3_sel = yield dec2.e.read_reg3.data
             reg3 = simulator.gpr(reg3_sel).value
             yield alu.p.data_i.a.eq(reg3)
+
+        reg1_ok = yield dec2.e.read_reg1.ok
+        if reg1_ok:
+            reg1_sel = yield dec2.e.read_reg1.data
+            reg1 = simulator.gpr(reg1_sel).value
+            yield alu.p.data_i.a.eq(reg1)
+        reg2_ok = yield dec2.e.read_reg2.ok
+        if reg2_ok:
+            reg2_sel = yield dec2.e.read_reg2.data
+            reg2 = simulator.gpr(reg2_sel).value
+            yield alu.p.data_i.b.eq(reg2)
 
     def assert_outputs(self, alu, dec2, simulator, code):
         whole_reg = yield dec2.e.write_cr_whole
