@@ -19,12 +19,18 @@ def set_cu_input(cu, idx, data):
     yield cu.src_i[idx].eq(data)
     while True:
         rd_rel_o = yield cu.rd.rel[idx]
-        print ("rd_rel %d wait" % idx, rd_rel_o)
+        print ("rd_rel %d wait HI" % idx, rd_rel_o)
         if rd_rel_o:
             break
         yield
     yield cu.rd.go[idx].eq(1)
-    yield
+    while True:
+        yield
+        rd_rel_o = yield cu.rd.rel[idx]
+        if rd_rel_o:
+            break
+        print ("rd_rel %d wait HI" % idx, rd_rel_o)
+        yield
     yield cu.rd.go[idx].eq(0)
 
 
