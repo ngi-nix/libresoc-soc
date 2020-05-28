@@ -25,6 +25,7 @@ from nmigen.hdl.rec import Record, Layout
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
+from soc.regfile.regfile import ortreereduce
 
 from soc.experiment.compldst import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
@@ -33,7 +34,6 @@ from nmigen.lib.coding import PriorityEncoder
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
-
 
 class PortInterface(RecordObject):
     """PortInterface
@@ -143,8 +143,7 @@ class DataMergerRecord(Record):
 
         Record.__init__(self, Layout(layout), name=name)
 
-# TODO:
-
+# TODO: unit test
 
 class DataMerger(Elaboratable):
     """DataMerger
@@ -192,22 +191,20 @@ class DataMerger(Elaboratable):
 
         def elaborate(self, platform):
             m = Module()
-            comb, sync = m.d.comb, m.d.sync
+            comb = m.d.comb
             #(1) pick a row
             m.submodules.pick = pick = PriorityEncoder(self.array_size)
             for j in range(self.array_size):
-                with m.If(self.addr_match_i[j].bool()):
-                    pick.i.eq(pick.i||(1<<j))
+                comb += pick.i[j].eq(self.addr_match_i[j].bool())
             valid = ~pick.n
             idx = pick.o
             #(2) merge
-            #not needed # self.data_o.eq(0)
-            #TODO
-            l = []
-            for j in range(self.array_size):
-                select = self.addr_match_i[idx][j] & valid
-                l.append(Mux(select, self.data_i[j], 0))
-            self.data_o.eq(ortreereduce(l))
+            with m.If(valid):
+                l = []
+                for j in range(self.array_size):
+                    select = self.addr_match_i[idx][j]
+                    l.append(Mux(select, self.data_i[j], 0))
+                comb += self.data_o.eq(ortreereduce(l))
 
 
 class LDSTPort(Elaboratable):
