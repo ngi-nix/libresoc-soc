@@ -32,10 +32,7 @@ class ALUOutputStage(CommonOutputStage):
 
         # copy overflow and sticky-overflow
         comb += self.o.xer_so.data.eq(self.so)
-        # SO is to be set - however to save regfile port requests, only set
-        # if the data actually changes. only possible due to pass-thru
-        with m.If(self.i.xer_so.data != self.so):
-            comb += self.o.xer_so.ok.eq(op.oe.oe & op.oe.oe_ok)
+        comb += self.o.xer_so.ok.eq(op.oe.oe & op.oe.oe_ok)
         comb += self.o.xer_ov.data.eq(ov)
         comb += self.o.xer_ov.ok.eq(op.oe.oe & op.oe.oe_ok) # OV/32 is to be set
 
