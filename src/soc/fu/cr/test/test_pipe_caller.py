@@ -123,6 +123,12 @@ class CRTestCase(FHDLTestCase):
             initial_regs[3] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst),
                                  initial_regs=initial_regs, initial_cr=cr)
+
+    def test_setb(self):
+        for i in range(20):
+            bfa = random.randint(0, 7)
+            lst = [f"setb 1, {bfa}"]
+            cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
             

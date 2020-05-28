@@ -150,6 +150,15 @@ class CRMainStage(PipeModBase):
                 comb += rt_o.eq(Mux(cr_bit, a, b))
                 comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
+            with m.Case(InternalOp.OP_SETB):
+                with m.If(cr_a[3]):
+                    comb += rt_o.data.eq(-1)
+                with m.Elif(cr_a[2]):
+                    comb += rt_o.data.eq(1)
+                with m.Else():
+                    comb += rt_o.data.eq(0)
+                comb += rt_o.ok.eq(1)
+
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

@@ -300,7 +300,7 @@ class DecodeCRIn(Elaboratable):
                 comb += self.cr_bitfield.data.eq(self.dec.BI[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BFA):
-                comb += self.cr_bitfield.data.eq(self.dec.FormX.BFA[0:-1])
+                comb += self.cr_bitfield.data.eq(self.dec.FormX.BFA)
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BA_BB):
                 comb += self.cr_bitfield.data.eq(self.dec.BA[2:5])
