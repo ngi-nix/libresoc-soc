@@ -69,6 +69,11 @@ class Driver(Elaboratable):
         cr_input_arr = Array([full_cr_in[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_output_arr = Array([cr_o[(7-i)*4:(7-i)*4+4] for i in range(8)])
 
+        bf = Signal(xl_fields.BF[0:-1].shape())
+        bfa = Signal(xl_fields.BFA[0:-1].shape())
+        comb += bf.eq(xl_fields.BF[0:-1])
+        comb += bfa.eq(xl_fields.BFA[0:-1])
+
         with m.Switch(rec.insn_type):
             # CR_ISEL takes cr_a
             with m.Case(InternalOp.OP_ISEL):
@@ -79,6 +84,7 @@ class Driver(Elaboratable):
                 # Use the MSBs to select which CR register to feed
                 # into cr_a
                 comb += dut.i.cr_a.eq(cr_input_arr[bc])
+
 
             # For OP_CROP, we need to input the corresponding CR
             # registers for BA, BB, and BT
@@ -109,10 +115,6 @@ class Driver(Elaboratable):
                 # This does a similar thing to OP_CROP above, with
                 # less inputs. The CR selection fields are already 3
                 # bits so there's no need to grab only the MSBs
-                bf = Signal(xl_fields.BF[0:-1].shape())
-                bfa = Signal(xl_fields.BFA[0:-1].shape())
-                comb += bf.eq(xl_fields.BF[0:-1])
-                comb += bfa.eq(xl_fields.BFA[0:-1])
 
                 # set cr_a to the CR selected by BFA
                 comb += dut.i.cr_a.eq(cr_input_arr[bfa])
@@ -124,6 +126,10 @@ class Driver(Elaboratable):
                         comb += cr_output_arr[i].eq(cr_input_arr[i])
                     with m.Else():
                         comb += cr_output_arr[i].eq(dut.o.cr.data)
+
+            # Set the input similar to OP_MCRF
+            with m.Case(InternalOp.OP_SETB):
+                comb += dut.i.cr_a.eq(cr_input_arr[bfa])
 
             # For the other two, they take the full CR as input, and
             # output a full CR. This handles that
@@ -227,6 +233,15 @@ class Driver(Elaboratable):
 
                 # select a or b as output
                 comb += Assert(o == Mux(cr_bit, a, b))
+                comb += o_ok.eq(1)
+
+            with m.Case(InternalOp.OP_SETB):
+                with m.If(cr_arr[4*bfa]):
+                    comb += Assert(o == ((1<<64)-1))
+                with m.Elif(cr_arr[4*bfa+1]):
+                    comb += Assert(o == 1)
+                with m.Else():
+                    comb += Assert(o == 0)
                 comb += o_ok.eq(1)
 
         # check that data ok was only enabled when op actioned
