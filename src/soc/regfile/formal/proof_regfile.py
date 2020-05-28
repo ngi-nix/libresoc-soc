@@ -18,6 +18,7 @@ class Driver(Register):
     def elaborate(self, platform):
         m = super().elaborate(platform)
         comb = m.d.comb
+        sync = m.d.sync
 
         width     = self.width
         writethru = self.writethru
@@ -39,6 +40,10 @@ class Driver(Register):
                     comb += Assert(_rdports[i].data_o == reg)
             with m.Else():
                 comb += Assert(_rdports[i].data_o == reg)
+
+        for i in range(len(_wrports)):
+            with m.If(Past(_wrports[i].wen)):
+                sync += Assert(reg == _wrports[i].data_i)
 
         return m
 
