@@ -43,7 +43,7 @@ class CommonOutputStage(PipeModBase):
         cr0 = Signal(4, reset_less=True)
 
         # TODO: if o[63] is XORed with "operand == OP_CMP"
-        # that can be used as a test
+        # that can be used as a test of whether to invert the +ve/-ve test
         # see https://bugs.libre-soc.org/show_bug.cgi?id=305#c60
 
         comb += is_cmp.eq(op.insn_type == InternalOp.OP_CMP)
