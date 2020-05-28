@@ -481,7 +481,31 @@ class CompUnitParallelTest:
               "it's because the above test unexpectedly passed.")
 
     def rd(self, rd_idx):
-        # monitor self.dut.rd.req[rd_idx] and sets dut.rd.go[idx] for one cycle
+        # wait for issue_i to rise
+        while True:
+            issue_i = yield self.dut.issue_i
+            if issue_i:
+                break
+            # issue_i has not risen yet, so rd must keep low
+            rd = yield self.dut.rd.rel[rd_idx]
+            assert not rd
+            yield
+
+        # we do not want rd to rise on an immediate operand
+        # if it is immediate, exit the process
+        # TODO: don't exit the process, monitor rd instead to ensure it
+        #       doesn't rise on its own
+        if (self.zero_a and rd_idx == 0) or (self.imm_ok and rd_idx == 1):
+            return
+
+        # issue_i has risen. rd must rise on the next cycle
+        rd = yield self.dut.rd.rel[rd_idx]
+        assert not rd
+        yield
+        rd = yield self.dut.rd.rel[rd_idx]
+        assert rd
+
+        # TODO: set dut.rd.go[idx] for one cycle
         yield
         # TODO: also when dut.rd.go is set, put the expected value into
         # the src_i.  use dut.get_in[rd_idx] to do so
