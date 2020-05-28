@@ -195,17 +195,19 @@ class DataMerger(Elaboratable):
             comb, sync = m.d.comb, m.d.sync
             #(1) pick a row
             m.submodules.pick = pick = PriorityEncoder(self.array_size)
-            pick.i.eq(0)
-            for j in range(self.addr):
-                with m.If(self.addr_match_i[j]>0):
+            for j in range(self.array_size):
+                with m.If(self.addr_match_i[j].bool()):
                     pick.i.eq(pick.i||(1<<j))
             valid = ~pick.n
             idx = pick.o
             #(2) merge
-            self.data_o.eq(0)
+            #not needed # self.data_o.eq(0)
+            #TODO
+            l = []
             for j in range(self.array_size):
-                with m.If(self.addr_match_i[idx][j] && valid):
-                    self.data_o.eq(self.data_i[j]|self.data_o)
+                select = self.addr_match_i[idx][j] & valid
+                l.append(Mux(select, self.data_i[j], 0))
+            self.data_o.eq(ortreereduce(l))
 
 
 class LDSTPort(Elaboratable):
