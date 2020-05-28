@@ -98,8 +98,9 @@ class DummyALU(Elaboratable):
         i = []
         i.append(Signal(width, name="i1"))
         i.append(Signal(width, name="i2"))
+        i.append(Signal(width, name="i3"))
         self.i = Array(i)
-        self.a, self.b = i[0], i[1]
+        self.a, self.b, self.c = i[0], i[1], i[2]
         self.out = Array([Signal(width)])
         self.o = self.out[0]
         self.width = width
@@ -107,6 +108,7 @@ class DummyALU(Elaboratable):
         self.p.data_i.ctx.op = self.op
         self.p.data_i.a = self.a
         self.p.data_i.b = self.b
+        self.p.data_i.c = self.c
         self.n.data_o.o = self.o
 
     def elaborate(self, platform):
@@ -149,6 +151,7 @@ class DummyALU(Elaboratable):
         yield from self.op.ports()
         yield self.a
         yield self.b
+        yield self.c
         yield self.o
 
     def ports(self):

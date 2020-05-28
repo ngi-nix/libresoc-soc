@@ -327,6 +327,16 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
             if rd_rel_o:
                 break
         yield dut.rd.go.eq(0)
+    if len(dut.src_i) == 3:
+        yield dut.rd.go.eq(0b100)
+        while True:
+            yield
+            rd_rel_o = yield dut.rd.rel
+            print ("rd_rel", rd_rel_o)
+            if rd_rel_o:
+                break
+        yield dut.rd.go.eq(0)
+
     req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
     print ("req_rel", req_rel_o, result)
@@ -344,6 +354,16 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield dut.wr.go[0].eq(0)
     yield
     return result
+
+
+def scoreboard_sim_dummy(dut):
+    result = yield from op_sim(dut, 5, 2, InternalOp.OP_NOP, inv_a=0,
+                                    imm=8, imm_ok=1)
+    assert result == 5, result
+
+    result = yield from op_sim(dut, 9, 2, InternalOp.OP_NOP, inv_a=0,
+                                    imm=8, imm_ok=1)
+    assert result == 9, result
 
 
 def scoreboard_sim(dut):
@@ -528,6 +548,27 @@ class CompUnitParallelTest:
                        vcd_name=vcd_name)
 
 
+def test_compunit_regspec3():
+    from alu_hier import DummyALU
+    from soc.fu.alu.alu_input_record import CompALUOpSubset
+
+    inspec = [('INT', 'a', '0:15'),
+              ('INT', 'b', '0:15'),
+              ('INT', 'c', '0:15')]
+    outspec = [('INT', 'o', '0:15'),
+              ]
+
+    regspec = (inspec, outspec)
+
+    m = Module()
+    alu = DummyALU(16)
+    dut = MultiCompUnit(regspec, alu, CompALUOpSubset)
+    m.submodules.cu = dut
+
+    run_simulation(m, scoreboard_sim_dummy(dut),
+                   vcd_name='test_compunit_regspec3.vcd')
+
+
 def test_compunit_regspec1():
     from alu_hier import ALU
     from soc.fu.alu.alu_input_record import CompALUOpSubset
@@ -558,3 +599,4 @@ def test_compunit_regspec1():
 if __name__ == '__main__':
     test_compunit()
     test_compunit_regspec1()
+    test_compunit_regspec3()

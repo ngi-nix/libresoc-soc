@@ -111,7 +111,11 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
+            yield cu.issue_i.eq(0)
+            yield
+
             for test in self.test_data:
                 print(test.name)
                 program = test.program
@@ -134,9 +138,17 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.ALU.value)
                     yield from set_operand(cu, pdecode2, sim)
+                    rd_rel_o = yield cu.rd.rel
+                    wr_rel_o = yield cu.wr.rel
+                    print ("before inputs, rd_rel, wr_rel: ",
+                            bin(rd_rel_o), bin(wr_rel_o))
                     yield from set_cu_inputs(cu, pdecode2, sim)
                     yield from set_extra_cu_inputs(cu, pdecode2, sim)
                     yield
+                    rd_rel_o = yield cu.rd.rel
+                    wr_rel_o = yield cu.wr.rel
+                    print ("after inputs, rd_rel, wr_rel: ",
+                            bin(rd_rel_o), bin(wr_rel_o))
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
