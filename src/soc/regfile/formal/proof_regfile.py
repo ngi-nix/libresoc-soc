@@ -26,10 +26,13 @@ class Driver(Register):
         _wrports  = self._wrports
         reg       = self.reg
 
-        for i in range(8):
+        for i in range(1): # just do one for now
             self.read_port(f"{i}")
             self.write_port(f"{i}")
 
+        comb += _wrports[0].data_i.eq(AnyConst(8))
+        comb += _wrports[0].wen.eq(AnyConst(1))
+        comb += _rdports[0].ren.eq(AnyConst(1))
         sync += reg.eq(AnyConst(8))
 
         rst = ResetSignal()
@@ -38,11 +41,11 @@ class Driver(Register):
 
         # Most likely incorrect 4-way truth table
         #
-        # rp.ren  wp.wen  rp.data_o  reg
-        # 0       0       rp.data_o  reg
-        # 0       1       rp.data_o  wp.data_i
-        # 1       0       reg        reg
-        # 1       1       wp.data_i  wp.data_i
+        # rp.ren  wp.wen  rp.data_o            reg
+        # 0       0       zero                 should be previous value
+        # 0       1       zero                 wp.data_i
+        # 1       0       reg                  should be previous value
+        # 1       1       wp.data_i            wp.data_i
 
         with m.If(init):
             comb += Assume(rst == 1)
@@ -57,15 +60,18 @@ class Driver(Register):
                             #comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
                         with m.Else():
                             pass
-                            #comb += Assert(_rdports[i].data_o == reg)
+                            #comb += Assert(_rdports[i].data_o == 0)
                     with m.Else():
                         #comb += Assert(_rdports[i].data_o == reg)
                         pass
 
                 for i in range(len(_wrports)):
                     with m.If(Past(_wrports[i].wen)):
-                        #comb += Assert(reg == _wrports[i].data_i)
+                        #comb += Assert(reg == Past(_wrports[i].data_i))
                         pass
+                    with m.Else():
+                        # if wen not set, reg should not change
+                        comb += Assert(reg == Past(reg))
             else:
                 pass
 
