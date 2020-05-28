@@ -412,6 +412,10 @@ class CompUnitParallelTest:
         # during which busy_o must remain low.
         self.MIN_BUSY_LOW = 5
 
+        # Number of cycles to stall until the assertion of go.
+        # One positive, non-zero value, for each port.
+        self.RD_GO_DELAY = [3, 1]
+
         # store common data for the input operation of the processes
         # input operation:
         self.op = 0
@@ -524,12 +528,30 @@ class CompUnitParallelTest:
         # issue_i has risen. rd must rise on the next cycle
         rd = yield self.dut.rd.rel[rd_idx]
         assert not rd
+
+        # stall for additional cycles. Check that rel doesn't fall on its own
+        for n in range(self.RD_GO_DELAY[rd_idx]):
+            yield
+            rd = yield self.dut.rd.rel[rd_idx]
+            assert rd
+
+        # assert go for one cycle
+        yield self.dut.rd.go[rd_idx].eq(1)
         yield
+
+        # rel must keep high, since go was inactive in the last cycle
         rd = yield self.dut.rd.rel[rd_idx]
         assert rd
 
-        # TODO: set dut.rd.go[idx] for one cycle
+        # finish the go one-clock pulse
+        yield self.dut.rd.go[rd_idx].eq(0)
         yield
+
+        # rel must have gone low in response to go being high
+        # on the previous cycle
+        rd = yield self.dut.rd.rel[rd_idx]
+        assert not rd
+
         # TODO: also when dut.rd.go is set, put the expected value into
         # the src_i.  use dut.get_in[rd_idx] to do so
 
