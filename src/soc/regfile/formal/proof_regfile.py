@@ -32,25 +32,42 @@ class Driver(Register):
 
         sync += reg.eq(AnyConst(8))
 
-        if writethru:
-            for i in range(len(_rdports)):
-                with m.If(_rdports[i].ren):
-                    with m.If(_wrports[i].wen):
-                        pass
-                        #comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
-                    with m.Else():
-                        pass
-                        #comb += Assert(_rdports[i].data_o == reg)
-                with m.Else():
-                    #comb += Assert(_rdports[i].data_o == reg)
-                    pass
+        rst = ResetSignal()
 
-            for i in range(len(_wrports)):
-                with m.If(Past(_wrports[i].wen)):
-                    #comb += Assert(reg == _wrports[i].data_i)
-                    pass
-        else:
-            pass
+        init = Initial()
+
+        # Most likely incorrect 4-way truth table
+        #
+        # rp.ren  wp.wen  rp.data_o  reg
+        # 0       0       rp.data_o  reg
+        # 0       1       rp.data_o  wp.data_i
+        # 1       0       reg        reg
+        # 1       1       wp.data_i  wp.data_i
+
+        with m.If(init):
+            comb += Assume(rst == 1)
+
+        with m.Else():
+            comb += Assume(rst == 0)
+            if writethru:
+                for i in range(len(_rdports)):
+                    with m.If(_rdports[i].ren):
+                        with m.If(_wrports[i].wen):
+                            pass
+                            #comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
+                        with m.Else():
+                            pass
+                            #comb += Assert(_rdports[i].data_o == reg)
+                    with m.Else():
+                        #comb += Assert(_rdports[i].data_o == reg)
+                        pass
+
+                for i in range(len(_wrports)):
+                    with m.If(Past(_wrports[i].wen)):
+                        #comb += Assert(reg == _wrports[i].data_i)
+                        pass
+            else:
+                pass
 
         return m
 
