@@ -389,13 +389,30 @@ class CompUnitParallelTest:
         # during which busy_o must remain low.
         self.MIN_BUSY_LOW = 5
 
+        # store common data for the input operation of the processes
+        # input operation:
+        self.op = 0
+        self.inv_a = self.zero_a = 0
+        self.imm = self.imm_ok = 0
+        # input data:
+        self.a = self.b = 0
+
     def driver(self):
         print("Begin parallel test.")
-        yield from self.operation()
+        yield from self.operation(5, 2, InternalOp.OP_ADD, inv_a=0,
+                                  imm=8, imm_ok=1)
 
-    # TODO add a, b, expected_o, and other parameters such as imm_mode, zero
-    # operand etc.
-    def operation(self):
+    def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
+        # store data for the operation
+        self.a = a
+        self.b = b
+        self.op = op
+        self.inv_a = inv_a
+        self.imm = imm
+        self.imm_ok = imm_ok
+        self.zero_a = zero_a
+
+        # trigger operation cycle
         yield from self.issue()
 
     def issue(self):
@@ -410,6 +427,15 @@ class CompUnitParallelTest:
 
         # activate issue_i to begin the operation cycle
         yield self.dut.issue_i.eq(1)
+
+        # at the same time, present the operation
+        yield self.dut.oper_i.insn_type.eq(self.op)
+        yield self.dut.oper_i.invert_a.eq(self.inv_a)
+        yield self.dut.oper_i.imm_data.imm.eq(self.imm)
+        yield self.dut.oper_i.imm_data.imm_ok.eq(self.imm_ok)
+        yield self.dut.oper_i.zero_a.eq(self.zero_a)
+
+        # give one cycle for the CompUnit to latch the data
         yield
 
         # busy_o must keep being low in this cycle, because issue_i was
@@ -421,6 +447,14 @@ class CompUnitParallelTest:
 
         # Lower issue_i
         yield self.dut.issue_i.eq(0)
+
+        # deactivate inputs along with issue_i, so we can be sure the data
+        # was latched at the correct cycle
+        yield self.dut.oper_i.insn_type.eq(0)
+        yield self.dut.oper_i.invert_a.eq(0)
+        yield self.dut.oper_i.imm_data.imm.eq(0)
+        yield self.dut.oper_i.imm_data.imm_ok.eq(0)
+        yield self.dut.oper_i.zero_a.eq(0)
         yield
 
         # wait for busy_o to lower
