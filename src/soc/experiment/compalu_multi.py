@@ -52,6 +52,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         RegSpec.__init__(self, rwid, n_src, n_dst)
         RecordObject.__init__(self, name)
         self._subkls = subkls
+        n_src, n_dst = self._n_src, self._n_dst
 
         # create source operands
         src = []
@@ -101,9 +102,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         * :n_dst:       number of destination operands
         """
         RegSpecALUAPI.__init__(self, rwid, alu)
-        self.n_src, self.n_dst = n_src, n_dst
         self.opsubsetkls = opsubsetkls
         self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
+        n_src, n_dst = self.n_src, self.n_dst = cu._n_src, cu._n_dst
+        print ("n_src %d n_dst %d" % (self.n_src, self.n_dst))
 
         # convenience names for src operands
         for i in range(n_src):
@@ -213,7 +215,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
-            data_r = Signal(self.cu._get_srcwid(i), name=name, reset_less=True)
+            data_r = Signal(self.cu._get_dstwid(i), name=name, reset_less=True)
             latchregister(m, self.get_out(i), data_r, req_l.q[i], name + "_l")
             drl.append(data_r)
 
@@ -225,6 +227,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # 2nd operand in the input "regspec".  see for example
         # soc.fu.alu.pipe_data.ALUInputData
         sl = []
+        print ("src_i", self.src_i)
         for i in range(self.n_src):
             sl.append([self.src_i[i], self.get_in(i), src_l.q[i], Const(1,1)])
 

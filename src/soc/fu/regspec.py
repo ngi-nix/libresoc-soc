@@ -19,6 +19,7 @@ which MultiCompUnit port, how wide the connection is, and so on.
 
 
 def get_regspec_bitwidth(regspec, srcdest, idx):
+    print ("get_regspec_bitwidth", regspec, srcdest, idx)
     bitspec = regspec[srcdest][idx]
     wid = 0
     print (bitspec)
