@@ -189,22 +189,22 @@ class DataMerger(Elaboratable):
         self.data_i = Array(ul)
         self.data_o = DataMergerRecord()
 
-        def elaborate(self, platform):
-            m = Module()
-            comb = m.d.comb
-            #(1) pick a row
-            m.submodules.pick = pick = PriorityEncoder(self.array_size)
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+        #(1) pick a row
+        m.submodules.pick = pick = PriorityEncoder(self.array_size)
+        for j in range(self.array_size):
+            comb += pick.i[j].eq(self.addr_match_i[j].bool())
+        valid = ~pick.n
+        idx = pick.o
+        #(2) merge
+        with m.If(valid):
+            l = []
             for j in range(self.array_size):
-                comb += pick.i[j].eq(self.addr_match_i[j].bool())
-            valid = ~pick.n
-            idx = pick.o
-            #(2) merge
-            with m.If(valid):
-                l = []
-                for j in range(self.array_size):
-                    select = self.addr_match_i[idx][j]
-                    l.append(Mux(select, self.data_i[j], 0))
-                comb += self.data_o.eq(ortreereduce(l))
+                select = self.addr_match_i[idx][j]
+                l.append(Mux(select, self.data_i[j], 0))
+            comb += self.data_o.eq(ortreereduce(l))
 
 
 class LDSTPort(Elaboratable):
