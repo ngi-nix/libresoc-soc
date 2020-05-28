@@ -520,6 +520,9 @@ def l0_cache_ldst(dut):
     assert data == result, "data %x != %x" % (result, data)
     assert data2 == result2, "data2 %x != %x" % (result2, data2)
 
+def data_merger_merge(dut):
+    print("TODO")
+    yield
 
 def test_l0_cache():
 
@@ -531,6 +534,17 @@ def test_l0_cache():
     run_simulation(dut, l0_cache_ldst(dut),
                    vcd_name='test_l0_cache_basic.vcd')
 
+def test_data_merger():
+
+    dut = DataMerger(8)
+    #vl = rtlil.convert(dut, ports=dut.ports())
+    #with open("test_data_merger.il", "w") as f:
+    #    f.write(vl)
+
+    run_simulation(dut, data_merger_merge(dut),
+                   vcd_name='test_data_merger.vcd')
+
 
 if __name__ == '__main__':
     test_l0_cache()
+    #test_data_merger()
