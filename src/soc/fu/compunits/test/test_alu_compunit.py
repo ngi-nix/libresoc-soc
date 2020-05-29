@@ -44,7 +44,7 @@ def get_cu_output(cu, idx):
         yield
     yield cu.wr.go[idx].eq(1)
     yield
-    result = yield cu.dst_i[idx]
+    result = yield cu.dest[idx]
     yield cu.wr.go[idx].eq(0)
     return result
 

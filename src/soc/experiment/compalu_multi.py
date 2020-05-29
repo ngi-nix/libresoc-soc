@@ -286,9 +286,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
-        with m.If(all_rd):                           # src operands ready, GO!
-            with m.If(~self.alu.p.ready_o):          # no ACK yet
-                m.d.comb += self.alu.p.valid_i.eq(1) # so indicate valid
+        m.submodules.alui_l = alui_l = SRLatch(False, name="alui")
+        m.d.comb += self.alu.p.valid_i.eq(alui_l.q)
+        m.d.comb += alui_l.r.eq(self.alu.p.ready_o) # valid for one extra
+        m.d.comb += alui_l.s.eq(all_rd_pulse)
 
         # ALU output "ready" side.  alu "ready" indication stays hi until
         # ALU says "valid".
