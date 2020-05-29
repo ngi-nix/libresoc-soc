@@ -177,6 +177,14 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += wr_any.eq(self.wr.go.bool())
         m.d.comb += req_done.eq(rst_l.q & wr_any)
 
+        # create rising pulse from alu valid condition.
+        alu_done = Signal(reset_less=True)
+        alu_done_dly = Signal(reset_less=True)
+        alu_pulse = Signal(reset_less=True)
+        m.d.comb += alu_done.eq(self.alu.n.valid_o)
+        m.d.sync += alu_done_dly.eq(alu_done)
+        m.d.comb += alu_pulse.eq(alu_done & ~alu_done_dly)
+
         # shadow/go_die
         reset = Signal(reset_less=True)
         rst_r = Signal(reset_less=True) # reset latch off
