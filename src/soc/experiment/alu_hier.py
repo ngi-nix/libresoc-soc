@@ -30,7 +30,7 @@ class Adder(Elaboratable):
         self.invert_a = Signal()
         self.a   = Signal(width)
         self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.o   = Signal(width, name="add_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -45,7 +45,7 @@ class Subtractor(Elaboratable):
     def __init__(self, width):
         self.a   = Signal(width)
         self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.o   = Signal(width, name="sub_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -57,7 +57,7 @@ class Multiplier(Elaboratable):
     def __init__(self, width):
         self.a   = Signal(width)
         self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.o   = Signal(width, name="mul_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -70,7 +70,7 @@ class Shifter(Elaboratable):
         self.width = width
         self.a   = Signal(width)
         self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.o   = Signal(width, name="shf_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -81,6 +81,7 @@ class Shifter(Elaboratable):
 
 class Dummy:
     pass
+
 
 class DummyALU(Elaboratable):
     def __init__(self, width):
@@ -101,7 +102,7 @@ class DummyALU(Elaboratable):
         i.append(Signal(width, name="i3"))
         self.i = Array(i)
         self.a, self.b, self.c = i[0], i[1], i[2]
-        self.out = Array([Signal(width)])
+        self.out = Array([Signal(width, name="alu_o")])
         self.o = self.out[0]
         self.width = width
         # more "look like nmutil pipeline API"
@@ -176,7 +177,7 @@ class ALU(Elaboratable):
         i.append(Signal(width, name="i2"))
         self.i = Array(i)
         self.a, self.b = i[0], i[1]
-        self.out = Array([Signal(width)])
+        self.out = Array([Signal(width, name="alu_o")])
         self.o = self.out[0]
         self.width = width
         # more "look like nmutil pipeline API"
