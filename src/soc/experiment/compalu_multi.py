@@ -69,7 +69,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            name = "dest%d_i" % j
+            name = "dest%d_o" % j
             rw = self._get_dstwid(i)
             dreg = Signal(rw, name=name, reset_less=True)
             setattr(self, name, dreg)
@@ -116,7 +116,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # convenience names for dest operands
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            name = "dest%d_i" % j
+            name = "dest%d_o" % j
             setattr(self, name, getattr(cu, name))
 
         # more convenience names
