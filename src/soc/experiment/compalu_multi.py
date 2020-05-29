@@ -271,6 +271,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         bro = Repl(self.busy_o, self.n_src)
         m.d.comb += self.rd.rel.eq(src_l.q & bro & slg) # src1/src2 req rel
 
+        # write-release gated by busy and by shadow
+        brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
+        m.d.comb += self.wr.rel.eq(req_l.q & brd)
+
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
@@ -281,8 +285,6 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
         # only proceed if ALU says its output is valid
         with m.If(self.alu.n.valid_o):
-            # when ALU ready, write req release out. waits for shadow
-            m.d.comb += self.wr.rel.eq(req_l.q & brd)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(reset):
                 m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "got it"
