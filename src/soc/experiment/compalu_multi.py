@@ -290,12 +290,12 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             with m.If(~self.alu.p.ready_o):          # no ACK yet
                 m.d.comb += self.alu.p.valid_i.eq(1) # so indicate valid
 
-        brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
-        # only proceed if ALU says its output is valid
-        with m.If(self.alu.n.valid_o):
-            # when output latch is ready, and ALU says ready, accept ALU output
-            with m.If(reset):
-                m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "got it"
+        # ALU output "ready" side.  alu "ready" indication stays hi until
+        # ALU says "valid".
+        m.submodules.alu_l = alu_l = SRLatch(False, name="alu")
+        m.d.comb += self.alu.n.ready_i.eq(alu_l.qn)
+        m.d.sync += alu_l.r.eq(self.alu.n.valid_o) # valid for one extra
+        m.d.comb += alu_l.s.eq(all_rd_pulse)
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
