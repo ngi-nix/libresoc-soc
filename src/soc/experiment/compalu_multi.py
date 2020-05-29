@@ -275,10 +275,17 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
         m.d.comb += self.wr.rel.eq(req_l.q & brd)
 
+        # generate read-done pulse
+        all_rd_dly = Signal(reset_less=True)
+        all_rd_pulse = Signal(reset_less=True)
+        m.d.sync += all_rd_dly.eq(all_rd)
+        m.d.comb += all_rd_pulse.eq(all_rd & ~all_rd_dly)
+
         # on a go_read, tell the ALU we're accepting data.
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
         with m.If(all_rd):                           # src operands ready, GO!
+            m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "got it"
             with m.If(~self.alu.p.ready_o):          # no ACK yet
                 m.d.comb += self.alu.p.valid_i.eq(1) # so indicate valid
 
