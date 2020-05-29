@@ -18,6 +18,7 @@ Links:
 """
 
 from nmigen.compat.sim import run_simulation
+from nmigen.back.pysim import Settle
 from nmigen.cli import verilog, rtlil
 
 from nmigen import Cat, Const, Array, Signal, Elaboratable, Module
@@ -230,24 +231,28 @@ def regfile_sim(dut, rp, wp):
     yield wp.wen.eq(0)
     yield rp.ren.eq(1)
     yield rp.raddr.eq(1)
-    yield
+    yield Settle()
     data = yield rp.data_o
     print (data)
     assert data == 2
+    yield
 
     yield wp.waddr.eq(5)
     yield rp.raddr.eq(5)
     yield rp.ren.eq(1)
     yield wp.wen.eq(1)
     yield wp.data_i.eq(6)
-    data = yield rp.data_o
-    print (data)
-    yield
-    yield wp.wen.eq(0)
-    yield rp.ren.eq(0)
+    yield Settle()
     data = yield rp.data_o
     print (data)
     assert data == 6
+    yield
+    yield wp.wen.eq(0)
+    yield rp.ren.eq(0)
+    yield Settle()
+    data = yield rp.data_o
+    print (data)
+    assert data == 0
     yield
     data = yield rp.data_o
     print (data)
@@ -258,29 +263,36 @@ def regfile_array_sim(dut, rp1, rp2, wp):
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(1<<1)
-    yield
+    yield Settle()
     data = yield rp1.data_o
     print (data)
     assert data == 2
+    yield
 
     yield rp1.ren.eq(1<<5)
     yield rp2.ren.eq(1<<1)
     yield wp.wen.eq(1<<5)
     yield wp.data_i.eq(6)
+    yield Settle()
     data = yield rp1.data_o
+    assert data == 6
     print (data)
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(0)
     yield rp2.ren.eq(0)
+    yield Settle()
     data1 = yield rp1.data_o
     print (data1)
+    assert data1 == 0
     data2 = yield rp2.data_o
     print (data2)
-    assert data1 == 6
+    assert data2 == 0
+
     yield
     data = yield rp1.data_o
     print (data)
+    assert data == 0
 
 def test_regfile():
     dut = RegFile(32, 8)
