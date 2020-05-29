@@ -148,8 +148,8 @@ class DataMergerRecord(Record):
 class DataMerger(Elaboratable):
     """DataMerger
 
-    Merges data based on an address-match matrix.  
-    Identifies (picks) one (any) row, then uses that row, 
+    Merges data based on an address-match matrix.
+    Identifies (picks) one (any) row, then uses that row,
     based on matching address bits, to merge (OR) all data
     rows into the output.
 
