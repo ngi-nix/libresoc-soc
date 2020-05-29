@@ -26,6 +26,7 @@ from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
 from soc.regfile.regfile import ortreereduce
+from nmutil.util import treereduce
 
 from soc.experiment.compldst import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
@@ -143,6 +144,8 @@ class DataMergerRecord(Record):
 
         Record.__init__(self, Layout(layout), name=name)
 
+        #FIXME: make resetless
+
 # TODO: unit test
 
 class DataMerger(Elaboratable):
@@ -203,8 +206,12 @@ class DataMerger(Elaboratable):
             l = []
             for j in range(self.array_size):
                 select = self.addr_array_i[idx][j]
-                l.append(Mux(select, self.data_i[j], 0))
-            comb += self.data_o.eq(ortreereduce(l))
+                r = DataMergerRecord()
+                with m.If(select):
+                    comb += r.eq(self.data_i[j])
+                l.append(r)
+            comb += self.data_o.data.eq(ortreereduce(l,"data"))
+            comb += self.data_o.en.eq(ortreereduce(l,"en"))
 
         return m
 
