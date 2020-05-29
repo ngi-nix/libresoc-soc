@@ -1,5 +1,8 @@
-# Popcount
-from nmigen import (Elaboratable, Module, Signal, Cat, Mux, Const)
+# Popcount: a successive (cascading) sum-reduction algorithm starting from
+# single-bit adds and reducing down to one final answer: the total number of
+# bits set to "1" in the input.
+
+from nmigen import (Elaboratable, Module, Signal, Cat, Const)
 
 
 def array_of(count, bitwidth):
