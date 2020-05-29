@@ -514,8 +514,8 @@ class CompUnitParallelTest:
             if issue_i:
                 break
             # issue_i has not risen yet, so rd must keep low
-            rd = yield self.dut.rd.rel[rd_idx]
-            assert not rd
+            rel = yield self.dut.rd.rel[rd_idx]
+            assert not rel
             yield
 
         # we do not want rd to rise on an immediate operand
@@ -525,23 +525,23 @@ class CompUnitParallelTest:
         if (self.zero_a and rd_idx == 0) or (self.imm_ok and rd_idx == 1):
             return
 
-        # issue_i has risen. rd must rise on the next cycle
-        rd = yield self.dut.rd.rel[rd_idx]
-        assert not rd
+        # issue_i has risen. rel must rise on the next cycle
+        rel = yield self.dut.rd.rel[rd_idx]
+        assert not rel
 
         # stall for additional cycles. Check that rel doesn't fall on its own
         for n in range(self.RD_GO_DELAY[rd_idx]):
             yield
-            rd = yield self.dut.rd.rel[rd_idx]
-            assert rd
+            rel = yield self.dut.rd.rel[rd_idx]
+            assert rel
 
         # assert go for one cycle
         yield self.dut.rd.go[rd_idx].eq(1)
         yield
 
         # rel must keep high, since go was inactive in the last cycle
-        rd = yield self.dut.rd.rel[rd_idx]
-        assert rd
+        rel = yield self.dut.rd.rel[rd_idx]
+        assert rel
 
         # finish the go one-clock pulse
         yield self.dut.rd.go[rd_idx].eq(0)
@@ -549,8 +549,8 @@ class CompUnitParallelTest:
 
         # rel must have gone low in response to go being high
         # on the previous cycle
-        rd = yield self.dut.rd.rel[rd_idx]
-        assert not rd
+        rel = yield self.dut.rd.rel[rd_idx]
+        assert not rel
 
         # TODO: also when dut.rd.go is set, put the expected value into
         # the src_i.  use dut.get_in[rd_idx] to do so
