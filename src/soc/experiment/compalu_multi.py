@@ -10,7 +10,7 @@ its result(s) have been successfully stored in the regfile(s)
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
-from nmigen.compat.sim import run_simulation
+from nmigen.compat.sim import run_simulation, Settle
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Cat, Const
 from nmigen.hdl.rec import (Record, DIR_FANIN, DIR_FANOUT)
@@ -413,8 +413,8 @@ class CompUnitParallelTest:
         self.MIN_BUSY_LOW = 5
 
         # Number of cycles to stall until the assertion of go.
-        # One positive, non-zero value, for each port.
-        self.RD_GO_DELAY = [3, 1]
+        # One value, for each port. Can be zero, for no delay.
+        self.RD_GO_DELAY = [0, 3]
 
         # store common data for the input operation of the processes
         # input operation:
@@ -534,6 +534,13 @@ class CompUnitParallelTest:
             yield
             rel = yield self.dut.rd.rel[rd_idx]
             assert rel
+
+        # Before asserting "go", make sure "rel" has risen.
+        # The use of Settle allows "go" to be set combinatorially,
+        # rising on the same cycle as "rel".
+        yield Settle()
+        rel = yield self.dut.rd.rel[rd_idx]
+        assert rel
 
         # assert go for one cycle
         yield self.dut.rd.go[rd_idx].eq(1)
