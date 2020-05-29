@@ -206,6 +206,8 @@ class DataMerger(Elaboratable):
                 l.append(Mux(select, self.data_i[j], 0))
             comb += self.data_o.eq(ortreereduce(l))
 
+        return m
+
 
 class LDSTPort(Elaboratable):
     def __init__(self, idx, regwid=64, addrwid=48):
