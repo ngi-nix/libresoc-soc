@@ -181,9 +181,11 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         alu_done = Signal(reset_less=True)
         alu_done_dly = Signal(reset_less=True)
         alu_pulse = Signal(reset_less=True)
+        alu_pulsem = Signal(self.n_dst, reset_less=True)
         m.d.comb += alu_done.eq(self.alu.n.valid_o)
         m.d.sync += alu_done_dly.eq(alu_done)
         m.d.comb += alu_pulse.eq(alu_done & ~alu_done_dly)
+        m.d.comb += alu_pulsem.eq(Repl(alu_pulse, self.n_dst))
 
         # shadow/go_die
         reset = Signal(reset_less=True)
@@ -212,19 +214,19 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
-        m.d.comb += req_l.s.eq(Repl(alu_pulse, self.n_dst))
+        m.d.comb += req_l.s.eq(alu_pulsem)
         m.d.sync += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
         oper_r = self.opsubsetkls(name="oper_r")
         latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_l")
 
-        # and for each output from the ALU
+        # and for each output from the ALU: capture when ALU output is valid
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
             data_r = Signal(self.cu._get_dstwid(i), name=name, reset_less=True)
-            latchregister(m, self.get_out(i), data_r, req_l.q[i], name + "_l")
+            latchregister(m, self.get_out(i), data_r, alu_pulsem, name + "_l")
             drl.append(data_r)
 
         # pass the operation to the ALU
@@ -285,7 +287,6 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
         with m.If(all_rd):                           # src operands ready, GO!
-            m.d.comb += self.alu.n.ready_i.eq(1) # tells ALU "got it"
             with m.If(~self.alu.p.ready_o):          # no ACK yet
                 m.d.comb += self.alu.p.valid_i.eq(1) # so indicate valid
 
