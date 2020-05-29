@@ -212,7 +212,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
-        m.d.sync += req_l.s.eq(Repl(all_rd, self.n_dst))
+        m.d.comb += req_l.s.eq(Repl(alu_pulse, self.n_dst))
         m.d.sync += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
