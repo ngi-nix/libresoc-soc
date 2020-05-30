@@ -39,6 +39,7 @@ class CommonOutputStage(PipeModBase):
         is_negative = Signal(reset_less=True)
         msb_test = Signal(reset_less=True) # set equal to MSB, invert if OP=CMP
         is_cmp = Signal(reset_less=True)   # true if OP=CMP
+        is_cmpeqb = Signal(reset_less=True)   # true if OP=CMP
         self.so = Signal(1, reset_less=True)
         cr0 = Signal(4, reset_less=True)
 
@@ -47,21 +48,23 @@ class CommonOutputStage(PipeModBase):
         # see https://bugs.libre-soc.org/show_bug.cgi?id=305#c60
 
         comb += is_cmp.eq(op.insn_type == InternalOp.OP_CMP)
+        comb += is_cmpeqb.eq(op.insn_type == InternalOp.OP_CMPEQB)
         comb += msb_test.eq(target[-1] ^ is_cmp)
         comb += is_zero.eq(target == 0)
         comb += is_positive.eq(~is_zero & ~msb_test)
         comb += is_negative.eq(~is_zero & msb_test)
 
-        with m.If(op.insn_type != InternalOp.OP_CMPEQB):
-            comb += cr0.eq(Cat(self.so, is_zero, is_positive, is_negative))
-        with m.Else():
+        with m.If(is_cmpeqb):
             comb += cr0.eq(self.i.cr0)
+        with m.Else():
+            comb += cr0.eq(Cat(self.so, is_zero, is_positive, is_negative))
 
         # copy out [inverted] cr0, output, and context out
         comb += self.o.o.data.eq(o)
         comb += self.o.o.ok.eq(self.i.o.ok)
         comb += self.o.cr0.data.eq(cr0)
-        comb += self.o.cr0.ok.eq(op.rc.rc & op.rc.rc_ok) # CR0 to be set
+        comb += self.o.cr0.ok.eq((op.rc.rc & op.rc.rc_ok) | is_cmp | is_cmpeqb)
+        # CR0 to be set
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
