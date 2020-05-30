@@ -146,7 +146,7 @@ class DataMergerRecord(Record):
 
         #FIXME: make resetless
 
-# TODO: unit test
+# TODO: formal verification
 
 class DataMerger(Elaboratable):
     """DataMerger
@@ -530,7 +530,22 @@ def l0_cache_ldst(dut):
     assert data2 == result2, "data2 %x != %x" % (result2, data2)
 
 def data_merger_merge(dut):
-    print("TODO")
+    print("data_merger")
+    #starting with all inputs zero
+    en = yield dut.data_o.en
+    data = yield dut.data_o.data
+    assert en == 0, "en must be zero"
+    assert data == 0, "data must be zero"
+    yield
+    yield dut.addr_array_i[0].eq(0xFF)
+    for j in range(dut.array_size):
+        yield dut.data_i[j].en.eq(1 << j)
+        yield dut.data_i[j].data.eq(0xFF << (16*j))
+    yield
+    en = yield dut.data_o.en
+    data = yield dut.data_o.data
+    assert data == 0xff00ff00ff00ff00ff00ff00ff00ff
+    assert en == 0xff
     yield
 
 def test_l0_cache():
@@ -556,4 +571,4 @@ def test_data_merger():
 
 if __name__ == '__main__':
     test_l0_cache()
-    #test_data_merger()
+    test_data_merger()
