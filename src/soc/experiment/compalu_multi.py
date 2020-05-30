@@ -168,15 +168,6 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
                     (((~self.rd.rel) | self.rd.go).all()))
 
-        # write_requests all done
-        # req_done works because any one of the last of the writes
-        # is enough, when combined with when read-phase is done (rst_l.q)
-        wr_any = Signal(reset_less=True)
-        req_done = Signal(reset_less=True)
-        m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
-        m.d.comb += wr_any.eq(self.wr.go.bool())
-        m.d.comb += req_done.eq(rst_l.q & wr_any)
-
         # create rising pulse from alu valid condition.
         alu_done = Signal(reset_less=True)
         alu_done_dly = Signal(reset_less=True)
@@ -186,6 +177,15 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += alu_done_dly.eq(alu_done)
         m.d.comb += alu_pulse.eq(alu_done & ~alu_done_dly)
         m.d.comb += alu_pulsem.eq(Repl(alu_pulse, self.n_dst))
+
+        # write_requests all done
+        # req_done works because any one of the last of the writes
+        # is enough, when combined with when read-phase is done (rst_l.q)
+        wr_any = Signal(reset_less=True)
+        req_done = Signal(reset_less=True)
+        m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
+        m.d.comb += wr_any.eq(self.wr.go.bool())
+        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & (req_l.q == 0))
 
         # shadow/go_die
         reset = Signal(reset_less=True)
@@ -199,7 +199,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
-        m.d.comb += rok_l.r.eq(self.alu.n.valid_o) # off when ALU acknowledges
+        m.d.comb += rok_l.r.eq(self.alu.n.valid_o & self.busy_o) # off when ALU acknowledges
 
         # wr-done, back-to-start latch
         m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
@@ -207,7 +207,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
-        m.d.sync += opc_l.r.eq(self.alu.n.valid_o & req_done) # reset on ALU
+        m.d.sync += opc_l.r.eq(req_done) # reset on ALU
 
         # src operand latch (not using go_wr_i)
         m.d.sync += src_l.s.eq(Repl(self.issue_i, self.n_src))
@@ -215,7 +215,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # dest operand latch (not using issue_i)
         m.d.comb += req_l.s.eq(alu_pulsem)
-        m.d.sync += req_l.r.eq(reset_w)
+        m.d.comb += req_l.r.eq(reset_w)
 
         # create a latch/register for the operand
         oper_r = self.opsubsetkls(name="oper_r")
@@ -292,7 +292,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # ALU output "ready" side.  alu "ready" indication stays hi until
         # ALU says "valid".
         m.submodules.alu_l = alu_l = SRLatch(False, name="alu")
-        m.d.comb += self.alu.n.ready_i.eq(alu_l.qn)
+        m.d.comb += self.alu.n.ready_i.eq(alu_l.q)
         m.d.sync += alu_l.r.eq(self.alu.n.valid_o & alu_l.q)
         m.d.comb += alu_l.s.eq(all_rd_pulse)
 

@@ -160,14 +160,30 @@ class TestRunner(FHDLTestCase):
                     index = sim.pc.CIA.value//4
 
                     out_reg_valid = yield pdecode2.e.write_reg.ok
+                    yield
+                    yield
+                    yield
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = sim.gpr(write_reg_idx).value
                         cu_out = yield from get_cu_output(cu, 0)
                         print(f"expected {expected:x}, actual: {cu_out:x}")
                         self.assertEqual(expected, cu_out, code)
+                    yield
+                    yield
+                    yield
                     yield from self.check_extra_cu_outputs(cu, pdecode2,
                                                             sim, code)
+
+                    yield Settle()
+                    busy_o = yield cu.busy_o
+                    if busy_o:
+                        for i in range(cu.n_dst):
+                            wr_rel_o = yield cu.wr.rel[i]
+                            if wr_rel_o:
+                                print ("discard output", i)
+                                discard = yield from get_cu_output(cu, i)
+                        yield
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -176,12 +192,17 @@ class TestRunner(FHDLTestCase):
 
     def check_extra_cu_outputs(self, cu, dec2, sim, code):
         rc = yield dec2.e.rc.data
-        if rc:
+        op = yield dec2.e.insn_type
+
+        if rc or \
+           op == InternalOp.OP_CMP.value or \
+           op == InternalOp.OP_CMPEQB.value:
             cr_actual = yield from get_cu_output(cu, 1)
+
+        if rc:
             cr_expected = sim.crl[0].get_range().value
             self.assertEqual(cr_expected, cr_actual, code)
 
-        op = yield dec2.e.insn_type
         if op == InternalOp.OP_CMP.value or \
            op == InternalOp.OP_CMPEQB.value:
             bf = yield dec2.dec.BF
