@@ -49,6 +49,24 @@ def get_cu_output(cu, idx):
     return result
 
 
+def get_cu_rd_mask(dec2):
+
+    mask = 0b1100 # XER CA/SO
+
+    reg3_ok = yield dec2.e.read_reg3.ok
+    reg1_ok = yield dec2.e.read_reg1.ok
+
+    if reg3_ok or reg1_ok:
+        mask |= 0b1
+
+    # If there's an immediate, set the B operand to that
+    reg2_ok = yield dec2.e.read_reg2.ok
+    if reg2_ok:
+        mask |= 0b10
+
+    return mask
+
+
 def set_cu_inputs(cu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
@@ -143,6 +161,9 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.ALU.value)
+                    # reset read-operand mask
+                    rdmask = yield from get_cu_rd_mask(pdecode2)
+                    yield cu.rdmaskn.eq(~rdmask)
                     yield from set_operand(cu, pdecode2, sim)
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
