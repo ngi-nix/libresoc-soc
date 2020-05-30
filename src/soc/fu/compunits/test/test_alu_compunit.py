@@ -226,21 +226,16 @@ class TestRunner(FHDLTestCase):
     def check_extra_cu_outputs(self, cu, dec2, sim, code):
         rc = yield dec2.e.rc.data
         op = yield dec2.e.insn_type
-
-        if rc or \
-           op == InternalOp.OP_CMP.value or \
-           op == InternalOp.OP_CMPEQB.value:
-            cr_actual = yield from get_cu_output(cu, 1, code)
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
 
         if rc:
-            cr_expected = sim.crl[0].get_range().value
-            self.assertEqual(cr_expected, cr_actual, code)
+            self.assertEqual(cridx, 0, code)
 
-        if op == InternalOp.OP_CMP.value or \
-           op == InternalOp.OP_CMPEQB.value:
-            bf = yield dec2.dec.BF
-            cr_expected = sim.crl[bf].get_range().value
-            self.assertEqual(cr_expected, cr_actual, code)
+        if cridx_ok:
+            cr_expected = sim.crl[cridx].get_range().value
+            cr_actual = yield from get_cu_output(cu, 1, code)
+            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         cry_out = yield dec2.e.output_carry
         if cry_out:
