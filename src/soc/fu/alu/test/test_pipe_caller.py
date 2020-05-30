@@ -237,18 +237,17 @@ class TestRunner(FHDLTestCase):
 
     def check_extra_alu_outputs(self, alu, dec2, sim, code):
         rc = yield dec2.e.rc.data
-        if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0.data
-            self.assertEqual(cr_expected, cr_actual, code)
-
         op = yield dec2.e.insn_type
-        if op == InternalOp.OP_CMP.value or \
-           op == InternalOp.OP_CMPEQB.value:
-            bf = yield dec2.dec.BF
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
+
+        if rc:
+            self.assertEqual(cridx, 0, code)
+
+        if cridx_ok:
+            cr_expected = sim.crl[cridx].get_range().value
             cr_actual = yield alu.n.data_o.cr0.data
-            cr_expected = sim.crl[bf].get_range().value
-            self.assertEqual(cr_expected, cr_actual, code)
+            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         cry_out = yield dec2.e.output_carry
         if cry_out:

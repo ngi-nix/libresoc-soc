@@ -327,6 +327,7 @@ class DecodeCROut(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.rc_in = Signal(reset_less=True)
         self.sel_in = Signal(CROutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
@@ -343,7 +344,7 @@ class DecodeCROut(Elaboratable):
                 pass # No bitfield activated
             with m.Case(CROutSel.CR0):
                 comb += self.cr_bitfield.data.eq(0)
-                comb += self.cr_bitfield.ok.eq(1)
+                comb += self.cr_bitfield.ok.eq(self.rc_in) # only when RC=1
             with m.Case(CROutSel.BF):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BF[0:-1])
                 comb += self.cr_bitfield.ok.eq(1)
@@ -455,6 +456,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
         comb += dec_cr_out.sel_in.eq(self.dec.op.cr_out)
+        comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
         # decode LD/ST length
         with m.Switch(self.dec.op.ldst_len):
