@@ -92,9 +92,9 @@ def set_operand(cu, dec2, sim):
 def set_extra_cu_inputs(cu, dec2, sim):
     carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
     carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-    yield from set_cu_input(cu, 2, carry | (carry32<<1))
+    yield from set_cu_input(cu, 3, carry | (carry32<<1))
     so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield from set_cu_input(cu, 3, so)
+    yield from set_cu_input(cu, 2, so)
 
 
 
