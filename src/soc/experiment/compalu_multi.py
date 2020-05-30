@@ -168,6 +168,12 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
                     (((~self.rd.rel) | self.rd.go).all()))
 
+        # generate read-done pulse
+        all_rd_dly = Signal(reset_less=True)
+        all_rd_pulse = Signal(reset_less=True)
+        m.d.sync += all_rd_dly.eq(all_rd)
+        m.d.comb += all_rd_pulse.eq(all_rd & ~all_rd_dly)
+
         # create rising pulse from alu valid condition.
         alu_done = Signal(reset_less=True)
         alu_done_dly = Signal(reset_less=True)
@@ -199,7 +205,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
-        m.d.comb += rok_l.r.eq(self.alu.n.valid_o & self.busy_o) # off when ALU acknowledges
+        m.d.comb += rok_l.r.eq(self.alu.n.valid_o & self.busy_o) # ALU done
 
         # wr-done, back-to-start latch
         m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
@@ -264,24 +270,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             latchregister(m, src, alusrc, latch, name="src_r%d" % i)
 
         # -----
-        # outputs
+        # ALU connection / interaction
         # -----
-
-        slg = Cat(*map(lambda x: x[3], sl)) # get req gate conditions
-        # all request signals gated by busy_o.  prevents picker problems
-        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
-        bro = Repl(self.busy_o, self.n_src)
-        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg) # src1/src2 req rel
-
-        # write-release gated by busy and by shadow
-        brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
-        m.d.comb += self.wr.rel.eq(req_l.q & brd)
-
-        # generate read-done pulse
-        all_rd_dly = Signal(reset_less=True)
-        all_rd_pulse = Signal(reset_less=True)
-        m.d.sync += all_rd_dly.eq(all_rd)
-        m.d.comb += all_rd_pulse.eq(all_rd & ~all_rd_dly)
 
         # on a go_read, tell the ALU we're accepting data.
         m.submodules.alui_l = alui_l = SRLatch(False, name="alui")
@@ -295,6 +285,22 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += self.alu.n.ready_i.eq(alu_l.q)
         m.d.sync += alu_l.r.eq(self.alu.n.valid_o & alu_l.q)
         m.d.comb += alu_l.s.eq(all_rd_pulse)
+
+        # -----
+        # outputs
+        # -----
+
+        slg = Cat(*map(lambda x: x[3], sl)) # get req gate conditions
+        # all request signals gated by busy_o.  prevents picker problems
+        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
+
+        # read-release gated by busy
+        bro = Repl(self.busy_o, self.n_src)
+        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg) # rd req
+
+        # write-release gated by busy and by shadow
+        brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
+        m.d.comb += self.wr.rel.eq(req_l.q & brd)
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
