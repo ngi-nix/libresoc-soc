@@ -365,8 +365,9 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
             break
         yield
     yield dut.wr.go[0].eq(1)
-    yield
+    yield Settle()
     result = yield dut.data_o
+    yield
     print ("result", result)
     yield dut.wr.go[0].eq(0)
     yield

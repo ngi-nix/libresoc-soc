@@ -177,27 +177,29 @@ class TestRunner(FHDLTestCase):
     def check_extra_cu_outputs(self, cu, dec2, sim, code):
         rc = yield dec2.e.rc.data
         if rc:
+            cr_actual = yield from get_cu_output(cu, 1)
             cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield cu.n.data_o.cr0.data
             self.assertEqual(cr_expected, cr_actual, code)
 
         op = yield dec2.e.insn_type
         if op == InternalOp.OP_CMP.value or \
            op == InternalOp.OP_CMPEQB.value:
             bf = yield dec2.dec.BF
-            cr_actual = yield cu.n.data_o.cr0.data
             cr_expected = sim.crl[bf].get_range().value
             self.assertEqual(cr_expected, cr_actual, code)
 
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield cu.n.data_o.xer_ca.data[0] # XXX CO not CO32
+            xer_ca = yield from get_cu_output(cu, 2)
+            real_carry = xer_ca & 0b1 # XXX CO not CO32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield cu.n.data_o.xer_ca.data[1] # XXX CO32
+            real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
+        xer_ov = yield from get_cu_output(cu, 3)
+        xer_so = yield from get_cu_output(cu, 4)
 
 
 if __name__ == "__main__":
