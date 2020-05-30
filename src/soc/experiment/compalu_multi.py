@@ -233,8 +233,12 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         drl = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
-            data_r = Signal(self.cu._get_dstwid(i), name=name, reset_less=True)
-            latchregister(m, self.get_out(i), data_r, alu_pulsem, name + "_l")
+            lro = self.get_out(i)
+            if isinstance(lro, Record):
+                data_r = Record.like(lro, name=name)
+            else:
+                data_r = Signal.like(lro, name=name, reset_less=True)
+            latchregister(m, lro, data_r, alu_pulsem, name + "_l")
             drl.append(data_r)
 
         # pass the operation to the ALU
