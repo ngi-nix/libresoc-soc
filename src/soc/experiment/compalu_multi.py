@@ -23,12 +23,22 @@ from soc.decoder.power_enums import InternalOp
 from soc.fu.regspec import RegSpec, RegSpecALUAPI
 
 
+def find_ok(fields):
+    """find_ok helper function - finds field ending in "_ok"
+    """
+    for field_name in fields:
+        if field_name.endswith("_ok"):
+            return field_name
+    return None
+
+
 def go_record(n, name):
     r = Record([('go', n, DIR_FANIN),
                 ('rel', n, DIR_FANOUT)], name=name)
     r.go.reset_less = True
     r.rel.reset_less = True
     return r
+
 
 # see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 
@@ -83,6 +93,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         self.rd = go_record(n_src, name="rd") # read in, req out
         self.wr = go_record(n_dst, name="wr") # write in, req out
         self.rdmaskn = Signal(n_src, reset_less=True) # read mask
+        self.wrmask = Signal(n_dst, reset_less=True) # write mask
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
@@ -124,6 +135,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.rd = cu.rd
         self.wr = cu.wr
         self.rdmaskn = cu.rdmaskn
+        self.wrmask = cu.wrmask
         self.go_rd_i = self.rd.go # temporary naming
         self.go_wr_i = self.wr.go # temporary naming
         self.rd_rel_o = self.rd.rel # temporary naming
@@ -238,8 +250,11 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             ok = Const(1, 1)
             if isinstance(lro, Record):
                 data_r = Record.like(lro, name=name)
-                if hasattr(data_r, "ok"): # bye-bye abstract interface design..
-                    ok = data_r.ok
+                print ("wr fields", i, lro, data_r.fields)
+                # bye-bye abstract interface design..
+                fname = find_ok(data_r.fields)
+                if fname:
+                    ok = data_r[fname]
             else:
                 data_r = Signal.like(lro, name=name, reset_less=True)
             wrok.append(ok)
@@ -250,8 +265,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # now actually use those to create a write-mask.  this basically
         # is now the Function Unit API tells the Comp Unit "do not request
         # a regfile port because this particular output is not valid"
-        wrmask = Signal(self.n_dst, reset_less=True)
-        m.d.comb += wrmask.eq(Cat(*wrok))
+        m.d.comb += self.wrmask.eq(Cat(*wrok))
 
         # pass the operation to the ALU
         m.d.comb += self.get_op().eq(oper_r)
@@ -318,7 +332,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # write-release gated by busy and by shadow (and write-mask)
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
-        m.d.comb += self.wr.rel.eq(req_l.q & brd & wrmask)
+        m.d.comb += self.wr.rel.eq(req_l.q & brd & self.wrmask)
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):

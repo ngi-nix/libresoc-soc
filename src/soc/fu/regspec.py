@@ -65,17 +65,23 @@ class RegSpecALUAPI:
         self.rwid = rwid
         self.alu = alu # actual ALU - set as a "submodule" of the CU
 
+    def get_in_name(self, i):
+        return self.rwid[0][i][1]
+
+    def get_out_name(self, i):
+        return self.rwid[1][i][1]
+
     def get_out(self, i):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
             return self.alu.out[i]
         # regspec-based API: look up variable through regspec thru row number
-        return getattr(self.alu.n.data_o, self.rwid[1][i][1])
+        return getattr(self.alu.n.data_o, self.get_out_name(i))
 
     def get_in(self, i):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
             return self.alu.i[i]
         # regspec-based API: look up variable through regspec thru row number
-        return getattr(self.alu.p.data_i, self.rwid[0][i][1])
+        return getattr(self.alu.p.data_i, self.get_in_name(i))
 
     def get_op(self):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)

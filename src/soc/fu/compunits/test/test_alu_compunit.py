@@ -13,6 +13,7 @@ from soc.decoder.isa.all import ISA
 
 from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
 from soc.fu.compunits.compunits import ALUFunctionUnit
+from soc.experiment.compalu_multi import find_ok # hack
 import random
 
 def set_cu_input(cu, idx, data):
@@ -34,7 +35,17 @@ def set_cu_input(cu, idx, data):
     yield cu.rd.go[idx].eq(0)
 
 
-def get_cu_output(cu, idx):
+def get_cu_output(cu, idx, code):
+    wrmask = yield cu.wrmask
+    wrop = cu.get_out_name(idx)
+    wrok = cu.get_out(idx)
+    fname = find_ok(wrok.fields)
+    wrok = yield getattr(wrok, fname)
+    print ("wr_rel mask", repr(code), idx, wrop, bin(wrmask), fname, wrok)
+    assert wrmask & (1<<idx), \
+            "get_cu_output '%s': mask bit %d not set\n" \
+            "write-operand '%s' Data.ok likely not set (%s)" \
+            % (code, idx, wrop, hex(wrok))
     while True:
         wr_relall_o = yield cu.wr.rel
         wr_rel_o = yield cu.wr.rel[idx]
@@ -174,8 +185,9 @@ class TestRunner(FHDLTestCase):
                     yield
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
-                    print ("after inputs, rd_rel, wr_rel: ",
-                            bin(rd_rel_o), bin(wr_rel_o))
+                    wrmask = yield cu.wrmask
+                    print ("after inputs, rd_rel, wr_rel, wrmask: ",
+                            bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
@@ -187,7 +199,7 @@ class TestRunner(FHDLTestCase):
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = sim.gpr(write_reg_idx).value
-                        cu_out = yield from get_cu_output(cu, 0)
+                        cu_out = yield from get_cu_output(cu, 0, code)
                         print(f"expected {expected:x}, actual: {cu_out:x}")
                         self.assertEqual(expected, cu_out, code)
                     yield
@@ -203,7 +215,7 @@ class TestRunner(FHDLTestCase):
                             wr_rel_o = yield cu.wr.rel[i]
                             if wr_rel_o:
                                 print ("discard output", i)
-                                discard = yield from get_cu_output(cu, i)
+                                discard = yield from get_cu_output(cu, i, code)
                         yield
 
         sim.add_sync_process(process)
@@ -218,7 +230,7 @@ class TestRunner(FHDLTestCase):
         if rc or \
            op == InternalOp.OP_CMP.value or \
            op == InternalOp.OP_CMPEQB.value:
-            cr_actual = yield from get_cu_output(cu, 1)
+            cr_actual = yield from get_cu_output(cu, 1, code)
 
         if rc:
             cr_expected = sim.crl[0].get_range().value
@@ -233,15 +245,15 @@ class TestRunner(FHDLTestCase):
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            xer_ca = yield from get_cu_output(cu, 2)
+            xer_ca = yield from get_cu_output(cu, 2, code)
             real_carry = xer_ca & 0b1 # XXX CO not CO32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
-        xer_ov = yield from get_cu_output(cu, 3)
-        xer_so = yield from get_cu_output(cu, 4)
+        xer_ov = yield from get_cu_output(cu, 3, code)
+        xer_so = yield from get_cu_output(cu, 4, code)
 
 
 if __name__ == "__main__":
