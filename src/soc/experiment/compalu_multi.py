@@ -82,6 +82,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         # create read/write and other scoreboard signalling
         self.rd = go_record(n_src, name="rd") # read in, req out
         self.wr = go_record(n_dst, name="wr") # write in, req out
+        self.rdmaskn = Signal(n_src, reset_less=True) # read mask
         self.issue_i = Signal(reset_less=True) # fn issue in
         self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
         self.go_die_i = Signal() # go die (reset)
@@ -122,6 +123,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # more convenience names
         self.rd = cu.rd
         self.wr = cu.wr
+        self.rdmaskn = cu.rdmaskn
         self.go_rd_i = self.rd.go # temporary naming
         self.go_wr_i = self.wr.go # temporary naming
         self.rd_rel_o = self.rd.rel # temporary naming
@@ -294,9 +296,9 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # all request signals gated by busy_o.  prevents picker problems
         m.d.comb += self.busy_o.eq(opc_l.q) # busy out
 
-        # read-release gated by busy
+        # read-release gated by busy (and read-mask)
         bro = Repl(self.busy_o, self.n_src)
-        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg) # rd req
+        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg & ~self.rdmaskn)
 
         # write-release gated by busy and by shadow
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
