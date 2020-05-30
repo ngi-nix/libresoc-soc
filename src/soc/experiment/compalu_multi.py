@@ -231,15 +231,27 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # and for each output from the ALU: capture when ALU output is valid
         drl = []
+        wrok = []
         for i in range(self.n_dst):
             name = "data_r%d" % i
             lro = self.get_out(i)
+            ok = Const(1, 1)
             if isinstance(lro, Record):
                 data_r = Record.like(lro, name=name)
+                if hasattr(data_r, "ok"): # bye-bye abstract interface design..
+                    ok = data_r.ok
             else:
                 data_r = Signal.like(lro, name=name, reset_less=True)
+            wrok.append(ok)
             latchregister(m, lro, data_r, alu_pulsem, name + "_l")
             drl.append(data_r)
+
+        # ok, above we collated anything with an "ok" on the output side
+        # now actually use those to create a write-mask.  this basically
+        # is now the Function Unit API tells the Comp Unit "do not request
+        # a regfile port because this particular output is not valid"
+        wrmask = Signal(self.n_dst, reset_less=True)
+        m.d.comb += wrmask.eq(Cat(*wrok))
 
         # pass the operation to the ALU
         m.d.comb += self.get_op().eq(oper_r)
@@ -304,9 +316,9 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         bro = Repl(self.busy_o, self.n_src)
         m.d.comb += self.rd.rel.eq(src_l.q & bro & slg & ~self.rdmaskn)
 
-        # write-release gated by busy and by shadow
+        # write-release gated by busy and by shadow (and write-mask)
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
-        m.d.comb += self.wr.rel.eq(req_l.q & brd)
+        m.d.comb += self.wr.rel.eq(req_l.q & brd & wrmask)
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
