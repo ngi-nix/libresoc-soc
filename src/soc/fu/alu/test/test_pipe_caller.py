@@ -147,7 +147,7 @@ class ALUTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_cmpeqb(self):
-        lst = ["cmpeqb cr0, 1, 2"]
+        lst = ["cmpeqb cr1, 1, 2"]
         for i in range(20):
             initial_regs = [0] * 32
             initial_regs[1] = i

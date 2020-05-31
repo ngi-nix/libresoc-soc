@@ -92,6 +92,7 @@ class ALUMainStage(PipeModBase):
                 comb += src1.eq(a[0:8])
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[8*i:8*(i+1)])
+                comb += o.data[0].eq(eqs.any())
                 comb += cr0.data.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
                 comb += cr0.ok.eq(1)
 
