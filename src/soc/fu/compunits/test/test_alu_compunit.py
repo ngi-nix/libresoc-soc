@@ -229,6 +229,8 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
+        print ("check extra output", repr(code), cridx_ok, cridx)
+
         if rc:
             self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
@@ -236,6 +238,7 @@ class TestRunner(FHDLTestCase):
         if cridx_ok:
             cr_expected = sim.crl[cridx].get_range().value
             cr_actual = yield from get_cu_output(cu, 1, code)
+            print ("CR", cridx, cr_expected, cr_actual)
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         cry_out = yield dec2.e.output_carry
