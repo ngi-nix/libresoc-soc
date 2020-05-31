@@ -2,20 +2,20 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 # XXX bad practice: use of global variables
-from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
-from soc.fu.alu.test.test_pipe_caller import test_data # imports the data
+from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
+from soc.fu.logical.test.test_pipe_caller import test_data
 
-from soc.fu.compunits.compunits import ALUFunctionUnit
+from soc.fu.compunits.compunits import LogicalFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
 
-class ALUTestRunner(TestRunner):
+class LogicalTestRunner(TestRunner):
     def __init__(self, test_data):
-        super().__init__(test_data, ALUFunctionUnit, self,
-                         Function.ALU)
+        super().__init__(test_data, LogicalFunctionUnit, self,
+                         Function.LOGICAL)
 
     def get_cu_inputs(self, dec2, sim):
-        """naming (res) must conform to ALUFunctionUnit input regspec
+        """naming (res) must conform to LogicalFunctionUnit input regspec
         """
         res = {}
 
@@ -36,19 +36,10 @@ class ALUTestRunner(TestRunner):
             data2 = yield dec2.e.read_reg2.data
             res['b'] = sim.gpr(data2).value
 
-        # XER.ca
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
-
-        # XER.so
-        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-        res['xer_so'] = so
-
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):
-        """naming (res) must conform to ALUFunctionUnit output regspec
+        """naming (res) must conform to LogicalFunctionUnit output regspec
         """
 
         # RT
@@ -89,17 +80,11 @@ class ALUTestRunner(TestRunner):
             real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
-        # TODO: XER.ov and XER.so
-        oe = yield dec2.e.oe.data
-        if oe:
-            xer_ov = res['xer_ov']
-            xer_so = res['xer_so']
-
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(ALUTestRunner(test_data))
+    suite.addTest(LogicalTestRunner(test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

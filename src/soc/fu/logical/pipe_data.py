@@ -8,7 +8,7 @@ from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 
 class LogicalInputData(IntegerData):
     regspec = [('INT', 'a', '0:63'),
-               ('INT', 'rb', '0:63'),
+               ('INT', 'b', '0:63'),
                ]
     def __init__(self, pspec):
         super().__init__(pspec)

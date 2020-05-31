@@ -21,6 +21,7 @@ class CompLogicalOpSubset(Record):
                   ('zero_a', 1),
                   ('input_carry', CryIn),
                   ('invert_out', 1),
+                  ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
                   ('output_carry', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),

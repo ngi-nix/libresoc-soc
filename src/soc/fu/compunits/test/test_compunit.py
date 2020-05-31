@@ -104,11 +104,12 @@ def get_cu_rd_mask(n_src, inp):
 
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, test_data, fukls, iodef):
+    def __init__(self, test_data, fukls, iodef, funit):
         super().__init__("run_all")
         self.test_data = test_data
         self.fukls = fukls
-        self.iodef = iodef 
+        self.iodef = iodef
+        self.funit = funit
 
     def run_all(self):
         m = Module()
@@ -149,7 +150,7 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.ALU.value)
+                    self.assertEqual(fn_unit, self.funit.value)
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)

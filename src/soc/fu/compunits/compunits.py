@@ -48,6 +48,9 @@ from soc.experiment.compalu_multi import MultiCompUnit
 from soc.fu.alu.pipeline import ALUBasePipe
 from soc.fu.alu.pipe_data import ALUPipeSpec
 
+from soc.fu.logical.pipeline import LogicalBasePipe
+from soc.fu.logical.pipe_data import LogicalPipeSpec
+
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 
@@ -96,6 +99,9 @@ class FunctionUnitBaseMulti:
 
 class ALUFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self): super().__init__(ALUPipeSpec, ALUBasePipe)
+
+class LogicalFunctionUnit(FunctionUnitBaseSingle):
+    def __init__(self): super().__init__(LogicalPipeSpec, LogicalBasePipe)
 
 class CRFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self): super().__init__(CRPipeSpec, CRBasePipe)
