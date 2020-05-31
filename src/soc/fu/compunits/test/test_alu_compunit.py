@@ -230,6 +230,7 @@ class TestRunner(FHDLTestCase):
         cridx = yield dec2.e.write_cr.data
 
         if rc:
+            self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
 
         if cridx_ok:
