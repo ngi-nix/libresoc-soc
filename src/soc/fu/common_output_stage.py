@@ -55,7 +55,7 @@ class CommonOutputStage(PipeModBase):
         comb += is_negative.eq(~is_zero & msb_test)
 
         with m.If(is_cmpeqb):
-            comb += cr0.eq(self.i.cr0)
+            comb += cr0.eq(self.i.cr0.data)
         with m.Else():
             comb += cr0.eq(Cat(self.so, is_zero, is_positive, is_negative))
 
