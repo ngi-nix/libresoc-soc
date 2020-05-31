@@ -150,7 +150,8 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, self.funit.value)
+                    fuval = self.funit.value
+                    self.assertEqual(fn_unit & fuval, fuval)
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)
