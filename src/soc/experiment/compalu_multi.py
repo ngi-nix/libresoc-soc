@@ -10,13 +10,12 @@ its result(s) have been successfully stored in the regfile(s)
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
-from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Cat, Const
+from nmigen import Module, Signal, Mux, Elaboratable, Repl, Cat, Const
 from nmigen.hdl.rec import (Record, DIR_FANIN, DIR_FANOUT)
 
 from nmutil.latch import SRLatch, latchregister
 from nmutil.iocontrol import RecordObject
 
-from soc.decoder.power_decoder2 import Data
 from soc.fu.regspec import RegSpec, RegSpecALUAPI
 
 

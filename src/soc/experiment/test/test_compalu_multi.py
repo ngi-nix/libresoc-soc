@@ -11,16 +11,10 @@ Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
 from nmigen.compat.sim import run_simulation, Settle
-from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Repl, Array, Cat, Const
-from nmigen.hdl.rec import (Record, DIR_FANIN, DIR_FANOUT)
+from nmigen.cli import rtlil
+from nmigen import Module
 
-from nmutil.latch import SRLatch, latchregister
-from nmutil.iocontrol import RecordObject
-
-from soc.decoder.power_decoder2 import Data
 from soc.decoder.power_enums import InternalOp
-from soc.fu.regspec import RegSpec, RegSpecALUAPI
 
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.experiment.alu_hier import ALU, DummyALU
