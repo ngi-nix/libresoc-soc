@@ -1,7 +1,10 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits,)
 
-from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
+# XXX bad practice: use of global variables
+from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
+from soc.fu.alu.test.test_pipe_caller import test_data # imports the data
+
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
