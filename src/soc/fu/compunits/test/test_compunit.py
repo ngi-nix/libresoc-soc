@@ -87,10 +87,19 @@ def get_cu_outputs(cu, code):
     return res
 
 
+def get_inp_indexed(cu, inp):
+    res = {}
+    for i in range(cu.n_src):
+        wrop = cu.get_in_name(i)
+        if wrop in inp:
+            res[i] = inp[wrop]
+    return res
+
 def get_cu_rd_mask(n_src, inp):
-    mask = 0 #((1<<n_src)-1)
-    for i in inp.keys():
-        mask |= 1<<i
+    mask = 0
+    for i in range(n_src):
+        if i in inp:
+            mask |= (1<<i)
     return mask
 
 
@@ -144,7 +153,8 @@ class TestRunner(FHDLTestCase):
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)
-                    inp = yield from self.iodef.get_cu_inputs(pdecode2, sim)
+                    iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
+                    inp = get_inp_indexed(cu, iname)
 
                     # reset read-operand mask
                     rdmask = get_cu_rd_mask(cu.n_src, inp)
