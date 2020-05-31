@@ -151,7 +151,7 @@ class ALUTestCase(FHDLTestCase):
         for i in range(20):
             initial_regs = [0] * 32
             initial_regs[1] = i
-            initial_regs[2] = 0x01030507090b0d0f11
+            initial_regs[2] = 0x0001030507090b0f
             self.run_tst_program(Program(lst), initial_regs, {})
 
     def test_ilang(self):
