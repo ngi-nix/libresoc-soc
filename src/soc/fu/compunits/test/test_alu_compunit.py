@@ -178,6 +178,13 @@ class TestRunner(FHDLTestCase):
                     # reset read-operand mask
                     rdmask = yield from get_cu_rd_mask(pdecode2)
                     yield cu.rdmaskn.eq(~rdmask)
+                    # reset write-operand mask
+                    for idx in range(cu.n_dst):
+                        wrok = cu.get_out(idx)
+                        fname = find_ok(wrok.fields)
+                        yield getattr(wrok, fname).eq(0)
+
+                    # set operand and inputs
                     yield from set_operand(cu, pdecode2, sim)
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
@@ -191,11 +198,17 @@ class TestRunner(FHDLTestCase):
                     wrmask = yield cu.wrmask
                     print ("after inputs, rd_rel, wr_rel, wrmask: ",
                             bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
+
+                    # call simulated operation
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
                     out_reg_valid = yield pdecode2.e.write_reg.ok
+                    wrmask = yield cu.wrmask
+                    assert bool(wrmask&0b1) == out_reg_valid, \
+                       "write-mask mismatch %s %d" % \
+                        (bin(wrmask), out_reg_valid)
                     yield
                     yield
                     yield
@@ -217,8 +230,8 @@ class TestRunner(FHDLTestCase):
                         for i in range(cu.n_dst):
                             wr_rel_o = yield cu.wr.rel[i]
                             if wr_rel_o:
-                                print ("discard output", i)
                                 discard = yield from get_cu_output(cu, i, code)
+                                print ("discard output", i, hex(discard))
                         yield
 
         sim.add_sync_process(process)
@@ -255,8 +268,10 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(expected_carry32, real_carry32, code)
 
         # TODO
-        #xer_ov = yield from get_cu_output(cu, 3, code)
-        #xer_so = yield from get_cu_output(cu, 4, code)
+        oe = yield dec2.e.oe.data
+        if oe:
+            xer_ov = yield from get_cu_output(cu, 3, code)
+            xer_so = yield from get_cu_output(cu, 4, code)
 
 
 if __name__ == "__main__":

@@ -61,6 +61,7 @@ class ALUMainStage(PipeModBase):
                 # MUXes to invert a and b, or messing with a 64-bit output,
                 # swap +ve and -ve test in the *output* stage using an XOR gate
                 comb += o.data.eq(add_o[1:-1])
+                comb += o.ok.eq(0) # use o.data but do *not* actually output
 
             #### add ####
             with m.Case(InternalOp.OP_ADD):

@@ -116,6 +116,7 @@ class Driver(Elaboratable):
                 # CMP is defined as not taking in carry
                 comb += Assume(ca_in == 0)
                 comb += Assert(o == (a+b)[0:64])
+                comb += o_ok.eq(0) # must not change output reg
 
             with m.Case(InternalOp.OP_CMPEQB):
                 src1 = a[0:8]
