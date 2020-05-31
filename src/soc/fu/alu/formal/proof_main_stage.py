@@ -84,7 +84,6 @@ class Driver(Elaboratable):
         cr0_ok = Signal()
         ov_ok = Signal()
         ca_ok = Signal()
-        comb += o_ok.eq(1) # will be set to zero if no op takes place
         comb += cr0_ok.eq(0)
         comb += ov_ok.eq(0)
         comb += ca_ok.eq(0)
@@ -104,6 +103,7 @@ class Driver(Elaboratable):
                 comb += Assert(ov32_o == ((ca32_o ^ o[31]) & ~(a[31] ^ b[31])))
                 comb += ov_ok.eq(1)
                 comb += ca_ok.eq(1)
+                comb += o_ok.eq(1)
 
             with m.Case(InternalOp.OP_EXTS):
                 for i in [1, 2, 4]:
@@ -111,12 +111,12 @@ class Driver(Elaboratable):
                         # main part, then sign-bit replicated up
                         comb += Assert(o[0:i*8] == a[0:i*8])
                         comb += Assert(o[i*8:64] == Repl(a[i*8-1], 64-(i*8)))
+                comb += o_ok.eq(1)
 
             with m.Case(InternalOp.OP_CMP):
                 # CMP is defined as not taking in carry
                 comb += Assume(ca_in == 0)
                 comb += Assert(o == (a+b)[0:64])
-                comb += o_ok.eq(0) # must not change output reg
 
             with m.Case(InternalOp.OP_CMPEQB):
                 src1 = a[0:8]
@@ -125,9 +125,6 @@ class Driver(Elaboratable):
                     comb += eqs[i].eq(src1 == b[i*8:(i+1)*8])
                 comb += Assert(dut.o.cr0.data[2] == eqs.any())
                 comb += cr0_ok.eq(1)
-
-            with m.Default():
-                comb += o_ok.eq(0)
 
         # check that data ok was only enabled when op actioned
         comb += Assert(dut.o.o.ok == o_ok)

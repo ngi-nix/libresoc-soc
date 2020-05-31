@@ -48,8 +48,6 @@ class ALUMainStage(PipeModBase):
             comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
             comb += add_o.eq(add_a + add_b)
 
-        comb += o.ok.eq(1) # overridden to 0 if op not handled
-
         ##########################
         # main switch-statement for handling arithmetic operations
 
@@ -76,6 +74,7 @@ class ALUMainStage(PipeModBase):
                 comb += ov_o.data[0].eq((add_o[-2] != a[-1]) & (a[-1] == b[-1]))
                 comb += ov_o.data[1].eq((add_o[32] != a[31]) & (a[31] == b[31]))
                 comb += ov_o.ok.eq(1)
+                comb += o.ok.eq(1) # output register
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
@@ -85,6 +84,7 @@ class ALUMainStage(PipeModBase):
                     comb += o.data.eq(exts(a, 16, 64))
                 with m.If(op.data_len == 4):
                     comb += o.data.eq(exts(a, 32, 64))
+                comb += o.ok.eq(1) # output register
 
             #### cmpeqb ####
             with m.Case(InternalOp.OP_CMPEQB):
@@ -96,9 +96,7 @@ class ALUMainStage(PipeModBase):
                 comb += o.data[0].eq(eqs.any())
                 comb += cr0.data.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
                 comb += cr0.ok.eq(1)
-
-            with m.Default():
-                comb += o.ok.eq(0)
+                comb += o.ok.eq(0) # use o.data but do *not* actually output
 
         ###### sticky overflow and context, both pass-through #####
 
