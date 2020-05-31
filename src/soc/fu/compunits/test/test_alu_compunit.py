@@ -17,10 +17,11 @@ from soc.experiment.compalu_multi import find_ok # hack
 import random
 
 def set_cu_input(cu, idx, data):
+    rdop = cu.get_in_name(idx)
     yield cu.src_i[idx].eq(data)
     while True:
         rd_rel_o = yield cu.rd.rel[idx]
-        print ("rd_rel %d wait HI" % idx, rd_rel_o)
+        print ("rd_rel %d wait HI" % idx, rd_rel_o, rdop, hex(data))
         if rd_rel_o:
             break
         yield
@@ -54,9 +55,11 @@ def get_cu_output(cu, idx, code):
             break
         yield
     yield cu.wr.go[idx].eq(1)
-    yield
+    yield Settle()
     result = yield cu.dest[idx]
+    yield
     yield cu.wr.go[idx].eq(0)
+    print ("result", repr(code), idx, wrop, wrok, hex(result))
     return result
 
 
