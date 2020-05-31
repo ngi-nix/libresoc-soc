@@ -224,6 +224,11 @@ class CompUnitParallelTest:
               "it's because the above test unexpectedly passed.")
 
     def rd(self, rd_idx):
+        # TODO: rdmaskn (inverted-rdmask) now needs to be included, here.
+        # any bit in rdmaskn, if set, indicates that the corresponding bit
+        # in rd.rel must *not* be activated (never go HI).  likewise, the
+        # corresponding rd.go bit should never be raised
+
         # wait for issue_i to rise
         while True:
             issue_i = yield self.dut.issue_i
