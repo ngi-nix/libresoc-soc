@@ -129,6 +129,17 @@ def set_extra_cu_inputs(cu, dec2, sim):
     yield from set_cu_input(cu, 2, so)
 
 
+def get_cu_outputs(cu, code):
+    res = {}
+    for i in range(cu.n_dst):
+        wr_rel_o = yield cu.wr.rel[i]
+        if wr_rel_o:
+            result = yield from get_cu_output(cu, i, code)
+            wrop = cu.get_out_name(i)
+            print ("output", i, wrop, hex(result))
+            res[wrop] = result
+    return res
+
 
 class TestRunner(FHDLTestCase):
     def __init__(self, test_data):
@@ -204,42 +215,25 @@ class TestRunner(FHDLTestCase):
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
+                    # get all outputs (one by one, just "because")
+                    res = yield from get_cu_outputs(cu, code)
+
                     out_reg_valid = yield pdecode2.e.write_reg.ok
-                    wrmask = yield cu.wrmask
-                    assert bool(wrmask&0b1) == out_reg_valid, \
-                       "write-mask mismatch %s %d" % \
-                        (bin(wrmask), out_reg_valid)
-                    yield
-                    yield
-                    yield
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
                         expected = sim.gpr(write_reg_idx).value
-                        cu_out = yield from get_cu_output(cu, 0, code)
+                        cu_out = res['o']
                         print(f"expected {expected:x}, actual: {cu_out:x}")
                         self.assertEqual(expected, cu_out, code)
-                    yield
-                    yield
-                    yield
-                    yield from self.check_extra_cu_outputs(cu, pdecode2,
+                    yield from self.check_extra_cu_outputs(res, pdecode2,
                                                             sim, code)
-
-                    yield Settle()
-                    busy_o = yield cu.busy_o
-                    if busy_o:
-                        for i in range(cu.n_dst):
-                            wr_rel_o = yield cu.wr.rel[i]
-                            if wr_rel_o:
-                                discard = yield from get_cu_output(cu, i, code)
-                                print ("discard output", i, hex(discard))
-                        yield
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
 
-    def check_extra_cu_outputs(self, cu, dec2, sim, code):
+    def check_extra_cu_outputs(self, res, dec2, sim, code):
         rc = yield dec2.e.rc.data
         op = yield dec2.e.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
@@ -253,14 +247,14 @@ class TestRunner(FHDLTestCase):
 
         if cridx_ok:
             cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = yield from get_cu_output(cu, 1, code)
+            cr_actual = res['cr0']
             print ("CR", cridx, cr_expected, cr_actual)
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            xer_ca = yield from get_cu_output(cu, 2, code)
+            xer_ca = res['xer_ca']
             real_carry = xer_ca & 0b1 # XXX CO not CO32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
@@ -270,8 +264,8 @@ class TestRunner(FHDLTestCase):
         # TODO
         oe = yield dec2.e.oe.data
         if oe:
-            xer_ov = yield from get_cu_output(cu, 3, code)
-            xer_so = yield from get_cu_output(cu, 4, code)
+            xer_ov = res['xer_ov']
+            xer_so = res['xer_so']
 
 
 if __name__ == "__main__":
