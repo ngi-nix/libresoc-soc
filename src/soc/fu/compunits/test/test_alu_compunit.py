@@ -18,6 +18,7 @@ class ALUTestRunner(TestRunner):
         """
         res = {}
 
+        # RA (or RC)
         reg3_ok = yield dec2.e.read_reg3.ok
         reg1_ok = yield dec2.e.read_reg1.ok
         assert reg3_ok != reg1_ok
@@ -28,14 +29,18 @@ class ALUTestRunner(TestRunner):
             data1 = yield dec2.e.read_reg1.data
             res['a'] = sim.gpr(data1).value
 
+        # RB (or immediate)
         reg2_ok = yield dec2.e.read_reg2.ok
         if reg2_ok:
             data2 = yield dec2.e.read_reg2.data
             res['b'] = sim.gpr(data2).value
 
+        # XER.ca
         carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
         carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
         res['xer_ca'] = carry | (carry32<<1)
+
+        # XER.so
         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
         res['xer_so'] = so
 
@@ -44,6 +49,8 @@ class ALUTestRunner(TestRunner):
     def check_cu_outputs(self, res, dec2, sim, code):
         """naming (res) must conform to ALUFunctionUnit output regspec
         """
+
+        # RT
         out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
             write_reg_idx = yield dec2.e.write_reg.data
@@ -63,12 +70,14 @@ class ALUTestRunner(TestRunner):
             self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
 
+        # CR (CR0-7)
         if cridx_ok:
             cr_expected = sim.crl[cridx].get_range().value
             cr_actual = res['cr0']
             print ("CR", cridx, cr_expected, cr_actual)
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
+        # XER.ca
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
@@ -79,7 +88,7 @@ class ALUTestRunner(TestRunner):
             real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
-        # TODO
+        # TODO: XER.ov and XER.so
         oe = yield dec2.e.oe.data
         if oe:
             xer_ov = res['xer_ov']
