@@ -65,6 +65,7 @@ class ALUMainStage(PipeModBase):
             with m.Case(InternalOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.data.eq(add_o[1:-1])
+                comb += o.ok.eq(1) # output register
 
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
@@ -74,7 +75,6 @@ class ALUMainStage(PipeModBase):
                 comb += ov_o.data[0].eq((add_o[-2] != a[-1]) & (a[-1] == b[-1]))
                 comb += ov_o.data[1].eq((add_o[32] != a[31]) & (a[31] == b[31]))
                 comb += ov_o.ok.eq(1)
-                comb += o.ok.eq(1) # output register
 
             #### exts (sign-extend) ####
             with m.Case(InternalOp.OP_EXTS):
@@ -94,9 +94,9 @@ class ALUMainStage(PipeModBase):
                 for i in range(8):
                     comb += eqs[i].eq(src1 == b[8*i:8*(i+1)])
                 comb += o.data[0].eq(eqs.any())
+                comb += o.ok.eq(0) # use o.data but do *not* actually output
                 comb += cr0.data.eq(Cat(Const(0, 2), eqs.any(), Const(0, 1)))
                 comb += cr0.ok.eq(1)
-                comb += o.ok.eq(0) # use o.data but do *not* actually output
 
         ###### sticky overflow and context, both pass-through #####
 
