@@ -205,7 +205,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         req_done = Signal(reset_less=True)
         m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
         m.d.comb += wr_any.eq(self.wr.go.bool())
-        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & (req_l.q == 0))
+        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & \
+                ((req_l.q & self.wrmask) == 0))
 
         # shadow/go_die
         reset = Signal(reset_less=True)
