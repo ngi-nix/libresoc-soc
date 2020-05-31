@@ -247,8 +247,9 @@ class TestRunner(FHDLTestCase):
             real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
-        xer_ov = yield from get_cu_output(cu, 3, code)
-        xer_so = yield from get_cu_output(cu, 4, code)
+        # TODO
+        #xer_ov = yield from get_cu_output(cu, 3, code)
+        #xer_so = yield from get_cu_output(cu, 4, code)
 
 
 if __name__ == "__main__":
