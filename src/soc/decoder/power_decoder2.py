@@ -85,7 +85,9 @@ class DecodeB(Elaboratable):
     """DecodeB from instruction
 
     decodes register RB, different forms of immediate (signed, unsigned),
-    and implicit SPRs
+    and implicit SPRs.  register B is basically "lane 2" into the CompUnits.
+    by industry-standard convention, "lane 2" is where fully-decoded
+    immediates are muxed in.
     """
 
     def __init__(self, dec):
@@ -104,6 +106,9 @@ class DecodeB(Elaboratable):
         with m.Switch(self.sel_in):
             with m.Case(In2Sel.RB):
                 comb += self.reg_out.data.eq(self.dec.RB)
+                comb += self.reg_out.ok.eq(1)
+            with m.Case(In2Sel.RS):
+                comb += self.reg_out.data.eq(self.dec.RS) # for M-Form shiftrot
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI):
                 comb += self.imm_out.data.eq(self.dec.UI)
@@ -155,7 +160,7 @@ class DecodeB(Elaboratable):
 class DecodeC(Elaboratable):
     """DecodeC from instruction
 
-    decodes register RC
+    decodes register RC.  this is "lane 3" into some CompUnits (not many)
     """
 
     def __init__(self, dec):
@@ -169,9 +174,13 @@ class DecodeC(Elaboratable):
         comb = m.d.comb
 
         # select Register C field
-        with m.If(self.sel_in == In3Sel.RS):
-            comb += self.reg_out.data.eq(self.dec.RS)
-            comb += self.reg_out.ok.eq(1)
+        with m.Switch(self.sel_in):
+            with m.Case(In3Sel.RB):
+                comb += self.reg_out.data.eq(self.dec.RB) # for M-Form shiftrot
+                comb += self.reg_out.ok.eq(1)
+            with m.Case(In3Sel.RS):
+                comb += self.reg_out.data.eq(self.dec.RS)
+                comb += self.reg_out.ok.eq(1)
 
         return m
 

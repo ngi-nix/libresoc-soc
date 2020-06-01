@@ -188,12 +188,14 @@ class In2Sel(Enum):
     CONST_SH = 10
     CONST_SH32 = 11
     SPR = 12
+    RS = 13 # for shiftrot (M-Form)
 
 
 @unique
 class In3Sel(Enum):
     NONE = 0
     RS = 1
+    RB = 2 # for shiftrot (M-Form)
 
 
 @unique
