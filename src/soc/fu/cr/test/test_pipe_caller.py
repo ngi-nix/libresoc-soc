@@ -169,12 +169,6 @@ class TestRunner(FHDLTestCase):
                 cr3 = simulator.crl[cr3_sel].get_range().value
                 yield alu.p.data_i.cr_c.eq(cr3)
 
-        reg3_ok = yield dec2.e.read_reg3.ok
-        if reg3_ok:
-            reg3_sel = yield dec2.e.read_reg3.data
-            reg3 = simulator.gpr(reg3_sel).value
-            yield alu.p.data_i.a.eq(reg3)
-
         reg1_ok = yield dec2.e.read_reg1.ok
         if reg1_ok:
             reg1_sel = yield dec2.e.read_reg1.data

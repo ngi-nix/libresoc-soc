@@ -43,12 +43,8 @@ class CRTestRunner(TestRunner):
 
         # RA/RC
         reg1_ok = yield dec2.e.read_reg1.ok
-        reg3_ok = yield dec2.e.read_reg3.ok
         if reg1_ok:
             data1 = yield dec2.e.read_reg1.data
-            res['a'] = sim.gpr(data1).value
-        if reg3_ok:
-            data1 = yield dec2.e.read_reg3.data
             res['a'] = sim.gpr(data1).value
 
         # RB (or immediate)
