@@ -11,19 +11,6 @@ from soc.fu.compunits.test.test_compunit import TestRunner
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
-        branch_taken = yield branch.n.data_o.nia.ok
-        sim_branch_taken = prev_nia != sim.pc.CIA
-        self.assertEqual(branch_taken, sim_branch_taken, code)
-        if branch_taken:
-            branch_addr = yield branch.n.data_o.nia.data
-            self.assertEqual(branch_addr, sim.pc.CIA.value, code)
-
-        lk = yield dec2.e.lk
-        branch_lk = yield branch.n.data_o.lr.ok
-        self.assertEqual(lk, branch_lk, code)
-        if lk:
-            branch_lr = yield branch.n.data_o.lr.data
-            self.assertEqual(sim.spr['LR'], branch_lr, code)
 """
 
 
@@ -67,31 +54,28 @@ class BranchTestRunner(TestRunner):
 
         print ("check extra output", repr(code), res)
 
-        # full Branch
-        whole_reg = yield dec2.e.write_cr_whole
-        cr_en = yield dec2.e.write_cr.ok
-        if whole_reg:
-            full_cr = res['full_cr']
-            expected_cr = sim.cr.get_range().value
-            print(f"expected cr {expected_cr:x}, actual: {full_cr:x}")
-            self.assertEqual(expected_cr, full_cr, code)
+        # NIA (next instruction address aka PC)
+        branch_taken = 'nia' in res
+        # TODO - get the old PC, use it to check if the branch was taken
+        #     sim_branch_taken = prev_nia != sim.pc.CIA
+        #     self.assertEqual(branch_taken, sim_branch_taken, code)
+        if branch_taken:
+            branch_addr = res['nia']
+            self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
-        # part-Branch
-        if cr_en:
-            cr_sel = yield dec2.e.write_cr.data
-            expected_cr = sim.crl[cr_sel].get_range().value
-            real_cr = res['cr']
-            self.assertEqual(expected_cr, real_cr, code)
+        # Link SPR
+        lk = yield dec2.e.lk
+        branch_lk = 'spr2' in res
+        self.assertEqual(lk, branch_lk, code)
+        if lk:
+            branch_lr = res['spr2']
+            self.assertEqual(sim.spr['LR'], branch_lr, code)
 
-        # RT
-        out_reg_valid = yield dec2.e.write_reg.ok
-        if out_reg_valid:
-            alu_out = res['o']
-            write_reg_idx = yield dec2.e.write_reg.data
-            expected = sim.gpr(write_reg_idx).value
-            print(f"expected {expected:x}, actual: {alu_out:x}")
-            self.assertEqual(expected, alu_out, code)
-
+        # CTR SPR
+        ctr_ok = 'spr1' in res
+        if ctr_ok:
+            ctr = res['spr1']
+            self.assertEqual(sim.spr['CTR'], ctr, code)
 
 if __name__ == "__main__":
     unittest.main(exit=False)
