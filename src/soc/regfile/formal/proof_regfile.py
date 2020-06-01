@@ -47,33 +47,34 @@ class Driver(Register):
         # 1       0       reg                  should be previous value
         # 1       1       wp.data_i            wp.data_i
 
+        # Holds the value written to the register when a write happens
+        register_data = Signal(self.width)
+        register_written = Signal()
+
         with m.If(init):
             comb += Assume(rst == 1)
+            for port in _rdports:
+                comb += Assume(port.ren == 0)
+            for port in _wrports:
+                comb += Assume(port.wen == 0)
 
+            comb += Assume(register_written == 0)
+
+        with m.If(Past(rst)):
+            pass
         with m.Else():
             comb += Assume(rst == 0)
-            if writethru:
-                for i in range(len(_rdports)):
-                    with m.If(_rdports[i].ren):
-                        with m.If(_wrports[i].wen):
-                            pass
-                            #comb += Assert(_rdports[i].data_o == _wrports[i].data_i)
-                        with m.Else():
-                            pass
-                            #comb += Assert(_rdports[i].data_o == 0)
-                    with m.Else():
-                        #comb += Assert(_rdports[i].data_o == reg)
-                        pass
-
-                for i in range(len(_wrports)):
-                    with m.If(Past(_wrports[i].wen)):
-                        #comb += Assert(reg == Past(_wrports[i].data_i))
-                        pass
-                    with m.Else():
-                        # if wen not set, reg should not change
-                        comb += Assert(reg == Past(reg))
-            else:
-                pass
+            # Not a signal, this proof will need to be run twice
+            with m.If(_rdports[0].ren):
+                comb += Assert(_rdports[0].data_o == 0)
+            with m.Else():
+                if writethru:
+                    pass
+                else:
+                    pass
+            with m.If(_wrports[0].wen):
+                sync += register_data.eq(_wrports[0].data_i)
+                sync += register_written.eq(1)
 
         return m
 
@@ -81,8 +82,7 @@ class Driver(Register):
 class TestCase(FHDLTestCase):
     def test_formal(self):
         module = Driver()
-        self.assertFormal(module, mode="bmc", depth=2)
-        self.assertFormal(module, mode="cover", depth=2)
+        self.assertFormal(module, mode="bmc", depth=10)
 
     def test_ilang(self):
         dut = Driver()
