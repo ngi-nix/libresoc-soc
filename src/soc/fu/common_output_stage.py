@@ -17,10 +17,13 @@ class CommonOutputStage(PipeModBase):
 
         # op requests inversion of the output
         o = Signal.like(self.i.o)
-        with m.If(op.invert_out):
-            comb += o.eq(~self.i.o.data)
-        with m.Else():
-            comb += o.eq(self.i.o.data)
+        if hasattr(op, "invert_out"):
+            with m.If(op.invert_out):
+                comb += o.eq(~self.i.o.data)
+            with m.Else():
+                comb += o.eq(self.i.o.data)
+        else:
+                comb += o.eq(self.i.o.data)
 
         # target register if 32-bit is only the 32 LSBs
         target = Signal(64, reset_less=True)

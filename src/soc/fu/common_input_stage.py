@@ -12,15 +12,19 @@ class CommonInputStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.i.ctx.op
 
         ##### operand A #####
 
         # operand a to be as-is or inverted
         a = Signal.like(self.i.a)
 
-        with m.If(self.i.ctx.op.invert_a):
-            comb += a.eq(~self.i.a)
-        with m.Else():
+        if hasattr(op, "invert_a"):
+            with m.If(op.invert_a):
+                comb += a.eq(~self.i.a)
+            with m.Else():
+                comb += a.eq(self.i.a)
+        else:
             comb += a.eq(self.i.a)
 
         comb += self.o.a.eq(a)
@@ -29,7 +33,7 @@ class CommonInputStage(PipeModBase):
 
         # either copy incoming carry or set to 1/0 as defined by op
         if hasattr(self.i, "xer_ca"): # hack (for now - for LogicalInputData)
-            with m.Switch(self.i.ctx.op.input_carry):
+            with m.Switch(op.input_carry):
                 with m.Case(CryIn.ZERO):
                     comb += self.o.xer_ca.eq(0b00)
                 with m.Case(CryIn.ONE):

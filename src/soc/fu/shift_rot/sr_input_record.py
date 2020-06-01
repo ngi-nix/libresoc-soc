@@ -19,10 +19,7 @@ class CompSROpSubset(Record):
                   ('lk', 1),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
-                  ('invert_a', 1),
-                  ('zero_a', 1),
                   ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
-                  ('invert_out', 1),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
                   ('input_cr', 1),
@@ -42,9 +39,6 @@ class CompSROpSubset(Record):
         #self.cr = Signal(32, reset_less = True
         #self.xerc = XerBits(
         self.lk.reset_less = True
-        self.zero_a.reset_less = True
-        self.invert_a.reset_less = True
-        self.invert_out.reset_less = True
         self.input_carry.reset_less = True
         self.output_carry.reset_less = True
         self.input_cr.reset_less = True
@@ -69,8 +63,6 @@ class CompSROpSubset(Record):
                 #self.cr,
                 #self.xerc,
                 self.lk,
-                self.invert_a,
-                self.invert_out,
                 self.input_carry,
                 self.output_carry,
                 self.input_cr,
