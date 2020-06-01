@@ -56,7 +56,7 @@ class Register(Elaboratable):
 
         # read ports. has write-through detection (returns data written)
         for rp in self._rdports:
-            with m.If(rp.ren):
+            with m.If(rp.ren == 1):
                 if self.writethru:
                     wr_detect = Signal(reset_less=False)
                     m.d.comb += wr_detect.eq(0)
@@ -68,6 +68,8 @@ class Register(Elaboratable):
                         m.d.comb += rp.data_o.eq(reg)
                 else:
                     m.d.comb += rp.data_o.eq(reg)
+            with m.Else():
+                m.d.comb += rp.data_o.eq(0)
 
         # write ports, delayed by 1 cycle
         for wp in self._wrports:

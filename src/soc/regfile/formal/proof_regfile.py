@@ -14,6 +14,9 @@ from soc.regfile.regfile import Register
 class Driver(Register):
     def __init__(self, writethru=True):
         super().__init__(8, writethru)
+        for i in range(1): # just do one for now
+            self.read_port(f"{i}")
+            self.write_port(f"{i}")
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
@@ -26,9 +29,6 @@ class Driver(Register):
         _wrports  = self._wrports
         reg       = self.reg
 
-        for i in range(1): # just do one for now
-            self.read_port(f"{i}")
-            self.write_port(f"{i}")
 
         comb += _wrports[0].data_i.eq(AnyConst(8))
         comb += _wrports[0].wen.eq(AnyConst(1))
@@ -66,7 +66,7 @@ class Driver(Register):
             comb += Assume(rst == 0)
 
             # If there is no read, then data_o should be 0
-            with m.If(_rdports[0].ren):
+            with m.If(_rdports[0].ren == 0):
                 comb += Assert(_rdports[0].data_o == 0)
 
             # If there is a read request
