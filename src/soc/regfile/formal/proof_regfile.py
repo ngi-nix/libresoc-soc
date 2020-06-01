@@ -60,8 +60,6 @@ class Driver(Register):
 
             comb += Assume(register_written == 0)
 
-        with m.If(Past(rst)):
-            pass
         with m.Else():
             comb += Assume(rst == 0)
 
@@ -108,7 +106,7 @@ class TestCase(FHDLTestCase):
     def test_formal(self):
         for writethrough in [False, True]:
             module = Driver(writethrough)
-            self.assertFormal(module, mode="bmc", depth=10)
+            self.assertFormal(module, mode="prove", depth=10)
 
     def test_ilang(self):
         dut = Driver()
