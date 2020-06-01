@@ -406,11 +406,6 @@ class Decode2ToExecute1Type(RecordObject):
         self.read_cr_whole = Signal(reset_less=True)
         self.write_cr = Data(3, name="cr_out")
         self.write_cr_whole = Signal(reset_less=True)
-        #self.read_data1 = Signal(64, reset_less=True)
-        #self.read_data2 = Signal(64, reset_less=True)
-        #self.read_data3 = Signal(64, reset_less=True)
-        #self.cr = Signal(32, reset_less=True) # NO: this is from the CR SPR
-        #self.xerc = XerBits() # NO: this is from the XER SPR
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
