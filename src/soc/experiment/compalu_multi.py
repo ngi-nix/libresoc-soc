@@ -199,7 +199,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # is enough, when combined with when read-phase is done (rst_l.q)
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
-        m.d.comb += self.done_o.eq(self.busy_o & ~(self.wr.rel.bool()))
+        m.d.comb += self.done_o.eq(self.busy_o & \
+                                   ~((self.wr.rel & ~self.wrmask).bool()))
         m.d.comb += wr_any.eq(self.wr.go.bool())
         m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & \
                 ((req_l.q & self.wrmask) == 0))
