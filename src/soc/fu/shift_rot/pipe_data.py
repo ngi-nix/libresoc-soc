@@ -3,7 +3,7 @@ from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from soc.fu.alu.pipe_data import ALUOutputData
+from soc.fu.logical.pipe_data import LogicalOutputData
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 
 
@@ -35,5 +35,5 @@ class ShiftRotInputData(IntegerData):
 
 # TODO: replace CompALUOpSubset with CompShiftRotOpSubset
 class ShiftRotPipeSpec(CommonPipeSpec):
-    regspec = (ShiftRotInputData.regspec, ALUOutputData.regspec)
+    regspec = (ShiftRotInputData.regspec, LogicalOutputData.regspec)
     opsubsetkls = CompALUOpSubset
