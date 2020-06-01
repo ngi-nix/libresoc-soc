@@ -20,13 +20,8 @@ class ALUTestRunner(TestRunner):
         res = {}
 
         # RA (or RC)
-        reg3_ok = yield dec2.e.read_reg3.ok
         reg1_ok = yield dec2.e.read_reg1.ok
-        assert reg3_ok != reg1_ok
-        if reg3_ok:
-            data1 = yield dec2.e.read_reg3.data
-            res['a'] = sim.gpr(data1).value
-        elif reg1_ok:
+        if reg1_ok:
             data1 = yield dec2.e.read_reg1.data
             res['a'] = sim.gpr(data1).value
 

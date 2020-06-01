@@ -29,13 +29,8 @@ def set_alu_inputs(alu, dec2, sim):
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
-    reg3_ok = yield dec2.e.read_reg3.ok
     reg1_ok = yield dec2.e.read_reg1.ok
-    assert reg3_ok != reg1_ok
-    if reg3_ok:
-        data1 = yield dec2.e.read_reg3.data
-        data1 = sim.gpr(data1).value
-    elif reg1_ok:
+    if reg1_ok:
         data1 = yield dec2.e.read_reg1.data
         data1 = sim.gpr(data1).value
     else:
