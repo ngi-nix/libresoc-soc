@@ -20,6 +20,7 @@ class MulStages2(PipeModBaseChain):
 class ShiftRotBasePipe(ControlBase):
     def __init__(self, pspec):
         ControlBase.__init__(self)
+        self.pspec = pspec
         self.pipe1 = MulStages1(pspec)
         self.pipe2 = MulStages2(pspec)
         self._eqs = self.connect([self.pipe1, self.pipe2])

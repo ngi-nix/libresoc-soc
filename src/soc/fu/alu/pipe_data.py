@@ -1,4 +1,4 @@
-from nmigen import Signal, Const
+from nmigen import Signal, Const, Cat
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from ieee754.fpcommon.getop import FPPipeContext
@@ -64,3 +64,7 @@ class ALUOutputData(IntegerData):
 class ALUPipeSpec(CommonPipeSpec):
     regspec = (ALUInputData.regspec, ALUOutputData.regspec)
     opsubsetkls = CompALUOpSubset
+    def rdflags(self, e): # in order of regspec
+        reg1_ok = e.read_reg1.ok # RA
+        reg2_ok = e.read_reg2.ok # RB
+        return Cat(reg1_ok, reg2_ok, 1, 1) # RA RB CA SO

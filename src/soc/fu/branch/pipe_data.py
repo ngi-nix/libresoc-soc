@@ -23,7 +23,7 @@
     op_bctarl  CR, TAR,   CTR
 """
 
-from nmigen import Signal, Const
+from nmigen import Signal, Const, Cat
 from ieee754.fpcommon.getop import FPPipeContext
 from soc.decoder.power_decoder2 import Data
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
@@ -92,3 +92,8 @@ class BranchOutputData(IntegerData):
 class BranchPipeSpec(CommonPipeSpec):
     regspec = (BranchInputData.regspec, BranchOutputData.regspec)
     opsubsetkls = CompBROpSubset
+    def rdflags(self, e): # in order of regspec
+        cr1_en = e.read_cr1.ok # CR A
+        spr1_ok = e.read_spr1.ok # SPR1
+        spr2_ok = e.read_spr2.ok # SPR2
+        return Cat(spr1_ok, spr2_ok, cr1_en, 1) # CIA CR SPR1 SPR2

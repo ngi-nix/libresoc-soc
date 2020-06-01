@@ -15,6 +15,7 @@ class LogicalStages(PipeModBaseChain):
 class LogicalBasePipe(ControlBase):
     def __init__(self, pspec):
         ControlBase.__init__(self)
+        self.pspec = pspec
         self.pipe1 = LogicalStages(pspec)
         self._eqs = self.connect([self.pipe1])
 

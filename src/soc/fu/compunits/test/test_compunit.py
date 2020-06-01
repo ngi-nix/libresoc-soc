@@ -96,13 +96,6 @@ def get_inp_indexed(cu, inp):
             res[i] = inp[wrop]
     return res
 
-def get_cu_rd_mask(n_src, inp):
-    mask = 0
-    for i in range(n_src):
-        if i in inp:
-            mask |= (1<<i)
-    return mask
-
 
 class TestRunner(FHDLTestCase):
     def __init__(self, test_data, fukls, iodef, funit):
@@ -160,7 +153,7 @@ class TestRunner(FHDLTestCase):
                     inp = get_inp_indexed(cu, iname)
 
                     # reset read-operand mask
-                    rdmask = get_cu_rd_mask(cu.n_src, inp)
+                    rdmask = cu.rdflags(pdecode2.e)
                     yield cu.rdmaskn.eq(~rdmask)
 
                     # reset write-operand mask

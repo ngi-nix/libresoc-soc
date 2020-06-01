@@ -40,6 +40,7 @@ see:
 
 """
 
+from nmigen import Cat
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
 
@@ -78,6 +79,10 @@ class FunctionUnitBaseSingle(MultiCompUnit):
     note that it is through MultiCompUnit.get_in/out that we *actually*
     connect up the association between regspec variable names (defined
     in the pipe_data).
+
+    note that the rdflags function obtains (dynamically, from instruction
+    decoding) which read-register ports are to be requested.  this is not
+    ideal (it could be a lot neater) but works for now.
     """
     def __init__(self, speckls, pipekls):
         pspec = speckls(id_wid=2)                # spec (NNNPipeSpec instance)
@@ -85,6 +90,10 @@ class FunctionUnitBaseSingle(MultiCompUnit):
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
         super().__init__(regspec, alu, opsubset) # pass to MultiCompUnit
+
+    def rdflags(self, e):
+        print (dir(self.alu))
+        return self.alu.pspec.rdflags(e)
 
 
 ##############################################################
@@ -111,6 +120,7 @@ class BranchFunctionUnit(FunctionUnitBaseSingle):
 
 class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
+
 
 #####################################################################
 ###### actual Function Units: these are "multi" stage pipelines #####

@@ -15,6 +15,7 @@ class ALUStages(PipeModBaseChain):
 class ALUBasePipe(ControlBase):
     def __init__(self, pspec):
         ControlBase.__init__(self)
+        self.pspec = pspec
         self.pipe1 = ALUStages(pspec)
         self._eqs = self.connect([self.pipe1])
 

@@ -11,6 +11,7 @@ class BranchStages(PipeModBaseChain):
 class BranchBasePipe(ControlBase):
     def __init__(self, pspec):
         ControlBase.__init__(self)
+        self.pspec = pspec
         self.pipe1 = BranchStages(pspec)
         self._eqs = self.connect([self.pipe1])
 
