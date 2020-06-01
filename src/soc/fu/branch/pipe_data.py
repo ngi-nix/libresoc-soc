@@ -5,7 +5,7 @@
     * CR is Condition Register (not an SPR)
     * SPR1 and SPR2 are all from the SPR regfile.  2 ports are needed
 
-    insn       CR  SPR1  SPR2
+    insn       CR  SPR2  SPR1
     ----       --  ----  ----
     op_b       xx  xx     xx
     op_ba      xx  xx     xx
@@ -47,8 +47,8 @@ class BranchInputData(IntegerData):
         self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
         # convenience variables.  not all of these are used at once
-        self.ctr = self.srr0 = self.hsrr0 = self.spr2
-        self.lr = self.tar = self.srr1 = self.hsrr1 = self.spr1
+        self.ctr = self.srr0 = self.hsrr0 = self.spr1
+        self.lr = self.tar = self.srr1 = self.hsrr1 = self.spr2
 
     def __iter__(self):
         yield from super().__iter__()

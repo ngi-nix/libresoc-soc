@@ -57,10 +57,11 @@ class Driver(Elaboratable):
         cr_arr = Array([cr[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_bit_arr = Array([cr[31-i] for i in range(32)])
 
-        cia, cr_in, spr1, ctr = dut.i.cia, dut.i.cr, dut.i.spr1, dut.i.spr2
+        cia, cr_in, spr1, spr2 = dut.i.cia, dut.i.cr, dut.i.spr1, dut.i.spr2
+        ctr = spr1
         lr_o, nia_o = dut.o.lr, dut.o.nia
 
-        comb += [spr1.eq(AnyConst(64)),
+        comb += [spr2.eq(AnyConst(64)),
                  ctr.eq(AnyConst(64)),
                  cia.eq(AnyConst(64))]
 

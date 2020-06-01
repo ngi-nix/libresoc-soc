@@ -153,11 +153,11 @@ class TestRunner(FHDLTestCase):
                     yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
-                    # spr2 to be set to CTR, op_bctar require spr1 to be
-                    # set to TAR, op_bclr* require spr1 to be set to LR.
+                    # spr1 to be set to CTR, op_bctar require spr2 to be
+                    # set to TAR, op_bclr* require spr2 to be set to LR.
                     # if op_sc*, op_rf* and op_hrfid are to be added here
                     # then additional op-decoding is required, accordingly
-                    yield branch.p.data_i.spr2.eq(simulator.spr['CTR'].value)
+                    yield branch.p.data_i.spr1.eq(simulator.spr['CTR'].value)
                     print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
 
