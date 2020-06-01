@@ -51,8 +51,8 @@ class CROutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Data(64, name="o") # RA
-        self.full_cr = Data(32, name="cr_out") # CR in
-        self.cr = Data(4, name="cr_o")
+        self.full_cr = Data(32, name="full_cr")
+        self.cr = Data(4, name="cr")
 
     def __iter__(self):
         yield from super().__iter__()

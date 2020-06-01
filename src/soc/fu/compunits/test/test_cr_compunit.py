@@ -41,10 +41,14 @@ class CRTestRunner(TestRunner):
                 cr3_sel = yield dec2.e.read_cr3.data
                 res['cr_c'] = sim.crl[cr3_sel].get_range().value
 
-        # RA
+        # RA/RC
         reg1_ok = yield dec2.e.read_reg1.ok
+        reg3_ok = yield dec2.e.read_reg3.ok
         if reg1_ok:
             data1 = yield dec2.e.read_reg1.data
+            res['a'] = sim.gpr(data1).value
+        if reg3_ok:
+            data1 = yield dec2.e.read_reg3.data
             res['a'] = sim.gpr(data1).value
 
         # RB (or immediate)
@@ -53,13 +57,14 @@ class CRTestRunner(TestRunner):
             data2 = yield dec2.e.read_reg2.data
             res['b'] = sim.gpr(data2).value
 
+        print ("get inputs", res)
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):
         """naming (res) must conform to CRFunctionUnit output regspec
         """
 
-        print ("check extra output", repr(code))
+        print ("check extra output", repr(code), res)
 
         # full CR
         whole_reg = yield dec2.e.write_cr_whole
@@ -67,6 +72,7 @@ class CRTestRunner(TestRunner):
         if whole_reg:
             full_cr = res['full_cr']
             expected_cr = sim.cr.get_range().value
+            print(f"expected cr {expected_cr:x}, actual: {full_cr:x}")
             self.assertEqual(expected_cr, full_cr, code)
 
         # part-CR
