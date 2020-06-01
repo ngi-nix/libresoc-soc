@@ -89,7 +89,6 @@ class BranchOutputData(IntegerData):
                       self.nia.eq(i.nia)]
 
 
-# TODO: replace CompALUOpSubset with CompBROpSubset
 class BranchPipeSpec(CommonPipeSpec):
     regspec = (BranchInputData.regspec, BranchOutputData.regspec)
     opsubsetkls = CompBROpSubset
