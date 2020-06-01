@@ -265,13 +265,6 @@ class TestRunner(FHDLTestCase):
                             traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim):
-        rc = yield dec2.e.rc.data
-        if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual)
-
 
 if __name__ == "__main__":
     unittest.main(exit=False)
