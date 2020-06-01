@@ -43,7 +43,6 @@ class Rotator(Elaboratable):
         self.mb_extra = Signal(1, reset_less=True)  # extra bit of mb in MD-form
         self.ra = Signal(64, reset_less=True)       # RA
         self.rs = Signal(64, reset_less=True)       # RS
-        self.ra = Signal(64, reset_less=True)       # RA
         self.shift = Signal(7, reset_less=True)     # RB[0:7]
         self.is_32bit = Signal(reset_less=True)
         self.right_shift = Signal(reset_less=True)
