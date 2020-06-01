@@ -33,6 +33,7 @@ def set_cu_input(cu, idx, data):
         print ("rd_rel %d wait HI" % idx, rd_rel_o)
         yield
     yield cu.rd.go[idx].eq(0)
+    yield cu.src_i[idx].eq(0)
 
 
 def get_cu_output(cu, idx, code):
@@ -167,6 +168,11 @@ class TestRunner(FHDLTestCase):
                         wrok = cu.get_out(idx)
                         fname = find_ok(wrok.fields)
                         yield getattr(wrok, fname).eq(0)
+
+                    # first set inputs to zero
+                    for idx in range(cu.n_src):
+                        cu_in = cu.get_in(idx)
+                        yield cu_in.eq(0)
 
                     # set inputs into CU
                     rd_rel_o = yield cu.rd.rel
