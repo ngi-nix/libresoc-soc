@@ -2,7 +2,7 @@
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, ResetSignal)
-from nmigen.asserts import (Assert, AnyConst, Assume, Cover, Initial,
+from nmigen.asserts import (Assert, AnySeq, Assume, Cover, Initial,
                             Rose, Fell, Stable, Past)
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
@@ -27,13 +27,11 @@ class Driver(Register):
         writethru = self.writethru
         _rdports  = self._rdports
         _wrports  = self._wrports
-        reg       = self.reg
 
 
-        comb += _wrports[0].data_i.eq(AnyConst(8))
-        comb += _wrports[0].wen.eq(AnyConst(1))
-        comb += _rdports[0].ren.eq(AnyConst(1))
-        sync += reg.eq(AnyConst(8))
+        comb += _wrports[0].data_i.eq(AnySeq(8))
+        comb += _wrports[0].wen.eq(AnySeq(1))
+        comb += _rdports[0].ren.eq(AnySeq(1))
 
         rst = ResetSignal()
 
@@ -50,6 +48,9 @@ class Driver(Register):
         # Holds the value written to the register when a write happens
         register_data = Signal(self.width)
         register_written = Signal()
+
+        # Make sure we're actually hitting a read and write
+        comb += Cover(_rdports[0].ren & register_written)
 
         with m.If(init):
             comb += Assume(rst == 1)
@@ -106,7 +107,8 @@ class TestCase(FHDLTestCase):
     def test_formal(self):
         for writethrough in [False, True]:
             module = Driver(writethrough)
-            self.assertFormal(module, mode="prove", depth=10)
+            self.assertFormal(module, mode="bmc", depth=10)
+            self.assertFormal(module, mode="cover", depth=10)
 
     def test_ilang(self):
         dut = Driver()
