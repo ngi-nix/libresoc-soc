@@ -273,5 +273,6 @@ if __name__ == '__main__':
     print ("sprs", len(SPR))
     print (dir(SPR))
     print (dir(Enum))
+    print (SPR.__members__['TAR'])
     for x in SPR:
-        print (x, x.value)
+        print (x, x.value, str(x), x.name)

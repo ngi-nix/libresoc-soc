@@ -1,5 +1,5 @@
 import unittest
-from soc.decoder.power_enums import (XER_bits, Function)
+from soc.decoder.power_enums import (XER_bits, Function, spr_dict)
 
 # XXX bad practice: use of global variables
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
@@ -47,14 +47,16 @@ class BranchTestRunner(TestRunner):
             res['cr_a'] = sim.crl[cr1_sel].get_range().value
 
         # SPR1
-        cr1_en = yield dec2.e.read_spr1.ok
-        res['spr1'] = sim.spr['CTR'].value
+        spr_ok = yield dec2.e.read_spr1.ok
+        spr_num = yield dec2.e.read_spr1.data
+        if spr_ok:
+            res['spr1'] = sim.spr[spr_dict[spr_num].SPR].value
 
-        # RB (or immediate)
-        reg2_ok = yield dec2.e.read_reg2.ok
-        if reg2_ok:
-            data2 = yield dec2.e.read_reg2.data
-            res['b'] = sim.gpr(data2).value
+        # SPR2
+        spr_ok = yield dec2.e.read_spr2.ok
+        spr_num = yield dec2.e.read_spr2.data
+        if spr_ok:
+            res['spr2'] = sim.spr[spr_dict[spr_num].SPR].value
 
         print ("get inputs", res)
         return res
