@@ -49,6 +49,11 @@ class DecodeA(Elaboratable):
                   (self.reg_out.data == Const(0, 5))):
             comb += self.immz_out.eq(1)
 
+        # some Logic/ALU ops have RS as the 3rd arg, but no "RA".
+        with m.If(self.sel_in == In1Sel.RS):
+            comb += self.reg_out.data.eq(self.dec.RS)
+            comb += self.reg_out.ok.eq(1)
+
         # decode SPR1 based on instruction type
         op = self.dec.op
         # BC or BCREG: potential implicit register (CTR)

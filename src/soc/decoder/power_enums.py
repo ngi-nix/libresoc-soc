@@ -171,6 +171,7 @@ class In1Sel(Enum):
     RA = 1
     RA_OR_ZERO = 2
     SPR = 3
+    RS = 4  # for some ALU/Logical operations
 
 
 @unique
