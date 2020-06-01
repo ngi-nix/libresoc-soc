@@ -25,28 +25,32 @@ class ShiftRotTestRunner(TestRunner):
             data1 = yield dec2.e.read_reg1.data
             res['a'] = sim.gpr(data1).value
 
-        # RB (or immediate)
+        # RB
         reg2_ok = yield dec2.e.read_reg2.ok
         if reg2_ok:
             data2 = yield dec2.e.read_reg2.data
-            res['rs'] = sim.gpr(data2).value
+            res['rb'] = sim.gpr(data2).value
 
         # RS (RC)
         reg3_ok = yield dec2.e.read_reg3.ok
         if reg3_ok:
             data3 = yield dec2.e.read_reg3.data
-            res['rb'] = sim.gpr(data3).value
+            res['rs'] = sim.gpr(data3).value
 
         # XER.ca
         carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
         carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
         res['xer_ca'] = carry | (carry32<<1)
 
+        print ("inputs", res)
+
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):
         """naming (res) must conform to ShiftRotFunctionUnit output regspec
         """
+
+        print ("outputs", repr(code), res)
 
         # RT
         out_reg_valid = yield dec2.e.write_reg.ok
@@ -85,12 +89,6 @@ class ShiftRotTestRunner(TestRunner):
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             real_carry32 = bool(xer_ca & 0b10) # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
-
-        # TODO: XER.ov and XER.so
-        oe = yield dec2.e.oe.data
-        if oe:
-            xer_ov = res['xer_ov']
-            xer_so = res['xer_so']
 
 
 if __name__ == "__main__":
