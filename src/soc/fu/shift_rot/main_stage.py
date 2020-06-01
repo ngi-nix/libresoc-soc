@@ -73,9 +73,8 @@ class ShiftRotMainStage(PipeModBase):
                     rotator.clear_right).eq(mode)
                 
         # outputs from the microwatt rotator module
-        # XXX TODO: carry32
         comb += [o.data.eq(rotator.result_o),
-                 self.o.xer_ca[0].eq(rotator.carry_out_o)]
+                 self.o.xer_ca.data.eq(Repl(rotator.carry_out_o, 2))]
 
         ###### sticky overflow and context, both pass-through #####
 
