@@ -96,6 +96,23 @@ class BranchTestCase(FHDLTestCase):
                                  initial_sprs=initial_sprs,
                                  initial_cr=cr)
 
+    def test_bc_reg(self):
+        # XXX: bcctr and bcctrl time out (irony: they're counters)
+        #choices = ["bclr", "bclrl", "bctar", "bctarl", "bcctr", "bcctrl"]
+        choices = ["bclr", "bclrl", "bctar", "bctarl", ]
+        for insn in choices:
+            for i in range(20):
+                bh = random.randrange(0, 3)
+                bo = random.choice([0, 2, 8, 10, 16, 18])
+                bi = random.randrange(0, 31)
+                cr = random.randrange(0, (1<<32)-1)
+                ctr = random.randint(0, (1<<32)-1)
+                lst = [f"{insn} {bo}, {bi}, {bh}"]
+                initial_sprs={9: SelectableInt(ctr, 64)}
+                self.run_tst_program(Program(lst),
+                                     initial_sprs=initial_sprs,
+                                     initial_cr=cr)
+
     def test_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
         alu = BranchBasePipe(pspec)
