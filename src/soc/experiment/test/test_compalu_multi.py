@@ -137,15 +137,17 @@ class CompUnitParallelTest:
         self.op = 0
         self.inv_a = self.zero_a = 0
         self.imm = self.imm_ok = 0
+        self.rdmaskn = (0, 0)
         # input data:
         self.a = self.b = 0
 
     def driver(self):
         print("Begin parallel test.")
         yield from self.operation(5, 2, InternalOp.OP_ADD, inv_a=0,
-                                  imm=8, imm_ok=1)
+                                  imm=8, imm_ok=1, rdmaskn=(1, 0))
 
-    def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
+    def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
+                  rdmaskn=(0, 0)):
         # store data for the operation
         self.a = a
         self.b = b
@@ -154,6 +156,7 @@ class CompUnitParallelTest:
         self.imm = imm
         self.imm_ok = imm_ok
         self.zero_a = zero_a
+        self.rdmaskn = rdmaskn
 
         # trigger operation cycle
         yield from self.issue()
@@ -177,6 +180,8 @@ class CompUnitParallelTest:
         yield self.dut.oper_i.imm_data.imm.eq(self.imm)
         yield self.dut.oper_i.imm_data.imm_ok.eq(self.imm_ok)
         yield self.dut.oper_i.zero_a.eq(self.zero_a)
+        rdmaskn = self.rdmaskn[0] | (self.rdmaskn[1] << 1)
+        yield self.dut.rdmaskn.eq(rdmaskn)
 
         # give one cycle for the CompUnit to latch the data
         yield
@@ -198,6 +203,7 @@ class CompUnitParallelTest:
         yield self.dut.oper_i.imm_data.imm.eq(0)
         yield self.dut.oper_i.imm_data.imm_ok.eq(0)
         yield self.dut.oper_i.zero_a.eq(0)
+        yield self.dut.rdmaskn.eq(0)
         yield
 
         # wait for busy_o to lower
@@ -224,11 +230,6 @@ class CompUnitParallelTest:
               "it's because the above test unexpectedly passed.")
 
     def rd(self, rd_idx):
-        # TODO: rdmaskn (inverted-rdmask) now needs to be included, here.
-        # any bit in rdmaskn, if set, indicates that the corresponding bit
-        # in rd.rel must *not* be activated (never go HI).  likewise, the
-        # corresponding rd.go bit should never be raised
-
         # wait for issue_i to rise
         while True:
             issue_i = yield self.dut.issue_i
@@ -241,9 +242,12 @@ class CompUnitParallelTest:
 
         # we do not want rd to rise on an immediate operand
         # if it is immediate, exit the process
+        # likewise, if the read mask is active
         # TODO: don't exit the process, monitor rd instead to ensure it
         #       doesn't rise on its own
-        if (self.zero_a and rd_idx == 0) or (self.imm_ok and rd_idx == 1):
+        if self.rdmaskn[rd_idx] \
+                or (rd_idx == 0 and self.zero_a) \
+                or (rd_idx == 1 and self.imm_ok):
             return
 
         # issue_i has risen. rel must rise on the next cycle
