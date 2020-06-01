@@ -64,14 +64,39 @@ class Driver(Register):
             pass
         with m.Else():
             comb += Assume(rst == 0)
-            # Not a signal, this proof will need to be run twice
+
+            # If there is no read, then data_o should be 0
             with m.If(_rdports[0].ren):
                 comb += Assert(_rdports[0].data_o == 0)
+
+            # If there is a read request
             with m.Else():
                 if writethru:
-                    pass
+                    # Since writethrough is enabled, we need to check
+                    # if we're writing while reading. If so, then the
+                    # data from the read port should be the same as
+                    # that of the write port
+                    with m.If(_wrports[0].wen):
+                        comb += Assert(_rdports[0].data_o ==
+                                       _wrports[0].data_i)
+
+                    # Otherwise, check to make sure the register has
+                    # been written to at some point, and make sure the
+                    # data output matches the data that was written
+                    # before
+                    with m.Else():
+                        with m.If(register_written):
+                            comb += Assert(_rdports[0].data_o == register_data)
+
                 else:
-                    pass
+                    # Same as the Else branch above, make sure the
+                    # read port data matches the previously written
+                    # data
+                    with m.If(register_written):
+                        comb += Assert(_rdports[0].data_o == register_data)
+
+            # If there is a write, store the data to be written to our
+            # copy of the register and mark it as written
             with m.If(_wrports[0].wen):
                 sync += register_data.eq(_wrports[0].data_i)
                 sync += register_written.eq(1)
@@ -81,8 +106,9 @@ class Driver(Register):
 
 class TestCase(FHDLTestCase):
     def test_formal(self):
-        module = Driver()
-        self.assertFormal(module, mode="bmc", depth=10)
+        for writethrough in [False, True]:
+            module = Driver(writethrough)
+            self.assertFormal(module, mode="bmc", depth=10)
 
     def test_ilang(self):
         dut = Driver()
