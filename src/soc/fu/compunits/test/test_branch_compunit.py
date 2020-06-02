@@ -1,5 +1,5 @@
 import unittest
-from soc.decoder.power_enums import (XER_bits, Function, spr_dict)
+from soc.decoder.power_enums import (XER_bits, Function, spr_dict, SPR)
 
 # XXX bad practice: use of global variables
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
@@ -8,10 +8,19 @@ from soc.fu.branch.test.test_pipe_caller import test_data
 from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
+from soc.regfile.regfiles import FastRegs
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
 """
+
+def fast_reg_to_spr(spr_num):
+    if spr_num == FastRegs.CTR:
+        return SPR.CTR.value
+    elif spr_num == FastRegs.LR:
+        return SPR.LR.value
+    elif spr_num == FastRegs.TAR:
+        return SPR.TAR.value
 
 
 class BranchTestRunner(TestRunner):
@@ -36,12 +45,16 @@ class BranchTestRunner(TestRunner):
         # SPR1
         spr_ok = yield dec2.e.read_spr1.ok
         spr_num = yield dec2.e.read_spr1.data
+        # HACK
+        spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:
             res['spr1'] = sim.spr[spr_dict[spr_num].SPR].value
 
         # SPR2
         spr_ok = yield dec2.e.read_spr2.ok
         spr_num = yield dec2.e.read_spr2.data
+        # HACK
+        spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:
             res['spr2'] = sim.spr[spr_dict[spr_num].SPR].value
 

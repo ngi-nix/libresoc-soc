@@ -15,6 +15,7 @@ from soc.decoder.power_enums import (InternalOp, CryIn, Function,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
                                      OutSel, SPR, RC)
 
+from soc.regfile.regfiles import FastRegs
 
 class DecodeA(Elaboratable):
     """DecodeA from instruction
@@ -60,11 +61,12 @@ class DecodeA(Elaboratable):
         with m.If((op.internal_op == InternalOp.OP_BC) |
                   (op.internal_op == InternalOp.OP_BCREG)):
             with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
-                comb += self.spr_out.data.eq(SPR.CTR) # constant: CTR
+                comb += self.spr_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.spr_out.ok.eq(1)
         # MFSPR or MTSPR: move-from / move-to SPRs
         with m.If((op.internal_op == InternalOp.OP_MFSPR) |
                   (op.internal_op == InternalOp.OP_MTSPR)):
+            # XXX TODO: fast/slow SPR decoding and mapping
             comb += self.spr_out.data.eq(self.dec.SPR) # SPR field, XFX
             comb += self.spr_out.ok.eq(1)
 
@@ -154,9 +156,9 @@ class DecodeB(Elaboratable):
         # BCREG implicitly uses CTR or LR for 2nd reg
         with m.If(op.internal_op == InternalOp.OP_BCREG):
             with m.If(self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
-                comb += self.spr_out.data.eq(SPR.CTR)
+                comb += self.spr_out.data.eq(FastRegs.CTR)
             with m.Else():
-                comb += self.spr_out.data.eq(SPR.LR)
+                comb += self.spr_out.data.eq(FastRegs.LR)
             comb += self.spr_out.ok.eq(1)
 
         return m
