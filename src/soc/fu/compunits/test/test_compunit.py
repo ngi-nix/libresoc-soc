@@ -162,10 +162,7 @@ class TestRunner(FHDLTestCase):
                         fname = find_ok(wrok.fields)
                         yield getattr(wrok, fname).eq(0)
 
-                    # first set inputs to zero
-                    for idx in range(cu.n_src):
-                        cu_in = cu.get_in(idx)
-                        yield cu_in.eq(0)
+                    yield Settle()
 
                     # set inputs into CU
                     rd_rel_o = yield cu.rd.rel
