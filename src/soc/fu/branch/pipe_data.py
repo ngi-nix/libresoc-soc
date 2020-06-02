@@ -31,8 +31,8 @@ from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 
 
 class BranchInputData(IntegerData):
-    regspec = [('SPR', 'spr1', '0:63'),
-               ('SPR', 'spr2', '0:63'),
+    regspec = [('FAST', 'spr1', '0:63'),
+               ('FAST', 'spr2', '0:63'),
                ('CR', 'cr_a', '0:3'),
                ('FAST', 'cia', '0:63')]
     def __init__(self, pspec):
@@ -47,8 +47,8 @@ class BranchInputData(IntegerData):
         self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
         # convenience variables.  not all of these are used at once
-        self.ctr = self.srr0 = self.hsrr0 = self.spr1
-        self.lr = self.tar = self.srr1 = self.hsrr1 = self.spr2
+        self.ctr = self.spr1
+        self.lr = self.tar = self.spr2
         self.cr = self.cr_a
 
     def __iter__(self):
@@ -65,8 +65,8 @@ class BranchInputData(IntegerData):
 
 
 class BranchOutputData(IntegerData):
-    regspec = [('SPR', 'spr1', '0:63'),
-               ('SPR', 'spr2', '0:63'),
+    regspec = [('FAST', 'spr1', '0:63'),
+               ('FAST', 'spr2', '0:63'),
                ('FAST', 'nia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)

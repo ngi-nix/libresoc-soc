@@ -169,13 +169,13 @@ def regspec_decode(e, regfile, name):
         SRR1 = 1<<FastRegs.SRR1
         SRR2 = 1<<FastRegs.SRR2
         if name in ['cia', 'nia']:
-            return Const(1), PC, PC
+            return Const(1), PC, PC # TODO: detect read-conditions
         if name == 'msr':
-            return Const(1), MSR, MSR
+            return Const(1), MSR, MS # TODO: detect read-conditions
         # TODO: remap the SPR numbers to FAST regs
         if name == 'spr1':
-            return e.read_spr1.ok, 1<<e.read_spr1.data, 1<<e.write_spr.data
+            return e.read_spr1.ok, 1<<e.read_spr1.data, 1<<e.write_fast1.data
         if name == 'spr2':
-            return e.read_spr2.ok, 1<<e.read_spr2.data, 1<<e.write_spr.data
+            return e.read_spr2.ok, 1<<e.read_spr2.data, 1<<e.write_fast2.data
 
     assert False, "regspec not found %s %d" % (repr(regspec), idx)

@@ -31,6 +31,7 @@ class DecodeA(Elaboratable):
         self.reg_out = Data(5, name="reg_a")
         self.immz_out = Signal(reset_less=True)
         self.spr_out = Data(10, "spr_a")
+        self.fast_out = Data(3, "fast_a")
 
     def elaborate(self, platform):
         m = Module()
@@ -55,14 +56,15 @@ class DecodeA(Elaboratable):
             comb += self.reg_out.data.eq(self.dec.RS)
             comb += self.reg_out.ok.eq(1)
 
-        # decode SPR1 based on instruction type
+        # decode Fast-SPR based on instruction type
         op = self.dec.op
-        # BC or BCREG: potential implicit register (CTR)
+        # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeOut
         with m.If((op.internal_op == InternalOp.OP_BC) |
                   (op.internal_op == InternalOp.OP_BCREG)):
             with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
-                comb += self.spr_out.data.eq(FastRegs.CTR) # constant: CTR
-                comb += self.spr_out.ok.eq(1)
+                comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                comb += self.fast_out.ok.eq(1)
+
         # MFSPR or MTSPR: move-from / move-to SPRs
         with m.If((op.internal_op == InternalOp.OP_MFSPR) |
                   (op.internal_op == InternalOp.OP_MTSPR)):
@@ -103,7 +105,7 @@ class DecodeB(Elaboratable):
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_b")
         self.imm_out = Data(64, "imm_b")
-        self.spr_out = Data(10, "spr_b")
+        self.fast_out = Data(3, "fast_b")
 
     def elaborate(self, platform):
         m = Module()
@@ -156,10 +158,10 @@ class DecodeB(Elaboratable):
         # BCREG implicitly uses CTR or LR for 2nd reg
         with m.If(op.internal_op == InternalOp.OP_BCREG):
             with m.If(self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
-                comb += self.spr_out.data.eq(FastRegs.CTR)
+                comb += self.fast_out.data.eq(FastRegs.CTR)
             with m.Else():
-                comb += self.spr_out.data.eq(FastRegs.LR)
-            comb += self.spr_out.ok.eq(1)
+                comb += self.fast_out.data.eq(FastRegs.LR)
+            comb += self.fast_out.ok.eq(1)
 
         return m
 
@@ -204,6 +206,7 @@ class DecodeOut(Elaboratable):
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
         self.spr_out = Data(10, "spr_o")
+        self.fast_out = Data(3, "fast_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -220,6 +223,46 @@ class DecodeOut(Elaboratable):
             with m.Case(OutSel.SPR):
                 comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
                 comb += self.spr_out.ok.eq(1)
+
+        # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeA
+        op = self.dec.op
+        with m.If((op.internal_op == InternalOp.OP_BC) |
+                  (op.internal_op == InternalOp.OP_BCREG)):
+            with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
+                comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                comb += self.fast_out.ok.eq(1)
+        return m
+
+
+class DecodeOut2(Elaboratable):
+    """DecodeOut2 from instruction
+
+    decodes output registers
+    """
+
+    def __init__(self, dec):
+        self.dec = dec
+        self.sel_in = Signal(OutSel, reset_less=True)
+        self.insn_in = Signal(32, reset_less=True)
+        self.reg_out = Data(5, "reg_o")
+        self.fast_out = Data(3, "fast_o")
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # update mode LD/ST uses read-reg A also as an output
+        with m.If(self.dec.op.upd):
+            comb += self.reg_out.eq(self.dec.RA)
+            comb += self.reg_out.ok.eq(1)
+
+        # BC or BCREG: potential implicit register (LR) output
+        op = self.dec.op
+        with m.If((op.internal_op == InternalOp.OP_BC) |
+                  (op.internal_op == InternalOp.OP_BCREG)):
+            with m.If(self.dec.op.lk & self.dec.LK): # "link" mode
+                comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
+                comb += self.fast_out.ok.eq(1)
 
         return m
 
@@ -403,6 +446,11 @@ class Decode2ToExecute1Type(RecordObject):
         self.read_spr1 = Data(10, name="spr1")
         self.read_spr2 = Data(10, name="spr2")
 
+        self.read_fast1 = Data(3, name="fast1")
+        self.read_fast2 = Data(3, name="fast2")
+        self.write_fast1 = Data(3, name="fasto1")
+        self.write_fast2 = Data(3, name="fasto2")
+
         self.read_cr1 = Data(3, name="cr_in1")
         self.read_cr2 = Data(3, name="cr_in2")
         self.read_cr3 = Data(3, name="cr_in2")
@@ -448,6 +496,7 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_b = dec_b = DecodeB(self.dec)
         m.submodules.dec_c = dec_c = DecodeC(self.dec)
         m.submodules.dec_o = dec_o = DecodeOut(self.dec)
+        m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
         m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
         m.submodules.dec_cr_in = dec_cr_in = DecodeCRIn(self.dec)
@@ -455,7 +504,7 @@ class PowerDecode2(Elaboratable):
 
         # copy instruction through...
         for i in [self.e.insn, dec_a.insn_in, dec_b.insn_in,
-                  dec_c.insn_in, dec_o.insn_in, dec_rc.insn_in,
+                  dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in, dec_rc.insn_in,
                   dec_oe.insn_in, dec_cr_in.insn_in, dec_cr_out.insn_in]:
             comb += i.eq(self.dec.opcode_in)
 
@@ -464,6 +513,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_b.sel_in.eq(self.dec.op.in2_sel)
         comb += dec_c.sel_in.eq(self.dec.op.in3_sel)
         comb += dec_o.sel_in.eq(self.dec.op.out_sel)
+        comb += dec_o2.sel_in.eq(self.dec.op.out_sel)
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
@@ -490,11 +540,12 @@ class PowerDecode2(Elaboratable):
         comb += self.e.insn_type.eq(itype)
         comb += self.e.fn_unit.eq(fu)
 
-        # registers a, b, c and out
+        # registers a, b, c and out and out2 (LD/ST EA)
         comb += self.e.read_reg1.eq(dec_a.reg_out)
         comb += self.e.read_reg2.eq(dec_b.reg_out)
         comb += self.e.read_reg3.eq(dec_c.reg_out)
         comb += self.e.write_reg.eq(dec_o.reg_out)
+        comb += self.e.write_ea.eq(dec_o2.reg_out)
         comb += self.e.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
         comb += self.e.zero_a.eq(dec_a.immz_out)  # RA==0 detected
 
@@ -504,8 +555,13 @@ class PowerDecode2(Elaboratable):
 
         # SPRs out
         comb += self.e.read_spr1.eq(dec_a.spr_out)
-        comb += self.e.read_spr2.eq(dec_b.spr_out)
         comb += self.e.write_spr.eq(dec_o.spr_out)
+
+        # Fast regs out
+        comb += self.e.read_fast1.eq(dec_a.fast_out)
+        comb += self.e.read_fast2.eq(dec_b.fast_out)
+        comb += self.e.write_fast1.eq(dec_o.fast_out)
+        comb += self.e.write_fast2.eq(dec_o2.fast_out)
 
         comb += self.e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += self.e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
@@ -527,12 +583,7 @@ class PowerDecode2(Elaboratable):
 
         comb += self.e.byte_reverse.eq(self.dec.op.br)
         comb += self.e.sign_extend.eq(self.dec.op.sgn_ext)
-
-        # LD/ST "update" mode.  if set, 2nd write is RA (same as read reg A)
-        comb += self.e.update.eq(self.dec.op.upd)
-        with m.If(self.e.update):
-            comb += self.e.write_ea.eq(dec_a.reg_out)
-
+        comb += self.e.update.eq(self.dec.op.upd) # LD/ST "update" mode.
 
 
         # These should be removed eventually
