@@ -118,7 +118,7 @@ class BranchTestCase(FHDLTestCase):
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
 
-        
+
 
     def test_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
@@ -227,33 +227,48 @@ class TestRunner(FHDLTestCase):
         # CIA (PC)
         res['cia'] = sim.pc.CIA.value
 
-        # CR A
-        cr1_en = yield dec2.e.read_cr1.ok
-        if cr1_en:
-            cr1_sel = yield dec2.e.read_cr1.data
-            res['cr_a'] = sim.crl[cr1_sel].get_range().value
-
         # Fast1
         spr_ok = yield dec2.e.read_fast1.ok
-        spr_num = yield dec2.e.read_fast1.data
-        # HACK
-        spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:
-            res['spr1'] = sim.spr[spr_dict[spr_num].SPR].value
+            fast1_sel = yield dec2.e.read_fast1.data
+            # HACK
+            spr_num = fast_reg_to_spr(fast1_sel)
+            res['spr1'] = sim.spr[spr_num].value
 
         # SPR2
         spr_ok = yield dec2.e.read_fast2.ok
-        spr_num = yield dec2.e.read_fast2.data
-        # HACK
-        spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:
-            res['spr2'] = sim.spr[spr_dict[spr_num].SPR].value
+            fast2_sel = yield dec2.e.read_fast2.data
+            # HACK
+            spr_num = fast_reg_to_spr(fast2_sel)
+            res['spr2'] = sim.spr[spr_num].value
+
+        # CR A
+        cr1_en = yield dec2.e.read_cr1.ok
+        if cr1_en:
+            cr_sel = yield dec2.e.read_cr1.data
+            res['cr_a'] = sim.crl[cr_sel].get_range().value
 
         print ("get inputs", res)
         return res
 
     def set_inputs(self, branch, dec2, sim):
-        yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
+        print(f"cr0: {sim.crl[0].get_range()}")
+
+        inp = yield from self.get_inputs(dec2, sim)
+
+        if 'spr1' in inp:
+            yield branch.p.data_i.spr1.eq(inp['spr1'])
+        if 'spr2' in inp:
+            yield branch.p.data_i.spr2.eq(inp['spr2'])
+        if 'cr_a' in inp:
+            cr_sel = yield dec2.e.read_cr1.data
+            cr = inp['cr_a']
+            yield branch.p.data_i.cr.eq(cr_sel)
+            full_cr = sim.cr.get_range().value
+            print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
+
+    def set_inputs(self, branch, dec2, sim):
         print(f"cr0: {sim.crl[0].get_range()}")
 
         # TODO: this needs to now be read_fast1.data and read_fast2.data
