@@ -64,6 +64,12 @@ class DecodeA(Elaboratable):
             with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
+        with m.Elif(op.internal_op == InternalOp.OP_BCREG):
+            xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
+            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+            with m.If(xo9 & ~xo5):
+                comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                comb += self.fast_out.ok.eq(1)
 
         # MFSPR or MTSPR: move-from / move-to SPRs
         with m.If((op.internal_op == InternalOp.OP_MFSPR) |
@@ -165,9 +171,6 @@ class DecodeB(Elaboratable):
                 comb += self.fast_out.ok.eq(1)
             with m.Elif(xo5):
                 comb += self.fast_out.data.eq(FastRegs.TAR)
-                comb += self.fast_out.ok.eq(1)
-            with m.Else():
-                comb += self.fast_out.data.eq(FastRegs.CTR)
                 comb += self.fast_out.ok.eq(1)
 
         return m
