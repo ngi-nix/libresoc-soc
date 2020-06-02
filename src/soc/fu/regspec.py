@@ -131,6 +131,10 @@ def regspec_decode(e, regfile, name):
             return e.read_reg2.ok, 1<<e.read_reg2.data, None
         if name == 'rc': # RS
             return e.read_reg3.ok, 1<<e.read_reg3.data, None
+        if name == 'o': # RT
+            return e.write_reg.ok, None, 1<<e.write_reg.data
+        if name == 'o1': # RA (update mode: LD/ST EA)
+            return e.write_ea.ok, None, 1<<e.write_ea.data
 
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
