@@ -394,6 +394,7 @@ class Decode2ToExecute1Type(RecordObject):
         self.fn_unit = Signal(Function, reset_less=True)
         self.nia = Signal(64, reset_less=True)
         self.write_reg = Data(5, name="rego")
+        self.write_ea = Data(5, name="ea") # for LD/ST in update mode
         self.read_reg1 = Data(5, name="reg1")
         self.read_reg2 = Data(5, name="reg2")
         self.read_reg3 = Data(5, name="reg3")
@@ -526,7 +527,11 @@ class PowerDecode2(Elaboratable):
 
         comb += self.e.byte_reverse.eq(self.dec.op.br)
         comb += self.e.sign_extend.eq(self.dec.op.sgn_ext)
-        comb += self.e.update.eq(self.dec.op.upd) # LD/ST "update" mode
+
+        # LD/ST "update" mode.  if set, 2nd write is RA (same as read reg A)
+        comb += self.e.update.eq(self.dec.op.upd)
+        with m.If(self.e.update):
+            comb += self.e.write_ea.eq(dec_a.reg_out)
 
 
 
