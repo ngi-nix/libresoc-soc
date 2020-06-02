@@ -163,7 +163,8 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                pass
+                comb += self.o.msr.data.eq(Cat(b[63:31], b[26:22], b[15:0]))
+                comb += self.o.msr.ok.eq(a)
 
             # TODO
             with m.Case(InternalOp.OP_SC):
@@ -173,7 +174,8 @@ class TrapMainStage(PipeModBase):
                 ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
                 ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 """
-                pass
+                comb += self.o.nia.eq(0xC00)
+                comb += self.o.nia.ok.eq(1)
 
             #with m.Case(InternalOp.OP_ADDPCIS):
             #    pass
