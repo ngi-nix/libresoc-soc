@@ -60,12 +60,14 @@ class DecodeA(Elaboratable):
         # decode Fast-SPR based on instruction type
         op = self.dec.op
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeOut
-        with m.If((op.internal_op == InternalOp.OP_BC) |
-                  (op.internal_op == InternalOp.OP_BCREG)):
+        with m.If(op.internal_op == InternalOp.OP_BC):
+            with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
+                comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                comb += self.fast_out.ok.eq(1)
+        with m.Elif(op.internal_op == InternalOp.OP_BCREG):
             xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
-            xo5 = self.dec.FormXL.XO[5] # 3.0B p38 
-            with m.If(~self.dec.BO[2] |        # 3.0B p38 BO2=0, use CTR reg
-                       (xo9 & ~xo5)):
+            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+            with m.If(xo9 & ~xo5):
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
 
@@ -161,10 +163,9 @@ class DecodeB(Elaboratable):
         op = self.dec.op
         # BCREG implicitly uses LR or TAR for 2nd reg
         # CTR however is already in fast_spr1 *not* 2.
-        with m.If((op.internal_op == InternalOp.OP_BC) |
-                 (op.internal_op == InternalOp.OP_BCREG)):
+        with m.If(op.internal_op == InternalOp.OP_BCREG):
             xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
-            xo5 = self.dec.FormXL.XO[5] # 3.0B p38 
+            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
             with m.If(~xo9):
                 comb += self.fast_out.data.eq(FastRegs.LR)
                 comb += self.fast_out.ok.eq(1)
