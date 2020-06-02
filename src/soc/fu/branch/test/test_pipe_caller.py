@@ -16,6 +16,7 @@ from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
+from soc.compunits.test.test_branch_compunit import fast_reg_to_spr # HACK!
 
 class TestCase:
     def __init__(self, program, regs, sprs, cr, name):
@@ -208,6 +209,9 @@ class TestRunner(FHDLTestCase):
             print(f"real: {branch_addr:x}, sim: {sim.pc.CIA.value:x}")
             self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
+        # TODO: check write_fast1 as well (should contain CTR)
+
+        # TODO: this should be checking write_fast2
         lk = yield dec2.e.lk
         branch_lk = yield branch.n.data_o.lr.ok
         self.assertEqual(lk, branch_lk, code)
@@ -219,6 +223,24 @@ class TestRunner(FHDLTestCase):
         yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
         print(f"cr0: {sim.crl[0].get_range()}")
 
+        # TODO: this needs to now be read_fast1.data and read_fast2.data
+        if False:
+            fast1_en = yield dec2.e.read_fast1.ok
+            if fast1_en:
+                fast1_sel = yield dec2.e.read_fast1.data
+                spr1_sel = fast_reg_to_spr(fast1_sel)
+                spr1_data = sim.spr[spr1_sel].value
+                yield branch.p.data_i.spr1.eq(spr1_data)
+
+            fast2_en = yield dec2.e.read_fast2.ok
+            if fast2_en:
+                fast2_sel = yield dec2.e.read_fast2.data
+                spr2_sel = fast_reg_to_spr(fast2_sel)
+                spr2_data = sim.spr[spr2_sel].value
+                yield branch.p.data_i.spr2.eq(spr2_data)
+
+        # TODO: drop this once it's in PowerDecode2
+        # (actually, DecodeA and DecodeB)
         insn_type = yield dec2.e.insn_type
         if insn_type == InternalOp.OP_BCREG.value:
             xo9 = yield dec2.dec.FormXL.XO[9]
