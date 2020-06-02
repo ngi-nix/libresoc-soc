@@ -6,7 +6,7 @@ import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function)
+from soc.decoder.power_enums import (XER_bits, Function, InternalOp)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
@@ -99,7 +99,7 @@ class BranchTestCase(FHDLTestCase):
 
     def test_bc_reg(self):
         # XXX: bcctr and bcctrl time out (irony: they're counters)
-        choices = ["bclr", "bclrl", "bcctr", "bcctrl"]
+        choices = ["bclr", "bclrl", "bcctr", "bcctrl", "bctar", "bctarl"]
         for insn in choices:
             for i in range(20):
                 bh = random.randrange(0, 3)
@@ -107,8 +107,12 @@ class BranchTestCase(FHDLTestCase):
                 bi = random.randrange(0, 31)
                 cr = random.randrange(0, (1<<32)-1)
                 ctr = random.randint(0, (1<<32)-1)
+                lr = random.randint(0, (1<<64)-1) & ~3
+                tar = random.randint(0, (1<<64)-1) & ~3
                 lst = [f"{insn} {bo}, {bi}, {bh}"]
-                initial_sprs={9: SelectableInt(ctr, 64)}
+                initial_sprs={9: SelectableInt(ctr, 64),
+                              8: SelectableInt(lr, 64),
+                              815: SelectableInt(tar, 64)}
                 self.run_tst_program(Program(lst),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
@@ -215,16 +219,16 @@ class TestRunner(FHDLTestCase):
         yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
         print(f"cr0: {sim.crl[0].get_range()}")
 
-        # TODO: this needs to now be read_fast1.data and read_fast2.data
-
-        spr2_en = yield dec2.e.read_spr2.ok
-        if spr2_en:
-            spr2_sel = yield dec2.e.read_spr2.data
-            if spr2_sel == FastRegs.LR:
-                spr2_data = sim.spr['LR'].value
-            elif spr2_sel == FastRegs.CTR:
-                spr2_data = sim.spr['CTR'].value
-            yield branch.p.data_i.spr2.eq(spr2_data)
+        insn_type = yield dec2.e.insn_type
+        if insn_type == InternalOp.OP_BCREG.value:
+            xo9 = yield dec2.dec.FormXL.XO[9]
+            xo5 = yield dec2.dec.FormXL.XO[5]
+            if xo9 == 0:
+                yield branch.p.data_i.spr2.eq(sim.spr['LR'].value)
+            elif xo5 == 1:
+                yield branch.p.data_i.spr2.eq(sim.spr['TAR'].value)
+            else:
+                yield branch.p.data_i.spr2.eq(sim.spr['CTR'].value)
 
         cr_en = yield dec2.e.read_cr1.ok
         if cr_en:
