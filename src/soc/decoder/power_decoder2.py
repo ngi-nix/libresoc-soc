@@ -253,6 +253,7 @@ class DecodeOut2(Elaboratable):
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(OutSel, reset_less=True)
+        self.lk = Signal(reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
         self.fast_out = Data(3, "fast_o")
@@ -270,7 +271,7 @@ class DecodeOut2(Elaboratable):
         op = self.dec.op
         with m.If((op.internal_op == InternalOp.OP_BC) |
                   (op.internal_op == InternalOp.OP_BCREG)):
-            with m.If(self.dec.op.lk & self.dec.LK): # "link" mode
+            with m.If(self.lk): # "link" mode
                 comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
                 comb += self.fast_out.ok.eq(1)
 
@@ -524,6 +525,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_c.sel_in.eq(self.dec.op.in3_sel)
         comb += dec_o.sel_in.eq(self.dec.op.out_sel)
         comb += dec_o2.sel_in.eq(self.dec.op.out_sel)
+        comb += dec_o2.lk.eq(self.e.lk)
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
