@@ -77,6 +77,7 @@ class BranchTestRunner(TestRunner):
             ctr = res['spr1']
             self.assertEqual(sim.spr['CTR'], ctr, code)
 
+
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
