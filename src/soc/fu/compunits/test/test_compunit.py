@@ -169,6 +169,10 @@ class TestRunner(FHDLTestCase):
                     wr_rel_o = yield cu.wr.rel
                     print ("before inputs, rd_rel, wr_rel: ",
                             bin(rd_rel_o), bin(wr_rel_o))
+                    assert wr_rel_o == 0, "wr.rel %s must be zero. "\
+                                "previous instr not written all regs\n"\
+                                "respec %s" % \
+                                (bin(wr_rel_o), cu.rwid[1])
                     yield from set_cu_inputs(cu, inp)
                     yield
                     rd_rel_o = yield cu.rd.rel
@@ -182,6 +186,7 @@ class TestRunner(FHDLTestCase):
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
+                    yield Settle()
                     # get all outputs (one by one, just "because")
                     res = yield from get_cu_outputs(cu, code)
 
