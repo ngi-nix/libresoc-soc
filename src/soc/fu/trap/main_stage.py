@@ -14,6 +14,17 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
+# TODO at some point move these to their own module (for use elsewhere)
+"""
+    -- MSR bit numbers
+    constant MSR_SF  : integer := (63 - 0);     -- Sixty-Four bit mode
+    constant MSR_EE  : integer := (63 - 48);    -- External interrupt Enable
+    constant MSR_PR  : integer := (63 - 49);    -- PRoblem state
+    constant MSR_IR  : integer := (63 - 58);    -- Instruction Relocation
+    constant MSR_DR  : integer := (63 - 59);    -- Data Relocation
+    constant MSR_RI  : integer := (63 - 62);    -- Recoverable Interrupt
+    constant MSR_LE  : integer := (63 - 63);    -- Little Endian
+"""
 
 class TrapMainStage(PipeModBase):
     def __init__(self, pspec):
