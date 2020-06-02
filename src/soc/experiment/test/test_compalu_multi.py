@@ -198,12 +198,13 @@ class CompUnitParallelTest:
 
         # deactivate inputs along with issue_i, so we can be sure the data
         # was latched at the correct cycle
+        # note: rdmaskn must be held, while busy_o is active
+        # TODO: deactivate rdmaskn when the busy_o cycle ends
         yield self.dut.oper_i.insn_type.eq(0)
         yield self.dut.oper_i.invert_a.eq(0)
         yield self.dut.oper_i.imm_data.imm.eq(0)
         yield self.dut.oper_i.imm_data.imm_ok.eq(0)
         yield self.dut.oper_i.zero_a.eq(0)
-        yield self.dut.rdmaskn.eq(0)
         yield
 
         # wait for busy_o to lower
