@@ -16,7 +16,7 @@ from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
-from soc.compunits.test.test_branch_compunit import fast_reg_to_spr # HACK!
+from soc.regfile.util import fast_reg_to_spr # HACK!
 
 class TestCase:
     def __init__(self, program, regs, sprs, cr, name):

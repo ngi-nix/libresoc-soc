@@ -8,19 +8,11 @@ from soc.fu.branch.test.test_pipe_caller import test_data
 from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
-from soc.regfile.regfiles import FastRegs
+from soc.regfile.util import fast_reg_to_spr # HACK!
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
 """
-
-def fast_reg_to_spr(spr_num):
-    if spr_num == FastRegs.CTR:
-        return SPR.CTR.value
-    elif spr_num == FastRegs.LR:
-        return SPR.LR.value
-    elif spr_num == FastRegs.TAR:
-        return SPR.TAR.value
 
 
 class BranchTestRunner(TestRunner):
