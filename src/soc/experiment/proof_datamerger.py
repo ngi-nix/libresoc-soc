@@ -4,7 +4,7 @@
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
-from nmigen.asserts import Assert, AnyConst, Assume, Cover
+from nmigen.asserts import Assert, AnyConst,AnySeq, Assume, Cover
 from nmigen.test.utils import FHDLTestCase
 from nmigen.cli import rtlil
 
@@ -26,21 +26,30 @@ class Driver(Elaboratable):
         
         array_size = 8
         m.submodules.dut = dut = DataMerger(array_size)
-
-        # convenience variables
-        # Assert that op gets copied from the input to output
         
-        # TODO: investigate error 
-        "Object (rec <unnamed> data en) cannot be used as a key in value collections"
+        #assign anyseq to inputs
+        for j in range(dut.array_size):
+            comb += dut.addr_array_i[j].eq(AnySeq(dut.array_size))
+            comb += dut.data_i[j].eq(AnySeq(16+128))
+        
+        allzero = 1    
+        for j in range(dut.array_size):
+              allzero = (dut.addr_array_i[j] == 0) & allzero
+            
+        #assert that the output is zero when the datamerger is idle
+        with m.If(allzero):
+            comb += Assert(dut.data_o==0)
+    
         return m
 
 
 class DataMergerTestCase(FHDLTestCase):
     def test_formal(self):
         module = Driver()
-        # self.assertFormal(module, mode="bmc", depth=2)
-        # self.assertFormal(module, mode="cover", depth=2)
-        self.assertFormal(module, mode="prove")
+        # bounded model check first
+        self.assertFormal(module, mode="bmc", depth=2)
+        # self.assertFormal(module, mode="cover", depth=2)     # case can happen
+        # XXX self.assertFormal(module, mode="prove")          # uses induction
     def test_ilang(self):
         dut = Driver()
         vl = rtlil.convert(dut, ports=[])
