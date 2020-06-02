@@ -114,4 +114,4 @@ def regspec_rdmask(e, regspec, idx):
         if name == 'xer_ca':
             return e.input_carry
 
-    assert False, "regspec rdmask not found", regspec, idx
+    assert False, "regspec rdmask not found %s %d" % (repr(regspec), idx)
