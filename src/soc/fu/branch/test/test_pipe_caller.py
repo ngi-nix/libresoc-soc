@@ -56,6 +56,38 @@ def get_rec_width(rec):
 test_data = []
 
 
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to BranchFunctionUnit input regspec
+    """
+    res = {}
+
+    # CIA (PC)
+    res['cia'] = sim.pc.CIA.value
+
+    fast1_en = yield dec2.e.read_fast1.ok
+    if fast1_en:
+        fast1_sel = yield dec2.e.read_fast1.data
+        spr1_sel = fast_reg_to_spr(fast1_sel)
+        spr1_data = sim.spr[spr1_sel].value
+        res['spr1'] = spr1_data
+
+    fast2_en = yield dec2.e.read_fast2.ok
+    if fast2_en:
+        fast2_sel = yield dec2.e.read_fast2.data
+        spr2_sel = fast_reg_to_spr(fast2_sel)
+        spr2_data = sim.spr[spr2_sel].value
+        res['spr2'] = spr2_data
+
+    cr_en = yield dec2.e.read_cr1.ok
+    if cr_en:
+        cr_sel = yield dec2.e.read_cr1.data
+        cr = sim.crl[cr_sel].get_range().value
+        res['cr_a'] = cr
+
+    print ("get inputs", res)
+    return res
+
+
 class BranchTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
@@ -219,81 +251,17 @@ class TestRunner(FHDLTestCase):
             branch_lr = yield branch.n.data_o.lr.data
             self.assertEqual(sim.spr['LR'], branch_lr, code)
 
-    def get_inputs(self, dec2, sim):
-        """naming (res) must conform to BranchFunctionUnit input regspec
-        """
-        res = {}
-
-        # CIA (PC)
-        res['cia'] = sim.pc.CIA.value
-
-        # Fast1
-        spr_ok = yield dec2.e.read_fast1.ok
-        if spr_ok:
-            fast1_sel = yield dec2.e.read_fast1.data
-            # HACK
-            spr_num = fast_reg_to_spr(fast1_sel)
-            res['spr1'] = sim.spr[spr_num].value
-
-        # SPR2
-        spr_ok = yield dec2.e.read_fast2.ok
-        if spr_ok:
-            fast2_sel = yield dec2.e.read_fast2.data
-            # HACK
-            spr_num = fast_reg_to_spr(fast2_sel)
-            res['spr2'] = sim.spr[spr_num].value
-
-        # CR A
-        cr1_en = yield dec2.e.read_cr1.ok
-        if cr1_en:
-            cr_sel = yield dec2.e.read_cr1.data
-            res['cr_a'] = sim.crl[cr_sel].get_range().value
-
-        print ("get inputs", res)
-        return res
-
     def set_inputs(self, branch, dec2, sim):
         print(f"cr0: {sim.crl[0].get_range()}")
 
-        inp = yield from self.get_inputs(dec2, sim)
+        inp = yield from get_cu_inputs(dec2, sim)
 
         if 'spr1' in inp:
             yield branch.p.data_i.spr1.eq(inp['spr1'])
         if 'spr2' in inp:
             yield branch.p.data_i.spr2.eq(inp['spr2'])
         if 'cr_a' in inp:
-            cr_sel = yield dec2.e.read_cr1.data
-            cr = inp['cr_a']
-            yield branch.p.data_i.cr.eq(cr_sel)
-            full_cr = sim.cr.get_range().value
-            print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
-
-    def set_inputs(self, branch, dec2, sim):
-        print(f"cr0: {sim.crl[0].get_range()}")
-
-        # TODO: this needs to now be read_fast1.data and read_fast2.data
-        fast1_en = yield dec2.e.read_fast1.ok
-        if fast1_en:
-            fast1_sel = yield dec2.e.read_fast1.data
-            spr1_sel = fast_reg_to_spr(fast1_sel)
-            spr1_data = sim.spr[spr1_sel].value
-            yield branch.p.data_i.spr1.eq(spr1_data)
-
-        fast2_en = yield dec2.e.read_fast2.ok
-        if fast2_en:
-            fast2_sel = yield dec2.e.read_fast2.data
-            spr2_sel = fast_reg_to_spr(fast2_sel)
-            spr2_data = sim.spr[spr2_sel].value
-            yield branch.p.data_i.spr2.eq(spr2_data)
-
-
-        cr_en = yield dec2.e.read_cr1.ok
-        if cr_en:
-            cr_sel = yield dec2.e.read_cr1.data
-            cr = sim.crl[cr_sel].get_range().value
-            yield branch.p.data_i.cr.eq(cr)
-            full_cr = sim.cr.get_range().value
-            print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
+            yield branch.p.data_i.cr.eq(inp['cr_a'])
 
 
 if __name__ == "__main__":
