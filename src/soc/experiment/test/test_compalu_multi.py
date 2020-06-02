@@ -144,7 +144,7 @@ class CompUnitParallelTest:
     def driver(self):
         print("Begin parallel test.")
         yield from self.operation(5, 2, InternalOp.OP_ADD, inv_a=0,
-                                  imm=8, imm_ok=1, rdmaskn=(1, 0))
+                                  imm=8, imm_ok=0, rdmaskn=(1, 0))
 
     def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
                   rdmaskn=(0, 0)):
