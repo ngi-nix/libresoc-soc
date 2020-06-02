@@ -219,6 +219,39 @@ class TestRunner(FHDLTestCase):
             branch_lr = yield branch.n.data_o.lr.data
             self.assertEqual(sim.spr['LR'], branch_lr, code)
 
+    def get_inputs(self, dec2, sim):
+        """naming (res) must conform to BranchFunctionUnit input regspec
+        """
+        res = {}
+
+        # CIA (PC)
+        res['cia'] = sim.pc.CIA.value
+
+        # CR A
+        cr1_en = yield dec2.e.read_cr1.ok
+        if cr1_en:
+            cr1_sel = yield dec2.e.read_cr1.data
+            res['cr_a'] = sim.crl[cr1_sel].get_range().value
+
+        # Fast1
+        spr_ok = yield dec2.e.read_fast1.ok
+        spr_num = yield dec2.e.read_fast1.data
+        # HACK
+        spr_num = fast_reg_to_spr(spr_num)
+        if spr_ok:
+            res['spr1'] = sim.spr[spr_dict[spr_num].SPR].value
+
+        # SPR2
+        spr_ok = yield dec2.e.read_fast2.ok
+        spr_num = yield dec2.e.read_fast2.data
+        # HACK
+        spr_num = fast_reg_to_spr(spr_num)
+        if spr_ok:
+            res['spr2'] = sim.spr[spr_dict[spr_num].SPR].value
+
+        print ("get inputs", res)
+        return res
+
     def set_inputs(self, branch, dec2, sim):
         yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
         print(f"cr0: {sim.crl[0].get_range()}")
