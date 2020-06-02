@@ -206,7 +206,6 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
                     # spr1 to be set to CTR, op_bctar require spr2 to be
@@ -256,6 +255,8 @@ class TestRunner(FHDLTestCase):
 
         inp = yield from get_cu_inputs(dec2, sim)
 
+        if 'cia' in inp:
+            yield branch.p.data_i.cia.eq(inp['cia'])
         if 'spr1' in inp:
             yield branch.p.data_i.spr1.eq(inp['spr1'])
         if 'spr2' in inp:
