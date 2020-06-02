@@ -45,13 +45,13 @@ class CRTestRunner(TestRunner):
         reg1_ok = yield dec2.e.read_reg1.ok
         if reg1_ok:
             data1 = yield dec2.e.read_reg1.data
-            res['a'] = sim.gpr(data1).value
+            res['ra'] = sim.gpr(data1).value
 
         # RB (or immediate)
         reg2_ok = yield dec2.e.read_reg2.ok
         if reg2_ok:
             data2 = yield dec2.e.read_reg2.data
-            res['b'] = sim.gpr(data2).value
+            res['rb'] = sim.gpr(data2).value
 
         print ("get inputs", res)
         return res
@@ -75,7 +75,7 @@ class CRTestRunner(TestRunner):
         if cr_en:
             cr_sel = yield dec2.e.write_cr.data
             expected_cr = sim.crl[cr_sel].get_range().value
-            real_cr = res['cr']
+            real_cr = res['cr_a']
             self.assertEqual(expected_cr, real_cr, code)
 
         # RT

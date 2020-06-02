@@ -23,13 +23,13 @@ class LogicalTestRunner(TestRunner):
         reg1_ok = yield dec2.e.read_reg1.ok
         if reg1_ok:
             data1 = yield dec2.e.read_reg1.data
-            res['a'] = sim.gpr(data1).value
+            res['ra'] = sim.gpr(data1).value
 
         # RB (or immediate)
         reg2_ok = yield dec2.e.read_reg2.ok
         if reg2_ok:
             data2 = yield dec2.e.read_reg2.data
-            res['b'] = sim.gpr(data2).value
+            res['rb'] = sim.gpr(data2).value
 
         return res
 
@@ -60,7 +60,7 @@ class LogicalTestRunner(TestRunner):
         # CR (CR0-7)
         if cridx_ok:
             cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = res['cr0']
+            cr_actual = res['cr_a']
             print ("CR", cridx, cr_expected, cr_actual)
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 

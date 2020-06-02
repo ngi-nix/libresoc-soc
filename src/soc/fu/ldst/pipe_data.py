@@ -6,56 +6,60 @@ from soc.decoder.power_decoder2 import Data
 
 
 class LDSTInputData(IntegerData):
-    regspec = [('INT', 'a', '0:63'),
-               ('INT', 'b', '0:63'),
-               ('INT', 'c', '0:63'),
+    regspec = [('INT', 'ra', '0:63'),
+               ('INT', 'rb', '0:63'),
+               ('INT', 'rc', '0:63'),
                ('XER', 'xer_so', '32')]
                ]
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.a = Signal(64, reset_less=True) # RA
-        self.b = Signal(64, reset_less=True) # RB/immediate
-        self.c = Signal(64, reset_less=True) # RC
+        self.ra = Signal(64, reset_less=True) # RA
+        self.rb = Signal(64, reset_less=True) # RB/immediate
+        self.rc = Signal(64, reset_less=True) # RC
         self.xer_so = Signal(reset_less=True) # XER bit 32: SO
+        # convenience
+        self.rs = self.rc
 
     def __iter__(self):
         yield from super().__iter__()
-        yield self.a
-        yield self.b
-        yield self.c
+        yield self.ra
+        yield self.rb
+        yield self.rc
         yield self.xer_so
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.b.eq(i.b), self.c.eq(i.c),
+        return lst + [self.ra.eq(i.ra), self.rb.eq(i.rb), self.rc.eq(i.rc),
                       self.xer_so.eq(i.xer_so)]
 
 
 class LDSTOutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),
-               ('INT', 'ea', '0:63'),
-               ('CR', 'cr0', '0:3'),
+               ('INT', 'o1', '0:63'),
+               ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_so', '32')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.o = Data(64, name="stage_o")
-        self.ea = Data(64, name="ea")
-        self.cr0 = Data(4, name="cr0")
+        self.o1 = Data(64, name="o1")
+        self.cr_a = Data(4, name="cr_a")
         self.xer_so = Data(1, name="xer_so")
+        # convenience
+        self.cr0, self.ea = self.cr_a, self.o1
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.o
-        yield self.ea
+        yield self.o1
         yield self.xer_ca
-        yield self.cr0
+        yield self.cr_a
         yield self.xer_so
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.o.eq(i.o),
-                      self.ea.eq(i.ea),
-                      self.cr0.eq(i.cr0),
+                      self.o1.eq(i.o1),
+                      self.cr_a.eq(i.cr_a),
                       self.xer_so.eq(i.xer_so)]
 
 

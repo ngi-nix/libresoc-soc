@@ -33,8 +33,8 @@ from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 class BranchInputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
-               ('CR', 'cr', '0:3'),
-               ('PC', 'cia', '0:63')]
+               ('CR', 'cr_a', '0:3'),
+               ('FAST', 'cia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
         # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
@@ -43,30 +43,31 @@ class BranchInputData(IntegerData):
 
         self.spr1 = Signal(64, reset_less=True) # see table above, SPR1
         self.spr2 = Signal(64, reset_less=True) # see table above, SPR2
-        self.cr = Signal(4, reset_less=True)   # Condition Register(s) CR0-7
+        self.cr_a = Signal(4, reset_less=True)  # Condition Register(s) CR0-7
         self.cia = Signal(64, reset_less=True)  # Current Instruction Address
 
         # convenience variables.  not all of these are used at once
         self.ctr = self.srr0 = self.hsrr0 = self.spr1
         self.lr = self.tar = self.srr1 = self.hsrr1 = self.spr2
+        self.cr = self.cr_a
 
     def __iter__(self):
         yield from super().__iter__()
         yield self.spr1
         yield self.spr2
-        yield self.cr
+        yield self.cr_a
         yield self.cia
 
     def eq(self, i):
         lst = super().eq(i)
         return lst + [self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
-                      self.cr.eq(i.cr), self.cia.eq(i.cia)]
+                      self.cr_a.eq(i.cr_a), self.cia.eq(i.cia)]
 
 
 class BranchOutputData(IntegerData):
     regspec = [('SPR', 'spr1', '0:63'),
                ('SPR', 'spr2', '0:63'),
-               ('PC', 'nia', '0:63')]
+               ('FAST', 'nia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec)
         self.spr1 = Data(64, name="spr1")
