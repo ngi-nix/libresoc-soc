@@ -16,7 +16,7 @@ again, the regspecs will say which Regfile (which type) is connected to
 which MultiCompUnit port, how wide the connection is, and so on.
 
 """
-
+from nmigen import Const
 
 def get_regspec_bitwidth(regspec, srcdest, idx):
     print ("get_regspec_bitwidth", regspec, srcdest, idx)
@@ -87,3 +87,31 @@ class RegSpecALUAPI:
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
             return self.alu.op
         return self.alu.p.data_i.ctx.op
+
+
+# function for the relationship between regspecs and Decode2Execute1Type
+def regspec_rdmask(e, regspec, idx):
+    (regfile, name, _) = regspec[idx]
+    if regfile == 'INT':
+        if name == 'ra': # RA
+            return e.read_reg1.ok
+        if name == 'rb': # RB
+            return e.read_reg2.ok
+        if name == 'rc': # RS
+            return e.read_reg3.ok
+    if regfile == 'CR':
+        if name == 'full_cr': # full CR
+            return e.read_cr_whole
+        if name == 'cr_a': # CR A
+            return e.read_cr1.ok
+        if name == 'cr_b': # CR B
+            return e.read_cr2.ok
+        if name == 'cr_c': # CR C
+            return e.read_cr3.ok
+    if regfile == 'XER':
+        if name in ['xer_so', 'xer_ov']:
+            return e.oe.oe & e.oe.oe_ok
+        if name == 'xer_ca':
+            return e.input_carry
+
+    assert False, "regspec rdmask not found", regspec, idx
