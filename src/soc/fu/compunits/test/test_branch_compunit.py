@@ -36,23 +36,24 @@ class BranchTestRunner(TestRunner):
 
         # CIA (PC)
         res['cia'] = sim.pc.CIA.value
+
         # CR A
         cr1_en = yield dec2.e.read_cr1.ok
         if cr1_en:
             cr1_sel = yield dec2.e.read_cr1.data
             res['cr_a'] = sim.crl[cr1_sel].get_range().value
 
-        # SPR1
-        spr_ok = yield dec2.e.read_spr1.ok
-        spr_num = yield dec2.e.read_spr1.data
+        # Fast1
+        spr_ok = yield dec2.e.read_fast1.ok
+        spr_num = yield dec2.e.read_fast1.data
         # HACK
         spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:
             res['spr1'] = sim.spr[spr_dict[spr_num].SPR].value
 
         # SPR2
-        spr_ok = yield dec2.e.read_spr2.ok
-        spr_num = yield dec2.e.read_spr2.data
+        spr_ok = yield dec2.e.read_fast2.ok
+        spr_num = yield dec2.e.read_fast2.data
         # HACK
         spr_num = fast_reg_to_spr(spr_num)
         if spr_ok:

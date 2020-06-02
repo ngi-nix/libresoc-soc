@@ -95,6 +95,6 @@ class BranchPipeSpec(CommonPipeSpec):
     opsubsetkls = CompBROpSubset
     def rdflags(self, e): # in order of regspec
         cr1_en = e.read_cr1.ok # CR A
-        spr1_ok = e.read_spr1.ok # SPR1
-        spr2_ok = e.read_spr2.ok # SPR2
-        return Cat(spr1_ok, spr2_ok, cr1_en, 1) # CIA CR SPR1 SPR2
+        fast1_ok = e.read_fast1.ok # SPR1
+        fast2_ok = e.read_fast2.ok # SPR2
+        return Cat(fast1_ok, fast2_ok, cr1_en, 1) # SPR1 SPR2 CR CIA

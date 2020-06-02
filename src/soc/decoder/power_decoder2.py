@@ -62,7 +62,8 @@ class DecodeA(Elaboratable):
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeOut
         with m.If((op.internal_op == InternalOp.OP_BC) |
                   (op.internal_op == InternalOp.OP_BCREG)):
-            with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
+            with m.If(~self.dec.BO[2] |        # 3.0B p38 BO2=0, use CTR reg
+                       self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
 
@@ -156,13 +157,13 @@ class DecodeB(Elaboratable):
 
         # decode SPR2 based on instruction type
         op = self.dec.op
-        # BCREG implicitly uses CTR or LR for 2nd reg
-        with m.If(op.internal_op == InternalOp.OP_BCREG):
-            with m.If(self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
-                comb += self.fast_out.data.eq(FastRegs.CTR)
-            with m.Else():
+        # BCREG implicitly uses LR or TAR for 2nd reg (TODO: TAR)
+        # CTR however is already in fast_spr1 *not* 2.
+        with m.If((op.internal_op == InternalOp.OP_BC) |
+                 (op.internal_op == InternalOp.OP_BCREG)):
+            with m.If(~self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
                 comb += self.fast_out.data.eq(FastRegs.LR)
-            comb += self.fast_out.ok.eq(1)
+                comb += self.fast_out.ok.eq(1)
 
         return m
 
