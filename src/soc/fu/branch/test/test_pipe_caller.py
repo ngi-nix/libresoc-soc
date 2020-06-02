@@ -215,6 +215,8 @@ class TestRunner(FHDLTestCase):
         yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
         print(f"cr0: {sim.crl[0].get_range()}")
 
+        # TODO: this needs to now be read_fast1.data and read_fast2.data
+
         spr2_en = yield dec2.e.read_spr2.ok
         if spr2_en:
             spr2_sel = yield dec2.e.read_spr2.data
