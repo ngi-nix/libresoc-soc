@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 import struct
 import os
+import sys
 
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
@@ -57,7 +58,10 @@ class Program:
                     outfile.name]
             p = subprocess.Popen(args, stdin=subprocess.PIPE)
             p.communicate(self.assembly.encode('utf-8'))
-            assert(p.wait() == 0)
+            if p.wait() != 0:
+                print("Error in program:")
+                print(self.assembly)
+                sys.exit(1)
             self._link(outfile)
 
     def generate_instructions(self):

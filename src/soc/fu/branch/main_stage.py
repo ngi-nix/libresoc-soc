@@ -58,6 +58,7 @@ class BranchMainStage(PipeModBase):
         op = self.i.ctx.op
         lk = op.lk # see PowerDecode2 as to why this is done
         cr, cia, ctr, spr1 = self.i.cr, self.i.cia, self.i.ctr, self.i.spr1
+        spr2 = self.i.spr2
         nia_o, lr_o, ctr_o = self.o.nia, self.o.lr, self.o.ctr
 
         # obtain relevant instruction field AA, "Absolute Address" mode
@@ -133,7 +134,7 @@ class BranchMainStage(PipeModBase):
                 comb += ctr_o.ok.eq(ctr_write)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
-                comb += br_imm_addr.eq(spr1) # SPR1 is set by decode unit
+                comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
                 comb += br_taken.eq(bc_taken)
                 comb += ctr_o.ok.eq(ctr_write)
 

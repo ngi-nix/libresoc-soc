@@ -10,6 +10,7 @@ from soc.decoder.power_enums import (XER_bits, Function)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
+from soc.regfile.regfiles import FastRegs
 
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
@@ -98,12 +99,11 @@ class BranchTestCase(FHDLTestCase):
 
     def test_bc_reg(self):
         # XXX: bcctr and bcctrl time out (irony: they're counters)
-        #choices = ["bclr", "bclrl", "bctar", "bctarl", "bcctr", "bcctrl"]
-        choices = ["bclr", "bclrl", "bctar", "bctarl", ]
+        choices = ["bclr", "bclrl", "bcctr", "bcctrl"]
         for insn in choices:
             for i in range(20):
                 bh = random.randrange(0, 3)
-                bo = random.choice([0, 2, 8, 10, 16, 18])
+                bo = random.choice([4, 12])
                 bi = random.randrange(0, 31)
                 cr = random.randrange(0, (1<<32)-1)
                 ctr = random.randint(0, (1<<32)-1)
@@ -112,6 +112,8 @@ class BranchTestCase(FHDLTestCase):
                 self.run_tst_program(Program(lst),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
+
+        
 
     def test_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
@@ -174,17 +176,8 @@ class TestRunner(FHDLTestCase):
                     # set to TAR, op_bclr* require spr2 to be set to LR.
                     # if op_sc*, op_rf* and op_hrfid are to be added here
                     # then additional op-decoding is required, accordingly
-                    yield branch.p.data_i.spr1.eq(simulator.spr['CTR'].value)
-                    print(f"cr0: {simulator.crl[0].get_range()}")
                     yield Settle()
-
-                    cr_en = yield pdecode2.e.read_cr1.ok
-                    if cr_en:
-                        cr_sel = yield pdecode2.e.read_cr1.data
-                        cr = simulator.crl[cr_sel].get_range().value
-                        yield branch.p.data_i.cr.eq(cr)
-                        full_cr = simulator.cr.get_range().value
-                        print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
+                    yield from self.set_inputs(branch, pdecode2, simulator)
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield
@@ -208,6 +201,7 @@ class TestRunner(FHDLTestCase):
         self.assertEqual(branch_taken, sim_branch_taken, code)
         if branch_taken:
             branch_addr = yield branch.n.data_o.nia.data
+            print(f"real: {branch_addr:x}, sim: {sim.pc.CIA.value:x}")
             self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
         lk = yield dec2.e.lk
@@ -216,6 +210,27 @@ class TestRunner(FHDLTestCase):
         if lk:
             branch_lr = yield branch.n.data_o.lr.data
             self.assertEqual(sim.spr['LR'], branch_lr, code)
+
+    def set_inputs(self, branch, dec2, sim):
+        yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
+        print(f"cr0: {sim.crl[0].get_range()}")
+
+        spr2_en = yield dec2.e.read_spr2.ok
+        if spr2_en:
+            spr2_sel = yield dec2.e.read_spr2.data
+            if spr2_sel == FastRegs.LR:
+                spr2_data = sim.spr['LR'].value
+            elif spr2_sel == FastRegs.CTR:
+                spr2_data = sim.spr['CTR'].value
+            yield branch.p.data_i.spr2.eq(spr2_data)
+
+        cr_en = yield dec2.e.read_cr1.ok
+        if cr_en:
+            cr_sel = yield dec2.e.read_cr1.data
+            cr = sim.crl[cr_sel].get_range().value
+            yield branch.p.data_i.cr.eq(cr)
+            full_cr = sim.cr.get_range().value
+            print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
 
 
 if __name__ == "__main__":
