@@ -24,7 +24,6 @@ class BranchTestRunner(TestRunner):
         """naming (res) must conform to BranchFunctionUnit input regspec
         """
         res = {}
-        full_reg = yield dec2.e.read_cr_whole
 
         # CIA (PC)
         res['cia'] = sim.pc.CIA.value
