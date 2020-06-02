@@ -9,6 +9,7 @@ from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.extend import exts
 
+from soc.decoder.power_regspec_map import regspec_decode
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (InternalOp, CryIn, Function,
                                      CRInSel, CROutSel,
@@ -592,6 +593,13 @@ class PowerDecode2(Elaboratable):
 
 
         return m
+
+    def regspecmap(self, regfile, regname):
+        """regspecmap: provides PowerDecode2 with an encoding relationship
+        to Function Unit port regfiles (read-enable, read regnum, write regnum)
+        regfile and regname arguments are fields 1 and 2 from a given regspec.
+        """
+        return regspec_decode(self, regfile, regname)
 
 
 if __name__ == '__main__':
