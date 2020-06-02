@@ -134,7 +134,11 @@ class BranchMainStage(PipeModBase):
                 comb += ctr_o.ok.eq(ctr_write)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
-                comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
+                xo = self.fields.FormXL.XO[0:-1]
+                with m.If(xo[9] & ~xo[5]):
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr1[2:]))
+                with m.Else():
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
                 comb += br_taken.eq(bc_taken)
                 comb += ctr_o.ok.eq(ctr_write)
 

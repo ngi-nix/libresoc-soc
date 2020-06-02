@@ -224,33 +224,20 @@ class TestRunner(FHDLTestCase):
         print(f"cr0: {sim.crl[0].get_range()}")
 
         # TODO: this needs to now be read_fast1.data and read_fast2.data
-        if False:
-            fast1_en = yield dec2.e.read_fast1.ok
-            if fast1_en:
-                fast1_sel = yield dec2.e.read_fast1.data
-                spr1_sel = fast_reg_to_spr(fast1_sel)
-                spr1_data = sim.spr[spr1_sel].value
-                yield branch.p.data_i.spr1.eq(spr1_data)
+        fast1_en = yield dec2.e.read_fast1.ok
+        if fast1_en:
+            fast1_sel = yield dec2.e.read_fast1.data
+            spr1_sel = fast_reg_to_spr(fast1_sel)
+            spr1_data = sim.spr[spr1_sel].value
+            yield branch.p.data_i.spr1.eq(spr1_data)
 
-            fast2_en = yield dec2.e.read_fast2.ok
-            if fast2_en:
-                fast2_sel = yield dec2.e.read_fast2.data
-                spr2_sel = fast_reg_to_spr(fast2_sel)
-                spr2_data = sim.spr[spr2_sel].value
-                yield branch.p.data_i.spr2.eq(spr2_data)
+        fast2_en = yield dec2.e.read_fast2.ok
+        if fast2_en:
+            fast2_sel = yield dec2.e.read_fast2.data
+            spr2_sel = fast_reg_to_spr(fast2_sel)
+            spr2_data = sim.spr[spr2_sel].value
+            yield branch.p.data_i.spr2.eq(spr2_data)
 
-        # TODO: drop this once it's in PowerDecode2
-        # (actually, DecodeA and DecodeB)
-        insn_type = yield dec2.e.insn_type
-        if insn_type == InternalOp.OP_BCREG.value:
-            xo9 = yield dec2.dec.FormXL.XO[9]
-            xo5 = yield dec2.dec.FormXL.XO[5]
-            if xo9 == 0:
-                yield branch.p.data_i.spr2.eq(sim.spr['LR'].value)
-            elif xo5 == 1:
-                yield branch.p.data_i.spr2.eq(sim.spr['TAR'].value)
-            else:
-                yield branch.p.data_i.spr2.eq(sim.spr['CTR'].value)
 
         cr_en = yield dec2.e.read_cr1.ok
         if cr_en:
