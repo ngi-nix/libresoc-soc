@@ -83,6 +83,16 @@ class TrapMainStage(PipeModBase):
         with m.Switch(op):
             #### trap ####
             with m.Case(InternalOp.OP_TRAP):
+                """
+                -- trap instructions (tw, twi, td, tdi)
+                if or (trapval and insn_to(e_in.insn)) = '1' then
+                    -- generate trap-type program interrupt
+                    exception := '1';
+                    ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#700#, 64));
+                    ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
+                    -- set bit 46 to say trap occurred
+                    ctrl_tmp.srr1(63 - 46) <= '1';
+                """
                 with m.If(should_trap):
                     comb += self.o.nia.data.eq(0x700)         # trap address
                     comb += self.o.nia.ok.eq(1)
@@ -116,15 +126,42 @@ class TrapMainStage(PipeModBase):
 
             # move from SPR
             with m.Case(InternalOp.OP_MFMSR):
-                # TODO: some of the bits need zeroing?
+                # TODO: some of the bits need zeroing?  apparently not
+                """
+                    when OP_MFMSR =>
+                        result := ctrl.msr;
+                        result_en := '1';
+                """
                 comb += self.o.o.data.eq(self.i.msr)
                 comb += self.o.o.ok.eq(1)
 
             # TODO
             with m.Case(InternalOp.OP_RFID):
+                """
+                # XXX f_out.virt_mode <= b_in(MSR_IR) or b_in(MSR_PR);
+                # XXX f_out.priv_mode <= not b_in(MSR_PR);
+                f_out.redirect_nia <= a_in(63 downto 2) & "00"; -- srr0
+                -- Can't use msr_copy here because the partial function MSR
+                -- bits should be left unchanged, not zeroed.
+                ctrl_tmp.msr(63 downto 31) <= b_in(63 downto 31);
+                ctrl_tmp.msr(26 downto 22) <= b_in(26 downto 22);
+                ctrl_tmp.msr(15 downto 0)  <= b_in(15 downto 0);
+                if b_in(MSR_PR) = '1' then
+                    ctrl_tmp.msr(MSR_EE) <= '1';
+                    ctrl_tmp.msr(MSR_IR) <= '1';
+                    ctrl_tmp.msr(MSR_DR) <= '1';
+                end if;
+                """
                 pass
 
+            # TODO
             with m.Case(InternalOp.OP_SC):
+                """
+                # TODO: scv must generate illegal instruction.  this is
+                # the decoder's job, not ours, here.
+                ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
+                ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
+                """
                 pass
 
             #with m.Case(InternalOp.OP_ADDPCIS):
