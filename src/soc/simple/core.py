@@ -52,11 +52,12 @@ class NonProductionCore(Elaboratable):
             print ("read ports for %s" % funame)
             for idx in range(fu.n_src):
                 (regfile, regname, wid) = fu.get_in_spec(idx)
-                print ("    %s %s %s" % (regfile, regname, str(wid)))
+                print ("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
                 rdflag, read, _ = dec2.regspecmap(regfile, regname)
                 if regfile not in byregfiles_rd:
                     byregfiles_rd[regfile] = {}
-                    byregfiles_rdspec[regfile] = (regname, rdflag, read, wid)
+                    byregfiles_rdspec[regfile] = {}
+                byregfiles_rdspec[regfile][idx] = (regname, rdflag, read, wid)
                 # here we start to create "lanes"
                 if idx not in byregfiles_rd[regfile]:
                     byregfiles_rd[regfile][idx] = []
@@ -68,7 +69,7 @@ class NonProductionCore(Elaboratable):
             print ("regfile read ports:", regfile)
             for idx, fuspec in spec.items():
                 print ("  regfile read port %s lane: %d" % (regfile, idx))
-                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
+                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile][idx]
                 print ("  %s" % regname, wid, read, rdflag)
                 for (funame, fu) in fuspec:
                     print ("    ", funame, fu, fu.src_i[idx])
@@ -81,7 +82,7 @@ class NonProductionCore(Elaboratable):
             rdpickers[regfile] = {}
             for rpidx, (idx, fuspec) in enumerate(spec.items()):
                 # get the regfile specs for this regfile port
-                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
+                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile][idx]
 
                 # "munge" the regfile port index, due to full-port access
                 if regfile in ['xer', 'cr']:
@@ -109,6 +110,9 @@ class NonProductionCore(Elaboratable):
                     comb += rdpick.i[pi].eq(fu.rd_rel_o[idx] & fu_active)
                     comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
                     # connect regfile port to input
+                    print ("reg connect widths",
+                           regfile, regname, pi, funame,
+                           fu.src_i[idx].shape(), rport.data_o.shape())
                     comb += fu.src_i[idx].eq(rport.data_o)
 
         return m
