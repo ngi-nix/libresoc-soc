@@ -142,6 +142,9 @@ class CompUnitParallelTest:
         # input data:
         self.operands = (0, 0)
 
+        # Indicates completion of the sub-processes
+        self.rd_complete = [False, False]
+
     def driver(self):
         print("Begin parallel test.")
         yield from self.operation(5, 2, InternalOp.OP_ADD, inv_a=0,
@@ -159,8 +162,15 @@ class CompUnitParallelTest:
         self.imm_control = (zero_a, imm_ok)
         self.rdmaskn = rdmaskn
 
+        # Initialize completion flags
+        self.rd_complete = [False, False]
+
         # trigger operation cycle
         yield from self.issue()
+
+        # check that the sub-processes completed, before the busy_o cycle ended
+        for completion in self.rd_complete:
+            assert completion
 
     def issue(self):
         # issue_i starts inactive
@@ -248,6 +258,7 @@ class CompUnitParallelTest:
         # TODO: don't exit the process, monitor rd instead to ensure it
         #       doesn't rise on its own
         if self.rdmaskn[rd_idx] or self.imm_control[rd_idx]:
+            self.rd_complete[rd_idx] = True
             return
 
         # issue_i has risen. rel must rise on the next cycle
@@ -290,6 +301,11 @@ class CompUnitParallelTest:
         # on the previous cycle
         rel = yield self.dut.rd.rel[rd_idx]
         assert not rel
+
+        self.rd_complete[rd_idx] = True
+
+        # TODO: check that rel doesn't rise again until the end of the
+        #       busy_o cycle
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
