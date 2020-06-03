@@ -19,9 +19,9 @@ def regspec_decode(e, regfile, name):
     name, return a tuple of:
 
     * how the decoder should determine whether the Function Unit needs
-      a Regport or not
-    * which Regfile port should be read to get that data
-    * when it comes to writing: likewise, which Regfile port should be written
+      access to a given Regport or not
+    * which Regfile number on that port should be read to get that data
+    * when it comes to writing: likewise, which Regfile num should be written
 
     Note that some of the port numbering encoding is *unary*.  in the case
     of "Full Condition Register", it's a full 8-bit mask of read/write-enables.
