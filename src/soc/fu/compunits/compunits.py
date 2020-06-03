@@ -151,6 +151,7 @@ class AllFunctionUnits(Elaboratable):
     def ports(self):
         return list(self)
 
+
 def tst_single_fus_il():
     for (name, kls) in (('alu', ALUFunctionUnit),
                         ('cr', CRFunctionUnit),
