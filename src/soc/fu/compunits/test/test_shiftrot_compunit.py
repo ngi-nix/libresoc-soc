@@ -2,13 +2,12 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 # XXX bad practice: use of global variables
+from soc.fu.shift_rot.test.test_pipe_caller import get_cu_inputs
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.shift_rot.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import ShiftRotFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
-
-from soc.decoder.power_enums import CryIn
 
 
 class ShiftRotTestRunner(TestRunner):
@@ -19,35 +18,7 @@ class ShiftRotTestRunner(TestRunner):
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to ShiftRotFunctionUnit input regspec
         """
-        res = {}
-
-        # RA
-        reg1_ok = yield dec2.e.read_reg1.ok
-        if reg1_ok:
-            data1 = yield dec2.e.read_reg1.data
-            res['ra'] = sim.gpr(data1).value
-
-        # RB
-        reg2_ok = yield dec2.e.read_reg2.ok
-        if reg2_ok:
-            data2 = yield dec2.e.read_reg2.data
-            res['rb'] = sim.gpr(data2).value
-
-        # RS (RC)
-        reg3_ok = yield dec2.e.read_reg3.ok
-        if reg3_ok:
-            data3 = yield dec2.e.read_reg3.data
-            res['rc'] = sim.gpr(data3).value
-
-        # XER.ca
-        cry_in = yield dec2.e.input_carry
-        if cry_in == CryIn.CA.value:
-            carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            res['xer_ca'] = carry | (carry32<<1)
-
-        print ("inputs", res)
-
+        res = yield from get_cu_inputs(dec2, sim)
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):

@@ -6,7 +6,7 @@ import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function)
+from soc.decoder.power_enums import (XER_bits, Function, CryIn)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
@@ -25,44 +25,71 @@ class TestCase:
         self.name = name
 
 
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to ShiftRotFunctionUnit input regspec
+    """
+    res = {}
+
+    # RA
+    reg1_ok = yield dec2.e.read_reg1.ok
+    if reg1_ok:
+        data1 = yield dec2.e.read_reg1.data
+        res['ra'] = sim.gpr(data1).value
+
+    # RB
+    reg2_ok = yield dec2.e.read_reg2.ok
+    if reg2_ok:
+        data2 = yield dec2.e.read_reg2.data
+        res['rb'] = sim.gpr(data2).value
+
+    # RS (RC)
+    reg3_ok = yield dec2.e.read_reg3.ok
+    if reg3_ok:
+        data3 = yield dec2.e.read_reg3.data
+        res['rc'] = sim.gpr(data3).value
+
+    # XER.ca
+    cry_in = yield dec2.e.input_carry
+    if cry_in == CryIn.CA.value:
+        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+        res['xer_ca'] = carry | (carry32<<1)
+
+    print ("inputs", res)
+
+    return res
+
+
 def set_alu_inputs(alu, dec2, sim):
-    inputs = []
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
-    reg3_ok = yield dec2.e.read_reg3.ok
-    if reg3_ok:
-        reg3_sel = yield dec2.e.read_reg3.data
-        data3 = sim.gpr(reg3_sel).value
+    inp = yield from get_cu_inputs(dec2, sim)
+    if 'ra' in inp:
+        yield alu.p.data_i.a.eq(inp['ra'])
     else:
-        data3 = 0
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        reg1_sel = yield dec2.e.read_reg1.data
-        data1 = sim.gpr(reg1_sel).value
+        yield alu.p.data_i.a.eq(0)
+    if 'rb' in inp:
+        yield alu.p.data_i.rb.eq(inp['rb'])
     else:
-        data1 = 0
-    reg2_ok = yield dec2.e.read_reg2.ok
-    imm_ok = yield dec2.e.imm_data.ok
-    if reg2_ok:
-        reg2_sel = yield dec2.e.read_reg2.data
-        data2 = sim.gpr(reg2_sel).value
-    elif imm_ok:
+        yield alu.p.data_i.rb.eq(0)
+    if 'rc' in inp:
+        yield alu.p.data_i.rs.eq(inp['rc'])
+    else:
+        yield alu.p.data_i.rs.eq(0)
+
+    # If there's an immediate, set the B operand to that
+    imm_ok = yield dec2.e.imm_data.imm_ok
+    if imm_ok:
         data2 = yield dec2.e.imm_data.imm
+        yield alu.p.data_i.rb.eq(data2)
+
+    if 'xer_ca' in inp:
+        yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
+        print ("extra inputs: CA/32", bin(inp['xer_ca']))
     else:
-        data2 = 0
-
-    yield alu.p.data_i.a.eq(data1)
-    yield alu.p.data_i.rb.eq(data2)
-    yield alu.p.data_i.rs.eq(data3)
-
-
-def set_extra_alu_inputs(alu, dec2, sim):
-    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-    yield alu.p.data_i.xer_ca[0].eq(carry)
-    yield alu.p.data_i.xer_ca[1].eq(carry32)
+        yield alu.p.data_i.xer_ca.eq(0)
     
 
 # This test bench is a bit different than is usual. Initially when I
@@ -228,7 +255,6 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield from set_extra_alu_inputs(alu, pdecode2, simulator)
                     yield 
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
