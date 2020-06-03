@@ -181,9 +181,8 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                # TODO translate this, import and use br_ext from branch stage
-                # f_out.redirect_nia <= a_in(63 downto 2) & "00"; -- srr0
                 comb += self.o.nia.data.eq(br_ext(a[63:1] & 0))
+                comb += self.o.nia.ok.eq(1)
                 for stt, end in [(0,16), (22, 27), (31, 64)]:
                     comb += self.o.msr.data[stt:end].eq(a[stt:end])
                 with m.If(a[MSR_PR]):
