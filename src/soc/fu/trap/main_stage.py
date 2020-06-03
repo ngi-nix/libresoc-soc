@@ -163,8 +163,12 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                comb += self.o.msr.data.eq(Cat(b[63:31], b[26:22], b[15:0]))
-                comb += self.o.msr.ok.eq(a)
+                comb += self.o.msr.data[:16].eq(b[:16])
+                comb += self.o.msr.data[22:27].eq(b[22:27])
+                comb += self.o.msr.data[31:]
+                comb += self.o.msr.ok.eq(1)
+                comb += self.o.msr.data.eq(b)
+                comb += self.o.msr.ok.eq(1)
 
             # TODO
             with m.Case(InternalOp.OP_SC):
