@@ -23,32 +23,45 @@ class TestCase:
         self.sprs = sprs
         self.name = name
 
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to LogicalFunctionUnit input regspec
+    """
+    res = {}
+
+    # RA (or RC)
+    reg1_ok = yield dec2.e.read_reg1.ok
+    if reg1_ok:
+        data1 = yield dec2.e.read_reg1.data
+        res['ra'] = sim.gpr(data1).value
+
+    # RB (or immediate)
+    reg2_ok = yield dec2.e.read_reg2.ok
+    #imm_ok = yield dec2.e.imm_data.imm_ok
+    if reg2_ok:
+        data2 = yield dec2.e.read_reg2.data
+        data2 = sim.gpr(data2).value
+        res['rb'] = data2
+    #elif imm_ok:
+    #    data2 = yield dec2.e.imm_data.imm
+    #    res['rb'] = data2
+
+    return res
+
 
 def set_alu_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        data1 = sim.gpr(data1).value
-    else:
-        data1 = 0
-
-    yield alu.p.data_i.a.eq(data1)
-
-    # If there's an immediate, set the B operand to that
-    reg2_ok = yield dec2.e.read_reg2.ok
+    inp = yield from get_cu_inputs(dec2, sim)
+    if 'ra' in inp:
+        yield alu.p.data_i.a.eq(inp['ra'])
+    if 'rb' in inp:
+        yield alu.p.data_i.b.eq(inp['rb'])
     imm_ok = yield dec2.e.imm_data.imm_ok
     if imm_ok:
         data2 = yield dec2.e.imm_data.imm
-    elif reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        data2 = sim.gpr(data2).value
-    else:
-        data2 = 0
-    yield alu.p.data_i.b.eq(data2)
+        yield alu.p.data_i.b.eq(data2)
 
 
 # This test bench is a bit different than is usual. Initially when I
