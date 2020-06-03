@@ -57,32 +57,37 @@ class NonProductionCore(Elaboratable):
                 if regfile not in byregfiles_rd:
                     byregfiles_rd[regfile] = {}
                     byregfiles_rdspec[regfile] = {}
-                byregfiles_rdspec[regfile][idx] = (regname, rdflag, read, wid)
+                if regname not in byregfiles_rdspec[regfile]:
+                    byregfiles_rdspec[regfile][regname] = \
+                                [rdflag, read, wid, []]
                 # here we start to create "lanes"
                 if idx not in byregfiles_rd[regfile]:
                     byregfiles_rd[regfile][idx] = []
-                fuspec = (funame, fu)
+                fuspec = (funame, fu, idx)
                 byregfiles_rd[regfile][idx].append(fuspec)
+                byregfiles_rdspec[regfile][regname][3].append(fuspec)
 
         # ok just print that out, for convenience
         for regfile, spec in byregfiles_rd.items():
             print ("regfile read ports:", regfile)
-            for idx, fuspec in spec.items():
-                print ("  regfile read port %s lane: %d" % (regfile, idx))
-                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile][idx]
+            fuspecs = byregfiles_rdspec[regfile]
+            for regname, fspec in fuspecs.items():
+                [rdflag, read, wid, fuspec] = fspec
+                print ("  regfile read port %s lane: %s" % (regfile, regname))
                 print ("  %s" % regname, wid, read, rdflag)
-                for (funame, fu) in fuspec:
-                    print ("    ", funame, fu, fu.src_i[idx])
+                for (funame, fu, idx) in fuspec:
+                    print ("    ", funame, fu, idx, fu.src_i[idx])
                     print ()
 
         # okaay, now we need a PriorityPicker per regfile per regfile port
         # loootta pickers... peter piper picked a pack of pickled peppers...
         rdpickers = {}
         for regfile, spec in byregfiles_rd.items():
+            fuspecs = byregfiles_rdspec[regfile]
             rdpickers[regfile] = {}
-            for rpidx, (idx, fuspec) in enumerate(spec.items()):
+            for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
                 # get the regfile specs for this regfile port
-                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile][idx]
+                (rdflag, read, wid, fuspec) = fspec
 
                 # "munge" the regfile port index, due to full-port access
                 if regfile in ['xer', 'cr']:
@@ -96,15 +101,15 @@ class NonProductionCore(Elaboratable):
                 rport = regs.rf[regfile.lower()].r_ports[rpidx]
 
                 # create a priority picker to manage this port
-                rdpickers[regfile][idx] = rdpick = PriorityPicker(len(fuspec))
-                setattr(m.submodules, "rdpick_%s_%d" % (regfile, idx), rdpick)
+                rdpickers[regfile][rpidx] = rdpick = PriorityPicker(len(fuspec))
+                setattr(m.submodules, "rdpick_%s_%d" % (regfile, rpidx), rdpick)
 
                 # connect the regspec "reg select" number to this port
                 with m.If(rdpick.en_o):
                     comb += rport.ren.eq(read)
 
                 # connect up the FU req/go signals and the reg-read to the FU
-                for pi, (funame, fu) in enumerate(fuspec):
+                for pi, (funame, fu, idx) in enumerate(fuspec):
                     # connect request-read to picker input, and output to go-rd
                     fu_active = fu_bitdict[funame]
                     comb += rdpick.i[pi].eq(fu.rd_rel_o[idx] & fu_active)
