@@ -80,6 +80,16 @@ class NonProductionCore(Elaboratable):
         for regfile, spec in byregfiles_rd.items():
             rdpickers[regfile] = {}
             for rpidx, (idx, fuspec) in enumerate(spec.items()):
+                # get the regfile specs for this regfile port
+                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
+
+                # "munge" the regfile port index, due to full-port access
+                if regfile in ['XER', 'CR']:
+                    if regname.startswith('full'):
+                        rpidx = 0 # by convention, first port
+                    else:
+                        rpidx += 1 # start indexing port 0 from 1
+
                 # select the required read port.  these are pre-defined sizes
                 print (regfile, regs.rf.keys())
                 rport = regs.rf[regfile.lower()].r_ports[rpidx]
@@ -89,8 +99,8 @@ class NonProductionCore(Elaboratable):
                 setattr(m.submodules, "rdpick_%s_%d" % (regfile, idx), rdpick)
 
                 # connect the regspec "reg select" number to this port
-                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
-                comb += rport.ren.eq(read)
+                with m.If(rdpick.en_o):
+                    comb += rport.ren.eq(read)
 
                 # connect up the FU req/go signals and the reg-read to the FU
                 for pi, (funame, fu) in enumerate(fuspec):
