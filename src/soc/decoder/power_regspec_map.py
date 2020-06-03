@@ -6,6 +6,7 @@ see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
 from nmigen import Const
 from soc.regfile.regfiles import XERRegs, FastRegs
+from soc.decoder.power_enums import CryIn
 
 
 def regspec_decode(e, regfile, name):
@@ -71,13 +72,10 @@ def regspec_decode(e, regfile, name):
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
             return e.oe.oe[0] & e.oe.oe_ok, SO, SO
-            return Const(1), SO, SO # TODO
         if name == 'xer_ov':
             return e.oe.oe[0] & e.oe.oe_ok, OV, OV
-            return Const(1), OV, OV # TODO
         if name == 'xer_ca':
-            return Const(1), CA, CA # TODO
-            #return e.input_carry, CA, CA
+            return (e.input_carry == CryIn.CA.value), CA, CA
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded

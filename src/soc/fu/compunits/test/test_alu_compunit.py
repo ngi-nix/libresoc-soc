@@ -8,6 +8,8 @@ from soc.fu.alu.test.test_pipe_caller import test_data # imports the data
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
+from soc.decoder.power_enums import CryIn
+
 
 class ALUTestRunner(TestRunner):
     def __init__(self, test_data):
@@ -33,7 +35,7 @@ class ALUTestRunner(TestRunner):
 
         # XER.ca
         cry_in = yield dec2.e.input_carry
-        if True: #cry_in:
+        if cry_in == CryIn.CA.value:
             carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = carry | (carry32<<1)
