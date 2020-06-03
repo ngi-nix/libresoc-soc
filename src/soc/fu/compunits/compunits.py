@@ -40,6 +40,8 @@ see:
 
 """
 
+# imports
+
 from nmigen import Cat
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
@@ -90,10 +92,6 @@ class FunctionUnitBaseSingle(MultiCompUnit):
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
         super().__init__(regspec, alu, opsubset) # pass to MultiCompUnit
-
-    def rdflags(self, e):
-        print (dir(self.alu))
-        return self.alu.pspec.rdflags(e)
 
 
 ##############################################################

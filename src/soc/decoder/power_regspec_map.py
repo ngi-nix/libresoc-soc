@@ -6,6 +6,7 @@ see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
 from nmigen import Const
 from soc.regfile.regfiles import XERRegs, FastRegs
+from soc.decoder.power_enums import CryIn
 
 
 def regspec_decode(e, regfile, name):
@@ -70,11 +71,11 @@ def regspec_decode(e, regfile, name):
         CA = 1<<XERRegs.CA
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
-            return e.oe.oe & e.oe.oe_ok, SO, SO
+            return e.oe.oe[0] & e.oe.oe_ok, SO, SO
         if name == 'xer_ov':
-            return e.oe.oe & e.oe.oe_ok, OV, OV
+            return e.oe.oe[0] & e.oe.oe_ok, OV, OV
         if name == 'xer_ca':
-            return e.input_carry, CA, CA
+            return (e.input_carry == CryIn.CA.value), CA, CA
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
@@ -91,8 +92,10 @@ def regspec_decode(e, regfile, name):
             return Const(1), MSR, MS # TODO: detect read-conditions
         # TODO: remap the SPR numbers to FAST regs
         if name == 'spr1':
-            return e.read_spr1.ok, 1<<e.read_spr1.data, 1<<e.write_fast1.data
+            return e.read_fast1.ok, 1<<e.read_fast1.data, 1<<e.write_fast1.data
         if name == 'spr2':
-            return e.read_spr2.ok, 1<<e.read_spr2.data, 1<<e.write_fast2.data
+            return e.read_fast2.ok, 1<<e.read_fast2.data, 1<<e.write_fast2.data
 
-    assert False, "regspec not found %s %d" % (repr(regspec), idx)
+    if regfile == 'SPR':
+        assert False, "regfile TODO %s %s %d" % (refgile, repr(regspec), idx)
+    assert False, "regspec not found %s %s %d" % (refgile, repr(regspec), idx)

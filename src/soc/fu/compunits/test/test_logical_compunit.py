@@ -2,7 +2,7 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 # XXX bad practice: use of global variables
-from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
+from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, get_cu_inputs
 from soc.fu.logical.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import LogicalFunctionUnit
@@ -17,20 +17,7 @@ class LogicalTestRunner(TestRunner):
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to LogicalFunctionUnit input regspec
         """
-        res = {}
-
-        # RA (or RC)
-        reg1_ok = yield dec2.e.read_reg1.ok
-        if reg1_ok:
-            data1 = yield dec2.e.read_reg1.data
-            res['ra'] = sim.gpr(data1).value
-
-        # RB (or immediate)
-        reg2_ok = yield dec2.e.read_reg2.ok
-        if reg2_ok:
-            data2 = yield dec2.e.read_reg2.data
-            res['rb'] = sim.gpr(data2).value
-
+        res = yield from get_cu_inputs(dec2, sim)
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):

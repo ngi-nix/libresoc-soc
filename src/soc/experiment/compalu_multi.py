@@ -204,6 +204,12 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += wr_any.eq(self.wr.go.bool())
         m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & \
                 ((req_l.q & self.wrmask) == 0))
+        # argh, complicated hack: if there are no regs to write,
+        # instead of waiting for regs that are never going to happen,
+        # we indicate "done" when the ALU is "done"
+        with m.If((self.wrmask == 0) & \
+                    self.alu.n.ready_i & self.alu.n.valid_o & self.busy_o):
+            m.d.comb += req_done.eq(1)
 
         # shadow/go_die
         reset = Signal(reset_less=True)

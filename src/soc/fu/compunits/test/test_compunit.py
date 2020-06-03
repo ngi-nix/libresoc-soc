@@ -153,7 +153,9 @@ class TestRunner(FHDLTestCase):
                     inp = get_inp_indexed(cu, iname)
 
                     # reset read-operand mask
-                    rdmask = cu.rdflags(pdecode2.e)
+                    rdmask = pdecode2.rdflags(cu)
+                    #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
+                    #print ("decoder rdmask", rdmask)
                     yield cu.rdmaskn.eq(~rdmask)
 
                     # reset write-operand mask
@@ -162,16 +164,17 @@ class TestRunner(FHDLTestCase):
                         fname = find_ok(wrok.fields)
                         yield getattr(wrok, fname).eq(0)
 
-                    # first set inputs to zero
-                    for idx in range(cu.n_src):
-                        cu_in = cu.get_in(idx)
-                        yield cu_in.eq(0)
+                    yield Settle()
 
                     # set inputs into CU
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
                     print ("before inputs, rd_rel, wr_rel: ",
                             bin(rd_rel_o), bin(wr_rel_o))
+                    assert wr_rel_o == 0, "wr.rel %s must be zero. "\
+                                "previous instr not written all regs\n"\
+                                "respec %s" % \
+                                (bin(wr_rel_o), cu.rwid[1])
                     yield from set_cu_inputs(cu, inp)
                     yield
                     rd_rel_o = yield cu.rd.rel
@@ -185,6 +188,7 @@ class TestRunner(FHDLTestCase):
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
+                    yield Settle()
                     # get all outputs (one by one, just "because")
                     res = yield from get_cu_outputs(cu, code)
 

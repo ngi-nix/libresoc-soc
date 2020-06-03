@@ -76,18 +76,17 @@ class BranchMainStage(PipeModBase):
             comb += br_addr.eq(br_imm_addr + cia)
 
         # fields for conditional branches (BO and BI are same for BC and BCREG)
-        # NOTE: here, BO and BI we would like be treated as CR regfile
-        # selectors (similar to RA, RB, RS, RT).  see comment here:
-        # https://bugs.libre-soc.org/show_bug.cgi?id=313#c2
         b_fields = self.fields.FormB
         BO = b_fields.BO[0:-1]
-        BI = b_fields.BI[0:-1][0:2]
+        BI = b_fields.BI[0:-1][0:2] # CR0-7 selected already in PowerDecode2.
 
-        cr_bits = Array([cr[3-i] for i in range(4)])
+        cr_bits = Array([cr[3-i] for i in range(4)]) # invert. Because POWER.
 
         # The bit of CR selected by BI
+        bi = Signal(2, reset_less=True)
         cr_bit = Signal(reset_less=True)
-        comb += cr_bit.eq(cr_bits[BI])
+        comb += bi.eq(BI)                 # reduces gate-count due to pmux
+        comb += cr_bit.eq(cr_bits[bi])
 
         # Whether ctr is written to on a conditional branch
         ctr_write = Signal(reset_less=True)
@@ -134,7 +133,11 @@ class BranchMainStage(PipeModBase):
                 comb += ctr_o.ok.eq(ctr_write)
             #### branch conditional reg ####
             with m.Case(InternalOp.OP_BCREG):
-                comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
+                xo = self.fields.FormXL.XO[0:-1]
+                with m.If(xo[9] & ~xo[5]):
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr1[2:]))
+                with m.Else():
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
                 comb += br_taken.eq(bc_taken)
                 comb += ctr_o.ok.eq(ctr_write)
 

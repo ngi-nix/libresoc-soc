@@ -16,6 +16,7 @@ from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
+from soc.regfile.util import fast_reg_to_spr # HACK!
 
 class TestCase:
     def __init__(self, program, regs, sprs, cr, name):
@@ -53,6 +54,38 @@ def get_rec_width(rec):
 # takes around 3 seconds
 
 test_data = []
+
+
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to BranchFunctionUnit input regspec
+    """
+    res = {}
+
+    # CIA (PC)
+    res['cia'] = sim.pc.CIA.value
+
+    fast1_en = yield dec2.e.read_fast1.ok
+    if fast1_en:
+        fast1_sel = yield dec2.e.read_fast1.data
+        spr1_sel = fast_reg_to_spr(fast1_sel)
+        spr1_data = sim.spr[spr1_sel].value
+        res['spr1'] = spr1_data
+
+    fast2_en = yield dec2.e.read_fast2.ok
+    if fast2_en:
+        fast2_sel = yield dec2.e.read_fast2.data
+        spr2_sel = fast_reg_to_spr(fast2_sel)
+        spr2_data = sim.spr[spr2_sel].value
+        res['spr2'] = spr2_data
+
+    cr_en = yield dec2.e.read_cr1.ok
+    if cr_en:
+        cr_sel = yield dec2.e.read_cr1.data
+        cr = sim.crl[cr_sel].get_range().value
+        res['cr_a'] = cr
+
+    print ("get inputs", res)
+    return res
 
 
 class BranchTestCase(FHDLTestCase):
@@ -117,7 +150,7 @@ class BranchTestCase(FHDLTestCase):
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
 
-        
+
 
     def test_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
@@ -173,7 +206,6 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield branch.p.data_i.cia.eq(simulator.pc.CIA.value)
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
                     # spr1 to be set to CTR, op_bctar require spr2 to be
@@ -208,6 +240,9 @@ class TestRunner(FHDLTestCase):
             print(f"real: {branch_addr:x}, sim: {sim.pc.CIA.value:x}")
             self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
+        # TODO: check write_fast1 as well (should contain CTR)
+
+        # TODO: this should be checking write_fast2
         lk = yield dec2.e.lk
         branch_lk = yield branch.n.data_o.lr.ok
         self.assertEqual(lk, branch_lk, code)
@@ -216,27 +251,18 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(sim.spr['LR'], branch_lr, code)
 
     def set_inputs(self, branch, dec2, sim):
-        yield branch.p.data_i.spr1.eq(sim.spr['CTR'].value)
         print(f"cr0: {sim.crl[0].get_range()}")
 
-        insn_type = yield dec2.e.insn_type
-        if insn_type == InternalOp.OP_BCREG.value:
-            xo9 = yield dec2.dec.FormXL.XO[9]
-            xo5 = yield dec2.dec.FormXL.XO[5]
-            if xo9 == 0:
-                yield branch.p.data_i.spr2.eq(sim.spr['LR'].value)
-            elif xo5 == 1:
-                yield branch.p.data_i.spr2.eq(sim.spr['TAR'].value)
-            else:
-                yield branch.p.data_i.spr2.eq(sim.spr['CTR'].value)
+        inp = yield from get_cu_inputs(dec2, sim)
 
-        cr_en = yield dec2.e.read_cr1.ok
-        if cr_en:
-            cr_sel = yield dec2.e.read_cr1.data
-            cr = sim.crl[cr_sel].get_range().value
-            yield branch.p.data_i.cr.eq(cr)
-            full_cr = sim.cr.get_range().value
-            print(f"full cr: {full_cr:x}, sel: {cr_sel}, cr: {cr:x}")
+        if 'cia' in inp:
+            yield branch.p.data_i.cia.eq(inp['cia'])
+        if 'spr1' in inp:
+            yield branch.p.data_i.spr1.eq(inp['spr1'])
+        if 'spr2' in inp:
+            yield branch.p.data_i.spr2.eq(inp['spr2'])
+        if 'cr_a' in inp:
+            yield branch.p.data_i.cr.eq(inp['cr_a'])
 
 
 if __name__ == "__main__":

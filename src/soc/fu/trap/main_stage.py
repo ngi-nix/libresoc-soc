@@ -9,19 +9,27 @@ from nmigen import (Module, Signal, Cat, Mux, Const, signed)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
+from soc.fu.branch.main_stage import br_ext
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 # TODO at some point move these to their own module (for use elsewhere)
+# TODO: turn these into python constants (just "MSR_SF = 63-0 # comment" etc.)
 """
+    Listed in V3.0B Book III Chap 4.2.1
     -- MSR bit numbers
     constant MSR_SF  : integer := (63 - 0);     -- Sixty-Four bit mode
+    constant MSR_HV  : integer := (63 - 3);     -- Hypervisor state
+    constant MSR_S   : integer := (63 - 41);    -- Secure state
     constant MSR_EE  : integer := (63 - 48);    -- External interrupt Enable
     constant MSR_PR  : integer := (63 - 49);    -- PRoblem state
+    constant MSR_FP  : integer := (63 - 50);    -- FP available
+    constant MSR_ME  : integer := (63 - 51);    -- Machine Check int enable
     constant MSR_IR  : integer := (63 - 58);    -- Instruction Relocation
     constant MSR_DR  : integer := (63 - 59);    -- Data Relocation
+    constant MSR_PMM : integer := (63 - 60);    -- Performance Monitor Mark
     constant MSR_RI  : integer := (63 - 62);    -- Recoverable Interrupt
     constant MSR_LE  : integer := (63 - 63);    -- Little Endian
 """
@@ -117,7 +125,7 @@ class TrapMainStage(PipeModBase):
             with m.Case(InternalOp.OP_MTMSR):
                 # TODO: some of the bits need zeroing?
                 """
-                if e_in.insn(16) = '1' then
+                if e_in.insn(16) = '1' then  <-- this is X-form field "L".
                     -- just update EE and RI
                     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
                     ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
@@ -132,7 +140,18 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
-                comb += self.o.msr.data.eq(a)
+                L = self.fields.FormX.L[0:-1]
+                with m.If(L):
+                    comb += self.o.msr[MSR_EE].eq(self.i.msr[MSR_EE])
+                    comb += self.o.msr[MSR_RI].eq(self.i.msr[MSR_RI])
+
+                with m.Else():
+                    for stt, end in [(1,12), (13, 60), (61, 64)]:
+                        comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                    with m.If(a[MSR_PR]):
+                            self.o.msr[MSR_EE].eq(1)
+                            self.o.msr[MSR_IR].eq(1)
+                            self.o.msr[MSR_DR].eq(1)
                 comb += self.o.msr.ok.eq(1)
 
             # move from SPR
@@ -146,7 +165,6 @@ class TrapMainStage(PipeModBase):
                 comb += self.o.o.data.eq(self.i.msr)
                 comb += self.o.o.ok.eq(1)
 
-            # TODO
             with m.Case(InternalOp.OP_RFID):
                 """
                 # XXX f_out.virt_mode <= b_in(MSR_IR) or b_in(MSR_PR);
@@ -163,9 +181,16 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                pass
+                comb += self.o.nia.data.eq(br_ext(a[63:1] & 0))
+                comb += self.o.nia.ok.eq(1)
+                for stt, end in [(0,16), (22, 27), (31, 64)]:
+                    comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                with m.If(a[MSR_PR]):
+                        self.o.msr[MSR_EE].eq(1)
+                        self.o.msr[MSR_IR].eq(1)
+                        self.o.msr[MSR_DR].eq(1)
+                comb += self.o.msr.ok.eq(1)
 
-            # TODO
             with m.Case(InternalOp.OP_SC):
                 """
                 # TODO: scv must generate illegal instruction.  this is
@@ -173,8 +198,12 @@ class TrapMainStage(PipeModBase):
                 ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
                 ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 """
-                pass
+                comb += self.o.nia.eq(0xC00) # trap address
+                comb += self.o.nia.ok.eq(1)
+                comb += self.o.srr1.data.eq(self.i.msr)
+                comb += self.o.srr1.ok.eq(1)
 
+            # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
             #    pass
 

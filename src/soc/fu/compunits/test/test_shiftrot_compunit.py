@@ -8,6 +8,8 @@ from soc.fu.shift_rot.test.test_pipe_caller import test_data
 from soc.fu.compunits.compunits import ShiftRotFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
+from soc.decoder.power_enums import CryIn
+
 
 class ShiftRotTestRunner(TestRunner):
     def __init__(self, test_data):
@@ -38,9 +40,11 @@ class ShiftRotTestRunner(TestRunner):
             res['rc'] = sim.gpr(data3).value
 
         # XER.ca
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
+        cry_in = yield dec2.e.input_carry
+        if cry_in == CryIn.CA.value:
+            carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            res['xer_ca'] = carry | (carry32<<1)
 
         print ("inputs", res)
 

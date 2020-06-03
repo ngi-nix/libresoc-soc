@@ -137,9 +137,13 @@ class CompUnitParallelTest:
         self.op = 0
         self.inv_a = self.zero_a = 0
         self.imm = self.imm_ok = 0
+        self.imm_control = (0, 0)
         self.rdmaskn = (0, 0)
         # input data:
-        self.a = self.b = 0
+        self.operands = (0, 0)
+
+        # Indicates completion of the sub-processes
+        self.rd_complete = [False, False]
 
     def driver(self):
         print("Begin parallel test.")
@@ -149,17 +153,24 @@ class CompUnitParallelTest:
     def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
                   rdmaskn=(0, 0)):
         # store data for the operation
-        self.a = a
-        self.b = b
+        self.operands = (a, b)
         self.op = op
         self.inv_a = inv_a
         self.imm = imm
         self.imm_ok = imm_ok
         self.zero_a = zero_a
+        self.imm_control = (zero_a, imm_ok)
         self.rdmaskn = rdmaskn
+
+        # Initialize completion flags
+        self.rd_complete = [False, False]
 
         # trigger operation cycle
         yield from self.issue()
+
+        # check that the sub-processes completed, before the busy_o cycle ended
+        for completion in self.rd_complete:
+            assert completion
 
     def issue(self):
         # issue_i starts inactive
@@ -246,9 +257,8 @@ class CompUnitParallelTest:
         # likewise, if the read mask is active
         # TODO: don't exit the process, monitor rd instead to ensure it
         #       doesn't rise on its own
-        if self.rdmaskn[rd_idx] \
-                or (rd_idx == 0 and self.zero_a) \
-                or (rd_idx == 1 and self.imm_ok):
+        if self.rdmaskn[rd_idx] or self.imm_control[rd_idx]:
+            self.rd_complete[rd_idx] = True
             return
 
         # issue_i has risen. rel must rise on the next cycle
@@ -268,8 +278,14 @@ class CompUnitParallelTest:
         rel = yield self.dut.rd.rel[rd_idx]
         assert rel
 
-        # assert go for one cycle
+        # assert go for one cycle, passing along the operand value
         yield self.dut.rd.go[rd_idx].eq(1)
+        yield self.dut.src_i[rd_idx].eq(self.operands[rd_idx])
+        # check that the operand was sent to the alu
+        # TODO: Properly check the alu protocol
+        yield Settle()
+        alu_input = yield self.dut.get_in(rd_idx)
+        assert alu_input == self.operands[rd_idx]
         yield
 
         # rel must keep high, since go was inactive in the last cycle
@@ -278,6 +294,7 @@ class CompUnitParallelTest:
 
         # finish the go one-clock pulse
         yield self.dut.rd.go[rd_idx].eq(0)
+        yield self.dut.src_i[rd_idx].eq(0)
         yield
 
         # rel must have gone low in response to go being high
@@ -285,8 +302,10 @@ class CompUnitParallelTest:
         rel = yield self.dut.rd.rel[rd_idx]
         assert not rel
 
-        # TODO: also when dut.rd.go is set, put the expected value into
-        # the src_i.  use dut.get_in[rd_idx] to do so
+        self.rd_complete[rd_idx] = True
+
+        # TODO: check that rel doesn't rise again until the end of the
+        #       busy_o cycle
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle

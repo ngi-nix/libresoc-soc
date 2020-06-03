@@ -38,8 +38,3 @@ class ShiftRotInputData(IntegerData):
 class ShiftRotPipeSpec(CommonPipeSpec):
     regspec = (ShiftRotInputData.regspec, LogicalOutputData.regspec)
     opsubsetkls = CompSROpSubset
-    def rdflags(self, e): # in order of regspec input
-        reg1_ok = e.read_reg1.ok # RA
-        reg2_ok = e.read_reg2.ok # RB
-        reg3_ok = e.read_reg3.ok # RS
-        return Cat(reg1_ok, reg2_ok, reg3_ok, 1) # RA RB RC CA

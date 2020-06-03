@@ -74,11 +74,3 @@ class CROutputData(IntegerData):
 class CRPipeSpec(CommonPipeSpec):
     regspec = (CRInputData.regspec, CROutputData.regspec)
     opsubsetkls = CompCROpSubset
-    def rdflags(self, e): # in order of regspec
-        reg1_ok = e.read_reg1.ok # RA/RC
-        reg2_ok = e.read_reg2.ok # RB
-        full_reg = e.read_cr_whole # full CR
-        cr1_en = e.read_cr1.ok # CR A
-        cr2_en = e.read_cr2.ok # CR B
-        cr3_en = e.read_cr3.ok # CR C
-        return Cat(reg1_ok, reg2_ok, full_reg, cr1_en, cr2_en, cr3_en)

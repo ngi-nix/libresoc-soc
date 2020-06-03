@@ -60,10 +60,14 @@ class DecodeA(Elaboratable):
         # decode Fast-SPR based on instruction type
         op = self.dec.op
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeOut
-        with m.If((op.internal_op == InternalOp.OP_BC) |
-                  (op.internal_op == InternalOp.OP_BCREG)):
-            with m.If(~self.dec.BO[2] |        # 3.0B p38 BO2=0, use CTR reg
-                       self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
+        with m.If(op.internal_op == InternalOp.OP_BC):
+            with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
+                comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                comb += self.fast_out.ok.eq(1)
+        with m.Elif(op.internal_op == InternalOp.OP_BCREG):
+            xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
+            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+            with m.If(xo9 & ~xo5):
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
 
@@ -157,12 +161,16 @@ class DecodeB(Elaboratable):
 
         # decode SPR2 based on instruction type
         op = self.dec.op
-        # BCREG implicitly uses LR or TAR for 2nd reg (TODO: TAR)
+        # BCREG implicitly uses LR or TAR for 2nd reg
         # CTR however is already in fast_spr1 *not* 2.
-        with m.If((op.internal_op == InternalOp.OP_BC) |
-                 (op.internal_op == InternalOp.OP_BCREG)):
-            with m.If(~self.dec.FormXL.XO[9]): # 3.0B p38 top bit of XO
+        with m.If(op.internal_op == InternalOp.OP_BCREG):
+            xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
+            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+            with m.If(~xo9):
                 comb += self.fast_out.data.eq(FastRegs.LR)
+                comb += self.fast_out.ok.eq(1)
+            with m.Elif(xo5):
+                comb += self.fast_out.data.eq(FastRegs.TAR)
                 comb += self.fast_out.ok.eq(1)
 
         return m
@@ -245,6 +253,7 @@ class DecodeOut2(Elaboratable):
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(OutSel, reset_less=True)
+        self.lk = Signal(reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
         self.fast_out = Data(3, "fast_o")
@@ -262,7 +271,7 @@ class DecodeOut2(Elaboratable):
         op = self.dec.op
         with m.If((op.internal_op == InternalOp.OP_BC) |
                   (op.internal_op == InternalOp.OP_BCREG)):
-            with m.If(self.dec.op.lk & self.dec.LK): # "link" mode
+            with m.If(self.lk): # "link" mode
                 comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
                 comb += self.fast_out.ok.eq(1)
 
@@ -516,6 +525,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_c.sel_in.eq(self.dec.op.in3_sel)
         comb += dec_o.sel_in.eq(self.dec.op.out_sel)
         comb += dec_o2.sel_in.eq(self.dec.op.out_sel)
+        comb += dec_o2.lk.eq(self.e.lk)
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
@@ -600,7 +610,16 @@ class PowerDecode2(Elaboratable):
         to Function Unit port regfiles (read-enable, read regnum, write regnum)
         regfile and regname arguments are fields 1 and 2 from a given regspec.
         """
-        return regspec_decode(self, regfile, regname)
+        return regspec_decode(self.e, regfile, regname)
+
+    def rdflags(self, cu):
+        rdl = []
+        for idx in range(cu.n_src):
+            regfile, regname, _ = cu.get_in_spec(idx)
+            rdflag, read, write = self.regspecmap(regfile, regname)
+            rdl.append(rdflag)
+        print ("rdflags", rdl)
+        return Cat(*rdl)
 
 
 if __name__ == '__main__':

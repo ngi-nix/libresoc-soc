@@ -17,7 +17,7 @@ from soc.fu.spr.spr_input_record import CompSPROpSubset
 
 
 class SPRInputData(IntegerData):
-    regspec = [('INT', 'a', '0:63'),
+    regspec = [('INT', 'ra', '0:63'),
                ('SPR', 'spr1', '0:63'),
                ('FAST', 'spr2', '0:63'),
                ('XER', 'xer_so', '32'),
@@ -25,16 +25,18 @@ class SPRInputData(IntegerData):
                ('XER', 'xer_ca', '34,45')]
     def __init__(self, pspec):
         super().__init__(pspec)
-        self.a = Signal(64, reset_less=True) # RA
+        self.ra = Signal(64, reset_less=True) # RA
         self.spr1 = Signal(64, reset_less=True) # SPR (slow)
         self.spr2 = Signal(64, reset_less=True) # SPR (fast: MSR, LR, CTR etc)
         self.xer_so = Signal(reset_less=True) # XER bit 32: SO
         self.xer_ca = Signal(2, reset_less=True) # XER bit 34/45: CA/CA32
         self.xer_ov = Signal(2, reset_less=True) # bit0: ov, bit1: ov32
+        # convenience
+        self.a = self.ra
 
     def __iter__(self):
         yield from super().__iter__()
-        yield self.a
+        yield self.ra
         yield self.spr1
         yield self.spr2
         yield self.xer_ca
@@ -43,7 +45,7 @@ class SPRInputData(IntegerData):
 
     def eq(self, i):
         lst = super().eq(i)
-        return lst + [self.a.eq(i.a), self.reg.eq(i.reg),
+        return lst + [self.ra.eq(i.ra), self.reg.eq(i.reg),
                       self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
                       self.xer_ca.eq(i.xer_ca),
                       self.xer_ov.eq(i.xer_ov),
