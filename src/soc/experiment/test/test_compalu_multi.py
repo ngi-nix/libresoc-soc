@@ -270,6 +270,11 @@ class CompUnitParallelTest:
         # assert go for one cycle, passing along the operand value
         yield self.dut.rd.go[rd_idx].eq(1)
         yield self.dut.src_i[rd_idx].eq(self.operands[rd_idx])
+        # check that the operand was sent to the alu
+        # TODO: Properly check the alu protocol
+        yield Settle()
+        alu_input = yield self.dut.get_in(rd_idx)
+        assert alu_input == self.operands[rd_idx]
         yield
 
         # rel must keep high, since go was inactive in the last cycle
