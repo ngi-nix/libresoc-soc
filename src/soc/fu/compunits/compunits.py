@@ -42,7 +42,7 @@ see:
 
 # imports
 
-from nmigen import Cat
+from nmigen import Elaboratable, Module
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
 
@@ -126,15 +126,49 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
 # TODO: ReservationStations-based.
 
 
+# simple one-only function unit class, for test purposes
+class AllFunctionUnits(Elaboratable):
+    def __init__(self):
+        self.fus = {}
+        for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
+                            ('cr', 1, CRFunctionUnit),
+                            ('branch', 1, BranchFunctionUnit),
+                            ('logical', 1, LogicalFunctionUnit),
+                            ('shiftrot', 1, ShiftRotFunctionUnit)):
+            for i in range(qty):
+                self.fus["%s%d" % (name, i)] = kls()
+
+    def elaborate(self, platform):
+        m = Module()
+        for (name, fu) in self.fus.items():
+            setattr(m.submodules, name, fu)
+        return m
+
+    def __iter__(self):
+        for (name, fu) in self.fus.items():
+            yield from fu.ports()
+
+    def ports(self):
+        return list(self)
+
 def tst_single_fus_il():
     for (name, kls) in (('alu', ALUFunctionUnit),
                         ('cr', CRFunctionUnit),
                         ('branch', BranchFunctionUnit),
+                        ('logical', LogicalFunctionUnit),
                         ('shiftrot', ShiftRotFunctionUnit)):
         fu = kls()
         vl = rtlil.convert(fu, ports=fu.ports())
         with open("fu_%s.il" % name, "w") as f:
             f.write(vl)
 
+
+def tst_all_fus():
+    dut = AllFunctionUnits()
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("all_fus.il", "w") as f:
+        f.write(vl)
+
 if __name__ == '__main__':
     tst_single_fus_il()
+    tst_all_fus()
