@@ -16,12 +16,18 @@ from soc.decoder.power_fieldsn import SignalBitRange
 
 # TODO at some point move these to their own module (for use elsewhere)
 """
+    Listed in V3.0B Book III Chap 4.2.1
     -- MSR bit numbers
     constant MSR_SF  : integer := (63 - 0);     -- Sixty-Four bit mode
+    constant MSR_HV  : integer := (63 - 3);     -- Hypervisor state
+    constant MSR_S   : integer := (63 - 41);    -- Secure state
     constant MSR_EE  : integer := (63 - 48);    -- External interrupt Enable
     constant MSR_PR  : integer := (63 - 49);    -- PRoblem state
+    constant MSR_FP  : integer := (63 - 50);    -- FP available
+    constant MSR_ME  : integer := (63 - 51);    -- Machine Check int enable
     constant MSR_IR  : integer := (63 - 58);    -- Instruction Relocation
     constant MSR_DR  : integer := (63 - 59);    -- Data Relocation
+    constant MSR_PMM : integer := (63 - 60);    -- Performance Monitor Mark
     constant MSR_RI  : integer := (63 - 62);    -- Recoverable Interrupt
     constant MSR_LE  : integer := (63 - 63);    -- Little Endian
 """
