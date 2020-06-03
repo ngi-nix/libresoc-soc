@@ -39,8 +39,8 @@ class ALUTestRunner(TestRunner):
             res['xer_ca'] = carry | (carry32<<1)
 
         # XER.so
-        oe = yield dec2.e.oe.data & dec2.e.oe.ok
-        if True: #oe:
+        oe = yield dec2.e.oe.data[0] & dec2.e.oe.ok
+        if oe:
             so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
             res['xer_so'] = so
 
