@@ -139,7 +139,7 @@ class CompUnitParallelTest:
         self.imm = self.imm_ok = 0
         self.rdmaskn = (0, 0)
         # input data:
-        self.a = self.b = 0
+        self.operands = (0, 0)
 
     def driver(self):
         print("Begin parallel test.")
@@ -149,8 +149,7 @@ class CompUnitParallelTest:
     def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
                   rdmaskn=(0, 0)):
         # store data for the operation
-        self.a = a
-        self.b = b
+        self.operands = (a, b)
         self.op = op
         self.inv_a = inv_a
         self.imm = imm
@@ -268,8 +267,9 @@ class CompUnitParallelTest:
         rel = yield self.dut.rd.rel[rd_idx]
         assert rel
 
-        # assert go for one cycle
+        # assert go for one cycle, passing along the operand value
         yield self.dut.rd.go[rd_idx].eq(1)
+        yield self.dut.src_i[rd_idx].eq(self.operands[rd_idx])
         yield
 
         # rel must keep high, since go was inactive in the last cycle
@@ -278,15 +278,13 @@ class CompUnitParallelTest:
 
         # finish the go one-clock pulse
         yield self.dut.rd.go[rd_idx].eq(0)
+        yield self.dut.src_i[rd_idx].eq(0)
         yield
 
         # rel must have gone low in response to go being high
         # on the previous cycle
         rel = yield self.dut.rd.rel[rd_idx]
         assert not rel
-
-        # TODO: also when dut.rd.go is set, put the expected value into
-        # the src_i.  use dut.get_in[rd_idx] to do so
 
     def wr(self, wr_idx):
         # monitor self.dut.wr.req[rd_idx] and sets dut.wr.go[idx] for one cycle
