@@ -49,7 +49,9 @@ class TrapMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        a_i, b_i = self.i.a, self.i.b
+        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
+        o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
+        srr0_o, srr1_o = self.o.srr0, self.o.srr1
 
         # take copy of D-Form TO field
         i_fields = self.fields.FormD
@@ -140,7 +142,7 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
                 # TODO translate this:
-                # L = self.fields.FormX.L[0:-1]
+                # L = self.fields.FormX[0:-1]
                 # if e_in.insn(16) = '1' then  <-- this is X-form field "L".
                 #     -- just update EE and RI
                 #     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
@@ -204,6 +206,7 @@ class TrapMainStage(PipeModBase):
                 # TODO translate this line: ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 comb += self.o.srr1.ok.eq(1)
 
+            # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
             #    pass
 
