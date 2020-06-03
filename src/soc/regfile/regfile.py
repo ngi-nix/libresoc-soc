@@ -171,19 +171,19 @@ class RegFile(Elaboratable):
         self._rdports = []
         self._wrports = []
 
-    def read_port(self):
+    def read_port(self, name=None):
         bsz = int(log(self.width) / log(2))
         port = RecordObject([("raddr", bsz),
                              ("ren", 1),
-                             ("data_o", self.width)])
+                             ("data_o", self.width)], name=name)
         self._rdports.append(port)
         return port
 
-    def write_port(self):
+    def write_port(self, name=None):
         bsz = int(log(self.width) / log(2))
         port = RecordObject([("waddr", bsz),
                              ("wen", 1),
-                             ("data_i", self.width)])
+                             ("data_i", self.width)], name=name)
         self._wrports.append(port)
         return port
 

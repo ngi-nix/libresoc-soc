@@ -124,8 +124,9 @@ class SPRRegs(RegFile):
     def __init__(self):
         n_sprs = len(SPR)
         super().__init__(64, n_sprs)
-        self.w_ports = [self.write_port("dest")]
+        self.w_ports = [self.write_port(name="dest")]
         self.r_ports = [self.read_port("src")]
+
 
 # class containing all regfiles: int, cr, xer, fast, spr
 class RegFiles:
