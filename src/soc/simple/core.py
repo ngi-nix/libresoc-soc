@@ -87,7 +87,10 @@ class NonProductionCore(Elaboratable):
             rdpickers[regfile] = {}
             for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
                 # get the regfile specs for this regfile port
-                (rdflag, read, wid, fuspec) = fspec
+                (rf, read, wid, fuspec) = fspec
+                name = "rdflag_%s_%s" % (regfile, regname)
+                rdflag = Signal(name=name, reset_less=True)
+                comb += rdflag.eq(rf)
 
                 # "munge" the regfile port index, due to full-port access
                 if regfile in ['XER', 'CA']:
@@ -112,7 +115,8 @@ class NonProductionCore(Elaboratable):
                 for pi, (funame, fu, idx) in enumerate(fuspec):
                     # connect request-read to picker input, and output to go-rd
                     fu_active = fu_bitdict[funame]
-                    comb += rdpick.i[pi].eq(fu.rd_rel_o[idx] & fu_active)
+                    pick = fu.rd_rel_o[idx] & fu_active & rdflag
+                    comb += rdpick.i[pi].eq(pick)
                     comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
                     # connect regfile port to input
                     print ("reg connect widths",
