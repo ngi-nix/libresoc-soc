@@ -137,6 +137,7 @@ class CompUnitParallelTest:
         self.op = 0
         self.inv_a = self.zero_a = 0
         self.imm = self.imm_ok = 0
+        self.imm_control = (0, 0)
         self.rdmaskn = (0, 0)
         # input data:
         self.operands = (0, 0)
@@ -155,6 +156,7 @@ class CompUnitParallelTest:
         self.imm = imm
         self.imm_ok = imm_ok
         self.zero_a = zero_a
+        self.imm_control = (zero_a, imm_ok)
         self.rdmaskn = rdmaskn
 
         # trigger operation cycle
@@ -245,9 +247,7 @@ class CompUnitParallelTest:
         # likewise, if the read mask is active
         # TODO: don't exit the process, monitor rd instead to ensure it
         #       doesn't rise on its own
-        if self.rdmaskn[rd_idx] \
-                or (rd_idx == 0 and self.zero_a) \
-                or (rd_idx == 1 and self.imm_ok):
+        if self.rdmaskn[rd_idx] or self.imm_control[rd_idx]:
             return
 
         # issue_i has risen. rel must rise on the next cycle
