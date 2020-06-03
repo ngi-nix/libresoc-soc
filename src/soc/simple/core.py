@@ -7,6 +7,8 @@ Function Unit to be operational.
 from nmigen import Elaboratable, Module, Signal
 from nmigen.cli import rtlil
 
+from nmutil.picker import PriorityPicker
+
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
@@ -30,6 +32,12 @@ class NonProductionCore(Elaboratable):
         self.regs.elaborate_into(m, platform)
         regs = self.regs
         fus = self.fus.fus
+
+        # enable-signals for each FU, get one bit for each FU (by name)
+        fu_enable = Signal(len(fus), reset_less=True)
+        fu_bitdict = {}
+        for i, funame in enumerate(fus.keys()):
+            fu_bitdict[funame] = fu_enable[i]
 
         # dictionary of lists of regfile read ports
         byregfiles_rd = {}
@@ -57,8 +65,22 @@ class NonProductionCore(Elaboratable):
                 (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
                 print ("  %s" % regname, wid, read, rdflag)
                 for (funame, fu) in fuspec:
-                    print ("    ", funame, fu)
+                    print ("    ", funame, fu, fu.src_i[idx])
                     print ()
+
+        # okaay, now we need a PriorityPicker per regfile per regfile port
+        # loootta pickers... peter piper picked a pack of pickled peppers...
+        rdpickers = {}
+        for regfile, spec in byregfiles_rd.items():
+            rdpickers[regfile] = {}
+            for idx, fuspec in spec.items():
+                rdpickers[regfile][idx] = rdpick = PriorityPicker(len(fuspec))
+                setattr(m.submodules, "rdpick_%s_%d" % (regfile, idx), rdpick)
+                for pi, (funame, fu) in enumerate(fuspec):
+                    # connect request-read to picker input, and output to go-rd
+                    fu_active = fu_bitdict[funame]
+                    comb += rdpick.i[pi].eq(fu.rd_rel_o[idx] & fu_active)
+                    comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
 
         return m
 
