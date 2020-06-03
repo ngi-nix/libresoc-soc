@@ -2,6 +2,7 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 # XXX bad practice: use of global variables
+from soc.fu.cr.test.test_pipe_caller import get_cu_inputs
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.cr.test.test_pipe_caller import test_data
 
@@ -17,43 +18,7 @@ class CRTestRunner(TestRunner):
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to CRFunctionUnit input regspec
         """
-        res = {}
-        full_reg = yield dec2.e.read_cr_whole
-
-        # full CR
-        print(sim.cr.get_range().value)
-        if full_reg:
-            res['full_cr'] = sim.cr.get_range().value
-        else:
-            # CR A
-            cr1_en = yield dec2.e.read_cr1.ok
-            if cr1_en:
-                cr1_sel = yield dec2.e.read_cr1.data
-                res['cr_a'] = sim.crl[cr1_sel].get_range().value
-            cr2_en = yield dec2.e.read_cr2.ok
-            # CR B
-            if cr2_en:
-                cr2_sel = yield dec2.e.read_cr2.data
-                res['cr_b'] = sim.crl[cr2_sel].get_range().value
-            cr3_en = yield dec2.e.read_cr3.ok
-            # CR C
-            if cr3_en:
-                cr3_sel = yield dec2.e.read_cr3.data
-                res['cr_c'] = sim.crl[cr3_sel].get_range().value
-
-        # RA/RC
-        reg1_ok = yield dec2.e.read_reg1.ok
-        if reg1_ok:
-            data1 = yield dec2.e.read_reg1.data
-            res['ra'] = sim.gpr(data1).value
-
-        # RB (or immediate)
-        reg2_ok = yield dec2.e.read_reg2.ok
-        if reg2_ok:
-            data2 = yield dec2.e.read_reg2.data
-            res['rb'] = sim.gpr(data2).value
-
-        print ("get inputs", res)
+        res = yield from get_cu_inputs(dec2, sim)
         return res
 
     def check_cu_outputs(self, res, dec2, sim, code):
