@@ -124,7 +124,7 @@ class TrapMainStage(PipeModBase):
             with m.Case(InternalOp.OP_MTMSR):
                 # TODO: some of the bits need zeroing?
                 """
-                if e_in.insn(16) = '1' then
+                if e_in.insn(16) = '1' then  <-- this is X-form field "L".
                     -- just update EE and RI
                     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
                     ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
@@ -140,7 +140,8 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
                 # TODO translate this:
-                # if e_in.insn(16) = '1' then
+                # L = self.fields.FormXL.L[0:-1]
+                # if e_in.insn(16) = '1' then  <-- this is X-form field "L".
                 #     -- just update EE and RI
                 #     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
                 #     ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
