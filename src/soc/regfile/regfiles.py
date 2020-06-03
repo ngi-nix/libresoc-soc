@@ -135,7 +135,7 @@ class RegFiles:
         for (name, kls) in [('int', IntRegs),
                             ('cr', CRRegs),
                             ('xer', XERRegs),
-                            ('fasr', FastRegs),
+                            ('fast', FastRegs),
                             ('spr', SPRRegs),]:
             rf = self.rf[name] = kls()
             setattr(self, name, rf)

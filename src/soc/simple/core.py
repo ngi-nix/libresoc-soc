@@ -8,11 +8,17 @@ from nmigen import Elaboratable, Module, Signal
 from nmigen.cli import rtlil
 
 from nmutil.picker import PriorityPicker
+from nmutil.util import treereduce
 
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+
+
+
+def ortreereduce(tree, attr="data_o"):
+    return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
 
 class NonProductionCore(Elaboratable):
@@ -73,14 +79,27 @@ class NonProductionCore(Elaboratable):
         rdpickers = {}
         for regfile, spec in byregfiles_rd.items():
             rdpickers[regfile] = {}
-            for idx, fuspec in spec.items():
+            for rpidx, (idx, fuspec) in enumerate(spec.items()):
+                # select the required read port.  these are pre-defined sizes
+                print (regfile, regs.rf.keys())
+                rport = regs.rf[regfile.lower()].r_ports[rpidx]
+
+                # create a priority picker to manage this port
                 rdpickers[regfile][idx] = rdpick = PriorityPicker(len(fuspec))
                 setattr(m.submodules, "rdpick_%s_%d" % (regfile, idx), rdpick)
+
+                # connect the regspec "reg select" number to this port
+                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
+                comb += rport.ren.eq(read)
+
+                # connect up the FU req/go signals and the reg-read to the FU
                 for pi, (funame, fu) in enumerate(fuspec):
                     # connect request-read to picker input, and output to go-rd
                     fu_active = fu_bitdict[funame]
                     comb += rdpick.i[pi].eq(fu.rd_rel_o[idx] & fu_active)
                     comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
+                    # connect regfile port to input
+                    comb += fu.src_i[idx].eq(rport.data_o)
 
         return m
 
