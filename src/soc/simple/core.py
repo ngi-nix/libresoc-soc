@@ -84,7 +84,7 @@ class NonProductionCore(Elaboratable):
                 (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
 
                 # "munge" the regfile port index, due to full-port access
-                if regfile in ['XER', 'CR']:
+                if regfile in ['xer', 'cr']:
                     if regname.startswith('full'):
                         rpidx = 0 # by convention, first port
                     else:
