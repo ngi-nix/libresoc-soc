@@ -40,7 +40,14 @@ class Driver(Elaboratable):
         with m.If(allzero):
             comb += Assert(dut.data_o == 0)
         with m.Else():
-            TODO
+            comb += Assume(dut.data_o != 0) # at least one output bit is set
+            for j in range(dut.array_size):
+                for b in range(0,8):
+                    with m.If(dut.data_o.en[b]):
+                        comb += Assume(dut.data_i[j].en[b])
+                for b in range(0,128):
+                    with m.If(dut.data_o.data[b]):
+                        comb += Assume(dut.data_i[j].data[b])
 
         return m
 
