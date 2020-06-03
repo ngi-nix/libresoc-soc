@@ -33,6 +33,7 @@ class NonProductionCore(Elaboratable):
 
         # dictionary of lists of regfile read ports
         byregfiles_rd = {}
+        byregfiles_rdspec = {}
         for (funame, fu) in fus.items():
             print ("read ports for %s" % funame)
             for idx in range(fu.n_src):
@@ -41,10 +42,11 @@ class NonProductionCore(Elaboratable):
                 rdflag, read, _ = dec2.regspecmap(regfile, regname)
                 if regfile not in byregfiles_rd:
                     byregfiles_rd[regfile] = {}
+                    byregfiles_rdspec[regfile] = (regname, rdflag, read, wid)
                 # here we start to create "lanes"
                 if idx not in byregfiles_rd[regfile]:
                     byregfiles_rd[regfile][idx] = []
-                fuspec = (funame, fu, regname, rdflag, read, wid)
+                fuspec = (funame, fu)
                 byregfiles_rd[regfile][idx].append(fuspec)
 
         # ok just print that out, for convenience
@@ -52,9 +54,10 @@ class NonProductionCore(Elaboratable):
             print ("regfile read ports:", regfile)
             for idx, fuspec in spec.items():
                 print ("  regfile read port %s lane: %d" % (regfile, idx))
-                for (funame, fu, regname, rdflag, read, wid) in fuspec:
-                    print ("    ", funame, regname, wid, read, rdflag)
-                    print ("    ", fu)
+                (regname, rdflag, read, wid) = byregfiles_rdspec[regfile]
+                print ("  %s" % regname, wid, read, rdflag)
+                for (funame, fu) in fuspec:
+                    print ("    ", funame, fu)
                     print ()
 
         return m
