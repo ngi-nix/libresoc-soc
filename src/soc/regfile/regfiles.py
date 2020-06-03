@@ -19,6 +19,7 @@ Links:
 
 # TODO
 
+from nmigen import Elaboratable, Module
 from soc.regfile.regfile import RegFile, RegFileArray
 from soc.regfile.virtual_port import VirtualRegPort
 from soc.decoder.power_enums import SPR
@@ -127,12 +128,21 @@ class SPRRegs(RegFile):
         self.w_ports = [self.write_port("dest")]
         self.r_ports = [self.read_port("src")]
 
-
-class RegFiles:
+# class containing all regfiles: int, cr, xer, fast, spr
+class RegFiles(Elaboratable):
     def __init__(self):
-        self.int = IntRegs()
-        self.cr = CRRegs()
-        self.xer = XERRegs()
-        self.fasr = FastRegs()
-        self.spr = SPRRegs()
+        self.rf = {}
+        for (name, kls) in [('int', IntRegs),
+                            ('cr', CRRegs),
+                            ('xer', XERRegs),
+                            ('fasr', FastRegs),
+                            ('spr', SPRRegs),]:
+            rf = self.rf[name] = kls()
+            setattr(self, name, rf)
+
+    def elaborate(self, platform):
+        m = Module()
+        for (name, rf) in self.rf.items():
+            setattr(m.submodules, name, rf)
+        return m
 
