@@ -141,44 +141,74 @@ class CRTestCase(FHDLTestCase):
             f.write(vl)
 
 
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to CRFunctionUnit input regspec
+    """
+    res = {}
+    full_reg = yield dec2.e.read_cr_whole
+
+    # full CR
+    print(sim.cr.get_range().value)
+    if full_reg:
+        res['full_cr'] = sim.cr.get_range().value
+    else:
+        # CR A
+        cr1_en = yield dec2.e.read_cr1.ok
+        if cr1_en:
+            cr1_sel = yield dec2.e.read_cr1.data
+            res['cr_a'] = sim.crl[cr1_sel].get_range().value
+        cr2_en = yield dec2.e.read_cr2.ok
+        # CR B
+        if cr2_en:
+            cr2_sel = yield dec2.e.read_cr2.data
+            res['cr_b'] = sim.crl[cr2_sel].get_range().value
+        cr3_en = yield dec2.e.read_cr3.ok
+        # CR C
+        if cr3_en:
+            cr3_sel = yield dec2.e.read_cr3.data
+            res['cr_c'] = sim.crl[cr3_sel].get_range().value
+
+    # RA/RC
+    reg1_ok = yield dec2.e.read_reg1.ok
+    if reg1_ok:
+        data1 = yield dec2.e.read_reg1.data
+        res['ra'] = sim.gpr(data1).value
+
+    # RB (or immediate)
+    reg2_ok = yield dec2.e.read_reg2.ok
+    if reg2_ok:
+        data2 = yield dec2.e.read_reg2.data
+        res['rb'] = sim.gpr(data2).value
+
+    print ("get inputs", res)
+    return res
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
 
     def set_inputs(self, alu, dec2, simulator):
-        full_reg = yield dec2.e.read_cr_whole
-
-        print(simulator.cr.get_range().value)
-        if full_reg:
-            yield alu.p.data_i.full_cr.eq(simulator.cr.get_range().value)
+        inp = yield from get_cu_inputs(dec2, simulator)
+        if 'full_cr' in inp:
+            yield alu.p.data_i.full_cr.eq(inp['full_cr'])
         else:
-            cr1_en = yield dec2.e.read_cr1.ok
-            if cr1_en:
-                cr1_sel = yield dec2.e.read_cr1.data
-                cr1 = simulator.crl[cr1_sel].get_range().value
-                yield alu.p.data_i.cr_a.eq(cr1)
-            cr2_en = yield dec2.e.read_cr2.ok
-            if cr2_en:
-                cr2_sel = yield dec2.e.read_cr2.data
-                cr2 = simulator.crl[cr2_sel].get_range().value
-                yield alu.p.data_i.cr_b.eq(cr2)
-            cr3_en = yield dec2.e.read_cr3.ok
-            if cr3_en:
-                cr3_sel = yield dec2.e.read_cr3.data
-                cr3 = simulator.crl[cr3_sel].get_range().value
-                yield alu.p.data_i.cr_c.eq(cr3)
-
-        reg1_ok = yield dec2.e.read_reg1.ok
-        if reg1_ok:
-            reg1_sel = yield dec2.e.read_reg1.data
-            reg1 = simulator.gpr(reg1_sel).value
-            yield alu.p.data_i.a.eq(reg1)
-        reg2_ok = yield dec2.e.read_reg2.ok
-        if reg2_ok:
-            reg2_sel = yield dec2.e.read_reg2.data
-            reg2 = simulator.gpr(reg2_sel).value
-            yield alu.p.data_i.b.eq(reg2)
+            yield alu.p.data_i.full_cr.eq(0)
+        if 'cr_a' in inp:
+            yield alu.p.data_i.cr_a.eq(inp['cr_a'])
+        if 'cr_b' in inp:
+            yield alu.p.data_i.cr_b.eq(inp['cr_b'])
+        if 'cr_c' in inp:
+            yield alu.p.data_i.cr_c.eq(inp['cr_c'])
+        if 'ra' in inp:
+            yield alu.p.data_i.ra.eq(inp['ra'])
+        else:
+            yield alu.p.data_i.ra.eq(0)
+        if 'rb' in inp:
+            yield alu.p.data_i.rb.eq(inp['rb'])
+        else:
+            yield alu.p.data_i.rb.eq(0)
 
     def assert_outputs(self, alu, dec2, simulator, code):
         whole_reg = yield dec2.e.write_cr_whole

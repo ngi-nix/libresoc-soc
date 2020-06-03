@@ -92,6 +92,7 @@ class BranchTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
+
     def run_tst_program(self, prog, initial_regs=[0] * 32,
                         initial_sprs={}, initial_cr=0):
         tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
@@ -149,8 +150,6 @@ class BranchTestCase(FHDLTestCase):
                 self.run_tst_program(Program(lst),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
-
-
 
     def test_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
