@@ -9,6 +9,7 @@ from nmigen import (Module, Signal, Cat, Mux, Const, signed)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
+from soc.fu.branch.main_stage import br_ext
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
@@ -49,9 +50,7 @@ class TrapMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
-        o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
-        srr0_o, srr1_o = self.o.srr0, self.o.srr1
+        a_i, b_i = self.i.a, self.i.b
 
         # take copy of D-Form TO field
         i_fields = self.fields.FormD
@@ -141,12 +140,11 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
-                # TODO translate this:
-                # L = self.fields.FormX[0:-1]
-                # if e_in.insn(16) = '1' then  <-- this is X-form field "L".
-                #     -- just update EE and RI
-                #     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
-                #     ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
+                L = self.fields.FormX.L[0:-1]
+                with m.If(L):
+                    comb += self.o.msr[MSR_EE].eq(self.i.msr[MSR_EE])
+                    comb += self.o.msr[MSR_RI].eq(self.i.msr[MSR_RI])
+
                 with m.Else():
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += self.o.msr.data[stt:end].eq(a[stt:end])
@@ -185,6 +183,7 @@ class TrapMainStage(PipeModBase):
                 """
                 # TODO translate this, import and use br_ext from branch stage
                 # f_out.redirect_nia <= a_in(63 downto 2) & "00"; -- srr0
+                comb += self.o.nia.data.eq(br_ext(a[63:1] & 0))
                 for stt, end in [(0,16), (22, 27), (31, 64)]:
                     comb += self.o.msr.data[stt:end].eq(a[stt:end])
                 with m.If(a[MSR_PR]):
@@ -193,7 +192,6 @@ class TrapMainStage(PipeModBase):
                         self.o.msr[MSR_DR].eq(1)
                 comb += self.o.msr.ok.eq(1)
 
-            # TODO
             with m.Case(InternalOp.OP_SC):
                 """
                 # TODO: scv must generate illegal instruction.  this is
@@ -203,7 +201,7 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += self.o.nia.eq(0xC00) # trap address
                 comb += self.o.nia.ok.eq(1)
-                # TODO translate this line: ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
+                comb += self.o.srr1.data.eq(self.i.msr)
                 comb += self.o.srr1.ok.eq(1)
 
             # TODO (later)
