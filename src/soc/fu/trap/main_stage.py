@@ -15,6 +15,7 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
 # TODO at some point move these to their own module (for use elsewhere)
+# TODO: turn these into python constants (just "MSR_SF = 63-0 # comment" etc.)
 """
     Listed in V3.0B Book III Chap 4.2.1
     -- MSR bit numbers
@@ -138,12 +139,18 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
-                for stt, end in [(1,12), (13, 60), (61, 64)]:
-                    comb += self.o.msr.data[stt:end].eq(a[stt:end])
-                with m.If(a[MSR_PR]):
-                        self.o.msr[MSR_EE].eq(1)
-                        self.o.msr[MSR_IR].eq(1)
-                        self.o.msr[MSR_DR].eq(1)
+                # TODO translate this:
+                # if e_in.insn(16) = '1' then
+                #     -- just update EE and RI
+                #     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
+                #     ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
+                with m.Else():
+                    for stt, end in [(1,12), (13, 60), (61, 64)]:
+                        comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                    with m.If(a[MSR_PR]):
+                            self.o.msr[MSR_EE].eq(1)
+                            self.o.msr[MSR_IR].eq(1)
+                            self.o.msr[MSR_DR].eq(1)
                 comb += self.o.msr.ok.eq(1)
 
             # move from SPR
@@ -157,7 +164,6 @@ class TrapMainStage(PipeModBase):
                 comb += self.o.o.data.eq(self.i.msr)
                 comb += self.o.o.ok.eq(1)
 
-            # TODO
             with m.Case(InternalOp.OP_RFID):
                 """
                 # XXX f_out.virt_mode <= b_in(MSR_IR) or b_in(MSR_PR);
@@ -174,6 +180,8 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
+                # TODO translate this, import and use br_ext from branch stage
+                # f_out.redirect_nia <= a_in(63 downto 2) & "00"; -- srr0
                 for stt, end in [(0,16), (22, 27), (31, 64)]:
                     comb += self.o.msr.data[stt:end].eq(a[stt:end])
                 with m.If(a[MSR_PR]):
@@ -192,6 +200,7 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += self.o.nia.eq(0xC00) # trap address
                 comb += self.o.nia.ok.eq(1)
+                # TODO translate this line: ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 comb += self.o.srr1.ok.eq(1)
 
             #with m.Case(InternalOp.OP_ADDPCIS):
