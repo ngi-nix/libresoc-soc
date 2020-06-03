@@ -610,7 +610,16 @@ class PowerDecode2(Elaboratable):
         to Function Unit port regfiles (read-enable, read regnum, write regnum)
         regfile and regname arguments are fields 1 and 2 from a given regspec.
         """
-        return regspec_decode(self, regfile, regname)
+        return regspec_decode(self.e, regfile, regname)
+
+    def rdflags(self, cu):
+        rdl = []
+        for idx in range(cu.n_src):
+            regfile, regname, _ = cu.get_in_spec(idx)
+            rdflag, read, write = self.regspecmap(regfile, regname)
+            rdl.append(rdflag)
+        print ("rdflags", rdl)
+        return Cat(*rdl)
 
 
 if __name__ == '__main__':

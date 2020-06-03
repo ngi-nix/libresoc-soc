@@ -153,7 +153,9 @@ class TestRunner(FHDLTestCase):
                     inp = get_inp_indexed(cu, iname)
 
                     # reset read-operand mask
-                    rdmask = cu.rdflags(pdecode2.e)
+                    rdmask = pdecode2.rdflags(cu)
+                    #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
+                    #print ("decoder rdmask", rdmask)
                     yield cu.rdmaskn.eq(~rdmask)
 
                     # reset write-operand mask

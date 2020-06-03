@@ -66,11 +66,17 @@ class RegSpecALUAPI:
         self.rwid = rwid
         self.alu = alu # actual ALU - set as a "submodule" of the CU
 
+    def get_in_spec(self, i):
+        return self.rwid[0][i]
+
+    def get_out_spec(self, i):
+        return self.rwid[1][i]
+
     def get_in_name(self, i):
-        return self.rwid[0][i][1]
+        return self.get_in_spec(i)[1]
 
     def get_out_name(self, i):
-        return self.rwid[1][i][1]
+        return self.get_out_spec(i)[1]
 
     def get_out(self, i):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)
