@@ -174,11 +174,12 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                comb += self.o.msr.data[:16].eq(b[:16])
-                comb += self.o.msr.data[22:27].eq(b[22:27])
-                comb += self.o.msr.data[31:] # <- oops missed the eq here
-                comb += self.o.msr.ok.eq(1)
-                comb += self.o.msr.data.eq(b)
+                for stt, end in [(0,16), (22, 27), (31, 64)]:
+                    comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                with m.If(a[MSR_PR]):
+                        self.o.msr[MSR_EE].eq(1)
+                        self.o.msr[MSR_IR].eq(1)
+                        self.o.msr[MSR_DR].eq(1)
                 comb += self.o.msr.ok.eq(1)
 
             # TODO
@@ -191,7 +192,7 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += self.o.nia.eq(0xC00) # trap address
                 comb += self.o.nia.ok.eq(1)
-                # TODO: srr1 (see 2nd line of vhdl above. remember set ok=1 too)
+                comb += self.o.srr1.ok.eq(1)
 
             #with m.Case(InternalOp.OP_ADDPCIS):
             #    pass
