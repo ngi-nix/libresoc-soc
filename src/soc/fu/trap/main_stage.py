@@ -140,7 +140,7 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
                 # TODO translate this:
-                # L = self.fields.FormXL.L[0:-1]
+                # L = self.fields.FormX.L[0:-1]
                 # if e_in.insn(16) = '1' then  <-- this is X-form field "L".
                 #     -- just update EE and RI
                 #     ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
