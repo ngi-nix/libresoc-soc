@@ -95,4 +95,6 @@ def regspec_decode(e, regfile, name):
         if name == 'spr2':
             return e.read_spr2.ok, 1<<e.read_spr2.data, 1<<e.write_fast2.data
 
-    assert False, "regspec not found %s %d" % (repr(regspec), idx)
+    if regfile == 'SPR':
+        assert False, "regfile TODO %s %s %d" % (refgile, repr(regspec), idx)
+    assert False, "regspec not found %s %s %d" % (refgile, repr(regspec), idx)
