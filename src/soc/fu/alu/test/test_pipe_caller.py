@@ -53,12 +53,18 @@ def set_alu_inputs(alu, dec2, sim):
 
 
 def set_extra_alu_inputs(alu, dec2, sim):
-    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-    yield alu.p.data_i.xer_ca[0].eq(carry)
-    yield alu.p.data_i.xer_ca[1].eq(carry32)
-    so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.xer_so.eq(so)
+    cry_in = yield dec2.e.input_carry
+    if cry_in:
+        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+        yield alu.p.data_i.xer_ca[0].eq(carry)
+        yield alu.p.data_i.xer_ca[1].eq(carry32)
+        print ("extra inputs: CA/32", carry, carry32)
+    oe = yield dec2.e.oe.data & dec2.e.oe.ok
+    if oe:
+        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+        print ("extra inputs: so", so)
+        yield alu.p.data_i.xer_so.eq(so)
 
 
 # This test bench is a bit different than is usual. Initially when I

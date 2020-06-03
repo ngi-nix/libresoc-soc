@@ -32,13 +32,17 @@ class ALUTestRunner(TestRunner):
             res['rb'] = sim.gpr(data2).value
 
         # XER.ca
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
+        cry_in = yield dec2.e.input_carry
+        if True: #cry_in:
+            carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            res['xer_ca'] = carry | (carry32<<1)
 
         # XER.so
-        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-        res['xer_so'] = so
+        oe = yield dec2.e.oe.data & dec2.e.oe.ok
+        if True: #oe:
+            so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+            res['xer_so'] = so
 
         return res
 

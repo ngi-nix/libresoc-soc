@@ -70,8 +70,8 @@ def regspec_decode(e, regfile, name):
         CA = 1<<XERRegs.CA
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
-            return Const(1), SO, SO # TODO
             #return e.oe.oe & e.oe.oe_ok, SO, SO
+            return Const(1), SO, SO # TODO
         if name == 'xer_ov':
             return Const(1), OV, OV # TODO
             return e.oe.oe & e.oe.oe_ok, OV, OV
