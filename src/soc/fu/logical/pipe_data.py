@@ -58,7 +58,3 @@ class LogicalOutputData(IntegerData):
 class LogicalPipeSpec(CommonPipeSpec):
     regspec = (LogicalInputData.regspec, LogicalOutputData.regspec)
     opsubsetkls = CompLogicalOpSubset
-    def rdflags(self, e): # in order of regspec
-        reg1_ok = e.read_reg1.ok # RA
-        reg2_ok = e.read_reg2.ok # RB
-        return Cat(reg1_ok, reg2_ok) # RA RB

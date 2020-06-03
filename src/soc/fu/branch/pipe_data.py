@@ -93,8 +93,3 @@ class BranchOutputData(IntegerData):
 class BranchPipeSpec(CommonPipeSpec):
     regspec = (BranchInputData.regspec, BranchOutputData.regspec)
     opsubsetkls = CompBROpSubset
-    def rdflags(self, e): # in order of regspec
-        cr1_en = e.read_cr1.ok # CR A
-        fast1_ok = e.read_fast1.ok # SPR1
-        fast2_ok = e.read_fast2.ok # SPR2
-        return Cat(fast1_ok, fast2_ok, cr1_en, 1) # SPR1 SPR2 CR CIA
