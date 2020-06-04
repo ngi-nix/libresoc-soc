@@ -12,17 +12,11 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
+from soc.fu.test.common import TestCase
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 import random
-
-class TestCase:
-    def __init__(self, program, regs, sprs, name):
-        self.program = program
-        self.regs = regs
-        self.sprs = sprs
-        self.name = name
 
 
 def get_cu_inputs(dec2, sim):
@@ -117,8 +111,8 @@ class ShiftRotTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
-    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
-        tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         test_data.append(tc)
 
 
