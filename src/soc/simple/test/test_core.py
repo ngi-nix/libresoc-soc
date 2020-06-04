@@ -146,11 +146,11 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                # set up INT regfile, "direct" write from sim data
+                # set up INT regfile, "direct" write (bypass rd/write ports)
                 for i in range(32):
                     yield core.regs.int.regs[i].reg.eq(test.regs[i])
 
-                # set up XER
+                # set up XER.  "direct" write (bypass rd/write ports)
                 xregs = core.regs.xer
                 print ("sprs", test.sprs)
                 if special_sprs['XER'] in test.sprs:
