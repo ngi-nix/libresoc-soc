@@ -1,7 +1,8 @@
 import unittest
 from copy import copy
 from soc.decoder.power_fields import BitRange
-from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv)
+from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv,
+                      lshift, rshift)
 
 
 def check_extsign(a, b):
@@ -155,19 +156,29 @@ class SelectableInt:
         self.value = b.value
         self.bits = b.bits
 
-    def __add__(self, b):
+    def _op(self, op, b):
         if isinstance(b, int):
             b = SelectableInt(b, self.bits)
         b = check_extsign(self, b)
         assert b.bits == self.bits
-        return SelectableInt(self.value + b.value, self.bits)
+        return SelectableInt(op(self.value, b.value), self.bits)
 
+    def __add__(self, b):
+        return self._op(add, b)
     def __sub__(self, b):
-        if isinstance(b, int):
-            b = SelectableInt(b, self.bits)
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value - b.value, self.bits)
+        return self._op(sub, b)
+    def __mul__(self, b):
+        return self._op(mul, b)
+    def __div__(self, b):
+        return self._op(truediv, b)
+    def __mod__(self, b):
+        return self._op(mod, b)
+    def __and__(self, b):
+        return self._op(and_, b)
+    def __or__(self, b):
+        return self._op(or_, b)
+    def __xor__(self, b):
+        return self._op(xor, b)
 
     def __rsub__(self, b):
         if isinstance(b, int):
@@ -182,37 +193,6 @@ class SelectableInt:
         b = check_extsign(self, b)
         assert b.bits == self.bits
         return SelectableInt(b.value + self.value, self.bits)
-
-    def __mul__(self, b):
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value * b.value, self.bits)
-
-    def __div__(self, b):
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value / b.value, self.bits)
-
-    def __mod__(self, b):
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value % b.value, self.bits)
-
-    def __or__(self, b):
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value | b.value, self.bits)
-
-    def __and__(self, b):
-        print ("__and__", self, b)
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value & b.value, self.bits)
-
-    def __xor__(self, b):
-        b = check_extsign(self, b)
-        assert b.bits == self.bits
-        return SelectableInt(self.value ^ b.value, self.bits)
 
     def __rxor__(self, b):
         b = check_extsign(self, b)
