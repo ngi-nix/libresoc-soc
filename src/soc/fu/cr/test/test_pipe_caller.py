@@ -113,6 +113,8 @@ class CRTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1<<64)-1)
             initial_regs[3] = random.randint(0, (1<<64)-1)
+            #initial_regs[2] = i*2
+            #initial_regs[3] = i*2+1
             self.run_tst_program(Program(lst),
                                  initial_regs=initial_regs, initial_cr=cr)
 

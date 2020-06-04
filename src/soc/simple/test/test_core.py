@@ -144,13 +144,27 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, 0)
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 # set up INT regfile, "direct" write (bypass rd/write ports)
                 for i in range(32):
                     yield core.regs.int.regs[i].reg.eq(test.regs[i])
+
+                # set up CR regfile, "direct" write across all CRs
+                cr = test.cr
+                # sigh.  Because POWER
+                cr = int('{:032b}'.format(test.cr)[::-1], 2)
+                print ("cr reg", hex(cr))
+                for i in range(8):
+                    j = i
+                    cri = (cr>>(j*4)) & 0xf
+                    # sigh.  Because POWER
+                    cri = int('{:04b}'.format(cri)[::-1], 2)
+                    print ("cr reg", hex(cri), i,
+                            core.regs.cr.regs[i].reg.shape())
+                    yield core.regs.cr.regs[i].reg.eq(cri)
 
                 # set up XER.  "direct" write (bypass rd/write ports)
                 xregs = core.regs.xer
@@ -221,9 +235,9 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(CRTestCase.test_data))
-    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    suite.addTest(TestRunner(LogicalTestCase.test_data))
-    suite.addTest(TestRunner(ALUTestCase.test_data))
+    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    #suite.addTest(TestRunner(LogicalTestCase.test_data))
+    #suite.addTest(TestRunner(ALUTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
