@@ -363,6 +363,9 @@ class SelectableInt:
     def __len__(self):
         return self.bits
 
+    def asint(self):
+        return self.value
+
 def onebit(bit):
     return SelectableInt(1 if bit else 0, 1)
 

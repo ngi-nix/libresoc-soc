@@ -13,8 +13,8 @@ from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
 
 # test with ALU data and Logical data
-#from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
-from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, test_data
+from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
+#from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, test_data
 
 
 def set_cu_input(cu, idx, data):
@@ -176,13 +176,10 @@ class TestRunner(FHDLTestCase):
                         rval = yield core.regs.int.regs[i].reg
                         intregs.append(rval)
                     print ("int regs", intregs)
-                    if False:
-                        yield Settle()
-                        # get all outputs (one by one, just "because")
-                        res = yield from get_cu_outputs(cu, code)
-
-                        yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                                sim, code)
+                    for i in range(32):
+                        simregval = sim.gpr[i].asint()
+                        self.assertEqual(simregval, intregs[i],
+                            "int reg %d not equal %s" % (i, repr(code)))
 
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
