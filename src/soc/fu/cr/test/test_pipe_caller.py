@@ -12,18 +12,11 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
+from soc.fu.test.common import TestCase
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 import random
 
-
-class TestCase:
-    def __init__(self, program, regs, sprs, cr, name):
-        self.program = program
-        self.regs = regs
-        self.sprs = sprs
-        self.name = name
-        self.cr = cr
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -52,10 +45,10 @@ class CRTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={},
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                         initial_cr=0):
-        tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
-                      self.test_name)
+        tc = TestCase(prog, self.test_name,
+                      regs=initial_regs, sprs=initial_sprs, cr=initial_cr)
         test_data.append(tc)
 
     def test_crop(self):
