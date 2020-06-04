@@ -114,13 +114,13 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.srr1(63 - 46) <= '1';
                 """
                 with m.If(should_trap):
-                    comb += self.o.nia.data.eq(0x700)         # trap address
-                    comb += self.o.nia.ok.eq(1)
-                    comb += self.o.srr1.data.eq(self.i.msr)   # old MSR
-                    comb += self.o.srr1.data[63-46].eq(1)     # XXX which bit?
-                    comb += self.o.srr1.ok.eq(1)
-                    comb += self.o.srr0.data.eq(self.i.cia)   # old PC
-                    comb += self.o.srr0.ok.eq(1)
+                    comb += nia_o.data.eq(0x700)         # trap address
+                    comb += nia_o.ok.eq(1)
+                    comb += srr1_o.data.eq(msr_i)   # old MSR
+                    comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
+                    comb += srr1_o.ok.eq(1)
+                    comb += srr0_o.data.eq(cia_i)   # old PC
+                    comb += srr0_o.ok.eq(1)
 
             # move to SPR
             with m.Case(InternalOp.OP_MTMSR):
@@ -150,17 +150,17 @@ class TrapMainStage(PipeModBase):
                 """
                 L = self.fields.FormX.L[0:-1]
                 with m.If(L):
-                    comb += self.o.msr[MSR_EE].eq(self.i.msr[MSR_EE])
-                    comb += self.o.msr[MSR_RI].eq(self.i.msr[MSR_RI])
+                    comb += msr_o[MSR_EE].eq(msr_i[MSR_EE])
+                    comb += msr_o[MSR_RI].eq(msr_i[MSR_RI])
 
                 with m.Else():
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
-                        comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                        comb += msr_o.data[stt:end].eq(a[stt:end])
                     with m.If(a[MSR_PR]):
-                            self.o.msr[MSR_EE].eq(1)
-                            self.o.msr[MSR_IR].eq(1)
-                            self.o.msr[MSR_DR].eq(1)
-                comb += self.o.msr.ok.eq(1)
+                            msr_o[MSR_EE].eq(1)
+                            msr_o[MSR_IR].eq(1)
+                            msr_o[MSR_DR].eq(1)
+                comb += msr_o.ok.eq(1)
 
             # move from SPR
             with m.Case(InternalOp.OP_MFMSR):
@@ -170,8 +170,8 @@ class TrapMainStage(PipeModBase):
                         result := ctrl.msr;
                         result_en := '1';
                 """
-                comb += self.o.o.data.eq(self.i.msr)
-                comb += self.o.o.ok.eq(1)
+                comb += o.data.eq(msr_i)
+                comb += o.ok.eq(1)
 
             with m.Case(InternalOp.OP_RFID):
                 """
@@ -189,15 +189,15 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                comb += self.o.nia.data.eq(br_ext(a[63:1] & 0))
-                comb += self.o.nia.ok.eq(1)
+                comb += nia_o.data.eq(br_ext(a[63:1] & 0))
+                comb += nia_o.ok.eq(1)
                 for stt, end in [(0,16), (22, 27), (31, 64)]:
-                    comb += self.o.msr.data[stt:end].eq(a[stt:end])
+                    comb += msr_o.data[stt:end].eq(a[stt:end])
                 with m.If(a[MSR_PR]):
-                        self.o.msr[MSR_EE].eq(1)
-                        self.o.msr[MSR_IR].eq(1)
-                        self.o.msr[MSR_DR].eq(1)
-                comb += self.o.msr.ok.eq(1)
+                        msr_o[MSR_EE].eq(1)
+                        msr_o[MSR_IR].eq(1)
+                        msr_o[MSR_DR].eq(1)
+                comb += msr_o.ok.eq(1)
 
             with m.Case(InternalOp.OP_SC):
                 """
@@ -206,10 +206,10 @@ class TrapMainStage(PipeModBase):
                 ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
                 ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 """
-                comb += self.o.nia.eq(0xC00) # trap address
-                comb += self.o.nia.ok.eq(1)
-                comb += self.o.srr1.data.eq(self.i.msr)
-                comb += self.o.srr1.ok.eq(1)
+                comb += nia_o.eq(0xC00) # trap address
+                comb += nia_o.ok.eq(1)
+                comb += srr1_o.data.eq(msr_i)
+                comb += srr1_o.ok.eq(1)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
