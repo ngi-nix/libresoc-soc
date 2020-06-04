@@ -50,7 +50,7 @@ class NonProductionCore(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        comb = m.d.comb
+        comb, sync = m.d.comb, m.d.sync
 
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
@@ -179,7 +179,7 @@ class NonProductionCore(Elaboratable):
                     fu_active = fu_bitdict[funame]
                     pick = fu.wr.rel[idx] & fu_active & wrflag
                     comb += wrpick.i[pi].eq(pick)
-                    comb += fu.go_wr_i[idx].eq(wrpick.o[pi])
+                    sync += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
                     # connect regfile port to input
                     print ("reg connect widths",
                            regfile, regname, pi, funame,
