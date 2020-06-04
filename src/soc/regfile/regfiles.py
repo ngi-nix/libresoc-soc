@@ -63,7 +63,8 @@ class FastRegs(RegFileArray):
     def __init__(self):
         super().__init__(64, 8)
         self.w_ports = [self.write_port("dest1"),
-                        self.write_port("dest2")]
+                        self.write_port("dest2"),
+                        self.write_port("dest3")]
         self.r_ports = [self.read_port("src1"),
                         self.read_port("src2"),
                         self.read_port("src3")]
