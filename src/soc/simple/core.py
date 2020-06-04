@@ -3,7 +3,22 @@
 not in any way intended for production use.  connects up FunctionUnits to
 Register Files in a brain-dead fashion that only permits one and only one
 Function Unit to be operational.
+
+the principle here is to take the Function Units, analyse their regspecs,
+and turn their requirements for access to register file read/write ports
+into groupings by Register File and Register File Port name.
+
+under each grouping - by regfile/port - a list of Function Units that
+need to connect to that port is created.  as these are a contended
+resource a "Broadcast Bus" per read/write port is then also created,
+with access to it managed by a PriorityPicker.
+
+the brain-dead part of this module is that even though there is no
+conflict of access, regfile read/write hazards are *not* analysed,
+and consequently it is safer to wait for the Function Unit to complete
+before allowing a new instruction to proceed.
 """
+
 from nmigen import Elaboratable, Module, Signal
 from nmigen.cli import rtlil
 
