@@ -4,7 +4,6 @@ from soc.decoder.power_enums import (XER_bits, Function)
 # XXX bad practice: use of global variables
 from soc.fu.cr.test.test_pipe_caller import get_cu_inputs
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
-from soc.fu.cr.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import CRFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -56,7 +55,7 @@ class CRTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(CRTestRunner(test_data))
+    suite.addTest(CRTestRunner(CRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
