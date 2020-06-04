@@ -134,13 +134,24 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
 
 # simple one-only function unit class, for test purposes
 class AllFunctionUnits(Elaboratable):
+    """AllFunctionUnits
+
+    creates a dictionary of Function Units according to required spec.
+    tuple is of:
+
+     * name of ALU,
+     * quantity of FUs required
+     * type of FU required
+
+    """
     def __init__(self):
         self.fus = {}
         for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
-                            ('cr', 1, CRFunctionUnit),
-                            ('branch', 1, BranchFunctionUnit),
-                            ('logical', 1, LogicalFunctionUnit),
-                            ('shiftrot', 1, ShiftRotFunctionUnit)):
+                                 ('cr', 1, CRFunctionUnit),
+                                 ('branch', 1, BranchFunctionUnit),
+                                 ('logical', 1, LogicalFunctionUnit),
+                                 ('shiftrot', 1, ShiftRotFunctionUnit)
+                                ):
             for i in range(qty):
                 self.fus["%s%d" % (name, i)] = kls()
 
