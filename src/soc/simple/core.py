@@ -29,9 +29,11 @@ from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+import operator
 
 
-
+# helper function for reducing a list of signals down to a parallel
+# ORed single signal.
 def ortreereduce(tree, attr="data_o"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
@@ -78,6 +80,8 @@ class NonProductionCore(Elaboratable):
         for regfile, spec in byregfiles_rd.items():
             fuspecs = byregfiles_rdspec[regfile]
             rdpickers[regfile] = {}
+
+            # for each named regfile port, connect up all FUs to that port
             for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
@@ -104,21 +108,80 @@ class NonProductionCore(Elaboratable):
                 with m.If(rdpick.en_o):
                     comb += rport.ren.eq(read)
 
-                # connect up the FU req/go signals and the reg-read to the FU
+                # connect up the FU req/go signals, and the reg-read to the FU
+                # and create a Read Broadcast Bus
                 for pi, (funame, fu, idx) in enumerate(fuspec):
+                    src = fu.src_i[idx]
+
                     # connect request-read to picker input, and output to go-rd
                     fu_active = fu_bitdict[funame]
                     pick = fu.rd_rel_o[idx] & fu_active & rdflag
                     comb += rdpick.i[pi].eq(pick)
                     comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
+
+                    # connect regfile port to input, creating a Broadcast Bus
+                    print ("reg connect widths",
+                           regfile, regname, pi, funame,
+                           src.shape(), rport.data_o.shape())
+                    comb += src.eq(rport.data_o) # all FUs connect to same port
+
+        # dictionary of lists of regfile write ports
+        byregfiles_wr, byregfiles_wrspec = self.get_byregfiles(False)
+
+        # same for write ports.
+        # BLECH!  complex code-duplication! BLECH!
+        wrpickers = {}
+        for regfile, spec in byregfiles_wr.items():
+            fuspecs = byregfiles_wrspec[regfile]
+            wrpickers[regfile] = {}
+            for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
+                # get the regfile specs for this regfile port
+                (rf, read, write, wid, fuspec) = fspec
+
+                # "munge" the regfile port index, due to full-port access
+                if regfile in ['XER', 'CA']:
+                    if regname.startswith('full'):
+                        rpidx = 0 # by convention, first port
+                    else:
+                        rpidx += 1 # start indexing port 0 from 1
+
+                # select the required write port.  these are pre-defined sizes
+                print (regfile, regs.rf.keys())
+                wport = regs.rf[regfile.lower()].w_ports[rpidx]
+
+                # create a priority picker to manage this port
+                wrpickers[regfile][rpidx] = wrpick = PriorityPicker(len(fuspec))
+                setattr(m.submodules, "wrpick_%s_%d" % (regfile, rpidx), wrpick)
+
+                # connect the regspec write "reg select" number to this port
+                # only if one FU actually requests (and is granted) the port
+                # will the write-enable be activated
+                with m.If(wrpick.en_o):
+                    comb += wport.wen.eq(write)
+
+                # connect up the FU req/go signals and the reg-read to the FU
+                # these are arbitrated by Data.ok signals
+                wsigs = []
+                for pi, (funame, fu, idx) in enumerate(fuspec):
+                    # write-request comes from dest.ok
+                    dest = fu.get_out(idx)
+                    name = "wrflag_%s_%s_%d" % (funame, regname, idx)
+                    wrflag = Signal(name=name, reset_less=True)
+                    comb += wrflag.eq(dest.ok)
+
+                    # connect request-read to picker input, and output to go-wr
+                    fu_active = fu_bitdict[funame]
+                    pick = fu.wr.rel[idx] & fu_active & wrflag
+                    comb += wrpick.i[pi].eq(pick)
+                    comb += fu.go_wr_i[idx].eq(wrpick.o[pi])
                     # connect regfile port to input
                     print ("reg connect widths",
                            regfile, regname, pi, funame,
-                           fu.src_i[idx].shape(), rport.data_o.shape())
-                    comb += fu.src_i[idx].eq(rport.data_o)
+                           dest.shape(), wport.data_i.shape())
+                    wsigs.append(dest)
 
-        # dictionary of lists of regfile write ports
-        byregfiles_rd, byregfiles_rdspec = self.get_byregfiles(False)
+                # here is where we create the Write Broadcast Bus. simple, eh?
+                comb += wport.data_i.eq(ortreereduce(wsigs, "data"))
 
         return m
 

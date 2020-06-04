@@ -15,6 +15,7 @@ from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
 from soc.experiment.compalu_multi import find_ok # hack
 import random
 
+
 def set_cu_input(cu, idx, data):
     rdop = cu.get_in_name(idx)
     yield cu.src_i[idx].eq(data)
