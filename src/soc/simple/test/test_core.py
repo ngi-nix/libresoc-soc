@@ -137,6 +137,10 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
+                # set up INT regfile, "direct" write from sim data
+                for i in range(32):
+                    yield core.regs.int.regs[i].reg.eq(test.regs[i])
+
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
@@ -156,10 +160,6 @@ class TestRunner(FHDLTestCase):
                     # set operand and get inputs
                     yield from set_issue(core, pdecode2, sim)
                     yield Settle()
-
-                    # set up INT regfile, "direct" write from sim data
-                    for i in range(32):
-                        yield core.regs.int.regs[i].reg.eq(test.regs[i])
 
                     yield from wait_for_busy_clear(core)
                     yield core.ivalid_i.eq(0)
