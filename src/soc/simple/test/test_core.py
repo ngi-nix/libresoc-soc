@@ -16,6 +16,7 @@ from soc.experiment.compalu_multi import find_ok # hack
 # test with ALU data and Logical data
 from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase
 from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
+from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 
 
 def set_cu_input(cu, idx, data):
@@ -218,6 +219,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
+    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase.test_data))
     suite.addTest(TestRunner(ALUTestCase.test_data))
 
