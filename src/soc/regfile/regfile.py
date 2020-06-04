@@ -225,6 +225,7 @@ class RegFile(Elaboratable):
             else:
                 yield r
 
+
 def regfile_sim(dut, rp, wp):
     yield wp.waddr.eq(1)
     yield wp.data_i.eq(2)
@@ -259,7 +260,8 @@ def regfile_sim(dut, rp, wp):
     data = yield rp.data_o
     print (data)
 
-def regfile_array_sim(dut, rp1, rp2, wp):
+def regfile_array_sim(dut, rp1, rp2, wp, wp2):
+    print ("regfile_array_sim")
     yield wp.data_i.eq(2)
     yield wp.wen.eq(1<<1)
     yield
@@ -310,13 +312,14 @@ def test_regfile():
     rp1 = dut.read_port("read1")
     rp2 = dut.read_port("read2")
     wp = dut.write_port("write")
+    wp2 = dut.write_port("write2")
     ports=dut.ports()
     print ("ports", ports)
     vl = rtlil.convert(dut, ports=ports)
     with open("test_regfile_array.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, regfile_array_sim(dut, rp1, rp2, wp),
+    run_simulation(dut, regfile_array_sim(dut, rp1, rp2, wp, wp2),
                    vcd_name='test_regfile_array.vcd')
 
 if __name__ == '__main__':
