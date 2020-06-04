@@ -45,6 +45,7 @@ see:
 from nmigen import Elaboratable, Module
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
+from soc.decoder.power_enums import Function
 
 # pipeline / spec imports
 
@@ -105,18 +106,23 @@ class FunctionUnitBaseMulti:
 ###### actual Function Units: these are "single" stage pipelines #####
 
 class ALUFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.ALU
     def __init__(self): super().__init__(ALUPipeSpec, ALUBasePipe)
 
 class LogicalFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.LOGICAL
     def __init__(self): super().__init__(LogicalPipeSpec, LogicalBasePipe)
 
 class CRFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.CR
     def __init__(self): super().__init__(CRPipeSpec, CRBasePipe)
 
 class BranchFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.BRANCH
     def __init__(self): super().__init__(BranchPipeSpec, BranchBasePipe)
 
 class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.SHIFT_ROT
     def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
 
 
