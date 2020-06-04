@@ -50,7 +50,6 @@ class NonProductionCore(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        comb, sync = m.d.comb, m.d.sync
 
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
@@ -58,13 +57,24 @@ class NonProductionCore(Elaboratable):
         regs = self.regs
         fus = self.fus.fus
 
+        fu_bitdict = self.connect_instruction(m)
+        self.connect_rdports(m, fu_bitdict)
+        self.connect_wrports(m, fu_bitdict)
+
+        return m
+
+    def connect_instruction(self, m):
+        comb, sync = m.d.comb, m.d.sync
+        fus = self.fus.fus
+        dec2 = self.pdecode2
+
         # enable-signals for each FU, get one bit for each FU (by name)
         fu_enable = Signal(len(fus), reset_less=True)
         fu_bitdict = {}
         for i, funame in enumerate(fus.keys()):
             fu_bitdict[funame] = fu_enable[i]
 
-        # connect up instructions
+        # connect up instructions.  only one is enabled at any given time
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
@@ -76,6 +86,13 @@ class NonProductionCore(Elaboratable):
                 rdmask = dec2.rdflags(fu)
                 comb += fu.rdmaskn.eq(~rdmask)
             comb += fu_bitdict[funame].eq(enable)
+
+        return fu_bitdict
+
+    def connect_rdports(self, m, fu_bitdict):
+        comb, sync = m.d.comb, m.d.sync
+        fus = self.fus.fus
+        regs = self.regs
 
         # dictionary of lists of regfile read ports
         byregfiles_rd, byregfiles_rdspec = self.get_byregfiles(True)
@@ -131,6 +148,10 @@ class NonProductionCore(Elaboratable):
                            src.shape(), rport.data_o.shape())
                     comb += src.eq(rport.data_o) # all FUs connect to same port
 
+    def connect_wrports(self, m, fu_bitdict):
+        comb, sync = m.d.comb, m.d.sync
+        fus = self.fus.fus
+        regs = self.regs
         # dictionary of lists of regfile write ports
         byregfiles_wr, byregfiles_wrspec = self.get_byregfiles(False)
 
@@ -190,8 +211,6 @@ class NonProductionCore(Elaboratable):
 
                 # here is where we create the Write Broadcast Bus. simple, eh?
                 sync += wport.data_i.eq(ortreereduce(wsigs, "data"))
-
-        return m
 
     def get_byregfiles(self, readmode):
 
