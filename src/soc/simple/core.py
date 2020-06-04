@@ -55,38 +55,7 @@ class NonProductionCore(Elaboratable):
             comb += fu_bitdict[funame].eq(enable)
 
         # dictionary of lists of regfile read ports
-        byregfiles_rd = {}
-        byregfiles_rdspec = {}
-        for (funame, fu) in fus.items():
-            print ("read ports for %s" % funame)
-            for idx in range(fu.n_src):
-                (regfile, regname, wid) = fu.get_in_spec(idx)
-                print ("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
-                rdflag, read, _ = dec2.regspecmap(regfile, regname)
-                if regfile not in byregfiles_rd:
-                    byregfiles_rd[regfile] = {}
-                    byregfiles_rdspec[regfile] = {}
-                if regname not in byregfiles_rdspec[regfile]:
-                    byregfiles_rdspec[regfile][regname] = \
-                                [rdflag, read, wid, []]
-                # here we start to create "lanes"
-                if idx not in byregfiles_rd[regfile]:
-                    byregfiles_rd[regfile][idx] = []
-                fuspec = (funame, fu, idx)
-                byregfiles_rd[regfile][idx].append(fuspec)
-                byregfiles_rdspec[regfile][regname][3].append(fuspec)
-
-        # ok just print that out, for convenience
-        for regfile, spec in byregfiles_rd.items():
-            print ("regfile read ports:", regfile)
-            fuspecs = byregfiles_rdspec[regfile]
-            for regname, fspec in fuspecs.items():
-                [rdflag, read, wid, fuspec] = fspec
-                print ("  regfile read port %s lane: %s" % (regfile, regname))
-                print ("  %s" % regname, wid, read, rdflag)
-                for (funame, fu, idx) in fuspec:
-                    print ("    ", funame, fu, idx, fu.src_i[idx])
-                    print ()
+        byregfiles_rd, byregfiles_rdspec = self.get_byregfiles(True)
 
         # okaay, now we need a PriorityPicker per regfile per regfile port
         # loootta pickers... peter piper picked a pack of pickled peppers...
@@ -96,7 +65,7 @@ class NonProductionCore(Elaboratable):
             rdpickers[regfile] = {}
             for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
                 # get the regfile specs for this regfile port
-                (rf, read, wid, fuspec) = fspec
+                (rf, read, write, wid, fuspec) = fspec
                 name = "rdflag_%s_%s" % (regfile, regname)
                 rdflag = Signal(name=name, reset_less=True)
                 comb += rdflag.eq(rf)
@@ -133,7 +102,57 @@ class NonProductionCore(Elaboratable):
                            fu.src_i[idx].shape(), rport.data_o.shape())
                     comb += fu.src_i[idx].eq(rport.data_o)
 
+        # dictionary of lists of regfile write ports
+        byregfiles_rd, byregfiles_rdspec = self.get_byregfiles(False)
+
         return m
+
+    def get_byregfiles(self, readmode):
+
+        mode = "read" if readmode else "write"
+        dec2 = self.pdecode2
+        regs = self.regs
+        fus = self.fus.fus
+
+        # dictionary of lists of regfile ports
+        byregfiles = {}
+        byregfiles_spec = {}
+        for (funame, fu) in fus.items():
+            print ("%s ports for %s" % (mode, funame))
+            for idx in range(fu.n_src if readmode else fu.n_dst):
+                if readmode:
+                    (regfile, regname, wid) = fu.get_in_spec(idx)
+                else:
+                    (regfile, regname, wid) = fu.get_out_spec(idx)
+                print ("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
+                rdflag, read, write = dec2.regspecmap(regfile, regname)
+                if regfile not in byregfiles:
+                    byregfiles[regfile] = {}
+                    byregfiles_spec[regfile] = {}
+                if regname not in byregfiles_spec[regfile]:
+                    byregfiles_spec[regfile][regname] = \
+                                [rdflag, read, write, wid, []]
+                # here we start to create "lanes"
+                if idx not in byregfiles[regfile]:
+                    byregfiles[regfile][idx] = []
+                fuspec = (funame, fu, idx)
+                byregfiles[regfile][idx].append(fuspec)
+                byregfiles_spec[regfile][regname][4].append(fuspec)
+
+        # ok just print that out, for convenience
+        for regfile, spec in byregfiles.items():
+            print ("regfile %s ports:" % mode, regfile)
+            fuspecs = byregfiles_spec[regfile]
+            for regname, fspec in fuspecs.items():
+                [rdflag, read, write, wid, fuspec] = fspec
+                print ("  rf %s port %s lane: %s" % (mode, regfile, regname))
+                print ("  %s" % regname, wid, read, write, rdflag)
+                for (funame, fu, idx) in fuspec:
+                    fusig = fu.src_i[idx] if readmode else fu.dest[idx]
+                    print ("    ", funame, fu, idx, fusig)
+                    print ()
+
+        return byregfiles, byregfiles_spec
 
     def __iter__(self):
         yield from self.fus.ports()
