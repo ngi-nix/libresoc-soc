@@ -544,7 +544,6 @@ class PowerDecode2(Elaboratable):
                 comb += self.e.data_len.eq(8)
 
         comb += self.e.nia.eq(0)    # XXX TODO
-        comb += self.e.valid.eq(0)  # XXX TODO
         fu = self.dec.op.function_unit
         itype = Mux(fu == Function.NONE,
                     InternalOp.OP_ILLEGAL,

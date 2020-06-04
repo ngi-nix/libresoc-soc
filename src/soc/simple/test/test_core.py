@@ -74,6 +74,12 @@ def set_issue(core, dec2, sim):
     yield core.issue_i.eq(1)
     yield
     yield core.issue_i.eq(0)
+    while True:
+        busy_o = yield core.busy_o
+        if busy_o:
+            break
+        print("!busy",)
+        yield
 
 
 def wait_for_busy_clear(cu):
@@ -115,12 +121,14 @@ class TestRunner(FHDLTestCase):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
+        ivalid_i = Signal()
 
         m.submodules.core = core = NonProductionCore()
         pdecode = core.pdecode
         pdecode2 = core.pdecode2
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
+        comb += core.ivalid_i.eq(ivalid_i)
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
@@ -151,7 +159,7 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield core.ivalid_i.eq(1)
+                    yield ivalid_i.eq(1)
                     yield Settle()
                     #fn_unit = yield pdecode2.e.fn_unit
                     #fuval = self.funit.value
@@ -162,7 +170,8 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
 
                     yield from wait_for_busy_clear(core)
-                    yield core.ivalid_i.eq(0)
+                    yield ivalid_i.eq(0)
+                    yield
 
                     print ("sim", code)
                     # call simulated operation
@@ -175,7 +184,7 @@ class TestRunner(FHDLTestCase):
                     for i in range(32):
                         rval = yield core.regs.int.regs[i].reg
                         intregs.append(rval)
-                    print ("int regs", intregs)
+                    print ("int regs", list(map(hex, intregs)))
                     for i in range(32):
                         simregval = sim.gpr[i].asint()
                         self.assertEqual(simregval, intregs[i],
