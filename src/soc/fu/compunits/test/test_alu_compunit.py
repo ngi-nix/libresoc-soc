@@ -1,10 +1,8 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
-# XXX bad practice: use of global variables
 from soc.fu.alu.test.test_pipe_caller import get_cu_inputs
 from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
-from soc.fu.alu.test.test_pipe_caller import test_data # imports the data
 
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -73,7 +71,7 @@ class ALUTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(ALUTestRunner(test_data))
+    suite.addTest(ALUTestRunner(ALUTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

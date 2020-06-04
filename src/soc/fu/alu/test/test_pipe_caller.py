@@ -96,16 +96,16 @@ def set_alu_inputs(alu, dec2, sim):
 # massively. Before, it took around 1 minute on my computer, now it
 # takes around 3 seconds
 
-test_data = []
-
 
 class ALUTestCase(FHDLTestCase):
+    test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        test_data.append(tc)
+        self.test_data.append(tc)
 
     def test_rand(self):
         insns = ["add", "add.", "subf"]
@@ -276,7 +276,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(test_data))
+    suite.addTest(TestRunner(ALUTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
