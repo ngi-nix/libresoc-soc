@@ -141,7 +141,6 @@ class FieldSelectableIntTestCase(unittest.TestCase):
 
         fs[0:2] = 0b10
         self.assertEqual(fs.get_range(), 0b1011)
-        
 
 
 class SelectableInt:
@@ -365,6 +364,7 @@ class SelectableInt:
 
     def asint(self):
         return self.value
+
 
 def onebit(bit):
     return SelectableInt(1 if bit else 0, 1)
