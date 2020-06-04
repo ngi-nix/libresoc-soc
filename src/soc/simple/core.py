@@ -39,19 +39,20 @@ class NonProductionCore(Elaboratable):
         regs = self.regs
         fus = self.fus.fus
 
-        # connect up instructions
-        for funame, fu in fus.items():
-            fnunit = fu.fnunit.value
-            enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq(self.ivalid_i & (dec2.e.fn_unit & fnunit != 0))
-            with m.If(enable):
-                comb += fu.oper_i.eq_from_execute1(dec2.e)
-
         # enable-signals for each FU, get one bit for each FU (by name)
         fu_enable = Signal(len(fus), reset_less=True)
         fu_bitdict = {}
         for i, funame in enumerate(fus.keys()):
             fu_bitdict[funame] = fu_enable[i]
+
+        # connect up instructions
+        for funame, fu in fus.items():
+            fnunit = fu.fnunit.value
+            enable = Signal(name="en_%s" % funame, reset_less=True)
+            comb += enable.eq(self.ivalid_i & (dec2.e.fn_unit & fnunit).bool())
+            with m.If(enable):
+                comb += fu.oper_i.eq_from_execute1(dec2.e)
+            comb += fu_bitdict[funame].eq(enable)
 
         # dictionary of lists of regfile read ports
         byregfiles_rd = {}
