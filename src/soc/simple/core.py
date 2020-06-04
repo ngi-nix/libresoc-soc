@@ -163,7 +163,7 @@ class NonProductionCore(Elaboratable):
                 # only if one FU actually requests (and is granted) the port
                 # will the write-enable be activated
                 with m.If(wrpick.en_o):
-                    comb += wport.wen.eq(write)
+                    sync += wport.wen.eq(write)
 
                 # connect up the FU req/go signals and the reg-read to the FU
                 # these are arbitrated by Data.ok signals
@@ -187,7 +187,7 @@ class NonProductionCore(Elaboratable):
                     wsigs.append(dest)
 
                 # here is where we create the Write Broadcast Bus. simple, eh?
-                comb += wport.data_i.eq(ortreereduce(wsigs, "data"))
+                sync += wport.data_i.eq(ortreereduce(wsigs, "data"))
 
         return m
 
