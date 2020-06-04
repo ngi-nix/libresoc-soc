@@ -12,19 +12,13 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
 
+from soc.fu.test.common import TestCase
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
 from soc.regfile.util import fast_reg_to_spr # HACK!
 
-class TestCase:
-    def __init__(self, program, regs, sprs, cr, name):
-        self.program = program
-        self.regs = regs
-        self.sprs = sprs
-        self.name = name
-        self.cr = cr
 
 def get_rec_width(rec):
     recwidth = 0
@@ -93,10 +87,10 @@ class BranchTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def run_tst_program(self, prog, initial_regs=[0] * 32,
-                        initial_sprs={}, initial_cr=0):
-        tc = TestCase(prog, initial_regs, initial_sprs, initial_cr,
-                      self.test_name)
+    def run_tst_program(self, prog, initial_regs=None,
+                        initial_sprs=None, initial_cr=0):
+        tc = TestCase(prog, self.test_name,
+                      initial_regs, initial_sprs, initial_cr)
         test_data.append(tc)
 
     def test_unconditional(self):
