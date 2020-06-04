@@ -15,24 +15,22 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-# TODO at some point move these to their own module (for use elsewhere)
-# TODO: turn these into python constants (just "MSR_SF = 63-0 # comment" etc.)
-"""
-    Listed in V3.0B Book III Chap 4.2.1
-    -- MSR bit numbers
-    constant MSR_SF  : integer := (63 - 0);     -- Sixty-Four bit mode
-    constant MSR_HV  : integer := (63 - 3);     -- Hypervisor state
-    constant MSR_S   : integer := (63 - 41);    -- Secure state
-    constant MSR_EE  : integer := (63 - 48);    -- External interrupt Enable
-    constant MSR_PR  : integer := (63 - 49);    -- PRoblem state
-    constant MSR_FP  : integer := (63 - 50);    -- FP available
-    constant MSR_ME  : integer := (63 - 51);    -- Machine Check int enable
-    constant MSR_IR  : integer := (63 - 58);    -- Instruction Relocation
-    constant MSR_DR  : integer := (63 - 59);    -- Data Relocation
-    constant MSR_PMM : integer := (63 - 60);    -- Performance Monitor Mark
-    constant MSR_RI  : integer := (63 - 62);    -- Recoverable Interrupt
-    constant MSR_LE  : integer := (63 - 63);    -- Little Endian
-"""
+
+# Listed in V3.0B Book III Chap 4.2.1
+# MSR bit numbers
+MSR_SF  = (63 - 0)     # Sixty-Four bit mode
+MSR_HV  = (63 - 3)     # Hypervisor state
+MSR_S   = (63 - 41)    # Secure state
+MSR_EE  = (63 - 48)    # External interrupt Enable
+MSR_PR  = (63 - 49)    # PRoblem state
+MSR_FP  = (63 - 50)    # FP available
+MSR_ME  = (63 - 51)    # Machine Check int enable
+MSR_IR  = (63 - 58)    # Instruction Relocation
+MSR_DR  = (63 - 59)    # Data Relocation
+MSR_PMM = (63 - 60)    # Performance Monitor Mark
+MSR_RI  = (63 - 62)    # Recoverable Interrupt
+MSR_LE  = (63 - 63)    # Little Endian
+
 
 class TrapMainStage(PipeModBase):
     def __init__(self, pspec):
@@ -50,7 +48,10 @@ class TrapMainStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
-        a_i, b_i = self.i.a, self.i.b
+
+        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
+        o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
+        srr0_o, srr1_o = self.o.srr0, self.o.srr1
 
         # take copy of D-Form TO field
         i_fields = self.fields.FormD
@@ -139,6 +140,13 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_EE) <= '1';
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
+                """
+                """
+                L = self.fields.FormXL.L[0:-1]
+                if e_in.insn(16) = '1' then  <-- this is X-form field "L".
+                -- just update EE and RI
+                ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
+                ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
                 """
                 L = self.fields.FormX.L[0:-1]
                 with m.If(L):
