@@ -1,12 +1,13 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, Cat
 from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
+from soc.decoder.isa.caller import special_sprs
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.isa.all import ISA
-from soc.decoder.power_enums import Function
+from soc.decoder.power_enums import Function, XER_bits
 
 
 from soc.simple.core import NonProductionCore
@@ -148,6 +149,24 @@ class TestRunner(FHDLTestCase):
                 # set up INT regfile, "direct" write from sim data
                 for i in range(32):
                     yield core.regs.int.regs[i].reg.eq(test.regs[i])
+
+                # set up XER
+                xregs = core.regs.xer
+                print ("sprs", test.sprs)
+                if special_sprs['XER'] in test.sprs:
+                    xer = test.sprs[special_sprs['XER']]
+                    sobit = xer[XER_bits['SO']].asint()
+                    yield xregs.regs[xregs.SO].reg.eq(sobit)
+                    cabit = xer[XER_bits['CA']].asint()
+                    ca32bit = xer[XER_bits['CA32']].asint()
+                    yield xregs.regs[xregs.CA].reg.eq(Cat(cabit, ca32bit))
+                    ovbit = xer[XER_bits['OV']].asint()
+                    ov32bit = xer[XER_bits['OV32']].asint()
+                    yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
+                else:
+                    yield xregs.regs[xregs.SO].reg.eq(0)
+                    yield xregs.regs[xregs.OV].reg.eq(0)
+                    yield xregs.regs[xregs.CA].reg.eq(0)
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):

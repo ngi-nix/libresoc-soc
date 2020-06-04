@@ -102,7 +102,7 @@ class XERRegs(VirtualRegPort):
     CA=1 # CA and CA32
     OV=2 # OV and OV32
     def __init__(self):
-        super().__init__(6, 2)
+        super().__init__(6, 3)
         self.w_ports = [self.full_wr, # 6-bit wide (masked, 3-en lines)
                         self.write_port("dest1"),
                         self.write_port("dest2"),
