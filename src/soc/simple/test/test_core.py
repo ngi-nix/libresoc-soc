@@ -230,9 +230,9 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(CRTestCase.test_data))
-    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    #suite.addTest(TestRunner(LogicalTestCase.test_data))
-    #suite.addTest(TestRunner(ALUTestCase.test_data))
+    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    suite.addTest(TestRunner(LogicalTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

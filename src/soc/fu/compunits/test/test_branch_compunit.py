@@ -3,7 +3,6 @@ from soc.decoder.power_enums import (XER_bits, Function, spr_dict, SPR)
 
 # XXX bad practice: use of global variables
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase, get_cu_inputs
-from soc.fu.branch.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -59,7 +58,7 @@ class BranchTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(BranchTestRunner(test_data))
+    suite.addTest(BranchTestRunner(BranchTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

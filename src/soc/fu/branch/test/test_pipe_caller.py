@@ -47,8 +47,6 @@ def get_rec_width(rec):
 # massively. Before, it took around 1 minute on my computer, now it
 # takes around 3 seconds
 
-test_data = []
-
 
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to BranchFunctionUnit input regspec
@@ -83,6 +81,7 @@ def get_cu_inputs(dec2, sim):
 
 
 class BranchTestCase(FHDLTestCase):
+    test_data = []
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -91,7 +90,7 @@ class BranchTestCase(FHDLTestCase):
                         initial_sprs=None, initial_cr=0):
         tc = TestCase(prog, self.test_name,
                       initial_regs, initial_sprs, initial_cr)
-        test_data.append(tc)
+        self.test_data.append(tc)
 
     def test_unconditional(self):
         choices = ["b", "ba", "bl", "bla"]
@@ -261,7 +260,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(test_data))
+    suite.addTest(TestRunner(BranchTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
