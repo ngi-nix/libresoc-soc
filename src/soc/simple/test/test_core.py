@@ -21,59 +21,6 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 
 
-def set_cu_input(cu, idx, data):
-    rdop = cu.get_in_name(idx)
-    yield cu.src_i[idx].eq(data)
-    while True:
-        rd_rel_o = yield cu.rd.rel[idx]
-        print ("rd_rel %d wait HI" % idx, rd_rel_o, rdop, hex(data))
-        if rd_rel_o:
-            break
-        yield
-    yield cu.rd.go[idx].eq(1)
-    while True:
-        yield
-        rd_rel_o = yield cu.rd.rel[idx]
-        if rd_rel_o:
-            break
-        print ("rd_rel %d wait HI" % idx, rd_rel_o)
-        yield
-    yield cu.rd.go[idx].eq(0)
-    yield cu.src_i[idx].eq(0)
-
-
-def get_cu_output(cu, idx, code):
-    wrmask = yield cu.wrmask
-    wrop = cu.get_out_name(idx)
-    wrok = cu.get_out(idx)
-    fname = find_ok(wrok.fields)
-    wrok = yield getattr(wrok, fname)
-    print ("wr_rel mask", repr(code), idx, wrop, bin(wrmask), fname, wrok)
-    assert wrmask & (1<<idx), \
-            "get_cu_output '%s': mask bit %d not set\n" \
-            "write-operand '%s' Data.ok likely not set (%s)" \
-            % (code, idx, wrop, hex(wrok))
-    while True:
-        wr_relall_o = yield cu.wr.rel
-        wr_rel_o = yield cu.wr.rel[idx]
-        print ("wr_rel %d wait" % idx, hex(wr_relall_o), wr_rel_o)
-        if wr_rel_o:
-            break
-        yield
-    yield cu.wr.go[idx].eq(1)
-    yield Settle()
-    result = yield cu.dest[idx]
-    yield
-    yield cu.wr.go[idx].eq(0)
-    print ("result", repr(code), idx, wrop, wrok, hex(result))
-    return result
-
-
-def set_cu_inputs(cu, inp):
-    for idx, data in inp.items():
-        yield from set_cu_input(cu, idx, data)
-
-
 def set_issue(core, dec2, sim):
     yield core.issue_i.eq(1)
     yield
@@ -93,27 +40,6 @@ def wait_for_busy_clear(cu):
             break
         print("busy",)
         yield
-
-
-def get_cu_outputs(cu, code):
-    res = {}
-    for i in range(cu.n_dst):
-        wr_rel_o = yield cu.wr.rel[i]
-        if wr_rel_o:
-            result = yield from get_cu_output(cu, i, code)
-            wrop = cu.get_out_name(i)
-            print ("output", i, wrop, hex(result))
-            res[wrop] = result
-    return res
-
-
-def get_inp_indexed(cu, inp):
-    res = {}
-    for i in range(cu.n_src):
-        wrop = cu.get_in_name(i)
-        if wrop in inp:
-            res[i] = inp[wrop]
-    return res
 
 
 class TestRunner(FHDLTestCase):
