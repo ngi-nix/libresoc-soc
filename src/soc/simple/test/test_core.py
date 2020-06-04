@@ -12,8 +12,9 @@ from soc.decoder.power_enums import Function
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
 
-# test with ALU data
-from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
+# test with ALU data and Logical data
+#from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
+from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, test_data
 
 
 def set_cu_input(cu, idx, data):
@@ -106,9 +107,9 @@ def get_inp_indexed(cu, inp):
 
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, test_data):
+    def __init__(self, tst_data):
         super().__init__("run_all")
-        self.test_data = test_data
+        self.test_data = tst_data
 
     def run_all(self):
         m = Module()
