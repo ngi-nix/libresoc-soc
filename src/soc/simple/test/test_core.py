@@ -147,6 +147,20 @@ class TestRunner(FHDLTestCase):
                         self.assertEqual(simregval, intregs[i],
                             "int reg %d not equal %s" % (i, repr(code)))
 
+                    # CRs
+                    crregs = []
+                    for i in range(8):
+                        rval = yield core.regs.cr.regs[i].reg
+                        crregs.append(rval)
+                    print ("cr regs", list(map(hex, crregs)))
+                    print ("sim cr reg", hex(cr))
+                    for i in range(8):
+                        rval = crregs[i]
+                        cri = sim.crl[7-i].get_range().value
+                        print ("cr reg", i, hex(cri), i, hex(rval))
+                        self.assertEqual(cri, rval,
+                            "cr reg %d not equal %s" % (i, repr(code)))
+
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
                             traces=[]):
