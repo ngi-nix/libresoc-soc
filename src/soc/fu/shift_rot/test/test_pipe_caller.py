@@ -84,7 +84,7 @@ def set_alu_inputs(alu, dec2, sim):
         print ("extra inputs: CA/32", bin(inp['xer_ca']))
     else:
         yield alu.p.data_i.xer_ca.eq(0)
-    
+
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -104,17 +104,16 @@ def set_alu_inputs(alu, dec2, sim):
 # massively. Before, it took around 1 minute on my computer, now it
 # takes around 3 seconds
 
-test_data = []
-
 
 class ShiftRotTestCase(FHDLTestCase):
+    test_data = []
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
+
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        test_data.append(tc)
-
+        self.test_data.append(tc)
 
     def test_shift(self):
         insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
@@ -126,7 +125,6 @@ class ShiftRotTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, 63)
             print(initial_regs[1], initial_regs[2])
             self.run_tst_program(Program(lst), initial_regs)
-
 
     def test_shift_arith(self):
         lst = ["sraw 3, 1, 2"]
@@ -249,7 +247,7 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield 
+                    yield
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
@@ -286,7 +284,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(test_data))
+    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

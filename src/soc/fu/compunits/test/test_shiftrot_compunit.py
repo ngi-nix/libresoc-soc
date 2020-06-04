@@ -4,7 +4,6 @@ from soc.decoder.power_enums import (XER_bits, Function)
 # XXX bad practice: use of global variables
 from soc.fu.shift_rot.test.test_pipe_caller import get_cu_inputs
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
-from soc.fu.shift_rot.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import ShiftRotFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -69,7 +68,7 @@ class ShiftRotTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(ShiftRotTestRunner(test_data))
+    suite.addTest(ShiftRotTestRunner(ShiftRotTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
