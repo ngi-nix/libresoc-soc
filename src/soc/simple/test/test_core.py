@@ -14,8 +14,8 @@ from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
 
 # test with ALU data and Logical data
-from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
-#from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, test_data
+from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase
+from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 
 
 def set_cu_input(cu, idx, data):
@@ -218,7 +218,8 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(test_data))
+    suite.addTest(TestRunner(LogicalTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
