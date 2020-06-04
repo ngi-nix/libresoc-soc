@@ -45,6 +45,8 @@ class NonProductionCore(Elaboratable):
         self.pdecode = pdecode = create_pdecode()
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
         self.ivalid_i = self.pdecode2.e.valid   # instruction is valid
+        self.issue_i = Signal(reset_less=True)
+        self.busy_o = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
@@ -69,6 +71,10 @@ class NonProductionCore(Elaboratable):
             comb += enable.eq(self.ivalid_i & (dec2.e.fn_unit & fnunit).bool())
             with m.If(enable):
                 comb += fu.oper_i.eq_from_execute1(dec2.e)
+                comb += fu.issue_i.eq(self.issue_i)
+                comb += self.busy_o.eq(fu.busy_o)
+                rdmask = dec2.rdflags(fu)
+                comb += fu.rdmaskn.eq(~rdmask)
             comb += fu_bitdict[funame].eq(enable)
 
         # dictionary of lists of regfile read ports
