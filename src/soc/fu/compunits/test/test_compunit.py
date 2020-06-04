@@ -3,17 +3,11 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, InternalOp)
-from soc.decoder.selectable_int import SelectableInt
-from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-from soc.fu.alu.test.test_pipe_caller import TestCase, ALUTestCase, test_data
 from soc.experiment.compalu_multi import find_ok # hack
-import random
 
 
 def set_cu_input(cu, idx, data):
