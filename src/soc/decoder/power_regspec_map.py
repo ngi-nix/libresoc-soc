@@ -56,14 +56,15 @@ def regspec_decode(e, regfile, name):
 
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
+        # *sigh*.  numbering inverted on part-CRs.  because POWER.
         if name == 'full_cr': # full CR
             return e.read_cr_whole, 0b11111111, 0b11111111
         if name == 'cr_a': # CR A
-            return e.read_cr1.ok, 1<<e.read_cr1.data, 1<<e.write_cr.data
+            return e.read_cr1.ok, 1<<(7-e.read_cr1.data), 1<<(7-e.write_cr.data)
         if name == 'cr_b': # CR B
-            return e.read_cr2.ok, 1<<e.read_cr2.data, None
+            return e.read_cr2.ok, 1<<(7-e.read_cr2.data), None
         if name == 'cr_c': # CR C
-            return e.read_cr3.ok, 1<<e.read_cr2.data, None
+            return e.read_cr3.ok, 1<<(7-e.read_cr2.data), None
 
     if regfile == 'XER':
         # XERRegs register numbering is *unary* encoded

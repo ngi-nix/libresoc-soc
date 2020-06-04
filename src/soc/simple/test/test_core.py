@@ -154,14 +154,9 @@ class TestRunner(FHDLTestCase):
 
                 # set up CR regfile, "direct" write across all CRs
                 cr = test.cr
-                # sigh.  Because POWER
-                cr = int('{:032b}'.format(test.cr)[::-1], 2)
                 print ("cr reg", hex(cr))
                 for i in range(8):
-                    j = i
                     cri = (cr>>(j*4)) & 0xf
-                    # sigh.  Because POWER
-                    cri = int('{:04b}'.format(cri)[::-1], 2)
                     print ("cr reg", hex(cri), i,
                             core.regs.cr.regs[i].reg.shape())
                     yield core.regs.cr.regs[i].reg.eq(cri)
