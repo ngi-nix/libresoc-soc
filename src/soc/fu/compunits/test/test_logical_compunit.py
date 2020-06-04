@@ -1,9 +1,7 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
-# XXX bad practice: use of global variables
 from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, get_cu_inputs
-from soc.fu.logical.test.test_pipe_caller import test_data
 
 from soc.fu.compunits.compunits import LogicalFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -66,7 +64,7 @@ class LogicalTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(LogicalTestRunner(test_data))
+    suite.addTest(LogicalTestRunner(LogicalTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
