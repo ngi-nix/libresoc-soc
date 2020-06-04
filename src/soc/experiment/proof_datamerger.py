@@ -5,7 +5,7 @@
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
 from nmigen.asserts import Assert, AnyConst, AnySeq, Assume, Cover
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 
 from soc.experiment.l0_cache import DataMerger

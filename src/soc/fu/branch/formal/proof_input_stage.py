@@ -3,7 +3,7 @@
 
 from nmigen import Module, Signal, Elaboratable, Mux
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 
 from soc.fu.alu.input_stage import ALUInputStage

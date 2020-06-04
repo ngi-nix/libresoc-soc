@@ -8,7 +8,7 @@ Links:
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, Array)
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 
 from soc.fu.cr.main_stage import CRMainStage

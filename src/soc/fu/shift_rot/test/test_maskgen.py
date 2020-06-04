@@ -1,6 +1,6 @@
 from nmigen import Signal, Module
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 from soc.fu.shift_rot.maskgen import MaskGen
 from soc.decoder.helpers import MASK

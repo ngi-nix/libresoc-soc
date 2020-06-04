@@ -1,6 +1,6 @@
 from nmigen import Module, Signal, Elaboratable, Cat, Repl
 from nmigen.asserts import Assert, AnyConst
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 
 from soc.decoder.power_decoder import create_pdecode, PowerOp
 from soc.decoder.power_enums import (In1Sel, In2Sel, In3Sel,

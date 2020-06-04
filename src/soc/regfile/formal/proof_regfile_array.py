@@ -4,7 +4,7 @@ from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed, ResetSignal, Array)
 from nmigen.asserts import (Assert, AnySeq, Assume, Cover, Initial,
                             Rose, Fell, Stable, Past)
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 

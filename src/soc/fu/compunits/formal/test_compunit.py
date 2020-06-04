@@ -1,6 +1,6 @@
 from nmigen import Signal, Module
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 from soc.fu.compunits.compunits import FunctionUnitBaseSingle
 from soc.experiment.alu_hier import DummyALU
