@@ -90,6 +90,11 @@ class NonProductionCore(Elaboratable):
         return fu_bitdict
 
     def connect_rdports(self, m, fu_bitdict):
+    """connect read ports
+
+    orders the read regspecs into a dict-of-dicts, by regfile, by regport name,
+    then connects all FUs that want that regport by way of a PriorityPicker.
+    """
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
         regs = self.regs
@@ -149,6 +154,15 @@ class NonProductionCore(Elaboratable):
                     comb += src.eq(rport.data_o) # all FUs connect to same port
 
     def connect_wrports(self, m, fu_bitdict):
+    """connect write ports
+
+    orders the write regspecs into a dict-of-dicts, by regfile, by regport name,
+    then connects all FUs that want that regport by way of a PriorityPicker.
+
+    note that the write-port wen, write-port data, and go_wr_i all need to
+    be on the exact same clock cycle.  as there is a combinatorial loop bug
+    at the moment, these all use sync.
+    """
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
         regs = self.regs
