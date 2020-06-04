@@ -156,8 +156,7 @@ class TrapMainStage(PipeModBase):
 
                 with m.Else():
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
-                        # TODO a_i not a
-                        comb += msr_o.data[stt:end].eq(a[stt:end])
+                        comb += msr_o.data[stt:end].eq(a_i[stt:end])
                     with m.If(a[MSR_PR]):
                             msr_o[MSR_EE].eq(1)
                             msr_o[MSR_IR].eq(1)
@@ -191,12 +190,10 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                # TODO a_i not a, from the convenience variables
-                comb += nia_o.data.eq(br_ext(a[63:1] & 0))
+                comb += nia_o.data.eq(br_ext(a_i[2:]))
                 comb += nia_o.ok.eq(1)
                 for stt, end in [(0,16), (22, 27), (31, 64)]:
-                    # TODO b_i not a, look above, the VHDL uses b_in
-                    comb += msr_o.data[stt:end].eq(a[stt:end])
+                    comb += msr_o.data[stt:end].eq(b_i[stt:end])
                 with m.If(a[MSR_PR]):
                         msr_o[MSR_EE].eq(1)
                         msr_o[MSR_IR].eq(1)
