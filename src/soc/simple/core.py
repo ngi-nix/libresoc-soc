@@ -164,6 +164,8 @@ class NonProductionCore(Elaboratable):
                 # will the write-enable be activated
                 with m.If(wrpick.en_o):
                     sync += wport.wen.eq(write)
+                with m.Else():
+                    sync += wport.wen.eq(0)
 
                 # connect up the FU req/go signals and the reg-read to the FU
                 # these are arbitrated by Data.ok signals
