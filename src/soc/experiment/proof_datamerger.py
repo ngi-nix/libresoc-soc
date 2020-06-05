@@ -29,8 +29,8 @@ class Driver(Elaboratable):
 
         # assign anyseq to inputs
         for j in range(dut.array_size):
-            comb += dut.addr_array_i[j].eq(AnySeq(dut.array_size))
-            comb += dut.data_i[j].eq(AnySeq(16+128))
+            comb += dut.addr_array_i[j].eq(AnyConst(dut.array_size))
+            comb += dut.data_i[j].eq(AnyConst(16+128))
 
         allzero = 1
         for j in range(dut.array_size):
@@ -42,10 +42,10 @@ class Driver(Elaboratable):
         with m.Else():
             comb += Assume(dut.data_o != 0) # at least one output bit is set
             for j in range(dut.array_size):
-                for b in range(0,8):
+                for b in range(8):
                     with m.If(dut.data_o.en[b]):
                         comb += Assume(dut.data_i[j].en[b])
-                for b in range(0,128):
+                for b in range(128):
                     with m.If(dut.data_o.data[b]):
                         comb += Assume(dut.data_i[j].data[b])
 
