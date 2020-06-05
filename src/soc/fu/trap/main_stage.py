@@ -214,10 +214,10 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
-                comb += nia_o.data.eq(br_ext(a_i[2:]))
+                comb += nia_o.data.eq(br_ext(srr0_i[2:]))
                 comb += nia_o.ok.eq(1)
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
-                with m.If(a[MSR_PR]):
+                with m.If(srr1_i[MSR_PR]):
                         msr_o[MSR_EE].eq(1)
                         msr_o[MSR_IR].eq(1)
                         msr_o[MSR_DR].eq(1)
