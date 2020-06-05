@@ -166,7 +166,7 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
-                L = self.fields.FormX.L[0:-1]
+                L = self.fields.FormX.L[0:-1] # X-Form field L
                 with m.If(L):
                     # just update EE and RI
                     comb += msr_o.data[MSR_EE].eq(a_i[MSR_EE])
@@ -176,10 +176,10 @@ class TrapMainStage(PipeModBase):
                     # and 63 (LE) (IBM bit numbering)
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += msr_o.data[stt:end].eq(a_i[stt:end])
-                    with m.If(b_in[MSR_PR]):
-                            msr_o.data[MSR_EE].eq(1)
-                            msr_o.data[MSR_IR].eq(1)
-                            msr_o.data[MSR_DR].eq(1)
+                    with m.If(a_i[MSR_PR]):
+                        msr_o.data[MSR_EE].eq(1)
+                        msr_o.data[MSR_IR].eq(1)
+                        msr_o.data[MSR_DR].eq(1)
                 comb += msr_o.ok.eq(1)
 
             # move from MSR
