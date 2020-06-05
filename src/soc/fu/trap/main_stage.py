@@ -147,7 +147,7 @@ class TrapMainStage(PipeModBase):
                     comb += srr0_o.data.eq(cia_i)   # old PC
                     comb += srr0_o.ok.eq(1)
 
-            # move to SPR
+            # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
                 # TODO: some of the bits need zeroing?
                 """
@@ -166,19 +166,14 @@ class TrapMainStage(PipeModBase):
                         ctrl_tmp.msr(MSR_IR) <= '1';
                         ctrl_tmp.msr(MSR_DR) <= '1';
                 """
-                """
-                L = self.fields.FormXL.L[0:-1]
-                if e_in.insn(16) = '1' then  <-- this is X-form field "L".
-                -- just update EE and RI
-                ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
-                ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
-                """
                 L = self.fields.FormX.L[0:-1]
                 with m.If(L):
+                    # just update EE and RI
                     comb += msr_o.data[MSR_EE].eq(a_i[MSR_EE])
                     comb += msr_o.data[MSR_RI].eq(a_i[MSR_RI])
-
                 with m.Else():
+                    # Architecture says to leave out bits 3 (HV), 51 (ME)
+                    # and 63 (LE) (IBM bit numbering)
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += msr_o.data[stt:end].eq(a_i[stt:end])
                     with m.If(b_in[MSR_PR]):
@@ -187,7 +182,7 @@ class TrapMainStage(PipeModBase):
                             msr_o.data[MSR_DR].eq(1)
                 comb += msr_o.ok.eq(1)
 
-            # move from SPR
+            # move from MSR
             with m.Case(InternalOp.OP_MFMSR):
                 # TODO: some of the bits need zeroing?  apparently not
                 """
