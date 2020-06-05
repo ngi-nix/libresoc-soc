@@ -64,7 +64,7 @@ def regspec_decode(e, regfile, name):
         if name == 'cr_b': # CR B
             return e.read_cr2.ok, 1<<(7-e.read_cr2.data), None
         if name == 'cr_c': # CR C
-            return e.read_cr3.ok, 1<<(7-e.read_cr2.data), None
+            return e.read_cr3.ok, 1<<(7-e.read_cr3.data), None
 
     if regfile == 'XER':
         # XERRegs register numbering is *unary* encoded
