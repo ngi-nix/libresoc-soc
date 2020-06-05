@@ -128,12 +128,23 @@ class DualPortSplitter(Elaboratable):
 
     once that is done each pair of ports may be wired directly
     to the dual ports of L0CacheBuffer
+
+    The split is carried out so that, regardless of alignment or
+    mis-alignment, outgoing PortInterface[0] takes bit 4 == 0
+    of the address, whilst outgoing PortInterface[1] takes
+    bit 4 == 1.
+
+    PortInterface *may* need to be changed so that the length is
+    a binary number (accepting values 1-16).
     """
     def __init__(self):
         self.outp = []
         self.outp[0] = PortInterface(name="outp_0")
         self.outp[1] = PortInterface(name="outp_1")
         self.inp     = PortInterface(name="inp")
+
+    def elaborate(self, platform):
+        splitter = LDSTSplitter(64, 48, 4)
 
 
 class DataMergerRecord(Record):
