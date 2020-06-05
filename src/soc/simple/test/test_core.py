@@ -81,9 +81,12 @@ class TestRunner(FHDLTestCase):
 
                 # set up CR regfile, "direct" write across all CRs
                 cr = test.cr
+                #cr = int('{:32b}'.format(cr)[::-1], 2)
                 print ("cr reg", hex(cr))
                 for i in range(8):
+                    #j = 7-i
                     cri = (cr>>(i*4)) & 0xf
+                    #cri = int('{:04b}'.format(cri)[::-1], 2)
                     print ("cr reg", hex(cri), i,
                             core.regs.cr.regs[i].reg.shape())
                     yield core.regs.cr.regs[i].reg.eq(cri)
@@ -171,10 +174,10 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(CRTestCase.test_data))
-    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    suite.addTest(TestRunner(LogicalTestCase.test_data))
-    suite.addTest(TestRunner(ALUTestCase.test_data))
-    suite.addTest(TestRunner(BranchTestCase.test_data))
+    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    #suite.addTest(TestRunner(LogicalTestCase.test_data))
+    #suite.addTest(TestRunner(ALUTestCase.test_data))
+    #suite.addTest(TestRunner(BranchTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
