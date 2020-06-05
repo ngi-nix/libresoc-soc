@@ -175,16 +175,16 @@ class TrapMainStage(PipeModBase):
                 """
                 L = self.fields.FormX.L[0:-1]
                 with m.If(L):
-                    comb += msr_o[MSR_EE].eq(msr_i[MSR_EE])
-                    comb += msr_o[MSR_RI].eq(msr_i[MSR_RI])
+                    comb += msr_o.data[MSR_EE].eq(a_i[MSR_EE])
+                    comb += msr_o.data[MSR_RI].eq(a_i[MSR_RI])
 
                 with m.Else():
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += msr_o.data[stt:end].eq(a_i[stt:end])
-                    with m.If(a[MSR_PR]):
-                            msr_o[MSR_EE].eq(1)
-                            msr_o[MSR_IR].eq(1)
-                            msr_o[MSR_DR].eq(1)
+                    with m.If(b_in[MSR_PR]):
+                            msr_o.data[MSR_EE].eq(1)
+                            msr_o.data[MSR_IR].eq(1)
+                            msr_o.data[MSR_DR].eq(1)
                 comb += msr_o.ok.eq(1)
 
             # move from SPR
