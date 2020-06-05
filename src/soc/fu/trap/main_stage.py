@@ -128,47 +128,26 @@ class TrapMainStage(PipeModBase):
         with m.Switch(op):
             #### trap ####
             with m.Case(InternalOp.OP_TRAP):
-                """
-                -- trap instructions (tw, twi, td, tdi)
-                if or (trapval and insn_to(e_in.insn)) = '1' then
-                    -- generate trap-type program interrupt
-                    exception := '1';
-                    ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#700#, 64));
-                    ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
-                    -- set bit 46 to say trap occurred
-                    ctrl_tmp.srr1(63 - 46) <= '1';
-                """
+                # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
+                    # generate trap-type program interrupt
+
                     # change the PC to trap address 0x700
                     comb += nia_o.data.eq(0x700)         # trap address
                     comb += nia_o.ok.eq(1)
+
                     # take a copy of the current MSR in SRR1
                     comb += msr_copy(srr1_o.data, msr_i)   # old MSR
+                    # set bit 46 to say trap occurred
                     comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
                     comb += srr1_o.ok.eq(1)
+
                     # take a copy of the current PC in SRR0
                     comb += srr0_o.data.eq(cia_i)   # old PC
                     comb += srr0_o.ok.eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
-                # TODO: some of the bits need zeroing?
-                """
-                if e_in.insn(16) = '1' then  <-- this is X-form field "L".
-                    -- just update EE and RI
-                    ctrl_tmp.msr(MSR_EE) <= c_in(MSR_EE);
-                    ctrl_tmp.msr(MSR_RI) <= c_in(MSR_RI);
-                else
-                    -- Architecture says to leave out bits 3 (HV), 51 (ME)
-                    -- and 63 (LE) (IBM bit numbering)
-                    ctrl_tmp.msr(63 downto 61) <= c_in(63 downto 61);
-                    ctrl_tmp.msr(59 downto 13) <= c_in(59 downto 13);
-                    ctrl_tmp.msr(11 downto 1)  <= c_in(11 downto 1);
-                    if c_in(MSR_PR) = '1' then
-                        ctrl_tmp.msr(MSR_EE) <= '1';
-                        ctrl_tmp.msr(MSR_IR) <= '1';
-                        ctrl_tmp.msr(MSR_DR) <= '1';
-                """
                 L = self.fields.FormX.L[0:-1] # X-Form field L
                 with m.If(L):
                     # just update EE and RI
@@ -188,30 +167,13 @@ class TrapMainStage(PipeModBase):
             # move from MSR
             with m.Case(InternalOp.OP_MFMSR):
                 # TODO: some of the bits need zeroing?  apparently not
-                """
-                    when OP_MFMSR =>
-                        result := ctrl.msr;
-                        result_en := '1';
-                """
                 comb += o.data.eq(msr_i)
                 comb += o.ok.eq(1)
 
             with m.Case(InternalOp.OP_RFID):
-                """
                 # XXX f_out.virt_mode <= b_in(MSR_IR) or b_in(MSR_PR);
                 # XXX f_out.priv_mode <= not b_in(MSR_PR);
-                f_out.redirect_nia <= a_in(63 downto 2) & "00"; -- srr0
-                -- Can't use msr_copy here because the partial function MSR
-                -- bits should be left unchanged, not zeroed.
-                ctrl_tmp.msr(63 downto 31) <= b_in(63 downto 31);
-                ctrl_tmp.msr(26 downto 22) <= b_in(26 downto 22);
-                ctrl_tmp.msr(15 downto 0)  <= b_in(15 downto 0);
-                if b_in(MSR_PR) = '1' then
-                    ctrl_tmp.msr(MSR_EE) <= '1';
-                    ctrl_tmp.msr(MSR_IR) <= '1';
-                    ctrl_tmp.msr(MSR_DR) <= '1';
-                end if;
-                """
+
                 # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
                 comb += nia_o.ok.eq(1)
@@ -224,12 +186,9 @@ class TrapMainStage(PipeModBase):
                 comb += msr_o.ok.eq(1)
 
             with m.Case(InternalOp.OP_SC):
-                """
                 # TODO: scv must generate illegal instruction.  this is
                 # the decoder's job, not ours, here.
-                ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
-                ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
-                """
+
                 # jump to the trap address
                 comb += nia_o.eq(0xC00) # trap address
                 comb += nia_o.ok.eq(1)
