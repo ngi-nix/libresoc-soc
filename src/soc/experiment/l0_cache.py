@@ -113,7 +113,7 @@ class PortInterface(RecordObject):
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
-# TODO:
+# TODO: elaborate function
 
 
 class DualPortSplitter(Elaboratable):
@@ -129,7 +129,11 @@ class DualPortSplitter(Elaboratable):
     once that is done each pair of ports may be wired directly
     to the dual ports of L0CacheBuffer
     """
-    pass
+    def __init__(self):
+        self.outp = []
+        self.outp[0] = PortInterface(name="outp_0")
+        self.outp[1] = PortInterface(name="outp_1")
+        self.inp     = PortInterface(name="inp")
 
 
 class DataMergerRecord(Record):
