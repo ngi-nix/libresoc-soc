@@ -220,6 +220,7 @@ class DecodeOut(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
 
         # select Register out field
         with m.Switch(self.sel_in):

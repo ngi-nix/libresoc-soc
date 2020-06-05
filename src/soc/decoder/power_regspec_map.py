@@ -85,8 +85,8 @@ def regspec_decode(e, regfile, name):
         CTR = 1<<FastRegs.CTR
         LR = 1<<FastRegs.LR
         TAR = 1<<FastRegs.TAR
+        SRR0 = 1<<FastRegs.SRR0
         SRR1 = 1<<FastRegs.SRR1
-        SRR2 = 1<<FastRegs.SRR2
         if name in ['cia', 'nia']:
             return Const(1), PC, PC # TODO: detect read-conditions
         if name == 'msr':

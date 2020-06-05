@@ -58,8 +58,8 @@ class FastRegs(RegFileArray):
     CTR = 2
     LR = 3
     TAR = 4
-    SRR1 = 5
-    SRR2 = 6
+    SRR0 = 5
+    SRR1 = 6
     def __init__(self):
         super().__init__(64, 8)
         self.w_ports = [self.write_port("dest1"),
