@@ -211,6 +211,8 @@ class TrapMainStage(PipeModBase):
                 comb += nia_o.ok.eq(1)
                 comb += srr1_o.data.eq(msr_i)
                 comb += srr1_o.ok.eq(1)
+                comb += srr0_o.data.eq(cia_i+4) # addr to begin from on return
+                comb += srr0_o.ok.eq(1)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
