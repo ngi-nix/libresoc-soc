@@ -32,6 +32,30 @@ MSR_RI  = (63 - 62)    # Recoverable Interrupt
 MSR_LE  = (63 - 63)    # Little Endian
 
 
+def msr_copy(msr_o, msr_i, zero_me=True):
+    """
+    -- ISA says this:
+    --  Defined MSR bits are classified as either full func-
+    --  tion or partial function. Full function MSR bits are
+    --  saved in SRR1 or HSRR1 when an interrupt other
+    --  than a System Call Vectored interrupt occurs and
+    --  restored by rfscv, rfid, or hrfid, while partial func-
+    --  tion MSR bits are not saved or restored.
+    --  Full function MSR bits lie in the range 0:32, 37:41, and
+    --  48:63, and partial function MSR bits lie in the range
+    --  33:36 and 42:47. (Note this is IBM bit numbering).
+    msr_out := (others => '0');
+    msr_out(63 downto 31) := msr(63 downto 31);
+    msr_out(26 downto 22) := msr(26 downto 22);
+    msr_out(15 downto 0)  := msr(15 downto 0);
+    """
+    l = []
+    if zero_me:
+        l.append(msr_o.eq(0))
+    for stt, end in [(0,16), (22, 27), (31, 64)]:
+        l.append(msr_o[stt:end].eq(msr_i[stt:end]))
+    return l
+
 class TrapMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
@@ -117,7 +141,7 @@ class TrapMainStage(PipeModBase):
                 with m.If(should_trap):
                     comb += nia_o.data.eq(0x700)         # trap address
                     comb += nia_o.ok.eq(1)
-                    comb += srr1_o.data.eq(msr_i)   # old MSR
+                    comb += msr_copy(srr1_o.data, msr_i)   # old MSR
                     comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
                     comb += srr1_o.ok.eq(1)
                     comb += srr0_o.data.eq(cia_i)   # old PC
@@ -192,8 +216,7 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += nia_o.data.eq(br_ext(a_i[2:]))
                 comb += nia_o.ok.eq(1)
-                for stt, end in [(0,16), (22, 27), (31, 64)]:
-                    comb += msr_o.data[stt:end].eq(b_i[stt:end])
+                comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
                 with m.If(a[MSR_PR]):
                         msr_o[MSR_EE].eq(1)
                         msr_o[MSR_IR].eq(1)
@@ -209,7 +232,7 @@ class TrapMainStage(PipeModBase):
                 """
                 comb += nia_o.eq(0xC00) # trap address
                 comb += nia_o.ok.eq(1)
-                comb += srr1_o.data.eq(msr_i)
+                comb += msr_copy(srr1_o.data, msr_i) # old msr
                 comb += srr1_o.ok.eq(1)
                 comb += srr0_o.data.eq(cia_i+4) # addr to begin from on return
                 comb += srr0_o.ok.eq(1)
