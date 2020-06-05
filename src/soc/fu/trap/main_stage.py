@@ -209,8 +209,10 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.msr(MSR_DR) <= '1';
                 end if;
                 """
+                # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
                 comb += nia_o.ok.eq(1)
+                # MSR was in srr1
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
                 with m.If(srr1_i[MSR_PR]):
                         msr_o[MSR_EE].eq(1)
@@ -225,10 +227,13 @@ class TrapMainStage(PipeModBase):
                 ctrl_tmp.irq_nia <= std_logic_vector(to_unsigned(16#C00#, 64));
                 ctrl_tmp.srr1 <= msr_copy(ctrl.msr);
                 """
+                # jump to the trap address
                 comb += nia_o.eq(0xC00) # trap address
                 comb += nia_o.ok.eq(1)
-                comb += msr_copy(srr1_o.data, msr_i) # old msr
+                # keep a copy of the MSR in SRR1
+                comb += msr_copy(srr1_o.data, msr_i)
                 comb += srr1_o.ok.eq(1)
+                # and store the (next-after-return) PC in SRR0
                 comb += srr0_o.data.eq(cia_i+4) # addr to begin from on return
                 comb += srr0_o.ok.eq(1)
 
