@@ -554,9 +554,9 @@ def data_merger_merge(dut):
 def test_l0_cache():
 
     dut = TstL0CacheBuffer()
-    vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_basic_l0_cache.il", "w") as f:
-        f.write(vl)
+    #vl = rtlil.convert(dut, ports=dut.ports())
+    #with open("test_basic_l0_cache.il", "w") as f:
+    #    f.write(vl)
 
     run_simulation(dut, l0_cache_ldst(dut),
                    vcd_name='test_l0_cache_basic.vcd')
