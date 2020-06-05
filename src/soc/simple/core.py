@@ -37,6 +37,17 @@ import operator
 def ortreereduce(tree, attr="data_o"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
+# helper function to place full regs declarations first
+def sort_fuspecs(fuspecs):
+    res = []
+    for (regname, fspec) in fuspecs.items():
+        if regname.startswith("full"):
+            res.append((regname, fspec))
+    for (regname, fspec) in fuspecs.items():
+        if not regname.startswith("full"):
+            res.append((regname, fspec))
+    return enumerate(res)
+
 
 class NonProductionCore(Elaboratable):
     def __init__(self):
@@ -111,7 +122,8 @@ class NonProductionCore(Elaboratable):
             rdpickers[regfile] = {}
 
             # for each named regfile port, connect up all FUs to that port
-            for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
+            for rpidx, (regname, fspec) in sort_fuspecs(fuspecs):
+                print ("connect rd", rpidx, regname, fspec)
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
                 name = "rdflag_%s_%s" % (regfile, regname)
@@ -119,14 +131,19 @@ class NonProductionCore(Elaboratable):
                 comb += rdflag.eq(rf)
 
                 # "munge" the regfile port index, due to full-port access
-                if regfile in ['XER', 'CA']:
+                if regfile == 'XER':
                     if regname.startswith('full'):
-                        rpidx = 0 # by convention, first port
+                        rpidx == 0 # by convention, first port
                     else:
                         rpidx += 1 # start indexing port 0 from 1
+                if regfile in 'CR':
+                    if regname.startswith('full'):
+                        assert rpidx == 0 # by convention, first port
+                    else:
+                        assert rpidx >= 1 # start indexing port 0 from 1
 
                 # select the required read port.  these are pre-defined sizes
-                print (regfile, regs.rf.keys())
+                print (rpidx, regfile, regs.rf.keys())
                 rport = regs.rf[regfile.lower()].r_ports[rpidx]
 
                 # create a priority picker to manage this port
@@ -177,16 +194,22 @@ class NonProductionCore(Elaboratable):
         for regfile, spec in byregfiles_wr.items():
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
-            for rpidx, (regname, fspec) in enumerate(fuspecs.items()):
+            for rpidx, (regname, fspec) in sort_fuspecs(fuspecs):
+                print ("connect wr", rpidx, regname, fspec)
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
 
                 # "munge" the regfile port index, due to full-port access
-                if regfile in ['XER', 'CA']:
+                if regfile == 'XER':
                     if regname.startswith('full'):
-                        rpidx = 0 # by convention, first port
+                        rpidx == 0 # by convention, first port
                     else:
                         rpidx += 1 # start indexing port 0 from 1
+                if regfile == 'CR':
+                    if regname.startswith('full'):
+                        assert rpidx == 0 # by convention, first port
+                    else:
+                        assert rpidx >= 1 # start indexing port 0 from 1
 
                 # select the required write port.  these are pre-defined sizes
                 print (regfile, regs.rf.keys())

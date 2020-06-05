@@ -82,7 +82,8 @@ class CRRegs(VirtualRegPort):
     def __init__(self):
         super().__init__(32, 8)
         self.w_ports = [self.full_wr, # 32-bit wide (masked, 8-en lines)
-                        self.write_port("dest")] # 4-bit wide, unary-indexed
+                        self.write_port("dest1"), # 4-bit wide, unary-indexed
+                        self.write_port("dest2")] # 4-bit wide, unary-indexed
         self.r_ports = [self.full_rd, # 32-bit wide (masked, 8-en lines)
                         self.read_port("src1"),
                         self.read_port("src2"),
