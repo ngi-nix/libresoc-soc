@@ -139,11 +139,14 @@ class TrapMainStage(PipeModBase):
                     ctrl_tmp.srr1(63 - 46) <= '1';
                 """
                 with m.If(should_trap):
+                    # change the PC to trap address 0x700
                     comb += nia_o.data.eq(0x700)         # trap address
                     comb += nia_o.ok.eq(1)
+                    # take a copy of the current MSR in SRR1
                     comb += msr_copy(srr1_o.data, msr_i)   # old MSR
                     comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
                     comb += srr1_o.ok.eq(1)
+                    # take a copy of the current PC in SRR0
                     comb += srr0_o.data.eq(cia_i)   # old PC
                     comb += srr0_o.ok.eq(1)
 
