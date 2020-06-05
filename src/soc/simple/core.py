@@ -46,7 +46,7 @@ def sort_fuspecs(fuspecs):
     for (regname, fspec) in fuspecs.items():
         if not regname.startswith("full"):
             res.append((regname, fspec))
-    return enumerate(res)
+    return res # enumerate(res)
 
 
 class NonProductionCore(Elaboratable):
@@ -122,25 +122,14 @@ class NonProductionCore(Elaboratable):
             rdpickers[regfile] = {}
 
             # for each named regfile port, connect up all FUs to that port
-            for rpidx, (regname, fspec) in sort_fuspecs(fuspecs):
-                print ("connect rd", rpidx, regname, fspec)
+            for (regname, fspec) in sort_fuspecs(fuspecs):
+                print ("connect rd", regname, fspec)
+                rpidx = regname
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
                 name = "rdflag_%s_%s" % (regfile, regname)
                 rdflag = Signal(name=name, reset_less=True)
                 comb += rdflag.eq(rf)
-
-                # "munge" the regfile port index, due to full-port access
-                if regfile == 'XER':
-                    if regname.startswith('full'):
-                        rpidx == 0 # by convention, first port
-                    else:
-                        rpidx += 1 # start indexing port 0 from 1
-                if regfile in 'CR':
-                    if regname.startswith('full'):
-                        assert rpidx == 0 # by convention, first port
-                    else:
-                        assert rpidx >= 1 # start indexing port 0 from 1
 
                 # select the required read port.  these are pre-defined sizes
                 print (rpidx, regfile, regs.rf.keys())
@@ -148,7 +137,7 @@ class NonProductionCore(Elaboratable):
 
                 # create a priority picker to manage this port
                 rdpickers[regfile][rpidx] = rdpick = PriorityPicker(len(fuspec))
-                setattr(m.submodules, "rdpick_%s_%d" % (regfile, rpidx), rdpick)
+                setattr(m.submodules, "rdpick_%s_%s" % (regfile, rpidx), rdpick)
 
                 # connect the regspec "reg select" number to this port
                 with m.If(rdpick.en_o):
@@ -194,22 +183,11 @@ class NonProductionCore(Elaboratable):
         for regfile, spec in byregfiles_wr.items():
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
-            for rpidx, (regname, fspec) in sort_fuspecs(fuspecs):
-                print ("connect wr", rpidx, regname, fspec)
+            for (regname, fspec) in sort_fuspecs(fuspecs):
+                print ("connect wr", regname, fspec)
+                rpidx = regname
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
-
-                # "munge" the regfile port index, due to full-port access
-                if regfile == 'XER':
-                    if regname.startswith('full'):
-                        rpidx == 0 # by convention, first port
-                    else:
-                        rpidx += 1 # start indexing port 0 from 1
-                if regfile == 'CR':
-                    if regname.startswith('full'):
-                        assert rpidx == 0 # by convention, first port
-                    else:
-                        assert rpidx >= 1 # start indexing port 0 from 1
 
                 # select the required write port.  these are pre-defined sizes
                 print (regfile, regs.rf.keys())
@@ -217,7 +195,7 @@ class NonProductionCore(Elaboratable):
 
                 # create a priority picker to manage this port
                 wrpickers[regfile][rpidx] = wrpick = PriorityPicker(len(fuspec))
-                setattr(m.submodules, "wrpick_%s_%d" % (regfile, rpidx), wrpick)
+                setattr(m.submodules, "wrpick_%s_%s" % (regfile, rpidx), wrpick)
 
                 # connect the regspec write "reg select" number to this port
                 # only if one FU actually requests (and is granted) the port

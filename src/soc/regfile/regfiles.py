@@ -9,6 +9,9 @@ Defines the following register files:
     * XER regfile   - XER.so, XER.ca/ca32, XER.ov/ov32
     * FAST regfile  - PC, MSR, CTR, LR, TAR, SRR1, SRR2
 
+Note: this should NOT have name conventions hard-coded (dedicated ports per
+regname).  However it is convenient for now.
+
 Links:
 
 * https://bugs.libre-soc.org/show_bug.cgi?id=345
@@ -35,11 +38,11 @@ class IntRegs(RegFileArray):
     """
     def __init__(self):
         super().__init__(64, 32)
-        self.w_ports = [self.write_port("dest1"),
-                        self.write_port("dest2")] # for now (LD/ST update)
-        self.r_ports = [self.read_port("src1"),
-                        self.read_port("src2"),
-                        self.read_port("src3")]
+        self.w_ports = {'o': self.write_port("dest1"),
+                        'o1': self.write_port("dest2")} # for now (LD/ST update)
+        self.r_ports = {'ra': self.read_port("src1"),
+                        'rb': self.read_port("src2"),
+                        'rc': self.read_port("src3")}
 
 
 # Fast SPRs Regfile
@@ -62,12 +65,14 @@ class FastRegs(RegFileArray):
     SRR1 = 6
     def __init__(self):
         super().__init__(64, 8)
-        self.w_ports = [self.write_port("dest1"),
-                        self.write_port("dest2"),
-                        self.write_port("dest3")]
-        self.r_ports = [self.read_port("src1"),
-                        self.read_port("src2"),
-                        self.read_port("src3")]
+        self.w_ports = {'nia': self.write_port("dest1"),
+                        'msr': self.write_port("dest2"),
+                        'spr1': self.write_port("dest3"),
+                        'spr2': self.write_port("dest3")}
+        self.r_ports = {'cia': self.read_port("src1"),
+                        'msr': self.read_port("src2"),
+                        'spr1': self.read_port("src3"),
+                        'spr2': self.read_port("src3")}
 
 
 # CR Regfile
@@ -81,13 +86,13 @@ class CRRegs(VirtualRegPort):
     """
     def __init__(self):
         super().__init__(32, 8)
-        self.w_ports = [self.full_wr, # 32-bit wide (masked, 8-en lines)
-                        self.write_port("dest1"), # 4-bit wide, unary-indexed
-                        self.write_port("dest2")] # 4-bit wide, unary-indexed
-        self.r_ports = [self.full_rd, # 32-bit wide (masked, 8-en lines)
-                        self.read_port("src1"),
-                        self.read_port("src2"),
-                        self.read_port("src3")]
+        self.w_ports = {'full_cr': self.full_wr, # 32-bit (masked, 8-en lines)
+                        'cr_a': self.write_port("dest1"), # 4-bit, unary-indexed
+                        'cr_b': self.write_port("dest2")} # 4-bit, unary-indexed
+        self.r_ports = {'full_cr': self.full_rd, # 32-bit (masked, 8-en lines)
+                        'cr_a': self.read_port("src1"),
+                        'cr_b': self.read_port("src2"),
+                        'cr_c': self.read_port("src3")}
 
 
 # XER Regfile
@@ -104,14 +109,14 @@ class XERRegs(VirtualRegPort):
     OV=2 # OV and OV32
     def __init__(self):
         super().__init__(6, 3)
-        self.w_ports = [self.full_wr, # 6-bit wide (masked, 3-en lines)
-                        self.write_port("dest1"),
-                        self.write_port("dest2"),
-                        self.write_port("dest3")]
-        self.r_ports = [self.full_rd, # 6-bit wide (masked, 3-en lines)
-                        self.read_port("src1"),
-                        self.read_port("src2"),
-                        self.read_port("src3")]
+        self.w_ports = {'full_xer': self.full_wr, # 6-bit (masked, 3-en lines)
+                        'xer_so': self.write_port("dest1"),
+                        'xer_ca': self.write_port("dest2"),
+                        'xer_ov': self.write_port("dest3")}
+        self.r_ports = {'full_xer': self.full_rd, # 6-bit (masked, 3-en lines)
+                        'xer_so': self.read_port("src1"),
+                        'xer_ca': self.read_port("src2"),
+                        'xer_ov': self.read_port("src3")}
 
 
 # SPR Regfile
@@ -126,8 +131,8 @@ class SPRRegs(RegFile):
     def __init__(self):
         n_sprs = len(SPR)
         super().__init__(64, n_sprs)
-        self.w_ports = [self.write_port(name="dest")]
-        self.r_ports = [self.read_port("src")]
+        self.w_ports = {'spr': self.write_port(name="dest")}
+        self.r_ports = {'spr': self.read_port("src")}
 
 
 # class containing all regfiles: int, cr, xer, fast, spr
