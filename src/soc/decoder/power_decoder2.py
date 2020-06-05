@@ -241,6 +241,12 @@ class DecodeOut(Elaboratable):
             with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
+
+        # RFID 1st spr (fast)
+        with m.If(op.internal_op == InternalOp.OP_RFID):
+                comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
+                comb += self.fast_out.ok.eq(1)
+
         return m
 
 
@@ -273,6 +279,11 @@ class DecodeOut2(Elaboratable):
                   (op.internal_op == InternalOp.OP_BCREG)):
             with m.If(self.lk): # "link" mode
                 comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
+                comb += self.fast_out.ok.eq(1)
+
+        # RFID 2nd spr (fast)
+        with m.If(op.internal_op == InternalOp.OP_RFID):
+                comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
                 comb += self.fast_out.ok.eq(1)
 
         return m
