@@ -71,9 +71,8 @@ class DecodeA(Elaboratable):
                 comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
                 comb += self.fast_out.ok.eq(1)
 
-        # MFSPR or MTSPR: move-from / move-to SPRs
-        with m.If((op.internal_op == InternalOp.OP_MFSPR) |
-                  (op.internal_op == InternalOp.OP_MTSPR)):
+        # MFSPR move from SPRs
+        with m.If(op.internal_op == InternalOp.OP_MFSPR):
             # XXX TODO: fast/slow SPR decoding and mapping
             comb += self.spr_out.data.eq(self.dec.SPR) # SPR field, XFX
             comb += self.spr_out.ok.eq(1)
@@ -233,6 +232,24 @@ class DecodeOut(Elaboratable):
             with m.Case(OutSel.SPR):
                 comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
                 comb += self.spr_out.ok.eq(1)
+                # TODO MTSPR 1st spr (fast)
+                with m.If(op.internal_op == InternalOp.OP_MTSPR):
+                    pass
+                    """
+                    sprn := decode_spr_num(f_in.insn);
+                    v.ispr1 := fast_spr_num(sprn);
+                    -- Make slow SPRs single issue
+                    if is_fast_spr(v.ispr1) = '0' then
+                        v.decode.sgl_pipe := '1';
+                        -- send MMU-related SPRs to loadstore1
+                        case sprn is
+                        when SPR_DAR | SPR_DSISR | SPR_PID | SPR_PRTBL =>
+                            v.decode.unit := LDST;
+                        when others =>
+                        end case;
+                    end if;
+                    """
+
 
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeA
         op = self.dec.op
@@ -244,8 +261,8 @@ class DecodeOut(Elaboratable):
 
         # RFID 1st spr (fast)
         with m.If(op.internal_op == InternalOp.OP_RFID):
-                comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
-                comb += self.fast_out.ok.eq(1)
+            comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += self.fast_out.ok.eq(1)
 
         return m
 
