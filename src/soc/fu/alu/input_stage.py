@@ -1,7 +1,7 @@
 # This stage is intended to adjust the input data before sending it to
-# the acutal ALU. Things like handling inverting the input, xer_ca
+# the actual ALU. Things like handling inverting the input, xer_ca
 # generation for subtraction, and handling of immediates should happen
-# here
+# in the base class (CommonInputStage.elaborate).
 from soc.fu.common_input_stage import CommonInputStage
 from soc.fu.alu.pipe_data import ALUInputData
 
