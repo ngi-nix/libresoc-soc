@@ -1,4 +1,4 @@
-from nmigen import Module, Signal
+from nmigen import Module, Signal, ResetSignal
 from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
@@ -151,8 +151,7 @@ class TestRunner(FHDLTestCase):
                     mem = l0.mem.mem
                     memlist = []
                     for i in range(mem.depth):
-                        memlist.append(sim.mem.ld(i*8, 8))
-                    mem.init = memlist
+                        yield mem._array[i].eq(sim.mem.ld(i*8, 8))
                     print (mem, mem.depth, mem.width)
                     print ("mem init", list(map(hex,memlist)))
 
