@@ -63,11 +63,16 @@ class LDSTTestCase(FHDLTestCase):
         self.test_data.append(tc)
 
     def test_1_load(self):
-        lst = ["lwz 3, 0(1)"]
+        lst = ["lhz 3, 0(1)"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x0004
         initial_regs[2] = 0x0008
-        initial_mem = {0x0004: (0x1234, 4)}
+        initial_mem = {0x0000: (0x12345678, 8),
+                       0x0008: (0x54321234, 8),
+                       0x0010: (0x87654321, 8),
+                       0x0018: (0xabcdef01, 8),
+                       0x0040: (0x22324252, 8),
+                       0x0048: (0x18283848, 8)}
         self.run_tst_program(Program(lst), initial_regs,
                              initial_mem=initial_mem)
 

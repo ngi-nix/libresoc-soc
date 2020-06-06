@@ -150,8 +150,10 @@ class TestRunner(FHDLTestCase):
                 if self.funit == Function.LDST:
                     mem = l0.mem.mem
                     memlist = []
-                    for i in range(mem.depth):
-                        yield mem._array[i].eq(sim.mem.ld(i*8, 8))
+                    for i in range(mem.depth//2):
+                        data = sim.mem.ld(i*16, 8)
+                        data1 = sim.mem.ld(i*16+8, 8)
+                        yield mem._array[i].eq(data | (data1<<32))
                     print (mem, mem.depth, mem.width)
                     print ("mem init", list(map(hex,memlist)))
 

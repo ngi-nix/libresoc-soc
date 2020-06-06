@@ -37,20 +37,20 @@ class Mem:
         self.word_log2 = math.ceil(math.log2(bytes_per_word))
         if not initial_mem:
             return
-        print ("Mem", initial_mem)
+        print ("Sim-Mem", initial_mem, self.bytes_per_word)
         for addr, (val, width) in initial_mem.items():
             self.st(addr, val, width)
 
     def _get_shifter_mask(self, wid, remainder):
-        #shifter = ((self.bytes_per_word - wid) - remainder) * \
-            #8  # bits per byte
-        shifter = remainder * 8 # bits per byte
+        shifter = ((self.bytes_per_word - wid) - remainder) * \
+            8  # bits per byte
         mask = (1 << (wid * 8)) - 1
         print ("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
     def ld(self, address, width=8):
+        print("ld from addr 0x{:x} width {:d}".format(address, width))
         remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
@@ -58,9 +58,11 @@ class Mem:
             val = self.mem[address]
         else:
             val = 0
+        print("mem @ 0x{:x} rem {:d} : 0x{:x}".format(address, remainder, val))
 
         if width != self.bytes_per_word:
             shifter, mask = self._get_shifter_mask(width, remainder)
+            print ("masking", hex(val), hex(mask<<shifter), shifter)
             val = val & (mask << shifter)
             val >>= shifter
         print("Read 0x{:x} from addr 0x{:x}".format(val, address))
@@ -69,8 +71,8 @@ class Mem:
     def st(self, addr, v, width=8):
         remainder = addr & (self.bytes_per_word - 1)
         addr = addr >> self.word_log2
-        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         print("Writing 0x{:x} to addr 0x{:x}/{:x}".format(v, addr, remainder))
+        assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if width != self.bytes_per_word:
             if addr in self.mem:
                 val = self.mem[addr]
