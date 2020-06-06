@@ -57,15 +57,13 @@ class RegSpec:
         return get_regspec_bitwidth(self._rwid, 0, i)
 
 
-class RegSpecALUAPI:
-    def __init__(self, rwid, alu):
+class RegSpecAPI:
+    def __init__(self, rwid):
         """RegSpecAPI
 
         * :rwid:       regspec
-        * :alu:        ALU covered by this regspec
         """
         self.rwid = rwid
-        self.alu = alu # actual ALU - set as a "submodule" of the CU
 
     def get_in_spec(self, i):
         return self.rwid[0][i]
@@ -78,6 +76,17 @@ class RegSpecALUAPI:
 
     def get_out_name(self, i):
         return self.get_out_spec(i)[1]
+
+
+class RegSpecALUAPI(RegSpecAPI):
+    def __init__(self, rwid, alu):
+        """RegSpecAPI
+
+        * :rwid:       regspec
+        * :alu:        ALU covered by this regspec
+        """
+        super().__init__(rwid)
+        self.alu = alu
 
     def get_out(self, i):
         if isinstance(self.rwid, int): # old - testing - API (rwid is int)

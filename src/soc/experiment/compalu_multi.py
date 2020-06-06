@@ -77,6 +77,7 @@ class CompUnitRecord(RegSpec, RecordObject):
             j = i + 1 # name numbering to match dest1/2...
             name = "dest%d_o" % j
             rw = self._get_dstwid(i)
+            #dreg = Data(rw, name=name) XXX ??? output needs to be a Data type?
             dreg = Signal(rw, name=name, reset_less=True)
             setattr(self, name, dreg)
             dst.append(dreg)

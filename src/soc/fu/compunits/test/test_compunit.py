@@ -5,6 +5,7 @@ from nmigen.cli import rtlil
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.decoder.power_enums import Function
 from soc.decoder.isa.all import ISA
 
 from soc.experiment.compalu_multi import find_ok # hack
@@ -108,7 +109,14 @@ class TestRunner(FHDLTestCase):
         pdecode = create_pdecode()
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        m.submodules.cu = cu = self.fukls()
+        if self.funit == Function.LDST:
+            from soc.experiment.l0_cache import TstL0CacheBuffer
+            m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64)
+            pi = l0.l0.dports[0].pi
+            m.submodules.cu = cu = self.fukls(pi, awid=4)
+            m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
+        else:
+            m.submodules.cu = cu = self.fukls()
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)

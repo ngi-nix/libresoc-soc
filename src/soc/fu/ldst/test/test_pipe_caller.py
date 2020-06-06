@@ -64,8 +64,8 @@ class LDSTTestCase(FHDLTestCase):
         lst = ["stw 2, 0(1)",
                "lwz 3, 0(1)"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0x0010
-        initial_regs[2] = 0x1234
+        initial_regs[1] = 0x0004
+        initial_regs[2] = 0x0008
         self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):

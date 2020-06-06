@@ -88,9 +88,11 @@ from nmutil.latch import SRLatch, latchregister
 from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
 from soc.experiment.testmem import TestMemory
+from soc.fu.regspec import RegSpecAPI
 
 from soc.decoder.power_enums import InternalOp, Function
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
+from soc.decoder.power_decoder2 import Data
 
 
 class LDSTCompUnitRecord(CompUnitRecord):
@@ -111,7 +113,7 @@ class LDSTCompUnitRecord(CompUnitRecord):
         self.stwd_mem_o = Signal(reset_less=True)  # activate memory STORE
 
 
-class LDSTCompUnit(Elaboratable):
+class LDSTCompUnit(RegSpecAPI, Elaboratable):
     """LOAD / STORE Computation Unit
 
     Inputs
@@ -165,7 +167,7 @@ class LDSTCompUnit(Elaboratable):
 
     def __init__(self, pi=None, rwid=64, awid=48, opsubset=CompLDSTOpSubset,
                       debugtest=False):
-        self.rwid = rwid
+        super().__init__(rwid)
         self.awid = awid
         self.pi = pi
         self.cu = cu = LDSTCompUnitRecord(rwid, opsubset)
@@ -190,8 +192,15 @@ class LDSTCompUnit(Elaboratable):
         # convenience names
         self.rd = cu.rd
         self.wr = cu.wr
+        self.rdmaskn = cu.rdmaskn
+        self.wrmask = cu.wrmask
         self.ad = cu.ad
         self.st = cu.st
+        self.dest = cu._dest
+
+        # HACK: get data width from dest[0].  this is used across the board
+        # (it really shouldn't be)
+        self.data_wid = self.dest[0].shape()
 
         self.go_rd_i = self.rd.go # temporary naming
         self.go_wr_i = self.wr.go # temporary naming
@@ -209,10 +218,9 @@ class LDSTCompUnit(Elaboratable):
 
         self.oper_i = cu.oper_i
         self.src_i = cu._src_i
-        self.dest = cu._dest
 
-        self.data_o = self.dest[0]  # Dest1 out: RT
-        self.addr_o = self.dest[1]  # Address out (LD or ST) - Update => RA
+        self.data_o = Data(self.data_wid, name="o")  # Dest1 out: RT
+        self.addr_o = Data(self.data_wid, name="ea") # Addr out: Update => RA
         self.addr_exc_o = cu.addr_exc_o
         self.done_o = cu.done_o
         self.busy_o = cu.busy_o
@@ -222,10 +230,6 @@ class LDSTCompUnit(Elaboratable):
 
         self.load_mem_o = cu.load_mem_o
         self.stwd_mem_o = cu.stwd_mem_o
-
-        # HACK: get data width from dest[0].  this is used across the board
-        # (it really shouldn't be)
-        self.data_wid = self.dest[0].shape()
 
     def elaborate(self, platform):
         m = Module()
@@ -392,10 +396,10 @@ class LDSTCompUnit(Elaboratable):
         comb += self.busy_o.eq(opc_l.q) # | self.pi.busy_o)  # busy out
 
         # 1st operand read-request only when zero not active
-        comb += self.rd.rel[0].eq(src_l.q[0] & busy_o & ~op_is_z)
-
         # 2nd operand only needed when immediate is not active
-        comb += self.rd.rel[1].eq(src_l.q[1] & busy_o & ~op_is_imm)
+        slg = Cat(op_is_z, op_is_imm)
+        bro = Repl(self.busy_o, self.n_src)
+        comb += self.rd.rel.eq(src_l.q & bro & ~slg & ~self.rdmaskn)
 
         # note when the address-related read "go" signals are active
         comb += rda_any.eq(self.rd.go[0] | self.rd.go[1])
@@ -435,12 +439,17 @@ class LDSTCompUnit(Elaboratable):
         # Data/Address outputs
 
         # put the LD-output register directly onto the output bus on a go_write
+        comb += self.data_o.data.eq(self.dest[0])
         with m.If(self.wr.go[0]):
-            comb += self.data_o.eq(ldd_r)
+            comb += self.dest[0].eq(ldd_r)
 
         # "update" mode, put address out on 2nd go-write
+        comb += self.addr_o.data.eq(self.dest[1])
         with m.If(op_is_update & self.wr.go[1]):
-            comb += self.addr_o.eq(addr_r)
+            comb += self.dest[1].eq(addr_r)
+
+        # need to look like MultiCompUnit: put wrmask out
+        comb += self.wrmask.eq(self.wr.rel)
 
         ###########################
         # PortInterface connections
@@ -463,6 +472,14 @@ class LDSTCompUnit(Elaboratable):
         comb += pi.st.ok.eq(self.st.go)  # go store signals st data valid
 
         return m
+
+    def get_out(self, i):
+        """make LDSTCompUnit look like RegSpecALUAPI"""
+        if i == 0:
+            return self.data_o
+        if i == 1:
+            return self.addr_o
+        #return self.dest[i]
 
     def __iter__(self):
         yield self.rd.go

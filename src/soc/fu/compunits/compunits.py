@@ -64,6 +64,9 @@ from soc.fu.branch.pipe_data import BranchPipeSpec
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 
+from soc.fu.ldst.pipe_data import LDSTPipeSpec
+from soc.experiment.compldst_multi import LDSTCompUnit # special-case
+
 
 ###################################################################
 ###### FunctionUnitBaseSingle - use to make single-stge pipes #####
