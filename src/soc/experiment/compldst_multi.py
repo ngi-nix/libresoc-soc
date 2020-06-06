@@ -222,6 +222,10 @@ class LDSTCompUnit(Elaboratable):
         self.load_mem_o = cu.load_mem_o
         self.stwd_mem_o = cu.stwd_mem_o
 
+        # HACK: get data width from dest[0].  this is used across the board
+        # (it really shouldn't be)
+        self.data_wid = self.dest[0].shape()
+
     def elaborate(self, platform):
         m = Module()
 
@@ -260,11 +264,8 @@ class LDSTCompUnit(Elaboratable):
         wr_reset = Signal(reset_less=True)  # final reset condition
 
         # LD and ALU out
-        alu_o = Signal(self.rwid, reset_less=True)
-        ldd_o = Signal(self.rwid, reset_less=True)
-
-        # XXX TODO ZEROing just like in CompUnit
-
+        alu_o = Signal(self.data_wid, reset_less=True)
+        ldd_o = Signal(self.data_wid, reset_less=True)
 
         ##############################
         # reset conditions for latches
@@ -344,29 +345,29 @@ class LDSTCompUnit(Elaboratable):
         latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_l")
 
         # and for LD
-        ldd_r = Signal(self.rwid, reset_less=True)  # Dest register
+        ldd_r = Signal(self.data_wid, reset_less=True)  # Dest register
         latchregister(m, ldd_o, ldd_r, ld_ok, name="ldo_r")
 
         # and for each input from the incoming src operands
         srl = []
         for i in range(self.n_src):
             name = "src_r%d" % i
-            src_r = Signal(self.rwid, name=name, reset_less=True)
+            src_r = Signal(self.data_wid, name=name, reset_less=True)
             latchregister(m, self.src_i[i], src_r, src_l.q[i], name + '_l')
             srl.append(src_r)
 
         # and one for the output from the ADD (for the EA)
-        addr_r = Signal(self.rwid, reset_less=True)  # Effective Address Latch
+        addr_r = Signal(self.data_wid, reset_less=True)  # Effective Address
         latchregister(m, alu_o, addr_r, alu_l.q, "ea_r")
 
         # select either zero or src1 if opcode says so
         op_is_z = oper_r.zero_a
-        src1_or_z = Signal(self.rwid, reset_less=True)
+        src1_or_z = Signal(self.data_wid, reset_less=True)
         m.d.comb += src1_or_z.eq(Mux(op_is_z, 0, srl[0]))
 
         # select either immediate or src2 if opcode says so
         op_is_imm = oper_r.imm_data.imm_ok
-        src2_or_imm = Signal(self.rwid, reset_less=True)
+        src2_or_imm = Signal(self.data_wid, reset_less=True)
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
@@ -655,5 +656,33 @@ def test_scoreboard():
     run_simulation(dut, scoreboard_sim(dut), vcd_name='test_ldst_comp.vcd')
 
 
+class TestLDSTCompUnitRegSpec(LDSTCompUnit):
+
+    def __init__(self):
+        from soc.experiment.l0_cache import TstL0CacheBuffer
+        from soc.fu.ldst.pipe_data import LDSTPipeSpec
+        regspec = LDSTPipeSpec.regspec
+        self.l0 = l0 = TstL0CacheBuffer()
+        pi = l0.l0.dports[0].pi
+        LDSTCompUnit.__init__(self, pi, regspec, 4)
+
+    def elaborate(self, platform):
+        m = LDSTCompUnit.elaborate(self, platform)
+        m.submodules.l0 = self.l0
+        m.d.comb += self.ad.go.eq(self.ad.rel) # link addr-go direct to rel
+        return m
+
+
+def test_scoreboard_regspec():
+
+    dut = TestLDSTCompUnitRegSpec()
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_ldst_comp.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_ldst_regspec.vcd')
+
+
 if __name__ == '__main__':
+    test_scoreboard_regspec()
     test_scoreboard()

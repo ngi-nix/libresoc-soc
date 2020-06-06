@@ -1,12 +1,12 @@
-from soc.fu.alu.alu_input_record import CompLDSTOpSubset
-from soc.fu.pipe_data import IntegerData
+from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
+from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 
 
 class LDSTInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'), # RA
                ('INT', 'rb', '0:63'), # RB/immediate
                ('INT', 'rc', '0:63'), # RC
-               ('XER', 'xer_so', '32')] # XER bit 32: SO
+               ('XER', 'xer_so', '32') # XER bit 32: SO
                ]
     def __init__(self, pspec):
         super().__init__(pspec, False)
