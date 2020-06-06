@@ -36,6 +36,7 @@ from nmigen.lib.coding import PriorityEncoder
 # for testing purposes
 from soc.experiment.testmem import TestMemory
 
+
 class PortInterface(RecordObject):
     """PortInterface
 
@@ -568,7 +569,7 @@ def data_merger_merge(dut):
 
 def test_l0_cache():
 
-    dut = TstL0CacheBuffer()
+    dut = TstL0CacheBuffer(regwid=64)
     #vl = rtlil.convert(dut, ports=dut.ports())
     #with open("test_basic_l0_cache.il", "w") as f:
     #    f.write(vl)
