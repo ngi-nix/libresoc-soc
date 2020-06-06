@@ -32,46 +32,49 @@ Thus this module has *TWO* write-requests to the register file and
 *THREE* read-requests to the register file (not all at the same time!)
 The regfile port usage is:
 
-* LD-imm         1R1W
-* LD-imm-update  1R2W
-* LD-idx         2R1W
-* LD-idx-update  2R2W
+    * LD-imm         1R1W
+    * LD-imm-update  1R2W
+    * LD-idx         2R1W
+    * LD-idx-update  2R2W
 
-* ST-imm         2R
-* ST-imm-update  2R1W
-* ST-idx         3R
-* ST-idx-update  3R1W
+    * ST-imm         2R
+    * ST-imm-update  2R1W
+    * ST-idx         3R
+    * ST-idx-update  3R1W
 
 It's a multi-level Finite State Machine that (unfortunately) nmigen.FSM
 is not suited to (nmigen.FSM is clock-driven, and some aspects of
 the nested FSMs below are *combinatorial*).
 
-* One FSM covers Operand collection and communication address-side
-  with the LD/ST PortInterface.  its role ends when "RD_DONE" is asserted
+    * One FSM covers Operand collection and communication address-side
+      with the LD/ST PortInterface.  its role ends when "RD_DONE" is asserted
 
-* A second FSM activates to cover LD.  it activates if op_is_ld is true
+    * A second FSM activates to cover LD.  it activates if op_is_ld is true
 
-* A third FSM activates to cover ST.  it activates if op_is_st is true
+    * A third FSM activates to cover ST.  it activates if op_is_st is true
 
-* The "overall" (fourth) FSM coordinates the progression and completion
-  of the three other FSMs, firing "WR_RESET" which switches off "busy"
+    * The "overall" (fourth) FSM coordinates the progression and completion
+      of the three other FSMs, firing "WR_RESET" which switches off "busy"
 
 Full diagram:
-https://libre-soc.org/3d_gpu/ld_st_comp_unit.jpg
+
+    https://libre-soc.org/3d_gpu/ld_st_comp_unit.jpg
 
 Links including to walk-through videos:
-* https://libre-soc.org/3d_gpu/architecture/6600scoreboard/
-* http://libre-soc.org/openpower/isa/fixedload
-* http://libre-soc.org/openpower/isa/fixedstore
+
+    * https://libre-soc.org/3d_gpu/architecture/6600scoreboard/
+    * http://libre-soc.org/openpower/isa/fixedload
+    * http://libre-soc.org/openpower/isa/fixedstore
 
 Related Bugreports:
-* https://bugs.libre-soc.org/show_bug.cgi?id=302
+
+    * https://bugs.libre-soc.org/show_bug.cgi?id=302
 
 Terminology:
 
-* EA - Effective Address
-* LD - Load
-* ST - Store
+    * EA - Effective Address
+    * LD - Load
+    * ST - Store
 """
 
 from nmigen.compat.sim import run_simulation
