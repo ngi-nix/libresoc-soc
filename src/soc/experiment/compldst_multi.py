@@ -448,8 +448,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         with m.If(op_is_update & self.wr.go[1]):
             comb += self.dest[1].eq(addr_r)
 
-        # need to look like MultiCompUnit: put wrmask out
-        comb += self.wrmask.eq(self.wr.rel)
+        # need to look like MultiCompUnit: put wrmask out.
+        # XXX may need to make this enable only when write active
+        comb += self.wrmask.eq(bro & Cat(op_is_ld, op_is_update))
 
         ###########################
         # PortInterface connections
