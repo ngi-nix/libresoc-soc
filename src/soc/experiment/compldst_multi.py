@@ -94,8 +94,8 @@ from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 
 
 class LDSTCompUnitRecord(CompUnitRecord):
-    def __init__(self, rwid, name=None):
-        CompUnitRecord.__init__(self, CompLDSTOpSubset, rwid,
+    def __init__(self, rwid, opsubset=CompLDSTOpSubset, name=None):
+        CompUnitRecord.__init__(self, opsubset, rwid,
                                 n_src=3, n_dst=2, name=name)
 
         self.ad = go_record(1, name="ad") # address go in, req out
@@ -163,11 +163,12 @@ class LDSTCompUnit(Elaboratable):
     depending on whether the operation is a ST or LD.
     """
 
-    def __init__(self, pi=None, rwid=64, awid=48, debugtest=False):
+    def __init__(self, pi=None, rwid=64, awid=48, opsubset=CompLDSTOpSubset,
+                      debugtest=False):
         self.rwid = rwid
         self.awid = awid
         self.pi = pi
-        self.cu = cu = LDSTCompUnitRecord(rwid)
+        self.cu = cu = LDSTCompUnitRecord(rwid, opsubset)
         self.debugtest = debugtest
 
         # POWER-compliant LD/ST has index and update: *fixed* number of ports
