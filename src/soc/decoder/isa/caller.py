@@ -35,14 +35,18 @@ class Mem:
         self.mem = {}
         self.bytes_per_word = bytes_per_word
         self.word_log2 = math.ceil(math.log2(bytes_per_word))
-        if initial_mem:
-            for addr, (val, width) in initial_mem.items():
-                self.st(addr, val, width)
+        if not initial_mem:
+            return
+        print ("Mem", initial_mem)
+        for addr, (val, width) in initial_mem.items():
+            self.st(addr, val, width)
 
-    def _get_shifter_mask(self, width, remainder):
-        shifter = ((self.bytes_per_word - width) - remainder) * \
-            8  # bits per byte
-        mask = (1 << (width * 8)) - 1
+    def _get_shifter_mask(self, wid, remainder):
+        #shifter = ((self.bytes_per_word - wid) - remainder) * \
+            #8  # bits per byte
+        shifter = remainder * 8 # bits per byte
+        mask = (1 << (wid * 8)) - 1
+        print ("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
@@ -59,25 +63,26 @@ class Mem:
             shifter, mask = self._get_shifter_mask(width, remainder)
             val = val & (mask << shifter)
             val >>= shifter
-        print("Read {:x} from addr {:x}".format(val, address))
+        print("Read 0x{:x} from addr 0x{:x}".format(val, address))
         return val
 
-    def st(self, address, value, width=8):
-        remainder = address & (self.bytes_per_word - 1)
-        address = address >> self.word_log2
+    def st(self, addr, v, width=8):
+        remainder = addr & (self.bytes_per_word - 1)
+        addr = addr >> self.word_log2
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
-        print("Writing {:x} to addr {:x}".format(value, address))
+        print("Writing 0x{:x} to addr 0x{:x}/{:x}".format(v, addr, remainder))
         if width != self.bytes_per_word:
-            if address in self.mem:
-                val = self.mem[address]
+            if addr in self.mem:
+                val = self.mem[addr]
             else:
                 val = 0
             shifter, mask = self._get_shifter_mask(width, remainder)
             val &= ~(mask << shifter)
-            val |= value << shifter
-            self.mem[address] = val
+            val |= v << shifter
+            self.mem[addr] = val
         else:
-            self.mem[address] = value
+            self.mem[addr] = v
+        print("mem @ 0x{:x}: 0x{:x}".format(addr, self.mem[addr]))
 
     def __call__(self, addr, sz):
         val = self.ld(addr.value, sz)
