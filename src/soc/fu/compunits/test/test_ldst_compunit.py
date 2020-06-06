@@ -10,7 +10,7 @@ from soc.fu.compunits.test.test_compunit import TestRunner
 class LDSTTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, LDSTFunctionUnit, self,
-                         Function.LOGICAL)
+                         Function.LDST)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to LDSTFunctionUnit input regspec

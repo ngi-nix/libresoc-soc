@@ -125,6 +125,15 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SHIFT_ROT
     def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
 
+# special-case
+class LDSTFunctionUnit(LDSTCompUnit):
+    fnunit = Function.ALU
+    def __init__(self, pi, awid):
+        pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
+        opsubset = pspec.opsubsetkls             # get the operand subset class
+        regspec = pspec.regspec                  # get the regspec
+        super().__init__(pi, regspec, awid, opsubset)
+
 
 #####################################################################
 ###### actual Function Units: these are "multi" stage pipelines #####
