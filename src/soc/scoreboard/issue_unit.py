@@ -1,6 +1,6 @@
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
+from nmigen import Module, Signal, Cat, Const, Repl, Elaboratable
 from nmigen.lib.coding import Decoder
 
 from nmutil.picker import PriorityPicker
@@ -110,7 +110,8 @@ class IssueUnitGroup(Elaboratable):
         m.d.comb += self.busy_o.eq(~((~self.busy_i).bool()))
 
         # Picker only raises one signal, therefore it's also the fn_issue
-        m.d.comb += self.fn_issue_o.eq(pick.o & Repl(~self.busy_o, self.n_insns))
+        busys = Repl(~self.busy_o, self.n_insns)
+        m.d.comb += self.fn_issue_o.eq(pick.o & busys)
 
         return m
 
