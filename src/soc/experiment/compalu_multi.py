@@ -150,7 +150,6 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.data_o = self.dest[0] # Dest out
         self.done_o = cu.done_o
 
-
     def _mux_op(self, m, sl, op_is_imm, imm, i):
         # select imm if opcode says so. however also change the latch
         # to trigger *from* the opcode latch instead.

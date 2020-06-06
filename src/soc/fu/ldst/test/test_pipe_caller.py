@@ -3,7 +3,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
+from soc.decoder.isa.caller import special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.decoder.power_enums import (XER_bits, Function, InternalOp, CryIn)

@@ -131,7 +131,8 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, 0)
+                print ("test", test.name, test.mem)
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
