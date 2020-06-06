@@ -1,3 +1,5 @@
+PYTHON3 ?= "python3"
+
 gitupdate:
 	git submodule init
 	git submodule update --recursive
