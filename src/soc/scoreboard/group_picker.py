@@ -1,45 +1,46 @@
-""" Group Picker: to select an instruction that is permitted to read (or write)
-    based on the Function Unit expressing a *desire* to read (or write).
+"""Group Picker
 
-    The job of the Group Picker is extremely simple yet extremely important.
-    It sits in front of a register file port (read or write) and stops it from
-    being corrupted.  It's a "port contention selector", basically.
+to select an instruction that is permitted to read (or write)
+based on the Function Unit expressing a *desire* to read (or write).
 
-    The way it works is:
+The job of the Group Picker is extremely simple yet extremely important.
+It sits in front of a register file port (read or write) and stops it from
+being corrupted.  It's a "port contention selector", basically.
 
-    * Function Units need to read from (or write to) the register file,
-      in order to get (or store) their operands, so they each have a signal,
-      readable (or writable), which "expresses" this need.  This is an
-      *unary* encoding.
+The way it works is:
 
-    * The Function Units also have a signal which indicates that they
-      are requesting "release" of the register file port (this because
-      in the scoreboard, readable/writable can be permanently HI even
-      if the FU is idle, whereas the "release" signal is very specifically
-      only HI if the read (or write) latch is still active)
+* Function Units need to read from (or write to) the register file,
+  in order to get (or store) their operands, so they each have a signal,
+  readable (or writable), which "expresses" this need.  This is an
+  *unary* encoding.
 
-    * The Group Picker takes this unary encoding of the desire to read
-      (or write) and, on a priority basis, activates one *and only* one
-      of those signals, again as an unary output.
+* The Function Units also have a signal which indicates that they
+  are requesting "release" of the register file port (this because
+  in the scoreboard, readable/writable can be permanently HI even
+  if the FU is idle, whereas the "release" signal is very specifically
+  only HI if the read (or write) latch is still active)
 
-    * Due to the way that the Computation Unit works, that signal (Go_Read
-      or Go_Write) will fire for one (and only one) cycle, and can be used
-      to enable the register file port read (or write) lines.  The Go_Read/Wr
-      signal basically loops back to the Computation Unit and resets the
-      "desire-to-read/write-expressing" latch.
+* The Group Picker takes this unary encoding of the desire to read
+  (or write) and, on a priority basis, activates one *and only* one
+  of those signals, again as an unary output.
 
-    In theory (and in practice!) the following is possible:
+* Due to the way that the Computation Unit works, that signal (Go_Read
+  or Go_Write) will fire for one (and only one) cycle, and can be used
+  to enable the register file port read (or write) lines.  The Go_Read/Wr
+  signal basically loops back to the Computation Unit and resets the
+  "desire-to-read/write-expressing" latch.
 
-    * Separate src1 and src2 Group Pickers.  This would allow instructions
-      with only one operand to read to not block up other instructions,
-      and it would also allow 3-operand instructions to be interleaved
-      with 1 and 2 operand instructions.
+In theory (and in practice!) the following is possible:
 
-    * *Multiple* Group Pickers (multi-issue).  This would require
-      a corresponding increase in the number of register file ports,
-      either 4R2W (or more) or by "striping" the register file into
-      split banks (a strategy best deployed on Vector Processors)
+* Separate src1 and src2 Group Pickers.  This would allow instructions
+  with only one operand to read to not block up other instructions,
+  and it would also allow 3-operand instructions to be interleaved
+  with 1 and 2 operand instructions.
 
+* *Multiple* Group Pickers (multi-issue).  This would require
+  a corresponding increase in the number of register file ports,
+  either 4R2W (or more) or by "striping" the register file into
+  split banks (a strategy best deployed on Vector Processors)
 """
 
 from nmigen.compat.sim import run_simulation
