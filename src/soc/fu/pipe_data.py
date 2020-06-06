@@ -1,21 +1,38 @@
 from ieee754.fpcommon.getop import FPPipeContext
 from nmutil.dynamicpipe import SimpleHandshakeRedir
-
+from nmigen import Signal
+from soc.decoder.power_decoder2 import Data
+from soc.fu.regspec import get_regspec_bitwidth
 
 class IntegerData:
 
-    def __init__(self, pspec):
+    def __init__(self, pspec, output):
         self.ctx = FPPipeContext(pspec)
         self.muxid = self.ctx.muxid
+        self.data = []
+        self.is_output = output
+        for i, (regfile, regname, widspec) in enumerate(self.regspec):
+            wid = get_regspec_bitwidth([self.regspec], 0, i)
+            if output:
+                sig = Data(wid, name=regname)
+            else:
+                sig = Signal(wid, name=regname, reset_less=True)
+            setattr(self, regname, sig)
+            self.data.append(sig)
 
     def __iter__(self):
         yield from self.ctx
+        yield from self.data
 
     def eq(self, i):
-        return [self.ctx.eq(i.ctx)]
+        eqs = [self.ctx.eq(i.ctx)]
+        for j in range(len(self.data)):
+            eqs.append(self.data[j].eq(i.data[j]))
+        return eqs
 
     def ports(self):
-        return self.ctx.ports()
+        return self.ctx.ports() # TODO: include self.data
+
 
 # hmmm there has to be a better way than this
 def get_rec_width(rec):

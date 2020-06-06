@@ -31,37 +31,20 @@ from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 
 
 class BranchInputData(IntegerData):
-    regspec = [('FAST', 'spr1', '0:63'),
-               ('FAST', 'spr2', '0:63'),
-               ('CR', 'cr_a', '0:3'),
-               ('FAST', 'cia', '0:63')]
+    # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
+    # this involves the *decode* unit selecting the register, based
+    # on detecting the operand being bcctr, bclr or bctar
+    regspec = [('FAST', 'spr1', '0:63'), # see table above, SPR1
+               ('FAST', 'spr2', '0:63'), # see table above, SPR2
+               ('CR', 'cr_a', '0:3'),    # Condition Register(s) CR0-7
+               ('FAST', 'cia', '0:63')]  # Current Instruction Address
     def __init__(self, pspec):
-        super().__init__(pspec)
-        # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
-        # this involves the *decode* unit selecting the register, based
-        # on detecting the operand being bcctr, bclr or bctar
-
-        self.spr1 = Signal(64, reset_less=True) # see table above, SPR1
-        self.spr2 = Signal(64, reset_less=True) # see table above, SPR2
-        self.cr_a = Signal(4, reset_less=True)  # Condition Register(s) CR0-7
-        self.cia = Signal(64, reset_less=True)  # Current Instruction Address
+        super().__init__(pspec, False)
 
         # convenience variables.  not all of these are used at once
         self.ctr = self.spr1
         self.lr = self.tar = self.spr2
         self.cr = self.cr_a
-
-    def __iter__(self):
-        yield from super().__iter__()
-        yield self.spr1
-        yield self.spr2
-        yield self.cr_a
-        yield self.cia
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
-                      self.cr_a.eq(i.cr_a), self.cia.eq(i.cia)]
 
 
 class BranchOutputData(IntegerData):
@@ -69,25 +52,11 @@ class BranchOutputData(IntegerData):
                ('FAST', 'spr2', '0:63'),
                ('FAST', 'nia', '0:63')]
     def __init__(self, pspec):
-        super().__init__(pspec)
-        self.spr1 = Data(64, name="spr1")
-        self.spr2 = Data(64, name="spr2")
-        self.nia = Data(64, name="nia")
+        super().__init__(pspec, True)
 
         # convenience variables.
         self.ctr = self.spr1
         self.lr = self.tar = self.spr2
-
-    def __iter__(self):
-        yield from super().__iter__()
-        yield from self.spr1
-        yield from self.spr2
-        yield from self.nia
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.spr1.eq(i.spr1), self.spr2.eq(i.spr2),
-                      self.nia.eq(i.nia)]
 
 
 class BranchPipeSpec(CommonPipeSpec):

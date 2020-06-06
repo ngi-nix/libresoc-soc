@@ -7,52 +7,24 @@ from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 
 
 class LogicalInputData(IntegerData):
-    regspec = [('INT', 'ra', '0:63'),
-               ('INT', 'rb', '0:63'),
+    regspec = [('INT', 'ra', '0:63'), # RA
+               ('INT', 'rb', '0:63'), # RB/immediate
                ]
     def __init__(self, pspec):
-        super().__init__(pspec)
-        self.ra = Signal(64, reset_less=True) # RA
-        self.rb = Signal(64, reset_less=True) # RB/immediate
+        super().__init__(pspec, False)
         # convenience
         self.a, self.b = self.ra, self.rb
 
-    def __iter__(self):
-        yield from super().__iter__()
-        yield self.ra
-        yield self.rb
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.ra.eq(i.ra), self.rb.eq(i.rb),
-                       ]
-
 
 class LogicalOutputData(IntegerData):
-    regspec = [('INT', 'o', '0:63'),
+    regspec = [('INT', 'o', '0:63'),        # RT
                ('CR', 'cr_a', '0:3'),
-               ('XER', 'xer_ca', '34,45'),
+               ('XER', 'xer_ca', '34,45'), # bit0: ca, bit1: ca32
                ]
     def __init__(self, pspec):
-        super().__init__(pspec)
-        self.o = Data(64, name="stage_o")  # RT
-        self.cr_a = Data(4, name="cr_a")
-        self.xer_ca = Data(2, name="xer_co") # bit0: ca, bit1: ca32
+        super().__init__(pspec, True)
         # convenience
         self.cr0 = self.cr_a
-
-    def __iter__(self):
-        yield from super().__iter__()
-        yield self.o
-        yield self.xer_ca
-        yield self.cr_a
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.o.eq(i.o),
-                      self.xer_ca.eq(i.xer_ca),
-                      self.cr_a.eq(i.cr_a),
-                      ]
 
 
 class LogicalPipeSpec(CommonPipeSpec):

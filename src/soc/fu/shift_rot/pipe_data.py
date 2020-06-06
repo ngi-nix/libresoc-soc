@@ -8,31 +8,14 @@ from nmutil.dynamicpipe import SimpleHandshakeRedir
 
 
 class ShiftRotInputData(IntegerData):
-    regspec = [('INT', 'ra', '0:63'),
-               ('INT', 'rb', '0:63'),
-               ('INT', 'rc', '0:63'),
-               ('XER', 'xer_ca', '34,45')]
+    regspec = [('INT', 'ra', '0:63'),      # RA
+               ('INT', 'rb', '0:63'),      # RB
+               ('INT', 'rc', '0:63'),      # RS
+               ('XER', 'xer_ca', '34,45')] # XER bit 34/45: CA/CA32
     def __init__(self, pspec):
-        super().__init__(pspec)
-        self.ra = Signal(64, reset_less=True) # RA
-        self.rb = Signal(64, reset_less=True) # RB
-        self.rc = Signal(64, reset_less=True) # RS
-        self.xer_ca = Signal(2, reset_less=True) # XER bit 34/45: CA/CA32
+        super().__init__(pspec, False)
         # convenience
         self.a, self.rs = self.ra, self.rc
-
-    def __iter__(self):
-        yield from super().__iter__()
-        yield self.ra
-        yield self.rb
-        yield self.rc
-        yield self.xer_ca
-
-    def eq(self, i):
-        lst = super().eq(i)
-        return lst + [self.rc.eq(i.rc), self.ra.eq(i.ra),
-                      self.rb.eq(i.rb),
-                      self.xer_ca.eq(i.xer_ca) ]
 
 
 class ShiftRotPipeSpec(CommonPipeSpec):
