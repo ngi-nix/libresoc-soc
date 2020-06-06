@@ -69,6 +69,7 @@ Links including to walk-through videos:
 Related Bugreports:
 
     * https://bugs.libre-soc.org/show_bug.cgi?id=302
+    * https://bugs.libre-soc.org/show_bug.cgi?id=216
 
 Terminology:
 
