@@ -2,11 +2,8 @@
 Links:
 * https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
-from nmigen import Signal, Const, Cat
-from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.cr.cr_input_record import CompCROpSubset
-from soc.decoder.power_decoder2 import Data
 
 
 class CRInputData(IntegerData):

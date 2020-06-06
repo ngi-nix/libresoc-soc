@@ -1,7 +1,4 @@
-from nmigen import Signal, Const, Cat
-from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData
-from soc.decoder.power_decoder2 import Data
 from soc.fu.alu.pipe_data import ALUOutputData, CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 

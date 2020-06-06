@@ -23,9 +23,6 @@
     op_bctarl  CR, TAR,   CTR
 """
 
-from nmigen import Signal, Const, Cat
-from ieee754.fpcommon.getop import FPPipeContext
-from soc.decoder.power_decoder2 import Data
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 

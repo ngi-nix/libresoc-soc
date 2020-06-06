@@ -1,8 +1,5 @@
-from nmigen import Signal, Const
 from soc.fu.alu.alu_input_record import CompLDSTOpSubset
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from ieee754.fpcommon.getop import FPPipeContext
-from soc.decoder.power_decoder2 import Data
+from soc.fu.pipe_data import IntegerData
 
 
 class LDSTInputData(IntegerData):

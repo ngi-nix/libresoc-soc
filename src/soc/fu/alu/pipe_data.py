@@ -1,8 +1,5 @@
-from nmigen import Signal, Const, Cat
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from ieee754.fpcommon.getop import FPPipeContext
-from soc.decoder.power_decoder2 import Data
 
 
 class ALUInputData(IntegerData):

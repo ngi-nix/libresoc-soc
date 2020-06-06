@@ -1,10 +1,6 @@
-from nmigen import Signal, Const, Cat
-from nmutil.dynamicpipe import SimpleHandshakeRedir
 from soc.fu.shift_rot.sr_input_record import CompSROpSubset
-from ieee754.fpcommon.getop import FPPipeContext
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.logical.pipe_data import LogicalOutputData
-from nmutil.dynamicpipe import SimpleHandshakeRedir
 
 
 class ShiftRotInputData(IntegerData):
