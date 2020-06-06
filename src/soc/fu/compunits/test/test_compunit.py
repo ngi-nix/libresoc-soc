@@ -146,6 +146,16 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
+                # initialise memory
+                if self.funit == Function.LDST:
+                    mem = l0.mem.mem
+                    memlist = []
+                    for i in range(mem.depth):
+                        memlist.append(sim.mem.ld(i*8, 8))
+                    mem.init = memlist
+                    print (mem, mem.depth, mem.width)
+                    print ("mem init", list(map(hex,memlist)))
+
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
