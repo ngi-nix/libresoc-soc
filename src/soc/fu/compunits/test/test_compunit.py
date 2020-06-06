@@ -199,7 +199,10 @@ class TestRunner(FHDLTestCase):
                                                             sim, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+
+        name = self.funit.name.lower()
+        with sim.write_vcd("%s_simulator.vcd" % name,
+                           "%s_simulator.gtkw" % name,
                             traces=[]):
             sim.run()
 
