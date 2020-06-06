@@ -31,10 +31,13 @@ def create_args(reglist, extra=None):
 
 class Mem:
 
-    def __init__(self, bytes_per_word=8):
+    def __init__(self, bytes_per_word=8, initial_mem=None):
         self.mem = {}
         self.bytes_per_word = bytes_per_word
         self.word_log2 = math.ceil(math.log2(bytes_per_word))
+        if initial_mem:
+            for addr, (val, width) in initial_mem.items():
+                self.st(addr, val, width)
 
     def _get_shifter_mask(self, width, remainder):
         shifter = ((self.bytes_per_word - width) - remainder) * \
@@ -168,9 +171,14 @@ class SPR(dict):
 class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
-    def __init__(self, decoder2, regfile, initial_sprs={}, initial_cr=0):
+    def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
+                       initial_mem=None):
+        if initial_sprs is None:
+            initial_sprs = {}
+        if initial_mem is None:
+            initial_mem = {}
         self.gpr = GPR(decoder2, regfile)
-        self.mem = Mem()
+        self.mem = Mem(initial_mem=initial_mem)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
         # TODO, needed here:

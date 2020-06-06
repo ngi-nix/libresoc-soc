@@ -56,23 +56,26 @@ class LDSTTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
+    def run_tst_program(self, prog, initial_regs=None,
+                        initial_sprs=None, initial_mem=None):
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
+                      mem=initial_mem)
         self.test_data.append(tc)
 
-    def test_load_store(self):
+    def test_1_load(self):
+        lst = ["lwz 3, 0(1)"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0004
+        initial_regs[2] = 0x0008
+        initial_mem = {0x0004: (0x1234, 4)}
+        self.run_tst_program(Program(lst), initial_regs,
+                             initial_mem=initial_mem)
+
+    def tst_2_load_store(self):
         lst = ["stw 2, 0(1)",
                "lwz 3, 0(1)"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x0004
         initial_regs[2] = 0x0008
         self.run_tst_program(Program(lst), initial_regs)
-
-    def test_ilang(self):
-        pspec = LDSTPipeSpec(id_wid=2)
-        alu = LDSTBasePipe(pspec)
-        vl = rtlil.convert(alu, ports=alu.ports())
-        with open("ldst_pipeline.il", "w") as f:
-            f.write(vl)
-
 

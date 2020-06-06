@@ -22,6 +22,7 @@ class LDSTTestRunner(TestRunner):
         """naming (res) must conform to LDSTFunctionUnit output regspec
         """
 
+        print ("check cu outputs", res)
         # RT
         out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
