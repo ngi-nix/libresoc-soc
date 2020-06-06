@@ -20,15 +20,16 @@ class ALUOutputStage(CommonOutputStage):
         m = super().elaborate(platform)
         comb = m.d.comb
         op = self.i.ctx.op
+        xer_so_i, xer_ov_i = self.i.xer_so.data, self.i.xer_ov.data
 
         # create overflow
         ov = Signal(2, reset_less=True) # OV, OV32
 
         # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-        comb += ov[0].eq(self.i.xer_so.data | self.i.xer_ov.data[0]) # OV
-        comb += ov[1].eq(self.i.xer_so.data | self.i.xer_ov.data[1]) # OV32 XXX!
+        comb += ov[0].eq(xer_so_i | xer_ov_i[0]) # OV
+        comb += ov[1].eq(xer_so_i | xer_ov_i[1]) # OV32 XXX!
 
-        comb += self.so.eq(self.i.xer_so.data | self.i.xer_ov.data[0]) # OV
+        comb += self.so.eq(ov[0]) # SO
 
         # copy overflow and sticky-overflow
         comb += self.o.xer_so.data.eq(self.so)
