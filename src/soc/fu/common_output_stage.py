@@ -1,6 +1,6 @@
 # This stage is intended to handle the gating of carry out,
 # and updating the condition register
-from nmigen import (Module, Signal, Cat, Repl)
+from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -15,15 +15,15 @@ class CommonOutputStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
 
-        # op requests inversion of the output
+        # op requests inversion of the output...
         o = Signal.like(self.i.o)
-        if hasattr(op, "invert_out"):
+        if hasattr(op, "invert_out"): # ... optionally
             with m.If(op.invert_out):
                 comb += o.eq(~self.i.o.data)
             with m.Else():
                 comb += o.eq(self.i.o.data)
         else:
-                comb += o.eq(self.i.o.data)
+            comb += o.eq(self.i.o.data) # ... no inversion
 
         # target register if 32-bit is only the 32 LSBs
         target = Signal(64, reset_less=True)
@@ -41,8 +41,8 @@ class CommonOutputStage(PipeModBase):
         is_positive = Signal(reset_less=True)
         is_negative = Signal(reset_less=True)
         msb_test = Signal(reset_less=True) # set equal to MSB, invert if OP=CMP
-        is_cmp = Signal(reset_less=True)   # true if OP=CMP
-        is_cmpeqb = Signal(reset_less=True)   # true if OP=CMP
+        is_cmp = Signal(reset_less=True)     # true if OP=CMP
+        is_cmpeqb = Signal(reset_less=True)  # true if OP=CMPEQB
         self.so = Signal(1, reset_less=True)
         cr0 = Signal(4, reset_less=True)
 
@@ -62,12 +62,13 @@ class CommonOutputStage(PipeModBase):
         with m.Else():
             comb += cr0.eq(Cat(self.so, ~is_nzero, is_positive, is_negative))
 
-        # copy out [inverted] cr0, output, and context out
+        # copy out [inverted?] output, cr0, and context out
         comb += self.o.o.data.eq(o)
         comb += self.o.o.ok.eq(self.i.o.ok)
+        # CR0 to be set
         comb += self.o.cr0.data.eq(cr0)
         comb += self.o.cr0.ok.eq(op.write_cr.ok)
-        # CR0 to be set
+        # context
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
