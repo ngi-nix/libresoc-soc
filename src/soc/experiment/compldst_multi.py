@@ -1,77 +1,77 @@
-""" LOAD / STORE Computation Unit.
+"""LOAD / STORE Computation Unit.
 
-    This module covers POWER9-compliant Load and Store operations,
-    with selection on each between immediate and indexed mode as
-    options for the calculation of the Effective Address (EA),
-    and also "update" mode which optionally stores that EA into
-    an additional register.
+This module covers POWER9-compliant Load and Store operations,
+with selection on each between immediate and indexed mode as
+options for the calculation of the Effective Address (EA),
+and also "update" mode which optionally stores that EA into
+an additional register.
 
-    ----
-    Note: it took 15 attempts over several weeks to redraw the diagram
-    needed to capture this FSM properly.  To understand it fully, please
-    take the time to review the links, video, and diagram.
-    ----
+----
+Note: it took 15 attempts over several weeks to redraw the diagram
+needed to capture this FSM properly.  To understand it fully, please
+take the time to review the links, video, and diagram.
+----
 
-    Stores are activated when Go_Store is enabled, and use a sync'd "ADD" to
-    compute the "Effective Address", and, when ready the operand (src3_i)
-    is stored in the computed address (passed through to the PortInterface)
+Stores are activated when Go_Store is enabled, and use a sync'd "ADD" to
+compute the "Effective Address", and, when ready the operand (src3_i)
+is stored in the computed address (passed through to the PortInterface)
 
-    Loads are activated when Go_Write[0] is enabled.  The EA is computed,
-    and (as long as there was no exception) the data comes out (at any
-    time from the PortInterface), and is captured by the LDCompSTUnit.
+Loads are activated when Go_Write[0] is enabled.  The EA is computed,
+and (as long as there was no exception) the data comes out (at any
+time from the PortInterface), and is captured by the LDCompSTUnit.
 
-    Both LD and ST may request that the address be computed from summing
-    operand1 (src[0]) with operand2 (src[1]) *or* by summing operand1 with
-    the immediate (from the opcode).
+Both LD and ST may request that the address be computed from summing
+operand1 (src[0]) with operand2 (src[1]) *or* by summing operand1 with
+the immediate (from the opcode).
 
-    Both LD and ST may also request "update" mode (op_is_update) which
-    activates the use of Go_Write[1] to control storage of the EA into
-    a *second* operand in the register file.
+Both LD and ST may also request "update" mode (op_is_update) which
+activates the use of Go_Write[1] to control storage of the EA into
+a *second* operand in the register file.
 
-    Thus this module has *TWO* write-requests to the register file and
-    *THREE* read-requests to the register file (not all at the same time!)
-    The regfile port usage is:
+Thus this module has *TWO* write-requests to the register file and
+*THREE* read-requests to the register file (not all at the same time!)
+The regfile port usage is:
 
-    * LD-imm         1R1W
-    * LD-imm-update  1R2W
-    * LD-idx         2R1W
-    * LD-idx-update  2R2W
+* LD-imm         1R1W
+* LD-imm-update  1R2W
+* LD-idx         2R1W
+* LD-idx-update  2R2W
 
-    * ST-imm         2R
-    * ST-imm-update  2R1W
-    * ST-idx         3R
-    * ST-idx-update  3R1W
+* ST-imm         2R
+* ST-imm-update  2R1W
+* ST-idx         3R
+* ST-idx-update  3R1W
 
-    It's a multi-level Finite State Machine that (unfortunately) nmigen.FSM
-    is not suited to (nmigen.FSM is clock-driven, and some aspects of
-    the nested FSMs below are *combinatorial*).
+It's a multi-level Finite State Machine that (unfortunately) nmigen.FSM
+is not suited to (nmigen.FSM is clock-driven, and some aspects of
+the nested FSMs below are *combinatorial*).
 
-    * One FSM covers Operand collection and communication address-side
-      with the LD/ST PortInterface.  its role ends when "RD_DONE" is asserted
+* One FSM covers Operand collection and communication address-side
+  with the LD/ST PortInterface.  its role ends when "RD_DONE" is asserted
 
-    * A second FSM activates to cover LD.  it activates if op_is_ld is true
+* A second FSM activates to cover LD.  it activates if op_is_ld is true
 
-    * A third FSM activates to cover ST.  it activates if op_is_st is true
+* A third FSM activates to cover ST.  it activates if op_is_st is true
 
-    * The "overall" (fourth) FSM coordinates the progression and completion
-      of the three other FSMs, firing "WR_RESET" which switches off "busy"
+* The "overall" (fourth) FSM coordinates the progression and completion
+  of the three other FSMs, firing "WR_RESET" which switches off "busy"
 
-    Full diagram:
-    https://libre-soc.org/3d_gpu/ld_st_comp_unit.jpg
+Full diagram:
+https://libre-soc.org/3d_gpu/ld_st_comp_unit.jpg
 
-    Links including to walk-through videos:
-    * https://libre-soc.org/3d_gpu/architecture/6600scoreboard/
-    * http://libre-soc.org/openpower/isa/fixedload
-    * http://libre-soc.org/openpower/isa/fixedstore
+Links including to walk-through videos:
+* https://libre-soc.org/3d_gpu/architecture/6600scoreboard/
+* http://libre-soc.org/openpower/isa/fixedload
+* http://libre-soc.org/openpower/isa/fixedstore
 
-    Related Bugreports:
-    * https://bugs.libre-soc.org/show_bug.cgi?id=302
+Related Bugreports:
+* https://bugs.libre-soc.org/show_bug.cgi?id=302
 
-    Terminology:
+Terminology:
 
-    * EA - Effective Address
-    * LD - Load
-    * ST - Store
+* EA - Effective Address
+* LD - Load
+* ST - Store
 """
 
 from nmigen.compat.sim import run_simulation
@@ -259,7 +259,7 @@ class LDSTCompUnit(Elaboratable):
         alu_o = Signal(self.rwid, reset_less=True)
         ldd_o = Signal(self.rwid, reset_less=True)
 
-        # XXX TODO ZEROing just lije in ComUnit
+        # XXX TODO ZEROing just like in CompUnit
 
 
         ##############################
