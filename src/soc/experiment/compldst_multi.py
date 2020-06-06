@@ -159,7 +159,7 @@ class LDSTCompUnit(Elaboratable):
     depending on whether the operation is a ST or LD.
     """
 
-    def __init__(self, pi, rwid=64, awid=48, debugtest=False):
+    def __init__(self, pi=None, rwid=64, awid=48, debugtest=False):
         self.rwid = rwid
         self.awid = awid
         self.pi = pi
@@ -179,7 +179,7 @@ class LDSTCompUnit(Elaboratable):
         dst = []
         for i in range(n_dst):
             j = i + 1 # name numbering to match dest1/2...
-            name = "dest%d_i" % j
+            name = "dest%d_o" % j
             setattr(self, name, getattr(cu, name))
 
         # convenience names
