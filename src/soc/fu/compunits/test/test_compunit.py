@@ -74,6 +74,16 @@ def set_operand(cu, dec2, sim):
 
 def get_cu_outputs(cu, code):
     res = {}
+    wrmask = yield cu.wrmask
+    print ("get_cu_outputs", cu.n_dst, wrmask)
+    if not wrmask: # no point waiting (however really should doublecheck wr.rel)
+        return {}
+    # wait for at least one result
+    while True:
+        wr_rel_o = yield cu.wr.rel
+        if wr_rel_o:
+            break
+        yield
     for i in range(cu.n_dst):
         wr_rel_o = yield cu.wr.rel[i]
         if wr_rel_o:
