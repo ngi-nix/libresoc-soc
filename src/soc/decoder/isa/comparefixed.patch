@@ -51,7 +51,7 @@
          return (CR,)
  
      @inject()
--    def op_cmpeqb(self, RA, RB, CR):
+-    def op_cmpeqb(self, RB, CR):
 -        src1 = GPR[RA]
 -        src1 = src1[56:64]
 +    def op_cmpeqb(self, RA, RB, CR):
@@ -70,3 +70,12 @@
          return (CR,)
  
      comparefixed_instrs = {}
+@@ -136,7 +135,7 @@
+                 form='X',
+                 asmregs=[['BF', 'L', 'RA', 'RB']])
+     comparefixed_instrs['cmpeqb'] = instruction_info(func=op_cmpeqb,
+-                read_regs=OrderedSet(['RB']),
++                read_regs=OrderedSet(['RA', 'RB']),
+                 uninit_regs=OrderedSet(), write_regs=OrderedSet(['CR']),
+                 special_regs=OrderedSet(['CR']), op_fields=OrderedSet(['BF']),
+                 form='X',
