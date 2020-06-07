@@ -261,6 +261,7 @@ class ISACaller:
 
         self.namespace['XER'] = self.spr['XER']
         self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
+        self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
 
     def handle_carry_(self, inputs, outputs):
         inv_a = yield self.dec2.e.invert_a
@@ -278,7 +279,7 @@ class ISACaller:
         cy = 1 if any(gts) else 0
         self.spr['XER'][XER_bits['CA']] = cy
 
-
+        print ("inputs", inputs)
         # 32 bit carry
         gts = [(x[32:64] > output[32:64]) == SelectableInt(1, 1)
                for x in inputs]
@@ -370,8 +371,11 @@ class ISACaller:
             for name, output in zip(output_names, results):
                 if isinstance(output, int):
                     output = SelectableInt(output, 256)
-                if name in info.special_regs:
-                    print('writing special %s' % name, output)
+                if name in ['CA', 'CA32']:
+                    print ("writing %s to XER" % name, output)
+                    self.spr['XER'][XER_bits[name]].eq(output)
+                elif name in info.special_regs:
+                    print('writing special %s' % name, output, special_sprs)
                     if name in special_sprs:
                         self.spr[name] = output
                     else:
