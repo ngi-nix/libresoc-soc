@@ -179,7 +179,7 @@ class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
-                       initial_mem=None):
+                       initial_mem=None, initial_msr=0):
         if initial_sprs is None:
             initial_sprs = {}
         if initial_mem is None:
@@ -188,6 +188,7 @@ class ISACaller:
         self.mem = Mem(initial_mem=initial_mem)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
+        self.msr = SelectableInt(initial_msr, 64) # underlying reg
         # TODO, needed here:
         # FPR (same as GPR except for FP nums)
         # 4.2.2 p124 FPSCR (definitely "separate" - not in SPR)
@@ -215,6 +216,7 @@ class ISACaller:
                           'NIA': self.pc.NIA,
                           'CIA': self.pc.CIA,
                           'CR': self.cr,
+                          'MSR': self.msr,
                           'undefined': self.undefined,
                           'mode_is_64bit': True,
                           'SO': XER_bits['SO']

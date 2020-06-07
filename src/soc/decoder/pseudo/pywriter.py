@@ -116,8 +116,8 @@ class PyISAWriter(ISA):
 
             classes = ', '.join(['ISACaller'] + self.pages_written)
             f.write('class ISA(%s):\n' % classes)
-            f.write('    def __init__(self, dec, regs, sprs, cr, mem):\n')
-            f.write('        super().__init__(dec, regs, sprs, cr, mem)\n')
+            f.write('    def __init__(self, dec, regs, sprs, cr, mem, msr):\n')
+            f.write('        super().__init__(dec, regs, sprs, cr, mem, msr)\n')
             f.write('        self.instrs = {\n')
             for page in self.pages_written:
                 f.write('            **self.%s_instrs,\n' % page)

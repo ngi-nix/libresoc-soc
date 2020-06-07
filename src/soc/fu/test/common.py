@@ -1,5 +1,6 @@
 class TestCase:
-    def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None):
+    def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
+                       msr=0):
 
         self.program = program
         self.name = name
@@ -14,3 +15,4 @@ class TestCase:
         self.sprs = sprs
         self.cr = cr
         self.mem = mem
+        self.msr = msr
