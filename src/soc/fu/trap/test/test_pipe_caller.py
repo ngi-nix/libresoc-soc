@@ -44,6 +44,45 @@ class TrapTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+#    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+#                        initial_cr=0):
+#        tc = TestCase(prog, self.test_name,
+#                      regs=initial_regs, sprs=initial_sprs, cr=initial_cr)
+#        self.test_data.append(tc)
+#
+#    def test_crop(self):
+#        insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
+#                 "crandc", "crorc"]
+#        for i in range(40):
+#            choice = random.choice(insns)
+#            ba = random.randint(0, 31)
+#            bb = random.randint(0, 31)
+#            bt = random.randint(0, 31)
+#            lst = [f"{choice} {ba}, {bb}, {bt}"]
+#            cr = random.randint(0, (1<<32)-1)
+#            self.run_tst_program(Program(lst), initial_cr=cr)
+#
+#    def test_crand(self):
+#        for i in range(20):
+#            lst = ["crand 0, 11, 13"]
+#            cr = random.randint(0, (1<<32)-1)
+#            self.run_tst_program(Program(lst), initial_cr=cr)
+#
+#    def test_mcrf(self):
+#        lst = ["mcrf 5, 1"]
+#        cr = 0xfeff0000
+#        self.run_tst_program(Program(lst), initial_cr=cr)
+#
+#    def test_mtcrf(self):
+#        for i in range(20):
+#            mask = random.randint(0, 255)
+#            lst = [f"mtcrf {mask}, 2"]
+#            cr = random.randint(0, (1<<32)-1)
+#            initial_regs = [0] * 32
+#            initial_regs[2] = random.randint(0, (1<<32)-1)
+#            self.run_tst_program(Program(lst), initial_regs=initial_regs,
+#                                 initial_cr=cr)
+
 
 # def get_cu_inputs(dec2, sim):
 #     """naming (res) must conform to CRFunctionUnit input regspec
