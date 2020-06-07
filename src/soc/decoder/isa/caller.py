@@ -374,7 +374,7 @@ class ISACaller:
                 if name in ['CA', 'CA32']:
                     if carry_en:
                         print ("writing %s to XER" % name, output)
-                        self.spr['XER'][XER_bits[name]].eq(output)
+                        self.spr['XER'][XER_bits[name]] = output.value
                     else:
                         print ("NOT writing %s to XER" % name, output)
                 elif name in info.special_regs:
