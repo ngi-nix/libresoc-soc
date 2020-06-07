@@ -68,10 +68,19 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst), initial_cr=cr)
 
-    def test_mcrf(self):
-        lst = ["mcrf 5, 1"]
-        cr = 0xfeff0000
+    def test_1_mcrf(self):
+        for i in range(20):
+            src = random.randint(0, 7)
+            dst = random.randint(0, 7)
+            lst = [f"mcrf {src}, {dst}"]
+            cr = random.randint(0, (1<<32)-1)
         self.run_tst_program(Program(lst), initial_cr=cr)
+
+    def test_0_mcrf(self):
+        for i in range(8):
+            lst = [f"mcrf 5, {i}"]
+            cr = 0xfeff0001
+            self.run_tst_program(Program(lst), initial_cr=cr)
 
     def test_mtcrf(self):
         for i in range(20):
@@ -210,11 +219,13 @@ class TestRunner(FHDLTestCase):
         if whole_reg:
             full_cr = yield alu.n.data_o.full_cr.data
             expected_cr = simulator.cr.get_range().value
+            print(f"CR whole: expected {expected_cr:x}, actual: {full_cr:x}")
             self.assertEqual(expected_cr, full_cr, code)
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
             expected_cr = simulator.crl[cr_sel].get_range().value
             real_cr = yield alu.n.data_o.cr.data
+            print(f"CR whole: expected {expected_cr:x}, actual: {real_cr:x}")
             self.assertEqual(expected_cr, real_cr, code)
         alu_out = yield alu.n.data_o.o.data
         out_reg_valid = yield dec2.e.write_reg.ok
