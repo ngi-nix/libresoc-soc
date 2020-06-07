@@ -235,8 +235,8 @@ class ISACaller:
 
     def TRAP(self, trap_addr=0x700):
         print ("TRAP: TODO")
-        # store PC in SRR0, set PC to 0x700
-        # store MSR in SRR1, set MSR to um errr something
+        # store CIA(+4?) in SRR0, set NIA to 0x700
+        # store MSR in SRR1, set MSR to um errr something, have to check spec
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
