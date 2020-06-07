@@ -616,7 +616,6 @@ class PowerParser:
             self.op_fields.add(name)
         if name in self.gprs:
             self.read_regs.add(name)  # add to list of regs to read
-            self.write_regs.add(name) # and add to list to write
         if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR', 'MSR']:
             self.special_regs.add(name)
             self.write_regs.add(name) # and add to list to write
