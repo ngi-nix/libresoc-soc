@@ -156,7 +156,7 @@ class Rotator(Elaboratable):
             with m.Case(0b11):
                 comb += self.result_o.eq(rot | ~mr)
                 # Generate carry output for arithmetic shift right of -ve value
-                comb += self.carry_out_o.eq((rs & ~ml).bool() & rs[0])
+                comb += self.carry_out_o.eq((rs & ~ml).bool())
 
         return m
 
