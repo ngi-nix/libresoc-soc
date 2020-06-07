@@ -159,9 +159,9 @@ class TrapMainStage(PipeModBase):
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += msr_o.data[stt:end].eq(a_i[stt:end])
                     with m.If(a_i[MSR_PR]):
-                        msr_o.data[MSR_EE].eq(1)
-                        msr_o.data[MSR_IR].eq(1)
-                        msr_o.data[MSR_DR].eq(1)
+                        comb += msr_o.data[MSR_EE].eq(1)
+                        comb += msr_o.data[MSR_IR].eq(1)
+                        comb += msr_o.data[MSR_DR].eq(1)
                 comb += msr_o.ok.eq(1)
 
             # move from MSR
@@ -180,9 +180,9 @@ class TrapMainStage(PipeModBase):
                 # MSR was in srr1
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
                 with m.If(srr1_i[MSR_PR]):
-                        msr_o[MSR_EE].eq(1)
-                        msr_o[MSR_IR].eq(1)
-                        msr_o[MSR_DR].eq(1)
+                        comb += msr_o[MSR_EE].eq(1)
+                        comb += msr_o[MSR_IR].eq(1)
+                        comb += msr_o[MSR_DR].eq(1)
                 comb += msr_o.ok.eq(1)
 
             with m.Case(InternalOp.OP_SC):
