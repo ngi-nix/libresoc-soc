@@ -53,6 +53,8 @@ class ShiftRotMainStage(PipeModBase):
             rotator.shift.eq(self.i.rb),
             rotator.is_32bit.eq(op.is_32bit),
             rotator.arith.eq(op.is_signed),
+            # rot_sign_ext <= '1' when e_in.insn_type = OP_EXTSWSLI else '0';
+            rotator.sign_ext_rs.eq(0), # XXX TODO
         ]
 
         comb += o.ok.eq(1) # defaults to enabled
@@ -71,7 +73,7 @@ class ShiftRotMainStage(PipeModBase):
         comb += Cat(rotator.right_shift,
                     rotator.clear_left,
                     rotator.clear_right).eq(mode)
-                
+
         # outputs from the microwatt rotator module
         comb += [o.data.eq(rotator.result_o),
                  self.o.xer_ca.data.eq(Repl(rotator.carry_out_o, 2))]
