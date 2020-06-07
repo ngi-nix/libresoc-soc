@@ -172,6 +172,27 @@ class TestRunner(FHDLTestCase):
                         self.assertEqual(cri, rval,
                             "cr reg %d not equal %s" % (i, repr(code)))
 
+                    # XER
+                    so = yield xregs.regs[xregs.SO].reg
+                    ov = yield xregs.regs[xregs.OV].reg
+                    ca = yield xregs.regs[xregs.CA].reg
+
+                    e_so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                    e_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                    e_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                    e_ca = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+                    e_ca32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+
+                    e_ov = e_ov | (e_ov32<<1)
+                    e_ca = e_ca | (e_ca32<<1)
+
+                    self.assertEqual(e_so, so,
+                            "so not equal %s" % (repr(code)))
+                    self.assertEqual(e_ov, ov,
+                            "ov not equal %s" % (repr(code)))
+                    self.assertEqual(e_ca, ca,
+                            "ca not equal %s" % (repr(code)))
+
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
                             traces=[]):
