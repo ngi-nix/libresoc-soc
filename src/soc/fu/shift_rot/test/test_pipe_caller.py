@@ -266,7 +266,7 @@ class TestRunner(FHDLTestCase):
                         msg = f"expected {expected:x}, actual: {alu_out:x}"
                         self.assertEqual(expected, alu_out, msg)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator)
+                                                            simulator, code)
                     break
 
         sim.add_sync_process(process)
@@ -274,12 +274,22 @@ class TestRunner(FHDLTestCase):
                             traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim):
+    def check_extra_alu_outputs(self, alu, dec2, sim, code):
         rc = yield dec2.e.rc.data
         if rc:
             cr_expected = sim.crl[0].get_range().value
             cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual)
+            self.assertEqual(cr_expected, cr_actual, code)
+
+        cry_out = yield dec2.e.output_carry
+        if cry_out:
+            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CO not CO32
+            self.assertEqual(expected_carry, real_carry, code)
+            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CO32
+            self.assertEqual(expected_carry32, real_carry32, code)
+
 
 
 if __name__ == "__main__":
