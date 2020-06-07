@@ -56,6 +56,17 @@ def msr_copy(msr_o, msr_i, zero_me=True):
         l.append(msr_o[stt:end].eq(msr_i[stt:end]))
     return l
 
+
+def msr_check_pr(m, msr_o):
+    """msr_check_pr: checks "problem state"
+    """
+    comb = m.d.comb
+    with m.If(msrdata[MSR_PR]):
+        comb += msr[MSR_EE].eq(1) # set external interrupt bit
+        comb += msr[MSR_IR].eq(1) # set instruction relocation bit
+        comb += msr[MSR_DR].eq(1) # set data relocation bit
+
+
 class TrapMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
@@ -158,10 +169,7 @@ class TrapMainStage(PipeModBase):
                     # and 63 (LE) (IBM bit numbering)
                     for stt, end in [(1,12), (13, 60), (61, 64)]:
                         comb += msr_o.data[stt:end].eq(a_i[stt:end])
-                    with m.If(a_i[MSR_PR]):
-                        comb += msr_o.data[MSR_EE].eq(1)
-                        comb += msr_o.data[MSR_IR].eq(1)
-                        comb += msr_o.data[MSR_DR].eq(1)
+                    msr_check_pr(m, msr_o.data)
                 comb += msr_o.ok.eq(1)
 
             # move from MSR
@@ -179,10 +187,7 @@ class TrapMainStage(PipeModBase):
                 comb += nia_o.ok.eq(1)
                 # MSR was in srr1
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
-                with m.If(srr1_i[MSR_PR]):
-                        comb += msr_o[MSR_EE].eq(1)
-                        comb += msr_o[MSR_IR].eq(1)
-                        comb += msr_o[MSR_DR].eq(1)
+                msr_check_pr(m, msr_o.data)
                 comb += msr_o.ok.eq(1)
 
             with m.Case(InternalOp.OP_SC):
