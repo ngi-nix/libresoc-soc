@@ -171,7 +171,7 @@ class ALU(Elaboratable):
         self.n.ready_i = Signal()
         self.n.valid_o = Signal()
         self.counter   = Signal(4)
-        self.op  = CompALUOpSubset()
+        self.op = CompALUOpSubset(name="op")
         i = []
         i.append(Signal(width, name="i1"))
         i.append(Signal(width, name="i2"))
@@ -191,13 +191,15 @@ class ALU(Elaboratable):
         add = Adder(self.width)
         mul = Multiplier(self.width)
         shf = Shifter(self.width)
+        sub = Subtractor(self.width)
 
         m.submodules.add = add
         m.submodules.mul = mul
         m.submodules.shf = shf
+        m.submodules.sub = sub
 
         # really should not activate absolutely all ALU inputs like this
-        for mod in [add, mul, shf]:
+        for mod in [add, mul, shf, sub]:
             m.d.comb += [
                 mod.a.eq(self.a),
                 mod.b.eq(self.b),
@@ -208,20 +210,49 @@ class ALU(Elaboratable):
 
         go_now = Signal(reset_less=True) # testing no-delay ALU
 
-        with m.If(self.p.valid_i):
-            # input is valid. next check, if we already said "ready" or not
-            with m.If(~self.p.ready_o):
-                # we didn't say "ready" yet, so say so and initialise
-                m.d.sync += self.p.ready_o.eq(1)
+        # ALU sequencer is idle when the count is zero
+        alu_idle = Signal(reset_less=True)
+        m.d.comb += alu_idle.eq(self.counter == 0)
+
+        # ALU sequencer is done when the count is one
+        alu_done = Signal(reset_less=True)
+        m.d.comb += alu_done.eq(self.counter == 1)
+
+        # in a sequential ALU, valid_o rises when the ALU is done
+        # and falls when acknowledged by ready_i
+        valid_o = Signal()
+        with m.If(alu_done):
+            m.d.sync += valid_o.eq(1)
+        with m.Elif(self.n.ready_i):
+            m.d.sync += valid_o.eq(0)
+
+        # select handshake handling according to ALU type
+        with m.If(go_now):
+            # with a combinatorial, no-delay ALU, just pass through
+            # the handshake signals to the other side
+            m.d.comb += self.p.ready_o.eq(self.n.ready_i)
+            m.d.comb += self.n.valid_o.eq(self.p.valid_i)
+        with m.Else():
+            # sequential ALU handshake:
+            # ready_o responds to valid_i, but only if the ALU is idle
+            m.d.comb += self.p.ready_o.eq(self.p.valid_i & alu_idle)
+            # select the internally generated valid_o, above
+            m.d.comb += self.n.valid_o.eq(valid_o)
+
+        # hold the ALU result until ready_o is asserted
+        alu_r = Signal(self.width)
+
+        with m.If(alu_idle):
+            with m.If(self.p.valid_i):
 
                 # as this is a "fake" pipeline, just grab the output right now
                 with m.If(self.op.insn_type == InternalOp.OP_ADD):
-                    m.d.sync += self.o.eq(add.o)
+                    m.d.sync += alu_r.eq(add.o)
                 with m.Elif(self.op.insn_type == InternalOp.OP_MUL_L64):
-                    m.d.sync += self.o.eq(mul.o)
+                    m.d.sync += alu_r.eq(mul.o)
                 with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
-                    m.d.sync += self.o.eq(shf.o)
-                # TODO: SUB
+                    m.d.sync += alu_r.eq(shf.o)
+                # SUB is zero-delay, no need to register
 
                 # NOTE: all of these are fake, just something to test
 
@@ -232,31 +263,21 @@ class ALU(Elaboratable):
                 with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
                     m.d.sync += self.counter.eq(7)
                 # ADD/SUB to take 2, straight away
-                with m.If(self.op.insn_type == InternalOp.OP_ADD):
+                with m.Elif(self.op.insn_type == InternalOp.OP_ADD):
                     m.d.sync += self.counter.eq(3)
-                # others to take 1, straight away
+                # others to take no delay
                 with m.Else():
                     m.d.comb += go_now.eq(1)
-                    m.d.sync += self.counter.eq(1)
 
         with m.Else():
-            # input says no longer valid, so drop ready as well.
-            # a "proper" ALU would have had to sync in the opcode and a/b ops
-            m.d.sync += self.p.ready_o.eq(0)
-
-        # ok so the counter's running: when it gets to 1, fire the output
-        with m.If((self.counter == 1) | go_now):
-            # set the output as valid if the recipient is ready for it
-            m.d.sync += self.n.valid_o.eq(1)
-        with m.If(self.n.ready_i & self.n.valid_o):
-            m.d.sync += self.n.valid_o.eq(0)
-            # recipient said it was ready: reset back to known-good.
-            m.d.sync += self.counter.eq(0) # reset the counter
-            m.d.sync += self.o.eq(0) # clear the output for tidiness sake
-
-        # countdown to 1 (transition from 1 to 0 only on acknowledgement)
-        with m.If(self.counter > 1):
+            # decrement the counter while the ALU is not idle
             m.d.sync += self.counter.eq(self.counter - 1)
+
+        # choose between zero-delay output, or registered
+        with m.If(go_now):
+            m.d.comb += self.o.eq(sub.o)
+        with m.Else():
+            m.d.comb += self.o.eq(alu_r)
 
         return m
 
@@ -374,15 +395,43 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.n.ready_i.eq(0)
     yield dut.p.valid_i.eq(1)
     yield
-    while True:
+
+    # if valid_o rose on the very first cycle, it is a
+    # zero-delay ALU
+    vld = yield dut.n.valid_o
+    if vld:
+        # special case for zero-delay ALU
+        # we must raise ready_i first, since the combinatorial ALU doesn't
+        # have any storage, and doesn't dare to assert ready_o back to us
+        # until we accepted the output data
+        yield dut.n.ready_i.eq(1)
+        result = yield dut.o
         yield
+        yield dut.p.valid_i.eq(0)
+        yield dut.n.ready_i.eq(0)
+        yield
+        return result
+
+    # wait for the ALU to accept our input data
+    while True:
+        rdy = yield dut.p.ready_o
+        if rdy:
+            break
+        yield
+
+    yield dut.p.valid_i.eq(0)
+
+    # wait for the ALU to present the output data
+    while True:
         vld = yield dut.n.valid_o
         if vld:
             break
-    yield
+        yield
 
+    # latch the result and lower read_i
+    yield dut.n.ready_i.eq(1)
     result = yield dut.o
-    yield dut.p.valid_i.eq(0)
+    yield
     yield dut.n.ready_i.eq(0)
     yield
 
@@ -401,6 +450,12 @@ def alu_sim(dut):
     result = yield from run_op(dut, 5, 3, InternalOp.OP_ADD, inv_a=1)
     print ("alu_sim add-inv", result)
     assert (result == 65533)
+
+    # test zero-delay ALU
+    # don't have OP_SUB, so use any other
+    result = yield from run_op(dut, 5, 3, InternalOp.OP_NOP)
+    print ("alu_sim sub", result)
+    assert (result == 2)
 
 
 def test_alu():
