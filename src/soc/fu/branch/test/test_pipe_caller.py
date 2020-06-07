@@ -181,7 +181,8 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr)
+                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                                test.mem, test.msr)
                 initial_cia = 0x2000
                 simulator.set_pc(initial_cia)
                 gen = program.generate_instructions()
