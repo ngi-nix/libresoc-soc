@@ -369,6 +369,9 @@ class PowerParser:
                 print(astor.dump_tree(p[1]))
                 # replace GPR(x) with GPR[x]
                 idx = p[1].args[0]
+                # and add index to read_regs if it is a gpr
+                if idx in self.gprs:
+                    self.read_regs.add(name)
                 p[1] = ast.Subscript(p[1].func, idx, ast.Load())
             elif isinstance(p[1], ast.Call) and p[1].func.id == 'MEM':
                 print("mem assign")
