@@ -223,9 +223,11 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(expected_cr, full_cr, code)
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
+            expected_cr = simulator.cr.get_range().value
+            print(f"CR whole: {expected_cr:x}, sel {cr_sel}")
             expected_cr = simulator.crl[cr_sel].get_range().value
             real_cr = yield alu.n.data_o.cr.data
-            print(f"CR whole: expected {expected_cr:x}, actual: {real_cr:x}")
+            print(f"CR part: expected {expected_cr:x}, actual: {real_cr:x}")
             self.assertEqual(expected_cr, real_cr, code)
         alu_out = yield alu.n.data_o.o.data
         out_reg_valid = yield dec2.e.write_reg.ok
