@@ -333,6 +333,11 @@ class PowerParser:
                       | expr_stmt"""
         if isinstance(p[1], ast.Call):
             p[0] = ast.Expr(p[1])
+        elif isinstance(p[1], ast.Name) and p[1].id == 'TRAP':
+            # TRAP needs to actually be a function
+            name = ast.Name("self", ast.Load())
+            name = ast.Attribute(name, "TRAP", ast.Load())
+            p[0] = ast.Call(name, [], [])
         else:
             p[0] = p[1]
 

@@ -233,6 +233,11 @@ class ISACaller:
         self.decoder = decoder2.dec
         self.dec2 = decoder2
 
+    def TRAP(self, trap_addr=0x700):
+        print ("TRAP: TODO")
+        # store PC in SRR0, set PC to 0x700
+        # store MSR in SRR1, set MSR to um errr something
+
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
 
