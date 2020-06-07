@@ -73,6 +73,17 @@ class TrapMainStage(PipeModBase):
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
         self.fields.create_specs()
 
+    def trap(self, m, addr, trap_addr):
+        comb  = m.d.comb
+        nia_o, srr0_o = self.o.nia, self.o.srr0
+
+        comb += nia_o.data.eq(trap_addr)
+        comb += nia_o.ok.eq(1)
+
+        comb += srr0_o.data.eq(addr) # addr to begin from on return
+        comb += srro_o.ok.eq(1)
+
+
     def ispec(self):
         return TrapInputData(self.pspec)
 
