@@ -388,7 +388,17 @@ class ISACaller:
 
 
 def inject():
-    """ Decorator factory. """
+    """Decorator factory.
+
+    this decorator will "inject" variables into the function's namespace,
+    from the *dictionary* in self.namespace.  it therefore becomes possible
+    to make it look like a whole stack of variables which would otherwise
+    need "self." inserted in front of them (*and* for those variables to be
+    added to the instance) "appear" in the function.
+
+    "self.namespace['SI']" for example becomes accessible as just "SI" but
+    *only* inside the function, when decorated.
+    """
     def variable_injector(func):
         @wraps(func)
         def decorator(*args, **kwargs):
@@ -397,7 +407,7 @@ def inject():
             except AttributeError:
                 func_globals = func.func_globals  # Earlier versions.
 
-            context = args[0].namespace
+            context = args[0].namespace # variables to be injected
             saved_values = func_globals.copy()  # Shallow copy of dict.
             func_globals.update(context)
             result = func(*args, **kwargs)
