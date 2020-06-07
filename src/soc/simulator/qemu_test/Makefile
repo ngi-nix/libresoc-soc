@@ -5,6 +5,9 @@ AFLAGS=-mpwr9
 
 all: kernel.bin
 
+clean:
+	rm *.o *.elf *.bin
+
 kernel.elf: test.o
 	$(TOOLCHAIN)-ld $^ -o $@ -T memmap
 
