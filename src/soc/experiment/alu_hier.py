@@ -259,12 +259,12 @@ class ALU(Elaboratable):
                 # MUL, to take 5 instructions
                 with m.If(self.op.insn_type == InternalOp.OP_MUL_L64):
                     m.d.sync += self.counter.eq(5)
-                # SHIFT to take 7
+                # SHIFT to take 1, straight away
                 with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
-                    m.d.sync += self.counter.eq(7)
-                # ADD/SUB to take 1, straight away
-                with m.Elif(self.op.insn_type == InternalOp.OP_ADD):
                     m.d.sync += self.counter.eq(1)
+                # ADD/SUB to take 3
+                with m.Elif(self.op.insn_type == InternalOp.OP_ADD):
+                    m.d.sync += self.counter.eq(3)
                 # others to take no delay
                 with m.Else():
                     m.d.comb += go_now.eq(1)
@@ -460,6 +460,10 @@ def alu_sim(dut):
     result = yield from run_op(dut, 5, 3, InternalOp.OP_NOP)
     print ("alu_sim sub", result)
     assert (result == 2)
+
+    result = yield from run_op(dut, 13, 2, InternalOp.OP_SHR)
+    print ("alu_sim shr", result)
+    assert (result == 3)
 
 
 def test_alu():
