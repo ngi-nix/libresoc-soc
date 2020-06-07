@@ -372,8 +372,11 @@ class ISACaller:
                 if isinstance(output, int):
                     output = SelectableInt(output, 256)
                 if name in ['CA', 'CA32']:
-                    print ("writing %s to XER" % name, output)
-                    self.spr['XER'][XER_bits[name]].eq(output)
+                    if carry_en:
+                        print ("writing %s to XER" % name, output)
+                        self.spr['XER'][XER_bits[name]].eq(output)
+                    else:
+                        print ("NOT writing %s to XER" % name, output)
                 elif name in info.special_regs:
                     print('writing special %s' % name, output, special_sprs)
                     if name in special_sprs:
