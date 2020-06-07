@@ -445,7 +445,7 @@ class DecodeCROut(Elaboratable):
                 comb += self.cr_bitfield.data.eq(0)
                 comb += self.cr_bitfield.ok.eq(self.rc_in) # only when RC=1
             with m.Case(CROutSel.BF):
-                comb += self.cr_bitfield.data.eq(self.dec.FormX.BF[0:-1])
+                comb += self.cr_bitfield.data.eq(self.dec.FormX.BF)
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CROutSel.BT):
                 comb += self.cr_bitfield.data.eq(self.dec.FormXL.BT[2:5])
