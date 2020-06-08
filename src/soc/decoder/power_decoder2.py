@@ -18,6 +18,13 @@ from soc.decoder.power_enums import (InternalOp, CryIn, Function,
 
 from soc.regfile.regfiles import FastRegs
 
+# see traptype (and trap main_stage.py)
+
+TT_FP = 1<<0
+TT_PRIV = 1<<1
+TT_TRAP = 1<<2
+TT_ADDR = 1<<3
+
 
 def instr_is_privileged(m, op, insn):
     """determines if the instruction is privileged or not
@@ -532,6 +539,8 @@ class Decode2ToExecute1Type(RecordObject):
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.update  = Signal(reset_less=True) # LD/ST is "update" variant
+        self.traptype  = Signal(4, reset_less=True) # see trap main_stage.py
+        self.trapaddr  = Signal(13, reset_less=True)
 
 
 class PowerDecode2(Elaboratable):
@@ -647,7 +656,19 @@ class PowerDecode2(Elaboratable):
         comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
         comb += e.output_cr.eq(op.cr_out) # condition reg goes in
 
+        with m.If(op.internal_op == InternalOp.OP_TRAP):
+            comb += e.traptype.eq(TT_TRAP) # request trap interrupt
+            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
 
+        return m
+
+        # privileged instruction
+        with m.If(instr_is_privileged(m, op.internal_op, e.insn) &
+                  msr[MSR_PR]):
+            # privileged instruction trap
+            comb += op.internal_op.eq(InternalOp.OP_TRAP)
+            comb += e.traptype.eq(TT_PRIV) # request privileged instruction
+            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
         return m
 
     def regspecmap(self, regfile, regname):

@@ -33,10 +33,14 @@ MSR_LE  = (63 - 63)    # Little Endian
 
 # Listed in V3.0B Book III 7.5.9 "Program Interrupt"
 
-PI_PRIV = (63 - 43)    # 1 if FP exception
+# note that these correspond to trap_input_record.traptype bits 0,1,2,3
+# (TODO: add more?)
+
+PI_FP   = (63 - 43)    # 1 if FP exception
 PI_PRIV = (63 - 45)    # 1 if privileged interrupt
 PI_TRAP = (63 - 46)    # 1 if exception is "trap" type
 PI_ADR  = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
+
 
 def msr_copy(msr_o, msr_i, zero_me=True):
     """
