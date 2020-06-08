@@ -11,6 +11,11 @@ from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 
 
+# microwatt calc_ov function.
+def calc_ov(msb_a, msb_b, ca, msb_r):
+    return (ca ^ msb_r) & ~(msb_a ^ msb_b)
+
+
 class ALUMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "main")
@@ -69,11 +74,16 @@ class ALUMainStage(PipeModBase):
 
                 # see microwatt OP_ADD code
                 # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-                comb += cry_o.data[0].eq(add_o[-1]) # XER.CO
-                comb += cry_o.data[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CO32
+                ca = Signal(2, reset_less=True)
+                comb += ca[0].eq(add_o[-1])                   # XER.CA
+                comb += ca[1].eq(add_o[33] ^ (a[32] ^ b[32])) # XER.CA32
+                comb += cry_o.data.eq(ca)
                 comb += cry_o.ok.eq(1)
-                comb += ov_o.data[0].eq((add_o[-2] != a[-1]) & (a[-1] == b[-1]))
-                comb += ov_o.data[1].eq((add_o[32] != a[31]) & (a[31] == b[31]))
+                # 32-bit (ov[1]) and 64-bit (ov[0]) overflow
+                ov = Signal(2, reset_less=True)
+                comb += ov[0].eq(calc_ov(a[-1], b[-1], ca[0], add_o[-2]))
+                comb += ov[1].eq(calc_ov(a[31], b[31], ca[1], add_o[32]))
+                comb += ov_o.data.eq(ov)
                 comb += ov_o.ok.eq(1)
 
             #### exts (sign-extend) ####
