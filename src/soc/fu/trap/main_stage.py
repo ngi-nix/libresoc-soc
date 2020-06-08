@@ -76,7 +76,7 @@ class TrapMainStage(PipeModBase):
     def trap(self, m, return_addr, trap_addr):
         """trap """ # TODO add descriptive docstring
         comb  = m.d.comb
-        nia_o, srr0_o = self.o.nia, self.o.srr0 # add srr1 as well
+        nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
 
         # trap address
         comb += nia_o.data.eq(trap_addr)
@@ -86,7 +86,9 @@ class TrapMainStage(PipeModBase):
         comb += srr0_o.data.eq(return_addr)
         comb += srr0_o.ok.eq(1)
 
-        # TODO: MSR (into srr1)
+        # take a copy of the current MSR in SRR1
+        comb += msr_copy(srr1_o.data, msr_i) # old MSR
+        comb += srr1_o.ok.eq(1)
 
     def ispec(self):
         return TrapInputData(self.pspec)
@@ -157,20 +159,9 @@ class TrapMainStage(PipeModBase):
                 # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
                     # generate trap-type program interrupt
-
-                    # change the PC to trap address 0x700
-                    comb += nia_o.data.eq(0x700)         # trap address
-                    comb += nia_o.ok.eq(1)
-
-                    # take a copy of the current MSR in SRR1
-                    comb += msr_copy(srr1_o.data, msr_i)   # old MSR
+                    self.trap(0x700, cia_i)
                     # set bit 46 to say trap occurred
                     comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
-                    comb += srr1_o.ok.eq(1)
-
-                    # take a copy of the current PC in SRR0
-                    comb += srr0_o.data.eq(cia_i)   # old PC
-                    comb += srr0_o.ok.eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
@@ -209,15 +200,8 @@ class TrapMainStage(PipeModBase):
                 # TODO: scv must generate illegal instruction.  this is
                 # the decoder's job, not ours, here.
 
-                # jump to the trap address
-                comb += nia_o.eq(0xC00) # trap address
-                comb += nia_o.ok.eq(1)
-                # keep a copy of the MSR in SRR1
-                comb += msr_copy(srr1_o.data, msr_i)
-                comb += srr1_o.ok.eq(1)
-                # and store the (next-after-return) PC in SRR0
-                comb += srr0_o.data.eq(cia_i+4) # addr to begin from on return
-                comb += srr0_o.ok.eq(1)
+                # jump to the trap address, return at cia+4
+                self.trap(0xc00, cia_i+4)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
