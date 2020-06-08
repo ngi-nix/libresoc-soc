@@ -529,6 +529,7 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        e = self.e
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -543,7 +544,7 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_cr_out = dec_cr_out = DecodeCROut(self.dec)
 
         # copy instruction through...
-        for i in [self.e.insn, dec_a.insn_in, dec_b.insn_in,
+        for i in [e.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in, dec_rc.insn_in,
                   dec_oe.insn_in, dec_cr_in.insn_in, dec_cr_out.insn_in]:
             comb += i.eq(self.dec.opcode_in)
@@ -554,7 +555,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_c.sel_in.eq(self.dec.op.in3_sel)
         comb += dec_o.sel_in.eq(self.dec.op.out_sel)
         comb += dec_o2.sel_in.eq(self.dec.op.out_sel)
-        comb += dec_o2.lk.eq(self.e.lk)
+        comb += dec_o2.lk.eq(e.lk)
         comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
         comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
@@ -564,71 +565,71 @@ class PowerDecode2(Elaboratable):
         # decode LD/ST length
         with m.Switch(self.dec.op.ldst_len):
             with m.Case(LdstLen.is1B):
-                comb += self.e.data_len.eq(1)
+                comb += e.data_len.eq(1)
             with m.Case(LdstLen.is2B):
-                comb += self.e.data_len.eq(2)
+                comb += e.data_len.eq(2)
             with m.Case(LdstLen.is4B):
-                comb += self.e.data_len.eq(4)
+                comb += e.data_len.eq(4)
             with m.Case(LdstLen.is8B):
-                comb += self.e.data_len.eq(8)
+                comb += e.data_len.eq(8)
 
-        comb += self.e.nia.eq(0)    # XXX TODO
+        comb += e.nia.eq(0)    # XXX TODO
         fu = self.dec.op.function_unit
         itype = Mux(fu == Function.NONE,
                     InternalOp.OP_ILLEGAL,
                     self.dec.op.internal_op)
-        comb += self.e.insn_type.eq(itype)
-        comb += self.e.fn_unit.eq(fu)
+        comb += e.insn_type.eq(itype)
+        comb += e.fn_unit.eq(fu)
 
         # registers a, b, c and out and out2 (LD/ST EA)
-        comb += self.e.read_reg1.eq(dec_a.reg_out)
-        comb += self.e.read_reg2.eq(dec_b.reg_out)
-        comb += self.e.read_reg3.eq(dec_c.reg_out)
-        comb += self.e.write_reg.eq(dec_o.reg_out)
-        comb += self.e.write_ea.eq(dec_o2.reg_out)
-        comb += self.e.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
-        comb += self.e.zero_a.eq(dec_a.immz_out)  # RA==0 detected
+        comb += e.read_reg1.eq(dec_a.reg_out)
+        comb += e.read_reg2.eq(dec_b.reg_out)
+        comb += e.read_reg3.eq(dec_c.reg_out)
+        comb += e.write_reg.eq(dec_o.reg_out)
+        comb += e.write_ea.eq(dec_o2.reg_out)
+        comb += e.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
+        comb += e.zero_a.eq(dec_a.immz_out)  # RA==0 detected
 
         # rc and oe out
-        comb += self.e.rc.eq(dec_rc.rc_out)
-        comb += self.e.oe.eq(dec_oe.oe_out)
+        comb += e.rc.eq(dec_rc.rc_out)
+        comb += e.oe.eq(dec_oe.oe_out)
 
         # SPRs out
-        comb += self.e.read_spr1.eq(dec_a.spr_out)
-        comb += self.e.write_spr.eq(dec_o.spr_out)
+        comb += e.read_spr1.eq(dec_a.spr_out)
+        comb += e.write_spr.eq(dec_o.spr_out)
 
         # Fast regs out
-        comb += self.e.read_fast1.eq(dec_a.fast_out)
-        comb += self.e.read_fast2.eq(dec_b.fast_out)
-        comb += self.e.write_fast1.eq(dec_o.fast_out)
-        comb += self.e.write_fast2.eq(dec_o2.fast_out)
+        comb += e.read_fast1.eq(dec_a.fast_out)
+        comb += e.read_fast2.eq(dec_b.fast_out)
+        comb += e.write_fast1.eq(dec_o.fast_out)
+        comb += e.write_fast2.eq(dec_o2.fast_out)
 
-        comb += self.e.read_cr1.eq(dec_cr_in.cr_bitfield)
-        comb += self.e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
-        comb += self.e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
-        comb += self.e.read_cr_whole.eq(dec_cr_in.whole_reg)
+        comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
+        comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
+        comb += e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
+        comb += e.read_cr_whole.eq(dec_cr_in.whole_reg)
 
-        comb += self.e.write_cr.eq(dec_cr_out.cr_bitfield)
-        comb += self.e.write_cr_whole.eq(dec_cr_out.whole_reg)
+        comb += e.write_cr.eq(dec_cr_out.cr_bitfield)
+        comb += e.write_cr_whole.eq(dec_cr_out.whole_reg)
 
         # decoded/selected instruction flags
-        comb += self.e.invert_a.eq(self.dec.op.inv_a)
-        comb += self.e.invert_out.eq(self.dec.op.inv_out)
-        comb += self.e.input_carry.eq(self.dec.op.cry_in)   # carry comes in
-        comb += self.e.output_carry.eq(self.dec.op.cry_out) # carry goes out
-        comb += self.e.is_32bit.eq(self.dec.op.is_32b)
-        comb += self.e.is_signed.eq(self.dec.op.sgn)
+        comb += e.invert_a.eq(self.dec.op.inv_a)
+        comb += e.invert_out.eq(self.dec.op.inv_out)
+        comb += e.input_carry.eq(self.dec.op.cry_in)   # carry comes in
+        comb += e.output_carry.eq(self.dec.op.cry_out) # carry goes out
+        comb += e.is_32bit.eq(self.dec.op.is_32b)
+        comb += e.is_signed.eq(self.dec.op.sgn)
         with m.If(self.dec.op.lk):
-            comb += self.e.lk.eq(self.dec.LK) # XXX TODO: accessor
+            comb += e.lk.eq(self.dec.LK) # XXX TODO: accessor
 
-        comb += self.e.byte_reverse.eq(self.dec.op.br)
-        comb += self.e.sign_extend.eq(self.dec.op.sgn_ext)
-        comb += self.e.update.eq(self.dec.op.upd) # LD/ST "update" mode.
+        comb += e.byte_reverse.eq(self.dec.op.br)
+        comb += e.sign_extend.eq(self.dec.op.sgn_ext)
+        comb += e.update.eq(self.dec.op.upd) # LD/ST "update" mode.
 
 
         # These should be removed eventually
-        comb += self.e.input_cr.eq(self.dec.op.cr_in)   # condition reg comes in
-        comb += self.e.output_cr.eq(self.dec.op.cr_out) # condition reg goes in
+        comb += e.input_cr.eq(self.dec.op.cr_in)   # condition reg comes in
+        comb += e.output_cr.eq(self.dec.op.cr_out) # condition reg goes in
 
 
         return m
