@@ -1,3 +1,10 @@
+"""core of the python-based POWER9 simulator
+
+this is part of a cycle-accurate POWER9 simulator.  its primary purpose is
+not speed, it is for both learning and educational purposes, as well as
+a method of verifying the HDL.
+"""
+
 from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
