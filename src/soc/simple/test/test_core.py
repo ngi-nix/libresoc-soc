@@ -103,13 +103,13 @@ class TestRunner(FHDLTestCase):
                 print ("sprs", test.sprs)
                 if special_sprs['XER'] in test.sprs:
                     xer = test.sprs[special_sprs['XER']]
-                    sobit = xer[XER_bits['SO']].asint()
+                    sobit = 1 if xer[XER_bits['SO']] else 0
                     yield xregs.regs[xregs.SO].reg.eq(sobit)
-                    cabit = xer[XER_bits['CA']].asint()
-                    ca32bit = xer[XER_bits['CA32']].asint()
+                    cabit = 1 if xer[XER_bits['CA']] else 0
+                    ca32bit = 1 if xer[XER_bits['CA32']] else 0
                     yield xregs.regs[xregs.CA].reg.eq(Cat(cabit, ca32bit))
-                    ovbit = xer[XER_bits['OV']].asint()
-                    ov32bit = xer[XER_bits['OV32']].asint()
+                    ovbit = 1 if xer[XER_bits['OV']] else 0
+                    ov32bit = 1 if xer[XER_bits['OV32']] else 0
                     yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
                 else:
                     yield xregs.regs[xregs.SO].reg.eq(0)
@@ -186,12 +186,9 @@ class TestRunner(FHDLTestCase):
                     e_ov = e_ov | (e_ov32<<1)
                     e_ca = e_ca | (e_ca32<<1)
 
-                    self.assertEqual(e_so, so,
-                            "so not equal %s" % (repr(code)))
-                    self.assertEqual(e_ov, ov,
-                            "ov not equal %s" % (repr(code)))
-                    self.assertEqual(e_ca, ca,
-                            "ca not equal %s" % (repr(code)))
+                    self.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
+                    self.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
+                    self.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
