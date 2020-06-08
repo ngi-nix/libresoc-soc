@@ -14,8 +14,8 @@ class CompTrapOpSubset(Record):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
                   ('insn', 32),
-                  ('read_trap_whole', 1),
-                  ('write_trap_whole', 1),
+                  ('traptype', 4), # see trap main_stage.py and PowerDecoder2
+                  ('trapaddr', 13),
                   )
 
         Record.__init__(self, Layout(layout), name=name)
@@ -24,8 +24,8 @@ class CompTrapOpSubset(Record):
         self.insn_type.reset_less = True
         self.insn.reset_less = True
         self.fn_unit.reset_less = True
-        self.read_trap_whole.reset_less = True
-        self.write_trap_whole.reset_less = True
+        self.traptype.reset_less = True
+        self.trapaddr.reset_less = True
 
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
@@ -40,6 +40,6 @@ class CompTrapOpSubset(Record):
         return [self.insn_type,
                 self.insn,
                 self.fn_unit,
-                self.read_trap_whole,
-                self.write_trap_whole,
+                self.traptype,
+                self.trapaddr,
         ]
