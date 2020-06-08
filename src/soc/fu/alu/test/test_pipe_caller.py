@@ -128,7 +128,7 @@ class ALUTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_adde(self):
+    def test_0_adde(self):
         lst = ["adde. 5, 6, 7"]
         for i in range(10):
             initial_regs = [0] * 32
@@ -266,11 +266,30 @@ class TestRunner(FHDLTestCase):
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CO not CO32
+            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CA not CA32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CO32
+            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CA32
             self.assertEqual(expected_carry32, real_carry32, code)
+
+        oe = yield dec2.e.oe.oe
+        oe_ok = yield dec2.e.oe.ok
+        if oe and oe_ok:
+            expected_so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+            real_so = yield alu.n.data_o.xer_so.data[0]
+            self.assertEqual(expected_so, real_so, code)
+            expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+            real_ov = yield alu.n.data_o.xer_ov.data[0] # OV bit
+            self.assertEqual(expected_ov, real_ov, code)
+            expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+            real_ov32 = yield alu.n.data_o.xer_ov.data[1] # OV32 bit
+            self.assertEqual(expected_ov32, real_ov32, code)
+        else:
+            # if OE not enabled, XER SO and OV must correspondingly be false
+            so_ok = yield alu.n.data_o.xer_so.ok
+            ov_ok = yield alu.n.data_o.xer_ov.ok
+            self.assertEqual(so_ok, False, code)
+            self.assertEqual(ov_ok, False, code)
 
 
 
