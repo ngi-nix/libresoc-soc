@@ -380,8 +380,9 @@ class ISACaller:
         carry_en = yield self.dec2.e.output_carry
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
-        ov_en = yield self.dec2.e.oe
-        if ov_en:
+        ov_en = yield self.dec2.e.oe.oe
+        ov_ok = yield self.dec2.e.oe.ok
+        if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results)
         rc_en = yield self.dec2.e.rc.data
         if rc_en:
