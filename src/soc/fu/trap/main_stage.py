@@ -84,7 +84,7 @@ class TrapMainStage(PipeModBase):
 
         # addr to begin from on return
         comb += srr0_o.data.eq(return_addr)
-        comb += srro_o.ok.eq(1) # spelling
+        comb += srr0_o.ok.eq(1)
 
         # TODO: MSR (into srr1)
 
