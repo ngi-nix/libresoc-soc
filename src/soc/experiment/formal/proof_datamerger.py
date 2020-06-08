@@ -1,4 +1,4 @@
-# Proof of correctness for partitioned equal signal combiner
+# Proof of correctness for DataMerger
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 # Copyright (C) 2020 Tobias Platen <tplaten@posteo.de>
 
@@ -36,8 +36,8 @@ class Driver(Elaboratable):
         for j in range(dut.array_size):
             allzero = (dut.addr_array_i[j] == 0) & allzero
 
-        # assert that the output is zero when the datamerger is idle
         with m.If(allzero):
+            # assert that the output is zero when the datamerger is idle
             comb += Assert(dut.data_o == 0)
         with m.Else():
             comb += Assume(dut.data_o != 0) # at least one output bit is set
