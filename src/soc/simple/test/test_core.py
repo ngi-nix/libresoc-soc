@@ -103,13 +103,13 @@ class TestRunner(FHDLTestCase):
                 print ("sprs", test.sprs)
                 if special_sprs['XER'] in test.sprs:
                     xer = test.sprs[special_sprs['XER']]
-                    sobit = 1 if xer[XER_bits['SO']] else 0
+                    sobit = xer[XER_bits['SO']].value
                     yield xregs.regs[xregs.SO].reg.eq(sobit)
-                    cabit = 1 if xer[XER_bits['CA']] else 0
-                    ca32bit = 1 if xer[XER_bits['CA32']] else 0
+                    cabit = xer[XER_bits['CA']].value
+                    ca32bit = xer[XER_bits['CA32']].value
                     yield xregs.regs[xregs.CA].reg.eq(Cat(cabit, ca32bit))
-                    ovbit = 1 if xer[XER_bits['OV']] else 0
-                    ov32bit = 1 if xer[XER_bits['OV32']] else 0
+                    ovbit = xer[XER_bits['OV']].value
+                    ov32bit = xer[XER_bits['OV32']].value
                     yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
                 else:
                     yield xregs.regs[xregs.SO].reg.eq(0)
@@ -120,7 +120,7 @@ class TestRunner(FHDLTestCase):
                 while index < len(instructions):
                     ins, code = instructions[index]
 
-                    print("0x{:X}".format(ins & 0xffffffff))
+                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
@@ -131,6 +131,16 @@ class TestRunner(FHDLTestCase):
                     #fn_unit = yield pdecode2.e.fn_unit
                     #fuval = self.funit.value
                     #self.assertEqual(fn_unit & fuval, fuval)
+
+                    # XER
+                    so = yield xregs.regs[xregs.SO].reg
+                    ov = yield xregs.regs[xregs.OV].reg
+                    ca = yield xregs.regs[xregs.CA].reg
+                    oe = yield pdecode2.e.oe.oe
+                    oe_ok = yield pdecode2.e.oe.oe_ok
+
+                    print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
+                    print ("oe:", oe, oe_ok)
 
                     # set operand and get inputs
                     yield from set_issue(core, pdecode2, sim)
@@ -177,15 +187,17 @@ class TestRunner(FHDLTestCase):
                     ov = yield xregs.regs[xregs.OV].reg
                     ca = yield xregs.regs[xregs.CA].reg
 
-                    e_so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                    e_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                    e_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                    e_ca = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-                    e_ca32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+                    print ("sim SO", sim.spr['XER'][XER_bits['SO']])
+                    e_so = sim.spr['XER'][XER_bits['SO']].value
+                    e_ov = sim.spr['XER'][XER_bits['OV']].value
+                    e_ov32 = sim.spr['XER'][XER_bits['OV32']].value
+                    e_ca = sim.spr['XER'][XER_bits['CA']].value
+                    e_ca32 = sim.spr['XER'][XER_bits['CA32']].value
 
                     e_ov = e_ov | (e_ov32<<1)
                     e_ca = e_ca | (e_ca32<<1)
 
+                    print ("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
                     self.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
                     self.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
                     self.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))

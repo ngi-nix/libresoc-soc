@@ -48,6 +48,8 @@ def get_cu_inputs(dec2, sim):
         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
         res['xer_so'] = so
 
+    print ("alu get_cu_inputs", res)
+
     return res
 
 
@@ -103,9 +105,40 @@ class ALUTestCase(FHDLTestCase):
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
+
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
+
+    def test_1_regression(self):
+        lst = [f"extsw 3, 1"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xb6a1fc6c8576af91
+        self.run_tst_program(Program(lst), initial_regs)
+        lst = [f"subf 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x3d7f3f7ca24bac7b
+        initial_regs[2] = 0xf6b2ac5e13ee15c2
+        self.run_tst_program(Program(lst), initial_regs)
+        lst = [f"subf 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x833652d96c7c0058
+        initial_regs[2] = 0x1c27ecff8a086c1a
+        self.run_tst_program(Program(lst), initial_regs)
+        lst = [f"extsb 3, 1"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x7f9497aaff900ea0
+        self.run_tst_program(Program(lst), initial_regs)
+        lst = [f"add. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xc523e996a8ff6215
+        initial_regs[2] = 0xe1e5b9cc9864c4a8
+        self.run_tst_program(Program(lst), initial_regs)
+        lst = [f"add 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x2e08ae202742baf8
+        initial_regs[2] = 0x86c43ece9efe5baa
+        self.run_tst_program(Program(lst), initial_regs)
 
     def test_rand(self):
         insns = ["add", "add.", "subf"]
@@ -203,17 +236,22 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                                 test.mem, test.msr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                index = simulator.pc.CIA.value//4
+                index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
-                    print("0x{:X}".format(ins & 0xffffffff))
+                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
                     print(code)
+                    if 'XER' in sim.spr:
+                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                        print ("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
@@ -221,11 +259,11 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.ALU.value)
-                    yield from set_alu_inputs(alu, pdecode2, simulator)
+                    yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
                     opname = code.split(' ')[0]
-                    yield from simulator.call(opname)
-                    index = simulator.pc.CIA.value//4
+                    yield from sim.call(opname)
+                    index = sim.pc.CIA.value//4
 
                     vld = yield alu.n.valid_o
                     while not vld:
@@ -236,14 +274,14 @@ class TestRunner(FHDLTestCase):
                     out_reg_valid = yield pdecode2.e.write_reg.ok
                     if out_reg_valid:
                         write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
+                        expected = sim.gpr(write_reg_idx).value
                         print(f"expected {expected:x}, actual: {alu_out:x}")
                         self.assertEqual(expected, alu_out, code)
                     yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator, code)
+                                                            sim, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+        with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
 
@@ -284,6 +322,7 @@ class TestRunner(FHDLTestCase):
             expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
             real_ov32 = yield alu.n.data_o.xer_ov.data[1] # OV32 bit
             self.assertEqual(expected_ov32, real_ov32, code)
+            print ("after: so/ov/32", real_so, real_ov, real_ov32)
         else:
             # if OE not enabled, XER SO and OV must correspondingly be false
             so_ok = yield alu.n.data_o.xer_so.ok
