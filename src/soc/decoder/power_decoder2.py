@@ -18,6 +18,24 @@ from soc.decoder.power_enums import (InternalOp, CryIn, Function,
 
 from soc.regfile.regfiles import FastRegs
 
+
+def instr_is_privileged(m, op, insn):
+    """determines if the instruction is privileged or not
+    """
+    comb = m.d.comb
+    Signal = is_priv_insn(reset_less=True)
+    with m.Switch(op):
+        with m.Case(InternalOp.OP_ATTN)  : comb += is_priv_insn.eq(1)
+        with m.Case(InternalOp.OP_MFMSR) : comb += is_priv_insn.eq(1)
+        with m.Case(InternalOp.OP_MTMSRD): comb += is_priv_insn.eq(1)
+        with m.Case(InternalOp.OP_RFID)  : comb += is_priv_insn.eq(1)
+        with m.Case(InternalOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
+    with m.If(op == OP_MFSPR | op == OP_MTSPR):
+        with m.If(insn[20]): # field XFX.spr[-1] i think
+            comb += is_priv_insn.eq(1)
+    return is_priv_insn
+
+
 class DecodeA(Elaboratable):
     """DecodeA from instruction
 
