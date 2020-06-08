@@ -31,6 +31,12 @@ MSR_PMM = (63 - 60)    # Performance Monitor Mark
 MSR_RI  = (63 - 62)    # Recoverable Interrupt
 MSR_LE  = (63 - 63)    # Little Endian
 
+# Listed in V3.0B Book III 7.5.9 "Program Interrupt"
+
+PI_PRIV = (63 - 43)    # 1 if FP exception
+PI_PRIV = (63 - 45)    # 1 if privileged interrupt
+PI_TRAP = (63 - 46)    # 1 if exception is "trap" type
+PI_ADR  = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
 
 def msr_copy(msr_o, msr_i, zero_me=True):
     """
@@ -160,8 +166,8 @@ class TrapMainStage(PipeModBase):
                 with m.If(should_trap):
                     # generate trap-type program interrupt
                     self.trap(0x700, cia_i)
-                    # set bit 46 to say trap occurred
-                    comb += srr1_o.data[63-46].eq(1)     # XXX which bit?
+                    # set bit 46 to say trap occurred (see 3.0B Book III 7.5.9)
+                    comb += srr1_o.data[PI_TRAP].eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
