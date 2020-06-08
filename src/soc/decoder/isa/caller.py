@@ -263,7 +263,7 @@ class ISACaller:
         self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
         self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
 
-    def handle_carry_(self, inputs, outputs):
+    def handle_carry_(self, inputs, outputs, already_done):
         inv_a = yield self.dec2.e.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
@@ -277,14 +277,16 @@ class ISACaller:
         gts = [(x > output) for x in inputs]
         print(gts)
         cy = 1 if any(gts) else 0
-        self.spr['XER'][XER_bits['CA']] = cy
+        if not (1 & already_done):
+            self.spr['XER'][XER_bits['CA']] = cy
 
         print ("inputs", inputs)
         # 32 bit carry
         gts = [(x[32:64] > output[32:64]) == SelectableInt(1, 1)
                for x in inputs]
         cy32 = 1 if any(gts) else 0
-        self.spr['XER'][XER_bits['CA32']] = cy32
+        if not (2 & already_done):
+            self.spr['XER'][XER_bits['CA32']] = cy32
 
     def handle_overflow(self, inputs, outputs):
         inv_a = yield self.dec2.e.invert_a
@@ -364,9 +366,20 @@ class ISACaller:
         results = info.func(self, *inputs)
         print(results)
 
+        # detect if CA/CA32 already in outputs (sra*, basically)
+        already_done = 0
+        if info.write_regs:
+            output_names = create_args(info.write_regs)
+            for name in output_names:
+                if name == 'CA':
+                    already_done |= 1
+                if name == 'CA32':
+                    already_done |= 2
+
+        print ("carry already done?", bin(already_done))
         carry_en = yield self.dec2.e.output_carry
         if carry_en:
-            yield from self.handle_carry_(inputs, results)
+            yield from self.handle_carry_(inputs, results, already_done)
         ov_en = yield self.dec2.e.oe
         if ov_en:
             yield from self.handle_overflow(inputs, results)
@@ -376,7 +389,6 @@ class ISACaller:
 
         # any modified return results?
         if info.write_regs:
-            output_names = create_args(info.write_regs)
             for name, output in zip(output_names, results):
                 if isinstance(output, int):
                     output = SelectableInt(output, 256)
