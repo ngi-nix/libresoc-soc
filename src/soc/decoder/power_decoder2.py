@@ -529,7 +529,7 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        e = self.e
+        e, op = self.e, self.dec.op
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -550,20 +550,20 @@ class PowerDecode2(Elaboratable):
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
-        comb += dec_a.sel_in.eq(self.dec.op.in1_sel)
-        comb += dec_b.sel_in.eq(self.dec.op.in2_sel)
-        comb += dec_c.sel_in.eq(self.dec.op.in3_sel)
-        comb += dec_o.sel_in.eq(self.dec.op.out_sel)
-        comb += dec_o2.sel_in.eq(self.dec.op.out_sel)
+        comb += dec_a.sel_in.eq(op.in1_sel)
+        comb += dec_b.sel_in.eq(op.in2_sel)
+        comb += dec_c.sel_in.eq(op.in3_sel)
+        comb += dec_o.sel_in.eq(op.out_sel)
+        comb += dec_o2.sel_in.eq(op.out_sel)
         comb += dec_o2.lk.eq(e.lk)
-        comb += dec_rc.sel_in.eq(self.dec.op.rc_sel)
-        comb += dec_oe.sel_in.eq(self.dec.op.rc_sel) # XXX should be OE sel
-        comb += dec_cr_in.sel_in.eq(self.dec.op.cr_in)
-        comb += dec_cr_out.sel_in.eq(self.dec.op.cr_out)
+        comb += dec_rc.sel_in.eq(op.rc_sel)
+        comb += dec_oe.sel_in.eq(op.rc_sel) # XXX should be OE sel
+        comb += dec_cr_in.sel_in.eq(op.cr_in)
+        comb += dec_cr_out.sel_in.eq(op.cr_out)
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
         # decode LD/ST length
-        with m.Switch(self.dec.op.ldst_len):
+        with m.Switch(op.ldst_len):
             with m.Case(LdstLen.is1B):
                 comb += e.data_len.eq(1)
             with m.Case(LdstLen.is2B):
@@ -573,11 +573,9 @@ class PowerDecode2(Elaboratable):
             with m.Case(LdstLen.is8B):
                 comb += e.data_len.eq(8)
 
-        comb += e.nia.eq(0)    # XXX TODO
-        fu = self.dec.op.function_unit
-        itype = Mux(fu == Function.NONE,
-                    InternalOp.OP_ILLEGAL,
-                    self.dec.op.internal_op)
+        comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
+        fu = op.function_unit
+        itype = Mux(fu == Function.NONE, InternalOp.OP_ILLEGAL, op.internal_op)
         comb += e.insn_type.eq(itype)
         comb += e.fn_unit.eq(fu)
 
@@ -613,23 +611,23 @@ class PowerDecode2(Elaboratable):
         comb += e.write_cr_whole.eq(dec_cr_out.whole_reg)
 
         # decoded/selected instruction flags
-        comb += e.invert_a.eq(self.dec.op.inv_a)
-        comb += e.invert_out.eq(self.dec.op.inv_out)
-        comb += e.input_carry.eq(self.dec.op.cry_in)   # carry comes in
-        comb += e.output_carry.eq(self.dec.op.cry_out) # carry goes out
-        comb += e.is_32bit.eq(self.dec.op.is_32b)
-        comb += e.is_signed.eq(self.dec.op.sgn)
-        with m.If(self.dec.op.lk):
+        comb += e.invert_a.eq(op.inv_a)
+        comb += e.invert_out.eq(op.inv_out)
+        comb += e.input_carry.eq(op.cry_in)   # carry comes in
+        comb += e.output_carry.eq(op.cry_out) # carry goes out
+        comb += e.is_32bit.eq(op.is_32b)
+        comb += e.is_signed.eq(op.sgn)
+        with m.If(op.lk):
             comb += e.lk.eq(self.dec.LK) # XXX TODO: accessor
 
-        comb += e.byte_reverse.eq(self.dec.op.br)
-        comb += e.sign_extend.eq(self.dec.op.sgn_ext)
-        comb += e.update.eq(self.dec.op.upd) # LD/ST "update" mode.
+        comb += e.byte_reverse.eq(op.br)
+        comb += e.sign_extend.eq(op.sgn_ext)
+        comb += e.update.eq(op.upd) # LD/ST "update" mode.
 
 
         # These should be removed eventually
-        comb += e.input_cr.eq(self.dec.op.cr_in)   # condition reg comes in
-        comb += e.output_cr.eq(self.dec.op.cr_out) # condition reg goes in
+        comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
+        comb += e.output_cr.eq(op.cr_out) # condition reg goes in
 
 
         return m
