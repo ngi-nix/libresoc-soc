@@ -126,28 +126,35 @@ class LenExpand(Elaboratable):
     def __init__(self, bit_len, cover=1):
         self.bit_len = bit_len
         self.cover = cover
-        cl = log2_int(cover)
         self.len_i = Signal(bit_len, reset_less=True)
         self.addr_i = Signal(bit_len, reset_less=True)
-        self.lexp_o = Signal((cover<<(bit_len))+(cl<<bit_len), reset_less=True)
+        self.lexp_o = Signal(self.llen(1), reset_less=True)
+        if cover > 1:
+            self.rexp_o = Signal(self.llen(cover), reset_less=True)
         print ("LenExpand", bit_len, cover, self.lexp_o.shape())
+
+    def llen(self, cover):
+        cl = log2_int(self.cover)
+        return (cover<<(self.bit_len))+(cl<<self.bit_len)
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
         # covers N bits
-        llen = (1<<(self.bit_len))+(3<<self.bit_len)
+        llen = self.llen(1)
         # temp
         binlen = Signal((1<<self.bit_len)+1, reset_less=True)
         lexp_o = Signal(llen, reset_less=True)
         comb += binlen.eq((Const(1, self.bit_len+1) << (self.len_i)) - 1)
-        comb += lexp_o.eq(binlen << self.addr_i)
+        comb += self.lexp_o.eq(binlen << self.addr_i)
+        if self.cover == 1:
+            return m
         l = []
         print ("llen", llen)
         for i in range(llen):
-            l.append(Repl(lexp_o[i], self.cover))
-        comb += self.lexp_o.eq(Cat(*l))
+            l.append(Repl(self.lexp_o[i], self.cover))
+        comb += self.rexp_o.eq(Cat(*l))
         return m
 
     def ports(self):
@@ -401,19 +408,22 @@ def part_addr_bit(dut):
 
 
 def part_addr_byte(dut):
-    for l in range(4):
+    for l in range(8):
         for a in range(1<<dut.bit_len):
+            maskbit = (1<<(l))-1
             mask = (1<<(l*8))-1
             yield dut.len_i.eq(l)
             yield dut.addr_i.eq(a)
             yield Settle()
-            exp = yield dut.lexp_o
-            print ("part_addr_byte", l, a, hex(exp))
+            lexp = yield dut.lexp_o
+            exp = yield dut.rexp_o
+            print ("pa", l, a, bin(lexp), hex(exp))
             assert exp == (mask << (a*8))
+            assert lexp == (maskbit << (a))
 
 
 def test_lenexpand_byte():
-    dut = LenExpand(3, 8)
+    dut = LenExpand(4, 8)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_len_expand_byte.il", "w") as f:
         f.write(vl)
