@@ -218,14 +218,6 @@ class ALU(Elaboratable):
         alu_done = Signal(reset_less=True)
         m.d.comb += alu_done.eq(self.counter == 1)
 
-        # in a sequential ALU, valid_o rises when the ALU is done
-        # and falls when acknowledged by ready_i
-        valid_o = Signal()
-        with m.If(self.n.ready_i):
-            m.d.sync += valid_o.eq(0)
-        with m.Elif(alu_done):
-            m.d.sync += valid_o.eq(1)
-
         # select handshake handling according to ALU type
         with m.If(go_now):
             # with a combinatorial, no-delay ALU, just pass through
@@ -237,7 +229,7 @@ class ALU(Elaboratable):
             # ready_o responds to valid_i, but only if the ALU is idle
             m.d.comb += self.p.ready_o.eq(self.p.valid_i & alu_idle)
             # select the internally generated valid_o, above
-            m.d.comb += self.n.valid_o.eq(valid_o | alu_done)
+            m.d.comb += self.n.valid_o.eq(alu_done)
 
         # hold the ALU result until ready_o is asserted
         alu_r = Signal(self.width)
@@ -269,8 +261,8 @@ class ALU(Elaboratable):
                 with m.Else():
                     m.d.comb += go_now.eq(1)
 
-        with m.Else():
-            # decrement the counter while the ALU is not idle
+        with m.Elif(~alu_done | self.n.ready_i):
+            # decrement the counter while the ALU is neither idle nor finished
             m.d.sync += self.counter.eq(self.counter - 1)
 
         # choose between zero-delay output, or registered
