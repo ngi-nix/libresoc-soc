@@ -32,6 +32,7 @@ from soc.experiment.compldst import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
 #from nmutil.picker import PriorityPicker
 from nmigen.lib.coding import PriorityEncoder
+from soc.scoreboard.addr_split import LDSTSplitter
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
@@ -147,7 +148,16 @@ class DualPortSplitter(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        #TODO splitter = LDSTSplitter(64, 48, 4)
+        m.submodules.splitter = splitter = LDSTSplitter(64, 48, 4)
+        comb += splitter.addr_i.eq(self.inp.addr) #XXX
+        #comb += splitter.len_i.eq()
+        #comb += splitter.valid_i.eq()
+        comb += splitter.is_ld_i.eq(self.inp.is_ld_i)
+        comb += splitter.is_st_i.eq(self.inp.is_st_i)
+        #comb += splitter.st_data_i.eq()
+        #comb += splitter.sld_valid_i.eq()
+        #comb += splitter.sld_data_i.eq()
+        #comb += splitter.sst_valid_i.eq()
         return m
 
 class DataMergerRecord(Record):
@@ -596,10 +606,10 @@ def test_dual_port_splitter():
     #with open("test_data_merger.il", "w") as f:
     #    f.write(vl)
 
-    run_simulation(dut, data_merger_merge(dut),
-                   vcd_name='test_dual_port_splitter.vcd')
+    #run_simulation(dut, data_merger_merge(dut),
+    #               vcd_name='test_dual_port_splitter.vcd')
 
 if __name__ == '__main__':
-    #test_l0_cache()
-    #test_data_merger()
-    test_dual_port_splitter()
+    test_l0_cache()
+    test_data_merger()
+    #test_dual_port_splitter()
