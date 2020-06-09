@@ -589,16 +589,6 @@ class PowerDecode2(Elaboratable):
         comb += dec_cr_out.sel_in.eq(op.cr_out)
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
-        # decode LD/ST length
-        with m.Switch(op.ldst_len):
-            with m.Case(LdstLen.is1B):
-                comb += e.data_len.eq(1)
-            with m.Case(LdstLen.is2B):
-                comb += e.data_len.eq(2)
-            with m.Case(LdstLen.is4B):
-                comb += e.data_len.eq(4)
-            with m.Case(LdstLen.is8B):
-                comb += e.data_len.eq(8)
 
         comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
         fu = op.function_unit
@@ -638,6 +628,7 @@ class PowerDecode2(Elaboratable):
         comb += e.write_cr_whole.eq(dec_cr_out.whole_reg)
 
         # decoded/selected instruction flags
+        comb += e.data_len.eq(op.ldst_len)
         comb += e.invert_a.eq(op.inv_a)
         comb += e.invert_out.eq(op.inv_out)
         comb += e.input_carry.eq(op.cry_in)   # carry comes in

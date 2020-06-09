@@ -212,8 +212,8 @@ class LdstLen(Enum):
     NONE = 0
     is1B = 1
     is2B = 2
-    is4B = 3
-    is8B = 4
+    is4B = 4
+    is8B = 8
 
 
 @unique
