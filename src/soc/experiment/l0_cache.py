@@ -162,8 +162,8 @@ class DataMergerRecord(Record):
 
         #FIXME: make resetless
 
-# TODO: formal verification
 
+# TODO: formal verification
 class DataMerger(Elaboratable):
     """DataMerger
 
@@ -306,10 +306,18 @@ class L0CacheBuffer(Elaboratable):
     def __init__(self, n_units, mem, regwid=64, addrwid=48):
         self.n_units = n_units
         self.mem = mem
+        self.regwid = regwid
+        self.addrwid = addrwid
         ul = []
         for i in range(n_units):
             ul.append(LDSTPort(i, regwid, addrwid))
         self.dports = Array(ul)
+
+    def truncaddr(self, addr):
+        """truncates the address to the top bits of the memory granularity
+        """
+        nbits = log2_int(self.mem.regwid)
+        return addr[nbits:]
 
     def elaborate(self, platform):
         m = Module()
@@ -545,6 +553,7 @@ def l0_cache_ldst(dut):
     assert data == result, "data %x != %x" % (result, data)
     assert data2 == result2, "data2 %x != %x" % (result2, data2)
 
+
 def data_merger_merge(dut):
     print("data_merger")
     #starting with all inputs zero
@@ -566,6 +575,7 @@ def data_merger_merge(dut):
     assert data == 0xff00ff00ff00ff00ff00ff00ff00ff
     assert en == 0xff
     yield
+
 
 def test_l0_cache():
 
