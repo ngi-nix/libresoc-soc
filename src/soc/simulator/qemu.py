@@ -40,13 +40,15 @@ class QemuController:
                 return int(x['payload']['register-values'][0]['value'], 0)
         return None
 
-    def get_pc(self): return self._get_register('pc')
-    def get_cr(self): return self._get_register('cnd')
-    def get_xer(self): return self._get_register('xer')
-    def get_msr(self): return self._get_register('msr')
-    def get_lr(self): return self._get_register('lr')
-    def get_fpscr(self): return self._get_register('fpscr')
-    def get_ctr(self): return self._get_register('cnt') # probably
+    # TODO: use -data-list-register-names instead of hardcoding the values
+    def get_pc(self): return self._get_register('x 64')
+    def get_msr(self): return self._get_register('x 65')
+    def get_cr(self): return self._get_register('x 66')
+    def get_lr(self): return self._get_register('x 67')
+    def get_ctr(self): return self._get_register('x 68') # probably
+    def get_xer(self): return self._get_register('x 69')
+    def get_fpscr(self): return self._get_register('x 70')
+    def get_mq(self): return self._get_register('x 71')
 
     def get_register(self, num):
         return self._get_register('x {}'.format(num))

@@ -61,6 +61,15 @@ class DecoderTestCase(FHDLTestCase):
 
         return simulator
 
+    def test_0_cmp(self):
+        lst = ["addi 6, 0, 0x10",
+               "addi 7, 0, 0x05",
+               "subf. 1, 6, 7",
+               "cmp cr2, 1, 6, 7",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1])
+
     def test_example(self):
         lst = ["addi 1, 0, 0x1234",
                "addi 2, 0, 0x5678",
@@ -142,11 +151,21 @@ class DecoderTestCase(FHDLTestCase):
             self.qemu_register_compare(simulator, q, reglist)
         print(simulator.gpr.dump())
 
-
-    def qemu_register_compare(self, simulator, qemu, regs):
+    def qemu_register_compare(self, sim, qemu, regs):
+        qpc, qxer, qcr = qemu.get_pc(), qemu.get_xer(), qemu.get_cr()
+        sim_cr = sim.cr.get_range().value
+        sim_pc = sim.pc.CIA.value
+        sim_xer = sim.spr['XER'].value
+        print("qemu pc", hex(qpc))
+        print("qemu cr", hex(qcr))
+        print("qemu xer", bin(qxer))
+        print("sim pc", sim.pc.CIA.value)
+        print("sim cr", hex(sim_cr))
+        print("sim xer", hex(sim_xer))
+        self.assertEqual(qcr, sim_cr)
         for reg in regs:
             qemu_val = qemu.get_register(reg)
-            sim_val = simulator.gpr(reg).value
+            sim_val = sim.gpr(reg).value
             self.assertEqual(qemu_val, sim_val)
 
 
