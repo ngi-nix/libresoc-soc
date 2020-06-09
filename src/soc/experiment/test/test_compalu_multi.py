@@ -102,6 +102,12 @@ def scoreboard_sim(dut):
     result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1)
     assert result == 2
 
+    # test combinatorial zero-delay operation
+    # In the test ALU, any operation other than ADD, MUL or SHR
+    # is zero-delay, and do a subtraction.
+    result = yield from op_sim(dut, 5, 2, InternalOp.OP_NOP)
+    assert result == 3
+
 
 def test_compunit():
 
@@ -147,7 +153,7 @@ class CompUnitParallelTest:
 
     def driver(self):
         print("Begin parallel test.")
-        yield from self.operation(5, 2, InternalOp.OP_ADD, inv_a=0,
+        yield from self.operation(5, 2, InternalOp.OP_NOP, inv_a=0,
                                   imm=8, imm_ok=0, rdmaskn=(1, 0))
 
     def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
