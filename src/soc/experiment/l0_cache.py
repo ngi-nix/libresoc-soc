@@ -33,6 +33,7 @@ from soc.decoder.power_decoder2 import Data
 #from nmutil.picker import PriorityPicker
 from nmigen.lib.coding import PriorityEncoder
 from soc.scoreboard.addr_split import LDSTSplitter
+from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
@@ -325,11 +326,14 @@ class L0CacheBuffer(Elaboratable):
             ul.append(LDSTPort(i, regwid, addrwid))
         self.dports = Array(ul)
 
+    @property
+    def addrbits(self):
+        return log2_int(self.mem.regwid//8)
+
     def truncaddr(self, addr):
         """truncates the address to the top bits of the memory granularity
         """
-        nbits = log2_int(self.mem.regwid)
-        return addr[nbits:]
+        return addr[self.addrbits:]
 
     def elaborate(self, platform):
         m = Module()
@@ -352,6 +356,7 @@ class L0CacheBuffer(Elaboratable):
 
         m.submodules.ldpick = ldpick = PriorityEncoder(self.n_units)
         m.submodules.stpick = stpick = PriorityEncoder(self.n_units)
+        m.submodules.lenexp = lenexp = LenExpand(self.regwid//8, 8)
 
         lds = Signal(self.n_units, reset_less=True)
         sts = Signal(self.n_units, reset_less=True)
