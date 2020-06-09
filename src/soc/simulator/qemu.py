@@ -31,13 +31,25 @@ class QemuController:
     def get_registers(self):
         return self.gdb.write('-data-list-register-values x')
 
-    def get_register(self, num):
-        res = self.gdb.write('-data-list-register-values x {}'.format(num),timeout_sec=1.0) # increase this timeout if needed
+    def _get_register(self, fmt):
+        res = self.gdb.write('-data-list-register-values '+fmt,
+                             timeout_sec=1.0) # increase this timeout if needed
         for x in res:
             if(x["type"]=="result"):
                 assert 'register-values' in x['payload']
                 return int(x['payload']['register-values'][0]['value'], 0)
         return None
+
+    def get_pc(self): return self._get_register('pc')
+    def get_cr(self): return self._get_register('cnd')
+    def get_xer(self): return self._get_register('xer')
+    def get_msr(self): return self._get_register('msr')
+    def get_lr(self): return self._get_register('lr')
+    def get_fpscr(self): return self._get_register('fpscr')
+    def get_ctr(self): return self._get_register('cnt') # probably
+
+    def get_register(self, num):
+        return self._get_register('x {}'.format(num))
 
     def step(self):
         return self.gdb.write('-exec-next-instruction')
