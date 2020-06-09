@@ -68,11 +68,11 @@ def msr_copy(msr_o, msr_i, zero_me=True):
     return l
 
 
-def msr_check_pr(m, msr_o):
+def msr_check_pr(m, msr):
     """msr_check_pr: checks "problem state"
     """
     comb = m.d.comb
-    with m.If(msrdata[MSR_PR]):
+    with m.If(msr[MSR_PR]):
         comb += msr[MSR_EE].eq(1) # set external interrupt bit
         comb += msr[MSR_IR].eq(1) # set instruction relocation bit
         comb += msr[MSR_DR].eq(1) # set data relocation bit
