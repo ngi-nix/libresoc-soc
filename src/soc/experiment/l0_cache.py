@@ -330,10 +330,10 @@ class L0CacheBuffer(Elaboratable):
     def addrbits(self):
         return log2_int(self.mem.regwid//8)
 
-    def truncaddr(self, addr):
-        """truncates the address to the top bits of the memory granularity
+    def splitaddr(self, addr):
+        """split the address into top and bottom bits of the memory granularity
         """
-        return addr[self.addrbits:]
+        return addr[:self.addrbits], addr[self.addrbits:]
 
     def elaborate(self, platform):
         m = Module()
