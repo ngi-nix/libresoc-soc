@@ -14,6 +14,7 @@ from nmigen.cli import verilog, rtlil
 from soc.scoreboard.addr_match import LenExpand
 #from nmutil.queue import Queue
 
+
 class LDData(Record):
     def __init__(self, dwidth, name=None):
         Record.__init__(self, (('err', 1), ('data', dwidth)), name=name)

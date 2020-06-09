@@ -31,10 +31,11 @@ Notes:
 > the L2 cache was Line sized.
 """
 
-from nmigen.compat.sim import run_simulation
+from nmigen.compat.sim import run_simulation, Settle
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Const, Array, Cat, Elaboratable
+from nmigen import Module, Signal, Const, Array, Cat, Elaboratable, Repl
 from nmigen.lib.coding import Decoder
+from nmigen.utils import log2_int
 
 from nmutil.latch import latchregister, SRLatch
 
@@ -117,23 +118,36 @@ class LenExpand(Elaboratable):
                                    => 0b1111000
     (bit_len=4) len=8, addr=0b0101 => 0b11111111 << addr
                                    => 0b1111111100000
+
+    note: by setting cover=8 this can also be used as a shift-mask.  the
+    bit-mask is replicated (expanded out), each bit expanded to "cover" bits.
     """
 
-    def __init__(self, bit_len):
+    def __init__(self, bit_len, cover=1):
         self.bit_len = bit_len
+        self.cover = cover
+        cl = log2_int(cover)
         self.len_i = Signal(bit_len, reset_less=True)
         self.addr_i = Signal(bit_len, reset_less=True)
-        self.lexp_o = Signal(1<<(bit_len+1), reset_less=True)
+        self.lexp_o = Signal((cover<<(bit_len))+(cl<<bit_len), reset_less=True)
+        print ("LenExpand", bit_len, cover, self.lexp_o.shape())
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
+        # covers N bits
+        llen = (1<<(self.bit_len))+(3<<self.bit_len)
         # temp
         binlen = Signal((1<<self.bit_len)+1, reset_less=True)
+        lexp_o = Signal(llen, reset_less=True)
         comb += binlen.eq((Const(1, self.bit_len+1) << (self.len_i)) - 1)
-        comb += self.lexp_o.eq(binlen << self.addr_i)
-
+        comb += lexp_o.eq(binlen << self.addr_i)
+        l = []
+        print ("llen", llen)
+        for i in range(llen):
+            l.append(Repl(lexp_o[i], self.cover))
+        comb += self.lexp_o.eq(Cat(*l))
         return m
 
     def ports(self):
@@ -327,6 +341,7 @@ class PartialAddrBitmap(PartialAddrMatch):
 
 
 def part_addr_sim(dut):
+    return
     yield dut.dest_i.eq(1)
     yield dut.issue_i.eq(1)
     yield
@@ -384,6 +399,27 @@ def part_addr_bit(dut):
     yield dut.addr_rs_i[1].eq(0)
     yield
 
+
+def part_addr_byte(dut):
+    for l in range(4):
+        for a in range(1<<dut.bit_len):
+            mask = (1<<(l*8))-1
+            yield dut.len_i.eq(l)
+            yield dut.addr_i.eq(a)
+            yield Settle()
+            exp = yield dut.lexp_o
+            print ("part_addr_byte", l, a, hex(exp))
+            assert exp == (mask << (a*8))
+
+
+def test_lenexpand_byte():
+    dut = LenExpand(3, 8)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_len_expand_byte.il", "w") as f:
+        f.write(vl)
+    run_simulation(dut, part_addr_byte(dut), vcd_name='test_part_byte.vcd')
+
+
 def test_part_addr():
     dut = LenExpand(4)
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -411,3 +447,4 @@ def test_part_addr():
 
 if __name__ == '__main__':
     test_part_addr()
+    test_lenexpand_byte()
