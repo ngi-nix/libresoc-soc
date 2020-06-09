@@ -26,7 +26,7 @@ TT_TRAP = 1<<2
 TT_ADDR = 1<<3
 
 
-def instr_is_privileged(m, op, insn):
+def instr_is_priv(m, op, insn):
     """determines if the instruction is privileged or not
     """
     comb = m.d.comb
@@ -656,15 +656,16 @@ class PowerDecode2(Elaboratable):
         comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
         comb += e.output_cr.eq(op.cr_out) # condition reg goes in
 
-        with m.If(op.internal_op == InternalOp.OP_TRAP):
-            comb += e.traptype.eq(TT_TRAP) # request trap interrupt
-            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
-
         return m
 
         # privileged instruction
-        with m.If(instr_is_privileged(m, op.internal_op, e.insn) &
-                  msr[MSR_PR]):
+        with m.If(instr_is_priv(m, op.internal_op, e.insn) & msr[MSR_PR]):
+            # don't request registers RA/RT
+            comb += e.read_reg1.eq(0)
+            comb += e.read_reg2.eq(0)
+            comb += e.read_reg3.eq(0)
+            comb += e.write_reg.eq(0)
+            comb += e.write_ea.eq(0)
             # privileged instruction trap
             comb += op.internal_op.eq(InternalOp.OP_TRAP)
             comb += e.traptype.eq(TT_PRIV) # request privileged instruction

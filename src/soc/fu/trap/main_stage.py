@@ -15,6 +15,7 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
+from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR)
 
 # Listed in V3.0B Book III Chap 4.2.1
 # MSR bit numbers
@@ -115,6 +116,7 @@ class TrapMainStage(PipeModBase):
         a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
         o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
         srr0_o, srr1_o = self.o.srr0, self.o.srr1
+        traptype, trapaddr = op.traptype, op.trapaddr
 
         # take copy of D-Form TO field
         i_fields = self.fields.FormD
@@ -155,12 +157,13 @@ class TrapMainStage(PipeModBase):
 
         # They're in reverse bit order because POWER.
         # Check V3.0B Book 1, Appendix C.6 for chart
-        trap_bits = Signal(5)
+        trap_bits = Signal(5, reset_less=True)
         comb += trap_bits.eq(Cat(gt_u, lt_u, equal, gt_s, lt_s))
 
         # establish if the trap should go ahead (any tests requested in TO)
-        should_trap = Signal()
-        comb += should_trap.eq((trap_bits & to).any())
+        # or if traptype is set already
+        should_trap = Signal(reset_less=True)
+        comb += should_trap.eq((trap_bits & to).any() | traptype.any())
 
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op):
@@ -169,9 +172,16 @@ class TrapMainStage(PipeModBase):
                 # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
                     # generate trap-type program interrupt
-                    self.trap(0x700, cia_i)
-                    # set bit 46 to say trap occurred (see 3.0B Book III 7.5.9)
-                    comb += srr1_o.data[PI_TRAP].eq(1)
+                    self.trap(trapaddr<<4, cia_i)
+                    with m.If(traptype == 0):
+                        # say trap occurred (see 3.0B Book III 7.5.9)
+                        comb += srr1_o.data[PI_TRAP].eq(1)
+                    with m.If(traptype & TT_PRIV):
+                        comb += srr1_o.data[PI_PRIV].eq(1)
+                    with m.If(traptype & TT_FP):
+                        comb += srr1_o.data[PI_FP].eq(1)
+                    with m.If(traptype & TT_ADDR):
+                        comb += srr1_o.data[PI_ADDR].eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
