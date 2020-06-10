@@ -82,3 +82,10 @@ class ALUHelpers:
         else:
             yield alu.p.data_i.full_cr.eq(0)
 
+    def get_int_o(res, alu, dec2):
+        out_reg_valid = yield pdecode2.e.write_reg.ok
+        if out_reg_valid:
+            res['o'] = yield alu.n.data_o.o.data 
+
+    def check_int_o(dut, alu, sim, dec2):
+        pass
