@@ -497,8 +497,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         yield self.adr_rel_o
         yield self.sto_rel_o
         yield self.wr.rel
-        yield self.data_o
-        yield self.addr_o
+        yield from self.data_o.ports()
+        yield from self.addr_o.ports()
         yield self.load_mem_o
         yield self.stwd_mem_o
 
