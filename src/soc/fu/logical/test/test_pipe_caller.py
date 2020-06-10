@@ -22,22 +22,8 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    # RA (or RC)
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        res['ra'] = sim.gpr(data1).value
-
-    # RB (or immediate)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    #imm_ok = yield dec2.e.imm_data.imm_ok
-    if reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        data2 = sim.gpr(data2).value
-        res['rb'] = data2
-    #elif imm_ok:
-    #    data2 = yield dec2.e.imm_data.imm
-    #    res['rb'] = data2
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
 
     return res
 
@@ -222,27 +208,36 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o.data
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out, code)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator, code)
+
+                    yield from self.check_alu_outputs(alu, pdecode2,
+                                                      simulator, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+        with sim.write_vcd("logical_simulator.vcd", "logical_simulator.gtkw",
                            traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim, code):
+    def check_alu_outputs(self, alu, dec2, sim, code):
+
         rc = yield dec2.e.rc.data
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
+
+        print ("check extra output", repr(code), cridx_ok, cridx)
         if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0.data
-            self.assertEqual(cr_expected, cr_actual, code)
+            self.assertEqual(cridx, 0, code)
+
+        sim_o = {}
+        res = {}
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
+
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_int_o(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
