@@ -16,3 +16,30 @@ class TestCase:
         self.cr = cr
         self.mem = mem
         self.msr = msr
+
+class ALUHelpers:
+
+    def set_int_ra(alu, dec2, inp):
+        if 'ra' in inp:
+            yield alu.p.data_i.ra.eq(inp['ra'])
+
+    def set_int_rb(alu, dec2, inp):
+        if 'rb' in inp:
+            yield alu.p.data_i.rb.eq(inp['rb'])
+        # If there's an immediate, set the B operand to that
+        imm_ok = yield dec2.e.imm_data.imm_ok
+        if imm_ok:
+            data2 = yield dec2.e.imm_data.imm
+            yield alu.p.data_i.b.eq(data2)
+
+    def set_xer_ca(alu, dec2, inp):
+        if 'xer_ca' in inp:
+            yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
+            print ("extra inputs: CA/32", bin(inp['xer_ca']))
+
+    def set_xer_so(alu, dec2, inp):
+        if 'xer_so' in inp:
+            so = inp['xer_so']
+            print ("extra inputs: so", so)
+            yield alu.p.data_i.xer_so.eq(so)
+

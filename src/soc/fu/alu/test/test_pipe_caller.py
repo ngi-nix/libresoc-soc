@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.alu.pipeline import ALUBasePipe
 from soc.fu.alu.pipe_data import ALUPipeSpec
 import random
@@ -60,24 +60,11 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
-    if 'ra' in inp:
-        yield alu.p.data_i.a.eq(inp['ra'])
-    if 'rb' in inp:
-        yield alu.p.data_i.b.eq(inp['rb'])
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
-    # If there's an immediate, set the B operand to that
-    imm_ok = yield dec2.e.imm_data.imm_ok
-    if imm_ok:
-        data2 = yield dec2.e.imm_data.imm
-        yield alu.p.data_i.b.eq(data2)
-
-    if 'xer_ca' in inp:
-        yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
-        print ("extra inputs: CA/32", bin(inp['xer_ca']))
-    if 'xer_so' in inp:
-        so = inp['xer_so']
-        print ("extra inputs: so", so)
-        yield alu.p.data_i.xer_so.eq(so)
+    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
