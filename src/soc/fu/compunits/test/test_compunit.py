@@ -125,6 +125,7 @@ class TestRunner(FHDLTestCase):
             pi = l0.l0.dports[0].pi
             m.submodules.cu = cu = self.fukls(pi, awid=4)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
+            m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
         else:
             m.submodules.cu = cu = self.fukls()
 
