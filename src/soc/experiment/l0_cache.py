@@ -567,7 +567,7 @@ def l0_cache_ld(dut, addr, datalen, expected):
     return data
 
 
-def l0_cache_ldst(dut):
+def l0_cache_ldst(arg, dut):
     yield
     addr = 0x2
     data = 0xbeef
@@ -578,8 +578,9 @@ def l0_cache_ldst(dut):
     result = yield from l0_cache_ld(dut, 0x2, 2, data)
     result2 = yield from l0_cache_ld(dut, 0x3, 2, data2)
     yield
-    assert data == result, "data %x != %x" % (result, data)
-    assert data2 == result2, "data2 %x != %x" % (result2, data2)
+    arg.assertEqual(data, result, "data %x != %x" % (result, data))
+    arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
+
 
 def data_merger_merge(dut):
     print("data_merger")
@@ -603,43 +604,44 @@ def data_merger_merge(dut):
     assert en == 0xff
     yield
 
-def test_l0_cache(arg):
 
-    dut = TstL0CacheBuffer(regwid=64)
-    #vl = rtlil.convert(dut, ports=dut.ports())
-    #with open("test_basic_l0_cache.il", "w") as f:
-    #    f.write(vl)
+class TestL0Cache(unittest.TestCase):
 
-    run_simulation(dut, l0_cache_ldst(dut),
-                   vcd_name='test_l0_cache_basic.vcd')
+    def test_l0_cache(self):
 
-def test_data_merger(arg):
+        dut = TstL0CacheBuffer(regwid=64)
+        #vl = rtlil.convert(dut, ports=dut.ports())
+        #with open("test_basic_l0_cache.il", "w") as f:
+        #    f.write(vl)
 
-    dut = DataMerger(8)
-    #vl = rtlil.convert(dut, ports=dut.ports())
-    #with open("test_data_merger.il", "w") as f:
-    #    f.write(vl)
+        run_simulation(dut, l0_cache_ldst(self, dut),
+                       vcd_name='test_l0_cache_basic.vcd')
 
-    run_simulation(dut, data_merger_merge(dut),
-                   vcd_name='test_data_merger.vcd')
+class TestDataMerger(unittest.TestCase):
 
-def test_dual_port_splitter(arg):
+    def test_data_merger(self):
 
-    dut = DualPortSplitter()
-    #vl = rtlil.convert(dut, ports=dut.ports())
-    #with open("test_data_merger.il", "w") as f:
-    #    f.write(vl)
+        dut = DataMerger(8)
+        #vl = rtlil.convert(dut, ports=dut.ports())
+        #with open("test_data_merger.il", "w") as f:
+        #    f.write(vl)
 
-    #run_simulation(dut, data_merger_merge(dut),
-    #               vcd_name='test_dual_port_splitter.vcd')
+        run_simulation(dut, data_merger_merge(dut),
+                       vcd_name='test_data_merger.vcd')
+
+
+class TestDualPortSplitter(unittest.TestCase):
+
+    def test_dual_port_splitter(self):
+
+        dut = DualPortSplitter()
+        #vl = rtlil.convert(dut, ports=dut.ports())
+        #with open("test_data_merger.il", "w") as f:
+        #    f.write(vl)
+
+        #run_simulation(dut, data_merger_merge(dut),
+        #               vcd_name='test_dual_port_splitter.vcd')
 
 if __name__ == '__main__':
     unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(test_l0_cache)
-    suite.addTest(test_data_merger)
-    suite.addTest(test_dual_port_splitter)
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
 
