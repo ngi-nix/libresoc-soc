@@ -266,13 +266,6 @@ class TestRunner(FHDLTestCase):
             sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
-        sim_o = {}
-        res = {}
-
-        # check RT
-        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_int_o(res, alu, dec2)
-        ALUHelpers.check_int_o(self, res, sim_o, code)
 
         rc = yield dec2.e.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
@@ -282,39 +275,35 @@ class TestRunner(FHDLTestCase):
         if rc:
             self.assertEqual(cridx, 0, code)
 
-        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_cr_a(res, alu, dec2)
-        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
-
-        cry_out = yield dec2.e.output_carry
-        if cry_out:
-            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CA not CA32
-            self.assertEqual(expected_carry, real_carry, code)
-            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CA32
-            self.assertEqual(expected_carry32, real_carry32, code)
-
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
-            expected_so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-            real_so = yield alu.n.data_o.xer_so.data[0]
-            self.assertEqual(expected_so, real_so, code)
-            expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-            real_ov = yield alu.n.data_o.xer_ov.data[0] # OV bit
-            self.assertEqual(expected_ov, real_ov, code)
-            expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-            real_ov32 = yield alu.n.data_o.xer_ov.data[1] # OV32 bit
-            self.assertEqual(expected_ov32, real_ov32, code)
-            print ("after: so/ov/32", real_so, real_ov, real_ov32)
-        else:
+        if not oe or not oe_ok:
             # if OE not enabled, XER SO and OV must correspondingly be false
             so_ok = yield alu.n.data_o.xer_so.ok
             ov_ok = yield alu.n.data_o.xer_ov.ok
             self.assertEqual(so_ok, False, code)
             self.assertEqual(ov_ok, False, code)
 
+        sim_o = {}
+        res = {}
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
 if __name__ == "__main__":

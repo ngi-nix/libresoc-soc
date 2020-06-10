@@ -1,3 +1,6 @@
+from soc.decoder.power_enums import XER_bits
+
+
 class TestCase:
     def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
                        msr=0):
@@ -92,6 +95,23 @@ class ALUHelpers:
         if cridx_ok:
             res['cr_a'] = yield alu.n.data_o.cr0.data
 
+    def get_xer_so(res, alu, dec2):
+        oe = yield dec2.e.oe.oe
+        oe_ok = yield dec2.e.oe.ok
+        if oe and oe_ok:
+            res['xer_so'] = yield alu.n.data_o.xer_so.data[0]
+
+    def get_xer_ov(res, alu, dec2):
+        oe = yield dec2.e.oe.oe
+        oe_ok = yield dec2.e.oe.ok
+        if oe and oe_ok:
+            res['xer_ov'] = yield alu.n.data_o.xer_ov.data
+
+    def get_xer_ca(res, alu, dec2):
+        cry_out = yield dec2.e.output_carry
+        if cry_out:
+            res['xer_ca'] = yield alu.n.data_o.xer_ca.data
+
     def get_sim_int_o(res, sim, dec2):
         out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
@@ -103,6 +123,27 @@ class ALUHelpers:
         if cridx_ok:
             cridx = yield dec2.e.write_cr.data
             res['cr_a'] = sim.crl[cridx].get_range().value
+
+    def get_sim_xer_ca(res, sim, dec2):
+        cry_out = yield dec2.e.output_carry
+        if cry_out:
+            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            res['xer_ca'] = expected_carry | (expected_carry32 << 1)
+
+    def get_sim_xer_ov(res, sim, dec2):
+        oe = yield dec2.e.oe.oe
+        oe_ok = yield dec2.e.oe.ok
+        if oe and oe_ok:
+            expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+            expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+            res['xer_ov'] = expected_ov | (expected_ov32 << 1)
+
+    def get_sim_xer_so(res, sim, dec2):
+        oe = yield dec2.e.oe.oe
+        oe_ok = yield dec2.e.oe.ok
+        if oe and oe_ok:
+            res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
 
     def check_int_o(dut, res, sim_o, msg):
         if 'o' in res:
@@ -117,4 +158,25 @@ class ALUHelpers:
             cr_actual = res['cr_a']
             print ("CR", cr_expected, cr_actual)
             dut.assertEqual(cr_expected, cr_actual, msg)
+
+    def check_xer_ca(dut, res, sim_o, msg):
+        if 'xer_ca' in res:
+            ca_expected = sim_o['xer_ca']
+            ca_actual = res['xer_ca']
+            print ("CA", ca_expected, ca_actual)
+            dut.assertEqual(ca_expected, ca_actual, msg)
+
+    def check_xer_ov(dut, res, sim_o, msg):
+        if 'xer_ov' in res:
+            ov_expected = sim_o['xer_ov']
+            ov_actual = res['xer_ov']
+            print ("OV", ov_expected, ov_actual)
+            dut.assertEqual(ov_expected, ov_actual, msg)
+
+    def check_xer_so(dut, res, sim_o, msg):
+        if 'xer_so' in res:
+            so_expected = sim_o['xer_so']
+            so_actual = res['xer_so']
+            print ("SO", so_expected, so_actual)
+            dut.assertEqual(so_expected, so_actual, msg)
 
