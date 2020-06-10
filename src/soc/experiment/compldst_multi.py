@@ -87,7 +87,6 @@ from nmutil.latch import SRLatch, latchregister
 
 from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
-from soc.experiment.testmem import TestMemory
 from soc.fu.regspec import RegSpecAPI
 
 from soc.decoder.power_enums import InternalOp, Function
@@ -634,22 +633,22 @@ def scoreboard_sim(dut):
     yield
 
     # indexed version
-    yield from store(dut, 4, 5, 3, 0, imm_ok=False)
-    data, addr = yield from load(dut, 4, 5, 0, imm_ok=False)
+    yield from store(dut, 9, 5, 3, 0, imm_ok=False)
+    data, addr = yield from load(dut, 9, 5, 0, imm_ok=False)
     assert data == 0x0003, "returned %x" % data
 
     # update-immediate version
-    addr = yield from store(dut, 4, 6, 3, 2, update=True)
-    assert addr == 0x0006, "returned %x" % addr
+    addr = yield from store(dut, 9, 6, 3, 2, update=True)
+    assert addr == 0x000b, "returned %x" % addr
 
     # update-indexed version
-    data, addr  = yield from load(dut, 4, 5, 0, imm_ok=False, update=True)
+    data, addr  = yield from load(dut, 9, 5, 0, imm_ok=False, update=True)
     assert data == 0x0003, "returned %x" % data
-    assert addr == 0x0009, "returned %x" % addr
+    assert addr == 0x000e, "returned %x" % addr
 
     # immediate *and* zero version
-    data, addr  = yield from load(dut, 4, 5, 9, imm_ok=True, zero_a=True)
-    assert data == 0x0003, "returned %x" % data
+    data, addr  = yield from load(dut, 1, 4, 8, imm_ok=True, zero_a=True)
+    assert data == 0x0008, "returned %x" % data
 
 
 class TestLDSTCompUnit(LDSTCompUnit):
