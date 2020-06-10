@@ -522,6 +522,7 @@ def wait_for(sig, wait=True, test1st=False):
 def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     print ("ST", src1, src2, src3, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
+    yield dut.oper_i.data_len.eq(2) # half-word
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
     yield dut.src3_i.eq(src3)
@@ -568,6 +569,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
 def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False):
     print ("LD", src1, src2, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
+    yield dut.oper_i.data_len.eq(2) # half-word
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
     yield dut.oper_i.zero_a.eq(zero_a)
