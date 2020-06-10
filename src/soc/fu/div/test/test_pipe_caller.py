@@ -190,7 +190,7 @@ class DIVTestCase(FHDLTestCase):
         pspec = DIVPipeSpec(id_wid=2)
         alu = DIVBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("alu_pipeline.il", "w") as f:
+        with open("div_pipeline.il", "w") as f:
             f.write(vl)
 
 
