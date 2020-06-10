@@ -11,7 +11,7 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.logical.pipeline import LogicalBasePipe
 from soc.fu.logical.pipe_data import LogicalPipeSpec
 import random
@@ -48,14 +48,8 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
-    if 'ra' in inp:
-        yield alu.p.data_i.a.eq(inp['ra'])
-    if 'rb' in inp:
-        yield alu.p.data_i.b.eq(inp['rb'])
-    imm_ok = yield dec2.e.imm_data.imm_ok
-    if imm_ok:
-        data2 = yield dec2.e.imm_data.imm
-        yield alu.p.data_i.b.eq(data2)
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
