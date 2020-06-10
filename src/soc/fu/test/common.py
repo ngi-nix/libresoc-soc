@@ -1,3 +1,8 @@
+"""
+Bugreports:
+* https://bugs.libre-soc.org/show_bug.cgi?id=361
+"""
+
 from soc.decoder.power_enums import XER_bits
 
 
