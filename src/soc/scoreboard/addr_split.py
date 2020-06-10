@@ -72,6 +72,8 @@ class LDSTSplitter(Elaboratable):
         self.ld_data_o = LDData(dwidth, "ld_data_o")
         self.st_data_i = LDData(dwidth, "st_data_i")
 
+        self.exc = Signal(reset_less=True)
+
         self.sld_valid_o = Signal(2, reset_less=True)
         self.sld_valid_i = Signal(2, reset_less=True)
         self.sld_data_i = Array((LDData(cline_wid, "ld_data_i1"),
@@ -102,7 +104,11 @@ class LDSTSplitter(Elaboratable):
 
         # set up new address records: addr1 is "as-is", addr2 is +1
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
-        comb += ld2.addr_i.eq(self.addr_i[dlen:] + 1) # TODO exception if rolls
+        ld2_value = self.addr_i[dlen:] + 1
+        comb += ld2.addr_i.eq(ld2_value)
+        #exception if rolls
+        with m.If(ld2_value[self.awidth-dlen]):
+            comb += self.exc.eq(1)
 
         # data needs recombining / splitting via shifting.
         ashift1 = Signal(self.dlen, reset_less=True)
