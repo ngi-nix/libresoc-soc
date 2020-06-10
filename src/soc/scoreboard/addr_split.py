@@ -13,7 +13,6 @@ from nmigen.cli import verilog, rtlil
 
 from soc.scoreboard.addr_match import LenExpand
 #from nmutil.queue import Queue
-from soc.experiment import l0_cache
 
 
 class LDData(Record):
@@ -62,10 +61,6 @@ class LDSTSplitter(Elaboratable):
         self.dwidth, self.awidth, self.dlen = dwidth, awidth, dlen
         #cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
         cline_wid = dwidth # TODO: make this bytes not bits
-
-        self.inport = l0_cache.PortInterface()
-        print(self.inport)
-
         self.addr_i = Signal(awidth, reset_less=True)
         self.len_i = Signal(dlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
@@ -79,7 +74,6 @@ class LDSTSplitter(Elaboratable):
 
         self.exc = Signal(reset_less=True)
 
-        #TODO out port interface
         self.sld_valid_o = Signal(2, reset_less=True)
         self.sld_valid_i = Signal(2, reset_less=True)
         self.sld_data_i = Array((LDData(cline_wid, "ld_data_i1"),
@@ -226,7 +220,6 @@ def sim(dut):
         yield
 
         print (bin(ld_data_o), bin(data))
-        #FIXME: wrong result here
         assert ld_data_o == data
 
     def lds():
