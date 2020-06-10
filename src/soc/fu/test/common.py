@@ -22,6 +22,18 @@ class TestCase:
 
 class ALUHelpers:
 
+    def get_sim_int_ra(res, sim, dec2):
+        reg1_ok = yield dec2.e.read_reg1.ok
+        if reg1_ok:
+            data1 = yield dec2.e.read_reg1.data
+            res['ra'] = sim.gpr(data1).value
+
+    def get_sim_int_rb(res, sim, dec2):
+        reg2_ok = yield dec2.e.read_reg2.ok
+        if reg2_ok:
+            data = yield dec2.e.read_reg2.data
+            res['rb'] = sim.gpr(data).value
+
     def set_int_ra(alu, dec2, inp):
         if 'ra' in inp:
             yield alu.p.data_i.ra.eq(inp['ra'])

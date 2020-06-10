@@ -23,30 +23,10 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    # RA (or RC)
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        res['ra'] = sim.gpr(data1).value
-
-    # RB (or immediate)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        res['rb'] = sim.gpr(data2).value
-
-    # XER.ca
-    cry_in = yield dec2.e.input_carry
-    if cry_in == CryIn.CA.value:
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
-
-    # XER.so
-    oe = yield dec2.e.oe.data[0] & dec2.e.oe.ok
-    if oe:
-        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-        res['xer_so'] = so
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
+    yield from ALUHelpers.get_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
 
     print ("alu get_cu_inputs", res)
 
