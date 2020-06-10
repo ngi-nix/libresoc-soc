@@ -4,6 +4,7 @@ from soc.decoder.power_enums import (XER_bits, Function)
 from soc.fu.alu.test.test_pipe_caller import get_cu_inputs
 from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
 
+from soc.fu.test.common import ALUHelpers
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 
@@ -23,15 +24,6 @@ class ALUTestRunner(TestRunner):
         """naming (res) must conform to ALUFunctionUnit output regspec
         """
 
-        # RT
-        out_reg_valid = yield dec2.e.write_reg.ok
-        if out_reg_valid:
-            write_reg_idx = yield dec2.e.write_reg.data
-            expected = sim.gpr(write_reg_idx).value
-            cu_out = res['o']
-            print(f"expected {expected:x}, actual: {cu_out:x}")
-            self.assertEqual(expected, cu_out, code)
-
         rc = yield dec2.e.rc.data
         op = yield dec2.e.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
@@ -43,29 +35,19 @@ class ALUTestRunner(TestRunner):
             self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
 
-        # CR (CR0-7)
-        if cridx_ok:
-            cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = res['cr_a']
-            print ("CR", cridx, cr_expected, cr_actual)
-            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
+        sim_o = {}
 
-        # XER.ca
-        cry_out = yield dec2.e.output_carry
-        if cry_out:
-            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            xer_ca = res['xer_ca']
-            real_carry = xer_ca & 0b1 # XXX CO not CO32
-            self.assertEqual(expected_carry, real_carry, code)
-            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = bool(xer_ca & 0b10) # XXX CO32
-            self.assertEqual(expected_carry32, real_carry32, code)
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
 
-        # TODO: XER.ov and XER.so
-        oe = yield dec2.e.oe.data
-        if oe:
-            xer_ov = res['xer_ov']
-            xer_so = res['xer_so']
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
