@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
@@ -60,30 +60,10 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
-    if 'ra' in inp:
-        yield alu.p.data_i.a.eq(inp['ra'])
-    else:
-        yield alu.p.data_i.a.eq(0)
-    if 'rb' in inp:
-        yield alu.p.data_i.rb.eq(inp['rb'])
-    else:
-        yield alu.p.data_i.rb.eq(0)
-    if 'rc' in inp:
-        yield alu.p.data_i.rs.eq(inp['rc'])
-    else:
-        yield alu.p.data_i.rs.eq(0)
-
-    # If there's an immediate, set the B operand to that
-    imm_ok = yield dec2.e.imm_data.imm_ok
-    if imm_ok:
-        data2 = yield dec2.e.imm_data.imm
-        yield alu.p.data_i.rb.eq(data2)
-
-    if 'xer_ca' in inp:
-        yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
-        print ("extra inputs: CA/32", bin(inp['xer_ca']))
-    else:
-        yield alu.p.data_i.xer_ca.eq(0)
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rc(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I

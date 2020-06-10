@@ -33,7 +33,13 @@ class ALUHelpers:
         imm_ok = yield dec2.e.imm_data.imm_ok
         if imm_ok:
             data2 = yield dec2.e.imm_data.imm
-            yield alu.p.data_i.b.eq(data2)
+            yield alu.p.data_i.rb.eq(data2)
+
+    def set_int_rc(alu, dec2, inp):
+        if 'rc' in inp:
+            yield alu.p.data_i.rc.eq(inp['rc'])
+        else:
+            yield alu.p.data_i.rc.eq(0)
 
     def set_xer_ca(alu, dec2, inp):
         if 'xer_ca' in inp:
