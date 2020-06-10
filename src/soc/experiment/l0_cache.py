@@ -358,7 +358,7 @@ class L0CacheBuffer(Elaboratable):
 
         m.submodules.ldpick = ldpick = PriorityEncoder(self.n_units)
         m.submodules.stpick = stpick = PriorityEncoder(self.n_units)
-        m.submodules.lenexp = lenexp = LenExpand(self.regwid//8, 8)
+        m.submodules.lenexp = lenexp = LenExpand(3, 8)
 
         lds = Signal(self.n_units, reset_less=True)
         sts = Signal(self.n_units, reset_less=True)
@@ -405,27 +405,27 @@ class L0CacheBuffer(Elaboratable):
         # if now in "LD" mode: wait for addr_ok, then send the address out
         # to memory, acknowledge address, and send out LD data
         with m.If(ld_active.q):
+            # set up LenExpander with the LD len and lower bits of addr
+            lsbaddr, msbaddr = self.splitaddr(ldport.addr.data)
+            comb += lenexp.len_i.eq(ldport.op.data_len)
+            comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(ldport.addr.ok & adrok_l.qn):
-                lsbaddr, msbaddr = self.splitaddr(ldport.addr.data)
                 comb += rdport.addr.eq(msbaddr) # addr ok, send thru
                 comb += ldport.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
-                # set up LenExpander with the LD len and lower bits of addr
-                comb += lenexp.len_i.eq(ldport.op.data_len)
-                comb += lenexp.addr_i.eq(lsbaddr)
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
         with m.If(st_active.q):
+            # set up LenExpander with the ST len and lower bits of addr
+            lsbaddr, msbaddr = self.splitaddr(stport.addr.data)
+            comb += lenexp.len_i.eq(stport.op.data_len)
+            comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(stport.addr.ok):
-                lsbaddr, msbaddr = self.splitaddr(stport.addr.data)
                 comb += wrport.addr.eq(msbaddr)  # addr ok, send thru
                 with m.If(adrok_l.qn):
                     comb += stport.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
-                # set up LenExpander with the ST len and lower bits of addr
-                comb += lenexp.len_i.eq(stport.op.data_len)
-                comb += lenexp.addr_i.eq(lsbaddr)
 
         # NOTE: in both these, below, the port itself takes care
         # of de-asserting its "busy_o" signal, based on either ld.ok going
@@ -436,14 +436,23 @@ class L0CacheBuffer(Elaboratable):
         comb += reset_l.s.eq(0)
         comb += reset_l.r.eq(0)
         with m.If(ld_active.q & adrok_l.q):
-            comb += ldport.ld.data.eq(rdport.data)  # put data out
+            # shift data down before pushing out.  requires masking
+            # from the *byte*-expanded version of LenExpand output
+            lddata = Signal(self.regwid, reset_less=True)
+            comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
+                              (lenexp.addr_i*8))
+            comb += ldport.ld.data.eq(lddata)  # put data out
             comb += ldport.ld.ok.eq(1)             # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
         with m.If(st_active.q & stport.st.ok):
-            comb += wrport.data.eq(stport.st.data)  # write st to mem
-            comb += wrport.en.eq(1)                # enable write
+            # shift data up before storing.  lenexp *bit* version of mask is
+            # passed straight through as byte-level "write-enable" lines.
+            stdata = Signal(self.regwid, reset_less=True)
+            comb += stdata.eq(stport.st.data << (lenexp.addr_i*8))
+            comb += wrport.data.eq(stdata)  # write st to mem
+            comb += wrport.en.eq(lenexp.lexp_o) # enable writes
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # after waiting one cycle (reset_l is "sync" mode), reset the port
@@ -463,7 +472,7 @@ class L0CacheBuffer(Elaboratable):
 
 class TstL0CacheBuffer(Elaboratable):
     def __init__(self, n_units=3, regwid=16, addrwid=4):
-        self.mem = TestMemory(regwid, addrwid)
+        self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
         self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid)
 
     def elaborate(self, platform):
@@ -575,9 +584,9 @@ def l0_cache_ldst(arg, dut):
     data2 = 0xf00f
     #data = 0x4
     yield from l0_cache_st(dut, 0x2, data, 2)
-    yield from l0_cache_st(dut, 0x3, data2, 2)
+    yield from l0_cache_st(dut, 0x4, data2, 2)
     result = yield from l0_cache_ld(dut, 0x2, 2, data)
-    result2 = yield from l0_cache_ld(dut, 0x3, 2, data2)
+    result2 = yield from l0_cache_ld(dut, 0x4, 2, data2)
     yield
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
