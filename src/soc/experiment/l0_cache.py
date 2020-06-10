@@ -38,6 +38,8 @@ from soc.scoreboard.addr_match import LenExpand
 # for testing purposes
 from soc.experiment.testmem import TestMemory
 
+import unittest
+
 
 class PortInterface(RecordObject):
     """PortInterface
@@ -601,7 +603,7 @@ def data_merger_merge(dut):
     assert en == 0xff
     yield
 
-def test_l0_cache():
+def test_l0_cache(arg):
 
     dut = TstL0CacheBuffer(regwid=64)
     #vl = rtlil.convert(dut, ports=dut.ports())
@@ -611,7 +613,7 @@ def test_l0_cache():
     run_simulation(dut, l0_cache_ldst(dut),
                    vcd_name='test_l0_cache_basic.vcd')
 
-def test_data_merger():
+def test_data_merger(arg):
 
     dut = DataMerger(8)
     #vl = rtlil.convert(dut, ports=dut.ports())
@@ -621,7 +623,7 @@ def test_data_merger():
     run_simulation(dut, data_merger_merge(dut),
                    vcd_name='test_data_merger.vcd')
 
-def test_dual_port_splitter():
+def test_dual_port_splitter(arg):
 
     dut = DualPortSplitter()
     #vl = rtlil.convert(dut, ports=dut.ports())
@@ -632,6 +634,12 @@ def test_dual_port_splitter():
     #               vcd_name='test_dual_port_splitter.vcd')
 
 if __name__ == '__main__':
-    test_l0_cache()
-    test_data_merger()
-    #test_dual_port_splitter()
+    unittest.main(exit=False)
+    suite = unittest.TestSuite()
+    suite.addTest(test_l0_cache)
+    suite.addTest(test_data_merger)
+    suite.addTest(test_dual_port_splitter)
+
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
+
