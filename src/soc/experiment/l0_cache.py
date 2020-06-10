@@ -358,7 +358,7 @@ class L0CacheBuffer(Elaboratable):
 
         m.submodules.ldpick = ldpick = PriorityEncoder(self.n_units)
         m.submodules.stpick = stpick = PriorityEncoder(self.n_units)
-        m.submodules.lenexp = lenexp = LenExpand(3, 8)
+        m.submodules.lenexp = lenexp = LenExpand(4, 8)
 
         lds = Signal(self.n_units, reset_less=True)
         sts = Signal(self.n_units, reset_less=True)
