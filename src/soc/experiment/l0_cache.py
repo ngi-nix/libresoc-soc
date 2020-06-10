@@ -173,7 +173,8 @@ class DataMergerRecord(Record):
 
         Record.__init__(self, Layout(layout), name=name)
 
-        #FIXME: make resetless
+        self.data.reset_less=True
+        self.en.reset_less=True
 
 # TODO: formal verification
 
