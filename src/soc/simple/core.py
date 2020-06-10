@@ -247,7 +247,12 @@ class NonProductionCore(Elaboratable):
                 else:
                     (regfile, regname, wid) = fu.get_out_spec(idx)
                 print ("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
-                rdflag, read, write = dec2.regspecmap(regfile, regname)
+                if readmode:
+                    rdflag, read = dec2.regspecmap_read(regfile, regname)
+                    write = None
+                else:
+                    rdflag, read = None, None
+                    wrport, write = dec2.regspecmap_write(regfile, regname)
                 if regfile not in byregfiles:
                     byregfiles[regfile] = {}
                     byregfiles_spec[regfile] = {}

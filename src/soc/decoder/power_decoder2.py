@@ -9,7 +9,8 @@ from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.extend import exts
 
-from soc.decoder.power_regspec_map import regspec_decode
+from soc.decoder.power_regspec_map import regspec_decode_read
+from soc.decoder.power_regspec_map import regspec_decode_write
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (InternalOp, CryIn, Function,
                                      CRInSel, CROutSel,
@@ -663,18 +664,25 @@ class PowerDecode2(Elaboratable):
             comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
         return m
 
-    def regspecmap(self, regfile, regname):
-        """regspecmap: provides PowerDecode2 with an encoding relationship
+    def regspecmap_read(self, regfile, regname):
+        """regspecmap_read: provides PowerDecode2 with an encoding relationship
         to Function Unit port regfiles (read-enable, read regnum, write regnum)
         regfile and regname arguments are fields 1 and 2 from a given regspec.
         """
-        return regspec_decode(self.e, regfile, regname)
+        return regspec_decode_read(self.e, regfile, regname)
+
+    def regspecmap_write(self, regfile, regname):
+        """regspecmap_write: provides PowerDecode2 with an encoding relationship
+        to Function Unit port regfiles (write port, write regnum)
+        regfile and regname arguments are fields 1 and 2 from a given regspec.
+        """
+        return regspec_decode_write(self.e, regfile, regname)
 
     def rdflags(self, cu):
         rdl = []
         for idx in range(cu.n_src):
             regfile, regname, _ = cu.get_in_spec(idx)
-            rdflag, read, write = self.regspecmap(regfile, regname)
+            rdflag, read = self.regspecmap_read(regfile, regname)
             rdl.append(rdflag)
         print ("rdflags", rdl)
         return Cat(*rdl)
