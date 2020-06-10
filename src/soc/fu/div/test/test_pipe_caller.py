@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.fu.test.common import (TestCase, DIVHelpers)
+from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.div.pipeline import DIVBasePipe
 from soc.fu.div.pipe_data import DIVPipeSpec
 import random
@@ -23,30 +23,10 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    # RA (or RC)
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        res['ra'] = sim.gpr(data1).value
-
-    # RB (or immediate)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        res['rb'] = sim.gpr(data2).value
-
-    # XER.ca
-    cry_in = yield dec2.e.input_carry
-    if cry_in == CryIn.CA.value:
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
-
-    # XER.so
-    oe = yield dec2.e.oe.data[0] & dec2.e.oe.ok
-    if oe:
-        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-        res['xer_so'] = so
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
+    yield from ALUHelpers.get_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
 
     print ("alu get_cu_inputs", res)
 
@@ -60,11 +40,11 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
-    yield from DIVHelpers.set_int_ra(alu, dec2, inp)
-    yield from DIVHelpers.set_int_rb(alu, dec2, inp)
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
-    yield from DIVHelpers.set_xer_ca(alu, dec2, inp)
-    yield from DIVHelpers.set_xer_so(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -190,7 +170,7 @@ class DIVTestCase(FHDLTestCase):
         pspec = DIVPipeSpec(id_wid=2)
         alu = DIVBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("div_pipeline.il", "w") as f:
+        with open("alu_pipeline.il", "w") as f:
             f.write(vl)
 
 
@@ -257,24 +237,17 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o.data
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = sim.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out, code)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            sim, code)
+
+                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
+        with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
                             traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim, code):
+    def check_alu_outputs(self, alu, dec2, sim, code):
+
         rc = yield dec2.e.rc.data
-        op = yield dec2.e.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
@@ -282,41 +255,35 @@ class TestRunner(FHDLTestCase):
         if rc:
             self.assertEqual(cridx, 0, code)
 
-        if cridx_ok:
-            cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = yield alu.n.data_o.cr0.data
-            print ("CR", cridx, cr_expected, cr_actual)
-            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
-
-        cry_out = yield dec2.e.output_carry
-        if cry_out:
-            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CA not CA32
-            self.assertEqual(expected_carry, real_carry, code)
-            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CA32
-            self.assertEqual(expected_carry32, real_carry32, code)
-
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
-            expected_so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-            real_so = yield alu.n.data_o.xer_so.data[0]
-            self.assertEqual(expected_so, real_so, code)
-            expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-            real_ov = yield alu.n.data_o.xer_ov.data[0] # OV bit
-            self.assertEqual(expected_ov, real_ov, code)
-            expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-            real_ov32 = yield alu.n.data_o.xer_ov.data[1] # OV32 bit
-            self.assertEqual(expected_ov32, real_ov32, code)
-            print ("after: so/ov/32", real_so, real_ov, real_ov32)
-        else:
+        if not oe or not oe_ok:
             # if OE not enabled, XER SO and OV must correspondingly be false
             so_ok = yield alu.n.data_o.xer_so.ok
             ov_ok = yield alu.n.data_o.xer_ov.ok
             self.assertEqual(so_ok, False, code)
             self.assertEqual(ov_ok, False, code)
 
+        sim_o = {}
+        res = {}
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
