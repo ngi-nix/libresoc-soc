@@ -43,3 +43,19 @@ class ALUHelpers:
             print ("extra inputs: so", so)
             yield alu.p.data_i.xer_so.eq(so)
 
+    def set_fast_cia(alu, dec2, inp):
+        if 'cia' in inp:
+            yield alu.p.data_i.cia.eq(inp['cia'])
+
+    def set_fast_spr1(alu, dec2, inp):
+        if 'spr1' in inp:
+            yield alu.p.data_i.spr1.eq(inp['spr1'])
+
+    def set_fast_spr2(alu, dec2, inp):
+        if 'spr2' in inp:
+            yield alu.p.data_i.spr2.eq(inp['spr2'])
+
+    def set_cr_a(alu, dec2, inp):
+        if 'cr_a' in inp:
+            yield alu.p.data_i.cr.eq(inp['cr_a'])
+

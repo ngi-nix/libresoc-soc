@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
@@ -248,14 +248,10 @@ class TestRunner(FHDLTestCase):
 
         inp = yield from get_cu_inputs(dec2, sim)
 
-        if 'cia' in inp:
-            yield branch.p.data_i.cia.eq(inp['cia'])
-        if 'spr1' in inp:
-            yield branch.p.data_i.spr1.eq(inp['spr1'])
-        if 'spr2' in inp:
-            yield branch.p.data_i.spr2.eq(inp['spr2'])
-        if 'cr_a' in inp:
-            yield branch.p.data_i.cr.eq(inp['cr_a'])
+        yield from ALUHelpers.set_fast_cia(branch, dec2, inp)
+        yield from ALUHelpers.set_fast_spr1(branch, dec2, inp)
+        yield from ALUHelpers.set_fast_spr2(branch, dec2, inp)
+        yield from ALUHelpers.set_cr_a(branch, dec2, inp)
 
 
 if __name__ == "__main__":
