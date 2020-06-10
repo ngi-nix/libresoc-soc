@@ -163,6 +163,7 @@ class DualPortSplitter(Elaboratable):
         #comb += splitter.sst_valid_i.eq()
         return m
 
+
 class DataMergerRecord(Record):
     """
     {data: 128 bit, byte_enable: 16 bit}
@@ -173,11 +174,11 @@ class DataMergerRecord(Record):
                   ('en', 16))
         Record.__init__(self, Layout(layout), name=name)
 
-        self.data.reset_less=True
-        self.en.reset_less=True
+        self.data.reset_less = True
+        self.en.reset_less = True
+
 
 # TODO: formal verification
-
 class DataMerger(Elaboratable):
     """DataMerger
 
@@ -617,6 +618,7 @@ class TestL0Cache(unittest.TestCase):
         run_simulation(dut, l0_cache_ldst(self, dut),
                        vcd_name='test_l0_cache_basic.vcd')
 
+
 class TestDataMerger(unittest.TestCase):
 
     def test_data_merger(self):
@@ -641,6 +643,7 @@ class TestDualPortSplitter(unittest.TestCase):
 
         #run_simulation(dut, data_merger_merge(dut),
         #               vcd_name='test_dual_port_splitter.vcd')
+
 
 if __name__ == '__main__':
     unittest.main(exit=False)
