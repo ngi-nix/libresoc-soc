@@ -28,6 +28,13 @@ class QemuController:
         cmd = '-break-insert *0x{:x}'.format(addr)
         return self.gdb.write(cmd)
 
+    def delete_breakpoint(self, breakpoint=None):
+        breakstring = ''
+        if breakpoint:
+            breakstring = f' {breakpoint}'
+        return self.gdb.write('-break-delete' + breakstring)
+
+
     def get_registers(self):
         return self.gdb.write('-data-list-register-values x')
 
@@ -49,7 +56,6 @@ class QemuController:
     def get_xer(self): return self._get_register('x 69')
     def get_fpscr(self): return self._get_register('x 70')
     def get_mq(self): return self._get_register('x 71')
-
     def get_register(self, num):
         return self._get_register('x {}'.format(num))
 
@@ -58,6 +64,9 @@ class QemuController:
 
     def gdb_continue(self):
         return self.gdb.write('-exec-continue')
+
+    def gdb_eval(self, expr):
+        return self.gdb.write(f'-data-evaluate-expression {expr}')
 
     def exit(self):
         self.gdb.exit()
@@ -70,6 +79,14 @@ class QemuController:
 def run_program(program):
     q = QemuController(program.binfile.name)
     q.connect()
+    # Run to the start of the program
+    q.break_address(0x20000000)
+    q.gdb_continue()
+    # set the CR to 0, matching the simulator
+    q.gdb_eval('$cr=0')
+    # delete the previous breakpoint so loops don't screw things up
+    q.delete_breakpoint()
+    # run to completion
     q.break_address(0x20000000 + program.size())
     q.gdb_continue()
     return q
