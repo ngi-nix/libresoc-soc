@@ -28,7 +28,7 @@ from soc.decoder.power_enums import InternalOp
 from soc.regfile.regfile import ortreereduce
 from nmutil.util import treereduce
 
-from soc.experiment.compldst import CompLDSTOpSubset
+from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
 #from nmutil.picker import PriorityPicker
 from nmigen.lib.coding import PriorityEncoder
