@@ -257,24 +257,24 @@ class TestRunner(FHDLTestCase):
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o.data
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = sim.gpr(write_reg_idx).value
-                        print(f"expected {expected:x}, actual: {alu_out:x}")
-                        self.assertEqual(expected, alu_out, code)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            sim, code)
+
+                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
                             traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim, code):
+    def check_alu_outputs(self, alu, dec2, sim, code):
+        sim_o = {}
+        res = {}
+
+        # check RT
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+
         rc = yield dec2.e.rc.data
-        op = yield dec2.e.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
@@ -282,11 +282,9 @@ class TestRunner(FHDLTestCase):
         if rc:
             self.assertEqual(cridx, 0, code)
 
-        if cridx_ok:
-            cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = yield alu.n.data_o.cr0.data
-            print ("CR", cridx, cr_expected, cr_actual)
-            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
+        yield from ALUHelpers.get_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
 
         cry_out = yield dec2.e.output_carry
         if cry_out:

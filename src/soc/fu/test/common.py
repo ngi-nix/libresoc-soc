@@ -83,9 +83,38 @@ class ALUHelpers:
             yield alu.p.data_i.full_cr.eq(0)
 
     def get_int_o(res, alu, dec2):
-        out_reg_valid = yield pdecode2.e.write_reg.ok
+        out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
             res['o'] = yield alu.n.data_o.o.data 
 
-    def check_int_o(dut, alu, sim, dec2):
-        pass
+    def get_cr_a(res, alu, dec2):
+        cridx_ok = yield dec2.e.write_cr.ok
+        if cridx_ok:
+            res['cr_a'] = yield alu.n.data_o.cr0.data
+
+    def get_sim_int_o(res, sim, dec2):
+        out_reg_valid = yield dec2.e.write_reg.ok
+        if out_reg_valid:
+            write_reg_idx = yield dec2.e.write_reg.data
+            res['o'] = sim.gpr(write_reg_idx).value
+
+    def get_sim_cr_a(res, sim, dec2):
+        cridx_ok = yield dec2.e.write_cr.ok
+        if cridx_ok:
+            cridx = yield dec2.e.write_cr.data
+            res['cr_a'] = sim.crl[cridx].get_range().value
+
+    def check_int_o(dut, res, sim_o, msg):
+        if 'o' in res:
+            expected = sim_o['o']
+            alu_out = res['o']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
+
+    def check_cr_a(dut, res, sim_o, msg):
+        if 'cr_a' in res:
+            cr_expected = sim_o['cr_a']
+            cr_actual = res['cr_a']
+            print ("CR", cr_expected, cr_actual)
+            dut.assertEqual(cr_expected, cr_actual, msg)
+
