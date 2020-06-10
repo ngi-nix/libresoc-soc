@@ -56,6 +56,7 @@ def get_cu_output(cu, idx, code):
     yield
     yield cu.wr.go[idx].eq(0)
     print ("result", repr(code), idx, wrop, wrok, hex(result))
+
     return result
 
 
@@ -198,12 +199,12 @@ class TestRunner(FHDLTestCase):
                     wr_rel_o = yield cu.wr.rel
                     print ("before inputs, rd_rel, wr_rel: ",
                             bin(rd_rel_o), bin(wr_rel_o))
+                    yield
                     assert wr_rel_o == 0, "wr.rel %s must be zero. "\
                                 "previous instr not written all regs\n"\
                                 "respec %s" % \
                                 (bin(wr_rel_o), cu.rwid[1])
                     yield from set_cu_inputs(cu, inp)
-                    yield
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
                     wrmask = yield cu.wrmask
@@ -218,6 +219,14 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
                     # get all outputs (one by one, just "because")
                     res = yield from get_cu_outputs(cu, code)
+
+                    # wait for busy to go low
+                    while True:
+                        busy_o = yield cu.busy_o
+                        print ("busy", busy_o)
+                        if not busy_o:
+                            break
+                        yield
 
                     yield from self.iodef.check_cu_outputs(res, pdecode2,
                                                             sim, code)

@@ -16,7 +16,8 @@ name, return a tuple of:
 Note that some of the port numbering encoding is *unary*.  in the case
 of "Full Condition Register", it's a full 8-bit mask of read/write-enables.
 This actually matches directly with the XFX field in MTCR, and at
-some point that 8-bit mask from the instruction could actually be passed        directly through to full_cr (TODO).
+some point that 8-bit mask from the instruction could actually be passed
+directly through to full_cr (TODO).
 
 For the INT and CR numbering, these are expressed in binary in the
 instruction (note however that XFX in MTCR is unary-masked!)

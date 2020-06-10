@@ -76,7 +76,7 @@ class LDSTTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst), initial_regs,
                              initial_mem=initial_mem)
 
-    def tst_2_load_store(self):
+    def test_2_load_store(self):
         lst = ["stw 2, 0(1)",
                "lwz 3, 0(1)"]
         initial_regs = [0] * 32

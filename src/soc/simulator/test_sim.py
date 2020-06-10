@@ -159,7 +159,7 @@ class DecoderTestCase(FHDLTestCase):
         print("qemu pc", hex(qpc))
         print("qemu cr", hex(qcr))
         print("qemu xer", bin(qxer))
-        print("sim pc", sim.pc.CIA.value)
+        print("sim pc", hex(sim.pc.CIA.value))
         print("sim cr", hex(sim_cr))
         print("sim xer", hex(sim_xer))
         self.assertEqual(qcr, sim_cr)

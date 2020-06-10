@@ -330,7 +330,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # dest operand latch
         comb += wri_l.s.eq(issue_i)
-        sync += wri_l.r.eq(reset_w)
+        sync += wri_l.r.eq(reset_w | Repl(self.done_o, self.n_dst))
 
         # update-mode operand latch (EA written to reg 2)
         sync += upd_l.s.eq(reset_i)
@@ -338,7 +338,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # store latch
         comb += sto_l.s.eq(addr_ok & op_is_st)
-        comb += sto_l.r.eq(reset_s)
+        sync += sto_l.r.eq(reset_s)
 
         # reset latch
         comb += rst_l.s.eq(addr_ok) # start when address is ready
@@ -413,15 +413,15 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += rd_done.eq(alu_valid & ~self.rd.rel[2])
 
         # address release only if addr ready, but Port must be idle
-        comb += self.adr_rel_o.eq(adr_l.q & busy_o)
+        comb += self.adr_rel_o.eq(alu_valid & adr_l.q & busy_o)
 
         # store release when st ready *and* all operands read (and no shadow)
         comb += self.st.rel.eq(sto_l.q & busy_o & rd_done & op_is_st &
                                self.shadown_i)
 
         # request write of LD result.  waits until shadow is dropped.
-        comb += self.wr.rel[0].eq(wri_l.q & busy_o & lod_l.qn & op_is_ld &
-                                  self.shadown_i)
+        comb += self.wr.rel[0].eq(rd_done & wri_l.q & busy_o & lod_l.qn &
+                                  op_is_ld & self.shadown_i)
 
         # request write of EA result only in update mode
         comb += self.wr.rel[1].eq(upd_l.q & busy_o & op_is_update &
