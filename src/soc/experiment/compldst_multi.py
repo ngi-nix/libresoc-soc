@@ -616,7 +616,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False):
     return data, addr
 
 
-def scoreboard_sim(dut):
+def ldst_sim(dut):
 
     ###################
     # immediate version
@@ -673,7 +673,7 @@ def test_scoreboard():
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_ldst_comp.vcd')
+    run_simulation(dut, ldst_sim(dut), vcd_name='test_ldst_comp.vcd')
 
 
 class TestLDSTCompUnitRegSpec(LDSTCompUnit):
@@ -700,7 +700,7 @@ def test_scoreboard_regspec():
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, scoreboard_sim(dut), vcd_name='test_ldst_regspec.vcd')
+    run_simulation(dut, ldst_sim(dut), vcd_name='test_ldst_regspec.vcd')
 
 
 if __name__ == '__main__':
