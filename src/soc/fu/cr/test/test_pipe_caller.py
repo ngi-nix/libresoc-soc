@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 import random
@@ -194,24 +194,12 @@ class TestRunner(FHDLTestCase):
 
     def set_inputs(self, alu, dec2, simulator):
         inp = yield from get_cu_inputs(dec2, simulator)
-        if 'full_cr' in inp:
-            yield alu.p.data_i.full_cr.eq(inp['full_cr'])
-        else:
-            yield alu.p.data_i.full_cr.eq(0)
-        if 'cr_a' in inp:
-            yield alu.p.data_i.cr_a.eq(inp['cr_a'])
-        if 'cr_b' in inp:
-            yield alu.p.data_i.cr_b.eq(inp['cr_b'])
-        if 'cr_c' in inp:
-            yield alu.p.data_i.cr_c.eq(inp['cr_c'])
-        if 'ra' in inp:
-            yield alu.p.data_i.ra.eq(inp['ra'])
-        else:
-            yield alu.p.data_i.ra.eq(0)
-        if 'rb' in inp:
-            yield alu.p.data_i.rb.eq(inp['rb'])
-        else:
-            yield alu.p.data_i.rb.eq(0)
+        yield from ALUHelpers.set_full_cr(alu, dec2, inp)
+        yield from ALUHelpers.set_cr_a(alu, dec2, inp)
+        yield from ALUHelpers.set_cr_b(alu, dec2, inp)
+        yield from ALUHelpers.set_cr_c(alu, dec2, inp)
+        yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+        yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
     def assert_outputs(self, alu, dec2, simulator, code):
         whole_reg = yield dec2.e.write_cr_whole

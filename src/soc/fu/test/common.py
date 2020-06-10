@@ -22,8 +22,11 @@ class ALUHelpers:
     def set_int_ra(alu, dec2, inp):
         if 'ra' in inp:
             yield alu.p.data_i.ra.eq(inp['ra'])
+        else:
+            yield alu.p.data_i.ra.eq(0)
 
     def set_int_rb(alu, dec2, inp):
+        yield alu.p.data_i.rb.eq(0)
         if 'rb' in inp:
             yield alu.p.data_i.rb.eq(inp['rb'])
         # If there's an immediate, set the B operand to that
@@ -57,5 +60,19 @@ class ALUHelpers:
 
     def set_cr_a(alu, dec2, inp):
         if 'cr_a' in inp:
-            yield alu.p.data_i.cr.eq(inp['cr_a'])
+            yield alu.p.data_i.cr_a.eq(inp['cr_a'])
+
+    def set_cr_b(alu, dec2, inp):
+        if 'cr_b' in inp:
+            yield alu.p.data_i.cr_b.eq(inp['cr_b'])
+
+    def set_cr_c(alu, dec2, inp):
+        if 'cr_c' in inp:
+            yield alu.p.data_i.cr_c.eq(inp['cr_c'])
+
+    def set_full_cr(alu, dec2, inp):
+        if 'full_cr' in inp:
+            yield alu.p.data_i.full_cr.eq(inp['full_cr'])
+        else:
+            yield alu.p.data_i.full_cr.eq(0)
 
