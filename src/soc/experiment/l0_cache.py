@@ -168,9 +168,7 @@ class DataMergerRecord(Record):
 
     def __init__(self, name=None):
         layout = (('data', 128),
-                  ('en', 16)
-                  )
-
+                  ('en', 16))
         Record.__init__(self, Layout(layout), name=name)
 
         self.data.reset_less=True
@@ -405,18 +403,26 @@ class L0CacheBuffer(Elaboratable):
         # to memory, acknowledge address, and send out LD data
         with m.If(ld_active.q):
             with m.If(ldport.addr.ok & adrok_l.qn):
-                comb += rdport.addr.eq(ldport.addr.data)  # addr ok, send thru
+                lsbaddr, msbaddr = self.splitaddr(ldport.addr.data)
+                comb += rdport.addr.eq(msbaddr) # addr ok, send thru
                 comb += ldport.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
+                # set up LenExpander with the LD len and lower bits of addr
+                comb += lenexp.len_i.eq(ldport.op.data_len)
+                comb += lenexp.addr_i.eq(lsbaddr)
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
         with m.If(st_active.q):
             with m.If(stport.addr.ok):
-                comb += wrport.addr.eq(stport.addr.data)  # addr ok, send thru
+                lsbaddr, msbaddr = self.splitaddr(stport.addr.data)
+                comb += wrport.addr.eq(msbaddr)  # addr ok, send thru
                 with m.If(adrok_l.qn):
                     comb += stport.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
+                # set up LenExpander with the ST len and lower bits of addr
+                comb += lenexp.len_i.eq(stport.op.data_len)
+                comb += lenexp.addr_i.eq(lsbaddr)
 
         # NOTE: in both these, below, the port itself takes care
         # of de-asserting its "busy_o" signal, based on either ld.ok going
@@ -500,7 +506,7 @@ def wait_ldok(port):
         yield
 
 
-def l0_cache_st(dut, addr, data):
+def l0_cache_st(dut, addr, data, datalen):
     l0 = dut.l0
     mem = dut.mem
     port0 = l0.dports[0]
@@ -510,7 +516,8 @@ def l0_cache_st(dut, addr, data):
     yield from wait_busy(port1, no=False)    # wait until not busy
 
     # set up a ST on the port.  address first:
-    yield port1.pi.is_st_i.eq(1)  # indicate LD
+    yield port1.pi.is_st_i.eq(1)  # indicate ST
+    yield port1.pi.op.data_len.eq(datalen)  # ST length (1/2/4/8)
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok
@@ -529,7 +536,7 @@ def l0_cache_st(dut, addr, data):
     # yield from wait_busy(port1, False)    # wait until not busy
 
 
-def l0_cache_ld(dut, addr, expected):
+def l0_cache_ld(dut, addr, datalen, expected):
 
     l0 = dut.l0
     mem = dut.mem
@@ -541,6 +548,7 @@ def l0_cache_ld(dut, addr, expected):
 
     # set up a LD on the port.  address first:
     yield port1.pi.is_ld_i.eq(1)  # indicate LD
+    yield port1.pi.op.data_len.eq(datalen)  # LD length (1/2/4/8)
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok
@@ -563,10 +571,10 @@ def l0_cache_ldst(dut):
     data = 0xbeef
     data2 = 0xf00f
     #data = 0x4
-    yield from l0_cache_st(dut, 0x2, data)
-    yield from l0_cache_st(dut, 0x3, data2)
-    result = yield from l0_cache_ld(dut, 0x2, data)
-    result2 = yield from l0_cache_ld(dut, 0x3, data2)
+    yield from l0_cache_st(dut, 0x2, data, 2)
+    yield from l0_cache_st(dut, 0x3, data2, 2)
+    result = yield from l0_cache_ld(dut, 0x2, 2, data)
+    result2 = yield from l0_cache_ld(dut, 0x3, 2, data2)
     yield
     assert data == result, "data %x != %x" % (result, data)
     assert data2 == result2, "data2 %x != %x" % (result2, data2)
