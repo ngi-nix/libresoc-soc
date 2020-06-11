@@ -27,7 +27,7 @@ def get_cu_inputs(dec2, sim):
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
     yield from ALUHelpers.get_sim_int_rc(res, sim, dec2) # RC
-    yield from ALUHelpers.get_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
 
     print ("inputs", res)
 
@@ -248,7 +248,7 @@ class TestRunner(FHDLTestCase):
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
 
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
