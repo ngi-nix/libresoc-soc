@@ -27,6 +27,12 @@ class TestCase:
 
 class ALUHelpers:
 
+    def get_sim_cr_a(res, sim, dec2):
+        cridx_ok = yield dec2.e.read_cr1.ok
+        if cridx_ok:
+            cridx = yield dec2.e.read_cr1.data
+            res['cr_a'] = sim.crl[cridx].get_range().value
+
     def get_sim_int_ra(res, sim, dec2):
         # TODO: immediate RA zero
         reg1_ok = yield dec2.e.read_reg1.ok
@@ -137,7 +143,7 @@ class ALUHelpers:
             write_reg_idx = yield dec2.e.write_reg.data
             res['o'] = sim.gpr(write_reg_idx).value
 
-    def get_sim_cr_a(res, sim, dec2):
+    def get_wr_sim_cr_a(res, sim, dec2):
         cridx_ok = yield dec2.e.write_cr.ok
         if cridx_ok:
             cridx = yield dec2.e.write_cr.data
