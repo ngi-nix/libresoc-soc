@@ -69,6 +69,13 @@ class ALUHelpers:
             data = yield dec2.e.read_reg3.data
             res['rc'] = sim.gpr(data).value
 
+    def get_rd_sim_xer_ca(res, sim, dec2):
+        cry_in = yield dec2.e.input_carry
+        if cry_in:
+            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
+            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
+            res['xer_ca'] = expected_carry | (expected_carry32 << 1)
+
     def set_int_ra(alu, dec2, inp):
         # TODO: immediate RA zero.
         if 'ra' in inp:
@@ -172,7 +179,7 @@ class ALUHelpers:
             cridx = yield dec2.e.write_cr.data
             res['cr_a'] = sim.crl[cridx].get_range().value
 
-    def get_sim_xer_ca(res, sim, dec2):
+    def get_wr_sim_xer_ca(res, sim, dec2):
         cry_out = yield dec2.e.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
