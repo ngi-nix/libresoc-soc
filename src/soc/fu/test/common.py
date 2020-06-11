@@ -63,6 +63,12 @@ class ALUHelpers:
             data = yield dec2.e.read_reg2.data
             res['rb'] = sim.gpr(data).value
 
+    def get_sim_int_rc(res, sim, dec2):
+        reg3_ok = yield dec2.e.read_reg3.ok
+        if reg3_ok:
+            data = yield dec2.e.read_reg3.data
+            res['rc'] = sim.gpr(data).value
+
     def set_int_ra(alu, dec2, inp):
         # TODO: immediate RA zero.
         if 'ra' in inp:

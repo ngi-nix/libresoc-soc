@@ -24,30 +24,10 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    # RA
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        res['ra'] = sim.gpr(data1).value
-
-    # RB
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        res['rb'] = sim.gpr(data2).value
-
-    # RS (RC)
-    reg3_ok = yield dec2.e.read_reg3.ok
-    if reg3_ok:
-        data3 = yield dec2.e.read_reg3.data
-        res['rc'] = sim.gpr(data3).value
-
-    # XER.ca
-    cry_in = yield dec2.e.input_carry
-    if cry_in == CryIn.CA.value:
-        carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-        carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-        res['xer_ca'] = carry | (carry32<<1)
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
+    yield from ALUHelpers.get_sim_int_rc(res, sim, dec2) # RC
+    yield from ALUHelpers.get_sim_xer_ca(res, sim, dec2) # XER.ca
 
     print ("inputs", res)
 
@@ -239,13 +219,8 @@ class TestRunner(FHDLTestCase):
                         vld = yield alu.n.valid_o
                     yield
                     alu_out = yield alu.n.data_o.o.data
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
-                        msg = f"expected {expected:x}, actual: {alu_out:x}"
-                        self.assertEqual(expected, alu_out, msg)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
+
+                    yield from self.check_alu_outputs(alu, pdecode2,
                                                             simulator, code)
                     break
 
@@ -254,21 +229,30 @@ class TestRunner(FHDLTestCase):
                             traces=[]):
             sim.run()
 
-    def check_extra_alu_outputs(self, alu, dec2, sim, code):
-        rc = yield dec2.e.rc.data
-        if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual, code)
+    def check_alu_outputs(self, alu, dec2, sim, code):
 
-        cry_out = yield dec2.e.output_carry
-        if cry_out:
-            expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-            real_carry = yield alu.n.data_o.xer_ca.data[0] # XXX CO not CO32
-            self.assertEqual(expected_carry, real_carry, code)
-            expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = yield alu.n.data_o.xer_ca.data[1] # XXX CO32
-            self.assertEqual(expected_carry32, real_carry32, code)
+        rc = yield dec2.e.rc.data
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
+
+        print ("check extra output", repr(code), cridx_ok, cridx)
+        if rc:
+            self.assertEqual(cridx, 0, code)
+
+        sim_o = {}
+        res = {}
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ca(sim_o, sim, dec2)
+
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
 
 
 
