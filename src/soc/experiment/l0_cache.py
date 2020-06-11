@@ -455,6 +455,12 @@ class L0CacheBuffer(Elaboratable):
             comb += wrport.en.eq(lenexp.lexp_o) # enable writes
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
+        # ugly hack, due to simultaneous addr req-go acknowledge
+        reset_delay = Signal(reset_less=True)
+        sync += reset_delay.eq(reset_l.q)
+        with m.If(reset_delay):
+            comb += adrok_l.r.eq(1)     # address reset
+
         # after waiting one cycle (reset_l is "sync" mode), reset the port
         with m.If(reset_l.q):
             comb += idx_l.s.eq(1)  # deactivate port-index selector

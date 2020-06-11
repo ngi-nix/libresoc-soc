@@ -291,6 +291,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
         comb += reset_a.eq(self.go_ad_i | self.go_die_i)
 
+        p_st_go = Signal(reset_less=True)
+        sync += p_st_go.eq(self.st.go)
+
         ##########################
         # FSM implemented through sequence of latches.  approximately this:
         # - opc_l       : opcode
@@ -338,7 +341,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # store latch
         comb += sto_l.s.eq(addr_ok & op_is_st)
-        sync += sto_l.r.eq(reset_s)
+        comb += sto_l.r.eq(reset_s | p_st_go)
 
         # reset latch
         comb += rst_l.s.eq(addr_ok) # start when address is ready
@@ -428,7 +431,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
                                   self.shadown_i)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
-        comb += wr_any.eq(self.st.go | self.wr.go[0] | self.wr.go[1])
+        comb += wr_any.eq(self.st.go | p_st_go | self.wr.go[0] | self.wr.go[1])
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
                     ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
                      (lod_l.qn | op_is_st))
@@ -461,7 +464,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok & lod_l.q) # "go do address stuff"
+        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)) # "go do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
         # ld - ld gets latched in via lod_l
