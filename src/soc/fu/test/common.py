@@ -3,7 +3,7 @@ Bugreports:
 * https://bugs.libre-soc.org/show_bug.cgi?id=361
 """
 
-from soc.decoder.power_enums import XER_bits
+from soc.decoder.power_enums import XER_bits, CryIn
 from soc.regfile.util import fast_reg_to_spr # HACK!
 
 
@@ -71,7 +71,7 @@ class ALUHelpers:
 
     def get_rd_sim_xer_ca(res, sim, dec2):
         cry_in = yield dec2.e.input_carry
-        if cry_in:
+        if cry_in == CryIn.CA.value:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = expected_carry | (expected_carry32 << 1)
