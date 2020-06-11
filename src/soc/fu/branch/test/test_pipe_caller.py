@@ -56,25 +56,9 @@ def get_cu_inputs(dec2, sim):
     # CIA (PC)
     res['cia'] = sim.pc.CIA.value
 
-    fast1_en = yield dec2.e.read_fast1.ok
-    if fast1_en:
-        fast1_sel = yield dec2.e.read_fast1.data
-        spr1_sel = fast_reg_to_spr(fast1_sel)
-        spr1_data = sim.spr[spr1_sel].value
-        res['spr1'] = spr1_data
-
-    fast2_en = yield dec2.e.read_fast2.ok
-    if fast2_en:
-        fast2_sel = yield dec2.e.read_fast2.data
-        spr2_sel = fast_reg_to_spr(fast2_sel)
-        spr2_data = sim.spr[spr2_sel].value
-        res['spr2'] = spr2_data
-
-    cr_en = yield dec2.e.read_cr1.ok
-    if cr_en:
-        cr_sel = yield dec2.e.read_cr1.data
-        cr = sim.crl[cr_sel].get_range().value
-        res['cr_a'] = cr
+    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2)
+    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)
+    yield from ALUHelpers.get_sim_cr_a(res, sim, dec2)
 
     print ("get inputs", res)
     return res
