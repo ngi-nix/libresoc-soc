@@ -194,6 +194,11 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += alu_pulse.eq(alu_done & ~alu_done_dly)
         m.d.comb += alu_pulsem.eq(Repl(alu_pulse, self.n_dst))
 
+        # sigh bug where req_l gets both set and reset raised at same time
+        prev_wr_go = Signal(self.n_dst)
+        brd = Repl(self.busy_o, self.n_dst)
+        m.d.sync += prev_wr_go.eq(self.wr.go & brd)
+
         # write_requests all done
         # req_done works because any one of the last of the writes
         # is enough, when combined with when read-phase is done (rst_l.q)
@@ -201,7 +206,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         req_done = Signal(reset_less=True)
         m.d.comb += self.done_o.eq(self.busy_o & \
                                    ~((self.wr.rel & ~self.wrmask).bool()))
-        m.d.comb += wr_any.eq(self.wr.go.bool())
+        m.d.comb += wr_any.eq(self.wr.go.bool() | prev_wr_go.bool())
         m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & \
                 ((req_l.q & self.wrmask) == 0))
         # argh, complicated hack: if there are no regs to write,
@@ -238,8 +243,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
-        m.d.comb += req_l.s.eq(alu_pulsem)
-        m.d.comb += req_l.r.eq(reset_w)
+        m.d.comb += req_l.s.eq(alu_pulsem & self.wrmask)
+        m.d.comb += req_l.r.eq(reset_w | prev_wr_go)
 
         # create a latch/register for the operand
         oper_r = self.opsubsetkls(name="oper_r")

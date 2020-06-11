@@ -204,7 +204,6 @@ class TestRunner(FHDLTestCase):
                                 "respec %s" % \
                                 (bin(wr_rel_o), cu.rwid[1])
                     yield from set_cu_inputs(cu, inp)
-                    yield
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
                     wrmask = yield cu.wrmask
