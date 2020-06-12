@@ -5,6 +5,7 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase, get_cu_inputs
 
 from soc.fu.compunits.compunits import LDSTFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.fu.test.common import ALUHelpers
 
 
 class LDSTTestRunner(TestRunner):
@@ -22,24 +23,7 @@ class LDSTTestRunner(TestRunner):
         """naming (res) must conform to LDSTFunctionUnit output regspec
         """
 
-        print ("check cu outputs", res)
-        # RT
-        out_reg_valid = yield dec2.e.write_reg.ok
-        if out_reg_valid:
-            write_reg_idx = yield dec2.e.write_reg.data
-            expected = sim.gpr(write_reg_idx).value
-            cu_out = res['o']
-            print(f"expected {expected:x}, actual: {cu_out:x}")
-            self.assertEqual(expected, cu_out, code)
-
-        # RA
-        out_reg_valid = yield dec2.e.write_ea.ok
-        if out_reg_valid:
-            write_reg_idx = yield dec2.e.write_ea.data
-            expected = sim.gpr(write_reg_idx).value
-            cu_out = res['o1']
-            print(f"expected {expected:x}, actual: {cu_out:x}")
-            self.assertEqual(expected, cu_out, code)
+        print ("check cu outputs", code, res)
 
         rc = yield dec2.e.rc.data
         op = yield dec2.e.insn_type
@@ -52,12 +36,15 @@ class LDSTTestRunner(TestRunner):
             self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
 
-        # CR (CR0-7)
-        if cridx_ok:
-            cr_expected = sim.crl[cridx].get_range().value
-            cr_actual = res['cr_a']
-            print ("CR", cridx, cr_expected, cr_actual)
-            self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
+        sim_o = {}
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_int_o1(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
+
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_int_o1(self, res, sim_o, code)
 
         # XER.so
         return

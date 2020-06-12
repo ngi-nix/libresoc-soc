@@ -140,10 +140,15 @@ class ALUHelpers:
         else:
             yield alu.p.data_i.full_cr.eq(0)
 
+    def get_int_o1(res, alu, dec2):
+        out_reg_valid = yield dec2.e.write_ea.ok
+        if out_reg_valid:
+            res['o1'] = yield alu.n.data_o.o1.data
+
     def get_int_o(res, alu, dec2):
         out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
-            res['o'] = yield alu.n.data_o.o.data 
+            res['o'] = yield alu.n.data_o.o.data
 
     def get_cr_a(res, alu, dec2):
         cridx_ok = yield dec2.e.write_cr.ok
@@ -173,6 +178,12 @@ class ALUHelpers:
             write_reg_idx = yield dec2.e.write_reg.data
             res['o'] = sim.gpr(write_reg_idx).value
 
+    def get_sim_int_o1(res, sim, dec2):
+        out_reg_valid = yield dec2.e.write_ea.ok
+        if out_reg_valid:
+            write_reg_idx = yield dec2.e.write_ea.data
+            res['o1'] = sim.gpr(write_reg_idx).value
+
     def get_wr_sim_cr_a(res, sim, dec2):
         cridx_ok = yield dec2.e.write_cr.ok
         if cridx_ok:
@@ -199,6 +210,13 @@ class ALUHelpers:
         oe_ok = yield dec2.e.oe.ok
         if oe and oe_ok:
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+
+    def check_int_o1(dut, res, sim_o, msg):
+        if 'o1' in res:
+            expected = sim_o['o1']
+            alu_out = res['o1']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
 
     def check_int_o(dut, res, sim_o, msg):
         if 'o' in res:
