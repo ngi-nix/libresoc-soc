@@ -51,6 +51,9 @@ class Mem:
     def _get_shifter_mask(self, wid, remainder):
         shifter = ((self.bytes_per_word - wid) - remainder) * \
             8  # bits per byte
+        # XXX https://bugs.libre-soc.org/show_bug.cgi?id=377
+        # BE/LE mode?
+        # shifter = remainder * 8
         mask = (1 << (wid * 8)) - 1
         print ("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
         return shifter, mask
