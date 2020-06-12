@@ -76,9 +76,11 @@ class Mem:
         return val
 
     def st(self, addr, v, width=8):
+        staddr = addr
         remainder = addr & (self.bytes_per_word - 1)
         addr = addr >> self.word_log2
-        print("Writing 0x{:x} to addr 0x{:x}/{:x}".format(v, addr, remainder))
+        print("Writing 0x{:x} to ST 0x{:x} memaddr 0x{:x}/{:x}".format(v,
+                        staddr, addr, remainder))
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if width != self.bytes_per_word:
             if addr in self.mem:
@@ -192,7 +194,7 @@ class ISACaller:
         if initial_mem is None:
             initial_mem = {}
         self.gpr = GPR(decoder2, regfile)
-        self.mem = Mem(initial_mem=initial_mem)
+        self.mem = Mem(bytes_per_word=8, initial_mem=initial_mem)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64) # underlying reg

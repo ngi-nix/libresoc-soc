@@ -122,9 +122,10 @@ class TestRunner(FHDLTestCase):
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
-            m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64)
+            m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
+                                                    addrwid=4)
             pi = l0.l0.dports[0].pi
-            m.submodules.cu = cu = self.fukls(pi, awid=4)
+            m.submodules.cu = cu = self.fukls(pi, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
             m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
         else:
@@ -152,11 +153,20 @@ class TestRunner(FHDLTestCase):
                 # initialise memory
                 if self.funit == Function.LDST:
                     mem = l0.mem.mem
+                    print ("before, init mem", mem.depth, mem.width, mem)
                     for i in range(mem.depth//2):
                         data = sim.mem.ld(i*16, 8)
                         data1 = sim.mem.ld(i*16+8, 8)
+                        print ("init ", i, hex(data), hex(data1))
                         yield mem._array[i].eq(data | (data1<<32))
-                    print ("init mem", mem.depth, mem.width, mem)
+                    yield Settle()
+                    for k, v in sim.mem.mem.items():
+                        print ("    %6x %016x" % (k, v))
+                    print ("before, nmigen mem dump")
+                    for i in range(mem.depth//2):
+                        actual_mem = yield mem._array[i]
+                        print ("    %6i %016x" % (i*2, actual_mem))
+
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
@@ -242,7 +252,7 @@ class TestRunner(FHDLTestCase):
                         print ("nmigen mem dump")
                         for i in range(mem.depth//2):
                             actual_mem = yield mem._array[i]
-                            print ("    %6i %032x" % (i*2, actual_mem))
+                            print ("    %6i %016x" % (i*2, actual_mem))
 
                         for i in range(mem.depth//2):
                             data = sim.mem.ld(i*16, 8)

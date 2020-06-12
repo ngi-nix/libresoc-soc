@@ -67,12 +67,10 @@ class LDSTTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = 0x0004
         initial_regs[2] = 0x0008
-        initial_mem = {0x0000: (0x12345678, 8),
-                       0x0008: (0x54321234, 8),
-                       0x0010: (0x87654321, 8),
-                       0x0018: (0xabcdef01, 8),
-                       0x0040: (0x22324252, 8),
-                       0x0048: (0x18283848, 8)}
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0010: (0xabcdef0187654321, 8),
+                       0x0040: (0x1828384822324252, 8),
+                        }
         self.run_tst_program(Program(lst), initial_regs,
                              initial_mem=initial_mem)
 
@@ -85,12 +83,10 @@ class LDSTTestCase(FHDLTestCase):
         initial_regs[1] = 0x0004
         initial_regs[2] = 0x0008
         initial_regs[3] = 0x00ee
-        initial_mem = {0x0000: (0x12345678, 8),
-                       0x0008: (0x54321234, 8),
-                       0x0010: (0x87654321, 8),
-                       0x0018: (0xabcdef01, 8),
-                       0x0040: (0x22324252, 8),
-                       0x0048: (0x18283848, 8)}
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0010: (0xabcdef0187654321, 8),
+                       0x0040: (0x1828384822324252, 8),
+                        }
         self.run_tst_program(Program(lst), initial_regs,
                              initial_mem=initial_mem)
 
@@ -101,12 +97,10 @@ class LDSTTestCase(FHDLTestCase):
         initial_regs[1] = 0x0004
         initial_regs[2] = 0x0002
         initial_regs[3] = 0x15eb
-        initial_mem = {0x0000: (0x12345678, 8),
-                       0x0008: (0x54321234, 8),
-                       0x0010: (0x87654321, 8),
-                       0x0018: (0xabcdef01, 8),
-                       0x0040: (0x22324252, 8),
-                       0x0048: (0x18283848, 8)}
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0010: (0xabcdef0187654321, 8),
+                       0x0040: (0x1828384822324252, 8),
+                        }
         self.run_tst_program(Program(lst), initial_regs,
                              initial_mem=initial_mem)
 
