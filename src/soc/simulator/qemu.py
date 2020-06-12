@@ -34,6 +34,13 @@ class QemuController:
             breakstring = f' {breakpoint}'
         return self.gdb.write('-break-delete' + breakstring)
 
+    def get_mem(self, addr, nbytes):
+        res = self.gdb.write("-data-read-memory %d u 8 1 %d" % (addr, nbytes))
+        print ("get_mem", res)
+        for x in res:
+            if(x["type"]=="result"):
+                return x['payload']['memory'][0]['data']
+        return None
 
     def get_registers(self):
         return self.gdb.write('-data-list-register-values x')

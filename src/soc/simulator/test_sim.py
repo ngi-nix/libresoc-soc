@@ -95,7 +95,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def test_ldst_widths(self):
+    def test_0_ldst_widths(self):
         lst = ["addis 1, 0, 0xdead",
                "ori 1, 1, 0xbeef",
                "addi 2, 0, 0x1000",
@@ -145,11 +145,24 @@ class DecoderTestCase(FHDLTestCase):
             self.run_tst_program(program, [1])
 
     def run_tst_program(self, prog, reglist):
+        import sys
         simulator = self.run_tst(prog)
         prog.reset()
         with run_program(prog) as q:
             self.qemu_register_compare(simulator, q, reglist)
+            self.qemu_mem_compare(simulator, q, reglist)
         print(simulator.gpr.dump())
+
+    def qemu_mem_compare(self, sim, qemu, regs):
+        addr = 0x1000
+        qmemdump = qemu.get_mem(addr, 16)
+        for i in range(len(qmemdump)):
+            s = hex(int(qmemdump[i]))
+            print ("qemu mem %06x %s" % (addr+i*8, s))
+        for k, v in sim.mem.mem.items():
+            print ("sim      %06x %016x" % (k, v))
+        for k, v in sim.mem.mem.items():
+            self.assertEqual(int(qmemdump[(k-0x200)//8]), v) # magic constant??
 
     def qemu_register_compare(self, sim, qemu, regs):
         qpc, qxer, qcr = qemu.get_pc(), qemu.get_xer(), qemu.get_cr()
