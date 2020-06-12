@@ -154,18 +154,17 @@ class TestRunner(FHDLTestCase):
                 if self.funit == Function.LDST:
                     mem = l0.mem.mem
                     print ("before, init mem", mem.depth, mem.width, mem)
-                    for i in range(mem.depth//2):
-                        data = sim.mem.ld(i*16, 8)
-                        data1 = sim.mem.ld(i*16+8, 8)
-                        print ("init ", i, hex(data), hex(data1))
-                        yield mem._array[i].eq(data | (data1<<32))
+                    for i in range(mem.depth):
+                        data = sim.mem.ld(i*8, 8)
+                        print ("init ", i, hex(data))
+                        yield mem._array[i].eq(data)
                     yield Settle()
                     for k, v in sim.mem.mem.items():
                         print ("    %6x %016x" % (k, v))
                     print ("before, nmigen mem dump")
-                    for i in range(mem.depth//2):
+                    for i in range(mem.depth):
                         actual_mem = yield mem._array[i]
-                        print ("    %6i %016x" % (i*2, actual_mem))
+                        print ("    %6i %016x" % (i, actual_mem))
 
 
                 index = sim.pc.CIA.value//4
@@ -250,14 +249,12 @@ class TestRunner(FHDLTestCase):
                         for k, v in sim.mem.mem.items():
                             print ("    %6x %016x" % (k, v))
                         print ("nmigen mem dump")
-                        for i in range(mem.depth//2):
+                        for i in range(mem.depth):
                             actual_mem = yield mem._array[i]
-                            print ("    %6i %016x" % (i*2, actual_mem))
+                            print ("    %6i %016x" % (i, actual_mem))
 
-                        for i in range(mem.depth//2):
-                            data = sim.mem.ld(i*16, 8)
-                            data1 = sim.mem.ld(i*16+8, 8)
-                            expected_mem = (data | (data1<<32))
+                        for i in range(mem.depth):
+                            expected_mem = sim.mem.ld(i*8, 8)
                             actual_mem = yield mem._array[i]
                             self.assertEqual(expected_mem, actual_mem,
                                     "%s %d %x %x" % (code, i,
