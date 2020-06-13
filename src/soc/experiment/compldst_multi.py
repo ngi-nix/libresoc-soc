@@ -534,12 +534,19 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False):
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
-    yield
+
     if imm_ok:
-        yield dut.rd.go.eq(0b101)
+        active_rel = 0b101
     else:
-        yield dut.rd.go.eq(0b111)
-    yield from wait_for(dut.rd.rel)
+        active_rel = 0b111
+    # wait for all active rel signals to come up
+    while True:
+        rel = yield dut.rd.rel
+        if rel == active_rel:
+            break
+        yield
+    yield dut.rd.go.eq(active_rel)
+    yield
     yield dut.rd.go.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
