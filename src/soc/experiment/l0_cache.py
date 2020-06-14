@@ -454,9 +454,13 @@ class L0CacheBuffer(Elaboratable):
             lddata = Signal(self.regwid, reset_less=True)
             comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
-            # byte-reverse the data based on width
-            lddata_r = byte_reverse(m, 'lddata_r', lddata, lenexp.len_i)
-            comb += ldport.ld.data.eq(lddata_r)  # put data out
+            # yes this looks odd (inverted)
+            with m.If(ldport.op.byte_reverse):
+                comb += ldport.ld.data.eq(lddata)  # put data out
+            with m.Else():
+                # byte-reverse the data based on ld/st width
+                lddata_r = byte_reverse(m, 'lddata_r', lddata, lenexp.len_i)
+                comb += ldport.ld.data.eq(lddata_r)  # put reversed- data out
             comb += ldport.ld.ok.eq(1)           # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
@@ -464,12 +468,17 @@ class L0CacheBuffer(Elaboratable):
         with m.If(st_active.q & stport.st.ok):
             # shift data up before storing.  lenexp *bit* version of mask is
             # passed straight through as byte-level "write-enable" lines.
-            # byte-reverse the data based on width
+            stport_d = stport.st.data
             stdata_i = Signal(self.regwid, reset_less=True)
-            comb += stdata_i.eq(stport.st.data)
-            stdata_r = byte_reverse(m, 'stdata_r', stdata_i, lenexp.len_i)
             stdata = Signal(self.regwid, reset_less=True)
-            comb += stdata.eq(stdata_r << (lenexp.addr_i*8))
+            # yes this looks odd (inverted)
+            with m.If(ldport.op.byte_reverse):
+                comb += stdata_i.eq(stport_d)
+            with m.Else():
+                # byte-reverse the data based on width
+                stdata_r = byte_reverse(m, 'stdata_r', stport_d, lenexp.len_i)
+                comb += stdata_i.eq(stdata_r)
+            comb += stdata.eq(stdata_i << (lenexp.addr_i*8))
             comb += wrport.data.eq(stdata)  # write st to mem
             comb += wrport.en.eq(lenexp.lexp_o) # enable writes
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
