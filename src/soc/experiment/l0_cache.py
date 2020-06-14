@@ -301,6 +301,20 @@ class LDSTPort(Elaboratable):
     def ports(self):
         return list(self)
 
+# TODO: turn this into a module
+def byte_reverse(m, data, length):
+    comb = m.d.comb
+    name = "%s_r" % (data.name)
+    data_r = Signal.like(data, name=name)
+    with m.Switch(length):
+        for j in [1,2,4,8]:
+            with m.Case(j):
+                for i in range(j):
+                    dest = data_r.word_select(i, 8)
+                    src = data.word_select(j-1-i, 8)
+                    comb += dest.eq(src)
+    return data_r
+
 
 class L0CacheBuffer(Elaboratable):
     """L0 Cache / Buffer
@@ -441,16 +455,20 @@ class L0CacheBuffer(Elaboratable):
             lddata = Signal(self.regwid, reset_less=True)
             comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
-            comb += ldport.ld.data.eq(lddata)  # put data out
-            comb += ldport.ld.ok.eq(1)             # indicate data valid
+            # byte-reverse the data based on width
+            lddata_r = byte_reverse(m, lddata, lenexp.len_i)
+            comb += ldport.ld.data.eq(lddata_r)  # put data out
+            comb += ldport.ld.ok.eq(1)           # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
         with m.If(st_active.q & stport.st.ok):
             # shift data up before storing.  lenexp *bit* version of mask is
             # passed straight through as byte-level "write-enable" lines.
+            # byte-reverse the data based on width
+            stdata_r = byte_reverse(m, stport.st.data, lenexp.len_i)
             stdata = Signal(self.regwid, reset_less=True)
-            comb += stdata.eq(stport.st.data << (lenexp.addr_i*8))
+            comb += stdata.eq(stdata_r << (lenexp.addr_i*8))
             comb += wrport.data.eq(stdata)  # write st to mem
             comb += wrport.en.eq(lenexp.lexp_o) # enable writes
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
