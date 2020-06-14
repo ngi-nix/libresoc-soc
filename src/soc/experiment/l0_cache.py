@@ -498,7 +498,7 @@ class L0CacheBuffer(Elaboratable):
 class TstL0CacheBuffer(Elaboratable):
     def __init__(self, n_units=3, regwid=16, addrwid=4):
         self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
-        self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid)
+        self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid<<1)
 
     def elaborate(self, platform):
         m = Module()
