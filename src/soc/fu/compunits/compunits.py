@@ -156,16 +156,20 @@ class AllFunctionUnits(Elaboratable):
      * type of FU required
 
     """
-    def __init__(self):
+    def __init__(self, pi=None):
         self.fus = {}
         for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
                                  ('cr', 1, CRFunctionUnit),
                                  ('branch', 1, BranchFunctionUnit),
                                  ('logical', 1, LogicalFunctionUnit),
-                                 ('shiftrot', 1, ShiftRotFunctionUnit)
+                                 ('shiftrot', 1, ShiftRotFunctionUnit),
                                 ):
             for i in range(qty):
                 self.fus["%s%d" % (name, i)] = kls()
+        if pi is None:
+            return
+        for i in enumerate(pi):
+            self.fus["ldst%d" % (i)] = LDSTFunctionUnit(pi[i])
 
     def elaborate(self, platform):
         m = Module()
