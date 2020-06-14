@@ -92,7 +92,25 @@ class DecoderTestCase(FHDLTestCase):
                                  [1, 2, 3],
                                  initial_mem)
 
-    def _tstldst_extended(self):
+    def test_ld_rev_ext(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
+               "addi 4, 0, 0x40",
+               "stw  1, 0x40(2)",
+               "lwbrx  3, 4, 2"]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_st_rev_ext(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
+               "addi 4, 0, 0x40",
+               "stwbrx  1, 4, 2",
+               "lwzx  3, 4, 2"]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "addi 4, 0, 0x40",
@@ -150,7 +168,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def test_2_load_store(self):
+    def tst_2_load_store(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
                "addi 3, 0, 0x00ee",
