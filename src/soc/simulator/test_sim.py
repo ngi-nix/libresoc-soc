@@ -150,15 +150,33 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def test_3_load_store(self):
+    def test_2_load_store(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x00ee",
+               "stb 3, 1(2)",
+               "lbz 4, 1(2)",
+        ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x00ee
+        initial_mem = {0x1000: (0x5432123412345678, 8),
+                       0x1008: (0xabcdef0187654321, 8),
+                       0x1020: (0x1828384822324252, 8),
+                        }
+        with Program(lst) as program:
+            self.run_tst_program(program, [3,4], initial_mem)
+
+    def _tst3_load_store(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1002",
                "addi 3, 0, 0x15eb",
                "sth 4, 0(2)",
                "lhz 4, 0(2)"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0x0004
-        initial_regs[2] = 0x0002
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1002
         initial_regs[3] = 0x15eb
         initial_mem = {0x1000: (0x5432123412345678, 8),
                        0x1008: (0xabcdef0187654321, 8),
