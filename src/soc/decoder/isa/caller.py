@@ -26,6 +26,12 @@ special_sprs = {
     'VRSAVE': 256}
 
 
+def swap_order(x, nbytes):
+    x = x.to_bytes(nbytes, byteorder='little')
+    x = int.from_bytes(x, byteorder='big', signed=False)
+    return x
+
+
 def create_args(reglist, extra=None):
     args = OrderedSet()
     for reg in reglist:
@@ -42,24 +48,25 @@ class Mem:
         self.mem = {}
         self.bytes_per_word = bytes_per_word
         self.word_log2 = math.ceil(math.log2(bytes_per_word))
+        print ("Sim-Mem", initial_mem, self.bytes_per_word, self.word_log2)
         if not initial_mem:
             return
-        print ("Sim-Mem", initial_mem, self.bytes_per_word)
         for addr, (val, width) in initial_mem.items():
-            self.st(addr, val, width)
+            #val = swap_order(val, width)
+            self.st(addr, val, width, swap=False)
 
     def _get_shifter_mask(self, wid, remainder):
         shifter = ((self.bytes_per_word - wid) - remainder) * \
             8  # bits per byte
         # XXX https://bugs.libre-soc.org/show_bug.cgi?id=377
         # BE/LE mode?
-        # shifter = remainder * 8
+        shifter = remainder * 8
         mask = (1 << (wid * 8)) - 1
         print ("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
-    def ld(self, address, width=8):
+    def ld(self, address, width=8, swap=True):
         print("ld from addr 0x{:x} width {:d}".format(address, width))
         remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
@@ -75,16 +82,20 @@ class Mem:
             print ("masking", hex(val), hex(mask<<shifter), shifter)
             val = val & (mask << shifter)
             val >>= shifter
+        if swap:
+            val = swap_order(val, width)
         print("Read 0x{:x} from addr 0x{:x}".format(val, address))
         return val
 
-    def st(self, addr, v, width=8):
+    def st(self, addr, v, width=8, swap=True):
         staddr = addr
         remainder = addr & (self.bytes_per_word - 1)
         addr = addr >> self.word_log2
         print("Writing 0x{:x} to ST 0x{:x} memaddr 0x{:x}/{:x}".format(v,
-                        staddr, addr, remainder))
+                        staddr, addr, remainder, swap))
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
+        if swap:
+            v = swap_order(v, width)
         if width != self.bytes_per_word:
             if addr in self.mem:
                 val = self.mem[addr]

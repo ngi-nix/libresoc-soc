@@ -21,7 +21,7 @@ class Register:
 
 class DecoderTestCase(FHDLTestCase):
 
-    def run_tst(self, generator):
+    def run_tst(self, generator, initial_mem=None):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -30,7 +30,7 @@ class DecoderTestCase(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        simulator = ISA(pdecode2, [0] * 32, {}, 0, {}, 0)
+        simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         comb += pdecode2.dec.bigendian.eq(0)
         gen = generator.generate_instructions()
@@ -61,7 +61,7 @@ class DecoderTestCase(FHDLTestCase):
 
         return simulator
 
-    def test_0_cmp(self):
+    def _tst0_cmp(self):
         lst = ["addi 6, 0, 0x10",
                "addi 7, 0, 0x05",
                "subf. 1, 6, 7",
@@ -70,32 +70,38 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def test_example(self):
-        lst = ["addi 1, 0, 0x1234",
-               "addi 2, 0, 0x5678",
+    def _tstexample(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
                "add  3, 1, 2",
                "and  4, 1, 2"]
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4])
 
-    def test_ldst(self):
-        lst = ["addi 1, 0, 0x1234",
-               "addi 2, 0, 0x5678",
+    def _tstldst(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
                "stw  1, 0(2)",
-               "lwz  3, 0(2)"]
+               "lwz  3, 0(2)"
+              ]
+        initial_mem = {0x1230: (0x5432123412345678, 8),
+                       0x1238: (0xabcdef0187654321, 8),
+                      }
         with Program(lst) as program:
-            self.run_tst_program(program, [1, 2, 3])
+            self.run_tst_program(program,
+                                 [1, 2, 3],
+                                 initial_mem)
 
-    def test_ldst_extended(self):
-        lst = ["addi 1, 0, 0x1234",
-               "addi 2, 0, 0x5678",
+    def _tstldst_extended(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
                "addi 4, 0, 0x40",
                "stw  1, 0x40(2)",
                "lwzx  3, 4, 2"]
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def test_0_ldst_widths(self):
+    def _tst0_ldst_widths(self):
         lst = ["addis 1, 0, 0xdead",
                "ori 1, 1, 0xbeef",
                "addi 2, 0, 0x1000",
@@ -109,7 +115,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    def test_sub(self):
+    def _tstsub(self):
         lst = ["addi 1, 0, 0x1234",
                "addi 2, 0, 0x5678",
                "subf 3, 1, 2",
@@ -118,7 +124,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    def test_add_with_carry(self):
+    def _tstadd_with_carry(self):
         lst = ["addi 1, 0, 5",
                "neg 1, 1",
                "addi 2, 0, 7",
@@ -129,7 +135,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def test_addis(self):
+    def _tstaddis(self):
         lst = ["addi 1, 0, 0x0FFF",
                "addis 1, 1, 0x0F"
                ]
@@ -137,32 +143,57 @@ class DecoderTestCase(FHDLTestCase):
             self.run_tst_program(program, [1])
 
     @unittest.skip("broken")
-    def test_mulli(self):
+    def _tstmulli(self):
         lst = ["addi 1, 0, 3",
                "mulli 1, 1, 2"
                ]
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def run_tst_program(self, prog, reglist):
+    def test_3_load_store(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1002",
+               "addi 3, 0, 0x15eb",
+               "sth 4, 0(2)",
+               "lhz 4, 0(2)"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0004
+        initial_regs[2] = 0x0002
+        initial_regs[3] = 0x15eb
+        initial_mem = {0x1000: (0x5432123412345678, 8),
+                       0x1008: (0xabcdef0187654321, 8),
+                       0x1020: (0x1828384822324252, 8),
+                        }
+        with Program(lst) as program:
+            self.run_tst_program(program, [1,2,3,4], initial_mem)
+
+    def run_tst_program(self, prog, reglist, initial_mem=None):
         import sys
-        simulator = self.run_tst(prog)
+        simulator = self.run_tst(prog, initial_mem=initial_mem)
         prog.reset()
-        with run_program(prog) as q:
+        with run_program(prog, initial_mem) as q:
             self.qemu_register_compare(simulator, q, reglist)
             self.qemu_mem_compare(simulator, q, reglist)
         print(simulator.gpr.dump())
 
-    def qemu_mem_compare(self, sim, qemu, regs):
-        addr = 0x1000
-        qmemdump = qemu.get_mem(addr, 16)
-        for i in range(len(qmemdump)):
-            s = hex(int(qmemdump[i]))
-            print ("qemu mem %06x %s" % (addr+i*8, s))
+    def qemu_mem_compare(self, sim, qemu, check=True):
+        if False: # disable convenient large interesting debugging memory dump
+            addr = 0x0
+            qmemdump = qemu.get_mem(addr, 2048)
+            for i in range(len(qmemdump)):
+                s = hex(int(qmemdump[i]))
+                print ("qemu mem %06x %s" % (addr+i*8, s))
         for k, v in sim.mem.mem.items():
-            print ("sim      %06x %016x" % (k, v))
+            qmemdump = qemu.get_mem(k*8, 8)
+            s = hex(int(qmemdump[0]))[2:]
+            print ("qemu mem %06x %16s" % (k*8, s))
         for k, v in sim.mem.mem.items():
-            self.assertEqual(int(qmemdump[(k-0x200)//8]), v) # magic constant??
+            print ("sim mem  %06x %016x" % (k*8, v))
+        if not check:
+            return
+        for k, v in sim.mem.mem.items():
+            qmemdump = qemu.get_mem(k*8, 1)
+            self.assertEqual(int(qmemdump[0]), v)
 
     def qemu_register_compare(self, sim, qemu, regs):
         qpc, qxer, qcr = qemu.get_pc(), qemu.get_xer(), qemu.get_cr()

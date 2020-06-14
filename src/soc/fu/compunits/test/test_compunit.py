@@ -123,7 +123,7 @@ class TestRunner(FHDLTestCase):
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
             m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
-                                                    addrwid=4)
+                                                    addrwid=3)
             pi = l0.l0.dports[0].pi
             m.submodules.cu = cu = self.fukls(pi, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
@@ -155,7 +155,7 @@ class TestRunner(FHDLTestCase):
                     mem = l0.mem.mem
                     print ("before, init mem", mem.depth, mem.width, mem)
                     for i in range(mem.depth):
-                        data = sim.mem.ld(i*8, 8)
+                        data = sim.mem.ld(i*8, 8, False)
                         print ("init ", i, hex(data))
                         yield mem._array[i].eq(data)
                     yield Settle()
@@ -254,7 +254,7 @@ class TestRunner(FHDLTestCase):
                             print ("    %6i %016x" % (i, actual_mem))
 
                         for i in range(mem.depth):
-                            expected_mem = sim.mem.ld(i*8, 8)
+                            expected_mem = sim.mem.ld(i*8, 8, False)
                             actual_mem = yield mem._array[i]
                             self.assertEqual(expected_mem, actual_mem,
                                     "%s %d %x %x" % (code, i,

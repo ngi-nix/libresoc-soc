@@ -34,12 +34,25 @@ class QemuController:
             breakstring = f' {breakpoint}'
         return self.gdb.write('-break-delete' + breakstring)
 
+    def set_byte(self, addr, v):
+        print ("qemu set byte", hex(addr), hex(v))
+        faddr = '&{int}0x%x' % addr
+        res = self.gdb.write('-data-write-memory-bytes %s "%02x"' % (faddr, v))
+        print ("confirm", self.get_mem(addr, 1))
+
     def get_mem(self, addr, nbytes):
-        res = self.gdb.write("-data-read-memory %d u 8 1 %d" % (addr, nbytes))
-        print ("get_mem", res)
+        res = self.gdb.write("-data-read-memory %d u 1 1 %d" % (addr, 8*nbytes))
+        #print ("get_mem", res)
         for x in res:
             if(x["type"]=="result"):
-                return x['payload']['memory'][0]['data']
+                l = list(map(int, x['payload']['memory'][0]['data']))
+                res = []
+                for j in range(0, len(l), 8):
+                    b = 0
+                    for i, v in enumerate(l[j:j+8]):
+                        b += v << (i*8)
+                    res.append(b)
+                return res
         return None
 
     def get_registers(self):
@@ -83,11 +96,15 @@ class QemuController:
         self.qemu_popen.stdin.close()
 
 
-def run_program(program):
+def run_program(program, initial_mem=None):
     q = QemuController(program.binfile.name)
     q.connect()
     # Run to the start of the program
     q.break_address(0x20000000)
+    if initial_mem:
+        for addr, (v, wid) in initial_mem.items():
+            for i in range(wid):
+                q.set_byte(addr+i, (v>>i*8) & 0xff)
     q.gdb_continue()
     # set the CR to 0, matching the simulator
     q.gdb_eval('$cr=0')
