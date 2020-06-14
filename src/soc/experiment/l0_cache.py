@@ -302,9 +302,8 @@ class LDSTPort(Elaboratable):
         return list(self)
 
 # TODO: turn this into a module
-def byte_reverse(m, data, length):
+def byte_reverse(m, name, data, length):
     comb = m.d.comb
-    name = "%s_r" % (data.name)
     data_r = Signal.like(data, name=name)
     with m.Switch(length):
         for j in [1,2,4,8]:
@@ -456,7 +455,7 @@ class L0CacheBuffer(Elaboratable):
             comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
             # byte-reverse the data based on width
-            lddata_r = byte_reverse(m, lddata, lenexp.len_i)
+            lddata_r = byte_reverse(m, 'lddata_r', lddata, lenexp.len_i)
             comb += ldport.ld.data.eq(lddata_r)  # put data out
             comb += ldport.ld.ok.eq(1)           # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
@@ -466,7 +465,9 @@ class L0CacheBuffer(Elaboratable):
             # shift data up before storing.  lenexp *bit* version of mask is
             # passed straight through as byte-level "write-enable" lines.
             # byte-reverse the data based on width
-            stdata_r = byte_reverse(m, stport.st.data, lenexp.len_i)
+            stdata_i = Signal(self.regwid, reset_less=True)
+            comb += stdata_i.eq(stport.st.data)
+            stdata_r = byte_reverse(m, 'stdata_r', stdata_i, lenexp.len_i)
             stdata = Signal(self.regwid, reset_less=True)
             comb += stdata.eq(stdata_r << (lenexp.addr_i*8))
             comb += wrport.data.eq(stdata)  # write st to mem
