@@ -1,9 +1,9 @@
-from nmigen import *
+from nmigen import Elaboratable, Module, Signal, Record
 from nmigen.utils import log2_int
-from nmutil.formaltest import *
-from nmigen.asserts import *
+from nmutil.formaltest import FHDLTestCase
+from nmigen.asserts import AnyConst, AnySeq, Assert, Assume, Past, Initial
 
-from ..cache import L1Cache
+from soc.minerva.cache import L1Cache
 
 
 class L1CacheSpec(Elaboratable):

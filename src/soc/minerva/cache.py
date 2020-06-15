@@ -73,8 +73,8 @@ class L1Cache(Elaboratable):
             hit = (way.tag == self.s2_addr.tag) & way.valid
             m.d.comb += way_hit.i[j].eq(hit)
 
+        rdata = ways[way_hit.o].data.word_select(self.s2_addr.offset, 32)
         m.d.comb += [
-            rdata = ways[way_hit.o].data.word_select(self.s2_addr.offset, 32)
             self.s2_miss.eq(way_hit.n),
             self.s2_rdata.eq(rdata)
         ]
