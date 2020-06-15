@@ -35,8 +35,8 @@ class WishboneArbiter(Elaboratable):
 
     def port(self, priority):
         if not isinstance(priority, int) or priority < 0:
-            raise TypeError("Priority must be a non-negative integer, not '{!r}'"
-                            .format(priority))
+            raise TypeError("Priority must be a non-negative "\
+                            "integer, not '{!r}'" .format(priority))
         if priority in self._port_map:
             raise ValueError("Conflicting priority: '{!r}'".format(priority))
         port = self._port_map[priority] = Record.like(self.bus)
