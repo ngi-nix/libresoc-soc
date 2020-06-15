@@ -103,6 +103,38 @@ def get_inp_indexed(cu, inp):
             res[i] = inp[wrop]
     return res
 
+def setup_test_memory(l0, sim):
+    mem = l0.mem.mem
+    print ("before, init mem", mem.depth, mem.width, mem)
+    for i in range(mem.depth):
+        data = sim.mem.ld(i*8, 8, False)
+        print ("init ", i, hex(data))
+        yield mem._array[i].eq(data)
+    yield Settle()
+    for k, v in sim.mem.mem.items():
+        print ("    %6x %016x" % (k, v))
+    print ("before, nmigen mem dump")
+    for i in range(mem.depth):
+        actual_mem = yield mem._array[i]
+        print ("    %6i %016x" % (i, actual_mem))
+
+
+def check_sim_memory(dut, l0, sim, code):
+    mem = l0.mem.mem
+    print ("sim mem dump")
+    for k, v in sim.mem.mem.items():
+        print ("    %6x %016x" % (k, v))
+    print ("nmigen mem dump")
+    for i in range(mem.depth):
+        actual_mem = yield mem._array[i]
+        print ("    %6i %016x" % (i, actual_mem))
+
+    for i in range(mem.depth):
+        expected_mem = sim.mem.ld(i*8, 8, False)
+        actual_mem = yield mem._array[i]
+        dut.assertEqual(expected_mem, actual_mem,
+                "%s %d %x %x" % (code, i,
+                                 expected_mem, actual_mem))
 
 class TestRunner(FHDLTestCase):
     def __init__(self, test_data, fukls, iodef, funit):
@@ -152,20 +184,7 @@ class TestRunner(FHDLTestCase):
 
                 # initialise memory
                 if self.funit == Function.LDST:
-                    mem = l0.mem.mem
-                    print ("before, init mem", mem.depth, mem.width, mem)
-                    for i in range(mem.depth):
-                        data = sim.mem.ld(i*8, 8, False)
-                        print ("init ", i, hex(data))
-                        yield mem._array[i].eq(data)
-                    yield Settle()
-                    for k, v in sim.mem.mem.items():
-                        print ("    %6x %016x" % (k, v))
-                    print ("before, nmigen mem dump")
-                    for i in range(mem.depth):
-                        actual_mem = yield mem._array[i]
-                        print ("    %6i %016x" % (i, actual_mem))
-
+                    yield from setup_test_memory(l0, sim)
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
@@ -244,21 +263,7 @@ class TestRunner(FHDLTestCase):
 
                     # sigh.  hard-coded.  test memory
                     if self.funit == Function.LDST:
-                        mem = l0.mem.mem
-                        print ("sim mem dump")
-                        for k, v in sim.mem.mem.items():
-                            print ("    %6x %016x" % (k, v))
-                        print ("nmigen mem dump")
-                        for i in range(mem.depth):
-                            actual_mem = yield mem._array[i]
-                            print ("    %6i %016x" % (i, actual_mem))
-
-                        for i in range(mem.depth):
-                            expected_mem = sim.mem.ld(i*8, 8, False)
-                            actual_mem = yield mem._array[i]
-                            self.assertEqual(expected_mem, actual_mem,
-                                    "%s %d %x %x" % (code, i,
-                                                     expected_mem, actual_mem))
+                        yield from check_sim_memory(self, l0, sim, code)
 
 
         sim.add_sync_process(process)
