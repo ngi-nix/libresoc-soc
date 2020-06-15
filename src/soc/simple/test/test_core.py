@@ -70,13 +70,14 @@ class TestRunner(FHDLTestCase):
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         comb += core.ivalid_i.eq(ivalid_i)
-        sim = Simulator(m)
 
         # temporary hack: says "go" immediately for both address gen and ST
         ldst = core.fus.fus['ldst0']
         m.d.comb += ldst.ad.go.eq(ldst.ad.rel) # link addr-go direct to rel
         m.d.comb += ldst.st.go.eq(ldst.st.rel) # link store-go direct to rel
 
+        # nmigen Simulation
+        sim = Simulator(m)
         sim.add_clock(1e-6)
 
         def process():
@@ -226,7 +227,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    #suite.addTest(TestRunner(LDSTTestCase.test_data))
+    suite.addTest(TestRunner(LDSTTestCase.test_data))
     suite.addTest(TestRunner(CRTestCase.test_data))
     suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase.test_data))
