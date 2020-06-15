@@ -29,6 +29,7 @@ from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+from soc.experiment.l0_cache import TstL0CacheBuffer # test only
 import operator
 
 
@@ -50,8 +51,12 @@ def sort_fuspecs(fuspecs):
 
 
 class NonProductionCore(Elaboratable):
-    def __init__(self):
-        self.fus = AllFunctionUnits()
+    def __init__(self, addrwid=6):
+        self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
+        pi = self.l0.l0.dports[0].pi
+
+        #self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
+        self.fus = AllFunctionUnits(pilist=None, addrwid=addrwid)
         self.regs = RegFiles()
         self.pdecode = pdecode = create_pdecode()
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
@@ -64,6 +69,7 @@ class NonProductionCore(Elaboratable):
 
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
+        m.submodules.l0 = l0 = self.l0
         self.regs.elaborate_into(m, platform)
         regs = self.regs
         fus = self.fus.fus
