@@ -29,23 +29,26 @@ class L1Cache(Elaboratable):
         linebits = log2_int(nlines)
         tagbits = log2_int(limit-base) - log2_int(nlines) - log2_int(nwords) - 2
 
+        # stage 1: address checking (is it in the cache?)
         self.s1_addr = Record([("offset", offsetbits),
                                ("line", linebits),
                                ("tag", tagbits)])
         self.s1_flush = Signal()
         self.s1_stall = Signal()
         self.s1_valid = Signal()
+
+        # stage 2: if not, what now? (XXX: what is it?? no explanation, at all)
         self.s2_addr = Record.like(self.s1_addr)
-        self.s2_re = Signal()
+        self.s2_re = Signal()       # read-enable?
         self.s2_evict = Signal()
         self.s2_valid = Signal()
         self.bus_valid = Signal()
         self.bus_error = Signal()
-        self.bus_rdata = Signal(32)
+        self.bus_rdata = Signal(32) # read data?
 
         self.s2_miss = Signal()
-        self.s2_rdata = Signal(32)
-        self.bus_re = Signal()
+        self.s2_rdata = Signal(32) # write data?
+        self.bus_re = Signal()     # read-enable?
         self.bus_addr = Record.like(self.s1_addr)
         self.bus_last = Signal()
 
