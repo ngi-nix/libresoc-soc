@@ -55,8 +55,7 @@ class NonProductionCore(Elaboratable):
         self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
         pi = self.l0.l0.dports[0].pi
 
-        #self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
-        self.fus = AllFunctionUnits(pilist=None, addrwid=addrwid)
+        self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
         self.regs = RegFiles()
         self.pdecode = pdecode = create_pdecode()
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder

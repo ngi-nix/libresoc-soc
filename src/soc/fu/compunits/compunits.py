@@ -130,7 +130,7 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
 
 # special-case
 class LDSTFunctionUnit(LDSTCompUnit):
-    fnunit = Function.ALU
+    fnunit = Function.LDST
     def __init__(self, pi, awid):
         pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
