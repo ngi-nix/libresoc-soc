@@ -2,74 +2,12 @@ from nmigen import Elaboratable, Module, Signal, Record, Cat, Const, Mux
 from nmigen.utils import log2_int
 from nmigen.lib.fifo import SyncFIFO
 
-from ..cache import L1Cache
-from ..isa import Funct3
-from ..wishbone import wishbone_layout, WishboneArbiter, Cycle
+from soc.minerva.cache import L1Cache
+from soc.minerva.wishbone import wishbone_layout, WishboneArbiter, Cycle
 
 
-__all__ = ["DataSelector", "LoadStoreUnitInterface", "BareLoadStoreUnit", "CachedLoadStoreUnit"]
-
-
-class DataSelector(Elaboratable):
-    def __init__(self):
-        self.x_offset = Signal(2)
-        self.x_funct3 = Signal(3)
-        self.x_store_operand = Signal(32)
-        self.w_offset = Signal(2)
-        self.w_funct3 = Signal(3)
-        self.w_load_data = Signal(32)
-
-        self.x_misaligned = Signal()
-        self.x_mask = Signal(4)
-        self.x_store_data = Signal(32)
-        self.w_load_result = Signal((32, True))
-
-    def elaborate(self, platform):
-        m = Module()
-
-        with m.Switch(self.x_funct3):
-            with m.Case(Funct3.H, Funct3.HU):
-                m.d.comb += self.x_misaligned.eq(self.x_offset[0])
-            with m.Case(Funct3.W):
-                m.d.comb += self.x_misaligned.eq(self.x_offset.bool())
-
-        with m.Switch(self.x_funct3):
-            with m.Case(Funct3.B, Funct3.BU):
-                m.d.comb += self.x_mask.eq(0b1 << self.x_offset)
-            with m.Case(Funct3.H, Funct3.HU):
-                m.d.comb += self.x_mask.eq(0b11 << self.x_offset)
-            with m.Case(Funct3.W):
-                m.d.comb += self.x_mask.eq(0b1111)
-
-        with m.Switch(self.x_funct3):
-            with m.Case(Funct3.B):
-                m.d.comb += self.x_store_data.eq(self.x_store_operand[:8] << self.x_offset*8)
-            with m.Case(Funct3.H):
-                m.d.comb += self.x_store_data.eq(self.x_store_operand[:16] << self.x_offset[1]*16)
-            with m.Case(Funct3.W):
-                m.d.comb += self.x_store_data.eq(self.x_store_operand)
-
-        w_byte = Signal((8, True))
-        w_half = Signal((16, True))
-
-        m.d.comb += [
-            w_byte.eq(self.w_load_data.word_select(self.w_offset, 8)),
-            w_half.eq(self.w_load_data.word_select(self.w_offset[1], 16))
-        ]
-
-        with m.Switch(self.w_funct3):
-            with m.Case(Funct3.B):
-                m.d.comb += self.w_load_result.eq(w_byte)
-            with m.Case(Funct3.BU):
-                m.d.comb += self.w_load_result.eq(Cat(w_byte, 0))
-            with m.Case(Funct3.H):
-                m.d.comb += self.w_load_result.eq(w_half)
-            with m.Case(Funct3.HU):
-                m.d.comb += self.w_load_result.eq(Cat(w_half, 0))
-            with m.Case(Funct3.W):
-                m.d.comb += self.w_load_result.eq(self.w_load_data)
-
-        return m
+__all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
+           "CachedLoadStoreUnit"]
 
 
 class LoadStoreUnitInterface:
@@ -105,7 +43,8 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                     self.dbus.stb.eq(0),
                     self.m_load_data.eq(self.dbus.dat_r)
                 ]
-        with m.Elif((self.x_load | self.x_store) & self.x_valid & ~self.x_stall):
+        with m.Elif((self.x_load | self.x_store) &
+                     self.x_valid & ~self.x_stall):
             m.d.sync += [
                 self.dbus.cyc.eq(1),
                 self.dbus.stb.eq(1),
@@ -157,7 +96,8 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         x_dcache_select = Signal()
         m_dcache_select = Signal()
 
-        m.d.comb += x_dcache_select.eq((self.x_addr >= dcache.base) & (self.x_addr < dcache.limit))
+        m.d.comb += x_dcache_select.eq((self.x_addr >= dcache.base) &
+                                       (self.x_addr < dcache.limit))
         with m.If(~self.x_stall):
             m.d.sync += m_dcache_select.eq(x_dcache_select)
 
@@ -174,13 +114,15 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
 
         wrbuf_w_data = Record([("addr", 30), ("mask", 4), ("data", 32)])
         wrbuf_r_data = Record.like(wrbuf_w_data)
-        wrbuf = m.submodules.wrbuf = SyncFIFO(width=len(wrbuf_w_data), depth=dcache.nwords)
+        wrbuf = m.submodules.wrbuf = SyncFIFO(width=len(wrbuf_w_data),
+                                              depth=dcache.nwords)
         m.d.comb += [
             wrbuf.w_data.eq(wrbuf_w_data),
             wrbuf_w_data.addr.eq(self.x_addr[2:]),
             wrbuf_w_data.mask.eq(self.x_mask),
             wrbuf_w_data.data.eq(self.x_store_data),
-            wrbuf.w_en.eq(self.x_store & self.x_valid & x_dcache_select & ~self.x_stall),
+            wrbuf.w_en.eq(self.x_store & self.x_valid &
+                          x_dcache_select & ~self.x_stall),
             wrbuf_r_data.eq(wrbuf.r_data),
         ]
 
@@ -207,10 +149,11 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
 
         dcache_port = dbus_arbiter.port(priority=1)
         m.d.comb += [
+            cti = Mux(dcache.bus_last, Cycle.END, Cycle.INCREMENT)
             dcache_port.cyc.eq(dcache.bus_re),
             dcache_port.stb.eq(dcache.bus_re),
             dcache_port.adr.eq(dcache.bus_addr),
-            dcache_port.cti.eq(Mux(dcache.bus_last, Cycle.END, Cycle.INCREMENT)),
+            dcache_port.cti.eq(cti),
             dcache_port.bte.eq(Const(log2_int(dcache.nwords) - 1)),
             dcache.bus_valid.eq(dcache_port.ack),
             dcache.bus_error.eq(dcache_port.err),
@@ -226,7 +169,8 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                     bare_port.stb.eq(0),
                     bare_rdata.eq(bare_port.dat_r)
                 ]
-        with m.Elif((self.x_load | self.x_store) & ~x_dcache_select & self.x_valid & ~self.x_stall):
+        with m.Elif((self.x_load | self.x_store) &
+                    ~x_dcache_select & self.x_valid & ~self.x_stall):
             m.d.sync += [
                 bare_port.cyc.eq(1),
                 bare_port.stb.eq(1),
