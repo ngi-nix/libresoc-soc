@@ -19,12 +19,16 @@ from soc.decoder.power_enums import Function, XER_bits
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
 
+from soc.fu.compunits.test.test_compunit import (setup_test_memory,
+                                                 check_sim_memory)
+
 # test with ALU data and Logical data
 from soc.fu.alu.test.test_pipe_caller import ALUTestCase
 from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
+from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 
 
 def set_issue(core, dec2, sim):
@@ -62,10 +66,16 @@ class TestRunner(FHDLTestCase):
         m.submodules.core = core = NonProductionCore()
         pdecode = core.pdecode
         pdecode2 = core.pdecode2
+        l0 = core.l0
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         comb += core.ivalid_i.eq(ivalid_i)
         sim = Simulator(m)
+
+        # temporary hack: says "go" immediately for both address gen and ST
+        ldst = core.fus.fus['ldst0']
+        m.d.comb += ldst.ad.go.eq(ldst.ad.rel) # link addr-go direct to rel
+        m.d.comb += ldst.st.go.eq(ldst.st.rel) # link store-go direct to rel
 
         sim.add_clock(1e-6)
 
@@ -81,6 +91,8 @@ class TestRunner(FHDLTestCase):
                           test.msr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
+
+                yield from setup_test_memory(l0, sim)
 
                 # set up INT regfile, "direct" write (bypass rd/write ports)
                 for i in range(32):
@@ -202,6 +214,9 @@ class TestRunner(FHDLTestCase):
                     self.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
                     self.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
+                    # Memory check
+                    yield from check_sim_memory(self, l0, sim, code)
+
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
                             traces=[]):
@@ -211,6 +226,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
+    #suite.addTest(TestRunner(LDSTTestCase.test_data))
     suite.addTest(TestRunner(CRTestCase.test_data))
     suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase.test_data))
