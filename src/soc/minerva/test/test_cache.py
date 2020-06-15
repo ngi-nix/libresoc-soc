@@ -1,5 +1,4 @@
 from nmigen import Elaboratable, Module, Signal, Record
-from nmigen.utils import log2_int
 from nmutil.formaltest import FHDLTestCase
 from nmigen.asserts import AnyConst, AnySeq, Assert, Assume, Past, Initial
 
@@ -49,12 +48,14 @@ class L1CacheSpec(Elaboratable):
 
         with m.If(cache.bus_re):
             with m.If(cache.bus_valid):
-                # Lines are refilled with an incremental burst that starts at the missed address
+                # Lines are refilled with an incremental burst that
+                # starts at the missed address
                 # and wraps around the offset bits.
                 m.d.sync += spec_bus_addr.offset.eq(spec_bus_addr.offset + 1)
                 with m.If((cache.bus_addr == cache.s2_addr) & ~cache.bus_error):
                     m.d.sync += spec_s2_rdata.eq(cache.bus_rdata)
-            # A burst ends when all words in the line have been refilled, or an error occured.
+            # A burst ends when all words in the line have
+            # been refilled, or an error occured.
             m.d.comb += spec_bus_last.eq(cache.bus_addr.offset == last_offset)
             with m.If(cache.bus_valid & cache.bus_last | cache.bus_error):
                 m.d.sync += spec_bus_re.eq(0)
