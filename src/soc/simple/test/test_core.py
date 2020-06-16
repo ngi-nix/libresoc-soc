@@ -64,7 +64,6 @@ class TestRunner(FHDLTestCase):
         ivalid_i = Signal()
 
         m.submodules.core = core = NonProductionCore()
-        pdecode = core.pdecode
         pdecode2 = core.pdecode2
         l0 = core.l0
 

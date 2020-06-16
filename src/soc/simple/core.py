@@ -29,6 +29,7 @@ from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
 from soc.experiment.testmem import TestMemory # test only for instructions
 import operator
@@ -67,7 +68,7 @@ class NonProductionCore(Elaboratable):
         self.regs = RegFiles()
 
         # instruction decoder
-        self.pdecode = pdecode = create_pdecode()
+        pdecode = create_pdecode()
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
 
         # issue/valid/busy signalling
@@ -310,6 +311,35 @@ class NonProductionCore(Elaboratable):
 
     def ports(self):
         return list(self)
+
+
+class TestIssuer(Elaboratable):
+    """TestIssuer - reads instructions from TestMemory and issues them
+
+    efficiency and speed is not the main goal here: functional correctness is.
+    """
+    def __init__(self, addrwid=6, idepth=16):
+        # main instruction core
+        self.core = core = NonProductionCore(addrwid)
+
+        # Test Instruction memory
+        self.imem = TestMemory(32, idepth)
+        self.i_rd = self.imem.read_port()
+        #self.i_wr = self.imem.write_port() errr...
+
+        # instruction go/monitor
+        self.go_insn_i = Signal(reset_less=True)
+        self.pc_o = Signal(64, reset_less=True)
+        self.pc_i = Data(64, "pc") # set "ok" to indicate "please change me"
+        self.busy_o = core.busy_o
+
+    def elaborate(self, platform):
+        m = Module()
+
+        m.submodules.core = core = self.core
+        m.submodules.imem = imem = self.imem
+
+        current_pc = Signal(64, reset_less=True)
 
 
 if __name__ == '__main__':
