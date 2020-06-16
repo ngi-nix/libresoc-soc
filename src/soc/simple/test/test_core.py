@@ -30,6 +30,7 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 
+
 def setup_regs(core, test):
 
     # set up INT regfile, "direct" write (bypass rd/write ports)
@@ -67,6 +68,54 @@ def setup_regs(core, test):
         yield xregs.regs[xregs.SO].reg.eq(0)
         yield xregs.regs[xregs.OV].reg.eq(0)
         yield xregs.regs[xregs.CA].reg.eq(0)
+
+
+def check_regs(dut, sim, core, test, code):
+    # int regs
+    intregs = []
+    for i in range(32):
+        rval = yield core.regs.int.regs[i].reg
+        intregs.append(rval)
+    print ("int regs", list(map(hex, intregs)))
+    for i in range(32):
+        simregval = sim.gpr[i].asint()
+        dut.assertEqual(simregval, intregs[i],
+            "int reg %d not equal %s" % (i, repr(code)))
+
+    # CRs
+    crregs = []
+    for i in range(8):
+        rval = yield core.regs.cr.regs[i].reg
+        crregs.append(rval)
+    print ("cr regs", list(map(hex, crregs)))
+    for i in range(8):
+        rval = crregs[i]
+        cri = sim.crl[7-i].get_range().value
+        print ("cr reg", i, hex(cri), i, hex(rval))
+        # XXX https://bugs.libre-soc.org/show_bug.cgi?id=363
+        dut.assertEqual(cri, rval,
+            "cr reg %d not equal %s" % (i, repr(code)))
+
+    # XER
+    xregs = core.regs.xer
+    so = yield xregs.regs[xregs.SO].reg
+    ov = yield xregs.regs[xregs.OV].reg
+    ca = yield xregs.regs[xregs.CA].reg
+
+    print ("sim SO", sim.spr['XER'][XER_bits['SO']])
+    e_so = sim.spr['XER'][XER_bits['SO']].value
+    e_ov = sim.spr['XER'][XER_bits['OV']].value
+    e_ov32 = sim.spr['XER'][XER_bits['OV32']].value
+    e_ca = sim.spr['XER'][XER_bits['CA']].value
+    e_ca32 = sim.spr['XER'][XER_bits['CA32']].value
+
+    e_ov = e_ov | (e_ov32<<1)
+    e_ca = e_ca | (e_ca32<<1)
+
+    print ("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
+    dut.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
+    dut.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
+    dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
 
 def set_issue(core, dec2, sim):
@@ -150,6 +199,7 @@ class TestRunner(FHDLTestCase):
                     #self.assertEqual(fn_unit & fuval, fuval)
 
                     # XER
+                    xregs = core.regs.xer
                     so = yield xregs.regs[xregs.SO].reg
                     ov = yield xregs.regs[xregs.OV].reg
                     ca = yield xregs.regs[xregs.CA].reg
@@ -173,51 +223,8 @@ class TestRunner(FHDLTestCase):
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
-                    # int regs
-                    intregs = []
-                    for i in range(32):
-                        rval = yield core.regs.int.regs[i].reg
-                        intregs.append(rval)
-                    print ("int regs", list(map(hex, intregs)))
-                    for i in range(32):
-                        simregval = sim.gpr[i].asint()
-                        self.assertEqual(simregval, intregs[i],
-                            "int reg %d not equal %s" % (i, repr(code)))
-
-                    # CRs
-                    crregs = []
-                    for i in range(8):
-                        rval = yield core.regs.cr.regs[i].reg
-                        crregs.append(rval)
-                    print ("cr regs", list(map(hex, crregs)))
-                    print ("sim cr reg", hex(cr))
-                    for i in range(8):
-                        rval = crregs[i]
-                        cri = sim.crl[7-i].get_range().value
-                        print ("cr reg", i, hex(cri), i, hex(rval))
-                        # XXX https://bugs.libre-soc.org/show_bug.cgi?id=363
-                        self.assertEqual(cri, rval,
-                            "cr reg %d not equal %s" % (i, repr(code)))
-
-                    # XER
-                    so = yield xregs.regs[xregs.SO].reg
-                    ov = yield xregs.regs[xregs.OV].reg
-                    ca = yield xregs.regs[xregs.CA].reg
-
-                    print ("sim SO", sim.spr['XER'][XER_bits['SO']])
-                    e_so = sim.spr['XER'][XER_bits['SO']].value
-                    e_ov = sim.spr['XER'][XER_bits['OV']].value
-                    e_ov32 = sim.spr['XER'][XER_bits['OV32']].value
-                    e_ca = sim.spr['XER'][XER_bits['CA']].value
-                    e_ca32 = sim.spr['XER'][XER_bits['CA32']].value
-
-                    e_ov = e_ov | (e_ov32<<1)
-                    e_ca = e_ca | (e_ca32<<1)
-
-                    print ("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
-                    self.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
-                    self.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
-                    self.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
+                    # register check
+                    yield from check_regs(self, sim, core, test, code)
 
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
