@@ -17,3 +17,14 @@ class TestMemory(Elaboratable):
         m.submodules.rdport = self.rdport
         m.submodules.wrport = self.wrport
         return m
+
+    def __iter__(self):
+        yield self.rdport.addr
+        yield self.rdport.data
+        yield self.rdport.en
+        yield self.wrport.addr
+        yield self.wrport.data
+        yield self.wrport.en
+
+    def ports(self):
+        return list(self)
