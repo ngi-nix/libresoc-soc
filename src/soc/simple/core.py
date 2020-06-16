@@ -58,7 +58,7 @@ class NonProductionCore(Elaboratable):
         pi = self.l0.l0.dports[0].pi
 
         # Test Instruction memory
-        self.imem = TestMemory(32, idepth)
+        #self.imem = TestMemory(32, idepth)
 
         # function units (only one each)
         self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
@@ -85,7 +85,7 @@ class NonProductionCore(Elaboratable):
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
         m.submodules.l0 = l0 = self.l0
-        m.submodules.imem = imem = self.imem
+        #m.submodules.imem = imem = self.imem
         self.regs.elaborate_into(m, platform)
         regs = self.regs
         fus = self.fus.fus
