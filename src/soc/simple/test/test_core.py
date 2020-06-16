@@ -30,6 +30,44 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 
+def setup_regs(core, test):
+
+    # set up INT regfile, "direct" write (bypass rd/write ports)
+    intregs = core.regs.int
+    for i in range(32):
+        yield intregs.regs[i].reg.eq(test.regs[i])
+
+    # set up CR regfile, "direct" write across all CRs
+    cr = test.cr
+    crregs = core.regs.cr
+    #cr = int('{:32b}'.format(cr)[::-1], 2)
+    print ("cr reg", hex(cr))
+    for i in range(8):
+        #j = 7-i
+        cri = (cr>>(i*4)) & 0xf
+        #cri = int('{:04b}'.format(cri)[::-1], 2)
+        print ("cr reg", hex(cri), i,
+                crregs.regs[i].reg.shape())
+        yield crregs.regs[i].reg.eq(cri)
+
+    # set up XER.  "direct" write (bypass rd/write ports)
+    xregs = core.regs.xer
+    print ("sprs", test.sprs)
+    if special_sprs['XER'] in test.sprs:
+        xer = test.sprs[special_sprs['XER']]
+        sobit = xer[XER_bits['SO']].value
+        yield xregs.regs[xregs.SO].reg.eq(sobit)
+        cabit = xer[XER_bits['CA']].value
+        ca32bit = xer[XER_bits['CA32']].value
+        yield xregs.regs[xregs.CA].reg.eq(Cat(cabit, ca32bit))
+        ovbit = xer[XER_bits['OV']].value
+        ov32bit = xer[XER_bits['OV32']].value
+        yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
+    else:
+        yield xregs.regs[xregs.SO].reg.eq(0)
+        yield xregs.regs[xregs.OV].reg.eq(0)
+        yield xregs.regs[xregs.CA].reg.eq(0)
+
 
 def set_issue(core, dec2, sim):
     yield core.issue_i.eq(1)
@@ -93,40 +131,7 @@ class TestRunner(FHDLTestCase):
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 yield from setup_test_memory(l0, sim)
-
-                # set up INT regfile, "direct" write (bypass rd/write ports)
-                for i in range(32):
-                    yield core.regs.int.regs[i].reg.eq(test.regs[i])
-
-                # set up CR regfile, "direct" write across all CRs
-                cr = test.cr
-                #cr = int('{:32b}'.format(cr)[::-1], 2)
-                print ("cr reg", hex(cr))
-                for i in range(8):
-                    #j = 7-i
-                    cri = (cr>>(i*4)) & 0xf
-                    #cri = int('{:04b}'.format(cri)[::-1], 2)
-                    print ("cr reg", hex(cri), i,
-                            core.regs.cr.regs[i].reg.shape())
-                    yield core.regs.cr.regs[i].reg.eq(cri)
-
-                # set up XER.  "direct" write (bypass rd/write ports)
-                xregs = core.regs.xer
-                print ("sprs", test.sprs)
-                if special_sprs['XER'] in test.sprs:
-                    xer = test.sprs[special_sprs['XER']]
-                    sobit = xer[XER_bits['SO']].value
-                    yield xregs.regs[xregs.SO].reg.eq(sobit)
-                    cabit = xer[XER_bits['CA']].value
-                    ca32bit = xer[XER_bits['CA32']].value
-                    yield xregs.regs[xregs.CA].reg.eq(Cat(cabit, ca32bit))
-                    ovbit = xer[XER_bits['OV']].value
-                    ov32bit = xer[XER_bits['OV32']].value
-                    yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
-                else:
-                    yield xregs.regs[xregs.SO].reg.eq(0)
-                    yield xregs.regs[xregs.OV].reg.eq(0)
-                    yield xregs.regs[xregs.CA].reg.eq(0)
+                yield from setup_regs(core, test)
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
