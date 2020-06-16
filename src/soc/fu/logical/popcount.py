@@ -1,6 +1,15 @@
-# Popcount: a successive (cascading) sum-reduction algorithm starting from
-# single-bit adds and reducing down to one final answer: the total number of
-# bits set to "1" in the input.
+"""Popcount: a successive (cascading) sum-reduction algorithm for counting bits
+
+starting from single-bit adds and reducing down to one final answer:
+the total number of bits set to "1" in the input.
+
+unfortunately there is a bit of a "trick" going on which you have to
+watch out for: whilst the first list added to pc is a single entry (the
+input, a), subsequent rows in the cascade are arrays of partial results,
+yet it turns out that referring to them using the exact same start/end
+slicing is perfect.  this comes down to nmigen's transparent use of
+python features to make Signals iterable.
+"""
 
 from nmigen import (Elaboratable, Module, Signal, Cat, Const)
 
