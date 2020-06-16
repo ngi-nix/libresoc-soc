@@ -21,7 +21,7 @@ class TestMemory(Elaboratable):
     def __iter__(self):
         yield self.rdport.addr
         yield self.rdport.data
-        yield self.rdport.en
+        #yield self.rdport.en
         yield self.wrport.addr
         yield self.wrport.data
         yield self.wrport.en

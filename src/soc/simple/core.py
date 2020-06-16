@@ -32,6 +32,7 @@ from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
 from soc.experiment.testmem import TestMemory # test only for instructions
+from soc.regfile.regfiles import FastRegs
 import operator
 
 
@@ -58,9 +59,6 @@ class NonProductionCore(Elaboratable):
         self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
         pi = self.l0.l0.dports[0].pi
 
-        # Test Instruction memory
-        #self.imem = TestMemory(32, idepth)
-
         # function units (only one each)
         self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
 
@@ -86,7 +84,6 @@ class NonProductionCore(Elaboratable):
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
         m.submodules.l0 = l0 = self.l0
-        #m.submodules.imem = imem = self.imem
         self.regs.elaborate_into(m, platform)
         regs = self.regs
         fus = self.fus.fus
@@ -324,7 +321,7 @@ class TestIssuer(Elaboratable):
 
         # Test Instruction memory
         self.imem = TestMemory(32, idepth)
-        self.i_rd = self.imem.read_port()
+        self.i_rd = self.imem.rdport
         #self.i_wr = self.imem.write_port() errr...
 
         # instruction go/monitor
@@ -332,18 +329,96 @@ class TestIssuer(Elaboratable):
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc") # set "ok" to indicate "please change me"
         self.busy_o = core.busy_o
+        self.memerr_o = Signal(reset_less=True)
+
+        # FAST regfile read /write ports
+        self.fast_rd1 = self.core.regs.rf['fast'].r_ports['d_rd1']
+        self.fast_wr1 = self.core.regs.rf['fast'].w_ports['d_wr1']
 
     def elaborate(self, platform):
         m = Module()
+        comb, sync = m.d.comb, m.d.sync
 
         m.submodules.core = core = self.core
         m.submodules.imem = imem = self.imem
 
-        current_pc = Signal(64, reset_less=True)
+        # PC and instruction from I-Memory
+        current_pc = Signal(64) # current PC (note it is reset/sync)
+        current_insn = Signal(32) # current fetched instruction (note sync)
+
+        # next instruction (+4 on current)
+        nia = Signal(64, reset_less=True)
+        comb += nia.eq(current_insn + 4)
+
+        # temporaries
+        core_busy_o = core.busy_o         # core is busy
+        core_ivalid_i = core.ivalid_i     # instruction is valid
+        core_issue_i = core.issue_i       # instruction is issued
+        core_be_i = core.bigendian_i      # bigendian mode
+        core_opcode_i = core.raw_opcode_i # raw opcode
+
+        # actually use a nmigen FSM for the first time (w00t)
+        with m.FSM() as fsm:
+
+            # waiting (zzz)
+            with m.State("IDLE"):
+                with m.If(self.go_insn_i):
+                    # instruction allowed to go: start by reading the PC
+                    pc = Signal(64, reset_less=True)
+                    comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
+                    # capture the PC and also drop it into Insn Memory
+                    # we have joined a pair of combinatorial memory
+                    # lookups together.  this is Generally Bad.
+                    comb += pc.eq(self.fast_rd1.data_o)
+                    sync += current_pc.eq(pc)
+                    comb += self.i_rd.addr.eq(pc)
+                    #comb += self.i_rd.en.eq(1) # comb-read (no need to set)
+                    sync += current_insn.eq(self.i_rd.data)
+                    m.next = "INSN_READ" # move to "issue" phase
+
+            # got the instruction: start issue
+            with m.State("INSN_READ"):
+                sync += core_ivalid_i.eq(1) # say instruction is valid
+                sync += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
+                sync += core_be_i.eq(0)     # little-endian mode
+                sync += core_opcode_i.eq(current_insn) # actual opcode
+                m.next = "INSN_ACTIVE" # move to "wait for completion" phase
+
+            # instruction started: must wait till it finishes
+            with m.State("INSN_ACTIVE"):
+                sync += core_issue_i.eq(0) # issue raises for only one cycle
+                with m.If(~core_busy_o): # instruction done!
+                    sync += core_ivalid_i.eq(0) # say instruction is invalid
+                    sync += core_opcode_i.eq(0) # clear out (no good reason)
+                    # ok here we are not reading the branch unit.  TODO
+                    # this just blithely overwrites whatever pipeline updated
+                    # the PC
+                    comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
+                    comb += self.fast_wr1.data_i.eq(nia)
+                    m.next = "IDLE" # back to idle
+
+        return m
+
+    def __iter__(self):
+        yield from self.pc_i.ports()
+        yield self.pc_o
+        yield self.go_insn_i
+        yield self.memerr_o
+        yield from self.core.ports()
+        yield from self.imem.ports()
+
+    def ports(self):
+        return list(self)
 
 
 if __name__ == '__main__':
+    dut = TestIssuer()
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_issuer.il", "w") as f:
+        f.write(vl)
+
     dut = NonProductionCore()
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("non_production_core.il", "w") as f:
         f.write(vl)
+
