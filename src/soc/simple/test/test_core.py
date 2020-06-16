@@ -33,6 +33,7 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 
 def setup_regs(core, test):
 
+
     # set up INT regfile, "direct" write (bypass rd/write ports)
     intregs = core.regs.int
     for i in range(32):
@@ -68,6 +69,16 @@ def setup_regs(core, test):
         yield xregs.regs[xregs.SO].reg.eq(0)
         yield xregs.regs[xregs.OV].reg.eq(0)
         yield xregs.regs[xregs.CA].reg.eq(0)
+
+    # XER
+    so = yield xregs.regs[xregs.SO].reg
+    ov = yield xregs.regs[xregs.OV].reg
+    ca = yield xregs.regs[xregs.CA].reg
+    oe = yield pdecode2.e.oe.oe
+    oe_ok = yield pdecode2.e.oe.oe_ok
+
+    print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
+    print ("oe:", oe, oe_ok)
 
 
 def check_regs(dut, sim, core, test, code):
@@ -197,17 +208,6 @@ class TestRunner(FHDLTestCase):
                     #fn_unit = yield pdecode2.e.fn_unit
                     #fuval = self.funit.value
                     #self.assertEqual(fn_unit & fuval, fuval)
-
-                    # XER
-                    xregs = core.regs.xer
-                    so = yield xregs.regs[xregs.SO].reg
-                    ov = yield xregs.regs[xregs.OV].reg
-                    ca = yield xregs.regs[xregs.CA].reg
-                    oe = yield pdecode2.e.oe.oe
-                    oe_ok = yield pdecode2.e.oe.oe_ok
-
-                    print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
-                    print ("oe:", oe, oe_ok)
 
                     # set operand and get inputs
                     yield from set_issue(core, pdecode2, sim)
