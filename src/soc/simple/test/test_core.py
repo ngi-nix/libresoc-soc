@@ -68,7 +68,7 @@ class TestRunner(FHDLTestCase):
         pdecode2 = core.pdecode2
         l0 = core.l0
 
-        comb += pdecode2.dec.raw_opcode_in.eq(instruction)
+        comb += core.raw_opcode_i.eq(instruction)
         comb += core.ivalid_i.eq(ivalid_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
@@ -137,7 +137,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield core.bigendian_i.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield ivalid_i.eq(1)
                     yield Settle()

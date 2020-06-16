@@ -57,7 +57,7 @@ class NonProductionCore(Elaboratable):
         self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
         pi = self.l0.l0.dports[0].pi
 
-        # Instruction memory
+        # Test Instruction memory
         self.imem = TestMemory(32, idepth)
 
         # function units (only one each)
@@ -74,6 +74,10 @@ class NonProductionCore(Elaboratable):
         self.ivalid_i = self.pdecode2.e.valid   # instruction is valid
         self.issue_i = Signal(reset_less=True)
         self.busy_o = Signal(reset_less=True)
+
+        # instruction input
+        self.bigendian_i = self.pdecode2.dec.bigendian
+        self.raw_opcode_i = self.pdecode2.dec.raw_opcode_in
 
     def elaborate(self, platform):
         m = Module()
