@@ -30,6 +30,7 @@ from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
+from soc.experiment.testmem import TestMemory # test only for instructions
 import operator
 
 
@@ -51,14 +52,25 @@ def sort_fuspecs(fuspecs):
 
 
 class NonProductionCore(Elaboratable):
-    def __init__(self, addrwid=6):
+    def __init__(self, addrwid=6, idepth=16):
+        # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
         pi = self.l0.l0.dports[0].pi
 
+        # Instruction memory
+        self.imem = TestMemory(32, idepth)
+
+        # function units (only one each)
         self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
+
+        # register files (yes plural)
         self.regs = RegFiles()
+
+        # instruction decoder
         self.pdecode = pdecode = create_pdecode()
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
+
+        # issue/valid/busy signalling
         self.ivalid_i = self.pdecode2.e.valid   # instruction is valid
         self.issue_i = Signal(reset_less=True)
         self.busy_o = Signal(reset_less=True)
@@ -69,6 +81,7 @@ class NonProductionCore(Elaboratable):
         m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
         m.submodules.l0 = l0 = self.l0
+        m.submodules.imem = imem = self.imem
         self.regs.elaborate_into(m, platform)
         regs = self.regs
         fus = self.fus.fus
