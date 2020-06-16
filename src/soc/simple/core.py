@@ -342,9 +342,16 @@ class TestIssuer(Elaboratable):
         m.submodules.core = core = self.core
         m.submodules.imem = imem = self.imem
 
+        # temporary hack: says "go" immediately for both address gen and ST
+        l0 = core.l0
+        ldst = core.fus.fus['ldst0']
+        m.d.comb += ldst.ad.go.eq(ldst.ad.rel) # link addr-go direct to rel
+        m.d.comb += ldst.st.go.eq(ldst.st.rel) # link store-go direct to rel
+
         # PC and instruction from I-Memory
-        current_pc = Signal(64) # current PC (note it is reset/sync)
         current_insn = Signal(32) # current fetched instruction (note sync)
+        current_pc = Signal(64) # current PC (note it is reset/sync)
+        comb += self.pc_o.eq(current_pc)
 
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
@@ -365,11 +372,16 @@ class TestIssuer(Elaboratable):
                 with m.If(self.go_insn_i):
                     # instruction allowed to go: start by reading the PC
                     pc = Signal(64, reset_less=True)
-                    comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
+                    with m.If(self.pc_i.ok):
+                        # incoming override (start from pc_i)
+                        comb += pc.eq(self.pc_i.data)
+                    with m.Else():
+                        # otherwise read FastRegs regfile for PC
+                        comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
+                        comb += pc.eq(self.fast_rd1.data_o)
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
-                    comb += pc.eq(self.fast_rd1.data_o)
                     sync += current_pc.eq(pc)
                     comb += self.i_rd.addr.eq(pc)
                     #comb += self.i_rd.en.eq(1) # comb-read (no need to set)
