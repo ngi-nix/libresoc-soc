@@ -315,7 +315,7 @@ class TestIssuer(Elaboratable):
 
     efficiency and speed is not the main goal here: functional correctness is.
     """
-    def __init__(self, addrwid=6, idepth=16):
+    def __init__(self, addrwid=6, idepth=6):
         # main instruction core
         self.core = core = NonProductionCore(addrwid)
 

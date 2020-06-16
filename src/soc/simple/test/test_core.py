@@ -33,7 +33,6 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 
 def setup_regs(core, test):
 
-
     # set up INT regfile, "direct" write (bypass rd/write ports)
     intregs = core.regs.int
     for i in range(32):
@@ -71,6 +70,7 @@ def setup_regs(core, test):
         yield xregs.regs[xregs.CA].reg.eq(0)
 
     # XER
+    pdecode2 = core.pdecode2
     so = yield xregs.regs[xregs.SO].reg
     ov = yield xregs.regs[xregs.OV].reg
     ca = yield xregs.regs[xregs.CA].reg
