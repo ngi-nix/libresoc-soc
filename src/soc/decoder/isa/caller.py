@@ -225,6 +225,13 @@ class ISACaller:
             initial_insns = {}
             assert self.respect_pc == False, "instructions required to honor pc"
 
+        # "fake program counter" mode (for unit testing)
+        if not respect_pc:
+            if isinstance(initial_mem, tuple):
+                self.fake_pc = initial_mem[0]
+            else:
+                self.fake_pc = 0
+
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.insns = Mem(row_bytes=4, initial_mem=initial_insns)
