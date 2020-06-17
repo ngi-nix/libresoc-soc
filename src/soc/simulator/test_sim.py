@@ -24,34 +24,29 @@ class DecoderTestCase(FHDLTestCase):
     def run_tst(self, generator, initial_mem=None):
         m = Module()
         comb = m.d.comb
-        instruction = Signal(32)
+
+        gen = list(generator.generate_instructions())
+        insn_code = generator.assembly.splitlines()
+        instructions = list(zip(gen, insn_code))
 
         pdecode = create_pdecode()
-
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0)
-        comb += pdecode2.dec.raw_opcode_in.eq(instruction)
-        comb += pdecode2.dec.bigendian.eq(0)
-        gen = generator.generate_instructions()
-        instructions = list(zip(gen, generator.assembly.splitlines()))
+        simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0,
+                        initial_insns=gen, respect_pc=True,
+                        disassembly=insn_code)
 
         sim = Simulator(m)
+
         def process():
-
-            index = simulator.pc.CIA.value//4
-            while index < len(instructions):
-                ins, code = instructions[index]
-
-                print("0x{:X}".format(ins & 0xffffffff))
-                print(code)
-
-                yield instruction.eq(ins)
-                yield Delay(1e-6)
-
-                opname = code.split(' ')[0]
-                yield from simulator.call(opname)
-                index = simulator.pc.CIA.value//4
+            while True:
+                try:
+                    yield from simulator.setup_one()
+                except KeyError: # indicates instruction not in imem: stop
+                    break
+                yield Settle()
+                yield from simulator.execute_one()
+                yield Settle()
 
 
         sim.add_process(process)

@@ -76,13 +76,15 @@ class Mem:
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
-    def ld(self, address, width=8, swap=True):
+    def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("ld from addr 0x{:x} width {:d}".format(address, width))
         remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if address in self.mem:
             val = self.mem[address]
+        elif check_in_mem:
+            return None
         else:
             val = 0
         print("mem @ 0x{:x} rem {:d} : 0x{:x}".format(address, remainder, val))
@@ -229,11 +231,10 @@ class ISACaller:
         print ("ISACaller insns", respect_pc, initial_insns, disassembly)
 
         # "fake program counter" mode (for unit testing)
+        self.fake_pc = 0
         if not respect_pc:
             if isinstance(initial_mem, tuple):
                 self.fake_pc = initial_mem[0]
-            else:
-                self.fake_pc = 0
 
         # disassembly: we need this for now (not given from the decoder)
         self.disassembly = {}
@@ -402,8 +403,11 @@ class ISACaller:
         else:
             pc = self.fake_pc
         self._pc = pc
-        ins = self.imem.ld(pc, 4, False)
+        ins = self.imem.ld(pc, 4, False, True)
+        if ins is None:
+            raise KeyError("no instruction at 0x%x" % pc)
         print("setup: 0x{:X} 0x{:X}".format(pc, ins & 0xffffffff))
+        print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
 
         yield self.dec2.dec.raw_opcode_in.eq(ins)
         yield self.dec2.dec.bigendian.eq(0)  # little / big?
@@ -419,6 +423,7 @@ class ISACaller:
 
         if not self.respect_pc:
             self.fake_pc += 4
+        print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
