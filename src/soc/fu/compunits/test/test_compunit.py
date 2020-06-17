@@ -182,11 +182,13 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 print ("test", test.name, test.mem)
-                gen = program.generate_instructions()
+                gen = list(program.generate_instructions())
                 insncode = program.assembly.splitlines()
                 instructions = list(zip(gen, insncode))
                 sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr)
+                          test.msr,
+                          initial_insns=gen, respect_pc=False,
+                          disassembly=insncode)
 
                 # initialise memory
                 if self.funit == Function.LDST:
@@ -195,9 +197,7 @@ class TestRunner(FHDLTestCase):
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
-                    yield simdec2.dec.raw_opcode_in.eq(ins)
-
-                    print("0x{:X} 0x{:X}".format(index*4, ins & 0xffffffff))
+                    yield from sim.setup_one()
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
@@ -244,8 +244,7 @@ class TestRunner(FHDLTestCase):
                             bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 
                     # call simulated operation
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
+                    yield from sim.execute_one()
                     index = sim.pc.CIA.value//4
 
                     yield Settle()

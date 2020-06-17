@@ -226,6 +226,8 @@ class ISACaller:
             initial_insns = {}
             assert self.respect_pc == False, "instructions required to honor pc"
 
+        print ("ISACaller insns", respect_pc, initial_insns, disassembly)
+
         # "fake program counter" mode (for unit testing)
         if not respect_pc:
             if isinstance(initial_mem, tuple):
@@ -399,23 +401,24 @@ class ISACaller:
             pc = self.pc.CIA.value
         else:
             pc = self.fake_pc
-        ins = yield self.imem.ld(pc, 4, False)
-        yield self.pdecode2.dec.raw_opcode_in.eq(ins)
-        yield self.pdecode2.dec.bigendian.eq(0)  # little / big?
-        self._pc
+        self._pc = pc
+        ins = self.imem.ld(pc, 4, False)
+        print("setup: 0x{:X} 0x{:X}".format(pc, ins & 0xffffffff))
+
+        yield self.dec2.dec.raw_opcode_in.eq(ins)
+        yield self.dec2.dec.bigendian.eq(0)  # little / big?
 
     def execute_one(self):
         """execute one instruction
         """
         # get the disassembly code for this instruction
         code = self.disassembly[self._pc]
+        print("sim-execute", hex(self._pc), code)
         opname = code.split(' ')[0]
-        yield from call(opname)
+        yield from self.call(opname)
 
         if not self.respect_pc:
             self.fake_pc += 4
-        #else:
-            #self.pc.CIA.value = self.pc.NIA.value
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
