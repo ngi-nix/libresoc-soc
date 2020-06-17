@@ -61,7 +61,8 @@ class DecoderTestCase(FHDLTestCase):
 
         return simulator
 
-    def _tst0_cmp(self):
+    @unittest.skip("disable")
+    def test_0_cmp(self):
         lst = ["addi 6, 0, 0x10",
                "addi 7, 0, 0x05",
                "subf. 1, 6, 7",
@@ -70,7 +71,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def _tstexample(self):
+    @unittest.skip("disable")
+    def test_example(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "add  3, 1, 2",
@@ -78,7 +80,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4])
 
-    def _tstldst(self):
+    @unittest.skip("disable")
+    def test_ldst(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "stw  1, 0(2)",
@@ -92,6 +95,7 @@ class DecoderTestCase(FHDLTestCase):
                                  [1, 2, 3],
                                  initial_mem)
 
+    @unittest.skip("disable")
     def test_ld_rev_ext(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -101,6 +105,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
+    @unittest.skip("disable")
     def test_st_rev_ext(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -110,6 +115,7 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
+    @unittest.skip("disable")
     def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -119,7 +125,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def _tst0_ldst_widths(self):
+    @unittest.skip("disable")
+    def test_0_ldst_widths(self):
         lst = ["addis 1, 0, 0xdead",
                "ori 1, 1, 0xbeef",
                "addi 2, 0, 0x1000",
@@ -133,7 +140,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    def _tstsub(self):
+    @unittest.skip("disable")
+    def test_sub(self):
         lst = ["addi 1, 0, 0x1234",
                "addi 2, 0, 0x5678",
                "subf 3, 1, 2",
@@ -142,7 +150,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    def _tstadd_with_carry(self):
+    @unittest.skip("disable")
+    def test_add_with_carry(self):
         lst = ["addi 1, 0, 5",
                "neg 1, 1",
                "addi 2, 0, 7",
@@ -153,7 +162,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def _tstaddis(self):
+    @unittest.skip("disable")
+    def test_addis(self):
         lst = ["addi 1, 0, 0x0FFF",
                "addis 1, 1, 0x0F"
                ]
@@ -161,7 +171,7 @@ class DecoderTestCase(FHDLTestCase):
             self.run_tst_program(program, [1])
 
     @unittest.skip("broken")
-    def _tstmulli(self):
+    def test_mulli(self):
         lst = ["addi 1, 0, 3",
                "mulli 1, 1, 2"
                ]
@@ -186,7 +196,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [3,4], initial_mem)
 
-    def _tst3_load_store(self):
+    @unittest.skip("disable")
+    def test_3_load_store(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1002",
                "addi 3, 0, 0x15eb",
@@ -202,6 +213,24 @@ class DecoderTestCase(FHDLTestCase):
                         }
         with Program(lst) as program:
             self.run_tst_program(program, [1,2,3,4], initial_mem)
+
+    def test_loop(self):
+        """in godbolt.org:
+        register unsigned long i asm ("r12");
+        void square(void) {
+            i = 5;
+            do {
+                i = i - 1;
+            } while (i != 0);
+        }
+        """
+        lst = ["addi 9, 0, 0x10", # i = 16
+               "addi 9,9,-1",    # i = i - 1
+               "cmpi 0,1,9,12",     # compare 9 to value 0, store in CR2
+               "bc 4,0,-8"         # branch if CR2 "test was != 0"
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [9], initial_mem={})
 
     def run_tst_program(self, prog, reglist, initial_mem=None):
         import sys
