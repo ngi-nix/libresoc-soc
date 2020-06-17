@@ -150,8 +150,13 @@ class TestRunner(FHDLTestCase):
         instruction = Signal(32)
 
         pdecode = create_pdecode()
-
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+
+        # copy of the decoder for simulator
+        simdec = create_pdecode()
+        simdec2 = PowerDecode2(simdec)
+        m.submodules.simdec2 = simdec2 # pain in the neck
+
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
             m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
@@ -177,10 +182,11 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 print ("test", test.name, test.mem)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr)
                 gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                insncode = program.assembly.splitlines()
+                instructions = list(zip(gen, insncode))
+                sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
+                          test.msr)
 
                 # initialise memory
                 if self.funit == Function.LDST:
@@ -189,6 +195,7 @@ class TestRunner(FHDLTestCase):
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
+                    yield simdec2.dec.raw_opcode_in.eq(ins)
 
                     print("0x{:X}".format(ins & 0xffffffff))
                     print(code)
