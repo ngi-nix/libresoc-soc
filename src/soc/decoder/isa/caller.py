@@ -211,19 +211,19 @@ class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
     # initial_{etc} - initial values for SPRs, Condition Register, Mem, MSR
+    # respect_pc - tracks the program counter.  requires initial_insns
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
                        initial_mem=None, initial_msr=0,
-                       initial_insns=None):
+                       initial_insns=None, respect_pc=False):
+
+        self.respect_pc = respect_pc
         if initial_sprs is None:
             initial_sprs = {}
         if initial_mem is None:
             initial_mem = {}
         if initial_insns is None:
             initial_insns = {}
-            self.respect_pc = False
-        else:
-            # setup batch of instructions: we want to respect (follow) the PC
-            self.respect_pc = True
+            assert self.respect_pc == False, "instructions required to honor pc"
 
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
