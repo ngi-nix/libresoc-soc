@@ -214,7 +214,8 @@ class ISACaller:
     # respect_pc - tracks the program counter.  requires initial_insns
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
                        initial_mem=None, initial_msr=0,
-                       initial_insns=None, respect_pc=False):
+                       initial_insns=None, respect_pc=False,
+                       disassembly=None):
 
         self.respect_pc = respect_pc
         if initial_sprs is None:
@@ -225,6 +226,7 @@ class ISACaller:
             initial_insns = {}
             assert self.respect_pc == False, "instructions required to honor pc"
 
+
         # "fake program counter" mode (for unit testing)
         if not respect_pc:
             if isinstance(initial_mem, tuple):
@@ -232,9 +234,15 @@ class ISACaller:
             else:
                 self.fake_pc = 0
 
+        # disassembly: we need this for now (not given from the decoder)
+        self.disassembly = {}
+        if disassembly:
+            for i, code in enumerate(disassembly):
+                self.disassembly[i*4 + self.fake_pc] = code
+
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
-        self.insns = Mem(row_bytes=4, initial_mem=initial_insns)
+        self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64) # underlying reg
@@ -369,8 +377,6 @@ class ISACaller:
             so = so | ov
             self.spr['XER'][XER_bits['SO']] = so
 
-
-
     def handle_comparison(self, outputs):
         out = outputs[0]
         out = exts(out.value, out.bits)
@@ -384,6 +390,18 @@ class ISACaller:
     def set_pc(self, pc_val):
         self.namespace['NIA'] = SelectableInt(pc_val, 64)
         self.pc.update(self.namespace)
+
+    def execute_one(self):
+        if self.respect_pc:
+            pc = self.pc.CIA.value
+        else:
+            pc = self.fake_pc
+            self.fake_pc += 4
+        ins = yield self.imem.ld(pc, 4, False)
+        yield self.pdecode2.dec.raw_opcode_in.eq(ins)
+        yield self.pdecode2.dec.bigendian.eq(0)  # little / big?
+        opname = code.split(' ')[0]
+        yield from call(opname)
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB

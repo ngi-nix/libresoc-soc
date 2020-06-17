@@ -197,7 +197,7 @@ class TestRunner(FHDLTestCase):
                     ins, code = instructions[index]
                     yield simdec2.dec.raw_opcode_in.eq(ins)
 
-                    print("0x{:X}".format(ins & 0xffffffff))
+                    print("0x{:X} 0x{:X}".format(index*4, ins & 0xffffffff))
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
