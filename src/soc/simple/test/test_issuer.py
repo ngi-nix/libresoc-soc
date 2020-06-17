@@ -14,7 +14,7 @@ from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import Function, XER_bits
 
 
-from soc.simple.core import TestIssuer
+from soc.simple.issuer import TestIssuer
 from soc.experiment.compalu_multi import find_ok # hack
 
 from soc.simple.test.test_core import (setup_regs, check_regs,
