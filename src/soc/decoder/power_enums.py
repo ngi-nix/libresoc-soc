@@ -92,10 +92,10 @@ class Form(Enum):
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
 _insns = [
-    "add", "addc", "addco", "adde", "addeo", "addi", "addic", "addic.",
+    "NONE", "add", "addc", "addco", "adde", "addeo", "addi", "addic", "addic.",
     "addis", "addme", "addmeo", "addo", "addze", "addzeo", "and", "andc",
     "andi.", "andis.", "attn", "b", "bc", "bcctr", "bclr", "bctar",
-    "bperm", "cmp", "cmpb", "cmpeqb", "cmpi", "cmpl", "cmpli", "cmprb",
+    "bpermd", "cmp", "cmpb", "cmpeqb", "cmpi", "cmpl", "cmpli", "cmprb",
     "cntlzd", "cntlzw", "cnttzd", "cnttzw", "crand", "crandc", "creqv",
     "crnand", "crnor", "cror", "crorc", "crxor", "darn", "dcbf", "dcbst",
     "dcbt", "dcbtst", "dcbz", "divd", "divde", "divdeo", "divdeu",

@@ -25,13 +25,15 @@ class Data(Record):
 
 class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, asmcode=True):
 
         RecordObject.__init__(self, name=name)
 
         self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
         self.fn_unit = Signal(Function, reset_less=True)
+        if asmcode:
+            self.asmcode = Signal(8, reset_less=True) # only for simulator
         self.nia = Signal(64, reset_less=True)
         self.write_reg = Data(5, name="rego")
         self.write_ea = Data(5, name="ea") # for LD/ST in update mode

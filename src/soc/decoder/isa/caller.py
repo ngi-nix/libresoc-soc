@@ -9,10 +9,11 @@ from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
-from soc.decoder.power_enums import spr_dict, XER_bits
+from soc.decoder.power_enums import spr_dict, XER_bits, insns, InternalOp
 from soc.decoder.helpers import exts
 from collections import namedtuple
 import math
+import sys
 
 instruction_info = namedtuple('instruction_info',
                               'func read_regs uninit_regs write_regs ' + \
@@ -406,7 +407,7 @@ class ISACaller:
         ins = self.imem.ld(pc, 4, False, True)
         if ins is None:
             raise KeyError("no instruction at 0x%x" % pc)
-        print("setup: 0x{:X} 0x{:X}".format(pc, ins & 0xffffffff))
+        print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
         print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
 
         yield self.dec2.dec.raw_opcode_in.eq(ins)
@@ -428,6 +429,39 @@ class ISACaller:
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
+        asmcode = yield self.dec2.dec.op.asmcode
+        asmop = insns.get(asmcode, None)
+
+        # sigh reconstruct the assembly instruction name
+        ov_en = yield self.dec2.e.oe.oe
+        ov_ok = yield self.dec2.e.oe.ok
+        if ov_en & ov_ok:
+            asmop += "."
+        lk = yield self.dec2.e.lk
+        if lk:
+            asmop += "l"
+        int_op = yield self.dec2.dec.op.internal_op
+        print ("int_op", int_op)
+        if int_op in [InternalOp.OP_B.value, InternalOp.OP_BC.value]:
+            AA = yield self.dec2.dec.fields.FormI.AA[0:-1]
+            print ("AA", AA)
+            if AA:
+                asmop += "a"
+        if int_op == InternalOp.OP_MFCR.value:
+            dec_insn = yield self.dec2.e.insn
+            if dec_insn & (1<<20): # sigh
+                asmop = 'mfocrf'
+            else:
+                asmop = 'mfcr'
+        if int_op == InternalOp.OP_MTCRF.value:
+            dec_insn = yield self.dec2.e.insn
+            if dec_insn & (1<<20): # sigh
+                asmop = 'mtocrf'
+            else:
+                asmop = 'mtcrf'
+        print  ("call", name, asmcode, asmop)
+        assert name == asmop, "name %s != %s" % (name, asmop)
+
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)
 

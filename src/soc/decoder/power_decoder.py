@@ -120,7 +120,7 @@ class PowerOp:
         self.internal_op = Signal(InternalOp, reset_less=True)
         self.form = Signal(Form, reset_less=True)
         if incl_asm: # for simulator only
-            self.asmcode = Signal(7, reset_less=True)
+            self.asmcode = Signal(8, reset_less=True)
         self.in1_sel = Signal(In1Sel, reset_less=True)
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
@@ -161,8 +161,9 @@ class PowerOp:
                self.cry_in.eq(CryIn[row['cry in']]),
                ]
         print (row.keys())
-        if hasattr(self, "asmcode"):
-            res.append(self.asmcode.eq(asmidx[row['comment']]))
+        asmcode = row['comment']
+        if hasattr(self, "asmcode") and asmcode in asmidx:
+            res.append(self.asmcode.eq(asmidx[asmcode]))
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))
             res.append(sig.eq(int(row.get(bit, 0))))
@@ -200,6 +201,8 @@ class PowerOp:
                    self.rc_sel,
                    self.internal_op,
                    self.form]
+        if hasattr(self, "asmcode"):
+            regular.append(self.asmcode)
         single_bit_ports = [getattr(self, get_signal_name(x))
                             for x in single_bit_flags]
         return regular + single_bit_ports
