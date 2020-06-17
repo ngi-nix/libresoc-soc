@@ -117,8 +117,6 @@ class TestRunner(FHDLTestCase):
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
 
-                    yield
-
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",
                             traces=[]):
