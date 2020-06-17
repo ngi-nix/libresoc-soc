@@ -44,13 +44,23 @@ def create_args(reglist, extra=None):
 
 class Mem:
 
-    def __init__(self, bytes_per_word=8, initial_mem=None):
+    def __init__(self, row_bytes=8, initial_mem=None):
         self.mem = {}
-        self.bytes_per_word = bytes_per_word
-        self.word_log2 = math.ceil(math.log2(bytes_per_word))
+        self.bytes_per_word = row_bytes
+        self.word_log2 = math.ceil(math.log2(row_bytes))
         print ("Sim-Mem", initial_mem, self.bytes_per_word, self.word_log2)
         if not initial_mem:
             return
+
+        # different types of memory data structures recognised (for convenience)
+        if isinstance(initial_mem, list):
+            initial_mem = (0, initial_mem)
+        if isinstance(initial_mem, tuple):
+            startaddr, mem = initial_mem
+            initial_mem = {}
+            for i, val in enumerate(mem):
+                initial_mem[startaddr + row_bytes*i] = (val, row_bytes)
+
         for addr, (val, width) in initial_mem.items():
             #val = swap_order(val, width)
             self.st(addr, val, width, swap=False)
@@ -195,20 +205,29 @@ class SPR(dict):
 
     def __call__(self, ridx):
         return self[ridx]
-        
-        
+
 
 class ISACaller:
     # decoder2 - an instance of power_decoder2
     # regfile - a list of initial values for the registers
+    # initial_{etc} - initial values for SPRs, Condition Register, Mem, MSR
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
-                       initial_mem=None, initial_msr=0):
+                       initial_mem=None, initial_msr=0,
+                       initial_insns=None):
         if initial_sprs is None:
             initial_sprs = {}
         if initial_mem is None:
             initial_mem = {}
+        if initial_insns is None:
+            initial_insns = {}
+            self.respect_pc = False
+        else:
+            # setup batch of instructions: we want to respect (follow) the PC
+            self.respect_pc = True
+
         self.gpr = GPR(decoder2, regfile)
-        self.mem = Mem(bytes_per_word=8, initial_mem=initial_mem)
+        self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
+        self.insns = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64) # underlying reg
@@ -358,7 +377,6 @@ class ISACaller:
     def set_pc(self, pc_val):
         self.namespace['NIA'] = SelectableInt(pc_val, 64)
         self.pc.update(self.namespace)
-        
 
     def call(self, name):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
