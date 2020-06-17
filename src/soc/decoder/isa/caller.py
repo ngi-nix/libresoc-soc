@@ -453,7 +453,8 @@ class ISACaller:
                 asmop = 'mfocrf'
             else:
                 asmop = 'mfcr'
-        # for whatever weird reason this doesn't work
+        # XXX TODO: for whatever weird reason this doesn't work
+        # https://bugs.libre-soc.org/show_bug.cgi?id=390
         if int_op == InternalOp.OP_MTCRF.value:
             dec_insn = yield self.dec2.e.insn
             print ("mtcrf", bin(dec_insn), (dec_insn & (1<<20)))
