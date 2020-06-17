@@ -240,12 +240,14 @@ class ISACaller:
             for i, code in enumerate(disassembly):
                 self.disassembly[i*4 + self.fake_pc] = code
 
+        # set up registers, instruction memory, data memory, PC, SPRs, MSR
         self.gpr = GPR(decoder2, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64) # underlying reg
+
         # TODO, needed here:
         # FPR (same as GPR except for FP nums)
         # 4.2.2 p124 FPSCR (definitely "separate" - not in SPR)
