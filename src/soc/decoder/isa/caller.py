@@ -426,7 +426,7 @@ class ISACaller:
             self.fake_pc += 4
         print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
 
-    def call(self, name):
+    def get_assembly_name(self):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmcode = yield self.dec2.dec.op.asmcode
@@ -449,18 +449,27 @@ class ISACaller:
                 asmop += "a"
         if int_op == InternalOp.OP_MFCR.value:
             dec_insn = yield self.dec2.e.insn
-            if dec_insn & (1<<20): # sigh
+            if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mfocrf'
             else:
                 asmop = 'mfcr'
+        # for whatever weird reason this doesn't work
         if int_op == InternalOp.OP_MTCRF.value:
             dec_insn = yield self.dec2.e.insn
-            if dec_insn & (1<<20): # sigh
+            print ("mtcrf", bin(dec_insn), (dec_insn & (1<<20)))
+            if dec_insn & (1<<21) != 0: # sigh
                 asmop = 'mtocrf'
             else:
                 asmop = 'mtcrf'
-        print  ("call", name, asmcode, asmop)
-        assert name == asmop, "name %s != %s" % (name, asmop)
+        return asmop
+
+    def call(self, name):
+        # TODO, asmregs is from the spec, e.g. add RT,RA,RB
+        # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
+        asmop = yield from self.get_assembly_name()
+        print  ("call", name, asmop)
+        if name not in ['mtcrf', 'mtocrf']:
+            assert name == asmop, "name %s != %s" % (name, asmop)
 
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)

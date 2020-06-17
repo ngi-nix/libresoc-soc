@@ -198,6 +198,7 @@ class TestRunner(FHDLTestCase):
                 while index < len(instructions):
                     ins, code = instructions[index]
                     yield from sim.setup_one()
+                    yield Settle()
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
