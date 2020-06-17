@@ -53,6 +53,7 @@ class TestRunner(FHDLTestCase):
         m = Module()
         comb = m.d.comb
         go_insn_i = Signal()
+        pc_i = Signal(32)
 
         m.submodules.issuer = issuer = TestIssuer()
         imem = issuer.imem.mem
@@ -60,6 +61,7 @@ class TestRunner(FHDLTestCase):
         pdecode2 = core.pdecode2
         l0 = core.l0
 
+        comb += issuer.pc_i.data.eq(pc_i)
         comb += issuer.go_insn_i.eq(go_insn_i)
 
         # nmigen Simulation
@@ -83,7 +85,7 @@ class TestRunner(FHDLTestCase):
                 yield from setup_test_memory(l0, sim)
                 yield from setup_regs(core, test)
 
-                yield issuer.pc_i.data.eq(pc)
+                yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
 
                 index = sim.pc.CIA.value//4
@@ -114,6 +116,8 @@ class TestRunner(FHDLTestCase):
 
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
+
+                    yield
 
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",

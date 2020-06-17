@@ -352,10 +352,11 @@ class TestIssuer(Elaboratable):
         current_insn = Signal(32) # current fetched instruction (note sync)
         current_pc = Signal(64) # current PC (note it is reset/sync)
         comb += self.pc_o.eq(current_pc)
+        ilatch = Signal(32)
 
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
-        comb += nia.eq(current_insn + 4)
+        comb += nia.eq(current_pc + 4)
 
         # temporaries
         core_busy_o = core.busy_o         # core is busy
@@ -382,24 +383,25 @@ class TestIssuer(Elaboratable):
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
-                    sync += current_pc.eq(pc)
-                    comb += self.i_rd.addr.eq(pc)
-                    #comb += self.i_rd.en.eq(1) # comb-read (no need to set)
-                    sync += current_insn.eq(self.i_rd.data)
+                    comb += self.i_rd.addr.eq(pc[2:]) # ignore last 2 bits
+                    comb += current_insn.eq(self.i_rd.data)
+                    comb += current_pc.eq(pc)
                     m.next = "INSN_READ" # move to "issue" phase
 
             # got the instruction: start issue
             with m.State("INSN_READ"):
+                comb += current_insn.eq(self.i_rd.data)
                 comb += core_ivalid_i.eq(1) # say instruction is valid
                 comb += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
                 comb += core_be_i.eq(0)     # little-endian mode
                 comb += core_opcode_i.eq(current_insn) # actual opcode
+                sync += ilatch.eq(current_insn)
                 m.next = "INSN_ACTIVE" # move to "wait for completion" phase
 
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
                 comb += core_ivalid_i.eq(1) # say instruction is valid
-                comb += core_opcode_i.eq(current_insn) # actual opcode
+                comb += core_opcode_i.eq(ilatch) # actual opcode
                 #sync += core_issue_i.eq(0) # issue raises for only one cycle
                 with m.If(~core_busy_o): # instruction done!
                     #sync += core_ivalid_i.eq(0) # say instruction is invalid

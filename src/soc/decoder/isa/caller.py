@@ -321,6 +321,7 @@ class ISACaller:
             imm = yield self.dec2.e.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
+        print ("handle_overflow", inputs, outputs)
         if len(inputs) >= 2:
             output = outputs[0]
 
