@@ -89,6 +89,44 @@ class Form(Enum):
     Z22 = 27
     Z23 = 28
 
+# supported instructions: make sure to keep up-to-date with CSV files
+# just like everything else
+_insns = [
+    "add", "addc", "addco", "adde", "addeo", "addi", "addic", "addic.",
+    "addis", "addme", "addmeo", "addo", "addze", "addzeo", "and", "andc",
+    "andi.", "andis.", "attn", "b", "bc", "bcctr", "bclr", "bctar",
+    "bperm", "cmp", "cmpb", "cmpeqb", "cmpi", "cmpl", "cmpli", "cmprb",
+    "cntlzd", "cntlzw", "cnttzd", "cnttzw", "crand", "crandc", "creqv",
+    "crnand", "crnor", "cror", "crorc", "crxor", "darn", "dcbf", "dcbst",
+    "dcbt", "dcbtst", "dcbz", "divd", "divde", "divdeo", "divdeu",
+    "divdeuo", "divdo", "divdu", "divduo", "divw", "divwe", "divweo",
+    "divweu", "divweuo", "divwo", "divwu", "divwuo", "eqv", "extsb",
+    "extsh", "extsw", "extswsli", "icbi", "icbt", "isel", "isync",
+    "lbarx", "lbz", "lbzu", "lbzux", "lbzx", "ld", "ldarx", "ldbrx",
+    "ldu", "ldux", "ldx", "lha", "lharx", "lhau", "lhaux", "lhax",
+    "lhbrx", "lhz", "lhzu", "lhzux", "lhzx", "lwa", "lwarx", "lwaux",
+    "lwax", "lwbrx", "lwz", "lwzu", "lwzux", "lwzx", "mcrf", "mcrxr",
+    "mcrxrx", "mfcr/mfocrf", "mfmsr", "mfspr", "modsd", "modsw", "modud",
+    "moduw", "mtcrf/mtocrf", "mtmsrd", "mtspr", "mulhd", "mulhdu",
+    "mulhw", "mulhwu", "mulld", "mulldo", "mulli", "mullw", "mullwo",
+    "nand", "neg", "nego", "nop", "nor", "or", "orc", "ori", "oris",
+    "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
+    "rldcr", "rldic", "rldicl", "rldicr", "rldimi", "rlwimi", "rlwinm",
+    "rlwnm", "setb", "sim_cfg", "sld", "slw", "srad", "sradi", "sraw",
+    "srawi", "srd", "srw", "stb", "stbcx", "stbu", "stbux", "stbx", "std",
+    "stdbrx", "stdcx", "stdu", "stdux", "stdx", "sth", "sthbrx", "sthcx",
+    "sthu", "sthux", "sthx", "stw", "stwbrx", "stwcx", "stwu", "stwux",
+    "stwx", "subf", "subfc", "subfco", "subfe", "subfeo", "subfic",
+    "subfme", "subfmeo", "subfo", "subfze", "subfzeo", "sync", "td",
+    "tdi", "tw", "twi", "xor", "xori", "xoris",
+]
+
+# two-way lookup of instruction-to-index and vice-versa
+insns = {}
+asmidx = {}
+for i, insn in enumerate(_insns):
+    insns[i] = insn
+    asmidx[insn] = i
 
 # Internal Operation numbering.  Add new opcodes here (FPADD, FPMUL etc.)
 @unique

@@ -87,7 +87,7 @@ from soc.decoder.power_enums import (Function, Form, InternalOp,
                                      RC, LdstLen, CryIn, get_csv,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
-                                     default_values)
+                                     default_values, insns, asmidx)
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
@@ -115,10 +115,12 @@ class PowerOp:
     is Decode2ToExecute1Type
     """
 
-    def __init__(self):
+    def __init__(self, incl_asm=True):
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(InternalOp, reset_less=True)
         self.form = Signal(Form, reset_less=True)
+        if incl_asm: # for simulator only
+            self.asmcode = Signal(7, reset_less=True)
         self.in1_sel = Signal(In1Sel, reset_less=True)
         self.in2_sel = Signal(In2Sel, reset_less=True)
         self.in3_sel = Signal(In3Sel, reset_less=True)
@@ -144,6 +146,7 @@ class PowerOp:
         if row['CR out'] == '0':
             import pdb; pdb.set_trace()
             print(row)
+        print(row)
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
@@ -157,6 +160,9 @@ class PowerOp:
                self.rc_sel.eq(RC[row['rc']]),
                self.cry_in.eq(CryIn[row['cry in']]),
                ]
+        print (row.keys())
+        if hasattr(self, "asmcode"):
+            res.append(self.asmcode.eq(asmidx[row['comment']]))
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))
             res.append(sig.eq(int(row.get(bit, 0))))
@@ -178,6 +184,8 @@ class PowerOp:
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))
             res.append(sig.eq(getattr(otherop, get_signal_name(bit))))
+        if hasattr(self, "asmcode"):
+            res.append(self.asmcode.eq(otherop.asmcode))
         return res
 
     def ports(self):
