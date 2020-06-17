@@ -18,7 +18,8 @@ from soc.simple.core import TestIssuer
 from soc.experiment.compalu_multi import find_ok # hack
 
 from soc.simple.test.test_core import (setup_regs, check_regs,
-                                       wait_for_busy_clear)
+                                       wait_for_busy_clear,
+                                       wait_for_busy_hi)
 from soc.fu.compunits.test.test_compunit import (setup_test_memory,
                                                  check_sim_memory)
 
@@ -99,6 +100,7 @@ class TestRunner(FHDLTestCase):
                     yield go_insn_i.eq(0)      # and don't issue a new insn
 
                     # wait until executed
+                    yield from wait_for_busy_hi(core)
                     yield from wait_for_busy_clear(core)
 
                     print ("sim", code)

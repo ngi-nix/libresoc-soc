@@ -129,16 +129,19 @@ def check_regs(dut, sim, core, test, code):
     dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
 
-def set_issue(core, dec2, sim):
-    yield core.issue_i.eq(1)
-    yield
-    yield core.issue_i.eq(0)
+def wait_for_busy_hi(cu):
     while True:
-        busy_o = yield core.busy_o
+        busy_o = yield cu.busy_o
         if busy_o:
             break
         print("!busy",)
         yield
+
+def set_issue(core, dec2, sim):
+    yield core.issue_i.eq(1)
+    yield
+    yield core.issue_i.eq(0)
+    yield from wait_for_busy_hi(core)
 
 
 def wait_for_busy_clear(cu):
@@ -238,12 +241,12 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(LDSTTestCase.test_data))
-    suite.addTest(TestRunner(CRTestCase.test_data))
-    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    suite.addTest(TestRunner(LogicalTestCase.test_data))
+    #suite.addTest(TestRunner(LDSTTestCase.test_data))
+    #suite.addTest(TestRunner(CRTestCase.test_data))
+    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    #suite.addTest(TestRunner(LogicalTestCase.test_data))
     suite.addTest(TestRunner(ALUTestCase.test_data))
-    suite.addTest(TestRunner(BranchTestCase.test_data))
+    #suite.addTest(TestRunner(BranchTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

@@ -72,7 +72,7 @@ class NonProductionCore(Elaboratable):
         # issue/valid/busy signalling
         self.ivalid_i = self.pdecode2.e.valid   # instruction is valid
         self.issue_i = Signal(reset_less=True)
-        self.busy_o = Signal(reset_less=True)
+        self.busy_o = Signal(name="corebusy_o", reset_less=True)
 
         # instruction input
         self.bigendian_i = self.pdecode2.dec.bigendian
@@ -390,18 +390,20 @@ class TestIssuer(Elaboratable):
 
             # got the instruction: start issue
             with m.State("INSN_READ"):
-                sync += core_ivalid_i.eq(1) # say instruction is valid
-                sync += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
-                sync += core_be_i.eq(0)     # little-endian mode
-                sync += core_opcode_i.eq(current_insn) # actual opcode
+                comb += core_ivalid_i.eq(1) # say instruction is valid
+                comb += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
+                comb += core_be_i.eq(0)     # little-endian mode
+                comb += core_opcode_i.eq(current_insn) # actual opcode
                 m.next = "INSN_ACTIVE" # move to "wait for completion" phase
 
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
-                sync += core_issue_i.eq(0) # issue raises for only one cycle
+                comb += core_ivalid_i.eq(1) # say instruction is valid
+                comb += core_opcode_i.eq(current_insn) # actual opcode
+                #sync += core_issue_i.eq(0) # issue raises for only one cycle
                 with m.If(~core_busy_o): # instruction done!
-                    sync += core_ivalid_i.eq(0) # say instruction is invalid
-                    sync += core_opcode_i.eq(0) # clear out (no good reason)
+                    #sync += core_ivalid_i.eq(0) # say instruction is invalid
+                    #sync += core_opcode_i.eq(0) # clear out (no good reason)
                     # ok here we are not reading the branch unit.  TODO
                     # this just blithely overwrites whatever pipeline updated
                     # the PC
