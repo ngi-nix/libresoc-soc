@@ -201,6 +201,7 @@ class GeneralTestCases(FHDLTestCase):
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                                     initial_mem=None):
+        initial_regs = [0] * 32
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
                                             initial_mem, 0)
         self.test_data.append(tc)

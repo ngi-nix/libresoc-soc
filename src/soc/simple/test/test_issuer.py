@@ -30,6 +30,7 @@ from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
+from soc.simulator.test_sim import GeneralTestCases
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -74,9 +75,15 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
+                print ("regs", test.regs)
+                print ("sprs", test.sprs)
+                print ("cr", test.cr)
+                print ("mem", test.mem)
+                print ("msr", test.msr)
+                print ("assem", program.assembly)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr)
-                gen = program.generate_instructions()
+                gen = list(program.generate_instructions())
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 pc = 0 # start address
@@ -126,6 +133,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
+    #suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase.test_data))
     suite.addTest(TestRunner(CRTestCase.test_data))
     suite.addTest(TestRunner(ShiftRotTestCase.test_data))
