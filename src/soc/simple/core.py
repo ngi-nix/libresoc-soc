@@ -310,7 +310,7 @@ class NonProductionCore(Elaboratable):
 
 
 if __name__ == '__main__':
-    dut = TestIssuer()
+    dut = NonProductionCore()
     vl = rtlil.convert(dut, ports=dut.ports())
-    with open("test_issuer.il", "w") as f:
+    with open("test_core.il", "w") as f:
         f.write(vl)
