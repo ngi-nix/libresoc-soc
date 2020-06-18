@@ -103,7 +103,7 @@ class TestRunner(FHDLTestCase):
                     ins, code = instructions[index]
 
                     print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(code)
+                    print(index, code)
 
                     # start the instruction
                     yield go_insn_i.eq(1)
@@ -119,6 +119,7 @@ class TestRunner(FHDLTestCase):
                     # call simulated operation
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
+                    yield Settle()
                     index = sim.pc.CIA.value//4
 
                     # register check
@@ -136,7 +137,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    #suite.addTest(TestRunner(GeneralTestCases.test_data))
+    suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase.test_data))
     suite.addTest(TestRunner(CRTestCase.test_data))
     suite.addTest(TestRunner(ShiftRotTestCase.test_data))
