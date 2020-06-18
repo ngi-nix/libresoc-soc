@@ -195,11 +195,14 @@ class TestRunner(FHDLTestCase):
                     yield from setup_test_memory(l0, sim)
 
                 index = sim.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-                    yield from sim.setup_one()
+                while True:
+                    try:
+                        yield from sim.setup_one()
+                    except KeyError: # indicates instruction not in imem: stop
+                        break
                     yield Settle()
-                    print(code)
+                    ins, code = instructions[index]
+                    print(index, code)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
@@ -246,9 +249,9 @@ class TestRunner(FHDLTestCase):
 
                     # call simulated operation
                     yield from sim.execute_one()
+                    yield Settle()
                     index = sim.pc.CIA.value//4
 
-                    yield Settle()
                     # get all outputs (one by one, just "because")
                     res = yield from get_cu_outputs(cu, code)
                     wrmask = yield cu.wrmask
