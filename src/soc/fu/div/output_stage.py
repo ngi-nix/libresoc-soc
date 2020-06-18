@@ -78,7 +78,7 @@ class DivOutputStage(PipeModBase):
         with m.If(op.is_32bit):
             calc_overflow(self.i.dive_abs_overflow_32, 0x8000_0000)
         with m.Else():
-            calc_overflow(self.i.dive_abs_overflow_32, 0x8000_0000_0000_0000)
+            calc_overflow(self.i.dive_abs_overflow_64, 0x8000_0000_0000_0000)
 
         ##########################
         # main switch for DIV
