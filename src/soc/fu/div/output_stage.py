@@ -81,18 +81,36 @@ class DivOutputStage(PipeModBase):
         ##########################
         # main switch for DIV
 
+        o = self.o.o.data
+
         with m.Switch(op.insn_type):
-            # TODO(programmerjake): finish switch
-            with m.Case(InternalOp.OP_DIV, InternalOp.OP_DIVE):
+            with m.Case(InternalOp.OP_DIVE):
                 with m.If(op.is_32bit):
-                    comb += dividend_in.eq(self.abs_dividend[0:32])
+                    with m.If(op.is_signed):
+                        # matches POWER9's divweo behavior
+                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                    with m.Else():
+                        comb += o.eq(quotient_64[0:32].as_unsigned())
                 with m.Else():
-                    comb += dividend_in.eq(self.abs_dividend[0:64])
+                    comb += o.eq(quotient_64)
+            with m.Case(InternalOp.OP_DIV):
+                with m.If(op.is_32bit):
+                    with m.If(op.is_signed):
+                        # matches POWER9's divwo behavior
+                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                    with m.Else():
+                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                with m.Else():
+                    comb += o.eq(quotient_64)
             with m.Case(InternalOp.OP_MOD):
                 with m.If(op.is_32bit):
-                    comb += dividend_in.eq(self.abs_dividend[0:32] << 32)
+                    with m.If(op.is_signed):
+                        # matches POWER9's modsw behavior
+                        comb += o.eq(remainder_64[0:32].as_signed())
+                    with m.Else():
+                        comb += o.eq(remainder_64[0:32].as_unsigned())
                 with m.Else():
-                    comb += dividend_in.eq(self.abs_dividend[0:64] << 64)
+                    comb += o.eq(remainder_64)
 
         ###### sticky overflow and context, both pass-through #####
 
