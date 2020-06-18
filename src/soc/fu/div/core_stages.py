@@ -15,6 +15,9 @@ from ieee754.div_rem_sqrt_rsqrt.core import (DivPipeCoreSetupStage,
                                              DivPipeCoreCalculateStage,
                                              DivPipeCoreFinalStage)
 
+__all__ = ["DivCoreBaseStage", "DivCoreSetupStage",
+           "DivCoreCalculateStage", "DivCoreFinalStage"]
+
 
 class DivCoreBaseStage(PipeModBase):
     def __init__(self, pspec, modname, core_class, *args, **kwargs):
