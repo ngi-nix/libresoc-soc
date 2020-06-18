@@ -68,7 +68,7 @@ class FastRegs(RegFileArray):
     SRR1 = 6
     def __init__(self):
         super().__init__(64, 8)
-        self.w_ports = {'nia': self.write_port("dest1"),
+        self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("dest2"),
                         'spr1': self.write_port("dest3"),
                         'spr2': self.write_port("dest4"),

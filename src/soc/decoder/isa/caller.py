@@ -410,7 +410,7 @@ class ISACaller:
         print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
         print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
 
-        yield self.dec2.dec.raw_opcode_in.eq(ins)
+        yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
         yield self.dec2.dec.bigendian.eq(0)  # little / big?
 
     def execute_one(self):
@@ -457,8 +457,7 @@ class ISACaller:
         # https://bugs.libre-soc.org/show_bug.cgi?id=390
         if int_op == InternalOp.OP_MTCRF.value:
             dec_insn = yield self.dec2.e.insn
-            print ("mtcrf", bin(dec_insn), (dec_insn & (1<<20)))
-            if dec_insn & (1<<21) != 0: # sigh
+            if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mtocrf'
             else:
                 asmop = 'mtcrf'

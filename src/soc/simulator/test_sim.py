@@ -12,6 +12,7 @@ from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.simulator.program import Program
 from soc.simulator.qemu import run_program
 from soc.decoder.isa.all import ISA
+from soc.fu.test.common import TestCase
 
 
 class Register:
@@ -19,42 +20,12 @@ class Register:
         self.num = num
 
 
-class DecoderTestCase(FHDLTestCase):
+class GeneralTestCases(FHDLTestCase):
+    test_data = []
 
-    def run_tst(self, generator, initial_mem=None):
-        m = Module()
-        comb = m.d.comb
-
-        gen = list(generator.generate_instructions())
-        insn_code = generator.assembly.splitlines()
-        instructions = list(zip(gen, insn_code))
-
-        pdecode = create_pdecode()
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-
-        simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0,
-                        initial_insns=gen, respect_pc=True,
-                        disassembly=insn_code)
-
-        sim = Simulator(m)
-
-        def process():
-            while True:
-                try:
-                    yield from simulator.setup_one()
-                except KeyError: # indicates instruction not in imem: stop
-                    break
-                yield Settle()
-                yield from simulator.execute_one()
-                yield Settle()
-
-
-        sim.add_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                           traces=[]):
-            sim.run()
-
-        return simulator
+    def __init__(self, name="general"):
+        super().__init__(name)
+        self.test_name = name
 
     @unittest.skip("disable")
     def test_0_cmp(self):
@@ -173,7 +144,8 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1])
 
-    def tst_2_load_store(self):
+    @unittest.skip("disable")
+    def test_2_load_store(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
                "addi 3, 0, 0x00ee",
@@ -226,6 +198,51 @@ class DecoderTestCase(FHDLTestCase):
                ]
         with Program(lst) as program:
             self.run_tst_program(program, [9], initial_mem={})
+
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+                                    initial_mem=None):
+        initial_regs = [0] * 32
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
+                                            initial_mem, 0)
+        self.test_data.append(tc)
+
+
+class DecoderTestCase(GeneralTestCases):
+
+    def run_tst(self, generator, initial_mem=None):
+        m = Module()
+        comb = m.d.comb
+
+        gen = list(generator.generate_instructions())
+        insn_code = generator.assembly.splitlines()
+        instructions = list(zip(gen, insn_code))
+
+        pdecode = create_pdecode()
+        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+
+        simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0,
+                        initial_insns=gen, respect_pc=True,
+                        disassembly=insn_code)
+
+        sim = Simulator(m)
+
+        def process():
+            while True:
+                try:
+                    yield from simulator.setup_one()
+                except KeyError: # indicates instruction not in imem: stop
+                    break
+                yield Settle()
+                yield from simulator.execute_one()
+                yield Settle()
+
+
+        sim.add_process(process)
+        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+                           traces=[]):
+            sim.run()
+
+        return simulator
 
     def run_tst_program(self, prog, reglist, initial_mem=None):
         import sys
