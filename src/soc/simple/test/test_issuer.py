@@ -81,10 +81,13 @@ class TestRunner(FHDLTestCase):
                 print ("mem", test.mem)
                 print ("msr", test.msr)
                 print ("assem", program.assembly)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr)
                 gen = list(program.generate_instructions())
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                insncode = program.assembly.splitlines()
+                instructions = list(zip(gen, insncode))
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
+                          test.msr,
+                          initial_insns=gen, respect_pc=True,
+                          disassembly=insncode)
 
                 pc = 0 # start address
 
