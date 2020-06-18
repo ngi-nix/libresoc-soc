@@ -24,6 +24,7 @@ class Program:
             instructions = '\n'.join(instructions)
         self.assembly = instructions + '\n' # plus final newline
         self._assemble()
+        self._instructions = list(self._get_instructions())
 
     def __enter__(self):
         return self
@@ -64,12 +65,15 @@ class Program:
                 sys.exit(1)
             self._link(outfile)
 
-    def generate_instructions(self):
+    def _get_instructions(self):
         while True:
             data = self.binfile.read(4)
             if not data:
                 break
             yield struct.unpack('<i', data)[0]
+
+    def generate_instructions(self):
+        yield from self._instructions
 
     def reset(self):
         self.binfile.seek(0)
