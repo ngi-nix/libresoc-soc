@@ -62,8 +62,6 @@ class DivOutputStage(PipeModBase):
 
         xer_ov = self.o.xer_ov.data
 
-        # TODO(programmerjake): check code against instruction models
-
         def calc_overflow(dive_abs_overflow, sign_bit_mask):
             nonlocal comb
             overflow = dive_abs_overflow | self.i.div_by_zero
