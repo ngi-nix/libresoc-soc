@@ -49,6 +49,8 @@ class TestIssuer(Elaboratable):
         # FAST regfile read /write ports
         self.fast_rd1 = self.core.regs.rf['fast'].r_ports['d_rd1']
         self.fast_wr1 = self.core.regs.rf['fast'].w_ports['d_wr1']
+        # hack method of keeping an eye on whether branch/trap set the PC
+        self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']
 
     def elaborate(self, platform):
         m = Module()
@@ -66,6 +68,7 @@ class TestIssuer(Elaboratable):
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
         current_pc = Signal(64) # current PC (note it is reset/sync)
+        pc_changed = Signal(64) # note write to PC
         comb += self.pc_o.eq(current_pc)
         ilatch = Signal(32)
 
@@ -85,6 +88,7 @@ class TestIssuer(Elaboratable):
 
             # waiting (zzz)
             with m.State("IDLE"):
+                sync += pc_changed.eq(0)
                 with m.If(self.go_insn_i):
                     # instruction allowed to go: start by reading the PC
                     pc = Signal(64, reset_less=True)
@@ -118,14 +122,17 @@ class TestIssuer(Elaboratable):
                 comb += core_ivalid_i.eq(1) # say instruction is valid
                 comb += core_opcode_i.eq(ilatch) # actual opcode
                 #sync += core_issue_i.eq(0) # issue raises for only one cycle
+                with m.If(self.fast_nia.wen):
+                    sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
                     #sync += core_ivalid_i.eq(0) # say instruction is invalid
                     #sync += core_opcode_i.eq(0) # clear out (no good reason)
                     # ok here we are not reading the branch unit.  TODO
                     # this just blithely overwrites whatever pipeline updated
                     # the PC
-                    comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
-                    comb += self.fast_wr1.data_i.eq(nia)
+                    with m.If(~self.fast_nia.wen & ~pc_changed):
+                        comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
+                        comb += self.fast_wr1.data_i.eq(nia)
                     m.next = "IDLE" # back to idle
 
         return m
