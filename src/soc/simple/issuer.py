@@ -51,6 +51,7 @@ class TestIssuer(Elaboratable):
         self.fast_wr1 = self.core.regs.rf['fast'].w_ports['d_wr1']
         # hack method of keeping an eye on whether branch/trap set the PC
         self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']
+        self.fast_nia.wen.name = 'fast_nia_wen'
 
     def elaborate(self, platform):
         m = Module()
@@ -68,7 +69,7 @@ class TestIssuer(Elaboratable):
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
         current_pc = Signal(64) # current PC (note it is reset/sync)
-        pc_changed = Signal(64) # note write to PC
+        pc_changed = Signal() # note write to PC
         comb += self.pc_o.eq(current_pc)
         ilatch = Signal(32)
 
@@ -104,7 +105,7 @@ class TestIssuer(Elaboratable):
                     # lookups together.  this is Generally Bad.
                     comb += self.i_rd.addr.eq(pc[2:]) # ignore last 2 bits
                     comb += current_insn.eq(self.i_rd.data)
-                    comb += current_pc.eq(pc)
+                    sync += current_pc.eq(pc)
                     m.next = "INSN_READ" # move to "issue" phase
 
             # got the instruction: start issue
@@ -130,7 +131,7 @@ class TestIssuer(Elaboratable):
                     # ok here we are not reading the branch unit.  TODO
                     # this just blithely overwrites whatever pipeline updated
                     # the PC
-                    with m.If(~self.fast_nia.wen & ~pc_changed):
+                    with m.If(~pc_changed):
                         comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
                         comb += self.fast_wr1.data_i.eq(nia)
                     m.next = "IDLE" # back to idle
