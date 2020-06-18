@@ -16,7 +16,7 @@ from ieee754.div_rem_sqrt_rsqrt.core import DivPipeCoreOperation
 
 class DivSetupStage(PipeModBase):
     def __init__(self, pspec):
-        super().__init__(pspec, "main")
+        super().__init__(pspec, "setup_stage")
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
         self.fields.create_specs()
         self.abs_divisor = Signal(64)
@@ -50,10 +50,20 @@ class DivSetupStage(PipeModBase):
         comb += self.abs_divisor.eq(Mux(divisor_neg, -b, b))
         comb += self.abs_dividend.eq(Mux(dividend_neg, -a, a))
 
+        comb += self.o.dive_abs_overflow_64.eq(
+            (self.abs_dividend >= self.abs_divisor)
+            & (op.insn_type == InternalOp.OP_DIVE))
+
+        comb += self.o.dive_abs_overflow_32.eq(
+            (self.abs_dividend[0:32] >= self.abs_divisor[0:32])
+            & (op.insn_type == InternalOp.OP_DIVE))
+
         with m.If(op.is_32bit):
             comb += divisor_in.eq(self.abs_divisor[0:32])
         with m.Else():
             comb += divisor_in.eq(self.abs_divisor[0:64])
+
+        comb += self.o.div_by_zero.eq(self.divisor_in == 0)
 
         ##########################
         # main switch for DIV
