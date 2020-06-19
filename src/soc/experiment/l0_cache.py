@@ -36,7 +36,8 @@ from soc.scoreboard.addr_split import LDSTSplitter
 from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
-from soc.experiment.testmem import TestMemory
+from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
+# TODO: from soc.experiment.testmem import TestMemoryLoadStoreUnit
 
 import unittest
 
@@ -333,7 +334,8 @@ class L0CacheBuffer(Elaboratable):
 
     def __init__(self, n_units, mem, regwid=64, addrwid=48):
         self.n_units = n_units
-        self.mem = mem
+        self.mem = mem # TODO: remove, replace with lsui
+        # TODO: self.lsui = LoadStoreUnitInterface(addr_wid=addrwid....)
         self.regwid = regwid
         self.addrwid = addrwid
         ul = []
@@ -452,6 +454,8 @@ class L0CacheBuffer(Elaboratable):
             # shift data down before pushing out.  requires masking
             # from the *byte*-expanded version of LenExpand output
             lddata = Signal(self.regwid, reset_less=True)
+            # TODO: replace rdport.data with LoadStoreUnitInterface.x_load_data
+            # and also handle the ready/stall/busy protocol
             comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
             # yes this looks odd (inverted)
@@ -479,6 +483,8 @@ class L0CacheBuffer(Elaboratable):
                 stdata_r = byte_reverse(m, 'stdata_r', stport_d, lenexp.len_i)
                 comb += stdata_i.eq(stdata_r)
             comb += stdata.eq(stdata_i << (lenexp.addr_i*8))
+            # TODO: replace with link to LoadStoreUnitInterface.x_store_data
+            # and also handle the ready/stall/busy protocol
             comb += wrport.data.eq(stdata)  # write st to mem
             comb += wrport.en.eq(lenexp.lexp_o) # enable writes
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
@@ -506,6 +512,7 @@ class L0CacheBuffer(Elaboratable):
 
 class TstL0CacheBuffer(Elaboratable):
     def __init__(self, n_units=3, regwid=16, addrwid=4):
+        # TODO: replace with TestMemoryLoadStoreUnit
         self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
         self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid<<1)
 
