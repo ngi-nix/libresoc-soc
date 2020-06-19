@@ -1,8 +1,8 @@
 import unittest
 from copy import copy
 from soc.decoder.power_fields import BitRange
-from operator import (add, sub, mul, truediv, mod, or_, and_, xor, neg, inv,
-                      lshift, rshift)
+from operator import (add, sub, mul, floordiv, truediv, mod, or_, and_, xor,
+                      neg, inv, lshift, rshift)
 
 
 def check_extsign(a, b):
@@ -169,7 +169,9 @@ class SelectableInt:
         return self._op(sub, b)
     def __mul__(self, b):
         return self._op(mul, b)
-    def __div__(self, b):
+    def __floordiv__(self, b):
+        return self._op(floordiv, b)
+    def __truediv__(self, b):
         return self._op(truediv, b)
     def __mod__(self, b):
         return self._op(mod, b)
