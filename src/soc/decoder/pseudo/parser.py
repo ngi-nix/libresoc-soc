@@ -619,7 +619,7 @@ class PowerParser:
                     if p[2] == '/':
                         fn = 'trunc_div'
                     else:
-                        fn = 'trunc_mod'
+                        fn = 'trunc_rem'
                     # return "function trunc_xxx(l, r)"
                     p[0] =  ast.Call(ast.Name(fn, ast.Load()), (l, r), [])
                 else:
