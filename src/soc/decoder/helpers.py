@@ -10,6 +10,8 @@ def exts(value, bits):
     sign = 1 << (bits - 1)
     return (value & (sign - 1)) - (value & sign)
 
+
+# this is a POWER ISA 3.0B compatible div function
 def trunc_div(n, d):
     f = getattr(n, "trunc_div", None)
     if f is not None:
@@ -24,6 +26,8 @@ def trunc_div(n, d):
         return abs_q
     return -abs_q
 
+
+# this is a POWER ISA 3.0B compatible mod / remainder function
 def trunc_rem(n, d):
     f = getattr(n, "trunc_rem", None)
     if f is not None:
