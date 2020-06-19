@@ -23,7 +23,7 @@ import ast
 # Helper function
 
 
-def Assign(autoassign, left, right, iea_mode):
+def Assign(autoassign, assignname, left, right, iea_mode):
     names = []
     print("Assign", left, right)
     if isinstance(left, ast.Name):
@@ -46,15 +46,21 @@ def Assign(autoassign, left, right, iea_mode):
         res = ast.Assign([left], right)
         ls = left.slice
         if autoassign and isinstance(ls, ast.Slice):
-            # hack to create a variable pre-declared
+            # hack to create a variable pre-declared based on a slice.
+            # dividend[0:32] = (RA)[0:32] will create
+            #       dividend = [0] * 32
+            #       dividend[0:32] = (RA)[0:32]
+            # the declaration makes the slice-assignment "work"
             lower, upper, step = ls.lower, ls.upper, ls.step
             print ("lower, upper, step", repr(lower), repr(upper), step)
             if not isinstance(lower, ast.Constant) or \
                not isinstance(upper, ast.Constant):
                 return res
-            right = ast.BinOp(ast.List([ast.Num(0)]),
-                    ast.Mult(), ast.Num(upper.value-lower.value))
-            declare = ast.Assign([left], right)
+            qty = ast.Num(upper.value-lower.value)
+            keywords = [ast.keyword(arg='repeat', value=qty)]
+            l = [ast.Num(0)]
+            right = ast.Call(ast.Name("concat", ast.Load()), l, keywords)
+            declare = ast.Assign([ast.Name(assignname, ast.Store())], right)
             return [declare, res]
         return res
         # XXX HMMM probably not needed...
@@ -405,7 +411,7 @@ class PowerParser:
             print("expr assign", name, p[1])
             if name and name in self.gprs:
                 self.write_regs.add(name)  # add to list of regs to write
-            p[0] = Assign(autoassign, p[1], p[3], iea_mode)
+            p[0] = Assign(autoassign, name, p[1], p[3], iea_mode)
             if name:
                 self.declared_vars.add(name)
 
