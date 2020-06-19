@@ -118,7 +118,7 @@ binary_ops = {
     "+": ast.Add(),
     "-": ast.Sub(),
     "*": ast.Mult(),
-    "/": ast.Div(),
+    "/": ast.FloorDiv(),
     "%": ast.Mod(),
     "<=": make_le_compare,
     ">=": make_ge_compare,
