@@ -207,7 +207,7 @@ class GeneralTestCases(FHDLTestCase):
         self.test_data.append(tc)
 
 
-class DecoderTestCase(GeneralTestCases):
+class DecoderBase:
 
     def run_tst(self, generator, initial_mem=None):
         m = Module()
@@ -288,6 +288,10 @@ class DecoderTestCase(GeneralTestCases):
             qemu_val = qemu.get_register(reg)
             sim_val = sim.gpr(reg).value
             self.assertEqual(qemu_val, sim_val)
+
+
+class DecoderTestCase(DecoderBase, GeneralTestCases):
+    pass
 
 
 if __name__ == "__main__":
