@@ -1,10 +1,37 @@
 import unittest
 from soc.decoder.selectable_int import SelectableInt
 
+"""
+Links:
+* https://bugs.libre-soc.org/show_bug.cgi?id=324 - add trunc_div and trunc_rem
+"""
 
 def exts(value, bits):
     sign = 1 << (bits - 1)
     return (value & (sign - 1)) - (value & sign)
+
+def trunc_div(n, d):
+    f = getattr(n, "trunc_div", None)
+    if f is not None:
+        return f(d)
+    fr = getattr(d, "rtrunc_div", None)
+    if fr is not None:
+        return fr(n)
+    abs_n = abs(n)
+    abs_d = abs(d)
+    abs_q = n // d
+    if (n < 0) == (d < 0):
+        return abs_q
+    return -abs_q
+
+def trunc_rem(n, d):
+    f = getattr(n, "trunc_rem", None)
+    if f is not None:
+        return f(d)
+    fr = getattr(d, "rtrunc_rem", None)
+    if fr is not None:
+        return fr(n)
+    return n - d * trunc_div(n, d)
 
 
 def EXTS(value):

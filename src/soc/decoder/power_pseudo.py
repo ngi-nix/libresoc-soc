@@ -255,12 +255,15 @@ def test():
         print("args", args)
         print("-->", " ".join(map(str, args)))
 
-    from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,)
+    from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,
+                                     trunc_div, trunc_rem)
 
     d = {}
     d["print"] = print_
     d["EXTS64"] = EXTS64
     d["EXTZ64"] = EXTZ64
+    d["trunc_div"] = trunc_div
+    d["trunc_rem"] = trunc_rem
     d["SelectableInt"] = SelectableInt
     d["concat"] = selectconcat
     d["GPR"] = gsc.gpr
