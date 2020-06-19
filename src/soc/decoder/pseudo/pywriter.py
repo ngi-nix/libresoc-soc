@@ -52,10 +52,10 @@ class PyISAWriter(ISA):
             # go through all instructions
             for page in instrs:
                 d = self.instr[page]
-                print (fname, d.opcode)
+                print ("page", pagename, page, fname, d.opcode)
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
-                incl_carry = page == 'fixedshift'
+                incl_carry = pagename == 'fixedshift'
                 pycode, rused = convert_to_python(pcode, d.form, incl_carry)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
