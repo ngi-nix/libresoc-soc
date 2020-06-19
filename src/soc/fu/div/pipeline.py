@@ -3,7 +3,8 @@ from nmutil.pipemodbase import PipeModBaseChain
 from soc.fu.alu.input_stage import ALUInputStage
 from soc.fu.alu.output_stage import ALUOutputStage
 from soc.fu.div.setup_stage import DivSetupStage
-from soc.fu.div.core_stages import DivCoreSetupStage, DivCoreCalculateStage, DivCoreFinalStage
+from soc.fu.div.core_stages import (DivCoreSetupStage, DivCoreCalculateStage,
+                                    DivCoreFinalStage)
 from soc.fu.div.output_stage import DivOutputStage
 
 

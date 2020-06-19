@@ -26,8 +26,8 @@ class CoreBaseData(ALUInputData):
         self.dividend_neg = Signal(reset_less=True)
         self.div_by_zero = Signal(reset_less=True)
 
-        # set if an overflow for divide extended instructions is detected because
-        # `abs_dividend >= abs_divisor` for the appropriate bit width;
+        # set if an overflow for divide extended instructions is detected
+        # because `abs_dividend >= abs_divisor` for the appropriate bit width;
         # 0 if the instruction is not a divide extended instruction
         self.dive_abs_overflow_32 = Signal(reset_less=True)
         self.dive_abs_overflow_64 = Signal(reset_less=True)
