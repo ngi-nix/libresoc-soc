@@ -412,6 +412,8 @@ class SelectableIntTestCase(unittest.TestCase):
         d = a - b
         e = a * b
         f = -a
+        g = abs(f)
+        h = abs(a)
         self.assertEqual(c.value, a.value + b.value)
         self.assertEqual(d.value, (a.value - b.value) & 0xFF)
         self.assertEqual(e.value, (a.value * b.value) & 0xFF)
@@ -419,6 +421,8 @@ class SelectableIntTestCase(unittest.TestCase):
         self.assertEqual(c.bits, a.bits)
         self.assertEqual(d.bits, a.bits)
         self.assertEqual(e.bits, a.bits)
+        self.assertEqual(a.bits, f.bits)
+        self.assertEqual(a.bits, h.bits)
 
     def test_logic(self):
         a = SelectableInt(0x0F, 8)
