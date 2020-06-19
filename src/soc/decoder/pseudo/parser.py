@@ -23,7 +23,7 @@ import ast
 # Helper function
 
 
-def Assign(left, right, iea_mode):
+def Assign(autoassign, left, right, iea_mode):
     names = []
     print("Assign", left, right)
     if isinstance(left, ast.Name):
@@ -43,7 +43,20 @@ def Assign(left, right, iea_mode):
         ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
         return ast.Assign([ast.AssTuple(ass_list)], right)
     elif isinstance(left, ast.Subscript):
-        return ast.Assign([left], right)
+        res = ast.Assign([left], right)
+        ls = left.slice
+        if autoassign and isinstance(ls, ast.Slice):
+            # hack to create a variable pre-declared
+            lower, upper, step = ls.lower, ls.upper, ls.step
+            print ("lower, upper, step", repr(lower), repr(upper), step)
+            if not isinstance(lower, ast.Constant) or \
+               not isinstance(upper, ast.Constant):
+                return res
+            right = ast.BinOp(ast.List([ast.Num(0)]),
+                    ast.Mult(), ast.Num(upper.value-lower.value))
+            declare = ast.Assign([left], right)
+            return [declare, res]
+        return res
         # XXX HMMM probably not needed...
         ls = left.slice
         if isinstance(ls, ast.Slice):
@@ -232,6 +245,7 @@ class PowerParser:
         form = self.sd.sigforms[form]
         print(form)
         formkeys = form._asdict().keys()
+        self.declared_vars = set()
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
         self.available_op_fields = set()
@@ -322,6 +336,8 @@ class PowerParser:
                        | small_stmt"""
         if len(p) == 4:
             p[0] = p[1] + [p[3]]
+        elif isinstance(p[1], list):
+            p[0] = p[1]
         else:
             p[0] = [p[1]]
 
@@ -357,6 +373,7 @@ class PowerParser:
         else:
             iea_mode = p[2] == '<-iea'
             name = None
+            autoassign = False
             if isinstance(p[1], ast.Name):
                 name = p[1].id
             elif isinstance(p[1], ast.Subscript):
@@ -365,6 +382,7 @@ class PowerParser:
                     if name in self.gprs:
                         # add to list of uninitialised
                         self.uninit_regs.add(name)
+                    autoassign = name not in self.declared_vars
             elif isinstance(p[1], ast.Call) and p[1].func.id in ['GPR', 'SPR']:
                 print(astor.dump_tree(p[1]))
                 # replace GPR(x) with GPR[x]
@@ -385,7 +403,9 @@ class PowerParser:
             print("expr assign", name, p[1])
             if name and name in self.gprs:
                 self.write_regs.add(name)  # add to list of regs to write
-            p[0] = Assign(p[1], p[3], iea_mode)
+            p[0] = Assign(autoassign, p[1], p[3], iea_mode)
+            if name:
+                self.declared_vars.add(name)
 
     def p_flow_stmt(self, p):
         "flow_stmt : return_stmt"
