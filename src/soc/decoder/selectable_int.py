@@ -145,6 +145,16 @@ class FieldSelectableIntTestCase(unittest.TestCase):
 
 
 class SelectableInt:
+    """SelectableInt - a class that behaves exactly like python int
+
+    this class is designed to mirror precisely the behaviour of python int.
+    the only difference is that it must contain the context of the bitwidth
+    (number of bits) associated with that integer.
+
+    FieldSelectableInt can then operate on partial bits, and because there
+    is a bit width associated with SelectableInt, slices operate correctly
+    including negative start/end points.
+    """
     def __init__(self, value, bits):
         if isinstance(value, SelectableInt):
             value = value.value
