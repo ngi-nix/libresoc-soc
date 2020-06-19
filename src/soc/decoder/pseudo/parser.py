@@ -603,6 +603,23 @@ class PowerParser:
             elif p[2] == '||':
                 l = check_concat(p[1]) + check_concat(p[3])
                 p[0] = ast.Call(ast.Name("concat", ast.Load()), l, [])
+            elif p[2] in ['/', '%']:
+                # bad hack: if % or / used anywhere other than div/mod ops,
+                # do % or /.  however if the argument names are "dividend"
+                # we must call the special trunc_div and trunc_rem functions
+                l, r = p[1], p[3]
+                # actual call will be "dividend / divisor" - just check
+                # LHS name
+                if isinstance(l, ast.Name) and l.id == 'dividend':
+                    if p[2] == '/':
+                        fn = 'trunc_div'
+                    else:
+                        fn = 'trunc_mod'
+                    # return "function trunc_xxx(l, r)"
+                    p[0] =  ast.Call(ast.Name(fn, ast.Load()), (l, r), [])
+                else:
+                    # return "l {binop} r"
+                    p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
             elif p[2] in ['<', '>', '=', '<=', '>=', '!=']:
                 p[0] = binary_ops[p[2]]((p[1], p[3]))
             elif identify_sint_mul_pattern(p):
