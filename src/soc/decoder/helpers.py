@@ -1,5 +1,6 @@
 import unittest
 from soc.decoder.selectable_int import SelectableInt
+from nmutil.divmod import trunc_div, trunc_rem
 
 """
 Links:
@@ -9,33 +10,6 @@ Links:
 def exts(value, bits):
     sign = 1 << (bits - 1)
     return (value & (sign - 1)) - (value & sign)
-
-
-# this is a POWER ISA 3.0B compatible div function
-def trunc_div(n, d):
-    f = getattr(n, "trunc_div", None)
-    if f is not None:
-        return f(d)
-    fr = getattr(d, "rtrunc_div", None)
-    if fr is not None:
-        return fr(n)
-    abs_n = abs(n)
-    abs_d = abs(d)
-    abs_q = n // d
-    if (n < 0) == (d < 0):
-        return abs_q
-    return -abs_q
-
-
-# this is a POWER ISA 3.0B compatible mod / remainder function
-def trunc_rem(n, d):
-    f = getattr(n, "trunc_rem", None)
-    if f is not None:
-        return f(d)
-    fr = getattr(d, "rtrunc_rem", None)
-    if fr is not None:
-        return fr(n)
-    return n - d * trunc_div(n, d)
 
 
 def EXTS(value):
