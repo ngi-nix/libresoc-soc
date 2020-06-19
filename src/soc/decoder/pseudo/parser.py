@@ -43,8 +43,13 @@ def Assign(autoassign, assignname, left, right, iea_mode):
         ass_list = [ast.AssName(name, 'OP_ASSIGN') for name in names]
         return ast.Assign([ast.AssTuple(ass_list)], right)
     elif isinstance(left, ast.Subscript):
-        res = ast.Assign([left], right)
         ls = left.slice
+        if (isinstance(ls, ast.Slice) and isinstance(right, ast.Name) and
+            right.id == 'undefined'):
+            # undefined needs to be copied the exact same slice
+            right =  ast.Subscript(right, ls, ast.Load())
+            return ast.Assign([left], right)
+        res = ast.Assign([left], right)
         if autoassign and isinstance(ls, ast.Slice):
             # hack to create a variable pre-declared based on a slice.
             # dividend[0:32] = (RA)[0:32] will create
