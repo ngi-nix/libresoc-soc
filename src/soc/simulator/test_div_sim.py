@@ -32,7 +32,15 @@ class DivTestCases(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    def test_0_moduw(self):
+    def test_1_divw_byzero(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x0",
+               "divw  3, 1, 2",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_2_moduw(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "moduw  3, 1, 2",
