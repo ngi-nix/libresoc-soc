@@ -181,6 +181,8 @@ class SelectableInt:
         return self._op(or_, b)
     def __xor__(self, b):
         return self._op(xor, b)
+    def __abs__(self):
+        return SelectableInt(0, self.bits) - self
 
     def __rsub__(self, b):
         if isinstance(b, int):
