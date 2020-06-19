@@ -55,7 +55,8 @@ class PyISAWriter(ISA):
                 print (fname, d.opcode)
                 pcode = '\n'.join(d.pcode) + '\n'
                 print (pcode)
-                pycode, rused = convert_to_python(pcode, d.form)
+                incl_carry = page == 'fixedshift'
+                pycode, rused = convert_to_python(pcode, d.form, incl_carry)
                 # create list of arguments to call
                 regs = list(rused['read_regs']) + list(rused['uninit_regs'])
                 regs += list(rused['special_regs'])

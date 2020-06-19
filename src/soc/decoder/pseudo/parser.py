@@ -240,7 +240,8 @@ class PowerParser:
         ("left", "INVERT"),
     )
 
-    def __init__(self, form):
+    def __init__(self, form, include_carry_in_write=False):
+        self.include_ca_in_write = include_carry_in_write
         self.gprs = {}
         form = self.sd.sigforms[form]
         print(form)
@@ -248,6 +249,7 @@ class PowerParser:
         self.declared_vars = set()
         for rname in ['RA', 'RB', 'RC', 'RT', 'RS']:
             self.gprs[rname] = None
+            self.declared_vars.add(rname)
         self.available_op_fields = set()
         for k in formkeys:
             if k not in self.gprs:
@@ -631,8 +633,9 @@ class PowerParser:
         name = p[1]
         if name in self.available_op_fields:
             self.op_fields.add(name)
-        if name in ['CA', 'CA32']:
-            self.write_regs.add(name)
+        if self.include_ca_in_write:
+            if name in ['CA', 'CA32']:
+                self.write_regs.add(name)
         if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR', 'MSR']:
             self.special_regs.add(name)
             self.write_regs.add(name) # and add to list to write
@@ -795,9 +798,9 @@ class PowerParser:
 
 
 class GardenSnakeParser(PowerParser):
-    def __init__(self, lexer=None, debug=False, form=None):
+    def __init__(self, lexer=None, debug=False, form=None, incl_carry=False):
         self.sd = create_pdecode()
-        PowerParser.__init__(self, form)
+        PowerParser.__init__(self, form, incl_carry)
         self.debug = debug
         if lexer is None:
             lexer = IndentLexer(debug=0)
@@ -817,8 +820,9 @@ class GardenSnakeParser(PowerParser):
 #from compiler import misc, syntax, pycodegen
 
 class GardenSnakeCompiler(object):
-    def __init__(self, debug=False, form=None):
-        self.parser = GardenSnakeParser(debug=debug, form=form)
+    def __init__(self, debug=False, form=None, incl_carry=False):
+        self.parser = GardenSnakeParser(debug=debug, form=form,
+                                        incl_carry=incl_carry)
 
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)

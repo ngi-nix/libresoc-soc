@@ -335,8 +335,16 @@ class ISACaller:
             imm = yield self.dec2.e.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
-        output = outputs[0]
-        gts = [(x > output) for x in inputs]
+        print ("outputs", repr(outputs))
+        if isinstance(outputs, list) or isinstance(outputs, tuple):
+            output = outputs[0]
+        else:
+            output = outputs
+        gts = []
+        for x in inputs:
+            print ("gt input", x, output)
+            gt = (x > output)
+            gts.append(gt)
         print(gts)
         cy = 1 if any(gts) else 0
         if not (1 & already_done):
@@ -344,8 +352,11 @@ class ISACaller:
 
         print ("inputs", inputs)
         # 32 bit carry
-        gts = [(x[32:64] > output[32:64]) == SelectableInt(1, 1)
-               for x in inputs]
+        gts = []
+        for x in inputs:
+            print ("input", x, output)
+            gt = (x[32:64] > output[32:64]) == SelectableInt(1, 1)
+            gts.append(gt)
         cy32 = 1 if any(gts) else 0
         if not (2 & already_done):
             self.spr['XER'][XER_bits['CA32']] = cy32
