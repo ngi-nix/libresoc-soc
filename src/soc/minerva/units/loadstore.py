@@ -11,14 +11,14 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 
 
 class LoadStoreUnitInterface:
-    def __init__(self):
+    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
         self.dbus = Record(wishbone_layout)
 
-        self.x_addr = Signal(32)
-        self.x_mask = Signal(4)
+        self.x_addr = Signal(addr_wid)
+        self.x_mask = Signal(mask_wid)
         self.x_load = Signal()
         self.x_store = Signal()
-        self.x_store_data = Signal(32)
+        self.x_store_data = Signal(data_wid)
         self.x_stall = Signal()
         self.x_valid = Signal()
         self.m_stall = Signal()
@@ -26,10 +26,10 @@ class LoadStoreUnitInterface:
 
         self.x_busy = Signal()
         self.m_busy = Signal()
-        self.m_load_data = Signal(32)
+        self.m_load_data = Signal(data_wid)
         self.m_load_error = Signal()
         self.m_store_error = Signal()
-        self.m_badaddr = Signal(30)
+        self.m_badaddr = Signal(addr_wid-log2_int(mask_wid))
 
 
 class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
