@@ -54,9 +54,14 @@ def process():
 
     # see sync_behaviors.py
     # for why we need Settle()
+    # debug print the bus address/data
     yield Settle()
     yield from print_sig(sram.bus.adr)
     yield from print_sig(sram.bus.dat_r, "h")
+
+    # check the result
+    data = yield sram.bus.dat_r
+    assert data == 0
 
     # set necessary signal to read bus
     # at address 4
@@ -66,9 +71,16 @@ def process():
     yield sram.bus.stb.eq(1)
     yield
 
+    # see sync_behaviors.py
+    # for why we need Settle()
+    # debug print the bus address/data
     yield Settle()
     yield from print_sig(sram.bus.adr)
     yield from print_sig(sram.bus.dat_r, "h")
+
+    # check the result
+    data = yield sram.bus.dat_r
+    assert data == 0xdeadbeef
 
     # disable signals
     yield sram.bus.cyc.eq(0)
