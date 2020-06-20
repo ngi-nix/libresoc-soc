@@ -297,6 +297,10 @@ class ISACaller:
 
     def TRAP(self, trap_addr=0x700):
         print ("TRAP: TODO")
+        #self.namespace['NIA'] = trap_addr
+        #self.SRR0 = self.namespace['CIA'] + 4
+        #self.SRR1 = self.namespace['MSR']
+        #self.namespace['MSR'][45] = 1
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
 
