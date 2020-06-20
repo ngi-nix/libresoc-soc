@@ -5,8 +5,8 @@ Bugs:
 from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory, Signal, Module
 
-memory = Memory(width=32, depth=16)
-sram = SRAM(memory=memory,granularity=8)
+memory = Memory(width=64, depth=16)
+sram = SRAM(memory=memory, granularity=16)
 
 # valid wishbone signals include
 # sram.bus.adr
