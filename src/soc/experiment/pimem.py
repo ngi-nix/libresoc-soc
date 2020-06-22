@@ -37,135 +37,88 @@ from soc.scoreboard.addr_match import LenExpand
 # for testing purposes
 from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
 # TODO: from soc.experiment.testmem import TestMemoryLoadStoreUnit
-from soc.experiment.pimem import PortInterface
 
 import unittest
 
 
-class DualPortSplitter(Elaboratable):
-    """DualPortSplitter
+class PortInterface(RecordObject):
+    """PortInterface
 
-    * one incoming PortInterface
-    * two *OUTGOING* PortInterfaces
-    * uses LDSTSplitter to do it
+    defines the interface - the API - that the LDSTCompUnit connects
+    to.  note that this is NOT a "fire-and-forget" interface.  the
+    LDSTCompUnit *must* be kept appraised that the request is in
+    progress, and only when it has a 100% successful completion
+    can the notification be given (busy dropped).
 
-    (actually, thinking about it LDSTSplitter could simply be
-     modified to conform to PortInterface: one in, two out)
+    The interface FSM rules are as follows:
 
-    once that is done each pair of ports may be wired directly
-    to the dual ports of L0CacheBuffer
+    * if busy_o is asserted, a LD/ST is in progress.  further
+      requests may not be made until busy_o is deasserted.
 
-    The split is carried out so that, regardless of alignment or
-    mis-alignment, outgoing PortInterface[0] takes bit 4 == 0
-    of the address, whilst outgoing PortInterface[1] takes
-    bit 4 == 1.
+    * only one of is_ld_i or is_st_i may be asserted.  busy_o
+      will immediately be asserted and remain asserted.
 
-    PortInterface *may* need to be changed so that the length is
-    a binary number (accepting values 1-16).
-    """
-    def __init__(self):
-        self.outp = [PortInterface(name="outp_0"),
-                     PortInterface(name="outp_1")]
-        self.inp  = PortInterface(name="inp")
-        print(self.outp)
+    * addr.ok is to be asserted when the LD/ST address is known.
+      addr.data is to be valid on the same cycle.
 
-    def elaborate(self, platform):
-        m = Module()
-        comb = m.d.comb
-        m.submodules.splitter = splitter = LDSTSplitter(64, 48, 4)
-        comb += splitter.addr_i.eq(self.inp.addr) #XXX
-        #comb += splitter.len_i.eq()
-        #comb += splitter.valid_i.eq()
-        comb += splitter.is_ld_i.eq(self.inp.is_ld_i)
-        comb += splitter.is_st_i.eq(self.inp.is_st_i)
-        #comb += splitter.st_data_i.eq()
-        #comb += splitter.sld_valid_i.eq()
-        #comb += splitter.sld_data_i.eq()
-        #comb += splitter.sst_valid_i.eq()
-        return m
+      addr.ok and addr.data must REMAIN asserted until busy_o
+      is de-asserted.  this ensures that there is no need
+      for the L0 Cache/Buffer to have an additional address latch
+      (because the LDSTCompUnit already has it)
 
+    * addr_ok_o (or addr_exc_o) must be waited for.  these will
+      be asserted *only* for one cycle and one cycle only.
 
-class DataMergerRecord(Record):
-    """
-    {data: 128 bit, byte_enable: 16 bit}
-    """
+    * addr_exc_o will be asserted if there is no chance that the
+      memory request may be fulfilled.
 
-    def __init__(self, name=None):
-        layout = (('data', 128),
-                  ('en', 16))
-        Record.__init__(self, Layout(layout), name=name)
+      busy_o is deasserted on the same cycle as addr_exc_o is asserted.
 
-        self.data.reset_less = True
-        self.en.reset_less = True
+    * conversely: addr_ok_o must *ONLY* be asserted if there is a
+      HUNDRED PERCENT guarantee that the memory request will be
+      fulfilled.
 
+    * for a LD, ld.ok will be asserted - for only one clock cycle -
+      at any point in the future that is acceptable to the underlying
+      Memory subsystem.  the recipient MUST latch ld.data on that cycle.
 
-# TODO: formal verification
-class DataMerger(Elaboratable):
-    """DataMerger
+      busy_o is deasserted on the same cycle as ld.ok is asserted.
 
-    Merges data based on an address-match matrix.
-    Identifies (picks) one (any) row, then uses that row,
-    based on matching address bits, to merge (OR) all data
-    rows into the output.
+    * for a ST, st.ok may be asserted only after addr_ok_o had been
+      asserted, alongside valid st.data at the same time.  st.ok
+      must only be asserted for one cycle.
 
-    Basically, by the time DataMerger is used, all of its incoming data is
-    determined not to conflict.  The last step before actually submitting
-    the request to the Memory Subsystem is to work out which requests,
-    on the same 128-bit cache line, can be "merged" due to them being:
-    (A) on the same address (bits 4 and above) (B) having byte-enable
-    lines that (as previously mentioned) do not conflict.
+      the underlying Memory is REQUIRED to pick up that data and
+      guarantee its delivery.  no back-acknowledgement is required.
 
-    Therefore, put simply, this module will:
-    (1) pick a row (any row) and identify it by an index labelled "idx"
-    (2) merge all byte-enable lines which are on that same address, as
-        indicated by addr_match_i[idx], onto the output
+      busy_o is deasserted on the cycle AFTER st.ok is asserted.
     """
 
-    def __init__(self, array_size):
-        """
-        :addr_array_i: an NxN Array of Signals with bits set indicating address
-                       match.  bits across the diagonal (addr_array_i[x][x])
-                       will always be set, to indicate "active".
-        :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
-        :data_o: an Output Record of same type
-                 {data: 128 bit, byte_enable: 16 bit}
-        """
-        self.array_size = array_size
-        ul = []
-        for i in range(array_size):
-            ul.append(Signal(array_size,
-                             reset_less=True,
-                             name="addr_match_%d" % i))
-        self.addr_array_i = Array(ul)
+    def __init__(self, name=None, regwid=64, addrwid=48):
 
-        ul = []
-        for i in range(array_size):
-            ul.append(DataMergerRecord())
-        self.data_i = Array(ul)
-        self.data_o = DataMergerRecord()
+        self._regwid = regwid
+        self._addrwid = addrwid
 
-    def elaborate(self, platform):
-        m = Module()
-        comb = m.d.comb
-        #(1) pick a row
-        m.submodules.pick = pick = PriorityEncoder(self.array_size)
-        for j in range(self.array_size):
-            comb += pick.i[j].eq(self.addr_array_i[j].bool())
-        valid = ~pick.n
-        idx = pick.o
-        #(2) merge
-        with m.If(valid):
-            l = []
-            for j in range(self.array_size):
-                select = self.addr_array_i[idx][j]
-                r = DataMergerRecord()
-                with m.If(select):
-                    comb += r.eq(self.data_i[j])
-                l.append(r)
-            comb += self.data_o.data.eq(ortreereduce(l,"data"))
-            comb += self.data_o.en.eq(ortreereduce(l,"en"))
+        RecordObject.__init__(self, name=name)
 
-        return m
+        # distinguish op type (ld/st)
+        self.is_ld_i = Signal(reset_less=True)
+        self.is_st_i = Signal(reset_less=True)
+
+        # LD/ST data length (TODO: other things may be needed)
+        self.data_len = Signal(4, reset_less=True)
+
+        # common signals
+        self.busy_o = Signal(reset_less=True)     # do not use if busy
+        self.go_die_i = Signal(reset_less=True)   # back to reset
+        self.addr = Data(addrwid, "addr_i")            # addr/addr-ok
+        # addr is valid (TLB, L1 etc.)
+        self.addr_ok_o = Signal(reset_less=True)
+        self.addr_exc_o = Signal(reset_less=True)  # TODO, "type" of exception
+
+        # LD/ST
+        self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
+        self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
 
 class LDSTPort(Elaboratable):
@@ -223,35 +176,24 @@ class LDSTPort(Elaboratable):
         return list(self)
 
 
-class L0CacheBuffer(Elaboratable):
-    """L0 Cache / Buffer
+class TestMemoryPortInterface(Elaboratable):
+    """TestMemoryPortInterface
 
-    Note that the final version will have *two* interfaces per LDSTCompUnit,
-    to cover mis-aligned requests, as well as *two* 128-bit L1 Cache
-    interfaces: one for odd (addr[4] == 1) and one for even (addr[4] == 1).
+    This is a test class for simple verification of the LDSTCompUnit
+    and for the simple core, to be able to run unit tests rapidly and
+    with less other code in the way.
 
-    This version is to be used for test purposes (and actively maintained
-    for such, rather than "replaced")
-
-    There are much better ways to implement this.  However it's only
-    a "demo" / "test" class, and one important aspect: it responds
-    combinatorially, where a nmigen FSM's state-changes only activate
-    on clock-sync boundaries.
-
-    Note: the data byte-order is *not* expected to be normalised (LE/BE)
-    by this class.  That task is taken care of by LDSTCompUnit.
+    Versions of this which are *compatible* (conform with PortInterface)
+    will include augmented-Wishbone Bus versions, including ones that
+    connect to L1, L2, MMU etc. etc. however this is the "base lowest
+    possible version that complies with PortInterface".
     """
 
-    def __init__(self, n_units, mem, regwid=64, addrwid=48):
-        self.n_units = n_units
-        self.mem = mem # TODO: remove, replace with lsui
-        # TODO: self.lsui = LoadStoreUnitInterface(addr_wid=addrwid....)
+    def __init__(self, regwid=64, addrwid=4):
+        self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
         self.regwid = regwid
         self.addrwid = addrwid
-        ul = []
-        for i in range(n_units):
-            ul.append(LDSTPort(i, regwid, addrwid))
-        self.dports = Array(ul)
+        self.pi = LDSTPort(0, regwid, addrwid)
 
     @property
     def addrbits(self):
@@ -266,48 +208,30 @@ class L0CacheBuffer(Elaboratable):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
+        # add TestMemory as submodule
+        m.submodules.mem = self.mem
+
         # connect the ports as modules
-        for i in range(self.n_units):
-            setattr(m.submodules, "port%d" % i, self.dports[i])
+        m.submodules.port0 = self.pi
 
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
         m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
         m.submodules.reset_l = reset_l = SRLatch(True, name="reset")
-        m.submodules.idx_l = idx_l = SRLatch(False, name="idx_l")
         m.submodules.adrok_l = adrok_l = SRLatch(False, name="addr_acked")
 
-        # find one LD (or ST) and do it.  only one per cycle.
-        # TODO: in the "live" (production) L0Cache/Buffer, merge multiple
-        # LD/STs using mask-expansion - see LenExpand class
-
-        m.submodules.ldpick = ldpick = PriorityEncoder(self.n_units)
-        m.submodules.stpick = stpick = PriorityEncoder(self.n_units)
+        # expand ld/st binary length/addr[:3] into unary bitmap
         m.submodules.lenexp = lenexp = LenExpand(4, 8)
 
-        lds = Signal(self.n_units, reset_less=True)
-        sts = Signal(self.n_units, reset_less=True)
-        ldi = []
-        sti = []
-        for i in range(self.n_units):
-            pi = self.dports[i].pi
-            ldi.append(pi.is_ld_i & pi.busy_o)  # accumulate ld-req signals
-            sti.append(pi.is_st_i & pi.busy_o)  # accumulate st-req signals
-        # put the requests into the priority-pickers
-        comb += ldpick.i.eq(Cat(*ldi))
-        comb += stpick.i.eq(Cat(*sti))
-
-        # hmm, have to select (record) the right port index
-        nbits = log2_int(self.n_units, False)
-        ld_idx = Signal(nbits, reset_less=False)
-        st_idx = Signal(nbits, reset_less=False)
-        # use these because of the sync-and-comb pass-through capability
-        latchregister(m, ldpick.o, ld_idx, idx_l.qn, name="ld_idx_l")
-        latchregister(m, stpick.o, st_idx, idx_l.qn, name="st_idx_l")
+        lds = Signal(reset_less=True)
+        sts = Signal(reset_less=True)
+        pi = self.pi.pi
+        comb += lds.eq(pi.is_ld_i & pi.busy_o)  # ld-req signals
+        comb += sts.eq(pi.is_st_i & pi.busy_o)  # st-req signals
 
         # convenience variables to reference the "picked" port
-        ldport = self.dports[ld_idx].pi
-        stport = self.dports[st_idx].pi
+        ldport = pi
+        stport = pi
         # and the memory ports
         rdport = self.mem.rdport
         wrport = self.mem.wrport
@@ -317,12 +241,10 @@ class L0CacheBuffer(Elaboratable):
 
         sync += adrok_l.s.eq(0)
         comb += adrok_l.r.eq(0)
-        with m.If(~ldpick.n):
+        with m.If(lds):
             comb += ld_active.s.eq(1)  # activate LD mode
-            comb += idx_l.r.eq(1)  # pick (and capture) the port index
-        with m.Elif(~stpick.n):
+        with m.Elif(sts):
             comb += st_active.s.eq(1)  # activate ST mode
-            comb += idx_l.r.eq(1)  # pick (and capture) the port index
 
         # from this point onwards, with the port "picked", it stays picked
         # until ld_active (or st_active) are de-asserted.
@@ -392,7 +314,6 @@ class L0CacheBuffer(Elaboratable):
 
         # after waiting one cycle (reset_l is "sync" mode), reset the port
         with m.If(reset_l.q):
-            comb += idx_l.s.eq(1)  # deactivate port-index selector
             comb += ld_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += st_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += reset_l.r.eq(1)     # clear reset
@@ -403,28 +324,6 @@ class L0CacheBuffer(Elaboratable):
     def ports(self):
         for p in self.dports:
             yield from p.ports()
-
-
-class TstL0CacheBuffer(Elaboratable):
-    def __init__(self, n_units=3, regwid=16, addrwid=4):
-        # TODO: replace with TestMemoryLoadStoreUnit
-        self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
-        self.l0 = L0CacheBuffer(n_units, self.mem, regwid, addrwid<<1)
-
-    def elaborate(self, platform):
-        m = Module()
-        m.submodules.mem = self.mem
-        m.submodules.l0 = self.l0
-
-        return m
-
-    def ports(self):
-        yield from self.l0.ports()
-        yield self.mem.rdport.addr
-        yield self.mem.rdport.data
-        yield self.mem.wrport.addr
-        yield self.mem.wrport.data
-        # TODO: mem ports
 
 
 def wait_busy(port, no=False):
@@ -455,10 +354,8 @@ def wait_ldok(port):
 
 
 def l0_cache_st(dut, addr, data, datalen):
-    l0 = dut.l0
     mem = dut.mem
-    port0 = l0.dports[0]
-    port1 = l0.dports[1]
+    port1 = dut.pi
 
     # have to wait until not busy
     yield from wait_busy(port1, no=False)    # wait until not busy
@@ -486,10 +383,8 @@ def l0_cache_st(dut, addr, data, datalen):
 
 def l0_cache_ld(dut, addr, datalen, expected):
 
-    l0 = dut.l0
     mem = dut.mem
-    port0 = l0.dports[0]
-    port1 = l0.dports[1]
+    port1 = dut.pi
 
     # have to wait until not busy
     yield from wait_busy(port1, no=False)    # wait until not busy
@@ -528,66 +423,18 @@ def l0_cache_ldst(arg, dut):
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
 
-def data_merger_merge(dut):
-    print("data_merger")
-    #starting with all inputs zero
-    yield Settle()
-    en = yield dut.data_o.en
-    data = yield dut.data_o.data
-    assert en == 0, "en must be zero"
-    assert data == 0, "data must be zero"
-    yield
 
-    yield dut.addr_array_i[0].eq(0xFF)
-    for j in range(dut.array_size):
-        yield dut.data_i[j].en.eq(1 << j)
-        yield dut.data_i[j].data.eq(0xFF << (16*j))
-    yield Settle()
+class TestPIMem(unittest.TestCase):
 
-    en = yield dut.data_o.en
-    data = yield dut.data_o.data
-    assert data == 0xff00ff00ff00ff00ff00ff00ff00ff
-    assert en == 0xff
-    yield
+    def test_pi_mem(self):
 
-
-class TestL0Cache(unittest.TestCase):
-
-    def test_l0_cache(self):
-
-        dut = TstL0CacheBuffer(regwid=64)
+        dut = TestMemoryPortInterface(regwid=64)
         #vl = rtlil.convert(dut, ports=dut.ports())
         #with open("test_basic_l0_cache.il", "w") as f:
         #    f.write(vl)
 
         run_simulation(dut, l0_cache_ldst(self, dut),
-                       vcd_name='test_l0_cache_basic.vcd')
-
-
-class TestDataMerger(unittest.TestCase):
-
-    def test_data_merger(self):
-
-        dut = DataMerger(8)
-        #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_data_merger.il", "w") as f:
-        #    f.write(vl)
-
-        run_simulation(dut, data_merger_merge(dut),
-                       vcd_name='test_data_merger.vcd')
-
-
-class TestDualPortSplitter(unittest.TestCase):
-
-    def test_dual_port_splitter(self):
-
-        dut = DualPortSplitter()
-        #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_data_merger.il", "w") as f:
-        #    f.write(vl)
-
-        #run_simulation(dut, data_merger_merge(dut),
-        #               vcd_name='test_dual_port_splitter.vcd')
+                       vcd_name='test_pi_mem_basic.vcd')
 
 
 if __name__ == '__main__':
