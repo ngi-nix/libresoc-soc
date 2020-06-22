@@ -159,10 +159,24 @@ class LDSTPort(Elaboratable):
 
         return m
 
+    def connect_port(self, inport):
+        print ("connect_port", self.pi, inport)
+        return [self.pi.is_ld_i.eq(inport.is_ld_i),
+                self.pi.is_st_i.eq(inport.is_st_i),
+                self.pi.data_len.eq(inport.data_len),
+                self.pi.go_die_i.eq(inport.go_die_i),
+                self.pi.addr.eq(inport.addr),
+                self.pi.st.eq(inport.st),
+                inport.ld.eq(self.pi.ld),
+                inport.busy_o.eq(self.pi.busy_o),
+                inport.addr_ok_o.eq(self.pi.addr_ok_o),
+                inport.addr_exc_o.eq(self.pi.addr_exc_o),
+                ]
+
     def __iter__(self):
         yield self.pi.is_ld_i
         yield self.pi.is_st_i
-        yield from self.pi.op.ports()
+        yield from self.pi.data_len
         yield self.pi.busy_o
         yield self.pi.go_die_i
         yield from self.pi.addr.ports()
@@ -203,6 +217,9 @@ class TestMemoryPortInterface(Elaboratable):
         """split the address into top and bottom bits of the memory granularity
         """
         return addr[:self.addrbits], addr[self.addrbits:]
+
+    def connect_port(self, inport):
+        return self.pi.connect_port(inport)
 
     def elaborate(self, platform):
         m = Module()
