@@ -614,12 +614,15 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     yield
     yield dut.issue_i.eq(0)
     yield
+
+    # set up read-operand flags
     rd = 0b00
-    if not imm_ok:
+    if not imm_ok: # no immediate means RB register needs to be read
         rd |= 0b10
-    if not zero_a:
+    if not zero_a: # no zero-a means RA needs to be read
         rd |= 0b01
 
+    # wait for the operands (RA, RB, or both)
     if rd:
         yield dut.rd.go.eq(rd)
         yield from wait_for(dut.rd.rel)
