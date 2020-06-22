@@ -84,6 +84,7 @@ from nmigen import Module, Signal, Mux, Cat, Elaboratable, Array, Repl
 from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
+from nmutil.byterev import byte_reverse
 
 from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
@@ -162,6 +163,11 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
     in a single cycle and the CompUnit set back to doing another op.
     This means deasserting go_st_i, go_ad_i or go_wr_i as appropriate
     depending on whether the operation is a ST or LD.
+
+    Note: LDSTCompUnit takes care of LE/BE normalisation:
+    * LD data is normalised after receipt from the PortInterface
+    * ST data is normalised *prior* to sending onto the PortInterface
+    TODO: use one module for the byte-reverse as it's quite expensive in gates
     """
 
     def __init__(self, pi=None, rwid=64, awid=48, opsubset=CompLDSTOpSubset,
@@ -464,14 +470,30 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += pi.op.eq(self.oper_i)    # op details (not all needed)
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)) # "go do address stuff"
+        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)) # "do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
+
+        # byte-reverse on LD - yes this is inverted (data is already BE)
+        with m.If(self.oper_i.byte_reverse):
+            comb += ldd_o.eq(pi.ld.data)  # put data out, straight (as BE)
+        with m.Else():
+            # byte-reverse the data based on ld/st width (turn it to LE)
+            data_len = self.oper_i.data_len
+            lddata_r = byte_reverse(m, 'lddata_r', pi.ld.data, data_len)
+            comb += ldd_o.eq(lddata_r) # put reversed- data out
         # ld - ld gets latched in via lod_l
-        comb += ldd_o.eq(pi.ld.data)  # ld data goes into ld reg (above)
         comb += ld_ok.eq(pi.ld.ok) # ld.ok *closes* (freezes) ld data
+
+        # yes this also looks odd (inverted)
+        with m.If(self.oper_i.byte_reverse):
+            comb += pi.st.data.eq(srl[2]) # 3rd operand latch
+        with m.Else():
+            # byte-reverse the data based on width
+            data_len = self.oper_i.data_len
+            stdata_r = byte_reverse(m, 'stdata_r', srl[2], data_len)
+            comb += pi.st.data.eq(stdata_r)
         # store - data goes in based on go_st
-        comb += pi.st.data.eq(srl[2]) # 3rd operand latch
         comb += pi.st.ok.eq(self.st.go)  # go store signals st data valid
 
         return m

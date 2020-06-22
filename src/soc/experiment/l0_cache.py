@@ -302,19 +302,6 @@ class LDSTPort(Elaboratable):
     def ports(self):
         return list(self)
 
-# TODO: turn this into a module
-def byte_reverse(m, name, data, length):
-    comb = m.d.comb
-    data_r = Signal.like(data, name=name)
-    with m.Switch(length):
-        for j in [1,2,4,8]:
-            with m.Case(j):
-                for i in range(j):
-                    dest = data_r.word_select(i, 8)
-                    src = data.word_select(j-1-i, 8)
-                    comb += dest.eq(src)
-    return data_r
-
 
 class L0CacheBuffer(Elaboratable):
     """L0 Cache / Buffer
@@ -330,6 +317,9 @@ class L0CacheBuffer(Elaboratable):
     a "demo" / "test" class, and one important aspect: it responds
     combinatorially, where a nmigen FSM's state-changes only activate
     on clock-sync boundaries.
+
+    Note: the data byte-order is *not* expected to be normalised (LE/BE)
+    by this class.  That task is taken care of by LDSTCompUnit.
     """
 
     def __init__(self, n_units, mem, regwid=64, addrwid=48):
@@ -458,13 +448,7 @@ class L0CacheBuffer(Elaboratable):
             # and also handle the ready/stall/busy protocol
             comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
-            # yes this looks odd (inverted)
-            with m.If(ldport.op.byte_reverse):
-                comb += ldport.ld.data.eq(lddata)  # put data out
-            with m.Else():
-                # byte-reverse the data based on ld/st width
-                lddata_r = byte_reverse(m, 'lddata_r', lddata, lenexp.len_i)
-                comb += ldport.ld.data.eq(lddata_r)  # put reversed- data out
+            comb += ldport.ld.data.eq(lddata)  # put data out
             comb += ldport.ld.ok.eq(1)           # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
@@ -472,17 +456,8 @@ class L0CacheBuffer(Elaboratable):
         with m.If(st_active.q & stport.st.ok):
             # shift data up before storing.  lenexp *bit* version of mask is
             # passed straight through as byte-level "write-enable" lines.
-            stport_d = stport.st.data
-            stdata_i = Signal(self.regwid, reset_less=True)
             stdata = Signal(self.regwid, reset_less=True)
-            # yes this looks odd (inverted)
-            with m.If(ldport.op.byte_reverse):
-                comb += stdata_i.eq(stport_d)
-            with m.Else():
-                # byte-reverse the data based on width
-                stdata_r = byte_reverse(m, 'stdata_r', stport_d, lenexp.len_i)
-                comb += stdata_i.eq(stdata_r)
-            comb += stdata.eq(stdata_i << (lenexp.addr_i*8))
+            comb += stdata.eq(stport.st.data << (lenexp.addr_i*8))
             # TODO: replace with link to LoadStoreUnitInterface.x_store_data
             # and also handle the ready/stall/busy protocol
             comb += wrport.data.eq(stdata)  # write st to mem
