@@ -28,7 +28,6 @@ from soc.decoder.power_enums import InternalOp
 from soc.regfile.regfile import ortreereduce
 from nmutil.util import treereduce
 
-from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
 #from nmutil.picker import PriorityPicker
 from nmigen.lib.coding import PriorityEncoder
@@ -48,7 +47,7 @@ class PortInterface(RecordObject):
     defines the interface - the API - that the LDSTCompUnit connects
     to.  note that this is NOT a "fire-and-forget" interface.  the
     LDSTCompUnit *must* be kept appraised that the request is in
-    progress, and only when it has a 100% successful completion rate
+    progress, and only when it has a 100% successful completion
     can the notification be given (busy dropped).
 
     The interface FSM rules are as follows:
@@ -105,7 +104,9 @@ class PortInterface(RecordObject):
         # distinguish op type (ld/st)
         self.is_ld_i = Signal(reset_less=True)
         self.is_st_i = Signal(reset_less=True)
-        self.op = CompLDSTOpSubset()  # hm insn_type ld/st duplicates here
+
+        # LD/ST data length (TODO: other things may be needed)
+        self.data_len = Signal(4, reset_less=True)
 
         # common signals
         self.busy_o = Signal(reset_less=True)     # do not use if busy
@@ -118,8 +119,6 @@ class PortInterface(RecordObject):
         # LD/ST
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
-
-# TODO: elaborate function
 
 
 class DualPortSplitter(Elaboratable):
@@ -412,7 +411,7 @@ class L0CacheBuffer(Elaboratable):
         with m.If(ld_active.q):
             # set up LenExpander with the LD len and lower bits of addr
             lsbaddr, msbaddr = self.splitaddr(ldport.addr.data)
-            comb += lenexp.len_i.eq(ldport.op.data_len)
+            comb += lenexp.len_i.eq(ldport.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(ldport.addr.ok & adrok_l.qn):
                 comb += rdport.addr.eq(msbaddr) # addr ok, send thru
@@ -424,7 +423,7 @@ class L0CacheBuffer(Elaboratable):
         with m.If(st_active.q):
             # set up LenExpander with the ST len and lower bits of addr
             lsbaddr, msbaddr = self.splitaddr(stport.addr.data)
-            comb += lenexp.len_i.eq(stport.op.data_len)
+            comb += lenexp.len_i.eq(stport.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(stport.addr.ok):
                 comb += wrport.addr.eq(msbaddr)  # addr ok, send thru
@@ -545,7 +544,7 @@ def l0_cache_st(dut, addr, data, datalen):
 
     # set up a ST on the port.  address first:
     yield port1.pi.is_st_i.eq(1)  # indicate ST
-    yield port1.pi.op.data_len.eq(datalen)  # ST length (1/2/4/8)
+    yield port1.pi.data_len.eq(datalen)  # ST length (1/2/4/8)
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok
@@ -576,7 +575,7 @@ def l0_cache_ld(dut, addr, datalen, expected):
 
     # set up a LD on the port.  address first:
     yield port1.pi.is_ld_i.eq(1)  # indicate LD
-    yield port1.pi.op.data_len.eq(datalen)  # LD length (1/2/4/8)
+    yield port1.pi.data_len.eq(datalen)  # LD length (1/2/4/8)
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok

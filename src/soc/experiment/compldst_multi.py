@@ -467,14 +467,14 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # connect to LD/ST PortInterface.
         comb += pi.is_ld_i.eq(op_is_ld & busy_o)  # decoded-LD
         comb += pi.is_st_i.eq(op_is_st & busy_o)  # decoded-ST
-        comb += pi.op.eq(self.oper_i)    # op details (not all needed)
+        comb += pi.data_len.eq(self.oper_i.data_len) # data_len
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
         comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)) # "do address stuff"
         comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
-        # byte-reverse on LD - yes this is inverted (data is already BE)
+        # byte-reverse on LD - yes this is inverted
         with m.If(self.oper_i.byte_reverse):
             comb += ldd_o.eq(pi.ld.data)  # put data out, straight (as BE)
         with m.Else():
