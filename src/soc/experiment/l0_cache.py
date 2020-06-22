@@ -214,7 +214,6 @@ class L0CacheBuffer(Elaboratable):
         # LD/STs using mask-expansion - see LenExpand class
 
         m.submodules.pick = pick = PriorityEncoder(self.n_units)
-        m.submodules.lenexp = lenexp = LenExpand(4, 8)
 
         ldsti = []
         for i in range(self.n_units):
