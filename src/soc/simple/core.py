@@ -56,7 +56,7 @@ class NonProductionCore(Elaboratable):
     def __init__(self, addrwid=6, idepth=16):
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
-        pi = self.l0.l0.dports[0].pi
+        pi = self.l0.l0.dports[0]
 
         # function units (only one each)
         self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
