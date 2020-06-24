@@ -151,8 +151,8 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         m.d.comb += wrbuf_port.we.eq(Const(1))
 
         dcache_port = dbus_arbiter.port(priority=1)
+        cti = Mux(dcache.bus_last, Cycle.END, Cycle.INCREMENT)
         m.d.comb += [
-            cti = Mux(dcache.bus_last, Cycle.END, Cycle.INCREMENT)
             dcache_port.cyc.eq(dcache.bus_re),
             dcache_port.stb.eq(dcache.bus_re),
             dcache_port.adr.eq(dcache.bus_addr),
