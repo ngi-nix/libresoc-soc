@@ -22,9 +22,13 @@ class LoadStoreUnitInterface:
         self.x_store = Signal()              # set to do a memory store
         self.x_store_data = Signal(data_wid) # The data to write when storing
         self.x_stall = Signal()              # do nothing until low
-        self.x_valid = Signal()              # Not entirely sure yet
+        self.x_valid = Signal()              # Whether the x pipeline stage is
+                                             # currently enabled (I
+                                             # think?). Set to 1 for #now
         self.m_stall = Signal()              # do nothing until low
-        self.m_valid = Signal()              # Not entirely sure yet
+        self.m_valid = Signal()              # Whether the m pipeline stage is
+                                             # currently enabled. Set
+                                             # to 1 for now
 
         # OUTPUTS
         self.x_busy = Signal()              # set when the memory is busy
