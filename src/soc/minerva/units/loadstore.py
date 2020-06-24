@@ -16,22 +16,26 @@ class LoadStoreUnitInterface:
         badwid = addr_wid-log2_int(mask_wid) # TODO: is this correct?
 
         # INPUTS
-        self.x_addr = Signal(addr_wid) # The address used for loads/stores
-        self.x_mask = Signal(mask_wid) # Mask of which bytes to write
-        self.x_load = Signal()         # set to do a memory load
-        self.x_store = Signal()        # set to do a memory store
+        self.x_addr = Signal(addr_wid)       # The address used for loads/stores
+        self.x_mask = Signal(mask_wid)       # Mask of which bytes to write
+        self.x_load = Signal()               # set to do a memory load
+        self.x_store = Signal()              # set to do a memory store
         self.x_store_data = Signal(data_wid) # The data to write when storing
-        self.x_stall = Signal()        # do nothing until low
-        self.x_valid = Signal()        # Not entirely sure yet
-        self.m_stall = Signal()        # do nothing until low
-        self.m_valid = Signal()        # Not entirely sure yet
+        self.x_stall = Signal()              # do nothing until low
+        self.x_valid = Signal()              # Not entirely sure yet
+        self.m_stall = Signal()              # do nothing until low
+        self.m_valid = Signal()              # Not entirely sure yet
 
         # OUTPUTS
-        self.x_busy = Signal()         # set when the memory is busy
-        self.m_busy = Signal()         # set when the memory is busy
+        self.x_busy = Signal()              # set when the memory is busy
+        self.m_busy = Signal()              # set when the memory is busy
         self.m_load_data = Signal(data_wid) # Data returned from a memory read
-        self.m_load_error = Signal()   # Whether there was an error when loading
-        self.m_store_error = Signal()  # Whether there was an error when storing
+        # Data validity is NOT indicated by m_valid or x_valid as
+        # those are inputs. I believe it is valid on the next cycle
+        # after raising m_load where busy is low
+
+        self.m_load_error = Signal()    # Whether there was an error when loading
+        self.m_store_error = Signal()   # Whether there was an error when storing
         self.m_badaddr = Signal(badwid) # The address of the load/store error
 
 
