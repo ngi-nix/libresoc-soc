@@ -101,31 +101,24 @@ class PortInterface(RecordObject):
 
         RecordObject.__init__(self, name=name)
 
-        name = name or "port0"
-
         # distinguish op type (ld/st)
-        self.is_ld_i = Signal(reset_less=True, name=f"{name}_is_ld_i")
-        self.is_st_i = Signal(reset_less=True, name=f"{name}_is_st_i")
+        self.is_ld_i = Signal(reset_less=True)
+        self.is_st_i = Signal(reset_less=True)
 
         # LD/ST data length (TODO: other things may be needed)
-        self.data_len = Signal(4, reset_less=True, name=f"{name}_data_len")
+        self.data_len = Signal(4, reset_less=True)
 
         # common signals
-
-        # do not use if busy
-        self.busy_o = Signal(reset_less=True, name=f"{name}_busy_o")
-        # back to reset
-        self.go_die_i = Signal(reset_less=True, name=f"{name}_go_die_i")
-
-        self.addr = Data(addrwid, f"{name}_addr_i")     # addr/addr-ok
+        self.busy_o = Signal(reset_less=True)     # do not use if busy
+        self.go_die_i = Signal(reset_less=True)   # back to reset
+        self.addr = Data(addrwid, "addr_i")            # addr/addr-ok
         # addr is valid (TLB, L1 etc.)
-        self.addr_ok_o = Signal(reset_less=True, name=f"{name}_addr_ok_o")
-        # TODO, "type" of exception
-        self.addr_exc_o = Signal(reset_less=True, name=f"{name}_addr_exc_o")
+        self.addr_ok_o = Signal(reset_less=True)
+        self.addr_exc_o = Signal(reset_less=True)  # TODO, "type" of exception
 
         # LD/ST
-        self.ld = Data(regwid, f"{name}_ld_data_o")  # ok to be set by L0 Cache/Buf
-        self.st = Data(regwid, f"{name}_st_data_i")  # ok to be set by CompUnit
+        self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
+        self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
 
 class LDSTPort(Elaboratable):
