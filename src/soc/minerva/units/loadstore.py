@@ -13,23 +13,26 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 class LoadStoreUnitInterface:
     def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
         self.dbus = Record(wishbone_layout)
+        badwid = addr_wid-log2_int(mask_wid) # TODO: is this correct?
 
-        self.x_addr = Signal(addr_wid)
-        self.x_mask = Signal(mask_wid)
-        self.x_load = Signal()
-        self.x_store = Signal()
-        self.x_store_data = Signal(data_wid)
-        self.x_stall = Signal()
+        self.x_addr = Signal(addr_wid) # The address used for loads/stores
+        self.x_mask = Signal(mask_wid) # Mask of which bytes to write
+        self.x_load = Signal()         # set to do a memory load
+        self.x_store = Signal()        # set to do a memory store
+        self.x_store_data = Signal(data_wid) # The data to write when storing
+        self.x_stall = Signal()        # input - do nothing until low
         self.x_valid = Signal()
-        self.m_stall = Signal()
-        self.m_valid = Signal()
+        self.m_stall = Signal()        # input - do nothing until low
+        self.m_valid = Signal()        # when this is high and m_busy is
+                                       # low, the data for the memory load
+                                       # can be read from m_load_data
 
-        self.x_busy = Signal()
-        self.m_busy = Signal()
-        self.m_load_data = Signal(data_wid)
-        self.m_load_error = Signal()
-        self.m_store_error = Signal()
-        self.m_badaddr = Signal(addr_wid-log2_int(mask_wid))
+        self.x_busy = Signal()         # set when the memory is busy
+        self.m_busy = Signal()         # set when the memory is busy
+        self.m_load_data = Signal(data_wid) # Data returned from a memory read
+        self.m_load_error = Signal()   # Whether there was an error when loading
+        self.m_store_error = Signal()  # Whether there was an error when storing
+        self.m_badaddr = Signal(badwid) # The address of the load/store error
 
 
 class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
