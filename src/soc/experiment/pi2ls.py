@@ -31,10 +31,14 @@ from nmigen import Elaboratable, Module, Signal
 
 class Pi2LSUI(Elaboratable):
 
-    def __init__(self, name, regwid=64, addrwid=48):
+    def __init__(self, name, pi=None, lsui=None, regwid=64, addrwid=48):
         self.addrbits = 4
-        self.pi = PortInterface(name="%s_pi", regwid, addrwid)
-        self.lsui = LoadStoreUnitInterface(addrwid, self.addrbits, regwid)
+        if pi is None:
+            pi = PortInterface(name="%s_pi", regwid, addrwid)
+        self.pi = pi
+        if lsui = None:
+            lsui = LoadStoreUnitInterface(addrwid, self.addrbits, regwid)
+        self.lsui = lsui
 
     def splitaddr(self, addr):
         """split the address into top and bottom bits of the memory granularity
