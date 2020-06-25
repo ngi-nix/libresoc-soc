@@ -19,3 +19,17 @@
     st.data/64                   x_st_data_i
     st.ok/1                      probably kinda redundant, set to x_st_i
 """
+
+from soc.minerva.units.loadstore import LoadStoreUnitInterface
+from soc.experiment.pimem import PortInterface
+from nmigen import Elaboratable, Module, Signal
+
+class Pi2LSUI(Elaboratable):
+
+    def __init__(self, name, regwid=64, addrwid=48):
+        self.pi = PortInterface(name="%s_pi", regwid, addrwid)
+        self.lsui = LoadStoreUnitInterface(addrwid, 4, regwid)
+
+    def elaborate(self, platform):
+        m = Module()
+        return m
