@@ -53,6 +53,7 @@ def write_to_addr(dut, addr, value):
     while (yield dut.x_stall):
         yield
 
+
 def read_from_addr(dut, addr):
     yield dut.x_addr.eq(addr)
     yield dut.x_load.eq(1)
@@ -68,6 +69,7 @@ def read_from_addr(dut, addr):
     assert (yield dut.x_valid)
     return (yield dut.m_load_data)
 
+
 def write_byte(dut, addr, val):
     offset = addr & 0x3
     yield dut.x_addr.eq(addr)
@@ -80,6 +82,7 @@ def write_byte(dut, addr, val):
     yield dut.x_store.eq(0)
     while (yield dut.x_stall):
         yield
+
 
 def read_byte(dut, addr):
     offset = addr & 0x3
@@ -94,6 +97,7 @@ def read_byte(dut, addr):
     assert (yield dut.x_valid)
     val = (yield dut.m_load_data)
     return (val >> (offset * 8)) & 0xff
+
 
 if __name__ == '__main__':
     m = Module()
