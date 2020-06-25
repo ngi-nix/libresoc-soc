@@ -1,5 +1,6 @@
 from soc.minerva.units.loadstore import LoadStoreUnitInterface
 from nmigen import Signal, Module, Elaboratable, Mux
+from nmigen.utils import log2_int
 from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
 import random
 
@@ -7,16 +8,18 @@ from nmigen.back.pysim import Simulator, Settle
 
 
 class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
-    def __init__(self, regwid, addrwid):
+    def __init__(self, regwid, addrwid, mask_wid=4):
         super().__init__()
         self.regwid = regwid
         self.addrwid = addrwid
+        self.mask_wid = mask_wid
+
     def elaborate(self, platform):
         m = Module()
+        regwid, addrwid, mask_wid = self.regwid, self.addrwid, self.mask_wid
+        adr_lsb = log2_int(mask_wid)
 
-
-        m.submodules.mem = mem = TestMemory(
-            self.regwid, self.addrwid, granularity=8)
+        m.submodules.mem = mem = TestMemory(regwid, addrwid, granularity=8)
 
         do_load = Signal()  # set when doing a load while valid and not stalled
         do_store = Signal() # set when doing a store while valid and not stalled
@@ -26,10 +29,12 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             do_store.eq(self.x_st_i & (self.x_valid_i & ~self.x_stall_i)),
             ]
         m.d.comb += [
-            mem.rdport.addr.eq(self.x_addr_i[2:]),
+            # load
+            mem.rdport.addr.eq(self.x_addr_i[adr_lsb:]),
             self.m_ld_data_o.eq(mem.rdport.data),
 
-            mem.wrport.addr.eq(self.x_addr_i[2:]),
+            # store
+            mem.wrport.addr.eq(self.x_addr_i[adr_lsb:]),
             mem.wrport.en.eq(Mux(do_store, self.x_mask_i, 0)),
             mem.wrport.data.eq(self.x_st_data_i)
             ]
