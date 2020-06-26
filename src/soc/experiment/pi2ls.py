@@ -37,7 +37,8 @@ class Pi2LSUI(Elaboratable):
         print ("pi2lsui reg mask addr", regwid, mask_wid, addrwid)
         self.addrbits = mask_wid
         if pi is None:
-            pi = PortInterface(name="%s_pi", regwid=regwid, addrwid=addrwid)
+            piname = "%s_pi" % name
+            pi = PortInterface(piname, regwid=regwid, addrwid=addrwid)
         self.pi = pi
         if lsui is None:
             lsui = LoadStoreUnitInterface(addrwid, self.addrbits, regwid)
