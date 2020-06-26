@@ -31,8 +31,9 @@ from nmigen import Elaboratable, Module, Signal
 
 class Pi2LSUI(Elaboratable):
 
-    def __init__(self, name, pi=None, lsui=None, regwid=64, addrwid=48):
-        self.addrbits = 4
+    def __init__(self, name, pi=None, lsui=None,
+                             regwid=64, mask_wid=8, addrwid=48):
+        self.addrbits = mask_wid
         if pi is None:
             pi = PortInterface(name="%s_pi", regwid=regwid, addrwid=addrwid)
         self.pi = pi
@@ -52,6 +53,7 @@ class Pi2LSUI(Elaboratable):
 
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
+        m.d.comb += pi.busy_o.eq(lsui.x_busy_o)
 
         with m.If(pi.addr.ok):
             # expand the LSBs of address plus LD/ST len into 16-bit mask

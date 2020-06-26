@@ -124,10 +124,11 @@ class TestPIMem(unittest.TestCase):
 
     def test_pi2ls(self):
         m = Module()
-        regwid = 32
-        addrwid = 32
+        regwid = 64
+        addrwid = 48
         m.submodules.dut = dut = Pi2LSUI("mem", regwid=regwid, addrwid=addrwid)
         m.submodules.lsmem = lsmem = TestMemLoadStoreUnit(addr_wid=addrwid,
+                                                          mask_wid=8,
                                                           data_wid=regwid)
 
         # Connect inputs
