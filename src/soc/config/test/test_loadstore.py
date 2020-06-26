@@ -14,6 +14,7 @@ def write_to_addr(dut, addr, value):
     yield dut.x_mask_i.eq(-1)
     yield dut.x_valid_i.eq(1)
     yield dut.x_stall_i.eq(1)
+    yield dut.m_valid_i.eq(1)
     yield
     yield
     
@@ -46,7 +47,9 @@ def write_byte(dut, addr, val):
     yield dut.x_st_i.eq(1)
     yield dut.x_st_data_i.eq(val << (offset * 8))
     yield dut.x_mask_i.eq(1 << offset)
+    print ("write_byte", addr, hex(1<<offset), hex(val<<(offset*8)))
     yield dut.x_valid_i.eq(1)
+    yield dut.m_valid_i.eq(1)
 
     yield
     yield dut.x_st_i.eq(0)
@@ -66,6 +69,7 @@ def read_byte(dut, addr):
         yield
     assert (yield dut.x_valid_i)
     val = (yield dut.m_ld_data_o)
+    print ("read_byte", addr, offset, hex(val))
     return (val >> (offset * 8)) & 0xff
 
 
@@ -73,7 +77,7 @@ def tst_lsmemtype(ifacetype):
     m = Module()
     Pspec = namedtuple('Pspec', ['ldst_ifacetype',
                                  'addr_wid', 'mask_wid', 'reg_wid'])
-    pspec = Pspec(ldst_ifacetype=ifacetype, addr_wid=64, mask_wid=4, reg_wid=64)
+    pspec = Pspec(ldst_ifacetype=ifacetype, addr_wid=64, mask_wid=4, reg_wid=32)
     dut = ConfigLoadStoreUnit(pspec).lsi
     m.submodules.dut = dut
 
@@ -87,14 +91,16 @@ def tst_lsmemtype(ifacetype):
         for addr, val in enumerate(values):
             yield from write_to_addr(dut, addr << 2, val)
             x = yield from read_from_addr(dut, addr << 2)
-            print ("addr, val", addr, val, x)
+            print ("addr, val", addr, hex(val), hex(x))
             assert x == val
 
         values = [random.randint(0, 255) for x in range(16*4)]
         for addr, val in enumerate(values):
             yield from write_byte(dut, addr, val)
-        for addr, val in enumerate(values):
+            x = yield from read_from_addr(dut, addr << 2)
+            print ("addr, val", addr, hex(val), hex(x))
             x = yield from read_byte(dut, addr)
+            print ("addr, val", addr, hex(val), hex(x))
             assert x == val
 
     sim.add_sync_process(process)
@@ -102,5 +108,5 @@ def tst_lsmemtype(ifacetype):
         sim.run()
 
 if __name__ == '__main__':
-    tst_lsmemtype('testmem')
     tst_lsmemtype('test_bare_wb')
+    tst_lsmemtype('testmem')
