@@ -84,7 +84,7 @@ def l0_cache_ld(dut, addr, datalen, expected):
     yield port1.pi.addr.ok.eq(1)  # set ok
     yield Settle()
     yield from wait_addr(port1)             # wait until addr ok
-
+    yield
     yield from wait_ldok(port1)             # wait until ld ok
     data = yield port1.pi.ld.data
 

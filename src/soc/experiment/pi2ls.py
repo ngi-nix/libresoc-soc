@@ -51,6 +51,8 @@ class Pi2LSUI(Elaboratable):
         pi, lsui, addrbits = self.pi, self.lsui, self.addrbits
         m.submodules.lenexp = lenexp = LenExpand(self.addrbits, 8)
 
+        ld_in_progress = Signal(reset=0)
+
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
         m.d.comb += pi.busy_o.eq(lsui.x_busy_o)
@@ -68,10 +70,20 @@ class Pi2LSUI(Elaboratable):
 
         with m.If(pi.is_ld_i):
             m.d.comb += pi.ld.data.eq(lsui.m_ld_data_o)
-            m.d.comb += pi.ld.ok.eq(1) # TODO whether this should be one cycle
+            # remember we're in the process of loading
+            m.d.sync += ld_in_progress.eq(1)
+
+        # If a load happened on the previous cycle and the memory is
+        # not busy, that means it returned the data from the load. In
+        # that case ld.ok should be set andwe can clear the
+        # ld_in_progress flag
+        with m.If(ld_in_progress & ~lsui.x_busy_o):
+            m.d.comb += pi.ld.ok.eq(1)
+            m.d.sync += ld_in_progress.eq(0)
+        with m.Else():
+            m.d.comb += pi.ld.ok.eq(0)
 
         with m.If(pi.is_st_i & pi.st.ok):
             m.d.comb += lsui.x_st_data_i.eq(pi.st.data)
 
         return m
-
