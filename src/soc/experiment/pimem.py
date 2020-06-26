@@ -205,7 +205,9 @@ class TestMemoryPortInterface(Elaboratable):
     """
 
     def __init__(self, regwid=64, addrwid=4):
-        self.mem = TestMemory(regwid, addrwid, granularity=regwid//8)
+        # hard-code memory addressing width to 6 bits
+        self.mem = TestMemory(regwid, 6, granularity=regwid//8,
+                              init=False)
         self.regwid = regwid
         self.addrwid = addrwid
         self.pi = LDSTPort(0, regwid, addrwid)

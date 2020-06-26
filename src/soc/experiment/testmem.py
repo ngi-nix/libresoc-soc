@@ -2,13 +2,17 @@ from nmigen import Module, Elaboratable, Memory
 
 
 class TestMemory(Elaboratable):
-    def __init__(self, regwid, addrw, granularity=None):
+    def __init__(self, regwid, addrw, granularity=None, init=True):
         self.ddepth = 1 # regwid //8
         depth = (1<<addrw) // self.ddepth
         self.depth = depth
         self.regwid = regwid
-        self.mem   = Memory(width=regwid, depth=depth,
-                            init=range(0, depth*2, 2))
+        print ("test memory", regwid, depth)
+        if init is True:
+            init = range(0, depth*2, 2)
+        else:
+            init = None
+        self.mem = Memory(width=regwid, depth=depth, init=init)
         self.rdport = self.mem.read_port() # not now transparent=False)
         self.wrport = self.mem.write_port(granularity=granularity)
 
