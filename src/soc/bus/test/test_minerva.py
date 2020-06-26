@@ -8,7 +8,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         super().__init__(addr_wid, mask_wid, data_wid)
 
     def elaborate(self, platform):
-        m = Module()
+        m = super().elaborate(platform)
         comb = m.d.comb
         # small 32-entry Memory
         memory = Memory(width=self.addr_wid, depth=32)

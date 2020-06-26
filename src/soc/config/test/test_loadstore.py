@@ -86,8 +86,8 @@ def tst_lsmemtype(ifacetype):
 
         for addr, val in enumerate(values):
             yield from write_to_addr(dut, addr << 2, val)
-        for addr, val in enumerate(values):
             x = yield from read_from_addr(dut, addr << 2)
+            print ("addr, val", addr, val, x)
             assert x == val
 
         values = [random.randint(0, 255) for x in range(16*4)]
