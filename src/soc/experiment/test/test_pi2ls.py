@@ -21,7 +21,7 @@ def wait_addr(port):
     while True:
         addr_ok = yield port.pi.addr_ok_o
         print("addrok", addr_ok)
-        if not addr_ok:
+        if addr_ok:
             break
         yield
 
@@ -50,6 +50,7 @@ def l0_cache_st(dut, addr, data, datalen):
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok
+    yield Settle()
     yield from wait_addr(port1)             # wait until addr ok
     # yield # not needed, just for checking
     # yield # not needed, just for checking
@@ -81,6 +82,7 @@ def l0_cache_ld(dut, addr, datalen, expected):
 
     yield port1.pi.addr.data.eq(addr)  # set address
     yield port1.pi.addr.ok.eq(1)  # set ok
+    yield Settle()
     yield from wait_addr(port1)             # wait until addr ok
 
     yield from wait_ldok(port1)             # wait until ld ok
@@ -101,9 +103,16 @@ def l0_cache_ldst(arg, dut):
     data2 = 0xf00f
     #data = 0x4
     yield from l0_cache_st(dut, 0x2, data, 2)
+    yield
+    yield
     yield from l0_cache_st(dut, 0x4, data2, 2)
+    yield
+    yield
     result = yield from l0_cache_ld(dut, 0x2, 2, data)
+    yield
+    yield
     result2 = yield from l0_cache_ld(dut, 0x4, 2, data2)
+    yield
     yield
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
