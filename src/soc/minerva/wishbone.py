@@ -15,8 +15,8 @@ class Cycle:
 
 
 def make_wb_layout(addr_wid, mask_wid, data_wid):
-    adr_lsbs = log2_int_mask_wid)        # LSBs of addr covered by mask
-    badwid = addr_wid-log2_int(adr_lsbs) # MSBs (not covered by mask)
+    adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
+    badwid = addr_wid-adr_lsbs    # MSBs (not covered by mask)
 
     return [
     ("adr",   badwid  , DIR_FANOUT),

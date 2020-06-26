@@ -1,6 +1,6 @@
 from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory, Signal, Module
-from soc.minerva.units.loadstore import BareLoadStoreUnit, CacheLoadStoreUnit
+from soc.minerva.units.loadstore import BareLoadStoreUnit, CachedLoadStoreUnit
 
 
 class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):

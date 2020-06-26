@@ -3,7 +3,7 @@ from nmigen.utils import log2_int
 from nmigen.lib.fifo import SyncFIFO
 
 from soc.minerva.cache import L1Cache
-from soc.minerva.wishbone import wishbone_layout, WishboneArbiter, Cycle
+from soc.minerva.wishbone import make_wb_layout, WishboneArbiter, Cycle
 
 
 __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
@@ -12,12 +12,12 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 
 class LoadStoreUnitInterface:
     def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
-        self.dbus = Record(mk_wb_layout(addr_wid, mask_wid, data_wid))
+        self.dbus = Record(make_wb_layout(addr_wid, mask_wid, data_wid))
         self.mask_wid = mask_wid
         self.addr_wid = addr_wid
         self.data_wid = data_wid
-        self.adr_lsbs = log2_int_mask_wid) # LSBs of addr covered by mask
-        badwid = addr_wid-log2_int(self.adr_lsbs) # TODO: is this correct?
+        self.adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
+        badwid = addr_wid-self.adr_lsbs    # TODO: is this correct?
 
         # INPUTS
         self.x_addr_i = Signal(addr_wid)    # address used for loads/stores

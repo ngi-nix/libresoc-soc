@@ -2,24 +2,23 @@ from soc.minerva.units.loadstore import LoadStoreUnitInterface
 from nmigen import Signal, Module, Elaboratable, Mux
 from nmigen.utils import log2_int
 from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
-import random
-
-from nmigen.back.pysim import Simulator, Settle
+from nmigen.cli import rtlil
 
 
 class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
-    def __init__(self, regwid, addrwid, mask_wid=4):
+    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
         super().__init__()
-        self.regwid = regwid
-        self.addrwid = addrwid
+        self.regwid = data_wid
+        self.addrwid = addr_wid
         self.mask_wid = mask_wid
 
     def elaborate(self, platform):
         m = Module()
         regwid, addrwid, mask_wid = self.regwid, self.addrwid, self.mask_wid
-        adr_lsb = log2_int(mask_wid)
+        adr_lsb = self.adr_lsbs
 
-        m.submodules.mem = mem = TestMemory(regwid, addrwid, granularity=8)
+        # limit TestMemory to 2^6 entries of regwid size
+        m.submodules.mem = mem = TestMemory(regwid, 6, granularity=8)
 
         do_load = Signal()  # set when doing a load while valid and not stalled
         do_store = Signal() # set when doing a store while valid and not stalled
@@ -42,93 +41,9 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         return m
 
 
-def write_to_addr(dut, addr, value):
-    yield dut.x_addr_i.eq(addr)
-    yield dut.x_st_data_i.eq(value)
-    yield dut.x_st_i.eq(1)
-    yield dut.x_mask_i.eq(-1)
-    yield dut.x_valid_i.eq(1)
-    yield dut.x_stall_i.eq(1)
-    yield
-    yield
-    
-    yield dut.x_stall_i.eq(0)
-    yield
-    yield dut.x_st_i.eq(0)
-    while (yield dut.x_stall_i):
-        yield
-
-
-def read_from_addr(dut, addr):
-    yield dut.x_addr_i.eq(addr)
-    yield dut.x_ld_i.eq(1)
-    yield dut.x_valid_i.eq(1)
-    yield dut.x_stall_i.eq(1)
-    yield
-    yield dut.x_stall_i.eq(0)
-    yield
-    yield dut.x_ld_i.eq(0)
-    yield Settle()
-    while (yield dut.x_stall_i):
-        yield
-    assert (yield dut.x_valid_i)
-    return (yield dut.m_ld_data_o)
-
-
-def write_byte(dut, addr, val):
-    offset = addr & 0x3
-    yield dut.x_addr_i.eq(addr)
-    yield dut.x_st_i.eq(1)
-    yield dut.x_st_data_i.eq(val << (offset * 8))
-    yield dut.x_mask_i.eq(1 << offset)
-    yield dut.x_valid_i.eq(1)
-
-    yield
-    yield dut.x_st_i.eq(0)
-    while (yield dut.x_stall_i):
-        yield
-
-
-def read_byte(dut, addr):
-    offset = addr & 0x3
-    yield dut.x_addr_i.eq(addr)
-    yield dut.x_ld_i.eq(1)
-    yield dut.x_valid_i.eq(1)
-    yield
-    yield dut.x_ld_i.eq(0)
-    yield Settle()
-    while (yield dut.x_stall_i):
-        yield
-    assert (yield dut.x_valid_i)
-    val = (yield dut.m_ld_data_o)
-    return (val >> (offset * 8)) & 0xff
-
-
 if __name__ == '__main__':
-    m = Module()
     dut = TestMemLoadStoreUnit(regwid=32, addrwid=4)
-    m.submodules.dut = dut
+    vl = rtlil.convert(dut, ports=[]) # TODOdut.ports())
+    with open("test_lsmem.il", "w") as f:
+        f.write(vl)
 
-    sim = Simulator(m)
-    sim.add_clock(1e-6)
-
-    def process():
-
-        values = [random.randint(0, (1<<32)-1) for x in range(16)]
-
-        for addr, val in enumerate(values):
-            yield from write_to_addr(dut, addr << 2, val)
-        for addr, val in enumerate(values):
-            x = yield from read_from_addr(dut, addr << 2)
-            assert x == val
-
-        values = [random.randint(0, 255) for x in range(16*4)]
-        for addr, val in enumerate(values):
-            yield from write_byte(dut, addr, val)
-        for addr, val in enumerate(values):
-            x = yield from read_byte(dut, addr)
-            assert x == val
-
-    sim.add_sync_process(process)
-    with sim.write_vcd("lsmem.vcd", "lsmem.gtkw", traces=[]):
-        sim.run()

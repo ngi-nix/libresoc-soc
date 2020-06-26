@@ -3,14 +3,14 @@
 allows the type of LoadStoreUnit to be run-time selectable
 
 """
-from soc.experiment.pimem import TestMemoryLoadStoreUnit
+from soc.experiment.lsmem import TestMemLoadStoreUnit
 from soc.bus.test.test_minerva import TestSRAMBareLoadStoreUnit
 
 
-class ConfigureableLoadStoreUnit:
+class ConfigLoadStoreUnit:
     def __init__(self, pspec):
-        lsidict = {'testmem': TestMemoryLoadStoreUnit,
-                   'test_bare_wb': TestBareLoadStoreUnit,
+        lsidict = {'testmem': TestMemLoadStoreUnit,
+                   'test_bare_wb': TestSRAMBareLoadStoreUnit,
                    #'test_cache_wb': TestCacheLoadStoreUnit
                   }
         lsikls = lsidict[pspec.ldst_ifacetype]
