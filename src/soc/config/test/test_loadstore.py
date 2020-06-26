@@ -5,6 +5,7 @@ import random
 from nmigen.back.pysim import Simulator, Settle
 from soc.config.loadstore import ConfigLoadStoreUnit
 from collections import namedtuple
+from nmigen.cli import rtlil
 
 
 def write_to_addr(dut, addr, value):
@@ -21,7 +22,7 @@ def write_to_addr(dut, addr, value):
     yield dut.x_stall_i.eq(0)
     yield
     yield dut.x_st_i.eq(0)
-    while (yield dut.x_stall_i):
+    while (yield dut.x_busy_o):
         yield
 
 
@@ -35,7 +36,7 @@ def read_from_addr(dut, addr):
     yield
     yield dut.x_ld_i.eq(0)
     yield Settle()
-    while (yield dut.x_stall_i):
+    while (yield dut.x_busy_o):
         yield
     assert (yield dut.x_valid_i)
     return (yield dut.m_ld_data_o)
@@ -44,16 +45,16 @@ def read_from_addr(dut, addr):
 def write_byte(dut, addr, val):
     offset = addr & 0x3
     yield dut.x_addr_i.eq(addr)
-    yield dut.x_st_i.eq(1)
     yield dut.x_st_data_i.eq(val << (offset * 8))
+    yield dut.x_st_i.eq(1)
     yield dut.x_mask_i.eq(1 << offset)
-    print ("write_byte", addr, hex(1<<offset), hex(val<<(offset*8)))
+    print ("write_byte", addr, bin(1<<offset), hex(val<<(offset*8)))
     yield dut.x_valid_i.eq(1)
     yield dut.m_valid_i.eq(1)
 
     yield
     yield dut.x_st_i.eq(0)
-    while (yield dut.x_stall_i):
+    while (yield dut.x_busy_o):
         yield
 
 
@@ -65,7 +66,7 @@ def read_byte(dut, addr):
     yield
     yield dut.x_ld_i.eq(0)
     yield Settle()
-    while (yield dut.x_stall_i):
+    while (yield dut.x_busy_o):
         yield
     assert (yield dut.x_valid_i)
     val = (yield dut.m_ld_data_o)
@@ -79,6 +80,10 @@ def tst_lsmemtype(ifacetype):
                                  'addr_wid', 'mask_wid', 'reg_wid'])
     pspec = Pspec(ldst_ifacetype=ifacetype, addr_wid=64, mask_wid=4, reg_wid=32)
     dut = ConfigLoadStoreUnit(pspec).lsi
+    vl = rtlil.convert(dut, ports=[]) # TODOdut.ports())
+    with open("test_loadstore_%s.il" % ifacetype, "w") as f:
+        f.write(vl)
+
     m.submodules.dut = dut
 
     sim = Simulator(m)
@@ -86,20 +91,20 @@ def tst_lsmemtype(ifacetype):
 
     def process():
 
-        values = [random.randint(0, (1<<32)-1) for x in range(16)]
-
-        for addr, val in enumerate(values):
-            yield from write_to_addr(dut, addr << 2, val)
-            x = yield from read_from_addr(dut, addr << 2)
-            print ("addr, val", addr, hex(val), hex(x))
-            assert x == val
-
         values = [random.randint(0, 255) for x in range(16*4)]
         for addr, val in enumerate(values):
             yield from write_byte(dut, addr, val)
             x = yield from read_from_addr(dut, addr << 2)
             print ("addr, val", addr, hex(val), hex(x))
             x = yield from read_byte(dut, addr)
+            print ("addr, val", addr, hex(val), hex(x))
+            assert x == val
+
+        values = [random.randint(0, (1<<32)-1) for x in range(16)]
+
+        for addr, val in enumerate(values):
+            yield from write_to_addr(dut, addr << 2, val)
+            x = yield from read_from_addr(dut, addr << 2)
             print ("addr, val", addr, hex(val), hex(x))
             assert x == val
 
