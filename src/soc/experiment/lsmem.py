@@ -20,8 +20,8 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         # limit TestMemory to 2^6 entries of regwid size
         m.submodules.mem = mem = TestMemory(regwid, 6, granularity=8)
 
-        do_load = Signal()  # set when doing a load while valid and not stalled
-        do_store = Signal() # set when doing a store while valid and not stalled
+        do_load = Signal()  # set when load while valid and not stalled
+        do_store = Signal() # set when store while valid and not stalled
 
         m.d.comb += [
             do_load.eq(self.x_ld_i & (self.x_valid_i & ~self.x_stall_i)),
