@@ -64,7 +64,7 @@ class Pi2LSUI(Elaboratable):
 
         with m.If(pi.is_ld_i):
             m.d.comb += pi.ld.data.eq(lsui.m_ld_data_o)
-            #m.d.comb += pi.ld.ok.eq(TODO)
+            m.d.comb += pi.ld.ok.eq(1) # TODO whether this should be one cycle
 
         with m.If(pi.is_st_i & pi.st.ok):
             m.d.comb += lsui.x_st_data_i.eq(pi.st.data)
