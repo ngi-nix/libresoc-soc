@@ -103,17 +103,9 @@ def l0_cache_ldst(arg, dut):
     data2 = 0xf00f
     #data = 0x4
     yield from l0_cache_st(dut, 0x2, data, 2)
-    yield
-    yield
     yield from l0_cache_st(dut, 0x4, data2, 2)
-    yield
-    yield
     result = yield from l0_cache_ld(dut, 0x2, 2, data)
-    yield
-    yield
     result2 = yield from l0_cache_ld(dut, 0x4, 2, data2)
-    yield
-    yield
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
