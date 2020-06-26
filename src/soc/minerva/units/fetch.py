@@ -1,8 +1,8 @@
 from nmigen import Elaboratable, Module, Signal, Record, Const, Mux
 from nmigen.utils import log2_int
 
-from ..cache import L1Cache
-from ..wishbone import wishbone_layout, WishboneArbiter, Cycle
+from soc.minerva.cache import L1Cache
+from soc.minerva.wishbone import wishbone_layout, WishboneArbiter, Cycle
 
 
 __all__ = ["PCSelector", "FetchUnitInterface", "BareFetchUnit",
@@ -130,7 +130,8 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         a_icache_select = Signal()
         f_icache_select = Signal()
 
-        m.d.comb += a_icache_select.eq((self.a_pc >= icache.base) & (self.a_pc < icache.limit))
+        m.d.comb += a_icache_select.eq((self.a_pc >= icache.base) &
+                                        (self.a_pc < icache.limit))
         with m.If(~self.a_stall):
             m.d.sync += f_icache_select.eq(a_icache_select)
 
