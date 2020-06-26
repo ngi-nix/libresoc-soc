@@ -66,7 +66,7 @@ class Pi2LSUI(Elaboratable):
             m.d.comb += lenexp.addr_i.eq(lsbaddr) # LSBs of addr
             m.d.comb += lsui.x_mask_i.eq(lenexp.lexp_o)
             # pass through the address, indicate "valid"
-            m.d.comb += lsui.x_addr_i.eq(msbaddr) # XXX hmmm...
+            m.d.comb += lsui.x_addr_i.eq(pi.addr.data) # XXX hmmm...
             m.d.comb += lsui.x_valid_i.eq(1)
             # indicate "OK" - XXX should be checking address valid
             m.d.comb += pi.addr_ok_o.eq(1)
