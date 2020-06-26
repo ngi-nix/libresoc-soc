@@ -34,6 +34,7 @@ class Pi2LSUI(Elaboratable):
 
     def __init__(self, name, pi=None, lsui=None,
                              regwid=64, mask_wid=8, addrwid=48):
+        print ("pi2lsui reg mask addr", regwid, mask_wid, addrwid)
         self.addrbits = mask_wid
         if pi is None:
             pi = PortInterface(name="%s_pi", regwid=regwid, addrwid=addrwid)

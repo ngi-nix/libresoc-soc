@@ -6,15 +6,10 @@ from nmigen.cli import rtlil
 
 
 class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
-    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
-        super().__init__()
-        self.regwid = data_wid
-        self.addrwid = addr_wid
-        self.mask_wid = mask_wid
 
     def elaborate(self, platform):
         m = Module()
-        regwid, addrwid, mask_wid = self.regwid, self.addrwid, self.mask_wid
+        regwid, addrwid, mask_wid = self.data_wid, self.addr_wid, self.mask_wid
         adr_lsb = self.adr_lsbs
 
         # limit TestMemory to 2^6 entries of regwid size
