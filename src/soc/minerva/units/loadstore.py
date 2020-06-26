@@ -13,7 +13,11 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 class LoadStoreUnitInterface:
     def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
         self.dbus = Record(wishbone_layout)
-        badwid = addr_wid-log2_int(mask_wid) # TODO: is this correct?
+        self.mask_wid = mask_wid
+        self.addr_wid = addr_wid
+        self.data_wid = data_wid
+        self.adr_lsbs = log2_int_mask_wid) # LSBs of addr covered by mask
+        badwid = addr_wid-log2_int(self.adr_lsbs) # TODO: is this correct?
 
         # INPUTS
         self.x_addr_i = Signal(addr_wid)    # address used for loads/stores
@@ -61,7 +65,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             m.d.sync += [
                 self.dbus.cyc.eq(1),
                 self.dbus.stb.eq(1),
-                self.dbus.adr.eq(self.x_addr_i[2:]),
+                self.dbus.adr.eq(self.x_addr_i[self.adr_lsbs:]),
                 self.dbus.sel.eq(self.x_mask_i),
                 self.dbus.we.eq(self.x_st_i),
                 self.dbus.dat_w.eq(self.x_st_data_i)
@@ -90,14 +94,14 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
 
 
 class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
-    def __init__(self, *dcache_args):
-        super().__init__()
+    def __init__(self, *dcache_args, addr_wid=32, mask_wid=4, data_wid=32):
+        super().__init__(addr_wid, mask_wid, data_wid)
 
         self.dcache_args = dcache_args
 
         self.x_fence_i = Signal()
         self.x_flush = Signal()
-        self.m_addr = Signal(32)
+        self.m_addr = Signal(addr_wid)
         self.m_load = Signal()
         self.m_store = Signal()
 
@@ -115,23 +119,25 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             m.d.sync += m_dcache_select.eq(x_dcache_select)
 
         m.d.comb += [
-            dcache.s1_addr.eq(self.x_addr_i[2:]),
+            dcache.s1_addr.eq(self.x_addr_i[self.adr_lsbs:]),
             dcache.s1_flush.eq(self.x_flush),
             dcache.s1_stall.eq(self.x_stall_i),
             dcache.s1_valid.eq(self.x_valid_i & x_dcache_select),
-            dcache.s2_addr.eq(self.m_addr[2:]),
+            dcache.s2_addr.eq(self.m_addr[self.adr_lsbs:]),
             dcache.s2_re.eq(self.m_load),
             dcache.s2_evict.eq(self.m_store),
             dcache.s2_valid.eq(self.m_valid_i & m_dcache_select)
         ]
 
-        wrbuf_w_data = Record([("addr", 30), ("mask", 4), ("data", 32)])
+        wrbuf_w_data = Record([("addr", self.addr_wid-self.adr_lsbs),
+                               ("mask", self.mask_wid),
+                               ("data", self.data_wid)])
         wrbuf_r_data = Record.like(wrbuf_w_data)
         wrbuf = m.submodules.wrbuf = SyncFIFO(width=len(wrbuf_w_data),
                                               depth=dcache.nwords)
         m.d.comb += [
             wrbuf.w_data.eq(wrbuf_w_data),
-            wrbuf_w_data.addr.eq(self.x_addr_i[2:]),
+            wrbuf_w_data.addr.eq(self.x_addr_i[self.adr_lsbs:]),
             wrbuf_w_data.mask.eq(self.x_mask_i),
             wrbuf_w_data.data.eq(self.x_st_data_i),
             wrbuf.w_en.eq(self.x_st_i & self.x_valid_i &
@@ -187,7 +193,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             m.d.sync += [
                 bare_port.cyc.eq(1),
                 bare_port.stb.eq(1),
-                bare_port.adr.eq(self.x_addr_i[2:]),
+                bare_port.adr.eq(self.x_addr_i[self.adr_lsbs:]),
                 bare_port.sel.eq(self.x_mask_i),
                 bare_port.we.eq(self.x_st_i),
                 bare_port.dat_w.eq(self.x_st_data_i)
