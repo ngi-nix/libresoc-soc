@@ -12,7 +12,9 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 
 class LoadStoreUnitInterface:
     def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
+        print ("loadstoreunit addr mask data", addr_wid, mask_wid, data_wid)
         self.dbus = Record(make_wb_layout(addr_wid, mask_wid, data_wid))
+        print (self.dbus.sel.shape())
         self.mask_wid = mask_wid
         self.addr_wid = addr_wid
         self.data_wid = data_wid
@@ -69,6 +71,14 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                 self.dbus.sel.eq(self.x_mask_i),
                 self.dbus.we.eq(self.x_st_i),
                 self.dbus.dat_w.eq(self.x_st_data_i)
+            ]
+        with m.Else():
+            m.d.sync += [
+                self.dbus.adr.eq(0),
+                self.dbus.sel.eq(0),
+                self.dbus.we.eq(0),
+                self.dbus.sel.eq(0),
+                self.dbus.dat_w.eq(0),
             ]
 
         with m.If(self.dbus.cyc & self.dbus.err):
