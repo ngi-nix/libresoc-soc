@@ -122,7 +122,6 @@ class TestPIMem(unittest.TestCase):
         run_simulation(dut, {"sync": l0_cache_ldst(self, dut)},
                        vcd_name='test_pi_mem_basic.vcd')
 
-    @unittest.skip("broken")
     def test_pi2ls(self):
         m = Module()
         regwid = 32
