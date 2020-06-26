@@ -5,7 +5,8 @@ from ..cache import L1Cache
 from ..wishbone import wishbone_layout, WishboneArbiter, Cycle
 
 
-__all__ = ["PCSelector", "FetchUnitInterface", "BareFetchUnit", "CachedFetchUnit"]
+__all__ = ["PCSelector", "FetchUnitInterface", "BareFetchUnit",
+            "CachedFetchUnit"]
 
 
 class PCSelector(Elaboratable):
@@ -36,9 +37,11 @@ class PCSelector(Elaboratable):
             m.d.comb += self.a_pc.eq(self.mtvec_r_base << 2)
         with m.Elif(self.m_mret & self.m_valid):
             m.d.comb += self.a_pc.eq(self.mepc_r_base << 2)
-        with m.Elif(self.m_branch_predict_taken & ~self.m_branch_taken & self.m_valid):
+        with m.Elif(self.m_branch_predict_taken & ~self.m_branch_taken &
+                    self.m_valid):
             m.d.comb += self.a_pc.eq(self.x_pc)
-        with m.Elif(~self.m_branch_predict_taken & self.m_branch_taken & self.m_valid):
+        with m.Elif(~self.m_branch_predict_taken & self.m_branch_taken &
+                    self.m_valid):
             m.d.comb += self.a_pc.eq(self.m_branch_target),
         with m.Elif(self.x_fence_i & self.x_valid):
             m.d.comb += self.a_pc.eq(self.d_pc)
@@ -145,16 +148,16 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         ibus_arbiter = m.submodules.ibus_arbiter = WishboneArbiter()
         m.d.comb += ibus_arbiter.bus.connect(self.ibus)
 
-        icache_port = ibus_arbiter.port(priority=0)
+        icache_pt = ibus_arbiter.port(priority=0)
         m.d.comb += [
-            icache_port.cyc.eq(icache.bus_re),
-            icache_port.stb.eq(icache.bus_re),
-            icache_port.adr.eq(icache.bus_addr),
-            icache_port.cti.eq(Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT)),
-            icache_port.bte.eq(Const(log2_int(icache.nwords) - 1)),
-            icache.bus_valid.eq(icache_port.ack),
-            icache.bus_error.eq(icache_port.err),
-            icache.bus_rdata.eq(icache_port.dat_r)
+            icache_pt.cyc.eq(icache.bus_re),
+            icache_pt.stb.eq(icache.bus_re),
+            icache_pt.adr.eq(icache.bus_addr),
+            icache_pt.cti.eq(Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT)),
+            icache_pt.bte.eq(Const(log2_int(icache.nwords) - 1)),
+            icache.bus_valid.eq(icache_pt.ack),
+            icache.bus_error.eq(icache_pt.err),
+            icache.bus_rdata.eq(icache_pt.dat_r)
         ]
 
         bare_port = ibus_arbiter.port(priority=1)
