@@ -10,9 +10,10 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        m.submodules.mem = memory = Memory(width=addr_wid, depth=16)
+        # small 32-entry Memory
+        memory = Memory(width=self.addr_wid, depth=32)
         m.submodules.sram = sram = SRAM(memory=memory, granularity=8,
-                                        features=set('cti', 'bte', 'err'))
+                                        features={'cti', 'bte', 'err'})
         dbus = self.dbus
 
         # directly connect the wishbone bus of LoadStoreUnitInterface to SRAM
@@ -20,7 +21,8 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         fanouts = ['adr', 'dat_w', 'sel', 'cyc', 'stb', 'we', 'cti', 'bte']
         fanins = ['dat_r', 'ack', 'err']
         for fanout in fanouts:
-            comb += getattr(sram.bus, fanout).eq(getattr(dbus))
+            comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
         for fanin in fanins:
-            comb += getattr(dbus, fanin).eq(getattr(sram.bus))
+            comb += getattr(dbus, fanin).eq(getattr(sram.bus, fanin))
 
+        return m

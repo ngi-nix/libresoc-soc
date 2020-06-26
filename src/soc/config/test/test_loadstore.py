@@ -69,11 +69,11 @@ def read_byte(dut, addr):
     return (val >> (offset * 8)) & 0xff
 
 
-if __name__ == '__main__':
+def tst_lsmemtype(ifacetype):
     m = Module()
     Pspec = namedtuple('Pspec', ['ldst_ifacetype',
                                  'addr_wid', 'mask_wid', 'reg_wid'])
-    pspec = Pspec(ldst_ifacetype='testmem', addr_wid=64, mask_wid=3, reg_wid=64)
+    pspec = Pspec(ldst_ifacetype=ifacetype, addr_wid=64, mask_wid=4, reg_wid=64)
     dut = ConfigLoadStoreUnit(pspec).lsi
     m.submodules.dut = dut
 
@@ -98,6 +98,9 @@ if __name__ == '__main__':
             assert x == val
 
     sim.add_sync_process(process)
-    with sim.write_vcd("test_loadstore_tm.vcd", traces=[]):
+    with sim.write_vcd("test_loadstore_%s.vcd" % ifacetype, traces=[]):
         sim.run()
 
+if __name__ == '__main__':
+    tst_lsmemtype('testmem')
+    tst_lsmemtype('test_bare_wb')
