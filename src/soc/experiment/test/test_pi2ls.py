@@ -66,7 +66,7 @@ def l0_cache_st(dut, addr, data, datalen):
     # yield from wait_busy(port1, False)    # wait until not busy
 
 
-def l0_cache_ld(dut, addr, datalen, expected):
+def l0_cache_ld(dut, addr, datalen):
 
     if isinstance(dut.pi, Record):
         port1 = dut
@@ -104,11 +104,15 @@ def l0_cache_ldst(arg, dut):
     #data = 0x4
     yield from l0_cache_st(dut, 0x2, data, 2)
     yield from l0_cache_st(dut, 0x4, data2, 2)
-    result = yield from l0_cache_ld(dut, 0x2, 2, data)
-    result2 = yield from l0_cache_ld(dut, 0x4, 2, data2)
+    result = yield from l0_cache_ld(dut, 0x2, 2)
+    result2 = yield from l0_cache_ld(dut, 0x4, 2)
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
+    # now load both
+    data3 = data | (data2 << 16)
+    result3 = yield from l0_cache_ld(dut, 0x2, 4)
+    arg.assertEqual(data3, result3, "data3 %x != %x" % (result3, data3))
 
 
 class TestPIMem(unittest.TestCase):
