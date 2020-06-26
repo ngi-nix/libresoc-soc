@@ -34,9 +34,9 @@ class Pi2LSUI(Elaboratable):
     def __init__(self, name, pi=None, lsui=None, regwid=64, addrwid=48):
         self.addrbits = 4
         if pi is None:
-            pi = PortInterface(name="%s_pi", regwid, addrwid)
+            pi = PortInterface(name="%s_pi", regwid=regwid, addrwid=addrwid)
         self.pi = pi
-        if lsui = None:
+        if lsui is None:
             lsui = LoadStoreUnitInterface(addrwid, self.addrbits, regwid)
         self.lsui = lsui
 
@@ -70,3 +70,4 @@ class Pi2LSUI(Elaboratable):
             m.d.comb += lsui.x_st_data_i.eq(pi.st.data)
 
         return m
+
