@@ -1,9 +1,10 @@
 from nmigen import Array, Elaboratable, Module, Record, Signal
 from nmigen.hdl.rec import DIR_FANIN, DIR_FANOUT, DIR_NONE
 from nmigen.lib.coding import PriorityEncoder
+from nmigen.utils import log2_int
 
 
-__all__ = ["Cycle", "wishbone_layout", "WishboneArbiter"]
+__all__ = ["Cycle", "wishbone_layout", "make_wb_layout", "WishboneArbiter"]
 
 
 class Cycle:
@@ -13,19 +14,25 @@ class Cycle:
     END       = 7
 
 
-wishbone_layout = [
-    ("adr",   30, DIR_FANOUT),
-    ("dat_w", 32, DIR_FANOUT),
-    ("dat_r", 32, DIR_FANIN),
-    ("sel",    4, DIR_FANOUT),
-    ("cyc",    1, DIR_FANOUT),
-    ("stb",    1, DIR_FANOUT),
-    ("ack",    1, DIR_FANIN),
-    ("we",     1, DIR_FANOUT),
-    ("cti",    3, DIR_FANOUT),
-    ("bte",    2, DIR_FANOUT),
-    ("err",    1, DIR_FANIN)
-]
+def make_wb_layout(addr_wid, mask_wid, data_wid):
+    adr_lsbs = log2_int_mask_wid)        # LSBs of addr covered by mask
+    badwid = addr_wid-log2_int(adr_lsbs) # MSBs (not covered by mask)
+
+    return [
+    ("adr",   badwid  , DIR_FANOUT),
+    ("dat_w", data_wid, DIR_FANOUT),
+    ("dat_r", data_wid, DIR_FANIN),
+    ("sel",   mask_wid, DIR_FANOUT),
+    ("cyc",           1, DIR_FANOUT),
+    ("stb",           1, DIR_FANOUT),
+    ("ack",           1, DIR_FANIN),
+    ("we",            1, DIR_FANOUT),
+    ("cti",           3, DIR_FANOUT),
+    ("bte",           2, DIR_FANOUT),
+    ("err",           1, DIR_FANIN)
+    ]
+
+wishbone_layout = make_wb_layout(32, 4, 32)
 
 
 class WishboneArbiter(Elaboratable):

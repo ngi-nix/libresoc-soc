@@ -12,7 +12,7 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 
 class LoadStoreUnitInterface:
     def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
-        self.dbus = Record(wishbone_layout)
+        self.dbus = Record(mk_wb_layout(addr_wid, mask_wid, data_wid))
         self.mask_wid = mask_wid
         self.addr_wid = addr_wid
         self.data_wid = data_wid
