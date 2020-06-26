@@ -98,20 +98,21 @@ def l0_cache_ld(dut, addr, datalen):
 
 def l0_cache_ldst(arg, dut):
     yield
-    addr = 0x2
+    addr1 = 0x04
+    addr2 = addr1 + 0x2
     data = 0xbeef
     data2 = 0xf00f
     #data = 0x4
-    yield from l0_cache_st(dut, 0x2, data, 2)
-    yield from l0_cache_st(dut, 0x4, data2, 2)
-    result = yield from l0_cache_ld(dut, 0x2, 2)
-    result2 = yield from l0_cache_ld(dut, 0x4, 2)
+    yield from l0_cache_st(dut, addr1, data, 2)
+    yield from l0_cache_st(dut, addr2, data2, 2)
+    result = yield from l0_cache_ld(dut, addr1, 2)
+    result2 = yield from l0_cache_ld(dut, addr2, 2)
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
     # now load both
     data3 = data | (data2 << 16)
-    result3 = yield from l0_cache_ld(dut, 0x2, 4)
+    result3 = yield from l0_cache_ld(dut, addr1, 4)
     arg.assertEqual(data3, result3, "data3 %x != %x" % (result3, data3))
 
 
@@ -131,11 +132,13 @@ class TestPIMem(unittest.TestCase):
         m = Module()
         regwid = 64
         addrwid = 48
-        m.submodules.dut = dut = Pi2LSUI("mem", regwid=regwid, addrwid=addrwid)
         m.submodules.lsmem = lsmem = TestMemLoadStoreUnit(addr_wid=addrwid,
                                                           mask_wid=8,
                                                           data_wid=regwid)
+        m.submodules.dut = dut = Pi2LSUI("mem", lsui=lsmem,
+                                         regwid=regwid, addrwid=addrwid)
 
+        """ passing in lsmem to Pi2LSUI means this isn't needed
         # Connect inputs
         m.d.comb += [lsmem.x_addr_i.eq(dut.lsui.x_addr_i),
                      lsmem.x_mask_i.eq(dut.lsui.x_mask_i),
@@ -147,13 +150,14 @@ class TestPIMem(unittest.TestCase):
                      lsmem.m_stall_i.eq(dut.lsui.m_stall_i),
                      lsmem.m_valid_i.eq(dut.lsui.m_valid_i)]
 
+        # connect outputs
         m.d.comb += [dut.lsui.x_busy_o.eq(lsmem.x_busy_o),
                      dut.lsui.m_busy_o.eq(lsmem.m_busy_o),
                      dut.lsui.m_ld_data_o.eq(lsmem.m_ld_data_o),
                      dut.lsui.m_load_err_o.eq(lsmem.m_load_err_o),
                      dut.lsui.m_store_err_o.eq(lsmem.m_store_err_o),
                      dut.lsui.m_badaddr_o.eq(lsmem.m_badaddr_o)]
-
+        """
         run_simulation(m, {"sync": l0_cache_ldst(self, dut)},
                        vcd_name='test_pi2ls.vcd')
 
