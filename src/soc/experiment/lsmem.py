@@ -22,14 +22,29 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             do_load.eq(self.x_ld_i & (self.x_valid_i & ~self.x_stall_i)),
             do_store.eq(self.x_st_i & (self.x_valid_i & ~self.x_stall_i)),
             ]
+        # bit of a messy FSM that progresses from idle to in progress
+        # to done.
+        op_actioned = Signal(reset=0)
+        op_in_progress = Signal(reset=0)
+        with m.If(~op_actioned & (do_load | do_store)): # idle
+            m.d.sync += op_actioned.eq(1)
+            m.d.sync += op_in_progress.eq(1)
+        with m.Elif(op_in_progress):                    # in progress
+            m.d.sync += op_actioned.eq(0)
+        with m.If(~(do_load | do_store)):               # done
+            m.d.sync += op_in_progress.eq(0)
+
+        m.d.comb += self.x_busy_o.eq(op_actioned & self.x_valid_i)
+
         m.d.comb += [
             # load
             mem.rdport.addr.eq(self.x_addr_i[adr_lsb:]),
             self.m_ld_data_o.eq(mem.rdport.data),
 
-            # store
+            # store - only activates once
             mem.wrport.addr.eq(self.x_addr_i[adr_lsb:]),
-            mem.wrport.en.eq(Mux(do_store, self.x_mask_i, 0)),
+            mem.wrport.en.eq(Mux(do_store & ~op_actioned,
+                                 self.x_mask_i, 0)),
             mem.wrport.data.eq(self.x_st_data_i)
             ]
 
