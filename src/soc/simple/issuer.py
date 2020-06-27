@@ -30,9 +30,9 @@ class TestIssuer(Elaboratable):
 
     efficiency and speed is not the main goal here: functional correctness is.
     """
-    def __init__(self, addrwid=6, idepth=6):
+    def __init__(self, addrwid=6, idepth=6, ifacetype='testpi'):
         # main instruction core
-        self.core = core = NonProductionCore(addrwid)
+        self.core = core = NonProductionCore(addrwid, ifacetype=ifacetype)
 
         # Test Instruction memory
         self.imem = TestMemory(32, idepth)

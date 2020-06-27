@@ -244,7 +244,7 @@ class L0CacheBuffer(Elaboratable):
 
         with m.If(idx_l.q):
             comb += self.pimem.connect_port(port)
-            with m.If(~self.pimem.pi.pi.busy_o):
+            with m.If(~self.pimem.pi.busy_o):
                 comb += reset_l.s.eq(1) # reset when no longer busy
 
         # ugly hack, due to simultaneous addr req-go acknowledge
@@ -278,7 +278,7 @@ class TstL0CacheBuffer(Elaboratable):
         m.submodules.pimem = self.pimem
         m.submodules.l0 = self.l0
         if hasattr(self.cmpi, 'lsmem'): # hmmm not happy about this
-            dut.submodules.lsmem = self.cmpi.lsmem.lsi
+            m.submodules.lsmem = self.cmpi.lsmem.lsi
 
         return m
 
@@ -341,7 +341,7 @@ def l0_cache_st(dut, addr, data, datalen):
     # can go straight to reset.
     yield port1.is_st_i.eq(0)  # end
     yield port1.addr.ok.eq(0)  # set !ok
-    # yield from wait_busy(port1, False)    # wait until not busy
+    yield from wait_busy(port1, False)    # wait until not busy
 
 
 def l0_cache_ld(dut, addr, datalen, expected):
@@ -368,7 +368,7 @@ def l0_cache_ld(dut, addr, datalen, expected):
     # cleanup
     yield port1.is_ld_i.eq(0)  # end
     yield port1.addr.ok.eq(0)  # set !ok
-    # yield from wait_busy(port1, no=False)    # wait until not busy
+    yield from wait_busy(port1, no=False)    # wait until not busy
 
     return data
 

@@ -49,6 +49,9 @@ class Pi2LSUI(Elaboratable):
         """
         return addr[:self.addrbits], addr[self.addrbits:]
 
+    def connect_port(self, inport):
+        return self.pi.connect_port(inport)
+
     def elaborate(self, platform):
         m = Module()
         pi, lsui, addrbits = self.pi, self.lsui, self.addrbits

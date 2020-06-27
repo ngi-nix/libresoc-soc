@@ -53,9 +53,10 @@ def sort_fuspecs(fuspecs):
 
 
 class NonProductionCore(Elaboratable):
-    def __init__(self, addrwid=6, idepth=16):
+    def __init__(self, addrwid=6, idepth=16, ifacetype='testpi'):
         # single LD/ST funnel for memory access
-        self.l0 = TstL0CacheBuffer(n_units=1, regwid=64, addrwid=addrwid)
+        self.l0 = TstL0CacheBuffer(n_units=1, regwid=64,
+                                   addrwid=addrwid, ifacetype=ifacetype)
         pi = self.l0.l0.dports[0]
 
         # function units (only one each)

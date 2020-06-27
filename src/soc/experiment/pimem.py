@@ -120,6 +120,21 @@ class PortInterface(RecordObject):
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
+    def connect_port(self, inport):
+        print ("connect_port", self, inport)
+        return [self.is_ld_i.eq(inport.is_ld_i),
+                self.is_st_i.eq(inport.is_st_i),
+                self.data_len.eq(inport.data_len),
+                self.go_die_i.eq(inport.go_die_i),
+                self.addr.data.eq(inport.addr.data),
+                self.addr.ok.eq(inport.addr.ok),
+                self.st.eq(inport.st),
+                inport.ld.eq(self.ld),
+                inport.busy_o.eq(self.busy_o),
+                inport.addr_ok_o.eq(self.addr_ok_o),
+                inport.addr_exc_o.eq(self.addr_exc_o),
+                ]
+
 
 class LDSTPort(Elaboratable):
     def __init__(self, idx, regwid=64, addrwid=48):
@@ -210,7 +225,8 @@ class TestMemoryPortInterface(Elaboratable):
                               init=False)
         self.regwid = regwid
         self.addrwid = addrwid
-        self.pi = LDSTPort(0, regwid, addrwid)
+        self.lpi = LDSTPort(0, regwid, addrwid)
+        self.pi = self.lpi.pi
 
     @property
     def addrbits(self):
@@ -222,7 +238,7 @@ class TestMemoryPortInterface(Elaboratable):
         return addr[:self.addrbits], addr[self.addrbits:]
 
     def connect_port(self, inport):
-        return self.pi.connect_port(inport)
+        return self.lpi.connect_port(inport)
 
     def elaborate(self, platform):
         m = Module()
@@ -232,7 +248,7 @@ class TestMemoryPortInterface(Elaboratable):
         m.submodules.mem = self.mem
 
         # connect the ports as modules
-        m.submodules.port0 = self.pi
+        m.submodules.port0 = self.lpi
 
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
@@ -245,7 +261,7 @@ class TestMemoryPortInterface(Elaboratable):
 
         lds = Signal(reset_less=True)
         sts = Signal(reset_less=True)
-        pi = self.pi.pi
+        pi = self.pi
         comb += lds.eq(pi.is_ld_i & pi.busy_o)  # ld-req signals
         comb += sts.eq(pi.is_st_i & pi.busy_o)  # st-req signals
 
