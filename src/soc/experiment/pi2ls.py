@@ -75,7 +75,7 @@ class Pi2LSUI(Elaboratable):
             # indicate "OK" - XXX should be checking address valid
             m.d.comb += pi.addr_ok_o.eq(1)
 
-        with m.If(pi.is_ld_i):
+        with m.If(pi.is_ld_i & pi.addr.ok):
             # shift/mask out the loaded data
             m.d.comb += pi.ld.data.eq((lsui.m_ld_data_o & lenexp.rexp_o) >>
                                       (lenexp.addr_i*8))
