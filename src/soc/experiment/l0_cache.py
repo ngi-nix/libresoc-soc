@@ -38,7 +38,7 @@ from soc.scoreboard.addr_match import LenExpand
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.loadstore import ConfigMemoryPortInterface
 from soc.experiment.pimem import PortInterface
-
+from soc.config.test.test_pi2ls import pi_ld, pi_st, pi_ldst
 import unittest
 
 
@@ -315,77 +315,16 @@ def wait_ldok(port):
 
 
 def l0_cache_st(dut, addr, data, datalen):
-    l0 = dut.l0
-    mem = dut.pimem
-    port0 = l0.dports[0]
-    port1 = l0.dports[1]
-
-    # have to wait until not busy
-    yield from wait_busy(port1, no=False)    # wait until not busy
-
-    # set up a ST on the port.  address first:
-    yield port1.is_st_i.eq(1)  # indicate ST
-    yield port1.data_len.eq(datalen)  # ST length (1/2/4/8)
-
-    yield port1.addr.data.eq(addr)  # set address
-    yield port1.addr.ok.eq(1)  # set ok
-    yield from wait_addr(port1)             # wait until addr ok
-    # yield # not needed, just for checking
-    # yield # not needed, just for checking
-    # assert "ST" for one cycle (required by the API)
-    yield port1.st.data.eq(data)
-    yield port1.st.ok.eq(1)
-    yield
-    yield port1.st.ok.eq(0)
-
-    # can go straight to reset.
-    yield port1.is_st_i.eq(0)  # end
-    yield port1.addr.ok.eq(0)  # set !ok
-    yield from wait_busy(port1, False)    # wait until not busy
+    return pi_st(dut.l0, addr, datalen)
 
 
 def l0_cache_ld(dut, addr, datalen, expected):
-
-    l0 = dut.l0
-    mem = dut.pimem
-    port1 = l0.dports[0]
-    port2 = l0.dports[2]
-
-    # have to wait until not busy
-    yield from wait_busy(port1, no=False)    # wait until not busy
-
-    # set up a LD on the port.  address first:
-    yield port1.is_ld_i.eq(1)  # indicate LD
-    yield port1.data_len.eq(datalen)  # LD length (1/2/4/8)
-
-    yield port1.addr.data.eq(addr)  # set address
-    yield port1.addr.ok.eq(1)  # set ok
-    yield from wait_addr(port1)             # wait until addr ok
-
-    yield from wait_ldok(port1)             # wait until ld ok
-    data = yield port1.ld.data
-
-    # cleanup
-    yield port1.is_ld_i.eq(0)  # end
-    yield port1.addr.ok.eq(0)  # set !ok
-    yield from wait_busy(port1, no=False)    # wait until not busy
-
-    return data
+    return pi_ld(dut.l0, addr, datalen)
 
 
 def l0_cache_ldst(arg, dut):
-    yield
-    addr = 0x2
-    data = 0xbeef
-    data2 = 0xf00f
-    #data = 0x4
-    yield from l0_cache_st(dut, 0x2, data, 2)
-    yield from l0_cache_st(dut, 0x4, data2, 2)
-    result = yield from l0_cache_ld(dut, 0x2, 2, data)
-    result2 = yield from l0_cache_ld(dut, 0x4, 2, data2)
-    yield
-    arg.assertEqual(data, result, "data %x != %x" % (result, data))
-    arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
+    port0 = dut.l0.dports[0]
+    return pi_ldst(arg, port0)
 
 
 def data_merger_merge(dut):
@@ -413,15 +352,25 @@ def data_merger_merge(dut):
 
 class TestL0Cache(unittest.TestCase):
 
-    def test_l0_cache(self):
+    def test_l0_cache_test_bare_wb(self):
 
-        dut = TstL0CacheBuffer(regwid=64)
-        #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_basic_l0_cache.il", "w") as f:
-        #    f.write(vl)
+        dut = TstL0CacheBuffer(regwid=64, ifacetype='test_bare_wb')
+        vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
+        with open("test_basic_l0_cache_bare_wb.il", "w") as f:
+            f.write(vl)
 
         run_simulation(dut, l0_cache_ldst(self, dut),
-                       vcd_name='test_l0_cache_basic.vcd')
+                       vcd_name='test_l0_cache_basic_bare_wb.vcd')
+
+    def test_l0_cache_testpi(self):
+
+        dut = TstL0CacheBuffer(regwid=64, ifacetype='testpi')
+        vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
+        with open("test_basic_l0_cache.il", "w") as f:
+            f.write(vl)
+
+        run_simulation(dut, l0_cache_ldst(self, dut),
+                       vcd_name='test_l0_cache_basic_testpi.vcd')
 
 
 class TestDataMerger(unittest.TestCase):
