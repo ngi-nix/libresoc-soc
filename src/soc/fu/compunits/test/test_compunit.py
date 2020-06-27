@@ -160,7 +160,8 @@ class TestRunner(FHDLTestCase):
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
             m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
-                                                    addrwid=3)
+                                                    addrwid=3,
+                                                    ifacetype='test_bare_wb')
             pi = l0.l0.dports[0]
             m.submodules.cu = cu = self.fukls(pi, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
