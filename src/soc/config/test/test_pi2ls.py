@@ -145,6 +145,9 @@ class TestPIMem(unittest.TestCase):
     def test_pi2ls(self):
         tst_config_pi(self, 'testmem')
 
+    def test_pi2ls_bare_wb(self):
+        tst_config_pi(self, 'test_bare_wb')
+
 
 if __name__ == '__main__':
     unittest.main(exit=False)
