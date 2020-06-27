@@ -7,6 +7,8 @@ from soc.config.loadstore import ConfigLoadStoreUnit
 from collections import namedtuple
 from nmigen.cli import rtlil
 
+TestMemPspec = namedtuple('TestMemPspec', ['ldst_ifacetype',
+                             'addr_wid', 'mask_wid', 'reg_wid'])
 
 def write_to_addr(dut, addr, value):
     yield dut.x_addr_i.eq(addr)
@@ -76,9 +78,9 @@ def read_byte(dut, addr):
 
 def tst_lsmemtype(ifacetype):
     m = Module()
-    Pspec = namedtuple('Pspec', ['ldst_ifacetype',
-                                 'addr_wid', 'mask_wid', 'reg_wid'])
-    pspec = Pspec(ldst_ifacetype=ifacetype, addr_wid=64, mask_wid=4, reg_wid=32)
+    pspec = TestMemPspec(ldst_ifacetype=ifacetype, addr_wid=64,
+                                                   mask_wid=4,
+                                                   reg_wid=32)
     dut = ConfigLoadStoreUnit(pspec).lsi
     vl = rtlil.convert(dut, ports=[]) # TODOdut.ports())
     with open("test_loadstore_%s.il" % ifacetype, "w") as f:

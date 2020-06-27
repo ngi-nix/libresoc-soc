@@ -4,9 +4,9 @@ from nmigen.compat.sim import run_simulation, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.experiment.pi2ls import Pi2LSUI
-from soc.experiment.lsmem import TestMemLoadStoreUnit
-from soc.experiment.pimem import TestMemoryPortInterface
+from soc.config.test.test_loadstore import TestMemPspec
+from soc.config.loadstore import ConfigMemoryPortInterface
+
 
 def wait_busy(port, no=False):
     while True:
@@ -97,7 +97,8 @@ def l0_cache_ld(dut, addr, datalen):
 
 
 def l0_cache_ldst(arg, dut):
-    yield
+
+    # do two half-word stores at consecutive addresses, then two loads
     addr1 = 0x04
     addr2 = addr1 + 0x2
     data = 0xbeef
@@ -110,56 +111,41 @@ def l0_cache_ldst(arg, dut):
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
-    # now load both
+    # now load both in a 32-bit load to make sure they're really consecutive
     data3 = data | (data2 << 16)
     result3 = yield from l0_cache_ld(dut, addr1, 4)
     arg.assertEqual(data3, result3, "data3 %x != %x" % (result3, data3))
 
 
+def tst_config_pi(testcls, ifacetype):
+    """set up a configureable memory test of type ifacetype
+    """
+    dut = Module()
+    pspec = TestMemPspec(ldst_ifacetype=ifacetype,
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64)
+    cmpi = ConfigMemoryPortInterface(pspec)
+    dut.submodules.pi = cmpi.pi
+    if hasattr(cmpi, 'lsmem'): # hmmm not happy about this
+        dut.submodules.lsmem = cmpi.lsmem.lsi
+    vl = rtlil.convert(dut, ports=[])#dut.ports())
+    with open("test_pi_%s.il" % ifacetype, "w") as f:
+        f.write(vl)
+
+    run_simulation(dut, {"sync": l0_cache_ldst(testcls, cmpi.pi)},
+                   vcd_name='test_pi_%s.vcd' % ifacetype)
+
+
 class TestPIMem(unittest.TestCase):
 
     def test_pi_mem(self):
-
-        dut = TestMemoryPortInterface(regwid=64)
-        #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_basic_l0_cache.il", "w") as f:
-        #    f.write(vl)
-
-        run_simulation(dut, {"sync": l0_cache_ldst(self, dut)},
-                       vcd_name='test_pi_mem_basic.vcd')
+        tst_config_pi(self, 'testpi')
 
     def test_pi2ls(self):
-        m = Module()
-        regwid = 64
-        addrwid = 48
-        m.submodules.lsmem = lsmem = TestMemLoadStoreUnit(addr_wid=addrwid,
-                                                          mask_wid=8,
-                                                          data_wid=regwid)
-        m.submodules.dut = dut = Pi2LSUI("mem", lsui=lsmem,
-                                         regwid=regwid, addrwid=addrwid)
+        tst_config_pi(self, 'testmem')
 
-        """ passing in lsmem to Pi2LSUI means this isn't needed
-        # Connect inputs
-        m.d.comb += [lsmem.x_addr_i.eq(dut.lsui.x_addr_i),
-                     lsmem.x_mask_i.eq(dut.lsui.x_mask_i),
-                     lsmem.x_ld_i.eq(dut.lsui.x_ld_i),
-                     lsmem.x_st_i.eq(dut.lsui.x_st_i),
-                     lsmem.x_st_data_i.eq(dut.lsui.x_st_data_i),
-                     lsmem.x_stall_i.eq(dut.lsui.x_stall_i),
-                     lsmem.x_valid_i.eq(dut.lsui.x_valid_i),
-                     lsmem.m_stall_i.eq(dut.lsui.m_stall_i),
-                     lsmem.m_valid_i.eq(dut.lsui.m_valid_i)]
-
-        # connect outputs
-        m.d.comb += [dut.lsui.x_busy_o.eq(lsmem.x_busy_o),
-                     dut.lsui.m_busy_o.eq(lsmem.m_busy_o),
-                     dut.lsui.m_ld_data_o.eq(lsmem.m_ld_data_o),
-                     dut.lsui.m_load_err_o.eq(lsmem.m_load_err_o),
-                     dut.lsui.m_store_err_o.eq(lsmem.m_store_err_o),
-                     dut.lsui.m_badaddr_o.eq(lsmem.m_badaddr_o)]
-        """
-        run_simulation(m, {"sync": l0_cache_ldst(self, dut)},
-                       vcd_name='test_pi2ls.vcd')
 
 if __name__ == '__main__':
     unittest.main(exit=False)
+

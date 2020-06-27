@@ -33,15 +33,15 @@ from nmigen import Elaboratable, Module, Signal
 class Pi2LSUI(Elaboratable):
 
     def __init__(self, name, pi=None, lsui=None,
-                             regwid=64, mask_wid=8, addrwid=48):
-        print ("pi2lsui reg mask addr", regwid, mask_wid, addrwid)
+                             data_wid=64, mask_wid=8, addr_wid=48):
+        print ("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
         self.addrbits = mask_wid
         if pi is None:
             piname = "%s_pi" % name
-            pi = PortInterface(piname, regwid=regwid, addrwid=addrwid)
+            pi = PortInterface(piname, regwid=data_wid, addrwid=addr_wid)
         self.pi = pi
         if lsui is None:
-            lsui = LoadStoreUnitInterface(addrwid, self.addrbits, regwid)
+            lsui = LoadStoreUnitInterface(addr_wid, self.addrbits, data_wid)
         self.lsui = lsui
 
     def splitaddr(self, addr):
