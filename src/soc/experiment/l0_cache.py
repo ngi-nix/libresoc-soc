@@ -35,9 +35,9 @@ from soc.scoreboard.addr_split import LDSTSplitter
 from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
-from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
-# TODO: from soc.experiment.testmem import TestMemoryLoadStoreUnit
-from soc.experiment.pimem import PortInterface, TestMemoryPortInterface
+from soc.config.test.test_loadstore import TestMemPspec
+from soc.config.loadstore import ConfigMemoryPortInterface
+from soc.experiment.pimem import PortInterface
 
 import unittest
 
@@ -264,14 +264,21 @@ class L0CacheBuffer(Elaboratable):
 
 
 class TstL0CacheBuffer(Elaboratable):
-    def __init__(self, n_units=3, regwid=16, addrwid=4):
-        self.pimem = TestMemoryPortInterface(regwid, addrwid<<1)
+    def __init__(self, n_units=3, regwid=16, addrwid=4, ifacetype='testpi'):
+        pspec = TestMemPspec(ldst_ifacetype=ifacetype,
+                             addr_wid=addrwid,
+                             mask_wid=8,
+                             reg_wid=regwid)
+        self.cmpi = ConfigMemoryPortInterface(pspec)
+        self.pimem = self.cmpi.pi
         self.l0 = L0CacheBuffer(n_units, self.pimem, regwid, addrwid<<1)
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.pimem = self.pimem
         m.submodules.l0 = self.l0
+        if hasattr(self.cmpi, 'lsmem'): # hmmm not happy about this
+            dut.submodules.lsmem = self.cmpi.lsmem.lsi
 
         return m
 
