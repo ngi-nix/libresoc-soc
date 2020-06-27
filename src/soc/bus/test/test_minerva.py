@@ -11,7 +11,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         m = super().elaborate(platform)
         comb = m.d.comb
         # small 16-entry Memory
-        memory = Memory(width=self.data_wid, depth=16)
+        self.mem = memory = Memory(width=self.data_wid, depth=16)
         m.submodules.sram = sram = SRAM(memory=memory, granularity=8,
                                         features={'cti', 'bte', 'err'})
         dbus = self.dbus

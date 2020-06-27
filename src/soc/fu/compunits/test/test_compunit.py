@@ -103,8 +103,13 @@ def get_inp_indexed(cu, inp):
             res[i] = inp[wrop]
     return res
 
+def get_l0_mem(l0): # BLECH!
+    if hasattr(l0.pimem, 'lsui'):
+        return l0.pimem.lsui.mem
+    return l0.pimem.mem.mem
+
 def setup_test_memory(l0, sim):
-    mem = l0.pimem.mem.mem
+    mem = get_l0_mem(l0)
     print ("before, init mem", mem.depth, mem.width, mem)
     for i in range(mem.depth):
         data = sim.mem.ld(i*8, 8, False)
@@ -120,7 +125,7 @@ def setup_test_memory(l0, sim):
 
 
 def check_sim_memory(dut, l0, sim, code):
-    mem = l0.pimem.mem.mem
+    mem = get_l0_mem(l0)
     print ("sim mem dump")
     for k, v in sim.mem.mem.items():
         print ("    %6x %016x" % (k, v))
@@ -161,7 +166,7 @@ class TestRunner(FHDLTestCase):
             from soc.experiment.l0_cache import TstL0CacheBuffer
             m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
                                                     addrwid=3,
-                                                    ifacetype='test_bare_wb')
+                                                    ifacetype='testpi')
             pi = l0.l0.dports[0]
             m.submodules.cu = cu = self.fukls(pi, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
