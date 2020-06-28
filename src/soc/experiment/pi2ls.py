@@ -44,10 +44,12 @@ class Pi2LSUI(PortInterfaceBase):
     def set_wr_addr(self, m, addr, mask):
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
+        m.d.comb += self.lsui.x_valid_i.eq(1)
 
     def set_rd_addr(self, m, addr, mask):
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
+        m.d.comb += self.lsui.x_valid_i.eq(1)
 
     def set_wr_data(self, m, data, wen): # mask already done in addr setup
         m.d.comb += self.lsui.x_st_data_i.eq(data)
@@ -58,6 +60,10 @@ class Pi2LSUI(PortInterfaceBase):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
+        pi, lsui, addrbits = self.pi, self.lsui, self.addrbits
+
+        m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
+        m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
 
         return m
 
