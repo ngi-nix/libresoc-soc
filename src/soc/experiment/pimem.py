@@ -17,7 +17,7 @@ Links:
 
 from nmigen.compat.sim import run_simulation, Settle
 from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Array, Cat
+from nmigen import Module, Signal, Mux, Elaboratable, Array, Cat, Const
 from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
 from nmigen.hdl.rec import Record, Layout
@@ -178,9 +178,10 @@ class TestMemoryPortInterface(Elaboratable):
     def set_wr_data(self, m, data, wen):
         m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
         m.d.comb += self.mem.wrport.en.eq(wen) # enable writes
+        return Const(1, 1)
 
-    def rd_data(self):
-        return self.mem.rdport.data
+    def get_rd_data(self, m):
+        return self.mem.rdport.data, Const(1, 1)
 
     def elaborate(self, platform):
         m = Module()
@@ -249,11 +250,12 @@ class TestMemoryPortInterface(Elaboratable):
             # shift data down before pushing out.  requires masking
             # from the *byte*-expanded version of LenExpand output
             lddata = Signal(self.regwid, reset_less=True)
-            comb += lddata.eq((self.rd_data() & lenexp.rexp_o) >>
+            data, ldok = self.get_rd_data(m)
+            comb += lddata.eq((data & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
             comb += pi.ld.data.eq(lddata)  # put data out
-            comb += pi.ld.ok.eq(1)           # indicate data valid
-            comb += reset_l.s.eq(1)   # reset mode after 1 cycle
+            comb += pi.ld.ok.eq(ldok)      # indicate data valid
+            comb += reset_l.s.eq(ldok)     # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
         with m.If(st_active.q & pi.st.ok):
@@ -263,8 +265,8 @@ class TestMemoryPortInterface(Elaboratable):
             comb += stdata.eq(pi.st.data << (lenexp.addr_i*8))
             # TODO: replace with link to LoadStoreUnitInterface.x_store_data
             # and also handle the ready/stall/busy protocol
-            self.set_wr_data(m, stdata, lenexp.lexp_o)
-            comb += reset_l.s.eq(1)   # reset mode after 1 cycle
+            stok = self.set_wr_data(m, stdata, lenexp.lexp_o)
+            comb += reset_l.s.eq(stok)   # reset mode after 1 cycle
 
         # ugly hack, due to simultaneous addr req-go acknowledge
         reset_delay = Signal(reset_less=True)
