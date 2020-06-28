@@ -58,29 +58,35 @@ class Pi2LSUI(Elaboratable):
         m.submodules.lenexp = lenexp = LenExpand(log2_int(self.addrbits), 8)
 
         ld_in_progress = Signal(reset=0)
+        st_in_progress = Signal(reset=0)
 
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
-        m.d.comb += pi.busy_o.eq(lsui.x_busy_o)
+        m.d.comb += pi.busy_o.eq(pi.is_ld_i | pi.is_st_i)#lsui.x_busy_o)
+
+        lsbaddr, msbaddr = self.splitaddr(pi.addr.data)
+        m.d.comb += lenexp.len_i.eq(pi.data_len)
+        m.d.comb += lenexp.addr_i.eq(lsbaddr) # LSBs of addr
+        m.d.comb += lsui.x_addr_i.eq(pi.addr.data) # XXX hmmm...
 
         with m.If(pi.addr.ok):
             # expand the LSBs of address plus LD/ST len into 16-bit mask
-            lsbaddr, msbaddr = self.splitaddr(pi.addr.data)
-            m.d.comb += lenexp.len_i.eq(pi.data_len)
-            m.d.comb += lenexp.addr_i.eq(lsbaddr) # LSBs of addr
             m.d.comb += lsui.x_mask_i.eq(lenexp.lexp_o)
             # pass through the address, indicate "valid"
-            m.d.comb += lsui.x_addr_i.eq(pi.addr.data) # XXX hmmm...
             m.d.comb += lsui.x_valid_i.eq(1)
             # indicate "OK" - XXX should be checking address valid
             m.d.comb += pi.addr_ok_o.eq(1)
 
-        with m.If(pi.is_ld_i & pi.addr.ok):
+        with m.If(~lsui.x_busy_o & pi.is_st_i & pi.addr.ok):
+                m.d.sync += st_in_progress.eq(1)
+
+        with m.If(pi.is_ld_i):
             # shift/mask out the loaded data
             m.d.comb += pi.ld.data.eq((lsui.m_ld_data_o & lenexp.rexp_o) >>
                                       (lenexp.addr_i*8))
             # remember we're in the process of loading
-            m.d.sync += ld_in_progress.eq(1)
+            with m.If(pi.addr.ok):
+                m.d.sync += ld_in_progress.eq(1)
 
         # If a load happened on the previous cycle and the memory is
         # not busy, that means it returned the data from the load. In
@@ -94,5 +100,9 @@ class Pi2LSUI(Elaboratable):
 
         with m.If(pi.is_st_i & pi.st.ok):
             m.d.comb += lsui.x_st_data_i.eq(pi.st.data << (lenexp.addr_i*8))
+            with m.If(st_in_progress):
+                m.d.sync += st_in_progress.eq(0)
+            with m.Else():
+                m.d.comb += pi.busy_o.eq(0)
 
         return m
