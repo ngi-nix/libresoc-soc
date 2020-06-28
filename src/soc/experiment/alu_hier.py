@@ -227,7 +227,7 @@ class ALU(Elaboratable):
         with m.Else():
             # sequential ALU handshake:
             # ready_o responds to valid_i, but only if the ALU is idle
-            m.d.comb += self.p.ready_o.eq(self.p.valid_i & alu_idle)
+            m.d.comb += self.p.ready_o.eq(alu_idle)
             # select the internally generated valid_o, above
             m.d.comb += self.n.valid_o.eq(alu_done)
 
