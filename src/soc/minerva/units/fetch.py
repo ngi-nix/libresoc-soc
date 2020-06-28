@@ -75,13 +75,13 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
 
 
 class CachedFetchUnit(FetchUnitInterface, Elaboratable):
-    def __init__(self, *icache_args):
-        super().__init__()
+    def __init__(self, *icache_args, addr_wid=32, data_wid=32):
+        super().__init__(addr_wid=addr_wid, data_wid=data_wid)
 
         self.icache_args = icache_args
 
         self.a_flush = Signal()
-        self.f_pc = Signal(32)
+        self.f_pc = Signal(addr_wid)
 
     def elaborate(self, platform):
         m = Module()
