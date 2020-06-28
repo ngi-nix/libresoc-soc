@@ -155,8 +155,9 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             wrbuf_r_data.eq(wrbuf.r_data),
         ]
 
-        dbus_arbiter = m.submodules.dbus_arbiter = WishboneArbiter()
-        m.d.comb += dbus_arbiter.bus.connect(self.dbus)
+        dba = WishboneArbiter(self.addr_wid, self.mask_wid, self.data_wid)
+        m.submodules.dbus_arbiter = dba
+        m.d.comb += dba.bus.connect(self.dbus)
 
         wrbuf_port = dbus_arbiter.port(priority=0)
         with m.If(wrbuf_port.cyc):
@@ -176,7 +177,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             ]
         m.d.comb += wrbuf_port.we.eq(Const(1))
 
-        dcache_port = dbus_arbiter.port(priority=1)
+        dcache_port = dba.port(priority=1)
         cti = Mux(dcache.bus_last, Cycle.END, Cycle.INCREMENT)
         m.d.comb += [
             dcache_port.cyc.eq(dcache.bus_re),
@@ -189,7 +190,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             dcache.bus_rdata.eq(dcache_port.dat_r)
         ]
 
-        bare_port = dbus_arbiter.port(priority=2)
+        bare_port = dba.port(priority=2)
         bare_rdata = Signal.like(bare_port.dat_r)
         with m.If(bare_port.cyc):
             with m.If(bare_port.ack | bare_port.err | ~self.m_valid_i):

@@ -36,8 +36,8 @@ wishbone_layout = make_wb_layout(32, 4, 32)
 
 
 class WishboneArbiter(Elaboratable):
-    def __init__(self):
-        self.bus = Record(wishbone_layout)
+    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
+        self.bus = Record(make_wb_layout(addr_wid, mask_wid, data_wid))
         self._port_map = dict()
 
     def port(self, priority):

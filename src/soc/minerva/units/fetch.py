@@ -107,22 +107,24 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
             icache.s2_valid.eq(self.f_valid_i & f_icache_select)
         ]
 
-        ibus_arbiter = m.submodules.ibus_arbiter = WishboneArbiter()
-        m.d.comb += ibus_arbiter.bus.connect(self.ibus)
+        iba = WishboneArbiter(self.addr_wid, self.adr_lsbs, self.data_wid)
+        m.submodules.ibus_arbiter = iba
+        m.d.comb += iba.bus.connect(self.ibus)
 
-        icache_pt = ibus_arbiter.port(priority=0)
+        icache_port = iba.port(priority=0)
+        cti = Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT
         m.d.comb += [
-            icache_pt.cyc.eq(icache.bus_re),
-            icache_pt.stb.eq(icache.bus_re),
-            icache_pt.adr.eq(icache.bus_addr),
-            icache_pt.cti.eq(Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT)),
-            icache_pt.bte.eq(Const(log2_int(icache.nwords) - 1)),
-            icache.bus_valid.eq(icache_pt.ack),
-            icache.bus_error.eq(icache_pt.err),
-            icache.bus_rdata.eq(icache_pt.dat_r)
+            icache_port.cyc.eq(icache.bus_re),
+            icache_port.stb.eq(icache.bus_re),
+            icache_port.adr.eq(icache.bus_addr),
+            icache_port.cti.eq(cti),
+            icache_port.bte.eq(Const(log2_int(icache.nwords) - 1)),
+            icache.bus_valid.eq(icache_port.ack),
+            icache.bus_error.eq(icache_port.err),
+            icache.bus_rdata.eq(icache_port.dat_r)
         ]
 
-        bare_port = ibus_arbiter.port(priority=1)
+        bare_port = iba.port(priority=1)
         bare_rdata = Signal.like(bare_port.dat_r)
         with m.If(bare_port.cyc):
             with m.If(bare_port.ack | bare_port.err | ~self.f_valid_i):
