@@ -25,12 +25,44 @@
 from soc.minerva.units.loadstore import LoadStoreUnitInterface
 from soc.experiment.pimem import PortInterface
 from soc.scoreboard.addr_match import LenExpand
+from soc.experiment.pimem import PortInterfaceBase
 from nmigen.utils import log2_int
 
 from nmigen import Elaboratable, Module, Signal
 
 
-class Pi2LSUI(Elaboratable):
+class Pi2LSUI(PortInterfaceBase):
+
+    def __init__(self, name, lsui=None,
+                             data_wid=64, mask_wid=8, addr_wid=48):
+        print ("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
+        super().__init__(data_wid, addr_wid)
+        if lsui is None:
+            lsui = LoadStoreUnitInterface(addr_wid, self.addrbits, data_wid)
+        self.lsui = lsui
+
+    def set_wr_addr(self, m, addr, mask):
+        m.d.comb += self.lsui.x_mask_i.eq(mask)
+        m.d.comb += self.lsui.x_addr_i.eq(addr)
+
+    def set_rd_addr(self, m, addr, mask):
+        m.d.comb += self.lsui.x_mask_i.eq(mask)
+        m.d.comb += self.lsui.x_addr_i.eq(addr)
+
+    def set_wr_data(self, m, data, wen): # mask already done in addr setup
+        m.d.comb += self.lsui.x_st_data_i.eq(data)
+        return ~self.lsui.x_busy_o
+
+    def get_rd_data(self, m):
+        return self.lsui.m_ld_data_o, ~self.lsui.x_busy_o
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+
+        return m
+
+
+class Pi2LSUI1(Elaboratable):
 
     def __init__(self, name, pi=None, lsui=None,
                              data_wid=64, mask_wid=8, addr_wid=48):

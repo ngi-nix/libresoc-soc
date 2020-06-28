@@ -139,7 +139,7 @@ class PortInterfaceBase(Elaboratable):
 
     @property
     def addrbits(self):
-        return log2_int(self.mem.regwid//8)
+        return log2_int(self.regwid//8)
 
     def splitaddr(self, addr):
         """split the address into top and bottom bits of the memory granularity
@@ -149,8 +149,8 @@ class PortInterfaceBase(Elaboratable):
     def connect_port(self, inport):
         return self.pi.connect_port(inport)
 
-    def set_wr_addr(self, m, addr): pass
-    def set_rd_addr(self, m, addr): pass
+    def set_wr_addr(self, m, addr, mask): pass
+    def set_rd_addr(self, m, addr, mask): pass
     def set_wr_data(self, m, data, wen): pass
     def get_rd_data(self, m): pass
 
@@ -193,7 +193,7 @@ class PortInterfaceBase(Elaboratable):
             comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(pi.addr.ok & adrok_l.qn):
-                self.set_rd_addr(m, pi.addr.data) # addr ok, send thru
+                self.set_rd_addr(m, pi.addr.data, lenexp.lexp_o)
                 comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
@@ -297,7 +297,7 @@ class TestMemoryPortInterface(PortInterfaceBase):
         lsbaddr, msbaddr = self.splitaddr(addr)
         m.d.comb += self.mem.wrport.addr.eq(msbaddr)
 
-    def set_rd_addr(self, m, addr):
+    def set_rd_addr(self, m, addr, mask):
         lsbaddr, msbaddr = self.splitaddr(addr)
         m.d.comb += self.mem.rdport.addr.eq(msbaddr)
 
