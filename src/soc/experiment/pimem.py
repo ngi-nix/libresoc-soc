@@ -176,18 +176,7 @@ class LDSTPort(Elaboratable):
 
     def connect_port(self, inport):
         print ("connect_port", self.pi, inport)
-        return [self.pi.is_ld_i.eq(inport.is_ld_i),
-                self.pi.is_st_i.eq(inport.is_st_i),
-                self.pi.data_len.eq(inport.data_len),
-                self.pi.go_die_i.eq(inport.go_die_i),
-                self.pi.addr.data.eq(inport.addr.data),
-                self.pi.addr.ok.eq(inport.addr.ok),
-                self.pi.st.eq(inport.st),
-                inport.ld.eq(self.pi.ld),
-                inport.busy_o.eq(self.pi.busy_o),
-                inport.addr_ok_o.eq(self.pi.addr_ok_o),
-                inport.addr_exc_o.eq(self.pi.addr_exc_o),
-                ]
+        return self.pi.connect_port(inport)
 
     def __iter__(self):
         yield self.pi.is_ld_i
