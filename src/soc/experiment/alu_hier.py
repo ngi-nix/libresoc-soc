@@ -278,6 +278,10 @@ class ALU(Elaboratable):
         yield self.a
         yield self.b
         yield self.o
+        yield self.p.valid_i
+        yield self.p.ready_o
+        yield self.n.valid_o
+        yield self.n.ready_i
 
     def ports(self):
         return list(self)
