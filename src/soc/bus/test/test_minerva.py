@@ -11,7 +11,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         m = super().elaborate(platform)
         comb = m.d.comb
         # small 16-entry Memory
-        self.mem = memory = Memory(width=self.data_wid, depth=16)
+        self.mem = memory = Memory(width=self.data_wid, depth=32)
         m.submodules.sram = sram = SRAM(memory=memory, granularity=8,
                                         features={'cti', 'bte', 'err'})
         dbus = self.dbus
@@ -27,7 +27,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
             comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
         for fanin in fanins:
             comb += getattr(dbus, fanin).eq(getattr(sram.bus, fanin))
-        # SRAM is row-addressed, so ignore LSBs
-        comb += sram.bus.adr.eq(dbus.adr[self.adr_lsbs:])
+        # connect address
+        comb += sram.bus.adr.eq(dbus.adr)
 
         return m
