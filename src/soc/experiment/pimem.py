@@ -16,27 +16,17 @@ Links:
 """
 
 from nmigen.compat.sim import run_simulation, Settle
-from nmigen.cli import verilog, rtlil
-from nmigen import Module, Signal, Mux, Elaboratable, Array, Cat, Const
+from nmigen.cli import rtlil
+from nmigen import Module, Signal, Mux, Elaboratable, Cat, Const
 from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
-from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
-from soc.decoder.power_enums import InternalOp
-from soc.regfile.regfile import ortreereduce
-from nmutil.util import treereduce
-
-from soc.decoder.power_decoder2 import Data
-#from nmutil.picker import PriorityPicker
-from nmigen.lib.coding import PriorityEncoder
-from soc.scoreboard.addr_split import LDSTSplitter
 from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
-from soc.experiment.testmem import TestMemory # TODO: replace with TMLSUI
-# TODO: from soc.experiment.testmem import TestMemoryLoadStoreUnit
+from soc.experiment.testmem import TestMemory
 
 import unittest
 
@@ -301,8 +291,7 @@ class TestMemoryPortInterface(PortInterfaceBase):
     def __init__(self, regwid=64, addrwid=4):
         super().__init__(regwid, addrwid)
         # hard-code memory addressing width to 6 bits
-        self.mem = TestMemory(regwid, 5, granularity=regwid//8,
-                              init=False)
+        self.mem = TestMemory(regwid, 5, granularity=regwid//8, init=False)
 
     def set_wr_addr(self, m, addr):
         m.d.comb += self.mem.wrport.addr.eq(addr)
