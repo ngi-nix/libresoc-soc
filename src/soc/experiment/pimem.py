@@ -193,7 +193,7 @@ class PortInterfaceBase(Elaboratable):
             comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(pi.addr.ok & adrok_l.qn):
-                self.set_rd_addr(m, msbaddr) # addr ok, send thru
+                self.set_rd_addr(m, pi.addr.data) # addr ok, send thru
                 comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
@@ -205,7 +205,7 @@ class PortInterfaceBase(Elaboratable):
             comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(pi.addr.ok):
-                self.set_wr_addr(m, msbaddr) # addr ok, send thru
+                self.set_wr_addr(m, pi.addr.data, lenexp.lexp_o)
                 with m.If(adrok_l.qn):
                     comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
@@ -293,11 +293,13 @@ class TestMemoryPortInterface(PortInterfaceBase):
         # hard-code memory addressing width to 6 bits
         self.mem = TestMemory(regwid, 5, granularity=regwid//8, init=False)
 
-    def set_wr_addr(self, m, addr):
-        m.d.comb += self.mem.wrport.addr.eq(addr)
+    def set_wr_addr(self, m, addr, mask):
+        lsbaddr, msbaddr = self.splitaddr(addr)
+        m.d.comb += self.mem.wrport.addr.eq(msbaddr)
 
     def set_rd_addr(self, m, addr):
-        m.d.comb += self.mem.rdport.addr.eq(addr)
+        lsbaddr, msbaddr = self.splitaddr(addr)
+        m.d.comb += self.mem.rdport.addr.eq(msbaddr)
 
     def set_wr_data(self, m, data, wen):
         m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
