@@ -13,7 +13,7 @@ class FetchUnitInterface:
         self.addr_wid = addr_wid
         self.data_wid = data_wid
         self.adr_lsbs = log2_int(data_wid//8)
-        self.ibus = Record(make_wb_layout(addr_wid, self.adr_lsbs, data_wid))
+        self.ibus = Record(make_wb_layout(addr_wid, data_wid//8, data_wid))
         bad_wid = addr_wid - self.adr_lsbs # TODO: is this correct?
 
         # inputs: address to fetch PC, and valid/stall signalling

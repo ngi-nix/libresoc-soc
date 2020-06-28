@@ -18,11 +18,12 @@ improved.
 from nmigen import Elaboratable, Module, Signal
 from nmigen.cli import rtlil
 
-
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
 from soc.regfile.regfiles import FastRegs
 from soc.simple.core import NonProductionCore
+from soc.config.test.test_loadstore import TestMemPspec
+from soc.config.ifetch import ConfigFetchUnit
 
 
 class TestIssuer(Elaboratable):
@@ -30,14 +31,18 @@ class TestIssuer(Elaboratable):
 
     efficiency and speed is not the main goal here: functional correctness is.
     """
-    def __init__(self, addrwid=6, idepth=6, ifacetype='testpi'):
+    def __init__(self, addrwid=6, idepth=6, ifacetype='testpi',
+                                            imemtype='testmem'):
         # main instruction core
         self.core = core = NonProductionCore(addrwid, ifacetype=ifacetype)
 
+        pspec = TestMemPspec(ldst_ifacetype=ifacetype,
+                             imem_ifacetype=imemtype,
+                             addr_wid=addrwid<<1,
+                             mask_wid=8,
+                             reg_wid=64) # instruction memory width
         # Test Instruction memory
-        self.imemwid = 64
-        self.imem = TestMemory(self.imemwid, idepth)
-        self.i_rd = self.imem.rdport
+        self.imem = ConfigFetchUnit(pspec).fu
         # one-row cache of instruction read
         self.iline = Signal(64) # one instruction line
         self.iprev_adr = Signal(64) # previous address: if different, do read
@@ -106,20 +111,28 @@ class TestIssuer(Elaboratable):
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
-                    comb += self.i_rd.addr.eq(pc[3:]) # ignore last 3 bits
+                    comb += self.imem.a_pc_i.eq(pc)
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
                     sync += current_pc.eq(pc)
-                    m.next = "INSN_READ" # move to "issue" phase
+                    m.next = "INSN_READ" # move to "wait for bus" phase
 
-            # got the instruction: start issue
+            # waiting for instruction bus (stays there until not busy)
             with m.State("INSN_READ"):
-                insn = self.i_rd.data.word_select(current_pc[2], 32) #
-                comb += current_insn.eq(insn)
-                comb += core_ivalid_i.eq(1) # say instruction is valid
-                comb += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
-                comb += core_be_i.eq(0)     # little-endian mode
-                comb += core_opcode_i.eq(current_insn) # actual opcode
-                sync += ilatch.eq(current_insn)
-                m.next = "INSN_ACTIVE" # move to "wait for completion" phase
+                with m.If(self.imem.f_busy_o): # zzz...
+                    # busy: stay in wait-read
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
+                with m.Else():
+                    # not busy: instruction fetched
+                    insn = self.imem.f_instr_o.word_select(current_pc[2], 32)
+                    comb += current_insn.eq(insn)
+                    comb += core_ivalid_i.eq(1) # say instruction is valid
+                    comb += core_issue_i.eq(1)  # and issued (ivalid redundant)
+                    comb += core_be_i.eq(0)     # little-endian mode
+                    comb += core_opcode_i.eq(current_insn) # actual opcode
+                    sync += ilatch.eq(current_insn)
+                    m.next = "INSN_ACTIVE" # move to "wait for completion" phase
 
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):

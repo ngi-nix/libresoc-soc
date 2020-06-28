@@ -7,6 +7,7 @@ from nmigen.cli import rtlil
 class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
 
     def __init__(self, addr_wid=32, data_wid=32):
+        print ("testmemfetchunit", addr_wid, data_wid)
         super().__init__(addr_wid=addr_wid, data_wid=data_wid)
         # limit TestMemory to 2^6 entries of regwid size
         self.mem = TestMemory(self.data_wid, 6, readonly=True)
@@ -40,6 +41,12 @@ class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
 
         return m
 
+    def __iter__(self): # TODO
+        yield self.a_pc_i
+        yield self.f_instr_o
+
+    def ports(self):
+        return list(self)
 
 if __name__ == '__main__':
     dut = TestMemFetchUnit(addr_wid=32, data_wid=32)
