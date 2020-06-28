@@ -6,13 +6,17 @@ from nmigen.cli import rtlil
 
 class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
 
+    def __init__(self, addr_wid=32, data_wid=32):
+        super().__init__(addr_wid=addr_wid, data_wid=data_wid)
+        # limit TestMemory to 2^6 entries of regwid size
+        self.mem = TestMemory(self.data_wid, 6, readonly=True)
+
     def elaborate(self, platform):
         m = Module()
         regwid, addrwid = self.data_wid, self.addr_wid
         adr_lsb = self.adr_lsbs
 
-        # limit TestMemory to 2^6 entries of regwid size
-        m.submodules.mem = mem = TestMemory(regwid, 6, readonly=True)
+        m.submodules.mem = mem = self.mem
 
         do_fetch = Signal()  # set when fetch while valid and not stalled
         m.d.comb += do_fetch.eq(self.a_valid_i & ~self.a_stall_i)

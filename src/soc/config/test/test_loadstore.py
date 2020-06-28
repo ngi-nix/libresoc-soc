@@ -8,6 +8,7 @@ from collections import namedtuple
 from nmigen.cli import rtlil
 
 TestMemPspec = namedtuple('TestMemPspec', ['ldst_ifacetype',
+                             'imem_ifacetype',
                              'addr_wid', 'mask_wid', 'reg_wid'])
 
 def write_to_addr(dut, addr, value):
