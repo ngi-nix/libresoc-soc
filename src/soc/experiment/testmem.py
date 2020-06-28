@@ -9,7 +9,7 @@ class TestMemory(Elaboratable):
         depth = (1<<addrw) // self.ddepth
         self.depth = depth
         self.regwid = regwid
-        print ("test memory", regwid, depth)
+        print ("test memory width depth", regwid, depth)
         if init is True:
             init = range(0, depth*2, 2)
         else:
