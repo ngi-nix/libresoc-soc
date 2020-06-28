@@ -138,39 +138,14 @@ class PortInterface(RecordObject):
 
 class LDSTPort(Elaboratable):
     def __init__(self, idx, regwid=64, addrwid=48):
-        self.pi = PortInterface("ldst_port%d" % idx, regwid, addrwid)
 
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
         # latches
-        m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
-        m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc")
-        comb += cyc_l.s.eq(0)
-        comb += cyc_l.r.eq(0)
-
         # this is a little weird: we let the L0Cache/Buffer set
         # the outputs: this module just monitors "state".
-
-        # LD/ST requested activates "busy"
-        with m.If(self.pi.is_ld_i | self.pi.is_st_i):
-            comb += busy_l.s.eq(1)
-
-        # monitor for an exception or the completion of LD.
-        with m.If(self.pi.addr_exc_o):
-            comb += busy_l.r.eq(1)
-
-        # however ST needs one cycle before busy is reset
-        with m.If(self.pi.st.ok | self.pi.ld.ok):
-            comb += cyc_l.s.eq(1)
-
-        with m.If(cyc_l.q):
-            comb += cyc_l.r.eq(1)
-            comb += busy_l.r.eq(1)
-
-        # busy latch outputs to interface
-        comb += self.pi.busy_o.eq(busy_l.q)
 
         return m
 
@@ -214,8 +189,7 @@ class TestMemoryPortInterface(Elaboratable):
                               init=False)
         self.regwid = regwid
         self.addrwid = addrwid
-        self.lpi = LDSTPort(0, regwid, addrwid)
-        self.pi = self.lpi.pi
+        self.pi = PortInterface("ldst_port%d" % idx, regwid, addrwid)
 
     @property
     def addrbits(self):
@@ -244,6 +218,10 @@ class TestMemoryPortInterface(Elaboratable):
         m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
         m.submodules.reset_l = reset_l = SRLatch(True, name="reset")
         m.submodules.adrok_l = adrok_l = SRLatch(False, name="addr_acked")
+        m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
+        m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc")
+        comb += cyc_l.s.eq(0)
+        comb += cyc_l.r.eq(0)
 
         # expand ld/st binary length/addr[:3] into unary bitmap
         m.submodules.lenexp = lenexp = LenExpand(4, 8)
@@ -343,6 +321,25 @@ class TestMemoryPortInterface(Elaboratable):
             comb += st_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += reset_l.r.eq(1)     # clear reset
             comb += adrok_l.r.eq(1)     # address reset
+
+        # LD/ST requested activates "busy"
+        with m.If(self.pi.is_ld_i | self.pi.is_st_i):
+            comb += busy_l.s.eq(1)
+
+        # monitor for an exception or the completion of LD.
+        with m.If(self.pi.addr_exc_o):
+            comb += busy_l.r.eq(1)
+
+        # however ST needs one cycle before busy is reset
+        with m.If(self.pi.st.ok | self.pi.ld.ok):
+            comb += cyc_l.s.eq(1)
+
+        with m.If(cyc_l.q):
+            comb += cyc_l.r.eq(1)
+            comb += busy_l.r.eq(1)
+
+        # busy latch outputs to interface
+        comb += self.pi.busy_o.eq(busy_l.q)
 
         return m
 
