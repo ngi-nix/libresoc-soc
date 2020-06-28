@@ -169,6 +169,19 @@ class TestMemoryPortInterface(Elaboratable):
     def connect_port(self, inport):
         return self.pi.connect_port(inport)
 
+    def set_wr_addr(self, m, addr):
+        m.d.comb += self.mem.wrport.addr.eq(addr)
+
+    def set_rd_addr(self, m, addr):
+        m.d.comb += self.mem.rdport.addr.eq(addr)
+
+    def set_wr_data(self, m, data, wen):
+        m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
+        m.d.comb += self.mem.wrport.en.eq(wen) # enable writes
+
+    def rd_data(self):
+        return self.mem.rdport.data
+
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
@@ -185,6 +198,8 @@ class TestMemoryPortInterface(Elaboratable):
         m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc")
         comb += cyc_l.s.eq(0)
         comb += cyc_l.r.eq(0)
+        sync += adrok_l.s.eq(0)
+        comb += adrok_l.r.eq(0)
 
         # expand ld/st binary length/addr[:3] into unary bitmap
         m.submodules.lenexp = lenexp = LenExpand(4, 8)
@@ -195,54 +210,36 @@ class TestMemoryPortInterface(Elaboratable):
         comb += lds.eq(pi.is_ld_i & pi.busy_o)  # ld-req signals
         comb += sts.eq(pi.is_st_i & pi.busy_o)  # st-req signals
 
-        # convenience variables to reference the "picked" port
-        ldport = pi
-        stport = pi
-        # and the memory ports
-        rdport = self.mem.rdport
-        wrport = self.mem.wrport
-
-        # Priority-Pickers pick one and only one request, capture its index.
-        # from that point on this code *only* "listens" to that port.
-
-        sync += adrok_l.s.eq(0)
-        comb += adrok_l.r.eq(0)
+        # activate mode
         with m.If(lds):
             comb += ld_active.s.eq(1)  # activate LD mode
         with m.Elif(sts):
             comb += st_active.s.eq(1)  # activate ST mode
 
-        # from this point onwards, with the port "picked", it stays picked
-        # until ld_active (or st_active) are de-asserted.
-
         # if now in "LD" mode: wait for addr_ok, then send the address out
         # to memory, acknowledge address, and send out LD data
         with m.If(ld_active.q):
             # set up LenExpander with the LD len and lower bits of addr
-            lsbaddr, msbaddr = self.splitaddr(ldport.addr.data)
-            comb += lenexp.len_i.eq(ldport.data_len)
+            lsbaddr, msbaddr = self.splitaddr(pi.addr.data)
+            comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
-            with m.If(ldport.addr.ok & adrok_l.qn):
-                comb += rdport.addr.eq(msbaddr) # addr ok, send thru
-                comb += ldport.addr_ok_o.eq(1)  # acknowledge addr ok
+            with m.If(pi.addr.ok & adrok_l.qn):
+                self.set_rd_addr(m, msbaddr) # addr ok, send thru
+                comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
         # if now in "ST" mode: likewise do the same but with "ST"
         # to memory, acknowledge address, and send out LD data
         with m.If(st_active.q):
             # set up LenExpander with the ST len and lower bits of addr
-            lsbaddr, msbaddr = self.splitaddr(stport.addr.data)
-            comb += lenexp.len_i.eq(stport.data_len)
+            lsbaddr, msbaddr = self.splitaddr(pi.addr.data)
+            comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
-            with m.If(stport.addr.ok):
-                comb += wrport.addr.eq(msbaddr)  # addr ok, send thru
+            with m.If(pi.addr.ok):
+                self.set_wr_addr(m, msbaddr) # addr ok, send thru
                 with m.If(adrok_l.qn):
-                    comb += stport.addr_ok_o.eq(1)  # acknowledge addr ok
+                    comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
-
-        # NOTE: in both these, below, the port itself takes care
-        # of de-asserting its "busy_o" signal, based on either ld.ok going
-        # high (by us, here) or by st.ok going high (by the LDSTCompUnit).
 
         # for LD mode, when addr has been "ok'd", assume that (because this
         # is a "Memory" test-class) the memory read data is valid.
@@ -252,24 +249,21 @@ class TestMemoryPortInterface(Elaboratable):
             # shift data down before pushing out.  requires masking
             # from the *byte*-expanded version of LenExpand output
             lddata = Signal(self.regwid, reset_less=True)
-            # TODO: replace rdport.data with LoadStoreUnitInterface.x_load_data
-            # and also handle the ready/stall/busy protocol
-            comb += lddata.eq((rdport.data & lenexp.rexp_o) >>
+            comb += lddata.eq((self.rd_data() & lenexp.rexp_o) >>
                               (lenexp.addr_i*8))
-            comb += ldport.ld.data.eq(lddata)  # put data out
-            comb += ldport.ld.ok.eq(1)           # indicate data valid
+            comb += pi.ld.data.eq(lddata)  # put data out
+            comb += pi.ld.ok.eq(1)           # indicate data valid
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # for ST mode, when addr has been "ok'd", wait for incoming "ST ok"
-        with m.If(st_active.q & stport.st.ok):
+        with m.If(st_active.q & pi.st.ok):
             # shift data up before storing.  lenexp *bit* version of mask is
             # passed straight through as byte-level "write-enable" lines.
             stdata = Signal(self.regwid, reset_less=True)
-            comb += stdata.eq(stport.st.data << (lenexp.addr_i*8))
+            comb += stdata.eq(pi.st.data << (lenexp.addr_i*8))
             # TODO: replace with link to LoadStoreUnitInterface.x_store_data
             # and also handle the ready/stall/busy protocol
-            comb += wrport.data.eq(stdata)  # write st to mem
-            comb += wrport.en.eq(lenexp.lexp_o) # enable writes
+            self.set_wr_data(m, stdata, lenexp.lexp_o)
             comb += reset_l.s.eq(1)   # reset mode after 1 cycle
 
         # ugly hack, due to simultaneous addr req-go acknowledge
