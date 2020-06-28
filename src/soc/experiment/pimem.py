@@ -136,40 +136,6 @@ class PortInterface(RecordObject):
                 ]
 
 
-class LDSTPort(Elaboratable):
-    def __init__(self, idx, regwid=64, addrwid=48):
-
-    def elaborate(self, platform):
-        m = Module()
-        comb, sync = m.d.comb, m.d.sync
-
-        # latches
-        # this is a little weird: we let the L0Cache/Buffer set
-        # the outputs: this module just monitors "state".
-
-        return m
-
-    def connect_port(self, inport):
-        print ("connect_port", self.pi, inport)
-        return self.pi.connect_port(inport)
-
-    def __iter__(self):
-        yield self.pi.is_ld_i
-        yield self.pi.is_st_i
-        yield from self.pi.data_len
-        yield self.pi.busy_o
-        yield self.pi.go_die_i
-        yield from self.pi.addr.ports()
-        yield self.pi.addr_ok_o
-        yield self.pi.addr_exc_o
-
-        yield from self.pi.ld.ports()
-        yield from self.pi.st.ports()
-
-    def ports(self):
-        return list(self)
-
-
 class TestMemoryPortInterface(Elaboratable):
     """TestMemoryPortInterface
 
@@ -189,7 +155,7 @@ class TestMemoryPortInterface(Elaboratable):
                               init=False)
         self.regwid = regwid
         self.addrwid = addrwid
-        self.pi = PortInterface("ldst_port%d" % idx, regwid, addrwid)
+        self.pi = PortInterface("ldst_port0", regwid, addrwid)
 
     @property
     def addrbits(self):
@@ -201,7 +167,7 @@ class TestMemoryPortInterface(Elaboratable):
         return addr[:self.addrbits], addr[self.addrbits:]
 
     def connect_port(self, inport):
-        return self.lpi.connect_port(inport)
+        return self.pi.connect_port(inport)
 
     def elaborate(self, platform):
         m = Module()
@@ -209,9 +175,6 @@ class TestMemoryPortInterface(Elaboratable):
 
         # add TestMemory as submodule
         m.submodules.mem = self.mem
-
-        # connect the ports as modules
-        m.submodules.port0 = self.lpi
 
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
