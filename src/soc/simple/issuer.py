@@ -35,9 +35,12 @@ class TestIssuer(Elaboratable):
         self.core = core = NonProductionCore(addrwid, ifacetype=ifacetype)
 
         # Test Instruction memory
-        self.imem = TestMemory(32, idepth)
+        self.imemwid = 64
+        self.imem = TestMemory(self.imemwid, idepth)
         self.i_rd = self.imem.rdport
-        #self.i_wr = self.imem.write_port() errr...
+        # one-row cache of instruction read
+        self.iline = Signal(64) # one instruction line
+        self.iprev_adr = Signal(64) # previous address: if different, do read
 
         # instruction go/monitor
         self.go_insn_i = Signal(reset_less=True)
@@ -103,14 +106,14 @@ class TestIssuer(Elaboratable):
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
-                    comb += self.i_rd.addr.eq(pc[2:]) # ignore last 2 bits
-                    comb += current_insn.eq(self.i_rd.data)
+                    comb += self.i_rd.addr.eq(pc[3:]) # ignore last 3 bits
                     sync += current_pc.eq(pc)
                     m.next = "INSN_READ" # move to "issue" phase
 
             # got the instruction: start issue
             with m.State("INSN_READ"):
-                comb += current_insn.eq(self.i_rd.data)
+                insn = self.i_rd.data.word_select(current_pc[2], 32) #
+                comb += current_insn.eq(insn)
                 comb += core_ivalid_i.eq(1) # say instruction is valid
                 comb += core_issue_i.eq(1)  # and issued (ivalid_i redundant)
                 comb += core_be_i.eq(0)     # little-endian mode
