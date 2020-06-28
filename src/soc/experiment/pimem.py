@@ -214,13 +214,13 @@ class PortInterfaceBase(Elaboratable):
         # is a "Memory" test-class) the memory read data is valid.
         comb += reset_l.s.eq(0)
         comb += reset_l.r.eq(0)
+        lddata = Signal(self.regwid, reset_less=True)
+        data, ldok = self.get_rd_data(m)
+        comb += lddata.eq((data & lenexp.rexp_o) >>
+                          (lenexp.addr_i*8))
         with m.If(ld_active.q & adrok_l.q):
             # shift data down before pushing out.  requires masking
             # from the *byte*-expanded version of LenExpand output
-            lddata = Signal(self.regwid, reset_less=True)
-            data, ldok = self.get_rd_data(m)
-            comb += lddata.eq((data & lenexp.rexp_o) >>
-                              (lenexp.addr_i*8))
             comb += pi.ld.data.eq(lddata)  # put data out
             comb += pi.ld.ok.eq(ldok)      # indicate data valid
             comb += reset_l.s.eq(ldok)     # reset mode after 1 cycle

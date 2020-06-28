@@ -29,6 +29,7 @@ from soc.experiment.pimem import PortInterfaceBase
 from nmigen.utils import log2_int
 
 from nmigen import Elaboratable, Module, Signal
+from nmutil.latch import SRLatch
 
 
 class Pi2LSUI(PortInterfaceBase):
@@ -40,16 +41,17 @@ class Pi2LSUI(PortInterfaceBase):
         if lsui is None:
             lsui = LoadStoreUnitInterface(addr_wid, self.addrbits, data_wid)
         self.lsui = lsui
+        self.valid_l = SRLatch(False, name="valid")
 
     def set_wr_addr(self, m, addr, mask):
+        m.d.comb += self.valid_l.s.eq(1)
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
-        m.d.comb += self.lsui.x_valid_i.eq(1)
 
     def set_rd_addr(self, m, addr, mask):
+        m.d.comb += self.valid_l.s.eq(1)
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
-        m.d.comb += self.lsui.x_valid_i.eq(1)
 
     def set_wr_data(self, m, data, wen): # mask already done in addr setup
         m.d.comb += self.lsui.x_st_data_i.eq(data)
@@ -62,8 +64,19 @@ class Pi2LSUI(PortInterfaceBase):
         m = super().elaborate(platform)
         pi, lsui, addrbits = self.pi, self.lsui, self.addrbits
 
+        m.submodules.valid_l = self.valid_l
+        ld_in_progress = Signal()
+
+        # pass ld/st through to LSUI
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
+
+        # indicate valid at both ends
+        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q)
+        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q)
+
+        # reset the valid latch when not busy
+        m.d.comb += self.valid_l.r.eq(~pi.busy_o)#self.lsui.x_busy_o)
 
         return m
 

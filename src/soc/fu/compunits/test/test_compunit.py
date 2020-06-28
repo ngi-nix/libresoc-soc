@@ -124,7 +124,7 @@ def setup_test_memory(l0, sim):
         print ("    %6i %016x" % (i, actual_mem))
 
 
-def check_sim_memory(dut, l0, sim, code):
+def dump_sim_memory(dut, l0, sim, code):
     mem = get_l0_mem(l0)
     print ("sim mem dump")
     for k, v in sim.mem.mem.items():
@@ -133,6 +133,10 @@ def check_sim_memory(dut, l0, sim, code):
     for i in range(mem.depth):
         actual_mem = yield mem._array[i]
         print ("    %6i %016x" % (i, actual_mem))
+
+
+def check_sim_memory(dut, l0, sim, code):
+    mem = get_l0_mem(l0)
 
     for i in range(mem.depth):
         expected_mem = sim.mem.ld(i*8, 8, False)
@@ -166,7 +170,7 @@ class TestRunner(FHDLTestCase):
             from soc.experiment.l0_cache import TstL0CacheBuffer
             m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
                                                     addrwid=3,
-                                                    ifacetype='testpi')
+                                                    ifacetype='test_bare_wb')
             pi = l0.l0.dports[0]
             m.submodules.cu = cu = self.fukls(pi, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
@@ -273,6 +277,9 @@ class TestRunner(FHDLTestCase):
                         if not busy_o:
                             break
                         yield
+
+                    if self.funit == Function.LDST:
+                        yield from dump_sim_memory(self, l0, sim, code)
 
                     yield from self.iodef.check_cu_outputs(res, pdecode2,
                                                             sim, code)
