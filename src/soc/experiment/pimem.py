@@ -136,23 +136,13 @@ class PortInterface(RecordObject):
                 ]
 
 
-class TestMemoryPortInterface(Elaboratable):
-    """TestMemoryPortInterface
+class PortInterfaceBase(Elaboratable):
+    """PortInterfaceBase
 
-    This is a test class for simple verification of the LDSTCompUnit
-    and for the simple core, to be able to run unit tests rapidly and
-    with less other code in the way.
-
-    Versions of this which are *compatible* (conform with PortInterface)
-    will include augmented-Wishbone Bus versions, including ones that
-    connect to L1, L2, MMU etc. etc. however this is the "base lowest
-    possible version that complies with PortInterface".
+    Base class for PortInterface-compliant Memory read/writers
     """
 
     def __init__(self, regwid=64, addrwid=4):
-        # hard-code memory addressing width to 6 bits
-        self.mem = TestMemory(regwid, 5, granularity=regwid//8,
-                              init=False)
         self.regwid = regwid
         self.addrwid = addrwid
         self.pi = PortInterface("ldst_port0", regwid, addrwid)
@@ -169,26 +159,14 @@ class TestMemoryPortInterface(Elaboratable):
     def connect_port(self, inport):
         return self.pi.connect_port(inport)
 
-    def set_wr_addr(self, m, addr):
-        m.d.comb += self.mem.wrport.addr.eq(addr)
-
-    def set_rd_addr(self, m, addr):
-        m.d.comb += self.mem.rdport.addr.eq(addr)
-
-    def set_wr_data(self, m, data, wen):
-        m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
-        m.d.comb += self.mem.wrport.en.eq(wen) # enable writes
-        return Const(1, 1)
-
-    def get_rd_data(self, m):
-        return self.mem.rdport.data, Const(1, 1)
+    def set_wr_addr(self, m, addr): pass
+    def set_rd_addr(self, m, addr): pass
+    def set_wr_data(self, m, data, wen): pass
+    def get_rd_data(self, m): pass
 
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
-
-        # add TestMemory as submodule
-        m.submodules.mem = self.mem
 
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
@@ -306,5 +284,50 @@ class TestMemoryPortInterface(Elaboratable):
         for p in self.dports:
             yield from p.ports()
 
+
+class TestMemoryPortInterface(PortInterfaceBase):
+    """TestMemoryPortInterface
+
+    This is a test class for simple verification of the LDSTCompUnit
+    and for the simple core, to be able to run unit tests rapidly and
+    with less other code in the way.
+
+    Versions of this which are *compatible* (conform with PortInterface)
+    will include augmented-Wishbone Bus versions, including ones that
+    connect to L1, L2, MMU etc. etc. however this is the "base lowest
+    possible version that complies with PortInterface".
+    """
+
+    def __init__(self, regwid=64, addrwid=4):
+        super().__init__(regwid, addrwid)
+        # hard-code memory addressing width to 6 bits
+        self.mem = TestMemory(regwid, 5, granularity=regwid//8,
+                              init=False)
+
+    def set_wr_addr(self, m, addr):
+        m.d.comb += self.mem.wrport.addr.eq(addr)
+
+    def set_rd_addr(self, m, addr):
+        m.d.comb += self.mem.rdport.addr.eq(addr)
+
+    def set_wr_data(self, m, data, wen):
+        m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
+        m.d.comb += self.mem.wrport.en.eq(wen) # enable writes
+        return Const(1, 1)
+
+    def get_rd_data(self, m):
+        return self.mem.rdport.data, Const(1, 1)
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+
+        # add TestMemory as submodule
+        m.submodules.mem = self.mem
+
+        return m
+
+    def ports(self):
+        yield from super().ports()
+        # TODO: memory ports
 
 
