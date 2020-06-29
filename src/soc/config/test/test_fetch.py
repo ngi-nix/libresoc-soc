@@ -13,6 +13,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 def read_from_addr(dut, addr):
     yield dut.a_pc_i.eq(addr)
     yield dut.a_valid_i.eq(1)
+    yield dut.f_valid_i.eq(1)
     yield dut.a_stall_i.eq(1)
     yield
     yield dut.a_stall_i.eq(0)
@@ -20,8 +21,12 @@ def read_from_addr(dut, addr):
     yield Settle()
     while (yield dut.f_busy_o):
         yield
-    assert (yield dut.a_valid_i)
-    return (yield dut.f_instr_o)
+    res = (yield dut.f_instr_o)
+
+    yield dut.a_valid_i.eq(0)
+    yield dut.f_valid_i.eq(0)
+    yield
+    return res
 
 
 def tst_lsmemtype(ifacetype):
@@ -40,13 +45,14 @@ def tst_lsmemtype(ifacetype):
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    mem = dut.mem.mem
+    mem = dut._get_memory()
 
     def process():
 
         values = [random.randint(0, (1<<32)-1) for x in range(16)]
         for addr, val in enumerate(values):
             yield mem._array[addr].eq(val)
+        yield Settle()
 
         for addr, val in enumerate(values):
             x = yield from read_from_addr(dut, addr << 2)
@@ -58,5 +64,5 @@ def tst_lsmemtype(ifacetype):
         sim.run()
 
 if __name__ == '__main__':
-    #tst_lsmemtype('test_bare_wb')
+    tst_lsmemtype('test_bare_wb')
     tst_lsmemtype('testmem')

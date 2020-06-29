@@ -66,8 +66,9 @@ class TestRunner(FHDLTestCase):
         go_insn_i = Signal()
         pc_i = Signal(32)
 
-        m.submodules.issuer = issuer = TestIssuer(ifacetype="test_bare_wb")
-        imem = issuer.imem.mem.mem
+        m.submodules.issuer = issuer = TestIssuer(ifacetype="test_bare_wb",
+                                                  imemtype="test_bare_wb")
+        imem = issuer.imem._get_memory()
         core = issuer.core
         pdecode2 = core.pdecode2
         l0 = core.l0

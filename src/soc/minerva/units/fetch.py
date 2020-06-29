@@ -112,7 +112,7 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         m.d.comb += iba.bus.connect(self.ibus)
 
         icache_port = iba.port(priority=0)
-        cti = Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT
+        cti = Mux(icache.bus_last, Cycle.END, Cycle.INCREMENT)
         m.d.comb += [
             icache_port.cyc.eq(icache.bus_re),
             icache_port.stb.eq(icache.bus_re),

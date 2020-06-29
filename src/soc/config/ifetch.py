@@ -7,13 +7,13 @@ as well as larger ones and so on, without needing large amounts
 of unnecessarily-duplicated code
 """
 from soc.experiment.imem import TestMemFetchUnit
-#from soc.bus.test.test_minerva import TestSRAMBareFetchUnit
+from soc.bus.test.test_minerva import TestSRAMBareFetchUnit
 
 
 class ConfigFetchUnit:
     def __init__(self, pspec):
         fudict = {'testmem': TestMemFetchUnit,
-                   #'test_bare_wb': TestSRAMBareFetchUnit,
+                   'test_bare_wb': TestSRAMBareFetchUnit,
                    #'test_cache_wb': TestCacheFetchUnit
                   }
         fukls = fudict[pspec.imem_ifacetype]

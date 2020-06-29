@@ -12,6 +12,9 @@ class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
         # limit TestMemory to 2^6 entries of regwid size
         self.mem = TestMemory(self.data_wid, 6, readonly=True)
 
+    def _get_memory(self):
+        return self.mem.mem
+
     def elaborate(self, platform):
         m = Module()
         regwid, addrwid = self.data_wid, self.addr_wid
