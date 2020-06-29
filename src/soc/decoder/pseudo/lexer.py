@@ -325,7 +325,7 @@ class PowerLexer:
     def t_HEX(self, t):
         r"""0x[0-9a-fA-F_]+"""
         val = t.value.replace("_", "")
-        t.value = SelectableInt(int(val, 16), (len(val)-2)*16)
+        t.value = SelectableInt(int(val, 16), (len(val)-2)*4) # hex = nibble
         return t
 
     def t_BINARY(self, t):
