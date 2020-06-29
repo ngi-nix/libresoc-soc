@@ -270,7 +270,6 @@ class ISACaller:
 
         # "undefined", just set to variable-bit-width int (use exts "max")
         self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
-        self._overflow = None
 
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
@@ -281,7 +280,6 @@ class ISACaller:
                           'CR': self.cr,
                           'MSR': self.msr,
                           'undefined': self.undefined,
-                          'overflow': self._overflow,
                           'mode_is_64bit': True,
                           'SO': XER_bits['SO']
                           }
@@ -330,7 +328,6 @@ class ISACaller:
         self.namespace['XER'] = self.spr['XER']
         self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
         self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
-        self.namespace['overflow'] = None
 
     def handle_carry_(self, inputs, outputs, already_done):
         inv_a = yield self.dec2.e.invert_a
@@ -368,7 +365,7 @@ class ISACaller:
         if not (2 & already_done):
             self.spr['XER'][XER_bits['CA32']] = cy32
 
-    def handle_overflow(self, inputs, outputs):
+    def handle_overflow(self, inputs, outputs, div_overflow):
         inv_a = yield self.dec2.e.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
@@ -378,8 +375,16 @@ class ISACaller:
             imm = yield self.dec2.e.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
-        print ("handle_overflow", inputs, outputs)
-        if len(inputs) >= 2:
+        print ("handle_overflow", inputs, outputs, div_overflow)
+        if len(inputs) < 2 and div_overflow != 1:
+            return
+
+        # div overflow is different: it's returned by the pseudo-code
+        # because it's more complex than can be done by analysing the output
+        if div_overflow == 1:
+            ov, ov32 = 1, 1
+        # arithmetic overflow can be done by analysing the input and output
+        elif len(inputs) >= 2:
             output = outputs[0]
 
             # OV (64-bit)
@@ -394,11 +399,11 @@ class ISACaller:
             ov32 = 1 if input32_sgn[0] == input32_sgn[1] and \
                 output32_sgn != input32_sgn[0] else 0
 
-            self.spr['XER'][XER_bits['OV']] = ov
-            self.spr['XER'][XER_bits['OV32']] = ov32
-            so = self.spr['XER'][XER_bits['SO']]
-            so = so | ov
-            self.spr['XER'][XER_bits['SO']] = so
+        self.spr['XER'][XER_bits['OV']] = ov
+        self.spr['XER'][XER_bits['OV32']] = ov32
+        so = self.spr['XER'][XER_bits['SO']]
+        so = so | ov
+        self.spr['XER'][XER_bits['SO']] = so
 
     def handle_comparison(self, outputs):
         out = outputs[0]
@@ -536,13 +541,13 @@ class ISACaller:
         if info.write_regs:
             for name, output in zip(output_names, results):
                 if name == 'overflow':
-                    self._overflow = output
+                    overflow = output
 
         ov_en = yield self.dec2.e.oe.oe
         ov_ok = yield self.dec2.e.oe.ok
-        print ("internal overflow", self._overflow)
+        print ("internal overflow", overflow)
         if ov_en & ov_ok:
-            yield from self.handle_overflow(inputs, results)
+            yield from self.handle_overflow(inputs, results, overflow)
 
         rc_en = yield self.dec2.e.rc.data
         if rc_en:
