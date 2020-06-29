@@ -3,7 +3,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.logical.pipe_data import LogicalInputData
+from soc.fu.div.pipe_data import DIVInputData
 from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -23,7 +23,7 @@ class DivSetupStage(PipeModBase):
         self.abs_dividend = Signal(64)
 
     def ispec(self):
-        return LogicalInputData(self.pspec)
+        return DIVInputData(self.pspec)
 
     def ospec(self):
         return CoreInputData(self.pspec)
@@ -32,14 +32,13 @@ class DivSetupStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op, a, b = self.i.ctx.op, self.i.a, self.i.b
-        core_input_data = self.o.core
+        core_o = self.o.core
         dividend_neg = self.o.dividend_neg
         divisor_neg = self.o.divisor_neg
-        dividend_in = core_input_data.dividend
-        divisor_in = core_input_data.divisor_radicand
+        dividend_o = core_o.dividend
+        divisor_o = core_o.divisor_radicand
 
-        comb += core_input_data.operation.eq(
-            int(DivPipeCoreOperation.UDivRem))
+        comb += core_o.operation.eq(int(DivPipeCoreOperation.UDivRem))
 
         comb += dividend_neg.eq(Mux(op.is_32bit, a[31], a[63]) & op.is_signed)
         comb += divisor_neg.eq(Mux(op.is_32bit, b[31], b[63]) & op.is_signed)
@@ -59,11 +58,11 @@ class DivSetupStage(PipeModBase):
             & (op.insn_type == InternalOp.OP_DIVE))
 
         with m.If(op.is_32bit):
-            comb += divisor_in.eq(self.abs_divisor[0:32])
+            comb += divisor_o.eq(self.abs_divisor[0:32])
         with m.Else():
-            comb += divisor_in.eq(self.abs_divisor[0:64])
+            comb += divisor_o.eq(self.abs_divisor[0:64])
 
-        comb += self.o.div_by_zero.eq(self.divisor_in == 0)
+        comb += self.o.div_by_zero.eq(divisor_o == 0)
 
         ##########################
         # main switch for DIV
@@ -71,22 +70,22 @@ class DivSetupStage(PipeModBase):
         with m.Switch(op.insn_type):
             with m.Case(InternalOp.OP_DIV, InternalOp.OP_MOD):
                 with m.If(op.is_32bit):
-                    comb += dividend_in.eq(self.abs_dividend[0:32])
+                    comb += dividend_o.eq(self.abs_dividend[0:32])
                 with m.Else():
-                    comb += dividend_in.eq(self.abs_dividend[0:64])
+                    comb += dividend_o.eq(self.abs_dividend[0:64])
             with m.Case(InternalOp.OP_DIVE):
                 with m.If(op.is_32bit):
-                    comb += dividend_in.eq(self.abs_dividend[0:32] << 32)
+                    comb += dividend_o.eq(self.abs_dividend[0:32] << 32)
                 with m.Else():
-                    comb += dividend_in.eq(self.abs_dividend[0:64] << 64)
+                    comb += dividend_o.eq(self.abs_dividend[0:64] << 64)
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
+        comb += self.o.xer_so.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
-        # pass through op
+        # pass through core data
 
-        comb += self.o.op.eq(op)
+        comb += self.o.core.eq(core_o)
 
         return m
