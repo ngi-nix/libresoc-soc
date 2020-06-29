@@ -270,6 +270,7 @@ class ISACaller:
 
         # "undefined", just set to variable-bit-width int (use exts "max")
         self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
+        self._overflow = None
 
         self.namespace = {'GPR': self.gpr,
                           'MEM': self.mem,
@@ -280,6 +281,7 @@ class ISACaller:
                           'CR': self.cr,
                           'MSR': self.msr,
                           'undefined': self.undefined,
+                          'overflow': self._overflow,
                           'mode_is_64bit': True,
                           'SO': XER_bits['SO']
                           }
@@ -328,6 +330,7 @@ class ISACaller:
         self.namespace['XER'] = self.spr['XER']
         self.namespace['CA'] = self.spr['XER'][XER_bits['CA']].value
         self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
+        self.namespace['overflow'] = None
 
     def handle_carry_(self, inputs, outputs, already_done):
         inv_a = yield self.dec2.e.invert_a
@@ -527,10 +530,20 @@ class ISACaller:
         carry_en = yield self.dec2.e.output_carry
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
+
+        # detect if overflow was in return result
+        overflow = None
+        if info.write_regs:
+            for name, output in zip(output_names, results):
+                if name == 'overflow':
+                    self._overflow = output
+
         ov_en = yield self.dec2.e.oe.oe
         ov_ok = yield self.dec2.e.oe.ok
+        print ("internal overflow", self._overflow)
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results)
+
         rc_en = yield self.dec2.e.rc.data
         if rc_en:
             self.handle_comparison(results)
@@ -538,6 +551,8 @@ class ISACaller:
         # any modified return results?
         if info.write_regs:
             for name, output in zip(output_names, results):
+                if name == 'overflow': # ignore, done already (above)
+                    continue
                 if isinstance(output, int):
                     output = SelectableInt(output, 256)
                 if name in ['CA', 'CA32']:
