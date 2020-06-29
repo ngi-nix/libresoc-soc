@@ -48,15 +48,6 @@ class DivTestCases(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    @unittest.skip("qemu_wrong_result")
-    def test_3_divwo_byzero(self):
-        lst = ["addi 1, 0, 0x5678",
-               "addi 2, 0, 0x0",
-               "divw  3, 1, 2",
-               ]
-        with Program(lst) as program:
-            self.run_tst_program(program, [1, 2, 3])
-
     def test_4_moduw(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -73,9 +64,59 @@ class DivTestCases(FHDLTestCase):
         self.test_data.append(tc)
 
 
-class DecoderTestCase(DecoderBase, DivTestCases):
+class DivZeroTestCases(FHDLTestCase):
+    test_data = []
+
+    def __init__(self, name="divbyzero"):
+        super().__init__(name)
+        self.test_name = name
+
+    def test_0_divw(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x0",
+               "divw  3, 1, 2",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_1_divwe(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x0",
+               "divwe  3, 1, 2",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_2_divweu(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x0",
+               "divweu  3, 1, 2",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def test_4_moduw(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x0",
+               "moduw  3, 1, 2",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1, 2, 3])
+
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+                                    initial_mem=None):
+        initial_regs = [0] * 32
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
+                                            initial_mem, 0)
+        self.test_data.append(tc)
+
+
+
+class DivDecoderTestCase(DecoderBase, DivTestCases):
     pass
 
+class DivZeroDecoderTestCase(DecoderBase, DivZeroTestCases):
+    pass
 
 if __name__ == "__main__":
     unittest.main()
