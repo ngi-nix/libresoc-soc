@@ -1,6 +1,8 @@
 import unittest
-from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.selectable_int import SelectableInt, onebit
 from nmutil.divmod import trunc_div, trunc_rem
+from soc.decoder.selectable_int import selectltu as ltu
+from soc.decoder.selectable_int import selectgtu as gtu
 
 """
 Links:
@@ -70,22 +72,22 @@ def MASK(x, y):
     return mask_a ^ mask_b
 
 def ne(a, b):
-    return SelectableInt((a != b), bits=1)
+    return onebit(a != b)
 
 def eq(a, b):
-    return SelectableInt((a == b), bits=1)
+    return onebit(a == b)
 
 def gt(a, b):
-    return SelectableInt((a > b), bits=1)
+    return onebit(a > b)
 
 def ge(a, b):
-    return SelectableInt((a >= b), bits=1)
+    return onebit(a >= b)
 
 def lt(a, b):
-    return SelectableInt((a < b), bits=1)
+    return onebit(a < b)
 
 def le(a, b):
-    return SelectableInt((a <= b), bits=1)
+    return onebit(a <= b)
 
 def length(a):
     return len(a)
