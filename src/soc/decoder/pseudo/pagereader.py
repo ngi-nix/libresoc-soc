@@ -71,15 +71,96 @@ class ISA:
             print (get_isa_dir(), pth)
             assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
             self.read_file(pth)
+            continue
+            # code which helped add in the keyword "Pseudo-code:" automatically
+            rewrite = self.read_file_for_rewrite(pth)
+            name = os.path.join("/tmp", pth)
+            with open(name, "w") as f:
+                f.write('\n'.join(rewrite) + '\n')
+
+    def read_file_for_rewrite(self, fname):
+        pagename = fname.split('.')[0]
+        fname = os.path.join(get_isa_dir(), fname)
+        with open(fname) as f:
+            lines = f.readlines()
+        rewrite = []
+
+        l = lines.pop(0).rstrip() # get first line
+        rewrite.append(l)
+        while lines:
+            print (l)
+            # expect get heading
+            assert l.startswith('#'), ("# not found in line %s" % l)
+
+            # whitespace expected
+            l = lines.pop(0).strip()
+            print (repr(l))
+            assert len(l) == 0, ("blank line not found %s" % l)
+            rewrite.append(l)
+
+            # Form expected
+            l = lines.pop(0).strip()
+            assert l.endswith('-Form'), ("line with -Form expected %s" % l)
+            rewrite.append(l)
+
+            # whitespace expected
+            l = lines.pop(0).strip()
+            assert len(l) == 0, ("blank line not found %s" % l)
+            rewrite.append(l)
+
+            # get list of opcodes
+            while True:
+                l = lines.pop(0).strip()
+                rewrite.append(l)
+                if len(l) == 0: break
+                assert l.startswith('*'), ("* not found in line %s" % l)
+
+            rewrite.append("Pseudo-code:")
+            rewrite.append("")
+            # get pseudocode
+            while True:
+                l = lines.pop(0).rstrip()
+                rewrite.append(l)
+                if len(l) == 0: break
+                assert l.startswith('    '), ("4spcs not found in line %s" % l)
+
+            # "Special Registers Altered" expected
+            l = lines.pop(0).rstrip()
+            assert l.startswith("Special"), ("special not found %s" % l)
+            rewrite.append(l)
+
+            # whitespace expected
+            l = lines.pop(0).strip()
+            assert len(l) == 0, ("blank line not found %s" % l)
+            rewrite.append(l)
+
+            # get special regs
+            while lines:
+                l = lines.pop(0).rstrip()
+                rewrite.append(l)
+                if len(l) == 0: break
+                assert l.startswith('    '), ("4spcs not found in line %s" % l)
+
+            # expect and drop whitespace
+            while lines:
+                l = lines.pop(0).rstrip()
+                rewrite.append(l)
+                if len(l) != 0: break
+
+        return rewrite
 
     def read_file(self, fname):
         pagename = fname.split('.')[0]
         fname = os.path.join(get_isa_dir(), fname)
         with open(fname) as f:
             lines = f.readlines()
-        
+
         # set up dict with current page name
         d = {'page': pagename}
+
+        # line-by-line lexer/parser, quite straightforward: pops one
+        # line off the list and checks it.  nothing complicated needed,
+        # all sections are mandatory so no need for a full LALR parser.
 
         l = lines.pop(0).rstrip() # get first line
         while lines:
@@ -112,6 +193,15 @@ class ISA:
                 l = filter(lambda x: len(x) != 0, l) # strip blanks
                 li.append(list(l))
             opcodes = li
+
+            # "Pseudocode" expected
+            l = lines.pop(0).rstrip()
+            assert l.startswith("Pseudo-code:"), ("pseudocode found %s" % l)
+
+            # whitespace expected
+            l = lines.pop(0).strip()
+            print (repr(l))
+            assert len(l) == 0, ("blank line not found %s" % l)
 
             # get pseudocode
             li = []
