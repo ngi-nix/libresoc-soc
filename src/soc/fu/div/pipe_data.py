@@ -38,8 +38,8 @@ class CoreBaseData(DIVInputData):
         # set if an overflow for divide extended instructions is detected
         # because `abs_dividend >= abs_divisor` for the appropriate bit width;
         # 0 if the instruction is not a divide extended instruction
-        self.dive_abs_overflow_32 = Signal(reset_less=True)
-        self.dive_abs_overflow_64 = Signal(reset_less=True)
+        self.dive_abs_ov32 = Signal(reset_less=True)
+        self.dive_abs_ov64 = Signal(reset_less=True)
 
     def __iter__(self):
         yield from super().__iter__()
