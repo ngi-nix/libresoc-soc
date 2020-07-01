@@ -168,7 +168,7 @@ class TestIssuer(Elaboratable):
 
 if __name__ == '__main__':
     dut = TestIssuer()
-    vl = rtlil.convert(dut, ports=dut.ports())
+    vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
     with open("test_issuer.il", "w") as f:
         f.write(vl)
 
