@@ -64,6 +64,9 @@ from soc.fu.branch.pipe_data import BranchPipeSpec
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 
+from soc.fu.trap.pipeline import TrapBasePipe
+from soc.fu.trap.pipe_data import TrapPipeSpec
+
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 from soc.experiment.compldst_multi import LDSTCompUnit # special-case
 
@@ -128,6 +131,10 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SHIFT_ROT
     def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
 
+class TrapFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.TRAP
+    def __init__(self): super().__init__(TrapPipeSpec, TrapBasePipe)
+
 # special-case
 class LDSTFunctionUnit(LDSTCompUnit):
     fnunit = Function.LDST
@@ -189,6 +196,7 @@ def tst_single_fus_il():
     for (name, kls) in (('alu', ALUFunctionUnit),
                         ('cr', CRFunctionUnit),
                         ('branch', BranchFunctionUnit),
+                        ('trap', TrapFunctionUnit),
                         ('logical', LogicalFunctionUnit),
                         ('shiftrot', ShiftRotFunctionUnit)):
         fu = kls()
