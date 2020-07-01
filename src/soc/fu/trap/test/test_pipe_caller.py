@@ -86,7 +86,7 @@ class TrapTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_0_trap_eq_imm(self):
-        insns = ["tw", "td"]
+        insns = ["twi", "tdi"]
         for i in range(2):
             choice = random.choice(insns)
             lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
@@ -95,7 +95,7 @@ class TrapTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_0_trap_eq(self):
-        insns = ["twi", "tdi"]
+        insns = ["tw", "td"]
         for i in range(2):
             choice = insns[i]
             lst = [f"{choice} 4, 1, 2"] # TO=4: trap equal
