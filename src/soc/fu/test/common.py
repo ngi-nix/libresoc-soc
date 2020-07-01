@@ -3,8 +3,9 @@ Bugreports:
 * https://bugs.libre-soc.org/show_bug.cgi?id=361
 """
 
-from soc.decoder.power_enums import XER_bits, CryIn
+from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr # HACK!
+from soc.regfile.regfiles import FastRegs
 
 
 class TestCase:
@@ -27,6 +28,17 @@ class TestCase:
         self.msr = msr
 
 class ALUHelpers:
+
+    def get_sim_fast_reg(res, sim, dec2, reg, name):
+        spr_sel = fast_reg_to_spr(reg)
+        spr_data = sim.spr[spr_sel].value
+        res[name] = spr_data
+
+    def get_sim_cia(res, sim, dec2):
+        return self.get_sim_fast_reg(res, sim, dec2, FastRegs.PC, 'pc')
+
+    def get_sim_msr(res, sim, dec2):
+        return self.get_sim_fast_reg(res, sim, dec2, FastRegs.MSR, 'msr')
 
     def get_sim_fast_spr1(res, sim, dec2):
         fast1_en = yield dec2.e.read_fast1.ok
@@ -110,6 +122,10 @@ class ALUHelpers:
             print ("extra inputs: so", so)
             yield alu.p.data_i.xer_so.eq(so)
 
+    def set_fast_msr(alu, dec2, inp):
+        if 'msr' in inp:
+            yield alu.p.data_i.msr.eq(inp['msr'])
+
     def set_fast_cia(alu, dec2, inp):
         if 'cia' in inp:
             yield alu.p.data_i.cia.eq(inp['cia'])
@@ -139,6 +155,26 @@ class ALUHelpers:
             yield alu.p.data_i.full_cr.eq(inp['full_cr'])
         else:
             yield alu.p.data_i.full_cr.eq(0)
+
+    def get_fast_spr1(res, alu, dec2):
+        spr1_valid = yield alu.n.data_o.spr1.ok
+        if spr1_valid:
+            res['spr1'] = yield alu.n.data_o.spr1.data
+
+    def get_fast_spr2(res, alu, dec2):
+        spr2_valid = yield alu.n.data_o.spr2.ok
+        if spr2_valid:
+            res['spr2'] = yield alu.n.data_o.spr2.data
+
+    def get_fast_nia(res, alu, dec2):
+        nia_valid = yield alu.n.data_o.nia.ok
+        if nia_valid:
+            res['nia'] = yield alu.n.data_o.nia.data
+
+    def get_fast_msr(res, alu, dec2):
+        msr_valid = yield alu.n.data_o.msr.ok
+        if msr_valid:
+            res['msr'] = yield alu.n.data_o.msr.data
 
     def get_int_o1(res, alu, dec2):
         out_reg_valid = yield dec2.e.write_ea.ok
@@ -189,6 +225,20 @@ class ALUHelpers:
         if cridx_ok:
             cridx = yield dec2.e.write_cr.data
             res['cr_a'] = sim.crl[cridx].get_range().value
+
+    def get_wr_fast_spr2(res, sim, dec2):
+        ok = yield dec2.e.write_fast2.ok
+        if ok:
+            spr_num = yield dec2.e.write_fast2.data
+            spr_name = spr_dict[spr_num]
+            res['spr2'] = sim.spr[spr_name]
+
+    def get_wr_fast_spr1(res, sim, dec2):
+        ok = yield dec2.e.write_fast1.ok
+        if ok:
+            spr_num = yield dec2.e.write_fast1.data
+            spr_name = spr_dict[spr_num]
+            res['spr1'] = sim.spr[spr_name]
 
     def get_wr_sim_xer_ca(res, sim, dec2):
         cry_out = yield dec2.e.output_carry

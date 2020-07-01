@@ -87,6 +87,7 @@ class TrapMainStage(PipeModBase):
     def trap(self, m, return_addr, trap_addr):
         """trap """ # TODO add descriptive docstring
         comb  = m.d.comb
+        msr_i = self.i.msr
         nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
 
         # trap address
@@ -172,7 +173,7 @@ class TrapMainStage(PipeModBase):
                 # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
                     # generate trap-type program interrupt
-                    self.trap(trapaddr<<4, cia_i)
+                    self.trap(m, trapaddr<<4, cia_i)
                     with m.If(traptype == 0):
                         # say trap occurred (see 3.0B Book III 7.5.9)
                         comb += srr1_o.data[PI_TRAP].eq(1)
@@ -181,7 +182,7 @@ class TrapMainStage(PipeModBase):
                     with m.If(traptype & TT_FP):
                         comb += srr1_o.data[PI_FP].eq(1)
                     with m.If(traptype & TT_ADDR):
-                        comb += srr1_o.data[PI_ADDR].eq(1)
+                        comb += srr1_o.data[PI_ADR].eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSR):
@@ -221,7 +222,7 @@ class TrapMainStage(PipeModBase):
                 # the decoder's job, not ours, here.
 
                 # jump to the trap address, return at cia+4
-                self.trap(0xc00, cia_i+4)
+                self.trap(m, 0xc00, cia_i+4)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):

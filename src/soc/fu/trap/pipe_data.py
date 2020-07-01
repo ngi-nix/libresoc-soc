@@ -1,5 +1,5 @@
-from soc.fu.pipe_data import IntegerData
-from soc.fu.alu.alu_input_record import CompALUOpSubset # TODO: replace
+from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
 class TrapInputData(IntegerData):
@@ -28,6 +28,6 @@ class TrapOutputData(IntegerData):
 
 
 # TODO: replace CompALUOpSubset with CompTrapOpSubset
-class TrapPipeSpec:
+class TrapPipeSpec(CommonPipeSpec):
     regspec = (TrapInputData.regspec, TrapOutputData.regspec)
-    opsubsetkls = CompALUOpSubset
+    opsubsetkls = CompTrapOpSubset
