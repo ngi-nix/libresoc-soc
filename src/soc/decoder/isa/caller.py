@@ -583,6 +583,8 @@ class ISACaller:
                         self.spr[name] = output
                     else:
                         self.namespace[name].eq(output)
+                    if name == 'MSR':
+                        print ('msr written', hex(self.msr.value))
                 else:
                     regnum = yield getattr(self.decoder, name)
                     print('writing reg %d %s' % (regnum, str(output)))
