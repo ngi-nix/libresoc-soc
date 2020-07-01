@@ -84,7 +84,7 @@ class TrapMainStage(PipeModBase):
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
         self.fields.create_specs()
 
-    def trap(self, m, return_addr, trap_addr):
+    def trap(self, m, trap_addr, return_addr):
         """trap """ # TODO add descriptive docstring
         comb  = m.d.comb
         msr_i = self.i.msr
@@ -168,7 +168,7 @@ class TrapMainStage(PipeModBase):
         comb += should_trap.eq((trap_bits & to).any() | traptype.any())
 
         # TODO: some #defines for the bits n stuff.
-        with m.Switch(op):
+        with m.Switch(op.insn_type):
             #### trap ####
             with m.Case(InternalOp.OP_TRAP):
                 # trap instructions (tw, twi, td, tdi)

@@ -582,6 +582,10 @@ class PowerDecode2(Elaboratable):
         comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
         comb += e.output_cr.eq(op.cr_out) # condition reg goes in
 
+        # TODO, privileged?
+        with m.If(op.internal_op == InternalOp.OP_TRAP):
+            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+
         return m
 
         # privileged instruction

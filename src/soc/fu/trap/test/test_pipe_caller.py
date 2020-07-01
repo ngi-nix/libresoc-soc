@@ -26,8 +26,8 @@ def get_cu_inputs(dec2, sim):
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
     yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # SPR1
-    yield from ALUHelpers.get_sim_cia(res, sim, dec2) # PC
-    yield from ALUHelpers.get_sim_msr(res, sim, dec2) # MSR
+    ALUHelpers.get_sim_cia(res, sim, dec2) # PC
+    ALUHelpers.get_sim_msr(res, sim, dec2) # MSR
 
     print ("alu get_cu_inputs", res)
 
@@ -78,100 +78,20 @@ class TrapTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_1_regression(self):
-        lst = [f"extsw 3, 1"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xb6a1fc6c8576af91
-        self.run_tst_program(Program(lst), initial_regs)
-        lst = [f"subf 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x3d7f3f7ca24bac7b
-        initial_regs[2] = 0xf6b2ac5e13ee15c2
-        self.run_tst_program(Program(lst), initial_regs)
-        lst = [f"subf 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x833652d96c7c0058
-        initial_regs[2] = 0x1c27ecff8a086c1a
-        self.run_tst_program(Program(lst), initial_regs)
-        lst = [f"extsb 3, 1"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x7f9497aaff900ea0
-        self.run_tst_program(Program(lst), initial_regs)
-        lst = [f"add. 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xc523e996a8ff6215
-        initial_regs[2] = 0xe1e5b9cc9864c4a8
-        self.run_tst_program(Program(lst), initial_regs)
-        lst = [f"add 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x2e08ae202742baf8
-        initial_regs[2] = 0x86c43ece9efe5baa
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rand(self):
-        insns = ["add", "add.", "subf"]
-        for i in range(40):
+    def test_trap_eq_imm(self):
+        insns = ["twi", "tdi"]
+        for i in range(2):
             choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
+            lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = 1
             self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rand_imm(self):
-        insns = ["addi", "addis", "subfic"]
-        for i in range(10):
-            choice = random.choice(insns)
-            imm = random.randint(-(1<<15), (1<<15)-1)
-            lst = [f"{choice} 3, 1, {imm}"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_0_adde(self):
-        lst = ["adde. 5, 6, 7"]
-        for i in range(10):
-            initial_regs = [0] * 32
-            initial_regs[6] = random.randint(0, (1<<64)-1)
-            initial_regs[7] = random.randint(0, (1<<64)-1)
-            initial_sprs = {}
-            xer = SelectableInt(0, 64)
-            xer[XER_bits['CA']] = 1
-            initial_sprs[special_sprs['XER']] = xer
-            self.run_tst_program(Program(lst), initial_regs, initial_sprs)
-
-    def test_cmp(self):
-        lst = ["subf. 1, 6, 7",
-               "cmp cr2, 1, 6, 7"]
-        initial_regs = [0] * 32
-        initial_regs[6] = 0x10
-        initial_regs[7] = 0x05
-        self.run_tst_program(Program(lst), initial_regs, {})
-
-    def test_extsb(self):
-        insns = ["extsb", "extsh", "extsw"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_cmpeqb(self):
-        lst = ["cmpeqb cr1, 1, 2"]
-        for i in range(20):
-            initial_regs = [0] * 32
-            initial_regs[1] = i
-            initial_regs[2] = 0x0001030507090b0f
-            self.run_tst_program(Program(lst), initial_regs, {})
 
     def test_ilang(self):
         pspec = TrapPipeSpec(id_wid=2)
         alu = TrapBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("alu_pipeline.il", "w") as f:
+        with open("trap_pipeline.il", "w") as f:
             f.write(vl)
 
 
@@ -209,11 +129,12 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                index = sim.pc.CIA.value//4
+                pc = sim.pc.CIA.value
+                index = pc//4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                    print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
                     print(code)
                     if 'XER' in sim.spr:
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
@@ -226,12 +147,14 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.Trap.value)
+                    self.assertEqual(fn_unit, Function.TRAP.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
-                    index = sim.pc.CIA.value//4
+                    pc = sim.pc.CIA.value
+                    index = pc//4
+                    print("pc after %08x" % (pc))
 
                     vld = yield alu.n.valid_o
                     while not vld:
@@ -256,15 +179,6 @@ class TestRunner(FHDLTestCase):
         if rc:
             self.assertEqual(cridx, 0, code)
 
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
-        if not oe or not oe_ok:
-            # if OE not enabled, XER SO and OV must correspondingly be false
-            so_ok = yield alu.n.data_o.xer_so.ok
-            ov_ok = yield alu.n.data_o.xer_ov.ok
-            self.assertEqual(so_ok, False, code)
-            self.assertEqual(ov_ok, False, code)
-
         sim_o = {}
         res = {}
 
@@ -273,6 +187,8 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_fast_spr2(res, alu, dec2)
         yield from ALUHelpers.get_fast_nia(res, alu, dec2)
         yield from ALUHelpers.get_fast_msr(res, alu, dec2)
+
+        print ("output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)

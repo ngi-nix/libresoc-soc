@@ -35,10 +35,10 @@ class ALUHelpers:
         res[name] = spr_data
 
     def get_sim_cia(res, sim, dec2):
-        return self.get_sim_fast_reg(res, sim, dec2, FastRegs.PC, 'pc')
+        res['cia'] = sim.pc.CIA.value
 
     def get_sim_msr(res, sim, dec2):
-        return self.get_sim_fast_reg(res, sim, dec2, FastRegs.MSR, 'msr')
+        res['msr'] = sim.msr.value
 
     def get_sim_fast_spr1(res, sim, dec2):
         fast1_en = yield dec2.e.read_fast1.ok
