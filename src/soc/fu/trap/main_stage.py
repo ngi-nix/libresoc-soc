@@ -115,6 +115,7 @@ class TrapMainStage(PipeModBase):
 
         # convenience variables
         a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
+        srr0_i, srr1_i = self.i.srr0, self.i.srr1
         o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
         srr0_o, srr1_o = self.o.srr0, self.o.srr1
         traptype, trapaddr = op.traptype, op.trapaddr
@@ -185,7 +186,7 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI_ADR].eq(1)
 
             # move to MSR
-            with m.Case(InternalOp.OP_MTMSR):
+            with m.Case(InternalOp.OP_MTMSRD):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
                 with m.If(L):
                     # just update EE and RI
@@ -217,12 +218,13 @@ class TrapMainStage(PipeModBase):
                 msr_check_pr(m, msr_o.data)
                 comb += msr_o.ok.eq(1)
 
-            with m.Case(InternalOp.OP_SC):
-                # TODO: scv must generate illegal instruction.  this is
-                # the decoder's job, not ours, here.
-
-                # jump to the trap address, return at cia+4
-                self.trap(m, 0xc00, cia_i+4)
+            # TODO (later) - add OP_SC
+            #with m.Case(InternalOp.OP_SC):
+            #    # TODO: scv must generate illegal instruction.  this is
+            #    # the decoder's job, not ours, here.
+            #
+            #    # jump to the trap address, return at cia+4
+            #    self.trap(m, 0xc00, cia_i+4)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):

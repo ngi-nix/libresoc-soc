@@ -6,12 +6,14 @@ class TrapInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'),  # RA
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('FAST', 'spr1', '0:63'), # SRR0
+               ('FAST', 'spr2', '0:63'), # SRR1
                ('FAST', 'cia', '0:63'),  # Program counter (current)
                ('FAST', 'msr', '0:63')]  # MSR
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience
-        self.srr0, self.a, self.b = self.spr1, self.ra, self.rb
+        self.srr0, self.srr1 = self.spr1, self.spr2
+        self.a, self.b = self.ra, self.rb
 
 
 class TrapOutputData(IntegerData):
