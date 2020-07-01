@@ -232,7 +232,7 @@ class TestRunner(FHDLTestCase):
 
         inp = yield from get_cu_inputs(dec2, sim)
 
-        yield from ALUHelpers.set_fast_cia(branch, dec2, inp)
+        yield from ALUHelpers.set_cia(branch, dec2, inp)
         yield from ALUHelpers.set_fast_spr1(branch, dec2, inp)
         yield from ALUHelpers.set_fast_spr2(branch, dec2, inp)
         yield from ALUHelpers.set_cr_a(branch, dec2, inp)

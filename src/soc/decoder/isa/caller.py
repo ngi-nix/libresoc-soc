@@ -191,7 +191,10 @@ class SPR(dict):
             if isinstance(key, SelectableInt):
                 key = key.value
             key = special_sprs.get(key, key)
-            info = spr_byname[key]
+            if isinstance(key, int):
+                info = spr_dict[key]
+            else:
+                info = spr_byname[key]
             if not isinstance(v, SelectableInt):
                 v = SelectableInt(v, info.length)
             self[key] = v
