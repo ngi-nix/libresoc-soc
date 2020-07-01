@@ -294,10 +294,12 @@ class CROutSel(Enum):
 spr_csv = get_csv("sprs.csv")
 spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr length')
 spr_dict = {}
+spr_byname = {}
 for row in spr_csv:
     info = spr_info(SPR=row['SPR'], priv_mtspr=row['priv_mtspr'],
                     priv_mfspr=row['priv_mfspr'], length=int(row['len']))
     spr_dict[int(row['Idx'])] = info
+    spr_byname[row['SPR']] = info
 fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
 SPR = Enum('SPR', fields)
 

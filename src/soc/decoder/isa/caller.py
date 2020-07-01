@@ -9,7 +9,8 @@ from functools import wraps
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
-from soc.decoder.power_enums import spr_dict, XER_bits, insns, InternalOp
+from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
+                                     insns, InternalOp)
 from soc.decoder.helpers import exts, trunc_div, trunc_rem
 from collections import namedtuple
 import math
@@ -186,7 +187,14 @@ class SPR(dict):
     def __init__(self, dec2, initial_sprs={}):
         self.sd = dec2
         dict.__init__(self)
-        self.update(initial_sprs)
+        for key, v in initial_sprs.items():
+            if isinstance(key, SelectableInt):
+                key = key.value
+            key = special_sprs.get(key, key)
+            info = spr_byname[key]
+            if not isinstance(v, SelectableInt):
+                v = SelectableInt(v, info.length)
+            self[key] = v
 
     def __getitem__(self, key):
         # if key in special_sprs get the special spr, otherwise return key
@@ -271,7 +279,9 @@ class ISACaller:
         # "undefined", just set to variable-bit-width int (use exts "max")
         self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
 
-        self.namespace = {'GPR': self.gpr,
+        self.namespace = {}
+        self.namespace.update(self.spr)
+        self.namespace.update({'GPR': self.gpr,
                           'MEM': self.mem,
                           'SPR': self.spr,
                           'memassign': self.memassign,
@@ -282,7 +292,8 @@ class ISACaller:
                           'undefined': self.undefined,
                           'mode_is_64bit': True,
                           'SO': XER_bits['SO']
-                          }
+                          })
+
 
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []

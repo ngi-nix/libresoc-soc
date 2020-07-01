@@ -82,7 +82,8 @@ class TrapTestCase(FHDLTestCase):
         lst = ["rfid"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
-        self.run_tst_program(Program(lst), initial_regs)
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_0_trap_eq_imm(self):
         insns = ["tw", "td"]
