@@ -44,8 +44,8 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
-    yield from ALUHelpers.set_fast_cia(alu, dec2, inp)
-    yield from ALUHelpers.set_fast_msr(alu, dec2, inp)
+    yield from ALUHelpers.set_cia(alu, dec2, inp)
+    yield from ALUHelpers.set_msr(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -201,8 +201,8 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr2(res, alu, dec2)
-        yield from ALUHelpers.get_fast_nia(res, alu, dec2)
-        yield from ALUHelpers.get_fast_msr(res, alu, dec2)
+        yield from ALUHelpers.get_nia(res, alu, dec2)
+        yield from ALUHelpers.get_msr(res, alu, dec2)
 
         print ("output", res)
 
@@ -210,7 +210,8 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+        ALUHelpers.get_sim_cia(sim_o, sim, dec2)
+        ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ov(self, res, sim_o, code)

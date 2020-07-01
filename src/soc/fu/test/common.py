@@ -122,11 +122,11 @@ class ALUHelpers:
             print ("extra inputs: so", so)
             yield alu.p.data_i.xer_so.eq(so)
 
-    def set_fast_msr(alu, dec2, inp):
+    def set_msr(alu, dec2, inp):
         if 'msr' in inp:
             yield alu.p.data_i.msr.eq(inp['msr'])
 
-    def set_fast_cia(alu, dec2, inp):
+    def set_cia(alu, dec2, inp):
         if 'cia' in inp:
             yield alu.p.data_i.cia.eq(inp['cia'])
 
@@ -166,12 +166,15 @@ class ALUHelpers:
         if spr2_valid:
             res['spr2'] = yield alu.n.data_o.spr2.data
 
-    def get_fast_nia(res, alu, dec2):
+    def get_cia(res, alu, dec2):
+        res['cia'] = yield alu.p.data_i.cia
+
+    def get_nia(res, alu, dec2):
         nia_valid = yield alu.n.data_o.nia.ok
         if nia_valid:
             res['nia'] = yield alu.n.data_o.nia.data
 
-    def get_fast_msr(res, alu, dec2):
+    def get_msr(res, alu, dec2):
         msr_valid = yield alu.n.data_o.msr.ok
         if msr_valid:
             res['msr'] = yield alu.n.data_o.msr.data
