@@ -4,7 +4,7 @@ from nmigen.lib.coding import PriorityEncoder
 from nmigen.utils import log2_int
 
 
-__all__ = ["Cycle", "wishbone_layout", "make_wb_layout", "WishboneArbiter"]
+__all__ = ["Cycle", "make_wb_layout", "WishboneArbiter"]
 
 
 class Cycle:
@@ -14,9 +14,10 @@ class Cycle:
     END       = 7
 
 
-def make_wb_layout(addr_wid, mask_wid, data_wid):
+def make_wb_layout(spec):
+    addr_wid, mask_wid, data_wid = spec.addr_wid, spec.mask_wid, spec.reg_wid
     adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
-    badwid = addr_wid-adr_lsbs    # MSBs (not covered by mask)
+    badwid = spec.addr_wid-adr_lsbs    # MSBs (not covered by mask)
 
     return [
     ("adr",   badwid  , DIR_FANOUT),
@@ -32,12 +33,10 @@ def make_wb_layout(addr_wid, mask_wid, data_wid):
     ("err",           1, DIR_FANIN)
     ]
 
-wishbone_layout = make_wb_layout(32, 4, 32)
-
 
 class WishboneArbiter(Elaboratable):
-    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
-        self.bus = Record(make_wb_layout(addr_wid, mask_wid, data_wid))
+    def __init__(self, pspec):
+        self.bus = Record(make_wb_layout(pspec))
         self._port_map = dict()
 
     def port(self, priority):

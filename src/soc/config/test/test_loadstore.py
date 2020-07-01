@@ -79,7 +79,8 @@ def read_byte(dut, addr):
 
 def tst_lsmemtype(ifacetype):
     m = Module()
-    pspec = TestMemPspec(ldst_ifacetype=ifacetype, addr_wid=64,
+    pspec = TestMemPspec(ldst_ifacetype=ifacetype, 
+                         imem_ifacetype=''       , addr_wid=64,
                                                    mask_wid=4,
                                                    reg_wid=32)
     dut = ConfigLoadStoreUnit(pspec).lsi

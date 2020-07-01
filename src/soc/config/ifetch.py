@@ -17,6 +17,5 @@ class ConfigFetchUnit:
                    #'test_cache_wb': TestCacheFetchUnit
                   }
         fukls = fudict[pspec.imem_ifacetype]
-        self.fu = fukls(addr_wid=pspec.addr_wid, # address range
-                          data_wid=pspec.reg_wid)  # data bus width
+        self.fu = fukls(pspec)
 

@@ -9,15 +9,16 @@ __all__ = ["FetchUnitInterface", "BareFetchUnit", "CachedFetchUnit"]
 
 
 class FetchUnitInterface:
-    def __init__(self, addr_wid=32, data_wid=32):
-        self.addr_wid = addr_wid
-        self.data_wid = data_wid
-        self.adr_lsbs = log2_int(data_wid//8)
-        self.ibus = Record(make_wb_layout(addr_wid, data_wid//8, data_wid))
-        bad_wid = addr_wid - self.adr_lsbs # TODO: is this correct?
+    def __init__(self, pspec):
+        self.pspec = pspec
+        self.addr_wid = pspec.addr_wid
+        self.data_wid = pspec.reg_wid
+        self.adr_lsbs = log2_int(pspec.reg_wid//8)
+        self.ibus = Record(make_wb_layout(pspec))
+        bad_wid = pspec.addr_wid - self.adr_lsbs # TODO: is this correct?
 
         # inputs: address to fetch PC, and valid/stall signalling
-        self.a_pc_i = Signal(addr_wid)
+        self.a_pc_i = Signal(self.addr_wid)
         self.a_stall_i = Signal()
         self.a_valid_i = Signal()
         self.f_stall_i = Signal()
@@ -26,7 +27,7 @@ class FetchUnitInterface:
         # outputs: instruction (or error), and busy indicators
         self.a_busy_o = Signal()
         self.f_busy_o = Signal()
-        self.f_instr_o = Signal(data_wid)
+        self.f_instr_o = Signal(self.data_wid)
         self.f_fetch_err_o = Signal()
         self.f_badaddr_o = Signal(bad_wid)
 
@@ -75,10 +76,10 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
 
 
 class CachedFetchUnit(FetchUnitInterface, Elaboratable):
-    def __init__(self, *icache_args, addr_wid=32, data_wid=32):
-        super().__init__(addr_wid=addr_wid, data_wid=data_wid)
+    def __init__(self, pspec):
+        super().__init__(pspec)
 
-        self.icache_args = icache_args
+        self.icache_args = pspec.icache_args
 
         self.a_flush = Signal()
         self.f_pc = Signal(addr_wid)
@@ -107,7 +108,7 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
             icache.s2_valid.eq(self.f_valid_i & f_icache_select)
         ]
 
-        iba = WishboneArbiter(self.addr_wid, self.adr_lsbs, self.data_wid)
+        iba = WishboneArbiter(self.pspec)
         m.submodules.ibus_arbiter = iba
         m.d.comb += iba.bus.connect(self.ibus)
 

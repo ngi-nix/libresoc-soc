@@ -11,13 +11,14 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 
 
 class LoadStoreUnitInterface:
-    def __init__(self, addr_wid=32, mask_wid=4, data_wid=32):
-        print ("loadstoreunit addr mask data", addr_wid, mask_wid, data_wid)
-        self.dbus = Record(make_wb_layout(addr_wid, mask_wid, data_wid))
+    def __init__(self, pspec):
+        self.pspec = pspec
+        self.dbus = Record(make_wb_layout(pspec))
         print (self.dbus.sel.shape())
-        self.mask_wid = mask_wid
-        self.addr_wid = addr_wid
-        self.data_wid = data_wid
+        self.mask_wid = mask_wid = pspec.mask_wid
+        self.addr_wid = addr_wid = pspec.addr_wid
+        self.data_wid = data_wid = pspec.reg_wid
+        print ("loadstoreunit addr mask data", addr_wid, mask_wid, data_wid)
         self.adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
         badwid = addr_wid-self.adr_lsbs    # TODO: is this correct?
 
@@ -104,10 +105,10 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
 
 
 class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
-    def __init__(self, *dcache_args, addr_wid=32, mask_wid=4, data_wid=32):
-        super().__init__(addr_wid, mask_wid, data_wid)
+    def __init__(self, pspec):
+        super().__init__(pspec)
 
-        self.dcache_args = dcache_args
+        self.dcache_args = psiec.dcache_args
 
         self.x_fence_i = Signal()
         self.x_flush = Signal()
@@ -155,7 +156,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             wrbuf_r_data.eq(wrbuf.r_data),
         ]
 
-        dba = WishboneArbiter(self.addr_wid, self.mask_wid, self.data_wid)
+        dba = WishboneArbiter(self.pspec)
         m.submodules.dbus_arbiter = dba
         m.d.comb += dba.bus.connect(self.dbus)
 

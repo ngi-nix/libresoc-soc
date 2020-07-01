@@ -6,9 +6,9 @@ from nmigen.cli import rtlil
 
 class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
 
-    def __init__(self, addr_wid=32, data_wid=32):
-        print ("testmemfetchunit", addr_wid, data_wid)
-        super().__init__(addr_wid=addr_wid, data_wid=data_wid)
+    def __init__(self, pspec):
+        print ("testmemfetchunit", pspec.addr_wid, pspec.reg_wid)
+        super().__init__(pspec)
         # limit TestMemory to 2^6 entries of regwid size
         self.mem = TestMemory(self.data_wid, 6, readonly=True)
 

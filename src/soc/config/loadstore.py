@@ -18,9 +18,7 @@ class ConfigLoadStoreUnit:
                    #'test_cache_wb': TestCacheLoadStoreUnit
                   }
         lsikls = lsidict[pspec.ldst_ifacetype]
-        self.lsi = lsikls(addr_wid=pspec.addr_wid, # address range
-                          mask_wid=pspec.mask_wid, # cache line range
-                          data_wid=pspec.reg_wid)  # data bus width
+        self.lsi = lsikls(pspec)
 
 
 class ConfigMemoryPortInterface:

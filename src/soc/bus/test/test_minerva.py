@@ -5,8 +5,8 @@ from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit
 
 
 class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
-    def __init__(self, addr_wid=64, mask_wid=4, data_wid=64):
-        super().__init__(addr_wid, mask_wid, data_wid)
+    def __init__(self, pspec):
+        super().__init__(pspec)
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
@@ -35,8 +35,8 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
 
 
 class TestSRAMBareFetchUnit(BareFetchUnit):
-    def __init__(self, addr_wid=64, data_wid=64):
-        super().__init__(addr_wid, data_wid)
+    def __init__(self, pspec):
+        super().__init__(pspec)
         # small 16-entry Memory
         self.mem = Memory(width=self.data_wid, depth=32)
 
