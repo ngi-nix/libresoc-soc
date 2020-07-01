@@ -78,13 +78,29 @@ class TrapTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_trap_eq_imm(self):
-        insns = ["twi", "tdi"]
+    def test_1_rfid(self):
+        lst = ["rfid"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 1
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_0_trap_eq_imm(self):
+        insns = ["tw", "td"]
         for i in range(2):
             choice = random.choice(insns)
             lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
             initial_regs = [0] * 32
             initial_regs[1] = 1
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_0_trap_eq(self):
+        insns = ["twi", "tdi"]
+        for i in range(2):
+            choice = insns[i]
+            lst = [f"{choice} 4, 1, 2"] # TO=4: trap equal
+            initial_regs = [0] * 32
+            initial_regs[1] = 1
+            initial_regs[2] = 1
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
