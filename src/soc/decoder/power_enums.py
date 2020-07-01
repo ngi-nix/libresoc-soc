@@ -201,6 +201,7 @@ class InternalOp(Enum):
     OP_RFID = 70
     OP_MFMSR = 71
     OP_MTMSRD = 72
+    OP_SC = 73
 
 
 @unique
