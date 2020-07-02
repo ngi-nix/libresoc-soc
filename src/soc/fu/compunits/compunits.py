@@ -97,12 +97,12 @@ class FunctionUnitBaseSingle(MultiCompUnit):
     ideal (it could be a lot neater) but works for now.
     """
     def __init__(self, speckls, pipekls, idx):
+        alu_name = "alu_%s%d" % (self.fnunit.name.lower(), idx)
         pspec = speckls(id_wid=2)                # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
-        alu.name = "alu_%s%d" % (self.fnunit.name.lower(), idx)
-        super().__init__(regspec, alu, opsubset) # pass to MultiCompUnit
+        super().__init__(regspec, alu, opsubset, name=alu_name) # MultiCompUnit
 
 
 ##############################################################
@@ -217,7 +217,7 @@ def tst_single_fus_il():
                         ('trap', TrapFunctionUnit),
                         ('logical', LogicalFunctionUnit),
                         ('shiftrot', ShiftRotFunctionUnit)):
-        fu = kls()
+        fu = kls(0)
         vl = rtlil.convert(fu, ports=fu.ports())
         with open("fu_%s.il" % name, "w") as f:
             f.write(vl)

@@ -101,7 +101,7 @@ class CompUnitRecord(RegSpec, RecordObject):
 
 
 class MultiCompUnit(RegSpecALUAPI, Elaboratable):
-    def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1):
+    def __init__(self, rwid, alu, opsubsetkls, n_src=2, n_dst=1, name=None):
         """MultiCompUnit
 
         * :rwid:        width of register latches (TODO: allocate per regspec)
@@ -111,6 +111,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         * :n_dst:       number of destination operands
         """
         RegSpecALUAPI.__init__(self, rwid, alu)
+        self.alu_name = name or "alu"
         self.opsubsetkls = opsubsetkls
         self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
         n_src, n_dst = self.n_src, self.n_dst = cu._n_src, cu._n_dst
@@ -164,7 +165,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.alu = self.alu
+        setattr(m.submodules, self.alu_name, self.alu)
         m.submodules.src_l = src_l = SRLatch(False, self.n_src, name="src")
         m.submodules.opc_l = opc_l = SRLatch(sync=False, name="opc")
         m.submodules.req_l = req_l = SRLatch(False, self.n_dst, name="req")
