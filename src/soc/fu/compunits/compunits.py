@@ -96,11 +96,12 @@ class FunctionUnitBaseSingle(MultiCompUnit):
     decoding) which read-register ports are to be requested.  this is not
     ideal (it could be a lot neater) but works for now.
     """
-    def __init__(self, speckls, pipekls):
+    def __init__(self, speckls, pipekls, idx):
         pspec = speckls(id_wid=2)                # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
+        alu.name = "alu_%s%d" % (self.fnunit.name.lower(), idx)
         super().__init__(regspec, alu, opsubset) # pass to MultiCompUnit
 
 
@@ -116,36 +117,43 @@ class FunctionUnitBaseMulti:
 
 class ALUFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.ALU
-    def __init__(self): super().__init__(ALUPipeSpec, ALUBasePipe)
+    def __init__(self, idx):
+        super().__init__(ALUPipeSpec, ALUBasePipe, idx)
 
 class LogicalFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.LOGICAL
-    def __init__(self): super().__init__(LogicalPipeSpec, LogicalBasePipe)
+    def __init__(self, idx):
+        super().__init__(LogicalPipeSpec, LogicalBasePipe, idx)
 
 class CRFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.CR
-    def __init__(self): super().__init__(CRPipeSpec, CRBasePipe)
+    def __init__(self, idx):
+        super().__init__(CRPipeSpec, CRBasePipe, idx)
 
 class BranchFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.BRANCH
-    def __init__(self): super().__init__(BranchPipeSpec, BranchBasePipe)
+    def __init__(self, idx):
+        super().__init__(BranchPipeSpec, BranchBasePipe, idx)
 
 class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SHIFT_ROT
-    def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
+    def __init__(self, idx):
+        super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe, idx)
 
 class DIVFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
-    def __init__(self): super().__init__(DIVPipeSpec, DIVBasePipe)
+    def __init__(self, idx):
+        super().__init__(DIVPipeSpec, DIVBasePipe, idx)
 
 class TrapFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.TRAP
-    def __init__(self): super().__init__(TrapPipeSpec, TrapBasePipe)
+    def __init__(self, idx):
+        super().__init__(TrapPipeSpec, TrapBasePipe, idx)
 
 # special-case
 class LDSTFunctionUnit(LDSTCompUnit):
     fnunit = Function.LDST
-    def __init__(self, pi, awid):
+    def __init__(self, pi, awid, idx):
         pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
@@ -182,11 +190,11 @@ class AllFunctionUnits(Elaboratable):
                                  ('shiftrot', 1, ShiftRotFunctionUnit),
                                 ):
             for i in range(qty):
-                self.fus["%s%d" % (name, i)] = kls()
+                self.fus["%s%d" % (name, i)] = kls(i)
         if pilist is None:
             return
         for i, pi in enumerate(pilist):
-            self.fus["ldst%d" % (i)] = LDSTFunctionUnit(pi, addrwid)
+            self.fus["ldst%d" % (i)] = LDSTFunctionUnit(pi, addrwid, i)
 
     def elaborate(self, platform):
         m = Module()
