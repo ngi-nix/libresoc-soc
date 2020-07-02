@@ -161,11 +161,14 @@ class TestIssuer(Elaboratable):
 
 
 if __name__ == '__main__':
+    units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1, 'logical': 1,
+             'shiftrot': 1}
     pspec = TestMemPspec(ldst_ifacetype='bare_wb',
                          imem_ifacetype='bare_wb',
                          addr_wid=48,
                          mask_wid=8,
-                         reg_wid=64)
+                         reg_wid=64,
+                         units=units)
     dut = TestIssuer(pspec)
     vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
     with open("test_issuer.il", "w") as f:

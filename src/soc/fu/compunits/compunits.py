@@ -178,17 +178,23 @@ class AllFunctionUnits(Elaboratable):
      * type of FU required
 
     """
-    def __init__(self, pspec, pilist=None, addrwid=6):
+    def __init__(self, pspec, pilist=None):
+        addrwid = pspec.addr_wid
+        units = pspec.units
+        if not isinstance(units, dict):
+            units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1, 'logical': 1,
+                     'div': 1, 'shiftrot': 1}
+        alus = {'alu': ALUFunctionUnit,
+                 'cr': CRFunctionUnit,
+                 'branch': BranchFunctionUnit,
+                 'trap': TrapFunctionUnit,
+                 'div': DIVFunctionUnit,
+                 'logical': LogicalFunctionUnit,
+                 'shiftrot': ShiftRotFunctionUnit,
+                }
         self.fus = {}
-        for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
-                                 ('cr', 1, CRFunctionUnit),
-                                 ('branch', 1, BranchFunctionUnit),
-                                 ('trap', 1, TrapFunctionUnit),
-                                 # far too large at the moment
-                                 #('div', 1, DIVFunctionUnit),
-                                 ('logical', 1, LogicalFunctionUnit),
-                                 ('shiftrot', 1, ShiftRotFunctionUnit),
-                                ):
+        for name, qty in units.items():
+            kls = alus[name]
             for i in range(qty):
                 self.fus["%s%d" % (name, i)] = kls(i)
         if pilist is None:

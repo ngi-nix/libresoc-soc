@@ -55,13 +55,12 @@ def sort_fuspecs(fuspecs):
 
 class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
-        addrwid = pspec.addr_wid
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]
 
         # function units (only one each)
-        self.fus = AllFunctionUnits(pilist=[pi], addrwid=addrwid)
+        self.fus = AllFunctionUnits(pspec, pilist=[pi])
 
         # register files (yes plural)
         self.regs = RegFiles()
