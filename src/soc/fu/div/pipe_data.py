@@ -23,7 +23,7 @@ class DIVPipeSpec(CommonPipeSpec):
     core_config = DivPipeCoreConfig(
         bit_width=64,
         fract_width=64,
-        log2_radix=3,
+        log2_radix=1,
     )
 
 
