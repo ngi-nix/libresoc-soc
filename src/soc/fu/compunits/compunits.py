@@ -176,7 +176,8 @@ class AllFunctionUnits(Elaboratable):
                                  ('cr', 1, CRFunctionUnit),
                                  ('branch', 1, BranchFunctionUnit),
                                  ('trap', 1, TrapFunctionUnit),
-                                 ('div', 1, DIVFunctionUnit),
+                                 # far too large at the moment
+                                 #('div', 1, DIVFunctionUnit),
                                  ('logical', 1, LogicalFunctionUnit),
                                  ('shiftrot', 1, ShiftRotFunctionUnit),
                                 ):
