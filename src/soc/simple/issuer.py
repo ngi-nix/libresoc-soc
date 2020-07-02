@@ -31,16 +31,10 @@ class TestIssuer(Elaboratable):
 
     efficiency and speed is not the main goal here: functional correctness is.
     """
-    def __init__(self, addrwid=6, idepth=6, ifacetype='testpi',
-                                            imemtype='testmem'):
+    def __init__(self, pspec):
         # main instruction core
-        self.core = core = NonProductionCore(addrwid, ifacetype=ifacetype)
+        self.core = core = NonProductionCore(pspec)
 
-        pspec = TestMemPspec(ldst_ifacetype=ifacetype,
-                             imem_ifacetype=imemtype,
-                             addr_wid=addrwid<<1,
-                             mask_wid=8,
-                             reg_wid=64) # instruction memory width
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
         # one-row cache of instruction read
@@ -167,7 +161,12 @@ class TestIssuer(Elaboratable):
 
 
 if __name__ == '__main__':
-    dut = TestIssuer()
+    pspec = TestMemPspec(ldst_ifacetype='testpi',
+                         imem_ifacetype='testmem',
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64)
+    dut = TestIssuer(pspec)
     vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
     with open("test_issuer.il", "w") as f:
         f.write(vl)

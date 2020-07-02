@@ -31,6 +31,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
+from soc.config.test.test_loadstore import TestMemPspec
 import operator
 
 
@@ -53,10 +54,10 @@ def sort_fuspecs(fuspecs):
 
 
 class NonProductionCore(Elaboratable):
-    def __init__(self, addrwid=6, idepth=16, ifacetype='testpi'):
+    def __init__(self, pspec):
+        addrwid = pspec.addr_wid
         # single LD/ST funnel for memory access
-        self.l0 = TstL0CacheBuffer(n_units=1, regwid=64,
-                                   addrwid=addrwid, ifacetype=ifacetype)
+        self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]
 
         # function units (only one each)
@@ -311,7 +312,12 @@ class NonProductionCore(Elaboratable):
 
 
 if __name__ == '__main__':
-    dut = NonProductionCore()
+    pspec = TestMemPspec(ldst_ifacetype='testpi',
+                         imem_ifacetype='',
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64)
+    dut = NonProductionCore(pspec)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_core.il", "w") as f:
         f.write(vl)

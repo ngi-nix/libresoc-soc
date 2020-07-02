@@ -17,6 +17,7 @@ from soc.decoder.power_enums import Function, XER_bits
 from soc.simple.issuer import TestIssuer
 from soc.experiment.compalu_multi import find_ok # hack
 
+from soc.config.test.test_loadstore import TestMemPspec
 from soc.simple.test.test_core import (setup_regs, check_regs,
                                        wait_for_busy_clear,
                                        wait_for_busy_hi)
@@ -66,8 +67,12 @@ class TestRunner(FHDLTestCase):
         go_insn_i = Signal()
         pc_i = Signal(32)
 
-        m.submodules.issuer = issuer = TestIssuer(ifacetype="test_bare_wb",
-                                                  imemtype="test_bare_wb")
+        pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
+                             imem_ifacetype='test_bare_wb',
+                             addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64)
+        m.submodules.issuer = issuer = TestIssuer(pspec)
         imem = issuer.imem._get_memory()
         core = issuer.core
         pdecode2 = core.pdecode2

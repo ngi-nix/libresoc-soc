@@ -264,12 +264,9 @@ class L0CacheBuffer(Elaboratable):
 
 
 class TstL0CacheBuffer(Elaboratable):
-    def __init__(self, n_units=3, regwid=16, addrwid=4, ifacetype='testpi'):
-        pspec = TestMemPspec(ldst_ifacetype=ifacetype,
-                             imem_ifacetype='',
-                             addr_wid=addrwid<<1,
-                             mask_wid=8,
-                             reg_wid=regwid)
+    def __init__(self, pspec, n_units=3):
+        regwid = pspec.reg_wid
+        addrwid = pspec.addr_wid
         self.cmpi = ConfigMemoryPortInterface(pspec)
         self.pimem = self.cmpi.pi
         self.l0 = L0CacheBuffer(n_units, self.pimem, regwid, addrwid<<1)
