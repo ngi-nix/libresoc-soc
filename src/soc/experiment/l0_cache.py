@@ -353,7 +353,11 @@ class TestL0Cache(unittest.TestCase):
 
     def test_l0_cache_test_bare_wb(self):
 
-        dut = TstL0CacheBuffer(regwid=64, ifacetype='test_bare_wb')
+        pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
+                             addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64)
+        dut = TstL0CacheBuffer(pspec)
         vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
         with open("test_basic_l0_cache_bare_wb.il", "w") as f:
             f.write(vl)
@@ -363,7 +367,11 @@ class TestL0Cache(unittest.TestCase):
 
     def test_l0_cache_testpi(self):
 
-        dut = TstL0CacheBuffer(regwid=64, ifacetype='testpi')
+        pspec = TestMemPspec(ldst_ifacetype='testpi',
+                             addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64)
+        dut = TstL0CacheBuffer(pspec)
         vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
         with open("test_basic_l0_cache.il", "w") as f:
             f.write(vl)

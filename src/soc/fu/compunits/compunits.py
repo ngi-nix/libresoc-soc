@@ -178,7 +178,7 @@ class AllFunctionUnits(Elaboratable):
      * type of FU required
 
     """
-    def __init__(self, pilist=None, addrwid=6):
+    def __init__(self, pspec, pilist=None, addrwid=6):
         self.fus = {}
         for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
                                  ('cr', 1, CRFunctionUnit),
