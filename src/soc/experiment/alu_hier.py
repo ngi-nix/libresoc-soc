@@ -268,7 +268,8 @@ class ALU(Elaboratable):
         # choose between zero-delay output, or registered
         with m.If(go_now):
             m.d.comb += self.o.eq(sub.o)
-        with m.Else():
+        # only present the result at the last computation cycle
+        with m.Elif(alu_done):
             m.d.comb += self.o.eq(alu_r)
 
         return m
