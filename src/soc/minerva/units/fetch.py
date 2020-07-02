@@ -31,6 +31,23 @@ class FetchUnitInterface:
         self.f_fetch_err_o = Signal()
         self.f_badaddr_o = Signal(bad_wid)
 
+    def __iter__(self):
+        yield self.a_pc_i
+        yield self.a_stall_i
+        yield self.a_valid_i
+        yield self.f_stall_i
+        yield self.f_valid_i
+        yield self.a_busy_o
+        yield self.f_busy_o
+        yield self.f_instr_o
+        yield self.f_fetch_err_o
+        yield self.f_badaddr_o
+        for sig in self.ibus.fields.values():
+            yield sig
+
+    def ports(self):
+        return list(self)
+
 
 class BareFetchUnit(FetchUnitInterface, Elaboratable):
     def elaborate(self, platform):

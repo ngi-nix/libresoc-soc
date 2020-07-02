@@ -10,11 +10,13 @@ from soc.experiment.lsmem import TestMemLoadStoreUnit
 from soc.bus.test.test_minerva import TestSRAMBareLoadStoreUnit
 from soc.experiment.pi2ls import Pi2LSUI
 from soc.experiment.pimem import TestMemoryPortInterface
+from soc.minerva.units.loadstore import BareLoadStoreUnit
 
 class ConfigLoadStoreUnit:
     def __init__(self, pspec):
         lsidict = {'testmem': TestMemLoadStoreUnit,
                    'test_bare_wb': TestSRAMBareLoadStoreUnit,
+                   'bare_wb': BareLoadStoreUnit,
                    #'test_cache_wb': TestCacheLoadStoreUnit
                   }
         lsikls = lsidict[pspec.ldst_ifacetype]
@@ -23,6 +25,7 @@ class ConfigLoadStoreUnit:
 
 class ConfigMemoryPortInterface:
     def __init__(self, pspec):
+        self.pspec = pspec
         if pspec.ldst_ifacetype == 'testpi':
             self.pi = TestMemoryPortInterface(addrwid=pspec.addr_wid, # adr bus
                                               regwid=pspec.reg_wid) # data bus
@@ -32,3 +35,8 @@ class ConfigMemoryPortInterface:
                           addr_wid=pspec.addr_wid, # address range
                           mask_wid=pspec.mask_wid, # cache line range
                           data_wid=pspec.reg_wid)  # data bus width
+
+    def ports(self):
+        if self.pspec.ldst_ifacetype == 'testpi':
+            return self.pi.ports()
+        return list(self.pi.ports()) + self.lsmem.lsi.ports()

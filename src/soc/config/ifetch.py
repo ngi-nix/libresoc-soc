@@ -8,12 +8,14 @@ of unnecessarily-duplicated code
 """
 from soc.experiment.imem import TestMemFetchUnit
 from soc.bus.test.test_minerva import TestSRAMBareFetchUnit
+from soc.minerva.units.fetch import BareFetchUnit
 
 
 class ConfigFetchUnit:
     def __init__(self, pspec):
         fudict = {'testmem': TestMemFetchUnit,
                    'test_bare_wb': TestSRAMBareFetchUnit,
+                   'bare_wb': BareFetchUnit,
                    #'test_cache_wb': TestCacheFetchUnit
                   }
         fukls = fudict[pspec.imem_ifacetype]

@@ -271,8 +271,7 @@ class PortInterfaceBase(Elaboratable):
         return m
 
     def ports(self):
-        for p in self.dports:
-            yield from p.ports()
+        yield from self.pi.ports()
 
 
 class TestMemoryPortInterface(PortInterfaceBase):

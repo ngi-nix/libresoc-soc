@@ -281,8 +281,9 @@ class TstL0CacheBuffer(Elaboratable):
         return m
 
     def ports(self):
+        yield from self.cmpi.ports()
         yield from self.l0.ports()
-        yield from self.pimem
+        yield from self.pimem.ports()
 
 
 def wait_busy(port, no=False):

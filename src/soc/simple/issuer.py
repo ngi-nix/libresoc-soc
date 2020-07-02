@@ -161,8 +161,8 @@ class TestIssuer(Elaboratable):
 
 
 if __name__ == '__main__':
-    pspec = TestMemPspec(ldst_ifacetype='testpi',
-                         imem_ifacetype='testmem',
+    pspec = TestMemPspec(ldst_ifacetype='bare_wb',
+                         imem_ifacetype='bare_wb',
                          addr_wid=48,
                          mask_wid=8,
                          reg_wid=64)

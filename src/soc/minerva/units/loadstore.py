@@ -51,6 +51,29 @@ class LoadStoreUnitInterface:
         self.m_store_err_o = Signal()     # if there was an error when storing
         self.m_badaddr_o = Signal(badwid) # The address of the load/store error
 
+    def __iter__(self):
+        yield self.x_addr_i
+        yield self.x_mask_i
+        yield self.x_ld_i
+        yield self.x_st_i
+        yield self.x_st_data_i
+
+        yield self.x_stall_i
+        yield self.x_valid_i
+        yield self.m_stall_i
+        yield self.m_valid_i
+        yield self.x_busy_o
+        yield self.m_busy_o
+        yield self.m_ld_data_o
+        yield self.m_load_err_o
+        yield self.m_store_err_o
+        yield self.m_badaddr_o
+        for sig in self.dbus.fields.values():
+            yield sig
+
+    def ports(self):
+        return list(self)
+
 
 class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
     def elaborate(self, platform):

@@ -305,6 +305,7 @@ class NonProductionCore(Elaboratable):
     def __iter__(self):
         yield from self.fus.ports()
         yield from self.pdecode2.ports()
+        yield from self.l0.ports()
         # TODO: regs
 
     def ports(self):
