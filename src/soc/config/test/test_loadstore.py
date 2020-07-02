@@ -6,10 +6,10 @@ from nmigen.back.pysim import Simulator, Settle
 from soc.config.loadstore import ConfigLoadStoreUnit
 from collections import namedtuple
 from nmigen.cli import rtlil
+from unittest.mock import Mock
 
-TestMemPspec = namedtuple('TestMemPspec', ['ldst_ifacetype',
-                             'imem_ifacetype',
-                             'addr_wid', 'mask_wid', 'reg_wid'])
+TestMemPspec = Mock # might as well use Mock, it does the job
+
 
 def write_to_addr(dut, addr, value):
     yield dut.x_addr_i.eq(addr)
