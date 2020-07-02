@@ -67,6 +67,9 @@ from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 
+from soc.fu.div.pipeline import DIVBasePipe
+from soc.fu.div.pipe_data import DIVPipeSpec
+
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 from soc.experiment.compldst_multi import LDSTCompUnit # special-case
 
@@ -131,6 +134,10 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SHIFT_ROT
     def __init__(self): super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe)
 
+class DIVFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.DIV
+    def __init__(self): super().__init__(DIVPipeSpec, DIVBasePipe)
+
 class TrapFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.TRAP
     def __init__(self): super().__init__(TrapPipeSpec, TrapBasePipe)
@@ -169,6 +176,7 @@ class AllFunctionUnits(Elaboratable):
                                  ('cr', 1, CRFunctionUnit),
                                  ('branch', 1, BranchFunctionUnit),
                                  ('trap', 1, TrapFunctionUnit),
+                                 ('div', 1, DIVFunctionUnit),
                                  ('logical', 1, LogicalFunctionUnit),
                                  ('shiftrot', 1, ShiftRotFunctionUnit),
                                 ):
