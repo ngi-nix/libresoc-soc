@@ -12,3 +12,5 @@ Waveforms
 .eggs
 
 .vscode/*
+build
+gen
