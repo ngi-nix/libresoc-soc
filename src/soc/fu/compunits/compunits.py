@@ -168,6 +168,7 @@ class AllFunctionUnits(Elaboratable):
         for (name, qty, kls) in (('alu', 1, ALUFunctionUnit),
                                  ('cr', 1, CRFunctionUnit),
                                  ('branch', 1, BranchFunctionUnit),
+                                 ('trap', 1, TrapFunctionUnit),
                                  ('logical', 1, LogicalFunctionUnit),
                                  ('shiftrot', 1, ShiftRotFunctionUnit),
                                 ):
