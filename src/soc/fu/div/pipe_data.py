@@ -3,7 +3,7 @@ from soc.fu.pipe_data import IntegerData
 from soc.fu.alu.pipe_data import ALUOutputData, CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 from ieee754.div_rem_sqrt_rsqrt.core import (
-    DivPipeCoreConfig, DivPipeCoreInputData,
+    DivPipeCoreConfig, DivPipeCoreInputData, DP,
     DivPipeCoreInterstageData, DivPipeCoreOutputData)
 
 
@@ -24,6 +24,7 @@ class DIVPipeSpec(CommonPipeSpec):
         bit_width=64,
         fract_width=64,
         log2_radix=1,
+        supported=[DP.UDivRem]
     )
 
 
