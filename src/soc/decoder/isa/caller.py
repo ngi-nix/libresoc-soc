@@ -188,8 +188,6 @@ class SPR(dict):
         self.sd = dec2
         dict.__init__(self)
         for key, v in initial_sprs.items():
-            if isinstance(key, str):
-                key = spr_byname[key].SPR
             if isinstance(key, SelectableInt):
                 key = key.value
             key = special_sprs.get(key, key)
@@ -207,6 +205,8 @@ class SPR(dict):
         # if key in special_sprs get the special spr, otherwise return key
         if isinstance(key, SelectableInt):
             key = key.value
+        if isinstance(key, int):
+            key = spr_dict[key].SPR
         key = special_sprs.get(key, key)
         if key in self:
             res = dict.__getitem__(self, key)
@@ -220,6 +220,9 @@ class SPR(dict):
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
             key = key.value
+        if isinstance(key, int):
+            key = spr_dict[key].SPR
+            print ("spr key", key)
         key = special_sprs.get(key, key)
         print ("setting spr", key, value)
         dict.__setitem__(self, key, value)
