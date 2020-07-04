@@ -42,16 +42,16 @@ class BranchTestRunner(TestRunner):
 
         # Link SPR
         lk = yield dec2.e.lk
-        branch_lk = 'spr2' in res
+        branch_lk = 'fast2' in res
         self.assertEqual(lk, branch_lk, code)
         if lk:
-            branch_lr = res['spr2']
+            branch_lr = res['fast2']
             self.assertEqual(sim.spr['LR'], branch_lr, code)
 
         # CTR SPR
-        ctr_ok = 'spr1' in res
+        ctr_ok = 'fast1' in res
         if ctr_ok:
-            ctr = res['spr1']
+            ctr = res['fast1']
             self.assertEqual(sim.spr['CTR'], ctr, code)
 
 

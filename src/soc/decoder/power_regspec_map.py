@@ -88,9 +88,9 @@ def regspec_decode_read(e, regfile, name):
         if name == 'msr':
             return Const(1), MSR # TODO: detect read-conditions
         # TODO: remap the SPR numbers to FAST regs
-        if name == 'spr1':
+        if name == 'fast1':
             return e.read_fast1.ok, 1<<e.read_fast1.data
-        if name == 'spr2':
+        if name == 'fast2':
             return e.read_fast2.ok, 1<<e.read_fast2.data
 
     if regfile == 'SPR':
@@ -143,9 +143,9 @@ def regspec_decode_write(e, regfile, name):
         if name == 'msr':
             return None, MSR # hmmm
         # TODO: remap the SPR numbers to FAST regs
-        if name == 'spr1':
+        if name == 'fast1':
             return e.write_fast1, 1<<e.write_fast1.data
-        if name == 'spr2':
+        if name == 'fast2':
             return e.write_fast2, 1<<e.write_fast2.data
 
     if regfile == 'SPR':
