@@ -27,6 +27,9 @@ TT_PRIV = 1<<1
 TT_TRAP = 1<<2
 TT_ADDR = 1<<3
 
+def decode_spr_num(spr):
+    return Cat(spr[5:10], spr[0:5])
+
 
 def instr_is_priv(m, op, insn):
     """determines if the instruction is privileged or not
@@ -100,9 +103,29 @@ class DecodeA(Elaboratable):
 
         # MFSPR move from SPRs
         with m.If(op.internal_op == InternalOp.OP_MFSPR):
-            # XXX TODO: fast/slow SPR decoding and mapping
-            comb += self.spr_out.data.eq(self.dec.SPR) # SPR field, XFX
-            comb += self.spr_out.ok.eq(1)
+            spr = Signal(10, reset_less=True)
+            comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
+            with m.Switch(spr):
+                # fast SPRs
+                with m.Case(SPR.CTR):
+                    self.fast_out.data.eq(FastRegs.CTR)
+                    self.fast_out.ok.eq(1)
+                with m.Case(SPR.LR):
+                    self.fast_out.data.eq(FastRegs.LR)
+                    self.fast_out.ok.eq(1)
+                with m.Case(SPR.TAR):
+                    self.fast_out.data.eq(FastRegs.TAR)
+                    self.fast_out.ok.eq(1)
+                with m.Case(SPR.SRR0):
+                    self.fast_out.data.eq(FastRegs.SRR0)
+                    self.fast_out.ok.eq(1)
+                with m.Case(SPR.SRR1):
+                    self.fast_out.data.eq(FastRegs.SRR1)
+                    self.fast_out.ok.eq(1)
+                with m.Default():
+                    comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
+                    comb += self.spr_out.ok.eq(1)
+
 
         return m
 
@@ -243,26 +266,30 @@ class DecodeOut(Elaboratable):
                 comb += self.reg_out.data.eq(self.dec.RA)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.SPR):
-                comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
-                comb += self.spr_out.ok.eq(1)
+                spr = Signal(10, reset_less=True)
+                comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
                 # TODO MTSPR 1st spr (fast)
                 with m.If(op.internal_op == InternalOp.OP_MTSPR):
-                    pass
-                    """
-                    sprn := decode_spr_num(f_in.insn);
-                    v.ispr1 := fast_spr_num(sprn);
-                    -- Make slow SPRs single issue
-                    if is_fast_spr(v.ispr1) = '0' then
-                        v.decode.sgl_pipe := '1';
-                        -- send MMU-related SPRs to loadstore1
-                        case sprn is
-                        when SPR_DAR | SPR_DSISR | SPR_PID | SPR_PRTBL =>
-                            v.decode.unit := LDST;
-                        when others =>
-                        end case;
-                    end if;
-                    """
-
+                    with m.Switch(spr):
+                        # fast SPRs
+                        with m.Case(SPR.CTR):
+                            self.fast_out.data.eq(FastRegs.CTR)
+                            self.fast_out.ok.eq(1)
+                        with m.Case(SPR.LR):
+                            self.fast_out.data.eq(FastRegs.LR)
+                            self.fast_out.ok.eq(1)
+                        with m.Case(SPR.TAR):
+                            self.fast_out.data.eq(FastRegs.TAR)
+                            self.fast_out.ok.eq(1)
+                        with m.Case(SPR.SRR0):
+                            self.fast_out.data.eq(FastRegs.SRR0)
+                            self.fast_out.ok.eq(1)
+                        with m.Case(SPR.SRR1):
+                            self.fast_out.data.eq(FastRegs.SRR1)
+                            self.fast_out.ok.eq(1)
+                        with m.Default():
+                            comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
+                            comb += self.spr_out.ok.eq(1)
 
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeA
         op = self.dec.op

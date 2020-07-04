@@ -1,6 +1,6 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.fu.trap.main_stage import SPRMainStage
+from soc.fu.spr.main_stage import SPRMainStage
 
 class SPRStages(PipeModBaseChain):
     def get_chain(self):

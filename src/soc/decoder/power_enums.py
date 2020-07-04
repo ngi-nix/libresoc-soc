@@ -55,6 +55,7 @@ class Function(Enum):
     TRAP = 1<<7
     MUL = 1<<8
     DIV = 1<<9
+    SPR = 1<<10
 
 
 @unique

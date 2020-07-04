@@ -11,6 +11,7 @@ Links:
 
 from soc.fu.pipe_data import IntegerData
 from soc.fu.spr.spr_input_record import CompSPROpSubset
+from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
 class SPRInputData(IntegerData):
@@ -37,6 +38,6 @@ class SPROutputData(IntegerData):
         super().__init__(pspec, True)
 
 
-class SPRPipeSpec:
+class SPRPipeSpec(CommonPipeSpec):
     regspec = (SPRInputData.regspec, SPROutputData.regspec)
     opsubsetkls = CompSPROpSubset

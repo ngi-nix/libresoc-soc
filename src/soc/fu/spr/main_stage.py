@@ -4,23 +4,19 @@
 * https://libre-soc.org/openpower/isa/sprset/
 """
 
-from nmigen import (Module, Signal, Cat, Mux, Const, signed)
+from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
-from nmutil.extend import exts
 from soc.fu.spr.pipe_data import SPRInputData, SPROutputData
-from soc.fu.branch.main_stage import br_ext
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import InternalOp, SPR, XER_bits
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
-
-def decode_spr_num(spr):
-    return Cat(spr[5:10], spr[0:5])
+from soc.decoder.power_decoder2 import decode_spr_num
 
 
 class SPRMainStage(PipeModBase):
     def __init__(self, pspec):
-        super().__init__(pspec, "main")
+        super().__init__(pspec, "spr_main")
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
         self.fields.create_specs()
 
@@ -44,7 +40,7 @@ class SPRMainStage(PipeModBase):
         # take copy of D-Form TO field
         x_fields = self.fields.FormXFX
         spr = Signal(x_fields.SPR[0:-1].shape())
-        comb += spr.eq(decode_spr_num(i_fields.SPR[0:-1]))
+        comb += spr.eq(decode_spr_num(x_fields.SPR[0:-1]))
 
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op.insn_type):

@@ -116,6 +116,11 @@ class ALUHelpers:
             yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
             print ("extra inputs: CA/32", bin(inp['xer_ca']))
 
+    def set_xer_ov(alu, dec2, inp):
+        if 'xer_ov' in inp:
+            yield alu.p.data_i.xer_ov.eq(inp['xer_ov'])
+            print ("extra inputs: OV/32", bin(inp['xer_ov']))
+
     def set_xer_so(alu, dec2, inp):
         if 'xer_so' in inp:
             so = inp['xer_so']
@@ -233,6 +238,7 @@ class ALUHelpers:
         ok = yield dec2.e.write_fast2.ok
         if ok:
             spr_num = yield dec2.e.write_fast2.data
+            spr_num = fast_reg_to_spr(spr_num)
             spr_name = spr_dict[spr_num]
             res['spr2'] = sim.spr[spr_name]
 
@@ -240,6 +246,7 @@ class ALUHelpers:
         ok = yield dec2.e.write_fast1.ok
         if ok:
             spr_num = yield dec2.e.write_fast1.data
+            spr_num = fast_reg_to_spr(spr_num)
             spr_name = spr_dict[spr_num]
             res['spr1'] = sim.spr[spr_name]
 
@@ -263,6 +270,13 @@ class ALUHelpers:
         oe_ok = yield dec2.e.oe.ok
         if oe and oe_ok:
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+
+    def check_fast_spr1(dut, res, sim_o, msg):
+        if 'fast1' in res:
+            expected = sim_o['fast1']
+            alu_out = res['fast1']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
 
     def check_int_o1(dut, res, sim_o, msg):
         if 'o1' in res:
