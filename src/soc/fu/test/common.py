@@ -46,7 +46,7 @@ class ALUHelpers:
             fast1_sel = yield dec2.e.read_fast1.data
             spr1_sel = fast_reg_to_spr(fast1_sel)
             spr1_data = sim.spr[spr1_sel].value
-            res['spr1'] = spr1_data
+            res['fast1'] = spr1_data
 
     def get_sim_fast_spr2(res, sim, dec2):
         fast2_en = yield dec2.e.read_fast2.ok
@@ -54,7 +54,7 @@ class ALUHelpers:
             fast2_sel = yield dec2.e.read_fast2.data
             spr2_sel = fast_reg_to_spr(fast2_sel)
             spr2_data = sim.spr[spr2_sel].value
-            res['spr2'] = spr2_data
+            res['fast2'] = spr2_data
 
     def get_sim_cr_a(res, sim, dec2):
         cridx_ok = yield dec2.e.read_cr1.ok
@@ -135,13 +135,21 @@ class ALUHelpers:
         if 'cia' in inp:
             yield alu.p.data_i.cia.eq(inp['cia'])
 
-    def set_fast_spr1(alu, dec2, inp):
+    def set_slow_spr1(alu, dec2, inp):
         if 'spr1' in inp:
             yield alu.p.data_i.spr1.eq(inp['spr1'])
 
-    def set_fast_spr2(alu, dec2, inp):
+    def set_slow_spr2(alu, dec2, inp):
         if 'spr2' in inp:
             yield alu.p.data_i.spr2.eq(inp['spr2'])
+
+    def set_fast_spr1(alu, dec2, inp):
+        if 'fast1' in inp:
+            yield alu.p.data_i.fast1.eq(inp['fast1'])
+
+    def set_fast_spr2(alu, dec2, inp):
+        if 'fast2' in inp:
+            yield alu.p.data_i.fast2.eq(inp['fast2'])
 
     def set_cr_a(alu, dec2, inp):
         if 'cr_a' in inp:
@@ -161,15 +169,25 @@ class ALUHelpers:
         else:
             yield alu.p.data_i.full_cr.eq(0)
 
-    def get_fast_spr1(res, alu, dec2):
+    def get_slow_spr1(res, alu, dec2):
         spr1_valid = yield alu.n.data_o.spr1.ok
         if spr1_valid:
             res['spr1'] = yield alu.n.data_o.spr1.data
 
-    def get_fast_spr2(res, alu, dec2):
+    def get_slow_spr2(res, alu, dec2):
         spr2_valid = yield alu.n.data_o.spr2.ok
         if spr2_valid:
             res['spr2'] = yield alu.n.data_o.spr2.data
+
+    def get_fast_spr1(res, alu, dec2):
+        spr1_valid = yield alu.n.data_o.fast1.ok
+        if spr1_valid:
+            res['fast1'] = yield alu.n.data_o.fast1.data
+
+    def get_fast_spr2(res, alu, dec2):
+        spr2_valid = yield alu.n.data_o.fast2.ok
+        if spr2_valid:
+            res['fast2'] = yield alu.n.data_o.fast2.data
 
     def get_cia(res, alu, dec2):
         res['cia'] = yield alu.p.data_i.cia
@@ -240,7 +258,7 @@ class ALUHelpers:
             spr_num = yield dec2.e.write_fast2.data
             spr_num = fast_reg_to_spr(spr_num)
             spr_name = spr_dict[spr_num]
-            res['spr2'] = sim.spr[spr_name]
+            res['fast2'] = sim.spr[spr_name]
 
     def get_wr_fast_spr1(res, sim, dec2):
         ok = yield dec2.e.write_fast1.ok
@@ -248,7 +266,7 @@ class ALUHelpers:
             spr_num = yield dec2.e.write_fast1.data
             spr_num = fast_reg_to_spr(spr_num)
             spr_name = spr_dict[spr_num]
-            res['spr1'] = sim.spr[spr_name]
+            res['fast1'] = sim.spr[spr_name]
 
     def get_wr_sim_xer_ca(res, sim, dec2):
         cry_out = yield dec2.e.output_carry
