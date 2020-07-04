@@ -164,7 +164,13 @@ class TestRunner(FHDLTestCase):
         instruction = Signal(32)
         ivalid_i = Signal()
 
-        m.submodules.core = core = NonProductionCore()
+        pspec = TestMemPspec(ldst_ifacetype='testpi',
+                             imem_ifacetype='',
+                             addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64)
+
+        m.submodules.core = core = NonProductionCore(pspec)
         pdecode2 = core.pdecode2
         l0 = core.l0
 
