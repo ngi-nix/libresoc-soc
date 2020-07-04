@@ -12,6 +12,8 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, InternalOp)
 from soc.decoder.helpers import exts, trunc_div, trunc_rem
+from soc.consts import PI, MSR
+
 from collections import namedtuple
 import math
 import sys
@@ -324,12 +326,12 @@ class ISACaller:
 
     def TRAP(self, trap_addr=0x700):
         print ("TRAP: TODO")
-        #self.namespace['NIA'] = trap_addr
-        #self.SRR0 = self.namespace['CIA'] + 4
-        #self.SRR1 = self.namespace['MSR']
-        #self.namespace['MSR'][45] = 1
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
+        self.spr['SRR0'] = self.pc.CIA
+        self.spr['SRR1'] = self.namespace['MSR']
+        self.set_pc(trap_addr)
+        self.namespace['MSR'][63-PI.TRAP] = 1 # bit 45, "this is a trap"
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
