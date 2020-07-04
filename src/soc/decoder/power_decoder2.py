@@ -107,23 +107,27 @@ class DecodeA(Elaboratable):
             comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
             with m.Switch(spr):
                 # fast SPRs
-                with m.Case(SPR.CTR):
-                    self.fast_out.data.eq(FastRegs.CTR)
-                    self.fast_out.ok.eq(1)
-                with m.Case(SPR.LR):
-                    self.fast_out.data.eq(FastRegs.LR)
-                    self.fast_out.ok.eq(1)
-                with m.Case(SPR.TAR):
-                    self.fast_out.data.eq(FastRegs.TAR)
-                    self.fast_out.ok.eq(1)
-                with m.Case(SPR.SRR0):
-                    self.fast_out.data.eq(FastRegs.SRR0)
-                    self.fast_out.ok.eq(1)
-                with m.Case(SPR.SRR1):
-                    self.fast_out.data.eq(FastRegs.SRR1)
-                    self.fast_out.ok.eq(1)
+                with m.Case(SPR.CTR.value):
+                    comb += self.fast_out.data.eq(FastRegs.CTR)
+                    comb += self.fast_out.ok.eq(1)
+                with m.Case(SPR.LR.value):
+                    comb += self.fast_out.data.eq(FastRegs.LR)
+                    comb += self.fast_out.ok.eq(1)
+                with m.Case(SPR.TAR.value):
+                    comb += self.fast_out.data.eq(FastRegs.TAR)
+                    comb += self.fast_out.ok.eq(1)
+                with m.Case(SPR.SRR0.value):
+                    comb += self.fast_out.data.eq(FastRegs.SRR0)
+                    comb += self.fast_out.ok.eq(1)
+                with m.Case(SPR.SRR1.value):
+                    comb += self.fast_out.data.eq(FastRegs.SRR1)
+                    comb += self.fast_out.ok.eq(1)
+                with m.Case(SPR.XER.value):
+                    pass # do nothing
+                # XXX TODO: map to internal SPR numbers
+                # XXX TODO: dec and tb not to go through mapping.
                 with m.Default():
-                    comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
+                    comb += self.spr_out.data.eq(spr)
                     comb += self.spr_out.ok.eq(1)
 
 
@@ -272,23 +276,27 @@ class DecodeOut(Elaboratable):
                 with m.If(op.internal_op == InternalOp.OP_MTSPR):
                     with m.Switch(spr):
                         # fast SPRs
-                        with m.Case(SPR.CTR):
-                            self.fast_out.data.eq(FastRegs.CTR)
-                            self.fast_out.ok.eq(1)
-                        with m.Case(SPR.LR):
-                            self.fast_out.data.eq(FastRegs.LR)
-                            self.fast_out.ok.eq(1)
-                        with m.Case(SPR.TAR):
-                            self.fast_out.data.eq(FastRegs.TAR)
-                            self.fast_out.ok.eq(1)
-                        with m.Case(SPR.SRR0):
-                            self.fast_out.data.eq(FastRegs.SRR0)
-                            self.fast_out.ok.eq(1)
-                        with m.Case(SPR.SRR1):
-                            self.fast_out.data.eq(FastRegs.SRR1)
-                            self.fast_out.ok.eq(1)
+                        with m.Case(SPR.CTR.value):
+                            comb += self.fast_out.data.eq(FastRegs.CTR)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.LR.value):
+                            comb += self.fast_out.data.eq(FastRegs.LR)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.TAR.value):
+                            comb += self.fast_out.data.eq(FastRegs.TAR)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.SRR0.value):
+                            comb += self.fast_out.data.eq(FastRegs.SRR0)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.SRR1.value):
+                            comb += self.fast_out.data.eq(FastRegs.SRR1)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.XER.value):
+                            pass # do nothing
+                        # XXX TODO: map to internal SPR numbers
+                        # XXX TODO: dec and tb not to go through mapping.
                         with m.Default():
-                            comb += self.spr_out.data.eq(self.dec.SPR) # from XFX
+                            comb += self.spr_out.data.eq(spr)
                             comb += self.spr_out.ok.eq(1)
 
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeA
@@ -579,7 +587,7 @@ class PowerDecode2(Elaboratable):
         comb += e.read_fast1.eq(dec_a.fast_out)
         comb += e.read_fast2.eq(dec_b.fast_out)
         comb += e.write_fast1.eq(dec_o.fast_out)
-        comb += e.write_fast2.eq(dec_o2.fast_out)
+        comb += e.write_fast1.eq(dec_o2.fast_out)
 
         comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)

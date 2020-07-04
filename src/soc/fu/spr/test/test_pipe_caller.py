@@ -83,9 +83,10 @@ class SPRTestCase(FHDLTestCase):
 
     def test_1_mfspr(self):
         lst = ["mfspr 1, 26", # SRR0
-               "mfspr 2, 27",] # SRR1
+               "mfspr 2, 27",  # SRR1
+               "mfspr 2, 8",] # LR
         initial_regs = [0] * 32
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234}
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_ilang(self):
@@ -122,7 +123,8 @@ class TestRunner(FHDLTestCase):
         sim.add_clock(1e-6)
         def process():
             for test in self.test_data:
-                print(test.name)
+                print("test", test.name)
+                print ("sprs", test.sprs)
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
@@ -137,6 +139,7 @@ class TestRunner(FHDLTestCase):
 
                     print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
                     print(code)
+
                     if 'XER' in sim.spr:
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
                         ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
@@ -147,6 +150,15 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
+
+                    fast_in = yield pdecode2.e.read_fast1.data
+                    spr_in = yield pdecode2.e.read_spr1.data
+                    print ("dec2 spr/fast in", fast_in, spr_in)
+
+                    fast_out = yield pdecode2.e.write_fast1.data
+                    spr_out = yield pdecode2.e.write_spr.data
+                    print ("dec2 spr/fast in", fast_out, spr_out)
+
                     fn_unit = yield pdecode2.e.fn_unit
                     self.assertEqual(fn_unit, Function.SPR.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)

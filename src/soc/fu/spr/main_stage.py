@@ -39,8 +39,8 @@ class SPRMainStage(PipeModBase):
 
         # take copy of D-Form TO field
         x_fields = self.fields.FormXFX
-        spr = Signal(x_fields.SPR[0:-1].shape())
-        comb += spr.eq(decode_spr_num(x_fields.SPR[0:-1]))
+        spr = Signal(len(x_fields.SPR))
+        comb += spr.eq(decode_spr_num(x_fields.SPR))
 
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op.insn_type):
