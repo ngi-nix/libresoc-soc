@@ -70,13 +70,13 @@ class FastRegs(RegFileArray):
         super().__init__(64, 8)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("dest2"),
-                        'spr1': self.write_port("dest3"),
-                        'spr2': self.write_port("dest4"),
+                        'fast1': self.write_port("dest3"),
+                        'fast2': self.write_port("dest4"),
                         'd_wr1': self.write_port("d_wr1")}
         self.r_ports = {'cia': self.read_port("src1"),
                         'msr': self.read_port("src2"),
-                        'spr1': self.read_port("src3"),
-                        'spr2': self.read_port("src4"),
+                        'fast1': self.read_port("src3"),
+                        'fast2': self.read_port("src4"),
                         'd_rd1': self.read_port("d_rd1")}
 
 
