@@ -60,7 +60,8 @@ class TrapMainStage(PipeModBase):
         self.fields.create_specs()
 
     def trap(self, m, trap_addr, return_addr):
-        """trap """ # TODO add descriptive docstring
+        """trap.  sets new PC, stores MSR and old PC in SRR1 and SRR0
+        """
         comb  = m.d.comb
         msr_i = self.i.msr
         nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
