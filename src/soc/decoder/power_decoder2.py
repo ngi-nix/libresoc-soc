@@ -312,6 +312,11 @@ class DecodeOut(Elaboratable):
             comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
             comb += self.fast_out.ok.eq(1)
 
+        # TRAP fast1 = SRR0
+        with m.If(op.internal_op == InternalOp.OP_TRAP):
+            comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += self.fast_out.ok.eq(1)
+
         return m
 
 
@@ -350,6 +355,11 @@ class DecodeOut2(Elaboratable):
         with m.If(op.internal_op == InternalOp.OP_RFID):
                 comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
                 comb += self.fast_out.ok.eq(1)
+
+        # TRAP fast2 = SRR1
+        with m.If(op.internal_op == InternalOp.OP_TRAP):
+            comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
+            comb += self.fast_out.ok.eq(1)
 
         return m
 
@@ -587,7 +597,7 @@ class PowerDecode2(Elaboratable):
         comb += e.read_fast1.eq(dec_a.fast_out)
         comb += e.read_fast2.eq(dec_b.fast_out)
         comb += e.write_fast1.eq(dec_o.fast_out)
-        comb += e.write_fast1.eq(dec_o2.fast_out)
+        comb += e.write_fast2.eq(dec_o2.fast_out)
 
         comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)

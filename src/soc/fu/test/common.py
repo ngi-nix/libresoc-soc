@@ -257,16 +257,16 @@ class ALUHelpers:
         if ok:
             spr_num = yield dec2.e.write_fast2.data
             spr_num = fast_reg_to_spr(spr_num)
-            spr_name = spr_dict[spr_num]
-            res['fast2'] = sim.spr[spr_name]
+            spr_name = spr_dict[spr_num].SPR
+            res['fast2'] = sim.spr[spr_name].value
 
     def get_wr_fast_spr1(res, sim, dec2):
         ok = yield dec2.e.write_fast1.ok
         if ok:
             spr_num = yield dec2.e.write_fast1.data
             spr_num = fast_reg_to_spr(spr_num)
-            spr_name = spr_dict[spr_num]
-            res['fast1'] = sim.spr[spr_name]
+            spr_name = spr_dict[spr_num].SPR
+            res['fast1'] = sim.spr[spr_name].value
 
     def get_wr_sim_xer_ca(res, sim, dec2):
         cry_out = yield dec2.e.output_carry

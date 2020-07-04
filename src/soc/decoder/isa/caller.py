@@ -211,7 +211,10 @@ class SPR(dict):
         if key in self:
             res = dict.__getitem__(self, key)
         else:
-            info = spr_dict[key]
+            if isinstance(key, int):
+                info = spr_dict[key]
+            else:
+                info = spr_byname[key]
             dict.__setitem__(self, key, SelectableInt(0, info.length))
             res = dict.__getitem__(self, key)
         print ("spr returning", key, res)
