@@ -57,11 +57,11 @@ class Driver(Elaboratable):
         cr_arr = Array([cr[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_bit_arr = Array([cr[31-i] for i in range(32)])
 
-        cia, cr_in, spr1, spr2 = dut.i.cia, dut.i.cr, dut.i.spr1, dut.i.spr2
-        ctr = spr1
+        cia, cr_in, fast1, fast2 = dut.i.cia, dut.i.cr, dut.i.fast1, dut.i.fast2
+        ctr = fast1
         lr_o, nia_o = dut.o.lr, dut.o.nia
 
-        comb += [spr2.eq(AnyConst(64)),
+        comb += [fast2.eq(AnyConst(64)),
                  ctr.eq(AnyConst(64)),
                  cia.eq(AnyConst(64))]
 
@@ -157,7 +157,7 @@ class Driver(Elaboratable):
 
                 with m.If(nia_o.ok):
                     # make sure we branch to the spr input
-                    comb += Assert(nia_o.data == spr1)
+                    comb += Assert(nia_o.data == fast1)
 
                     # make sure branch+link works
                     comb += Assert(lr_o.ok == rec.lk)
