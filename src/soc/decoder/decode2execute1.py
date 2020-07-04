@@ -73,6 +73,6 @@ class Decode2ToExecute1Type(RecordObject):
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.update  = Signal(reset_less=True) # LD/ST is "update" variant
-        self.traptype  = Signal(4, reset_less=True) # see trap main_stage.py
+        self.traptype  = Signal(5, reset_less=True) # see trap main_stage.py
         self.trapaddr  = Signal(13, reset_less=True)
 

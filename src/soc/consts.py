@@ -21,8 +21,9 @@ class MSR:
 # (TODO: add more?)
 
 class PI:
-    FP   = (63 - 43)    # 1 if FP exception
-    PRIV = (63 - 45)    # 1 if privileged interrupt
-    TRAP = (63 - 46)    # 1 if exception is "trap" type
-    ADR  = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
+    FP    = (63 - 43)    # 1 if FP exception
+    ILLEG = (63 - 44)    # 1 if illegal instruction (not doing hypervisor)
+    PRIV  = (63 - 45)    # 1 if privileged interrupt
+    TRAP  = (63 - 46)    # 1 if exception is "trap" type
+    ADR   = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
 

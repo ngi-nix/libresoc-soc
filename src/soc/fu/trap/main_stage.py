@@ -19,7 +19,8 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR)
+from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR,
+                                        TT_ILLEG)
 from soc.consts import MSR, PI
 
 
@@ -159,6 +160,8 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.FP].eq(1)
                     with m.If(traptype & TT_ADDR):
                         comb += srr1_o.data[PI.ADR].eq(1)
+                    with m.If(traptype & TT_ILLEG):
+                        comb += srr1_o.data[PI.ILLEG].eq(1)
 
             # move to MSR
             with m.Case(InternalOp.OP_MTMSRD):

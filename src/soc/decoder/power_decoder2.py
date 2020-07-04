@@ -29,6 +29,7 @@ TT_FP = 1<<0
 TT_PRIV = 1<<1
 TT_TRAP = 1<<2
 TT_ADDR = 1<<3
+TT_ILLEG = 1<<4
 
 def decode_spr_num(spr):
     return Cat(spr[5:10], spr[0:5])
@@ -315,11 +316,6 @@ class DecodeOut(Elaboratable):
             comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
             comb += self.fast_out.ok.eq(1)
 
-        # TRAP fast1 = SRR0
-        with m.If(op.internal_op == InternalOp.OP_TRAP):
-            comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
-            comb += self.fast_out.ok.eq(1)
-
         return m
 
 
@@ -358,11 +354,6 @@ class DecodeOut2(Elaboratable):
         with m.If(op.internal_op == InternalOp.OP_RFID):
                 comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
                 comb += self.fast_out.ok.eq(1)
-
-        # TRAP fast2 = SRR1
-        with m.If(op.internal_op == InternalOp.OP_TRAP):
-            comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
-            comb += self.fast_out.ok.eq(1)
 
         return m
 
@@ -634,18 +625,32 @@ class PowerDecode2(Elaboratable):
         with m.If(op.internal_op == InternalOp.OP_TRAP):
             comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
 
+        # illegal instruction must redirect to trap. this is done by
+        # *overwriting* the decoded instruction and starting again.
+        with m.If(op.internal_op == InternalOp.OP_ILLEGAL):
+            comb += e.eq(0) # reset eeeeeverything
+            # start again
+            comb += e.insn.eq(self.dec.opcode_in)
+            comb += e.insn_type.eq(InternalOp.OP_TRAP)
+            comb += e.fn_unit.eq(Function.TRAP)
+            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+            comb += e.traptype.eq(TT_ILLEG) # request illegal instruction
+
+        # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
+        with m.If(e.insn_type == InternalOp.OP_TRAP):
+            # TRAP write fast1 = SRR0
+            comb += e.write_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += e.write_fast1.ok.eq(1)
+            # TRAP write fast2 = SRR1
+            comb += e.write_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
+            comb += e.write_fast2.ok.eq(1)
+
         return m
 
-        # privileged instruction
+        # TODO: get msr, then can do privileged instruction
         with m.If(instr_is_priv(m, op.internal_op, e.insn) & msr[MSR_PR]):
-            # don't request registers RA/RT
-            comb += e.read_reg1.eq(0)
-            comb += e.read_reg2.eq(0)
-            comb += e.read_reg3.eq(0)
-            comb += e.write_reg.eq(0)
-            comb += e.write_ea.eq(0)
             # privileged instruction trap
-            comb += op.internal_op.eq(InternalOp.OP_TRAP)
+            comb += op.insn_type.eq(InternalOp.OP_TRAP)
             comb += e.traptype.eq(TT_PRIV) # request privileged instruction
             comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
         return m

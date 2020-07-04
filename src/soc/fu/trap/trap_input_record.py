@@ -15,7 +15,7 @@ class CompTrapOpSubset(Record):
                   ('fn_unit', Function),
                   ('insn', 32),
                   ('is_32bit', 1),
-                  ('traptype', 4), # see trap main_stage.py and PowerDecoder2
+                  ('traptype', 5), # see trap main_stage.py and PowerDecoder2
                   ('trapaddr', 13),
                   )
 
