@@ -2,7 +2,10 @@
 
 based on Anton Blanchard microwatt decode2.vhdl
 
+Note: OP_TRAP is used for exceptions and interrupts (micro-code style) by
+over-riding the internal opcode when an exception is needed.
 """
+
 from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
 

@@ -1,5 +1,9 @@
 """Trap Pipeline
 
+Deals with td/tw/tdi/twi as well as mfmsr/mtmsr, sc and rfid. addpcis TODO.
+Also used generally for interrupts (as a micro-coding mechanism) by
+actually modifying the decoded instruction in PowerDecode2.
+
 * https://bugs.libre-soc.org/show_bug.cgi?id=325
 * https://bugs.libre-soc.org/show_bug.cgi?id=344
 * https://libre-soc.org/openpower/isa/fixedtrap/
@@ -18,22 +22,17 @@ from soc.decoder.power_fieldsn import SignalBitRange
 from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR)
 from soc.consts import MSR, PI
 
+
 def msr_copy(msr_o, msr_i, zero_me=True):
-    """
-    -- ISA says this:
-    --  Defined MSR bits are classified as either full func-
-    --  tion or partial function. Full function MSR bits are
-    --  saved in SRR1 or HSRR1 when an interrupt other
-    --  than a System Call Vectored interrupt occurs and
-    --  restored by rfscv, rfid, or hrfid, while partial func-
-    --  tion MSR bits are not saved or restored.
-    --  Full function MSR bits lie in the range 0:32, 37:41, and
-    --  48:63, and partial function MSR bits lie in the range
-    --  33:36 and 42:47. (Note this is IBM bit numbering).
-    msr_out := (others => '0');
-    msr_out(63 downto 31) := msr(63 downto 31);
-    msr_out(26 downto 22) := msr(26 downto 22);
-    msr_out(15 downto 0)  := msr(15 downto 0);
+    """msr_copy
+    ISA says this:
+    Defined MSR bits are classified as either full func tion or partial
+    function. Full function MSR bits are saved in SRR1 or HSRR1 when
+    an interrupt other than a System Call Vectored interrupt occurs and
+    restored by rfscv, rfid, or hrfid, while partial function MSR bits
+    are not saved or restored.  Full function MSR bits lie in the range
+    0:32, 37:41, and 48:63, and partial function MSR bits lie in the
+    range 33:36 and 42:47. (Note this is IBM bit numbering).
     """
     l = []
     if zero_me:
