@@ -14,6 +14,7 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
+from nmigen.back.pysim import Simulator
 
 from soc.decoder.power_enums import InternalOp, Function, CryIn
 
@@ -472,8 +473,28 @@ def test_alu():
         f.write(vl)
 
 
+def test_alu_parallel():
+    m = Module()
+    m.submodules.alu = alu = ALU(width=16)
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    def process():
+        yield
+
+    sim.add_sync_process(process)
+    sim_writer = sim.write_vcd(
+        "test_alu_parallel.vcd",
+        "test_alu_parallel.gtkw",
+        traces=alu.ports()
+    )
+    with sim_writer:
+        sim.run()
+
+
 if __name__ == "__main__":
     test_alu()
+    test_alu_parallel()
 
     # alu = BranchALU(width=16)
     # vl = rtlil.convert(alu, ports=alu.ports())
