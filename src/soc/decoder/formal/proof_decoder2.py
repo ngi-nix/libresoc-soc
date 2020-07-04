@@ -60,8 +60,7 @@ class Driver(Elaboratable):
                 comb += Assert(pdecode2.e.read_spr1.ok == 1)
         with m.If((op == InternalOp.OP_MFSPR) |
                   (op == InternalOp.OP_MTSPR)):
-            comb += Assert(pdecode2.e.read_spr1.data ==
-                           self.instr_bits(11, 20))
+            comb += Assert(pdecode2.e.read_spr1.data == self.instr_bits(11, 20))
             comb += Assert(pdecode2.e.read_spr1.ok == 1)
 
     def test_in2(self):
@@ -71,8 +70,7 @@ class Driver(Elaboratable):
         dec = pdecode2.dec
         with m.If(dec.op.in2_sel == In2Sel.RB):
             comb += Assert(pdecode2.e.read_reg2.ok == 1)
-            comb += Assert(pdecode2.e.read_reg2.data ==
-                           dec.RB)
+            comb += Assert(pdecode2.e.read_reg2.data == dec.RB)
         with m.Elif(dec.op.in2_sel == In2Sel.NONE):
             comb += Assert(pdecode2.e.imm_data.ok == 0)
             comb += Assert(pdecode2.e.read_reg2.ok == 0)
@@ -93,20 +91,16 @@ class Driver(Elaboratable):
                     comb += Assert(pdecode2.e.imm_data.data ==
                                    self.exts(dec.SI, 16, 64))
                 with m.Case(In2Sel.CONST_UI_HI):
-                    comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.UI << 16))
+                    comb += Assert(pdecode2.e.imm_data.data == (dec.UI << 16))
                 with m.Case(In2Sel.CONST_SI_HI):
                     comb += Assert(pdecode2.e.imm_data.data ==
                                    self.exts(dec.SI << 16, 32, 64))
                 with m.Case(In2Sel.CONST_LI):
-                    comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.LI << 2))
+                    comb += Assert(pdecode2.e.imm_data.data == (dec.LI << 2))
                 with m.Case(In2Sel.CONST_BD):
-                    comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.BD << 2))
+                    comb += Assert(pdecode2.e.imm_data.data == (dec.BD << 2))
                 with m.Case(In2Sel.CONST_DS):
-                    comb += Assert(pdecode2.e.imm_data.data ==
-                                   (dec.DS << 2))
+                    comb += Assert(pdecode2.e.imm_data.data == (dec.DS << 2))
                 with m.Case(In2Sel.CONST_M1):
                     comb += Assert(pdecode2.e.imm_data.data == ~0)
                 with m.Case(In2Sel.CONST_SH):
@@ -143,8 +137,7 @@ class Driver(Elaboratable):
         pdecode2 = m.submodules.pdecode2
         with m.If(pdecode2.dec.op.in3_sel == In3Sel.RS):
             comb += Assert(pdecode2.e.read_reg3.ok == 1)
-            comb += Assert(pdecode2.e.read_reg3.data ==
-                           self.instr_bits(6,10))
+            comb += Assert(pdecode2.e.read_reg3.data == self.instr_bits(6,10))
 
     def test_out(self):
         m = self.m
@@ -165,8 +158,7 @@ class Driver(Elaboratable):
             with m.If(sel == OutSel.RT):
                 comb += Assert(data == self.instr_bits(6, 10))
             with m.If(sel == OutSel.RA):
-                comb += Assert(data ==
-                               self.instr_bits(11, 15))
+                comb += Assert(data == self.instr_bits(11, 15))
 
     def test_rc(self):
         m = self.m
@@ -180,11 +172,9 @@ class Driver(Elaboratable):
         with m.If(sel == RC.ONE):
             comb += Assert(pdecode2.e.rc.data == 1)
         with m.If(sel == RC.RC):
-            comb += Assert(pdecode2.e.rc.data ==
-                           dec.Rc)
+            comb += Assert(pdecode2.e.rc.data == dec.Rc)
             comb += Assert(pdecode2.e.oe.ok == 1)
-            comb += Assert(pdecode2.e.oe.data ==
-                           dec.OE)
+            comb += Assert(pdecode2.e.oe.data == dec.OE)
 
     def test_single_bits(self):
         m = self.m
