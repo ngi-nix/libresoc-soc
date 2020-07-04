@@ -176,7 +176,7 @@ class TestRunner(FHDLTestCase):
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
             m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
         else:
-            m.submodules.cu = cu = self.fukls()
+            m.submodules.cu = cu = self.fukls(0)
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
