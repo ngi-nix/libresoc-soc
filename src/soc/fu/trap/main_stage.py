@@ -193,13 +193,13 @@ class TrapMainStage(PipeModBase):
                 msr_check_pr(m, msr_o.data)
                 comb += msr_o.ok.eq(1)
 
-            # TODO (later) - add OP_SC
-            #with m.Case(InternalOp.OP_SC):
-            #    # TODO: scv must generate illegal instruction.  this is
-            #    # the decoder's job, not ours, here.
-            #
-            #    # jump to the trap address, return at cia+4
-            #    self.trap(m, 0xc00, cia_i+4)
+            # OP_SC
+            with m.Case(InternalOp.OP_SC):
+                # TODO: scv must generate illegal instruction.  this is
+                # the decoder's job, not ours, here.
+
+                # jump to the trap address, return at cia+4
+                self.trap(m, 0xc00, cia_i+4)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):
