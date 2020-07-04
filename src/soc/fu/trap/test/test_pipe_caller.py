@@ -26,6 +26,7 @@ def get_cu_inputs(dec2, sim):
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
     yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # SPR1
+    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2) # SPR2
     ALUHelpers.get_sim_cia(res, sim, dec2) # PC
     ALUHelpers.get_sim_msr(res, sim, dec2) # MSR
 
@@ -43,6 +44,8 @@ def set_alu_inputs(alu, dec2, sim):
     inp = yield from get_cu_inputs(dec2, sim)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
+    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp) # SPR1
+    yield from ALUHelpers.set_fast_spr2(alu, dec2, inp) # SPR1
 
     yield from ALUHelpers.set_cia(alu, dec2, inp)
     yield from ALUHelpers.set_msr(alu, dec2, inp)
@@ -208,17 +211,16 @@ class TestRunner(FHDLTestCase):
         print ("output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_fast_spr2(sim_o, sim, dec2)
         ALUHelpers.get_sim_cia(sim_o, sim, dec2)
         ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
-        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
-        ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        print ("sim output", sim_o)
+
         ALUHelpers.check_int_o(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
+        ALUHelpers.check_fast_spr1(self, res, sim_o, code)
+        ALUHelpers.check_fast_spr2(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
