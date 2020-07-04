@@ -31,29 +31,29 @@ class BranchInputData(IntegerData):
     # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
     # this involves the *decode* unit selecting the register, based
     # on detecting the operand being bcctr, bclr or bctar
-    regspec = [('FAST', 'spr1', '0:63'), # see table above, SPR1
-               ('FAST', 'spr2', '0:63'), # see table above, SPR2
+    regspec = [('FAST', 'fast1', '0:63'), # see table above, SPR1
+               ('FAST', 'fast2', '0:63'), # see table above, SPR2
                ('CR', 'cr_a', '0:3'),    # Condition Register(s) CR0-7
                ('FAST', 'cia', '0:63')]  # Current Instruction Address
     def __init__(self, pspec):
         super().__init__(pspec, False)
 
         # convenience variables.  not all of these are used at once
-        self.ctr = self.spr1
-        self.lr = self.tar = self.spr2
+        self.ctr = self.fast1
+        self.lr = self.tar = self.fast2
         self.cr = self.cr_a
 
 
 class BranchOutputData(IntegerData):
-    regspec = [('FAST', 'spr1', '0:63'),
-               ('FAST', 'spr2', '0:63'),
+    regspec = [('FAST', 'fast1', '0:63'),
+               ('FAST', 'fast2', '0:63'),
                ('FAST', 'nia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec, True)
 
         # convenience variables.
-        self.ctr = self.spr1
-        self.lr = self.tar = self.spr2
+        self.ctr = self.fast1
+        self.lr = self.tar = self.fast2
 
 
 class BranchPipeSpec(CommonPipeSpec):
