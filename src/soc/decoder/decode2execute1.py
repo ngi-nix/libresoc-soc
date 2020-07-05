@@ -72,7 +72,7 @@ class Decode2ToExecute1Type(Decode2ToOperand):
         self.read_reg3 = Data(5, name="reg3")
         self.write_spr = Data(SPR, name="spro")
         self.read_spr1 = Data(SPR, name="spr1")
-        #self.read_spr2 = Data(SPR, name="spr2")
+        #self.read_spr2 = Data(SPR, name="spr2") # only one needed
 
         self.read_fast1 = Data(3, name="fast1")
         self.read_fast2 = Data(3, name="fast2")
