@@ -52,6 +52,22 @@ def instr_is_priv(m, op, insn):
     return is_priv_insn
 
 
+class SPRMap(Elaboratable):
+    """SPRMap: maps POWER9 SPR numbers to internal enum values
+    """
+    def __init__(self):
+        self.spr_i = Signal(10, reset_less=True)
+        self.spr_o = Signal(SPR, reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        with m.Switch(self.spr_i):
+            for i, x in enumerate(SPR):
+                with m.Case(x.value):
+                    m.d.comb += self.spr_o.eq(i)
+        return m
+
+
 class DecodeA(Elaboratable):
     """DecodeA from instruction
 
@@ -65,12 +81,13 @@ class DecodeA(Elaboratable):
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, name="reg_a")
         self.immz_out = Signal(reset_less=True)
-        self.spr_out = Data(10, "spr_a")
+        self.spr_out = Data(SPR, "spr_a")
         self.fast_out = Data(3, "fast_a")
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        m.submodules.sprmap = sprmap = SPRMap()
 
         # select Register A field
         ra = Signal(5, reset_less=True)
@@ -131,7 +148,8 @@ class DecodeA(Elaboratable):
                 # XXX TODO: map to internal SPR numbers
                 # XXX TODO: dec and tb not to go through mapping.
                 with m.Default():
-                    comb += self.spr_out.data.eq(spr)
+                    comb += sprmap.spr_i.eq(spr)
+                    comb += self.spr_out.data.eq(sprmap.spr_o)
                     comb += self.spr_out.ok.eq(1)
 
 
@@ -257,12 +275,13 @@ class DecodeOut(Elaboratable):
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
-        self.spr_out = Data(10, "spr_o")
+        self.spr_out = Data(SPR, "spr_o")
         self.fast_out = Data(3, "fast_o")
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        m.submodules.sprmap = sprmap = SPRMap()
         op = self.dec.op
 
         # select Register out field
@@ -300,7 +319,8 @@ class DecodeOut(Elaboratable):
                         # XXX TODO: map to internal SPR numbers
                         # XXX TODO: dec and tb not to go through mapping.
                         with m.Default():
-                            comb += self.spr_out.data.eq(spr)
+                            comb += sprmap.spr_i.eq(spr)
+                            comb += self.spr_out.data.eq(sprmap.spr_o)
                             comb += self.spr_out.ok.eq(1)
 
         # BC or BCREG: potential implicit register (CTR) NOTE: same in DecodeA
@@ -563,7 +583,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_cr_out.sel_in.eq(op.cr_out)
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
-
+        # set up instruction, pick fn unit
         comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
         fu = op.function_unit
         itype = Mux(fu == Function.NONE, InternalOp.OP_ILLEGAL, op.internal_op)
@@ -593,6 +613,7 @@ class PowerDecode2(Elaboratable):
         comb += e.write_fast1.eq(dec_o.fast_out)
         comb += e.write_fast2.eq(dec_o2.fast_out)
 
+        # condition registers (CR)
         comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
         comb += e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
@@ -615,7 +636,6 @@ class PowerDecode2(Elaboratable):
         comb += e.byte_reverse.eq(op.br)
         comb += e.sign_extend.eq(op.sgn_ext)
         comb += e.update.eq(op.upd) # LD/ST "update" mode.
-
 
         # These should be removed eventually
         comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
@@ -657,7 +677,6 @@ class PowerDecode2(Elaboratable):
             # TRAP read fast2 = SRR1
             comb += e.read_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
             comb += e.read_fast2.ok.eq(1)
-
 
         return m
 
