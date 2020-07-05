@@ -660,13 +660,8 @@ class PowerDecode2(Elaboratable):
         # (note: the same goes for interrupts and for privileged operations,
         # just with different trapaddr and traptype)
         with m.If(op.internal_op == InternalOp.OP_ILLEGAL):
-            comb += e.eq(0) # reset eeeeeverything
-            # start again
-            comb += do.insn.eq(self.dec.opcode_in)
-            comb += do.insn_type.eq(InternalOp.OP_TRAP)
-            comb += do.fn_unit.eq(Function.TRAP)
-            comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
-            comb += do.traptype.eq(TT_ILLEG) # request illegal instruction
+            # illegal instruction trap
+            self.trap(m, TT_ILLEG, 0x700)
 
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
         # Note: OP_SC could actually be modified to just be a trap
@@ -692,15 +687,22 @@ class PowerDecode2(Elaboratable):
 
         # TODO: get msr, then can do privileged instruction
         with m.If(instr_is_priv(m, op.internal_op, e.insn) & msr[MSR_PR]):
-            comb += e.eq(0) # reset eeeeeverything
-            # start again
-            comb += e.insn.eq(self.dec.opcode_in)
-            comb += e.insn_type.eq(InternalOp.OP_TRAP)
-            comb += e.fn_unit.eq(Function.TRAP)
             # privileged instruction trap
-            comb += e.traptype.eq(TT_PRIV) # request privileged instruction
-            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+            self.trap(m, TT_PRIV, 0x700)
         return m
+
+    def trap(self, m, traptype, trapaddr):
+        """trap: this basically "rewrites" the decoded instruction as a trap
+        """
+        comb = m.d.comb
+        e, op, do = self.e, self.dec.op, self.e.do
+        comb += e.eq(0) # reset eeeeeverything
+        # start again
+        comb += do.insn.eq(self.dec.opcode_in)
+        comb += do.insn_type.eq(InternalOp.OP_TRAP)
+        comb += do.fn_unit.eq(Function.TRAP)
+        comb += do.trapaddr.eq(trapaddr >> 4) # cut bottom 4 bits
+        comb += do.traptype.eq(traptype) # request type
 
     def regspecmap_read(self, regfile, regname):
         """regspecmap_read: provides PowerDecode2 with an encoding relationship
