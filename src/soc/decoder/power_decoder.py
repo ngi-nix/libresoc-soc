@@ -140,13 +140,14 @@ class PowerOp:
         # TODO: this conversion process from a dict to an object
         # should really be done using e.g. namedtuple and then
         # call eq not _eq
-        if row['CR in'] == '1':
-            import pdb; pdb.set_trace()
+        if False: # debugging
+            if row['CR in'] == '1':
+                import pdb; pdb.set_trace()
+                print(row)
+            if row['CR out'] == '0':
+                import pdb; pdb.set_trace()
+                print(row)
             print(row)
-        if row['CR out'] == '0':
-            import pdb; pdb.set_trace()
-            print(row)
-        print(row)
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
@@ -160,7 +161,8 @@ class PowerOp:
                self.rc_sel.eq(RC[row['rc']]),
                self.cry_in.eq(CryIn[row['cry in']]),
                ]
-        print (row.keys())
+        if False:
+            print (row.keys())
         asmcode = row['comment']
         if hasattr(self, "asmcode") and asmcode in asmidx:
             res.append(self.asmcode.eq(asmidx[asmcode]))
