@@ -639,13 +639,25 @@ class PowerDecode2(Elaboratable):
             comb += e.traptype.eq(TT_ILLEG) # request illegal instruction
 
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
-        with m.If(e.insn_type == InternalOp.OP_TRAP):
+        # Note: OP_SC could actually be modified to just be a trap
+        with m.If((e.insn_type == InternalOp.OP_TRAP) |
+                  (e.insn_type == InternalOp.OP_SC)):
             # TRAP write fast1 = SRR0
             comb += e.write_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
             comb += e.write_fast1.ok.eq(1)
             # TRAP write fast2 = SRR1
             comb += e.write_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
             comb += e.write_fast2.ok.eq(1)
+
+        # RFID: needs to read SRR0/1
+        with m.If(e.insn_type == InternalOp.OP_RFID):
+            # TRAP read fast1 = SRR0
+            comb += e.read_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += e.read_fast1.ok.eq(1)
+            # TRAP read fast2 = SRR1
+            comb += e.read_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
+            comb += e.read_fast2.ok.eq(1)
+
 
         return m
 
