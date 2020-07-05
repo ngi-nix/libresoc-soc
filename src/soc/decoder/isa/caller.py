@@ -260,6 +260,7 @@ class ISACaller:
 
         # "fake program counter" mode (for unit testing)
         self.fake_pc = 0
+        disasm_start = 0
         if not respect_pc:
             if isinstance(initial_mem, tuple):
                 self.fake_pc = initial_mem[0]
