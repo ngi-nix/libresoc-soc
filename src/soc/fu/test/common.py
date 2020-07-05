@@ -37,6 +37,10 @@ class ALUHelpers:
     def get_sim_cia(res, sim, dec2):
         res['cia'] = sim.pc.CIA.value
 
+    # use this *after* the simulation has run a step (it returns CIA)
+    def get_sim_nia(res, sim, dec2):
+        res['nia'] = sim.pc.CIA.value
+
     def get_sim_msr(res, sim, dec2):
         res['msr'] = sim.msr.value
 
@@ -314,6 +318,13 @@ class ALUHelpers:
         if 'o' in res:
             expected = sim_o['o']
             alu_out = res['o']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
+
+    def check_nia(dut, res, sim_o, msg):
+        if 'nia' in res:
+            expected = sim_o['nia']
+            alu_out = res['nia']
             print(f"expected {expected:x}, actual: {alu_out:x}")
             dut.assertEqual(expected, alu_out, msg)
 

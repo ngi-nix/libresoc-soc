@@ -213,7 +213,7 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr2(sim_o, sim, dec2)
-        ALUHelpers.get_sim_cia(sim_o, sim, dec2)
+        ALUHelpers.get_sim_nia(sim_o, sim, dec2)
         ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
         print ("sim output", sim_o)
@@ -221,6 +221,7 @@ class TestRunner(FHDLTestCase):
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
         ALUHelpers.check_fast_spr2(self, res, sim_o, code)
+        ALUHelpers.check_nia(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
