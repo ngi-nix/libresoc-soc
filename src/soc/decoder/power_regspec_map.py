@@ -94,7 +94,10 @@ def regspec_decode_read(e, regfile, name):
             return e.read_fast2.ok, 1<<e.read_fast2.data
 
     if regfile == 'SPR':
-        assert False, "regfile TODO %s %s" % (regfile, name)
+        # Int register numbering is *binary* encoded
+        if name == 'spr1':
+            return e.read_spr1.ok, e.read_spr1.data
+
     assert False, "regspec not found %s %s" % (regfile, name)
 
 
@@ -149,6 +152,9 @@ def regspec_decode_write(e, regfile, name):
             return e.write_fast2, 1<<e.write_fast2.data
 
     if regfile == 'SPR':
-        assert False, "regfile TODO %s %s" % (regfile, name)
+        # Int register numbering is *binary* encoded
+        if name == 'spr1': # SPR1
+            return e.write_spr, e.write_spr.data
+
     assert False, "regspec not found %s %s" % (regfile, name)
 
