@@ -349,6 +349,13 @@ class ALUHelpers:
             print(f"expected {expected:x}, actual: {alu_out:x}")
             dut.assertEqual(expected, alu_out, msg)
 
+    def check_msr(dut, res, sim_o, msg):
+        if 'msr' in res:
+            expected = sim_o['msr']
+            alu_out = res['msr']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
+
     def check_nia(dut, res, sim_o, msg):
         if 'nia' in res:
             expected = sim_o['nia']

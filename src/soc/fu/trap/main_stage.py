@@ -194,6 +194,17 @@ class TrapMainStage(PipeModBase):
                 # MSR was in srr1
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
                 msr_check_pr(m, msr_o.data)
+
+                # hypervisor stuff
+                comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV] & srr1_i[MSR.HV])
+                comb += msr_o.data[MSR.ME].eq((msr_i[MSR.HV] & srr1_i[MSR.HV]) |
+                                             (~msr_i[MSR.HV] & srr1_i[MSR.HV]))
+                # don't understand but it's in the spec
+                with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
+                          (srr1_i[63-31:63-29] != Const(0b000, 3))):
+                    comb += msr_o.data[63-31:63-29].eq(srr1_i[63-31:63-29])
+                with m.Else():
+                    comb += msr_o.data[63-31:63-29].eq(msr_i[63-31:63-29])
                 comb += msr_o.ok.eq(1)
 
             # OP_SC

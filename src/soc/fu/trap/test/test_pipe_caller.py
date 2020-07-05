@@ -229,6 +229,7 @@ class TestRunner(FHDLTestCase):
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
         ALUHelpers.check_fast_spr2(self, res, sim_o, code)
         ALUHelpers.check_nia(self, res, sim_o, code)
+        ALUHelpers.check_msr(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
