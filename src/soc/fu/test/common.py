@@ -232,21 +232,21 @@ class ALUHelpers:
     def get_xer_so(res, alu, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        xer_in = yield dec2.e.xer_in
-        if xer_in or (oe and oe_ok):
+        xer_out = yield dec2.e.xer_out
+        if xer_out or (oe and oe_ok):
             res['xer_so'] = yield alu.n.data_o.xer_so.data[0]
 
     def get_xer_ov(res, alu, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        xer_in = yield dec2.e.xer_in
-        if xer_in or (oe and oe_ok):
+        xer_out = yield dec2.e.xer_out
+        if xer_out or (oe and oe_ok):
             res['xer_ov'] = yield alu.n.data_o.xer_ov.data
 
     def get_xer_ca(res, alu, dec2):
         cry_out = yield dec2.e.output_carry
-        xer_in = yield dec2.e.xer_in
-        if xer_in or (cry_out):
+        xer_out = yield dec2.e.xer_out
+        if xer_out or (cry_out):
             res['xer_ca'] = yield alu.n.data_o.xer_ca.data
 
     def get_sim_int_o(res, sim, dec2):
