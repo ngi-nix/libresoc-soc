@@ -112,6 +112,8 @@ def run_program(program, initial_mem=None):
     q.delete_breakpoint()
     # run to completion
     q.break_address(0x20000000 + program.size())
+    # or to trap
+    q.break_address(0x700)
     q.gdb_continue()
     return q
 

@@ -627,6 +627,8 @@ class PowerDecode2(Elaboratable):
 
         # illegal instruction must redirect to trap. this is done by
         # *overwriting* the decoded instruction and starting again.
+        # (note: the same goes for interrupts and for privileged operations,
+        # just with different trapaddr and traptype)
         with m.If(op.internal_op == InternalOp.OP_ILLEGAL):
             comb += e.eq(0) # reset eeeeeverything
             # start again
@@ -649,8 +651,12 @@ class PowerDecode2(Elaboratable):
 
         # TODO: get msr, then can do privileged instruction
         with m.If(instr_is_priv(m, op.internal_op, e.insn) & msr[MSR_PR]):
+            comb += e.eq(0) # reset eeeeeverything
+            # start again
+            comb += e.insn.eq(self.dec.opcode_in)
+            comb += e.insn_type.eq(InternalOp.OP_TRAP)
+            comb += e.fn_unit.eq(Function.TRAP)
             # privileged instruction trap
-            comb += op.insn_type.eq(InternalOp.OP_TRAP)
             comb += e.traptype.eq(TT_PRIV) # request privileged instruction
             comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
         return m

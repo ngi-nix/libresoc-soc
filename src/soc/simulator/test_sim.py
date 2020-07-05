@@ -209,7 +209,7 @@ class GeneralTestCases(FHDLTestCase):
 
 class DecoderBase:
 
-    def run_tst(self, generator, initial_mem=None):
+    def run_tst(self, generator, initial_mem=None, initial_pc=0):
         m = Module()
         comb = m.d.comb
 
@@ -220,9 +220,13 @@ class DecoderBase:
         pdecode = create_pdecode()
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
+        # place program at requested address
+        gen = (initial_pc, gen)
+
         simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0,
                         initial_insns=gen, respect_pc=True,
-                        disassembly=insn_code)
+                        disassembly=insn_code,
+                        initial_pc=initial_pc)
 
         sim = Simulator(m)
 
@@ -246,7 +250,8 @@ class DecoderBase:
 
     def run_tst_program(self, prog, reglist, initial_mem=None):
         import sys
-        simulator = self.run_tst(prog, initial_mem=initial_mem)
+        simulator = self.run_tst(prog, initial_mem=initial_mem,
+                                 initial_pc=0x20000000)
         prog.reset()
         with run_program(prog, initial_mem) as q:
             self.qemu_register_compare(simulator, q, reglist)
@@ -280,10 +285,12 @@ class DecoderBase:
         print("qemu pc", hex(qpc))
         print("qemu cr", hex(qcr))
         print("qemu xer", bin(qxer))
+        print("sim nia", hex(sim.pc.NIA.value))
         print("sim pc", hex(sim.pc.CIA.value))
         print("sim cr", hex(sim_cr))
         print("sim xer", hex(sim_xer))
         self.assertEqual(qcr, sim_cr)
+        self.assertEqual(qpc, sim_pc)
         for reg in regs:
             qemu_val = qemu.get_register(reg)
             sim_val = sim.gpr(reg).value

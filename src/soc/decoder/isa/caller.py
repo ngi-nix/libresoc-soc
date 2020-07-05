@@ -244,7 +244,8 @@ class ISACaller:
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
                        initial_mem=None, initial_msr=0,
                        initial_insns=None, respect_pc=False,
-                       disassembly=None):
+                       disassembly=None,
+                       initial_pc=0):
 
         self.respect_pc = respect_pc
         if initial_sprs is None:
@@ -262,12 +263,15 @@ class ISACaller:
         if not respect_pc:
             if isinstance(initial_mem, tuple):
                 self.fake_pc = initial_mem[0]
+                disasm_start = self.fake_pc
+        else:
+            disasm_start = initial_pc
 
         # disassembly: we need this for now (not given from the decoder)
         self.disassembly = {}
         if disassembly:
             for i, code in enumerate(disassembly):
-                self.disassembly[i*4 + self.fake_pc] = code
+                self.disassembly[i*4 + disasm_start] = code
 
         # set up registers, instruction memory, data memory, PC, SPRs, MSR
         self.gpr = GPR(decoder2, regfile)
@@ -312,6 +316,8 @@ class ISACaller:
                           'SO': XER_bits['SO']
                           })
 
+        # update pc to requested start point
+        self.set_pc(initial_pc)
 
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
@@ -325,12 +331,12 @@ class ISACaller:
         self.dec2 = decoder2
 
     def TRAP(self, trap_addr=0x700):
-        print ("TRAP: TODO")
+        print ("TRAP:", hex(trap_addr))
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
         self.spr['SRR0'] = self.pc.CIA
         self.spr['SRR1'] = self.namespace['MSR']
-        self.set_pc(trap_addr)
+        self.trap_nia = SelectableInt(trap_addr, 64)
         self.namespace['MSR'][63-PI.TRAP] = 1 # bit 45, "this is a trap"
 
     def memassign(self, ea, sz, val):
@@ -460,7 +466,7 @@ class ISACaller:
         if ins is None:
             raise KeyError("no instruction at 0x%x" % pc)
         print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
-        print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
+        print ("CIA NIA", self.respect_pc, self.pc.CIA.value, self.pc.NIA.value)
 
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
         yield self.dec2.dec.bigendian.eq(0)  # little / big?
@@ -476,7 +482,7 @@ class ISACaller:
 
         if not self.respect_pc:
             self.fake_pc += 4
-        print ("NIA, CIA", self.pc.CIA.value, self.pc.NIA.value)
+        print ("execute one, CIA NIA", self.pc.CIA.value, self.pc.NIA.value)
 
     def get_assembly_name(self):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
@@ -546,9 +552,19 @@ class ISACaller:
             else:
                 inputs.append(self.namespace[special])
 
+        # clear trap (trap) NIA
+        self.trap_nia = None
+
         print(inputs)
         results = info.func(self, *inputs)
         print(results)
+
+        # "inject" decorator takes namespace from function locals: we need to
+        # overwrite NIA being overwritten (sigh)
+        if self.trap_nia is not None:
+            self.namespace['NIA'] = self.trap_nia
+
+        print ("after func", self.namespace['CIA'], self.namespace['NIA'])
 
         # detect if CA/CA32 already in outputs (sra*, basically)
         already_done = 0
@@ -610,7 +626,8 @@ class ISACaller:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
 
-        # update program counter
+        print ("end of call", self.namespace['CIA'], self.namespace['NIA'])
+        # UPDATE program counter
         self.pc.update(self.namespace)
 
 
@@ -638,6 +655,9 @@ def inject():
             saved_values = func_globals.copy()  # Shallow copy of dict.
             func_globals.update(context)
             result = func(*args, **kwargs)
+            print ("globals after", func_globals['CIA'], func_globals['NIA'])
+            print ("args[0]", args[0].namespace['CIA'],
+                              args[0].namespace['NIA'])
             args[0].namespace = func_globals
             #exec (func.__code__, func_globals)
 
