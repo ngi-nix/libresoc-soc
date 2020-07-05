@@ -20,16 +20,18 @@ some point that 8-bit mask from the instruction could actually be passed
 directly through to full_cr (TODO).
 
 For the INT and CR numbering, these are expressed in binary in the
-instruction (note however that XFX in MTCR is unary-masked!)
+instruction and need to be converted to unary (1<<read_reg1.data).
+Note however that XFX in MTCR is unary-masked!
 
-XER is implicitly-encoded based on whether the operation has carry or
-overflow.
+XER regs are implicitly-encoded (hard-coded) based on whether the
+operation has carry or overflow.
 
 FAST regfile is, again, implicitly encoded, back in PowerDecode2, based
-on the type of operation (see DecodeB for an example).
+on the type of operation (see DecodeB for an example, where fast_out
+is set, then carried into read_fast2 in PowerDecode2).
 
 The SPR regfile on the other hand is *binary*-encoded, and, furthermore,
-has to be "remapped".
+has to be "remapped" to internal SPR Enum indices (see SPRMap in PowerDecode2)
 see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
 from nmigen import Const
@@ -41,6 +43,8 @@ def regspec_decode_read(e, regfile, name):
     """regspec_decode_read
     """
 
+    # INT regfile
+
     if regfile == 'INT':
         # Int register numbering is *unary* encoded
         if name == 'ra': # RA
@@ -49,6 +53,8 @@ def regspec_decode_read(e, regfile, name):
             return e.read_reg2.ok, 1<<e.read_reg2.data
         if name == 'rc': # RS
             return e.read_reg3.ok, 1<<e.read_reg3.data
+
+    # CR regfile
 
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
@@ -62,6 +68,8 @@ def regspec_decode_read(e, regfile, name):
         if name == 'cr_c': # CR C
             return e.read_cr3.ok, 1<<(7-e.read_cr3.data)
 
+    # XER regfile
+
     if regfile == 'XER':
         # XERRegs register numbering is *unary* encoded
         SO = 1<<XERRegs.SO
@@ -73,6 +81,8 @@ def regspec_decode_read(e, regfile, name):
             return (e.oe.oe[0] & e.oe.oe_ok) | e.xer_in, OV
         if name == 'xer_ca':
             return (e.input_carry == CryIn.CA.value) | e.xer_in, CA
+
+    # FAST regfile
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
@@ -93,8 +103,10 @@ def regspec_decode_read(e, regfile, name):
         if name == 'fast2':
             return e.read_fast2.ok, 1<<e.read_fast2.data
 
+    # SPR regfile
+
     if regfile == 'SPR':
-        # Int register numbering is *binary* encoded
+        # SPR register numbering is *binary* encoded
         if name == 'spr1':
             return e.read_spr1.ok, e.read_spr1.data
 
@@ -105,12 +117,16 @@ def regspec_decode_write(e, regfile, name):
     """regspec_decode_write
     """
 
+    # INT regfile
+
     if regfile == 'INT':
         # Int register numbering is *unary* encoded
         if name == 'o': # RT
             return e.write_reg, 1<<e.write_reg.data
         if name == 'o1': # RA (update mode: LD/ST EA)
             return e.write_ea, 1<<e.write_ea.data
+
+    # CR regfile
 
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
@@ -119,6 +135,8 @@ def regspec_decode_write(e, regfile, name):
             return e.write_cr_whole, 0b11111111
         if name == 'cr_a': # CR A
             return e.write_cr, 1<<(7-e.write_cr.data)
+
+    # XER regfile
 
     if regfile == 'XER':
         # XERRegs register numbering is *unary* encoded
@@ -131,6 +149,8 @@ def regspec_decode_write(e, regfile, name):
             return e.xer_out, OV # hmmm
         if name == 'xer_ca':
             return e.xer_out, CA # hmmm
+
+    # FAST regfile
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
@@ -151,8 +171,10 @@ def regspec_decode_write(e, regfile, name):
         if name == 'fast2':
             return e.write_fast2, 1<<e.write_fast2.data
 
+    # SPR regfile
+
     if regfile == 'SPR':
-        # Int register numbering is *binary* encoded
+        # SPR register numbering is *binary* encoded
         if name == 'spr1': # SPR1
             return e.write_spr, e.write_spr.data
 
