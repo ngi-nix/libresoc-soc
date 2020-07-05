@@ -192,7 +192,8 @@ class AllFunctionUnits(Elaboratable):
         units = pspec.units
         if not isinstance(units, dict):
             units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1,
-                     'spr': 1, 'logical': 1,
+                     #'spr': 1, TODO: spr regfile
+                     'logical': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
                  'cr': CRFunctionUnit,
