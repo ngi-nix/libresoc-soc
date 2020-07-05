@@ -490,6 +490,10 @@ def test_alu_parallel():
             if rdy:
                 break
         yield dut.p.valid_i.eq(0)
+        yield dut.a.eq(0)
+        yield dut.b.eq(0)
+        yield dut.op.insn_type.eq(0)
+        yield dut.op.invert_a.eq(0)
 
     def receive():
         yield dut.n.ready_i.eq(1)
