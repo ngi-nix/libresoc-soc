@@ -44,6 +44,13 @@ class ALUHelpers:
     def get_sim_msr(res, sim, dec2):
         res['msr'] = sim.msr.value
 
+    def get_sim_slow_spr1(res, sim, dec2):
+        spr1_en = yield dec2.e.read_spr1.ok
+        if spr1_en:
+            spr1_sel = yield dec2.e.read_spr1.data
+            spr1_data = sim.spr[spr1_sel].value
+            res['spr1'] = spr1_data
+
     def get_sim_fast_spr1(res, sim, dec2):
         fast1_en = yield dec2.e.read_fast1.ok
         if fast1_en:
@@ -272,6 +279,13 @@ class ALUHelpers:
             spr_name = spr_dict[spr_num].SPR
             res['fast1'] = sim.spr[spr_name].value
 
+    def get_wr_slow_spr1(res, sim, dec2):
+        ok = yield dec2.e.write_spr.ok
+        if ok:
+            spr_num = yield dec2.e.write_spr.data
+            spr_name = spr_dict[spr_num].SPR
+            res['spr1'] = sim.spr[spr_name].value
+
     def get_wr_sim_xer_ca(res, sim, dec2):
         cry_out = yield dec2.e.output_carry
         if cry_out:
@@ -292,6 +306,13 @@ class ALUHelpers:
         oe_ok = yield dec2.e.oe.ok
         if oe and oe_ok:
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+
+    def check_slow_spr1(dut, res, sim_o, msg):
+        if 'spr1' in res:
+            expected = sim_o['spr1']
+            alu_out = res['spr1']
+            print(f"expected {expected:x}, actual: {alu_out:x}")
+            dut.assertEqual(expected, alu_out, msg)
 
     def check_fast_spr1(dut, res, sim_o, msg):
         if 'fast1' in res:

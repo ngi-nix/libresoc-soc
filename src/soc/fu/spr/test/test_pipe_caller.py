@@ -25,7 +25,8 @@ def get_cu_inputs(dec2, sim):
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # SPR1
+    yield from ALUHelpers.get_sim_slow_spr1(res, sim, dec2) # FAST1
+    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # FAST1
     yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
     yield from ALUHelpers.get_sim_xer_ov(res, sim, dec2) # XER.ov
     yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
@@ -47,8 +48,8 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_xer_ov(alu, dec2, inp)
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
-    # XXX TODO slow spr1
     yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)
+    yield from ALUHelpers.set_slow_spr1(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -197,6 +198,7 @@ class TestRunner(FHDLTestCase):
 
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
+        yield from ALUHelpers.get_slow_spr1(res, alu, dec2)
         yield from ALUHelpers.get_xer_ov(res, alu, dec2)
         yield from ALUHelpers.get_xer_ca(res, alu, dec2)
         yield from ALUHelpers.get_xer_so(res, alu, dec2)
@@ -208,11 +210,13 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
 
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
+        ALUHelpers.check_slow_spr1(self, res, sim_o, code)
         ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
