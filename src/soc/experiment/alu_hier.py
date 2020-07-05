@@ -509,20 +509,31 @@ def test_alu_parallel():
 
     def producer():
         yield from send(5, 3, InternalOp.OP_ADD)
+        yield
+        yield
         yield from send(2, 3, InternalOp.OP_MUL_L64)
         yield from send(5, 3, InternalOp.OP_ADD, inv_a=1)
+        yield
         yield from send(5, 3, InternalOp.OP_NOP)
+        yield
+        yield
         yield from send(13, 2, InternalOp.OP_SHR)
 
     def consumer():
+        yield
         result = yield from receive()
         assert (result == 8)
         result = yield from receive()
         assert (result == 6)
+        yield
+        yield
         result = yield from receive()
         assert (result == 65533)
+        yield
         result = yield from receive()
         assert (result == 2)
+        yield
+        yield
         result = yield from receive()
         assert (result == 3)
 
