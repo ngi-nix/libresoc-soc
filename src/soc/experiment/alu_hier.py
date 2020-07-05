@@ -14,7 +14,7 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
-from nmigen.back.pysim import Simulator
+from nmigen.back.pysim import Simulator, Settle
 
 from soc.decoder.power_enums import InternalOp, Function, CryIn
 
@@ -386,7 +386,6 @@ class BranchALU(Elaboratable):
         return list(self)
 
 def run_op(dut, a, b, op, inv_a=0):
-    from nmigen.back.pysim import Settle
     yield dut.a.eq(a)
     yield dut.b.eq(b)
     yield dut.op.insn_type.eq(op)
@@ -475,18 +474,35 @@ def test_alu():
 
 def test_alu_parallel():
     m = Module()
-    m.submodules.alu = alu = ALU(width=16)
+    m.submodules.alu = dut = ALU(width=16)
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    def process():
-        yield
+    def send(a, b, op, inv_a=0):
+        yield dut.a.eq(a)
+        yield dut.b.eq(b)
+        yield dut.op.insn_type.eq(op)
+        yield dut.op.invert_a.eq(inv_a)
+        yield dut.p.valid_i.eq(1)
+        yield Settle()
+        while True:
+            rdy = yield dut.p.ready_o
+            if rdy:
+                break
+            yield
 
-    sim.add_sync_process(process)
+    def producer():
+        yield from send(5, 3, InternalOp.OP_ADD)
+
+    def consumer():
+        yield dut.n.ready_i.eq(1)
+
+    sim.add_sync_process(producer)
+    sim.add_sync_process(consumer)
     sim_writer = sim.write_vcd(
         "test_alu_parallel.vcd",
         "test_alu_parallel.gtkw",
-        traces=alu.ports()
+        traces=dut.ports()
     )
     with sim_writer:
         sim.run()
