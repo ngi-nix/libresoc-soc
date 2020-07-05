@@ -543,6 +543,7 @@ class PowerDecode2(Elaboratable):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
+        self.valid = Signal()
 
     def ports(self):
         return self.dec.ports() + self.e.ports()

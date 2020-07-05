@@ -70,7 +70,7 @@ class NonProductionCore(Elaboratable):
         self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
 
         # issue/valid/busy signalling
-        self.ivalid_i = self.pdecode2.e.valid   # instruction is valid
+        self.ivalid_i = self.pdecode2.valid   # instruction is valid
         self.issue_i = Signal(reset_less=True)
         self.busy_o = Signal(name="corebusy_o", reset_less=True)
 

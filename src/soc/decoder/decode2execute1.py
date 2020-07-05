@@ -29,7 +29,6 @@ class Decode2ToExecute1Type(RecordObject):
 
         RecordObject.__init__(self, name=name)
 
-        self.valid = Signal(reset_less=True)
         self.insn_type = Signal(InternalOp, reset_less=True)
         self.fn_unit = Signal(Function, reset_less=True)
         if asmcode:
