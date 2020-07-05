@@ -484,18 +484,30 @@ def test_alu_parallel():
         yield dut.op.insn_type.eq(op)
         yield dut.op.invert_a.eq(inv_a)
         yield dut.p.valid_i.eq(1)
-        yield Settle()
         while True:
+            yield
             rdy = yield dut.p.ready_o
             if rdy:
                 break
+        yield dut.p.valid_i.eq(0)
+
+    def receive():
+        yield dut.n.ready_i.eq(1)
+        while True:
+            valid = yield dut.n.valid_o
+            if valid:
+                break
             yield
+        result = yield dut.o
+        yield dut.n.ready_i.eq(0)
+        return result
 
     def producer():
         yield from send(5, 3, InternalOp.OP_ADD)
 
     def consumer():
-        yield dut.n.ready_i.eq(1)
+        result = yield from receive()
+        assert (result == 8)
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
