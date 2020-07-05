@@ -42,11 +42,13 @@ class SPRTestRunner(TestRunner):
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
 
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
+        ALUHelpers.check_slow_spr1(self, res, sim_o, code)
         ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
