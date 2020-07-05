@@ -23,8 +23,8 @@ class LogicalTestRunner(TestRunner):
         """naming (res) must conform to LogicalFunctionUnit output regspec
         """
 
-        rc = yield dec2.e.rc.data
-        op = yield dec2.e.insn_type
+        rc = yield dec2.e.do.rc.data
+        op = yield dec2.e.do.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 

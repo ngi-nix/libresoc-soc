@@ -109,7 +109,8 @@ class NonProductionCore(Elaboratable):
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq(self.ivalid_i & (dec2.e.fn_unit & fnunit).bool())
+            comb += enable.eq(self.ivalid_i &
+                             (dec2.e.do.fn_unit & fnunit).bool())
             with m.If(enable):
                 comb += fu.oper_i.eq_from_execute1(dec2.e)
                 comb += fu.issue_i.eq(self.issue_i)

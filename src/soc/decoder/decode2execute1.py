@@ -36,8 +36,6 @@ class Decode2ToOperand(RecordObject):
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
-        self.xer_in = Signal(reset_less=True)   # xer might be read
-        self.xer_out = Signal(reset_less=True)  # xer might be written
         self.invert_a = Signal(reset_less=True)
         self.zero_a = Signal(reset_less=True)
         self.input_carry = Signal(CryIn, reset_less=True)
@@ -54,13 +52,16 @@ class Decode2ToOperand(RecordObject):
         self.update  = Signal(reset_less=True) # LD/ST is "update" variant
         self.traptype  = Signal(5, reset_less=True) # see trap main_stage.py
         self.trapaddr  = Signal(13, reset_less=True)
+        self.read_cr_whole = Signal(reset_less=True)
+        self.write_cr_whole = Signal(reset_less=True)
+        self.write_cr0 = Signal(reset_less=True)
 
 
-class Decode2ToExecute1Type(Decode2ToOperand):
+class Decode2ToExecute1Type(RecordObject):
 
     def __init__(self, name=None, asmcode=True):
 
-        Decode2ToOperand.__init__(self, name=name)
+        RecordObject.__init__(self, name=name)
 
         if asmcode:
             self.asmcode = Signal(8, reset_less=True) # only for simulator
@@ -74,6 +75,9 @@ class Decode2ToExecute1Type(Decode2ToOperand):
         self.read_spr1 = Data(SPR, name="spr1")
         #self.read_spr2 = Data(SPR, name="spr2") # only one needed
 
+        self.xer_in = Signal(reset_less=True)   # xer might be read
+        self.xer_out = Signal(reset_less=True)  # xer might be written
+
         self.read_fast1 = Data(3, name="fast1")
         self.read_fast2 = Data(3, name="fast2")
         self.write_fast1 = Data(3, name="fasto1")
@@ -82,7 +86,7 @@ class Decode2ToExecute1Type(Decode2ToOperand):
         self.read_cr1 = Data(3, name="cr_in1")
         self.read_cr2 = Data(3, name="cr_in2")
         self.read_cr3 = Data(3, name="cr_in2")
-        self.read_cr_whole = Signal(reset_less=True)
         self.write_cr = Data(3, name="cr_out")
-        self.write_cr_whole = Signal(reset_less=True)
 
+        # decode operand data
+        self.do = Decode2ToOperand(name)

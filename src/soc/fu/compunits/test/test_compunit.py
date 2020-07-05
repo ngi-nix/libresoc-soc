@@ -219,7 +219,7 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     fuval = self.funit.value
                     self.assertEqual(fn_unit & fuval, fuval)
 

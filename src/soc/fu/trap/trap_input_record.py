@@ -34,7 +34,7 @@ class CompTrapOpSubset(Record):
         """
         res = []
         for fname, sig in self.fields.items():
-            eqfrom = other.fields[fname]
+            eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
         return res
 

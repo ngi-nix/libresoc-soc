@@ -20,7 +20,7 @@ class CompALUOpSubset(Record):
                   ('invert_a', 1),
                   ('zero_a', 1),
                   ('invert_out', 1),
-                  ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
+                  ('write_cr0', 1),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
                   ('input_cr', 1),
@@ -56,7 +56,7 @@ class CompALUOpSubset(Record):
         """
         res = []
         for fname, sig in self.fields.items():
-            eqfrom = other.fields[fname]
+            eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
         return res
 

@@ -21,7 +21,7 @@ class CompLogicalOpSubset(Record):
                   ('zero_a', 1),
                   ('input_carry', CryIn),
                   ('invert_out', 1),
-                  ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
+                  ('write_cr0', 1),
                   ('output_carry', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
@@ -49,7 +49,7 @@ class CompLogicalOpSubset(Record):
         """
         res = []
         for fname, sig in self.fields.items():
-            eqfrom = other.fields[fname]
+            eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
         return res
 

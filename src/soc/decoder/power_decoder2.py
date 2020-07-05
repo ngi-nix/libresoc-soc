@@ -551,7 +551,7 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        e, op = self.e, self.dec.op
+        e, op, do = self.e, self.dec.op, self.e.do
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -566,7 +566,7 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_cr_out = dec_cr_out = DecodeCROut(self.dec)
 
         # copy instruction through...
-        for i in [e.insn, dec_a.insn_in, dec_b.insn_in,
+        for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in, dec_rc.insn_in,
                   dec_oe.insn_in, dec_cr_in.insn_in, dec_cr_out.insn_in]:
             comb += i.eq(self.dec.opcode_in)
@@ -577,7 +577,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_c.sel_in.eq(op.in3_sel)
         comb += dec_o.sel_in.eq(op.out_sel)
         comb += dec_o2.sel_in.eq(op.out_sel)
-        comb += dec_o2.lk.eq(e.lk)
+        comb += dec_o2.lk.eq(do.lk)
         comb += dec_rc.sel_in.eq(op.rc_sel)
         comb += dec_oe.sel_in.eq(op.rc_sel) # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(op.cr_in)
@@ -588,8 +588,8 @@ class PowerDecode2(Elaboratable):
         comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
         fu = op.function_unit
         itype = Mux(fu == Function.NONE, InternalOp.OP_ILLEGAL, op.internal_op)
-        comb += e.insn_type.eq(itype)
-        comb += e.fn_unit.eq(fu)
+        comb += do.insn_type.eq(itype)
+        comb += do.fn_unit.eq(fu)
 
         # registers a, b, c and out and out2 (LD/ST EA)
         comb += e.read_reg1.eq(dec_a.reg_out)
@@ -597,12 +597,12 @@ class PowerDecode2(Elaboratable):
         comb += e.read_reg3.eq(dec_c.reg_out)
         comb += e.write_reg.eq(dec_o.reg_out)
         comb += e.write_ea.eq(dec_o2.reg_out)
-        comb += e.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
-        comb += e.zero_a.eq(dec_a.immz_out)  # RA==0 detected
+        comb += do.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
+        comb += do.zero_a.eq(dec_a.immz_out)  # RA==0 detected
 
         # rc and oe out
-        comb += e.rc.eq(dec_rc.rc_out)
-        comb += e.oe.eq(dec_oe.oe_out)
+        comb += do.rc.eq(dec_rc.rc_out)
+        comb += do.oe.eq(dec_oe.oe_out)
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)
@@ -618,29 +618,30 @@ class PowerDecode2(Elaboratable):
         comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
         comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
         comb += e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
-        comb += e.read_cr_whole.eq(dec_cr_in.whole_reg)
-
         comb += e.write_cr.eq(dec_cr_out.cr_bitfield)
-        comb += e.write_cr_whole.eq(dec_cr_out.whole_reg)
+
+        comb += do.read_cr_whole.eq(dec_cr_in.whole_reg)
+        comb += do.write_cr_whole.eq(dec_cr_out.whole_reg)
+        comb += do.write_cr0.eq(dec_cr_out.cr_bitfield.ok)
 
         # decoded/selected instruction flags
-        comb += e.data_len.eq(op.ldst_len)
-        comb += e.invert_a.eq(op.inv_a)
-        comb += e.invert_out.eq(op.inv_out)
-        comb += e.input_carry.eq(op.cry_in)   # carry comes in
-        comb += e.output_carry.eq(op.cry_out) # carry goes out
-        comb += e.is_32bit.eq(op.is_32b)
-        comb += e.is_signed.eq(op.sgn)
+        comb += do.data_len.eq(op.ldst_len)
+        comb += do.invert_a.eq(op.inv_a)
+        comb += do.invert_out.eq(op.inv_out)
+        comb += do.input_carry.eq(op.cry_in)   # carry comes in
+        comb += do.output_carry.eq(op.cry_out) # carry goes out
+        comb += do.is_32bit.eq(op.is_32b)
+        comb += do.is_signed.eq(op.sgn)
         with m.If(op.lk):
-            comb += e.lk.eq(self.dec.LK) # XXX TODO: accessor
+            comb += do.lk.eq(self.dec.LK) # XXX TODO: accessor
 
-        comb += e.byte_reverse.eq(op.br)
-        comb += e.sign_extend.eq(op.sgn_ext)
-        comb += e.update.eq(op.upd) # LD/ST "update" mode.
+        comb += do.byte_reverse.eq(op.br)
+        comb += do.sign_extend.eq(op.sgn_ext)
+        comb += do.update.eq(op.upd) # LD/ST "update" mode.
 
         # These should be removed eventually
-        comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
-        comb += e.output_cr.eq(op.cr_out) # condition reg goes in
+        comb += do.input_cr.eq(op.cr_in)   # condition reg comes in
+        comb += do.output_cr.eq(op.cr_out) # condition reg goes in
 
         # sigh this is exactly the sort of thing for which the
         # decoder is designed to not need.  MTSPR, MFSPR and others need
@@ -652,7 +653,7 @@ class PowerDecode2(Elaboratable):
 
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == InternalOp.OP_TRAP):
-            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+            comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
 
         # illegal instruction must redirect to trap. this is done by
         # *overwriting* the decoded instruction and starting again.
@@ -661,16 +662,16 @@ class PowerDecode2(Elaboratable):
         with m.If(op.internal_op == InternalOp.OP_ILLEGAL):
             comb += e.eq(0) # reset eeeeeverything
             # start again
-            comb += e.insn.eq(self.dec.opcode_in)
-            comb += e.insn_type.eq(InternalOp.OP_TRAP)
-            comb += e.fn_unit.eq(Function.TRAP)
-            comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
-            comb += e.traptype.eq(TT_ILLEG) # request illegal instruction
+            comb += do.insn.eq(self.dec.opcode_in)
+            comb += do.insn_type.eq(InternalOp.OP_TRAP)
+            comb += do.fn_unit.eq(Function.TRAP)
+            comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+            comb += do.traptype.eq(TT_ILLEG) # request illegal instruction
 
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
         # Note: OP_SC could actually be modified to just be a trap
-        with m.If((e.insn_type == InternalOp.OP_TRAP) |
-                  (e.insn_type == InternalOp.OP_SC)):
+        with m.If((do.insn_type == InternalOp.OP_TRAP) |
+                  (do.insn_type == InternalOp.OP_SC)):
             # TRAP write fast1 = SRR0
             comb += e.write_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
             comb += e.write_fast1.ok.eq(1)
@@ -679,7 +680,7 @@ class PowerDecode2(Elaboratable):
             comb += e.write_fast2.ok.eq(1)
 
         # RFID: needs to read SRR0/1
-        with m.If(e.insn_type == InternalOp.OP_RFID):
+        with m.If(do.insn_type == InternalOp.OP_RFID):
             # TRAP read fast1 = SRR0
             comb += e.read_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
             comb += e.read_fast1.ok.eq(1)

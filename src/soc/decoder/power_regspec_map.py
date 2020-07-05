@@ -60,7 +60,7 @@ def regspec_decode_read(e, regfile, name):
         # CRRegs register numbering is *unary* encoded
         # *sigh*.  numbering inverted on part-CRs.  because POWER.
         if name == 'full_cr': # full CR
-            return e.read_cr_whole, 0b11111111
+            return e.do.read_cr_whole, 0b11111111
         if name == 'cr_a': # CR A
             return e.read_cr1.ok, 1<<(7-e.read_cr1.data)
         if name == 'cr_b': # CR B
@@ -76,11 +76,11 @@ def regspec_decode_read(e, regfile, name):
         CA = 1<<XERRegs.CA
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
-            return (e.oe.oe[0] & e.oe.oe_ok) | e.xer_in, SO
+            return (e.do.oe.oe[0] & e.do.oe.oe_ok) | e.xer_in, SO
         if name == 'xer_ov':
-            return (e.oe.oe[0] & e.oe.oe_ok) | e.xer_in, OV
+            return (e.do.oe.oe[0] & e.do.oe.oe_ok) | e.xer_in, OV
         if name == 'xer_ca':
-            return (e.input_carry == CryIn.CA.value) | e.xer_in, CA
+            return (e.do.input_carry == CryIn.CA.value) | e.xer_in, CA
 
     # FAST regfile
 
@@ -132,7 +132,7 @@ def regspec_decode_write(e, regfile, name):
         # CRRegs register numbering is *unary* encoded
         # *sigh*.  numbering inverted on part-CRs.  because POWER.
         if name == 'full_cr': # full CR
-            return e.write_cr_whole, 0b11111111
+            return e.do.write_cr_whole, 0b11111111
         if name == 'cr_a': # CR A
             return e.write_cr, 1<<(7-e.write_cr.data)
 

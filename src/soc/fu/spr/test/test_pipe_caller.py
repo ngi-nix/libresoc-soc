@@ -160,7 +160,7 @@ class TestRunner(FHDLTestCase):
                     spr_out = yield pdecode2.e.write_spr.data
                     print ("dec2 spr/fast in", fast_out, spr_out)
 
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.SPR.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
@@ -185,7 +185,7 @@ class TestRunner(FHDLTestCase):
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
-        rc = yield dec2.e.rc.data
+        rc = yield dec2.e.do.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 

@@ -191,7 +191,7 @@ class TestRunner(FHDLTestCase):
                     # then additional op-decoding is required, accordingly
                     yield Settle()
                     yield from self.set_inputs(branch, pdecode2, simulator)
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
                     yield
                     yield
@@ -220,7 +220,7 @@ class TestRunner(FHDLTestCase):
         # TODO: check write_fast1 as well (should contain CTR)
 
         # TODO: this should be checking write_fast2
-        lk = yield dec2.e.lk
+        lk = yield dec2.e.do.lk
         branch_lk = yield branch.n.data_o.lr.ok
         self.assertEqual(lk, branch_lk, code)
         if lk:

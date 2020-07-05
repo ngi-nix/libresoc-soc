@@ -35,8 +35,8 @@ class ShiftRotTestRunner(TestRunner):
             print(f"expected {expected:x}, actual: {cu_out:x}")
             self.assertEqual(expected, cu_out, code)
 
-        rc = yield dec2.e.rc.data
-        op = yield dec2.e.insn_type
+        rc = yield dec2.e.do.rc.data
+        op = yield dec2.e.do.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
@@ -54,7 +54,7 @@ class ShiftRotTestRunner(TestRunner):
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         # XER.ca
-        cry_out = yield dec2.e.output_carry
+        cry_out = yield dec2.e.do.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             xer_ca = res['xer_ca']

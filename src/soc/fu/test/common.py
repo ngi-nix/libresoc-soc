@@ -93,7 +93,7 @@ class ALUHelpers:
             res['rc'] = sim.gpr(data).value
 
     def get_rd_sim_xer_ca(res, sim, dec2):
-        cry_in = yield dec2.e.input_carry
+        cry_in = yield dec2.e.do.input_carry
         xer_in = yield dec2.e.xer_in
         if xer_in or cry_in == CryIn.CA.value:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
@@ -112,9 +112,9 @@ class ALUHelpers:
         if 'rb' in inp:
             yield alu.p.data_i.rb.eq(inp['rb'])
         # If there's an immediate, set the B operand to that
-        imm_ok = yield dec2.e.imm_data.imm_ok
+        imm_ok = yield dec2.e.do.imm_data.imm_ok
         if imm_ok:
-            data2 = yield dec2.e.imm_data.imm
+            data2 = yield dec2.e.do.imm_data.imm
             yield alu.p.data_i.rb.eq(data2)
 
     def set_int_rc(alu, dec2, inp):
@@ -230,21 +230,21 @@ class ALUHelpers:
             res['cr_a'] = yield alu.n.data_o.cr0.data
 
     def get_xer_so(res, alu, dec2):
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
         xer_out = yield dec2.e.xer_out
         if xer_out or (oe and oe_ok):
             res['xer_so'] = yield alu.n.data_o.xer_so.data[0]
 
     def get_xer_ov(res, alu, dec2):
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
         xer_out = yield dec2.e.xer_out
         if xer_out or (oe and oe_ok):
             res['xer_ov'] = yield alu.n.data_o.xer_ov.data
 
     def get_xer_ca(res, alu, dec2):
-        cry_out = yield dec2.e.output_carry
+        cry_out = yield dec2.e.do.output_carry
         xer_out = yield dec2.e.xer_out
         if xer_out or (cry_out):
             res['xer_ca'] = yield alu.n.data_o.xer_ca.data
@@ -291,15 +291,15 @@ class ALUHelpers:
             res['spr1'] = sim.spr[spr_name].value
 
     def get_wr_sim_xer_ca(res, sim, dec2):
-        cry_out = yield dec2.e.output_carry
+        cry_out = yield dec2.e.do.output_carry
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = expected_carry | (expected_carry32 << 1)
 
     def get_sim_xer_ov(res, sim, dec2):
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
         xer_in = yield dec2.e.xer_in
         print ("get_sim_xer_ov", xer_in)
         if xer_in or (oe and oe_ok):
@@ -308,8 +308,8 @@ class ALUHelpers:
             res['xer_ov'] = expected_ov | (expected_ov32 << 1)
 
     def get_sim_xer_so(res, sim, dec2):
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
         xer_in = yield dec2.e.xer_in
         if xer_in or (oe and oe_ok):
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0

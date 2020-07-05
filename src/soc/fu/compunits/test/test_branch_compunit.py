@@ -41,7 +41,7 @@ class BranchTestRunner(TestRunner):
             self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
         # Link SPR
-        lk = yield dec2.e.lk
+        lk = yield dec2.e.do.lk
         branch_lk = 'fast2' in res
         self.assertEqual(lk, branch_lk, code)
         if lk:

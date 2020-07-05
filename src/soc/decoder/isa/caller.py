@@ -366,13 +366,13 @@ class ISACaller:
         self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
 
     def handle_carry_(self, inputs, outputs, already_done):
-        inv_a = yield self.dec2.e.invert_a
+        inv_a = yield self.dec2.e.do.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
 
-        imm_ok = yield self.dec2.e.imm_data.ok
+        imm_ok = yield self.dec2.e.do.imm_data.ok
         if imm_ok:
-            imm = yield self.dec2.e.imm_data.data
+            imm = yield self.dec2.e.do.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
         print ("outputs", repr(outputs))
@@ -402,13 +402,13 @@ class ISACaller:
             self.spr['XER'][XER_bits['CA32']] = cy32
 
     def handle_overflow(self, inputs, outputs, div_overflow):
-        inv_a = yield self.dec2.e.invert_a
+        inv_a = yield self.dec2.e.do.invert_a
         if inv_a:
             inputs[0] = ~inputs[0]
 
-        imm_ok = yield self.dec2.e.imm_data.ok
+        imm_ok = yield self.dec2.e.do.imm_data.ok
         if imm_ok:
-            imm = yield self.dec2.e.imm_data.data
+            imm = yield self.dec2.e.do.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
         print ("handle_overflow", inputs, outputs, div_overflow)
@@ -492,11 +492,11 @@ class ISACaller:
         asmop = insns.get(asmcode, None)
 
         # sigh reconstruct the assembly instruction name
-        ov_en = yield self.dec2.e.oe.oe
-        ov_ok = yield self.dec2.e.oe.ok
+        ov_en = yield self.dec2.e.do.oe.oe
+        ov_ok = yield self.dec2.e.do.oe.ok
         if ov_en & ov_ok:
             asmop += "."
-        lk = yield self.dec2.e.lk
+        lk = yield self.dec2.e.do.lk
         if lk:
             asmop += "l"
         int_op = yield self.dec2.dec.op.internal_op
@@ -507,7 +507,7 @@ class ISACaller:
             if AA:
                 asmop += "a"
         if int_op == InternalOp.OP_MFCR.value:
-            dec_insn = yield self.dec2.e.insn
+            dec_insn = yield self.dec2.e.do.insn
             if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mfocrf'
             else:
@@ -515,7 +515,7 @@ class ISACaller:
         # XXX TODO: for whatever weird reason this doesn't work
         # https://bugs.libre-soc.org/show_bug.cgi?id=390
         if int_op == InternalOp.OP_MTCRF.value:
-            dec_insn = yield self.dec2.e.insn
+            dec_insn = yield self.dec2.e.do.insn
             if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mtocrf'
             else:
@@ -578,7 +578,7 @@ class ISACaller:
                     already_done |= 2
 
         print ("carry already done?", bin(already_done))
-        carry_en = yield self.dec2.e.output_carry
+        carry_en = yield self.dec2.e.do.output_carry
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
 
@@ -589,13 +589,13 @@ class ISACaller:
                 if name == 'overflow':
                     overflow = output
 
-        ov_en = yield self.dec2.e.oe.oe
-        ov_ok = yield self.dec2.e.oe.ok
+        ov_en = yield self.dec2.e.do.oe.oe
+        ov_ok = yield self.dec2.e.do.oe.ok
         print ("internal overflow", overflow)
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results, overflow)
 
-        rc_en = yield self.dec2.e.rc.data
+        rc_en = yield self.dec2.e.do.rc.data
         if rc_en:
             self.handle_comparison(results)
 

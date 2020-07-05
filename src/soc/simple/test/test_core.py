@@ -74,8 +74,8 @@ def setup_regs(core, test):
     so = yield xregs.regs[xregs.SO].reg
     ov = yield xregs.regs[xregs.OV].reg
     ca = yield xregs.regs[xregs.CA].reg
-    oe = yield pdecode2.e.oe.oe
-    oe_ok = yield pdecode2.e.oe.oe_ok
+    oe = yield pdecode2.e.do.oe.oe
+    oe_ok = yield pdecode2.e.do.oe.oe_ok
 
     print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
     print ("oe:", oe, oe_ok)

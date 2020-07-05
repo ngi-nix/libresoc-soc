@@ -27,7 +27,7 @@ class CRTestRunner(TestRunner):
         print ("check extra output", repr(code), res)
 
         # full CR
-        whole_reg = yield dec2.e.write_cr_whole
+        whole_reg = yield dec2.e.do.write_cr_whole
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg:
             full_cr = res['full_cr']
