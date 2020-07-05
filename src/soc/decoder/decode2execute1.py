@@ -58,6 +58,8 @@ class Decode2ToExecute1Type(RecordObject):
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
+        self.xer_in = Signal(reset_less=True)   # xer might be read
+        self.xer_out = Signal(reset_less=True)  # xer might be written
         self.invert_a = Signal(reset_less=True)
         self.zero_a = Signal(reset_less=True)
         self.invert_out = Signal(reset_less=True)

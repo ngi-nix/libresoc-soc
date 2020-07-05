@@ -68,11 +68,11 @@ def regspec_decode_read(e, regfile, name):
         CA = 1<<XERRegs.CA
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
-            return e.oe.oe[0] & e.oe.oe_ok, SO
+            return (e.oe.oe[0] & e.oe.oe_ok) | e.xer_in, SO
         if name == 'xer_ov':
-            return e.oe.oe[0] & e.oe.oe_ok, OV
+            return (e.oe.oe[0] & e.oe.oe_ok) | e.xer_in, OV
         if name == 'xer_ca':
-            return (e.input_carry == CryIn.CA.value), CA
+            return (e.input_carry == CryIn.CA.value) | e.xer_in, CA
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
@@ -126,11 +126,11 @@ def regspec_decode_write(e, regfile, name):
         CA = 1<<XERRegs.CA
         OV = 1<<XERRegs.OV
         if name == 'xer_so':
-            return None, SO # hmmm
+            return e.xer_out, SO # hmmm
         if name == 'xer_ov':
-            return None, OV # hmmm
+            return e.xer_out, OV # hmmm
         if name == 'xer_ca':
-            return None, CA # hmmm
+            return e.xer_out, CA # hmmm
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded

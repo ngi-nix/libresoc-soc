@@ -1,7 +1,7 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
-from soc.fu.alu.test.test_pipe_caller import get_cu_inputs
+from soc.fu.spr.test.test_pipe_caller import get_cu_inputs
 from soc.fu.spr.test.test_pipe_caller import SPRTestCase # creates the tests
 
 from soc.fu.test.common import ALUHelpers

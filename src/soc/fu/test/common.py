@@ -94,7 +94,8 @@ class ALUHelpers:
 
     def get_rd_sim_xer_ca(res, sim, dec2):
         cry_in = yield dec2.e.input_carry
-        if cry_in == CryIn.CA.value:
+        xer_in = yield dec2.e.xer_in
+        if xer_in or cry_in == CryIn.CA.value:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = expected_carry | (expected_carry32 << 1)
@@ -231,18 +232,21 @@ class ALUHelpers:
     def get_xer_so(res, alu, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
+        xer_in = yield dec2.e.xer_in
+        if xer_in or (oe and oe_ok):
             res['xer_so'] = yield alu.n.data_o.xer_so.data[0]
 
     def get_xer_ov(res, alu, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
+        xer_in = yield dec2.e.xer_in
+        if xer_in or (oe and oe_ok):
             res['xer_ov'] = yield alu.n.data_o.xer_ov.data
 
     def get_xer_ca(res, alu, dec2):
         cry_out = yield dec2.e.output_carry
-        if cry_out:
+        xer_in = yield dec2.e.xer_in
+        if xer_in or (cry_out):
             res['xer_ca'] = yield alu.n.data_o.xer_ca.data
 
     def get_sim_int_o(res, sim, dec2):
@@ -296,7 +300,9 @@ class ALUHelpers:
     def get_sim_xer_ov(res, sim, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
+        xer_in = yield dec2.e.xer_in
+        print ("get_sim_xer_ov", xer_in)
+        if xer_in or (oe and oe_ok):
             expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
             expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
             res['xer_ov'] = expected_ov | (expected_ov32 << 1)
@@ -304,7 +310,8 @@ class ALUHelpers:
     def get_sim_xer_so(res, sim, dec2):
         oe = yield dec2.e.oe.oe
         oe_ok = yield dec2.e.oe.ok
-        if oe and oe_ok:
+        xer_in = yield dec2.e.xer_in
+        if xer_in or (oe and oe_ok):
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
 
     def check_slow_spr1(dut, res, sim_o, msg):

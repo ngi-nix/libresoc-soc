@@ -61,6 +61,7 @@ def get_cu_output(cu, idx, code):
 
 
 def set_cu_inputs(cu, inp):
+    print ("set_cu_inputs", inp)
     for idx, data in inp.items():
         yield from set_cu_input(cu, idx, data)
 
@@ -224,6 +225,7 @@ class TestRunner(FHDLTestCase):
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)
+                    yield Settle()
                     iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
                     inp = get_inp_indexed(cu, iname)
 

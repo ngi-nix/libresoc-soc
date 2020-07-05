@@ -642,6 +642,14 @@ class PowerDecode2(Elaboratable):
         comb += e.input_cr.eq(op.cr_in)   # condition reg comes in
         comb += e.output_cr.eq(op.cr_out) # condition reg goes in
 
+        # sigh this is exactly the sort of thing for which the
+        # decoder is designed to not need.  MTSPR, MFSPR and others need
+        # access to the XER bits.  however setting e.oe is not appropriate
+        with m.If(op.internal_op == InternalOp.OP_MFSPR):
+            comb += e.xer_in.eq(1)
+        with m.If(op.internal_op == InternalOp.OP_MTSPR):
+            comb += e.xer_out.eq(1)
+
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == InternalOp.OP_TRAP):
             comb += e.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
