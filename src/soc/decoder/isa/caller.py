@@ -331,14 +331,14 @@ class ISACaller:
         self.decoder = decoder2.dec
         self.dec2 = decoder2
 
-    def TRAP(self, trap_addr=0x700):
+    def TRAP(self, trap_addr=0x700, trap_bit=PI.TRAP):
         print ("TRAP:", hex(trap_addr))
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
         self.spr['SRR0'] = self.pc.CIA
         self.spr['SRR1'] = self.namespace['MSR']
         self.trap_nia = SelectableInt(trap_addr, 64)
-        self.namespace['MSR'][63-PI.TRAP] = 1 # bit 45, "this is a trap"
+        self.namespace['MSR'][63-trap_bit] = 1
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
@@ -527,14 +527,22 @@ class ISACaller:
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmop = yield from self.get_assembly_name()
         print  ("call", name, asmop)
+        illegal = False
         if name not in ['mtcrf', 'mtocrf']:
-            assert name == asmop, "name %s != %s" % (name, asmop)
+            illegal = name != asmop
+
+        if illegal:
+            self.TRAP(0x700, PI.ILLEG)
+            self.namespace['NIA'] = self.trap_nia
+            self.pc.update(self.namespace)
+            return
 
         info = self.instrs[name]
         yield from self.prep_namespace(info.form, info.op_fields)
 
         # preserve order of register names
-        input_names = create_args(list(info.read_regs) + list(info.uninit_regs))
+        input_names = create_args(list(info.read_regs) +
+                                  list(info.uninit_regs))
         print(input_names)
 
         # main registers (RT, RA ...)
