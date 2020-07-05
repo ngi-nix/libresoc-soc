@@ -532,6 +532,7 @@ class ISACaller:
             illegal = name != asmop
 
         if illegal:
+            print ("name %s != %s - calling ILLEGAL trap" % (name, asmop))
             self.TRAP(0x700, PI.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)

@@ -107,6 +107,18 @@ class TrapTestCase(FHDLTestCase):
             initial_regs[2] = 1
             self.run_tst_program(Program(lst), initial_regs)
 
+    def test_3_mtmsr_0(self):
+        lst = ["mtmsr 1,0"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_2_mtmsr_1(self):
+        lst = ["mtmsr 1,1"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        self.run_tst_program(Program(lst), initial_regs)
+
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core

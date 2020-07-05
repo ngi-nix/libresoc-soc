@@ -167,9 +167,8 @@ class TrapMainStage(PipeModBase):
             with m.Case(InternalOp.OP_MTMSRD):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
                 with m.If(L):
-                    # just update EE and RI
-                    comb += msr_o.data[MSR.EE].eq(a_i[MSR.EE])
-                    comb += msr_o.data[MSR.RI].eq(a_i[MSR.RI])
+                    # just update RI..EE
+                    comb += msr_o.data[MSR.RI:MSR.EE].eq(a_i[MSR.RI:MSR.EE])
                 with m.Else():
                     # Architecture says to leave out bits 3 (HV), 51 (ME)
                     # and 63 (LE) (IBM bit numbering)
