@@ -255,7 +255,7 @@ class DecoderBase:
         prog.reset()
         with run_program(prog, initial_mem) as q:
             self.qemu_register_compare(simulator, q, reglist)
-            self.qemu_mem_compare(simulator, q, reglist)
+            self.qemu_mem_compare(simulator, q, True)
         print(simulator.gpr.dump())
 
     def qemu_mem_compare(self, sim, qemu, check=True):
