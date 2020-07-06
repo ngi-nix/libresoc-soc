@@ -27,6 +27,17 @@ def EXTS64(value):
     return SelectableInt(exts(value.value, value.bits) & ((1 << 64)-1), 64)
 
 
+# signed version of MUL
+def MULS(a, b):
+    a_s = a.value & (1<<(a.bits-1)) != 0
+    b_s = b.value & (1<<(b.bits-1)) != 0
+    result = abs(a) * abs(b)
+    print ("MULS", result, a_s, b_s)
+    if a_s == b_s:
+        return result
+    return -result
+
+
 # XXX should this explicitly extend from 32 to 64?
 def EXTZ64(value):
     if isinstance(value, SelectableInt):
