@@ -544,9 +544,10 @@ def test_alu_parallel():
         # (-5) + 3 = -2
         result = yield from receive()
         assert (result == 65533)  # unsigned equivalent to -2
-        yield
         # 5 - 3 = 2
         # note that this is a zero-delay operation
+        # this, and the previous result, will be received back-to-back
+        # (check the output waveform to see this)
         result = yield from receive()
         assert (result == 2)
         yield
