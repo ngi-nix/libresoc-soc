@@ -30,6 +30,13 @@ class MulTestCases(FHDLTestCase):
                f"mullw 3, 1, 2"]
         self.run_tst_program(Program(lst), [3])
 
+    def test_mullw(self):
+        lst = [f"addi 1, 0, 0x5678",
+                "neg 1, 1",
+               f"addi 2, 0, 0x1234",
+               f"mullw 3, 1, 2"]
+        self.run_tst_program(Program(lst), [3])
+
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                                     initial_mem=None):
         initial_regs = [0] * 32
