@@ -22,8 +22,6 @@ class CompALUOpSubset(Record):
                   ('write_cr0', 1),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
-                  ('input_cr', 1),
-                  ('output_cr', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
                   ('data_len', 4), # actually used by ALU, in OP_EXTS
@@ -40,8 +38,6 @@ class CompALUOpSubset(Record):
         self.invert_out.reset_less = True
         self.input_carry.reset_less = True
         self.output_carry.reset_less = True
-        self.input_cr.reset_less = True
-        self.output_cr.reset_less = True
         self.is_32bit.reset_less = True
         self.is_signed.reset_less = True
         self.data_len.reset_less = True
@@ -61,8 +57,6 @@ class CompALUOpSubset(Record):
                 self.invert_out,
                 self.input_carry,
                 self.output_carry,
-                self.input_cr,
-                self.output_cr,
                 self.is_32bit,
                 self.is_signed,
                 self.data_len,
