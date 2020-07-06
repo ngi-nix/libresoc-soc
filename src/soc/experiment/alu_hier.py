@@ -392,24 +392,7 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.op.invert_a.eq(inv_a)
     yield dut.n.ready_i.eq(0)
     yield dut.p.valid_i.eq(1)
-
-    # if valid_o rose on the very first cycle, it is a
-    # zero-delay ALU
-    yield Settle()
-    vld = yield dut.n.valid_o
-    if vld:
-        # special case for zero-delay ALU
-        # we must raise ready_i first, since the combinatorial ALU doesn't
-        # have any storage, and doesn't dare to assert ready_o back to us
-        # until we accepted the output data
-        yield dut.n.ready_i.eq(1)
-        result = yield dut.o
-        yield
-        yield dut.p.valid_i.eq(0)
-        yield dut.n.ready_i.eq(0)
-        yield
-        return result
-
+    yield dut.n.ready_i.eq(1)
     yield
 
     # wait for the ALU to accept our input data
@@ -423,11 +406,8 @@ def run_op(dut, a, b, op, inv_a=0):
         yield
 
     # latch the result and lower read_i
-    yield dut.n.ready_i.eq(1)
     result = yield dut.o
-    yield
     yield dut.n.ready_i.eq(0)
-    yield
 
     return result
 
