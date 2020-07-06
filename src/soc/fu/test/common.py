@@ -233,6 +233,8 @@ class ALUHelpers:
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
         xer_out = yield dec2.e.xer_out
+        if not (yield alu.n.data_o.xer_so.ok):
+            return
         if xer_out or (oe and oe_ok):
             res['xer_so'] = yield alu.n.data_o.xer_so.data[0]
 
@@ -240,12 +242,16 @@ class ALUHelpers:
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
         xer_out = yield dec2.e.xer_out
+        if not (yield alu.n.data_o.xer_ov.ok):
+            return
         if xer_out or (oe and oe_ok):
             res['xer_ov'] = yield alu.n.data_o.xer_ov.data
 
     def get_xer_ca(res, alu, dec2):
         cry_out = yield dec2.e.do.output_carry
         xer_out = yield dec2.e.xer_out
+        if not (yield alu.n.data_o.xer_ca.ok):
+            return
         if xer_out or (cry_out):
             res['xer_ca'] = yield alu.n.data_o.xer_ca.data
 
@@ -291,11 +297,35 @@ class ALUHelpers:
             res['spr1'] = sim.spr[spr_name].value
 
     def get_wr_sim_xer_ca(res, sim, dec2):
+        #if not (yield alu.n.data_o.xer_ca.ok):
+        #    return
         cry_out = yield dec2.e.do.output_carry
-        if cry_out:
+        xer_out = yield dec2.e.xer_out
+        if cry_out or xer_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = expected_carry | (expected_carry32 << 1)
+
+    def get_wr_sim_xer_ov(res, sim, alu, dec2):
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
+        xer_out = yield dec2.e.xer_out
+        print ("get_wr_sim_xer_ov", xer_out)
+        if not (yield alu.n.data_o.xer_ov.ok):
+            return
+        if xer_out or (oe and oe_ok):
+            expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+            expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+            res['xer_ov'] = expected_ov | (expected_ov32 << 1)
+
+    def get_wr_sim_xer_so(res, sim, alu, dec2):
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
+        xer_out = yield dec2.e.xer_out
+        if not (yield alu.n.data_o.xer_so.ok):
+            return
+        if xer_out or (oe and oe_ok):
+            res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
 
     def get_sim_xer_ov(res, sim, dec2):
         oe = yield dec2.e.do.oe.oe

@@ -20,7 +20,7 @@ class ShiftRotTestRunner(TestRunner):
         res = yield from get_cu_inputs(dec2, sim)
         return res
 
-    def check_cu_outputs(self, res, dec2, sim, code):
+    def check_cu_outputs(self, res, dec2, sim, alu, code):
         """naming (res) must conform to ShiftRotFunctionUnit output regspec
         """
 

@@ -9,7 +9,7 @@ from soc.decoder.power_enums import Function
 from soc.decoder.isa.all import ISA
 
 from soc.experiment.compalu_multi import find_ok # hack
-
+from soc.config.test.test_loadstore import TestMemPspec
 
 def set_cu_input(cu, idx, data):
     rdop = cu.get_in_name(idx)
@@ -169,11 +169,13 @@ class TestRunner(FHDLTestCase):
 
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
-            m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
-                                                    addrwid=3,
-                                                    ifacetype='test_bare_wb')
+            pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
+                                 addr_wid=48,
+                                 mask_wid=8,
+                                 reg_wid=64)
+            m.submodules.l0 = l0 = TstL0CacheBuffer(pspec, n_units=1)
             pi = l0.l0.dports[0]
-            m.submodules.cu = cu = self.fukls(pi, awid=3)
+            m.submodules.cu = cu = self.fukls(pi, idx=0, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
             m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
         else:
@@ -284,7 +286,7 @@ class TestRunner(FHDLTestCase):
                         yield from dump_sim_memory(self, l0, sim, code)
 
                     yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                            sim, code)
+                                                            sim, cu.alu, code)
 
                     # sigh.  hard-coded.  test memory
                     if self.funit == Function.LDST:

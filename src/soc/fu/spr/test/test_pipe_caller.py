@@ -85,9 +85,23 @@ class SPRTestCase(FHDLTestCase):
     def test_1_mfspr(self):
         lst = ["mfspr 1, 26", # SRR0
                "mfspr 2, 27",  # SRR1
-               "mfspr 2, 8",] # LR
+               "mfspr 3, 8",  # LR
+               "mfspr 4, 1",] # XER
         initial_regs = [0] * 32
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234}
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0xe00c0000}
+        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+
+    def test_1_mtspr(self):
+        lst = ["mtspr 26, 1", # SRR0
+               "mtspr 27, 2", # and into reg 2
+               "mtspr 1, 3",] # XER
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x129518230011feed
+        initial_regs[2] = 0x129518230011feed
+        initial_regs[3] = 0xe00c0000
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0x0}
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_ilang(self):
@@ -206,18 +220,20 @@ class TestRunner(FHDLTestCase):
         print ("output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_so(sim_o, sim, alu, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ov(sim_o, sim, alu, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
 
+        print ("sim output", sim_o)
+
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
         ALUHelpers.check_slow_spr1(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
 if __name__ == "__main__":

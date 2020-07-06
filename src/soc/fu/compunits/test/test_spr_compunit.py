@@ -20,7 +20,7 @@ class SPRTestRunner(TestRunner):
         res = yield from get_cu_inputs(dec2, sim)
         return res
 
-    def check_cu_outputs(self, res, dec2, sim, code):
+    def check_cu_outputs(self, res, dec2, sim, alu, code):
         """naming (res) must conform to SPRFunctionUnit output regspec
         """
 
@@ -37,19 +37,30 @@ class SPRTestRunner(TestRunner):
 
         sim_o = {}
 
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
+        yield from ALUHelpers.get_slow_spr1(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
+
+        print ("output", res)
+
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_so(sim_o, sim, alu, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ov(sim_o, sim, alu, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
 
+        print ("sim output", sim_o)
+
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
         ALUHelpers.check_slow_spr1(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
 if __name__ == "__main__":

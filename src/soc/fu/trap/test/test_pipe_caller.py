@@ -113,7 +113,7 @@ class TrapTestCase(FHDLTestCase):
         initial_regs[1] = 0xffffffffffffffff
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_2_mtmsr_1(self):
+    def test_3_mtmsr_1(self):
         lst = ["mtmsr 1,1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
