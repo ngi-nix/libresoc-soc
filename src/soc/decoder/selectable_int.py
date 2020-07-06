@@ -199,7 +199,7 @@ class SelectableInt:
     def __abs__(self):
         print ("abs", self.value & (1<<(self.bits-1)))
         if self.value & (1<<(self.bits-1)) != 0:
-            return SelectableInt(0, self.bits) - self
+            return -self
         return self
 
     def __rsub__(self, b):
