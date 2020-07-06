@@ -108,7 +108,7 @@ _insns = [
     "lhbrx", "lhz", "lhzu", "lhzux", "lhzx", "lwa", "lwarx", "lwaux",
     "lwax", "lwbrx", "lwz", "lwzu", "lwzux", "lwzx", "mcrf", "mcrxr",
     "mcrxrx", "mfcr/mfocrf", "mfmsr", "mfspr", "modsd", "modsw", "modud",
-    "moduw", "mtcrf/mtocrf", "mtmsrd", "mtspr", "mulhd", "mulhdu",
+    "moduw", "mtcrf/mtocrf", "mtmsr", "mtmsrd", "mtspr", "mulhd", "mulhdu",
     "mulhw", "mulhwu", "mulld", "mulldo", "mulli", "mullw", "mullwo",
     "nand", "neg", "nego", "nop", "nor", "or", "orc", "ori", "oris",
     "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
@@ -203,6 +203,7 @@ class InternalOp(Enum):
     OP_MFMSR = 71
     OP_MTMSRD = 72
     OP_SC = 73
+    OP_MTMSR = 74
 
 
 @unique
