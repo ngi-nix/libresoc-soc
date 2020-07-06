@@ -484,11 +484,9 @@ def test_alu_parallel():
         yield dut.op.insn_type.eq(op)
         yield dut.op.invert_a.eq(inv_a)
         yield dut.p.valid_i.eq(1)
-        while True:
+        yield
+        while not (yield dut.p.ready_o):
             yield
-            rdy = yield dut.p.ready_o
-            if rdy:
-                break
         yield dut.p.valid_i.eq(0)
         yield dut.a.eq(0)
         yield dut.b.eq(0)
@@ -498,10 +496,7 @@ def test_alu_parallel():
     def receive():
         yield dut.n.ready_i.eq(1)
         yield
-        while True:
-            valid = yield dut.n.valid_o
-            if valid:
-                break
+        while not (yield dut.n.valid_o):
             yield
         result = yield dut.o
         yield dut.n.ready_i.eq(0)
