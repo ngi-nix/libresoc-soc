@@ -74,6 +74,9 @@ from soc.fu.trap.pipe_data import TrapPipeSpec
 from soc.fu.div.pipeline import DIVBasePipe
 from soc.fu.div.pipe_data import DIVPipeSpec
 
+from soc.fu.mul.pipeline import MulBasePipe
+from soc.fu.mul.pipe_data import MulPipeSpec
+
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 from soc.experiment.compldst_multi import LDSTCompUnit # special-case
 
@@ -149,6 +152,11 @@ class DIVFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self, idx):
         super().__init__(DIVPipeSpec, DIVBasePipe, idx)
 
+class MulFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.MUL
+    def __init__(self, idx):
+        super().__init__(MulPipeSpec, MulBasePipe, idx)
+
 class TrapFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.TRAP
     def __init__(self, idx):
@@ -194,6 +202,7 @@ class AllFunctionUnits(Elaboratable):
             units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1,
                      #'spr': 1, TODO: spr regfile
                      'logical': 1,
+                     'mul': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
                  'cr': CRFunctionUnit,
@@ -201,6 +210,7 @@ class AllFunctionUnits(Elaboratable):
                  'trap': TrapFunctionUnit,
                  'spr': SPRFunctionUnit,
                  'div': DIVFunctionUnit,
+                 'mul': MulFunctionUnit,
                  'logical': LogicalFunctionUnit,
                  'shiftrot': ShiftRotFunctionUnit,
                 }
@@ -233,7 +243,8 @@ def tst_single_fus_il():
                         ('cr', CRFunctionUnit),
                         ('branch', BranchFunctionUnit),
                         ('trap', TrapFunctionUnit),
-                        ('spr', SprFunctionUnit),
+                        ('spr', SPRFunctionUnit),
+                        ('mul', MulFunctionUnit),
                         ('logical', LogicalFunctionUnit),
                         ('shiftrot', ShiftRotFunctionUnit)):
         fu = kls(0)
