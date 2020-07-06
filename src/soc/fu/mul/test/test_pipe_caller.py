@@ -77,7 +77,16 @@ class MulTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_rand_mullw(self):
+    def test_mullw(self):
+        lst = [f"mullw 3, 1, 2"]
+        initial_regs = [0] * 32
+        #initial_regs[1] = 0xffffffffffffffff
+        #initial_regs[2] = 0xffffffffffffffff
+        initial_regs[1] = 0x2ffffffff
+        initial_regs[2] = 0x2
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_rand_mullw(self):
         insns = ["mullw", "mullw.", "mullwo", "mullwo."]
         for i in range(40):
             choice = random.choice(insns)

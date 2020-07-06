@@ -1,4 +1,5 @@
-# This stage is intended to do most of the work of executing multiply
+# This stage is intended to prepare the multiplication operands
+
 from nmigen import (Module, Signal, Mux)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.alu.pipe_data import ALUInputData

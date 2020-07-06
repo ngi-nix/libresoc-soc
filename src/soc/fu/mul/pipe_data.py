@@ -19,7 +19,7 @@ class MulOutputData(IntegerData):
                ('XER', 'xer_so', '32'), # XER bit 32: SO
                ('XER', 'xer_ca', '34,45')] # XER bit 34/45: CA/CA32
     def __init__(self, pspec):
-        super().__init__(pspec, False)
+        super().__init__(pspec, False) # still input style
 
         self.neg_res = Signal(reset_less=True)
         self.neg_res32 = Signal(reset_less=True)

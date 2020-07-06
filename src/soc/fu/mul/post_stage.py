@@ -32,10 +32,8 @@ class MulMainStage3(PipeModBase):
         comb += is_32bit.eq(op.is_32bit)
 
         # check negate: select signed/unsigned
-        o_s = Signal(signed(o.data.width * 2), reset_less=True)
-        mul_o = Signal(o.data.width * 2, reset_less=True)
-        comb += o_s.eq(-o_i)
-        comb += mul_o.eq(Mux(self.i.neg_res, o_s, o_i))
+        mul_o = Signal(o_i.width, reset_less=True)
+        comb += mul_o.eq(Mux(self.i.neg_res, -o_i, o_i))
         comb += o.ok.eq(1)
 
         with m.Switch(op.insn_type):
@@ -67,8 +65,8 @@ class MulMainStage3(PipeModBase):
 
         # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
         ca = Signal(2, reset_less=True)
-        comb += ca[0].eq(mul_o[-1])                      # XER.CA
-        comb += ca[1].eq(mul_o[33] ^ (self.i.neg_res32)) # XER.CA32
+        comb += ca[0].eq(mul_o[-1])                      # XER.CA - XXX more?
+        comb += ca[1].eq(mul_o[32] ^ (self.i.neg_res32)) # XER.CA32
         comb += cry_o.data.eq(ca)
         comb += cry_o.ok.eq(1)
 
