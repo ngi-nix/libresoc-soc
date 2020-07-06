@@ -294,7 +294,8 @@ class DecoderBase:
         for reg in regs:
             qemu_val = qemu.get_register(reg)
             sim_val = sim.gpr(reg).value
-            self.assertEqual(qemu_val, sim_val)
+            self.assertEqual(qemu_val, sim_val,
+                             "expect %x got %x" % (qemu_val, sim_val))
 
 
 class DecoderTestCase(DecoderBase, GeneralTestCases):
