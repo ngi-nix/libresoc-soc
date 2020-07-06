@@ -24,17 +24,18 @@ class MulTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def test_mullw(self):
-        lst = [f"addi 1, 0, 0x5678",
-               f"addi 2, 0, 0x1234",
-               f"mullw 3, 1, 2"]
+    def tst_mullw(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
+               "mullw 3, 1, 2"]
         self.run_tst_program(Program(lst), [3])
 
-    def test_mullw(self):
-        lst = [f"addi 1, 0, 0x5678",
-                "neg 1, 1",
-               f"addi 2, 0, 0x1234",
-               f"mullw 3, 1, 2"]
+    def test_mullwo_(self):
+        lst = ["addi 1, 0, 0x5678",
+               "neg 1, 1",
+               "addi 2, 0, 0x1234",
+               "neg 2, 2",
+               "mullwo 3, 1, 2"]
         self.run_tst_program(Program(lst), [3])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,

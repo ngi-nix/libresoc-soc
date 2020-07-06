@@ -289,13 +289,13 @@ class DecoderBase:
         print("sim pc", hex(sim.pc.CIA.value))
         print("sim cr", hex(sim_cr))
         print("sim xer", hex(sim_xer))
-        self.assertEqual(qcr, sim_cr)
         self.assertEqual(qpc, sim_pc)
         for reg in regs:
             qemu_val = qemu.get_register(reg)
             sim_val = sim.gpr(reg).value
             self.assertEqual(qemu_val, sim_val,
                              "expect %x got %x" % (qemu_val, sim_val))
+        self.assertEqual(qcr, sim_cr)
 
 
 class DecoderTestCase(DecoderBase, GeneralTestCases):

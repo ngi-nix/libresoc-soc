@@ -77,7 +77,7 @@ class MulTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_mullw(self):
+    def test_0_mullw(self):
         lst = [f"mullw 3, 1, 2"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0xffffffffffffffff
@@ -85,6 +85,28 @@ class MulTestCase(FHDLTestCase):
         initial_regs[1] = 0x2ffffffff
         initial_regs[2] = 0x2
         self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_1_mullwo_(self):
+        lst = [f"mullwo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x3b34b06f
+        initial_regs[2] = 0xfdeba998
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_2_mullwo_(self):
+        lst = [f"mullwo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffa988 # -5678
+        initial_regs[2] = 0xffffffffffffedcc # -1234
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_3_mullw(self):
+        for i in range(40):
+            lst = ["mullw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
 
     def tst_rand_mullw(self):
         insns = ["mullw", "mullw.", "mullwo", "mullwo."]
