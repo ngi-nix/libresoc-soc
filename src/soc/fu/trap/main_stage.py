@@ -164,11 +164,14 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.ILLEG].eq(1)
 
             # move to MSR
-            with m.Case(InternalOp.OP_MTMSRD):
+            with m.Case(InternalOp.OP_MTMSRD, InternalOp.OP_MTMSR):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
+                # start with copy of msr
+                comb += msr_o.eq(msr_i)
                 with m.If(L):
                     # just update RI..EE
-                    comb += msr_o.data[MSR.RI:MSR.EE].eq(a_i[MSR.RI:MSR.EE])
+                    comb += msr_o.data[MSR.RI].eq(a_i[MSR.RI])
+                    comb += msr_o.data[MSR.EE].eq(a_i[MSR.EE])
                 with m.Else():
                     # Architecture says to leave out bits 3 (HV), 51 (ME)
                     # and 63 (LE) (IBM bit numbering)
