@@ -413,20 +413,13 @@ def run_op(dut, a, b, op, inv_a=0):
     yield
 
     # wait for the ALU to accept our input data
-    while True:
-        rdy = yield dut.p.ready_o
-        if rdy:
-            break
+    while not (yield dut.p.ready_o):
         yield
 
     yield dut.p.valid_i.eq(0)
 
     # wait for the ALU to present the output data
-    while True:
-        yield Settle()
-        vld = yield dut.n.valid_o
-        if vld:
-            break
+    while not (yield dut.n.valid_o):
         yield
 
     # latch the result and lower read_i
