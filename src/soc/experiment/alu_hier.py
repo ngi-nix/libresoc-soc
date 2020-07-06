@@ -473,20 +473,26 @@ def test_alu():
 
 
 def test_alu_parallel():
+    # Compare with the sequential test implementation, above.
     m = Module()
     m.submodules.alu = dut = ALU(width=16)
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
     def send(a, b, op, inv_a=0):
+        # present input data and assert valid_i
         yield dut.a.eq(a)
         yield dut.b.eq(b)
         yield dut.op.insn_type.eq(op)
         yield dut.op.invert_a.eq(inv_a)
         yield dut.p.valid_i.eq(1)
         yield
+        # wait for ready_o to be asserted
         while not (yield dut.p.ready_o):
             yield
+        # clear input data and negate valid_i
+        # if send is called again immediately afterwards, there will be no
+        # visible transition (they will not be negated, after all)
         yield dut.p.valid_i.eq(0)
         yield dut.a.eq(0)
         yield dut.b.eq(0)
@@ -494,41 +500,65 @@ def test_alu_parallel():
         yield dut.op.invert_a.eq(0)
 
     def receive():
+        # signal readiness to receive data
         yield dut.n.ready_i.eq(1)
         yield
+        # wait for valid_o to be asserted
         while not (yield dut.n.valid_o):
             yield
+        # read result
         result = yield dut.o
+        # negate ready_i
+        # if receive is called again immediately afterwards, there will be no
+        # visible transition (it will not be negated, after all)
         yield dut.n.ready_i.eq(0)
         return result
 
     def producer():
+        # send a few test cases, interspersed with wait states
+        # note that, for this test, we do not wait for the result to be ready,
+        # before presenting the next input
+        # 5 + 3
         yield from send(5, 3, InternalOp.OP_ADD)
         yield
         yield
+        # 2 * 3
         yield from send(2, 3, InternalOp.OP_MUL_L64)
+        # (-5) + 3
         yield from send(5, 3, InternalOp.OP_ADD, inv_a=1)
         yield
+        # 5 - 3
+        # note that this is a zero-delay operation
         yield from send(5, 3, InternalOp.OP_NOP)
         yield
         yield
+        # 13 >> 2
         yield from send(13, 2, InternalOp.OP_SHR)
 
     def consumer():
+        # receive and check results, interspersed with wait states
+        # the consumer is not in step with the producer, but the
+        # order of the results are preserved
         yield
+        # 5 + 3 = 8
         result = yield from receive()
         assert (result == 8)
+        # 2 * 3 = 6
         result = yield from receive()
         assert (result == 6)
         yield
         yield
+        # (-5) + 3 = -2
         result = yield from receive()
-        assert (result == 65533)
+        assert (result == 65533)  # unsigned equivalent to -2
         yield
+        # 5 - 3 = 2
+        # note that this is a zero-delay operation
         result = yield from receive()
         assert (result == 2)
         yield
         yield
+        # 13 >> 2 = 3
         result = yield from receive()
         assert (result == 3)
 
