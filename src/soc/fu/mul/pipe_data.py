@@ -1,4 +1,4 @@
-from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.mul.mul_input_record import CompMULOpSubset
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.alu.pipe_data import ALUOutputData, ALUInputData
 from nmigen import Signal
@@ -29,4 +29,4 @@ class MulOutputData(IntegerData):
 
 class MulPipeSpec(CommonPipeSpec):
     regspec = (ALUInputData.regspec, ALUOutputData.regspec)
-    opsubsetkls = CompALUOpSubset
+    opsubsetkls = CompMULOpSubset
