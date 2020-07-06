@@ -44,6 +44,7 @@ def instr_is_priv(m, op, insn):
         with m.Case(InternalOp.OP_ATTN)  : comb += is_priv_insn.eq(1)
         with m.Case(InternalOp.OP_MFMSR) : comb += is_priv_insn.eq(1)
         with m.Case(InternalOp.OP_MTMSRD): comb += is_priv_insn.eq(1)
+        with m.Case(InternalOp.OP_MTMSR): comb += is_priv_insn.eq(1)
         with m.Case(InternalOp.OP_RFID)  : comb += is_priv_insn.eq(1)
         with m.Case(InternalOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
     with m.If(op == OP_MFSPR | op == OP_MTSPR):
