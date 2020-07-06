@@ -1,14 +1,17 @@
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
 from soc.fu.alu.pipe_data import ALUOutputData, ALUInputData
+from nmigen import Signal
 
 
 class MulIntermediateData(ALUInputData):
     def __init__(self, pspec):
         super().__init__(pspec)
 
-        neg_result = Signal(reset_less=True)
-        self.data.append(neg_result)
+        self.neg_res = Signal(reset_less=True)
+        self.neg_res32 = Signal(reset_less=True)
+        self.data.append(self.neg_res)
+        self.data.append(self.neg_res32)
 
 
 class MulOutputData(IntegerData):
@@ -18,8 +21,10 @@ class MulOutputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec, False)
 
-        neg_result = Signal(reset_less=True)
-        self.data.append(neg_result)
+        self.neg_res = Signal(reset_less=True)
+        self.neg_res32 = Signal(reset_less=True)
+        self.data.append(self.neg_res)
+        self.data.append(self.neg_res32)
 
 
 class MulPipeSpec(CommonPipeSpec):

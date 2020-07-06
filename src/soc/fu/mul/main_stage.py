@@ -28,9 +28,10 @@ class MulMainStage2(PipeModBase):
 
         ###### xer and context, all pass-through #####
 
-        comb += self.o.xer_ca.data.eq(self.i.xer_ca)
-        comb += self.o.neg_res.data.eq(self.i.neg_res)
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
+        comb += self.o.xer_ca.eq(self.i.xer_ca)
+        comb += self.o.neg_res.eq(self.i.neg_res)
+        comb += self.o.neg_res32.eq(self.i.neg_res32)
+        comb += self.o.xer_so.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m

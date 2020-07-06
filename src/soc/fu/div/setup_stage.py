@@ -12,10 +12,7 @@ from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 from soc.fu.div.pipe_data import CoreInputData
 from ieee754.div_rem_sqrt_rsqrt.core import DivPipeCoreOperation
-
-def eq32(is_32bit, dest, src):
-    return [dest[0:32].eq(src[0:32]),
-            dest[32:64].eq(Mux(is_32bit, 0, src[32:64]))]
+from nmutil.util import eq32
 
 
 class DivSetupStage(PipeModBase):
