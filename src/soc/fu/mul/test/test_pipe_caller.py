@@ -40,6 +40,7 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
+    print ("set alu inputs", inp)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
@@ -77,7 +78,7 @@ class MulTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_0_mullw(self):
+    def tst_0_mullw(self):
         lst = [f"mullw 3, 1, 2"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0xffffffffffffffff
@@ -93,19 +94,35 @@ class MulTestCase(FHDLTestCase):
         initial_regs[2] = 0xfdeba998
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_2_mullwo_(self):
-        lst = [f"mullwo. 3, 1, 2"]
+    def tst_2_mullwo(self):
+        lst = [f"mullwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffa988 # -5678
         initial_regs[2] = 0xffffffffffffedcc # -1234
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_3_mullw(self):
+    def tst_3_mullw(self):
+        lst = ["mullw 3, 1, 2",
+               "mullw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x6
+        initial_regs[2] = 0xe
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
             initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_4_mullw_nonrand(self):
+        for i in range(40):
+            lst = ["mullw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = i+1
+            initial_regs[2] = i+20
             self.run_tst_program(Program(lst), initial_regs)
 
     def tst_rand_mullw(self):
@@ -144,7 +161,6 @@ class TestRunner(FHDLTestCase):
         m.submodules.alu = alu = MulBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -159,6 +175,7 @@ class TestRunner(FHDLTestCase):
                                 test.mem, test.msr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
+                yield Settle()
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
@@ -179,11 +196,17 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.MUL.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
+
+                    # set valid for one cycle, propagate through pipeline...
+                    yield alu.p.valid_i.eq(1)
                     yield
+                    yield alu.p.valid_i.eq(0)
+
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
 
+                    # ...wait for valid to pop out the end
                     vld = yield alu.n.valid_o
                     while not vld:
                         yield
@@ -191,6 +214,7 @@ class TestRunner(FHDLTestCase):
                     yield
 
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                    yield Settle()
 
         sim.add_sync_process(process)
         with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",

@@ -376,7 +376,7 @@ class ALUHelpers:
         if 'o' in res:
             expected = sim_o['o']
             alu_out = res['o']
-            print(f"expected {expected:x}, actual: {alu_out:x}")
+            print(f"expected int sim {expected:x}, actual: {alu_out:x}")
             dut.assertEqual(expected, alu_out, msg)
 
     def check_msr(dut, res, sim_o, msg):

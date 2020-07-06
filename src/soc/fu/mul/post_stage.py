@@ -36,6 +36,7 @@ class MulMainStage3(PipeModBase):
         comb += mul_o.eq(Mux(self.i.neg_res, -o_i, o_i))
         comb += o.ok.eq(1)
 
+        # OP_MUL_nnn - select hi32/hi64/lo64 from result
         with m.Switch(op.insn_type):
             # hi-32 replicated twice
             with m.Case(InternalOp.OP_MUL_H32):

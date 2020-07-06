@@ -30,7 +30,7 @@ class MulTestCases(FHDLTestCase):
                "mullw 3, 1, 2"]
         self.run_tst_program(Program(lst), [3])
 
-    def test_mullwo_(self):
+    def test_mullwo(self):
         lst = ["addi 1, 0, 0x5678",
                "neg 1, 1",
                "addi 2, 0, 0x1234",
