@@ -20,10 +20,15 @@ obj_fmt = "-be"
 
 class Program:
     def __init__(self, instructions):
-        if isinstance(instructions, list):
-            instructions = '\n'.join(instructions)
-        self.assembly = instructions + '\n' # plus final newline
-        self._assemble()
+        if isinstance(instructions, str): # filename
+            self.binfile = open(instructions, "rb")
+            self.assembly = '' # noo disassemble number fiiive
+            print ("program", self.binfile)
+        else:
+            if isinstance(instructions, list):
+                instructions = '\n'.join(instructions)
+            self.assembly = instructions + '\n' # plus final newline
+            self._assemble()
         self._instructions = list(self._get_instructions())
 
     def __enter__(self):

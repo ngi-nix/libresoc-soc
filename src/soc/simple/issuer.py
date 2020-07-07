@@ -75,6 +75,10 @@ class TestIssuer(Elaboratable):
         comb += self.pc_o.eq(cur_pc)
         ilatch = Signal(32)
 
+        # allow debug access to current instruction and pc
+        self._current_insn = current_insn
+        self._cur_pc = cur_pc
+
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_pc + 4)

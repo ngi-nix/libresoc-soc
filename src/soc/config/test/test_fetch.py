@@ -7,8 +7,10 @@ from soc.config.ifetch import ConfigFetchUnit
 from collections import namedtuple
 from nmigen.cli import rtlil
 
-from soc.config.test.test_loadstore import TestMemPspec 
+from soc.config.test.test_loadstore import TestMemPspec
 
+import sys
+sys.setrecursionlimit(10**6)
 
 def read_from_addr(dut, addr):
     yield dut.a_pc_i.eq(addr)
@@ -29,12 +31,13 @@ def read_from_addr(dut, addr):
     return res
 
 
-def tst_lsmemtype(ifacetype):
+def tst_lsmemtype(ifacetype, sram_depth=32):
     m = Module()
-    pspec = TestMemPspec(ldst_ifacetype=ifacetype, 
+    pspec = TestMemPspec(ldst_ifacetype=ifacetype,
                          imem_ifacetype=ifacetype, addr_wid=64,
                                                    mask_wid=4,
-                                                   reg_wid=32)
+                                                   reg_wid=32,
+                         imem_test_depth=sram_depth)
     dut = ConfigFetchUnit(pspec).fu
     vl = rtlil.convert(dut, ports=[]) # TODOdut.ports())
     with open("test_fetch_%s.il" % ifacetype, "w") as f:
@@ -64,5 +67,5 @@ def tst_lsmemtype(ifacetype):
         sim.run()
 
 if __name__ == '__main__':
-    tst_lsmemtype('test_bare_wb')
+    tst_lsmemtype('test_bare_wb', sram_depth=32768)
     tst_lsmemtype('testmem')

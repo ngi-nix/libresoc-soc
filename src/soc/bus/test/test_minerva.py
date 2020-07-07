@@ -38,7 +38,13 @@ class TestSRAMBareFetchUnit(BareFetchUnit):
     def __init__(self, pspec):
         super().__init__(pspec)
         # small 16-entry Memory
-        self.mem = Memory(width=self.data_wid, depth=32)
+        if (hasattr(pspec, "imem_test_depth") and
+            isinstance(pspec.imem_test_depth, int)):
+            depth = pspec.imem_test_depth
+        else:
+            depth = 32
+        print ("TestSRAMBareFetchUnit depth", depth)
+        self.mem = Memory(width=self.data_wid, depth=depth)
 
     def _get_memory(self):
         return self.mem

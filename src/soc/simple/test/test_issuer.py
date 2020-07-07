@@ -37,22 +37,29 @@ from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 def setup_i_memory(imem, startaddr, instructions):
     mem = imem
-    print ("insn before, init mem", mem.depth, mem.width, mem)
+    print ("insn before, init mem", mem.depth, mem.width, mem,
+                                    len(instructions))
     for i in range(mem.depth):
         yield mem._array[i].eq(0)
     yield Settle()
     startaddr //= 4 # instructions are 32-bit
     mask = ((1<<64)-1)
-    for insn, code in instructions:
+    for ins in instructions:
+        if isinstance(ins, tuple):
+            insn, code = ins
+        else:
+            insn, code = ins, ''
         msbs = (startaddr>>1) & mask
         val = yield mem._array[msbs]
-        print ("before set", hex(startaddr), hex(msbs), hex(val))
+        if insn != 0:
+            print ("before set", hex(startaddr), hex(msbs), hex(val), hex(insn))
         lsb = 1 if (startaddr & 1) else 0
         val = (val | (insn << (lsb*32))) & mask
         yield mem._array[msbs].eq(val)
         yield Settle()
-        print ("after  set", hex(startaddr), hex(msbs), hex(val))
-        print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
+        if insn != 0:
+            print ("after  set", hex(startaddr), hex(msbs), hex(val))
+            print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
         startaddr += 1
         startaddr = startaddr & mask
 
@@ -170,14 +177,14 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(AttnTestCase.test_data))
-    #suite.addTest(TestRunner(GeneralTestCases.test_data))
-    #suite.addTest(TestRunner(LDSTTestCase.test_data))
-    #suite.addTest(TestRunner(CRTestCase.test_data))
-    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    #suite.addTest(TestRunner(LogicalTestCase.test_data))
-    #suite.addTest(TestRunner(ALUTestCase.test_data))
-    #suite.addTest(TestRunner(BranchTestCase.test_data))
-    #suite.addTest(TestRunner(SPRTestCase.test_data))
+    suite.addTest(TestRunner(GeneralTestCases.test_data))
+    suite.addTest(TestRunner(LDSTTestCase.test_data))
+    suite.addTest(TestRunner(CRTestCase.test_data))
+    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    suite.addTest(TestRunner(LogicalTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase.test_data))
+    suite.addTest(TestRunner(BranchTestCase.test_data))
+    suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
