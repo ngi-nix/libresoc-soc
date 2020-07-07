@@ -400,6 +400,10 @@ def run_op(dut, a, b, op, inv_a=0):
         yield
 
     yield dut.p.valid_i.eq(0)
+    yield dut.a.eq(0)
+    yield dut.b.eq(0)
+    yield dut.op.insn_type.eq(0)
+    yield dut.op.invert_a.eq(0)
 
     # wait for the ALU to present the output data
     while not (yield dut.n.valid_o):
