@@ -161,7 +161,7 @@ if __name__ == "__main__":
     suite.addTest(TestRunner(LogicalTestCase.test_data))
     suite.addTest(TestRunner(ALUTestCase.test_data))
     suite.addTest(TestRunner(BranchTestCase.test_data))
-    #suite.addTest(TestRunner(SPRTestCase.test_data))
+    suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
