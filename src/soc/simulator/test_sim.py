@@ -15,9 +15,30 @@ from soc.decoder.isa.all import ISA
 from soc.fu.test.common import TestCase
 
 
-class Register:
-    def __init__(self, num):
-        self.num = num
+class AttnTestCase(FHDLTestCase):
+    test_data = []
+
+    def __init__(self, name="general"):
+        super().__init__(name)
+        self.test_name = name
+
+    def test_0_attn(self):
+        """simple test of attn.  program is 4 long: should halt at 2nd op
+        """
+        lst = ["addi 6, 0, 0x10",
+               "attn",
+               "subf. 1, 6, 7",
+               "cmp cr2, 1, 6, 7",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [1])
+
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+                                    initial_mem=None):
+        initial_regs = [0] * 32
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
+                                            initial_mem, 0)
+        self.test_data.append(tc)
 
 
 class GeneralTestCases(FHDLTestCase):
