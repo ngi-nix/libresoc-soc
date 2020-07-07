@@ -32,7 +32,7 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
-from soc.simulator.test_sim import GeneralTestCases
+from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -79,11 +79,6 @@ class TestRunner(FHDLTestCase):
         pdecode2 = core.pdecode2
         l0 = core.l0
 
-        # get core going
-        yield core.core_start_i.eq(1)
-        yield
-        yield core.core_start_i.eq(0)
-
         comb += issuer.pc_i.data.eq(pc_i)
         comb += issuer.go_insn_i.eq(go_insn_i)
 
@@ -94,6 +89,13 @@ class TestRunner(FHDLTestCase):
         def process():
 
             for test in self.test_data:
+
+                # get core going
+                yield core.core_start_i.eq(1)
+                yield
+                yield core.core_start_i.eq(0)
+                yield Settle()
+
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
@@ -132,6 +134,7 @@ class TestRunner(FHDLTestCase):
                     yield
                     yield issuer.pc_i.ok.eq(0) # don't change PC from now on
                     yield go_insn_i.eq(0)      # and don't issue a new insn
+                    yield Settle()
 
                     # wait until executed
                     yield from wait_for_busy_hi(core)
@@ -150,6 +153,10 @@ class TestRunner(FHDLTestCase):
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
 
+                    terminated = yield core.core_terminated_o
+                    if terminated:
+                        break
+
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",
                             traces=[]):
@@ -159,12 +166,13 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(GeneralTestCases.test_data))
+    suite.addTest(TestRunner(AttnTestCase.test_data))
+    #suite.addTest(TestRunner(GeneralTestCases.test_data))
     #suite.addTest(TestRunner(LDSTTestCase.test_data))
     #suite.addTest(TestRunner(CRTestCase.test_data))
     #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     #suite.addTest(TestRunner(LogicalTestCase.test_data))
-    #suite.addTest(TestRunner(ALUTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase.test_data))
     #suite.addTest(TestRunner(BranchTestCase.test_data))
     #suite.addTest(TestRunner(SPRTestCase.test_data))
 

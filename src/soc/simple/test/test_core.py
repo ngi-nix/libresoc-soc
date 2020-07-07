@@ -132,7 +132,9 @@ def check_regs(dut, sim, core, test, code):
 def wait_for_busy_hi(cu):
     while True:
         busy_o = yield cu.busy_o
-        if busy_o:
+        terminated_o = yield cu.core_terminated_o
+        if busy_o or terminated_o:
+            print("busy/terminated:", busy_o, terminated_o)
             break
         print("!busy",)
         yield

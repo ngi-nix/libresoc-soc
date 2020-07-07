@@ -32,6 +32,7 @@ from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
 from soc.config.test.test_loadstore import TestMemPspec
+from soc.decoder.power_enums import InternalOp
 import operator
 
 
@@ -98,9 +99,9 @@ class NonProductionCore(Elaboratable):
 
         # start/stop signalling
         with m.If(self.core_start_i):
-            m.d.sync += core_stopped.eq(1)
-        with m.If(self.core_stop_i):
             m.d.sync += core_stopped.eq(0)
+        with m.If(self.core_stop_i):
+            m.d.sync += core_stopped.eq(1)
         m.d.comb += self.core_terminated_o.eq(core_stopped)
 
         # connect up Function Units, then read/write ports
@@ -134,7 +135,7 @@ class NonProductionCore(Elaboratable):
             # run this FunctionUnit if enabled, except if the instruction
             # is "attn" in which case we HALT.
             with m.If(enable):
-                with m.If(dec2.e.op.internal_op == InternalOp.OP_ATTN):
+                with m.If(dec2.e.do.insn_type == InternalOp.OP_ATTN):
                     # check for ATTN: halt if true
                     m.d.sync += core_stopped.eq(1)
                 with m.Else():
