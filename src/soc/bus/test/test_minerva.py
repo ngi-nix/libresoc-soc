@@ -7,10 +7,6 @@ from soc.minerva.units.fetch import BareFetchUnit, CachedFetchUnit
 class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
     def __init__(self, pspec):
         super().__init__(pspec)
-
-    def elaborate(self, platform):
-        m = super().elaborate(platform)
-        comb = m.d.comb
         # small 32-entry Memory
         if (hasattr(pspec, "dmem_test_depth") and
             isinstance(pspec.dmem_test_depth, int)):
@@ -19,8 +15,12 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
             depth = 32
         print ("TestSRAMBareLoadStoreUnit depth", depth)
 
-        self.mem = memory = Memory(width=self.data_wid, depth=depth)
-        m.submodules.sram = sram = SRAM(memory=memory, granularity=8,
+        self.mem = Memory(width=self.data_wid, depth=depth)
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+        comb = m.d.comb
+        m.submodules.sram = sram = SRAM(memory=self.mem, granularity=8,
                                         features={'cti', 'bte', 'err'})
         dbus = self.dbus
 
