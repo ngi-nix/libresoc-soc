@@ -544,7 +544,7 @@ class PowerDecode2(Elaboratable):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
-        self.valid = Signal()
+        self.valid = Signal() # sync signal
 
     def ports(self):
         return self.dec.ports() + self.e.ports()
@@ -587,13 +587,8 @@ class PowerDecode2(Elaboratable):
 
         # set up instruction, pick fn unit
         comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
-        fu = op.function_unit
-        with m.If((fu == Function.NONE) &
-                   (op.internal_op != InternalOp.OP_ATTN)):
-            comb += do.insn_type.eq(InternalOp.OP_ILLEGAL)
-        with m.Else():
-            comb += do.insn_type.eq(op.internal_op)
-        comb += do.fn_unit.eq(fu)
+        comb += do.insn_type.eq(op.internal_op) # no op: defaults to OP_ILLEGAL
+        comb += do.fn_unit.eq(op.function_unit)
 
         # registers a, b, c and out and out2 (LD/ST EA)
         comb += e.read_reg1.eq(dec_a.reg_out)

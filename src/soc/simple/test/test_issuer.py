@@ -52,13 +52,14 @@ def setup_i_memory(imem, startaddr, instructions):
         msbs = (startaddr>>1) & mask
         val = yield mem._array[msbs]
         if insn != 0:
-            print ("before set", hex(startaddr), hex(msbs), hex(val), hex(insn))
+            print ("before set", hex(4*startaddr),
+                                 hex(msbs), hex(val), hex(insn))
         lsb = 1 if (startaddr & 1) else 0
         val = (val | (insn << (lsb*32))) & mask
         yield mem._array[msbs].eq(val)
         yield Settle()
         if insn != 0:
-            print ("after  set", hex(startaddr), hex(msbs), hex(val))
+            print ("after  set", hex(4*startaddr), hex(msbs), hex(val))
             print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
         startaddr += 1
         startaddr = startaddr & mask
@@ -144,7 +145,8 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
 
                     # wait until executed
-                    yield from wait_for_busy_hi(core)
+                    #yield from wait_for_busy_hi(core)
+                    yield
                     yield from wait_for_busy_clear(core)
 
                     terminated = yield core.core_terminated_o

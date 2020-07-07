@@ -126,9 +126,19 @@ class NonProductionCore(Elaboratable):
         can_run = Signal(reset_less=True)
         comb += can_run.eq(self.ivalid_i & ~core_stopped)
 
+        # sigh - need a NOP counter
+        counter = Signal(2)
+        with m.If(counter != 0):
+            sync += counter.eq(counter - 1)
+        comb += self.busy_o.eq(counter != 0)
+
         # check for ATTN: halt if true
         with m.If(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_ATTN)):
             m.d.sync += core_stopped.eq(1)
+
+        with m.Elif(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_NOP)):
+            sync += counter.eq(2)
+            comb += self.busy_o.eq(1)
 
         with m.Else():
             # connect up instructions.  only one is enabled at any given time

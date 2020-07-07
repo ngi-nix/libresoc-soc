@@ -24,6 +24,7 @@ from soc.regfile.regfiles import FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
+from soc.decoder.power_enums import InternalOp
 
 
 class TestIssuer(Elaboratable):
@@ -75,10 +76,6 @@ class TestIssuer(Elaboratable):
         comb += self.pc_o.eq(cur_pc)
         ilatch = Signal(32)
 
-        # allow debug access to current instruction and pc
-        self._current_insn = current_insn
-        self._cur_pc = cur_pc
-
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_pc + 4)
@@ -89,6 +86,8 @@ class TestIssuer(Elaboratable):
         core_issue_i = core.issue_i       # instruction is issued
         core_be_i = core.bigendian_i      # bigendian mode
         core_opcode_i = core.raw_opcode_i # raw opcode
+
+        insn_type = core.pdecode2.e.do.insn_type
 
         # only run if not in halted state
         with m.If(~core.core_terminated_o):
@@ -128,16 +127,16 @@ class TestIssuer(Elaboratable):
                         # not busy: instruction fetched
                         insn = self.imem.f_instr_o.word_select(cur_pc[2], 32)
                         comb += current_insn.eq(insn)
-                        comb += core_ivalid_i.eq(1) # say instruction is valid
+                        comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_issue_i.eq(1)  # and issued 
-                        comb += core_be_i.eq(0)     # little-endian mode
                         comb += core_opcode_i.eq(current_insn) # actual opcode
                         sync += ilatch.eq(current_insn)
                         m.next = "INSN_ACTIVE" # move to "wait completion" 
 
                 # instruction started: must wait till it finishes
                 with m.State("INSN_ACTIVE"):
-                    comb += core_ivalid_i.eq(1) # say instruction is valid
+                    with m.If(insn_type != InternalOp.OP_NOP):
+                        comb += core_ivalid_i.eq(1) # say instruction is valid
                     comb += core_opcode_i.eq(ilatch) # actual opcode
                     with m.If(self.fast_nia.wen):
                         sync += pc_changed.eq(1)
