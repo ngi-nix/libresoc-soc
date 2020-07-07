@@ -14,7 +14,6 @@ class CompLogicalOpSubset(Record):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
-                  ('lk', 1),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
                   ('invert_a', 1),
@@ -34,7 +33,6 @@ class CompLogicalOpSubset(Record):
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
         self.fn_unit.reset_less = True
-        self.lk.reset_less = True
         self.zero_a.reset_less = True
         self.invert_a.reset_less = True
         self.invert_out.reset_less = True
@@ -56,7 +54,6 @@ class CompLogicalOpSubset(Record):
     def ports(self):
         return [self.insn_type,
                 self.fn_unit,
-                self.lk,
                 self.invert_a,
                 self.invert_out,
                 self.input_carry,
