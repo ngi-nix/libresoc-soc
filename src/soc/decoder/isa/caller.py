@@ -247,6 +247,7 @@ class ISACaller:
                        disassembly=None,
                        initial_pc=0):
 
+        self.halted = False
         self.respect_pc = respect_pc
         if initial_sprs is None:
             initial_sprs = {}
@@ -523,6 +524,10 @@ class ISACaller:
         return asmop
 
     def call(self, name):
+        if self.halted:
+            print ("halted - not executing", name)
+            return
+
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmop = yield from self.get_assembly_name()
@@ -536,6 +541,10 @@ class ISACaller:
             self.TRAP(0x700, PI.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
+            return
+
+        if name == 'attn':
+            self.halted = True
             return
 
         info = self.instrs[name]
