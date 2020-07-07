@@ -126,19 +126,20 @@ class NonProductionCore(Elaboratable):
         can_run = Signal(reset_less=True)
         comb += can_run.eq(self.ivalid_i & ~core_stopped)
 
-        # connect up instructions.  only one is enabled at any given time
-        for funame, fu in fus.items():
-            fnunit = fu.fnunit.value
-            enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+        # check for ATTN: halt if true
+        with m.If(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_ATTN)):
+            m.d.sync += core_stopped.eq(1)
 
-            # run this FunctionUnit if enabled, except if the instruction
-            # is "attn" in which case we HALT.
-            with m.If(enable):
-                with m.If(dec2.e.do.insn_type == InternalOp.OP_ATTN):
-                    # check for ATTN: halt if true
-                    m.d.sync += core_stopped.eq(1)
-                with m.Else():
+        with m.Else():
+            # connect up instructions.  only one is enabled at any given time
+            for funame, fu in fus.items():
+                fnunit = fu.fnunit.value
+                enable = Signal(name="en_%s" % funame, reset_less=True)
+                comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+
+                # run this FunctionUnit if enabled, except if the instruction
+                # is "attn" in which case we HALT.
+                with m.If(enable):
                     # route operand, issue, busy, read flags and mask to FU
                     comb += fu.oper_i.eq_from_execute1(dec2.e)
                     comb += fu.issue_i.eq(self.issue_i)

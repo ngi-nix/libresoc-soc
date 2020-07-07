@@ -532,6 +532,13 @@ class ISACaller:
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmop = yield from self.get_assembly_name()
         print  ("call", name, asmop)
+
+        # check halted condition
+        if name == 'attn':
+            self.halted = True
+            return
+
+        # check illegal instruction
         illegal = False
         if name not in ['mtcrf', 'mtocrf']:
             illegal = name != asmop
@@ -541,10 +548,6 @@ class ISACaller:
             self.TRAP(0x700, PI.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
-            return
-
-        if name == 'attn':
-            self.halted = True
             return
 
         info = self.instrs[name]

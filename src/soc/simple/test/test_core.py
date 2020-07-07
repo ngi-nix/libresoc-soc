@@ -136,7 +136,7 @@ def wait_for_busy_hi(cu):
         if busy_o or terminated_o:
             print("busy/terminated:", busy_o, terminated_o)
             break
-        print("!busy",)
+        print("!busy", busy_o, terminated_o)
         yield
 
 def set_issue(core, dec2, sim):
