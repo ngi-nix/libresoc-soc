@@ -29,8 +29,13 @@ class BinaryTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    @unittest.skip("a bit big")
     def test_binary(self):
         with Program("1.bin") as program:
+            self.run_tst_program(program)
+
+    def test_binary(self):
+        with Program("hello_world.bin") as program:
             self.run_tst_program(program)
 
     def run_tst_program(self, prog):
