@@ -140,6 +140,9 @@ class TestRunner(FHDLTestCase):
                     yield from wait_for_busy_hi(core)
                     yield from wait_for_busy_clear(core)
 
+                    terminated = yield core.core_terminated_o
+                    print ("terminated", terminated)
+
                     print ("sim", code)
                     # call simulated operation
                     opname = code.split(' ')[0]

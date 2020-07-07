@@ -588,8 +588,11 @@ class PowerDecode2(Elaboratable):
         # set up instruction, pick fn unit
         comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
         fu = op.function_unit
-        itype = Mux(fu == Function.NONE, InternalOp.OP_ILLEGAL, op.internal_op)
-        comb += do.insn_type.eq(itype)
+        with m.If((fu == Function.NONE) |
+                   (op.internal_op == InternalOp.OP_ATTN)):
+            comb += do.insn_type.eq(op.internal_op)
+        with m.Else():
+            comb += do.insn_type.eq(InternalOp.OP_ILLEGAL)
         comb += do.fn_unit.eq(fu)
 
         # registers a, b, c and out and out2 (LD/ST EA)

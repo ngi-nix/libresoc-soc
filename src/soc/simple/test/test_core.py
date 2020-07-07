@@ -149,7 +149,9 @@ def set_issue(core, dec2, sim):
 def wait_for_busy_clear(cu):
     while True:
         busy_o = yield cu.busy_o
-        if not busy_o:
+        terminated_o = yield cu.core_terminated_o
+        if not busy_o or terminated_o:
+            print("busy/terminated:", busy_o, terminated_o)
             break
         print("busy",)
         yield
