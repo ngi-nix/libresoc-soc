@@ -79,6 +79,11 @@ class TestRunner(FHDLTestCase):
         pdecode2 = core.pdecode2
         l0 = core.l0
 
+        # get core going
+        yield core.core_start_i.eq(1)
+        yield
+        yield core.core_start_i.eq(0)
+
         comb += issuer.pc_i.data.eq(pc_i)
         comb += issuer.go_insn_i.eq(go_insn_i)
 
@@ -155,13 +160,13 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(GeneralTestCases.test_data))
-    suite.addTest(TestRunner(LDSTTestCase.test_data))
-    suite.addTest(TestRunner(CRTestCase.test_data))
-    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    suite.addTest(TestRunner(LogicalTestCase.test_data))
-    suite.addTest(TestRunner(ALUTestCase.test_data))
-    suite.addTest(TestRunner(BranchTestCase.test_data))
-    suite.addTest(TestRunner(SPRTestCase.test_data))
+    #suite.addTest(TestRunner(LDSTTestCase.test_data))
+    #suite.addTest(TestRunner(CRTestCase.test_data))
+    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    #suite.addTest(TestRunner(LogicalTestCase.test_data))
+    #suite.addTest(TestRunner(ALUTestCase.test_data))
+    #suite.addTest(TestRunner(BranchTestCase.test_data))
+    #suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

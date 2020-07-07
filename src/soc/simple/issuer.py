@@ -70,14 +70,14 @@ class TestIssuer(Elaboratable):
 
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
-        current_pc = Signal(64) # current PC (note it is reset/sync)
+        cur_pc = Signal(64) # current PC (note it is reset/sync)
         pc_changed = Signal() # note write to PC
-        comb += self.pc_o.eq(current_pc)
+        comb += self.pc_o.eq(cur_pc)
         ilatch = Signal(32)
 
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
-        comb += nia.eq(current_pc + 4)
+        comb += nia.eq(cur_pc + 4)
 
         # temporaries
         core_busy_o = core.busy_o         # core is busy
@@ -86,65 +86,65 @@ class TestIssuer(Elaboratable):
         core_be_i = core.bigendian_i      # bigendian mode
         core_opcode_i = core.raw_opcode_i # raw opcode
 
-        # actually use a nmigen FSM for the first time (w00t)
-        with m.FSM() as fsm:
+        # only run if not in halted state
+        with m.If(~core.core_terminated_o):
 
-            # waiting (zzz)
-            with m.State("IDLE"):
-                sync += pc_changed.eq(0)
-                with m.If(self.go_insn_i):
-                    # instruction allowed to go: start by reading the PC
-                    pc = Signal(64, reset_less=True)
-                    with m.If(self.pc_i.ok):
-                        # incoming override (start from pc_i)
-                        comb += pc.eq(self.pc_i.data)
+            # actually use a nmigen FSM for the first time (w00t)
+            with m.FSM() as fsm:
+
+                # waiting (zzz)
+                with m.State("IDLE"):
+                    sync += pc_changed.eq(0)
+                    with m.If(self.go_insn_i):
+                        # instruction allowed to go: start by reading the PC
+                        pc = Signal(64, reset_less=True)
+                        with m.If(self.pc_i.ok):
+                            # incoming override (start from pc_i)
+                            comb += pc.eq(self.pc_i.data)
+                        with m.Else():
+                            # otherwise read FastRegs regfile for PC
+                            comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
+                            comb += pc.eq(self.fast_rd1.data_o)
+                        # capture the PC and also drop it into Insn Memory
+                        # we have joined a pair of combinatorial memory
+                        # lookups together.  this is Generally Bad.
+                        comb += self.imem.a_pc_i.eq(pc)
+                        comb += self.imem.a_valid_i.eq(1)
+                        comb += self.imem.f_valid_i.eq(1)
+                        sync += cur_pc.eq(pc)
+                        m.next = "INSN_READ" # move to "wait for bus" phase
+
+                # waiting for instruction bus (stays there until not busy)
+                with m.State("INSN_READ"):
+                    with m.If(self.imem.f_busy_o): # zzz...
+                        # busy: stay in wait-read
+                        comb += self.imem.a_valid_i.eq(1)
+                        comb += self.imem.f_valid_i.eq(1)
                     with m.Else():
-                        # otherwise read FastRegs regfile for PC
-                        comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
-                        comb += pc.eq(self.fast_rd1.data_o)
-                    # capture the PC and also drop it into Insn Memory
-                    # we have joined a pair of combinatorial memory
-                    # lookups together.  this is Generally Bad.
-                    comb += self.imem.a_pc_i.eq(pc)
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
-                    sync += current_pc.eq(pc)
-                    m.next = "INSN_READ" # move to "wait for bus" phase
+                        # not busy: instruction fetched
+                        insn = self.imem.f_instr_o.word_select(cur_pc[2], 32)
+                        comb += current_insn.eq(insn)
+                        comb += core_ivalid_i.eq(1) # say instruction is valid
+                        comb += core_issue_i.eq(1)  # and issued 
+                        comb += core_be_i.eq(0)     # little-endian mode
+                        comb += core_opcode_i.eq(current_insn) # actual opcode
+                        sync += ilatch.eq(current_insn)
+                        m.next = "INSN_ACTIVE" # move to "wait completion" 
 
-            # waiting for instruction bus (stays there until not busy)
-            with m.State("INSN_READ"):
-                with m.If(self.imem.f_busy_o): # zzz...
-                    # busy: stay in wait-read
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
-                with m.Else():
-                    # not busy: instruction fetched
-                    insn = self.imem.f_instr_o.word_select(current_pc[2], 32)
-                    comb += current_insn.eq(insn)
+                # instruction started: must wait till it finishes
+                with m.State("INSN_ACTIVE"):
                     comb += core_ivalid_i.eq(1) # say instruction is valid
-                    comb += core_issue_i.eq(1)  # and issued (ivalid redundant)
-                    comb += core_be_i.eq(0)     # little-endian mode
-                    comb += core_opcode_i.eq(current_insn) # actual opcode
-                    sync += ilatch.eq(current_insn)
-                    m.next = "INSN_ACTIVE" # move to "wait for completion" phase
-
-            # instruction started: must wait till it finishes
-            with m.State("INSN_ACTIVE"):
-                comb += core_ivalid_i.eq(1) # say instruction is valid
-                comb += core_opcode_i.eq(ilatch) # actual opcode
-                #sync += core_issue_i.eq(0) # issue raises for only one cycle
-                with m.If(self.fast_nia.wen):
-                    sync += pc_changed.eq(1)
-                with m.If(~core_busy_o): # instruction done!
-                    #sync += core_ivalid_i.eq(0) # say instruction is invalid
-                    #sync += core_opcode_i.eq(0) # clear out (no good reason)
-                    # ok here we are not reading the branch unit.  TODO
-                    # this just blithely overwrites whatever pipeline updated
-                    # the PC
-                    with m.If(~pc_changed):
-                        comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
-                        comb += self.fast_wr1.data_i.eq(nia)
-                    m.next = "IDLE" # back to idle
+                    comb += core_opcode_i.eq(ilatch) # actual opcode
+                    with m.If(self.fast_nia.wen):
+                        sync += pc_changed.eq(1)
+                    with m.If(~core_busy_o): # instruction done!
+                        # ok here we are not reading the branch unit.  TODO
+                        # this just blithely overwrites whatever pipeline
+                        # updated the PC
+                        with m.If(~pc_changed):
+                            comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
+                            comb += self.fast_wr1.data_i.eq(nia)
+                        m.next = "IDLE" # back to idle
 
         return m
 

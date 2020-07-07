@@ -78,6 +78,11 @@ class NonProductionCore(Elaboratable):
         self.bigendian_i = self.pdecode2.dec.bigendian
         self.raw_opcode_i = self.pdecode2.dec.raw_opcode_in
 
+        # start/stop and terminated signalling
+        self.core_start_i = Signal(reset_less=True)
+        self.core_stop_i = Signal(reset_less=True)
+        self.core_terminated_o = Signal(reset=1) # indicates stopped
+
     def elaborate(self, platform):
         m = Module()
 
@@ -88,13 +93,24 @@ class NonProductionCore(Elaboratable):
         regs = self.regs
         fus = self.fus.fus
 
-        fu_bitdict = self.connect_instruction(m)
+        # core start/stopped state
+        core_stopped = Signal(reset=1) # begins in stopped state
+
+        # start/stop signalling
+        with m.If(self.core_start_i):
+            m.d.sync += core_stopped.eq(1)
+        with m.If(self.core_stop_i):
+            m.d.sync += core_stopped.eq(0)
+        m.d.comb += self.core_terminated_o.eq(core_stopped)
+
+        # connect up Function Units, then read/write ports
+        fu_bitdict = self.connect_instruction(m, core_stopped)
         self.connect_rdports(m, fu_bitdict)
         self.connect_wrports(m, fu_bitdict)
 
         return m
 
-    def connect_instruction(self, m):
+    def connect_instruction(self, m, core_stopped):
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
         dec2 = self.pdecode2
@@ -105,19 +121,30 @@ class NonProductionCore(Elaboratable):
         for i, funame in enumerate(fus.keys()):
             fu_bitdict[funame] = fu_enable[i]
 
+        # only run when allowed and when instruction is valid
+        can_run = Signal(reset_less=True)
+        comb += can_run.eq(self.ivalid_i & ~core_stopped)
+
         # connect up instructions.  only one is enabled at any given time
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq(self.ivalid_i &
-                             (dec2.e.do.fn_unit & fnunit).bool())
+            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+
+            # run this FunctionUnit if enabled, except if the instruction
+            # is "attn" in which case we HALT.
             with m.If(enable):
-                comb += fu.oper_i.eq_from_execute1(dec2.e)
-                comb += fu.issue_i.eq(self.issue_i)
-                comb += self.busy_o.eq(fu.busy_o)
-                rdmask = dec2.rdflags(fu)
-                comb += fu.rdmaskn.eq(~rdmask)
-            comb += fu_bitdict[funame].eq(enable)
+                with m.If(dec2.e.op.internal_op == InternalOp.OP_ATTN):
+                    # check for ATTN: halt if true
+                    m.d.sync += core_stopped.eq(1)
+                with m.Else():
+                    # route operand, issue, busy, read flags and mask to FU
+                    comb += fu.oper_i.eq_from_execute1(dec2.e)
+                    comb += fu.issue_i.eq(self.issue_i)
+                    comb += self.busy_o.eq(fu.busy_o)
+                    rdmask = dec2.rdflags(fu)
+                    comb += fu.rdmaskn.eq(~rdmask)
+                    comb += fu_bitdict[funame].eq(enable)
 
         return fu_bitdict
 
