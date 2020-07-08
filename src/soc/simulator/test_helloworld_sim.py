@@ -35,6 +35,8 @@ class HelloTestCases(FHDLTestCase):
                 "rldicr  12,12,32,31",
                 "oris    12,12,0",
                 "ori     12,12,4116",
+                "mtspr   9, 12",     # mtctr r12
+                "bcctrl  20,0,0", # bctrl
                 ]
         self.run_tst_program(Program(lst), [1,12])
 
