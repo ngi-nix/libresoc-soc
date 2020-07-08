@@ -13,7 +13,7 @@ import sys
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
 
-bigendian = False
+bigendian = True
 if bigendian:
     endian_fmt = "elf64-big"
     obj_fmt = "-be"

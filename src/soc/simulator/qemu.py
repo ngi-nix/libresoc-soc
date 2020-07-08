@@ -1,15 +1,23 @@
 from pygdbmi.gdbcontroller import GdbController
 import subprocess
 
-launch_args = ['qemu-system-ppc64',
+launch_args_be = ['qemu-system-ppc64',
+               '-machine', 'powernv9',
+               '-nographic',
+               '-s', '-S']
+
+launch_args_le = ['qemu-system-ppc64le',
                '-machine', 'powernv9',
                '-nographic',
                '-s', '-S']
 
 
 class QemuController:
-    def __init__(self, kernel):
-        args = launch_args + ['-kernel', kernel]
+    def __init__(self, kernel, bigendian=True):
+        if bigendian:
+            args = launch_args_be + ['-kernel', kernel]
+        else:
+            args = launch_args_le + ['-kernel', kernel]
         self.qemu_popen = subprocess.Popen(args,
                                            stdout=subprocess.PIPE,
                                            stdin=subprocess.PIPE)

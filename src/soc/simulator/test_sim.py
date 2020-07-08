@@ -259,6 +259,9 @@ class DecoderBase:
         sim = Simulator(m)
 
         def process():
+            yield pdecode2.dec.bigendian.eq(1)
+            yield Settle()
+
             while True:
                 try:
                     yield from simulator.setup_one()
