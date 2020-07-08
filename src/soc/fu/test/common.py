@@ -11,7 +11,8 @@ from soc.regfile.regfiles import FastRegs
 class TestCase:
     def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
                        msr=0,
-                       do_sim=True):
+                       do_sim=True,
+                       extra_break_addr=None):
 
         self.program = program
         self.name = name
@@ -28,6 +29,7 @@ class TestCase:
         self.mem = mem
         self.msr = msr
         self.do_sim = do_sim
+        self.extra_break_addr = extra_break_addr
 
 
 class ALUHelpers:

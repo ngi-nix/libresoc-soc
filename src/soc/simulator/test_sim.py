@@ -276,12 +276,13 @@ class DecoderBase:
 
         return simulator
 
-    def run_tst_program(self, prog, reglist, initial_mem=None):
+    def run_tst_program(self, prog, reglist, initial_mem=None,
+                                             extra_break_addr=None):
         import sys
         simulator = self.run_tst(prog, initial_mem=initial_mem,
                                  initial_pc=0x20000000)
         prog.reset()
-        with run_program(prog, initial_mem) as q:
+        with run_program(prog, initial_mem, extra_break_addr) as q:
             self.qemu_register_compare(simulator, q, reglist)
             self.qemu_mem_compare(simulator, q, True)
         print(simulator.gpr.dump())
