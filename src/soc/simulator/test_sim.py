@@ -220,6 +220,13 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst) as program:
             self.run_tst_program(program, [9], initial_mem={})
 
+    def test_30_addis(self):
+        lst = [#"addi 0, 0, 5",
+               "addis 12, 0, 0",
+               ]
+        with Program(lst) as program:
+            self.run_tst_program(program, [0, 12])
+
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                                     initial_mem=None):
         initial_regs = [0] * 32
