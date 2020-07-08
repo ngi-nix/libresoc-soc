@@ -14,7 +14,8 @@ from soc.simple.test.test_core import (setup_regs, check_regs,
                                        wait_for_busy_clear,
                                        wait_for_busy_hi)
 from soc.fu.compunits.test.test_compunit import (setup_test_memory,
-                                                 check_sim_memory)
+                                                 check_sim_memory,
+                                                 get_l0_mem)
 
 from soc.simple.test.test_issuer import setup_i_memory
 
@@ -104,6 +105,9 @@ class TestRunner(FHDLTestCase):
                 pc = 0 # start of memory
 
                 yield from setup_i_memory(imem, pc, instructions)
+                # blech!  put the same listing into the data memory
+                data_mem = get_l0_mem(l0)
+                yield from setup_i_memory(data_mem, pc, instructions)
                 #yield from setup_test_memory(l0, sim)
                 yield from setup_regs(core, test)
 
