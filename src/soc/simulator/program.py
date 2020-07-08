@@ -13,9 +13,15 @@ import sys
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
 
-bigendian = True
-endian_fmt = "elf64-big"
-obj_fmt = "-be"
+bigendian = False
+if bigendian:
+    endian_fmt = "elf64-big"
+    obj_fmt = "-be"
+    ld_fmt = "-EB"
+else:
+    ld_fmt = "-EL"
+    endian_fmt = "elf64-little"
+    obj_fmt = "-le"
 
 
 class Program:
@@ -49,6 +55,7 @@ class Program:
     def _link(self, ofile):
         with tempfile.NamedTemporaryFile(suffix=".elf") as elffile:
             args = ["powerpc64-linux-gnu-ld",
+                    ld_fmt,
                     "-o", elffile.name,
                     "-T", memmap,
                     ofile.name]
