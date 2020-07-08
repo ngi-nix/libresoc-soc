@@ -27,3 +27,4 @@ def spr_to_fast_reg(spr_num):
         return FastRegs.SRR0
     elif spr_num == 'SRR1':
         return FastRegs.SRR1
+    return None

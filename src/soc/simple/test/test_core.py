@@ -12,6 +12,7 @@ import unittest
 from soc.decoder.isa.caller import special_sprs
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
@@ -29,6 +30,7 @@ from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
+from soc.regfile.util import spr_to_fast_reg
 
 
 def setup_regs(core, test):
@@ -54,8 +56,9 @@ def setup_regs(core, test):
     # set up XER.  "direct" write (bypass rd/write ports)
     xregs = core.regs.xer
     print ("sprs", test.sprs)
-    if special_sprs['XER'] in test.sprs:
-        xer = test.sprs[special_sprs['XER']]
+    if 'XER' in test.sprs:
+        xer = test.sprs['XER']
+        xer = SelectableInt(xer, 64)
         sobit = xer[XER_bits['SO']].value
         yield xregs.regs[xregs.SO].reg.eq(sobit)
         cabit = xer[XER_bits['CA']].value
@@ -64,10 +67,36 @@ def setup_regs(core, test):
         ovbit = xer[XER_bits['OV']].value
         ov32bit = xer[XER_bits['OV32']].value
         yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
+        print ("setting XER so %d ca %d ca32 %d ov %d ov32 %d" % \
+                (sobit, cabit, ca32bit, ovbit, ov32bit))
     else:
         yield xregs.regs[xregs.SO].reg.eq(0)
         yield xregs.regs[xregs.OV].reg.eq(0)
         yield xregs.regs[xregs.CA].reg.eq(0)
+
+    # setting both fast and slow SPRs from test data
+
+    fregs = core.regs.fast
+    sregs = core.regs.spr
+    for sprname, val in test.sprs.items():
+        if sprname == 'XER':
+            continue
+        fast = spr_to_fast_reg(sprname)
+        if fast is None:
+            # match behaviour of SPRMap in power_decoder2.py
+            for i, x in enumerate(SPR):
+                if sprname == x.name:
+                    yield sregs[i].reg.eq(val)
+                    print ("setting slow SPR %d (%s) to %x" % \
+                            (i, sprname, val))
+        else:
+            yield fregs.regs[fast].reg.eq(val)
+            print ("setting fast reg %d (%s) to %x" % \
+                    (fast, sprname, val))
+
+
+    # allow changes to settle before reporting on XER
+    yield Settle()
 
     # XER
     pdecode2 = core.pdecode2
