@@ -96,7 +96,7 @@ class QemuController:
         self.qemu_popen.stdin.close()
 
 
-def run_program(program, initial_mem=None):
+def run_program(program, initial_mem=None, extra_break_addr=None):
     q = QemuController(program.binfile.name)
     q.connect()
     # Run to the start of the program
@@ -114,6 +114,9 @@ def run_program(program, initial_mem=None):
     q.break_address(0x20000000 + program.size())
     # or to trap
     q.break_address(0x700)
+    # or to alternative (absolute) address)
+    if extra_break_addr:
+        q.break_address(extra_break_addr)
     q.gdb_continue()
     return q
 
