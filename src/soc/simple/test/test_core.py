@@ -85,7 +85,7 @@ def setup_regs(core, test):
     sregs = core.regs.spr
     for sprname, val in test.sprs.items():
         if isinstance(sprname, int):
-            sprname = spr_dict[sprname].name
+            sprname = spr_dict[sprname].SPR
         if sprname == 'XER':
             continue
         fast = spr_to_fast_reg(sprname)
