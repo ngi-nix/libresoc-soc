@@ -14,7 +14,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.isa.all import ISA
-from soc.decoder.power_enums import Function, XER_bits
+from soc.decoder.power_enums import SPR, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
 
 from soc.simple.core import NonProductionCore
