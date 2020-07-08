@@ -14,7 +14,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.isa.all import ISA
-from soc.decoder.power_enums import SPR, Function, XER_bits
+from soc.decoder.power_enums import SPR, spr_dict, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
 
 from soc.simple.core import NonProductionCore
@@ -56,9 +56,14 @@ def setup_regs(core, test):
     # set up XER.  "direct" write (bypass rd/write ports)
     xregs = core.regs.xer
     print ("sprs", test.sprs)
+    xer = None
     if 'XER' in test.sprs:
         xer = test.sprs['XER']
-        xer = SelectableInt(xer, 64)
+    if 1 in test.sprs:
+        xer = test.sprs[1]
+    if xer is not None:
+        if isinstance(xer, int):
+            xer = SelectableInt(xer, 64)
         sobit = xer[XER_bits['SO']].value
         yield xregs.regs[xregs.SO].reg.eq(sobit)
         cabit = xer[XER_bits['CA']].value
@@ -79,6 +84,8 @@ def setup_regs(core, test):
     fregs = core.regs.fast
     sregs = core.regs.spr
     for sprname, val in test.sprs.items():
+        if isinstance(sprname, int):
+            sprname = spr_dict[sprname].name
         if sprname == 'XER':
             continue
         fast = spr_to_fast_reg(sprname)
