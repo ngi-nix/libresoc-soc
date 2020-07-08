@@ -14,7 +14,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import Function, XER_bits
-
+from soc.config.test.test_loadstore import TestMemPspec
 
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
@@ -74,8 +74,8 @@ def setup_regs(core, test):
     so = yield xregs.regs[xregs.SO].reg
     ov = yield xregs.regs[xregs.OV].reg
     ca = yield xregs.regs[xregs.CA].reg
-    oe = yield pdecode2.e.oe.oe
-    oe_ok = yield pdecode2.e.oe.oe_ok
+    oe = yield pdecode2.e.do.oe.oe
+    oe_ok = yield pdecode2.e.do.oe.oe_ok
 
     print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
     print ("oe:", oe, oe_ok)
@@ -132,9 +132,11 @@ def check_regs(dut, sim, core, test, code):
 def wait_for_busy_hi(cu):
     while True:
         busy_o = yield cu.busy_o
-        if busy_o:
+        terminated_o = yield cu.core_terminated_o
+        if busy_o or terminated_o:
+            print("busy/terminated:", busy_o, terminated_o)
             break
-        print("!busy",)
+        print("!busy", busy_o, terminated_o)
         yield
 
 def set_issue(core, dec2, sim):
@@ -147,7 +149,9 @@ def set_issue(core, dec2, sim):
 def wait_for_busy_clear(cu):
     while True:
         busy_o = yield cu.busy_o
-        if not busy_o:
+        terminated_o = yield cu.core_terminated_o
+        if not busy_o or terminated_o:
+            print("busy/terminated:", busy_o, terminated_o)
             break
         print("busy",)
         yield
@@ -164,7 +168,13 @@ class TestRunner(FHDLTestCase):
         instruction = Signal(32)
         ivalid_i = Signal()
 
-        m.submodules.core = core = NonProductionCore()
+        pspec = TestMemPspec(ldst_ifacetype='testpi',
+                             imem_ifacetype='',
+                             addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64)
+
+        m.submodules.core = core = NonProductionCore(pspec)
         pdecode2 = core.pdecode2
         l0 = core.l0
 

@@ -67,7 +67,7 @@ class CommonOutputStage(PipeModBase):
         comb += self.o.o.ok.eq(self.i.o.ok)
         # CR0 to be set
         comb += self.o.cr0.data.eq(cr0)
-        comb += self.o.cr0.ok.eq(op.write_cr.ok)
+        comb += self.o.cr0.ok.eq(op.write_cr0)
         # context
         comb += self.o.ctx.eq(self.i.ctx)
 

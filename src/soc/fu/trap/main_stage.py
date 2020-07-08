@@ -1,5 +1,9 @@
 """Trap Pipeline
 
+Deals with td/tw/tdi/twi as well as mfmsr/mtmsr, sc and rfid. addpcis TODO.
+Also used generally for interrupts (as a micro-coding mechanism) by
+actually modifying the decoded instruction in PowerDecode2.
+
 * https://bugs.libre-soc.org/show_bug.cgi?id=325
 * https://bugs.libre-soc.org/show_bug.cgi?id=344
 * https://libre-soc.org/openpower/isa/fixedtrap/
@@ -15,50 +19,21 @@ from soc.decoder.power_enums import InternalOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR)
-
-# Listed in V3.0B Book III Chap 4.2.1
-# MSR bit numbers
-MSR_SF  = (63 - 0)     # Sixty-Four bit mode
-MSR_HV  = (63 - 3)     # Hypervisor state
-MSR_S   = (63 - 41)    # Secure state
-MSR_EE  = (63 - 48)    # External interrupt Enable
-MSR_PR  = (63 - 49)    # PRoblem state
-MSR_FP  = (63 - 50)    # FP available
-MSR_ME  = (63 - 51)    # Machine Check int enable
-MSR_IR  = (63 - 58)    # Instruction Relocation
-MSR_DR  = (63 - 59)    # Data Relocation
-MSR_PMM = (63 - 60)    # Performance Monitor Mark
-MSR_RI  = (63 - 62)    # Recoverable Interrupt
-MSR_LE  = (63 - 63)    # Little Endian
-
-# Listed in V3.0B Book III 7.5.9 "Program Interrupt"
-
-# note that these correspond to trap_input_record.traptype bits 0,1,2,3
-# (TODO: add more?)
-
-PI_FP   = (63 - 43)    # 1 if FP exception
-PI_PRIV = (63 - 45)    # 1 if privileged interrupt
-PI_TRAP = (63 - 46)    # 1 if exception is "trap" type
-PI_ADR  = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
+from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR,
+                                        TT_ILLEG)
+from soc.consts import MSR, PI
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):
-    """
-    -- ISA says this:
-    --  Defined MSR bits are classified as either full func-
-    --  tion or partial function. Full function MSR bits are
-    --  saved in SRR1 or HSRR1 when an interrupt other
-    --  than a System Call Vectored interrupt occurs and
-    --  restored by rfscv, rfid, or hrfid, while partial func-
-    --  tion MSR bits are not saved or restored.
-    --  Full function MSR bits lie in the range 0:32, 37:41, and
-    --  48:63, and partial function MSR bits lie in the range
-    --  33:36 and 42:47. (Note this is IBM bit numbering).
-    msr_out := (others => '0');
-    msr_out(63 downto 31) := msr(63 downto 31);
-    msr_out(26 downto 22) := msr(26 downto 22);
-    msr_out(15 downto 0)  := msr(15 downto 0);
+    """msr_copy
+    ISA says this:
+    Defined MSR bits are classified as either full func tion or partial
+    function. Full function MSR bits are saved in SRR1 or HSRR1 when
+    an interrupt other than a System Call Vectored interrupt occurs and
+    restored by rfscv, rfid, or hrfid, while partial function MSR bits
+    are not saved or restored.  Full function MSR bits lie in the range
+    0:32, 37:41, and 48:63, and partial function MSR bits lie in the
+    range 33:36 and 42:47. (Note this is IBM bit numbering).
     """
     l = []
     if zero_me:
@@ -72,10 +47,10 @@ def msr_check_pr(m, msr):
     """msr_check_pr: checks "problem state"
     """
     comb = m.d.comb
-    with m.If(msr[MSR_PR]):
-        comb += msr[MSR_EE].eq(1) # set external interrupt bit
-        comb += msr[MSR_IR].eq(1) # set instruction relocation bit
-        comb += msr[MSR_DR].eq(1) # set data relocation bit
+    with m.If(msr[MSR.PR]):
+        comb += msr[MSR.EE].eq(1) # set external interrupt bit
+        comb += msr[MSR.IR].eq(1) # set instruction relocation bit
+        comb += msr[MSR.DR].eq(1) # set data relocation bit
 
 
 class TrapMainStage(PipeModBase):
@@ -85,7 +60,8 @@ class TrapMainStage(PipeModBase):
         self.fields.create_specs()
 
     def trap(self, m, trap_addr, return_addr):
-        """trap """ # TODO add descriptive docstring
+        """trap.  sets new PC, stores MSR and old PC in SRR1 and SRR0
+        """
         comb  = m.d.comb
         msr_i = self.i.msr
         nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
@@ -177,21 +153,25 @@ class TrapMainStage(PipeModBase):
                     self.trap(m, trapaddr<<4, cia_i)
                     with m.If(traptype == 0):
                         # say trap occurred (see 3.0B Book III 7.5.9)
-                        comb += srr1_o.data[PI_TRAP].eq(1)
+                        comb += srr1_o.data[PI.TRAP].eq(1)
                     with m.If(traptype & TT_PRIV):
-                        comb += srr1_o.data[PI_PRIV].eq(1)
+                        comb += srr1_o.data[PI.PRIV].eq(1)
                     with m.If(traptype & TT_FP):
-                        comb += srr1_o.data[PI_FP].eq(1)
+                        comb += srr1_o.data[PI.FP].eq(1)
                     with m.If(traptype & TT_ADDR):
-                        comb += srr1_o.data[PI_ADR].eq(1)
+                        comb += srr1_o.data[PI.ADR].eq(1)
+                    with m.If(traptype & TT_ILLEG):
+                        comb += srr1_o.data[PI.ILLEG].eq(1)
 
             # move to MSR
-            with m.Case(InternalOp.OP_MTMSRD):
+            with m.Case(InternalOp.OP_MTMSRD, InternalOp.OP_MTMSR):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
+                # start with copy of msr
+                comb += msr_o.eq(msr_i)
                 with m.If(L):
-                    # just update EE and RI
-                    comb += msr_o.data[MSR_EE].eq(a_i[MSR_EE])
-                    comb += msr_o.data[MSR_RI].eq(a_i[MSR_RI])
+                    # just update RI..EE
+                    comb += msr_o.data[MSR.RI].eq(a_i[MSR.RI])
+                    comb += msr_o.data[MSR.EE].eq(a_i[MSR.EE])
                 with m.Else():
                     # Architecture says to leave out bits 3 (HV), 51 (ME)
                     # and 63 (LE) (IBM bit numbering)
@@ -207,8 +187,8 @@ class TrapMainStage(PipeModBase):
                 comb += o.ok.eq(1)
 
             with m.Case(InternalOp.OP_RFID):
-                # XXX f_out.virt_mode <= b_in(MSR_IR) or b_in(MSR_PR);
-                # XXX f_out.priv_mode <= not b_in(MSR_PR);
+                # XXX f_out.virt_mode <= b_in(MSR.IR) or b_in(MSR.PR);
+                # XXX f_out.priv_mode <= not b_in(MSR.PR);
 
                 # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
@@ -216,15 +196,26 @@ class TrapMainStage(PipeModBase):
                 # MSR was in srr1
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
                 msr_check_pr(m, msr_o.data)
+
+                # hypervisor stuff
+                comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV] & srr1_i[MSR.HV])
+                comb += msr_o.data[MSR.ME].eq((msr_i[MSR.HV] & srr1_i[MSR.HV]) |
+                                             (~msr_i[MSR.HV] & srr1_i[MSR.HV]))
+                # don't understand but it's in the spec
+                with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
+                          (srr1_i[63-31:63-29] != Const(0b000, 3))):
+                    comb += msr_o.data[63-31:63-29].eq(srr1_i[63-31:63-29])
+                with m.Else():
+                    comb += msr_o.data[63-31:63-29].eq(msr_i[63-31:63-29])
                 comb += msr_o.ok.eq(1)
 
-            # TODO (later) - add OP_SC
-            #with m.Case(InternalOp.OP_SC):
-            #    # TODO: scv must generate illegal instruction.  this is
-            #    # the decoder's job, not ours, here.
-            #
-            #    # jump to the trap address, return at cia+4
-            #    self.trap(m, 0xc00, cia_i+4)
+            # OP_SC
+            with m.Case(InternalOp.OP_SC):
+                # TODO: scv must generate illegal instruction.  this is
+                # the decoder's job, not ours, here.
+
+                # jump to the trap address, return at cia+4
+                self.trap(m, 0xc00, cia_i+4)
 
             # TODO (later)
             #with m.Case(InternalOp.OP_ADDPCIS):

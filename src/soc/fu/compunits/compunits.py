@@ -16,6 +16,7 @@ Two types exist:
   - CR: not so many needed (perhaps)
   - Branch: one or two of these (depending on speculation run-ahead)
   - Trap: yeah really only one of these
+  - SPR: again, only one.
   - ShiftRot (perhaps not too many of these)
 
 * Multi-cycle (and FSM) Function Units.  these are FUs that can only
@@ -64,11 +65,17 @@ from soc.fu.branch.pipe_data import BranchPipeSpec
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 
+from soc.fu.spr.pipeline import SPRBasePipe
+from soc.fu.spr.pipe_data import SPRPipeSpec
+
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 
 from soc.fu.div.pipeline import DIVBasePipe
 from soc.fu.div.pipe_data import DIVPipeSpec
+
+from soc.fu.mul.pipeline import MulBasePipe
+from soc.fu.mul.pipe_data import MulPipeSpec
 
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 from soc.experiment.compldst_multi import LDSTCompUnit # special-case
@@ -145,10 +152,20 @@ class DIVFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self, idx):
         super().__init__(DIVPipeSpec, DIVBasePipe, idx)
 
+class MulFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.MUL
+    def __init__(self, idx):
+        super().__init__(MulPipeSpec, MulBasePipe, idx)
+
 class TrapFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.TRAP
     def __init__(self, idx):
         super().__init__(TrapPipeSpec, TrapBasePipe, idx)
+
+class SPRFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.SPR
+    def __init__(self, idx):
+        super().__init__(SPRPipeSpec, SPRBasePipe, idx)
 
 # special-case
 class LDSTFunctionUnit(LDSTCompUnit):
@@ -182,13 +199,18 @@ class AllFunctionUnits(Elaboratable):
         addrwid = pspec.addr_wid
         units = pspec.units
         if not isinstance(units, dict):
-            units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1, 'logical': 1,
+            units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1,
+                     'spr': 1,
+                     'logical': 1,
+                     'mul': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
                  'cr': CRFunctionUnit,
                  'branch': BranchFunctionUnit,
                  'trap': TrapFunctionUnit,
+                 'spr': SPRFunctionUnit,
                  'div': DIVFunctionUnit,
+                 'mul': MulFunctionUnit,
                  'logical': LogicalFunctionUnit,
                  'shiftrot': ShiftRotFunctionUnit,
                 }
@@ -221,6 +243,8 @@ def tst_single_fus_il():
                         ('cr', CRFunctionUnit),
                         ('branch', BranchFunctionUnit),
                         ('trap', TrapFunctionUnit),
+                        ('spr', SPRFunctionUnit),
+                        ('mul', MulFunctionUnit),
                         ('logical', LogicalFunctionUnit),
                         ('shiftrot', ShiftRotFunctionUnit)):
         fu = kls(0)

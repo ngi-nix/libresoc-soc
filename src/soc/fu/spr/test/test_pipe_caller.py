@@ -13,24 +13,25 @@ from soc.decoder.isa.all import ISA
 
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
-from soc.fu.trap.pipeline import TrapBasePipe
-from soc.fu.trap.pipe_data import TrapPipeSpec
+from soc.fu.spr.pipeline import SPRBasePipe
+from soc.fu.spr.pipe_data import SPRPipeSpec
 import random
 
 
 def get_cu_inputs(dec2, sim):
-    """naming (res) must conform to TrapFunctionUnit input regspec
+    """naming (res) must conform to SPRFunctionUnit input regspec
     """
     res = {}
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # SPR1
-    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2) # SPR2
-    ALUHelpers.get_sim_cia(res, sim, dec2) # PC
-    ALUHelpers.get_sim_msr(res, sim, dec2) # MSR
+    yield from ALUHelpers.get_sim_slow_spr1(res, sim, dec2) # FAST1
+    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # FAST1
+    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_sim_xer_ov(res, sim, dec2) # XER.ov
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
 
-    print ("alu get_cu_inputs", res)
+    print ("spr get_cu_inputs", res)
 
     return res
 
@@ -43,12 +44,12 @@ def set_alu_inputs(alu, dec2, sim):
 
     inp = yield from get_cu_inputs(dec2, sim)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
-    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
-    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp) # SPR1
-    yield from ALUHelpers.set_fast_spr2(alu, dec2, inp) # SPR1
+    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_ov(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
-    yield from ALUHelpers.set_cia(alu, dec2, inp)
-    yield from ALUHelpers.set_msr(alu, dec2, inp)
+    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)
+    yield from ALUHelpers.set_slow_spr1(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -58,7 +59,7 @@ def set_alu_inputs(alu, dec2, sim):
 # should have. However, this was really slow, since it needed to
 # create and tear down the dut and simulator for every test case.
 
-# Now, instead of doing that, every test case in TrapTestCase puts some
+# Now, instead of doing that, every test case in SPRTestCase puts some
 # data into the test_data list below, describing the instructions to
 # be tested and the initial state. Once all the tests have been run,
 # test_data gets passed to TestRunner which then sets up the DUT and
@@ -70,7 +71,7 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class TrapTestCase(FHDLTestCase):
+class SPRTestCase(FHDLTestCase):
     test_data = []
 
     def __init__(self, name):
@@ -81,54 +82,31 @@ class TrapTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_1_rfid(self):
-        lst = ["rfid"]
+    def test_1_mfspr(self):
+        lst = ["mfspr 1, 26", # SRR0
+               "mfspr 2, 27",  # SRR1
+               "mfspr 3, 8",  # LR
+               "mfspr 4, 1",] # XER
         initial_regs = [0] * 32
-        initial_regs[1] = 1
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0xe00c0000}
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
-    def test_0_trap_eq_imm(self):
-        insns = ["twi", "tdi"]
-        for i in range(2):
-            choice = random.choice(insns)
-            lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
-            initial_regs = [0] * 32
-            initial_regs[1] = 1
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_0_trap_eq(self):
-        insns = ["tw", "td"]
-        for i in range(2):
-            choice = insns[i]
-            lst = [f"{choice} 4, 1, 2"] # TO=4: trap equal
-            initial_regs = [0] * 32
-            initial_regs[1] = 1
-            initial_regs[2] = 1
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_3_mtmsr_0(self):
-        lst = ["mtmsr 1,0"]
+    def test_1_mtspr(self):
+        lst = ["mtspr 26, 1", # SRR0
+               "mtspr 27, 2", # and into reg 2
+               "mtspr 1, 3",] # XER
         initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_3_mtmsr_1(self):
-        lst = ["mtmsr 1,1"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_999_illegal(self):
-        # ok, um this is a bit of a cheat: use an instruction we know
-        # is not implemented by either ISACaller or the core
-        lst = ["tbegin."]
-        initial_regs = [0] * 32
-        self.run_tst_program(Program(lst), initial_regs)
+        initial_regs[1] = 0x129518230011feed
+        initial_regs[2] = 0x129518230011feed
+        initial_regs[3] = 0xe00c0000
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0x0}
+        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
 
     def test_ilang(self):
-        pspec = TrapPipeSpec(id_wid=2)
-        alu = TrapBasePipe(pspec)
+        pspec = SPRPipeSpec(id_wid=2)
+        alu = SPRBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("trap_pipeline.il", "w") as f:
             f.write(vl)
@@ -148,8 +126,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = TrapPipeSpec(id_wid=2)
-        m.submodules.alu = alu = TrapBasePipe(pspec)
+        pspec = SPRPipeSpec(id_wid=2)
+        m.submodules.alu = alu = SPRBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
@@ -160,7 +138,8 @@ class TestRunner(FHDLTestCase):
         sim.add_clock(1e-6)
         def process():
             for test in self.test_data:
-                print(test.name)
+                print("test", test.name)
+                print ("sprs", test.sprs)
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
@@ -175,6 +154,7 @@ class TestRunner(FHDLTestCase):
 
                     print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
                     print(code)
+
                     if 'XER' in sim.spr:
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
                         ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
@@ -185,8 +165,17 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
+
+                    fast_in = yield pdecode2.e.read_fast1.data
+                    spr_in = yield pdecode2.e.read_spr1.data
+                    print ("dec2 spr/fast in", fast_in, spr_in)
+
+                    fast_out = yield pdecode2.e.write_fast1.data
+                    spr_out = yield pdecode2.e.write_spr.data
+                    print ("dec2 spr/fast in", fast_out, spr_out)
+
                     fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.TRAP.value)
+                    self.assertEqual(fn_unit, Function.SPR.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
                     opname = code.split(' ')[0]
@@ -223,31 +212,34 @@ class TestRunner(FHDLTestCase):
 
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
-        yield from ALUHelpers.get_fast_spr2(res, alu, dec2)
-        yield from ALUHelpers.get_nia(res, alu, dec2)
-        yield from ALUHelpers.get_msr(res, alu, dec2)
+        yield from ALUHelpers.get_slow_spr1(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
 
         print ("output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_so(sim_o, sim, alu, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ov(sim_o, sim, alu, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_fast_spr2(sim_o, sim, dec2)
-        ALUHelpers.get_sim_nia(sim_o, sim, dec2)
-        ALUHelpers.get_sim_msr(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
 
         print ("sim output", sim_o)
 
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
-        ALUHelpers.check_fast_spr2(self, res, sim_o, code)
-        ALUHelpers.check_nia(self, res, sim_o, code)
-        ALUHelpers.check_msr(self, res, sim_o, code)
+        ALUHelpers.check_slow_spr1(self, res, sim_o, code)
 
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(TrapTestCase.test_data))
+    suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

@@ -16,7 +16,7 @@ class CompSROpSubset(Record):
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
-                  ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
+                  ('write_cr0', 0),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
                   ('input_cr', 1),
@@ -43,7 +43,7 @@ class CompSROpSubset(Record):
         """
         res = []
         for fname, sig in self.fields.items():
-            eqfrom = other.fields[fname]
+            eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
         return res
 

@@ -6,66 +6,47 @@ import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function)
+from soc.decoder.power_enums import (XER_bits, Function, InternalOp, CryIn)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 
+
+from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.mul.pipeline import MulBasePipe
-from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.mul.pipe_data import MulPipeSpec
 import random
 
 
-class TestCase:
-    def __init__(self, program, regs, sprs, name):
-        self.program = program
-        self.regs = regs
-        self.sprs = sprs
-        self.name = name
+def get_cu_inputs(dec2, sim):
+    """naming (res) must conform to MulFunctionUnit input regspec
+    """
+    res = {}
+
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
+    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
+
+    print ("alu get_cu_inputs", res)
+
+    return res
+
 
 
 def set_alu_inputs(alu, dec2, sim):
-    inputs = []
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
-    reg3_ok = yield dec2.e.read_reg3.ok
-    if reg3_ok:
-        reg3_sel = yield dec2.e.read_reg3.data
-        data3 = sim.gpr(reg3_sel).value
-    else:
-        data3 = 0
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        reg1_sel = yield dec2.e.read_reg1.data
-        data1 = sim.gpr(reg1_sel).value
-    else:
-        data1 = 0
-    reg2_ok = yield dec2.e.read_reg2.ok
-    imm_ok = yield dec2.e.imm_data.ok
-    if reg2_ok:
-        reg2_sel = yield dec2.e.read_reg2.data
-        data2 = sim.gpr(reg2_sel).value
-    elif imm_ok:
-        data2 = yield dec2.e.imm_data.imm
-    else:
-        data2 = 0
+    inp = yield from get_cu_inputs(dec2, sim)
+    print ("set alu inputs", inp)
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
-    yield alu.p.data_i.ra.eq(data1)
-    yield alu.p.data_i.rb.eq(data2)
-    yield alu.p.data_i.rs.eq(data3)
+    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
-
-def set_extra_alu_inputs(alu, dec2, sim):
-    carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
-    carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-    yield alu.p.data_i.xer_ca[0].eq(carry)
-    yield alu.p.data_i.xer_ca[1].eq(carry32)
-    so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-    yield alu.p.data_i.xer_so.eq(so)
-    
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -85,92 +66,73 @@ def set_extra_alu_inputs(alu, dec2, sim):
 # massively. Before, it took around 1 minute on my computer, now it
 # takes around 3 seconds
 
-test_data = []
-
 
 class MulTestCase(FHDLTestCase):
+    test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
-    def run_tst_program(self, prog, initial_regs=[0] * 32, initial_sprs={}):
-        tc = TestCase(prog, initial_regs, initial_sprs, self.test_name)
-        test_data.append(tc)
 
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
+        self.test_data.append(tc)
 
-    def test_shift(self):
-        insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
-        for i in range(20):
+    def tst_0_mullw(self):
+        lst = [f"mullw 3, 1, 2"]
+        initial_regs = [0] * 32
+        #initial_regs[1] = 0xffffffffffffffff
+        #initial_regs[2] = 0xffffffffffffffff
+        initial_regs[1] = 0x2ffffffff
+        initial_regs[2] = 0x2
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_1_mullwo_(self):
+        lst = [f"mullwo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x3b34b06f
+        initial_regs[2] = 0xfdeba998
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_2_mullwo(self):
+        lst = [f"mullwo 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffa988 # -5678
+        initial_regs[2] = 0xffffffffffffedcc # -1234
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_3_mullw(self):
+        lst = ["mullw 3, 1, 2",
+               "mullw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x6
+        initial_regs[2] = 0xe
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_4_mullw_rand(self):
+        for i in range(40):
+            lst = ["mullw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_4_mullw_nonrand(self):
+        for i in range(40):
+            lst = ["mullw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = i+1
+            initial_regs[2] = i+20
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_rand_mullw(self):
+        insns = ["mullw", "mullw.", "mullwo", "mullwo."]
+        for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, 63)
-            print(initial_regs[1], initial_regs[2])
-            self.run_tst_program(Program(lst), initial_regs)
-
-
-    def test_shift_arith(self):
-        lst = ["sraw 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        initial_regs[2] = random.randint(0, 63)
-        print(initial_regs[1], initial_regs[2])
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_shift_once(self):
-        lst = ["slw 3, 1, 4",
-               "slw 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x80000000
-        initial_regs[2] = 0x40
-        initial_regs[4] = 0x00
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwinm(self):
-        for i in range(10):
-            mb = random.randint(0,31)
-            me = random.randint(0,31)
-            sh = random.randint(0,31)
-            lst = [f"rlwinm 3, 1, {mb}, {me}, {sh}"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwimi(self):
-        lst = ["rlwimi 3, 1, 5, 20, 6"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeef
-        initial_regs[3] = 0x12345678
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlwnm(self):
-        lst = ["rlwnm 3, 1, 2, 20, 6"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        initial_regs[2] = random.randint(0, 63)
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rldicl(self):
-        lst = ["rldicl 3, 1, 5, 20"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rldicr(self):
-        lst = ["rldicr 3, 1, 5, 20"]
-        initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
-        self.run_tst_program(Program(lst), initial_regs)
-
-    def test_rlc(self):
-        insns = ["rldic", "rldicl", "rldicr"]
-        for i in range(20):
-            choice = random.choice(insns)
-            sh = random.randint(0, 63)
-            m = random.randint(0, 63)
-            lst = [f"{choice} 3, 1, {sh}, {m}"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):
@@ -199,7 +161,6 @@ class TestRunner(FHDLTestCase):
         m.submodules.alu = alu = MulBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -210,61 +171,101 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, 0)
+                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                                test.mem, test.msr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
+                yield Settle()
 
-                index = simulator.pc.CIA.value//4
+                index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
-                    print("0x{:X}".format(ins & 0xffffffff))
+                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
                     print(code)
+                    if 'XER' in sim.spr:
+                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                        print ("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
-                    fn_unit = yield pdecode2.e.fn_unit
-                    self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
-                    yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield from set_extra_alu_inputs(alu, pdecode2, simulator)
-                    yield 
-                    opname = code.split(' ')[0]
-                    yield from simulator.call(opname)
-                    index = simulator.pc.CIA.value//4
+                    fn_unit = yield pdecode2.e.do.fn_unit
+                    self.assertEqual(fn_unit, Function.MUL.value)
+                    yield from set_alu_inputs(alu, pdecode2, sim)
 
+                    # set valid for one cycle, propagate through pipeline...
+                    yield alu.p.valid_i.eq(1)
+                    yield
+                    yield alu.p.valid_i.eq(0)
+
+                    opname = code.split(' ')[0]
+                    yield from sim.call(opname)
+                    index = sim.pc.CIA.value//4
+
+                    # ...wait for valid to pop out the end
                     vld = yield alu.n.valid_o
                     while not vld:
                         yield
                         vld = yield alu.n.valid_o
                     yield
-                    alu_out = yield alu.n.data_o.o
-                    out_reg_valid = yield pdecode2.e.write_reg.ok
-                    if out_reg_valid:
-                        write_reg_idx = yield pdecode2.e.write_reg.data
-                        expected = simulator.gpr(write_reg_idx).value
-                        msg = f"expected {expected:x}, actual: {alu_out:x}"
-                        self.assertEqual(expected, alu_out, msg)
-                    yield from self.check_extra_alu_outputs(alu, pdecode2,
-                                                            simulator)
+
+                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                    yield Settle()
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+        with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
                             traces=[]):
             sim.run()
-    def check_extra_alu_outputs(self, alu, dec2, sim):
-        rc = yield dec2.e.rc.data
+
+    def check_alu_outputs(self, alu, dec2, sim, code):
+
+        rc = yield dec2.e.do.rc.data
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
+
+        print ("check extra output", repr(code), cridx_ok, cridx)
         if rc:
-            cr_expected = sim.crl[0].get_range().value
-            cr_actual = yield alu.n.data_o.cr0
-            self.assertEqual(cr_expected, cr_actual)
+            self.assertEqual(cridx, 0, code)
+
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
+        if not oe or not oe_ok:
+            # if OE not enabled, XER SO and OV must correspondingly be false
+            so_ok = yield alu.n.data_o.xer_so.ok
+            ov_ok = yield alu.n.data_o.xer_ov.ok
+            self.assertEqual(so_ok, False, code)
+            self.assertEqual(ov_ok, False, code)
+
+        sim_o = {}
+        res = {}
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
 
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(test_data))
+    suite.addTest(TestRunner(MulTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

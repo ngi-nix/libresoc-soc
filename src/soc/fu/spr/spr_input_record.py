@@ -3,19 +3,18 @@ from nmigen.hdl.rec import Record, Layout
 from soc.decoder.power_enums import (InternalOp, Function)
 
 
-class CompCROpSubset(Record):
-    """CompCROpSubset
+class CompSPROpSubset(Record):
+    """CompSPROpSubset
 
     a copy of the relevant subset information from Decode2Execute1Type
-    needed for CR operations.  use with eq_from_execute1 (below) to
+    needed for TRAP operations.  use with eq_from_execute1 (below) to
     grab subsets.
     """
     def __init__(self, name=None):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
                   ('insn', 32),
-                  ('read_cr_whole', 1),
-                  ('write_cr_whole', 1),
+                  ('is_32bit', 1),
                   )
 
         Record.__init__(self, Layout(layout), name=name)
@@ -24,8 +23,7 @@ class CompCROpSubset(Record):
         self.insn_type.reset_less = True
         self.insn.reset_less = True
         self.fn_unit.reset_less = True
-        self.read_cr_whole.reset_less = True
-        self.write_cr_whole.reset_less = True
+        self.is_32bit.reset_less = True
 
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
@@ -40,6 +38,5 @@ class CompCROpSubset(Record):
         return [self.insn_type,
                 self.insn,
                 self.fn_unit,
-                self.read_cr_whole,
-                self.write_cr_whole,
+                self.is_32bit,
         ]

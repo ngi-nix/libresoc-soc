@@ -11,12 +11,13 @@ Links:
 
 from soc.fu.pipe_data import IntegerData
 from soc.fu.spr.spr_input_record import CompSPROpSubset
+from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
 class SPRInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'),        # RA
                ('SPR', 'spr1', '0:63'),      # SPR (slow)
-               ('FAST', 'spr2', '0:63'),     # SPR (fast: MSR, LR, CTR etc)
+               ('FAST', 'fast1', '0:63'),    # SPR (fast: MSR, LR, CTR etc)
                ('XER', 'xer_so', '32'),      # XER bit 32: SO
                ('XER', 'xer_ov', '33,44'),   # XER bit 34/45: CA/CA32
                ('XER', 'xer_ca', '34,45')]   # bit0: ov, bit1: ov32
@@ -29,7 +30,7 @@ class SPRInputData(IntegerData):
 class SPROutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('SPR', 'spr1', '0:63'),     # SPR (slow)
-               ('FAST', 'spr2', '0:63'),    # SPR (fast: MSR, LR, CTR etc)
+               ('FAST', 'fast1', '0:63'),   # SPR (fast: MSR, LR, CTR etc)
                ('XER', 'xer_so', '32'),     # XER bit 32: SO
                ('XER', 'xer_ov', '33,44'),  # XER bit 34/45: CA/CA32
                ('XER', 'xer_ca', '34,45')]  # bit0: ov, bit1: ov32
@@ -37,6 +38,6 @@ class SPROutputData(IntegerData):
         super().__init__(pspec, True)
 
 
-class SPRPipeSpec:
+class SPRPipeSpec(CommonPipeSpec):
     regspec = (SPRInputData.regspec, SPROutputData.regspec)
     opsubsetkls = CompSPROpSubset

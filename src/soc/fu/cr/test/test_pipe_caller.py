@@ -148,7 +148,7 @@ def get_cu_inputs(dec2, sim):
     """naming (res) must conform to CRFunctionUnit input regspec
     """
     res = {}
-    full_reg = yield dec2.e.read_cr_whole
+    full_reg = yield dec2.e.do.read_cr_whole
 
     # full CR
     print(sim.cr.get_range().value)
@@ -202,7 +202,7 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
     def assert_outputs(self, alu, dec2, simulator, code):
-        whole_reg = yield dec2.e.write_cr_whole
+        whole_reg = yield dec2.e.do.write_cr_whole
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg:
             full_cr = yield alu.n.data_o.full_cr.data
@@ -266,7 +266,7 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
                     yield from self.set_inputs(alu, pdecode2, sim)
                     yield alu.p.valid_i.eq(1)
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.CR.value, code)
                     yield
                     opname = code.split(' ')[0]

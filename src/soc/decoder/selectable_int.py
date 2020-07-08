@@ -178,7 +178,12 @@ class SelectableInt:
     def __sub__(self, b):
         return self._op(sub, b)
     def __mul__(self, b):
-        return self._op(mul, b)
+        # different case: mul result needs to fit the total bitsize 
+        if isinstance(b, int):
+            b = SelectableInt(b, self.bits)
+        print ("SelectableInt mul", hex(self.value), hex(b.value),
+                                    self.bits, b.bits)
+        return SelectableInt(self.value * b.value, self.bits + b.bits)
     def __floordiv__(self, b):
         return self._op(floordiv, b)
     def __truediv__(self, b):
@@ -192,7 +197,10 @@ class SelectableInt:
     def __xor__(self, b):
         return self._op(xor, b)
     def __abs__(self):
-        return SelectableInt(0, self.bits) - self
+        print ("abs", self.value & (1<<(self.bits-1)))
+        if self.value & (1<<(self.bits-1)) != 0:
+            return -self
+        return self
 
     def __rsub__(self, b):
         if isinstance(b, int):

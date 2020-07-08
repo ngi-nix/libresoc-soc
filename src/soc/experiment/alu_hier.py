@@ -14,6 +14,7 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
+from nmigen.back.pysim import Simulator, Settle
 
 from soc.decoder.power_enums import InternalOp, Function, CryIn
 
@@ -385,56 +386,32 @@ class BranchALU(Elaboratable):
         return list(self)
 
 def run_op(dut, a, b, op, inv_a=0):
-    from nmigen.back.pysim import Settle
     yield dut.a.eq(a)
     yield dut.b.eq(b)
     yield dut.op.insn_type.eq(op)
     yield dut.op.invert_a.eq(inv_a)
     yield dut.n.ready_i.eq(0)
     yield dut.p.valid_i.eq(1)
-
-    # if valid_o rose on the very first cycle, it is a
-    # zero-delay ALU
-    yield Settle()
-    vld = yield dut.n.valid_o
-    if vld:
-        # special case for zero-delay ALU
-        # we must raise ready_i first, since the combinatorial ALU doesn't
-        # have any storage, and doesn't dare to assert ready_o back to us
-        # until we accepted the output data
-        yield dut.n.ready_i.eq(1)
-        result = yield dut.o
-        yield
-        yield dut.p.valid_i.eq(0)
-        yield dut.n.ready_i.eq(0)
-        yield
-        return result
-
+    yield dut.n.ready_i.eq(1)
     yield
 
     # wait for the ALU to accept our input data
-    while True:
-        rdy = yield dut.p.ready_o
-        if rdy:
-            break
+    while not (yield dut.p.ready_o):
         yield
 
     yield dut.p.valid_i.eq(0)
+    yield dut.a.eq(0)
+    yield dut.b.eq(0)
+    yield dut.op.insn_type.eq(0)
+    yield dut.op.invert_a.eq(0)
 
     # wait for the ALU to present the output data
-    while True:
-        yield Settle()
-        vld = yield dut.n.valid_o
-        if vld:
-            break
+    while not (yield dut.n.valid_o):
         yield
 
     # latch the result and lower read_i
-    yield dut.n.ready_i.eq(1)
     result = yield dut.o
-    yield
     yield dut.n.ready_i.eq(0)
-    yield
 
     return result
 
@@ -472,8 +449,111 @@ def test_alu():
         f.write(vl)
 
 
+def test_alu_parallel():
+    # Compare with the sequential test implementation, above.
+    m = Module()
+    m.submodules.alu = dut = ALU(width=16)
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    def send(a, b, op, inv_a=0):
+        # present input data and assert valid_i
+        yield dut.a.eq(a)
+        yield dut.b.eq(b)
+        yield dut.op.insn_type.eq(op)
+        yield dut.op.invert_a.eq(inv_a)
+        yield dut.p.valid_i.eq(1)
+        yield
+        # wait for ready_o to be asserted
+        while not (yield dut.p.ready_o):
+            yield
+        # clear input data and negate valid_i
+        # if send is called again immediately afterwards, there will be no
+        # visible transition (they will not be negated, after all)
+        yield dut.p.valid_i.eq(0)
+        yield dut.a.eq(0)
+        yield dut.b.eq(0)
+        yield dut.op.insn_type.eq(0)
+        yield dut.op.invert_a.eq(0)
+
+    def receive():
+        # signal readiness to receive data
+        yield dut.n.ready_i.eq(1)
+        yield
+        # wait for valid_o to be asserted
+        while not (yield dut.n.valid_o):
+            yield
+        # read result
+        result = yield dut.o
+        # negate ready_i
+        # if receive is called again immediately afterwards, there will be no
+        # visible transition (it will not be negated, after all)
+        yield dut.n.ready_i.eq(0)
+        return result
+
+    def producer():
+        # send a few test cases, interspersed with wait states
+        # note that, for this test, we do not wait for the result to be ready,
+        # before presenting the next input
+        # 5 + 3
+        yield from send(5, 3, InternalOp.OP_ADD)
+        yield
+        yield
+        # 2 * 3
+        yield from send(2, 3, InternalOp.OP_MUL_L64)
+        # (-5) + 3
+        yield from send(5, 3, InternalOp.OP_ADD, inv_a=1)
+        yield
+        # 5 - 3
+        # note that this is a zero-delay operation
+        yield from send(5, 3, InternalOp.OP_NOP)
+        yield
+        yield
+        # 13 >> 2
+        yield from send(13, 2, InternalOp.OP_SHR)
+
+    def consumer():
+        # receive and check results, interspersed with wait states
+        # the consumer is not in step with the producer, but the
+        # order of the results are preserved
+        yield
+        # 5 + 3 = 8
+        result = yield from receive()
+        assert (result == 8)
+        # 2 * 3 = 6
+        result = yield from receive()
+        assert (result == 6)
+        yield
+        yield
+        # (-5) + 3 = -2
+        result = yield from receive()
+        assert (result == 65533)  # unsigned equivalent to -2
+        # 5 - 3 = 2
+        # note that this is a zero-delay operation
+        # this, and the previous result, will be received back-to-back
+        # (check the output waveform to see this)
+        result = yield from receive()
+        assert (result == 2)
+        yield
+        yield
+        # 13 >> 2 = 3
+        result = yield from receive()
+        assert (result == 3)
+
+    sim.add_sync_process(producer)
+    sim.add_sync_process(consumer)
+    sim_writer = sim.write_vcd(
+        "test_alu_parallel.vcd",
+        "test_alu_parallel.gtkw",
+        traces=dut.ports()
+    )
+    with sim_writer:
+        sim.run()
+
+
 if __name__ == "__main__":
     test_alu()
+    test_alu_parallel()
 
     # alu = BranchALU(width=16)
     # vl = rtlil.convert(alu, ports=alu.ports())

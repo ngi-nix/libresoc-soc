@@ -57,8 +57,8 @@ class BranchMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
         lk = op.lk # see PowerDecode2 as to why this is done
-        cr, cia, ctr, spr1 = self.i.cr, self.i.cia, self.i.ctr, self.i.spr1
-        spr2 = self.i.spr2
+        cr, cia, ctr, fast1 = self.i.cr, self.i.cia, self.i.ctr, self.i.fast1
+        fast2 = self.i.fast2
         nia_o, lr_o, ctr_o = self.o.nia, self.o.lr, self.o.ctr
 
         # obtain relevant instruction field AA, "Absolute Address" mode
@@ -135,9 +135,9 @@ class BranchMainStage(PipeModBase):
             with m.Case(InternalOp.OP_BCREG):
                 xo = self.fields.FormXL.XO[0:-1]
                 with m.If(xo[9] & ~xo[5]):
-                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr1[2:]))
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), fast1[2:]))
                 with m.Else():
-                    comb += br_imm_addr.eq(Cat(Const(0, 2), spr2[2:]))
+                    comb += br_imm_addr.eq(Cat(Const(0, 2), fast2[2:]))
                 comb += br_taken.eq(bc_taken)
                 comb += ctr_o.ok.eq(ctr_write)
 

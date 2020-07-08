@@ -30,28 +30,37 @@ from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
+from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
-from soc.simulator.test_sim import GeneralTestCases
+from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 
 def setup_i_memory(imem, startaddr, instructions):
     mem = imem
-    print ("insn before, init mem", mem.depth, mem.width, mem)
+    print ("insn before, init mem", mem.depth, mem.width, mem,
+                                    len(instructions))
     for i in range(mem.depth):
         yield mem._array[i].eq(0)
     yield Settle()
     startaddr //= 4 # instructions are 32-bit
     mask = ((1<<64)-1)
-    for insn, code in instructions:
+    for ins in instructions:
+        if isinstance(ins, tuple):
+            insn, code = ins
+        else:
+            insn, code = ins, ''
         msbs = (startaddr>>1) & mask
         val = yield mem._array[msbs]
-        print ("before set", hex(startaddr), hex(msbs), hex(val))
+        if insn != 0:
+            print ("before set", hex(4*startaddr),
+                                 hex(msbs), hex(val), hex(insn))
         lsb = 1 if (startaddr & 1) else 0
         val = (val | (insn << (lsb*32))) & mask
         yield mem._array[msbs].eq(val)
         yield Settle()
-        print ("after  set", hex(startaddr), hex(msbs), hex(val))
-        print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
+        if insn != 0:
+            print ("after  set", hex(4*startaddr), hex(msbs), hex(val))
+            print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
         startaddr += 1
         startaddr = startaddr & mask
 
@@ -88,6 +97,13 @@ class TestRunner(FHDLTestCase):
         def process():
 
             for test in self.test_data:
+
+                # get core going
+                yield core.core_start_i.eq(1)
+                yield
+                yield core.core_start_i.eq(0)
+                yield Settle()
+
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
@@ -126,10 +142,15 @@ class TestRunner(FHDLTestCase):
                     yield
                     yield issuer.pc_i.ok.eq(0) # don't change PC from now on
                     yield go_insn_i.eq(0)      # and don't issue a new insn
+                    yield Settle()
 
                     # wait until executed
-                    yield from wait_for_busy_hi(core)
+                    #yield from wait_for_busy_hi(core)
+                    yield
                     yield from wait_for_busy_clear(core)
+
+                    terminated = yield core.core_terminated_o
+                    print ("terminated", terminated)
 
                     print ("sim", code)
                     # call simulated operation
@@ -144,6 +165,10 @@ class TestRunner(FHDLTestCase):
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
 
+                    terminated = yield core.core_terminated_o
+                    if terminated:
+                        break
+
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",
                             traces=[]):
@@ -153,6 +178,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
+    suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase.test_data))
     suite.addTest(TestRunner(CRTestCase.test_data))
@@ -160,6 +186,7 @@ if __name__ == "__main__":
     suite.addTest(TestRunner(LogicalTestCase.test_data))
     suite.addTest(TestRunner(ALUTestCase.test_data))
     suite.addTest(TestRunner(BranchTestCase.test_data))
+    suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

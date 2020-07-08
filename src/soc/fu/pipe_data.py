@@ -27,6 +27,7 @@ class IntegerData:
     def eq(self, i):
         eqs = [self.ctx.eq(i.ctx)]
         for j in range(len(self.data)):
+            assert type(self.data[j]) == type(i.data[j])
             eqs.append(self.data[j].eq(i.data[j]))
         return eqs
 

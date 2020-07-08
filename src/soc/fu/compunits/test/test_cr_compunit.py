@@ -20,14 +20,14 @@ class CRTestRunner(TestRunner):
         res = yield from get_cu_inputs(dec2, sim)
         return res
 
-    def check_cu_outputs(self, res, dec2, sim, code):
+    def check_cu_outputs(self, res, dec2, sim, alu, code):
         """naming (res) must conform to CRFunctionUnit output regspec
         """
 
         print ("check extra output", repr(code), res)
 
         # full CR
-        whole_reg = yield dec2.e.write_cr_whole
+        whole_reg = yield dec2.e.do.write_cr_whole
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg:
             full_cr = res['full_cr']

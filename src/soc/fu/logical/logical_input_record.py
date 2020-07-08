@@ -14,14 +14,13 @@ class CompLogicalOpSubset(Record):
         layout = (('insn_type', InternalOp),
                   ('fn_unit', Function),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
-                  ('lk', 1),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
                   ('invert_a', 1),
                   ('zero_a', 1),
                   ('input_carry', CryIn),
                   ('invert_out', 1),
-                  ('write_cr', Layout((("data", 3), ("ok", 1)))), # Data
+                  ('write_cr0', 1),
                   ('output_carry', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
@@ -34,7 +33,6 @@ class CompLogicalOpSubset(Record):
         # grrr.  Record does not have kwargs
         self.insn_type.reset_less = True
         self.fn_unit.reset_less = True
-        self.lk.reset_less = True
         self.zero_a.reset_less = True
         self.invert_a.reset_less = True
         self.invert_out.reset_less = True
@@ -49,14 +47,13 @@ class CompLogicalOpSubset(Record):
         """
         res = []
         for fname, sig in self.fields.items():
-            eqfrom = other.fields[fname]
+            eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
         return res
 
     def ports(self):
         return [self.insn_type,
                 self.fn_unit,
-                self.lk,
                 self.invert_a,
                 self.invert_out,
                 self.input_carry,

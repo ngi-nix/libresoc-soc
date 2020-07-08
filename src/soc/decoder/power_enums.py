@@ -55,6 +55,7 @@ class Function(Enum):
     TRAP = 1<<7
     MUL = 1<<8
     DIV = 1<<9
+    SPR = 1<<10
 
 
 @unique
@@ -107,7 +108,7 @@ _insns = [
     "lhbrx", "lhz", "lhzu", "lhzux", "lhzx", "lwa", "lwarx", "lwaux",
     "lwax", "lwbrx", "lwz", "lwzu", "lwzux", "lwzx", "mcrf", "mcrxr",
     "mcrxrx", "mfcr/mfocrf", "mfmsr", "mfspr", "modsd", "modsw", "modud",
-    "moduw", "mtcrf/mtocrf", "mtmsrd", "mtspr", "mulhd", "mulhdu",
+    "moduw", "mtcrf/mtocrf", "mtmsr", "mtmsrd", "mtspr", "mulhd", "mulhdu",
     "mulhw", "mulhwu", "mulld", "mulldo", "mulli", "mullw", "mullwo",
     "nand", "neg", "nego", "nop", "nor", "or", "orc", "ori", "oris",
     "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
@@ -202,6 +203,7 @@ class InternalOp(Enum):
     OP_MFMSR = 71
     OP_MTMSRD = 72
     OP_SC = 73
+    OP_MTMSR = 74
 
 
 @unique
@@ -292,12 +294,13 @@ class CROutSel(Enum):
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
 spr_csv = get_csv("sprs.csv")
-spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr length')
+spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr length idx')
 spr_dict = {}
 spr_byname = {}
 for row in spr_csv:
     info = spr_info(SPR=row['SPR'], priv_mtspr=row['priv_mtspr'],
-                    priv_mfspr=row['priv_mfspr'], length=int(row['len']))
+                    priv_mfspr=row['priv_mfspr'], length=int(row['len']),
+                    idx=int(row['Idx']))
     spr_dict[int(row['Idx'])] = info
     spr_byname[row['SPR']] = info
 fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]

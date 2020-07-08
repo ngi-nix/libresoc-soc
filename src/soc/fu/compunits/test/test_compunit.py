@@ -9,7 +9,7 @@ from soc.decoder.power_enums import Function
 from soc.decoder.isa.all import ISA
 
 from soc.experiment.compalu_multi import find_ok # hack
-
+from soc.config.test.test_loadstore import TestMemPspec
 
 def set_cu_input(cu, idx, data):
     rdop = cu.get_in_name(idx)
@@ -61,6 +61,7 @@ def get_cu_output(cu, idx, code):
 
 
 def set_cu_inputs(cu, inp):
+    print ("set_cu_inputs", inp)
     for idx, data in inp.items():
         yield from set_cu_input(cu, idx, data)
 
@@ -168,15 +169,17 @@ class TestRunner(FHDLTestCase):
 
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
-            m.submodules.l0 = l0 = TstL0CacheBuffer(n_units=1, regwid=64,
-                                                    addrwid=3,
-                                                    ifacetype='test_bare_wb')
+            pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
+                                 addr_wid=48,
+                                 mask_wid=8,
+                                 reg_wid=64)
+            m.submodules.l0 = l0 = TstL0CacheBuffer(pspec, n_units=1)
             pi = l0.l0.dports[0]
-            m.submodules.cu = cu = self.fukls(pi, awid=3)
+            m.submodules.cu = cu = self.fukls(pi, idx=0, awid=3)
             m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
             m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
         else:
-            m.submodules.cu = cu = self.fukls()
+            m.submodules.cu = cu = self.fukls(0)
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -218,12 +221,13 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     fuval = self.funit.value
                     self.assertEqual(fn_unit & fuval, fuval)
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)
+                    yield Settle()
                     iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
                     inp = get_inp_indexed(cu, iname)
 
@@ -282,7 +286,7 @@ class TestRunner(FHDLTestCase):
                         yield from dump_sim_memory(self, l0, sim, code)
 
                     yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                            sim, code)
+                                                            sim, cu.alu, code)
 
                     # sigh.  hard-coded.  test memory
                     if self.funit == Function.LDST:

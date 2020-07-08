@@ -145,7 +145,7 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.dec.bigendian.eq(0)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
-                    fn_unit = yield pdecode2.e.fn_unit
+                    fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.DIV.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
@@ -168,7 +168,7 @@ class TestRunner(FHDLTestCase):
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
-        rc = yield dec2.e.rc.data
+        rc = yield dec2.e.do.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
@@ -176,8 +176,8 @@ class TestRunner(FHDLTestCase):
         if rc:
             self.assertEqual(cridx, 0, code)
 
-        oe = yield dec2.e.oe.oe
-        oe_ok = yield dec2.e.oe.ok
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
         if not oe or not oe_ok:
             # if OE not enabled, XER SO and OV must correspondingly be false
             so_ok = yield alu.n.data_o.xer_so.ok
