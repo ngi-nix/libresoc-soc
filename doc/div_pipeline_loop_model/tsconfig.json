@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "outFile": "./built/main.js",
+        "allowJs": true,
+        "target": "es5",
+        "strict": true,
+        "noEmitOnError": true,
+        "noFallthroughCasesInSwitch": true,
+        "sourceMap": true
+    },
+    "include": [
+        "./src/**/*"
+    ]
+}
