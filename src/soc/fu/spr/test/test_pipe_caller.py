@@ -94,12 +94,32 @@ class SPRTestCase(FHDLTestCase):
 
     def test_1_mtspr(self):
         lst = ["mtspr 26, 1", # SRR0
-               "mtspr 27, 2", # and into reg 2
-               "mtspr 1, 3",] # XER
+               "mtspr 27, 2", # SRR1
+               "mtspr 1, 3",  # XER
+               "mtspr 9, 4",] # CTR
         initial_regs = [0] * 32
         initial_regs[1] = 0x129518230011feed
-        initial_regs[2] = 0x129518230011feed
+        initial_regs[2] = 0x123518230011feed
         initial_regs[3] = 0xe00c0000
+        initial_regs[4] = 0x1010101010101010
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0x0}
+        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+
+    def test_2_mtspr_mfspr(self):
+        lst = ["mtspr 26, 1", # SRR0
+               "mtspr 27, 2", # SRR1
+               "mtspr 1, 3",  # XER
+               "mtspr 9, 4",  # CTR
+               "mfspr 2, 26", # SRR0
+               "mfspr 3, 27", # and into reg 2
+               "mfspr 4, 1",  # XER
+               "mfspr 5, 9",] # CTR
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x129518230011feed
+        initial_regs[2] = 0x123518230011feed
+        initial_regs[3] = 0xe00c0000
+        initial_regs[4] = 0x1010101010101010
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
         self.run_tst_program(Program(lst), initial_regs, initial_sprs)
