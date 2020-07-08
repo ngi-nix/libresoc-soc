@@ -490,6 +490,7 @@ class ISACaller:
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmcode = yield self.dec2.dec.op.asmcode
+        print ("get assembly name asmcode", asmcode)
         asmop = insns.get(asmcode, None)
 
         # sigh reconstruct the assembly instruction name
@@ -524,6 +525,7 @@ class ISACaller:
         return asmop
 
     def call(self, name):
+        name = name.strip() # remove spaces if not already done so
         if self.halted:
             print ("halted - not executing", name)
             return
