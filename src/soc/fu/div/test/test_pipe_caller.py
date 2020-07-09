@@ -75,7 +75,7 @@ class DIVTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_0_regression(self):
+    def tst_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
             initial_regs = [0] * 32
@@ -83,35 +83,35 @@ class DIVTestCase(FHDLTestCase):
             initial_regs[2] = 0xcdf69a7f7042db66
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_1_regression(self):
+    def tst_1_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x10000000000000000-4
         initial_regs[2] = 0x10000000000000000-2
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_2_regression(self):
+    def tst_2_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffff9321
         initial_regs[2] = 0xffffffffffff7012
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_3_regression(self):
+    def tst_3_regression(self):
         lst = ["divwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1b8e32f2458746af
         initial_regs[2] = 0x6b8aee2ccf7d62e9
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_4_regression(self):
+    def tst_4_regression(self):
         lst = ["divw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1c4e6c2f3aa4a05c
         initial_regs[2] = 0xe730c2eed6cc8dd7
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_5_regression(self):
+    def tst_5_regression(self):
         lst = ["divw 3, 1, 2",
                "divwo. 6, 4, 5"]
         initial_regs = [0] * 32
@@ -123,13 +123,16 @@ class DIVTestCase(FHDLTestCase):
 
     def test_6_regression(self):
         # CR0 not getting set properly for this one
+        # turns out that overflow is not set correctly in
+        # fu/div/output_stage.py calc_overflow
+        # https://bugs.libre-soc.org/show_bug.cgi?id=425
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x61c1cc3b80f2a6af
         initial_regs[2] = 0x9dc66a7622c32bc0
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_rand_divw(self):
+    def tst_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -139,7 +142,7 @@ class DIVTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_ilang(self):
+    def tst_ilang(self):
         pspec = DIVPipeSpec(id_wid=2)
         alu = DIVBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())

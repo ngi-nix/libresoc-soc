@@ -1,5 +1,8 @@
 # This stage is the setup stage that converts the inputs
 # into the values expected by DivPipeCore
+"""
+* https://bugs.libre-soc.org/show_bug.cgi?id=424
+"""
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
@@ -68,17 +71,22 @@ class DivOutputStage(PipeModBase):
         self.o.xer_ov.ok.eq(1)
         xer_ov = self.o.xer_ov.data
 
+        # see test_6_regression in div test_pipe_caller.py
+        # https://bugs.libre-soc.org/show_bug.cgi?id=425
         def calc_overflow(dive_abs_overflow, sign_bit_mask):
             nonlocal comb
             overflow = dive_abs_overflow | self.i.div_by_zero
+            ov = Signal(reset_less=True)
             with m.If(op.is_signed):
-                comb += xer_ov.eq(overflow
+                comb += ov.eq(overflow
                                   | (abs_quotient > sign_bit_mask)
                                   | ((abs_quotient == sign_bit_mask)
                                      & ~self.quotient_neg))
             with m.Else():
-                comb += xer_ov.eq(Repl(overflow, 2)) # set OV _and_ OV32
+                comb += ov.eq(overflow)
+            comb += xer_ov.eq(Repl(ov, 2)) # set OV _and_ OV32
 
+        # check 32/64 bit version of overflow
         with m.If(op.is_32bit):
             calc_overflow(self.i.dive_abs_ov32, 0x80000000)
         with m.Else():

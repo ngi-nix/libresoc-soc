@@ -17,7 +17,7 @@ class CommonOutputStage(PipeModBase):
         if hasattr(self.o, "xer_so"):
             xer_so_o = self.o.xer_so.data[0]
         else:
-            xer_so_o = Const(0)
+            xer_so_o = Const(0, 1)
 
         # op requests inversion of the output...
         o = Signal.like(self.i.o)
