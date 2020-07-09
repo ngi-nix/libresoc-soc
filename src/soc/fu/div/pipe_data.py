@@ -1,6 +1,6 @@
 from nmigen import Signal, Const
 from soc.fu.pipe_data import IntegerData
-from soc.fu.alu.pipe_data import ALUOutputData, CommonPipeSpec
+from soc.fu.alu.pipe_data import CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 from ieee754.div_rem_sqrt_rsqrt.core import (
     DivPipeCoreConfig, DivPipeCoreInputData, DP,
@@ -17,8 +17,21 @@ class DIVInputData(IntegerData):
         self.a, self.b = self.ra, self.rb
 
 
+# output stage shared between div and mul: like ALUOutputData but no CA/32
+class DivMulOutputData(IntegerData):
+    regspec = [('INT', 'o', '0:63'),
+               ('CR', 'cr_a', '0:3'),
+               ('XER', 'xer_ov', '33,44'), # bit0: ov, bit1: ov32
+               ('XER', 'xer_so', '32')]
+    def __init__(self, pspec):
+        super().__init__(pspec, True)
+        # convenience
+        self.cr0 = self.cr_a
+
+
+
 class DIVPipeSpec(CommonPipeSpec):
-    regspec = (DIVInputData.regspec, ALUOutputData.regspec)
+    regspec = (DIVInputData.regspec, DivMulOutputData.regspec)
     opsubsetkls = CompLogicalOpSubset
     core_config = DivPipeCoreConfig(
         bit_width=64,

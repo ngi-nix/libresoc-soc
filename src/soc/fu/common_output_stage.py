@@ -34,7 +34,7 @@ class CommonOutputStage(PipeModBase):
 
         # carry-out only if actually present in this input spec
         # (note: MUL and DIV do not have it, but ALU and Logical do)
-        if hasattr(self.i.xer_ca):
+        if hasattr(self.i, "xer_ca"):
             # Handle carry_out
             comb += self.o.xer_ca.data.eq(self.i.xer_ca.data)
             comb += self.o.xer_ca.ok.eq(op.output_carry)
