@@ -1,6 +1,6 @@
 # This stage is intended to handle the gating of carry out,
 # and updating the condition register
-from nmigen import (Module, Signal, Cat)
+from nmigen import (Module, Signal, Cat, Const)
 from nmutil.pipemodbase import PipeModBase
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -14,6 +14,10 @@ class CommonOutputStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        if hasattr(self.o, "xer_so"):
+            xer_so_o = self.o.xer_so.data[0]
+        else:
+            xer_so_o = Const(0)
 
         # op requests inversion of the output...
         o = Signal.like(self.i.o)
@@ -75,7 +79,7 @@ class CommonOutputStage(PipeModBase):
         with m.If(is_cmpeqb):
             comb += cr0.eq(self.i.cr0.data)
         with m.Else():
-            comb += cr0.eq(Cat(self.so, ~is_nzero, is_positive, is_negative))
+            comb += cr0.eq(Cat(xer_so_o, ~is_nzero, is_positive, is_negative))
 
         # copy out [inverted?] output, cr0, and context out
         comb += self.o.o.data.eq(o)
