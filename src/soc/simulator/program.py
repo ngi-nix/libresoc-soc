@@ -13,19 +13,19 @@ import sys
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
 
-bigendian = True
-if bigendian:
-    endian_fmt = "elf64-big"
-    obj_fmt = "-be"
-    ld_fmt = "-EB"
-else:
-    ld_fmt = "-EL"
-    endian_fmt = "elf64-little"
-    obj_fmt = "-le"
-
 
 class Program:
-    def __init__(self, instructions):
+    def __init__(self, instructions, bigendian=True):
+        self.bigendian = bigendian
+        if self.bigendian:
+            self.endian_fmt = "elf64-big"
+            self.obj_fmt = "-be"
+            self.ld_fmt = "-EB"
+        else:
+            self.ld_fmt = "-EL"
+            self.endian_fmt = "elf64-little"
+            self.obj_fmt = "-le"
+
         if isinstance(instructions, str): # filename
             self.binfile = open(instructions, "rb")
             self.assembly = '' # noo disassemble number fiiive
@@ -47,7 +47,7 @@ class Program:
         self.binfile = tempfile.NamedTemporaryFile(suffix=".bin")
         args = ["powerpc64-linux-gnu-objcopy",
                 "-O", "binary",
-                "-I", endian_fmt,
+                "-I", self.endian_fmt,
                 elffile.name,
                 self.binfile.name]
         subprocess.check_output(args)
@@ -55,7 +55,7 @@ class Program:
     def _link(self, ofile):
         with tempfile.NamedTemporaryFile(suffix=".elf") as elffile:
             args = ["powerpc64-linux-gnu-ld",
-                    ld_fmt,
+                    self.ld_fmt,
                     "-o", elffile.name,
                     "-T", memmap,
                     ofile.name]
@@ -66,7 +66,7 @@ class Program:
         with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
             args = ["powerpc64-linux-gnu-as",
                     '-mpower9',
-                    obj_fmt,
+                    self.obj_fmt,
                     "-o",
                     outfile.name]
             p = subprocess.Popen(args, stdin=subprocess.PIPE)

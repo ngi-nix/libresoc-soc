@@ -225,7 +225,7 @@ class GeneralTestCases(FHDLTestCase):
                "addis 12, 0, 0",
                ]
         with Program(lst) as program:
-            self.run_tst_program(program, [0, 12])
+            self.run_tst_program(program, [12])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                                     initial_mem=None):
@@ -244,6 +244,7 @@ class DecoderBase:
         gen = list(generator.generate_instructions())
         insn_code = generator.assembly.splitlines()
         instructions = list(zip(gen, insn_code))
+        bigendian = False
 
         pdecode = create_pdecode()
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
@@ -254,12 +255,13 @@ class DecoderBase:
         simulator = ISA(pdecode2, [0] * 32, {}, 0, initial_mem, 0,
                         initial_insns=gen, respect_pc=True,
                         disassembly=insn_code,
-                        initial_pc=initial_pc)
+                        initial_pc=initial_pc,
+                        bigendian=bigendian)
 
         sim = Simulator(m)
 
         def process():
-            yield pdecode2.dec.bigendian.eq(1)
+            #yield pdecode2.dec.bigendian.eq(1)
             yield Settle()
 
             while True:

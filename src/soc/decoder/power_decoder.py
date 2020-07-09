@@ -343,6 +343,7 @@ class TopPowerDecoder(PowerDecoder):
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
         comb = m.d.comb
+        # raw opcode in, byte-reverse it
         raw_be = self.raw_opcode_in
         l = []
         for i in range(0, self.width, 8):

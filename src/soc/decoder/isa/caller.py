@@ -245,8 +245,10 @@ class ISACaller:
                        initial_mem=None, initial_msr=0,
                        initial_insns=None, respect_pc=False,
                        disassembly=None,
-                       initial_pc=0):
+                       initial_pc=0,
+                       bigendian=True):
 
+        self.bigendian = bigendian
         self.halted = False
         self.respect_pc = respect_pc
         if initial_sprs is None:
@@ -471,7 +473,7 @@ class ISACaller:
         print ("CIA NIA", self.respect_pc, self.pc.CIA.value, self.pc.NIA.value)
 
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
-        yield self.dec2.dec.bigendian.eq(0)  # little / big?
+        yield self.dec2.dec.bigendian.eq(self.bigendian)
 
     def execute_one(self):
         """execute one instruction

@@ -22,6 +22,7 @@ class QemuController:
                                            stdout=subprocess.PIPE,
                                            stdin=subprocess.PIPE)
         self.gdb = GdbController(gdb_path='powerpc64-linux-gnu-gdb')
+        self.set_endian(bigendian)
 
     def __enter__(self):
         return self
@@ -31,6 +32,13 @@ class QemuController:
 
     def connect(self):
         return self.gdb.write('-target-select remote localhost:1234')
+
+    def set_endian(self, bigendian):
+        if bigendian:
+            cmd = '-gdb-set endian big'
+        else:
+            cmd = '-gdb-set endian little'
+        return self.gdb.write(cmd)
 
     def break_address(self, addr):
         cmd = '-break-insert *0x{:x}'.format(addr)
