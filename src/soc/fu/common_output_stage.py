@@ -26,11 +26,14 @@ class CommonOutputStage(PipeModBase):
             comb += o.eq(self.i.o.data) # ... no inversion
 
         # target register if 32-bit is only the 32 LSBs
+        # XXX ah.  right.  this needs to be done only if the *mode* is 32-bit
+        # see https://bugs.libre-soc.org/show_bug.cgi?id=424
         target = Signal(64, reset_less=True)
-        with m.If(op.is_32bit):
-            comb += target.eq(o[:32])
-        with m.Else():
-            comb += target.eq(o)
+        #with m.If(op.is_32bit):
+        #    comb += target.eq(o[:32])
+        #with m.Else():
+        #    comb += target.eq(o)
+        comb += target.eq(o)
 
         # carry-out only if actually present in this input spec
         # (note: MUL and DIV do not have it, but ALU and Logical do)
@@ -55,13 +58,19 @@ class CommonOutputStage(PipeModBase):
 
         comb += is_cmp.eq(op.insn_type == InternalOp.OP_CMP)
         comb += is_cmpeqb.eq(op.insn_type == InternalOp.OP_CMPEQB)
-        with m.If(op.is_32bit):
-            comb += msb_test.eq(target[-1] ^ is_cmp) # 64-bit MSB
-        with m.Else():
-            comb += msb_test.eq(target[31] ^ is_cmp) # 32-bit MSB
+        # nope - if *processor* mode is 32-bit
+        #with m.If(op.is_32bit):
+        #    comb += msb_test.eq(target[-1] ^ is_cmp) # 64-bit MSB
+        #with m.Else():
+        #    comb += msb_test.eq(target[31] ^ is_cmp) # 32-bit MSB
+        comb += msb_test.eq(target[-1]) # 64-bit MSB
         comb += is_nzero.eq(target.bool())
-        comb += is_positive.eq(is_nzero & ~msb_test)
-        comb += is_negative.eq(is_nzero & msb_test)
+        with m.If(is_cmp): # invert pos/neg tests
+            comb += is_positive.eq(msb_test)
+            comb += is_negative.eq(is_nzero & ~msb_test)
+        with m.Else():
+            comb += is_negative.eq(msb_test)
+            comb += is_positive.eq(is_nzero & ~msb_test)
 
         with m.If(is_cmpeqb):
             comb += cr0.eq(self.i.cr0.data)
