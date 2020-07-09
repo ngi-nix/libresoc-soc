@@ -75,6 +75,30 @@ class DIVTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
+    def test_0_regression(self):
+        for i in range(40):
+            lst = ["divwo 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = 0xbc716835f32ac00c
+            initial_regs[2] = 0xcdf69a7f7042db66
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_0_regression(self):
+        for i in range(40):
+            lst = ["divwo 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = 0x10000000000000000-4
+            initial_regs[2] = 0x10000000000000000-2
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_0_regression(self):
+        for i in range(40):
+            lst = ["divwo 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = 0xffffffffffff9321
+            initial_regs[2] = 0xffffffffffff7012
+            self.run_tst_program(Program(lst), initial_regs)
+
     def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
