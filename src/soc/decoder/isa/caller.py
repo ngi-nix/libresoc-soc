@@ -3,6 +3,10 @@
 this is part of a cycle-accurate POWER9 simulator.  its primary purpose is
 not speed, it is for both learning and educational purposes, as well as
 a method of verifying the HDL.
+
+related bugs:
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=424
 """
 
 from functools import wraps
@@ -446,11 +450,19 @@ class ISACaller:
 
     def handle_comparison(self, outputs):
         out = outputs[0]
+        print ("handle_comparison", out.bits, hex(out.value))
+        # TODO - XXX *processor* in 32-bit mode
+        # https://bugs.libre-soc.org/show_bug.cgi?id=424
+        #if is_32bit:
+        #    o32 = exts(out.value, 32)
+        #    print ("handle_comparison exts 32 bit", hex(o32))
         out = exts(out.value, out.bits)
+        print ("handle_comparison exts", hex(out))
         zero = SelectableInt(out == 0, 1)
         positive = SelectableInt(out > 0, 1)
         negative = SelectableInt(out < 0, 1)
         SO = self.spr['XER'][XER_bits['SO']]
+        print ("handle_comparison SO", SO)
         cr_field = selectconcat(negative, positive, zero, SO)
         self.crl[0].eq(cr_field)
 
