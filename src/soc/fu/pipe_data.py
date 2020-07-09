@@ -26,8 +26,13 @@ class IntegerData:
 
     def eq(self, i):
         eqs = [self.ctx.eq(i.ctx)]
+        assert len(self.data) == len(i.data), \
+               "length of %s mismatch against %s: %s %s" % \
+                   (repr(self), repr(i), repr(self.data), repr(i.data))
         for j in range(len(self.data)):
-            assert type(self.data[j]) == type(i.data[j])
+            assert type(self.data[j]) == type(i.data[j]), \
+                   "type mismatch in IntegerData %s %s" % \
+                   (repr(self.data[j]), repr(i.data[j]))
             eqs.append(self.data[j].eq(i.data[j]))
         return eqs
 

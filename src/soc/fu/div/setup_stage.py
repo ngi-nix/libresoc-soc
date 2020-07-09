@@ -4,7 +4,6 @@
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.div.pipe_data import DIVInputData
-from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 

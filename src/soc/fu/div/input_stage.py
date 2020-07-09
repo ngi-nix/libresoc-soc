@@ -7,6 +7,9 @@ from soc.fu.div.pipe_data import DIVInputData
 
 # simply over-ride ALUInputStage ispec / ospec
 class DivMulInputStage(ALUInputStage):
+    def __init__(self, pspec):
+        super().__init__(pspec)
+
     def ispec(self): return DIVInputData(self.pspec)
     def ospec(self): return DIVInputData(self.pspec)
 

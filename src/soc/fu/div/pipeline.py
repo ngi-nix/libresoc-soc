@@ -1,16 +1,16 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.fu.alu.input_stage import ALUInputStage
-from soc.fu.alu.output_stage import ALUOutputStage
+from soc.fu.mul.output_stage import DivMulOutputStage
+from soc.fu.div.input_stage import DivMulInputStage
+from soc.fu.div.output_stage import DivOutputStage
 from soc.fu.div.setup_stage import DivSetupStage
 from soc.fu.div.core_stages import (DivCoreSetupStage, DivCoreCalculateStage,
                                     DivCoreFinalStage)
-from soc.fu.div.output_stage import DivOutputStage
 
 
 class DivStagesStart(PipeModBaseChain):
     def get_chain(self):
-        alu_input = ALUInputStage(self.pspec)
+        alu_input = DivMulInputStage(self.pspec)
         div_setup = DivSetupStage(self.pspec)
         core_setup = DivCoreSetupStage(self.pspec)
         return [alu_input, div_setup, core_setup]
@@ -33,7 +33,7 @@ class DivStagesEnd(PipeModBaseChain):
     def get_chain(self):
         core_final = DivCoreFinalStage(self.pspec)
         div_out = DivOutputStage(self.pspec)
-        alu_out = ALUOutputStage(self.pspec)
+        alu_out = DivMulOutputStage(self.pspec)
         return [core_final, div_out, alu_out]
 
 

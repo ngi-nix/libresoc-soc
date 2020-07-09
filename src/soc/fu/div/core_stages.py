@@ -3,14 +3,14 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.logical.pipe_data import LogicalInputData
-from soc.fu.alu.pipe_data import ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
-from soc.fu.div.pipe_data import CoreInputData, CoreInterstageData, CoreOutputData
+from soc.fu.div.pipe_data import (CoreInputData,
+                                  CoreInterstageData,
+                                  CoreOutputData)
 from ieee754.div_rem_sqrt_rsqrt.core import (DivPipeCoreSetupStage,
                                              DivPipeCoreCalculateStage,
                                              DivPipeCoreFinalStage)
