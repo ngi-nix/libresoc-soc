@@ -32,6 +32,8 @@ class DivOutputStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+
+        # convenience variables
         op = self.i.ctx.op
         abs_quotient = self.i.core.quotient_root
         fract_width = self.pspec.core_config.fract_width
@@ -46,7 +48,9 @@ class DivOutputStage(PipeModBase):
         quotient_64 = self.quotient_64
         remainder_64 = self.remainder_64
 
+        # work out if sign of result is to be negative
         comb += self.quotient_neg.eq(dividend_neg ^ divisor_neg)
+
         # follows rules for truncating division
         comb += self.remainder_neg.eq(dividend_neg)
 
@@ -60,6 +64,8 @@ class DivOutputStage(PipeModBase):
                                 -abs_remainder, abs_remainder))
         ]
 
+        # calculate overflow
+        self.o.xer_ov.ok.eq(1)
         xer_ov = self.o.xer_ov.data
 
         def calc_overflow(dive_abs_overflow, sign_bit_mask):
