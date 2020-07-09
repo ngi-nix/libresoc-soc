@@ -215,10 +215,14 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_xer_so(res, alu, dec2)
 
+        print ("res output", res)
+
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        print ("sim output", sim_o)
 
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
