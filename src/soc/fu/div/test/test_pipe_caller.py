@@ -111,6 +111,16 @@ class DIVTestCase(FHDLTestCase):
         initial_regs[2] = 0xe730c2eed6cc8dd7
         self.run_tst_program(Program(lst), initial_regs)
 
+    def test_5_regression(self):
+        lst = ["divw 3, 1, 2",
+               "divwo. 6, 4, 5"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1c4e6c2f3aa4a05c
+        initial_regs[2] = 0xe730c2eed6cc8dd7
+        initial_regs[4] = 0x1b8e32f2458746af
+        initial_regs[5] = 0x6b8aee2ccf7d62e9
+        self.run_tst_program(Program(lst), initial_regs)
+
     def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
@@ -125,7 +135,7 @@ class DIVTestCase(FHDLTestCase):
         pspec = DIVPipeSpec(id_wid=2)
         alu = DIVBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("alu_pipeline.il", "w") as f:
+        with open("div_pipeline.il", "w") as f:
             f.write(vl)
 
 
@@ -147,7 +157,6 @@ class TestRunner(FHDLTestCase):
         m.submodules.alu = alu = DIVBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -162,6 +171,7 @@ class TestRunner(FHDLTestCase):
                                 test.mem, test.msr)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
+                yield Settle()
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
@@ -182,7 +192,12 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.DIV.value)
                     yield from set_alu_inputs(alu, pdecode2, sim)
+
+                    # set valid for one cycle, propagate through pipeline...
+                    yield alu.p.valid_i.eq(1)
                     yield
+                    yield alu.p.valid_i.eq(0)
+
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
@@ -194,6 +209,7 @@ class TestRunner(FHDLTestCase):
                     yield
 
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                    yield Settle()
 
         sim.add_sync_process(process)
         with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
@@ -209,15 +225,6 @@ class TestRunner(FHDLTestCase):
         print ("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
-
-        oe = yield dec2.e.do.oe.oe
-        oe_ok = yield dec2.e.do.oe.ok
-        if not oe or not oe_ok:
-            # if OE not enabled, XER SO and OV must correspondingly be false
-            so_ok = yield alu.n.data_o.xer_so.ok
-            ov_ok = yield alu.n.data_o.xer_ov.ok
-            self.assertEqual(so_ok, False, code)
-            self.assertEqual(ov_ok, False, code)
 
         sim_o = {}
         res = {}
@@ -240,6 +247,17 @@ class TestRunner(FHDLTestCase):
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_xer_so(self, res, sim_o, code)
+
+        oe = yield dec2.e.do.oe.oe
+        oe_ok = yield dec2.e.do.oe.ok
+        print ("oe, oe_ok", oe, oe_ok)
+        if not oe or not oe_ok:
+            # if OE not enabled, XER SO and OV must not be activated
+            so_ok = yield alu.n.data_o.xer_so.ok
+            ov_ok = yield alu.n.data_o.xer_ov.ok
+            print ("so, ov", so_ok, ov_ok)
+            self.assertEqual(ov_ok, False, code)
+            self.assertEqual(so_ok, False, code)
 
 
 if __name__ == "__main__":
