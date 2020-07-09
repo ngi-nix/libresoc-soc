@@ -16,8 +16,7 @@ class MulIntermediateData(DIVInputData):
 
 class MulOutputData(IntegerData):
     regspec = [('INT', 'o', '0:128'),
-               ('XER', 'xer_so', '32'), # XER bit 32: SO
-               ('XER', 'xer_ca', '34,45')] # XER bit 34/45: CA/CA32
+               ('XER', 'xer_so', '32')] # XER bit 32: SO
     def __init__(self, pspec):
         super().__init__(pspec, False) # still input style
 
