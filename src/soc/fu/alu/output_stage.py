@@ -28,9 +28,10 @@ class ALUOutputStage(CommonOutputStage):
         # copy overflow and sticky-overflow.  indicate to CompALU if they
         # are actually required (oe enabled/set) otherwise the CompALU
         # can (will) ignore them.
-        comb += self.o.xer_so.data.eq(self.so)
-        comb += self.o.xer_so.ok.eq(op.oe.oe & op.oe.oe_ok)
-        comb += self.o.xer_ov.data.eq(xer_ov_i)
-        comb += self.o.xer_ov.ok.eq(op.oe.oe & op.oe.oe_ok) # OV/32 is to be set
+        with m.If(op.oe.oe & op.oe.oe_ok):
+            comb += self.o.xer_so.data.eq(self.so)
+            comb += self.o.xer_so.ok.eq(1)
+            comb += self.o.xer_ov.data.eq(xer_ov_i)
+            comb += self.o.xer_ov.ok.eq(1) # OV/32 is to be set
 
         return m
