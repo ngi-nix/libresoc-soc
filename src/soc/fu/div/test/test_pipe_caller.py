@@ -121,6 +121,14 @@ class DIVTestCase(FHDLTestCase):
         initial_regs[5] = 0x6b8aee2ccf7d62e9
         self.run_tst_program(Program(lst), initial_regs)
 
+    def test_6_regression(self):
+        # CR0 not getting set properly for this one
+        lst = ["divw. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x61c1cc3b80f2a6af
+        initial_regs[2] = 0x9dc66a7622c32bc0
+        self.run_tst_program(Program(lst), initial_regs)
+
     def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):

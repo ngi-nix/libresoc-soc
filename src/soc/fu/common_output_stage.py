@@ -55,7 +55,10 @@ class CommonOutputStage(PipeModBase):
 
         comb += is_cmp.eq(op.insn_type == InternalOp.OP_CMP)
         comb += is_cmpeqb.eq(op.insn_type == InternalOp.OP_CMPEQB)
-        comb += msb_test.eq(target[-1] ^ is_cmp)
+        with m.If(op.is_32bit):
+            comb += msb_test.eq(target[-1] ^ is_cmp) # 64-bit MSB
+        with m.Else():
+            comb += msb_test.eq(target[31] ^ is_cmp) # 32-bit MSB
         comb += is_nzero.eq(target.bool())
         comb += is_positive.eq(is_nzero & ~msb_test)
         comb += is_negative.eq(is_nzero & msb_test)
