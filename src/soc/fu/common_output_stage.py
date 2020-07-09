@@ -32,9 +32,12 @@ class CommonOutputStage(PipeModBase):
         with m.Else():
             comb += target.eq(o)
 
-        # Handle carry_out
-        comb += self.o.xer_ca.data.eq(self.i.xer_ca.data)
-        comb += self.o.xer_ca.ok.eq(op.output_carry)
+        # carry-out only if actually present in this input spec
+        # (note: MUL and DIV do not have it, but ALU and Logical do)
+        if hasattr(self.i.xer_ca):
+            # Handle carry_out
+            comb += self.o.xer_ca.data.eq(self.i.xer_ca.data)
+            comb += self.o.xer_ca.ok.eq(op.output_carry)
 
         # create condition register cr0 and sticky-overflow
         is_nzero = Signal(reset_less=True)
