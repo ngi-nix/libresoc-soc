@@ -2,7 +2,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, signed)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.alu.pipe_data import ALUOutputData
+from soc.fu.div.pipe_data import DivMulOutputData
 from soc.fu.mul.pipe_data import MulOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import InternalOp
@@ -16,16 +16,15 @@ class MulMainStage3(PipeModBase):
         return MulOutputData(self.pspec) # pipeline stage output format
 
     def ospec(self):
-        return ALUOutputData(self.pspec) # defines pipeline stage output format
+        return DivMulOutputData(self.pspec) # defines stage output format
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
         # convenience variables
-        cry_o, o, cr0 = self.o.xer_ca, self.o.o, self.o.cr0
-        ov_o = self.o.xer_ov
-        o_i, cry_i, op = self.i.o, self.i.xer_ca, self.i.ctx.op
+        o, cr0 = self.o.o, self.o.cr0
+        ov_o, o_i, op = self.o.xer_ov, self.i.o, self.i.ctx.op
 
         # check if op is 32-bit, and get sign bit from operand a
         is_32bit = Signal(reset_less=True)
@@ -63,13 +62,6 @@ class MulMainStage3(PipeModBase):
                 comb += ov[1].eq(mul_ov)
                 comb += ov_o.data.eq(ov)
                 comb += ov_o.ok.eq(1)
-
-        # https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-        ca = Signal(2, reset_less=True)
-        comb += ca[0].eq(mul_o[-1])                      # XER.CA - XXX more?
-        comb += ca[1].eq(mul_o[32] ^ (self.i.neg_res32)) # XER.CA32
-        comb += cry_o.data.eq(ca)
-        comb += cry_o.ok.eq(1)
 
         ###### sticky overflow and context, both pass-through #####
 

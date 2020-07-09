@@ -25,7 +25,6 @@ def get_cu_inputs(dec2, sim):
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
     yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
 
     print ("alu get_cu_inputs", res)
@@ -44,7 +43,6 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
-    yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
@@ -245,19 +243,16 @@ class TestRunner(FHDLTestCase):
 
         yield from ALUHelpers.get_cr_a(res, alu, dec2)
         yield from ALUHelpers.get_xer_ov(res, alu, dec2)
-        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_xer_so(res, alu, dec2)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
 
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_xer_ca(self, res, sim_o, code)
         ALUHelpers.check_xer_so(self, res, sim_o, code)
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
 

@@ -1,7 +1,7 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
-from soc.fu.alu.input_stage import ALUInputStage
-from soc.fu.alu.output_stage import ALUOutputStage
+from soc.fu.div.input_stage import DivMulInputStage
+from soc.fu.div.output_stage import DivMulOutputStage
 from soc.fu.mul.pre_stage import MulMainStage1
 from soc.fu.mul.main_stage import MulMainStage2
 from soc.fu.mul.post_stage import MulMainStage3
@@ -9,7 +9,7 @@ from soc.fu.mul.post_stage import MulMainStage3
 
 class MulStages1(PipeModBaseChain):
     def get_chain(self):
-        inp = ALUInputStage(self.pspec)   # a-invert, carry etc
+        inp = DivMulInputStage(self.pspec)   # a-invert (no carry)
         main = MulMainStage1(self.pspec)  # detect signed/32-bit
         return [inp, main]
 
@@ -23,7 +23,7 @@ class MulStages2(PipeModBaseChain):
 class MulStages3(PipeModBaseChain):
     def get_chain(self):
         main3 = MulMainStage3(self.pspec) # select output bits, invert, set ov
-        out = ALUOutputStage(self.pspec)  # do CR, XER and out-invert etc.
+        out = DivMulOutputStage(self.pspec)  # do CR, XER and out-invert etc.
         return [main3, out]
 
 

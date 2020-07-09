@@ -20,8 +20,6 @@ class CompMULOpSubset(Record):
                   ('zero_a', 1),
                   ('invert_out', 1),
                   ('write_cr0', 1),
-                  ('input_carry', CryIn),
-                  ('output_carry', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
                   ('insn', 32),
@@ -35,8 +33,6 @@ class CompMULOpSubset(Record):
         self.zero_a.reset_less = True
         self.invert_a.reset_less = True
         self.invert_out.reset_less = True
-        self.input_carry.reset_less = True
-        self.output_carry.reset_less = True
         self.is_32bit.reset_less = True
         self.is_signed.reset_less = True
 
@@ -53,8 +49,6 @@ class CompMULOpSubset(Record):
         return [self.insn_type,
                 self.invert_a,
                 self.invert_out,
-                self.input_carry,
-                self.output_carry,
                 self.is_32bit,
                 self.is_signed,
         ]
