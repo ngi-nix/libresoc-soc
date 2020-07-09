@@ -24,6 +24,7 @@ class MulMainStage2(PipeModBase):
         a, b, o = self.i.a, self.i.b, self.o.o
 
         # actual multiply (TODO: split into stages)
+        # it's ironic that one line of code can create 15,000 gates...
         comb += o.eq(a * b)
 
         ###### xer and context, all pass-through #####
