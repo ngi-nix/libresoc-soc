@@ -25,7 +25,9 @@ class ALUOutputStage(CommonOutputStage):
         # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
         comb += self.so.eq(xer_so_i[0] | xer_ov_i[0]) # SO
 
-        # copy overflow and sticky-overflow
+        # copy overflow and sticky-overflow.  indicate to CompALU if they
+        # are actually required (oe enabled/set) otherwise the CompALU
+        # can (will) ignore them.
         comb += self.o.xer_so.data.eq(self.so)
         comb += self.o.xer_so.ok.eq(op.oe.oe & op.oe.oe_ok)
         comb += self.o.xer_ov.data.eq(xer_ov_i)
