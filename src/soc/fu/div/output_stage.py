@@ -71,7 +71,7 @@ class DivOutputStage(PipeModBase):
                                   | ((abs_quotient == sign_bit_mask)
                                      & ~self.quotient_neg))
             with m.Else():
-                comb += xer_ov.eq(overflow)
+                comb += xer_ov.eq(Repl(overflow, 2)) # set OV _and_ OV32
 
         with m.If(op.is_32bit):
             calc_overflow(self.i.dive_abs_ov32, 0x80000000)
