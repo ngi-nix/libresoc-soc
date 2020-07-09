@@ -45,6 +45,7 @@ class MulMainStage3(PipeModBase):
                 comb += o.data.eq(mul_o[64:128])
             # lo-64 - overflow
             with m.Default():
+                # take the low 64 bits of the mul
                 comb += o.data.eq(mul_o[0:64])
 
                 # compute overflow
@@ -56,11 +57,8 @@ class MulMainStage3(PipeModBase):
                     m64 = mul_o[64:128]
                     comb += mul_ov.eq(m64.bool() & ~m64.all())
 
-                # 32-bit (ov[1]) and 64-bit (ov[0]) overflow
-                ov = Signal(2, reset_less=True)
-                comb += ov[0].eq(mul_ov)
-                comb += ov[1].eq(mul_ov)
-                comb += ov_o.data.eq(ov)
+                # 32-bit (ov[1]) and 64-bit (ov[0]) overflow - both same
+                comb += ov_o.data.eq(Repl(mul_ov, 2)) # sets OV _and_ OV32
                 comb += ov_o.ok.eq(1)
 
         ###### sticky overflow and context, both pass-through #####
