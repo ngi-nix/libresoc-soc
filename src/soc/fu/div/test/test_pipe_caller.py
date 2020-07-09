@@ -220,9 +220,9 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
 
+        ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_xer_so(self, res, sim_o, code)
 
 
