@@ -83,21 +83,33 @@ class DIVTestCase(FHDLTestCase):
             initial_regs[2] = 0xcdf69a7f7042db66
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_0_regression(self):
-        for i in range(40):
-            lst = ["divwo 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = 0x10000000000000000-4
-            initial_regs[2] = 0x10000000000000000-2
-            self.run_tst_program(Program(lst), initial_regs)
+    def test_1_regression(self):
+        lst = ["divwo 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x10000000000000000-4
+        initial_regs[2] = 0x10000000000000000-2
+        self.run_tst_program(Program(lst), initial_regs)
 
-    def test_0_regression(self):
-        for i in range(40):
-            lst = ["divwo 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = 0xffffffffffff9321
-            initial_regs[2] = 0xffffffffffff7012
-            self.run_tst_program(Program(lst), initial_regs)
+    def test_2_regression(self):
+        lst = ["divwo 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffff9321
+        initial_regs[2] = 0xffffffffffff7012
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_3_regression(self):
+        lst = ["divwo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1b8e32f2458746af
+        initial_regs[2] = 0x6b8aee2ccf7d62e9
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_4_regression(self):
+        lst = ["divw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1c4e6c2f3aa4a05c
+        initial_regs[2] = 0xe730c2eed6cc8dd7
+        self.run_tst_program(Program(lst), initial_regs)
 
     def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
