@@ -140,6 +140,27 @@ class DIVTestCase(FHDLTestCase):
         initial_regs[2] = 0xffc868bf4573da0b
         self.run_tst_program(Program(lst), initial_regs)
 
+    def test_divw_by_zero_1(self):
+        lst = ["divw. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1
+        initial_regs[2] = 0x0
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_divw_overflow2(self):
+        lst = ["divw. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x80000000
+        initial_regs[2] = 0xffffffffffffffff # top bits don't seem to matter
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_divw_overflow3(self):
+        lst = ["divw. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x80000000
+        initial_regs[2] = 0xffffffff
+        self.run_tst_program(Program(lst), initial_regs)
+
     def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
