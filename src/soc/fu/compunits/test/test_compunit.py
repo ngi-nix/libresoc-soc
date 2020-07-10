@@ -286,12 +286,17 @@ class TestRunner(FHDLTestCase):
                     if self.funit == Function.LDST:
                         yield from dump_sim_memory(self, l0, sim, code)
 
-                    yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                            sim, cu.alu, code)
 
                     # sigh.  hard-coded.  test memory
                     if self.funit == Function.LDST:
                         yield from check_sim_memory(self, l0, sim, code)
+                        yield from self.iodef.check_cu_outputs(res, pdecode2,
+                                                                sim, cu,
+                                                                code)
+                    else:
+                        yield from self.iodef.check_cu_outputs(res, pdecode2,
+                                                                sim, cu.alu,
+                                                                code)
 
 
         sim.add_sync_process(process)

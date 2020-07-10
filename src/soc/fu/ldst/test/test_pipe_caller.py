@@ -41,7 +41,7 @@ def get_cu_inputs(dec2, sim):
         res['rc'] = sim.gpr(data3).value
 
     # XER.so
-    oe = yield dec2.e.oe.data[0] & dec2.e.oe.ok
+    oe = yield dec2.e.do.oe.data[0] & dec2.e.do.oe.ok
     if oe:
         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
         res['xer_so'] = so
