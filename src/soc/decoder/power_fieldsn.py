@@ -10,7 +10,7 @@ class SignalBitRange(BitRange):
         self.signal = signal
 
     def _rev(self, k):
-        width = self.signal.shape()[0]
+        width = self.signal.width
         return width-1-k
 
     def __getitem__(self, subs):
