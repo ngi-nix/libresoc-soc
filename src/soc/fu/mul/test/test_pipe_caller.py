@@ -215,7 +215,7 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
 
         sim.add_sync_process(process)
-        with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
+        with sim.write_vcd("mul_simulator.vcd", "mul_simulator.gtkw",
                             traces=[]):
             sim.run()
 
