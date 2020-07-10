@@ -217,6 +217,7 @@ class TestRunner(FHDLTestCase):
                     while not vld:
                         yield
                         vld = yield alu.n.valid_o
+                        print ("bug track", alu.pipe_end.div_out)
                     yield
 
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
