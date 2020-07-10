@@ -29,17 +29,16 @@ class SignalBitRange(BitRange):
             if stop < 0:
                 stop = len(self) + stop + 1
             for t in range(start, stop, step):
-                t = len(self) - 1 - t # invert field back
+                t = len(self) - 1 - t  # invert field back
                 k = OrderedDict.__getitem__(self, t)
-                res.append(self.signal[self._rev(k)]) # reverse-order here
+                res.append(self.signal[self._rev(k)])  # reverse-order here
             return Cat(*res)
         else:
             if subs < 0:
                 subs = len(self) + subs
-            subs = len(self) - 1 - subs # invert field back
+            subs = len(self) - 1 - subs  # invert field back
             k = OrderedDict.__getitem__(self, subs)
-            return self.signal[self._rev(k)] # reverse-order here
-
+            return self.signal[self._rev(k)]  # reverse-order here
 
 
 class SigDecode(Elaboratable):
@@ -57,13 +56,14 @@ class SigDecode(Elaboratable):
     def ports(self):
         return [self.opcode_in]
 
+
 def create_sigdecode():
     s = SigDecode(32)
     return s
+
 
 if __name__ == '__main__':
     sigdecode = create_sigdecode()
     vl = rtlil.convert(sigdecode, ports=sigdecode.ports())
     with open("decoder.il", "w") as f:
         f.write(vl)
-
