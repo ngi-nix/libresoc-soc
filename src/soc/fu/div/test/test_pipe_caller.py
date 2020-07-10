@@ -217,7 +217,22 @@ class TestRunner(FHDLTestCase):
                     while not vld:
                         yield
                         vld = yield alu.n.valid_o
-                        print ("bug track", alu.pipe_end.div_out)
+                        # bug #425 investigation
+                        do = alu.pipe_end.div_out
+                        ctx_op = do.i.ctx.op
+                        is_32bit = yield ctx_op.is_32bit
+                        is_signed = yield ctx_op.is_signed
+                        quotient_root = yield do.i.core.quotient_root
+                        dive_abs_ov32 = yield do.i.dive_abs_ov32
+                        div_by_zero = yield do.i.div_by_zero
+                        quotient_neg = yield do.quotient_neg
+                        print ("32bit", hex(is_32bit))
+                        print ("signed", hex(is_signed))
+                        print ("quotient_root", hex(quotient_root))
+                        print ("div_by_zero", hex(div_by_zero))
+                        print ("dive_abs_ov32", hex(dive_abs_ov32))
+                        print ("quotient_neg", hex(quotient_neg))
+                        print ("")
                     yield
 
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
