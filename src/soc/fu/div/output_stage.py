@@ -23,7 +23,7 @@ class DivOutputStage(PipeModBase):
         self.fields.create_specs()
         self.quotient_neg = Signal()
         self.remainder_neg = Signal()
-        self.quotient_64 = Signal(64)
+        self.quotient_65 = Signal(65) # one extra spare bit for overflow
         self.remainder_64 = Signal(64)
 
     def ispec(self):
@@ -48,7 +48,7 @@ class DivOutputStage(PipeModBase):
         abs_remainder = self.i.core.remainder[rem_start:rem_start+64]
         dividend_neg = self.i.dividend_neg
         divisor_neg = self.i.divisor_neg
-        quotient_64 = self.quotient_64
+        quotient_65 = self.quotient_65
         remainder_64 = self.remainder_64
 
         # work out if sign of result is to be negative
@@ -61,7 +61,7 @@ class DivOutputStage(PipeModBase):
         # result as negation of just the lower 32-bits, so we don't
         # need to do anything special before negating
         comb += [
-            quotient_64.eq(Mux(self.quotient_neg,
+            quotient_65.eq(Mux(self.quotient_neg,
                                -abs_quotient, abs_quotient)),
             remainder_64.eq(Mux(self.remainder_neg,
                                 -abs_remainder, abs_remainder))
@@ -92,6 +92,22 @@ class DivOutputStage(PipeModBase):
         with m.Else():
             calc_overflow(self.i.dive_abs_ov64, 0x8000000000000000)
 
+        # microwatt overflow detection
+        ov = Signal(reset_less=True)
+        with m.If(self.i.div_by_zero):
+            comb += ov.eq(1)
+        with m.Elif(~op.is_32bit):
+            comb += ov.eq(self.i.dive_abs_ov64)
+            with m.If(op.is_signed & (quotient_65[64] ^ quotient_65[63])):
+                comb += ov.eq(1)
+        with m.Elif(op.is_signed):
+            comb += ov.eq(self.i.dive_abs_ov32)
+            with m.If(quotient_65[32] != quotient_65[31]):
+                comb += ov.eq(1)
+        with m.Else():
+            comb += ov.eq(self.i.dive_abs_ov32)
+        comb += xer_ov.eq(Repl(ov, 2)) # set OV _and_ OV32
+
         ##########################
         # main switch for DIV
 
@@ -102,20 +118,20 @@ class DivOutputStage(PipeModBase):
                 with m.If(op.is_32bit):
                     with m.If(op.is_signed):
                         # matches POWER9's divweo behavior
-                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                        comb += o.eq(quotient_65[0:32].as_unsigned())
                     with m.Else():
-                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                        comb += o.eq(quotient_65[0:32].as_unsigned())
                 with m.Else():
-                    comb += o.eq(quotient_64)
+                    comb += o.eq(quotient_65)
             with m.Case(InternalOp.OP_DIV):
                 with m.If(op.is_32bit):
                     with m.If(op.is_signed):
                         # matches POWER9's divwo behavior
-                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                        comb += o.eq(quotient_65[0:32].as_unsigned())
                     with m.Else():
-                        comb += o.eq(quotient_64[0:32].as_unsigned())
+                        comb += o.eq(quotient_65[0:32].as_unsigned())
                 with m.Else():
-                    comb += o.eq(quotient_64)
+                    comb += o.eq(quotient_65)
             with m.Case(InternalOp.OP_MOD):
                 with m.If(op.is_32bit):
                     with m.If(op.is_signed):

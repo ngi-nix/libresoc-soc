@@ -132,6 +132,14 @@ class DIVTestCase(FHDLTestCase):
         initial_regs[2] = 0x9dc66a7622c32bc0
         self.run_tst_program(Program(lst), initial_regs)
 
+    def test_7_regression(self):
+        # https://bugs.libre-soc.org/show_bug.cgi?id=425
+        lst = ["divw. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xf1791627e05e8096
+        initial_regs[2] = 0xffc868bf4573da0b
+        self.run_tst_program(Program(lst), initial_regs)
+
     def tst_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
@@ -223,12 +231,14 @@ class TestRunner(FHDLTestCase):
                         is_32bit = yield ctx_op.is_32bit
                         is_signed = yield ctx_op.is_signed
                         quotient_root = yield do.i.core.quotient_root
+                        quotient_65 = yield do.quotient_65
                         dive_abs_ov32 = yield do.i.dive_abs_ov32
                         div_by_zero = yield do.i.div_by_zero
                         quotient_neg = yield do.quotient_neg
                         print ("32bit", hex(is_32bit))
                         print ("signed", hex(is_signed))
                         print ("quotient_root", hex(quotient_root))
+                        print ("quotient_65", hex(quotient_65))
                         print ("div_by_zero", hex(div_by_zero))
                         print ("dive_abs_ov32", hex(dive_abs_ov32))
                         print ("quotient_neg", hex(quotient_neg))
