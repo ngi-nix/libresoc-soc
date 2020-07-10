@@ -17,6 +17,9 @@ from soc.fu.div.pipeline import DIVBasePipe
 from soc.fu.div.pipe_data import DIVPipeSpec
 import random
 
+def log_rand(n, min_val=1):
+    logrange = random.randint(1, n)
+    return random.randint(min_val, (1<<logrange)-1)
 
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to DIVFunctionUnit input regspec
@@ -167,9 +170,23 @@ class DIVTestCase(FHDLTestCase):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = log_rand(32)
+            initial_regs[2] = log_rand(32)
             self.run_tst_program(Program(lst), initial_regs)
+
+    def test_divwuo_regression_1(self):
+        lst = ["divwuo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x7591a398c4e32b68
+        initial_regs[2] = 0x48674ab432867d69
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def test_divwuo_1(self):
+        lst = ["divwuo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x50
+        initial_regs[2] = 0x2
+        self.run_tst_program(Program(lst), initial_regs)
 
     def test_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
@@ -177,8 +194,8 @@ class DIVTestCase(FHDLTestCase):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = log_rand(32)
+            initial_regs[2] = log_rand(32)
             self.run_tst_program(Program(lst), initial_regs)
 
     def test_ilang(self):

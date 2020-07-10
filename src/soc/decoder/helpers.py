@@ -1,8 +1,14 @@
 import unittest
 from soc.decoder.selectable_int import SelectableInt, onebit
-from nmutil.divmod import trunc_div, trunc_rem
+from nmutil.divmod import trunc_divs, trunc_rems
+from operator import floordiv, mod
 from soc.decoder.selectable_int import selectltu as ltu
 from soc.decoder.selectable_int import selectgtu as gtu
+
+trunc_div = floordiv
+trunc_rem = mod
+DIVS = trunc_divs
+MODS = trunc_rems
 
 """
 Links:

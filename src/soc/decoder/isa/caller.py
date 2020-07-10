@@ -15,7 +15,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, InternalOp)
-from soc.decoder.helpers import exts, trunc_div, trunc_rem
+from soc.decoder.helpers import exts
 from soc.consts import PI, MSR
 
 from collections import namedtuple
