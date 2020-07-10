@@ -27,10 +27,12 @@ class DivCoreBaseStage(PipeModBase):
     def elaborate(self, platform):
         m = Module()
 
+        # pass-through on non-core parameters
         m.d.comb += self.o.eq_without_core(self.i)
 
         m.submodules.core = self.core
 
+        # copy parameters to/from divremsqrt core into the Base, here.
         m.d.comb += self.core.i.eq(self.i.core)
         m.d.comb += self.o.core.eq(self.core.o)
 
