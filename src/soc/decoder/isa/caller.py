@@ -419,13 +419,13 @@ class ISACaller:
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
         print ("handle_overflow", inputs, outputs, div_overflow)
-        if len(inputs) < 2 and div_overflow != 1:
+        if len(inputs) < 2 and div_overflow is None:
             return
 
         # div overflow is different: it's returned by the pseudo-code
         # because it's more complex than can be done by analysing the output
-        if div_overflow == 1:
-            ov, ov32 = 1, 1
+        if div_overflow is not None:
+            ov, ov32 = div_overflow, div_overflow
         # arithmetic overflow can be done by analysing the input and output
         elif len(inputs) >= 2:
             output = outputs[0]
