@@ -67,7 +67,10 @@ class CoreBaseData(DIVInputData):
     def eq_without_core(self, rhs):
         return super().eq(rhs) + \
             [self.divisor_neg.eq(rhs.divisor_neg),
-             self.dividend_neg.eq(rhs.dividend_neg)]
+             self.dividend_neg.eq(rhs.dividend_neg),
+             self.dive_abs_ov32.eq(rhs.dive_abs_ov32),
+             self.dive_abs_ov64.eq(rhs.dive_abs_ov64),
+             self.div_by_zero.eq(rhs.div_by_zero)]
 
 
 class CoreInputData(CoreBaseData):
