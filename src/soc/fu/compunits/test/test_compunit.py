@@ -201,7 +201,8 @@ class TestRunner(FHDLTestCase):
                 sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr,
                           initial_insns=gen, respect_pc=False,
-                          disassembly=insncode)
+                          disassembly=insncode,
+                          bigendian=False)
 
                 # initialise memory
                 if self.funit == Function.LDST:
