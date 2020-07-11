@@ -72,7 +72,7 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
     def test_2_load_store(self):
@@ -88,7 +88,7 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
     def test_3_load_store(self):
@@ -102,7 +102,7 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
     def test_4_load_store_rev_ext(self):
@@ -116,7 +116,7 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
     def test_5_load_store_rev_ext(self):
@@ -130,7 +130,7 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
     def test_6_load_store_rev_ext(self):
@@ -144,6 +144,6 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(list, bigendian), initial_regs,
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
