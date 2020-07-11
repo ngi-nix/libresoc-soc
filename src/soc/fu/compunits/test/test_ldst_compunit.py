@@ -6,12 +6,13 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase, get_cu_inputs
 from soc.fu.compunits.compunits import LDSTFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.fu.test.common import ALUHelpers
+from soc.config.endian import bigendian
 
 
 class LDSTTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, LDSTFunctionUnit, self,
-                         Function.LDST)
+                         Function.LDST, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to LDSTFunctionUnit input regspec
