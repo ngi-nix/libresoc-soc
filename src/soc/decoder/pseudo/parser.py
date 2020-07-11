@@ -611,15 +611,15 @@ class PowerParser:
             elif p[2] in ['/', '%']:
                 # bad hack: if % or / used anywhere other than div/mod ops,
                 # do % or /.  however if the argument names are "dividend"
-                # we must call the special trunc_div and trunc_rem functions
+                # we must call the special trunc_divs and trunc_rems functions
                 l, r = p[1], p[3]
                 # actual call will be "dividend / divisor" - just check
                 # LHS name
                 if isinstance(l, ast.Name) and l.id == 'dividend':
                     if p[2] == '/':
-                        fn = 'trunc_div'
+                        fn = 'trunc_divs'
                     else:
-                        fn = 'trunc_rem'
+                        fn = 'trunc_rems'
                     # return "function trunc_xxx(l, r)"
                     p[0] =  ast.Call(ast.Name(fn, ast.Load()), (l, r), [])
                 else:
