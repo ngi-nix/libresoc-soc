@@ -115,7 +115,7 @@ def run_program(program, initial_mem=None, extra_break_addr=None,
                          bigendian=False):
     q = QemuController(program.binfile.name, bigendian)
     q.connect()
-    q.set_endian(True) # how qemu gets/sets data, NOT sets arch
+    q.set_endian(True) # easier to set variables this way
 
     # Run to the start of the program
     if initial_mem:
@@ -131,6 +131,7 @@ def run_program(program, initial_mem=None, extra_break_addr=None,
     print ("msr", bigendian, hex(msr))
     if bigendian:
         msr &= ~(1<<0)
+        msr = msr & ((1<<64)-1)
     else:
         msr |= (1<<0)
     q.gdb_eval('$msr=%d' % msr)
@@ -147,7 +148,7 @@ def run_program(program, initial_mem=None, extra_break_addr=None,
     if extra_break_addr:
         q.break_address(extra_break_addr)
     q.gdb_continue()
-    q.set_endian(False) # how qemu gets/sets data, NOT sets arch
+    q.set_endian(bigendian)
 
     return q
 
