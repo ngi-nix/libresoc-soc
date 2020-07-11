@@ -76,7 +76,7 @@ class MulTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def tst_0_mullw(self):
+    def test_0_mullw(self):
         lst = [f"mullw 3, 1, 2"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0xffffffffffffffff
@@ -85,21 +85,21 @@ class MulTestCase(FHDLTestCase):
         initial_regs[2] = 0x2
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_1_mullwo_(self):
+    def test_1_mullwo_(self):
         lst = [f"mullwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3b34b06f
         initial_regs[2] = 0xfdeba998
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_2_mullwo(self):
+    def test_2_mullwo(self):
         lst = [f"mullwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffa988 # -5678
         initial_regs[2] = 0xffffffffffffedcc # -1234
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_3_mullw(self):
+    def test_3_mullw(self):
         lst = ["mullw 3, 1, 2",
                "mullw 3, 1, 2"]
         initial_regs = [0] * 32
@@ -107,7 +107,7 @@ class MulTestCase(FHDLTestCase):
         initial_regs[2] = 0xe
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_4_mullw_rand(self):
+    def test_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
@@ -115,7 +115,7 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_4_mullw_nonrand(self):
+    def test_4_mullw_nonrand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
@@ -131,7 +131,7 @@ class MulTestCase(FHDLTestCase):
         initial_regs[2] = 0x47dfba3a63834ba2
         self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_4_mullw_rand(self):
+    def test_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
@@ -139,7 +139,7 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_rand_mul_lh(self):
+    def test_rand_mul_lh(self):
         insns = ["mulhw", "mulhw.", "mulhwu", "mulhwu."]
         for i in range(40):
             choice = random.choice(insns)
@@ -149,8 +149,8 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_rand_mullwu(self):
-        insns = ["mullwu", "mullwu.", "mullwuo", "mullwuo."]
+    def test_rand_mullw(self):
+        insns = ["mullw", "mullw.", "mullwo", "mullwo."]
         for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
@@ -159,7 +159,7 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_ilang(self):
+    def test_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
         alu = MulBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
