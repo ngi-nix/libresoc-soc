@@ -159,6 +159,26 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
+    def test_rand_mulld(self):
+        insns = ["mulld", "mulld.", "mulldo", "mulldo."]
+        for i in range(40):
+            choice = random.choice(insns)
+            lst = [f"{choice} 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def test_rand_mulhd(self):
+        insns = ["mulhd", "mulhd."]
+        for i in range(40):
+            choice = random.choice(insns)
+            lst = [f"{choice} 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
     def test_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
         alu = MulBasePipe(pspec)
