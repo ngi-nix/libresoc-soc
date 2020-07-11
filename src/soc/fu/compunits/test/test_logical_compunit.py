@@ -1,17 +1,19 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
-from soc.fu.logical.test.test_pipe_caller import LogicalTestCase, get_cu_inputs
+from soc.fu.logical.test.test_pipe_caller import (LogicalTestCase,
+                                                  get_cu_inputs)
 
 from soc.fu.compunits.compunits import LogicalFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.fu.test.common import ALUHelpers
+from soc.config.endian import bigendian
 
 
 class LogicalTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, LogicalFunctionUnit, self,
-                         Function.LOGICAL)
+                         Function.LOGICAL, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to LogicalFunctionUnit input regspec

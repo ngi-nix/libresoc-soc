@@ -10,7 +10,7 @@ from soc.decoder.power_enums import (XER_bits, Function, InternalOp, CryIn)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
-
+from soc.config.endian import bigendian
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.trap.pipeline import TrapBasePipe
@@ -86,7 +86,8 @@ class TrapTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = 1
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
-        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+        self.run_tst_program(Program(lst, bigendian),
+                             initial_regs, initial_sprs)
 
     def test_0_trap_eq_imm(self):
         insns = ["twi", "tdi"]
@@ -95,7 +96,7 @@ class TrapTestCase(FHDLTestCase):
             lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
             initial_regs = [0] * 32
             initial_regs[1] = 1
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_0_trap_eq(self):
         insns = ["tw", "td"]
@@ -105,26 +106,26 @@ class TrapTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = 1
             initial_regs[2] = 1
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_3_mtmsr_0(self):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_3_mtmsr_1(self):
         lst = ["mtmsr 1,1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
         lst = ["tbegin."]
         initial_regs = [0] * 32
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_ilang(self):
         pspec = TrapPipeSpec(id_wid=2)
@@ -164,7 +165,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr)
+                                test.mem, test.msr,
+                                bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -182,7 +184,7 @@ class TestRunner(FHDLTestCase):
                         print ("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit

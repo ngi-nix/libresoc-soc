@@ -10,7 +10,7 @@ from soc.decoder.power_enums import (XER_bits, Function, InternalOp, CryIn)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
-
+from soc.config.endian import bigendian
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.spr.pipeline import SPRBasePipe
@@ -90,7 +90,7 @@ class SPRTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0xe00c0000}
-        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs, initial_sprs)
 
     def test_1_mtspr(self):
         lst = ["mtspr 26, 1", # SRR0
@@ -104,7 +104,8 @@ class SPRTestCase(FHDLTestCase):
         initial_regs[4] = 0x1010101010101010
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
-        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+        self.run_tst_program(Program(lst, bigendian),
+                             initial_regs, initial_sprs)
 
     def test_2_mtspr_mfspr(self):
         lst = ["mtspr 26, 1", # SRR0
@@ -122,7 +123,8 @@ class SPRTestCase(FHDLTestCase):
         initial_regs[4] = 0x1010101010101010
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
-        self.run_tst_program(Program(lst), initial_regs, initial_sprs)
+        self.run_tst_program(Program(lst, bigendian),
+                             initial_regs, initial_sprs)
 
     def test_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)
@@ -163,7 +165,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr)
+                                test.mem, test.msr,
+                                bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -182,7 +185,7 @@ class TestRunner(FHDLTestCase):
                         print ("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
 

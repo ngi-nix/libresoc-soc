@@ -250,7 +250,7 @@ class ISACaller:
                        initial_insns=None, respect_pc=False,
                        disassembly=None,
                        initial_pc=0,
-                       bigendian=True):
+                       bigendian=False):
 
         self.bigendian = bigendian
         self.halted = False

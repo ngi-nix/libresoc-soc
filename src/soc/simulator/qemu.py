@@ -13,7 +13,7 @@ launch_args_le = ['qemu-system-ppc64le',
 
 
 class QemuController:
-    def __init__(self, kernel, bigendian=True):
+    def __init__(self, kernel, bigendian):
         if bigendian:
             args = launch_args_be + ['-kernel', kernel]
         else:
@@ -22,7 +22,6 @@ class QemuController:
                                            stdout=subprocess.PIPE,
                                            stdin=subprocess.PIPE)
         self.gdb = GdbController(gdb_path='powerpc64-linux-gnu-gdb')
-        self.set_endian(bigendian)
 
     def __enter__(self):
         return self
@@ -112,16 +111,30 @@ class QemuController:
         self.qemu_popen.stdin.close()
 
 
-def run_program(program, initial_mem=None, extra_break_addr=None):
-    q = QemuController(program.binfile.name)
+def run_program(program, initial_mem=None, extra_break_addr=None,
+                         bigendian=False):
+    q = QemuController(program.binfile.name, bigendian)
     q.connect()
+    q.set_endian(True) # how qemu gets/sets data, NOT sets arch
+
     # Run to the start of the program
-    q.break_address(0x20000000)
     if initial_mem:
         for addr, (v, wid) in initial_mem.items():
             for i in range(wid):
                 q.set_byte(addr+i, (v>>i*8) & 0xff)
+
+    # set breakpoint at start
+    q.break_address(0x20000000)
     q.gdb_continue()
+    # set the MSR bit 63, to set bigendian/littleendian mode
+    msr = q.get_msr()
+    print ("msr", bigendian, hex(msr))
+    if bigendian:
+        msr &= ~(1<<0)
+    else:
+        msr |= (1<<0)
+    q.gdb_eval('$msr=%d' % msr)
+    print ("msr set to", hex(msr))
     # set the CR to 0, matching the simulator
     q.gdb_eval('$cr=0')
     # delete the previous breakpoint so loops don't screw things up
@@ -134,11 +147,13 @@ def run_program(program, initial_mem=None, extra_break_addr=None):
     if extra_break_addr:
         q.break_address(extra_break_addr)
     q.gdb_continue()
+    q.set_endian(False) # how qemu gets/sets data, NOT sets arch
+
     return q
 
 
 if __name__ == '__main__':
-    q = QemuController("qemu_test/kernel.bin")
+    q = QemuController("simulator/qemu_test/kernel.bin", bigendian=True)
     q.connect()
     q.break_address(0x20000000)
     q.gdb_continue()

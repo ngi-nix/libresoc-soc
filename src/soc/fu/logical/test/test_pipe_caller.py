@@ -10,6 +10,8 @@ from soc.decoder.power_enums import (XER_bits, Function)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
+from soc.config.endian import bigendian
+
 
 from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.logical.pipeline import LogicalBasePipe
@@ -75,7 +77,7 @@ class LogicalTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rand_imm_logical(self):
         insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
@@ -86,7 +88,7 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_cntz(self):
         insns = ["cntlzd", "cnttzd", "cntlzw", "cnttzw"]
@@ -96,7 +98,7 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_parity(self):
         insns = ["prtyw", "prtyd"]
@@ -106,7 +108,7 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_popcnt(self):
         insns = ["popcntb", "popcntw", "popcntd"]
@@ -116,7 +118,7 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_popcnt_edge(self):
         insns = ["popcntb", "popcntw", "popcntd"]
@@ -124,14 +126,14 @@ class LogicalTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1"]
             initial_regs = [0] * 32
             initial_regs[1] = -1
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_cmpb(self):
         lst = ["cmpb 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeefcafec0de
         initial_regs[2] = 0xd0adb0000afec1de
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_bpermd(self):
         lst = ["bpermd 3, 1, 2"]
@@ -139,7 +141,7 @@ class LogicalTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = 1<<random.randint(0,63)
             initial_regs[2] = 0xdeadbeefcafec0de
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_ilang(self):
         pspec = LogicalPipeSpec(id_wid=2)
@@ -180,7 +182,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr)
+                                test.mem, test.msr,
+                                bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -192,7 +195,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit

@@ -10,7 +10,7 @@ from soc.decoder.power_enums import (XER_bits, Function, CryIn)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
-
+from soc.config.endian import bigendian
 
 from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
@@ -84,7 +84,7 @@ class ShiftRotTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1<<64)-1)
             initial_regs[2] = random.randint(0, 63)
             print(initial_regs[1], initial_regs[2])
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_shift_arith(self):
         lst = ["sraw 3, 1, 2"]
@@ -92,7 +92,7 @@ class ShiftRotTestCase(FHDLTestCase):
         initial_regs[1] = random.randint(0, (1<<64)-1)
         initial_regs[2] = random.randint(0, 63)
         print(initial_regs[1], initial_regs[2])
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_shift_once(self):
         lst = ["slw 3, 1, 4",
@@ -101,7 +101,7 @@ class ShiftRotTestCase(FHDLTestCase):
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0x40
         initial_regs[4] = 0x00
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlwinm(self):
         for i in range(10):
@@ -113,33 +113,33 @@ class ShiftRotTestCase(FHDLTestCase):
                    ]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlwimi(self):
         lst = ["rlwimi 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeef
         initial_regs[3] = 0x12345678
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlwnm(self):
         lst = ["rlwnm 3, 1, 2, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1<<64)-1)
         initial_regs[2] = random.randint(0, 63)
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rldicl(self):
         lst = ["rldicl 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1<<64)-1)
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rldicr(self):
         lst = ["rldicr 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1<<64)-1)
-        self.run_tst_program(Program(lst), initial_regs)
+        self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlc(self):
         insns = ["rldic", "rldicl", "rldicr"]
@@ -150,7 +150,7 @@ class ShiftRotTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1, {sh}, {m}"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1<<64)-1)
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_ilang(self):
         pspec = ShiftRotPipeSpec(id_wid=2)
@@ -190,7 +190,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr)
+                                test.mem, test.msr,
+                                bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -202,7 +203,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit

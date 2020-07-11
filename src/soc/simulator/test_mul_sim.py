@@ -14,6 +14,7 @@ from soc.simulator.qemu import run_program
 from soc.decoder.isa.all import ISA
 from soc.fu.test.common import TestCase
 from soc.simulator.test_sim import DecoderBase
+from soc.config.endian import bigendian
 
 
 
@@ -28,7 +29,7 @@ class MulTestCases(FHDLTestCase):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "mullw 3, 1, 2"]
-        self.run_tst_program(Program(lst), [3])
+        self.run_tst_program(Program(lst, bigendian), [3])
 
     def test_mullwo(self):
         lst = ["addi 1, 0, 0x5678",
@@ -36,7 +37,7 @@ class MulTestCases(FHDLTestCase):
                "addi 2, 0, 0x1234",
                "neg 2, 2",
                "mullwo 3, 1, 2"]
-        self.run_tst_program(Program(lst), [3])
+        self.run_tst_program(Program(lst, bigendian), [3])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                                     initial_mem=None):

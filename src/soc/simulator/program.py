@@ -15,7 +15,7 @@ memmap = os.path.join(filedir, "memmap")
 
 
 class Program:
-    def __init__(self, instructions, bigendian=True):
+    def __init__(self, instructions, bigendian):
         self.bigendian = bigendian
         if self.bigendian:
             self.endian_fmt = "elf64-big"

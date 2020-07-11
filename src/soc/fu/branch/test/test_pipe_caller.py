@@ -11,6 +11,7 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
+from soc.config.endian import bigendian
 
 from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.branch.pipeline import BranchBasePipe
@@ -83,7 +84,7 @@ class BranchTestCase(FHDLTestCase):
             imm = random.randrange(-1<<23, (1<<23)-1) * 4
             lst = [f"{choice} {imm}"]
             initial_regs = [0] * 32
-            self.run_tst_program(Program(lst), initial_regs)
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_bc_cr(self):
         for i in range(20):
@@ -93,7 +94,7 @@ class BranchTestCase(FHDLTestCase):
             cr = random.randrange(0, (1<<32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_regs = [0] * 32
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_bc_ctr(self):
         for i in range(20):
@@ -104,7 +105,7 @@ class BranchTestCase(FHDLTestCase):
             ctr = random.randint(0, (1<<32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_sprs={9: SelectableInt(ctr, 64)}
-            self.run_tst_program(Program(lst),
+            self.run_tst_program(Program(lst, bigendian),
                                  initial_sprs=initial_sprs,
                                  initial_cr=cr)
 
@@ -124,7 +125,7 @@ class BranchTestCase(FHDLTestCase):
                 initial_sprs={9: SelectableInt(ctr, 64),
                               8: SelectableInt(lr, 64),
                               815: SelectableInt(tar, 64)}
-                self.run_tst_program(Program(lst),
+                self.run_tst_program(Program(lst, bigendian),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
 
@@ -166,7 +167,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr)
+                                test.mem, test.msr,
+                                bigendian=bigendian)
                 initial_cia = 0x2000
                 simulator.set_pc(initial_cia)
                 gen = program.generate_instructions()
@@ -181,7 +183,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require

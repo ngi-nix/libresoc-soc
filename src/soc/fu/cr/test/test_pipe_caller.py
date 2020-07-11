@@ -10,7 +10,7 @@ from soc.decoder.power_enums import (XER_bits, Function)
 from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
-
+from soc.config.endian import bigendian
 
 from soc.fu.test.common import TestCase, ALUHelpers
 from soc.fu.cr.pipeline import CRBasePipe
@@ -60,13 +60,13 @@ class CRTestCase(FHDLTestCase):
             bt = random.randint(0, 31)
             lst = [f"{choice} {ba}, {bb}, {bt}"]
             cr = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_crand(self):
         for i in range(20):
             lst = ["crand 0, 11, 13"]
             cr = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_1_mcrf(self):
         for i in range(20):
@@ -74,13 +74,13 @@ class CRTestCase(FHDLTestCase):
             dst = random.randint(0, 7)
             lst = [f"mcrf {src}, {dst}"]
             cr = random.randint(0, (1<<32)-1)
-        self.run_tst_program(Program(lst), initial_cr=cr)
+        self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_0_mcrf(self):
         for i in range(8):
             lst = [f"mcrf 5, {i}"]
             cr = 0xfeff0001
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_mtcrf(self):
         for i in range(20):
@@ -89,7 +89,7 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, (1<<32)-1)
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_regs=initial_regs,
+            self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
     def test_mtocrf(self):
         for i in range(20):
@@ -98,21 +98,21 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, (1<<32)-1)
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_regs=initial_regs,
+            self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
 
     def test_mfcr(self):
         for i in range(5):
             lst = ["mfcr 2"]
             cr = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_mfocrf(self):
         for i in range(20):
             mask = 1<<random.randint(0, 7)
             lst = [f"mfocrf 2, {mask}"]
             cr = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_cr=cr)
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_isel(self):
         for i in range(20):
@@ -124,7 +124,7 @@ class CRTestCase(FHDLTestCase):
             initial_regs[3] = random.randint(0, (1<<64)-1)
             #initial_regs[2] = i*2
             #initial_regs[3] = i*2+1
-            self.run_tst_program(Program(lst),
+            self.run_tst_program(Program(lst, bigendian),
                                  initial_regs=initial_regs, initial_cr=cr)
 
     def test_setb(self):
@@ -132,9 +132,7 @@ class CRTestCase(FHDLTestCase):
             bfa = random.randint(0, 7)
             lst = [f"setb 1, {bfa}"]
             cr = random.randint(0, (1<<32)-1)
-            self.run_tst_program(Program(lst), initial_cr=cr)
-
-            
+            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
@@ -249,7 +247,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr)
+                          test.msr,
+                          bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -261,7 +260,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     yield from self.set_inputs(alu, pdecode2, sim)

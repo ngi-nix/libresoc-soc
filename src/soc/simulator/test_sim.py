@@ -13,6 +13,7 @@ from soc.simulator.program import Program
 from soc.simulator.qemu import run_program
 from soc.decoder.isa.all import ISA
 from soc.fu.test.common import TestCase
+from soc.config.endian import bigendian
 
 
 class AttnTestCase(FHDLTestCase):
@@ -30,7 +31,7 @@ class AttnTestCase(FHDLTestCase):
                "subf. 1, 6, 7",
                "cmp cr2, 1, 6, 7",
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
@@ -55,7 +56,7 @@ class GeneralTestCases(FHDLTestCase):
                "subf. 1, 6, 7",
                "cmp cr2, 1, 6, 7",
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
     @unittest.skip("disable")
@@ -64,7 +65,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 2, 0, 0x1234",
                "add  3, 1, 2",
                "and  4, 1, 2"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4])
 
     @unittest.skip("disable")
@@ -77,7 +78,7 @@ class GeneralTestCases(FHDLTestCase):
         initial_mem = {0x1230: (0x5432123412345678, 8),
                        0x1238: (0xabcdef0187654321, 8),
                       }
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program,
                                  [1, 2, 3],
                                  initial_mem)
@@ -89,7 +90,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 4, 0, 0x40",
                "stw  1, 0x40(2)",
                "lwbrx  3, 4, 2"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
     @unittest.skip("disable")
@@ -99,7 +100,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 4, 0, 0x40",
                "stwbrx  1, 4, 2",
                "lwzx  3, 4, 2"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
     @unittest.skip("disable")
@@ -109,7 +110,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 4, 0, 0x40",
                "stw  1, 0x40(2)",
                "lwzx  3, 4, 2"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
     @unittest.skip("disable")
@@ -124,7 +125,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 5, 0, 0x12",
                "stb 5, 5(2)",
                "ld  5, 0(2)"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
     @unittest.skip("disable")
@@ -134,7 +135,7 @@ class GeneralTestCases(FHDLTestCase):
                "subf 3, 1, 2",
                "subfic 4, 1, 0x1337",
                "neg 5, 1"]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
     @unittest.skip("disable")
@@ -146,7 +147,7 @@ class GeneralTestCases(FHDLTestCase):
                "addc 3, 2, 1",
                "addi 3, 3, 1"
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
     @unittest.skip("disable")
@@ -154,7 +155,7 @@ class GeneralTestCases(FHDLTestCase):
         lst = ["addi 1, 0, 0x0FFF",
                "addis 1, 1, 0x0F"
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
     @unittest.skip("broken")
@@ -162,7 +163,7 @@ class GeneralTestCases(FHDLTestCase):
         lst = ["addi 1, 0, 3",
                "mulli 1, 1, 2"
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
     @unittest.skip("disable")
@@ -181,7 +182,7 @@ class GeneralTestCases(FHDLTestCase):
                        0x1008: (0xabcdef0187654321, 8),
                        0x1020: (0x1828384822324252, 8),
                         }
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [3,4], initial_mem)
 
     @unittest.skip("disable")
@@ -199,7 +200,7 @@ class GeneralTestCases(FHDLTestCase):
                        0x1008: (0xabcdef0187654321, 8),
                        0x1020: (0x1828384822324252, 8),
                         }
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1,2,3,4], initial_mem)
 
     def test_loop(self):
@@ -217,14 +218,14 @@ class GeneralTestCases(FHDLTestCase):
                "cmpi 0,1,9,12",     # compare 9 to value 0, store in CR2
                "bc 4,0,-8"         # branch if CR2 "test was != 0"
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [9], initial_mem={})
 
     def test_30_addis(self):
         lst = [#"addi 0, 0, 5",
                "addis 12, 0, 0",
                ]
-        with Program(lst) as program:
+        with Program(lst, bigendian) as program:
             self.run_tst_program(program, [12])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
@@ -244,7 +245,6 @@ class DecoderBase:
         gen = list(generator.generate_instructions())
         insn_code = generator.assembly.splitlines()
         instructions = list(zip(gen, insn_code))
-        bigendian = False
 
         pdecode = create_pdecode()
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
@@ -261,7 +261,7 @@ class DecoderBase:
         sim = Simulator(m)
 
         def process():
-            #yield pdecode2.dec.bigendian.eq(1)
+            #yield pdecode2.dec.bigendian.eq(bigendian)
             yield Settle()
 
             while True:
@@ -287,7 +287,8 @@ class DecoderBase:
         simulator = self.run_tst(prog, initial_mem=initial_mem,
                                  initial_pc=0x20000000)
         prog.reset()
-        with run_program(prog, initial_mem, extra_break_addr) as q:
+        with run_program(prog, initial_mem, extra_break_addr,
+                         bigendian=bigendian) as q:
             self.qemu_register_compare(simulator, q, reglist)
             self.qemu_mem_compare(simulator, q, True)
         print(simulator.gpr.dump())

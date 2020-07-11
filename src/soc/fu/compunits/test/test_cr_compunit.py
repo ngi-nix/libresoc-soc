@@ -7,12 +7,13 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 
 from soc.fu.compunits.compunits import CRFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.config.endian import bigendian
 
 
 class CRTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, CRFunctionUnit, self,
-                         Function.CR)
+                         Function.CR, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to CRFunctionUnit input regspec

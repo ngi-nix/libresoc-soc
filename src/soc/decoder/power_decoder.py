@@ -343,13 +343,13 @@ class TopPowerDecoder(PowerDecoder):
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
         comb = m.d.comb
-        # raw opcode in, byte-reverse it
-        raw_be = self.raw_opcode_in
+        # raw opcode in assumed to be in LE order: byte-reverse it to get BE
+        raw_le = self.raw_opcode_in
         l = []
         for i in range(0, self.width, 8):
-            l.append(raw_be[i:i+8])
+            l.append(raw_le[i:i+8])
         l.reverse()
-        raw_le = Cat(*l)
+        raw_be = Cat(*l)
         comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # add all signal from commonly-used fields

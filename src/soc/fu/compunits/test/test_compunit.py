@@ -11,6 +11,7 @@ from soc.decoder.isa.all import ISA
 from soc.experiment.compalu_multi import find_ok # hack
 from soc.config.test.test_loadstore import TestMemPspec
 
+
 def set_cu_input(cu, idx, data):
     rdop = cu.get_in_name(idx)
     yield cu.src_i[idx].eq(data)
@@ -147,12 +148,13 @@ def check_sim_memory(dut, l0, sim, code):
                                  expected_mem, actual_mem))
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, test_data, fukls, iodef, funit):
+    def __init__(self, test_data, fukls, iodef, funit, bigendian):
         super().__init__("run_all")
         self.test_data = test_data
         self.fukls = fukls
         self.iodef = iodef
         self.funit = funit
+        self.bigendian = bigendian
 
     def run_all(self):
         m = Module()
@@ -202,7 +204,7 @@ class TestRunner(FHDLTestCase):
                           test.msr,
                           initial_insns=gen, respect_pc=False,
                           disassembly=insncode,
-                          bigendian=False)
+                          bigendian=self.bigendian)
 
                 # initialise memory
                 if self.funit == Function.LDST:
@@ -219,7 +221,7 @@ class TestRunner(FHDLTestCase):
                     print(index, code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(0)  # little / big?
+                    yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
