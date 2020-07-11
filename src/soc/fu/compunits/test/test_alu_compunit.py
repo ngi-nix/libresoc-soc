@@ -7,12 +7,13 @@ from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
 from soc.fu.test.common import ALUHelpers
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.config.endian import bigendian
 
 
 class ALUTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, ALUFunctionUnit, self,
-                         Function.ALU)
+                         Function.ALU, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to ALUFunctionUnit input regspec
