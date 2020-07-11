@@ -8,6 +8,8 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 
 from soc.simple.issuer import TestIssuer
+from soc.config.endian import bigendian
+
 
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.simple.test.test_core import (setup_regs, check_regs,
@@ -32,11 +34,11 @@ class BinaryTestCase(FHDLTestCase):
 
     @unittest.skip("a bit big")
     def test_binary(self):
-        with Program("1.bin") as program:
+        with Program("1.bin", bigendian) as program:
             self.run_tst_program(program)
 
     def test_binary(self):
-        with Program("hello_world.bin") as program:
+        with Program("hello_world.bin", bigendian) as program:
             self.run_tst_program(program)
 
     def run_tst_program(self, prog):
