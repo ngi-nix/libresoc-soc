@@ -12,7 +12,7 @@ import unittest
 from soc.decoder.isa.caller import special_sprs
 from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import Function, XER_bits
-
+from soc.config.endian import bigendian
 
 from soc.simple.issuer import TestIssuer
 from soc.experiment.compalu_multi import find_ok # hack
@@ -100,7 +100,7 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
 
                 # get core going
-                yield core.bigendian_i.eq(1)
+                yield core.bigendian_i.eq(bigendian)
                 yield core.core_start_i.eq(1)
                 yield
                 yield core.core_start_i.eq(0)
@@ -121,7 +121,8 @@ class TestRunner(FHDLTestCase):
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr,
                           initial_insns=gen, respect_pc=True,
-                          disassembly=insncode)
+                          disassembly=insncode,
+                          bigendian=bigendian)
 
                 pc = 0 # start address
 

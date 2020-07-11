@@ -85,7 +85,7 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
 
                 # get core going
-                yield core.bigendian_i.eq(1)
+                yield core.bigendian_i.eq(bigendian)
                 yield core.core_start_i.eq(1)
                 yield
                 yield core.core_start_i.eq(0)
