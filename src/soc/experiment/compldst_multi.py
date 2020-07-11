@@ -506,6 +506,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
             return self.addr_o
         #return self.dest[i]
 
+    def get_fu_out(self, i):
+        return self.get_out(i)
+
     def __iter__(self):
         yield self.rd.go
         yield self.go_ad_i

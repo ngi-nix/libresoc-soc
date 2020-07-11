@@ -41,6 +41,9 @@ import operator
 def ortreereduce(tree, attr="data_o"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
+def ortreereduce_sig(tree):
+    return treereduce(tree, operator.or_, lambda x: x)
+
 
 # helper function to place full regs declarations first
 def sort_fuspecs(fuspecs):
@@ -266,9 +269,9 @@ class NonProductionCore(Elaboratable):
                 # only if one FU actually requests (and is granted) the port
                 # will the write-enable be activated
                 with m.If(wrpick.en_o):
-                    sync += wport.wen.eq(write)
+                    comb += wport.wen.eq(write)
                 with m.Else():
-                    sync += wport.wen.eq(0)
+                    comb += wport.wen.eq(0)
 
                 # connect up the FU req/go signals and the reg-read to the FU
                 # these are arbitrated by Data.ok signals
@@ -276,6 +279,7 @@ class NonProductionCore(Elaboratable):
                 for pi, (funame, fu, idx) in enumerate(fuspec):
                     # write-request comes from dest.ok
                     dest = fu.get_out(idx)
+                    fu_dest_latch = fu.get_fu_out(idx) # latched output
                     name = "wrflag_%s_%s_%d" % (funame, regname, idx)
                     wrflag = Signal(name=name, reset_less=True)
                     comb += wrflag.eq(dest.ok & fu.busy_o)
@@ -284,15 +288,15 @@ class NonProductionCore(Elaboratable):
                     fu_active = fu_bitdict[funame]
                     pick = fu.wr.rel[idx] & fu_active #& wrflag
                     comb += wrpick.i[pi].eq(pick)
-                    sync += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
+                    comb += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
                     # connect regfile port to input
                     print ("reg connect widths",
                            regfile, regname, pi, funame,
                            dest.shape(), wport.data_i.shape())
-                    wsigs.append(dest)
+                    wsigs.append(fu_dest_latch)
 
                 # here is where we create the Write Broadcast Bus. simple, eh?
-                sync += wport.data_i.eq(ortreereduce(wsigs, "data"))
+                comb += wport.data_i.eq(ortreereduce_sig(wsigs))
 
     def get_byregfiles(self, readmode):
 

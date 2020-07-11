@@ -346,10 +346,13 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
-            with m.If(self.wr.go[i]):
+            with m.If(self.wr.go[i] & self.busy_o):
                 m.d.comb += self.dest[i].eq(drl[i])
 
         return m
+
+    def get_fu_out(self, i):
+        return self.dest[i]
 
     def __iter__(self):
         yield self.rd.go
