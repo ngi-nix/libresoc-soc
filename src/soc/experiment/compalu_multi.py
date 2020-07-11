@@ -267,7 +267,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
                     ok = data_r[fname]
             else:
                 data_r = Signal.like(lro, name=name, reset_less=True)
-            wrok.append(ok)
+            wrok.append(ok & self.busy_o)
             latchregister(m, lro, data_r, alu_pulsem, name + "_l")
             drl.append(data_r)
 

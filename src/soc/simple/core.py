@@ -121,10 +121,18 @@ class NonProductionCore(Elaboratable):
         fu_bitdict = {}
         for i, funame in enumerate(fus.keys()):
             fu_bitdict[funame] = fu_enable[i]
-
         # only run when allowed and when instruction is valid
         can_run = Signal(reset_less=True)
         comb += can_run.eq(self.ivalid_i & ~core_stopped)
+
+        # enable the required Function Unit based on the opcode decode
+        # note: this *only* works correctly for simple core when one and
+        # *only* one FU is allocated per instruction
+        for funame, fu in fus.items():
+            fnunit = fu.fnunit.value
+            enable = Signal(name="en_%s" % funame, reset_less=True)
+            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+            comb += fu_bitdict[funame].eq(enable)
 
         # sigh - need a NOP counter
         counter = Signal(2)
@@ -136,16 +144,14 @@ class NonProductionCore(Elaboratable):
         with m.If(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_ATTN)):
             m.d.sync += core_stopped.eq(1)
 
-        with m.Elif(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_NOP)):
+        with m.Elif(can_run & (dec2.e.do.insn_type == InternalOp.OP_NOP)):
             sync += counter.eq(2)
             comb += self.busy_o.eq(1)
 
         with m.Else():
             # connect up instructions.  only one is enabled at any given time
             for funame, fu in fus.items():
-                fnunit = fu.fnunit.value
-                enable = Signal(name="en_%s" % funame, reset_less=True)
-                comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+                enable = fu_bitdict[funame]
 
                 # run this FunctionUnit if enabled, except if the instruction
                 # is "attn" in which case we HALT.
@@ -156,7 +162,6 @@ class NonProductionCore(Elaboratable):
                     comb += self.busy_o.eq(fu.busy_o)
                     rdmask = dec2.rdflags(fu)
                     comb += fu.rdmaskn.eq(~rdmask)
-                    comb += fu_bitdict[funame].eq(enable)
 
         return fu_bitdict
 
@@ -273,7 +278,7 @@ class NonProductionCore(Elaboratable):
                     dest = fu.get_out(idx)
                     name = "wrflag_%s_%s_%d" % (funame, regname, idx)
                     wrflag = Signal(name=name, reset_less=True)
-                    comb += wrflag.eq(dest.ok)
+                    comb += wrflag.eq(dest.ok & fu.busy_o)
 
                     # connect request-read to picker input, and output to go-wr
                     fu_active = fu_bitdict[funame]
