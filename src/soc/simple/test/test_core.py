@@ -16,6 +16,7 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import SPR, spr_dict, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
+from soc.config.endian import bigendian
 
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok # hack
@@ -84,6 +85,8 @@ def setup_regs(core, test):
     fregs = core.regs.fast
     sregs = core.regs.spr
     for sprname, val in test.sprs.items():
+        if isinstance(val, SelectableInt):
+            val = val.value
         if isinstance(sprname, int):
             sprname = spr_dict[sprname].SPR
         if sprname == 'XER':
@@ -235,7 +238,8 @@ class TestRunner(FHDLTestCase):
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr)
+                          test.msr,
+                          bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -250,7 +254,7 @@ class TestRunner(FHDLTestCase):
                     print(code)
 
                     # ask the decoder to decode this binary data (endian'd)
-                    yield core.bigendian_i.eq(0)  # little / big?
+                    yield core.bigendian_i.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
                     yield ivalid_i.eq(1)
                     yield Settle()
