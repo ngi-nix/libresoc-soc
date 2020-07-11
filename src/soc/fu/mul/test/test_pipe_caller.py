@@ -107,7 +107,7 @@ class MulTestCase(FHDLTestCase):
         initial_regs[2] = 0xe
         self.run_tst_program(Program(lst), initial_regs)
 
-    def test_4_mullw_rand(self):
+    def tst_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
@@ -115,7 +115,7 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_4_mullw_nonrand(self):
+    def tst_4_mullw_nonrand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
@@ -123,8 +123,24 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = i+20
             self.run_tst_program(Program(lst), initial_regs)
 
-    def tst_rand_mullw(self):
-        insns = ["mullw", "mullw.", "mullwo", "mullwo."]
+    def test_mulhw__regression_1(self):
+        lst = ["mulhw. 3, 1, 2"
+              ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x7745b36eca6646fa
+        initial_regs[2] = 0x47dfba3a63834ba2
+        self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_4_mullw_rand(self):
+        for i in range(40):
+            lst = ["mullw 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_rand_mul_lh(self):
+        insns = ["mulhw", "mulhw.", "mulhwu", "mulhwu."]
         for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
@@ -133,7 +149,17 @@ class MulTestCase(FHDLTestCase):
             initial_regs[2] = random.randint(0, (1<<64)-1)
             self.run_tst_program(Program(lst), initial_regs)
 
-    def test_ilang(self):
+    def tst_rand_mullwu(self):
+        insns = ["mullwu", "mullwu.", "mullwuo", "mullwuo."]
+        for i in range(40):
+            choice = random.choice(insns)
+            lst = [f"{choice} 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1<<64)-1)
+            self.run_tst_program(Program(lst), initial_regs)
+
+    def tst_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
         alu = MulBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())

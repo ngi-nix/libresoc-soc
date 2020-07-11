@@ -429,12 +429,18 @@ class DecodeOE(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
 
-        # select OE bit out field
-        with m.Switch(self.sel_in):
-            with m.Case(RC.RC):
-                comb += self.oe_out.data.eq(self.dec.OE)
-                comb += self.oe_out.ok.eq(1)
+        with m.If((op.internal_op == InternalOp.OP_MUL_H64) |
+                  (op.internal_op == InternalOp.OP_MUL_H32)):
+            # mulhw, mulhwu, mulhd, mulhdu - these *ignore* OE
+            pass
+        with m.Else():
+            # select OE bit out field
+            with m.Switch(self.sel_in):
+                with m.Case(RC.RC):
+                    comb += self.oe_out.data.eq(self.dec.OE)
+                    comb += self.oe_out.ok.eq(1)
 
         return m
 

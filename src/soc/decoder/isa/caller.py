@@ -506,16 +506,25 @@ class ISACaller:
         asmcode = yield self.dec2.dec.op.asmcode
         print ("get assembly name asmcode", asmcode)
         asmop = insns.get(asmcode, None)
+        int_op = yield self.dec2.dec.op.internal_op
 
         # sigh reconstruct the assembly instruction name
         ov_en = yield self.dec2.e.do.oe.oe
         ov_ok = yield self.dec2.e.do.oe.ok
-        if ov_en & ov_ok:
-            asmop += "."
+        rc_en = yield self.dec2.e.do.rc.data
+        rc_ok = yield self.dec2.e.do.rc.ok
+        # grrrr have to special-case MUL op (see DecodeOE)
+        print ("ov en rc en", ov_ok, ov_en, rc_ok, rc_en, int_op)
+        if int_op in [InternalOp.OP_MUL_H64.value, InternalOp.OP_MUL_H32.value]:
+            print ("mul op")
+            if rc_en & rc_ok:
+                asmop += "."
+        else:
+            if ov_en & ov_ok:
+                asmop += "."
         lk = yield self.dec2.e.do.lk
         if lk:
             asmop += "l"
-        int_op = yield self.dec2.dec.op.internal_op
         print ("int_op", int_op)
         if int_op in [InternalOp.OP_B.value, InternalOp.OP_BC.value]:
             AA = yield self.dec2.dec.fields.FormI.AA[0:-1]
@@ -628,7 +637,7 @@ class ISACaller:
 
         ov_en = yield self.dec2.e.do.oe.oe
         ov_ok = yield self.dec2.e.do.oe.ok
-        print ("internal overflow", overflow)
+        print ("internal overflow", overflow, ov_en, ov_ok)
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results, overflow)
 
