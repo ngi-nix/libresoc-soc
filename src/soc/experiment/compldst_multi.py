@@ -433,7 +433,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
                                   op_is_ld & self.shadown_i)
 
         # request write of EA result only in update mode
-        comb += self.wr.rel[1].eq(upd_l.q & busy_o & op_is_update &
+        comb += self.wr.rel[1].eq(upd_l.q & busy_o & op_is_update & alu_valid &
                                   self.shadown_i)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
