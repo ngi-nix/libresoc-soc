@@ -16,7 +16,7 @@ from nmigen.cli import rtlil
 from soc.fu.branch.main_stage import BranchMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -101,7 +101,7 @@ class Driver(Elaboratable):
         with m.Switch(rec.insn_type):
 
             #### b ####
-            with m.Case(InternalOp.OP_B):
+            with m.Case(MicrOp.OP_B):
                 # Extract target address
                 LI = i_fields.LI[0:-1]
                 imm = exts(LI, LI.shape().width, 64-2) * 4
@@ -126,7 +126,7 @@ class Driver(Elaboratable):
                 comb += Assert(dut.o.ctr.ok == 0)
 
             #### bc ####
-            with m.Case(InternalOp.OP_BC):
+            with m.Case(MicrOp.OP_BC):
                 # Assert that branches are conditional
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
 
@@ -151,7 +151,7 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(dut.o.ctr.ok == 0)
             #### bctar/bcctr/bclr ####
-            with m.Case(InternalOp.OP_BCREG):
+            with m.Case(MicrOp.OP_BCREG):
                 # assert that the condition is good
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
 

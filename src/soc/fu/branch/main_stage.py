@@ -13,7 +13,7 @@ from nmigen import (Module, Signal, Cat, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.branch.pipe_data import BranchInputData, BranchOutputData
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -70,7 +70,7 @@ class BranchMainStage(PipeModBase):
         br_taken = Signal(reset_less=True)
 
         # Handle absolute or relative branches
-        with m.If(AA | (op.insn_type == InternalOp.OP_BCREG)):
+        with m.If(AA | (op.insn_type == MicrOp.OP_BCREG)):
             comb += br_addr.eq(br_imm_addr)
         with m.Else():
             comb += br_addr.eq(br_imm_addr + cia)
@@ -121,18 +121,18 @@ class BranchMainStage(PipeModBase):
         ### Main Switch Statement ###
         with m.Switch(op.insn_type):
             #### branch ####
-            with m.Case(InternalOp.OP_B):
+            with m.Case(MicrOp.OP_B):
                 LI = i_fields.LI[0:-1]
                 comb += br_imm_addr.eq(br_ext(LI))
                 comb += br_taken.eq(1)
             #### branch conditional ####
-            with m.Case(InternalOp.OP_BC):
+            with m.Case(MicrOp.OP_BC):
                 BD = b_fields.BD[0:-1]
                 comb += br_imm_addr.eq(br_ext(BD))
                 comb += br_taken.eq(bc_taken)
                 comb += ctr_o.ok.eq(ctr_write)
             #### branch conditional reg ####
-            with m.Case(InternalOp.OP_BCREG):
+            with m.Case(MicrOp.OP_BCREG):
                 xo = self.fields.FormXL.XO[0:-1]
                 with m.If(xo[9] & ~xo[5]):
                     comb += br_imm_addr.eq(Cat(Const(0, 2), fast1[2:]))

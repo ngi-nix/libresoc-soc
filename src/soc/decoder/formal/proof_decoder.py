@@ -6,7 +6,7 @@ from soc.decoder.power_decoder import create_pdecode, PowerOp
 from soc.decoder.power_enums import (In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, Form, Function,
                                      LdstLen, CryIn,
-                                     InternalOp, SPR, get_csv)
+                                     MicrOp, SPR, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2,
                                         Decode2ToExecute1Type)
 import unittest
@@ -60,7 +60,7 @@ class Driver(Elaboratable):
                         self.comb += self.assert_dec1_signals(dec1, row)
                 with self.m.Default():
                     self.comb += Assert(dec.op.internal_op ==
-                                        InternalOp.OP_ILLEGAL)
+                                        MicrOp.OP_ILLEGAL)
                                         
 
     def handle_subdecoders(self, dec1, decoders):
@@ -75,7 +75,7 @@ class Driver(Elaboratable):
     def assert_dec1_signals(self, dec, row):
         op = dec.op
         return [Assert(op.function_unit == Function[row['unit']]),
-                Assert(op.internal_op == InternalOp[row['internal op']]),
+                Assert(op.internal_op == MicrOp[row['internal op']]),
                 Assert(op.in1_sel == In1Sel[row['in1']]),
                 Assert(op.in2_sel == In2Sel[row['in2']]),
                 Assert(op.in3_sel == In3Sel[row['in3']]),

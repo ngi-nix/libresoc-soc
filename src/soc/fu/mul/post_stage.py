@@ -5,7 +5,7 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.div.pipe_data import DivMulOutputData
 from soc.fu.mul.pipe_data import MulOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 
 class MulMainStage3(PipeModBase):
@@ -38,10 +38,10 @@ class MulMainStage3(PipeModBase):
         # OP_MUL_nnn - select hi32/hi64/lo64 from result
         with m.Switch(op.insn_type):
             # hi-32 replicated twice
-            with m.Case(InternalOp.OP_MUL_H32):
+            with m.Case(MicrOp.OP_MUL_H32):
                 comb += o.data.eq(Repl(mul_o[32:64], 2))
             # hi-64 
-            with m.Case(InternalOp.OP_MUL_H64):
+            with m.Case(MicrOp.OP_MUL_H64):
                 comb += o.data.eq(mul_o[64:128])
             # lo-64 - overflow
             with m.Default():

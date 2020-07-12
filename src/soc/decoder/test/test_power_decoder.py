@@ -5,7 +5,7 @@ from nmigen.cli import rtlil
 import os
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_enums import (Function, InternalOp,
+from soc.decoder.power_enums import (Function, MicrOp,
                                      In1Sel, In2Sel, In3Sel,
                                      CRInSel, CROutSel,
                                      OutSel, RC, LdstLen, CryIn,
@@ -20,7 +20,7 @@ class DecoderTestCase(FHDLTestCase):
         comb = m.d.comb
         opcode = Signal(32)
         function_unit = Signal(Function)
-        internal_op = Signal(InternalOp)
+        internal_op = Signal(MicrOp)
         in1_sel = Signal(In1Sel)
         in2_sel = Signal(In2Sel)
         in3_sel = Signal(In3Sel)
@@ -76,7 +76,7 @@ class DecoderTestCase(FHDLTestCase):
 
                 yield Delay(1e-6)
                 signals = [(function_unit, Function, 'unit'),
-                           (internal_op, InternalOp, 'internal op'),
+                           (internal_op, MicrOp, 'internal op'),
                            (in1_sel, In1Sel, 'in1'),
                            (in2_sel, In2Sel, 'in2'),
                            (in3_sel, In3Sel, 'in3'),

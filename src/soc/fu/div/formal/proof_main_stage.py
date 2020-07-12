@@ -16,7 +16,7 @@ from nmigen.cli import rtlil
 from soc.fu.logical.main_stage import LogicalMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -78,14 +78,14 @@ class Driver(Elaboratable):
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
-            with m.Case(InternalOp.OP_AND):
+            with m.Case(MicrOp.OP_AND):
                 comb += Assert(dut.o.o == a & b)
-            with m.Case(InternalOp.OP_OR):
+            with m.Case(MicrOp.OP_OR):
                 comb += Assert(dut.o.o == a | b)
-            with m.Case(InternalOp.OP_XOR):
+            with m.Case(MicrOp.OP_XOR):
                 comb += Assert(dut.o.o == a ^ b)
 
-            with m.Case(InternalOp.OP_POPCNT):
+            with m.Case(MicrOp.OP_POPCNT):
                 with m.If(rec.data_len == 8):
                     comb += Assert(dut.o.o == self.popcount(a, 64))
                 with m.If(rec.data_len == 4):
@@ -98,7 +98,7 @@ class Driver(Elaboratable):
                         comb += Assert(dut.o.o[i*8:(i+1)*8] ==
                                        self.popcount(a[i*8:(i+1)*8], 8))
 
-            with m.Case(InternalOp.OP_PRTY):
+            with m.Case(MicrOp.OP_PRTY):
                 with m.If(rec.data_len == 8):
                     result = 0
                     for i in range(8):
@@ -112,7 +112,7 @@ class Driver(Elaboratable):
                         result_high = result_high ^ a[i*8 + 32]
                     comb += Assert(dut.o.o[0:32] == result_low)
                     comb += Assert(dut.o.o[32:64] == result_high)
-            with m.Case(InternalOp.OP_CNTZ):
+            with m.Case(MicrOp.OP_CNTZ):
                 XO = dut.fields.FormX.XO[0:-1]
                 with m.If(rec.is_32bit):
                     m.submodules.pe32 = pe32 = PriorityEncoder(32)

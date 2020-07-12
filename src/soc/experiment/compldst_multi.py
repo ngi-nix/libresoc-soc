@@ -90,7 +90,7 @@ from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
 from soc.fu.regspec import RegSpecAPI
 
-from soc.decoder.power_enums import InternalOp, Function, LDSTMode
+from soc.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from soc.decoder.power_decoder2 import Data
 
@@ -388,8 +388,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
         # decode bits of operand (latched)
-        comb += op_is_st.eq(oper_r.insn_type == InternalOp.OP_STORE) # ST
-        comb += op_is_ld.eq(oper_r.insn_type == InternalOp.OP_LOAD)  # LD
+        comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE) # ST
+        comb += op_is_ld.eq(oper_r.insn_type == MicrOp.OP_LOAD)  # LD
         op_is_update = oper_r.ldst_mode == LDSTMode.update           # UPDATE
         op_is_cix = oper_r.ldst_mode == LDSTMode.cix           # cache-inhibit
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
@@ -550,7 +550,7 @@ def wait_for(sig, wait=True, test1st=False):
 def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
                                             byterev=True):
     print ("ST", src1, src2, src3, imm, imm_ok, update)
-    yield dut.oper_i.insn_type.eq(InternalOp.OP_STORE)
+    yield dut.oper_i.insn_type.eq(MicrOp.OP_STORE)
     yield dut.oper_i.data_len.eq(2) # half-word
     yield dut.oper_i.byte_reverse.eq(byterev)
     yield dut.src1_i.eq(src1)
@@ -606,7 +606,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
 def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
                                             byterev=True):
     print ("LD", src1, src2, imm, imm_ok, update)
-    yield dut.oper_i.insn_type.eq(InternalOp.OP_LOAD)
+    yield dut.oper_i.insn_type.eq(MicrOp.OP_LOAD)
     yield dut.oper_i.data_len.eq(2) # half-word
     yield dut.oper_i.byte_reverse.eq(byterev)
     yield dut.src1_i.eq(src1)

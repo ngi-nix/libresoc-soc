@@ -16,7 +16,7 @@ from nmigen.cli import rtlil
 from soc.fu.alu.main_stage import ALUMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -90,7 +90,7 @@ class Driver(Elaboratable):
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
-            with m.Case(InternalOp.OP_ADD):
+            with m.Case(MicrOp.OP_ADD):
 
                 # check result of 65-bit add-with-carry
                 comb += Assert(Cat(o, ca_o) == (a + b + ca_in))
@@ -105,7 +105,7 @@ class Driver(Elaboratable):
                 comb += ca_ok.eq(1)
                 comb += o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_EXTS):
+            with m.Case(MicrOp.OP_EXTS):
                 for i in [1, 2, 4]:
                     with m.If(rec.data_len == i):
                         # main part, then sign-bit replicated up
@@ -113,12 +113,12 @@ class Driver(Elaboratable):
                         comb += Assert(o[i*8:64] == Repl(a[i*8-1], 64-(i*8)))
                 comb += o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_CMP):
+            with m.Case(MicrOp.OP_CMP):
                 # CMP is defined as not taking in carry
                 comb += Assume(ca_in == 0)
                 comb += Assert(o == (a+b)[0:64])
 
-            with m.Case(InternalOp.OP_CMPEQB):
+            with m.Case(MicrOp.OP_CMPEQB):
                 src1 = a[0:8]
                 eqs = Signal(8)
                 for i in range(8):

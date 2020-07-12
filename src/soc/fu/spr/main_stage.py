@@ -7,7 +7,7 @@
 from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.spr.pipe_data import SPRInputData, SPROutputData
-from soc.decoder.power_enums import InternalOp, SPR, XER_bits
+from soc.decoder.power_enums import MicrOp, SPR, XER_bits
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -45,7 +45,7 @@ class SPRMainStage(PipeModBase):
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op.insn_type):
             #### MTSPR ####
-            with m.Case(InternalOp.OP_MTSPR):
+            with m.Case(MicrOp.OP_MTSPR):
                 with m.Switch(spr):
                     # fast SPRs first
                     with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1):
@@ -67,7 +67,7 @@ class SPRMainStage(PipeModBase):
                     # slow SPRs TODO
 
             # move from SPRs
-            with m.Case(InternalOp.OP_MFSPR):
+            with m.Case(MicrOp.OP_MFSPR):
                 comb += o.ok.eq(1)
                 with m.Switch(spr):
                     # fast SPRs first

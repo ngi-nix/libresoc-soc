@@ -82,7 +82,7 @@ Top Level:
 from collections import namedtuple
 from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
-from soc.decoder.power_enums import (Function, Form, InternalOp,
+from soc.decoder.power_enums import (Function, Form, MicrOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
                                      RC, LdstLen, LDSTMode, CryIn, get_csv,
                                      single_bit_flags, CRInSel,
@@ -117,7 +117,7 @@ class PowerOp:
 
     def __init__(self, incl_asm=True):
         self.function_unit = Signal(Function, reset_less=True)
-        self.internal_op = Signal(InternalOp, reset_less=True)
+        self.internal_op = Signal(MicrOp, reset_less=True)
         self.form = Signal(Form, reset_less=True)
         if incl_asm: # for simulator only
             self.asmcode = Signal(8, reset_less=True)
@@ -156,7 +156,7 @@ class PowerOp:
             ldst_mode = LDSTMode[ldst_mode]
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
-               self.internal_op.eq(InternalOp[row['internal op']]),
+               self.internal_op.eq(MicrOp[row['internal op']]),
                self.in1_sel.eq(In1Sel[row['in1']]),
                self.in2_sel.eq(In2Sel[row['in2']]),
                self.in3_sel.eq(In3Sel[row['in3']]),

@@ -24,7 +24,7 @@ from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 from soc.regfile.regfile import ortreereduce
 from nmutil.util import treereduce
 

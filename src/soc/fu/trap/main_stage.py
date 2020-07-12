@@ -14,7 +14,7 @@ from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
 from soc.fu.branch.main_stage import br_ext
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -146,7 +146,7 @@ class TrapMainStage(PipeModBase):
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op.insn_type):
             #### trap ####
-            with m.Case(InternalOp.OP_TRAP):
+            with m.Case(MicrOp.OP_TRAP):
                 # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
                     # generate trap-type program interrupt
@@ -164,7 +164,7 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.ILLEG].eq(1)
 
             # move to MSR
-            with m.Case(InternalOp.OP_MTMSRD, InternalOp.OP_MTMSR):
+            with m.Case(MicrOp.OP_MTMSRD, MicrOp.OP_MTMSR):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
                 # start with copy of msr
                 comb += msr_o.eq(msr_i)
@@ -181,12 +181,12 @@ class TrapMainStage(PipeModBase):
                 comb += msr_o.ok.eq(1)
 
             # move from MSR
-            with m.Case(InternalOp.OP_MFMSR):
+            with m.Case(MicrOp.OP_MFMSR):
                 # TODO: some of the bits need zeroing?  apparently not
                 comb += o.data.eq(msr_i)
                 comb += o.ok.eq(1)
 
-            with m.Case(InternalOp.OP_RFID):
+            with m.Case(MicrOp.OP_RFID):
                 # XXX f_out.virt_mode <= b_in(MSR.IR) or b_in(MSR.PR);
                 # XXX f_out.priv_mode <= not b_in(MSR.PR);
 
@@ -210,7 +210,7 @@ class TrapMainStage(PipeModBase):
                 comb += msr_o.ok.eq(1)
 
             # OP_SC
-            with m.Case(InternalOp.OP_SC):
+            with m.Case(MicrOp.OP_SC):
                 # TODO: scv must generate illegal instruction.  this is
                 # the decoder's job, not ours, here.
 
@@ -218,7 +218,7 @@ class TrapMainStage(PipeModBase):
                 self.trap(m, 0xc00, cia_i+4)
 
             # TODO (later)
-            #with m.Case(InternalOp.OP_ADDPCIS):
+            #with m.Case(MicrOp.OP_ADDPCIS):
             #    pass
 
         comb += self.o.ctx.eq(self.i.ctx)

@@ -12,7 +12,7 @@
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.cr.pipe_data import CRInputData, CROutputData
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -54,7 +54,7 @@ class CRMainStage(PipeModBase):
 
         with m.Switch(op.insn_type):
             ##### mcrf #####
-            with m.Case(InternalOp.OP_MCRF):
+            with m.Case(MicrOp.OP_MCRF):
                 # MCRF copies the 4 bits of crA to crB (for instance
                 # copying cr2 to cr1)
                 # Since it takes in a 4 bit cr, and outputs a 4 bit
@@ -63,7 +63,7 @@ class CRMainStage(PipeModBase):
                 comb += cr_o.ok.eq(1) # indicate "this CR has changed"
 
             # ##### crand, cror, crnor etc. #####
-            with m.Case(InternalOp.OP_CROP):
+            with m.Case(MicrOp.OP_CROP):
                 # crand/cror and friends get decoded to the same opcode, but
                 # one of the fields inside the instruction is a 4 bit lookup
                 # table. This lookup table gets indexed by bits a and b from
@@ -109,7 +109,7 @@ class CRMainStage(PipeModBase):
                 comb += cr_o.ok.eq(1) # indicate "this CR has changed"
 
             ##### mtcrf #####
-            with m.Case(InternalOp.OP_MTCRF):
+            with m.Case(MicrOp.OP_MTCRF):
                 # mtocrf and mtcrf are essentially identical
                 # put input (RA) - mask-selected - into output CR, leave
                 # rest of CR alone.
@@ -117,7 +117,7 @@ class CRMainStage(PipeModBase):
                 comb += full_cr_o.ok.eq(1) # indicate "this CR has changed"
 
             # ##### mfcr #####
-            with m.Case(InternalOp.OP_MFCR):
+            with m.Case(MicrOp.OP_MFCR):
                 # Ugh. mtocrf and mtcrf have one random bit differentiating
                 # them. This bit is not in any particular field, so this
                 # extracts that bit from the instruction
@@ -135,7 +135,7 @@ class CRMainStage(PipeModBase):
                 comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
             # ##### isel #####
-            with m.Case(InternalOp.OP_ISEL):
+            with m.Case(MicrOp.OP_ISEL):
                 # just like in branch, CR0-7 is incoming into cr_a, we
                 # need to select from the last 2 bits of BC
                 a_fields = self.fields.FormA
@@ -150,7 +150,7 @@ class CRMainStage(PipeModBase):
                 comb += rt_o.eq(Mux(cr_bit, a, b))
                 comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
-            with m.Case(InternalOp.OP_SETB):
+            with m.Case(MicrOp.OP_SETB):
                 with m.If(cr_a[3]):
                     comb += rt_o.data.eq(-1)
                 with m.Elif(cr_a[2]):

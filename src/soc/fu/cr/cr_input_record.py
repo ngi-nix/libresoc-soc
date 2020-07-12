@@ -1,6 +1,6 @@
 from nmigen.hdl.rec import Record, Layout
 
-from soc.decoder.power_enums import (InternalOp, Function)
+from soc.decoder.power_enums import (MicrOp, Function)
 
 
 class CompCROpSubset(Record):
@@ -11,7 +11,7 @@ class CompCROpSubset(Record):
     grab subsets.
     """
     def __init__(self, name=None):
-        layout = (('insn_type', InternalOp),
+        layout = (('insn_type', MicrOp),
                   ('fn_unit', Function),
                   ('insn', 32),
                   ('read_cr_whole', 1),

@@ -20,7 +20,7 @@ from soc.experiment.testmem import TestMemory
 
 from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
 
-from soc.decoder.power_enums import InternalOp, Function
+from soc.decoder.power_enums import MicrOp, Function
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.simulator.program import Program
@@ -1178,15 +1178,15 @@ def scoreboard_sim(dut, alusim):
             instrs.append((1, 7, 2, 2, 0, 0, (0, 0)))
 
         if True:
-            instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
+            instrs.append((2, 3, 3, MicrOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
-            instrs.append((5, 3, 3, InternalOp.OP_ADD, Function.ALU,
+            instrs.append((5, 3, 3, MicrOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
         if False:
-            instrs.append((3, 5, 5, InternalOp.OP_MUL_L64, Function.ALU,
+            instrs.append((3, 5, 5, MicrOp.OP_MUL_L64, Function.ALU,
                            1, 7, (0, 0)))
         if False:
-            instrs.append((2, 3, 3, InternalOp.OP_ADD, Function.ALU,
+            instrs.append((2, 3, 3, MicrOp.OP_ADD, Function.ALU,
                            0, 0, (0, 0)))
 
         if False:

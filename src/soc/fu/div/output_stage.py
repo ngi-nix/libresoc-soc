@@ -9,7 +9,7 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.div.pipe_data import DivMulOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -115,7 +115,7 @@ class DivOutputStage(PipeModBase):
 
         with m.If(~ov): # result is valid (no overflow)
             with m.Switch(op.insn_type):
-                with m.Case(InternalOp.OP_DIVE):
+                with m.Case(MicrOp.OP_DIVE):
                     with m.If(op.is_32bit):
                         with m.If(op.is_signed):
                             # matches POWER9's divweo behavior
@@ -124,7 +124,7 @@ class DivOutputStage(PipeModBase):
                             comb += o.eq(quotient_65[0:32].as_unsigned())
                     with m.Else():
                         comb += o.eq(quotient_65)
-                with m.Case(InternalOp.OP_DIV):
+                with m.Case(MicrOp.OP_DIV):
                     with m.If(op.is_32bit):
                         with m.If(op.is_signed):
                             # matches POWER9's divwo behavior
@@ -133,7 +133,7 @@ class DivOutputStage(PipeModBase):
                             comb += o.eq(quotient_65[0:32].as_unsigned())
                     with m.Else():
                         comb += o.eq(quotient_65)
-                with m.Case(InternalOp.OP_MOD):
+                with m.Case(MicrOp.OP_MOD):
                     with m.If(op.is_32bit):
                         with m.If(op.is_signed):
                             # matches POWER9's modsw behavior

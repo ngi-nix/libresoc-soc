@@ -16,7 +16,7 @@ from nmigen.cli import rtlil
 from soc.fu.logical.main_stage import LogicalMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -82,14 +82,14 @@ class Driver(Elaboratable):
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
-            with m.Case(InternalOp.OP_AND):
+            with m.Case(MicrOp.OP_AND):
                 comb += Assert(o == a & b)
-            with m.Case(InternalOp.OP_OR):
+            with m.Case(MicrOp.OP_OR):
                 comb += Assert(o == a | b)
-            with m.Case(InternalOp.OP_XOR):
+            with m.Case(MicrOp.OP_XOR):
                 comb += Assert(o == a ^ b)
 
-            with m.Case(InternalOp.OP_POPCNT):
+            with m.Case(MicrOp.OP_POPCNT):
                 with m.If(rec.data_len == 8):
                     comb += Assert(o == simple_popcount(a, 64))
                 with m.If(rec.data_len == 4):
@@ -101,7 +101,7 @@ class Driver(Elaboratable):
                         slc = slice(i*8, (i+1)*8)
                         comb += Assert(o[slc] == simple_popcount(a[slc], 8))
 
-            with m.Case(InternalOp.OP_PRTY):
+            with m.Case(MicrOp.OP_PRTY):
                 with m.If(rec.data_len == 8):
                     result = 0
                     for i in range(8):
@@ -116,7 +116,7 @@ class Driver(Elaboratable):
                     comb += Assert(o[0:32] == result_low)
                     comb += Assert(o[32:64] == result_high)
 
-            with m.Case(InternalOp.OP_CNTZ):
+            with m.Case(MicrOp.OP_CNTZ):
                 XO = dut.fields.FormX.XO[0:-1]
                 with m.If(rec.is_32bit):
                     m.submodules.pe32 = pe32 = PriorityEncoder(32)
@@ -145,7 +145,7 @@ class Driver(Elaboratable):
                         comb += pe64.i.eq(a[0:64][::-1])
                         comb += Assert(o == peo64)
 
-            with m.Case(InternalOp.OP_CMPB):
+            with m.Case(MicrOp.OP_CMPB):
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
                     with m.If(a[slc] == b[slc]):
@@ -153,7 +153,7 @@ class Driver(Elaboratable):
                     with m.Else():
                         comb += Assert(o[slc] == 0)
 
-            with m.Case(InternalOp.OP_BPERM):
+            with m.Case(MicrOp.OP_BPERM):
                 # note that this is a copy of the beautifully-documented
                 # proof_bpermd.py
                 comb += Assert(o[8:] == 0)

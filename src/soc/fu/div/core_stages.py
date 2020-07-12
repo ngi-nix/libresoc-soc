@@ -4,7 +4,7 @@
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange

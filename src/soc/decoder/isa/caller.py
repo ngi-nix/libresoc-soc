@@ -14,7 +14,7 @@ from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
-                                     insns, InternalOp)
+                                     insns, MicrOp)
 from soc.decoder.helpers import exts
 from soc.consts import PI, MSR
 
@@ -515,7 +515,7 @@ class ISACaller:
         rc_ok = yield self.dec2.e.do.rc.ok
         # grrrr have to special-case MUL op (see DecodeOE)
         print ("ov en rc en", ov_ok, ov_en, rc_ok, rc_en, int_op)
-        if int_op in [InternalOp.OP_MUL_H64.value, InternalOp.OP_MUL_H32.value]:
+        if int_op in [MicrOp.OP_MUL_H64.value, MicrOp.OP_MUL_H32.value]:
             print ("mul op")
             if rc_en & rc_ok:
                 asmop += "."
@@ -526,12 +526,12 @@ class ISACaller:
         if lk:
             asmop += "l"
         print ("int_op", int_op)
-        if int_op in [InternalOp.OP_B.value, InternalOp.OP_BC.value]:
+        if int_op in [MicrOp.OP_B.value, MicrOp.OP_BC.value]:
             AA = yield self.dec2.dec.fields.FormI.AA[0:-1]
             print ("AA", AA)
             if AA:
                 asmop += "a"
-        if int_op == InternalOp.OP_MFCR.value:
+        if int_op == MicrOp.OP_MFCR.value:
             dec_insn = yield self.dec2.e.do.insn
             if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mfocrf'
@@ -539,7 +539,7 @@ class ISACaller:
                 asmop = 'mfcr'
         # XXX TODO: for whatever weird reason this doesn't work
         # https://bugs.libre-soc.org/show_bug.cgi?id=390
-        if int_op == InternalOp.OP_MTCRF.value:
+        if int_op == MicrOp.OP_MTCRF.value:
             dec_insn = yield self.dec2.e.do.insn
             if dec_insn & (1<<20) != 0: # sigh
                 asmop = 'mtocrf'

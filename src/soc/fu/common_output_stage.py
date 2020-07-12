@@ -3,7 +3,7 @@
 from nmigen import (Module, Signal, Cat, Const)
 from nmutil.pipemodbase import PipeModBase
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 
 class CommonOutputStage(PipeModBase):
@@ -60,8 +60,8 @@ class CommonOutputStage(PipeModBase):
         # that can be used as a test of whether to invert the +ve/-ve test
         # see https://bugs.libre-soc.org/show_bug.cgi?id=305#c60
 
-        comb += is_cmp.eq(op.insn_type == InternalOp.OP_CMP)
-        comb += is_cmpeqb.eq(op.insn_type == InternalOp.OP_CMPEQB)
+        comb += is_cmp.eq(op.insn_type == MicrOp.OP_CMP)
+        comb += is_cmpeqb.eq(op.insn_type == MicrOp.OP_CMPEQB)
         # nope - if *processor* mode is 32-bit
         #with m.If(op.is_32bit):
         #    comb += msb_test.eq(target[-1] ^ is_cmp) # 64-bit MSB

@@ -10,7 +10,7 @@ from nmigen.cli import rtlil
 from soc.fu.shift_rot.main_stage import ShiftRotMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -69,14 +69,14 @@ class Driver(Elaboratable):
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
-            with m.Case(InternalOp.OP_SHL):
+            with m.Case(MicrOp.OP_SHL):
                 comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
                     comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
                     comb += Assert(o[32:64] == 0)
                 with m.Else():
                     comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
-            with m.Case(InternalOp.OP_SHR):
+            with m.Case(MicrOp.OP_SHR):
                 comb += Assume(ra == 0)
                 with m.If(~rec.is_signed):
                     with m.If(rec.is_32bit):

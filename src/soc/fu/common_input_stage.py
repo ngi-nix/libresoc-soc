@@ -3,7 +3,7 @@
 # generation for subtraction, should happen here
 from nmigen import (Module, Signal)
 from nmutil.pipemodbase import PipeModBase
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 from soc.decoder.power_enums import CryIn
 
 

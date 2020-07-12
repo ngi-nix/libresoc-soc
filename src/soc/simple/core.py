@@ -32,7 +32,7 @@ from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer # test only
 from soc.config.test.test_loadstore import TestMemPspec
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import operator
 
 
@@ -157,10 +157,10 @@ class NonProductionCore(Elaboratable):
         with m.If(can_run):
             with m.Switch(dec2.e.do.insn_type):
             # check for ATTN: halt if true
-                with m.Case(InternalOp.OP_ATTN):
+                with m.Case(MicrOp.OP_ATTN):
                     m.d.sync += core_stopped.eq(1)
 
-                with m.Case(InternalOp.OP_NOP):
+                with m.Case(MicrOp.OP_NOP):
                     sync += counter.eq(2)
                     comb += self.busy_o.eq(1)
 

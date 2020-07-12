@@ -7,7 +7,7 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.logical.pipe_data import LogicalOutputData
 from soc.fu.shift_rot.pipe_data import ShiftRotInputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 from soc.fu.shift_rot.rotator import Rotator
 
 from soc.decoder.power_fields import DecodeFields
@@ -62,11 +62,11 @@ class ShiftRotMainStage(PipeModBase):
         # instruction rotate type
         mode = Signal(3, reset_less=True)
         with m.Switch(op.insn_type):
-            with m.Case(InternalOp.OP_SHL):  comb += mode.eq(0b000)
-            with m.Case(InternalOp.OP_SHR):  comb += mode.eq(0b001) # R-shift
-            with m.Case(InternalOp.OP_RLC):  comb += mode.eq(0b110) # clear LR
-            with m.Case(InternalOp.OP_RLCL): comb += mode.eq(0b010) # clear L
-            with m.Case(InternalOp.OP_RLCR): comb += mode.eq(0b100) # clear R
+            with m.Case(MicrOp.OP_SHL):  comb += mode.eq(0b000)
+            with m.Case(MicrOp.OP_SHR):  comb += mode.eq(0b001) # R-shift
+            with m.Case(MicrOp.OP_RLC):  comb += mode.eq(0b110) # clear LR
+            with m.Case(MicrOp.OP_RLCL): comb += mode.eq(0b010) # clear L
+            with m.Case(MicrOp.OP_RLCR): comb += mode.eq(0b100) # clear R
             with m.Default():
                 comb += o.ok.eq(0) # otherwise disable
 

@@ -24,7 +24,7 @@ from soc.regfile.regfiles import FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 
 class TestIssuer(Elaboratable):
@@ -142,7 +142,7 @@ class TestIssuer(Elaboratable):
                     with m.If(core.core_terminated_o):
                         m.next = "IDLE" # back to idle, immediately (OP_ATTN)
                     with m.Else():
-                        with m.If(insn_type != InternalOp.OP_NOP):
+                        with m.If(insn_type != MicrOp.OP_NOP):
                             comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_opcode_i.eq(ilatch) # actual opcode
                         with m.If(self.fast_nia.wen):

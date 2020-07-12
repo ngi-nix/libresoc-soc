@@ -13,7 +13,7 @@ from soc.fu.logical.bpermd import Bpermd
 from soc.fu.logical.popcount import Popcount
 from soc.fu.logical.pipe_data import LogicalOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -47,15 +47,15 @@ class LogicalMainStage(PipeModBase):
         with m.Switch(op.insn_type):
 
             ###### AND, OR, XOR #######
-            with m.Case(InternalOp.OP_AND):
+            with m.Case(MicrOp.OP_AND):
                 comb += o.data.eq(a & b)
-            with m.Case(InternalOp.OP_OR):
+            with m.Case(MicrOp.OP_OR):
                 comb += o.data.eq(a | b)
-            with m.Case(InternalOp.OP_XOR):
+            with m.Case(MicrOp.OP_XOR):
                 comb += o.data.eq(a ^ b)
 
             ###### cmpb #######
-            with m.Case(InternalOp.OP_CMPB):
+            with m.Case(MicrOp.OP_CMPB):
                 l = []
                 for i in range(8):
                     slc = slice(i*8, (i+1)*8)
@@ -63,14 +63,14 @@ class LogicalMainStage(PipeModBase):
                 comb += o.data.eq(Cat(*l))
 
             ###### popcount #######
-            with m.Case(InternalOp.OP_POPCNT):
+            with m.Case(MicrOp.OP_POPCNT):
                 comb += popcount.a.eq(a)
                 comb += popcount.b.eq(b)
                 comb += popcount.data_len.eq(op.data_len)
                 comb += o.data.eq(popcount.o)
 
             ###### parity #######
-            with m.Case(InternalOp.OP_PRTY):
+            with m.Case(MicrOp.OP_PRTY):
                 # strange instruction which XORs together the LSBs of each byte
                 par0 = Signal(reset_less=True)
                 par1 = Signal(reset_less=True)
@@ -83,7 +83,7 @@ class LogicalMainStage(PipeModBase):
                     comb += o[32].eq(par1)
 
             ###### cntlz #######
-            with m.Case(InternalOp.OP_CNTZ):
+            with m.Case(MicrOp.OP_CNTZ):
                 XO = self.fields.FormX.XO[0:-1]
                 count_right = Signal(reset_less=True)
                 comb += count_right.eq(XO[-1])
@@ -102,7 +102,7 @@ class LogicalMainStage(PipeModBase):
                 comb += o.data.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
 
             ###### bpermd #######
-            with m.Case(InternalOp.OP_BPERM):
+            with m.Case(MicrOp.OP_BPERM):
                 comb += bpermd.rs.eq(a)
                 comb += bpermd.rb.eq(b)
                 comb += o.data.eq(bpermd.ra)

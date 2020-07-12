@@ -16,7 +16,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
 from nmigen.back.pysim import Simulator, Settle
 
-from soc.decoder.power_enums import InternalOp, Function, CryIn
+from soc.decoder.power_enums import MicrOp, Function, CryIn
 
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.cr.cr_input_record import CompCROpSubset
@@ -239,24 +239,24 @@ class ALU(Elaboratable):
             with m.If(self.p.valid_i):
 
                 # as this is a "fake" pipeline, just grab the output right now
-                with m.If(self.op.insn_type == InternalOp.OP_ADD):
+                with m.If(self.op.insn_type == MicrOp.OP_ADD):
                     m.d.sync += alu_r.eq(add.o)
-                with m.Elif(self.op.insn_type == InternalOp.OP_MUL_L64):
+                with m.Elif(self.op.insn_type == MicrOp.OP_MUL_L64):
                     m.d.sync += alu_r.eq(mul.o)
-                with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
+                with m.Elif(self.op.insn_type == MicrOp.OP_SHR):
                     m.d.sync += alu_r.eq(shf.o)
                 # SUB is zero-delay, no need to register
 
                 # NOTE: all of these are fake, just something to test
 
                 # MUL, to take 5 instructions
-                with m.If(self.op.insn_type == InternalOp.OP_MUL_L64):
+                with m.If(self.op.insn_type == MicrOp.OP_MUL_L64):
                     m.d.sync += self.counter.eq(5)
                 # SHIFT to take 1, straight away
-                with m.Elif(self.op.insn_type == InternalOp.OP_SHR):
+                with m.Elif(self.op.insn_type == MicrOp.OP_SHR):
                     m.d.sync += self.counter.eq(1)
                 # ADD/SUB to take 3
-                with m.Elif(self.op.insn_type == InternalOp.OP_ADD):
+                with m.Elif(self.op.insn_type == MicrOp.OP_ADD):
                     m.d.sync += self.counter.eq(3)
                 # others to take no delay
                 with m.Else():
@@ -417,25 +417,25 @@ def run_op(dut, a, b, op, inv_a=0):
 
 
 def alu_sim(dut):
-    result = yield from run_op(dut, 5, 3, InternalOp.OP_ADD)
+    result = yield from run_op(dut, 5, 3, MicrOp.OP_ADD)
     print ("alu_sim add", result)
     assert (result == 8)
 
-    result = yield from run_op(dut, 2, 3, InternalOp.OP_MUL_L64)
+    result = yield from run_op(dut, 2, 3, MicrOp.OP_MUL_L64)
     print ("alu_sim mul", result)
     assert (result == 6)
 
-    result = yield from run_op(dut, 5, 3, InternalOp.OP_ADD, inv_a=1)
+    result = yield from run_op(dut, 5, 3, MicrOp.OP_ADD, inv_a=1)
     print ("alu_sim add-inv", result)
     assert (result == 65533)
 
     # test zero-delay ALU
     # don't have OP_SUB, so use any other
-    result = yield from run_op(dut, 5, 3, InternalOp.OP_NOP)
+    result = yield from run_op(dut, 5, 3, MicrOp.OP_NOP)
     print ("alu_sim sub", result)
     assert (result == 2)
 
-    result = yield from run_op(dut, 13, 2, InternalOp.OP_SHR)
+    result = yield from run_op(dut, 13, 2, MicrOp.OP_SHR)
     print ("alu_sim shr", result)
     assert (result == 3)
 
@@ -496,21 +496,21 @@ def test_alu_parallel():
         # note that, for this test, we do not wait for the result to be ready,
         # before presenting the next input
         # 5 + 3
-        yield from send(5, 3, InternalOp.OP_ADD)
+        yield from send(5, 3, MicrOp.OP_ADD)
         yield
         yield
         # 2 * 3
-        yield from send(2, 3, InternalOp.OP_MUL_L64)
+        yield from send(2, 3, MicrOp.OP_MUL_L64)
         # (-5) + 3
-        yield from send(5, 3, InternalOp.OP_ADD, inv_a=1)
+        yield from send(5, 3, MicrOp.OP_ADD, inv_a=1)
         yield
         # 5 - 3
         # note that this is a zero-delay operation
-        yield from send(5, 3, InternalOp.OP_NOP)
+        yield from send(5, 3, MicrOp.OP_NOP)
         yield
         yield
         # 13 >> 2
-        yield from send(13, 2, InternalOp.OP_SHR)
+        yield from send(13, 2, MicrOp.OP_SHR)
 
     def consumer():
         # receive and check results, interspersed with wait states

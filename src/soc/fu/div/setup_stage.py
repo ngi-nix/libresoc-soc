@@ -5,7 +5,7 @@ from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.div.pipe_data import DIVInputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -54,10 +54,10 @@ class DivSetupStage(PipeModBase):
 
         # check for absolute overflow condition (32/64)
         comb += self.o.dive_abs_ov64.eq((abs_dend >= abs_dor)
-                                        & (op.insn_type == InternalOp.OP_DIVE))
+                                        & (op.insn_type == MicrOp.OP_DIVE))
 
         comb += self.o.dive_abs_ov32.eq((abs_dend[0:32] >= abs_dor[0:32])
-                                        & (op.insn_type == InternalOp.OP_DIVE))
+                                        & (op.insn_type == MicrOp.OP_DIVE))
 
         # set divisor based on 32/64 bit mode (must be absolute)
         comb += eq32(op.is_32bit, divisor_o, abs_dor)
@@ -70,10 +70,10 @@ class DivSetupStage(PipeModBase):
 
         with m.Switch(op.insn_type):
             # div/mod takes straight (absolute) dividend
-            with m.Case(InternalOp.OP_DIV, InternalOp.OP_MOD):
+            with m.Case(MicrOp.OP_DIV, MicrOp.OP_MOD):
                 comb += eq32(op.is_32bit, dividend_o, abs_dend)
             # extended div shifts dividend up
-            with m.Case(InternalOp.OP_DIVE):
+            with m.Case(MicrOp.OP_DIVE):
                 with m.If(op.is_32bit):
                     comb += dividend_o.eq(abs_dend[0:32] << 32)
                 with m.Else():

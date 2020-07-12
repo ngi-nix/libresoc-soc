@@ -4,7 +4,7 @@ from nmigen import Module, Signal, Mux, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
 from soc.decoder.power_decoder2 import Data
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.experiment.alu_hier import CompALUOpSubset
 
@@ -211,14 +211,14 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
 
 
 def scoreboard_sim(dut):
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=0,
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=0,
                                imm=8, imm_ok=1)
     assert result == 13
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=1)
     assert result == 65532
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD)
     assert result == 7
 
 

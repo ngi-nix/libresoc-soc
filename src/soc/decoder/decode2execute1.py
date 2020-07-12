@@ -5,7 +5,7 @@ based on Anton Blanchard microwatt decode2.vhdl
 """
 from nmigen import Signal, Record
 from nmutil.iocontrol import RecordObject
-from soc.decoder.power_enums import InternalOp, CryIn, Function, SPR, LDSTMode
+from soc.decoder.power_enums import MicrOp, CryIn, Function, SPR, LDSTMode
 
 
 class Data(Record):
@@ -29,7 +29,7 @@ class Decode2ToOperand(RecordObject):
 
         RecordObject.__init__(self, name=name)
 
-        self.insn_type = Signal(InternalOp, reset_less=True)
+        self.insn_type = Signal(MicrOp, reset_less=True)
         self.fn_unit = Signal(Function, reset_less=True)
         self.imm_data = Data(64, name="imm")
 

@@ -6,7 +6,7 @@ from soc.fu.compunits.compunits import FunctionUnitBaseSingle
 from soc.experiment.alu_hier import DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 class MaskGenTestCase(FHDLTestCase):
@@ -22,7 +22,7 @@ class MaskGenTestCase(FHDLTestCase):
             yield dut.src1_i.eq(0x5)
             yield dut.src2_i.eq(0x5)
             yield dut.issue_i.eq(1)
-            yield dut.oper_i.insn_type.eq(InternalOp.OP_ADD)
+            yield dut.oper_i.insn_type.eq(MicrOp.OP_ADD)
             yield
             yield dut.issue_i.eq(0)
             yield

@@ -1,6 +1,6 @@
 from nmigen.hdl.rec import Record, Layout
 
-from soc.decoder.power_enums import InternalOp, Function, LDSTMode
+from soc.decoder.power_enums import MicrOp, Function, LDSTMode
 
 
 class CompLDSTOpSubset(Record):
@@ -13,7 +13,7 @@ class CompLDSTOpSubset(Record):
     note: rc / oe is needed (later) for st*cx when it comes to setting OV/SO
     """
     def __init__(self, name=None):
-        layout = (('insn_type', InternalOp),
+        layout = (('insn_type', MicrOp),
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                   ('zero_a', 1),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))), # for later

@@ -3,7 +3,7 @@ from nmigen.back.pysim import Simulator, Delay
 from nmutil.formaltest import FHDLTestCase
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_enums import (Function, InternalOp,
+from soc.decoder.power_enums import (Function, MicrOp,
                                      In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, LdstLen, CryIn,
                                      single_bit_flags, Form, SPR,
@@ -39,12 +39,12 @@ class Checker:
 class RegRegOp:
     def __init__(self):
         self.ops = {
-            "add": InternalOp.OP_ADD,
-            "and": InternalOp.OP_AND,
-            "or": InternalOp.OP_OR,
-            "add.": InternalOp.OP_ADD,
-            "lwzx": InternalOp.OP_LOAD,
-            "stwx": InternalOp.OP_STORE,
+            "add": MicrOp.OP_ADD,
+            "and": MicrOp.OP_AND,
+            "or": MicrOp.OP_OR,
+            "add.": MicrOp.OP_ADD,
+            "lwzx": MicrOp.OP_LOAD,
+            "stwx": MicrOp.OP_STORE,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -60,7 +60,7 @@ class RegRegOp:
         return string
 
     def check_results(self, pdecode2):
-        if self.opcode == InternalOp.OP_STORE:
+        if self.opcode == MicrOp.OP_STORE:
             r1sel = yield pdecode2.e.read_reg3.data
         else:
             r1sel = yield pdecode2.e.write_reg.data
@@ -92,10 +92,10 @@ class RegImmOp(Checker):
     def __init__(self):
         super().__init__()
         self.ops = {
-            "addi": InternalOp.OP_ADD,
-            "addis": InternalOp.OP_ADD,
-            "andi.": InternalOp.OP_AND,
-            "ori": InternalOp.OP_OR,
+            "addi": MicrOp.OP_ADD,
+            "addis": MicrOp.OP_ADD,
+            "andi.": MicrOp.OP_AND,
+            "ori": MicrOp.OP_OR,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -140,14 +140,14 @@ class LdStOp(Checker):
     def __init__(self):
         super().__init__()
         self.ops = {
-            "lwz": InternalOp.OP_LOAD,
-            "stw": InternalOp.OP_STORE,
-            "lwzu": InternalOp.OP_LOAD,
-            "stwu": InternalOp.OP_STORE,
-            "lbz": InternalOp.OP_LOAD,
-            "lhz": InternalOp.OP_LOAD,
-            "stb": InternalOp.OP_STORE,
-            "sth": InternalOp.OP_STORE,
+            "lwz": MicrOp.OP_LOAD,
+            "stw": MicrOp.OP_STORE,
+            "lwzu": MicrOp.OP_LOAD,
+            "stwu": MicrOp.OP_STORE,
+            "lbz": MicrOp.OP_LOAD,
+            "lhz": MicrOp.OP_LOAD,
+            "stb": MicrOp.OP_STORE,
+            "sth": MicrOp.OP_STORE,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -167,7 +167,7 @@ class LdStOp(Checker):
     def check_results(self, pdecode2):
         print("Check")
         r2sel = yield pdecode2.e.read_reg1.data
-        if self.opcode == InternalOp.OP_STORE:
+        if self.opcode == MicrOp.OP_STORE:
             r1sel = yield pdecode2.e.read_reg3.data
         else:
             r1sel = yield pdecode2.e.write_reg.data
@@ -198,7 +198,7 @@ class LdStOp(Checker):
 class CmpRegOp:
     def __init__(self):
         self.ops = {
-            "cmp": InternalOp.OP_CMP,
+            "cmp": MicrOp.OP_CMP,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -226,12 +226,12 @@ class CmpRegOp:
 class RotateOp:
     def __init__(self):
         self.ops = {
-            "rlwinm": InternalOp.OP_CMP,
-            "rlwnm": InternalOp.OP_CMP,
-            "rlwimi": InternalOp.OP_CMP,
-            "rlwinm.": InternalOp.OP_CMP,
-            "rlwnm.": InternalOp.OP_CMP,
-            "rlwimi.": InternalOp.OP_CMP,
+            "rlwinm": MicrOp.OP_CMP,
+            "rlwnm": MicrOp.OP_CMP,
+            "rlwimi": MicrOp.OP_CMP,
+            "rlwinm.": MicrOp.OP_CMP,
+            "rlwnm.": MicrOp.OP_CMP,
+            "rlwimi.": MicrOp.OP_CMP,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -278,10 +278,10 @@ class RotateOp:
 class Branch:
     def __init__(self):
         self.ops = {
-            "b": InternalOp.OP_B,
-            "bl": InternalOp.OP_B,
-            "ba": InternalOp.OP_B,
-            "bla": InternalOp.OP_B,
+            "b": MicrOp.OP_B,
+            "bl": MicrOp.OP_B,
+            "ba": MicrOp.OP_B,
+            "bla": MicrOp.OP_B,
         }
         self.opcodestr = random.choice(list(self.ops.keys()))
         self.opcode = self.ops[self.opcodestr]
@@ -311,10 +311,10 @@ class Branch:
 class BranchCond:
     def __init__(self):
         self.ops = {
-            "bc": InternalOp.OP_B,
-            "bcl": InternalOp.OP_B,
-            "bca": InternalOp.OP_B,
-            "bcla": InternalOp.OP_B,
+            "bc": MicrOp.OP_B,
+            "bcl": MicrOp.OP_B,
+            "bca": MicrOp.OP_B,
+            "bcla": MicrOp.OP_B,
         }
         # Given in Figure 40 "BO field encodings" in section 2.4, page
         # 33 of the Power ISA v3.0B manual
@@ -360,10 +360,10 @@ class BranchCond:
 class BranchRel:
     def __init__(self):
         self.ops = {
-            "bclr": InternalOp.OP_B,
-            "bcctr": InternalOp.OP_B,
-            "bclrl": InternalOp.OP_B,
-            "bcctrl": InternalOp.OP_B,
+            "bclr": MicrOp.OP_B,
+            "bcctr": MicrOp.OP_B,
+            "bclrl": MicrOp.OP_B,
+            "bcctrl": MicrOp.OP_B,
         }
         # Given in Figure 40 "BO field encodings" in section 2.4, page
         # 33 of the Power ISA v3.0B manual
@@ -403,7 +403,7 @@ class BranchRel:
 class CROp:
     def __init__(self):
         self.ops = {
-            "crand": InternalOp.OP_CROP,
+            "crand": MicrOp.OP_CROP,
         }
         # Given in Figure 40 "BO field encodings" in section 2.4, page
         # 33 of the Power ISA v3.0B manual

@@ -132,7 +132,7 @@ for i, insn in enumerate(_insns):
 
 # Internal Operation numbering.  Add new opcodes here (FPADD, FPMUL etc.)
 @unique
-class InternalOp(Enum):
+class MicrOp(Enum):
     OP_ILLEGAL = 0     # important that this is zero (see power_decoder.py)
     OP_NOP = 1
     OP_ADD = 2

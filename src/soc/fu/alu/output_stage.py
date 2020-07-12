@@ -5,7 +5,7 @@ from nmigen import (Module, Signal, Cat, Repl)
 from soc.fu.alu.pipe_data import ALUInputData, ALUOutputData
 from soc.fu.common_output_stage import CommonOutputStage
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 
 class ALUOutputStage(CommonOutputStage):

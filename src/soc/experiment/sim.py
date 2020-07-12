@@ -1,4 +1,4 @@
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from random import randint, seed
 from copy import deepcopy
@@ -43,9 +43,9 @@ class RegSim:
             src2 = imm
         else:
             src2 = self.regs[src2] & maxbits
-        if op == InternalOp.OP_ADD:
+        if op == MicrOp.OP_ADD:
             val = src1 + src2
-        elif op == InternalOp.OP_MUL_L64:
+        elif op == MicrOp.OP_MUL_L64:
             val = src1 * src2
             print ("mul src1, src2", src1, src2, val)
         elif op == ISUB:

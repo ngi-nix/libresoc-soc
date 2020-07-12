@@ -14,7 +14,7 @@ from nmigen.compat.sim import run_simulation, Settle
 from nmigen.cli import rtlil
 from nmigen import Module
 
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.experiment.alu_hier import ALU, DummyALU
@@ -75,37 +75,37 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
 
 
 def scoreboard_sim_dummy(dut):
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_NOP, inv_a=0,
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP, inv_a=0,
                                     imm=8, imm_ok=1)
     assert result == 5, result
 
-    result = yield from op_sim(dut, 9, 2, InternalOp.OP_NOP, inv_a=0,
+    result = yield from op_sim(dut, 9, 2, MicrOp.OP_NOP, inv_a=0,
                                     imm=8, imm_ok=1)
     assert result == 9, result
 
 
 def scoreboard_sim(dut):
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=0,
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=0,
                                     imm=8, imm_ok=1)
     assert result == 13
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD)
     assert result == 7
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, inv_a=1)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=1)
     assert result == 65532
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1,
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1,
                                     imm=8, imm_ok=1)
     assert result == 8
 
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_ADD, zero_a=1)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1)
     assert result == 2
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL or SHR
     # is zero-delay, and do a subtraction.
-    result = yield from op_sim(dut, 5, 2, InternalOp.OP_NOP)
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP)
     assert result == 3
 
 
@@ -153,7 +153,7 @@ class CompUnitParallelTest:
 
     def driver(self):
         print("Begin parallel test.")
-        yield from self.operation(5, 2, InternalOp.OP_ADD)
+        yield from self.operation(5, 2, MicrOp.OP_ADD)
 
     def operation(self, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0,
                   rdmaskn=(0, 0)):

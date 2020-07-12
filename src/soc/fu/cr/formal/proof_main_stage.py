@@ -14,7 +14,7 @@ from nmigen.cli import rtlil
 from soc.fu.cr.main_stage import CRMainStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 import unittest
 
 
@@ -76,7 +76,7 @@ class Driver(Elaboratable):
 
         with m.Switch(rec.insn_type):
             # CR_ISEL takes cr_a
-            with m.Case(InternalOp.OP_ISEL):
+            with m.Case(MicrOp.OP_ISEL):
                 # grab the MSBs of the cr bit selector
                 bc = Signal(3, reset_less=True)
                 comb += bc.eq(a_fields.BC[2:5])
@@ -88,7 +88,7 @@ class Driver(Elaboratable):
 
             # For OP_CROP, we need to input the corresponding CR
             # registers for BA, BB, and BT
-            with m.Case(InternalOp.OP_CROP):
+            with m.Case(MicrOp.OP_CROP):
                 # grab the MSBs of the 3 bit selectors
                 bt = Signal(3, reset_less=True)
                 ba = Signal(3, reset_less=True)
@@ -111,7 +111,7 @@ class Driver(Elaboratable):
                     with m.Else():
                         comb += cr_output_arr[i].eq(dut.o.cr.data)
 
-            with m.Case(InternalOp.OP_MCRF):
+            with m.Case(MicrOp.OP_MCRF):
                 # This does a similar thing to OP_CROP above, with
                 # less inputs. The CR selection fields are already 3
                 # bits so there's no need to grab only the MSBs
@@ -128,7 +128,7 @@ class Driver(Elaboratable):
                         comb += cr_output_arr[i].eq(dut.o.cr.data)
 
             # Set the input similar to OP_MCRF
-            with m.Case(InternalOp.OP_SETB):
+            with m.Case(MicrOp.OP_SETB):
                 comb += dut.i.cr_a.eq(cr_input_arr[bfa])
 
             # For the other two, they take the full CR as input, and
@@ -159,13 +159,13 @@ class Driver(Elaboratable):
 
         FXM = xfx_fields.FXM[0:-1]
         with m.Switch(rec.insn_type):
-            with m.Case(InternalOp.OP_MTCRF):
+            with m.Case(MicrOp.OP_MTCRF):
                 for i in range(8):
                     with m.If(FXM[i]):
                         comb += Assert(cr_o[4*i:4*i+4] == a[4*i:4*i+4])
                 comb += full_cr_o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_MFCR):
+            with m.Case(MicrOp.OP_MFCR):
                 with m.If(rec.insn[20]):  # mfocrf
                     for i in range(8):
                         with m.If(FXM[i]):
@@ -176,7 +176,7 @@ class Driver(Elaboratable):
                     comb += Assert(o == cr)
                 comb += o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_MCRF):
+            with m.Case(MicrOp.OP_MCRF):
                 BF = xl_fields.BF[0:-1]
                 BFA = xl_fields.BFA[0:-1]
                 for i in range(4):
@@ -186,7 +186,7 @@ class Driver(Elaboratable):
                         comb += Assert(cr_o[i*4:i*4+4] == cr[i*4:i*4+4])
                 comb += cr_o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_CROP):
+            with m.Case(MicrOp.OP_CROP):
                 bt = Signal(xl_fields.BT[0:-1].shape(), reset_less=True)
                 ba = Signal(xl_fields.BA[0:-1].shape(), reset_less=True)
                 bb = Signal(xl_fields.BB[0:-1].shape(), reset_less=True)
@@ -222,7 +222,7 @@ class Driver(Elaboratable):
 
                 comb += cr_o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_ISEL):
+            with m.Case(MicrOp.OP_ISEL):
                 # Extract the bit selector of the CR
                 bc = Signal(a_fields.BC[0:-1].shape(), reset_less=True)
                 comb += bc.eq(a_fields.BC[0:-1])
@@ -235,7 +235,7 @@ class Driver(Elaboratable):
                 comb += Assert(o == Mux(cr_bit, a, b))
                 comb += o_ok.eq(1)
 
-            with m.Case(InternalOp.OP_SETB):
+            with m.Case(MicrOp.OP_SETB):
                 with m.If(cr_arr[4*bfa]):
                     comb += Assert(o == ((1<<64)-1))
                 with m.Elif(cr_arr[4*bfa+1]):

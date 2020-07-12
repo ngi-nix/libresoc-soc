@@ -8,7 +8,7 @@ from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import InternalOp
+from soc.decoder.power_enums import MicrOp
 
 
 # microwatt calc_ov function.
@@ -46,8 +46,8 @@ class ALUMainStage(PipeModBase):
         add_a = Signal(a.width + 2, reset_less=True)
         add_b = Signal(a.width + 2, reset_less=True)
         add_o = Signal(a.width + 2, reset_less=True)
-        with m.If((op.insn_type == InternalOp.OP_ADD) |
-                  (op.insn_type == InternalOp.OP_CMP)):
+        with m.If((op.insn_type == MicrOp.OP_ADD) |
+                  (op.insn_type == MicrOp.OP_CMP)):
             # in bit 0, 1+carry_in creates carry into bit 1 and above
             comb += add_a.eq(Cat(cry_i[0], a, Const(0, 1)))
             comb += add_b.eq(Cat(Const(1, 1), b, Const(0, 1)))
@@ -58,7 +58,7 @@ class ALUMainStage(PipeModBase):
 
         with m.Switch(op.insn_type):
             #### CMP, CMPL ####
-            with m.Case(InternalOp.OP_CMP):
+            with m.Case(MicrOp.OP_CMP):
                 # this is supposed to be inverted (b-a, not a-b)
                 # however we have a trick: instead of adding either 2x 64-bit
                 # MUXes to invert a and b, or messing with a 64-bit output,
@@ -67,7 +67,7 @@ class ALUMainStage(PipeModBase):
                 comb += o.ok.eq(0) # use o.data but do *not* actually output
 
             #### add ####
-            with m.Case(InternalOp.OP_ADD):
+            with m.Case(MicrOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.data.eq(add_o[1:-1])
                 comb += o.ok.eq(1) # output register
@@ -87,7 +87,7 @@ class ALUMainStage(PipeModBase):
                 comb += ov_o.ok.eq(1)
 
             #### exts (sign-extend) ####
-            with m.Case(InternalOp.OP_EXTS):
+            with m.Case(MicrOp.OP_EXTS):
                 with m.If(op.data_len == 1):
                     comb += o.data.eq(exts(a, 8, 64))
                 with m.If(op.data_len == 2):
@@ -97,7 +97,7 @@ class ALUMainStage(PipeModBase):
                 comb += o.ok.eq(1) # output register
 
             #### cmpeqb ####
-            with m.Case(InternalOp.OP_CMPEQB):
+            with m.Case(MicrOp.OP_CMPEQB):
                 eqs = Signal(8, reset_less=True)
                 src1 = Signal(8, reset_less=True)
                 comb += src1.eq(a[0:8])

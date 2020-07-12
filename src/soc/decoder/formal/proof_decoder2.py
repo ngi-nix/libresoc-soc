@@ -5,7 +5,7 @@ from nmutil.formaltest import FHDLTestCase
 from soc.decoder.power_decoder import create_pdecode, PowerOp
 from soc.decoder.power_enums import (In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, Form,
-                                     InternalOp, SPR)
+                                     MicrOp, SPR)
 from soc.decoder.power_decoder2 import (PowerDecode2,
                                         Decode2ToExecute1Type)
 import unittest
@@ -53,13 +53,13 @@ class Driver(Elaboratable):
                 comb += Assert(pdecode2.e.read_reg1.data == ra)
                 comb += Assert(pdecode2.e.read_reg1.ok == 1)
                 op = pdecode.op.internal_op
-        with m.If((op == InternalOp.OP_BC) |
-                  (op == InternalOp.OP_BCREG)):
+        with m.If((op == MicrOp.OP_BC) |
+                  (op == MicrOp.OP_BCREG)):
             with m.If(~self.instr_bits(8)):
                 comb += Assert(pdecode2.e.read_spr1.data == SPR.CTR)
                 comb += Assert(pdecode2.e.read_spr1.ok == 1)
-        with m.If((op == InternalOp.OP_MFSPR) |
-                  (op == InternalOp.OP_MTSPR)):
+        with m.If((op == MicrOp.OP_MFSPR) |
+                  (op == MicrOp.OP_MTSPR)):
             comb += Assert(pdecode2.e.read_spr1.data == self.instr_bits(11, 20))
             comb += Assert(pdecode2.e.read_spr1.ok == 1)
 
