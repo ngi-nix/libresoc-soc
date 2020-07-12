@@ -31,9 +31,9 @@ from soc.fu.compunits.test.test_compunit import (setup_test_memory,
 #from soc.fu.cr.test.test_pipe_caller import CRTestCase
 #from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 #from soc.fu.spr.test.test_pipe_caller import SPRTestCase
-#from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
+from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 #from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
-from soc.simulator.test_helloworld_sim import HelloTestCases
+#from soc.simulator.test_helloworld_sim import HelloTestCases
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -50,13 +50,15 @@ def setup_i_memory(imem, startaddr, instructions):
             insn, code = ins
         else:
             insn, code = ins, ''
+        insn = insn & 0xffffffff
         msbs = (startaddr>>1) & mask
         val = yield mem._array[msbs]
         if insn != 0:
             print ("before set", hex(4*startaddr),
                                  hex(msbs), hex(val), hex(insn))
         lsb = 1 if (startaddr & 1) else 0
-        val = (val | (insn << (lsb*32))) & mask
+        val = (val | (insn << (lsb*32)))
+        val = val & mask
         yield mem._array[msbs].eq(val)
         yield Settle()
         if insn != 0:
@@ -180,10 +182,10 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(HelloTestCases.test_data))
+    #suite.addTest(TestRunner(HelloTestCases.test_data))
     #suite.addTest(TestRunner(AttnTestCase.test_data))
     #suite.addTest(TestRunner(GeneralTestCases.test_data))
-    #suite.addTest(TestRunner(LDSTTestCase.test_data))
+    suite.addTest(TestRunner(LDSTTestCase.test_data))
     #suite.addTest(TestRunner(CRTestCase.test_data))
     #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     #suite.addTest(TestRunner(LogicalTestCase.test_data))
