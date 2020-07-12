@@ -1,6 +1,6 @@
 from nmigen.hdl.rec import Record, Layout
 
-from soc.decoder.power_enums import InternalOp, Function
+from soc.decoder.power_enums import InternalOp, Function, LDSTMode
 
 
 class CompLDSTOpSubset(Record):
@@ -23,7 +23,7 @@ class CompLDSTOpSubset(Record):
                   ('data_len', 4),
                   ('byte_reverse', 1),
                   ('sign_extend', 1),
-                  ('update', 1))
+                  ('ldst_mode', LDSTMode))
 
         Record.__init__(self, Layout(layout), name=name)
 
@@ -35,7 +35,7 @@ class CompLDSTOpSubset(Record):
         self.data_len.reset_less = True
         self.byte_reverse.reset_less = True
         self.sign_extend.reset_less = True
-        self.update.reset_less = True
+        self.ldst_mode.reset_less = True
 
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
@@ -54,6 +54,6 @@ class CompLDSTOpSubset(Record):
                 self.data_len,
                 self.byte_reverse,
                 self.sign_extend,
-                self.update,
+                self.ldst_mode,
         ]
 

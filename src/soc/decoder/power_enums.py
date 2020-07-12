@@ -258,6 +258,13 @@ class LdstLen(Enum):
 
 
 @unique
+class LDSTMode(Enum):
+    NONE = 0
+    update = 1
+    cix = 2
+
+
+@unique
 class RC(Enum):
     NONE = 0
     ONE = 1

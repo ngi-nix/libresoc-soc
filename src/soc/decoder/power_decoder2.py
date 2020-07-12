@@ -644,7 +644,7 @@ class PowerDecode2(Elaboratable):
 
         comb += do.byte_reverse.eq(op.br)
         comb += do.sign_extend.eq(op.sgn_ext)
-        comb += do.update.eq(op.upd) # LD/ST "update" mode.
+        comb += do.ldst_mode.eq(op.upd) # LD/ST mode (update, cache-inhibit)
 
         # These should be removed eventually
         comb += do.input_cr.eq(op.cr_in)   # condition reg comes in
