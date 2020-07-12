@@ -84,7 +84,7 @@ from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, InternalOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
-                                     RC, LdstLen, CryIn, get_csv,
+                                     RC, LdstLen, LDSTMode, CryIn, get_csv,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
                                      default_values, insns, asmidx)
@@ -128,6 +128,7 @@ class PowerOp:
         self.cr_in = Signal(CRInSel, reset_less=True)
         self.cr_out = Signal(CROutSel, reset_less=True)
         self.ldst_len = Signal(LdstLen, reset_less=True)
+        self.upd = Signal(LDSTMode, reset_less=True)
         self.rc_sel = Signal(RC, reset_less=True)
         self.cry_in = Signal(CryIn, reset_less=True)
         for bit in single_bit_flags:
@@ -148,6 +149,11 @@ class PowerOp:
                 import pdb; pdb.set_trace()
                 print(row)
             print(row)
+        ldst_mode = row['upd']
+        if ldst_mode.isdigit():
+            ldst_mode = LDSTMode(int(ldst_mode))
+        else:
+            ldst_mode = LDSTMode[ldst_mode]
         res = [self.function_unit.eq(Function[row['unit']]),
                self.form.eq(Form[row['form']]),
                self.internal_op.eq(InternalOp[row['internal op']]),
@@ -158,6 +164,7 @@ class PowerOp:
                self.cr_in.eq(CRInSel[row['CR in']]),
                self.cr_out.eq(CROutSel[row['CR out']]),
                self.ldst_len.eq(LdstLen[row['ldst len']]),
+               self.upd.eq(ldst_mode),
                self.rc_sel.eq(RC[row['rc']]),
                self.cry_in.eq(CryIn[row['cry in']]),
                ]
@@ -183,6 +190,7 @@ class PowerOp:
                self.cr_out.eq(otherop.cr_out),
                self.rc_sel.eq(otherop.rc_sel),
                self.ldst_len.eq(otherop.ldst_len),
+               self.upd.eq(otherop.upd),
                self.cry_in.eq(otherop.cry_in)]
         for bit in single_bit_flags:
             sig = getattr(self, get_signal_name(bit))

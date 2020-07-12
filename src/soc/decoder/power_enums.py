@@ -24,7 +24,7 @@ def get_csv(name):
 
 # names of the fields in the tables that don't correspond to an enum
 single_bit_flags = ['inv A', 'inv out',
-                    'cry out', 'BR', 'sgn ext', 'upd', 'rsrv', '32b',
+                    'cry out', 'BR', 'sgn ext', 'rsrv', '32b',
                     'sgn', 'lk', 'sgl pipe']
 
 # default values for fields in the table
@@ -32,6 +32,7 @@ default_values = {'unit': "NONE", 'internal op': "OP_ILLEGAL",
                   'in1': "RA", 'in2': 'NONE', 'in3': 'NONE', 'out': 'NONE',
                   'CR in': 'NONE',
                   'ldst len': 'NONE',
+                  'upd': '0',
                   'rc': 'NONE', 'cry in': 'ZERO', 'form': 'NONE'}
 
 
