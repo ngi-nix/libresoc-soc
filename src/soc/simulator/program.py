@@ -82,7 +82,7 @@ class Program:
             data = self.binfile.read(4)
             if not data:
                 break
-            yield struct.unpack('<i', data)[0]
+            yield struct.unpack('<I', data)[0] # unsigned int
 
     def generate_instructions(self):
         yield from self._instructions
