@@ -363,9 +363,11 @@ class DecodeOut2(Elaboratable):
             comb += self.reg_out.eq(self.dec.RA)
             comb += self.reg_out.ok.eq(1)
 
-        # BC or BCREG: potential implicit register (LR) output
+        # B, BC or BCREG: potential implicit register (LR) output
+        # these give bl, bcl, bclrl, etc.
         op = self.dec.op
         with m.If((op.internal_op == InternalOp.OP_BC) |
+                  (op.internal_op == InternalOp.OP_B) |
                   (op.internal_op == InternalOp.OP_BCREG)):
             with m.If(self.lk): # "link" mode
                 comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
