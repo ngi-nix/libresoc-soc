@@ -11,6 +11,11 @@ launch_args_le = ['qemu-system-ppc64le',
                '-nographic',
                '-s', '-S']
 
+def swap_order(x, nbytes):
+    x = x.to_bytes(nbytes, byteorder='little')
+    x = int.from_bytes(x, byteorder='big', signed=False)
+    return x
+
 
 class QemuController:
     def __init__(self, kernel, bigendian):
@@ -22,6 +27,7 @@ class QemuController:
                                            stdout=subprocess.PIPE,
                                            stdin=subprocess.PIPE)
         self.gdb = GdbController(gdb_path='powerpc64-linux-gnu-gdb')
+        self.bigendian = bigendian
 
     def __enter__(self):
         return self
@@ -79,7 +85,9 @@ class QemuController:
         for x in res:
             if(x["type"]=="result"):
                 assert 'register-values' in x['payload']
-                return int(x['payload']['register-values'][0]['value'], 0)
+                res = int(x['payload']['register-values'][0]['value'], 0)
+                return res
+                #return swap_order(res, 8)
         return None
 
     # TODO: use -data-list-register-names instead of hardcoding the values
