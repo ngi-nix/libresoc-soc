@@ -93,6 +93,10 @@ class TestIssuer(Elaboratable):
         with m.If(~core.core_terminated_o):
 
             # actually use a nmigen FSM for the first time (w00t)
+            # this FSM is perhaps unusual in that it detects conditions
+            # then "holds" information, combinatorially, for the core
+            # (as opposed to using sync - which would be on a clock's delay)
+            # this includes the actual opcode, valid flags and so on.
             with m.FSM() as fsm:
 
                 # waiting (zzz)
@@ -130,24 +134,27 @@ class TestIssuer(Elaboratable):
                         comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_issue_i.eq(1)  # and issued 
                         comb += core_opcode_i.eq(current_insn) # actual opcode
-                        sync += ilatch.eq(current_insn)
+                        sync += ilatch.eq(current_insn) # latch current insn
                         m.next = "INSN_ACTIVE" # move to "wait completion" 
 
                 # instruction started: must wait till it finishes
                 with m.State("INSN_ACTIVE"):
-                    with m.If(insn_type != InternalOp.OP_NOP):
-                        comb += core_ivalid_i.eq(1) # say instruction is valid
-                    comb += core_opcode_i.eq(ilatch) # actual opcode
-                    with m.If(self.fast_nia.wen):
-                        sync += pc_changed.eq(1)
-                    with m.If(~core_busy_o): # instruction done!
-                        # ok here we are not reading the branch unit.  TODO
-                        # this just blithely overwrites whatever pipeline
-                        # updated the PC
-                        with m.If(~pc_changed):
-                            comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
-                            comb += self.fast_wr1.data_i.eq(nia)
-                        m.next = "IDLE" # back to idle
+                    with m.If(core.core_terminated_o):
+                        m.next = "IDLE" # back to idle, immediately (OP_ATTN)
+                    with m.Else():
+                        with m.If(insn_type != InternalOp.OP_NOP):
+                            comb += core_ivalid_i.eq(1) # instruction is valid
+                        comb += core_opcode_i.eq(ilatch) # actual opcode
+                        with m.If(self.fast_nia.wen):
+                            sync += pc_changed.eq(1)
+                        with m.If(~core_busy_o): # instruction done!
+                            # ok here we are not reading the branch unit.  TODO
+                            # this just blithely overwrites whatever pipeline
+                            # updated the PC
+                            with m.If(~pc_changed):
+                                comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
+                                comb += self.fast_wr1.data_i.eq(nia)
+                            m.next = "IDLE" # back to idle
 
         return m
 
