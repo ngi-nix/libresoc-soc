@@ -147,3 +147,35 @@ class LDSTTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
+    def test_7_load_store_d(self):
+        lst = [
+               "std 3, 0(2)",
+               "ld 4, 0(2)",
+        ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0004
+        initial_regs[2] = 0x0008
+        initial_regs[3] = 0x00ee
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0008: (0xabcdef0187654321, 8),
+                       0x0020: (0x1828384822324252, 8),
+                        }
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
+                             initial_mem=initial_mem)
+
+    def test_8_load_store_d_update(self):
+        lst = [
+               "stdu 3, 0(2)",
+               "ld 4, 0(2)",
+        ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x0004
+        initial_regs[2] = 0x0008
+        initial_regs[3] = 0x00ee
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0008: (0xabcdef0187654321, 8),
+                       0x0020: (0x1828384822324252, 8),
+                        }
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
+                             initial_mem=initial_mem)
+
