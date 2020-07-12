@@ -32,7 +32,7 @@ from soc.fu.compunits.test.test_compunit import (setup_test_memory,
 #from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 #from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
-#from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
+from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 #from soc.simulator.test_helloworld_sim import HelloTestCases
 
 
@@ -183,8 +183,8 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     #suite.addTest(TestRunner(HelloTestCases.test_data))
-    #suite.addTest(TestRunner(AttnTestCase.test_data))
-    #suite.addTest(TestRunner(GeneralTestCases.test_data))
+    suite.addTest(TestRunner(AttnTestCase.test_data))
+    suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase.test_data))
     #suite.addTest(TestRunner(CRTestCase.test_data))
     #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
