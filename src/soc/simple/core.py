@@ -115,6 +115,17 @@ class NonProductionCore(Elaboratable):
         return m
 
     def connect_instruction(self, m, core_stopped):
+        """connect_instruction
+
+        uses decoded (from PowerOp) function unit information from CSV files
+        to ascertain which Function Unit should deal with the current
+        instruction.
+
+        some (such as OP_ATTN, OP_NOP) are dealt with here, including
+        ignoring it and halting the processor.  OP_NOP is a bit annoying
+        because the issuer expects busy flag still to be raised then lowered.
+        (this requires a fake counter to be set).
+        """
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
         dec2 = self.pdecode2
@@ -134,37 +145,38 @@ class NonProductionCore(Elaboratable):
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool() & can_run)
+            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool())
             comb += fu_bitdict[funame].eq(enable)
 
         # sigh - need a NOP counter
         counter = Signal(2)
         with m.If(counter != 0):
             sync += counter.eq(counter - 1)
-        comb += self.busy_o.eq(counter != 0)
-
-        # check for ATTN: halt if true
-        with m.If(self.ivalid_i & (dec2.e.do.insn_type == InternalOp.OP_ATTN)):
-            m.d.sync += core_stopped.eq(1)
-
-        with m.Elif(can_run & (dec2.e.do.insn_type == InternalOp.OP_NOP)):
-            sync += counter.eq(2)
             comb += self.busy_o.eq(1)
 
-        with m.Else():
-            # connect up instructions.  only one is enabled at any given time
-            for funame, fu in fus.items():
-                enable = fu_bitdict[funame]
+        with m.If(can_run):
+            with m.Switch(dec2.e.do.insn_type):
+            # check for ATTN: halt if true
+                with m.Case(InternalOp.OP_ATTN):
+                    m.d.sync += core_stopped.eq(1)
 
-                # run this FunctionUnit if enabled, except if the instruction
-                # is "attn" in which case we HALT.
-                with m.If(enable):
-                    # route operand, issue, busy, read flags and mask to FU
-                    comb += fu.oper_i.eq_from_execute1(dec2.e)
-                    comb += fu.issue_i.eq(self.issue_i)
-                    comb += self.busy_o.eq(fu.busy_o)
-                    rdmask = dec2.rdflags(fu)
-                    comb += fu.rdmaskn.eq(~rdmask)
+                with m.Case(InternalOp.OP_NOP):
+                    sync += counter.eq(2)
+                    comb += self.busy_o.eq(1)
+
+                with m.Default():
+                    # connect up instructions.  only one enabled at a time
+                    for funame, fu in fus.items():
+                        enable = fu_bitdict[funame]
+
+                        # run this FunctionUnit if enabled
+                        with m.If(enable):
+                            # route op, issue, busy, read flags and mask to FU
+                            comb += fu.oper_i.eq_from_execute1(dec2.e)
+                            comb += fu.issue_i.eq(self.issue_i)
+                            comb += self.busy_o.eq(fu.busy_o)
+                            rdmask = dec2.rdflags(fu)
+                            comb += fu.rdmaskn.eq(~rdmask)
 
         return fu_bitdict
 
