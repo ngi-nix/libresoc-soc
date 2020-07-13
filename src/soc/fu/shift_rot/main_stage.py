@@ -32,6 +32,10 @@ class ShiftRotMainStage(PipeModBase):
         op = self.i.ctx.op
         o = self.o.o
 
+        # NOTE: the sh field immediate is read in by PowerDecode2
+        # (actually DecodeRB), whereupon by way of rb "immediate" mode
+        # it ends up in self.i.rb.
+
         # obtain me and mb fields from instruction.
         m_fields = self.fields.instrs['M']
         md_fields = self.fields.instrs['MD']
@@ -50,7 +54,7 @@ class ShiftRotMainStage(PipeModBase):
             rotator.mb_extra.eq(mb_extra),
             rotator.rs.eq(self.i.rs),
             rotator.ra.eq(self.i.a),
-            rotator.shift.eq(self.i.rb),
+            rotator.shift.eq(self.i.rb), # can also be sh (in immediate mode)
             rotator.is_32bit.eq(op.is_32bit),
             rotator.arith.eq(op.is_signed),
         ]
