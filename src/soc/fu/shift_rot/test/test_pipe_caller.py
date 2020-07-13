@@ -148,7 +148,7 @@ class ShiftRotTestCase(FHDLTestCase):
         initial_regs[1] = 0x5678
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
-    def tst_extswsli(self):
+    def test_extswsli(self):
         for i in range(40):
             sh = random.randint(0, 63)
             lst = [f"extswsli 3, 1, {sh}"]
