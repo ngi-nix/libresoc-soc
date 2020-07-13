@@ -156,7 +156,10 @@ class ShiftRotTestCase(FHDLTestCase):
     def test_regression_extswsli_3(self):
         lst = [f"extswsli 3, 1, 0"]
         initial_regs = [0] * 32
-        initial_regs[1] = 0x80000000fb4013e2
+        #initial_regs[1] = 0x80000000fb4013e2
+        #initial_regs[1] = 0xffffffffffffffff
+        #initial_regs[1] = 0x00000000ffffffff
+        initial_regs[1] = 0x0000010180122900
         #initial_regs[1] = 0x3ffffd73f7f19fdd
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 

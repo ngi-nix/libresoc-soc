@@ -75,6 +75,7 @@ class Driver(Elaboratable):
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
 
+            # left-shift: 64/32-bit
             with m.Case(MicrOp.OP_SHL):
                 comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
@@ -83,6 +84,7 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
 
+            # right-shift: 64/32-bit / signed
             with m.Case(MicrOp.OP_SHR):
                 comb += Assume(ra == 0)
                 with m.If(~rec.is_signed):
@@ -97,6 +99,19 @@ class Driver(Elaboratable):
                         comb += Assert(o[32:64] == Repl(a[31], 32))
                     with m.Else():
                         comb += Assert(o == (a_signed >> b[0:7]))
+
+            # extswsli: 32/64-bit moded
+            with m.Case(MicrOp.OP_EXTSWSLI):
+                comb += Assume(ra == 0)
+                with m.If(rec.is_32bit):
+                    comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
+                    comb += Assert(o[32:64] == 0)
+                with m.Else():
+                    # sign-extend to 64 bit
+                    a_s = Signal(64, reset_less=True)
+                    comb += a_s.eq(exts(a, 32, 64))
+                    comb += Assert(o == ((a_s << b[0:7]) & ((1 << 64)-1)))
+
             #TODO
             with m.Case(MicrOp.OP_RLC):
                 pass
@@ -104,19 +119,6 @@ class Driver(Elaboratable):
                 pass
             with m.Case(MicrOp.OP_RLCL):
                 pass
-            with m.Case(MicrOp.OP_EXTSWSLI):
-                # sign-extend
-                a_s = Signal(64, reset_less=True)
-                comb += a_s.eq(exts(a, 32, 64))
-                # assume b[0:6] is sh
-                comb += Assume(b[7:] == 0)
-                with m.If(b[0:7] == 0):
-                    comb += Assert(o[0:32] == a_s[0:32])
-                with m.Else():
-                    #b_s = 64-b[0:6]
-                    #comb += Assert(o == ((a_s << b_s) & ((1 << 64)-1)))
-                    pass
-
             with m.Default():
                 comb += o_ok.eq(0)
 
