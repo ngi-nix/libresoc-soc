@@ -1,4 +1,4 @@
-from nmigen import (Elaboratable, Signal, Module)
+from nmigen import (Elaboratable, Signal, Module, Cat)
 import math
 
 class ROTL(Elaboratable):
@@ -13,12 +13,8 @@ class ROTL(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-
-        shl = Signal.like(self.a)
-        shr = Signal.like(self.a)
-
-        comb += shl.eq(self.a << self.b)
-        comb += shr.eq(self.a >> (self.width - self.b))
-
-        comb += self.o.eq(shl | shr)
+        # trick to do double-concatenation of a then left shift.
+        # synth tools know to turn this pattern into a barrel-shifter
+        comb += self.o.eq(Cat(self.a, self.a).bit_select(self.width - self.b,
+                                                         len(self.a)))
         return m
