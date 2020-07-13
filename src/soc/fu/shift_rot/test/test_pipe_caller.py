@@ -1,5 +1,10 @@
 from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay, Settle
+from nmigen.back.pysim import Delay, Settle
+cxxsim = True
+if cxxsim:
+    from nmigen.sim.cxxsim import Simulator
+else:
+    from nmigen.back.pysim import Simulator
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
@@ -256,9 +261,13 @@ class TestRunner(FHDLTestCase):
                     break
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                            traces=[]):
+        print (dir(sim))
+        if cxxsim:
             sim.run()
+        else:
+            with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+                                traces=[]):
+                sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
