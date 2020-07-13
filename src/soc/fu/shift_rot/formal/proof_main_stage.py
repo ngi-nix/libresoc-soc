@@ -16,6 +16,7 @@ from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.decoder.power_enums import MicrOp
 import unittest
+from nmutil.extend import exts
 
 
 # This defines a module to drive the device under test and assert
@@ -47,11 +48,10 @@ class Driver(Elaboratable):
         o = dut.o.o.data
 
         # setup random inputs
-        comb += [a.eq(AnyConst(64)),
-                 b.eq(AnyConst(64)),
-                 carry_in.eq(AnyConst(1)),
-                 carry_in32.eq(AnyConst(1)),
-                 ]
+        comb += a.eq(AnyConst(64))
+        comb += b.eq(AnyConst(64))
+        comb += carry_in.eq(AnyConst(1))
+        comb += carry_in32.eq(AnyConst(1))
 
         comb += dut.i.ctx.op.eq(rec)
 
@@ -104,7 +104,18 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_RLCL):
                 pass
             with m.Case(MicrOp.OP_EXTSWSLI):
-                pass
+                # sign-extend
+                a_s = Signal(64, reset_less=True)
+                comb += a_s.eq(exts(a, 32, 64))
+                # assume b[0:6] is sh
+                comb += Assume(b[7:] == 0)
+                with m.If(b[0:7] == 0):
+                    comb += Assert(o[0:32] == a_s[0:32])
+                with m.Else():
+                    #b_s = 64-b[0:6]
+                    #comb += Assert(o == ((a_s << b_s) & ((1 << 64)-1)))
+                    pass
+
             with m.Default():
                 comb += o_ok.eq(0)
 
