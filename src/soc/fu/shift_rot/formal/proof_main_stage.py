@@ -103,6 +103,8 @@ class Driver(Elaboratable):
                 pass
             with m.Case(MicrOp.OP_RLCL):
                 pass
+            with m.Case(MicrOp.OP_EXTSWSLI):
+                pass
             with m.Default():
                 comb += o_ok.eq(0)
 
