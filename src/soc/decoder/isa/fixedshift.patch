@@ -61,51 +61,6 @@
          r = ROTL64(RS, n)
          b = concat(mb[5], mb[0:5])
          m = MASK(b, 63)
-@@ -68,7 +68,7 @@
- 
-     @inject()
-     def op_rldicl_(self, RS):
--        n = sh
-+        n = sh
-         r = ROTL64(RS, n)
-         b = concat(mb[5], mb[0:5])
-         m = MASK(b, 63)
-@@ -77,7 +77,7 @@
- 
-     @inject()
-     def op_rldicr(self, RS):
--        n = sh
-+        n = sh
-         r = ROTL64(RS, n)
-         e = concat(me[5], me[0:5])
-         m = MASK(0, e)
-@@ -86,7 +86,7 @@
- 
-     @inject()
-     def op_rldicr_(self, RS):
--        n = sh
-+        n = sh
-         r = ROTL64(RS, n)
-         e = concat(me[5], me[0:5])
-         m = MASK(0, e)
-@@ -95,7 +95,7 @@
- 
-     @inject()
-     def op_rldic(self, RS):
--        n = sh
-+        n = sh
-         r = ROTL64(RS, n)
-         b = concat(mb[5], mb[0:5])
-         m = MASK(b, ~n)
-@@ -104,7 +104,7 @@
- 
-     @inject()
-     def op_rldic_(self, RS):
--        n = sh
-+        n = sh
-         r = ROTL64(RS, n)
-         b = concat(mb[5], mb[0:5])
-         m = MASK(b, ~n)
 @@ -168,9 +168,9 @@
      @inject()
      def op_slw(self, RB, RS):
