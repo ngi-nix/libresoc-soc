@@ -1,10 +1,12 @@
 # Manual translation and adaptation of rotator.vhdl from microwatt into nmigen
 #
+from nmigen.compat.sim import run_simulation
 
 from nmigen import (Elaboratable, Signal, Module, Const, Cat, Repl,
                     unsigned, signed)
 from soc.fu.shift_rot.rotl import ROTL
 from nmutil.extend import exts
+from nmigen.back.pysim import Settle
 
 
 # note BE bit numbering
@@ -159,4 +161,22 @@ class Rotator(Elaboratable):
                 comb += self.carry_out_o.eq((rs & ~ml).bool())
 
         return m
+
+if __name__ == '__main__':
+
+    m = Module()
+    comb = m.d.comb
+    mr = Signal(64)
+    mb = Signal(6)
+    comb += mr.eq(left_mask(m, mb))
+   
+    def loop():
+        for i in range(64):
+            yield mb.eq(63-i)
+            yield Settle()
+            res = yield mr
+            print (i, hex(res))
+
+    run_simulation(m, [loop()],
+                   vcd_name="test_mask.vcd")
 
