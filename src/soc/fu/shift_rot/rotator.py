@@ -169,7 +169,7 @@ if __name__ == '__main__':
     mr = Signal(64)
     mb = Signal(6)
     comb += mr.eq(left_mask(m, mb))
-   
+
     def loop():
         for i in range(64):
             yield mb.eq(63-i)
