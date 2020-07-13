@@ -67,6 +67,11 @@ build:
         - python setup.py develop
         - popd
 
+        - git clone --depth 1 git://git.libre-riscv.org/nmigen-soc.git nmigen-soc
+        - pushd nmigen-soc
+        - python setup.py develop
+        - popd
+
         - git clone --depth 1 git://git.libre-riscv.org/ieee754fpu.git ieee754fpu
         - pushd ieee754fpu
         - python setup.py develop
