@@ -663,6 +663,11 @@ class PowerParser:
             self.op_fields.add(name)
         if name == 'overflow':
             self.write_regs.add(name)
+        # XXX yuk.  this results in extraneous registers being added.
+        # really should be analysing slice (Assign) and working out if
+        # the variable being sliced is a GPR.
+        if name in ['RA', 'RS', 'RB', 'RC']:
+            self.read_regs.add(name)  # add to list of regs to read
         if self.include_ca_in_write:
             if name in ['CA', 'CA32']:
                 self.write_regs.add(name)
