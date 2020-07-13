@@ -53,26 +53,26 @@ class ShiftRotMainStage(PipeModBase):
             rotator.shift.eq(self.i.rb),
             rotator.is_32bit.eq(op.is_32bit),
             rotator.arith.eq(op.is_signed),
-            # rot_sign_ext <= '1' when e_in.insn_type = OP_EXTSWSLI else '0';
-            rotator.sign_ext_rs.eq(0), # XXX TODO
         ]
 
         comb += o.ok.eq(1) # defaults to enabled
 
         # instruction rotate type
-        mode = Signal(3, reset_less=True)
+        mode = Signal(4, reset_less=True)
         with m.Switch(op.insn_type):
-            with m.Case(MicrOp.OP_SHL):  comb += mode.eq(0b000)
-            with m.Case(MicrOp.OP_SHR):  comb += mode.eq(0b001) # R-shift
-            with m.Case(MicrOp.OP_RLC):  comb += mode.eq(0b110) # clear LR
-            with m.Case(MicrOp.OP_RLCL): comb += mode.eq(0b010) # clear L
-            with m.Case(MicrOp.OP_RLCR): comb += mode.eq(0b100) # clear R
+            with m.Case(MicrOp.OP_SHL):  comb += mode.eq(0b0000) # L-shift
+            with m.Case(MicrOp.OP_SHR):  comb += mode.eq(0b0001) # R-shift
+            with m.Case(MicrOp.OP_RLC):  comb += mode.eq(0b0110) # clear LR
+            with m.Case(MicrOp.OP_RLCL): comb += mode.eq(0b0010) # clear L
+            with m.Case(MicrOp.OP_RLCR): comb += mode.eq(0b0100) # clear R
+            with m.Case(MicrOp.OP_EXTSWSLI): comb += mode.eq(0b1000) # L-ext
             with m.Default():
                 comb += o.ok.eq(0) # otherwise disable
 
         comb += Cat(rotator.right_shift,
                     rotator.clear_left,
-                    rotator.clear_right).eq(mode)
+                    rotator.clear_right,
+                    rotator.sign_ext_rs).eq(mode)
 
         # outputs from the microwatt rotator module
         comb += [o.data.eq(rotator.result_o),
