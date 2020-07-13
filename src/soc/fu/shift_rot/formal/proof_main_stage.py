@@ -53,6 +53,7 @@ class Driver(Elaboratable):
         comb += carry_in.eq(AnyConst(1))
         comb += carry_in32.eq(AnyConst(1))
 
+        # copy operation
         comb += dut.i.ctx.op.eq(rec)
 
         # Assert that op gets copied from the input to output
