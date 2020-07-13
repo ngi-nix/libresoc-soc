@@ -655,6 +655,10 @@ class PowerParser:
             print("power dump trailerlist")
             print(astor.dump_tree(p[2]))
             p[0] = apply_trailer(p[1], p[2])
+            if isinstance(p[1], ast.Name):
+                name = p[1].id
+                if name in ['RA', 'RS', 'RB', 'RC']:
+                    self.read_regs.add(name)
 
     def p_atom_name(self, p):
         """atom : NAME"""
@@ -663,11 +667,6 @@ class PowerParser:
             self.op_fields.add(name)
         if name == 'overflow':
             self.write_regs.add(name)
-        # XXX yuk.  this results in extraneous registers being added.
-        # really should be analysing slice (Assign) and working out if
-        # the variable being sliced is a GPR.
-        if name in ['RA', 'RS', 'RB', 'RC']:
-            self.read_regs.add(name)  # add to list of regs to read
         if self.include_ca_in_write:
             if name in ['CA', 'CA32']:
                 self.write_regs.add(name)
