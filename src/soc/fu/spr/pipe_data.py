@@ -7,6 +7,7 @@ the data structures are slightly more involved than just "INT, SPR".
 Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=348
 * https://libre-soc.org/openpower/isa/sprset/
+* https://libre-soc.org/3d_gpu/architecture/regfile/
 """
 
 from soc.fu.pipe_data import IntegerData

@@ -4,7 +4,7 @@ In this directory are the pipelines.  The structure of each pipeline is
 as follows:
 
 * pipe_data.py: contains pipeline input and output data structures
-* XXXX_stage.py: files with function-specific stages
+* XXXX_stage.py: function-specific stages (connected up together by pipeline.py)
 * XXX_input_record.py: a PowerISA decoded instruction subset for this pipeline
 * pipeline.py: the actual pipeline chain, which brings all stages together
 
@@ -16,9 +16,9 @@ in its entirety from start to finish, including receiving of all
 operands and the storage of all results. AT NO TIME does a Comp Unit
 "abandon" data to a pipeline.
 
-Each pipeline is given a Como Umit frontend.  The base class uses regsoecs
-to construct the required latches in order to send and receive dsta to
-and from the required Register Files.
+Each pipeline is given a Comp Unit frontend.  The base class uses regspecs
+to construct the required latches in order to capture data pending send and
+receive data to and from the required Register Files.
 
 # Common files
 
