@@ -11,6 +11,7 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
+from soc.consts import MSR
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.trap.pipeline import TrapBasePipe
@@ -77,8 +78,10 @@ class TrapTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+                                    initial_msr=0):
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
+                                            msr=initial_msr)
         self.test_data.append(tc)
 
     def test_1_rfid(self):
@@ -108,6 +111,7 @@ class TrapTestCase(FHDLTestCase):
             initial_regs[2] = 1
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
+
     def test_3_mtmsr_0(self):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
@@ -132,6 +136,13 @@ class TrapTestCase(FHDLTestCase):
         initial_regs[1] = 0xffffffffffffffff
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
+    def test_6_mtmsr_priv_0(self):
+        lst = ["mtmsr 1,0"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        msr = 63-MSR.PR # set in "problem state"
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
+                                                      initial_msr=msr)
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
