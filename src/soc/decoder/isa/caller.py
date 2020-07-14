@@ -577,8 +577,9 @@ class ISACaller:
                       MicrOp.OP_MTSPR.value] and spr_msb:
             instr_is_privileged = True
 
+        print ("is priv", instr_is_privileged, self.msr[63-MSR.PR])
         # check MSR priv bit and whether op is privileged: if so, throw trap
-        if instr_is_privileged and self.namespace['MSR'][63-MSR.PR] == 1:
+        if instr_is_privileged and self.msr[63-MSR.PR] == 1:
             self.TRAP(0x700, PI.PRIV)
             return
 
