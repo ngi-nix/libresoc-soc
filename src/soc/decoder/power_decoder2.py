@@ -552,6 +552,7 @@ class PowerDecode2(Elaboratable):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
+        self.msr = Signal(64, reset_less=True) # copy of MSR
         self.valid = Signal() # sync signal
 
     def ports(self):
@@ -560,7 +561,7 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        e, op, do = self.e, self.dec.op, self.e.do
+        e, op, do, msr = self.e, self.dec.op, self.e.do, self.msr
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -594,7 +595,6 @@ class PowerDecode2(Elaboratable):
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
         # set up instruction, pick fn unit
-        comb += e.nia.eq(0)    # XXX TODO (or remove? not sure yet)
         comb += do.insn_type.eq(op.internal_op) # no op: defaults to OP_ILLEGAL
         comb += do.fn_unit.eq(op.function_unit)
 

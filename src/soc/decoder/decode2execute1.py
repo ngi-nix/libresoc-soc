@@ -65,7 +65,6 @@ class Decode2ToExecute1Type(RecordObject):
 
         if asmcode:
             self.asmcode = Signal(8, reset_less=True) # only for simulator
-        self.nia = Signal(64, reset_less=True)
         self.write_reg = Data(5, name="rego")
         self.write_ea = Data(5, name="ea") # for LD/ST in update mode
         self.read_reg1 = Data(5, name="reg1")
