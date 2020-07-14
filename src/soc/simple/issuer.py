@@ -49,9 +49,11 @@ class TestIssuer(Elaboratable):
         self.busy_o = core.busy_o
         self.memerr_o = Signal(reset_less=True)
 
-        # FAST regfile read /write ports
-        self.fast_rd1 = self.core.regs.rf['fast'].r_ports['d_rd1']
-        self.fast_wr1 = self.core.regs.rf['fast'].w_ports['d_wr1']
+        # FAST regfile read /write ports for PC and MSR
+        self.fast_r_pc = self.core.regs.rf['fast'].r_ports['d_rd1'] # PC rd
+        self.fast_w_pc = self.core.regs.rf['fast'].w_ports['d_wr1'] # PC wr
+        self.fast_r_msr = self.core.regs.rf['fast'].r_ports['d_rd2'] # MSR rd
+
         # hack method of keeping an eye on whether branch/trap set the PC
         self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']
         self.fast_nia.wen.name = 'fast_nia_wen'
@@ -76,6 +78,10 @@ class TestIssuer(Elaboratable):
         comb += self.pc_o.eq(cur_pc)
         ilatch = Signal(32)
 
+        # MSR (temp and latched)
+        cur_msr = Signal(64) # current MSR (note it is reset/sync)
+        msr = Signal(64, reset_less=True)
+
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_pc + 4)
@@ -88,6 +94,7 @@ class TestIssuer(Elaboratable):
         core_opcode_i = core.raw_opcode_i # raw opcode
 
         insn_type = core.pdecode2.e.do.insn_type
+        insn_msr = core.pdecode2.msr
 
         # only run if not in halted state
         with m.If(~core.core_terminated_o):
@@ -110,8 +117,8 @@ class TestIssuer(Elaboratable):
                             comb += pc.eq(self.pc_i.data)
                         with m.Else():
                             # otherwise read FastRegs regfile for PC
-                            comb += self.fast_rd1.ren.eq(1<<FastRegs.PC)
-                            comb += pc.eq(self.fast_rd1.data_o)
+                            comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
+                            comb += pc.eq(self.fast_r_pc.data_o)
                         # capture the PC and also drop it into Insn Memory
                         # we have joined a pair of combinatorial memory
                         # lookups together.  this is Generally Bad.
@@ -135,6 +142,13 @@ class TestIssuer(Elaboratable):
                         comb += core_issue_i.eq(1)  # and issued 
                         comb += core_opcode_i.eq(current_insn) # actual opcode
                         sync += ilatch.eq(current_insn) # latch current insn
+
+                        # read MSR
+                        comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
+                        comb += msr.eq(self.fast_r_msr.data_o)
+                        comb += insn_msr.eq(msr)
+                        sync += cur_msr.eq(msr) # latch current MSR
+
                         m.next = "INSN_ACTIVE" # move to "wait completion" 
 
                 # instruction started: must wait till it finishes
@@ -145,6 +159,7 @@ class TestIssuer(Elaboratable):
                         with m.If(insn_type != MicrOp.OP_NOP):
                             comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_opcode_i.eq(ilatch) # actual opcode
+                        comb += insn_msr.eq(cur_msr)     # and MSR
                         with m.If(self.fast_nia.wen):
                             sync += pc_changed.eq(1)
                         with m.If(~core_busy_o): # instruction done!
@@ -152,8 +167,8 @@ class TestIssuer(Elaboratable):
                             # this just blithely overwrites whatever pipeline
                             # updated the PC
                             with m.If(~pc_changed):
-                                comb += self.fast_wr1.wen.eq(1<<FastRegs.PC)
-                                comb += self.fast_wr1.data_i.eq(nia)
+                                comb += self.fast_w_pc.wen.eq(1<<FastRegs.PC)
+                                comb += self.fast_w_pc.data_i.eq(nia)
                             m.next = "IDLE" # back to idle
 
         return m

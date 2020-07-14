@@ -56,8 +56,9 @@ class FastRegs(RegFileArray):
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
 
-    Note: d_wr1 and d_rd1 are for use by the decoder, to get at the PC.
+    Note: d_wr1 d_rd1 are for use by the decoder, to get at the PC.
     will probably have to also add one so it can get at the MSR as well.
+    (d_rd2)
     """
     PC = 0
     MSR = 1
@@ -72,12 +73,13 @@ class FastRegs(RegFileArray):
                         'msr': self.write_port("dest2"),
                         'fast1': self.write_port("dest3"),
                         'fast2': self.write_port("dest4"),
-                        'd_wr1': self.write_port("d_wr1")}
+                        'd_wr1': self.write_port("d_wr1")} # writing PC
         self.r_ports = {'cia': self.read_port("src1"),
                         'msr': self.read_port("src2"),
                         'fast1': self.read_port("src3"),
                         'fast2': self.read_port("src4"),
-                        'd_rd1': self.read_port("d_rd1")}
+                        'd_rd1': self.read_port("d_rd1"), # reading PC
+                        'd_rd2': self.read_port("d_rd2")} # reading MSR
 
 
 # CR Regfile
