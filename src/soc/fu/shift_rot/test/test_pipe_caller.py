@@ -1,6 +1,6 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Delay, Settle
-cxxsim = True
+cxxsim = False
 if cxxsim:
     from nmigen.sim.cxxsim import Simulator
 else:
