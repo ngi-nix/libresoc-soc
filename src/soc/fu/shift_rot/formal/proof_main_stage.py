@@ -12,6 +12,7 @@ from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 
 from soc.fu.shift_rot.main_stage import ShiftRotMainStage
+from soc.fu.shift_rot.rotator import right_mask, left_mask
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.decoder.power_enums import MicrOp
@@ -46,6 +47,11 @@ class Driver(Elaboratable):
         carry_in32 = dut.i.xer_ca[1]
         carry_out = dut.o.xer_ca
         o = dut.o.o.data
+        itype = rec.insn_type
+
+        # instruction fields
+        m_fields = dut.fields.FormM
+        md_fields = dut.fields.FormMD
 
         # setup random inputs
         comb += a.eq(AnyConst(64))
@@ -68,12 +74,46 @@ class Driver(Elaboratable):
         comb += a_signed.eq(a)
         comb += a_signed_32.eq(a[0:32])
 
+        # masks: start-left
+        mb = Signal(7, reset_less=True)
+        ml = Signal(64, reset_less=True)
+
+        # clear left?
+        with m.If((itype == MicrOp.OP_RLC) | (itype == MicrOp.OP_RLCL)):
+            with m.If(rec.is_32bit):
+                comb += mb.eq(m_fields.MB[0:-1])
+            with m.Else():
+                comb += mb.eq(md_fields.mb[0:-1])
+        with m.Else():
+            with m.If(rec.is_32bit):
+                comb += mb.eq(b[0:6])
+            with m.Else():
+                comb += mb.eq(b+32)
+        comb += ml.eq(left_mask(m, mb))
+
+        # masks: end-right
+        me = Signal(7, reset_less=True)
+        mr = Signal(64, reset_less=True)
+
+        # clear right?
+        with m.If((itype == MicrOp.OP_RLC) | (itype == MicrOp.OP_RLCR)):
+            with m.If(rec.is_32bit):
+                comb += me.eq(m_fields.ME[0:-1])
+            with m.Else():
+                comb += me.eq(md_fields.me[0:-1])
+        with m.Else():
+            with m.If(rec.is_32bit):
+                comb += me.eq(b[0:6])
+            with m.Else():
+                comb += me.eq(63-b)
+        comb += mr.eq(right_mask(m, me))
+
         # must check Data.ok
         o_ok = Signal()
         comb += o_ok.eq(1)
 
         # main assertion of arithmetic operations
-        with m.Switch(rec.insn_type):
+        with m.Switch(itype):
 
             # left-shift: 64/32-bit
             with m.Case(MicrOp.OP_SHL):
