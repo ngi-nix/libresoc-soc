@@ -531,21 +531,24 @@ class ISACaller:
             print ("AA", AA)
             if AA:
                 asmop += "a"
+        spr_msb = yield from self.get_spr_msb()
         if int_op == MicrOp.OP_MFCR.value:
-            dec_insn = yield self.dec2.e.do.insn
-            if dec_insn & (1<<20) != 0: # sigh
+            if spr_msb:
                 asmop = 'mfocrf'
             else:
                 asmop = 'mfcr'
         # XXX TODO: for whatever weird reason this doesn't work
         # https://bugs.libre-soc.org/show_bug.cgi?id=390
         if int_op == MicrOp.OP_MTCRF.value:
-            dec_insn = yield self.dec2.e.do.insn
-            if dec_insn & (1<<20) != 0: # sigh
+            if spr_msb:
                 asmop = 'mtocrf'
             else:
                 asmop = 'mtcrf'
         return asmop
+
+    def get_spr_msb(self):
+        dec_insn = yield self.dec2.e.do.insn
+        return dec_insn & (1<<20) != 0 # sigh - XFF.spr[-1]?
 
     def call(self, name):
         name = name.strip() # remove spaces if not already done so
@@ -557,6 +560,27 @@ class ISACaller:
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmop = yield from self.get_assembly_name()
         print  ("call", name, asmop)
+
+        # check privileged
+        int_op = yield self.dec2.dec.op.internal_op
+        spr_msb = yield from self.get_spr_msb()
+
+        instr_is_privileged = False
+        if int_op in [MicrOp.OP_ATTN.value,
+                      MicrOp.OP_MFMSR.value,
+                      MicrOp.OP_MTMSR.value,
+                      MicrOp.OP_MTMSRD.value,
+                      # TODO: OP_TLBIE
+                      MicrOp.OP_RFID.value]:
+            instr_is_privileged = True
+        if int_op in [MicrOp.OP_MFSPR.value,
+                      MicrOp.OP_MTSPR.value] and spr_msb:
+            instr_is_privileged = True
+
+        # check MSR priv bit and whether op is privileged: if so, throw trap
+        if instr_is_privileged and self.namespace['MSR'][63-MSR.PR] == 1:
+            self.TRAP(0x700, PI.PRIV)
+            return
 
         # check halted condition
         if name == 'attn':
