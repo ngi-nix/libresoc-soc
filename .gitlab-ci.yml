@@ -67,7 +67,7 @@ build:
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/nmigen-soc.git nmigen-soc
+        - git clone --depth 1 https://github.com/nmigen/nmigen-soc.git nmigen-soc
         - pushd nmigen-soc
         - python setup.py develop
         - popd
