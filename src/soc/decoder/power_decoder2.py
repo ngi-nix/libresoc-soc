@@ -20,6 +20,7 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
                                      OutSel, SPR, RC)
 from soc.decoder.decode2execute1 import Decode2ToExecute1Type, Data
+from soc.consts import MSR
 
 from soc.regfile.regfiles import FastRegs
 
@@ -39,17 +40,18 @@ def instr_is_priv(m, op, insn):
     """determines if the instruction is privileged or not
     """
     comb = m.d.comb
-    Signal = is_priv_insn(reset_less=True)
+    is_priv_insn = Signal(reset_less=True)
     with m.Switch(op):
         with m.Case(MicrOp.OP_ATTN)  : comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MFMSR) : comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MTMSRD): comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MTMSR): comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_RFID)  : comb += is_priv_insn.eq(1)
-        with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
-    with m.If(op == OP_MFSPR | op == OP_MTSPR):
-        with m.If(insn[20]): # field XFX.spr[-1] i think
-            comb += is_priv_insn.eq(1)
+        # XXX TODO
+        #with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
+        with m.Case(MicrOp.OP_MFSPR, MicrOp.OP_MTSPR):
+            with m.If(insn[20]): # field XFX.spr[-1] i think
+                comb += is_priv_insn.eq(1)
     return is_priv_insn
 
 
@@ -710,12 +712,11 @@ class PowerDecode2(Elaboratable):
             comb += e.read_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
             comb += e.read_fast2.ok.eq(1)
 
-        return m
-
         # TODO: get msr, then can do privileged instruction
-        with m.If(instr_is_priv(m, op.internal_op, e.insn) & msr[MSR_PR]):
+        with m.If(instr_is_priv(m, op.internal_op, e.do.insn) & msr[MSR.PR]):
             # privileged instruction trap
             self.trap(m, TT_PRIV, 0x700)
+
         return m
 
     def trap(self, m, traptype, trapaddr):
