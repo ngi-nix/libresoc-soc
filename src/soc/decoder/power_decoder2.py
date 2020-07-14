@@ -547,13 +547,33 @@ class XerBits:
 
 
 class PowerDecode2(Elaboratable):
+    """PowerDecode2: the main instruction decoder.
+
+    whilst PowerDecode is responsible for decoding the actual opcode, this
+    module encapsulates further specialist, sparse information and
+    expansion of fields that is inconvenient to have in the CSV files.
+    for example: the encoding of the immediates, which are detected
+    and expanded out to their full value from an annotated (enum)
+    representation.
+
+    implicit register usage is also set up, here.  for example: OP_BC
+    requires implicitly reading CTR, OP_RFID requires implicitly writing
+    to SRR1 and so on.
+
+    in addition, PowerDecoder2 is responsible for detecting whether
+    instructions are illegal (or privileged) or not, and instead of
+    just leaving at that, *replacing* the instruction to execute with
+    a suitable alternative (trap).
+    """
 
     def __init__(self, dec):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
-        self.msr = Signal(64, reset_less=True) # copy of MSR
         self.valid = Signal() # sync signal
+
+        # state information needed by the Decoder
+        self.msr = Signal(64, reset_less=True) # copy of MSR
 
     def ports(self):
         return self.dec.ports() + self.e.ports()
