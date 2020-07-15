@@ -319,7 +319,7 @@ class DecodeOut(Elaboratable):
                             comb += self.fast_out.ok.eq(1)
                         with m.Case(SPR.XER.value):
                             pass # do nothing
-                        # XXX TODO: map to internal SPR numbers
+                        # : map to internal SPR numbers
                         # XXX TODO: dec and tb not to go through mapping.
                         with m.Default():
                             comb += sprmap.spr_i.eq(spr)
