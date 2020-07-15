@@ -1,4 +1,10 @@
 # This stage is intended to do most of the work of analysing the multiply result
+"""
+bugreports/links:
+* https://libre-soc.org/openpower/isa/fixedarith/
+* https://bugs.libre-soc.org/show_bug.cgi?id=432
+* https://bugs.libre-soc.org/show_bug.cgi?id=323
+"""
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, signed)
 from nmutil.pipemodbase import PipeModBase
@@ -51,10 +57,10 @@ class MulMainStage3(PipeModBase):
                 # compute overflow
                 mul_ov = Signal(reset_less=True)
                 with m.If(is_32bit):
-                    m32 = mul_o[32:64]
+                    m31 = mul_o[31:64] # yes really bits 31 to 63 (incl)
                     comb += mul_ov.eq(m32.bool() & ~m32.all())
                 with m.Else():
-                    m64 = mul_o[64:128]
+                    m64 = mul_o[63:128] # yes really bits 63 to 127 (incl)
                     comb += mul_ov.eq(m64.bool() & ~m64.all())
 
                 # 32-bit (ov[1]) and 64-bit (ov[0]) overflow - both same
