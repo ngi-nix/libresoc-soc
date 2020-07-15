@@ -36,11 +36,9 @@ def instr_is_priv(m, op, insn):
     comb = m.d.comb
     is_priv_insn = Signal(reset_less=True)
     with m.Switch(op):
-        with m.Case(MicrOp.OP_ATTN)  : comb += is_priv_insn.eq(1)
-        with m.Case(MicrOp.OP_MFMSR) : comb += is_priv_insn.eq(1)
-        with m.Case(MicrOp.OP_MTMSRD): comb += is_priv_insn.eq(1)
-        with m.Case(MicrOp.OP_MTMSR): comb += is_priv_insn.eq(1)
-        with m.Case(MicrOp.OP_RFID)  : comb += is_priv_insn.eq(1)
+        with m.Case(MicrOp.OP_ATTN, MicrOp.OP_MFMSR, MicrOp.OP_MTMSRD,
+                    MicrOp.OP_MTMSR, MicrOp.OP_RFID):
+            comb += is_priv_insn.eq(1)
         # XXX TODO
         #with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MFSPR, MicrOp.OP_MTSPR):
