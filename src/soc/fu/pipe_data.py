@@ -1,13 +1,14 @@
-from ieee754.fpcommon.getop import FPPipeContext
+from nmutil.concurrentunit import PipeContext
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 from nmigen import Signal
 from soc.decoder.power_decoder2 import Data
 from soc.fu.regspec import get_regspec_bitwidth
 
+
 class IntegerData:
 
     def __init__(self, pspec, output):
-        self.ctx = FPPipeContext(pspec)
+        self.ctx = PipeContext(pspec) # context for ReservationStation usage
         self.muxid = self.ctx.muxid
         self.data = []
         self.is_output = output
