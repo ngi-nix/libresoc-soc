@@ -29,7 +29,6 @@ class TrapOutputData(IntegerData):
 
 
 
-# TODO: replace CompALUOpSubset with CompTrapOpSubset
 class TrapPipeSpec(CommonPipeSpec):
     regspec = (TrapInputData.regspec, TrapOutputData.regspec)
     opsubsetkls = CompTrapOpSubset
