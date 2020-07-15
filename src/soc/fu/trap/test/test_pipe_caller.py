@@ -50,7 +50,7 @@ def set_alu_inputs(alu, dec2, sim):
 
     yield from ALUHelpers.set_cia(alu, dec2, inp)
     yield from ALUHelpers.set_msr(alu, dec2, inp)
-
+    return inp
 
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
@@ -140,7 +140,7 @@ class TrapTestCase(FHDLTestCase):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        msr = 63-MSR.PR # set in "problem state"
+        msr = 1 << MSR.PR # set in "problem state"
         self.run_tst_program(Program(lst, bigendian), initial_regs,
                                                       initial_msr=msr)
     def test_999_illegal(self):
@@ -213,7 +213,8 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.TRAP.value)
-                    yield from set_alu_inputs(alu, pdecode2, sim)
+                    alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
+                    yield pdecode2.msr.eq(alu_o['msr']) # set MSR in pdecode2
                     yield
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
