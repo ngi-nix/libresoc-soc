@@ -538,16 +538,6 @@ class DecodeCROut(Elaboratable):
         return m
 
 
-class XerBits:
-    def __init__(self):
-        self.ca = Signal(2, reset_less=True)
-        self.ov = Signal(2, reset_less=True)
-        self.so = Signal(reset_less=True)
-
-    def ports(self):
-        return [self.ca, self.ov, self.so]
-
-
 class PowerDecode2(Elaboratable):
     """PowerDecode2: the main instruction decoder.
 
