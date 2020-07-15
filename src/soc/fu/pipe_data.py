@@ -6,6 +6,29 @@ from soc.fu.regspec import get_regspec_bitwidth
 
 
 class IntegerData:
+    """IntegerData: base class for all pipeline data structures
+
+    this class auto-constructs parameters (placing them in self.data)
+    based on "regspecs".  this is conceptually similar to nmigen Record
+    (Layout, actually) except that Layout does not contain the right type
+    of information for connecting up to Register Files.
+
+    by having a base class that handles creation of pipeline input/output
+    in a structured fashion, CompUnits may conform to that same structured
+    API, and when it comes to actually connecting up to regfiles, the same
+    holds true.
+
+    the alternative is mountains of explicit code (which quickly becomes
+    unmaintainable).
+
+    note the mode parameter - output.  output pipeline data structures
+    need to have an "ok" flag added, which is used by the CompUnit and
+    by the Register File to determine if the output shall in fact be
+    written to the register file or not.
+
+    input data has *already* been determined to have had to have been read,
+    this by PowerDecoder2.
+    """
 
     def __init__(self, pspec, output):
         self.ctx = PipeContext(pspec) # context for ReservationStation usage
