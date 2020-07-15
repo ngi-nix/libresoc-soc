@@ -57,7 +57,7 @@ class MulMainStage3(PipeModBase):
                 # compute overflow
                 mul_ov = Signal(reset_less=True)
                 with m.If(is_32bit):
-                    m31 = mul_o[31:64] # yes really bits 31 to 63 (incl)
+                    m32 = mul_o[31:64] # yes really bits 31 to 63 (incl)
                     comb += mul_ov.eq(m32.bool() & ~m32.all())
                 with m.Else():
                     m64 = mul_o[63:128] # yes really bits 63 to 127 (incl)
