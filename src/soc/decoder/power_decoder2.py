@@ -368,15 +368,14 @@ class DecodeOut2(Elaboratable):
         # B, BC or BCREG: potential implicit register (LR) output
         # these give bl, bcl, bclrl, etc.
         op = self.dec.op
-        with m.If((op.internal_op == MicrOp.OP_BC) |
-                  (op.internal_op == MicrOp.OP_B) |
-                  (op.internal_op == MicrOp.OP_BCREG)):
-            with m.If(self.lk): # "link" mode
-                comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
-                comb += self.fast_out.ok.eq(1)
+        with m.Switch(op.internal_op):
+            with m.Case(MicrOp.OP_BC, MicrOp.OP_B, MicrOp.OP_BCREG):
+                with m.If(self.lk): # "link" mode
+                    comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
+                    comb += self.fast_out.ok.eq(1)
 
-        # RFID 2nd spr (fast)
-        with m.If(op.internal_op == MicrOp.OP_RFID):
+            # RFID 2nd spr (fast)
+            with m.Case(MicrOp.OP_RFID):
                 comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
                 comb += self.fast_out.ok.eq(1)
 
