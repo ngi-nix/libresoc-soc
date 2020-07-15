@@ -23,14 +23,8 @@ from soc.decoder.decode2execute1 import Decode2ToExecute1Type, Data
 from soc.consts import MSR
 
 from soc.regfile.regfiles import FastRegs
+from soc.consts import TT
 
-# see traptype (and trap main_stage.py)
-
-TT_FP = 1<<0
-TT_PRIV = 1<<1
-TT_TRAP = 1<<2
-TT_ADDR = 1<<3
-TT_ILLEG = 1<<4
 
 def decode_spr_num(spr):
     return Cat(spr[5:10], spr[0:5])
@@ -682,7 +676,7 @@ class PowerDecode2(Elaboratable):
         # TODO: get msr, then can do privileged instruction
         with m.If(instr_is_priv(m, op.internal_op, e.do.insn) & msr[MSR.PR]):
             # privileged instruction trap
-            self.trap(m, TT_PRIV, 0x700)
+            self.trap(m, TT.PRIV, 0x700)
 
         # illegal instruction must redirect to trap. this is done by
         # *overwriting* the decoded instruction and starting again.
@@ -690,7 +684,7 @@ class PowerDecode2(Elaboratable):
         # just with different trapaddr and traptype)
         with m.Elif(op.internal_op == MicrOp.OP_ILLEGAL):
             # illegal instruction trap
-            self.trap(m, TT_ILLEG, 0x700)
+            self.trap(m, TT.ILLEG, 0x700)
 
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
         # Note: OP_SC could actually be modified to just be a trap

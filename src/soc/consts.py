@@ -27,3 +27,11 @@ class PI:
     TRAP  = (63 - 46)    # 1 if exception is "trap" type
     ADR   = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
 
+# see traptype (and trap main_stage.py)
+
+class TT:
+    FP = 1<<0
+    PRIV = 1<<1
+    TRAP = 1<<2
+    ADDR = 1<<3
+    ILLEG = 1<<4

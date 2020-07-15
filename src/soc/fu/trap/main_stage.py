@@ -19,9 +19,7 @@ from soc.decoder.power_enums import MicrOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.decoder.power_decoder2 import (TT_FP, TT_PRIV, TT_TRAP, TT_ADDR,
-                                        TT_ILLEG)
-from soc.consts import MSR, PI
+from soc.consts import MSR, PI, TT
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):
@@ -154,13 +152,13 @@ class TrapMainStage(PipeModBase):
                     with m.If(traptype == 0):
                         # say trap occurred (see 3.0B Book III 7.5.9)
                         comb += srr1_o.data[PI.TRAP].eq(1)
-                    with m.If(traptype & TT_PRIV):
+                    with m.If(traptype & TT.PRIV):
                         comb += srr1_o.data[PI.PRIV].eq(1)
-                    with m.If(traptype & TT_FP):
+                    with m.If(traptype & TT.FP):
                         comb += srr1_o.data[PI.FP].eq(1)
-                    with m.If(traptype & TT_ADDR):
+                    with m.If(traptype & TT.ADDR):
                         comb += srr1_o.data[PI.ADR].eq(1)
-                    with m.If(traptype & TT_ILLEG):
+                    with m.If(traptype & TT.ILLEG):
                         comb += srr1_o.data[PI.ILLEG].eq(1)
 
             # move to MSR
