@@ -264,6 +264,7 @@ class ISACaller:
             assert self.respect_pc == False, "instructions required to honor pc"
 
         print ("ISACaller insns", respect_pc, initial_insns, disassembly)
+        print ("ISACaller initial_msr", initial_msr)
 
         # "fake program counter" mode (for unit testing)
         self.fake_pc = 0
@@ -577,10 +578,13 @@ class ISACaller:
                       MicrOp.OP_MTSPR.value] and spr_msb:
             instr_is_privileged = True
 
-        print ("is priv", instr_is_privileged, self.msr[63-MSR.PR])
+        print ("is priv", instr_is_privileged, hex(self.msr.value),
+                          self.msr[63-MSR.PR])
         # check MSR priv bit and whether op is privileged: if so, throw trap
         if instr_is_privileged and self.msr[63-MSR.PR] == 1:
             self.TRAP(0x700, PI.PRIV)
+            self.namespace['NIA'] = self.trap_nia
+            self.pc.update(self.namespace)
             return
 
         # check halted condition
