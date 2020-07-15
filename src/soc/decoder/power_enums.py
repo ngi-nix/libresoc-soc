@@ -263,6 +263,7 @@ class LDSTMode(Enum):
     NONE = 0
     update = 1
     cix = 2
+    cx = 3
 
 
 @unique
