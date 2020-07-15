@@ -143,6 +143,16 @@ class TrapTestCase(FHDLTestCase):
         msr = 1 << MSR.PR # set in "problem state"
         self.run_tst_program(Program(lst, bigendian), initial_regs,
                                                       initial_msr=msr)
+    def test_7_rfid_priv_0(self):
+        lst = ["rfid"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 1
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        msr = 1 << MSR.PR # set in "problem state"
+        self.run_tst_program(Program(lst, bigendian),
+                             initial_regs, initial_sprs,
+                             initial_msr=msr)
+
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
