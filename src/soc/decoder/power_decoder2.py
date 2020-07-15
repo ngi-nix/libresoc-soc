@@ -18,7 +18,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      CRInSel, CROutSel,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
-                                     OutSel, SPR, RC)
+                                     OutSel, SPR, RC, LDSTMode)
 from soc.decoder.decode2execute1 import Decode2ToExecute1Type, Data
 from soc.consts import MSR
 
@@ -361,7 +361,7 @@ class DecodeOut2(Elaboratable):
         comb = m.d.comb
 
         # update mode LD/ST uses read-reg A also as an output
-        with m.If(self.dec.op.upd):
+        with m.If(self.dec.op.upd == LDSTMode.update):
             comb += self.reg_out.eq(self.dec.RA)
             comb += self.reg_out.ok.eq(1)
 
