@@ -57,13 +57,16 @@ class Driver(Elaboratable):
                  ca_in.eq(AnyConst(0b11)),
                  so_in.eq(AnyConst(1))]
 
+        # and for the context muxid
+        width = dut.i.ctx.muxid.width
+        comb += dut.i.ctx.muxid.eq(AnyConst(width))
+
+        # assign the PowerDecode2 operation subset
         comb += dut.i.ctx.op.eq(rec)
 
-        # Assert that op gets copied from the input to output
-        for rec_sig in rec.ports():
-            name = rec_sig.name
-            dut_sig = getattr(dut.o.ctx.op, name)
-            comb += Assert(dut_sig == rec_sig)
+        # check that the operation (op) is passed through (and muxid)
+        comb += Assert(dut.o.ctx.op == dut.i.ctx.op )
+        comb += Assert(dut.o.ctx.muxid == dut.i.ctx.muxid )
 
         return m
 
