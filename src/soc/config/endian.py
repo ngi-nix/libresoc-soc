@@ -1,5 +1,5 @@
 global bigendian
-bigendian = 1
+bigendian = 0
 
 def set_endian_mode(mode):
     bigendian = mode
