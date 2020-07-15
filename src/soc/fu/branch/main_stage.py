@@ -3,6 +3,21 @@
 This stage is intended to do most of the work of executing branch
 instructions. This is OP_B, OP_B, OP_BCREG
 
+Note: it is PARTICULARLY important to pay attention to PowerDecode2
+more specifically DecodeRA etc. as these work closely in conjunction
+with the Branch pipeline, here.
+
+The Branch pipeline itself does not and cannot read registers: it can
+only process data and produce results.  Therefore, something else needs
+to know that BC needs CTR, and that one of the outputs from here is to
+go into LR, and so on.  Encoding of which registers are read and written
+is the responsibility of PowerDecode2 and because some of those decisions
+are conditional (based on BO2 for example) PowerDecode2 has to duplicate
+some of that bitlevel operand field decoding.
+
+It us therefore quite critical to read this code in conjunction side by
+side with power_decode2.py
+
 Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=313
 * https://bugs.libre-soc.org/show_bug.cgi?id=335
