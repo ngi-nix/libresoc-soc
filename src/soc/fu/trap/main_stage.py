@@ -214,8 +214,8 @@ class TrapMainStage(PipeModBase):
 
             # OP_SC
             with m.Case(MicrOp.OP_SC):
-                # TODO: scv must generate illegal instruction.  this is
-                # the decoder's job, not ours, here.
+                # tscb is not covered here. currently an illegal instruction.
+                # raising that the decoder's job, not ours, here.
 
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
