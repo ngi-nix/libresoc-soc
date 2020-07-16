@@ -202,7 +202,7 @@ class TestRunner(FHDLTestCase):
                 instructions = list(zip(gen, insncode))
                 sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr,
-                          initial_insns=gen, respect_pc=False,
+                          initial_insns=gen, respect_pc=True,
                           disassembly=insncode,
                           bigendian=self.bigendian)
 
@@ -211,7 +211,9 @@ class TestRunner(FHDLTestCase):
                     yield from setup_test_memory(l0, sim)
 
                 index = sim.pc.CIA.value//4
+                msr = sim.msr.value
                 while True:
+                    print("instr index", index)
                     try:
                         yield from sim.setup_one()
                     except KeyError: # indicates instruction not in imem: stop
@@ -222,6 +224,7 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
+                    yield pdecode2.msr.eq(msr)
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
@@ -268,6 +271,7 @@ class TestRunner(FHDLTestCase):
                     yield from sim.execute_one()
                     yield Settle()
                     index = sim.pc.CIA.value//4
+                    msr = sim.msr.value
 
                     # get all outputs (one by one, just "because")
                     res = yield from get_cu_outputs(cu, code)
