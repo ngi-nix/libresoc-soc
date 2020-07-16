@@ -6,6 +6,7 @@ from soc.fu.branch.test.test_pipe_caller import BranchTestCase, get_cu_inputs
 
 from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.config.endian import bigendian
 
 from soc.regfile.util import fast_reg_to_spr # HACK!
 
@@ -17,7 +18,7 @@ from soc.regfile.util import fast_reg_to_spr # HACK!
 class BranchTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, BranchFunctionUnit, self,
-                         Function.BRANCH)
+                         Function.BRANCH, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to BranchFunctionUnit input regspec
