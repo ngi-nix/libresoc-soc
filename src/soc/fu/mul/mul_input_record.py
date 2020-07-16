@@ -1,9 +1,10 @@
-from nmigen.hdl.rec import Record, Layout
+from soc.fu.base_input_record import CompOpSubsetBase
+from nmigen.hdl.rec import Layout
 
 from soc.decoder.power_enums import MicrOp, Function, CryIn
 
 
-class CompMULOpSubset(Record):
+class CompMULOpSubset(CompOpSubsetBase):
     """CompMULOpSubset
 
     a copy of the relevant subset information from Decode2Execute1Type
@@ -25,30 +26,5 @@ class CompMULOpSubset(Record):
                   ('insn', 32),
                   )
 
-        Record.__init__(self, Layout(layout), name=name)
+        super().__init__(layout, name=name)
 
-        # grrr.  Record does not have kwargs
-        self.insn_type.reset_less = True
-        self.fn_unit.reset_less = True
-        self.zero_a.reset_less = True
-        self.invert_a.reset_less = True
-        self.invert_out.reset_less = True
-        self.is_32bit.reset_less = True
-        self.is_signed.reset_less = True
-
-    def eq_from_execute1(self, other):
-        """ use this to copy in from Decode2Execute1Type
-        """
-        res = []
-        for fname, sig in self.fields.items():
-            eqfrom = other.do.fields[fname]
-            res.append(sig.eq(eqfrom))
-        return res
-
-    def ports(self):
-        return [self.insn_type,
-                self.invert_a,
-                self.invert_out,
-                self.is_32bit,
-                self.is_signed,
-        ]

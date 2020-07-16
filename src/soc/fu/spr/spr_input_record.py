@@ -1,6 +1,6 @@
-
-from soc.decoder.power_enums import (MicrOp, Function)
 from soc.fu.base_input_record import CompOpSubsetBase
+from soc.decoder.power_enums import (MicrOp, Function)
+
 
 class CompSPROpSubset(CompOpSubsetBase):
     """CompSPROpSubset
