@@ -11,6 +11,8 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
+from soc.consts import MSR
+
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.spr.pipeline import SPRBasePipe
@@ -50,6 +52,7 @@ def set_alu_inputs(alu, dec2, sim):
 
     yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)
     yield from ALUHelpers.set_slow_spr1(alu, dec2, inp)
+    return inp
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -78,8 +81,10 @@ class SPRTestCase(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
+    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
+                                    initial_msr=0):
+        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
+                                            msr=initial_msr)
         self.test_data.append(tc)
 
     def test_1_mfspr(self):
@@ -126,6 +131,23 @@ class SPRTestCase(FHDLTestCase):
         self.run_tst_program(Program(lst, bigendian),
                              initial_regs, initial_sprs)
 
+    @unittest.skip("spr does not have TRAP in it. has to be done another way")
+    def test_3_mtspr_priv(self):
+        lst = ["mtspr 26, 1", # SRR0
+               "mtspr 27, 2", # SRR1
+               "mtspr 1, 3",  # XER
+               "mtspr 9, 4",] # CTR
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x129518230011feed
+        initial_regs[2] = 0x123518230011feed
+        initial_regs[3] = 0xe00c0000
+        initial_regs[4] = 0x1010101010101010
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
+                        'XER': 0x0}
+        msr = 1<<MSR.PR
+        self.run_tst_program(Program(lst, bigendian),
+                             initial_regs, initial_sprs, initial_msr=msr)
+
     def test_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)
         alu = SPRBasePipe(pspec)
@@ -171,6 +193,7 @@ class TestRunner(FHDLTestCase):
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 pc = sim.pc.CIA.value
+                msr = sim.msr.value
                 index = pc//4
                 while index < len(instructions):
                     ins, code = instructions[index]
@@ -186,6 +209,7 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
+                    yield pdecode2.msr.eq(msr) # set MSR in pdecode2
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
 
@@ -199,11 +223,12 @@ class TestRunner(FHDLTestCase):
 
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.SPR.value)
-                    yield from set_alu_inputs(alu, pdecode2, sim)
+                    alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
                     yield
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     pc = sim.pc.CIA.value
+                    msr = sim.msr.value
                     index = pc//4
                     print("pc after %08x" % (pc))
 
