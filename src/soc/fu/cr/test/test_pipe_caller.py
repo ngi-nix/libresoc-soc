@@ -134,6 +134,12 @@ class CRTestCase(FHDLTestCase):
             cr = random.randint(0, (1<<32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
+    def test_regression_setb(self):
+        lst = [f"setb 1, 6"]
+        cr = random.randint(0, 0x66f6b106)
+        self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+
+
     def test_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
         alu = CRBasePipe(pspec)
