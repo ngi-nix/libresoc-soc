@@ -4,6 +4,7 @@ from soc.decoder.power_enums import (XER_bits, Function)
 # XXX bad practice: use of global variables
 from soc.fu.shift_rot.test.test_pipe_caller import get_cu_inputs
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
+from soc.config.endian import bigendian
 
 from soc.fu.compunits.compunits import ShiftRotFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
@@ -12,7 +13,7 @@ from soc.fu.compunits.test.test_compunit import TestRunner
 class ShiftRotTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, ShiftRotFunctionUnit, self,
-                         Function.SHIFT_ROT)
+                         Function.SHIFT_ROT, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to ShiftRotFunctionUnit input regspec
