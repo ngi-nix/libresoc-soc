@@ -153,6 +153,20 @@ class TrapTestCase(FHDLTestCase):
                              initial_regs, initial_sprs,
                              initial_msr=msr)
 
+    def test_8_mfmsr(self):
+        lst = ["mfmsr 1"]
+        initial_regs = [0] * 32
+        msr = (~(1 << MSR.PR)) & 0xffffffffffffffff
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
+                                                      initial_msr=msr)
+
+    def test_9_mfmsr_priv(self):
+        lst = ["mfmsr 1"]
+        initial_regs = [0] * 32
+        msr = 1 << MSR.PR # set in "problem state"
+        self.run_tst_program(Program(lst, bigendian), initial_regs,
+                                                      initial_msr=msr)
+
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
