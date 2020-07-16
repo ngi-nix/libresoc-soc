@@ -24,9 +24,9 @@
      def op_setb(self, CR):
 -        if eq(CR[4 * BFA + 32], 1):
 +        if eq(CR.si[4 * BFA + 32], 1):
-             RT = SelectableInt(value=0xffffffffffffffff, bits=256)
+             RT = SelectableInt(value=0xffffffffffffffff, bits=64)
 -        elif eq(CR[4 * BFA + 33], 1):
 +        elif eq(CR.si[4 * BFA + 33], 1):
-             RT = SelectableInt(value=0x1, bits=256)
+             RT = SelectableInt(value=0x1, bits=64)
          else:
-             RT = SelectableInt(value=0x0, bits=256)
+             RT = SelectableInt(value=0x0, bits=64)
