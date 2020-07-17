@@ -82,6 +82,8 @@ class Driver(Elaboratable):
         comb += spr.eq(decode_spr_num(xfx.SPR))
 
         with m.Switch(dut.i.ctx.op.insn_type):
+
+            # OP_MTSPR
             with m.Case(MicrOp.OP_MTSPR):
                 with m.Switch(spr):
                     with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1):
@@ -112,6 +114,8 @@ class Driver(Elaboratable):
                             Assert(~dut.o.fast1.ok),
                         ]
                     # slow SPRs TODO
+
+            # OP_MFSPR
             with m.Case(MicrOp.OP_MFSPR):
                 comb += Assert(o.ok)
                 with m.Switch(spr):
