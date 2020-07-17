@@ -17,23 +17,24 @@ from soc.fu.div.pipeline import DIVBasePipe
 from soc.fu.div.pipe_data import DIVPipeSpec
 import random
 
+
 def log_rand(n, min_val=1):
     logrange = random.randint(1, n)
-    return random.randint(min_val, (1<<logrange)-1)
+    return random.randint(min_val, (1 << logrange)-1)
+
 
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to DIVFunctionUnit input regspec
     """
     res = {}
 
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
 
-    print ("alu get_cu_inputs", res)
+    print("alu get_cu_inputs", res)
 
     return res
-
 
 
 def set_alu_inputs(alu, dec2, sim):
@@ -154,7 +155,7 @@ class DIVTestCase(FHDLTestCase):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
-        initial_regs[2] = 0xffffffffffffffff # top bits don't seem to matter
+        initial_regs[2] = 0xffffffffffffffff  # top bits don't seem to matter
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def tst_divw_overflow3(self):
@@ -229,14 +230,15 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr,
-                                bigendian=bigendian)
+                          test.mem, test.msr,
+                          bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
                 yield Settle()
@@ -251,7 +253,7 @@ class TestRunner(FHDLTestCase):
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
                         ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
                         ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print ("before: so/ov/32", so, ov, ov32)
+                        print("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
@@ -284,14 +286,14 @@ class TestRunner(FHDLTestCase):
                         dive_abs_ov32 = yield do.i.dive_abs_ov32
                         div_by_zero = yield do.i.div_by_zero
                         quotient_neg = yield do.quotient_neg
-                        print ("32bit", hex(is_32bit))
-                        print ("signed", hex(is_signed))
-                        print ("quotient_root", hex(quotient_root))
-                        print ("quotient_65", hex(quotient_65))
-                        print ("div_by_zero", hex(div_by_zero))
-                        print ("dive_abs_ov32", hex(dive_abs_ov32))
-                        print ("quotient_neg", hex(quotient_neg))
-                        print ("")
+                        print("32bit", hex(is_32bit))
+                        print("signed", hex(is_signed))
+                        print("quotient_root", hex(quotient_root))
+                        print("quotient_65", hex(quotient_65))
+                        print("div_by_zero", hex(div_by_zero))
+                        print("dive_abs_ov32", hex(dive_abs_ov32))
+                        print("quotient_neg", hex(quotient_neg))
+                        print("")
                     yield
 
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
@@ -299,7 +301,7 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
@@ -308,7 +310,7 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
 
@@ -320,14 +322,14 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_xer_so(res, alu, dec2)
 
-        print ("res output", res)
+        print("res output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
         yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
 
-        print ("sim output", sim_o)
+        print("sim output", sim_o)
 
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
@@ -336,12 +338,12 @@ class TestRunner(FHDLTestCase):
 
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
-        print ("oe, oe_ok", oe, oe_ok)
+        print("oe, oe_ok", oe, oe_ok)
         if not oe or not oe_ok:
             # if OE not enabled, XER SO and OV must not be activated
             so_ok = yield alu.n.data_o.xer_so.ok
             ov_ok = yield alu.n.data_o.xer_ov.ok
-            print ("so, ov", so_ok, ov_ok)
+            print("so, ov", so_ok, ov_ok)
             self.assertEqual(ov_ok, False, code)
             self.assertEqual(so_ok, False, code)
 

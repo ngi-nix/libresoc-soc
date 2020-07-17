@@ -34,7 +34,7 @@ class DivStagesEnd(PipeModBaseChain):
         core_final = DivCoreFinalStage(self.pspec)
         div_out = DivOutputStage(self.pspec)
         alu_out = DivMulOutputStage(self.pspec)
-        self.div_out = div_out # debugging - bug #425
+        self.div_out = div_out  # debugging - bug #425
         return [core_final, div_out, alu_out]
 
 

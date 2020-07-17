@@ -121,10 +121,10 @@ class Driver(Elaboratable):
                         comb += peo.eq(32)
                     with m.Else():
                         comb += peo.eq(pe32.o)
-                    with m.If(XO[-1]): # cnttzw
+                    with m.If(XO[-1]):  # cnttzw
                         comb += pe32.i.eq(a[0:32])
                         comb += Assert(dut.o.o == peo)
-                    with m.Else(): # cntlzw
+                    with m.Else():  # cntlzw
                         comb += pe32.i.eq(a[0:32][::-1])
                         comb += Assert(dut.o.o == peo)
                 with m.Else():
@@ -134,13 +134,12 @@ class Driver(Elaboratable):
                         comb += peo64.eq(64)
                     with m.Else():
                         comb += peo64.eq(pe64.o)
-                    with m.If(XO[-1]): # cnttzd
+                    with m.If(XO[-1]):  # cnttzd
                         comb += pe64.i.eq(a[0:64])
                         comb += Assert(dut.o.o == peo64)
-                    with m.Else(): # cntlzd
+                    with m.Else():  # cntlzd
                         comb += pe64.i.eq(a[0:64][::-1])
                         comb += Assert(dut.o.o == peo64)
-
 
         return m
 
@@ -150,6 +149,7 @@ class LogicalTestCase(FHDLTestCase):
         module = Driver()
         self.assertFormal(module, mode="bmc", depth=2)
         self.assertFormal(module, mode="cover", depth=2)
+
     def test_ilang(self):
         dut = Driver()
         vl = rtlil.convert(dut, ports=[])

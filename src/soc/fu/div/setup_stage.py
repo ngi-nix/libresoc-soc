@@ -41,14 +41,15 @@ class DivSetupStage(PipeModBase):
         comb += core_o.operation.eq(int(DivPipeCoreOperation.UDivRem))
 
         # work out if a/b are negative (check 32-bit / signed)
-        comb += dividend_neg_o.eq(Mux(op.is_32bit, a[31], a[63]) & op.is_signed)
+        comb += dividend_neg_o.eq(Mux(op.is_32bit,
+                                      a[31], a[63]) & op.is_signed)
         comb += divisor_neg_o.eq(Mux(op.is_32bit, b[31], b[63]) & op.is_signed)
 
         # negation of a 64-bit value produces the same lower 32-bit
         # result as negation of just the lower 32-bits, so we don't
         # need to do anything special before negating
-        abs_dor = Signal(64, reset_less=True) # absolute of divisor
-        abs_dend = Signal(64, reset_less=True) # absolute of dividend
+        abs_dor = Signal(64, reset_less=True)  # absolute of divisor
+        abs_dend = Signal(64, reset_less=True)  # absolute of dividend
         comb += abs_dor.eq(Mux(divisor_neg_o, -b, b))
         comb += abs_dend.eq(Mux(dividend_neg_o, -a, a))
 

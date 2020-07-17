@@ -23,7 +23,7 @@ class DivOutputStage(PipeModBase):
         self.fields.create_specs()
         self.quotient_neg = Signal()
         self.remainder_neg = Signal()
-        self.quotient_65 = Signal(65) # one extra spare bit for overflow
+        self.quotient_65 = Signal(65)  # one extra spare bit for overflow
         self.remainder_64 = Signal(64)
 
     def ispec(self):
@@ -79,12 +79,12 @@ class DivOutputStage(PipeModBase):
             ov = Signal(reset_less=True)
             with m.If(op.is_signed):
                 comb += ov.eq(overflow
-                                  | (abs_quotient > sign_bit_mask)
-                                  | ((abs_quotient == sign_bit_mask)
-                                     & ~self.quotient_neg))
+                              | (abs_quotient > sign_bit_mask)
+                              | ((abs_quotient == sign_bit_mask)
+                                 & ~self.quotient_neg))
             with m.Else():
                 comb += ov.eq(overflow)
-            comb += xer_ov.eq(Repl(ov, 2)) # set OV _and_ OV32
+            comb += xer_ov.eq(Repl(ov, 2))  # set OV _and_ OV32
 
         # check 32/64 bit version of overflow
         with m.If(op.is_32bit):
@@ -106,14 +106,14 @@ class DivOutputStage(PipeModBase):
                 comb += ov.eq(1)
         with m.Else():
             comb += ov.eq(self.i.dive_abs_ov32)
-        comb += xer_ov.eq(Repl(ov, 2)) # set OV _and_ OV32
+        comb += xer_ov.eq(Repl(ov, 2))  # set OV _and_ OV32
 
         ##########################
         # main switch for DIV
 
         o = self.o.o.data
 
-        with m.If(~ov): # result is valid (no overflow)
+        with m.If(~ov):  # result is valid (no overflow)
             with m.Switch(op.insn_type):
                 with m.Case(MicrOp.OP_DIVE):
                     with m.If(op.is_32bit):
