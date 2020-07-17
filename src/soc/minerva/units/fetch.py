@@ -178,7 +178,7 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
             ]
         with m.Elif(f_icache_select):
             m.d.comb += [
-                self.f_busy_o.eq(icache.s2_re & icache.s2_miss),
+                self.f_busy_o.eq(icache.s2_miss),
                 self.f_instr_o.eq(icache.s2_rdata)
             ]
         with m.Else():

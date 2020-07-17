@@ -257,9 +257,9 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                 self.m_busy_o.eq(0),
                 self.m_ld_data_o.eq(0)
             ]
-        with m.Elif(m_dcache_select):
+        with m.Elif(self.m_load & m_dcache_select):
             m.d.comb += [
-                self.m_busy_o.eq(dcache.s2_re & dcache.s2_miss),
+                self.m_busy_o.eq(dcache.s2_miss),
                 self.m_ld_data_o.eq(dcache.s2_rdata)
             ]
         with m.Else():
