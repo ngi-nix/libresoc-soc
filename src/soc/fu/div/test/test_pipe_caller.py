@@ -14,7 +14,7 @@ from soc.config.endian import bigendian
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.div.pipeline import DivBasePipe
-from soc.fu.div.pipe_data import DivPipeSpec
+from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
 import random
 
 
@@ -221,7 +221,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = DivPipeSpec(id_wid=2)
+        # TODO(programmerjake): thread div_pipe_kind through somehow to allow testing other cases
+        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=DivPipeKind.SimOnly)
         m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)

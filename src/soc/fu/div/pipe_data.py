@@ -1,10 +1,12 @@
+import enum
 from nmigen import Signal, Const
 from soc.fu.pipe_data import IntegerData
 from soc.fu.alu.pipe_data import CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 from ieee754.div_rem_sqrt_rsqrt.core import (
     DivPipeCoreConfig, DivPipeCoreInputData, DP,
-    DivPipeCoreInterstageData, DivPipeCoreOutputData)
+    DivPipeCoreInterstageData, DivPipeCoreOutputData,
+    DivPipeCoreSetupStage, DivPipeCoreCalculateStage, DivPipeCoreFinalStage)
 
 
 class DivInputData(IntegerData):
@@ -31,15 +33,79 @@ class DivMulOutputData(IntegerData):
         self.cr0 = self.cr_a
 
 
+class DivPipeKindConfig:
+    def __init__(self,
+                 core_config,
+                 core_input_data_class,
+                 core_interstage_data_class,
+                 core_output_data_class,
+                 core_setup_stage_class,
+                 core_calculate_stage_class,
+                 core_final_stage_class):
+        self.core_config = core_config
+        self.core_input_data_class = core_input_data_class
+        self.core_interstage_data_class = core_interstage_data_class
+        self.core_output_data_class = core_output_data_class
+        self.core_setup_stage_class = core_setup_stage_class
+        self.core_calculate_stage_class = core_calculate_stage_class
+        self.core_final_stage_class = core_final_stage_class
+
+
+class DivPipeKind(enum.Enum):
+    # use ieee754.div_rem_sqrt_rsqrt.core.DivPipeCore*
+    DivPipeCore = enum.auto()
+    # use nmigen's built-in div and rem operators -- only suitable for simulation
+    SimOnly = enum.auto()
+    # use a FSM-based div core
+    FSMCore = enum.auto()
+
+    @property
+    def config(self):
+        if self == DivPipeKind.DivPipeCore:
+            return DivPipeKindConfig(
+                core_config=DivPipeCoreConfig(
+                    bit_width=64,
+                    fract_width=64,
+                    log2_radix=1,
+                    supported=[DP.UDivRem]
+                ),
+                core_input_data_class=DivPipeCoreInputData,
+                core_interstage_data_class=DivPipeCoreInterstageData,
+                core_output_data_class=DivPipeCoreOutputData,
+                core_setup_stage_class=DivPipeCoreSetupStage,
+                core_calculate_stage_class=DivPipeCoreCalculateStage,
+                core_final_stage_class=DivPipeCoreFinalStage)
+        elif self == DivPipeKind.SimOnly:
+            # import here to avoid import loop
+            from soc.fu.div.sim_only_core import (
+                SimOnlyCoreConfig, SimOnlyCoreInputData,
+                SimOnlyCoreInterstageData, SimOnlyCoreOutputData,
+                SimOnlyCoreSetupStage, SimOnlyCoreCalculateStage,
+                SimOnlyCoreFinalStage)
+            return DivPipeKindConfig(
+                core_config=SimOnlyCoreConfig(),
+                core_input_data_class=SimOnlyCoreInputData,
+                core_interstage_data_class=SimOnlyCoreInterstageData,
+                core_output_data_class=SimOnlyCoreOutputData,
+                core_setup_stage_class=SimOnlyCoreSetupStage,
+                core_calculate_stage_class=SimOnlyCoreCalculateStage,
+                core_final_stage_class=SimOnlyCoreFinalStage)
+        else:
+            # ensure we didn't forget any cases
+            # -- I wish Python had a switch/match statement
+            assert self == DivPipeKind.FSMCore
+            # TODO(programmerjake): implement
+            raise NotImplementedError()
+
+
 class DivPipeSpec(CommonPipeSpec):
+    def __init__(self, id_wid, div_pipe_kind):
+        super().__init__(id_wid=id_wid)
+        self.div_pipe_kind = div_pipe_kind
+        self.core_config = div_pipe_kind.config.core_config
+
     regspec = (DivInputData.regspec, DivMulOutputData.regspec)
     opsubsetkls = CompLogicalOpSubset
-    core_config = DivPipeCoreConfig(
-        bit_width=64,
-        fract_width=64,
-        log2_radix=1,
-        supported=[DP.UDivRem]
-    )
 
 
 class CoreBaseData(DivInputData):
@@ -76,14 +142,14 @@ class CoreBaseData(DivInputData):
 
 class CoreInputData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, DivPipeCoreInputData)
+        super().__init__(pspec, pspec.div_pipe_kind.config.core_input_data_class)
 
 
 class CoreInterstageData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, DivPipeCoreInterstageData)
+        super().__init__(pspec, pspec.div_pipe_kind.config.core_interstage_data_class)
 
 
 class CoreOutputData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, DivPipeCoreOutputData)
+        super().__init__(pspec, pspec.div_pipe_kind.config.core_output_data_class)

@@ -41,7 +41,8 @@ class DivCoreBaseStage(PipeModBase):
 
 class DivCoreSetupStage(DivCoreBaseStage):
     def __init__(self, pspec):
-        super().__init__(pspec, "core_setup_stage", DivPipeCoreSetupStage)
+        super().__init__(pspec, "core_setup_stage",
+                         pspec.div_pipe_kind.config.core_setup_stage_class)
 
     def ispec(self):
         return CoreInputData(self.pspec)
@@ -52,8 +53,9 @@ class DivCoreSetupStage(DivCoreBaseStage):
 
 class DivCoreCalculateStage(DivCoreBaseStage):
     def __init__(self, pspec, stage_index):
+        stage = pspec.div_pipe_kind.config.core_calculate_stage_class
         super().__init__(pspec, f"core_calculate_stage_{stage_index}",
-                         DivPipeCoreCalculateStage, stage_index)
+                         stage, stage_index)
 
     def ispec(self):
         return CoreInterstageData(self.pspec)
@@ -64,7 +66,8 @@ class DivCoreCalculateStage(DivCoreBaseStage):
 
 class DivCoreFinalStage(DivCoreBaseStage):
     def __init__(self, pspec):
-        super().__init__(pspec, "core_final_stage", DivPipeCoreFinalStage)
+        super().__init__(pspec, "core_final_stage",
+                         pspec.div_pipe_kind.config.core_final_stage_class)
 
     def ispec(self):
         return CoreInterstageData(self.pspec)
