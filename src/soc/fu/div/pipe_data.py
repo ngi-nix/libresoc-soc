@@ -33,7 +33,19 @@ class DivMulOutputData(IntegerData):
         self.cr0 = self.cr_a
 
 
-class DivPipeKindConfig:
+class DivPipeKindConfigBase:
+    def __init__(self,
+                 core_config,
+                 core_input_data_class,
+                 core_interstage_data_class,
+                 core_output_data_class):
+        self.core_config = core_config
+        self.core_input_data_class = core_input_data_class
+        self.core_interstage_data_class = core_interstage_data_class
+        self.core_output_data_class = core_output_data_class
+
+
+class DivPipeKindConfigCombPipe(DivPipeKindConfigBase):
     def __init__(self,
                  core_config,
                  core_input_data_class,
@@ -42,13 +54,23 @@ class DivPipeKindConfig:
                  core_setup_stage_class,
                  core_calculate_stage_class,
                  core_final_stage_class):
-        self.core_config = core_config
-        self.core_input_data_class = core_input_data_class
-        self.core_interstage_data_class = core_interstage_data_class
-        self.core_output_data_class = core_output_data_class
+        super().__init__(core_config, core_input_data_class,
+                         core_interstage_data_class, core_output_data_class)
         self.core_setup_stage_class = core_setup_stage_class
         self.core_calculate_stage_class = core_calculate_stage_class
         self.core_final_stage_class = core_final_stage_class
+
+
+class DivPipeKindConfigFSM(DivPipeKindConfigBase):
+    def __init__(self,
+                 core_config,
+                 core_input_data_class,
+                 core_output_data_class,
+                 core_stage_class):
+        core_interstage_data_class = None
+        super().__init__(core_config, core_input_data_class,
+                         core_interstage_data_class, core_output_data_class)
+        self.core_stage_class = core_stage_class
 
 
 class DivPipeKind(enum.Enum):
@@ -58,12 +80,12 @@ class DivPipeKind(enum.Enum):
     # simulation
     SimOnly = enum.auto()
     # use a FSM-based div core
-    FSMCore = enum.auto()
+    FSMDivCore = enum.auto()
 
     @property
     def config(self):
         if self == DivPipeKind.DivPipeCore:
-            return DivPipeKindConfig(
+            return DivPipeKindConfigCombPipe(
                 core_config=DivPipeCoreConfig(
                     bit_width=64,
                     fract_width=64,
@@ -76,14 +98,14 @@ class DivPipeKind(enum.Enum):
                 core_setup_stage_class=DivPipeCoreSetupStage,
                 core_calculate_stage_class=DivPipeCoreCalculateStage,
                 core_final_stage_class=DivPipeCoreFinalStage)
-        elif self == DivPipeKind.SimOnly:
+        if self == DivPipeKind.SimOnly:
             # import here to avoid import loop
             from soc.fu.div.sim_only_core import (
                 SimOnlyCoreConfig, SimOnlyCoreInputData,
                 SimOnlyCoreInterstageData, SimOnlyCoreOutputData,
                 SimOnlyCoreSetupStage, SimOnlyCoreCalculateStage,
                 SimOnlyCoreFinalStage)
-            return DivPipeKindConfig(
+            return DivPipeKindConfigCombPipe(
                 core_config=SimOnlyCoreConfig(),
                 core_input_data_class=SimOnlyCoreInputData,
                 core_interstage_data_class=SimOnlyCoreInterstageData,
@@ -91,12 +113,19 @@ class DivPipeKind(enum.Enum):
                 core_setup_stage_class=SimOnlyCoreSetupStage,
                 core_calculate_stage_class=SimOnlyCoreCalculateStage,
                 core_final_stage_class=SimOnlyCoreFinalStage)
-        else:
-            # ensure we didn't forget any cases
-            # -- I wish Python had a switch/match statement
-            assert self == DivPipeKind.FSMCore
-            # TODO(programmerjake): implement
-            raise NotImplementedError()
+        # ensure we didn't forget any cases
+        # -- I wish Python had a switch/match statement
+        assert self == DivPipeKind.FSMDivCore
+
+        # import here to avoid import loop
+        from soc.fu.div.fsm import (
+            FSMDivCoreConfig, FSMDivCoreInputData,
+            FSMDivCoreOutputData, FSMDivCoreStage)
+        return DivPipeKindConfigFSM(
+            core_config=FSMDivCoreConfig(),
+            core_input_data_class=FSMDivCoreInputData,
+            core_output_data_class=FSMDivCoreOutputData,
+            core_stage_class=FSMDivCoreStage)
 
 
 class DivPipeSpec(CommonPipeSpec):
@@ -149,8 +178,11 @@ class CoreInputData(CoreBaseData):
 
 class CoreInterstageData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec,
-                         pspec.div_pipe_kind.config.core_interstage_data_class)
+        data_class = pspec.div_pipe_kind.config.core_interstage_data_class
+        if data_class is None:
+            raise ValueError(
+                f"CoreInterstageData not supported for {pspec.div_pipe_kind}")
+        super().__init__(pspec, data_class)
 
 
 class CoreOutputData(CoreBaseData):

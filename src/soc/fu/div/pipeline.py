@@ -41,6 +41,7 @@ class DivStagesEnd(PipeModBaseChain):
 class DivBasePipe(ControlBase):
     def __init__(self, pspec, compute_steps_per_stage=4):
         ControlBase.__init__(self)
+        self.pspec = pspec
         self.pipe_start = DivStagesStart(pspec)
         compute_steps = pspec.core_config.n_stages
         self.pipe_middles = []
