@@ -221,7 +221,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        # TODO(programmerjake): thread div_pipe_kind through somehow to allow testing other cases
+        # TODO(programmerjake): thread div_pipe_kind through somehow to allow
+        # testing other cases
         pspec = DivPipeSpec(id_wid=2, div_pipe_kind=DivPipeKind.SimOnly)
         m.submodules.alu = alu = DivBasePipe(pspec)
 
