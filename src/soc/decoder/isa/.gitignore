@@ -4,6 +4,7 @@
 /comparefixed.py
 /condition.py
 /fixedarith.py
+/fixedldstcache.py
 /fixedload.py
 /fixedlogical.py
 /fixedshift.py
