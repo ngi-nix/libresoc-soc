@@ -669,6 +669,8 @@ class PowerDecode2(Elaboratable):
 
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == MicrOp.OP_TRAP):
+            # *DO NOT* call self.trap here.  that would reset absolutely
+            # rverything including destroying read of RA and RB.
             comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
 
         # TODO: get msr, then can do privileged instruction
