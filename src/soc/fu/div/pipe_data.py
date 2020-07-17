@@ -7,7 +7,7 @@ from ieee754.div_rem_sqrt_rsqrt.core import (
     DivPipeCoreInterstageData, DivPipeCoreOutputData)
 
 
-class DIVInputData(IntegerData):
+class DivInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'),  # RA
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('XER', 'xer_so', '32'), ]  # XER bit 32: SO
@@ -31,8 +31,8 @@ class DivMulOutputData(IntegerData):
         self.cr0 = self.cr_a
 
 
-class DIVPipeSpec(CommonPipeSpec):
-    regspec = (DIVInputData.regspec, DivMulOutputData.regspec)
+class DivPipeSpec(CommonPipeSpec):
+    regspec = (DivInputData.regspec, DivMulOutputData.regspec)
     opsubsetkls = CompLogicalOpSubset
     core_config = DivPipeCoreConfig(
         bit_width=64,
@@ -42,7 +42,7 @@ class DIVPipeSpec(CommonPipeSpec):
     )
 
 
-class CoreBaseData(DIVInputData):
+class CoreBaseData(DivInputData):
     def __init__(self, pspec, core_data_class):
         super().__init__(pspec)
         self.core = core_data_class(pspec.core_config)

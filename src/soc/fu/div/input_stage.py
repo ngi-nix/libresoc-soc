@@ -3,7 +3,7 @@
 # generation for subtraction, and handling of immediates should happen
 # in the base class (CommonInputStage.elaborate).
 from soc.fu.alu.input_stage import ALUInputStage
-from soc.fu.div.pipe_data import DIVInputData
+from soc.fu.div.pipe_data import DivInputData
 
 # simply over-ride ALUInputStage ispec / ospec
 
@@ -12,5 +12,5 @@ class DivMulInputStage(ALUInputStage):
     def __init__(self, pspec):
         super().__init__(pspec)
 
-    def ispec(self): return DIVInputData(self.pspec)
-    def ospec(self): return DIVInputData(self.pspec)
+    def ispec(self): return DivInputData(self.pspec)
+    def ospec(self): return DivInputData(self.pspec)

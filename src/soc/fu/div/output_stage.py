@@ -109,7 +109,7 @@ class DivOutputStage(PipeModBase):
         comb += xer_ov.eq(Repl(ov, 2))  # set OV _and_ OV32
 
         ##########################
-        # main switch for DIV
+        # main switch for Div
 
         o = self.o.o.data
 

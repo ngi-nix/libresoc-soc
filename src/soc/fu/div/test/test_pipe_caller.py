@@ -13,8 +13,8 @@ from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import (TestCase, ALUHelpers)
-from soc.fu.div.pipeline import DIVBasePipe
-from soc.fu.div.pipe_data import DIVPipeSpec
+from soc.fu.div.pipeline import DivBasePipe
+from soc.fu.div.pipe_data import DivPipeSpec
 import random
 
 
@@ -24,7 +24,7 @@ def log_rand(n, min_val=1):
 
 
 def get_cu_inputs(dec2, sim):
-    """naming (res) must conform to DIVFunctionUnit input regspec
+    """naming (res) must conform to DivFunctionUnit input regspec
     """
     res = {}
 
@@ -56,7 +56,7 @@ def set_alu_inputs(alu, dec2, sim):
 # should have. However, this was really slow, since it needed to
 # create and tear down the dut and simulator for every test case.
 
-# Now, instead of doing that, every test case in DIVTestCase puts some
+# Now, instead of doing that, every test case in DivTestCase puts some
 # data into the test_data list below, describing the instructions to
 # be tested and the initial state. Once all the tests have been run,
 # test_data gets passed to TestRunner which then sets up the DUT and
@@ -68,7 +68,7 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class DIVTestCase(FHDLTestCase):
+class DivTestCase(FHDLTestCase):
     test_data = []
 
     def __init__(self, name):
@@ -200,8 +200,8 @@ class DIVTestCase(FHDLTestCase):
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def tst_ilang(self):
-        pspec = DIVPipeSpec(id_wid=2)
-        alu = DIVBasePipe(pspec)
+        pspec = DivPipeSpec(id_wid=2)
+        alu = DivBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open("div_pipeline.il", "w") as f:
             f.write(vl)
@@ -221,8 +221,8 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = DIVPipeSpec(id_wid=2)
-        m.submodules.alu = alu = DIVBasePipe(pspec)
+        pspec = DivPipeSpec(id_wid=2)
+        m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.n.ready_i.eq(1)
@@ -351,7 +351,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(DIVTestCase.test_data))
+    suite.addTest(TestRunner(DivTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

@@ -3,7 +3,7 @@
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.div.pipe_data import DIVInputData
+from soc.fu.div.pipe_data import DivInputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import MicrOp
 
@@ -21,7 +21,7 @@ class DivSetupStage(PipeModBase):
         self.fields.create_specs()
 
     def ispec(self):
-        return DIVInputData(self.pspec)
+        return DivInputData(self.pspec)
 
     def ospec(self):
         return CoreInputData(self.pspec)
@@ -67,7 +67,7 @@ class DivSetupStage(PipeModBase):
         comb += self.o.div_by_zero.eq(divisor_o == 0)
 
         ##########################
-        # main switch for DIV
+        # main switch for Div
 
         with m.Switch(op.insn_type):
             # div/mod takes straight (absolute) dividend
