@@ -23,7 +23,7 @@ from soc.decoder.power_enums import MicrOp, SPR, XER_bits
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-
+# use POWER numbering. sigh.
 def xer_bit(name):
     return 63-XER_bits[name]
 
