@@ -54,6 +54,8 @@ class Driver(Elaboratable):
         ca_in = dut.i.xer_ca[0]   # CA carry in
         ca32_in = dut.i.xer_ca[1] # CA32 carry in 32
         so_in = dut.i.xer_so      # SO sticky overflow
+        ov_in = dut.i.xer_ov[0]   # XER OV in
+        ov32_in = dut.i.xer_ov[1] # XER OV32 in
         o = dut.o.o
 
         # setup random inputs
@@ -118,8 +120,8 @@ class Driver(Elaboratable):
                     with m.Case(SPR.XER):
                         bits = {
                             'SO': so_in,
-                            'OV': dut.i.xer_ov[0],
-                            'OV32': dut.i.xer_ov[1],
+                            'OV': ov_in,
+                            'OV32': ov32_in,
                             'CA': ca_in,
                             'CA32': ca32_in,
                         }
