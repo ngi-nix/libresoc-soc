@@ -135,7 +135,6 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
 
         self.x_fence_i = Signal()
         self.x_flush = Signal()
-        self.m_addr = Signal(addr_wid)
         self.m_load = Signal()
         self.m_store = Signal()
 
@@ -145,19 +144,39 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         dcache = m.submodules.dcache = L1Cache(*self.dcache_args)
 
         x_dcache_select = Signal()
-        m_dcache_select = Signal()
+        # Test whether the target address is inside the L1 cache region.
+        # We use bit masks in order to avoid carry chains from arithmetic
+        # comparisons. This restricts the region boundaries to powers of 2.
+        with m.Switch(self.x_addr_i[self.adr_lsbs:]):
+            def addr_below(limit):
+                assert limit in range(1, 2**30 + 1)
+                range_bits = log2_int(limit)
+                const_bits = 30 - range_bits
+                return "{}{}".format("0" * const_bits, "-" * range_bits)
 
-        m.d.comb += x_dcache_select.eq((self.x_addr_i >= dcache.base) &
-                                       (self.x_addr_i < dcache.limit))
+            if dcache.base >= (1<<self.adr_lsbs):
+                with m.Case(addr_below(dcache.base >> self.adr_lsbs)):
+                    m.d.comb += x_dcache_select.eq(0)
+            with m.Case(addr_below(dcache.limit >> self.adr_lsbs)):
+                m.d.comb += x_dcache_select.eq(1)
+            with m.Default():
+                m.d.comb += x_dcache_select.eq(0)
+
+        m_dcache_select = Signal()
+        m_addr = Signal.like(self.x_addr_i)
+
         with m.If(~self.x_stall_i):
-            m.d.sync += m_dcache_select.eq(x_dcache_select)
+            m.d.sync += [
+                m_dcache_select.eq(x_dcache_select),
+                m_addr.eq(self.x_addr_i),
+            ]
 
         m.d.comb += [
             dcache.s1_addr.eq(self.x_addr_i[self.adr_lsbs:]),
             dcache.s1_flush.eq(self.x_flush),
             dcache.s1_stall.eq(self.x_stall_i),
             dcache.s1_valid.eq(self.x_valid_i & x_dcache_select),
-            dcache.s2_addr.eq(self.m_addr[self.adr_lsbs:]),
+            dcache.s2_addr.eq(m_addr[self.adr_lsbs:]),
             dcache.s2_re.eq(self.m_load),
             dcache.s2_evict.eq(self.m_store),
             dcache.s2_valid.eq(self.m_valid_i & m_dcache_select)
@@ -252,12 +271,11 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         with m.Else():
             m.d.comb += self.x_busy_o.eq(bare_port.cyc)
 
+        with m.If(self.m_flush):
+            m.d.comb += self.m_busy_o.eq(~dcache.s2_flush_ack)
         with m.If(self.m_load_err_o | self.m_store_err_o):
-            m.d.comb += [
-                self.m_busy_o.eq(0),
-                self.m_ld_data_o.eq(0)
-            ]
-        with m.Elif(self.m_load & m_dcache_select):
+            m.d.comb += self.m_busy_o.eq(0)
+        with m.Elif(m_dcache_select):
             m.d.comb += [
                 self.m_busy_o.eq(dcache.s2_miss),
                 self.m_ld_data_o.eq(dcache.s2_rdata)
