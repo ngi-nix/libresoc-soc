@@ -79,10 +79,7 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
         m.d.comb += self.a_busy_o.eq(self.ibus.cyc)
 
         with m.If(self.f_fetch_err_o):
-            m.d.comb += [
-                self.f_busy_o.eq(0),
-                self.f_instr_o.eq(0x0)
-            ]
+            m.d.comb += self.f_busy_o.eq(0)
         with m.Else():
             m.d.comb += [
                 self.f_busy_o.eq(self.ibus.cyc),
@@ -107,12 +104,35 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         icache = m.submodules.icache = L1Cache(*self.icache_args)
 
         a_icache_select = Signal()
-        f_icache_select = Signal()
 
-        m.d.comb += a_icache_select.eq((self.a_pc_i >= icache.base) &
-                                        (self.a_pc_i < icache.limit))
+        # Test whether the target address is inside the L1 cache region.
+        # We use bit masks in order to avoid carry chains from arithmetic
+        # comparisons. This restricts the region boundaries to powers of 2.
+
+        # TODO: minerva defaults adr_lsbs to 2.  check this code
+        with m.Switch(self.a_pc_i[self.adr_lsbs:]):
+            def addr_below(limit):
+                assert limit in range(1, 2**30 + 1)
+                range_bits = log2_int(limit)
+                const_bits = 30 - range_bits
+                return "{}{}".format("0" * const_bits, "-" * range_bits)
+
+            if icache.base >= 4: # XX (1<<self.adr_lsbs?)
+                with m.Case(addr_below(icache.base >> self.adr_lsbs)):
+                    m.d.comb += a_icache_select.eq(0)
+            with m.Case(addr_below(icache.limit >> self.adr_lsbs)):
+                m.d.comb += a_icache_select.eq(1)
+            with m.Default():
+                m.d.comb += a_icache_select.eq(0)
+
+        f_icache_select = Signal()
+        f_flush = Signal()
+
         with m.If(~self.a_stall_i):
-            m.d.sync += f_icache_select.eq(a_icache_select)
+            m.d.sync += [
+                f_icache_select.eq(a_icache_select),
+                f_flush.eq(self.a_flush),
+            ]
 
         m.d.comb += [
             icache.s1_addr.eq(self.a_pc_i[self.adr_lsbs:]),
@@ -158,6 +178,8 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
                 bare_port.adr.eq(self.a_pc_i[self.adr_lsbs:])
             ]
 
+        m.d.comb += self.a_busy_o.eq(bare_port.cyc)
+
         with m.If(self.ibus.cyc & self.ibus.err):
             m.d.sync += [
                 self.f_fetch_err_o.eq(1),
@@ -166,16 +188,10 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         with m.Elif(~self.f_stall_i):
             m.d.sync += self.f_fetch_err_o.eq(0)
 
-        with m.If(a_icache_select):
-            m.d.comb += self.a_busy_o.eq(0)
-        with m.Else():
-            m.d.comb += self.a_busy_o.eq(bare_port.cyc)
-
-        with m.If(self.f_fetch_err_o):
-            m.d.comb += [
-                self.f_busy_o.eq(0),
-                self.f_instr_o.eq(0x0)
-            ]
+        with m.If(f_flush):
+            m.d.comb += self.f_busy_o.eq(~icache.s2_flush_ack)
+        with m.Elif(self.f_fetch_err_o):
+            m.d.comb += self.f_busy_o.eq(0)
         with m.Elif(f_icache_select):
             m.d.comb += [
                 self.f_busy_o.eq(icache.s2_miss),
