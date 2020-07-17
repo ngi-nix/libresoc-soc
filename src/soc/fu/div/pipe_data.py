@@ -54,7 +54,8 @@ class DivPipeKindConfig:
 class DivPipeKind(enum.Enum):
     # use ieee754.div_rem_sqrt_rsqrt.core.DivPipeCore*
     DivPipeCore = enum.auto()
-    # use nmigen's built-in div and rem operators -- only suitable for simulation
+    # use nmigen's built-in div and rem operators -- only suitable for
+    # simulation
     SimOnly = enum.auto()
     # use a FSM-based div core
     FSMCore = enum.auto()
@@ -142,14 +143,17 @@ class CoreBaseData(DivInputData):
 
 class CoreInputData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, pspec.div_pipe_kind.config.core_input_data_class)
+        super().__init__(pspec,
+                         pspec.div_pipe_kind.config.core_input_data_class)
 
 
 class CoreInterstageData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, pspec.div_pipe_kind.config.core_interstage_data_class)
+        super().__init__(pspec,
+                         pspec.div_pipe_kind.config.core_interstage_data_class)
 
 
 class CoreOutputData(CoreBaseData):
     def __init__(self, pspec):
-        super().__init__(pspec, pspec.div_pipe_kind.config.core_output_data_class)
+        super().__init__(pspec,
+                         pspec.div_pipe_kind.config.core_output_data_class)
