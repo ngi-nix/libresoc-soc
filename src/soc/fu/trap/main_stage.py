@@ -201,9 +201,9 @@ class TrapMainStage(PipeModBase):
                 msr_check_pr(m, msr_o.data)
 
                 # hypervisor stuff
-                comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV] & srr1_i[MSR.HV])
-                comb += msr_o.data[MSR.ME].eq((msr_i[MSR.HV] & srr1_i[MSR.HV]) |
-                                             (~msr_i[MSR.HV] & srr1_i[MSR.HV]))
+                with m.If(msr_i[MSR.HV]):
+                    comb += msr_o.data[MSR.HV].eq(srr1_i[MSR.HV])
+                    comb += msr_o.data[MSR.ME].eq(srr1_i[MSR.ME])
                 # don't understand but it's in the spec
                 with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
                           (srr1_i[63-31:63-29] != Const(0b000, 3))):
