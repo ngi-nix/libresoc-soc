@@ -2,7 +2,7 @@
 
 from nmigen import (Module, Signal, Mux)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.div.pipe_data import DIVInputData
+from soc.fu.div.pipe_data import DivInputData
 from soc.fu.mul.pipe_data import MulIntermediateData
 from ieee754.part.partsig import PartitionedSignal
 from nmutil.util import eq32
@@ -12,7 +12,7 @@ class MulMainStage1(PipeModBase):
         super().__init__(pspec, "mul1")
 
     def ispec(self):
-        return DIVInputData(self.pspec) # defines pipeline stage input format
+        return DivInputData(self.pspec) # defines pipeline stage input format
 
     def ospec(self):
         return MulIntermediateData(self.pspec) # pipeline stage output format

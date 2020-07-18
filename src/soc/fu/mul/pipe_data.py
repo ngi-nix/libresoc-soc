@@ -1,10 +1,10 @@
 from soc.fu.mul.mul_input_record import CompMULOpSubset
 from soc.fu.pipe_data import IntegerData, CommonPipeSpec
-from soc.fu.div.pipe_data import DIVInputData, DivMulOutputData
+from soc.fu.div.pipe_data import DivInputData, DivMulOutputData
 from nmigen import Signal
 
 
-class MulIntermediateData(DIVInputData):
+class MulIntermediateData(DivInputData):
     def __init__(self, pspec):
         super().__init__(pspec)
 
@@ -27,5 +27,5 @@ class MulOutputData(IntegerData):
 
 
 class MulPipeSpec(CommonPipeSpec):
-    regspec = (DIVInputData.regspec, DivMulOutputData.regspec)
+    regspec = (DivInputData.regspec, DivMulOutputData.regspec)
     opsubsetkls = CompMULOpSubset

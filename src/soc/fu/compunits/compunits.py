@@ -71,8 +71,8 @@ from soc.fu.spr.pipe_data import SPRPipeSpec
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 
-from soc.fu.div.pipeline import DIVBasePipe
-from soc.fu.div.pipe_data import DIVPipeSpec
+from soc.fu.div.pipeline import DivBasePipe
+from soc.fu.div.pipe_data import DivPipeSpec
 
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
@@ -147,10 +147,10 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self, idx):
         super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe, idx)
 
-class DIVFunctionUnit(FunctionUnitBaseSingle):
+class DivFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
     def __init__(self, idx):
-        super().__init__(DIVPipeSpec, DIVBasePipe, idx)
+        super().__init__(DivPipeSpec, DivBasePipe, idx)
 
 class MulFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.MUL
@@ -209,7 +209,7 @@ class AllFunctionUnits(Elaboratable):
                  'branch': BranchFunctionUnit,
                  'trap': TrapFunctionUnit,
                  'spr': SPRFunctionUnit,
-                 'div': DIVFunctionUnit,
+                 'div': DivFunctionUnit,
                  'mul': MulFunctionUnit,
                  'logical': LogicalFunctionUnit,
                  'shiftrot': ShiftRotFunctionUnit,
