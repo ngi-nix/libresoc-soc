@@ -17,6 +17,8 @@ improved.
 
 from nmigen import Elaboratable, Module, Signal
 from nmigen.cli import rtlil
+from nmigen.cli import main
+import sys
 
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
@@ -197,7 +199,9 @@ if __name__ == '__main__':
                          reg_wid=64,
                          units=units)
     dut = TestIssuer(pspec)
-    vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
-    with open("test_issuer.il", "w") as f:
-        f.write(vl)
+    vl = main(dut, ports=dut.ports(), name="test_issuer")
 
+    if len(sys.argv) == 1:
+        vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
+        with open("test_issuer.il", "w") as f:
+            f.write(vl)
