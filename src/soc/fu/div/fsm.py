@@ -1,6 +1,8 @@
 import enum
-from nmigen import Elaboratable, Module, Signal
-from soc.fu.div.pipe_data import CoreInputData, CoreOutputData
+from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
+from soc.fu.div.pipe_data import CoreInputData, CoreOutputData, DivPipeSpec
+from nmutil.iocontrol import PrevControl, NextControl
+from ieee754.div_rem_sqrt_rsqrt.core import DivPipeCoreOperation
 
 
 class FSMDivCoreConfig:
@@ -49,51 +51,130 @@ class FSMDivCoreOutputData:
                 self.remainder.eq(rhs.remainder)]
 
 
-class FSMDivCorePrev:
+class FSMDivCorePrevControl(PrevControl):
+    data_i: CoreInputData
+
     def __init__(self, pspec):
+        super().__init__(stage_ctl=True, maskwid=pspec.id_wid)
+        self.pspec = pspec
         self.data_i = CoreInputData(pspec)
-        self.valid_i = Signal()
-        self.ready_o = Signal()
-
-    def __iter__(self):
-        yield from self.data_i
-        yield self.valid_i
-        yield self.ready_o
 
 
-class FSMDivCoreNext:
+class FSMDivCoreNextControl(NextControl):
+    data_o: CoreOutputData
+
     def __init__(self, pspec):
+        super().__init__(stage_ctl=True, maskwid=pspec.id_wid)
+        self.pspec = pspec
         self.data_o = CoreOutputData(pspec)
-        self.valid_o = Signal()
-        self.ready_i = Signal()
-
-    def __iter__(self):
-        yield from self.data_o
-        yield self.valid_o
-        yield self.ready_i
 
 
-class DivState(enum.Enum):
-    Empty = 0
-    Computing = 1
-    WaitingOnOutput = 2
-
-
-class FSMDivCoreStage(Elaboratable):
-    def __init__(self, pspec):
-        self.p = FSMDivCorePrev(pspec)
-        self.n = FSMDivCoreNext(pspec)
-        self.saved_input_data = CoreInputData(pspec)
-        self.canceled = Signal()
-        self.state = Signal(DivState, reset=DivState.Empty)
+class DivStateNext(Elaboratable):
+    def __init__(self, quotient_width):
+        self.quotient_width = quotient_width
+        self.i = DivState(quotient_width=quotient_width, name="i")
+        self.divisor = Signal(quotient_width)
+        self.o = DivState(quotient_width=quotient_width, name="o")
 
     def elaborate(self, platform):
         m = Module()
+        difference = Signal(self.i.quotient_width * 2)
+        m.d.comb += difference.eq(self.i.dividend_quotient
+                                  - (self.divisor
+                                     << (self.quotient_width - 1)))
+        next_quotient_bit = Signal()
+        m.d.comb += next_quotient_bit.eq(
+            ~difference[self.quotient_width * 2 - 1])
+        value = Signal(self.i.quotient_width * 2)
+        with m.If(next_quotient_bit):
+            m.d.comb += value.eq(difference)
+        with m.Else():
+            m.d.comb += value.eq(self.i.dividend_quotient)
+
+        with m.If(self.i.done):
+            m.d.comb += self.o.eq(self.i)
+        with m.Else():
+            m.d.comb += [
+                self.o.q_bits_known.eq(self.i.q_bits_known + 1),
+                self.o.dividend_quotient.eq(Cat(next_quotient_bit, value))]
+        return m
+
+
+class DivStateInit(Elaboratable):
+    def __init__(self, quotient_width):
+        self.quotient_width = quotient_width
+        self.dividend = Signal(quotient_width * 2)
+        self.o = DivState(quotient_width=quotient_width, name="o")
+
+    def elaborate(self, platform):
+        m = Module()
+        m.d.comb += self.o.q_bits_known.eq(0)
+        m.d.comb += self.o.dividend_quotient.eq(self.dividend)
+        return m
+
+
+class DivState:
+    def __init__(self, quotient_width, name):
+        self.quotient_width = quotient_width
+        self.q_bits_known = Signal(range(1 + quotient_width),
+                                   name=name + "_q_bits_known")
+        self.dividend_quotient = Signal(unsigned(2 * quotient_width),
+                                        name=name + "_dividend_quotient")
+
+    @property
+    def done(self):
+        return self.q_bits_known == self.quotient_width
+
+    @property
+    def quotient(self):
+        """ get the quotient -- requires self.done is True """
+        return self.dividend_quotient[0:self.quotient_width]
+
+    @property
+    def remainder(self):
+        """ get the remainder -- requires self.done is True """
+        return self.dividend_quotient[self.quotient_width:self.quotient_width*2]
+
+    def eq(self, rhs):
+        return [self.q_bits_known.eq(rhs.q_bits_known),
+                self.dividend_quotient.eq(rhs.dividend_quotient)]
+
+
+class FSMDivCoreStage(Elaboratable):
+    def __init__(self, pspec: DivPipeSpec):
+        self.pspec = pspec
+        self.p = FSMDivCorePrevControl(pspec)
+        self.n = FSMDivCoreNextControl(pspec)
+        self.saved_input_data = CoreInputData(pspec)
+        self.canceled = Signal()
+        self.empty = Signal(reset=1)
+        self.saved_state = DivState(64)
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.p = self.p
+        m.submodules.n = self.n
+        data_i = self.p.data_i
+        data_o = self.p.data_o
 
         # TODO: calculate self.canceled from self.p.data_i.ctx
         m.d.comb += self.canceled.eq(False)
 
-        # TODO(programmerjake): finish
+        # TODO: adapt to refactored DivState interface
+        fsm_state_in = DivState(64)
+        divisor = Signal(unsigned(64))
+        fsm_state_out = fsm_state_in.make_next_state(m, divisor)
+
+        with m.If(self.canceled):
+            with m.If(self.p.valid_i):
+                ...
+            with m.Else():
+                ...
+        with m.Else():
+            with m.If(self.p.valid_i):
+                ...
+            with m.Else():
+                ...
 
         return m
 

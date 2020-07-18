@@ -6,18 +6,26 @@ from soc.fu.div.output_stage import DivOutputStage
 from soc.fu.div.setup_stage import DivSetupStage
 from soc.fu.div.core_stages import (DivCoreSetupStage, DivCoreCalculateStage,
                                     DivCoreFinalStage)
+from soc.fu.div.pipe_data import DivPipeKindConfigCombPipe
 
 
 class DivStagesStart(PipeModBaseChain):
     def get_chain(self):
         alu_input = DivMulInputStage(self.pspec)
         div_setup = DivSetupStage(self.pspec)
-        core_setup = DivCoreSetupStage(self.pspec)
-        return [alu_input, div_setup, core_setup]
+        if isinstance(self.pspec.div_pipe_kind.config,
+                      DivPipeKindConfigCombPipe):
+            core_setup = [DivCoreSetupStage(self.pspec)]
+        else:
+            core_setup = ()
+        return [alu_input, div_setup, *core_setup]
 
 
 class DivStagesMiddle(PipeModBaseChain):
     def __init__(self, pspec, stage_start_index, stage_end_index):
+        assert isinstance(pspec.div_pipe_kind.config,
+                          DivPipeKindConfigCombPipe),\
+            "DivStagesMiddle must be used with a DivPipeKindConfigCombPipe"
         self.stage_start_index = stage_start_index
         self.stage_end_index = stage_end_index
         super().__init__(pspec)
@@ -31,11 +39,15 @@ class DivStagesMiddle(PipeModBaseChain):
 
 class DivStagesEnd(PipeModBaseChain):
     def get_chain(self):
-        core_final = DivCoreFinalStage(self.pspec)
+        if isinstance(self.pspec.div_pipe_kind.config,
+                      DivPipeKindConfigCombPipe):
+            core_final = [DivCoreFinalStage(self.pspec)]
+        else:
+            core_final = ()
         div_out = DivOutputStage(self.pspec)
         alu_out = DivMulOutputStage(self.pspec)
         self.div_out = div_out  # debugging - bug #425
-        return [core_final, div_out, alu_out]
+        return [*core_final, div_out, alu_out]
 
 
 class DivBasePipe(ControlBase):
@@ -43,11 +55,16 @@ class DivBasePipe(ControlBase):
         ControlBase.__init__(self)
         self.pspec = pspec
         self.pipe_start = DivStagesStart(pspec)
-        compute_steps = pspec.core_config.n_stages
         self.pipe_middles = []
-        for start in range(0, compute_steps, compute_steps_per_stage):
-            end = min(start + compute_steps_per_stage, compute_steps)
-            self.pipe_middles.append(DivStagesMiddle(pspec, start, end))
+        if isinstance(self.pspec.div_pipe_kind.config,
+                      DivPipeKindConfigCombPipe):
+            compute_steps = pspec.core_config.n_stages
+            for start in range(0, compute_steps, compute_steps_per_stage):
+                end = min(start + compute_steps_per_stage, compute_steps)
+                self.pipe_middles.append(DivStagesMiddle(pspec, start, end))
+        else:
+            self.pipe_middles.append(
+                self.pspec.div_pipe_kind.config.core_stage_class(pspec))
         self.pipe_end = DivStagesEnd(pspec)
         self._eqs = self.connect([self.pipe_start,
                                   *self.pipe_middles,
