@@ -196,26 +196,33 @@ class TrapMainStage(PipeModBase):
                 # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
                 comb += nia_o.ok.eq(1)
-                # MSR was in srr1
+
+                # MSR was in srr1: copy it over, however *caveats below*
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
+
+                # check problem state
                 msr_check_pr(m, msr_o.data)
 
-                # hypervisor stuff
-                with m.If(msr_i[MSR.HV]):
-                    comb += msr_o.data[MSR.HV].eq(srr1_i[MSR.HV])
-                    comb += msr_o.data[MSR.ME].eq(srr1_i[MSR.ME])
-                # don't understand but it's in the spec
-                with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
-                          (srr1_i[63-31:63-29] != Const(0b000, 3))):
-                    comb += msr_o.data[63-31:63-29].eq(srr1_i[63-31:63-29])
-                with m.Else():
-                    comb += msr_o.data[63-31:63-29].eq(msr_i[63-31:63-29])
+                # hypervisor stuff.  here: bits 3 (HV) and 51 (ME) were
+                # copied over by msr_copy but if HV was not set we need
+                # the *original* (msr_i) bits
+                with m.If(~msr_i[MSR.HV]):
+                    comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV])
+                    comb += msr_o.data[MSR.ME].eq(msr_i[MSR.ME])
+
+                # don't understand but it's in the spec.  again: bits 32-34
+                # are copied from srr1_i and need *restoring* to msr_i
+                bits = range(63-31:63-29+1) # bits 29, 30, 31 (Power notation)
+                with m.If((msr_i[bits] == Const(0b010, 3)) &
+                          (srr1_i[bits] == Const(0b000, 3))):
+                    comb += msr_o.data[bits].eq(msr_i[bits])
+
                 comb += msr_o.ok.eq(1)
 
             # OP_SC
             with m.Case(MicrOp.OP_SC):
-                # tscb is not covered here. currently an illegal instruction.
-                # raising that the decoder's job, not ours, here.
+                # scv is not covered here. currently an illegal instruction.
+                # raising "illegal" is the decoder's job, not ours, here.
 
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
