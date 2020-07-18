@@ -34,7 +34,7 @@ class Shifter(Elaboratable):
     * p.data_i.dir:   Shift direction
 
     Next port data:
-    * n.data_o: Shifted value
+    * n.data_o.data: Shifted value
     """
     class PrevData:
         def __init__(self, width):
