@@ -212,7 +212,7 @@ class TrapMainStage(PipeModBase):
 
                 # don't understand but it's in the spec.  again: bits 32-34
                 # are copied from srr1_i and need *restoring* to msr_i
-                bits = range(63-31:63-29+1) # bits 29, 30, 31 (Power notation)
+                bits = range(63-31,63-29+1) # bits 29, 30, 31 (Power notation)
                 with m.If((msr_i[bits] == Const(0b010, 3)) &
                           (srr1_i[bits] == Const(0b000, 3))):
                     comb += msr_o.data[bits].eq(msr_i[bits])
