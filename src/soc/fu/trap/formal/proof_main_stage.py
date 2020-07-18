@@ -19,6 +19,7 @@ from soc.decoder.power_enums import MicrOp
 
 from soc.fu.trap.main_stage import TrapMainStage
 from soc.fu.trap.pipe_data import TrapPipeSpec
+from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
 def is_ok(sig, value):
@@ -48,6 +49,19 @@ def full_function_bits(msr):
     return Cat(msr[0:16], zeros16_21, msr[22:27], zeros27_30, msr[31:64])
 
 
+def is_full_function_ok(out, inp):
+    """
+    Answers with a list of assertions that ONLY covers the full function
+    MSR bits.  It ignores the remaining bits.
+    """
+    return [
+        Assert(out.data[0:16] == inp[0:16]),
+#       Assert(out.data[22:27] == inp[22:27]),
+#       Assert(out.data[31:64] == inp[31:64]),
+        Assert(out.ok),
+    ]
+
+
 class Driver(Elaboratable):
     """
     """
@@ -56,12 +70,15 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
 
+        rec = CompTrapOpSubset()
         pspec = TrapPipeSpec(id_wid=2)
 
         m.submodules.dut = dut = TrapMainStage(pspec)
 
         # frequently used aliases
         op = dut.i.ctx.op
+
+        comb += op.eq(rec)
 
         # start of properties
         with m.Switch(op.insn_type):
@@ -70,6 +87,11 @@ class Driver(Elaboratable):
                     is_ok(dut.o.nia, Const(0xC00)),
                     is_ok(dut.o.srr0, dut.i.cia + 4),
                     is_ok(dut.o.srr1, full_function_bits(dut.i.msr)),
+                ]
+            with m.Case(MicrOp.OP_RFID):
+                comb += [
+                    is_ok(dut.o.nia, Cat(Const(0, 2), dut.i.srr0[2:])),
+                    is_full_function_ok(dut.o.msr, dut.i.srr1),
                 ]
 
         comb += dut.i.ctx.matches(dut.o.ctx)
