@@ -86,6 +86,33 @@ class Driver(Elaboratable):
                 # This code is just short of a raw cut-and-paste of the
                 # production code.  This should be bit-for-bit identical.
                 # GTKWave waveforms do not appear to be helpful.
+                """
+
+                strongly recommend doing exactly what this does which
+                is from the pseudo-code.
+
+                it then becomes possible to verify that the formal proof
+                is exactly the same as the pseudo-code by doing simple
+                side-by-side comparisons, line-by-line
+
+                then if the proof passes we know that the (garbled)
+                main_stage.py code is "correct"
+
+                MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
+                MSR[3] <- (MSR[3] & SRR1[3])
+                if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
+                    MSR[29:31] <- SRR1[29:31]
+                MSR[48] <- SRR1[48] | SRR1[49]
+                MSR[58] <- SRR1[58] | SRR1[49]
+                MSR[59] <- SRR1[59] | SRR1[49]
+                MSR[0:2] <- SRR1[0:2]
+                MSR[4:28] <- SRR1[4:28]
+                MSR[32] <- SRR1[32]
+                MSR[37:41] <- SRR1[37:41]
+                MSR[49:50] <- SRR1[49:50]
+                MSR[52:57] <- SRR1[52:57]
+                MSR[60:63] <- SRR1[60:63]
+                """
                 comb += [
                     desired_msr[0:16].eq(srr1_i[0:16]),
                     desired_msr[22:27].eq(srr1_i[22:27]),
