@@ -16,8 +16,9 @@ The basic rules are:
 
 """
 
-from nmigen import Elaboratable, Signal, Module
+from nmigen import Elaboratable, Signal, Module, Cat
 from nmigen.back.pysim import Simulator
+from nmigen.cli import rtlil
 from soc.fu.cr.cr_input_record import CompCROpSubset
 
 
@@ -29,12 +30,16 @@ class Shifter(Elaboratable):
     """Simple sequential shifter
 
     Prev port data:
-    * p.data_i.data:  Value to be shifted
-    * p.data_i.shift: Shift amount
-    * p.data_i.dir:   Shift direction
+    * p.data_i.data:  value to be shifted
+    * p.data_i.shift: shift amount
+    *                 When zero, no shift occurs.
+    *                 On POWER, range is 0 to 63 for 32-bit,
+    *                 and 0 to 127 for 64-bit.
+    *                 Other values wrap around.
+    * p.data_i.dir:   shift direction (0 = left, 1 = right)
 
     Next port data:
-    * n.data_o.data: Shifted value
+    * n.data_o.data: shifted value
     """
     class PrevData:
         def __init__(self, width):
@@ -78,7 +83,52 @@ class Shifter(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        # TODO: Implement Module
+
+        # Note:
+        # It is good practice to design a sequential circuit as
+        # a data path and a control path.
+
+        # Data path
+        # ---------
+        # The idea is to have a register that can be
+        # loaded or shifted (left and right).
+
+        # the control signals
+        load = Signal()
+        shift = Signal()
+        # the data flow
+        shift_in = Signal(self.width)
+        shift_left_by_1 = Signal(self.width)
+        shift_right_by_1 = Signal(self.width)
+        next_shift = Signal(self.width)
+        # the register
+        shift_reg = Signal(self.width, reset_less=True)
+        # build the data flow
+        m.d.comb += [
+            # connect input and output
+            shift_in.eq(self.p.data_i.data),
+            self.n.data_o.data.eq(shift_reg),
+            # generate shifted views of the register
+            shift_left_by_1.eq(Cat(0, shift_reg[:-1])),
+            shift_right_by_1.eq(Cat(shift_reg[1:], 0)),
+        ]
+        # choose the next value of the register according to the
+        # control signals
+        # default is no change
+        m.d.comb += next_shift.eq(shift_reg)
+        with m.If(load):
+            m.d.comb += next_shift.eq(shift_in)
+        with m.Elif(shift):
+            with m.If(self.p.data_i.dir):
+                m.d.comb += next_shift.eq(shift_right_by_1)
+            with m.Else():
+                m.d.comb += next_shift.eq(shift_left_by_1)
+
+        # register the next value
+        m.d.sync += shift_reg.eq(next_shift)
+
+        # TODO: Implement the control path
+
         return m
 
     def __iter__(self):
@@ -101,6 +151,11 @@ def test_shifter():
     print("Shifter port names:")
     for port in dut:
         print("-", port.name)
+    # generate RTLIL
+    # try "proc; show" in yosys to check the data path
+    il = rtlil.convert(dut, ports=dut.ports())
+    with open("test_shifter.il", "w") as f:
+        f.write(il)
     sim = Simulator(m)
     # Todo: Implement Simulation
 
