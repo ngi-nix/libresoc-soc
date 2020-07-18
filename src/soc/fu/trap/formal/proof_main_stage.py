@@ -9,12 +9,7 @@ Links:
 
 import unittest
 
-from nmigen import (
-    Cat,
-    Const,
-    Elaboratable, 
-    Module, 
-)
+from nmigen import Cat, Const, Elaboratable, Module
 from nmigen.asserts import Assert, AnyConst
 from nmigen.cli import rtlil
 
