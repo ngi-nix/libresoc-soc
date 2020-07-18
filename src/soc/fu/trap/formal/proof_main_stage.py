@@ -9,11 +9,13 @@ Links:
 
 import unittest
 
-from nmigen import Cat, Const, Elaboratable, Module
+from nmigen import Cat, Const, Elaboratable, Module, Signal
 from nmigen.asserts import Assert, AnyConst
 from nmigen.cli import rtlil
 
 from nmutil.formaltest import FHDLTestCase
+
+from soc.consts import MSR
 
 from soc.decoder.power_enums import MicrOp
 
@@ -49,19 +51,6 @@ def full_function_bits(msr):
     return Cat(msr[0:16], zeros16_21, msr[22:27], zeros27_30, msr[31:64])
 
 
-def is_full_function_ok(out, inp):
-    """
-    Answers with a list of assertions that ONLY covers the full function
-    MSR bits.  It ignores the remaining bits.
-    """
-    return [
-        Assert(out.data[0:16] == inp[0:16]),
-#       Assert(out.data[22:27] == inp[22:27]),
-#       Assert(out.data[31:64] == inp[31:64]),
-        Assert(out.ok),
-    ]
-
-
 class Driver(Elaboratable):
     """
     """
@@ -89,9 +78,37 @@ class Driver(Elaboratable):
                     is_ok(dut.o.srr1, full_function_bits(dut.i.msr)),
                 ]
             with m.Case(MicrOp.OP_RFID):
+                desired_msr = Signal(len(dut.o.msr.data))
+                msr_i = dut.i.msr
+                srr1_i = dut.i.srr1
+
+                # I don't understand why assertion ABACAB, below, fails.
+                # This code is just short of a raw cut-and-paste of the
+                # production code.  This should be bit-for-bit identical.
+                # GTKWave waveforms do not appear to be helpful.
+                comb += [
+                    desired_msr[0:16].eq(srr1_i[0:16]),
+                    desired_msr[22:27].eq(srr1_i[22:27]),
+                    desired_msr[31:64].eq(srr1_i[31:64]),
+                ]
+
+                with m.If(msr_i[MSR.PR]):
+                    comb += [
+                        desired_msr[MSR.EE].eq(1),
+                        desired_msr[MSR.IR].eq(1),
+                        desired_msr[MSR.DR].eq(1),
+                    ]
+
+                with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
+                          (srr1_i[63-31:63-29] != Const(0b000, 3))):
+                    comb += desired_msr[63-31:63-29].eq(srr1_i[63-31:63-29])
+                with m.Else():
+                    comb += desired_msr[63-31:63-29].eq(msr_i[63-31:63-29])
+
                 comb += [
                     is_ok(dut.o.nia, Cat(Const(0, 2), dut.i.srr0[2:])),
-                    is_full_function_ok(dut.o.msr, dut.i.srr1),
+                    Assert(dut.o.msr.data[0:16] == desired_msr[0:16]),  # ABACAB #
+                    Assert(dut.o.msr.ok),
                 ]
 
         comb += dut.i.ctx.matches(dut.o.ctx)
