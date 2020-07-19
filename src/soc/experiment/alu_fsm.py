@@ -17,7 +17,11 @@ The basic rules are:
 """
 
 from nmigen import Elaboratable, Signal, Module, Cat
-from nmigen.back.pysim import Simulator
+cxxsim = False
+if cxxsim:
+    from nmigen.sim.cxxsim import Simulator, Settle
+else:
+    from nmigen.back.pysim import Simulator, Settle
 from nmigen.cli import rtlil
 from math import log2
 from nmutil.iocontrol import PrevControl, NextControl
@@ -236,6 +240,9 @@ def test_shifter():
             yield
         # read result
         result = yield dut.n.data_o.data
+
+        # must leave ready_i valid for 1 cycle, ready_i to register for 1 cycle
+        yield
         # negate n.ready_i
         yield dut.n.ready_i.eq(0)
         # check result
@@ -263,8 +270,6 @@ def test_shifter():
     sim.add_sync_process(consumer)
     sim_writer = sim.write_vcd(
         "test_shifter.vcd",
-        "test_shifter.gtkw",
-        traces=dut.ports()
     )
     with sim_writer:
         sim.run()
