@@ -49,6 +49,7 @@ class TestIssuer(Elaboratable):
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
         self.core_start_i = Signal()
+        self.core_stop_i = Signal()
         self.core_bigendian_i = Signal()
         self.busy_o = Signal(reset_less=True)
         self.halted_o = Signal(reset_less=True)
@@ -74,6 +75,7 @@ class TestIssuer(Elaboratable):
         comb += self.busy_o.eq(core.busy_o)
         comb += self.halted_o.eq(core.core_terminated_o)
         comb += self.core_start_i.eq(core.core_start_i)
+        comb += self.core_stop_i.eq(core.core_stop_i)
         comb += self.core_bigendian_i.eq(core.bigendian_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
