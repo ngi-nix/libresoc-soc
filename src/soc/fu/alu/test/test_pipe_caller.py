@@ -248,12 +248,8 @@ class TestRunner(FHDLTestCase):
                     yield from self.check_alu_outputs(alu, pdecode2, sim, code)
 
         sim.add_sync_process(process)
-        if cxxsim:
-             sim.run()
-        else:
-            with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
-                                traces=[]):
-                sim.run()
+        sim.write_vcd("alu_simulator.vcd")
+        sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
