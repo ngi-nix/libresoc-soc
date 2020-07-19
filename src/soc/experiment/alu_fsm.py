@@ -21,6 +21,7 @@ from nmigen.back.pysim import Simulator
 from nmigen.cli import rtlil
 from soc.fu.cr.cr_input_record import CompCROpSubset
 from math import log2
+from nmutil.iocontrol import PrevControl, NextControl
 
 
 class Dummy:
@@ -59,22 +60,12 @@ class Shifter(Elaboratable):
         def _get_data(self):
             return [self.data]
 
-    class PrevPort:
-        def __init__(self, width):
-            self.data_i = Shifter.PrevData(width)
-            self.valid_i = Signal(name="p_valid_i")
-            self.ready_o = Signal(name="p_ready_o")
-
-    class NextPort:
-        def __init__(self, width):
-            self.data_o = Shifter.NextData(width)
-            self.valid_o = Signal(name="n_valid_o")
-            self.ready_i = Signal(name="n_ready_i")
-
     def __init__(self, width):
         self.width = width
-        self.p = self.PrevPort(width)
-        self.n = self.NextPort(width)
+        self.p = PrevControl()
+        self.n = NextControl()
+        self.p.data_i = Shifter.PrevData(width)
+        self.n.data_o = Shifter.NextData(width)
 
         # more pieces to make this example class comply with the CompALU API
         self.op = CompCROpSubset()
@@ -84,6 +75,9 @@ class Shifter(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+
+        m.submodules.p = self.p
+        m.submodules.n = self.n
 
         # Note:
         # It is good practice to design a sequential circuit as
