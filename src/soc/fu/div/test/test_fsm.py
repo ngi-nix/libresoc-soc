@@ -2,7 +2,10 @@ import unittest
 from soc.fu.div.fsm import DivState, DivStateInit, DivStateNext
 from nmigen import Elaboratable, Module, Signal, unsigned
 from nmigen.cli import rtlil
-from nmigen.sim.pysim import Simulator, Delay, Tick
+try:
+    from nmigen.sim.pysim import Simulator, Delay, Tick
+except ImportError:
+    from nmigen.back.pysim import Simulator, Delay, Tick
 
 
 class CheckEvent(Elaboratable):
