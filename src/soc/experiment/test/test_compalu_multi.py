@@ -10,7 +10,12 @@ its result(s) have been successfully stored in the regfile(s)
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
-from nmigen.compat.sim import run_simulation, Settle
+cxxsim = False
+if cxxsim:
+    from nmigen.sim.cxxsim import Simulator, Settle
+else:
+    from nmigen.back.pysim import Simulator, Settle
+
 from nmigen.cli import rtlil
 from nmigen import Module
 
@@ -21,8 +26,14 @@ from soc.experiment.alu_hier import ALU, DummyALU
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.experiment.alu_fsm import Shifter, CompFSMOpSubset
 
+def wrap(process):
+    def wrapper():
+        yield from process
+    return wrapper
+
 
 def op_sim_fsm(dut, a, b, direction):
+    print ("op_sim_fsm", a, b, direction)
     yield dut.issue_i.eq(0)
     yield
     yield dut.src_i[0].eq(a)
@@ -173,8 +184,13 @@ def test_compunit_fsm():
     with open("test_compunit_fsm1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim_fsm(dut),
-                      vcd_name='test_compunit_fsm1.vcd')
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut)))
+    sim_writer = sim.write_vcd('test_compunit_fsm1.vcd')
+    with sim_writer:
+        sim.run()
 
 
 def test_compunit():
@@ -188,7 +204,13 @@ def test_compunit():
     with open("test_compunit1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim(dut), vcd_name='test_compunit1.vcd')
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(scoreboard_sim(dut)))
+    sim_writer = sim.write_vcd('test_compunit1.vcd')
+    with sim_writer:
+        sim.run()
 
 
 class CompUnitParallelTest:
@@ -387,12 +409,18 @@ class CompUnitParallelTest:
         # self.expected_o and assert.  use dut.get_out(wr_idx) to do so.
 
     def run_simulation(self, vcd_name):
-        run_simulation(self.dut, [self.driver(),
-                                  self.rd(0),  # one read port (a)
-                                  self.rd(1),  # one read port (b)
-                                  self.wr(0),  # one write port (o)
-                                  ],
-                       vcd_name=vcd_name)
+        m = Module()
+        m.submodules.cu = self.dut
+        sim = Simulator(m)
+        sim.add_clock(1e-6)
+
+        sim.add_sync_process(wrap(self.driver()))
+        sim.add_sync_process(wrap(self.rd(0)))
+        sim.add_sync_process(wrap(self.rd(1)))
+        sim.add_sync_process(wrap(self.wr(0)))
+        sim_writer = sim.write_vcd(vcd_name)
+        with sim_writer:
+            sim.run()
 
 
 def test_compunit_regspec2_fsm():
@@ -410,8 +438,13 @@ def test_compunit_regspec2_fsm():
     dut = MultiCompUnit(regspec, alu, CompFSMOpSubset)
     m.submodules.cu = dut
 
-    run_simulation(m, scoreboard_sim_fsm(dut),
-                      vcd_name='test_compunit_regspec2_fsm.vcd')
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut)))
+    sim_writer = sim.write_vcd('test_compunit_regspec2_fsm.vcd')
+    with sim_writer:
+        sim.run()
 
 
 def test_compunit_regspec3():
@@ -429,8 +462,13 @@ def test_compunit_regspec3():
     dut = MultiCompUnit(regspec, alu, CompALUOpSubset)
     m.submodules.cu = dut
 
-    run_simulation(m, scoreboard_sim_dummy(dut),
-                   vcd_name='test_compunit_regspec3.vcd')
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(scoreboard_sim_dummy(dut)))
+    sim_writer = sim.write_vcd('test_compunit_regspec3.vcd')
+    with sim_writer:
+        sim.run()
 
 
 def test_compunit_regspec1():
@@ -451,8 +489,13 @@ def test_compunit_regspec1():
     with open("test_compunit_regspec1.il", "w") as f:
         f.write(vl)
 
-    run_simulation(m, scoreboard_sim(dut),
-                   vcd_name='test_compunit_regspec1.vcd')
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(scoreboard_sim(dut)))
+    sim_writer = sim.write_vcd('test_compunit_regspec1.vcd')
+    with sim_writer:
+        sim.run()
 
     test = CompUnitParallelTest(dut)
     test.run_simulation("test_compunit_parallel.vcd")
