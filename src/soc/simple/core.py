@@ -85,7 +85,7 @@ class NonProductionCore(Elaboratable):
         # start/stop and terminated signalling
         self.core_start_i = Signal(reset_less=True)
         self.core_stop_i = Signal(reset_less=True)
-        self.core_terminated_o = Signal(reset=1) # indicates stopped
+        self.core_terminated_o = Signal(reset=0) # indicates stopped
 
     def elaborate(self, platform):
         m = Module()
