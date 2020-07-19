@@ -19,6 +19,47 @@ from soc.decoder.power_enums import MicrOp
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.experiment.alu_hier import ALU, DummyALU
 from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.experiment.alu_fsm import Shifter, CompFSMOpSubset
+
+
+def op_sim_fsm(dut, a, b, direction):
+    yield dut.issue_i.eq(0)
+    yield
+    yield dut.src_i[0].eq(a)
+    yield dut.src_i[1].eq(b)
+    yield dut.oper_i.sdir.eq(direction)
+    yield dut.issue_i.eq(1)
+    yield
+    yield dut.issue_i.eq(0)
+    yield
+
+    yield dut.rd.go.eq(0b11)
+    while True:
+        yield
+        rd_rel_o = yield dut.rd.rel
+        print ("rd_rel", rd_rel_o)
+        if rd_rel_o:
+            break
+    yield dut.rd.go.eq(0)
+
+    req_rel_o = yield dut.wr.rel
+    result = yield dut.data_o
+    print ("req_rel", req_rel_o, result)
+    while True:
+        req_rel_o = yield dut.wr.rel
+        result = yield dut.data_o
+        print ("req_rel", req_rel_o, result)
+        if req_rel_o:
+            break
+        yield
+    yield dut.wr.go[0].eq(1)
+    yield Settle()
+    result = yield dut.data_o
+    yield
+    print ("result", result)
+    yield dut.wr.go[0].eq(0)
+    yield
+    return result
 
 
 def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
@@ -74,6 +115,17 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     return result
 
 
+def scoreboard_sim_fsm(dut):
+    result = yield from op_sim_fsm(dut, 13, 2, 1)
+    assert result == 3, result
+
+    result = yield from op_sim_fsm(dut, 3, 4, 0)
+    assert result == 48, result
+
+    result = yield from op_sim_fsm(dut, 21, 0, 0)
+    assert result == 21, result
+
+
 def scoreboard_sim_dummy(dut):
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP, inv_a=0,
                                     imm=8, imm_ok=1)
@@ -82,6 +134,7 @@ def scoreboard_sim_dummy(dut):
     result = yield from op_sim(dut, 9, 2, MicrOp.OP_NOP, inv_a=0,
                                     imm=8, imm_ok=1)
     assert result == 9, result
+
 
 
 def scoreboard_sim(dut):
@@ -107,6 +160,21 @@ def scoreboard_sim(dut):
     # is zero-delay, and do a subtraction.
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP)
     assert result == 3
+
+
+def test_compunit_fsm():
+
+    m = Module()
+    alu = Shifter(8)
+    dut = MultiCompUnit(8, alu, CompFSMOpSubset)
+    m.submodules.cu = dut
+
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_compunit_fsm1.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(m, scoreboard_sim_fsm(dut),
+                      vcd_name='test_compunit_fsm1.vcd')
 
 
 def test_compunit():
@@ -327,6 +395,25 @@ class CompUnitParallelTest:
                        vcd_name=vcd_name)
 
 
+def test_compunit_regspec2_fsm():
+
+    inspec = [('INT', 'a', '0:15'),
+              ('INT', 'b', '0:15'),
+            ]
+    outspec = [('INT', 'o', '0:15'),
+              ]
+
+    regspec = (inspec, outspec)
+
+    m = Module()
+    alu = Shifter(8)
+    dut = MultiCompUnit(regspec, alu, CompFSMOpSubset)
+    m.submodules.cu = dut
+
+    run_simulation(m, scoreboard_sim_fsm(dut),
+                      vcd_name='test_compunit_regspec2_fsm.vcd')
+
+
 def test_compunit_regspec3():
 
     inspec = [('INT', 'a', '0:15'),
@@ -372,6 +459,7 @@ def test_compunit_regspec1():
 
 
 if __name__ == '__main__':
+    test_compunit_fsm()
     test_compunit()
     test_compunit_regspec1()
     test_compunit_regspec3()
