@@ -59,6 +59,7 @@ class TestRunner(FHDLTestCase):
         comb = m.d.comb
         go_insn_i = Signal()
         pc_i = Signal(32)
+        pc_i_ok = Signal()
 
         pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
                              imem_ifacetype='test_bare_wb',
@@ -74,6 +75,7 @@ class TestRunner(FHDLTestCase):
         l0 = core.l0
 
         comb += issuer.pc_i.data.eq(pc_i)
+        comb += issuer.pc_i.ok.eq(pc_i_ok)
         comb += issuer.go_insn_i.eq(go_insn_i)
 
         # nmigen Simulation
@@ -114,14 +116,14 @@ class TestRunner(FHDLTestCase):
                 yield from setup_regs(core, test)
 
                 yield pc_i.eq(pc)
-                yield issuer.pc_i.ok.eq(1)
+                yield pc_i_ok.eq(1)
 
                 while True:
 
                     # start the instruction
                     yield go_insn_i.eq(1)
                     yield
-                    yield issuer.pc_i.ok.eq(0) # don't change PC from now on
+                    yield pc_i_ok.eq(0) # don't change PC from now on
                     yield go_insn_i.eq(0)      # and don't issue a new insn
                     yield from wait_for_busy_hi(core)
                     yield Settle()
