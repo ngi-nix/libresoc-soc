@@ -19,9 +19,20 @@ The basic rules are:
 from nmigen import Elaboratable, Signal, Module, Cat
 from nmigen.back.pysim import Simulator
 from nmigen.cli import rtlil
-from soc.fu.cr.cr_input_record import CompCROpSubset
 from math import log2
 from nmutil.iocontrol import PrevControl, NextControl
+
+from soc.fu.base_input_record import CompOpSubsetBase
+from soc.decoder.power_enums import (MicrOp, Function)
+
+
+class CompFSMOpSubset(CompOpSubsetBase):
+    def __init__(self, name=None):
+        layout = (('dir', 1),
+                  )
+
+        super().__init__(layout, name=name)
+
 
 
 class Dummy:
@@ -38,7 +49,7 @@ class Shifter(Elaboratable):
     *                 On POWER, range is 0 to 63 for 32-bit,
     *                 and 0 to 127 for 64-bit.
     *                 Other values wrap around.
-    * p.data_i.dir:   shift direction (0 = left, 1 = right)
+    * p.data_i.sdir:   shift direction (0 = left, 1 = right)
 
     Next port data:
     * n.data_o.data: shifted value
@@ -47,7 +58,7 @@ class Shifter(Elaboratable):
         def __init__(self, width):
             self.data = Signal(width, name="p_data_i")
             self.shift = Signal(width, name="p_shift_i")
-            self.dir = Signal(name="p_dir_i")
+            self.sdir = Signal(name="p_sdir_i")
             self.ctx = Dummy() # comply with CompALU API
 
         def _get_data(self):
@@ -68,7 +79,7 @@ class Shifter(Elaboratable):
         self.n.data_o = Shifter.NextData(width)
 
         # more pieces to make this example class comply with the CompALU API
-        self.op = CompCROpSubset()
+        self.op = CompFSMOpSubset()
         self.p.data_i.ctx.op = self.op
         self.i = self.p.data_i._get_data()
         self.out = self.n.data_o._get_data()
@@ -146,7 +157,7 @@ class Shifter(Elaboratable):
                     next_count.eq(self.p.data_i.shift),
                 ]
                 # capture the direction bit as well
-                m.d.sync += direction.eq(self.p.data_i.dir)
+                m.d.sync += direction.eq(self.p.data_i.sdir)
                 with m.If(self.p.valid_i):
                     # Leave IDLE when data arrives
                     with m.If(next_count == 0):
@@ -176,7 +187,7 @@ class Shifter(Elaboratable):
     def __iter__(self):
         yield self.p.data_i.data
         yield self.p.data_i.shift
-        yield self.p.data_i.dir
+        yield self.p.data_i.sdir
         yield self.p.valid_i
         yield self.p.ready_o
         yield self.n.ready_i
@@ -205,7 +216,7 @@ def test_shifter():
         # present input data and assert valid_i
         yield dut.p.data_i.data.eq(data)
         yield dut.p.data_i.shift.eq(shift)
-        yield dut.p.data_i.dir.eq(direction)
+        yield dut.p.data_i.sdir.eq(direction)
         yield dut.p.valid_i.eq(1)
         yield
         # wait for p.ready_o to be asserted
@@ -215,7 +226,7 @@ def test_shifter():
         yield dut.p.valid_i.eq(0)
         yield dut.p.data_i.data.eq(0)
         yield dut.p.data_i.shift.eq(0)
-        yield dut.p.data_i.dir.eq(0)
+        yield dut.p.data_i.sdir.eq(0)
 
     def receive(expected):
         # signal readiness to receive data
