@@ -47,8 +47,11 @@ class TestIssuer(Elaboratable):
         # instruction go/monitor
         self.go_insn_i = Signal(reset_less=True)
         self.pc_o = Signal(64, reset_less=True)
-        self.pc_i = Data(64, "pc") # set "ok" to indicate "please change me"
-        self.busy_o = core.busy_o
+        self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
+        self.core_start_i = Signal()
+        self.core_bigendian_i = Signal()
+        self.busy_o = Signal(reset_less=True)
+        self.halted_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
         # FAST regfile read /write ports for PC and MSR
@@ -66,6 +69,12 @@ class TestIssuer(Elaboratable):
 
         m.submodules.core = core = self.core
         m.submodules.imem = imem = self.imem
+
+        # busy/halted signals from core
+        comb += self.busy_o.eq(core.busy_o)
+        comb += self.halted_o.eq(core.core_terminated_o)
+        comb += self.core_start_i.eq(core.core_start_i)
+        comb += self.core_bigendian_i.eq(core.bigendian_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
         l0 = core.l0

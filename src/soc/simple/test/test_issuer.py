@@ -103,10 +103,10 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
 
                 # get core going
-                yield core.bigendian_i.eq(bigendian)
-                yield core.core_start_i.eq(1)
+                yield issuer.core_bigendian_i.eq(bigendian)
+                yield issuer.core_start_i.eq(1)
                 yield
-                yield core.core_start_i.eq(0)
+                yield issuer.core_start_i.eq(0)
                 yield Settle()
 
                 print(test.name)
@@ -154,7 +154,7 @@ class TestRunner(FHDLTestCase):
                     yield from wait_for_busy_hi(core)
                     yield from wait_for_busy_clear(core)
 
-                    terminated = yield core.core_terminated_o
+                    terminated = yield issuer.halted_o
                     print ("terminated", terminated)
 
                     print ("sim", code)
@@ -170,7 +170,7 @@ class TestRunner(FHDLTestCase):
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
 
-                    terminated = yield core.core_terminated_o
+                    terminated = yield issuer.halted_o
                     if terminated:
                         break
 
