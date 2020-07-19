@@ -45,7 +45,7 @@ class TestIssuer(Elaboratable):
         self.iprev_adr = Signal(64) # previous address: if different, do read
 
         # instruction go/monitor
-        self.go_insn_i = Signal(reset_less=True)
+        self.go_insn_i = Signal()
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
         self.core_start_i = Signal()
