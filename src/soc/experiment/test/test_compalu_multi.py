@@ -10,7 +10,7 @@ its result(s) have been successfully stored in the regfile(s)
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
-cxxsim = False
+cxxsim = True
 if cxxsim:
     from nmigen.sim.cxxsim import Simulator, Settle
 else:
