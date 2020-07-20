@@ -53,7 +53,9 @@ class Shifter(Elaboratable):
     *                 On POWER, range is 0 to 63 for 32-bit,
     *                 and 0 to 127 for 64-bit.
     *                 Other values wrap around.
-    * p.data_i.sdir:   shift direction (0 = left, 1 = right)
+
+    Operation type
+    * op.sdir:       shift direction (0 = left, 1 = right)
 
     Next port data:
     * n.data_o.data: shifted value
@@ -82,7 +84,7 @@ class Shifter(Elaboratable):
         self.n.data_o = Shifter.NextData(width)
 
         # more pieces to make this example class comply with the CompALU API
-        self.op = CompFSMOpSubset()
+        self.op = CompFSMOpSubset(name="op")
         self.p.data_i.ctx.op = self.op
         self.i = self.p.data_i._get_data()
         self.out = self.n.data_o._get_data()
