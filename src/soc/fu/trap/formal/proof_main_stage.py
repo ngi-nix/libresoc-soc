@@ -24,6 +24,10 @@ from soc.fu.trap.pipe_data import TrapPipeSpec
 from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
+def ibm(n):
+    return 63-n
+
+
 def is_ok(sig, value):
     """
     Answers with a list of assertions that checks for valid data on
@@ -66,6 +70,8 @@ class Driver(Elaboratable):
 
         # frequently used aliases
         op = dut.i.ctx.op
+        msr_o = dut.o.msr
+        srr1_i = dut.i.srr1
 
         comb += op.eq(rec)
 
@@ -78,65 +84,33 @@ class Driver(Elaboratable):
                     is_ok(dut.o.srr1, full_function_bits(dut.i.msr)),
                 ]
             with m.Case(MicrOp.OP_RFID):
-                desired_msr = Signal(len(dut.o.msr.data))
-                msr_i = dut.i.msr
-                srr1_i = dut.i.srr1
+                def field(r, start, end):
+                    return r[63-end:63-start]
 
-                # I don't understand why assertion ABACAB, below, fails.
-                # This code is just short of a raw cut-and-paste of the
-                # production code.  This should be bit-for-bit identical.
-                # GTKWave waveforms do not appear to be helpful.
-                """
-
-                strongly recommend doing exactly what this does which
-                is from the pseudo-code.
-
-                it then becomes possible to verify that the formal proof
-                is exactly the same as the pseudo-code by doing simple
-                side-by-side comparisons, line-by-line
-
-                then if the proof passes we know that the (garbled)
-                main_stage.py code is "correct"
-
-                MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
-                MSR[3] <- (MSR[3] & SRR1[3])
-                if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
-                    MSR[29:31] <- SRR1[29:31]
-                MSR[48] <- SRR1[48] | SRR1[49]
-                MSR[58] <- SRR1[58] | SRR1[49]
-                MSR[59] <- SRR1[59] | SRR1[49]
-                MSR[0:2] <- SRR1[0:2]
-                MSR[4:28] <- SRR1[4:28]
-                MSR[32] <- SRR1[32]
-                MSR[37:41] <- SRR1[37:41]
-                MSR[49:50] <- SRR1[49:50]
-                MSR[52:57] <- SRR1[52:57]
-                MSR[60:63] <- SRR1[60:63]
-                """
                 comb += [
-                    desired_msr[0:16].eq(srr1_i[0:16]),
-                    desired_msr[22:27].eq(srr1_i[22:27]),
-                    desired_msr[31:64].eq(srr1_i[31:64]),
+                    Assert(msr_o.ok),
+                    Assert(dut.o.nia.ok),
+
+                    Assert(msr_o[MSR.HV] == (srr1_i[MSR.HV] & dut.i.msr[MSR.HV])),
+                    Assert(msr_o[MSR.EE] == (srr1_i[MSR.EE] | srr1_i[MSR.PR])),
+                    Assert(msr_o[MSR.IR] == (srr1_i[MSR.IR] | srr1_i[MSR.PR])),
+                    Assert(msr_o[MSR.DR] == (srr1_i[MSR.DR] | srr1_i[MSR.PR])),
+                    Assert(field(msr_o, 0, 2) == field(srr1_i, 0, 2)),
+                    Assert(field(msr_o, 4, 28) == field(srr1_i, 4, 28)),
+                    Assert(msr_o[63-32] == srr1_i[63-32]),
+                    Assert(field(msr_o, 37, 41) == field(srr1_i, 37, 41)),
+                    Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
+                    Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
+                    Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
+                    Assert(dut.o.nia.data == Cat(Const(0, 2), dut.i.srr0[2:])),
                 ]
-
-                with m.If(msr_i[MSR.PR]):
-                    comb += [
-                        desired_msr[MSR.EE].eq(1),
-                        desired_msr[MSR.IR].eq(1),
-                        desired_msr[MSR.DR].eq(1),
-                    ]
-
-                with m.If((msr_i[63-31:63-29] != Const(0b010, 3)) |
-                          (srr1_i[63-31:63-29] != Const(0b000, 3))):
-                    comb += desired_msr[63-31:63-29].eq(srr1_i[63-31:63-29])
+                with m.If(dut.i.msr[MSR.HV]):
+                    comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])
                 with m.Else():
-                    comb += desired_msr[63-31:63-29].eq(msr_i[63-31:63-29])
-
-                comb += [
-                    is_ok(dut.o.nia, Cat(Const(0, 2), dut.i.srr0[2:])),
-                    Assert(dut.o.msr.data[0:16] == desired_msr[0:16]),  # ABACAB #
-                    Assert(dut.o.msr.ok),
-                ]
+                    comb += Assert(msr_o[MSR.ME] == dut.i.msr[MSR.ME])
+                with m.If((field(dut.i.msr, 29, 31) != 0b010) |
+                          (field(dut.i.msr, 29, 31) != 0b000)):
+                    comb += Assert(field(msr_o.data, 29, 31) == field(srr1_i, 29, 31))
 
         comb += dut.i.ctx.matches(dut.o.ctx)
 
