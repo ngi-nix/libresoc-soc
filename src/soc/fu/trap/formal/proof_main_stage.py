@@ -24,35 +24,8 @@ from soc.fu.trap.pipe_data import TrapPipeSpec
 from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
-def ibm(n):
-    return 63-n
-
-
-def is_ok(sig, value):
-    """
-    Answers with a list of assertions that checks for valid data on
-    a pipeline stage output.  sig.data must have the anticipated value,
-    and sig.ok must be asserted.  The `value` is constrained to the width
-    of the sig.data field it's verified against, so it's safe to add, etc.
-    offsets to Nmigen signals without having to worry about inequalities from
-    differing signal widths.
-    """
-    return [
-        Assert(sig.data == value[0:len(sig.data)]),
-        Assert(sig.ok),
-    ]
-
-
-def full_function_bits(msr):
-    """
-    Answers with a numeric constant signal with all "full functional"
-    bits filled in, but all partial functional bits zeroed out.
-
-    See src/soc/fu/trap/main_stage.py:msr_copy commentary for details.
-    """
-    zeros16_21 = Const(0, (22 - 16))
-    zeros27_30 = Const(0, (31 - 27))
-    return Cat(msr[0:16], zeros16_21, msr[22:27], zeros27_30, msr[31:64])
+def field(r, start, end):
+    return r[63-end:63-start]
 
 
 class Driver(Elaboratable):
@@ -79,14 +52,17 @@ class Driver(Elaboratable):
         with m.Switch(op.insn_type):
             with m.Case(MicrOp.OP_SC):
                 comb += [
-                    is_ok(dut.o.nia, Const(0xC00)),
-                    is_ok(dut.o.srr0, dut.i.cia + 4),
-                    is_ok(dut.o.srr1, full_function_bits(dut.i.msr)),
+                    Assert(dut.o.srr0.ok),
+                    Assert(dut.o.srr1.ok),
+
+                    Assert(dut.o.srr0.data == (dut.i.cia + 4)[0:64]),
+                    Assert(field(dut.o.srr1, 33, 36) == 0),
+                    Assert(field(dut.o.srr1, 42, 47) == 0),
+                    Assert(field(dut.o.srr1, 0, 32) == field(dut.i.msr, 0, 32)),
+                    Assert(field(dut.o.srr1, 37, 41) == field(dut.i.msr, 37, 41)),
+                    Assert(field(dut.o.srr1, 48, 63) == field(dut.i.msr, 48, 63)),
                 ]
             with m.Case(MicrOp.OP_RFID):
-                def field(r, start, end):
-                    return r[63-end:63-start]
-
                 comb += [
                     Assert(msr_o.ok),
                     Assert(dut.o.nia.ok),
