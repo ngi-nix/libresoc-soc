@@ -240,9 +240,6 @@ def test_shifter():
             yield
         # read result
         result = yield dut.n.data_o.data
-
-        # must leave ready_i valid for 1 cycle, ready_i to register for 1 cycle
-        yield
         # negate n.ready_i
         yield dut.n.ready_i.eq(0)
         # check result
