@@ -1,10 +1,18 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Delay, Settle
+# NOTE: to use this (set to True), at present it is necessary to check
+# out the cxxsim nmigen branch
 cxxsim = False
 if cxxsim:
-    from nmigen.sim.cxxsim import Simulator
+    try:
+        from nmigen.sim.cxxsim import Simulator
+    except ImportError:
+        print("nope, sorry, have to use nmigen cxxsim branch for now")
+        cxxsim = False
+        from nmigen.back.pysim import Simulator
 else:
     from nmigen.back.pysim import Simulator
+
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
