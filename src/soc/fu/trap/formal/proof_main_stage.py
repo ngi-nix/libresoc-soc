@@ -43,7 +43,7 @@ class Driver(Elaboratable):
 
         # frequently used aliases
         op = dut.i.ctx.op
-        msr_o = dut.o.msr
+        msr_o, msr_i = dut.o.msr, dut.i.msr
         srr1_i = dut.i.srr1
 
         comb += op.eq(rec)
@@ -58,16 +58,16 @@ class Driver(Elaboratable):
                     Assert(dut.o.srr0.data == (dut.i.cia + 4)[0:64]),
                     Assert(field(dut.o.srr1, 33, 36) == 0),
                     Assert(field(dut.o.srr1, 42, 47) == 0),
-                    Assert(field(dut.o.srr1, 0, 32) == field(dut.i.msr, 0, 32)),
-                    Assert(field(dut.o.srr1, 37, 41) == field(dut.i.msr, 37, 41)),
-                    Assert(field(dut.o.srr1, 48, 63) == field(dut.i.msr, 48, 63)),
+                    Assert(field(dut.o.srr1, 0, 32) == field(msr_i, 0, 32)),
+                    Assert(field(dut.o.srr1, 37, 41) == field(msr_i, 37, 41)),
+                    Assert(field(dut.o.srr1, 48, 63) == field(msr_i, 48, 63)),
                 ]
             with m.Case(MicrOp.OP_RFID):
                 comb += [
                     Assert(msr_o.ok),
                     Assert(dut.o.nia.ok),
 
-                    Assert(msr_o[MSR.HV] == (srr1_i[MSR.HV] & dut.i.msr[MSR.HV])),
+                    Assert(msr_o[MSR.HV] == (srr1_i[MSR.HV] & msr_i[MSR.HV])),
                     Assert(msr_o[MSR.EE] == (srr1_i[MSR.EE] | srr1_i[MSR.PR])),
                     Assert(msr_o[MSR.IR] == (srr1_i[MSR.IR] | srr1_i[MSR.PR])),
                     Assert(msr_o[MSR.DR] == (srr1_i[MSR.DR] | srr1_i[MSR.PR])),
@@ -80,12 +80,12 @@ class Driver(Elaboratable):
                     Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
                     Assert(dut.o.nia.data == Cat(Const(0, 2), dut.i.srr0[2:])),
                 ]
-                with m.If(dut.i.msr[MSR.HV]):
+                with m.If(msr_i[MSR.HV]):
                     comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])
                 with m.Else():
-                    comb += Assert(msr_o[MSR.ME] == dut.i.msr[MSR.ME])
-                with m.If((field(dut.i.msr, 29, 31) != 0b010) |
-                          (field(dut.i.msr, 29, 31) != 0b000)):
+                    comb += Assert(msr_o[MSR.ME] == msr_i[MSR.ME])
+                with m.If((field(msr_i, 29, 31) != 0b010) |
+                          (field(msr_i, 29, 31) != 0b000)):
                     comb += Assert(field(msr_o.data, 29, 31) == field(srr1_i, 29, 31))
 
         comb += dut.i.ctx.matches(dut.o.ctx)
