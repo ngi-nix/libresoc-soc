@@ -96,6 +96,9 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
             if rd_rel_o:
                 break
         yield dut.rd.go.eq(0)
+    else:
+        print ("no go rd")
+
     if len(dut.src_i) == 3:
         yield dut.rd.go.eq(0b100)
         while True:
@@ -105,6 +108,8 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
             if rd_rel_o:
                 break
         yield dut.rd.go.eq(0)
+    else:
+        print ("no 3rd rd")
 
     req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
@@ -149,6 +154,11 @@ def scoreboard_sim_dummy(dut):
 
 
 def scoreboard_sim(dut):
+    # zero (no) input operands test
+    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1,
+                                    imm=8, imm_ok=1)
+    assert result == 8
+
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=0,
                                     imm=8, imm_ok=1)
     assert result == 13
@@ -158,10 +168,6 @@ def scoreboard_sim(dut):
 
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=1)
     assert result == 65532
-
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1,
-                                    imm=8, imm_ok=1)
-    assert result == 8
 
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1)
     assert result == 2
@@ -502,7 +508,7 @@ def test_compunit_regspec1():
 
 
 if __name__ == '__main__':
-    test_compunit_fsm()
     test_compunit()
+    test_compunit_fsm()
     test_compunit_regspec1()
     test_compunit_regspec3()
