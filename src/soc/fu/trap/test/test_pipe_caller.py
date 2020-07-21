@@ -48,8 +48,8 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_fast_spr1(alu, dec2, inp) # SPR1
     yield from ALUHelpers.set_fast_spr2(alu, dec2, inp) # SPR1
 
-    yield from ALUHelpers.set_cia(alu, dec2, inp)
-    yield from ALUHelpers.set_msr(alu, dec2, inp)
+    #yield from ALUHelpers.set_cia(alu, dec2, inp)
+    #yield from ALUHelpers.set_msr(alu, dec2, inp)
     return inp
 
 # This test bench is a bit different than is usual. Initially when I
@@ -218,12 +218,14 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
+                msr = sim.msr.value
                 pc = sim.pc.CIA.value
+                print ("starting msr, pc %08x, %08x"% (msr, pc))
                 index = pc//4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
-                    print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
+                    print("pc %08x msr %08x instr: %08x" % (pc, msr, ins))
                     print(code)
                     if 'XER' in sim.spr:
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
@@ -233,18 +235,21 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
+                    yield pdecode2.msr.eq(msr) # set MSR in pdecode2
+                    yield pdecode2.cia.eq(pc) # set CIA in pdecode2 
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.TRAP.value)
                     alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
-                    yield pdecode2.msr.eq(alu_o['msr']) # set MSR in pdecode2
                     yield
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
                     pc = sim.pc.CIA.value
                     index = pc//4
                     print("pc after %08x" % (pc))
+                    msr = sim.msr.value
+                    print("msr after %08x" % (msr))
 
                     vld = yield alu.n.valid_o
                     while not vld:

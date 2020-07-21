@@ -210,7 +210,8 @@ class TestRunner(FHDLTestCase):
                 if self.funit == Function.LDST:
                     yield from setup_test_memory(l0, sim)
 
-                index = sim.pc.CIA.value//4
+                pc = sim.pc.CIA.value
+                index = pc//4
                 msr = sim.msr.value
                 while True:
                     print("instr index", index)
@@ -224,7 +225,8 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
-                    yield pdecode2.msr.eq(msr)
+                    yield pdecode2.msr.eq(msr)  # set MSR "state"
+                    yield pdecode2.cia.eq(pc)  # set PC "state"
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
@@ -270,7 +272,8 @@ class TestRunner(FHDLTestCase):
                     # call simulated operation
                     yield from sim.execute_one()
                     yield Settle()
-                    index = sim.pc.CIA.value//4
+                    pc = sim.pc.CIA.value
+                    index = pc//4
                     msr = sim.msr.value
 
                     # get all outputs (one by one, just "because")

@@ -13,6 +13,8 @@ class CompTrapOpSubset(CompOpSubsetBase):
         layout = (('insn_type', MicrOp),
                   ('fn_unit', Function),
                   ('insn', 32),
+                  ('msr', 64), # TODO: "state" in separate Record
+                  ('cia', 64), # likewise
                   ('is_32bit', 1),
                   ('traptype', 5), # see trap main_stage.py and PowerDecoder2
                   ('trapaddr', 13),

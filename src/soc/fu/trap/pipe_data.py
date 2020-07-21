@@ -7,8 +7,7 @@ class TrapInputData(IntegerData):
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('FAST', 'fast1', '0:63'), # SRR0
                ('FAST', 'fast2', '0:63'), # SRR1
-               ('FAST', 'cia', '0:63'),  # Program counter (current)
-               ('FAST', 'msr', '0:63')]  # MSR
+               ] 
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience

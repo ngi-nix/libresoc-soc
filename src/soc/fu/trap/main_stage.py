@@ -61,7 +61,8 @@ class TrapMainStage(PipeModBase):
         """trap.  sets new PC, stores MSR and old PC in SRR1 and SRR0
         """
         comb  = m.d.comb
-        msr_i = self.i.msr
+        op = self.i.ctx.op
+        msr_i = op.msr
         nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
 
         # trap address
@@ -85,7 +86,8 @@ class TrapMainStage(PipeModBase):
         may change in the future, hence the (unused) trap_addr argument
         """
         comb  = m.d.comb
-        msr_i, msr_o = self.i.msr, self.o.msr
+        op = self.i.ctx.op
+        msr_i, msr_o = op.msr, self.o.msr
         comb += msr_o.data.eq(msr_i) # copy msr, first, then modify
         comb += msr_o.data[MSR.SF].eq(1)
         comb += msr_o.data[MSR.EE].eq(0)
@@ -108,7 +110,7 @@ class TrapMainStage(PipeModBase):
         op = self.i.ctx.op
 
         # convenience variables
-        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, self.i.cia, self.i.msr
+        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, op.cia, op.msr
         srr0_i, srr1_i = self.i.srr0, self.i.srr1
         o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
         srr0_o, srr1_o = self.o.srr0, self.o.srr1
