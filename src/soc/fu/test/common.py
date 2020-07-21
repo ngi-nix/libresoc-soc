@@ -144,6 +144,16 @@ class ALUHelpers:
             print ("extra inputs: so", so)
             yield alu.p.data_i.xer_so.eq(so)
 
+    def set_msr(alu, dec2, inp):
+        print ("TODO: deprecate set_msr")
+        if 'msr' in inp:
+            yield alu.p.data_i.msr.eq(inp['msr'])
+
+    def set_cia(alu, dec2, inp):
+        print ("TODO: deprecate set_cia")
+        if 'cia' in inp:
+            yield alu.p.data_i.cia.eq(inp['cia'])
+
     def set_slow_spr1(alu, dec2, inp):
         if 'spr1' in inp:
             yield alu.p.data_i.spr1.eq(inp['spr1'])
