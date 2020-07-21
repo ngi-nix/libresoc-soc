@@ -25,7 +25,7 @@ from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
 def field(r, start, end):
-    return r[63-end:63-start]
+    return r[63-end:63-start+1] # slices ends are +1, POWER spec is not
 
 
 class Driver(Elaboratable):
@@ -84,9 +84,13 @@ class Driver(Elaboratable):
                     comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])
                 with m.Else():
                     comb += Assert(msr_o[MSR.ME] == msr_i[MSR.ME])
-                with m.If((field(msr_i, 29, 31) != 0b010) |
-                          (field(msr_i, 29, 31) != 0b000)):
-                    comb += Assert(field(msr_o.data, 29, 31) == field(srr1_i, 29, 31))
+                with m.If((field(msr_i , 29, 31) != 0b010) | # MSR
+                          (field(srr1_i, 29, 31) != 0b000)): # SRR1
+                    comb += Assert(field(msr_o.data, 29, 31) ==
+                                   field(srr1_i, 29, 31))
+                with m.Else():
+                    comb += Assert(field(msr_o.data, 29, 31) ==
+                                   field(msr_i, 29, 31))
 
         comb += dut.i.ctx.matches(dut.o.ctx)
 
