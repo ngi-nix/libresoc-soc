@@ -725,6 +725,8 @@ class PowerDecode2(Elaboratable):
         comb += do.fn_unit.eq(Function.TRAP)
         comb += do.trapaddr.eq(trapaddr >> 4) # cut bottom 4 bits
         comb += do.traptype.eq(traptype) # request type
+        comb += do.msr.eq(self.msr) # copy of MSR "state"
+        comb += do.cia.eq(self.cia) # copy of PC "state"
 
     def regspecmap_read(self, regfile, regname):
         """regspecmap_read: provides PowerDecode2 with an encoding relationship
