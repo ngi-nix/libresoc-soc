@@ -65,6 +65,10 @@ def set_cu_inputs(cu, inp):
     print ("set_cu_inputs", inp)
     for idx, data in inp.items():
         yield from set_cu_input(cu, idx, data)
+    # gets out of sync when checking busy if there is no wait, here.
+    if len(inp) == 0:
+        yield # wait one cycle
+
 
 
 def set_operand(cu, dec2, sim):
@@ -78,7 +82,8 @@ def set_operand(cu, dec2, sim):
 def get_cu_outputs(cu, code):
     res = {}
     wrmask = yield cu.wrmask
-    print ("get_cu_outputs", cu.n_dst, wrmask)
+    wr_rel_o = yield cu.wr.rel
+    print ("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
     if not wrmask: # no point waiting (however really should doublecheck wr.rel)
         return {}
     # wait for at least one result
@@ -214,14 +219,14 @@ class TestRunner(FHDLTestCase):
                 index = pc//4
                 msr = sim.msr.value
                 while True:
-                    print("instr index", index)
+                    print("instr pc", pc)
                     try:
                         yield from sim.setup_one()
                     except KeyError: # indicates instruction not in imem: stop
                         break
                     yield Settle()
                     ins, code = instructions[index]
-                    print(index, code)
+                    print("instruction @", index, code)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
@@ -229,21 +234,30 @@ class TestRunner(FHDLTestCase):
                     yield pdecode2.cia.eq(pc)  # set PC "state"
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
+                    # debugging issue with branch
+                    if self.funit == Function.BRANCH:
+                        lk = yield pdecode2.e.do.lk
+                        fast_out2 = yield pdecode2.e.write_fast2.data
+                        fast_out2_ok = yield pdecode2.e.write_fast2.ok
+                        print ("lk:", lk, fast_out2, fast_out2_ok)
+                        op_lk = yield cu.alu.pipe1.p.data_i.ctx.op.lk
+                        print ("op_lk:", op_lk)
+                        print (dir(cu.alu.pipe1.n.data_o))
                     fn_unit = yield pdecode2.e.do.fn_unit
                     fuval = self.funit.value
                     self.assertEqual(fn_unit & fuval, fuval)
 
                     # set operand and get inputs
                     yield from set_operand(cu, pdecode2, sim)
-                    yield Settle()
-                    iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
-                    inp = get_inp_indexed(cu, iname)
-
                     # reset read-operand mask
                     rdmask = pdecode2.rdflags(cu)
                     #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
                     #print ("decoder rdmask", rdmask)
                     yield cu.rdmaskn.eq(~rdmask)
+
+                    yield Settle()
+                    iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
+                    inp = get_inp_indexed(cu, iname)
 
                     # reset write-operand mask
                     for idx in range(cu.n_dst):
@@ -284,6 +298,9 @@ class TestRunner(FHDLTestCase):
                     print ("after got outputs, rd_rel, wr_rel, wrmask: ",
                             bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 
+                    # reset read-mask.  IMPORTANT when there are no operands
+                    yield cu.rdmaskn.eq(0)
+
                     # wait for busy to go low
                     while True:
                         busy_o = yield cu.busy_o
@@ -291,6 +308,13 @@ class TestRunner(FHDLTestCase):
                         if not busy_o:
                             break
                         yield
+                    yield
+
+                    # debugging issue with branch
+                    if self.funit == Function.BRANCH:
+                        lr = yield cu.alu.pipe1.n.data_o.lr.data
+                        lr_ok = yield cu.alu.pipe1.n.data_o.lr.ok
+                        print ("lr:", hex(lr), lr_ok)
 
                     if self.funit == Function.LDST:
                         yield from dump_sim_memory(self, l0, sim, code)
@@ -312,7 +336,6 @@ class TestRunner(FHDLTestCase):
 
         name = self.funit.name.lower()
         with sim.write_vcd("%s_simulator.vcd" % name,
-                           "%s_simulator.gtkw" % name,
                             traces=[]):
             sim.run()
 
