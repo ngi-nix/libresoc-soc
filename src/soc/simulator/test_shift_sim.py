@@ -1,6 +1,6 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmigen.test.utils import FHDLTestCase
+from nmutil.formaltest import FHDLTestCase
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_enums import (Function, MicrOp,
