@@ -77,7 +77,7 @@ class TrapMainStage(PipeModBase):
         comb += msr_copy(srr1_o.data, msr_i) # old MSR
         comb += srr1_o.ok.eq(1)
 
-    def msr_exception(self, m, trap_addr):
+    def msr_exception(self, m, trap_addr, msr_hv=None):
         """msr_exception - sets bits in MSR specific to an exception.
         the full list of what needs to be done is given in V3.0B
         Book III Section 6.5 p1063 however it turns out that for the
@@ -96,6 +96,10 @@ class TrapMainStage(PipeModBase):
         comb += msr_o.data[MSR.DR].eq(0)
         comb += msr_o.data[MSR.RI].eq(0)
         comb += msr_o.data[MSR.LE].eq(1)
+        comb += msr_o.data[MSR.FE0].eq(0)
+        comb += msr_o.data[MSR.FE1].eq(0)
+        if msr_hv is not None:
+            comb += msr_o.data[MSR.HV].eq(msr_hv)
         comb += msr_o.ok.eq(1)
 
     def ispec(self):
@@ -250,11 +254,19 @@ class TrapMainStage(PipeModBase):
                 # scv is not covered here. currently an illegal instruction.
                 # raising "illegal" is the decoder's job, not ours, here.
 
+                # According to V3.0B, Book II, section 3.3.1, the System Call
+                # instruction allows you to trap directly into the hypervisor
+                # if the opcode's LEV sub-field is equal to 1.
+                trap_to_hv = Signal(reset_less=True)
+                lev = Signal(6, reset_less=True)
+                comb += lev.eq(op[31-26:32-20])
+                comb += trap_to_hv.eq(lev == Const(1, 6))
+
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
 
                 # and update several MSR bits
-                self.msr_exception(m, 0xc00)
+                self.msr_exception(m, 0xc00, msr_hv=trap_to_hv)
 
             # TODO (later)
             #with m.Case(MicrOp.OP_ADDPCIS):

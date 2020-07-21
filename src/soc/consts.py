@@ -4,12 +4,20 @@
 class MSR:
     SF  = (63 - 0)     # Sixty-Four bit mode
     HV  = (63 - 3)     # Hypervisor state
+    UND = (63 - 5)     # Undefined behavior state (see Bk 2, Sect. 3.2.1)
+    TSs = (63 - 29)    # Transactional State (subfield)
+    TSe = (63 - 30)    # Transactional State (subfield)
+    TM  = (63 - 31)    # Transactional Memory Available
+    VEC = (63 - 38)    # Vector Available
+    VSX = (63 - 40)    # VSX Available
     S   = (63 - 41)    # Secure state
     EE  = (63 - 48)    # External interrupt Enable
     PR  = (63 - 49)    # PRoblem state
     FP  = (63 - 50)    # FP available
     ME  = (63 - 51)    # Machine Check int enable
     FE0 = (63 - 52)    # Floating-Point Exception Mode 0
+    TEs = (63 - 53)    # Trace Enable (subfield)
+    TEe = (63 - 54)    # Trace Enable (subfield)
     FE1 = (63 - 55)    # Floating-Point Exception Mode 1
     IR  = (63 - 58)    # Instruction Relocation
     DR  = (63 - 59)    # Data Relocation
