@@ -76,6 +76,26 @@ class TrapMainStage(PipeModBase):
         comb += msr_copy(srr1_o.data, msr_i) # old MSR
         comb += srr1_o.ok.eq(1)
 
+    def msr_exception(self, m, trap_addr):
+        """msr_exception - sets bits in MSR specific to an exception.
+        the full list of what needs to be done is given in V3.0B
+        Book III Section 6.5 p1063 however it turns out that for the
+        majority of cases (microwatt showing the way, here), all these
+        bits are all set by all (implemented) interrupt types.  this
+        may change in the future, hence the (unused) trap_addr argument
+        """
+        comb  = m.d.comb
+        msr_i, msr_o = self.i.msr, self.o.msr
+        comb += msr_o.data.eq(msr_i) # copy msr, first, then modify
+        comb += msr_o.data[MSR.SF].eq(1)
+        comb += msr_o.data[MSR.EE].eq(0)
+        comb += msr_o.data[MSR.PR].eq(0)
+        comb += msr_o.data[MSR.IR].eq(0)
+        comb += msr_o.data[MSR.DR].eq(0)
+        comb += msr_o.data[MSR.RI].eq(0)
+        comb += msr_o.data[MSR.LE].eq(1)
+        comb += msr_o.ok.eq(1)
+
     def ispec(self):
         return TrapInputData(self.pspec)
 
@@ -160,6 +180,10 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.ADR].eq(1)
                     with m.If(traptype & TT.ILLEG):
                         comb += srr1_o.data[PI.ILLEG].eq(1)
+                    comb += srr1_o.ok.eq(1)
+
+                    # when SRR1 is written to, update MSR bits
+                    self.msr_exception(m, trapaddr)
 
             # move to MSR
             with m.Case(MicrOp.OP_MTMSRD, MicrOp.OP_MTMSR):
@@ -226,6 +250,9 @@ class TrapMainStage(PipeModBase):
 
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
+
+                # and update several MSR bits
+                self.msr_exception(m, 0xc00)
 
             # TODO (later)
             #with m.Case(MicrOp.OP_ADDPCIS):

@@ -10,6 +10,7 @@ related bugs:
 """
 
 from functools import wraps
+from copy import copy
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
@@ -343,10 +344,22 @@ class ISACaller:
         print ("TRAP:", hex(trap_addr))
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
-        self.spr['SRR0'] = self.pc.CIA
-        self.spr['SRR1'] = self.namespace['MSR']
+        self.spr['SRR0'].value = self.pc.CIA.value
+        self.spr['SRR1'].value = self.namespace['MSR'].value
         self.trap_nia = SelectableInt(trap_addr, 64)
-        self.namespace['MSR'][63-trap_bit] = 1
+        self.spr['SRR1'][63-trap_bit] = 1 # change *copy* of MSR in SRR1
+
+        # set exception bits.  TODO: this should, based on the address
+        # in figure 66 p1065 V3.0B and the table figure 65 p1063 set these
+        # bits appropriately.  however it turns out that *for now* in all
+        # cases (all trap_addrs) the exact same thing is needed.
+        self.namespace['MSR'][63-MSR.SF] = 1
+        self.namespace['MSR'][63-MSR.EE] = 0
+        self.namespace['MSR'][63-MSR.PR] = 0
+        self.namespace['MSR'][63-MSR.IR] = 0
+        self.namespace['MSR'][63-MSR.DR] = 0
+        self.namespace['MSR'][63-MSR.RI] = 0
+        self.namespace['MSR'][63-MSR.LE] = 1
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
