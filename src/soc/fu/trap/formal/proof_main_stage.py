@@ -46,7 +46,7 @@ class Driver(Elaboratable):
 
         # frequently used aliases
         op = dut.i.ctx.op
-        msr_o, msr_i = dut.o.msr, dut.i.msr
+        msr_o, msr_i = dut.o.msr, op.msr
         srr1_o, srr1_i = dut.o.srr1, dut.i.srr1
 
         comb += op.eq(rec)
@@ -57,9 +57,9 @@ class Driver(Elaboratable):
                 comb += [
                     Assert(dut.o.srr0.ok),
                     Assert(srr1_o.ok),
-#                   Assert(msr_o.ok),
+                    Assert(msr_o.ok),
 
-                    Assert(dut.o.srr0.data == (dut.i.cia + 4)[0:64]),
+                    Assert(dut.o.srr0.data == (op.cia + 4)[0:64]),
                     Assert(field(srr1_o, 33, 36) == 0),
                     Assert(field(srr1_o, 42, 47) == 0),
                     Assert(field(srr1_o, 0, 32) == field(msr_i, 0, 32)),
