@@ -9,6 +9,8 @@ class MSR:
     PR  = (63 - 49)    # PRoblem state
     FP  = (63 - 50)    # FP available
     ME  = (63 - 51)    # Machine Check int enable
+    FE0 = (63 - 52)    # Floating-Point Exception Mode 0
+    FE1 = (63 - 55)    # Floating-Point Exception Mode 1
     IR  = (63 - 58)    # Instruction Relocation
     DR  = (63 - 59)    # Data Relocation
     PMM = (63 - 60)    # Performance Monitor Mark

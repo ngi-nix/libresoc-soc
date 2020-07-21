@@ -25,7 +25,10 @@ from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
 def field(r, start, end):
-    return r[63-end:63-start+1] # slices ends are +1, POWER spec is not
+    """Answers with a subfield of the signal r ("register"), where
+    the start and end bits use IBM conventions.  start < end.
+    """
+    return r[63-end:64-start]
 
 
 class Driver(Elaboratable):
@@ -44,7 +47,7 @@ class Driver(Elaboratable):
         # frequently used aliases
         op = dut.i.ctx.op
         msr_o, msr_i = dut.o.msr, dut.i.msr
-        srr1_i = dut.i.srr1
+        srr1_o, srr1_i = dut.o.srr1, dut.i.srr1
 
         comb += op.eq(rec)
 
@@ -53,15 +56,31 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_SC):
                 comb += [
                     Assert(dut.o.srr0.ok),
-                    Assert(dut.o.srr1.ok),
+                    Assert(srr1_o.ok),
+#                   Assert(msr_o.ok),
 
                     Assert(dut.o.srr0.data == (dut.i.cia + 4)[0:64]),
-                    Assert(field(dut.o.srr1, 33, 36) == 0),
-                    Assert(field(dut.o.srr1, 42, 47) == 0),
-                    Assert(field(dut.o.srr1, 0, 32) == field(msr_i, 0, 32)),
-                    Assert(field(dut.o.srr1, 37, 41) == field(msr_i, 37, 41)),
-                    Assert(field(dut.o.srr1, 48, 63) == field(msr_i, 48, 63)),
+                    Assert(field(srr1_o, 33, 36) == 0),
+                    Assert(field(srr1_o, 42, 47) == 0),
+                    Assert(field(srr1_o, 0, 32) == field(msr_i, 0, 32)),
+                    Assert(field(srr1_o, 37, 41) == field(msr_i, 37, 41)),
+                    Assert(field(srr1_o, 48, 63) == field(msr_i, 48, 63)),
+
+                    Assert(msr_o[0:16] == msr_i[0:16]),
+                    Assert(msr_o[22:27] == msr_i[22:27]),
+                    Assert(msr_o[31:64] == msr_i[31:64]),
+                    Assert(msr_o[MSR.IR] == 0),  # No LPCR register input,
+                    Assert(msr_o[MSR.DR] == 0),  # so assuming AIL=0.
+                    Assert(msr_o[MSR.FE0] == 0),
+                    Assert(msr_o[MSR.FE1] == 0),
+                    Assert(msr_o[MSR.EE] == 0),
+                    Assert(msr_o[MSR.RI] == 0),
                 ]
+                with m.If(field(op.insn, 20, 26) == 1):
+                    comb += Assert(msr_o[MSR.HV] == 1)
+                with m.Else():
+                    comb += Assert(msr_o[MSR.HV] == 0)
+
             with m.Case(MicrOp.OP_RFID):
                 comb += [
                     Assert(msr_o.ok),
