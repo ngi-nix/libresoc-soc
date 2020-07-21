@@ -54,35 +54,37 @@ class Driver(Elaboratable):
         # start of properties
         with m.Switch(op.insn_type):
             with m.Case(MicrOp.OP_SC):
-                expected_msr = Signal(len(msr_o))
+                expected_msr = Signal(len(msr_o.data))
                 comb += expected_msr.eq(op.msr)
-                comb += [
-                    expected_msr[MSR.IR].eq(0),
-                    expected_msr[MSR.DR].eq(0),
-                    expected_msr[MSR.FE0].eq(0),
-                    expected_msr[MSR.FE1].eq(0),
-                    expected_msr[MSR.EE].eq(0),
-                    expected_msr[MSR.RI].eq(0),
-                    expected_msr[MSR.SF].eq(1),
-                    expected_msr[MSR.TM].eq(0),
-                    expected_msr[MSR.VEC].eq(0),
-                    expected_msr[MSR.VSX].eq(0),
-                    expected_msr[MSR.PR].eq(0),
-                    expected_msr[MSR.FP].eq(0),
-                    expected_msr[MSR.PMM].eq(0),
-                    expected_msr[MSR.TEs:MSR.TEe+1].eq(0),
-                    expected_msr[MSR.UND].eq(0),
-                ]
+                # Unless otherwise documented, these exceptions to the MSR bits are
+                # documented in Power ISA V3.0B, page 1063 or 1064.
+                comb += expected_msr[MSR.IR].eq(0)
+                comb += expected_msr[MSR.DR].eq(0)
+                comb += expected_msr[MSR.FE0].eq(0)
+                comb += expected_msr[MSR.FE1].eq(0)
+                comb += expected_msr[MSR.EE].eq(0)
+                comb += expected_msr[MSR.RI].eq(0)
+                comb += expected_msr[MSR.SF].eq(1)
+                comb += expected_msr[MSR.TM].eq(0)
+                comb += expected_msr[MSR.VEC].eq(0)
+                comb += expected_msr[MSR.VSX].eq(0)
+                comb += expected_msr[MSR.PR].eq(0)
+                comb += expected_msr[MSR.FP].eq(0)
+                comb += expected_msr[MSR.PMM].eq(0)
+                comb += expected_msr[MSR.TEs:MSR.TEe+1].eq(0)
+                comb += expected_msr[MSR.UND].eq(0)
+                comb += expected_msr[MSR.LE].eq(1)
 
+                with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
+                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
+                with m.Else():
+                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(op.msr[MSR.TSs:MSR.TSe+1])
+
+                # Power ISA V3.0B, Book 2, Section 3.3.1
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += expected_msr[MSR.HV].eq(1)
                 with m.Else():
                     comb += expected_msr[MSR.HV].eq(0)
-
-                with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):  # V3.0B, pg 1064
-                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
-                with m.Else():
-                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(op.msr[MSR.TSs:MSR.TSe+1])
 
                 comb += [
                     Assert(dut.o.srr0.ok),
@@ -96,22 +98,7 @@ class Driver(Elaboratable):
                     Assert(field(srr1_o, 37, 41) == field(msr_i, 37, 41)),
                     Assert(field(srr1_o, 48, 63) == field(msr_i, 48, 63)),
 
-                    Assert(msr_o == expected_msr),
-                    Assert(msr_o[MSR.IR] == 0),  # No LPCR register input,
-                    Assert(msr_o[MSR.DR] == 0),  # so assuming AIL=0.
-                    Assert(msr_o[MSR.FE0] == 0), # V3.0B, pg 1063
-                    Assert(msr_o[MSR.FE1] == 0), # V3.0B, pg 1063
-                    Assert(msr_o[MSR.EE] == 0),  # V3.0B, pg 1063
-                    Assert(msr_o[MSR.RI] == 0),  # V3.0B, pg 1063
-                    Assert(msr_o[MSR.SF] == 1),  # V3.0B, pg 1064
-                    Assert(msr_o[MSR.TM] == 0),  # V3.0B, pg 1064
-                    Assert(msr_o[MSR.VEC] == 0), # V3.0B, pg 1064
-                    Assert(msr_o[MSR.VSX] == 0), # V3.0B, pg 1064
-                    Assert(msr_o[MSR.PR] == 0),  # V3.0B, pg 1064
-                    Assert(msr_o[MSR.FP] == 0),  # V3.0B, pg 1064
-                    Assert(msr_o[MSR.PMM] == 0), # V3.0B, pg 1064
-                    Assert(msr_o[MSR.TEs:MSR.TEe+1] == 0),  # V3.0B, pg 1064
-                    Assert(msr_o[MSR.UND] == 0), # V3.0B, pg 1064
+                    Assert(msr_o.data == expected_msr),
                 ]
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += Assert(msr_o[MSR.HV] == 1)
@@ -140,8 +127,8 @@ class Driver(Elaboratable):
                     comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])
                 with m.Else():
                     comb += Assert(msr_o[MSR.ME] == msr_i[MSR.ME])
-                with m.If((field(msr_i , 29, 31) != 0b010) | # MSR
-                          (field(srr1_i, 29, 31) != 0b000)): # SRR1
+                with m.If((field(msr_i , 29, 31) != 0b010) |
+                          (field(srr1_i, 29, 31) != 0b000)):
                     comb += Assert(field(msr_o.data, 29, 31) ==
                                    field(srr1_i, 29, 31))
                 with m.Else():
