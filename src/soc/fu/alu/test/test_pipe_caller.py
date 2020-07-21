@@ -151,7 +151,8 @@ class ALUTestCase(FHDLTestCase):
             xer = SelectableInt(0, 64)
             xer[XER_bits['CA']] = 1
             initial_sprs[special_sprs['XER']] = xer
-            self.run_tst_program(Program(lst, bigendian), initial_regs, initial_sprs)
+            self.run_tst_program(Program(lst, bigendian),
+                                 initial_regs, initial_sprs)
 
     def test_cmp(self):
         lst = ["subf. 1, 6, 7",
