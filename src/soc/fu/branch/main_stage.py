@@ -72,7 +72,7 @@ class BranchMainStage(PipeModBase):
         comb = m.d.comb
         op = self.i.ctx.op
         lk = op.lk # see PowerDecode2 as to why this is done
-        cr, cia, ctr, fast1 = self.i.cr, self.i.cia, self.i.ctr, self.i.fast1
+        cr, cia, ctr, fast1 = self.i.cr, op.cia, self.i.ctr, self.i.fast1
         fast2 = self.i.fast2
         nia_o, lr_o, ctr_o = self.o.nia, self.o.lr, self.o.ctr
 

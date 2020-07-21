@@ -55,7 +55,7 @@ def get_cu_inputs(dec2, sim):
     res = {}
 
     # CIA (PC)
-    res['cia'] = sim.pc.CIA.value
+    #res['cia'] = sim.pc.CIA.value
 
     yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2)
     yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)
@@ -76,6 +76,13 @@ class BranchTestCase(FHDLTestCase):
         tc = TestCase(prog, self.test_name,
                       initial_regs, initial_sprs, initial_cr)
         self.test_data.append(tc)
+
+    def test_0_regression_unconditional(self):
+        for i in range(2):
+            imm = random.randrange(-1<<23, (1<<23)-1) * 4
+            lst = [f"bl {imm}"]
+            initial_regs = [0] * 32
+            self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_unconditional(self):
         choices = ["b", "ba", "bl", "bla"]
@@ -174,7 +181,9 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                index = (simulator.pc.CIA.value - initial_cia)//4
+                pc = simulator.pc.CIA.value
+                msr = simulator.msr.value
+                index = (pc - initial_cia)//4
                 while index < len(instructions) and index >= 0:
                     print(index)
                     ins, code = instructions[index]
@@ -184,6 +193,8 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
+                    yield pdecode2.msr.eq(msr) # set MSR in pdecode2
+                    yield pdecode2.cia.eq(pc) # set PC in pdecode2
                     yield instruction.eq(ins)          # raw binary instr.
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
@@ -192,6 +203,8 @@ class TestRunner(FHDLTestCase):
                     # if op_sc*, op_rf* and op_hrfid are to be added here
                     # then additional op-decoding is required, accordingly
                     yield Settle()
+                    lk = yield pdecode2.e.do.lk
+                    print ("lk:", lk)
                     yield from self.set_inputs(branch, pdecode2, simulator)
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)
@@ -200,14 +213,15 @@ class TestRunner(FHDLTestCase):
                     opname = code.split(' ')[0]
                     prev_nia = simulator.pc.NIA.value
                     yield from simulator.call(opname)
-                    index = (simulator.pc.CIA.value - initial_cia)//4
+                    pc = simulator.pc.CIA.value
+                    msr = simulator.msr.value
+                    index = (pc - initial_cia)//4
 
                     yield from self.assert_outputs(branch, pdecode2,
                                                    simulator, prev_nia, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                            traces=[]):
+        with sim.write_vcd("branch_simulator.vcd"):
             sim.run()
 
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
@@ -234,7 +248,6 @@ class TestRunner(FHDLTestCase):
 
         inp = yield from get_cu_inputs(dec2, sim)
 
-        yield from ALUHelpers.set_cia(branch, dec2, inp)
         yield from ALUHelpers.set_fast_spr1(branch, dec2, inp)
         yield from ALUHelpers.set_fast_spr2(branch, dec2, inp)
         yield from ALUHelpers.set_cr_a(branch, dec2, inp)

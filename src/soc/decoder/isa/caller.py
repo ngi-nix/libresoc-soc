@@ -500,6 +500,8 @@ class ISACaller:
 
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
         yield self.dec2.dec.bigendian.eq(self.bigendian)
+        yield self.dec2.msr.eq(self.msr.value)
+        yield self.dec2.cia.eq(pc)
 
     def execute_one(self):
         """execute one instruction

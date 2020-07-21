@@ -34,7 +34,7 @@ class BranchInputData(IntegerData):
     regspec = [('FAST', 'fast1', '0:63'), # see table above, SPR1
                ('FAST', 'fast2', '0:63'), # see table above, SPR2
                ('CR', 'cr_a', '0:3'),    # Condition Register(s) CR0-7
-               ('FAST', 'cia', '0:63')]  # Current Instruction Address
+               ]
     def __init__(self, pspec):
         super().__init__(pspec, False)
 
