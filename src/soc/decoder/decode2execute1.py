@@ -29,10 +29,15 @@ class Decode2ToOperand(RecordObject):
 
         RecordObject.__init__(self, name=name)
 
+        # current "state" (TODO: this in its own Record)
+        self.msr = Signal(64, reset_less=True)
+        self.cia = Signal(64, reset_less=True)
+
+        # instruction, type and decoded information
+        self.insn = Signal(32, reset_less=True) # original instruction
         self.insn_type = Signal(MicrOp, reset_less=True)
         self.fn_unit = Signal(Function, reset_less=True)
         self.imm_data = Data(64, name="imm")
-
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
@@ -45,7 +50,6 @@ class Decode2ToOperand(RecordObject):
         self.invert_out = Signal(reset_less=True)
         self.is_32bit = Signal(reset_less=True)
         self.is_signed = Signal(reset_less=True)
-        self.insn = Signal(32, reset_less=True)
         self.data_len = Signal(4, reset_less=True) # bytes
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?

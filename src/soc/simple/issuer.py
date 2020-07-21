@@ -108,6 +108,7 @@ class TestIssuer(Elaboratable):
 
         insn_type = core.pdecode2.e.do.insn_type
         insn_msr = core.pdecode2.msr
+        insn_cia = core.pdecode2.cia
 
         # only run if not in halted state
         with m.If(~core.core_terminated_o):
@@ -156,11 +157,14 @@ class TestIssuer(Elaboratable):
                         comb += core_opcode_i.eq(current_insn) # actual opcode
                         sync += ilatch.eq(current_insn) # latch current insn
 
-                        # read MSR
+                        # read MSR, latch it, and put it in decode "state"
                         comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
                         comb += msr.eq(self.fast_r_msr.data_o)
                         comb += insn_msr.eq(msr)
                         sync += cur_msr.eq(msr) # latch current MSR
+
+                        # also drop PC into decode "state"
+                        comb += insn_cia.eq(cur_pc)
 
                         m.next = "INSN_ACTIVE" # move to "wait completion" 
 
@@ -173,6 +177,7 @@ class TestIssuer(Elaboratable):
                             comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_opcode_i.eq(ilatch) # actual opcode
                         comb += insn_msr.eq(cur_msr)     # and MSR
+                        comb += insn_cia.eq(cur_pc)     # and PC
                         with m.If(self.fast_nia.wen):
                             sync += pc_changed.eq(1)
                         with m.If(~core_busy_o): # instruction done!
