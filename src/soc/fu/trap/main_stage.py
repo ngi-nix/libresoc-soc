@@ -150,7 +150,7 @@ class TrapMainStage(PipeModBase):
                     # generate trap-type program interrupt
                     self.trap(m, trapaddr<<4, cia_i)
                     with m.If(traptype == 0):
-                        # say trap occurred (see 3.0B Book III 7.5.9)
+                        # say trap occurred (see 3.0B Book III 6.5.9 p1074-6)
                         comb += srr1_o.data[PI.TRAP].eq(1)
                     with m.If(traptype & TT.PRIV):
                         comb += srr1_o.data[PI.PRIV].eq(1)
