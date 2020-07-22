@@ -182,10 +182,15 @@ class Driver(Elaboratable):
                 comb += expected_msr[MSR.PR].eq(0)
                 comb += expected_msr[MSR.FP].eq(0)
                 comb += expected_msr[MSR.PMM].eq(0)
+                # TODO: check ordering (which is smaller, which is larger)
+                # MSR.TSs or MSR.TSe+1?
                 comb += expected_msr[MSR.TEs:MSR.TEe+1].eq(0)
                 comb += expected_msr[MSR.UND].eq(0)
                 comb += expected_msr[MSR.LE].eq(1)
 
+                # TODO: check ordering (which is smaller, which is larger)
+                # MSR.TSs or MSR.TSe+1?
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c107
                 with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
                     comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
                 with m.Else():

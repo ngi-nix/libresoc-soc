@@ -103,6 +103,8 @@ class TrapMainStage(PipeModBase):
         comb += msr_o.data[MSR.VEC].eq(0)
         comb += msr_o.data[MSR.FP].eq(0)
         comb += msr_o.data[MSR.PMM].eq(0)
+        # XXX check ordering
+        # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c107
         comb += msr_o.data[MSR.TEs:MSR.TEe+1].eq(0)
         comb += msr_o.data[MSR.UND].eq(0)
         if msr_hv is not None:
