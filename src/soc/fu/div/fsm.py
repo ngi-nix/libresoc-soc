@@ -148,23 +148,29 @@ class FSMDivCoreStage(Elaboratable):
         self.saved_input_data = CoreInputData(pspec)
         self.canceled = Signal()
         self.empty = Signal(reset=1)
-        self.saved_state = DivState(64)
+        self.saved_state = DivState(64, name="saved_state")
+        self.div_state_next = DivStateNext(64)
+        self.div_state_init = DivStateInit(64)
+        self.divisor = Signal(unsigned(64))
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.p = self.p
         m.submodules.n = self.n
+        m.submodules.div_state_next = self.div_state_next
+        m.submodules.div_state_init = self.div_state_init
         data_i = self.p.data_i
-        data_o = self.p.data_o
+        core_i: FSMDivCoreInputData = data_i.core
+        data_o = self.n.data_o
+        core_o: FSMDivCoreOutputData = data_o.core
 
         # TODO: calculate self.canceled from self.p.data_i.ctx
         m.d.comb += self.canceled.eq(False)
 
-        # TODO: adapt to refactored DivState interface
-        fsm_state_in = DivState(64)
-        divisor = Signal(unsigned(64))
-        fsm_state_out = fsm_state_in.make_next_state(m, divisor)
+        m.d.comb += self.div_state_init.dividend.eq(core_i.dividend)
 
+        # FIXME(programmerjake): finish
+        raise NotImplementedError()
         with m.If(self.canceled):
             with m.If(self.p.valid_i):
                 ...
