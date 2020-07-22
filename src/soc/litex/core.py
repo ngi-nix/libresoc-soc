@@ -5,7 +5,7 @@
 import os
 import subprocess
 
-from migen import *
+from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
