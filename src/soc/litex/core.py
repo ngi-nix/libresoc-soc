@@ -124,8 +124,9 @@ class LibreSOC(CPU):
     @staticmethod
     def elaborate(verilog_filename):
         cli_params = []
-        sdir = get_data_mod("cpu", "libre-soc").data_location
-        if subprocess.call(["python3", os.path.join(sdir, "cli.py"),
+        #sdir = get_data_mod("cpu", "libre_soc").data_location
+        sdir = "./simple"
+        if subprocess.call(["python3", os.path.join(sdir, "issuer_verilog.py"),
                             *cli_params, verilog_filename],
                             ):
             raise OSError("Unable to elaborate Libre-SOC CPU, "

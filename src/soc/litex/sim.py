@@ -6,8 +6,6 @@
 
 import argparse
 
-from migen import *
-
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
@@ -15,6 +13,7 @@ from litex.build.sim.config import SimConfig
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import SoCCore
 from litex.soc.integration.common import get_mem_data
+from litex.soc.integration.builder import Builder
 
 from litedram.modules import MT41K128M16
 from litedram.phy.model import SDRAMPHYModel
@@ -64,12 +63,13 @@ class SoCSMP(SoCCore):
 
         # SoCCore --------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            cpu_type                 = "libre-soc",
-            cpu_variant=cpu_variant,
-            cpu_cls=LibreSOC,
+            cpu_type                 = "None", # XXX use None for now libre_soc
+            cpu_variant              = cpu_variant,
+            cpu_cls                  = LibreSOC,
             uart_name                = "sim",
             integrated_rom_size      = 0x8000,
             integrated_main_ram_size = 0x00000000)
+
         self.platform.name = "sim"
         self.add_constant("SIM")
 
@@ -107,7 +107,7 @@ class SoCSMP(SoCCore):
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
-# Build --------------------------------------------------------------------------------------------
+# Build -----------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(
@@ -132,14 +132,14 @@ def main():
     sim_config.add_module("serial2console", "serial")
 
     for i in range(2):
-        to_run = (i != 0) # first build, then run
+        to_run = (i != 0) # first build (i=0), then run (i=1)
         soc = SoCSMP(args.cpu_variant, args.sdram_init and to_run,
                      args.with_sdcard)
         builder = Builder(soc,
             compile_gateware = to_run,
             csr_json         = "build/sim/csr.json")
         builder.build(sim_config=sim_config,
-            run         = i!=0,
+            run         = to_run,
             opt_level   = args.opt_level,
             trace       = args.trace,
             trace_start = int(args.trace_start),
