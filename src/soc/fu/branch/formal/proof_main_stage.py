@@ -107,15 +107,15 @@ class Driver(Elaboratable):
         with m.Else():
             comb += ctr_m.eq(ctr)
 
-        # CTR combpare with 0
+        # CTR (32/64 bit) compare with 0
         ctr_ok = Signal()
         comb += ctr_ok.eq(BO[2] | ((ctr_m != 0) ^ BO[1]))
 
-        # Sorry, not bothering with 32 bit right now
-
         with m.Switch(rec.insn_type):
 
-            #### b ####
+            ###
+            # b - v3.0B p37
+            ###
             with m.Case(MicrOp.OP_B):
                 # Extract target address
                 LI = i_fields.LI[0:-1]
@@ -140,7 +140,9 @@ class Driver(Elaboratable):
                 # Assert that ctr is not written to
                 comb += Assert(dut.o.ctr.ok == 0)
 
-            #### bc ####
+            ####
+            # bc - v3.0B p37-38
+            ####
             with m.Case(MicrOp.OP_BC):
                 # Assert that branches are conditional
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
@@ -166,7 +168,9 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(dut.o.ctr.ok == 0)
 
-            #### bctar/bcctr/bclr ####
+            ##################
+            # bctar/bcctr/bclr - v3.0B p38-39
+            ##################
             with m.Case(MicrOp.OP_BCREG):
                 # assert that the condition is good
                 comb += Assert(nia_o.ok == (cond_ok & ctr_ok))
