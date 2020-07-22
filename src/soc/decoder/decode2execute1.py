@@ -6,6 +6,7 @@ based on Anton Blanchard microwatt decode2.vhdl
 from nmigen import Signal, Record
 from nmutil.iocontrol import RecordObject
 from soc.decoder.power_enums import MicrOp, CryIn, Function, SPR, LDSTMode
+from soc.consts import TT
 
 
 class Data(Record):
@@ -54,7 +55,7 @@ class Decode2ToOperand(RecordObject):
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.ldst_mode  = Signal(LDSTMode, reset_less=True) # LD/ST mode
-        self.traptype  = Signal(5, reset_less=True) # see trap main_stage.py
+        self.traptype  = Signal(TT.size, reset_less=True) # trap main_stage.py
         self.trapaddr  = Signal(13, reset_less=True)
         self.read_cr_whole = Signal(reset_less=True)
         self.write_cr_whole = Signal(reset_less=True)

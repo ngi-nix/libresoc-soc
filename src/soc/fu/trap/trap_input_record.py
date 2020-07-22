@@ -1,5 +1,6 @@
 from soc.fu.base_input_record import CompOpSubsetBase
 from soc.decoder.power_enums import (MicrOp, Function)
+from soc.consts import TT
 
 
 class CompTrapOpSubset(CompOpSubsetBase):
@@ -16,7 +17,7 @@ class CompTrapOpSubset(CompOpSubsetBase):
                   ('msr', 64), # TODO: "state" in separate Record
                   ('cia', 64), # likewise
                   ('is_32bit', 1),
-                  ('traptype', 5), # see trap main_stage.py and PowerDecoder2
+                  ('traptype', TT.size), # see trap main_stage.py, PowerDecoder2
                   ('trapaddr', 13),
                   )
 
