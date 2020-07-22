@@ -17,7 +17,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp)
 from soc.decoder.helpers import exts
-from soc.consts import PI, MSR
+from soc.consts import PIb, MSRb # big-endian (PowerISA versions)
 
 from collections import namedtuple
 import math
@@ -340,26 +340,26 @@ class ISACaller:
         self.decoder = decoder2.dec
         self.dec2 = decoder2
 
-    def TRAP(self, trap_addr=0x700, trap_bit=PI.TRAP):
+    def TRAP(self, trap_addr=0x700, trap_bit=PIb.TRAP):
         print ("TRAP:", hex(trap_addr), hex(self.namespace['MSR'].value))
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
         self.spr['SRR0'].value = self.pc.CIA.value
         self.spr['SRR1'].value = self.namespace['MSR'].value
         self.trap_nia = SelectableInt(trap_addr, 64)
-        self.spr['SRR1'][63-trap_bit] = 1 # change *copy* of MSR in SRR1
+        self.spr['SRR1'][trap_bit] = 1 # change *copy* of MSR in SRR1
 
         # set exception bits.  TODO: this should, based on the address
         # in figure 66 p1065 V3.0B and the table figure 65 p1063 set these
         # bits appropriately.  however it turns out that *for now* in all
         # cases (all trap_addrs) the exact same thing is needed.
-        self.msr[63-MSR.SF] = 1
-        self.msr[63-MSR.EE] = 0
-        self.msr[63-MSR.PR] = 0
-        self.msr[63-MSR.IR] = 0
-        self.msr[63-MSR.DR] = 0
-        self.msr[63-MSR.RI] = 0
-        self.msr[63-MSR.LE] = 1
+        self.msr[MSRb.SF] = 1
+        self.msr[MSRb.EE] = 0
+        self.msr[MSRb.PR] = 0
+        self.msr[MSRb.IR] = 0
+        self.msr[MSRb.DR] = 0
+        self.msr[MSRb.RI] = 0
+        self.msr[MSRb.LE] = 1
 
     def memassign(self, ea, sz, val):
         self.mem.memassign(ea, sz, val)
@@ -594,10 +594,10 @@ class ISACaller:
             instr_is_privileged = True
 
         print ("is priv", instr_is_privileged, hex(self.msr.value),
-                          self.msr[63-MSR.PR])
+                          self.msr[MSRb.PR])
         # check MSR priv bit and whether op is privileged: if so, throw trap
-        if instr_is_privileged and self.msr[63-MSR.PR] == 1:
-            self.TRAP(0x700, PI.PRIV)
+        if instr_is_privileged and self.msr[MSRb.PR] == 1:
+            self.TRAP(0x700, PIb.PRIV)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
             return
@@ -613,7 +613,7 @@ class ISACaller:
             illegal = name != asmop
 
         if illegal:
-            self.TRAP(0x700, PI.ILLEG)
+            self.TRAP(0x700, PIb.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
             print ("name %s != %s - calling ILLEGAL trap, PC: %x" % \
