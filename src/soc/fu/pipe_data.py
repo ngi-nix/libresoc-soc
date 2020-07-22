@@ -8,26 +8,12 @@ from soc.fu.regspec import get_regspec_bitwidth
 class IntegerData:
     """IntegerData: base class for all pipeline data structures
 
-    this class auto-constructs parameters (placing them in self.data)
-    based on "regspecs".  this is conceptually similar to nmigen Record
-    (Layout, actually) except that Layout does not contain the right type
-    of information for connecting up to Register Files.
+    see README.md for explanation of parameters and purpose.
 
-    by having a base class that handles creation of pipeline input/output
-    in a structured fashion, CompUnits may conform to that same structured
-    API, and when it comes to actually connecting up to regfiles, the same
-    holds true.
-
-    the alternative is mountains of explicit code (which quickly becomes
-    unmaintainable).
-
-    note the mode parameter - output.  output pipeline data structures
-    need to have an "ok" flag added, which is used by the CompUnit and
-    by the Register File to determine if the output shall in fact be
-    written to the register file or not.
-
-    input data has *already* been determined to have had to have been read,
-    this by PowerDecoder2.
+    note the mode parameter - output.  XXXInputData specs must
+    have this set to "False", and XXXOutputData specs (and anything
+    that creates intermediary outputs which propagate through a
+    pipeline *to* output) must have it set to "True".
     """
 
     def __init__(self, pspec, output):
@@ -75,20 +61,12 @@ def get_rec_width(rec):
 
 
 class CommonPipeSpec:
+    """CommonPipeSpec: base class for all pipeline specifications
+    see README.md for explanation of members.
+    """
     def __init__(self, id_wid):
-        # this defines what type of pipeline base class (dynamic mixin)
-        # is to be used for *ALL* pipelines.  replace with MaskCancellableRedir
-        # when the Dependency Matrices are added: mask and stop signals will
-        # then "magically" appear right the way through every single pipeline
         self.pipekls = SimpleHandshakeRedir
-
-        # this is for the ReservationStation muxid width
         self.id_wid = id_wid
-
-        # this is the "operation context" which is passed through all pipeline
-        # stages.  it is a PowerDecoder2 subset (actually Decode2ToOperand)
         self.opkls = lambda _: self.opsubsetkls(name="op")
         self.op_wid = get_rec_width(self.opkls(None)) # hmm..
-
-        # gets set up by Pipeline API.
         self.stage = None
