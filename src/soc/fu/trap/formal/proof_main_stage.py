@@ -56,8 +56,8 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_SC):
                 expected_msr = Signal(len(msr_o.data))
                 comb += expected_msr.eq(op.msr)
-                # Unless otherwise documented, these exceptions to the MSR bits are
-                # documented in Power ISA V3.0B, page 1063 or 1064.
+                # Unless otherwise documented, these exceptions to the MSR bits
+                # are documented in Power ISA V3.0B, page 1063 or 1064.
                 comb += expected_msr[MSR.IR].eq(0)
                 comb += expected_msr[MSR.DR].eq(0)
                 comb += expected_msr[MSR.FE0].eq(0)
@@ -78,7 +78,9 @@ class Driver(Elaboratable):
                 with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
                     comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
                 with m.Else():
-                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(op.msr[MSR.TSs:MSR.TSe+1])
+                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(
+                        op.msr[MSR.TSs:MSR.TSe+1]
+                    )
 
                 # Power ISA V3.0B, Book 2, Section 3.3.1
                 with m.If(field(op.insn, 20, 26) == 1):
