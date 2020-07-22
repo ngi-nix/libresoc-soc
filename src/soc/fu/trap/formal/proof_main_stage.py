@@ -28,10 +28,12 @@ from soc.fu.trap.pipe_data import TrapPipeSpec
 from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
-def field(r, start, end):
+def field(r, start, end=None):
     """Answers with a subfield of the signal r ("register"), where
     the start and end bits use IBM conventions.  start < end.
     """
+    if end is None:
+        return r[3-start]
     return r[63-end:64-start]
 
 
@@ -208,6 +210,9 @@ class Driver(Elaboratable):
                 ]
                 # TODO: put back use of fields, do not access insn bits direct
                 # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
+                # XXX what is this for?  it is not possible to identify
+                # it because the "direct access to insn bits" provides
+                # absolutely no clue as to its purpose
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += Assert(msr_o[MSR.HV] == 1)
                 with m.Else():
@@ -217,24 +222,27 @@ class Driver(Elaboratable):
                 comb += [
                     Assert(msr_o.ok),
                     Assert(nia_o.ok),
+                    ]
 
-                    Assert(msr_o[MSR.HV] == (srr1_i[MSR.HV] & msr_i[MSR.HV])),
-                    Assert(msr_o[MSR.EE] == (srr1_i[MSR.EE] | srr1_i[MSR.PR])),
-                    Assert(msr_o[MSR.IR] == (srr1_i[MSR.IR] | srr1_i[MSR.PR])),
-                    Assert(msr_o[MSR.DR] == (srr1_i[MSR.DR] | srr1_i[MSR.PR])),
-                    Assert(field(msr_o, 0, 2) == field(srr1_i, 0, 2)),
-                    Assert(field(msr_o, 4, 28) == field(srr1_i, 4, 28)),
-                    Assert(msr_o[63-32] == srr1_i[63-32]),
-                    Assert(field(msr_o, 37, 41) == field(srr1_i, 37, 41)),
-                    Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
-                    Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
-                    Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
-                    Assert(nia_o.data == Cat(Const(0, 2), dut.i.srr0[2:])),
-                ]
-                with m.If(msr_i[MSR.HV]):
-                    comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])
+                # Note: going through the spec pseudo-code, line-by-line,
+                # in order, with these assertions.  idea is: compare
+                # *directly* against the pseudo-code.  therefore, leave
+                # numbering in (from pseudo-code) and add *comments* about
+                # which field it is (3 == HV etc.)
+
+                # spec: MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
+                with m.If(msr_i[3]): # HV
+                    comb += Assert(msr_o[51] == srr1_i[51]) # ME from SRR1
                 with m.Else():
-                    comb += Assert(msr_o[MSR.ME] == msr_i[MSR.ME])
+                    comb += Assert(msr_o[51] == msr_i[51]) # ME from MSR (in)
+
+                comb += [
+                    # spec: MSR[3] <- (MSR[3] & SRR1[3])
+                    Assert(msr_o[3] == (srr1_i[3] & msr_i[3])), # HV
+                ]
+
+                # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
+                #     MSR[29:31] <- SRR1[29:31]
                 with m.If((field(msr_i , 29, 31) != 0b010) |
                           (field(srr1_i, 29, 31) != 0b000)):
                     comb += Assert(field(msr_o.data, 29, 31) ==
@@ -242,6 +250,28 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(field(msr_o.data, 29, 31) ==
                                    field(msr_i, 29, 31))
+
+                # check EE (48) IR (58), DR (59): PR (49) will over-ride
+                comb += [
+                    Assert(msr_o[48] == (srr1_i[48] | srr1_i[48])), # EE
+                    Assert(msr_o[58] == (srr1_i[58] | srr1_i[58])), # IR
+                    Assert(msr_o[59] == (srr1_i[59] | srr1_i[59])), # DR
+                ]
+
+                # remaining bits: straight copy.  don't know what these are:
+                # just trust the v3.0B spec is correct.
+                comb += [
+                    Assert(field(msr_o, 0, 2) == field(srr1_i, 0, 2)),
+                    Assert(field(msr_o, 4, 28) == field(srr1_i, 4, 28)),
+                    Assert(field(msr_o, 32) == field(srr1_i, 32),
+                    Assert(field(msr_o, 37, 41) == field(srr1_i, 37, 41)),
+                    Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
+                    Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
+                    Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
+                ]
+
+                # check NIA against SRR0.  2 LSBs are set to zero (word-align)
+                comb += Assert(nia_o.data == Cat(Const(0, 2), dut.i.srr0[2:]))
 
         comb += dut.i.ctx.matches(dut.o.ctx)
 
