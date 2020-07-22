@@ -76,8 +76,19 @@ def get_rec_width(rec):
 
 class CommonPipeSpec:
     def __init__(self, id_wid):
+        # this defines what type of pipeline base class (dynamic mixin)
+        # is to be used for *ALL* pipelines.  replace with MaskCancellableRedir
+        # when the Dependency Matrices are added: mask and stop signals will
+        # then "magically" appear right the way through every single pipeline
         self.pipekls = SimpleHandshakeRedir
+
+        # this is for the ReservationStation muxid width
         self.id_wid = id_wid
+
+        # this is the "operation context" which is passed through all pipeline
+        # stages.  it is a PowerDecoder2 subset (actually Decode2ToOperand)
         self.opkls = lambda _: self.opsubsetkls(name="op")
         self.op_wid = get_rec_width(self.opkls(None)) # hmm..
+
+        # gets set up by Pipeline API.
         self.stage = None
