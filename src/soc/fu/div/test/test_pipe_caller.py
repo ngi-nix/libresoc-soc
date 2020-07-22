@@ -1,13 +1,11 @@
-from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
-from nmigen.cli import rtlil
+import random
 import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
+from nmigen import Module, Signal
+from nmigen.back.pysim import Simulator, Delay
+from nmigen.cli import rtlil
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.power_enums import XER_bits, Function
 from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
@@ -15,7 +13,6 @@ from soc.config.endian import bigendian
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
-import random
 
 
 def log_rand(n, min_val=1):
@@ -68,15 +65,17 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class DivTestCase(FHDLTestCase):
-    test_data = []
+class DivTestCases:
+    def __init__(self):
+        self.test_data = []
+        for n, v in self.__class__.__dict__.items():
+            if n.startswith("test") and callable(v):
+                self._current_test_name = n
+                v(self)
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
+    def run_test_program(self, prog, initial_regs=None, initial_sprs=None):
+        tc = TestCase(prog, self._current_test_name,
+                      initial_regs, initial_sprs)
         self.test_data.append(tc)
 
     def tst_0_regression(self):
@@ -85,35 +84,35 @@ class DivTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = 0xbc716835f32ac00c
             initial_regs[2] = 0xcdf69a7f7042db66
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_1_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x10000000000000000-4
         initial_regs[2] = 0x10000000000000000-2
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_2_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffff9321
         initial_regs[2] = 0xffffffffffff7012
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_3_regression(self):
         lst = ["divwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1b8e32f2458746af
         initial_regs[2] = 0x6b8aee2ccf7d62e9
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_4_regression(self):
         lst = ["divw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1c4e6c2f3aa4a05c
         initial_regs[2] = 0xe730c2eed6cc8dd7
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_5_regression(self):
         lst = ["divw 3, 1, 2",
@@ -123,7 +122,7 @@ class DivTestCase(FHDLTestCase):
         initial_regs[2] = 0xe730c2eed6cc8dd7
         initial_regs[4] = 0x1b8e32f2458746af
         initial_regs[5] = 0x6b8aee2ccf7d62e9
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_6_regression(self):
         # CR0 not getting set properly for this one
@@ -134,36 +133,36 @@ class DivTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = 0x61c1cc3b80f2a6af
         initial_regs[2] = 0x9dc66a7622c32bc0
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_7_regression(self):
+    def tst_7_regression(self):
         # https://bugs.libre-soc.org/show_bug.cgi?id=425
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xf1791627e05e8096
         initial_regs[2] = 0xffc868bf4573da0b
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1
         initial_regs[2] = 0x0
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_divw_overflow2(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffffffffffff  # top bits don't seem to matter
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_divw_overflow3(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
@@ -173,21 +172,21 @@ class DivTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = log_rand(32)
             initial_regs[2] = log_rand(32)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divwuo_regression_1(self):
+    def test_divwuo_regression_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7591a398c4e32b68
         initial_regs[2] = 0x48674ab432867d69
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_divwuo_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x50
         initial_regs[2] = 0x2
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.run_test_program(Program(lst, bigendian), initial_regs)
 
     def tst_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
@@ -197,22 +196,28 @@ class DivTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = log_rand(32)
             initial_regs[2] = log_rand(32)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_ilang(self):
-        pspec = DivPipeSpec(id_wid=2)
+
+class TestRunner(unittest.TestCase):
+    def write_ilang(self, div_pipe_kind):
+        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=div_pipe_kind)
         alu = DivBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("div_pipeline.il", "w") as f:
+        with open(f"div_pipeline_{div_pipe_kind.name}.il", "w") as f:
             f.write(vl)
 
+    def test_write_ilang_div_pipe_core(self):
+        self.write_ilang(DivPipeKind.DivPipeCore)
 
-class TestRunner(FHDLTestCase):
-    def __init__(self, test_data):
-        super().__init__("run_all")
-        self.test_data = test_data
+    def test_write_ilang_fsm_div_core(self):
+        self.write_ilang(DivPipeKind.FSMDivCore)
 
-    def run_all(self):
+    def test_write_ilang_sim_only(self):
+        self.write_ilang(DivPipeKind.SimOnly)
+
+    def run_all(self, div_pipe_kind):
+        test_data = DivTestCases().test_data
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -221,9 +226,7 @@ class TestRunner(FHDLTestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        # TODO(programmerjake): thread div_pipe_kind through somehow to allow
-        # testing other cases
-        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=DivPipeKind.SimOnly)
+        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=div_pipe_kind)
         m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
@@ -234,75 +237,80 @@ class TestRunner(FHDLTestCase):
         sim.add_clock(1e-6)
 
         def process():
-            for test in self.test_data:
+            for test in test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                          test.mem, test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
-                yield Settle()
+                with self.subTest(test.name):
+                    isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                                  test.mem, test.msr,
+                                  bigendian=bigendian)
+                    gen = program.generate_instructions()
+                    instructions = list(
+                        zip(gen, program.assembly.splitlines()))
+                    yield Delay(0.1e-6)
 
-                index = sim.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
+                    index = isa_sim.pc.CIA.value//4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
 
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-                    if 'XER' in sim.spr:
-                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print("before: so/ov/32", so, ov, ov32)
+                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                        print(code)
+                        if 'XER' in isa_sim.spr:
+                            so = 1 if isa_sim.spr['XER'][XER_bits['SO']] else 0
+                            ov = 1 if isa_sim.spr['XER'][XER_bits['OV']] else 0
+                            ov32 = 1 if isa_sim.spr['XER'][XER_bits['OV32']] else 0
+                            print("before: so/ov/32", so, ov, ov32)
 
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.DIV.value)
-                    yield from set_alu_inputs(alu, pdecode2, sim)
+                        # ask the decoder to decode this binary data (endian'd)
+                        # little / big?
+                        yield pdecode2.dec.bigendian.eq(bigendian)
+                        yield instruction.eq(ins)          # raw binary instr.
+                        yield Delay(0.1e-6)
+                        fn_unit = yield pdecode2.e.do.fn_unit
+                        self.assertEqual(fn_unit, Function.DIV.value)
+                        yield from set_alu_inputs(alu, pdecode2, isa_sim)
 
-                    # set valid for one cycle, propagate through pipeline...
-                    yield alu.p.valid_i.eq(1)
-                    yield
-                    yield alu.p.valid_i.eq(0)
-
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
-                    index = sim.pc.CIA.value//4
-
-                    vld = yield alu.n.valid_o
-                    while not vld:
+                        # set valid for one cycle, propagate through pipeline...
+                        yield alu.p.valid_i.eq(1)
                         yield
-                        vld = yield alu.n.valid_o
-                        # bug #425 investigation
-                        do = alu.pipe_end.div_out
-                        ctx_op = do.i.ctx.op
-                        is_32bit = yield ctx_op.is_32bit
-                        is_signed = yield ctx_op.is_signed
-                        quotient_root = yield do.i.core.quotient_root
-                        quotient_65 = yield do.quotient_65
-                        dive_abs_ov32 = yield do.i.dive_abs_ov32
-                        div_by_zero = yield do.i.div_by_zero
-                        quotient_neg = yield do.quotient_neg
-                        print("32bit", hex(is_32bit))
-                        print("signed", hex(is_signed))
-                        print("quotient_root", hex(quotient_root))
-                        print("quotient_65", hex(quotient_65))
-                        print("div_by_zero", hex(div_by_zero))
-                        print("dive_abs_ov32", hex(dive_abs_ov32))
-                        print("quotient_neg", hex(quotient_neg))
-                        print("")
-                    yield
+                        yield alu.p.valid_i.eq(0)
 
-                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
-                    yield Settle()
+                        opname = code.split(' ')[0]
+                        yield from isa_sim.call(opname)
+                        index = isa_sim.pc.CIA.value//4
+
+                        vld = yield alu.n.valid_o
+                        while not vld:
+                            yield
+                            yield Delay(0.1e-6)
+                            vld = yield alu.n.valid_o
+                            # bug #425 investigation
+                            do = alu.pipe_end.div_out
+                            ctx_op = do.i.ctx.op
+                            is_32bit = yield ctx_op.is_32bit
+                            is_signed = yield ctx_op.is_signed
+                            quotient_root = yield do.i.core.quotient_root
+                            quotient_65 = yield do.quotient_65
+                            dive_abs_ov32 = yield do.i.dive_abs_ov32
+                            div_by_zero = yield do.i.div_by_zero
+                            quotient_neg = yield do.quotient_neg
+                            print("32bit", hex(is_32bit))
+                            print("signed", hex(is_signed))
+                            print("quotient_root", hex(quotient_root))
+                            print("quotient_65", hex(quotient_65))
+                            print("div_by_zero", hex(div_by_zero))
+                            print("dive_abs_ov32", hex(dive_abs_ov32))
+                            print("quotient_neg", hex(quotient_neg))
+                            print("")
+                        yield
+
+                        yield Delay(0.1e-6)
+                        print("time:", sim._state.timeline.now)
+                        yield from self.check_alu_outputs(alu, pdecode2, isa_sim, code)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("div_simulator.vcd", "div_simulator.gtkw",
+        with sim.write_vcd(f"div_simulator_{div_pipe_kind.name}.vcd",
+                           f"div_simulator_{div_pipe_kind.name}.gtkw",
                            traces=[]):
             sim.run()
 
@@ -349,11 +357,15 @@ class TestRunner(FHDLTestCase):
             self.assertEqual(ov_ok, False, code)
             self.assertEqual(so_ok, False, code)
 
+    def test_run_div_pipe_core(self):
+        self.run_all(DivPipeKind.DivPipeCore)
+
+    def test_run_fsm_div_core(self):
+        self.run_all(DivPipeKind.FSMDivCore)
+
+    def test_run_sim_only(self):
+        self.run_all(DivPipeKind.SimOnly)
+
 
 if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(TestRunner(DivTestCase.test_data))
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    unittest.main()

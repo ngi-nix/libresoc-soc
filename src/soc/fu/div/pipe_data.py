@@ -129,15 +129,28 @@ class DivPipeKind(enum.Enum):
 
 
 class DivPipeSpec(CommonPipeSpec):
-    def __init__(self, id_wid, div_pipe_kind=None):
-        if div_pipe_kind is None:
-            div_pipe_kind = DivPipeKind.DivPipeCore
+    def __init__(self, id_wid, div_pipe_kind):
         super().__init__(id_wid=id_wid)
         self.div_pipe_kind = div_pipe_kind
         self.core_config = div_pipe_kind.config.core_config
 
     regspec = (DivInputData.regspec, DivMulOutputData.regspec)
     opsubsetkls = CompLogicalOpSubset
+
+
+class DivPipeSpecDivPipeCore(DivPipeSpec):
+    def __init__(self, id_wid):
+        super().__init__(id_wid=id_wid, div_pipe_kind=DivPipeKind.DivPipeCore)
+
+
+class DivPipeSpecFSMDivCore(DivPipeSpec):
+    def __init__(self, id_wid):
+        super().__init__(id_wid=id_wid, div_pipe_kind=DivPipeKind.FSMDivCore)
+
+
+class DivPipeSpecSimOnly(DivPipeSpec):
+    def __init__(self, id_wid):
+        super().__init__(id_wid=id_wid, div_pipe_kind=DivPipeKind.SimOnly)
 
 
 class CoreBaseData(DivInputData):

@@ -111,6 +111,7 @@ class DivOutputStage(PipeModBase):
         ##########################
         # main switch for Div
 
+        comb += self.o.o.ok.eq(1)
         o = self.o.o.data
 
         with m.If(~ov):  # result is valid (no overflow)

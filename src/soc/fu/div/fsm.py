@@ -2,6 +2,7 @@ import enum
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
 from soc.fu.div.pipe_data import CoreInputData, CoreOutputData, DivPipeSpec
 from nmutil.iocontrol import PrevControl, NextControl
+from nmutil.singlepipe import ControlBase
 from ieee754.div_rem_sqrt_rsqrt.core import DivPipeCoreOperation
 
 
@@ -55,7 +56,7 @@ class FSMDivCorePrevControl(PrevControl):
     data_i: CoreInputData
 
     def __init__(self, pspec):
-        super().__init__(stage_ctl=True, maskwid=pspec.id_wid)
+        super().__init__()
         self.pspec = pspec
         self.data_i = CoreInputData(pspec)
 
@@ -64,7 +65,7 @@ class FSMDivCoreNextControl(NextControl):
     data_o: CoreOutputData
 
     def __init__(self, pspec):
-        super().__init__(stage_ctl=True, maskwid=pspec.id_wid)
+        super().__init__()
         self.pspec = pspec
         self.data_o = CoreOutputData(pspec)
 
@@ -140,13 +141,14 @@ class DivState:
                 self.dividend_quotient.eq(rhs.dividend_quotient)]
 
 
-class FSMDivCoreStage(Elaboratable):
+class FSMDivCoreStage(ControlBase):
     def __init__(self, pspec: DivPipeSpec):
+        super().__init__()
         self.pspec = pspec
+        # override p and n
         self.p = FSMDivCorePrevControl(pspec)
         self.n = FSMDivCoreNextControl(pspec)
         self.saved_input_data = CoreInputData(pspec)
-        self.canceled = Signal()
         self.empty = Signal(reset=1)
         self.saved_state = DivState(64, name="saved_state")
         self.div_state_next = DivStateNext(64)
@@ -154,33 +156,38 @@ class FSMDivCoreStage(Elaboratable):
         self.divisor = Signal(unsigned(64))
 
     def elaborate(self, platform):
-        m = Module()
-        m.submodules.p = self.p
-        m.submodules.n = self.n
+        m = super().elaborate(platform)
         m.submodules.div_state_next = self.div_state_next
         m.submodules.div_state_init = self.div_state_init
         data_i = self.p.data_i
         core_i: FSMDivCoreInputData = data_i.core
         data_o = self.n.data_o
         core_o: FSMDivCoreOutputData = data_o.core
+        core_saved_i: FSMDivCoreInputData = self.saved_input_data.core
 
-        # TODO: calculate self.canceled from self.p.data_i.ctx
-        m.d.comb += self.canceled.eq(False)
+        # TODO: handle cancellation
 
         m.d.comb += self.div_state_init.dividend.eq(core_i.dividend)
 
-        # FIXME(programmerjake): finish
-        raise NotImplementedError()
-        with m.If(self.canceled):
+        m.d.comb += data_o.eq_without_core(self.saved_input_data)
+        m.d.comb += core_o.quotient_root.eq(self.div_state_next.o.quotient)
+        m.d.comb += core_o.remainder.eq(self.div_state_next.o.remainder)
+        m.d.comb += self.n.valid_o.eq(~self.empty & self.div_state_next.o.done)
+        m.d.comb += self.p.ready_o.eq(self.empty)
+        m.d.sync += self.saved_state.eq(self.div_state_next.o)
+
+        with m.If(self.empty):
+            m.d.comb += self.div_state_next.i.eq(self.div_state_init.o)
+            m.d.comb += self.div_state_next.divisor.eq(core_i.divisor_radicand)
             with m.If(self.p.valid_i):
-                ...
-            with m.Else():
-                ...
+                m.d.sync += self.empty.eq(0)
+                m.d.sync += self.saved_input_data.eq(data_i)
         with m.Else():
-            with m.If(self.p.valid_i):
-                ...
-            with m.Else():
-                ...
+            m.d.comb += [
+                self.div_state_next.i.eq(self.saved_state),
+                self.div_state_next.divisor.eq(core_saved_i.divisor_radicand)]
+            with m.If(self.n.ready_i & self.n.valid_o):
+                m.d.sync += self.empty.eq(1)
 
         return m
 

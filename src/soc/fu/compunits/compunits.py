@@ -72,13 +72,13 @@ from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 
 from soc.fu.div.pipeline import DivBasePipe
-from soc.fu.div.pipe_data import DivPipeSpec
+from soc.fu.div.pipe_data import DivPipeSpecDivPipeCore
 
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
 
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
-from soc.experiment.compldst_multi import LDSTCompUnit # special-case
+from soc.experiment.compldst_multi import LDSTCompUnit  # special-case
 
 
 ###################################################################
@@ -103,13 +103,14 @@ class FunctionUnitBaseSingle(MultiCompUnit):
     decoding) which read-register ports are to be requested.  this is not
     ideal (it could be a lot neater) but works for now.
     """
+
     def __init__(self, speckls, pipekls, idx):
         alu_name = "alu_%s%d" % (self.fnunit.name.lower(), idx)
         pspec = speckls(id_wid=2)                # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
-        super().__init__(regspec, alu, opsubset, name=alu_name) # MultiCompUnit
+        super().__init__(regspec, alu, opsubset, name=alu_name)  # MultiCompUnit
 
 
 ##############################################################
@@ -124,52 +125,72 @@ class FunctionUnitBaseMulti:
 
 class ALUFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.ALU
+
     def __init__(self, idx):
         super().__init__(ALUPipeSpec, ALUBasePipe, idx)
 
+
 class LogicalFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.LOGICAL
+
     def __init__(self, idx):
         super().__init__(LogicalPipeSpec, LogicalBasePipe, idx)
 
+
 class CRFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.CR
+
     def __init__(self, idx):
         super().__init__(CRPipeSpec, CRBasePipe, idx)
 
+
 class BranchFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.BRANCH
+
     def __init__(self, idx):
         super().__init__(BranchPipeSpec, BranchBasePipe, idx)
 
+
 class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SHIFT_ROT
+
     def __init__(self, idx):
         super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe, idx)
 
+
 class DivFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
+
     def __init__(self, idx):
-        super().__init__(DivPipeSpec, DivBasePipe, idx)
+        super().__init__(DivPipeSpecDivPipeCore, DivBasePipe, idx)
+
 
 class MulFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.MUL
+
     def __init__(self, idx):
         super().__init__(MulPipeSpec, MulBasePipe, idx)
 
+
 class TrapFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.TRAP
+
     def __init__(self, idx):
         super().__init__(TrapPipeSpec, TrapBasePipe, idx)
 
+
 class SPRFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.SPR
+
     def __init__(self, idx):
         super().__init__(SPRPipeSpec, SPRBasePipe, idx)
 
 # special-case
+
+
 class LDSTFunctionUnit(LDSTCompUnit):
     fnunit = Function.LDST
+
     def __init__(self, pi, awid, idx):
         pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
@@ -195,6 +216,7 @@ class AllFunctionUnits(Elaboratable):
      * type of FU required
 
     """
+
     def __init__(self, pspec, pilist=None):
         addrwid = pspec.addr_wid
         units = pspec.units
@@ -205,14 +227,14 @@ class AllFunctionUnits(Elaboratable):
                      'mul': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
-                 'cr': CRFunctionUnit,
-                 'branch': BranchFunctionUnit,
-                 'trap': TrapFunctionUnit,
-                 'spr': SPRFunctionUnit,
-                 'div': DivFunctionUnit,
-                 'mul': MulFunctionUnit,
-                 'logical': LogicalFunctionUnit,
-                 'shiftrot': ShiftRotFunctionUnit,
+                'cr': CRFunctionUnit,
+                'branch': BranchFunctionUnit,
+                'trap': TrapFunctionUnit,
+                'spr': SPRFunctionUnit,
+                'div': DivFunctionUnit,
+                'mul': MulFunctionUnit,
+                'logical': LogicalFunctionUnit,
+                'shiftrot': ShiftRotFunctionUnit,
                 }
         self.fus = {}
         for name, qty in units.items():
@@ -258,6 +280,7 @@ def tst_all_fus():
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("all_fus.il", "w") as f:
         f.write(vl)
+
 
 if __name__ == '__main__':
     tst_single_fus_il()

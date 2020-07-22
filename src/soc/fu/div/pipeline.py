@@ -73,9 +73,9 @@ class DivBasePipe(ControlBase):
     def elaborate(self, platform):
         m = ControlBase.elaborate(self, platform)
         m.submodules.pipe_start = self.pipe_start
-        for i in self.pipe_middles:
-            name = f"pipe_{i.stage_start_index}_to_{i.stage_end_index}"
-            setattr(m.submodules, name, i)
+        for i in range(len(self.pipe_middles)):
+            name = f"pipe_middle_{i}"
+            setattr(m.submodules, name, self.pipe_middles[i])
         m.submodules.pipe_end = self.pipe_end
         m.d.comb += self._eqs
         return m
