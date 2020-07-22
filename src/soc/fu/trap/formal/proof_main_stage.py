@@ -9,13 +9,14 @@ Links:
 
 import unittest
 
-from nmigen import Cat, Const, Elaboratable, Module, Signal
+from nmigen import Cat, Const, Elaboratable, Module, Signal, signed
 from nmigen.asserts import Assert, AnyConst
 from nmigen.cli import rtlil
 
+from nmutil.extend import exts
 from nmutil.formaltest import FHDLTestCase
 
-from soc.consts import MSR
+from soc.consts import MSR, PI, TT
 
 from soc.decoder.power_enums import MicrOp
 
@@ -47,12 +48,108 @@ class Driver(Elaboratable):
         # frequently used aliases
         op = dut.i.ctx.op
         msr_o, msr_i = dut.o.msr, op.msr
+        srr0_o, srr0_i = dut.o.srr0, dut.i.srr0
         srr1_o, srr1_i = dut.o.srr1, dut.i.srr1
+        nia_o = dut.o.nia
 
         comb += op.eq(rec)
 
         # start of properties
         with m.Switch(op.insn_type):
+            with m.Case(MicrOp.OP_TRAP):
+                to = Signal(5)
+                comb += to.eq(op.insn[31-10:31-5])
+
+                a_i = Signal(64)
+                b_i = Signal(64)
+                comb += a_i.eq(dut.i.a)
+                comb += b_i.eq(dut.i.b)
+
+                a_s = Signal(signed(64), reset_less=True)
+                b_s = Signal(signed(64), reset_less=True)
+                a = Signal(64, reset_less=True)
+                b = Signal(64, reset_less=True)
+
+                with m.If(op.is_32bit):
+                    comb += a_s.eq(exts(a_i, 32, 64))
+                    comb += b_s.eq(exts(b_i, 32, 64))
+                    comb += a.eq(a_i[0:32])
+                    comb += b.eq(b_i[0:32])
+                with m.Else():
+                    comb += a_s.eq(a_i)
+                    comb += b_s.eq(b_i)
+                    comb += a.eq(a_i)
+                    comb += b.eq(b_i)
+
+                lt_s = Signal(reset_less=True)
+                gt_s = Signal(reset_less=True)
+                lt_u = Signal(reset_less=True)
+                gt_u = Signal(reset_less=True)
+                equal = Signal(reset_less=True)
+
+                comb += lt_s.eq(a_s < b_s)
+                comb += gt_s.eq(a_s > b_s)
+                comb += lt_u.eq(a < b)
+                comb += gt_u.eq(a > b)
+                comb += equal.eq(a == b)
+
+                trapbits = Signal(5, reset_less=True)
+                comb += trapbits.eq(Cat(gt_u, lt_u, equal, gt_s, lt_s))
+
+                take_trap = Signal()
+                traptype = op.traptype
+                comb += take_trap.eq(traptype.any() | (trapbits & to).any())
+
+                with m.If(take_trap):
+                    expected_msr = Signal(len(msr_o.data))
+                    comb += expected_msr.eq(op.msr)
+
+                    comb += expected_msr[MSR.IR].eq(0)
+                    comb += expected_msr[MSR.DR].eq(0)
+                    comb += expected_msr[MSR.FE0].eq(0)
+                    comb += expected_msr[MSR.FE1].eq(0)
+                    comb += expected_msr[MSR.EE].eq(0)
+                    comb += expected_msr[MSR.RI].eq(0)
+                    comb += expected_msr[MSR.SF].eq(1)
+                    comb += expected_msr[MSR.TM].eq(0)
+                    comb += expected_msr[MSR.VEC].eq(0)
+                    comb += expected_msr[MSR.VSX].eq(0)
+                    comb += expected_msr[MSR.PR].eq(0)
+                    comb += expected_msr[MSR.FP].eq(0)
+                    comb += expected_msr[MSR.PMM].eq(0)
+                    comb += expected_msr[MSR.TEs:MSR.TEe+1].eq(0)
+                    comb += expected_msr[MSR.UND].eq(0)
+                    comb += expected_msr[MSR.LE].eq(1)
+
+                    with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
+                        comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
+                    with m.Else():
+                        comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(
+                            op.msr[MSR.TSs:MSR.TSe+1]
+                        )
+
+                    expected_srr1 = Signal(len(srr1_o.data))
+                    comb += expected_srr1.eq(op.msr)
+
+                    comb += expected_srr1[63-36:63-32].eq(0)
+                    comb += expected_srr1[PI.TRAP].eq(traptype == 0)
+                    comb += expected_srr1[PI.PRIV].eq(traptype[1])
+                    comb += expected_srr1[PI.FP].eq(traptype[0])
+                    comb += expected_srr1[PI.ADR].eq(traptype[3])
+                    comb += expected_srr1[PI.ILLEG].eq(traptype[4])
+                    comb += expected_srr1[PI.TM_BAD_THING].eq(0)
+
+                    comb += [
+                        Assert(msr_o.ok),
+                        Assert(msr_o.data == expected_msr),
+                        Assert(srr0_o.ok),
+                        Assert(srr0_o.data == op.cia),
+                        Assert(srr1_o.ok),
+                        Assert(srr1_o.data == expected_srr1),
+                        Assert(nia_o.ok),
+                        Assert(nia_o.data == op.trapaddr << 4),
+                    ]
+
             with m.Case(MicrOp.OP_SC):
                 expected_msr = Signal(len(msr_o.data))
                 comb += expected_msr.eq(op.msr)
@@ -110,7 +207,7 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_RFID):
                 comb += [
                     Assert(msr_o.ok),
-                    Assert(dut.o.nia.ok),
+                    Assert(nia_o.ok),
 
                     Assert(msr_o[MSR.HV] == (srr1_i[MSR.HV] & msr_i[MSR.HV])),
                     Assert(msr_o[MSR.EE] == (srr1_i[MSR.EE] | srr1_i[MSR.PR])),
@@ -123,7 +220,7 @@ class Driver(Elaboratable):
                     Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
                     Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
                     Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
-                    Assert(dut.o.nia.data == Cat(Const(0, 2), dut.i.srr0[2:])),
+                    Assert(nia_o.data == Cat(Const(0, 2), dut.i.srr0[2:])),
                 ]
                 with m.If(msr_i[MSR.HV]):
                     comb += Assert(msr_o[MSR.ME] == srr1_i[MSR.ME])

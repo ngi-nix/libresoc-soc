@@ -31,6 +31,7 @@ class MSR:
 # (TODO: add more?)
 
 class PI:
+    TM_BAD_THING = (63 - 42) # 1 for a TM Bad Thing type interrupt
     FP    = (63 - 43)    # 1 if FP exception
     ILLEG = (63 - 44)    # 1 if illegal instruction (not doing hypervisor)
     PRIV  = (63 - 45)    # 1 if privileged interrupt
