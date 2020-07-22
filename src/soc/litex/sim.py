@@ -63,7 +63,7 @@ class SoCSMP(SoCCore):
 
         # SoCCore --------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            cpu_type                 = "microwatt", # XXX use None for now libre_soc
+            cpu_type                 = "microwatt", # XXX use microwatt
             cpu_variant              = cpu_variant,
             cpu_cls                  = LibreSOC,
             uart_name                = "sim",
