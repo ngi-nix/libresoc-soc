@@ -9,13 +9,13 @@ from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.cores.cpu import CPU
 
 CPU_VARIANTS = ["standard"]
 
 
 class LibreSOC(CPU):
-    name                 = "libre-soc"
+    name                 = "libre_soc"
     human_name           = "Libre-SOC"
     variants             = CPU_VARIANTS
     data_width           = 64
@@ -135,8 +135,7 @@ class LibreSOC(CPU):
     def do_finalize(self):
         verilog_filename = os.path.join(self.platform.output_dir,
                                         "gateware", "libre-soc.v")
-        self.elaborate(
-            verilog_filename = verilog_filename)
+        self.elaborate(verilog_filename=verilog_filename)
         self.platform.add_source(verilog_filename)
         self.specials += Instance("test_issuer", **self.cpu_params)
 
