@@ -4,6 +4,9 @@
 """
 Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=421
+* https://libre-soc.org/openpower/isa/fixedtrap/
+* https://libre-soc.org/openpower/isa/sprset/
+* https://libre-soc.org/openpower/isa/system/
 """
 
 
@@ -57,6 +60,8 @@ class Driver(Elaboratable):
         # start of properties
         with m.Switch(op.insn_type):
             with m.Case(MicrOp.OP_TRAP):
+                # TODO: put back use of fields, do not access insn bits direct
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
                 to = Signal(5)
                 comb += to.eq(op.insn[31-10:31-5])
 
@@ -180,6 +185,8 @@ class Driver(Elaboratable):
                     )
 
                 # Power ISA V3.0B, Book 2, Section 3.3.1
+                # TODO: put back use of fields, do not access insn bits direct
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += expected_msr[MSR.HV].eq(1)
                 with m.Else():
@@ -199,6 +206,8 @@ class Driver(Elaboratable):
 
                     Assert(msr_o.data == expected_msr),
                 ]
+                # TODO: put back use of fields, do not access insn bits direct
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += Assert(msr_o[MSR.HV] == 1)
                 with m.Else():
