@@ -27,8 +27,10 @@ class MSR:
 
 # Listed in V3.0B Book III 7.5.9 "Program Interrupt"
 
-# note that these correspond to trap_input_record.traptype bits 0,1,2,3
+# note that these correspond to trap_input_record.traptype bits 0,1,2,3,4
 # (TODO: add more?)
+# IMPORTANT: when adding extra bits here it is CRITICALLY IMPORTANT
+# to expand traptype to cope with the increased range
 
 class PI:
     TM_BAD_THING = (63 - 42) # 1 for a TM Bad Thing type interrupt
@@ -39,10 +41,12 @@ class PI:
     ADR   = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
 
 # see traptype (and trap main_stage.py)
+# IMPORTANT: when adding extra bits here it is CRITICALLY IMPORTANT
+# to expand traptype to cope with the increased range
 
 class TT:
     FP = 1<<0
     PRIV = 1<<1
     TRAP = 1<<2
     ADDR = 1<<3
-    ILLEG = 1<<4
+    ILLEG = 1<<4 # currently the max, therefore traptype must be 5 bits
