@@ -7,7 +7,7 @@ Links:
 """
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
-                    signed, Array)
+                    signed, Array, Const)
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmutil.formaltest import FHDLTestCase
 from nmutil.extend import exts
@@ -63,12 +63,14 @@ class Driver(Elaboratable):
         cr_arr = Array([cr[(7-i)*4:(7-i)*4+4] for i in range(8)])
         cr_bit_arr = Array([cr[31-i] for i in range(32)])
 
-        comb += [fast2.eq(AnyConst(64)),
-                 ctr.eq(AnyConst(64)),
-                 ]
+        comb += fast2.eq(AnyConst(64))
+        comb += ctr.eq(AnyConst(64))
 
         i_fields = dut.fields.FormI
         b_fields = dut.fields.FormB
+        xl_fields = dut.fields.FormXL
+
+        # absolute address mode
         AA = i_fields.AA[0:-1]
 
         # Handle CR bit selection
@@ -83,6 +85,11 @@ class Driver(Elaboratable):
         comb += bo.eq(BO)
         cond_ok = Signal()
 
+        # handle conditional
+        XO = xl_fields.XO[0:-1]
+        xo = Signal(XO.shape())
+        comb += xo.eq(XO)
+
         # Check CR according to BO
         comb += cond_ok.eq(bo[4] | (cr_bit_arr[BI] == bo[3]))
 
@@ -93,12 +100,18 @@ class Driver(Elaboratable):
         with m.Else():
             comb += ctr_next.eq(ctr)
 
+        # 32/64 bit CTR
+        ctr_m = Signal.like(ctr)
+        with m.If(rec.is_32bit):
+            comb += ctr_m.eq(ctr[:32])
+        with m.Else():
+            comb += ctr_m.eq(ctr)
+
         # CTR combpare with 0
         ctr_ok = Signal()
-        comb += ctr_ok.eq(BO[2] | ((ctr != 0) ^ BO[1]))
+        comb += ctr_ok.eq(BO[2] | ((ctr_m != 0) ^ BO[1]))
 
         # Sorry, not bothering with 32 bit right now
-        comb += Assume(~rec.is_32bit)
 
         with m.Switch(rec.insn_type):
 
@@ -152,6 +165,7 @@ class Driver(Elaboratable):
                     comb += Assert(dut.o.ctr.ok == 1)
                 with m.Else():
                     comb += Assert(dut.o.ctr.ok == 0)
+
             #### bctar/bcctr/bclr ####
             with m.Case(MicrOp.OP_BCREG):
                 # assert that the condition is good
@@ -159,7 +173,12 @@ class Driver(Elaboratable):
 
                 with m.If(nia_o.ok):
                     # make sure we branch to the spr input
-                    comb += Assert(nia_o.data == fast1)
+                    with m.If(xo[9] & ~xo[5]):
+                        fastext = Cat(Const(0, 2), fast1[2:])
+                        comb += Assert(nia_o.data == fastext[0:64])
+                    with m.Else():
+                        fastext = Cat(Const(0, 2), fast2[2:])
+                        comb += Assert(nia_o.data == fastext[0:64])
 
                     # make sure branch+link works
                     comb += Assert(lr_o.ok == rec.lk)
@@ -172,7 +191,6 @@ class Driver(Elaboratable):
                     comb += Assert(dut.o.ctr.ok == 1)
                 with m.Else():
                     comb += Assert(dut.o.ctr.ok == 0)
-
         return m
 
 
