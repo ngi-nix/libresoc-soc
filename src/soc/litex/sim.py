@@ -4,7 +4,10 @@
 # This file is Copyright (c) 2020 Dolu1990 <charles.papon.90@gmail.com>
 # License: BSD
 
+import os
 import argparse
+
+from migen import ClockDomain
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -72,6 +75,12 @@ class SoCSMP(SoCCore):
 
         self.platform.name = "sim"
         self.add_constant("SIM")
+
+        self.clock_domains.cd_sys = ClockDomain()
+        self.comb += [
+            self.cd_sys.clk.eq(platform.request("sys_clk")),
+            self.cd_sys.rst.eq(platform.request("sys_rst"))
+        ]
 
         # SDRAM ----------------------------------------------------------
         phy_settings = get_sdram_phy_settings(
