@@ -7,10 +7,9 @@
 import os
 import argparse
 
-from migen import ClockDomain
-
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
+from litex.build.io import CRG
 from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.soc import SoCRegion
@@ -76,11 +75,8 @@ class SoCSMP(SoCCore):
         self.platform.name = "sim"
         self.add_constant("SIM")
 
-        self.clock_domains.cd_sys = ClockDomain()
-        self.comb += [
-            self.cd_sys.clk.eq(platform.request("sys_clk")),
-            self.cd_sys.rst.eq(platform.request("sys_rst"))
-        ]
+        # CRG -------------------------------------------------------
+        self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ----------------------------------------------------------
         phy_settings = get_sdram_phy_settings(
