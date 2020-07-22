@@ -1,3 +1,19 @@
+import random
+from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
+from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
+from soc.fu.test.common import TestCase, ALUHelpers
+from soc.config.endian import bigendian
+from soc.decoder.isa.all import ISA
+from soc.simulator.program import Program
+from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.power_enums import (XER_bits, Function, CryIn)
+from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.decoder.power_decoder import (create_pdecode)
+from soc.decoder.isa.caller import ISACaller, special_sprs
+import unittest
+from nmigen.cli import rtlil
+from nmutil.formaltest import FHDLTestCase
 from nmigen import Module, Signal
 from nmigen.back.pysim import Delay, Settle
 # NOTE: to use this (set to True), at present it is necessary to check
@@ -13,36 +29,18 @@ if cxxsim:
 else:
     from nmigen.back.pysim import Simulator
 
-from nmutil.formaltest import FHDLTestCase
-from nmigen.cli import rtlil
-import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, CryIn)
-from soc.decoder.selectable_int import SelectableInt
-from soc.simulator.program import Program
-from soc.decoder.isa.all import ISA
-from soc.config.endian import bigendian
-
-from soc.fu.test.common import TestCase, ALUHelpers
-from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
-from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
-import random
-
 
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to ShiftRotFunctionUnit input regspec
     """
     res = {}
 
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_sim_int_rc(res, sim, dec2) # RC
-    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
+    yield from ALUHelpers.get_sim_int_rc(res, sim, dec2)  # RC
+    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2)  # XER.ca
 
-    print ("inputs", res)
+    print("inputs", res)
 
     return res
 
@@ -80,6 +78,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 class ShiftRotTestCase(FHDLTestCase):
     test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -94,7 +93,7 @@ class ShiftRotTestCase(FHDLTestCase):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, 63)
             print(initial_regs[1], initial_regs[2])
             self.run_tst_program(Program(lst, bigendian), initial_regs)
@@ -102,7 +101,7 @@ class ShiftRotTestCase(FHDLTestCase):
     def test_shift_arith(self):
         lst = ["sraw 3, 1, 2"]
         initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[1] = random.randint(0, (1 << 64)-1)
         initial_regs[2] = random.randint(0, 63)
         print(initial_regs[1], initial_regs[2])
         self.run_tst_program(Program(lst, bigendian), initial_regs)
@@ -118,14 +117,14 @@ class ShiftRotTestCase(FHDLTestCase):
 
     def test_rlwinm(self):
         for i in range(10):
-            mb = random.randint(0,31)
-            me = random.randint(0,31)
-            sh = random.randint(0,31)
+            mb = random.randint(0, 31)
+            me = random.randint(0, 31)
+            sh = random.randint(0, 31)
             lst = [f"rlwinm 3, 1, {mb}, {me}, {sh}",
                    #f"rlwinm. 3, 1, {mb}, {me}, {sh}"
                    ]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlwimi(self):
@@ -138,20 +137,20 @@ class ShiftRotTestCase(FHDLTestCase):
     def test_rlwnm(self):
         lst = ["rlwnm 3, 1, 2, 20, 6"]
         initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[1] = random.randint(0, (1 << 64)-1)
         initial_regs[2] = random.randint(0, 63)
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rldicl(self):
         lst = ["rldicl 3, 1, 5, 20"]
         initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[1] = random.randint(0, (1 << 64)-1)
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rldicr(self):
         lst = ["rldicr 3, 1, 5, 20"]
         initial_regs = [0] * 32
-        initial_regs[1] = random.randint(0, (1<<64)-1)
+        initial_regs[1] = random.randint(0, (1 << 64)-1)
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_regression_extswsli(self):
@@ -181,7 +180,7 @@ class ShiftRotTestCase(FHDLTestCase):
             sh = random.randint(0, 63)
             lst = [f"extswsli 3, 1, {sh}"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rlc(self):
@@ -192,7 +191,7 @@ class ShiftRotTestCase(FHDLTestCase):
             m = random.randint(0, 63)
             lst = [f"{choice} 3, 1, {sh}, {m}"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_ilang(self):
@@ -227,6 +226,7 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
@@ -265,16 +265,16 @@ class TestRunner(FHDLTestCase):
                     alu_out = yield alu.n.data_o.o.data
 
                     yield from self.check_alu_outputs(alu, pdecode2,
-                                                            simulator, code)
+                                                      simulator, code)
                     break
 
         sim.add_sync_process(process)
-        print (dir(sim))
+        print(dir(sim))
         if cxxsim:
             sim.run()
         else:
             with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                                traces=[]):
+                               traces=[]):
                 sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
@@ -283,7 +283,7 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
 
@@ -301,7 +301,6 @@ class TestRunner(FHDLTestCase):
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
-
 
 
 if __name__ == "__main__":

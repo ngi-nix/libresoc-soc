@@ -18,7 +18,6 @@ from soc.fu.cr.pipe_data import CRPipeSpec
 import random
 
 
-
 # This test bench is a bit different than is usual. Initially when I
 # was writing it, I had all of the tests call a function to create a
 # device under test and simulator, initialize the dut, run the
@@ -40,6 +39,7 @@ import random
 
 class CRTestCase(FHDLTestCase):
     test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -59,13 +59,13 @@ class CRTestCase(FHDLTestCase):
             bb = random.randint(0, 31)
             bt = random.randint(0, 31)
             lst = [f"{choice} {ba}, {bb}, {bt}"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_crand(self):
         for i in range(20):
             lst = ["crand 0, 11, 13"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_1_mcrf(self):
@@ -73,7 +73,7 @@ class CRTestCase(FHDLTestCase):
             src = random.randint(0, 7)
             dst = random.randint(0, 7)
             lst = [f"mcrf {src}, {dst}"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
         self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_0_mcrf(self):
@@ -86,42 +86,43 @@ class CRTestCase(FHDLTestCase):
         for i in range(20):
             mask = random.randint(0, 255)
             lst = [f"mtcrf {mask}, 2"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             initial_regs = [0] * 32
-            initial_regs[2] = random.randint(0, (1<<32)-1)
+            initial_regs[2] = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
+
     def test_mtocrf(self):
         for i in range(20):
-            mask = 1<<random.randint(0, 7)
+            mask = 1 << random.randint(0, 7)
             lst = [f"mtocrf {mask}, 2"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             initial_regs = [0] * 32
-            initial_regs[2] = random.randint(0, (1<<32)-1)
+            initial_regs[2] = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
 
     def test_mfcr(self):
         for i in range(5):
             lst = ["mfcr 2"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_mfocrf(self):
         for i in range(20):
-            mask = 1<<random.randint(0, 7)
+            mask = 1 << random.randint(0, 7)
             lst = [f"mfocrf 2, {mask}"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_isel(self):
         for i in range(20):
             bc = random.randint(0, 31)
             lst = [f"isel 1, 2, 3, {bc}"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             initial_regs = [0] * 32
-            initial_regs[2] = random.randint(0, (1<<64)-1)
-            initial_regs[3] = random.randint(0, (1<<64)-1)
+            initial_regs[2] = random.randint(0, (1 << 64)-1)
+            initial_regs[3] = random.randint(0, (1 << 64)-1)
             #initial_regs[2] = i*2
             #initial_regs[3] = i*2+1
             self.run_tst_program(Program(lst, bigendian),
@@ -131,14 +132,13 @@ class CRTestCase(FHDLTestCase):
         for i in range(20):
             bfa = random.randint(0, 7)
             lst = [f"setb 1, {bfa}"]
-            cr = random.randint(0, (1<<32)-1)
+            cr = random.randint(0, (1 << 32)-1)
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_regression_setb(self):
         lst = [f"setb 1, 6"]
         cr = random.randint(0, 0x66f6b106)
         self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
-
 
     def test_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
@@ -187,7 +187,7 @@ def get_cu_inputs(dec2, sim):
         data2 = yield dec2.e.read_reg2.data
         res['rb'] = sim.gpr(data2).value
 
-    print ("get inputs", res)
+    print("get inputs", res)
     return res
 
 
@@ -247,6 +247,7 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
@@ -287,7 +288,7 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
 

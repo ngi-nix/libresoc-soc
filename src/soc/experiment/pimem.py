@@ -111,7 +111,7 @@ class PortInterface(RecordObject):
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
     def connect_port(self, inport):
-        print ("connect_port", self, inport)
+        print("connect_port", self, inport)
         return [self.is_ld_i.eq(inport.is_ld_i),
                 self.is_st_i.eq(inport.is_st_i),
                 self.data_len.eq(inport.data_len),
@@ -302,7 +302,7 @@ class TestMemoryPortInterface(PortInterfaceBase):
 
     def set_wr_data(self, m, data, wen):
         m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
-        m.d.comb += self.mem.wrport.en.eq(wen) # enable writes
+        m.d.comb += self.mem.wrport.en.eq(wen)  # enable writes
         return Const(1, 1)
 
     def get_rd_data(self, m):
@@ -319,5 +319,3 @@ class TestMemoryPortInterface(PortInterfaceBase):
     def ports(self):
         yield from super().ports()
         # TODO: memory ports
-
-

@@ -17,14 +17,14 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp)
 from soc.decoder.helpers import exts
-from soc.consts import PIb, MSRb # big-endian (PowerISA versions)
+from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 
 from collections import namedtuple
 import math
 import sys
 
 instruction_info = namedtuple('instruction_info',
-                              'func read_regs uninit_regs write_regs ' + \
+                              'func read_regs uninit_regs write_regs ' +
                               'special_regs op_fields form asmregs')
 
 special_sprs = {
@@ -57,7 +57,7 @@ class Mem:
         self.mem = {}
         self.bytes_per_word = row_bytes
         self.word_log2 = math.ceil(math.log2(row_bytes))
-        print ("Sim-Mem", initial_mem, self.bytes_per_word, self.word_log2)
+        print("Sim-Mem", initial_mem, self.bytes_per_word, self.word_log2)
         if not initial_mem:
             return
 
@@ -81,7 +81,7 @@ class Mem:
         # BE/LE mode?
         shifter = remainder * 8
         mask = (1 << (wid * 8)) - 1
-        print ("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
+        print("width,rem,shift,mask", wid, remainder, hex(shifter), hex(mask))
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
@@ -100,7 +100,7 @@ class Mem:
 
         if width != self.bytes_per_word:
             shifter, mask = self._get_shifter_mask(width, remainder)
-            print ("masking", hex(val), hex(mask<<shifter), shifter)
+            print("masking", hex(val), hex(mask << shifter), shifter)
             val = val & (mask << shifter)
             val >>= shifter
         if swap:
@@ -113,7 +113,7 @@ class Mem:
         remainder = addr & (self.bytes_per_word - 1)
         addr = addr >> self.word_log2
         print("Writing 0x{:x} to ST 0x{:x} memaddr 0x{:x}/{:x}".format(v,
-                        staddr, addr, remainder, swap))
+                                                                       staddr, addr, remainder, swap))
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if swap:
             v = swap_order(v, width)
@@ -132,11 +132,11 @@ class Mem:
 
     def __call__(self, addr, sz):
         val = self.ld(addr.value, sz)
-        print ("memread", addr, sz, val)
+        print("memread", addr, sz, val)
         return SelectableInt(val, sz*8)
 
     def memassign(self, addr, sz, val):
-        print ("memassign", addr, sz, val)
+        print("memassign", addr, sz, val)
         self.st(addr.value, val.value, sz)
 
 
@@ -154,7 +154,7 @@ class GPR(dict):
         self.form = form
 
     def getz(self, rnum):
-        #rnum = rnum.value # only SelectableInt allowed
+        # rnum = rnum.value # only SelectableInt allowed
         print("GPR getzero", rnum)
         if rnum == 0:
             return SelectableInt(0, 64)
@@ -177,6 +177,7 @@ class GPR(dict):
                 s.append("%08x" % self[i+j].value)
             s = ' '.join(s)
             print("reg", "%2d" % i, s)
+
 
 class PC:
     def __init__(self, pc_init=0):
@@ -207,8 +208,8 @@ class SPR(dict):
             self[key] = v
 
     def __getitem__(self, key):
-        print ("get spr", key)
-        print ("dict", self.items())
+        print("get spr", key)
+        print("dict", self.items())
         # if key in special_sprs get the special spr, otherwise return key
         if isinstance(key, SelectableInt):
             key = key.value
@@ -224,7 +225,7 @@ class SPR(dict):
                 info = spr_byname[key]
             dict.__setitem__(self, key, SelectableInt(0, info.length))
             res = dict.__getitem__(self, key)
-        print ("spr returning", key, res)
+        print("spr returning", key, res)
         return res
 
     def __setitem__(self, key, value):
@@ -232,9 +233,9 @@ class SPR(dict):
             key = key.value
         if isinstance(key, int):
             key = spr_dict[key].SPR
-            print ("spr key", key)
+            print("spr key", key)
         key = special_sprs.get(key, key)
-        print ("setting spr", key, value)
+        print("setting spr", key, value)
         dict.__setitem__(self, key, value)
 
     def __call__(self, ridx):
@@ -247,11 +248,11 @@ class ISACaller:
     # initial_{etc} - initial values for SPRs, Condition Register, Mem, MSR
     # respect_pc - tracks the program counter.  requires initial_insns
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
-                       initial_mem=None, initial_msr=0,
-                       initial_insns=None, respect_pc=False,
-                       disassembly=None,
-                       initial_pc=0,
-                       bigendian=False):
+                 initial_mem=None, initial_msr=0,
+                 initial_insns=None, respect_pc=False,
+                 disassembly=None,
+                 initial_pc=0,
+                 bigendian=False):
 
         self.bigendian = bigendian
         self.halted = False
@@ -264,8 +265,8 @@ class ISACaller:
             initial_insns = {}
             assert self.respect_pc == False, "instructions required to honor pc"
 
-        print ("ISACaller insns", respect_pc, initial_insns, disassembly)
-        print ("ISACaller initial_msr", initial_msr)
+        print("ISACaller insns", respect_pc, initial_insns, disassembly)
+        print("ISACaller initial_msr", initial_msr)
 
         # "fake program counter" mode (for unit testing)
         self.fake_pc = 0
@@ -289,7 +290,7 @@ class ISACaller:
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
-        self.msr = SelectableInt(initial_msr, 64) # underlying reg
+        self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
         # TODO, needed here:
         # FPR (same as GPR except for FP nums)
@@ -305,26 +306,26 @@ class ISACaller:
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
         # create CR then allow portions of it to be "selectable" (below)
-        self._cr = SelectableInt(initial_cr, 64) # underlying reg
-        self.cr = FieldSelectableInt(self._cr, list(range(32,64)))
+        self._cr = SelectableInt(initial_cr, 64)  # underlying reg
+        self.cr = FieldSelectableInt(self._cr, list(range(32, 64)))
 
         # "undefined", just set to variable-bit-width int (use exts "max")
-        self.undefined = SelectableInt(0, 256) # TODO, not hard-code 256!
+        self.undefined = SelectableInt(0, 256)  # TODO, not hard-code 256!
 
         self.namespace = {}
         self.namespace.update(self.spr)
         self.namespace.update({'GPR': self.gpr,
-                          'MEM': self.mem,
-                          'SPR': self.spr,
-                          'memassign': self.memassign,
-                          'NIA': self.pc.NIA,
-                          'CIA': self.pc.CIA,
-                          'CR': self.cr,
-                          'MSR': self.msr,
-                          'undefined': self.undefined,
-                          'mode_is_64bit': True,
-                          'SO': XER_bits['SO']
-                          })
+                               'MEM': self.mem,
+                               'SPR': self.spr,
+                               'memassign': self.memassign,
+                               'NIA': self.pc.NIA,
+                               'CIA': self.pc.CIA,
+                               'CR': self.cr,
+                               'MSR': self.msr,
+                               'undefined': self.undefined,
+                               'mode_is_64bit': True,
+                               'SO': XER_bits['SO']
+                               })
 
         # update pc to requested start point
         self.set_pc(initial_pc)
@@ -332,7 +333,7 @@ class ISACaller:
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
         for i in range(8):
-            bits = tuple(range(i*4, (i+1)*4))# errr... maybe?
+            bits = tuple(range(i*4, (i+1)*4))  # errr... maybe?
             _cr = FieldSelectableInt(self.cr, bits)
             self.crl.append(_cr)
             self.namespace["CR%d" % i] = _cr
@@ -341,13 +342,13 @@ class ISACaller:
         self.dec2 = decoder2
 
     def TRAP(self, trap_addr=0x700, trap_bit=PIb.TRAP):
-        print ("TRAP:", hex(trap_addr), hex(self.namespace['MSR'].value))
+        print("TRAP:", hex(trap_addr), hex(self.namespace['MSR'].value))
         # store CIA(+4?) in SRR0, set NIA to 0x700
         # store MSR in SRR1, set MSR to um errr something, have to check spec
         self.spr['SRR0'].value = self.pc.CIA.value
         self.spr['SRR1'].value = self.namespace['MSR'].value
         self.trap_nia = SelectableInt(trap_addr, 64)
-        self.spr['SRR1'][trap_bit] = 1 # change *copy* of MSR in SRR1
+        self.spr['SRR1'][trap_bit] = 1  # change *copy* of MSR in SRR1
 
         # set exception bits.  TODO: this should, based on the address
         # in figure 66 p1065 V3.0B and the table figure 65 p1063 set these
@@ -406,14 +407,14 @@ class ISACaller:
             imm = yield self.dec2.e.do.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
-        print ("outputs", repr(outputs))
+        print("outputs", repr(outputs))
         if isinstance(outputs, list) or isinstance(outputs, tuple):
             output = outputs[0]
         else:
             output = outputs
         gts = []
         for x in inputs:
-            print ("gt input", x, output)
+            print("gt input", x, output)
             gt = (x > output)
             gts.append(gt)
         print(gts)
@@ -421,11 +422,11 @@ class ISACaller:
         if not (1 & already_done):
             self.spr['XER'][XER_bits['CA']] = cy
 
-        print ("inputs", inputs)
+        print("inputs", inputs)
         # 32 bit carry
         gts = []
         for x in inputs:
-            print ("input", x, output)
+            print("input", x, output)
             gt = (x[32:64] > output[32:64]) == SelectableInt(1, 1)
             gts.append(gt)
         cy32 = 1 if any(gts) else 0
@@ -442,7 +443,7 @@ class ISACaller:
             imm = yield self.dec2.e.do.imm_data.data
             inputs.append(SelectableInt(imm, 64))
         assert len(outputs) >= 1
-        print ("handle_overflow", inputs, outputs, div_overflow)
+        print("handle_overflow", inputs, outputs, div_overflow)
         if len(inputs) < 2 and div_overflow is None:
             return
 
@@ -474,19 +475,19 @@ class ISACaller:
 
     def handle_comparison(self, outputs):
         out = outputs[0]
-        print ("handle_comparison", out.bits, hex(out.value))
+        print("handle_comparison", out.bits, hex(out.value))
         # TODO - XXX *processor* in 32-bit mode
         # https://bugs.libre-soc.org/show_bug.cgi?id=424
-        #if is_32bit:
+        # if is_32bit:
         #    o32 = exts(out.value, 32)
         #    print ("handle_comparison exts 32 bit", hex(o32))
         out = exts(out.value, out.bits)
-        print ("handle_comparison exts", hex(out))
+        print("handle_comparison exts", hex(out))
         zero = SelectableInt(out == 0, 1)
         positive = SelectableInt(out > 0, 1)
         negative = SelectableInt(out < 0, 1)
         SO = self.spr['XER'][XER_bits['SO']]
-        print ("handle_comparison SO", SO)
+        print("handle_comparison SO", SO)
         cr_field = selectconcat(negative, positive, zero, SO)
         self.crl[0].eq(cr_field)
 
@@ -506,7 +507,7 @@ class ISACaller:
         if ins is None:
             raise KeyError("no instruction at 0x%x" % pc)
         print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
-        print ("CIA NIA", self.respect_pc, self.pc.CIA.value, self.pc.NIA.value)
+        print("CIA NIA", self.respect_pc, self.pc.CIA.value, self.pc.NIA.value)
 
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
         yield self.dec2.dec.bigendian.eq(self.bigendian)
@@ -524,13 +525,13 @@ class ISACaller:
 
         if not self.respect_pc:
             self.fake_pc += 4
-        print ("execute one, CIA NIA", self.pc.CIA.value, self.pc.NIA.value)
+        print("execute one, CIA NIA", self.pc.CIA.value, self.pc.NIA.value)
 
     def get_assembly_name(self):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmcode = yield self.dec2.dec.op.asmcode
-        print ("get assembly name asmcode", asmcode)
+        print("get assembly name asmcode", asmcode)
         asmop = insns.get(asmcode, None)
         int_op = yield self.dec2.dec.op.internal_op
 
@@ -540,9 +541,9 @@ class ISACaller:
         rc_en = yield self.dec2.e.do.rc.data
         rc_ok = yield self.dec2.e.do.rc.ok
         # grrrr have to special-case MUL op (see DecodeOE)
-        print ("ov en rc en", ov_ok, ov_en, rc_ok, rc_en, int_op)
+        print("ov en rc en", ov_ok, ov_en, rc_ok, rc_en, int_op)
         if int_op in [MicrOp.OP_MUL_H64.value, MicrOp.OP_MUL_H32.value]:
-            print ("mul op")
+            print("mul op")
             if rc_en & rc_ok:
                 asmop += "."
         else:
@@ -551,10 +552,10 @@ class ISACaller:
         lk = yield self.dec2.e.do.lk
         if lk:
             asmop += "l"
-        print ("int_op", int_op)
+        print("int_op", int_op)
         if int_op in [MicrOp.OP_B.value, MicrOp.OP_BC.value]:
             AA = yield self.dec2.dec.fields.FormI.AA[0:-1]
-            print ("AA", AA)
+            print("AA", AA)
             if AA:
                 asmop += "a"
         spr_msb = yield from self.get_spr_msb()
@@ -574,18 +575,18 @@ class ISACaller:
 
     def get_spr_msb(self):
         dec_insn = yield self.dec2.e.do.insn
-        return dec_insn & (1<<20) != 0 # sigh - XFF.spr[-1]?
+        return dec_insn & (1 << 20) != 0  # sigh - XFF.spr[-1]?
 
     def call(self, name):
-        name = name.strip() # remove spaces if not already done so
+        name = name.strip()  # remove spaces if not already done so
         if self.halted:
-            print ("halted - not executing", name)
+            print("halted - not executing", name)
             return
 
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
         asmop = yield from self.get_assembly_name()
-        print  ("call", name, asmop)
+        print("call", name, asmop)
 
         # check privileged
         int_op = yield self.dec2.dec.op.internal_op
@@ -603,8 +604,8 @@ class ISACaller:
                       MicrOp.OP_MTSPR.value] and spr_msb:
             instr_is_privileged = True
 
-        print ("is priv", instr_is_privileged, hex(self.msr.value),
-                          self.msr[MSRb.PR])
+        print("is priv", instr_is_privileged, hex(self.msr.value),
+              self.msr[MSRb.PR])
         # check MSR priv bit and whether op is privileged: if so, throw trap
         if instr_is_privileged and self.msr[MSRb.PR] == 1:
             self.TRAP(0x700, PIb.PRIV)
@@ -626,8 +627,8 @@ class ISACaller:
             self.TRAP(0x700, PIb.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
-            print ("name %s != %s - calling ILLEGAL trap, PC: %x" % \
-                    (name, asmop, self.pc.CIA.value))
+            print("name %s != %s - calling ILLEGAL trap, PC: %x" %
+                  (name, asmop, self.pc.CIA.value))
             return
 
         info = self.instrs[name]
@@ -666,7 +667,7 @@ class ISACaller:
         if self.trap_nia is not None:
             self.namespace['NIA'] = self.trap_nia
 
-        print ("after func", self.namespace['CIA'], self.namespace['NIA'])
+        print("after func", self.namespace['CIA'], self.namespace['NIA'])
 
         # detect if CA/CA32 already in outputs (sra*, basically)
         already_done = 0
@@ -678,7 +679,7 @@ class ISACaller:
                 if name == 'CA32':
                     already_done |= 2
 
-        print ("carry already done?", bin(already_done))
+        print("carry already done?", bin(already_done))
         carry_en = yield self.dec2.e.do.output_carry
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
@@ -692,7 +693,7 @@ class ISACaller:
 
         ov_en = yield self.dec2.e.do.oe.oe
         ov_ok = yield self.dec2.e.do.oe.ok
-        print ("internal overflow", overflow, ov_en, ov_ok)
+        print("internal overflow", overflow, ov_en, ov_ok)
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results, overflow)
 
@@ -703,16 +704,16 @@ class ISACaller:
         # any modified return results?
         if info.write_regs:
             for name, output in zip(output_names, results):
-                if name == 'overflow': # ignore, done already (above)
+                if name == 'overflow':  # ignore, done already (above)
                     continue
                 if isinstance(output, int):
                     output = SelectableInt(output, 256)
                 if name in ['CA', 'CA32']:
                     if carry_en:
-                        print ("writing %s to XER" % name, output)
+                        print("writing %s to XER" % name, output)
                         self.spr['XER'][XER_bits[name]] = output.value
                     else:
-                        print ("NOT writing %s to XER" % name, output)
+                        print("NOT writing %s to XER" % name, output)
                 elif name in info.special_regs:
                     print('writing special %s' % name, output, special_sprs)
                     if name in special_sprs:
@@ -720,7 +721,7 @@ class ISACaller:
                     else:
                         self.namespace[name].eq(output)
                     if name == 'MSR':
-                        print ('msr written', hex(self.msr.value))
+                        print('msr written', hex(self.msr.value))
                 else:
                     regnum = yield getattr(self.decoder, name)
                     print('writing reg %d %s' % (regnum, str(output)))
@@ -728,7 +729,7 @@ class ISACaller:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
 
-        print ("end of call", self.namespace['CIA'], self.namespace['NIA'])
+        print("end of call", self.namespace['CIA'], self.namespace['NIA'])
         # UPDATE program counter
         self.pc.update(self.namespace)
 
@@ -753,17 +754,17 @@ def inject():
             except AttributeError:
                 func_globals = func.func_globals  # Earlier versions.
 
-            context = args[0].namespace # variables to be injected
+            context = args[0].namespace  # variables to be injected
             saved_values = func_globals.copy()  # Shallow copy of dict.
             func_globals.update(context)
             result = func(*args, **kwargs)
-            print ("globals after", func_globals['CIA'], func_globals['NIA'])
-            print ("args[0]", args[0].namespace['CIA'],
-                              args[0].namespace['NIA'])
+            print("globals after", func_globals['CIA'], func_globals['NIA'])
+            print("args[0]", args[0].namespace['CIA'],
+                  args[0].namespace['NIA'])
             args[0].namespace = func_globals
             #exec (func.__code__, func_globals)
 
-            #finally:
+            # finally:
             #    func_globals = saved_values  # Undo changes.
 
             return result
@@ -771,4 +772,3 @@ def inject():
         return decorator
 
     return variable_injector
-

@@ -1,3 +1,18 @@
+import random
+from soc.fu.alu.pipe_data import ALUPipeSpec
+from soc.fu.alu.pipeline import ALUBasePipe
+from soc.fu.test.common import (TestCase, ALUHelpers)
+from soc.config.endian import bigendian
+from soc.decoder.isa.all import ISA
+from soc.simulator.program import Program
+from soc.decoder.selectable_int import SelectableInt
+from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
+from soc.decoder.power_decoder2 import (PowerDecode2)
+from soc.decoder.power_decoder import (create_pdecode)
+from soc.decoder.isa.caller import ISACaller, special_sprs
+import unittest
+from nmigen.cli import rtlil
+from nmutil.formaltest import FHDLTestCase
 from nmigen import Module, Signal
 from nmigen.back.pysim import Delay, Settle
 # NOTE: to use this (set to True), at present it is necessary to check
@@ -13,38 +28,20 @@ if cxxsim:
 else:
     from nmigen.back.pysim import Simulator
 
-from nmutil.formaltest import FHDLTestCase
-from nmigen.cli import rtlil
-import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from soc.decoder.selectable_int import SelectableInt
-from soc.simulator.program import Program
-from soc.decoder.isa.all import ISA
-from soc.config.endian import bigendian
-
-from soc.fu.test.common import (TestCase, ALUHelpers)
-from soc.fu.alu.pipeline import ALUBasePipe
-from soc.fu.alu.pipe_data import ALUPipeSpec
-import random
-
 
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to ALUFunctionUnit input regspec
     """
     res = {}
 
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2) # XER.ca
-    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2) # XER.so
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
+    yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2)  # XER.ca
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
 
-    print ("alu get_cu_inputs", res)
+    print("alu get_cu_inputs", res)
 
     return res
-
 
 
 def set_alu_inputs(alu, dec2, sim):
@@ -126,27 +123,27 @@ class ALUTestCase(FHDLTestCase):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
-            initial_regs[2] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
+            initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_rand_imm(self):
         insns = ["addi", "addis", "subfic"]
         for i in range(10):
             choice = random.choice(insns)
-            imm = random.randint(-(1<<15), (1<<15)-1)
+            imm = random.randint(-(1 << 15), (1 << 15)-1)
             lst = [f"{choice} 3, 1, {imm}"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_0_adde(self):
         lst = ["adde. 5, 6, 7"]
         for i in range(10):
             initial_regs = [0] * 32
-            initial_regs[6] = random.randint(0, (1<<64)-1)
-            initial_regs[7] = random.randint(0, (1<<64)-1)
+            initial_regs[6] = random.randint(0, (1 << 64)-1)
+            initial_regs[7] = random.randint(0, (1 << 64)-1)
             initial_sprs = {}
             xer = SelectableInt(0, 64)
             xer[XER_bits['CA']] = 1
@@ -169,7 +166,7 @@ class ALUTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1"]
             print(lst)
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1<<64)-1)
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_cmpeqb(self):
@@ -212,14 +209,15 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr,
-                                bigendian=bigendian)
+                          test.mem, test.msr,
+                          bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
@@ -233,7 +231,7 @@ class TestRunner(FHDLTestCase):
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
                         ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
                         ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print ("before: so/ov/32", so, ov, ov32)
+                        print("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
@@ -265,7 +263,7 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
 

@@ -18,7 +18,7 @@ from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
-from soc.regfile.util import fast_reg_to_spr # HACK!
+from soc.regfile.util import fast_reg_to_spr  # HACK!
 
 
 def get_rec_width(rec):
@@ -61,12 +61,13 @@ def get_cu_inputs(dec2, sim):
     yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)
     yield from ALUHelpers.get_sim_cr_a(res, sim, dec2)
 
-    print ("get inputs", res)
+    print("get inputs", res)
     return res
 
 
 class BranchTestCase(FHDLTestCase):
     test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -79,7 +80,7 @@ class BranchTestCase(FHDLTestCase):
 
     def test_0_regression_unconditional(self):
         for i in range(2):
-            imm = random.randrange(-1<<23, (1<<23)-1) * 4
+            imm = random.randrange(-1 << 23, (1 << 23)-1) * 4
             lst = [f"bl {imm}"]
             initial_regs = [0] * 32
             self.run_tst_program(Program(lst, bigendian), initial_regs)
@@ -88,30 +89,30 @@ class BranchTestCase(FHDLTestCase):
         choices = ["b", "ba", "bl", "bla"]
         for i in range(20):
             choice = random.choice(choices)
-            imm = random.randrange(-1<<23, (1<<23)-1) * 4
+            imm = random.randrange(-1 << 23, (1 << 23)-1) * 4
             lst = [f"{choice} {imm}"]
             initial_regs = [0] * 32
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
     def test_bc_cr(self):
         for i in range(20):
-            bc = random.randrange(-1<<13, (1<<13)-1) * 4
+            bc = random.randrange(-1 << 13, (1 << 13)-1) * 4
             bo = random.choice([0b01100, 0b00100, 0b10100])
             bi = random.randrange(0, 31)
-            cr = random.randrange(0, (1<<32)-1)
+            cr = random.randrange(0, (1 << 32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_regs = [0] * 32
             self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
 
     def test_bc_ctr(self):
         for i in range(20):
-            bc = random.randrange(-1<<13, (1<<13)-1) * 4
+            bc = random.randrange(-1 << 13, (1 << 13)-1) * 4
             bo = random.choice([0, 2, 8, 10, 16, 18])
             bi = random.randrange(0, 31)
-            cr = random.randrange(0, (1<<32)-1)
-            ctr = random.randint(0, (1<<32)-1)
+            cr = random.randrange(0, (1 << 32)-1)
+            ctr = random.randint(0, (1 << 32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
-            initial_sprs={9: SelectableInt(ctr, 64)}
+            initial_sprs = {9: SelectableInt(ctr, 64)}
             self.run_tst_program(Program(lst, bigendian),
                                  initial_sprs=initial_sprs,
                                  initial_cr=cr)
@@ -124,14 +125,14 @@ class BranchTestCase(FHDLTestCase):
                 bh = random.randrange(0, 3)
                 bo = random.choice([4, 12])
                 bi = random.randrange(0, 31)
-                cr = random.randrange(0, (1<<32)-1)
-                ctr = random.randint(0, (1<<32)-1)
-                lr = random.randint(0, (1<<64)-1) & ~3
-                tar = random.randint(0, (1<<64)-1) & ~3
+                cr = random.randrange(0, (1 << 32)-1)
+                ctr = random.randint(0, (1 << 32)-1)
+                lr = random.randint(0, (1 << 64)-1) & ~3
+                tar = random.randint(0, (1 << 64)-1) & ~3
                 lst = [f"{insn} {bo}, {bi}, {bh}"]
-                initial_sprs={9: SelectableInt(ctr, 64),
-                              8: SelectableInt(lr, 64),
-                              815: SelectableInt(tar, 64)}
+                initial_sprs = {9: SelectableInt(ctr, 64),
+                                8: SelectableInt(lr, 64),
+                                815: SelectableInt(tar, 64)}
                 self.run_tst_program(Program(lst, bigendian),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
@@ -168,6 +169,7 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
@@ -193,8 +195,8 @@ class TestRunner(FHDLTestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.msr.eq(msr) # set MSR in pdecode2
-                    yield pdecode2.cia.eq(pc) # set PC in pdecode2
+                    yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
+                    yield pdecode2.cia.eq(pc)  # set PC in pdecode2
                     yield instruction.eq(ins)          # raw binary instr.
                     # note, here, the op will need further decoding in order
                     # to set the correct SPRs on SPR1/2/3.  op_bc* require
@@ -204,7 +206,7 @@ class TestRunner(FHDLTestCase):
                     # then additional op-decoding is required, accordingly
                     yield Settle()
                     lk = yield pdecode2.e.do.lk
-                    print ("lk:", lk)
+                    print("lk:", lk)
                     yield from self.set_inputs(branch, pdecode2, simulator)
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.BRANCH.value, code)

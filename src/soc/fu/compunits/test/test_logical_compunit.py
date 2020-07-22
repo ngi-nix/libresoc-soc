@@ -30,7 +30,7 @@ class LogicalTestRunner(TestRunner):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
 
         if rc:
             self.assertEqual(cridx_ok, 1, code)

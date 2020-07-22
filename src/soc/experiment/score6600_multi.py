@@ -91,7 +91,7 @@ class CompUnitsBase(Elaboratable):
         self.issue_i = Signal(n_units, reset_less=True)
         self.rd0 = go_record(n_units, "rd0")
         self.rd1 = go_record(n_units, "rd1")
-        self.go_rd_i = [self.rd0.go, self.rd1.go] # XXX HACK!
+        self.go_rd_i = [self.rd0.go, self.rd1.go]  # XXX HACK!
         self.wr0 = go_record(n_units, "wr0")
         self.go_wr_i = [self.wr0.go]
         self.shadown_i = Signal(n_units, reset_less=True)
@@ -102,7 +102,7 @@ class CompUnitsBase(Elaboratable):
 
         # outputs
         self.busy_o = Signal(n_units, reset_less=True)
-        self.rd_rel_o = [self.rd0.rel, self.rd1.rel] # HACK!
+        self.rd_rel_o = [self.rd0.rel, self.rd1.rel]  # HACK!
         self.req_rel_o = self.wr0.rel
         self.done_o = Signal(n_units, reset_less=True)
         if ldstmode:
@@ -143,7 +143,7 @@ class CompUnitsBase(Elaboratable):
             done_l.append(alu.done_o)
             shadow_l.append(alu.shadown_i)
             godie_l.append(alu.go_die_i)
-            print (alu, "rel", alu.req_rel_o, alu.rd_rel_o)
+            print(alu, "rel", alu.req_rel_o, alu.rd_rel_o)
             rd_rel0_l.append(alu.rd_rel_o[0])
             rd_rel1_l.append(alu.rd_rel_o[1])
             go_wr_l.append(alu.go_wr_i)
@@ -158,7 +158,7 @@ class CompUnitsBase(Elaboratable):
         comb += self.busy_o.eq(Cat(*busy_l))
         comb += Cat(*godie_l).eq(self.go_die_i)
         comb += Cat(*shadow_l).eq(self.shadown_i)
-        comb += Cat(*go_wr_l).eq(self.wr0.go) # XXX TODO
+        comb += Cat(*go_wr_l).eq(self.wr0.go)  # XXX TODO
         comb += Cat(*go_rd_l0).eq(self.rd0.go)
         comb += Cat(*go_rd_l1).eq(self.rd1.go)
         comb += Cat(*issue_l).eq(self.issue_i)
@@ -294,7 +294,7 @@ class CompUnitBR(CompUnitsBase):
         self.opwid = opwid
 
         # inputs
-        self.op = CompALUOpSubset("cua_i") # TODO - CompALUBranchSubset
+        self.op = CompALUOpSubset("cua_i")  # TODO - CompALUBranchSubset
         self.oper_i = Signal(opwid, reset_less=True)
         self.imm_i = Signal(rwid, reset_less=True)
 
@@ -310,7 +310,7 @@ class CompUnitBR(CompUnitsBase):
 
         # hand the same operation to all units
         for alu in self.units:
-            #comb += alu.oper_i.eq(self.op) # TODO
+            # comb += alu.oper_i.eq(self.op) # TODO
             comb += alu.oper_i.eq(self.oper_i)
             #comb += alu.imm_i.eq(self.imm_i)
 
@@ -335,30 +335,34 @@ class FunctionUnits(Elaboratable):
         rsel = []
         rd = []
         for i in range(n_src):
-            j = i + 1 # name numbering to match src1/src2
+            j = i + 1  # name numbering to match src1/src2
             src.append(Signal(n_reg, name="src%d" % j, reset_less=True))
-            rsel.append(Signal(n_reg, name="src%d_rsel_o" % j, reset_less=True))
+            rsel.append(Signal(n_reg, name="src%d_rsel_o" %
+                               j, reset_less=True))
             rd.append(Signal(nf, name="gord%d_i" % j, reset_less=True))
         dst = []
         dsel = []
         wr = []
         for i in range(n_dst):
-            j = i + 1 # name numbering to match src1/src2
+            j = i + 1  # name numbering to match src1/src2
             dst.append(Signal(n_reg, name="dst%d" % j, reset_less=True))
-            dsel.append(Signal(n_reg, name="dst%d_rsel_o" % j, reset_less=True))
+            dsel.append(Signal(n_reg, name="dst%d_rsel_o" %
+                               j, reset_less=True))
             wr.append(Signal(nf, name="gowr%d_i" % j, reset_less=True))
         wpnd = []
         pend = []
         for i in range(nf):
-            j = i + 1 # name numbering to match src1/src2
-            pend.append(Signal(nf, name="rd_src%d_pend_o" % j, reset_less=True))
-            wpnd.append(Signal(nf, name="wr_dst%d_pend_o" % j, reset_less=True))
+            j = i + 1  # name numbering to match src1/src2
+            pend.append(Signal(nf, name="rd_src%d_pend_o" %
+                               j, reset_less=True))
+            wpnd.append(Signal(nf, name="wr_dst%d_pend_o" %
+                               j, reset_less=True))
 
         self.dest_i = Array(dst)     # Dest in (top)
         self.src_i = Array(src)      # oper in (top)
 
         # for Register File Select Lines (horizontal), per-reg
-        self.dst_rsel_o = Array(dsel) # dest reg (bot)
+        self.dst_rsel_o = Array(dsel)  # dest reg (bot)
         self.src_rsel_o = Array(rsel)  # src reg (bot)
 
         self.go_rd_i = Array(rd)
@@ -400,13 +404,13 @@ class FunctionUnits(Elaboratable):
 
         # Connect function issue / arrays, and dest/src1/src2
         for i in range(self.n_src):
-            print (i, self.go_rd_i, intfudeps.go_rd_i)
+            print(i, self.go_rd_i, intfudeps.go_rd_i)
             comb += intfudeps.go_rd_i[i].eq(self.go_rd_i[i])
             comb += intregdeps.src_i[i].eq(self.src_i[i])
             comb += intregdeps.go_rd_i[i].eq(self.go_rd_i[i])
             comb += self.src_rsel_o[i].eq(intregdeps.src_rsel_o[i])
         for i in range(self.n_dst):
-            print (i, self.go_wr_i, intfudeps.go_wr_i)
+            print(i, self.go_wr_i, intfudeps.go_wr_i)
             comb += intfudeps.go_wr_i[i].eq(self.go_wr_i[i])
             comb += intregdeps.dest_i[i].eq(self.dest_i[i])
             comb += intregdeps.go_wr_i[i].eq(self.go_wr_i[i])
@@ -860,10 +864,10 @@ class IssueToScoreboard(Elaboratable):
 
             # choose a Function-Unit-Group
             with m.If(fu == Function.ALU):  # alu
-                comb += sc.aluissue.insn_i.eq(1) # enable alu issue
+                comb += sc.aluissue.insn_i.eq(1)  # enable alu issue
                 comb += wait_issue_alu.eq(1)
             with m.Elif(fu == Function.LDST):  # ld/st
-                comb += sc.lsissue.insn_i.eq(1) # enable ldst issue
+                comb += sc.lsissue.insn_i.eq(1)  # enable ldst issue
                 comb += wait_issue_ls.eq(1)
 
             with m.Elif((op & (0x3 << 2)) != 0):  # branch
@@ -912,7 +916,7 @@ def power_instr_q(dut, pdecode2, ins, code):
 def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
             branch_success, branch_fail):
     instrs = [{'insn_type': op, 'fn_unit': funit, 'write_reg': dest,
-                'imm_data': (imm, op_imm),
+               'imm_data': (imm, op_imm),
                'read_reg1': src1, 'read_reg2': src2}]
 
     sendlen = 1
@@ -926,11 +930,11 @@ def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
         yield dut.data_i[idx].insn_type.eq(insn_type)
         yield dut.data_i[idx].fn_unit.eq(fn_unit)
         yield dut.data_i[idx].read_reg1.data.eq(reg1)
-        yield dut.data_i[idx].read_reg1.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].read_reg1.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].read_reg2.data.eq(reg2)
-        yield dut.data_i[idx].read_reg2.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].read_reg2.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].write_reg.data.eq(dest)
-        yield dut.data_i[idx].write_reg.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].write_reg.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].imm_data.data.eq(imm)
         yield dut.data_i[idx].imm_data.ok.eq(op_imm)
         di = yield dut.data_i[idx]
@@ -1149,7 +1153,7 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
         for i in range(1, dut.n_regs):
             #val = randint(0, (1<<alusim.rwidth)-1)
             #val = 31+i*3
-            val = i # XXX actually, not random at all
+            val = i  # XXX actually, not random at all
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
@@ -1157,14 +1161,14 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
         lst = []
         if False:
             lst += ["addi 2, 0, 0x4321",
-                   "addi 3, 0, 0x1234",
-                   "add  1, 3, 2",
-                   "add  4, 3, 5"
+                    "addi 3, 0, 0x1234",
+                    "add  1, 3, 2",
+                    "add  4, 3, 5"
                     ]
         if True:
-            lst += [ "lbzu 6, 7(2)",
-                     
-                   ]
+            lst += ["lbzu 6, 7(2)",
+
+                    ]
 
         with Program(lst) as program:
             gen = program.generate_instructions()
@@ -1172,7 +1176,7 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
             # issue instruction(s), wait for issue to be free before proceeding
             for ins, code in zip(gen, program.assembly.splitlines()):
                 yield instruction.eq(ins)          # raw binary instr.
-                yield #Delay(1e-6)
+                yield  # Delay(1e-6)
 
                 print("binary 0x{:X}".format(ins & 0xffffffff))
                 print("assembly", code)
@@ -1332,7 +1336,7 @@ def scoreboard_sim(dut, alusim):
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
-            print (i, instr)
+            print(i, instr)
             src1, src2, dest, op, fn_unit, opi, imm, (br_ok, br_fail) = instr
 
             print("instr %d: (%d, %d, %d, %s, %s, %d, %d)" %
@@ -1385,7 +1389,7 @@ def test_scoreboard():
     run_simulation(m, power_sim(m, dut, pdecode2, instruction, alusim),
                    vcd_name='test_powerboard6600.vcd')
 
-    #run_simulation(dut, scoreboard_sim(dut, alusim),
+    # run_simulation(dut, scoreboard_sim(dut, alusim),
     #               vcd_name='test_scoreboard6600.vcd')
 
     # run_simulation(dut, scoreboard_branch_sim(dut, alusim),

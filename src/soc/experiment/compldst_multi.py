@@ -100,8 +100,8 @@ class LDSTCompUnitRecord(CompUnitRecord):
         CompUnitRecord.__init__(self, opsubset, rwid,
                                 n_src=3, n_dst=2, name=name)
 
-        self.ad = go_record(1, name="ad") # address go in, req out
-        self.st = go_record(1, name="st") # store go in, req out
+        self.ad = go_record(1, name="ad")  # address go in, req out
+        self.st = go_record(1, name="st")  # store go in, req out
 
         self.addr_exc_o = Signal(reset_less=True)   # address exception
 
@@ -171,7 +171,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
     """
 
     def __init__(self, pi=None, rwid=64, awid=48, opsubset=CompLDSTOpSubset,
-                      debugtest=False):
+                 debugtest=False):
         super().__init__(rwid)
         self.awid = awid
         self.pi = pi
@@ -180,17 +180,17 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # POWER-compliant LD/ST has index and update: *fixed* number of ports
         self.n_src = n_src = 3   # RA, RB, RT/RS
-        self.n_dst = n_dst = 2 # RA, RT/RS
+        self.n_dst = n_dst = 2  # RA, RT/RS
 
         # set up array of src and dest signals
         for i in range(n_src):
-            j = i + 1 # name numbering to match src1/src2
+            j = i + 1  # name numbering to match src1/src2
             name = "src%d_i" % j
             setattr(self, name, getattr(cu, name))
 
         dst = []
         for i in range(n_dst):
-            j = i + 1 # name numbering to match dest1/2...
+            j = i + 1  # name numbering to match dest1/2...
             name = "dest%d_o" % j
             setattr(self, name, getattr(cu, name))
 
@@ -207,13 +207,13 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # (it really shouldn't be)
         self.data_wid = self.dest[0].shape()
 
-        self.go_rd_i = self.rd.go # temporary naming
-        self.go_wr_i = self.wr.go # temporary naming
-        self.go_ad_i = self.ad.go # temp naming: go address in
+        self.go_rd_i = self.rd.go  # temporary naming
+        self.go_wr_i = self.wr.go  # temporary naming
+        self.go_ad_i = self.ad.go  # temp naming: go address in
         self.go_st_i = self.st.go  # temp naming: go store in
 
-        self.rd_rel_o = self.rd.rel # temporary naming
-        self.req_rel_o = self.wr.rel # temporary naming
+        self.rd_rel_o = self.rd.rel  # temporary naming
+        self.req_rel_o = self.wr.rel  # temporary naming
         self.adr_rel_o = self.ad.rel  # request address (from mem)
         self.sto_rel_o = self.st.rel  # request store (to mem)
 
@@ -225,7 +225,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         self.src_i = cu._src_i
 
         self.data_o = Data(self.data_wid, name="o")  # Dest1 out: RT
-        self.addr_o = Data(self.data_wid, name="ea") # Addr out: Update => RA
+        self.addr_o = Data(self.data_wid, name="ea")  # Addr out: Update => RA
         self.addr_exc_o = cu.addr_exc_o
         self.done_o = cu.done_o
         self.busy_o = cu.busy_o
@@ -264,7 +264,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         op_is_st = Signal(reset_less=True)
 
         # ALU/LD data output control
-        alu_valid = Signal(reset_less=True) # ALU operands are valid
+        alu_valid = Signal(reset_less=True)  # ALU operands are valid
         alu_ok = Signal(reset_less=True)    # ALU out ok (1 clock delay valid)
         addr_ok = Signal(reset_less=True)   # addr ok (from PortInterface)
         ld_ok = Signal(reset_less=True)     # LD out ok from PortInterface
@@ -286,13 +286,13 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         reset_u = Signal(reset_less=True)             # reset update
         reset_a = Signal(reset_less=True)             # reset adr latch
         reset_i = Signal(reset_less=True)             # issue|die (use a lot)
-        reset_r = Signal(self.n_src, reset_less=True) # reset src
+        reset_r = Signal(self.n_src, reset_less=True)  # reset src
         reset_s = Signal(reset_less=True)             # reset store
 
         comb += reset_i.eq(issue_i | self.go_die_i)       # various
         comb += reset_o.eq(wr_reset | self.go_die_i)      # opcode reset
-        comb += reset_w.eq(self.wr.go[0] | self.go_die_i) # write reg 1
-        comb += reset_u.eq(self.wr.go[1] | self.go_die_i) # update (reg 2)
+        comb += reset_w.eq(self.wr.go[0] | self.go_die_i)  # write reg 1
+        comb += reset_u.eq(self.wr.go[1] | self.go_die_i)  # update (reg 2)
         comb += reset_s.eq(self.go_st_i | self.go_die_i)  # store reset
         comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
         comb += reset_a.eq(self.go_ad_i | self.go_die_i)
@@ -350,7 +350,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += sto_l.r.eq(reset_s | p_st_go)
 
         # reset latch
-        comb += rst_l.s.eq(addr_ok) # start when address is ready
+        comb += rst_l.s.eq(addr_ok)  # start when address is ready
         comb += rst_l.r.eq(issue_i)
 
         # create a latch/register for the operand
@@ -384,11 +384,11 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
-        sync += alu_o.eq(src1_or_z + src2_or_imm) # actual EA
+        sync += alu_o.eq(src1_or_z + src2_or_imm)  # actual EA
         sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
         # decode bits of operand (latched)
-        comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE) # ST
+        comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE)  # ST
         comb += op_is_ld.eq(oper_r.insn_type == MicrOp.OP_LOAD)  # LD
         op_is_update = oper_r.ldst_mode == LDSTMode.update           # UPDATE
         op_is_cix = oper_r.ldst_mode == LDSTMode.cix           # cache-inhibit
@@ -402,7 +402,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # busy signal
         busy_o = self.busy_o
-        comb += self.busy_o.eq(opc_l.q) # | self.pi.busy_o)  # busy out
+        comb += self.busy_o.eq(opc_l.q)  # | self.pi.busy_o)  # busy out
 
         # 1st operand read-request only when zero not active
         # 2nd operand only needed when immediate is not active
@@ -440,8 +440,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
         comb += wr_any.eq(self.st.go | p_st_go | self.wr.go[0] | self.wr.go[1])
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
-                    ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
-                     (lod_l.qn | op_is_st))
+                            ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
+                            (lod_l.qn | op_is_st))
         comb += self.done_o.eq(wr_reset)
 
         ######################
@@ -468,11 +468,12 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # connect to LD/ST PortInterface.
         comb += pi.is_ld_i.eq(op_is_ld & busy_o)  # decoded-LD
         comb += pi.is_st_i.eq(op_is_st & busy_o)  # decoded-ST
-        comb += pi.data_len.eq(self.oper_i.data_len) # data_len
+        comb += pi.data_len.eq(self.oper_i.data_len)  # data_len
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)) # "do address stuff"
-        comb += self.addr_exc_o.eq(pi.addr_exc_o) # exception occurred
+        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q)
+                              )  # "do address stuff"
+        comb += self.addr_exc_o.eq(pi.addr_exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
         # byte-reverse on LD - yes this is inverted
@@ -482,13 +483,13 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
             # byte-reverse the data based on ld/st width (turn it to LE)
             data_len = self.oper_i.data_len
             lddata_r = byte_reverse(m, 'lddata_r', pi.ld.data, data_len)
-            comb += ldd_o.eq(lddata_r) # put reversed- data out
+            comb += ldd_o.eq(lddata_r)  # put reversed- data out
         # ld - ld gets latched in via lod_l
-        comb += ld_ok.eq(pi.ld.ok) # ld.ok *closes* (freezes) ld data
+        comb += ld_ok.eq(pi.ld.ok)  # ld.ok *closes* (freezes) ld data
 
         # yes this also looks odd (inverted)
         with m.If(self.oper_i.byte_reverse):
-            comb += pi.st.data.eq(srl[2]) # 3rd operand latch
+            comb += pi.st.data.eq(srl[2])  # 3rd operand latch
         with m.Else():
             # byte-reverse the data based on width
             data_len = self.oper_i.data_len
@@ -505,7 +506,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
             return self.data_o
         if i == 1:
             return self.addr_o
-        #return self.dest[i]
+        # return self.dest[i]
 
     def get_fu_out(self, i):
         return self.get_out(i)
@@ -548,10 +549,10 @@ def wait_for(sig, wait=True, test1st=False):
 
 
 def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
-                                            byterev=True):
-    print ("ST", src1, src2, src3, imm, imm_ok, update)
+          byterev=True):
+    print("ST", src1, src2, src3, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(MicrOp.OP_STORE)
-    yield dut.oper_i.data_len.eq(2) # half-word
+    yield dut.oper_i.data_len.eq(2)  # half-word
     yield dut.oper_i.byte_reverse.eq(byterev)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
@@ -578,17 +579,17 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
     yield dut.rd.go.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
-    #yield from wait_for(dut.adr_rel_o)
-    #yield dut.ad.go.eq(1)
-    #yield
-    #yield dut.ad.go.eq(0)
+    # yield from wait_for(dut.adr_rel_o)
+    # yield dut.ad.go.eq(1)
+    # yield
+    # yield dut.ad.go.eq(0)
 
     if update:
         yield from wait_for(dut.wr.rel[1])
         yield dut.wr.go.eq(0b10)
         yield
         addr = yield dut.addr_o
-        print ("addr", addr)
+        print("addr", addr)
         yield dut.wr.go.eq(0)
     else:
         addr = None
@@ -598,16 +599,16 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
     yield
     yield dut.go_st_i.eq(0)
     yield from wait_for(dut.busy_o, False)
-    #wait_for(dut.stwd_mem_o)
+    # wait_for(dut.stwd_mem_o)
     yield
     return addr
 
 
 def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
-                                            byterev=True):
-    print ("LD", src1, src2, imm, imm_ok, update)
+         byterev=True):
+    print("LD", src1, src2, imm, imm_ok, update)
     yield dut.oper_i.insn_type.eq(MicrOp.OP_LOAD)
-    yield dut.oper_i.data_len.eq(2) # half-word
+    yield dut.oper_i.data_len.eq(2)  # half-word
     yield dut.oper_i.byte_reverse.eq(byterev)
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
@@ -621,9 +622,9 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
 
     # set up read-operand flags
     rd = 0b00
-    if not imm_ok: # no immediate means RB register needs to be read
+    if not imm_ok:  # no immediate means RB register needs to be read
         rd |= 0b10
-    if not zero_a: # no zero-a means RA needs to be read
+    if not zero_a:  # no zero-a means RA needs to be read
         rd |= 0b01
 
     # wait for the operands (RA, RB, or both)
@@ -633,16 +634,16 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
         yield dut.rd.go.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
-    #yield dut.ad.go.eq(1)
-    #yield
-    #yield dut.ad.go.eq(0)
+    # yield dut.ad.go.eq(1)
+    # yield
+    # yield dut.ad.go.eq(0)
 
     if update:
         yield from wait_for(dut.wr.rel[1])
         yield dut.wr.go.eq(0b10)
         yield
         addr = yield dut.addr_o
-        print ("addr", addr)
+        print("addr", addr)
         yield dut.wr.go.eq(0)
     else:
         addr = None
@@ -651,7 +652,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     yield dut.wr.go.eq(1)
     yield
     data = yield dut.data_o
-    print (data)
+    print(data)
     yield dut.wr.go.eq(0)
     yield from wait_for(dut.busy_o)
     yield
@@ -671,7 +672,7 @@ def ldst_sim(dut):
     # two LDs (deliberately LD from the 1st address then 2nd)
     data, addr = yield from load(dut, 4, 0, 2)
     assert data == 0x0003, "returned %x" % data
-    data, addr  = yield from load(dut, 2, 0, 2)
+    data, addr = yield from load(dut, 2, 0, 2)
     assert data == 0x0009, "returned %x" % data
     yield
 
@@ -685,12 +686,12 @@ def ldst_sim(dut):
     assert addr == 0x000b, "returned %x" % addr
 
     # update-indexed version
-    data, addr  = yield from load(dut, 9, 5, 0, imm_ok=False, update=True)
+    data, addr = yield from load(dut, 9, 5, 0, imm_ok=False, update=True)
     assert data == 0x0003, "returned %x" % data
     assert addr == 0x000e, "returned %x" % addr
 
     # immediate *and* zero version
-    data, addr  = yield from load(dut, 1, 4, 8, imm_ok=True, zero_a=True)
+    data, addr = yield from load(dut, 1, 4, 8, imm_ok=True, zero_a=True)
     assert data == 0x0008, "returned %x" % data
 
 
@@ -705,7 +706,7 @@ class TestLDSTCompUnit(LDSTCompUnit):
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
-        m.d.comb += self.ad.go.eq(self.ad.rel) # link addr-go direct to rel
+        m.d.comb += self.ad.go.eq(self.ad.rel)  # link addr-go direct to rel
         return m
 
 
@@ -732,7 +733,7 @@ class TestLDSTCompUnitRegSpec(LDSTCompUnit):
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
-        m.d.comb += self.ad.go.eq(self.ad.rel) # link addr-go direct to rel
+        m.d.comb += self.ad.go.eq(self.ad.rel)  # link addr-go direct to rel
         return m
 
 

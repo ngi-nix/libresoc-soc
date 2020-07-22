@@ -18,14 +18,15 @@ def check_extsign(a, b):
 class FieldSelectableInt:
     """FieldSelectableInt: allows bit-range selection onto another target
     """
+
     def __init__(self, si, br):
-        self.si = si # target selectable int
+        self.si = si  # target selectable int
         if isinstance(br, list) or isinstance(br, tuple):
             _br = BitRange()
             for i, v in enumerate(br):
                 _br[i] = v
             br = _br
-        self.br = br # map of indices.
+        self.br = br  # map of indices.
 
     def eq(self, b):
         if isinstance(b, SelectableInt):
@@ -46,11 +47,11 @@ class FieldSelectableInt:
         return self.merge(vi)
 
     def __getitem__(self, key):
-        print ("getitem", key, self.br)
+        print("getitem", key, self.br)
         if isinstance(key, SelectableInt):
             key = key.value
         if isinstance(key, int):
-            key = self.br[key] # don't do POWER 1.3.4 bit-inversion
+            key = self.br[key]  # don't do POWER 1.3.4 bit-inversion
             return self.si[key]
         if isinstance(key, slice):
             key = self.br[key]
@@ -59,7 +60,7 @@ class FieldSelectableInt:
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
             key = key.value
-        key = self.br[key] # don't do POWER 1.3.4 bit-inversion
+        key = self.br[key]  # don't do POWER 1.3.4 bit-inversion
         if isinstance(key, int):
             return self.si.__setitem__(key, value)
         else:
@@ -70,22 +71,31 @@ class FieldSelectableInt:
 
     def __negate__(self):
         return self._op1(negate)
+
     def __invert__(self):
         return self._op1(inv)
+
     def __add__(self, b):
         return self._op(add, b)
+
     def __sub__(self, b):
         return self._op(sub, b)
+
     def __mul__(self, b):
         return self._op(mul, b)
+
     def __div__(self, b):
         return self._op(truediv, b)
+
     def __mod__(self, b):
         return self._op(mod, b)
+
     def __and__(self, b):
         return self._op(and_, b)
+
     def __or__(self, b):
         return self._op(or_, b)
+
     def __xor__(self, b):
         return self._op(xor, b)
 
@@ -115,7 +125,7 @@ class FieldSelectableIntTestCase(unittest.TestCase):
         br[2] = 3
         fs = FieldSelectableInt(a, br)
         c = fs + b
-        print (c)
+        print(c)
         #self.assertEqual(c.value, a.value + b.value)
 
     def test_select(self):
@@ -155,6 +165,7 @@ class SelectableInt:
     is a bit width associated with SelectableInt, slices operate correctly
     including negative start/end points.
     """
+
     def __init__(self, value, bits):
         if isinstance(value, SelectableInt):
             value = value.value
@@ -175,30 +186,39 @@ class SelectableInt:
 
     def __add__(self, b):
         return self._op(add, b)
+
     def __sub__(self, b):
         return self._op(sub, b)
+
     def __mul__(self, b):
-        # different case: mul result needs to fit the total bitsize 
+        # different case: mul result needs to fit the total bitsize
         if isinstance(b, int):
             b = SelectableInt(b, self.bits)
-        print ("SelectableInt mul", hex(self.value), hex(b.value),
-                                    self.bits, b.bits)
+        print("SelectableInt mul", hex(self.value), hex(b.value),
+              self.bits, b.bits)
         return SelectableInt(self.value * b.value, self.bits + b.bits)
+
     def __floordiv__(self, b):
         return self._op(floordiv, b)
+
     def __truediv__(self, b):
         return self._op(truediv, b)
+
     def __mod__(self, b):
         return self._op(mod, b)
+
     def __and__(self, b):
         return self._op(and_, b)
+
     def __or__(self, b):
         return self._op(or_, b)
+
     def __xor__(self, b):
         return self._op(xor, b)
+
     def __abs__(self):
-        print ("abs", self.value & (1<<(self.bits-1)))
-        if self.value & (1<<(self.bits-1)) != 0:
+        print("abs", self.value & (1 << (self.bits-1)))
+        if self.value & (1 << (self.bits-1)) != 0:
             return -self
         return self
 
@@ -339,7 +359,7 @@ class SelectableInt:
         assert False
 
     def __eq__(self, other):
-        print ("__eq__", self, other)
+        print("__eq__", self, other)
         if isinstance(other, FieldSelectableInt):
             other = other.get_range()
         if isinstance(other, SelectableInt):
@@ -359,7 +379,7 @@ class SelectableInt:
 
     def __repr__(self):
         return "SelectableInt(value=0x{:x}, bits={})".format(self.value,
-                                                           self.bits)
+                                                             self.bits)
 
     def __len__(self):
         return self.bits
@@ -371,12 +391,14 @@ class SelectableInt:
 def onebit(bit):
     return SelectableInt(1 if bit else 0, 1)
 
+
 def selectltu(lhs, rhs):
     """ less-than (unsigned)
     """
     if isinstance(rhs, SelectableInt):
         rhs = rhs.value
     return onebit(lhs.value < rhs)
+
 
 def selectgtu(lhs, rhs):
     """ greater-than (unsigned)
@@ -395,7 +417,7 @@ def selectassign(lhs, idx, rhs):
         else:
             lower, upper, step = idx
         toidx = range(lower, upper, step)
-        fromidx = range(0, upper-lower, step) # XXX eurgh...
+        fromidx = range(0, upper-lower, step)  # XXX eurgh...
     else:
         toidx = [idx]
         fromidx = [0]
@@ -406,7 +428,7 @@ def selectassign(lhs, idx, rhs):
 def selectconcat(*args, repeat=1):
     if repeat != 1 and len(args) == 1 and isinstance(args[0], int):
         args = [SelectableInt(args[0], 1)]
-    if repeat != 1: # multiplies the incoming arguments
+    if repeat != 1:  # multiplies the incoming arguments
         tmp = []
         for i in range(repeat):
             tmp += args
@@ -418,7 +440,7 @@ def selectconcat(*args, repeat=1):
         assert isinstance(i, SelectableInt), "can only concat SIs, sorry"
         res.bits += i.bits
         res.value = (res.value << i.bits) | i.value
-    print ("concat", repeat, res)
+    print("concat", repeat, res)
     return res
 
 
@@ -503,6 +525,7 @@ class SelectableIntTestCase(unittest.TestCase):
         self.assertFalse(a < b)
         self.assertTrue(a != b)
         self.assertFalse(a == b)
+
 
 if __name__ == "__main__":
     unittest.main()

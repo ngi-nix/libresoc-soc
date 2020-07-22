@@ -4,15 +4,15 @@ Bugreports:
 """
 
 from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
-from soc.regfile.util import fast_reg_to_spr # HACK!
+from soc.regfile.util import fast_reg_to_spr  # HACK!
 from soc.regfile.regfiles import FastRegs
 
 
 class TestCase:
     def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
-                       msr=0,
-                       do_sim=True,
-                       extra_break_addr=None):
+                 msr=0,
+                 do_sim=True,
+                 extra_break_addr=None):
 
         self.program = program
         self.name = name
@@ -131,26 +131,26 @@ class ALUHelpers:
     def set_xer_ca(alu, dec2, inp):
         if 'xer_ca' in inp:
             yield alu.p.data_i.xer_ca.eq(inp['xer_ca'])
-            print ("extra inputs: CA/32", bin(inp['xer_ca']))
+            print("extra inputs: CA/32", bin(inp['xer_ca']))
 
     def set_xer_ov(alu, dec2, inp):
         if 'xer_ov' in inp:
             yield alu.p.data_i.xer_ov.eq(inp['xer_ov'])
-            print ("extra inputs: OV/32", bin(inp['xer_ov']))
+            print("extra inputs: OV/32", bin(inp['xer_ov']))
 
     def set_xer_so(alu, dec2, inp):
         if 'xer_so' in inp:
             so = inp['xer_so']
-            print ("extra inputs: so", so)
+            print("extra inputs: so", so)
             yield alu.p.data_i.xer_so.eq(so)
 
     def set_msr(alu, dec2, inp):
-        print ("TODO: deprecate set_msr")
+        print("TODO: deprecate set_msr")
         if 'msr' in inp:
             yield alu.p.data_i.msr.eq(inp['msr'])
 
     def set_cia(alu, dec2, inp):
-        print ("TODO: deprecate set_cia")
+        print("TODO: deprecate set_cia")
         if 'cia' in inp:
             yield alu.p.data_i.cia.eq(inp['cia'])
 
@@ -304,7 +304,7 @@ class ALUHelpers:
             res['spr1'] = sim.spr[spr_name].value
 
     def get_wr_sim_xer_ca(res, sim, dec2):
-        #if not (yield alu.n.data_o.xer_ca.ok):
+        # if not (yield alu.n.data_o.xer_ca.ok):
         #    return
         cry_out = yield dec2.e.do.output_carry
         xer_out = yield dec2.e.xer_out
@@ -317,7 +317,7 @@ class ALUHelpers:
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
         xer_out = yield dec2.e.xer_out
-        print ("get_wr_sim_xer_ov", xer_out)
+        print("get_wr_sim_xer_ov", xer_out)
         if not (yield alu.n.data_o.xer_ov.ok):
             return
         if xer_out or (oe and oe_ok):
@@ -338,7 +338,7 @@ class ALUHelpers:
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
         xer_in = yield dec2.e.xer_in
-        print ("get_sim_xer_ov", xer_in)
+        print("get_sim_xer_ov", xer_in)
         if xer_in or (oe and oe_ok):
             expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
             expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
@@ -404,27 +404,26 @@ class ALUHelpers:
         if 'cr_a' in res:
             cr_expected = sim_o['cr_a']
             cr_actual = res['cr_a']
-            print ("CR", cr_expected, cr_actual)
+            print("CR", cr_expected, cr_actual)
             dut.assertEqual(cr_expected, cr_actual, msg)
 
     def check_xer_ca(dut, res, sim_o, msg):
         if 'xer_ca' in res:
             ca_expected = sim_o['xer_ca']
             ca_actual = res['xer_ca']
-            print ("CA", ca_expected, ca_actual)
+            print("CA", ca_expected, ca_actual)
             dut.assertEqual(ca_expected, ca_actual, msg)
 
     def check_xer_ov(dut, res, sim_o, msg):
         if 'xer_ov' in res:
             ov_expected = sim_o['xer_ov']
             ov_actual = res['xer_ov']
-            print ("OV", ov_expected, ov_actual)
+            print("OV", ov_expected, ov_actual)
             dut.assertEqual(ov_expected, ov_actual, msg)
 
     def check_xer_so(dut, res, sim_o, msg):
         if 'xer_so' in res:
             so_expected = sim_o['xer_so']
             so_actual = res['xer_so']
-            print ("SO", so_expected, so_actual)
+            print("SO", so_expected, so_actual)
             dut.assertEqual(so_expected, so_actual, msg)
-

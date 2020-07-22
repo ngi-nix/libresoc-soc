@@ -35,10 +35,10 @@ class AttnTestCase(FHDLTestCase):
             self.run_tst_program(program, [1])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                                    initial_mem=None):
+                        initial_mem=None):
         initial_regs = [0] * 32
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
-                                            initial_mem, 0)
+                      initial_mem, 0)
         self.test_data.append(tc)
 
 
@@ -74,10 +74,10 @@ class GeneralTestCases(FHDLTestCase):
                "addi 2, 0, 0x1234",
                "stw  1, 0(2)",
                "lwz  3, 0(2)"
-              ]
+               ]
         initial_mem = {0x1230: (0x5432123412345678, 8),
                        0x1238: (0xabcdef0187654321, 8),
-                      }
+                       }
         with Program(lst, bigendian) as program:
             self.run_tst_program(program,
                                  [1, 2, 3],
@@ -173,7 +173,7 @@ class GeneralTestCases(FHDLTestCase):
                "addi 3, 0, 0x00ee",
                "stb 3, 1(2)",
                "lbz 4, 1(2)",
-        ]
+               ]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1004
         initial_regs[2] = 0x1008
@@ -181,9 +181,9 @@ class GeneralTestCases(FHDLTestCase):
         initial_mem = {0x1000: (0x5432123412345678, 8),
                        0x1008: (0xabcdef0187654321, 8),
                        0x1020: (0x1828384822324252, 8),
-                        }
+                       }
         with Program(lst, bigendian) as program:
-            self.run_tst_program(program, [3,4], initial_mem)
+            self.run_tst_program(program, [3, 4], initial_mem)
 
     @unittest.skip("disable")
     def test_3_load_store(self):
@@ -199,9 +199,9 @@ class GeneralTestCases(FHDLTestCase):
         initial_mem = {0x1000: (0x5432123412345678, 8),
                        0x1008: (0xabcdef0187654321, 8),
                        0x1020: (0x1828384822324252, 8),
-                        }
+                       }
         with Program(lst, bigendian) as program:
-            self.run_tst_program(program, [1,2,3,4], initial_mem)
+            self.run_tst_program(program, [1, 2, 3, 4], initial_mem)
 
     def test_loop(self):
         """in godbolt.org:
@@ -213,7 +213,7 @@ class GeneralTestCases(FHDLTestCase):
             } while (i != 0);
         }
         """
-        lst = ["addi 9, 0, 0x10", # i = 16
+        lst = ["addi 9, 0, 0x10",  # i = 16
                "addi 9,9,-1",    # i = i - 1
                "cmpi 0,1,9,12",     # compare 9 to value 0, store in CR2
                "bc 4,0,-8"         # branch if CR2 "test was != 0"
@@ -222,17 +222,17 @@ class GeneralTestCases(FHDLTestCase):
             self.run_tst_program(program, [9], initial_mem={})
 
     def test_30_addis(self):
-        lst = [#"addi 0, 0, 5",
-               "addis 12, 0, 0",
-               ]
+        lst = [  # "addi 0, 0, 5",
+            "addis 12, 0, 0",
+        ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [12])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                                    initial_mem=None):
+                        initial_mem=None):
         initial_regs = [0] * 32
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs, 0,
-                                            initial_mem, 0)
+                      initial_mem, 0)
         self.test_data.append(tc)
 
 
@@ -261,18 +261,17 @@ class DecoderBase:
         sim = Simulator(m)
 
         def process():
-            #yield pdecode2.dec.bigendian.eq(bigendian)
+            # yield pdecode2.dec.bigendian.eq(bigendian)
             yield Settle()
 
             while True:
                 try:
                     yield from simulator.setup_one()
-                except KeyError: # indicates instruction not in imem: stop
+                except KeyError:  # indicates instruction not in imem: stop
                     break
                 yield Settle()
                 yield from simulator.execute_one()
                 yield Settle()
-
 
         sim.add_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -282,7 +281,7 @@ class DecoderBase:
         return simulator
 
     def run_tst_program(self, prog, reglist, initial_mem=None,
-                                             extra_break_addr=None):
+                        extra_break_addr=None):
         import sys
         simulator = self.run_tst(prog, initial_mem=initial_mem,
                                  initial_pc=0x20000000)
@@ -294,18 +293,18 @@ class DecoderBase:
         print(simulator.gpr.dump())
 
     def qemu_mem_compare(self, sim, qemu, check=True):
-        if False: # disable convenient large interesting debugging memory dump
+        if False:  # disable convenient large interesting debugging memory dump
             addr = 0x0
             qmemdump = qemu.get_mem(addr, 2048)
             for i in range(len(qmemdump)):
                 s = hex(int(qmemdump[i]))
-                print ("qemu mem %06x %s" % (addr+i*8, s))
+                print("qemu mem %06x %s" % (addr+i*8, s))
         for k, v in sim.mem.mem.items():
             qmemdump = qemu.get_mem(k*8, 8)
             s = hex(int(qmemdump[0]))[2:]
-            print ("qemu mem %06x %16s" % (k*8, s))
+            print("qemu mem %06x %16s" % (k*8, s))
         for k, v in sim.mem.mem.items():
-            print ("sim mem  %06x %016x" % (k*8, v))
+            print("sim mem  %06x %016x" % (k*8, v))
         if not check:
             return
         for k, v in sim.mem.mem.items():

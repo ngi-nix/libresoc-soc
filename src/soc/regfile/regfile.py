@@ -87,6 +87,7 @@ class Register(Elaboratable):
     def ports(self):
         res = list(self)
 
+
 def ortreereduce(tree, attr="data_o"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
@@ -96,6 +97,7 @@ class RegFileArray(Elaboratable):
         that has no "address" decoder, instead it has individual write-en
         and read-en signals (per port).
     """
+
     def __init__(self, width, depth):
         self.width = width
         self.depth = depth
@@ -236,7 +238,7 @@ def regfile_sim(dut, rp, wp):
     yield rp.raddr.eq(1)
     yield Settle()
     data = yield rp.data_o
-    print (data)
+    print(data)
     assert data == 2
     yield
 
@@ -247,56 +249,58 @@ def regfile_sim(dut, rp, wp):
     yield wp.data_i.eq(6)
     yield Settle()
     data = yield rp.data_o
-    print (data)
+    print(data)
     assert data == 6
     yield
     yield wp.wen.eq(0)
     yield rp.ren.eq(0)
     yield Settle()
     data = yield rp.data_o
-    print (data)
+    print(data)
     assert data == 0
     yield
     data = yield rp.data_o
-    print (data)
+    print(data)
+
 
 def regfile_array_sim(dut, rp1, rp2, wp, wp2):
-    print ("regfile_array_sim")
+    print("regfile_array_sim")
     yield wp.data_i.eq(2)
-    yield wp.wen.eq(1<<1)
+    yield wp.wen.eq(1 << 1)
     yield
     yield wp.wen.eq(0)
-    yield rp1.ren.eq(1<<1)
+    yield rp1.ren.eq(1 << 1)
     yield Settle()
     data = yield rp1.data_o
-    print (data)
+    print(data)
     assert data == 2
     yield
 
-    yield rp1.ren.eq(1<<5)
-    yield rp2.ren.eq(1<<1)
-    yield wp.wen.eq(1<<5)
+    yield rp1.ren.eq(1 << 5)
+    yield rp2.ren.eq(1 << 1)
+    yield wp.wen.eq(1 << 5)
     yield wp.data_i.eq(6)
     yield Settle()
     data = yield rp1.data_o
     assert data == 6
-    print (data)
+    print(data)
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(0)
     yield rp2.ren.eq(0)
     yield Settle()
     data1 = yield rp1.data_o
-    print (data1)
+    print(data1)
     assert data1 == 0
     data2 = yield rp2.data_o
-    print (data2)
+    print(data2)
     assert data2 == 0
 
     yield
     data = yield rp1.data_o
-    print (data)
+    print(data)
     assert data == 0
+
 
 def test_regfile():
     dut = RegFile(32, 8)
@@ -313,14 +317,15 @@ def test_regfile():
     rp2 = dut.read_port("read2")
     wp = dut.write_port("write")
     wp2 = dut.write_port("write2")
-    ports=dut.ports()
-    print ("ports", ports)
+    ports = dut.ports()
+    print("ports", ports)
     vl = rtlil.convert(dut, ports=ports)
     with open("test_regfile_array.il", "w") as f:
         f.write(vl)
 
     run_simulation(dut, regfile_array_sim(dut, rp1, rp2, wp, wp2),
                    vcd_name='test_regfile_array.vcd')
+
 
 if __name__ == '__main__':
     test_regfile()

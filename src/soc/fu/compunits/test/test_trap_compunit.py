@@ -2,12 +2,13 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 from soc.fu.trap.test.test_pipe_caller import get_cu_inputs
-from soc.fu.trap.test.test_pipe_caller import TrapTestCase # creates the tests
+from soc.fu.trap.test.test_pipe_caller import TrapTestCase  # creates the tests
 
 from soc.fu.test.common import ALUHelpers
 from soc.fu.compunits.compunits import TrapFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.config.endian import bigendian
+
 
 class TrapTestRunner(TestRunner):
     def __init__(self, test_data):
@@ -32,7 +33,7 @@ class TrapTestRunner(TestRunner):
         ALUHelpers.get_sim_nia(sim_o, sim, dec2)
         ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
-        print ("sim output", sim_o)
+        print("sim output", sim_o)
 
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)

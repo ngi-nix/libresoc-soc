@@ -211,9 +211,10 @@ def tolist(num):
 def get_reg_hex(reg):
     return hex(reg.value)
 
+
 def convert_to_python(pcode, form, incl_carry):
 
-    print ("form", form)
+    print("form", form)
     gsc = GardenSnakeCompiler(form=form, incl_carry=incl_carry)
 
     tree = gsc.compile(pcode, mode="exec", filename="string")
@@ -222,7 +223,7 @@ def convert_to_python(pcode, form, incl_carry):
                 'write_regs': gsc.parser.write_regs,
                 'uninit_regs': gsc.parser.uninit_regs,
                 'special_regs': gsc.parser.special_regs,
-                'op_fields': gsc.parser.op_fields }
+                'op_fields': gsc.parser.op_fields}
     return astor.to_source(tree), regsused
 
 
@@ -307,8 +308,8 @@ def test():
             # read regs, drop them into dict for function
             for rname in gsc.parser.read_regs:
                 regidx = yield getattr(decode.sigforms['X'], rname)
-                d[rname] = gsc.gpr[regidx] # contents of regfile
-                d["_%s" % rname] = regidx # actual register value
+                d[rname] = gsc.gpr[regidx]  # contents of regfile
+                d["_%s" % rname] = regidx  # actual register value
                 print("read reg", rname, regidx, hex(d[rname].value))
 
             exec(compiled_code, d)  # code gets executed here in dict "d"
@@ -342,7 +343,8 @@ def test():
         for j in range(16):
             hexstr.append("%02x" % gsc.mem.mem[i+j])
         hexstr = ' '.join(hexstr)
-        print ("mem %4x" % i, hexstr)
+        print("mem %4x" % i, hexstr)
+
 
 if __name__ == '__main__':
     test()

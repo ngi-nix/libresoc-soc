@@ -42,7 +42,7 @@ def instr_is_priv(m, op, insn):
         # XXX TODO
         #with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MFSPR, MicrOp.OP_MTSPR):
-            with m.If(insn[20]): # field XFX.spr[-1] i think
+            with m.If(insn[20]):  # field XFX.spr[-1] i think
                 comb += is_priv_insn.eq(1)
     return is_priv_insn
 
@@ -50,6 +50,7 @@ def instr_is_priv(m, op, insn):
 class SPRMap(Elaboratable):
     """SPRMap: maps POWER9 SPR numbers to internal enum values
     """
+
     def __init__(self):
         self.spr_i = Signal(10, reset_less=True)
         self.spr_o = Signal(SPR, reset_less=True)
@@ -109,20 +110,22 @@ class DecodeA(Elaboratable):
 
             # BC or BCREG: implicit register (CTR) NOTE: same in DecodeOut
             with m.Case(MicrOp.OP_BC):
-                with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
-                    comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                with m.If(~self.dec.BO[2]):  # 3.0B p38 BO2=0, use CTR reg
+                    # constant: CTR
+                    comb += self.fast_out.data.eq(FastRegs.CTR)
                     comb += self.fast_out.ok.eq(1)
             with m.Case(MicrOp.OP_BCREG):
-                xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
-                xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+                xo9 = self.dec.FormXL.XO[9]  # 3.0B p38 top bit of XO
+                xo5 = self.dec.FormXL.XO[5]  # 3.0B p38
                 with m.If(xo9 & ~xo5):
-                    comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                    # constant: CTR
+                    comb += self.fast_out.data.eq(FastRegs.CTR)
                     comb += self.fast_out.ok.eq(1)
 
             # MFSPR move from SPRs
             with m.Case(MicrOp.OP_MFSPR):
                 spr = Signal(10, reset_less=True)
-                comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
+                comb += spr.eq(decode_spr_num(self.dec.SPR))  # from XFX
                 with m.Switch(spr):
                     # fast SPRs
                     with m.Case(SPR.CTR.value):
@@ -141,7 +144,7 @@ class DecodeA(Elaboratable):
                         comb += self.fast_out.data.eq(FastRegs.SRR1)
                         comb += self.fast_out.ok.eq(1)
                     with m.Case(SPR.XER.value):
-                        pass # do nothing
+                        pass  # do nothing
                     # : map to internal SPR numbers
                     # XXX TODO: dec and tb not to go through mapping.
                     with m.Default():
@@ -179,34 +182,35 @@ class DecodeB(Elaboratable):
                 comb += self.reg_out.data.eq(self.dec.RB)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.RS):
-                comb += self.reg_out.data.eq(self.dec.RS) # for M-Form shiftrot
+                # for M-Form shiftrot
+                comb += self.reg_out.data.eq(self.dec.RS)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI):
                 comb += self.imm_out.data.eq(self.dec.UI)
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SI): # TODO: sign-extend here?
+            with m.Case(In2Sel.CONST_SI):  # TODO: sign-extend here?
                 comb += self.imm_out.data.eq(
                     exts(self.dec.SI, 16, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_UI_HI):
-                comb += self.imm_out.data.eq(self.dec.UI<<16)
+                comb += self.imm_out.data.eq(self.dec.UI << 16)
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SI_HI): # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(self.dec.SI<<16)
+            with m.Case(In2Sel.CONST_SI_HI):  # TODO: sign-extend here?
+                comb += self.imm_out.data.eq(self.dec.SI << 16)
                 comb += self.imm_out.data.eq(
                     exts(self.dec.SI << 16, 32, 64))
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_LI):
-                comb += self.imm_out.data.eq(self.dec.LI<<2)
+                comb += self.imm_out.data.eq(self.dec.LI << 2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_BD):
-                comb += self.imm_out.data.eq(self.dec.BD<<2)
+                comb += self.imm_out.data.eq(self.dec.BD << 2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_DS):
-                comb += self.imm_out.data.eq(self.dec.DS<<2)
+                comb += self.imm_out.data.eq(self.dec.DS << 2)
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_M1):
-                comb += self.imm_out.data.eq(~Const(0, 64)) # all 1s
+                comb += self.imm_out.data.eq(~Const(0, 64))  # all 1s
                 comb += self.imm_out.ok.eq(1)
             with m.Case(In2Sel.CONST_SH):
                 comb += self.imm_out.data.eq(self.dec.sh)
@@ -220,8 +224,8 @@ class DecodeB(Elaboratable):
         # BCREG implicitly uses LR or TAR for 2nd reg
         # CTR however is already in fast_spr1 *not* 2.
         with m.If(op.internal_op == MicrOp.OP_BCREG):
-            xo9 = self.dec.FormXL.XO[9] # 3.0B p38 top bit of XO
-            xo5 = self.dec.FormXL.XO[5] # 3.0B p38
+            xo9 = self.dec.FormXL.XO[9]  # 3.0B p38 top bit of XO
+            xo5 = self.dec.FormXL.XO[5]  # 3.0B p38
             with m.If(~xo9):
                 comb += self.fast_out.data.eq(FastRegs.LR)
                 comb += self.fast_out.ok.eq(1)
@@ -251,7 +255,8 @@ class DecodeC(Elaboratable):
         # select Register C field
         with m.Switch(self.sel_in):
             with m.Case(In3Sel.RB):
-                comb += self.reg_out.data.eq(self.dec.RB) # for M-Form shiftrot
+                # for M-Form shiftrot
+                comb += self.reg_out.data.eq(self.dec.RB)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In3Sel.RS):
                 comb += self.reg_out.data.eq(self.dec.RS)
@@ -290,7 +295,7 @@ class DecodeOut(Elaboratable):
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.SPR):
                 spr = Signal(10, reset_less=True)
-                comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
+                comb += spr.eq(decode_spr_num(self.dec.SPR))  # from XFX
                 # TODO MTSPR 1st spr (fast)
                 with m.If(op.internal_op == MicrOp.OP_MTSPR):
                     with m.Switch(spr):
@@ -311,7 +316,7 @@ class DecodeOut(Elaboratable):
                             comb += self.fast_out.data.eq(FastRegs.SRR1)
                             comb += self.fast_out.ok.eq(1)
                         with m.Case(SPR.XER.value):
-                            pass # do nothing
+                            pass  # do nothing
                         # : map to internal SPR numbers
                         # XXX TODO: dec and tb not to go through mapping.
                         with m.Default():
@@ -323,13 +328,14 @@ class DecodeOut(Elaboratable):
 
             # BC or BCREG: implicit register (CTR) NOTE: same in DecodeA
             with m.Case(MicrOp.OP_BC, MicrOp.OP_BCREG):
-                with m.If(~self.dec.BO[2]): # 3.0B p38 BO2=0, use CTR reg
-                    comb += self.fast_out.data.eq(FastRegs.CTR) # constant: CTR
+                with m.If(~self.dec.BO[2]):  # 3.0B p38 BO2=0, use CTR reg
+                    # constant: CTR
+                    comb += self.fast_out.data.eq(FastRegs.CTR)
                     comb += self.fast_out.ok.eq(1)
 
             # RFID 1st spr (fast)
             with m.Case(MicrOp.OP_RFID):
-                comb += self.fast_out.data.eq(FastRegs.SRR0) # constant: SRR0
+                comb += self.fast_out.data.eq(FastRegs.SRR0)  # constant: SRR0
                 comb += self.fast_out.ok.eq(1)
 
         return m
@@ -365,13 +371,13 @@ class DecodeOut2(Elaboratable):
 
             # BC* implicit register (LR)
             with m.Case(MicrOp.OP_BC, MicrOp.OP_B, MicrOp.OP_BCREG):
-                with m.If(self.lk): # "link" mode
-                    comb += self.fast_out.data.eq(FastRegs.LR) # constant: LR
+                with m.If(self.lk):  # "link" mode
+                    comb += self.fast_out.data.eq(FastRegs.LR)  # constant: LR
                     comb += self.fast_out.ok.eq(1)
 
             # RFID 2nd spr (fast)
             with m.Case(MicrOp.OP_RFID):
-                comb += self.fast_out.data.eq(FastRegs.SRR1) # constant: SRR1
+                comb += self.fast_out.data.eq(FastRegs.SRR1)  # constant: SRR1
                 comb += self.fast_out.ok.eq(1)
 
         return m
@@ -382,6 +388,7 @@ class DecodeRC(Elaboratable):
 
     decodes Record bit Rc
     """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(RC, reset_less=True)
@@ -418,6 +425,7 @@ class DecodeOE(Elaboratable):
     -- actual POWER9 does if we set it on those instructions, for now we
     -- test that further down when assigning to the multiplier oe input.
     """
+
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(RC, reset_less=True)
@@ -445,6 +453,7 @@ class DecodeOE(Elaboratable):
 
         return m
 
+
 class DecodeCRIn(Elaboratable):
     """Decodes input CR from instruction
 
@@ -470,7 +479,7 @@ class DecodeCRIn(Elaboratable):
         comb += self.whole_reg.eq(0)
         with m.Switch(self.sel_in):
             with m.Case(CRInSel.NONE):
-                pass # No bitfield activated
+                pass  # No bitfield activated
             with m.Case(CRInSel.CR0):
                 comb += self.cr_bitfield.data.eq(0)
                 comb += self.cr_bitfield.ok.eq(1)
@@ -519,10 +528,10 @@ class DecodeCROut(Elaboratable):
         comb += self.whole_reg.eq(0)
         with m.Switch(self.sel_in):
             with m.Case(CROutSel.NONE):
-                pass # No bitfield activated
+                pass  # No bitfield activated
             with m.Case(CROutSel.CR0):
                 comb += self.cr_bitfield.data.eq(0)
-                comb += self.cr_bitfield.ok.eq(self.rc_in) # only when RC=1
+                comb += self.cr_bitfield.ok.eq(self.rc_in)  # only when RC=1
             with m.Case(CROutSel.BF):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BF)
                 comb += self.cr_bitfield.ok.eq(1)
@@ -559,11 +568,11 @@ class PowerDecode2(Elaboratable):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
-        self.valid = Signal() # sync signal
+        self.valid = Signal()  # sync signal
 
         # state information needed by the Decoder (TODO: this as a Record)
-        self.msr = Signal(64, reset_less=True) # copy of MSR
-        self.cia = Signal(64, reset_less=True) # copy of Program Counter
+        self.msr = Signal(64, reset_less=True)  # copy of MSR
+        self.cia = Signal(64, reset_less=True)  # copy of Program Counter
 
     def ports(self):
         return self.dec.ports() + self.e.ports()
@@ -599,7 +608,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_o2.sel_in.eq(op.out_sel)
         comb += dec_o2.lk.eq(do.lk)
         comb += dec_rc.sel_in.eq(op.rc_sel)
-        comb += dec_oe.sel_in.eq(op.rc_sel) # XXX should be OE sel
+        comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
         comb += dec_cr_in.sel_in.eq(op.cr_in)
         comb += dec_cr_out.sel_in.eq(op.cr_out)
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
@@ -609,7 +618,8 @@ class PowerDecode2(Elaboratable):
         comb += do.cia.eq(self.cia)
 
         # set up instruction, pick fn unit
-        comb += do.insn_type.eq(op.internal_op) # no op: defaults to OP_ILLEGAL
+        # no op: defaults to OP_ILLEGAL
+        comb += do.insn_type.eq(op.internal_op)
         comb += do.fn_unit.eq(op.function_unit)
 
         # registers a, b, c and out and out2 (LD/ST EA)
@@ -618,7 +628,7 @@ class PowerDecode2(Elaboratable):
         comb += e.read_reg3.eq(dec_c.reg_out)
         comb += e.write_reg.eq(dec_o.reg_out)
         comb += e.write_ea.eq(dec_o2.reg_out)
-        comb += do.imm_data.eq(dec_b.imm_out) # immediate in RB (usually)
+        comb += do.imm_data.eq(dec_b.imm_out)  # immediate in RB (usually)
         comb += do.zero_a.eq(dec_a.immz_out)  # RA==0 detected
 
         # rc and oe out
@@ -650,19 +660,19 @@ class PowerDecode2(Elaboratable):
         comb += do.invert_a.eq(op.inv_a)
         comb += do.invert_out.eq(op.inv_out)
         comb += do.input_carry.eq(op.cry_in)   # carry comes in
-        comb += do.output_carry.eq(op.cry_out) # carry goes out
+        comb += do.output_carry.eq(op.cry_out)  # carry goes out
         comb += do.is_32bit.eq(op.is_32b)
         comb += do.is_signed.eq(op.sgn)
         with m.If(op.lk):
-            comb += do.lk.eq(self.dec.LK) # XXX TODO: accessor
+            comb += do.lk.eq(self.dec.LK)  # XXX TODO: accessor
 
         comb += do.byte_reverse.eq(op.br)
         comb += do.sign_extend.eq(op.sgn_ext)
-        comb += do.ldst_mode.eq(op.upd) # LD/ST mode (update, cache-inhibit)
+        comb += do.ldst_mode.eq(op.upd)  # LD/ST mode (update, cache-inhibit)
 
         # These should be removed eventually
         comb += do.input_cr.eq(op.cr_in)   # condition reg comes in
-        comb += do.output_cr.eq(op.cr_out) # condition reg goes in
+        comb += do.output_cr.eq(op.cr_out)  # condition reg goes in
 
         # sigh this is exactly the sort of thing for which the
         # decoder is designed to not need.  MTSPR, MFSPR and others need
@@ -696,19 +706,19 @@ class PowerDecode2(Elaboratable):
         with m.If((do.insn_type == MicrOp.OP_TRAP) |
                   (do.insn_type == MicrOp.OP_SC)):
             # TRAP write fast1 = SRR0
-            comb += e.write_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += e.write_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
             comb += e.write_fast1.ok.eq(1)
             # TRAP write fast2 = SRR1
-            comb += e.write_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
+            comb += e.write_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
             comb += e.write_fast2.ok.eq(1)
 
         # RFID: needs to read SRR0/1
         with m.If(do.insn_type == MicrOp.OP_RFID):
             # TRAP read fast1 = SRR0
-            comb += e.read_fast1.data.eq(FastRegs.SRR0) # constant: SRR0
+            comb += e.read_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
             comb += e.read_fast1.ok.eq(1)
             # TRAP read fast2 = SRR1
-            comb += e.read_fast2.data.eq(FastRegs.SRR1) # constant: SRR1
+            comb += e.read_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
             comb += e.read_fast2.ok.eq(1)
 
         return m
@@ -718,15 +728,15 @@ class PowerDecode2(Elaboratable):
         """
         comb = m.d.comb
         e, op, do = self.e, self.dec.op, self.e.do
-        comb += e.eq(0) # reset eeeeeverything
+        comb += e.eq(0)  # reset eeeeeverything
         # start again
         comb += do.insn.eq(self.dec.opcode_in)
         comb += do.insn_type.eq(MicrOp.OP_TRAP)
         comb += do.fn_unit.eq(Function.TRAP)
-        comb += do.trapaddr.eq(trapaddr >> 4) # cut bottom 4 bits
-        comb += do.traptype.eq(traptype) # request type
-        comb += do.msr.eq(self.msr) # copy of MSR "state"
-        comb += do.cia.eq(self.cia) # copy of PC "state"
+        comb += do.trapaddr.eq(trapaddr >> 4)  # cut bottom 4 bits
+        comb += do.traptype.eq(traptype)  # request type
+        comb += do.msr.eq(self.msr)  # copy of MSR "state"
+        comb += do.cia.eq(self.cia)  # copy of PC "state"
 
     def regspecmap_read(self, regfile, regname):
         """regspecmap_read: provides PowerDecode2 with an encoding relationship
@@ -748,7 +758,7 @@ class PowerDecode2(Elaboratable):
             regfile, regname, _ = cu.get_in_spec(idx)
             rdflag, read = self.regspecmap_read(regfile, regname)
             rdl.append(rdflag)
-        print ("rdflags", rdl)
+        print("rdflags", rdl)
         return Cat(*rdl)
 
 
@@ -758,4 +768,3 @@ if __name__ == '__main__':
     vl = rtlil.convert(dec2, ports=dec2.ports() + pdecode.ports())
     with open("dec2.il", "w") as f:
         f.write(vl)
-

@@ -57,9 +57,9 @@ class DecoderTestCase(FHDLTestCase):
                 if not row['unit']:
                     continue
                 op = row['opcode']
-                if not opint: # HACK: convert 001---10 to 0b00100010
+                if not opint:  # HACK: convert 001---10 to 0b00100010
                     op = "0b" + op.replace('-', '0')
-                print ("opint", opint, row['opcode'], op)
+                print("opint", opint, row['opcode'], op)
                 print(row)
                 yield opcode.eq(0)
                 yield opcode[bitsel[0]:bitsel[1]].eq(int(op, 0))
@@ -132,7 +132,6 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_minor_62(self):
         self.run_tst((0, 2), "minor_62.csv", minor=(62, (26, 32)))
-
 
     # #def test_minor_31_prefix(self):
     # #    self.run_tst(10, "minor_31.csv", suffix=(5, 10))

@@ -24,17 +24,16 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
-    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2) # SPR1
-    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2) # SPR2
-    ALUHelpers.get_sim_cia(res, sim, dec2) # PC
-    ALUHelpers.get_sim_msr(res, sim, dec2) # MSR
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
+    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2)  # SPR1
+    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)  # SPR2
+    ALUHelpers.get_sim_cia(res, sim, dec2)  # PC
+    ALUHelpers.get_sim_msr(res, sim, dec2)  # MSR
 
-    print ("alu get_cu_inputs", res)
+    print("alu get_cu_inputs", res)
 
     return res
-
 
 
 def set_alu_inputs(alu, dec2, sim):
@@ -45,11 +44,11 @@ def set_alu_inputs(alu, dec2, sim):
     inp = yield from get_cu_inputs(dec2, sim)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
-    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp) # SPR1
-    yield from ALUHelpers.set_fast_spr2(alu, dec2, inp) # SPR1
+    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)  # SPR1
+    yield from ALUHelpers.set_fast_spr2(alu, dec2, inp)  # SPR1
 
-    #yield from ALUHelpers.set_cia(alu, dec2, inp)
-    #yield from ALUHelpers.set_msr(alu, dec2, inp)
+    # yield from ALUHelpers.set_cia(alu, dec2, inp)
+    # yield from ALUHelpers.set_msr(alu, dec2, inp)
     return inp
 
 # This test bench is a bit different than is usual. Initially when I
@@ -79,9 +78,9 @@ class TrapTestCase(FHDLTestCase):
         self.test_name = name
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                                    initial_msr=0):
+                        initial_msr=0):
         tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
-                                            msr=initial_msr)
+                      msr=initial_msr)
         self.test_data.append(tc)
 
     def test_1_rfid(self):
@@ -96,7 +95,7 @@ class TrapTestCase(FHDLTestCase):
         insns = ["twi", "tdi"]
         for i in range(2):
             choice = random.choice(insns)
-            lst = [f"{choice} 4, 1, %d" % i] # TO=4: trap equal
+            lst = [f"{choice} 4, 1, %d" % i]  # TO=4: trap equal
             initial_regs = [0] * 32
             initial_regs[1] = 1
             self.run_tst_program(Program(lst, bigendian), initial_regs)
@@ -105,12 +104,11 @@ class TrapTestCase(FHDLTestCase):
         insns = ["tw", "td"]
         for i in range(2):
             choice = insns[i]
-            lst = [f"{choice} 4, 1, 2"] # TO=4: trap equal
+            lst = [f"{choice} 4, 1, 2"]  # TO=4: trap equal
             initial_regs = [0] * 32
             initial_regs[1] = 1
             initial_regs[2] = 1
             self.run_tst_program(Program(lst, bigendian), initial_regs)
-
 
     def test_3_mtmsr_0(self):
         lst = ["mtmsr 1,0"]
@@ -140,15 +138,16 @@ class TrapTestCase(FHDLTestCase):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        msr = 1 << MSR.PR # set in "problem state"
+        msr = 1 << MSR.PR  # set in "problem state"
         self.run_tst_program(Program(lst, bigendian), initial_regs,
-                                                      initial_msr=msr)
+                             initial_msr=msr)
+
     def test_7_rfid_priv_0(self):
         lst = ["rfid"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
-        msr = 1 << MSR.PR # set in "problem state"
+        msr = 1 << MSR.PR  # set in "problem state"
         self.run_tst_program(Program(lst, bigendian),
                              initial_regs, initial_sprs,
                              initial_msr=msr)
@@ -158,20 +157,20 @@ class TrapTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         msr = (~(1 << MSR.PR)) & 0xffffffffffffffff
         self.run_tst_program(Program(lst, bigendian), initial_regs,
-                                                      initial_msr=msr)
+                             initial_msr=msr)
 
     def test_9_mfmsr_priv(self):
         lst = ["mfmsr 1"]
         initial_regs = [0] * 32
-        msr = 1 << MSR.PR # set in "problem state"
+        msr = 1 << MSR.PR  # set in "problem state"
         self.run_tst_program(Program(lst, bigendian), initial_regs,
-                                                      initial_msr=msr)
+                             initial_msr=msr)
 
     def test_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
         lst = ["tbegin.",
-               "mtmsr 1,1"] # should not get executed
+               "mtmsr 1,1"]  # should not get executed
         initial_regs = [0] * 32
         self.run_tst_program(Program(lst, bigendian), initial_regs)
 
@@ -207,20 +206,21 @@ class TestRunner(FHDLTestCase):
         sim = Simulator(m)
 
         sim.add_clock(1e-6)
+
         def process():
             for test in self.test_data:
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
                 sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr,
-                                bigendian=bigendian)
+                          test.mem, test.msr,
+                          bigendian=bigendian)
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
                 msr = sim.msr.value
                 pc = sim.pc.CIA.value
-                print ("starting msr, pc %08x, %08x"% (msr, pc))
+                print("starting msr, pc %08x, %08x" % (msr, pc))
                 index = pc//4
                 while index < len(instructions):
                     ins, code = instructions[index]
@@ -231,12 +231,12 @@ class TestRunner(FHDLTestCase):
                         so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
                         ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
                         ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print ("before: so/ov/32", so, ov, ov32)
+                        print("before: so/ov/32", so, ov, ov32)
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.msr.eq(msr) # set MSR in pdecode2
-                    yield pdecode2.cia.eq(pc) # set CIA in pdecode2 
+                    yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
+                    yield pdecode2.cia.eq(pc)  # set CIA in pdecode2
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
                     fn_unit = yield pdecode2.e.do.fn_unit
@@ -261,7 +261,7 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
@@ -270,7 +270,7 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
 
@@ -283,7 +283,7 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_nia(res, alu, dec2)
         yield from ALUHelpers.get_msr(res, alu, dec2)
 
-        print ("output", res)
+        print("output", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
@@ -291,7 +291,7 @@ class TestRunner(FHDLTestCase):
         ALUHelpers.get_sim_nia(sim_o, sim, dec2)
         ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
-        print ("sim output", sim_o)
+        print("sim output", sim_o)
 
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)

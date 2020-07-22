@@ -8,6 +8,7 @@ from nmutil.nmoperator import eq, shape, cat
 
 from soc.decoder.power_decoder2 import Decode2ToExecute1Type
 
+
 class Instruction(Decode2ToExecute1Type):
 
     @staticmethod
@@ -27,6 +28,7 @@ class InstructionQ(Elaboratable):
 
         input and shifting occurs on sync.
     """
+
     def __init__(self, wid, opwid, iqlen, n_in, n_out):
         """ constructor
 
@@ -44,13 +46,13 @@ class InstructionQ(Elaboratable):
         self.n_out = n_out
         mqbits = (int(log(iqlen) / log(2))+2, False)
 
-        self.p_add_i = Signal(mqbits) # instructions to add (from data_i)
-        self.p_ready_o = Signal() # instructions were added
+        self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
+        self.p_ready_o = Signal()  # instructions were added
         self.data_i = Instruction._nq(n_in, "data_i")
-        
+
         self.data_o = Instruction._nq(n_out, "data_o")
-        self.n_sub_i = Signal(mqbits) # number of instructions to remove
-        self.n_sub_o = Signal(mqbits) # number of instructions removed
+        self.n_sub_i = Signal(mqbits)  # number of instructions to remove
+        self.n_sub_o = Signal(mqbits)  # number of instructions removed
 
         self.qsz = shape(self.data_o[0])[0]
         q = []
@@ -74,7 +76,7 @@ class InstructionQ(Elaboratable):
         start_q = Signal(mqbits)
         end_q = Signal(mqbits)
         mqlen = Const(iqlen, (len(left), False))
-        print ("mqlen", mqlen)
+        print("mqlen", mqlen)
 
         # work out how many can be subtracted from the queue
         with m.If(self.n_sub_i):
@@ -86,7 +88,7 @@ class InstructionQ(Elaboratable):
                 comb += self.n_sub_o.eq(self.n_sub_i)
 
         # work out how many new items are going to be in the queue
-        comb += left.eq(self.qlen_o )#- self.n_sub_o)
+        comb += left.eq(self.qlen_o)  # - self.n_sub_o)
         comb += spare.eq(mqlen - self.p_add_i)
         comb += qmaxed.eq(left <= spare)
         comb += self.p_ready_o.eq(qmaxed & (self.p_add_i != 0))
@@ -106,7 +108,7 @@ class InstructionQ(Elaboratable):
             for i in range(self.n_in):
                 with m.If(self.p_add_i > Const(i, len(self.p_add_i))):
                     ipos = Signal(mqbits)
-                    comb += ipos.eq(start_q + i) # should roll round
+                    comb += ipos.eq(start_q + i)  # should roll round
                     sync += self.q[ipos].eq(cat(self.data_i[i]))
             sync += start_q.eq(start_q + self.p_add_i)
 
@@ -127,7 +129,7 @@ class InstructionQ(Elaboratable):
         for o in self.data_i:
             yield from list(o)
         yield self.p_add_i
-        
+
         for o in self.data_o:
             yield from list(o)
         yield self.n_sub_i
@@ -159,6 +161,7 @@ def instruction_q_sim(dut):
     yield dut.go_wr_i.eq(0)
     yield
 
+
 def test_instruction_q():
     dut = InstructionQ(16, 4, 4, n_in=2, n_out=2)
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -167,6 +170,7 @@ def test_instruction_q():
 
     run_simulation(dut, instruction_q_sim(dut),
                    vcd_name='test_instruction_q.vcd')
+
 
 if __name__ == '__main__':
     test_instruction_q()

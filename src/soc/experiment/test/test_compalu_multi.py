@@ -10,21 +10,19 @@ its result(s) have been successfully stored in the regfile(s)
 Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 """
 
+from soc.experiment.alu_fsm import Shifter, CompFSMOpSubset
+from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.experiment.alu_hier import ALU, DummyALU
+from soc.experiment.compalu_multi import MultiCompUnit
+from soc.decoder.power_enums import MicrOp
+from nmigen import Module
+from nmigen.cli import rtlil
 cxxsim = False
 if cxxsim:
     from nmigen.sim.cxxsim import Simulator, Settle
 else:
     from nmigen.back.pysim import Simulator, Settle
 
-from nmigen.cli import rtlil
-from nmigen import Module
-
-from soc.decoder.power_enums import MicrOp
-
-from soc.experiment.compalu_multi import MultiCompUnit
-from soc.experiment.alu_hier import ALU, DummyALU
-from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.experiment.alu_fsm import Shifter, CompFSMOpSubset
 
 def wrap(process):
     def wrapper():
@@ -33,7 +31,7 @@ def wrap(process):
 
 
 def op_sim_fsm(dut, a, b, direction):
-    print ("op_sim_fsm", a, b, direction)
+    print("op_sim_fsm", a, b, direction)
     yield dut.issue_i.eq(0)
     yield
     yield dut.src_i[0].eq(a)
@@ -48,18 +46,18 @@ def op_sim_fsm(dut, a, b, direction):
     while True:
         yield
         rd_rel_o = yield dut.rd.rel
-        print ("rd_rel", rd_rel_o)
+        print("rd_rel", rd_rel_o)
         if rd_rel_o:
             break
     yield dut.rd.go.eq(0)
 
     req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
-    print ("req_rel", req_rel_o, result)
+    print("req_rel", req_rel_o, result)
     while True:
         req_rel_o = yield dut.wr.rel
         result = yield dut.data_o
-        print ("req_rel", req_rel_o, result)
+        print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
@@ -67,7 +65,7 @@ def op_sim_fsm(dut, a, b, direction):
     yield Settle()
     result = yield dut.data_o
     yield
-    print ("result", result)
+    print("result", result)
     yield dut.wr.go[0].eq(0)
     yield
     return result
@@ -92,32 +90,32 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
         while True:
             yield
             rd_rel_o = yield dut.rd.rel
-            print ("rd_rel", rd_rel_o)
+            print("rd_rel", rd_rel_o)
             if rd_rel_o:
                 break
         yield dut.rd.go.eq(0)
     else:
-        print ("no go rd")
+        print("no go rd")
 
     if len(dut.src_i) == 3:
         yield dut.rd.go.eq(0b100)
         while True:
             yield
             rd_rel_o = yield dut.rd.rel
-            print ("rd_rel", rd_rel_o)
+            print("rd_rel", rd_rel_o)
             if rd_rel_o:
                 break
         yield dut.rd.go.eq(0)
     else:
-        print ("no 3rd rd")
+        print("no 3rd rd")
 
     req_rel_o = yield dut.wr.rel
     result = yield dut.data_o
-    print ("req_rel", req_rel_o, result)
+    print("req_rel", req_rel_o, result)
     while True:
         req_rel_o = yield dut.wr.rel
         result = yield dut.data_o
-        print ("req_rel", req_rel_o, result)
+        print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
@@ -125,7 +123,7 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield Settle()
     result = yield dut.data_o
     yield
-    print ("result", result)
+    print("result", result)
     yield dut.wr.go[0].eq(0)
     yield
     return result
@@ -144,23 +142,22 @@ def scoreboard_sim_fsm(dut):
 
 def scoreboard_sim_dummy(dut):
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP, inv_a=0,
-                                    imm=8, imm_ok=1)
+                               imm=8, imm_ok=1)
     assert result == 5, result
 
     result = yield from op_sim(dut, 9, 2, MicrOp.OP_NOP, inv_a=0,
-                                    imm=8, imm_ok=1)
+                               imm=8, imm_ok=1)
     assert result == 9, result
-
 
 
 def scoreboard_sim(dut):
     # zero (no) input operands test
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1,
-                                    imm=8, imm_ok=1)
+                               imm=8, imm_ok=1)
     assert result == 8
 
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=0,
-                                    imm=8, imm_ok=1)
+                               imm=8, imm_ok=1)
     assert result == 13
 
     result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD)
@@ -433,9 +430,9 @@ def test_compunit_regspec2_fsm():
 
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15'),
-            ]
-    outspec = [('INT', 'o', '0:15'),
               ]
+    outspec = [('INT', 'o', '0:15'),
+               ]
 
     regspec = (inspec, outspec)
 
@@ -459,7 +456,7 @@ def test_compunit_regspec3():
               ('INT', 'b', '0:15'),
               ('INT', 'c', '0:15')]
     outspec = [('INT', 'o', '0:15'),
-              ]
+               ]
 
     regspec = (inspec, outspec)
 
@@ -482,7 +479,7 @@ def test_compunit_regspec1():
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15')]
     outspec = [('INT', 'o', '0:15'),
-              ]
+               ]
 
     regspec = (inspec, outspec)
 

@@ -21,14 +21,14 @@ from soc.regfile.regfiles import XERRegs, FastRegs
 
 
 def get_regspec_bitwidth(regspec, srcdest, idx):
-    print ("get_regspec_bitwidth", regspec, srcdest, idx)
+    print("get_regspec_bitwidth", regspec, srcdest, idx)
     bitspec = regspec[srcdest][idx]
     wid = 0
-    print (bitspec)
+    print(bitspec)
     for ranges in bitspec[2].split(","):
         ranges = ranges.split(":")
-        print (ranges)
-        if len(ranges) == 1: # only one bit
+        print(ranges)
+        if len(ranges) == 1:  # only one bit
             wid += 1
         else:
             start, end = map(int, ranges)
@@ -89,18 +89,18 @@ class RegSpecALUAPI(RegSpecAPI):
         self.alu = alu
 
     def get_out(self, i):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+        if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.out[i]
         # regspec-based API: look up variable through regspec thru row number
         return getattr(self.alu.n.data_o, self.get_out_name(i))
 
     def get_in(self, i):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+        if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.i[i]
         # regspec-based API: look up variable through regspec thru row number
         return getattr(self.alu.p.data_i, self.get_in_name(i))
 
     def get_op(self):
-        if isinstance(self.rwid, int): # old - testing - API (rwid is int)
+        if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.op
         return self.alu.p.data_i.ctx.op

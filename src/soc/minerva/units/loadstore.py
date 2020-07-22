@@ -14,12 +14,12 @@ class LoadStoreUnitInterface:
     def __init__(self, pspec):
         self.pspec = pspec
         self.dbus = Record(make_wb_layout(pspec))
-        print (self.dbus.sel.shape())
+        print(self.dbus.sel.shape())
         self.mask_wid = mask_wid = pspec.mask_wid
         self.addr_wid = addr_wid = pspec.addr_wid
         self.data_wid = data_wid = pspec.reg_wid
-        print ("loadstoreunit addr mask data", addr_wid, mask_wid, data_wid)
-        self.adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
+        print("loadstoreunit addr mask data", addr_wid, mask_wid, data_wid)
+        self.adr_lsbs = log2_int(mask_wid)  # LSBs of addr covered by mask
         badwid = addr_wid-self.adr_lsbs    # TODO: is this correct?
 
         # INPUTS
@@ -27,29 +27,30 @@ class LoadStoreUnitInterface:
         self.x_mask_i = Signal(mask_wid)    # Mask of which bytes to write
         self.x_ld_i = Signal()              # set to do a memory load
         self.x_st_i = Signal()              # set to do a memory store
-        self.x_st_data_i = Signal(data_wid) # The data to write when storing
+        self.x_st_data_i = Signal(data_wid)  # The data to write when storing
 
         self.x_stall_i = Signal()           # do nothing until low
         self.x_valid_i = Signal()           # Whether x pipeline stage is
-                                            # currently enabled (I
-                                            # think?). Set to 1 for #now
+        # currently enabled (I
+        # think?). Set to 1 for #now
         self.m_stall_i = Signal()           # do nothing until low
         self.m_valid_i = Signal()           # Whether m pipeline stage is
-                                            # currently enabled. Set
-                                            # to 1 for now
+        # currently enabled. Set
+        # to 1 for now
 
         # OUTPUTS
         self.x_busy_o = Signal()            # set when the memory is busy
         self.m_busy_o = Signal()            # set when the memory is busy
 
-        self.m_ld_data_o = Signal(data_wid) # Data returned from memory read
+        self.m_ld_data_o = Signal(data_wid)  # Data returned from memory read
         # Data validity is NOT indicated by m_valid_i or x_valid_i as
         # those are inputs. I believe it is valid on the next cycle
         # after raising m_load where busy is low
 
         self.m_load_err_o = Signal()      # if there was an error when loading
         self.m_store_err_o = Signal()     # if there was an error when storing
-        self.m_badaddr_o = Signal(badwid) # The address of the load/store error
+        # The address of the load/store error
+        self.m_badaddr_o = Signal(badwid)
 
     def __iter__(self):
         yield self.x_addr_i
@@ -87,7 +88,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                     self.m_ld_data_o.eq(self.dbus.dat_r)
                 ]
         with m.Elif((self.x_ld_i | self.x_st_i) &
-                     self.x_valid_i & ~self.x_stall_i):
+                    self.x_valid_i & ~self.x_stall_i):
             m.d.sync += [
                 self.dbus.cyc.eq(1),
                 self.dbus.stb.eq(1),
@@ -154,7 +155,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                 const_bits = 30 - range_bits
                 return "{}{}".format("0" * const_bits, "-" * range_bits)
 
-            if dcache.base >= (1<<self.adr_lsbs):
+            if dcache.base >= (1 << self.adr_lsbs):
                 with m.Case(addr_below(dcache.base >> self.adr_lsbs)):
                     m.d.comb += x_dcache_select.eq(0)
             with m.Case(addr_below(dcache.limit >> self.adr_lsbs)):

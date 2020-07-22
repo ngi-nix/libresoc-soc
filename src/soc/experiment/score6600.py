@@ -870,7 +870,7 @@ def power_instr_q(dut, pdecode2, ins, code):
 def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
             branch_success, branch_fail):
     instrs = [{'insn_type': op, 'fn_unit': funit, 'write_reg': dest,
-                'imm_data': (imm, op_imm),
+               'imm_data': (imm, op_imm),
                'read_reg1': src1, 'read_reg2': src2}]
 
     sendlen = 1
@@ -884,11 +884,11 @@ def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
         yield dut.data_i[idx].insn_type.eq(insn_type)
         yield dut.data_i[idx].fn_unit.eq(fn_unit)
         yield dut.data_i[idx].read_reg1.data.eq(reg1)
-        yield dut.data_i[idx].read_reg1.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].read_reg1.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].read_reg2.data.eq(reg2)
-        yield dut.data_i[idx].read_reg2.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].read_reg2.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].write_reg.data.eq(dest)
-        yield dut.data_i[idx].write_reg.ok.eq(1) # XXX TODO
+        yield dut.data_i[idx].write_reg.ok.eq(1)  # XXX TODO
         yield dut.data_i[idx].imm_data.data.eq(imm)
         yield dut.data_i[idx].imm_data.ok.eq(op_imm)
         di = yield dut.data_i[idx]
@@ -1107,7 +1107,7 @@ def power_sim(m, dut, pdecode2, instruction, alusim):
         for i in range(1, dut.n_regs):
             #val = randint(0, (1<<alusim.rwidth)-1)
             #val = 31+i*3
-            val = i # XXX actually, not random at all
+            val = i  # XXX actually, not random at all
             yield dut.intregs.regs[i].reg.eq(val)
             alusim.setval(i, val)
 
@@ -1281,7 +1281,7 @@ def scoreboard_sim(dut, alusim):
 
         # issue instruction(s), wait for issue to be free before proceeding
         for i, instr in enumerate(instrs):
-            print (i, instr)
+            print(i, instr)
             src1, src2, dest, op, fn_unit, opi, imm, (br_ok, br_fail) = instr
 
             print("instr %d: (%d, %d, %d, %s, %s, %d, %d)" %
@@ -1334,7 +1334,7 @@ def test_scoreboard():
     run_simulation(m, power_sim(m, dut, pdecode2, instruction, alusim),
                    vcd_name='test_powerboard6600.vcd')
 
-    #run_simulation(dut, scoreboard_sim(dut, alusim),
+    # run_simulation(dut, scoreboard_sim(dut, alusim),
     #               vcd_name='test_scoreboard6600.vcd')
 
     # run_simulation(dut, scoreboard_branch_sim(dut, alusim),

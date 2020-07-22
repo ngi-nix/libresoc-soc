@@ -8,7 +8,7 @@ from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.decoder.power_enums import Function
 from soc.decoder.isa.all import ISA
 
-from soc.experiment.compalu_multi import find_ok # hack
+from soc.experiment.compalu_multi import find_ok  # hack
 from soc.config.test.test_loadstore import TestMemPspec
 
 
@@ -17,7 +17,7 @@ def set_cu_input(cu, idx, data):
     yield cu.src_i[idx].eq(data)
     while True:
         rd_rel_o = yield cu.rd.rel[idx]
-        print ("rd_rel %d wait HI" % idx, rd_rel_o, rdop, hex(data))
+        print("rd_rel %d wait HI" % idx, rd_rel_o, rdop, hex(data))
         if rd_rel_o:
             break
         yield
@@ -27,7 +27,7 @@ def set_cu_input(cu, idx, data):
         rd_rel_o = yield cu.rd.rel[idx]
         if rd_rel_o:
             break
-        print ("rd_rel %d wait HI" % idx, rd_rel_o)
+        print("rd_rel %d wait HI" % idx, rd_rel_o)
         yield
     yield cu.rd.go[idx].eq(0)
     yield cu.src_i[idx].eq(0)
@@ -39,15 +39,15 @@ def get_cu_output(cu, idx, code):
     wrok = cu.get_out(idx)
     fname = find_ok(wrok.fields)
     wrok = yield getattr(wrok, fname)
-    print ("wr_rel mask", repr(code), idx, wrop, bin(wrmask), fname, wrok)
-    assert wrmask & (1<<idx), \
-            "get_cu_output '%s': mask bit %d not set\n" \
-            "write-operand '%s' Data.ok likely not set (%s)" \
-            % (code, idx, wrop, hex(wrok))
+    print("wr_rel mask", repr(code), idx, wrop, bin(wrmask), fname, wrok)
+    assert wrmask & (1 << idx), \
+        "get_cu_output '%s': mask bit %d not set\n" \
+        "write-operand '%s' Data.ok likely not set (%s)" \
+        % (code, idx, wrop, hex(wrok))
     while True:
         wr_relall_o = yield cu.wr.rel
         wr_rel_o = yield cu.wr.rel[idx]
-        print ("wr_rel %d wait" % idx, hex(wr_relall_o), wr_rel_o)
+        print("wr_rel %d wait" % idx, hex(wr_relall_o), wr_rel_o)
         if wr_rel_o:
             break
         yield
@@ -56,19 +56,18 @@ def get_cu_output(cu, idx, code):
     result = yield cu.dest[idx]
     yield
     yield cu.wr.go[idx].eq(0)
-    print ("result", repr(code), idx, wrop, wrok, hex(result))
+    print("result", repr(code), idx, wrop, wrok, hex(result))
 
     return result
 
 
 def set_cu_inputs(cu, inp):
-    print ("set_cu_inputs", inp)
+    print("set_cu_inputs", inp)
     for idx, data in inp.items():
         yield from set_cu_input(cu, idx, data)
     # gets out of sync when checking busy if there is no wait, here.
     if len(inp) == 0:
-        yield # wait one cycle
-
+        yield  # wait one cycle
 
 
 def set_operand(cu, dec2, sim):
@@ -83,8 +82,9 @@ def get_cu_outputs(cu, code):
     res = {}
     wrmask = yield cu.wrmask
     wr_rel_o = yield cu.wr.rel
-    print ("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
-    if not wrmask: # no point waiting (however really should doublecheck wr.rel)
+    print("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
+    # no point waiting (however really should doublecheck wr.rel)
+    if not wrmask:
         return {}
     # wait for at least one result
     while True:
@@ -97,7 +97,7 @@ def get_cu_outputs(cu, code):
         if wr_rel_o:
             result = yield from get_cu_output(cu, i, code)
             wrop = cu.get_out_name(i)
-            print ("output", i, wrop, hex(result))
+            print("output", i, wrop, hex(result))
             res[wrop] = result
     return res
 
@@ -110,36 +110,38 @@ def get_inp_indexed(cu, inp):
             res[i] = inp[wrop]
     return res
 
-def get_l0_mem(l0): # BLECH!
+
+def get_l0_mem(l0):  # BLECH!
     if hasattr(l0.pimem, 'lsui'):
         return l0.pimem.lsui.mem
     return l0.pimem.mem.mem
 
+
 def setup_test_memory(l0, sim):
     mem = get_l0_mem(l0)
-    print ("before, init mem", mem.depth, mem.width, mem)
+    print("before, init mem", mem.depth, mem.width, mem)
     for i in range(mem.depth):
         data = sim.mem.ld(i*8, 8, False)
-        print ("init ", i, hex(data))
+        print("init ", i, hex(data))
         yield mem._array[i].eq(data)
     yield Settle()
     for k, v in sim.mem.mem.items():
-        print ("    %6x %016x" % (k, v))
-    print ("before, nmigen mem dump")
+        print("    %6x %016x" % (k, v))
+    print("before, nmigen mem dump")
     for i in range(mem.depth):
         actual_mem = yield mem._array[i]
-        print ("    %6i %016x" % (i, actual_mem))
+        print("    %6i %016x" % (i, actual_mem))
 
 
 def dump_sim_memory(dut, l0, sim, code):
     mem = get_l0_mem(l0)
-    print ("sim mem dump")
+    print("sim mem dump")
     for k, v in sim.mem.mem.items():
-        print ("    %6x %016x" % (k, v))
-    print ("nmigen mem dump")
+        print("    %6x %016x" % (k, v))
+    print("nmigen mem dump")
     for i in range(mem.depth):
         actual_mem = yield mem._array[i]
-        print ("    %6i %016x" % (i, actual_mem))
+        print("    %6i %016x" % (i, actual_mem))
 
 
 def check_sim_memory(dut, l0, sim, code):
@@ -149,8 +151,9 @@ def check_sim_memory(dut, l0, sim, code):
         expected_mem = sim.mem.ld(i*8, 8, False)
         actual_mem = yield mem._array[i]
         dut.assertEqual(expected_mem, actual_mem,
-                "%s %d %x %x" % (code, i,
-                                 expected_mem, actual_mem))
+                        "%s %d %x %x" % (code, i,
+                                         expected_mem, actual_mem))
+
 
 class TestRunner(FHDLTestCase):
     def __init__(self, test_data, fukls, iodef, funit, bigendian):
@@ -172,7 +175,7 @@ class TestRunner(FHDLTestCase):
         # copy of the decoder for simulator
         simdec = create_pdecode()
         simdec2 = PowerDecode2(simdec)
-        m.submodules.simdec2 = simdec2 # pain in the neck
+        m.submodules.simdec2 = simdec2  # pain in the neck
 
         if self.funit == Function.LDST:
             from soc.experiment.l0_cache import TstL0CacheBuffer
@@ -183,8 +186,8 @@ class TestRunner(FHDLTestCase):
             m.submodules.l0 = l0 = TstL0CacheBuffer(pspec, n_units=1)
             pi = l0.l0.dports[0]
             m.submodules.cu = cu = self.fukls(pi, idx=0, awid=3)
-            m.d.comb += cu.ad.go.eq(cu.ad.rel) # link addr-go direct to rel
-            m.d.comb += cu.st.go.eq(cu.st.rel) # link store-go direct to rel
+            m.d.comb += cu.ad.go.eq(cu.ad.rel)  # link addr-go direct to rel
+            m.d.comb += cu.st.go.eq(cu.st.rel)  # link store-go direct to rel
         else:
             m.submodules.cu = cu = self.fukls(0)
 
@@ -201,7 +204,7 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                print ("test", test.name, test.mem)
+                print("test", test.name, test.mem)
                 gen = list(program.generate_instructions())
                 insncode = program.assembly.splitlines()
                 instructions = list(zip(gen, insncode))
@@ -222,7 +225,7 @@ class TestRunner(FHDLTestCase):
                     print("instr pc", pc)
                     try:
                         yield from sim.setup_one()
-                    except KeyError: # indicates instruction not in imem: stop
+                    except KeyError:  # indicates instruction not in imem: stop
                         break
                     yield Settle()
                     ins, code = instructions[index]
@@ -239,10 +242,10 @@ class TestRunner(FHDLTestCase):
                         lk = yield pdecode2.e.do.lk
                         fast_out2 = yield pdecode2.e.write_fast2.data
                         fast_out2_ok = yield pdecode2.e.write_fast2.ok
-                        print ("lk:", lk, fast_out2, fast_out2_ok)
+                        print("lk:", lk, fast_out2, fast_out2_ok)
                         op_lk = yield cu.alu.pipe1.p.data_i.ctx.op.lk
-                        print ("op_lk:", op_lk)
-                        print (dir(cu.alu.pipe1.n.data_o))
+                        print("op_lk:", op_lk)
+                        print(dir(cu.alu.pipe1.n.data_o))
                     fn_unit = yield pdecode2.e.do.fn_unit
                     fuval = self.funit.value
                     self.assertEqual(fn_unit & fuval, fuval)
@@ -270,18 +273,18 @@ class TestRunner(FHDLTestCase):
                     # set inputs into CU
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
-                    print ("before inputs, rd_rel, wr_rel: ",
-                            bin(rd_rel_o), bin(wr_rel_o))
+                    print("before inputs, rd_rel, wr_rel: ",
+                          bin(rd_rel_o), bin(wr_rel_o))
                     assert wr_rel_o == 0, "wr.rel %s must be zero. "\
-                                "previous instr not written all regs\n"\
-                                "respec %s" % \
-                                (bin(wr_rel_o), cu.rwid[1])
+                        "previous instr not written all regs\n"\
+                        "respec %s" % \
+                        (bin(wr_rel_o), cu.rwid[1])
                     yield from set_cu_inputs(cu, inp)
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
                     wrmask = yield cu.wrmask
-                    print ("after inputs, rd_rel, wr_rel, wrmask: ",
-                            bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
+                    print("after inputs, rd_rel, wr_rel, wrmask: ",
+                          bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 
                     # call simulated operation
                     yield from sim.execute_one()
@@ -295,8 +298,8 @@ class TestRunner(FHDLTestCase):
                     wrmask = yield cu.wrmask
                     rd_rel_o = yield cu.rd.rel
                     wr_rel_o = yield cu.wr.rel
-                    print ("after got outputs, rd_rel, wr_rel, wrmask: ",
-                            bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
+                    print("after got outputs, rd_rel, wr_rel, wrmask: ",
+                          bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 
                     # reset read-mask.  IMPORTANT when there are no operands
                     yield cu.rdmaskn.eq(0)
@@ -304,7 +307,7 @@ class TestRunner(FHDLTestCase):
                     # wait for busy to go low
                     while True:
                         busy_o = yield cu.busy_o
-                        print ("busy", busy_o)
+                        print("busy", busy_o)
                         if not busy_o:
                             break
                         yield
@@ -314,29 +317,25 @@ class TestRunner(FHDLTestCase):
                     if self.funit == Function.BRANCH:
                         lr = yield cu.alu.pipe1.n.data_o.lr.data
                         lr_ok = yield cu.alu.pipe1.n.data_o.lr.ok
-                        print ("lr:", hex(lr), lr_ok)
+                        print("lr:", hex(lr), lr_ok)
 
                     if self.funit == Function.LDST:
                         yield from dump_sim_memory(self, l0, sim, code)
-
 
                     # sigh.  hard-coded.  test memory
                     if self.funit == Function.LDST:
                         yield from check_sim_memory(self, l0, sim, code)
                         yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                                sim, cu,
-                                                                code)
+                                                               sim, cu,
+                                                               code)
                     else:
                         yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                                sim, cu.alu,
-                                                                code)
-
+                                                               sim, cu.alu,
+                                                               code)
 
         sim.add_sync_process(process)
 
         name = self.funit.name.lower()
         with sim.write_vcd("%s_simulator.vcd" % name,
-                            traces=[]):
+                           traces=[]):
             sim.run()
-
-

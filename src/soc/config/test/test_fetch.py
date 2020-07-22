@@ -12,6 +12,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 import sys
 sys.setrecursionlimit(10**6)
 
+
 def read_from_addr(dut, addr):
     yield dut.a_pc_i.eq(addr)
     yield dut.a_valid_i.eq(1)
@@ -35,11 +36,11 @@ def tst_lsmemtype(ifacetype, sram_depth=32):
     m = Module()
     pspec = TestMemPspec(ldst_ifacetype=ifacetype,
                          imem_ifacetype=ifacetype, addr_wid=64,
-                                                   mask_wid=4,
-                                                   reg_wid=32,
+                         mask_wid=4,
+                         reg_wid=32,
                          imem_test_depth=sram_depth)
     dut = ConfigFetchUnit(pspec).fu
-    vl = rtlil.convert(dut, ports=[]) # TODOdut.ports())
+    vl = rtlil.convert(dut, ports=[])  # TODOdut.ports())
     with open("test_fetch_%s.il" % ifacetype, "w") as f:
         f.write(vl)
 
@@ -52,19 +53,20 @@ def tst_lsmemtype(ifacetype, sram_depth=32):
 
     def process():
 
-        values = [random.randint(0, (1<<32)-1) for x in range(16)]
+        values = [random.randint(0, (1 << 32)-1) for x in range(16)]
         for addr, val in enumerate(values):
             yield mem._array[addr].eq(val)
         yield Settle()
 
         for addr, val in enumerate(values):
             x = yield from read_from_addr(dut, addr << 2)
-            print ("addr, val", addr, hex(val), hex(x))
+            print("addr, val", addr, hex(val), hex(x))
             assert x == val
 
     sim.add_sync_process(process)
     with sim.write_vcd("test_fetch_%s.vcd" % ifacetype, traces=[]):
         sim.run()
+
 
 if __name__ == '__main__':
     tst_lsmemtype('test_bare_wb', sram_depth=32768)

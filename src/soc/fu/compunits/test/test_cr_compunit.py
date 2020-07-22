@@ -25,7 +25,7 @@ class CRTestRunner(TestRunner):
         """naming (res) must conform to CRFunctionUnit output regspec
         """
 
-        print ("check extra output", repr(code), res)
+        print("check extra output", repr(code), res)
 
         # full CR
         whole_reg = yield dec2.e.do.write_cr_whole

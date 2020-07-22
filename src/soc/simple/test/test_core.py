@@ -19,7 +19,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.endian import bigendian
 
 from soc.simple.core import NonProductionCore
-from soc.experiment.compalu_multi import find_ok # hack
+from soc.experiment.compalu_multi import find_ok  # hack
 
 from soc.fu.compunits.test.test_compunit import (setup_test_memory,
                                                  check_sim_memory)
@@ -45,18 +45,18 @@ def setup_regs(core, test):
     cr = test.cr
     crregs = core.regs.cr
     #cr = int('{:32b}'.format(cr)[::-1], 2)
-    print ("cr reg", hex(cr))
+    print("cr reg", hex(cr))
     for i in range(8):
         #j = 7-i
-        cri = (cr>>(i*4)) & 0xf
+        cri = (cr >> (i*4)) & 0xf
         #cri = int('{:04b}'.format(cri)[::-1], 2)
-        print ("cr reg", hex(cri), i,
-                crregs.regs[i].reg.shape())
+        print("cr reg", hex(cri), i,
+              crregs.regs[i].reg.shape())
         yield crregs.regs[i].reg.eq(cri)
 
     # set up XER.  "direct" write (bypass rd/write ports)
     xregs = core.regs.xer
-    print ("sprs", test.sprs)
+    print("sprs", test.sprs)
     xer = None
     if 'XER' in test.sprs:
         xer = test.sprs['XER']
@@ -73,8 +73,8 @@ def setup_regs(core, test):
         ovbit = xer[XER_bits['OV']].value
         ov32bit = xer[XER_bits['OV32']].value
         yield xregs.regs[xregs.OV].reg.eq(Cat(ovbit, ov32bit))
-        print ("setting XER so %d ca %d ca32 %d ov %d ov32 %d" % \
-                (sobit, cabit, ca32bit, ovbit, ov32bit))
+        print("setting XER so %d ca %d ca32 %d ov %d ov32 %d" %
+              (sobit, cabit, ca32bit, ovbit, ov32bit))
     else:
         yield xregs.regs[xregs.SO].reg.eq(0)
         yield xregs.regs[xregs.OV].reg.eq(0)
@@ -97,13 +97,12 @@ def setup_regs(core, test):
             for i, x in enumerate(SPR):
                 if sprname == x.name:
                     yield sregs[i].reg.eq(val)
-                    print ("setting slow SPR %d (%s) to %x" % \
-                            (i, sprname, val))
+                    print("setting slow SPR %d (%s) to %x" %
+                          (i, sprname, val))
         else:
             yield fregs.regs[fast].reg.eq(val)
-            print ("setting fast reg %d (%s) to %x" % \
-                    (fast, sprname, val))
-
+            print("setting fast reg %d (%s) to %x" %
+                  (fast, sprname, val))
 
     # allow changes to settle before reporting on XER
     yield Settle()
@@ -116,8 +115,8 @@ def setup_regs(core, test):
     oe = yield pdecode2.e.do.oe.oe
     oe_ok = yield pdecode2.e.do.oe.oe_ok
 
-    print ("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
-    print ("oe:", oe, oe_ok)
+    print("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
+    print("oe:", oe, oe_ok)
 
 
 def check_regs(dut, sim, core, test, code):
@@ -126,25 +125,25 @@ def check_regs(dut, sim, core, test, code):
     for i in range(32):
         rval = yield core.regs.int.regs[i].reg
         intregs.append(rval)
-    print ("int regs", list(map(hex, intregs)))
+    print("int regs", list(map(hex, intregs)))
     for i in range(32):
         simregval = sim.gpr[i].asint()
         dut.assertEqual(simregval, intregs[i],
-            "int reg %d not equal %s" % (i, repr(code)))
+                        "int reg %d not equal %s" % (i, repr(code)))
 
     # CRs
     crregs = []
     for i in range(8):
         rval = yield core.regs.cr.regs[i].reg
         crregs.append(rval)
-    print ("cr regs", list(map(hex, crregs)))
+    print("cr regs", list(map(hex, crregs)))
     for i in range(8):
         rval = crregs[i]
         cri = sim.crl[7-i].get_range().value
-        print ("cr reg", i, hex(cri), i, hex(rval))
+        print("cr reg", i, hex(cri), i, hex(rval))
         # XXX https://bugs.libre-soc.org/show_bug.cgi?id=363
         dut.assertEqual(cri, rval,
-            "cr reg %d not equal %s" % (i, repr(code)))
+                        "cr reg %d not equal %s" % (i, repr(code)))
 
     # XER
     xregs = core.regs.xer
@@ -152,17 +151,17 @@ def check_regs(dut, sim, core, test, code):
     ov = yield xregs.regs[xregs.OV].reg
     ca = yield xregs.regs[xregs.CA].reg
 
-    print ("sim SO", sim.spr['XER'][XER_bits['SO']])
+    print("sim SO", sim.spr['XER'][XER_bits['SO']])
     e_so = sim.spr['XER'][XER_bits['SO']].value
     e_ov = sim.spr['XER'][XER_bits['OV']].value
     e_ov32 = sim.spr['XER'][XER_bits['OV32']].value
     e_ca = sim.spr['XER'][XER_bits['CA']].value
     e_ca32 = sim.spr['XER'][XER_bits['CA32']].value
 
-    e_ov = e_ov | (e_ov32<<1)
-    e_ca = e_ca | (e_ca32<<1)
+    e_ov = e_ov | (e_ov32 << 1)
+    e_ca = e_ca | (e_ca32 << 1)
 
-    print ("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
+    print("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
     dut.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
     dut.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
     dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
@@ -177,6 +176,7 @@ def wait_for_busy_hi(cu):
             break
         print("!busy", busy_o, terminated_o)
         yield
+
 
 def set_issue(core, dec2, sim):
     yield core.issue_i.eq(1)
@@ -222,8 +222,8 @@ class TestRunner(FHDLTestCase):
 
         # temporary hack: says "go" immediately for both address gen and ST
         ldst = core.fus.fus['ldst0']
-        m.d.comb += ldst.ad.go.eq(ldst.ad.rel) # link addr-go direct to rel
-        m.d.comb += ldst.st.go.eq(ldst.st.rel) # link store-go direct to rel
+        m.d.comb += ldst.ad.go.eq(ldst.ad.rel)  # link addr-go direct to rel
+        m.d.comb += ldst.st.go.eq(ldst.st.rel)  # link store-go direct to rel
 
         # nmigen Simulation
         sim = Simulator(m)
@@ -258,7 +258,7 @@ class TestRunner(FHDLTestCase):
                     yield instruction.eq(ins)          # raw binary instr.
                     yield ivalid_i.eq(1)
                     yield Settle()
-                    #fn_unit = yield pdecode2.e.fn_unit
+                    # fn_unit = yield pdecode2.e.fn_unit
                     #fuval = self.funit.value
                     #self.assertEqual(fn_unit & fuval, fuval)
 
@@ -270,7 +270,7 @@ class TestRunner(FHDLTestCase):
                     yield ivalid_i.eq(0)
                     yield
 
-                    print ("sim", code)
+                    print("sim", code)
                     # call simulated operation
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
@@ -284,7 +284,7 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
 
@@ -300,4 +300,3 @@ if __name__ == "__main__":
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
-

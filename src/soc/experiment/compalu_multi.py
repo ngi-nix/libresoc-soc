@@ -54,6 +54,7 @@ class CompUnitRecord(RegSpec, RecordObject):
 
     see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
     """
+
     def __init__(self, subkls, rwid, n_src=None, n_dst=None, name=None):
         RegSpec.__init__(self, rwid, n_src, n_dst)
         RecordObject.__init__(self, name)
@@ -63,7 +64,7 @@ class CompUnitRecord(RegSpec, RecordObject):
         # create source operands
         src = []
         for i in range(n_src):
-            j = i + 1 # name numbering to match src1/src2
+            j = i + 1  # name numbering to match src1/src2
             name = "src%d_i" % j
             rw = self._get_srcwid(i)
             sreg = Signal(rw, name=name, reset_less=True)
@@ -74,29 +75,29 @@ class CompUnitRecord(RegSpec, RecordObject):
         # create dest operands
         dst = []
         for i in range(n_dst):
-            j = i + 1 # name numbering to match dest1/2...
+            j = i + 1  # name numbering to match dest1/2...
             name = "dest%d_o" % j
             rw = self._get_dstwid(i)
-            #dreg = Data(rw, name=name) XXX ??? output needs to be a Data type?
+            # dreg = Data(rw, name=name) XXX ??? output needs to be a Data type?
             dreg = Signal(rw, name=name, reset_less=True)
             setattr(self, name, dreg)
             dst.append(dreg)
         self._dest = dst
 
         # operation / data input
-        self.oper_i = subkls(name="oper_i") # operand
+        self.oper_i = subkls(name="oper_i")  # operand
 
         # create read/write and other scoreboard signalling
-        self.rd = go_record(n_src, name="rd") # read in, req out
-        self.wr = go_record(n_dst, name="wr") # write in, req out
-        self.rdmaskn = Signal(n_src, reset_less=True) # read mask
-        self.wrmask = Signal(n_dst, reset_less=True) # write mask
-        self.issue_i = Signal(reset_less=True) # fn issue in
-        self.shadown_i = Signal(reset=1) # shadow function, defaults to ON
-        self.go_die_i = Signal() # go die (reset)
+        self.rd = go_record(n_src, name="rd")  # read in, req out
+        self.wr = go_record(n_dst, name="wr")  # write in, req out
+        self.rdmaskn = Signal(n_src, reset_less=True)  # read mask
+        self.wrmask = Signal(n_dst, reset_less=True)  # write mask
+        self.issue_i = Signal(reset_less=True)  # fn issue in
+        self.shadown_i = Signal(reset=1)  # shadow function, defaults to ON
+        self.go_die_i = Signal()  # go die (reset)
 
         # output (busy/done)
-        self.busy_o = Signal(reset_less=True) # fn busy out
+        self.busy_o = Signal(reset_less=True)  # fn busy out
         self.done_o = Signal(reset_less=True)
 
 
@@ -115,17 +116,17 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.opsubsetkls = opsubsetkls
         self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
         n_src, n_dst = self.n_src, self.n_dst = cu._n_src, cu._n_dst
-        print ("n_src %d n_dst %d" % (self.n_src, self.n_dst))
+        print("n_src %d n_dst %d" % (self.n_src, self.n_dst))
 
         # convenience names for src operands
         for i in range(n_src):
-            j = i + 1 # name numbering to match src1/src2
+            j = i + 1  # name numbering to match src1/src2
             name = "src%d_i" % j
             setattr(self, name, getattr(cu, name))
 
         # convenience names for dest operands
         for i in range(n_dst):
-            j = i + 1 # name numbering to match dest1/2...
+            j = i + 1  # name numbering to match dest1/2...
             name = "dest%d_o" % j
             setattr(self, name, getattr(cu, name))
 
@@ -134,10 +135,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.wr = cu.wr
         self.rdmaskn = cu.rdmaskn
         self.wrmask = cu.wrmask
-        self.go_rd_i = self.rd.go # temporary naming
-        self.go_wr_i = self.wr.go # temporary naming
-        self.rd_rel_o = self.rd.rel # temporary naming
-        self.req_rel_o = self.wr.rel # temporary naming
+        self.go_rd_i = self.rd.go  # temporary naming
+        self.go_wr_i = self.wr.go  # temporary naming
+        self.rd_rel_o = self.rd.rel  # temporary naming
+        self.req_rel_o = self.wr.rel  # temporary naming
         self.issue_i = cu.issue_i
         self.shadown_i = cu.shadown_i
         self.go_die_i = cu.go_die_i
@@ -148,7 +149,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         self.busy_o = cu.busy_o
         self.dest = cu._dest
-        self.data_o = self.dest[0] # Dest out
+        self.data_o = self.dest[0]  # Dest out
         self.done_o = cu.done_o
 
     def _mux_op(self, m, sl, op_is_imm, imm, i):
@@ -161,7 +162,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # overwrite 1st src-latch with immediate-muxed stuff
         sl[i][0] = src_or_imm
         sl[i][2] = src_sel
-        sl[i][3] = ~op_is_imm # change rd.rel[i] gate condition
+        sl[i][3] = ~op_is_imm  # change rd.rel[i] gate condition
 
     def elaborate(self, platform):
         m = Module()
@@ -177,7 +178,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # so combine it with go_rd_i.  if all bits are set we're good
         all_rd = Signal(reset_less=True)
         m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
-                    (((~self.rd.rel) | self.rd.go).all()))
+                              (((~self.rd.rel) | self.rd.go).all()))
 
         # generate read-done pulse
         all_rd_dly = Signal(reset_less=True)
@@ -205,21 +206,21 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # is enough, when combined with when read-phase is done (rst_l.q)
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
-        m.d.comb += self.done_o.eq(self.busy_o & \
+        m.d.comb += self.done_o.eq(self.busy_o &
                                    ~((self.wr.rel & ~self.wrmask).bool()))
         m.d.comb += wr_any.eq(self.wr.go.bool() | prev_wr_go.bool())
-        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i & \
-                ((req_l.q & self.wrmask) == 0))
+        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i &
+                                ((req_l.q & self.wrmask) == 0))
         # argh, complicated hack: if there are no regs to write,
         # instead of waiting for regs that are never going to happen,
         # we indicate "done" when the ALU is "done"
-        with m.If((self.wrmask == 0) & \
-                    self.alu.n.ready_i & self.alu.n.valid_o & self.busy_o):
+        with m.If((self.wrmask == 0) &
+                  self.alu.n.ready_i & self.alu.n.valid_o & self.busy_o):
             m.d.comb += req_done.eq(1)
 
         # shadow/go_die
         reset = Signal(reset_less=True)
-        rst_r = Signal(reset_less=True) # reset latch off
+        rst_r = Signal(reset_less=True)  # reset latch off
         reset_w = Signal(self.n_dst, reset_less=True)
         reset_r = Signal(self.n_src, reset_less=True)
         m.d.comb += reset.eq(req_done | self.go_die_i)
@@ -229,7 +230,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
-        m.d.sync += rok_l.r.eq(self.alu.n.valid_o & self.busy_o) # ALU done
+        m.d.sync += rok_l.r.eq(self.alu.n.valid_o & self.busy_o)  # ALU done
 
         # wr-done, back-to-start latch
         m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
@@ -237,7 +238,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
-        m.d.sync += opc_l.r.eq(req_done) # reset on ALU
+        m.d.sync += opc_l.r.eq(req_done)  # reset on ALU
 
         # src operand latch (not using go_wr_i)
         m.d.sync += src_l.s.eq(Repl(self.issue_i, self.n_src))
@@ -260,7 +261,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             ok = Const(1, 1)
             if isinstance(lro, Record):
                 data_r = Record.like(lro, name=name)
-                print ("wr fields", i, lro, data_r.fields)
+                print("wr fields", i, lro, data_r.fields)
                 # bye-bye abstract interface design..
                 fname = find_ok(data_r.fields)
                 if fname:
@@ -285,9 +286,9 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # 2nd operand in the input "regspec".  see for example
         # soc.fu.alu.pipe_data.ALUInputData
         sl = []
-        print ("src_i", self.src_i)
+        print("src_i", self.src_i)
         for i in range(self.n_src):
-            sl.append([self.src_i[i], self.get_in(i), src_l.q[i], Const(1,1)])
+            sl.append([self.src_i[i], self.get_in(i), src_l.q[i], Const(1, 1)])
 
         # if the operand subset has "zero_a" we implicitly assume that means
         # src_i[0] is an INT reg type where zero can be multiplexed in, instead.
@@ -332,9 +333,9 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # outputs
         # -----
 
-        slg = Cat(*map(lambda x: x[3], sl)) # get req gate conditions
+        slg = Cat(*map(lambda x: x[3], sl))  # get req gate conditions
         # all request signals gated by busy_o.  prevents picker problems
-        m.d.comb += self.busy_o.eq(opc_l.q) # busy out
+        m.d.comb += self.busy_o.eq(opc_l.q)  # busy out
 
         # read-release gated by busy (and read-mask)
         bro = Repl(self.busy_o, self.n_src)
@@ -370,5 +371,3 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
     def ports(self):
         return list(self)
-
-

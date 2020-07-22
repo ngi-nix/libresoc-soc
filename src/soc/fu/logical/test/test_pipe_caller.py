@@ -24,8 +24,8 @@ def get_cu_inputs(dec2, sim):
     """
     res = {}
 
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2) # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2) # RB
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
 
     return res
 
@@ -61,6 +61,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 class LogicalTestCase(FHDLTestCase):
     test_data = []
+
     def __init__(self, name):
         super().__init__(name)
         self.test_name = name
@@ -139,7 +140,7 @@ class LogicalTestCase(FHDLTestCase):
         lst = ["bpermd 3, 1, 2"]
         for i in range(20):
             initial_regs = [0] * 32
-            initial_regs[1] = 1<<random.randint(0,63)
+            initial_regs[1] = 1 << random.randint(0, 63)
             initial_regs[2] = 0xdeadbeefcafec0de
             self.run_tst_program(Program(lst, bigendian), initial_regs)
 
@@ -226,7 +227,7 @@ class TestRunner(FHDLTestCase):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
         if rc:
             self.assertEqual(cridx, 0, code)
 

@@ -3,19 +3,19 @@ from nmigen import Module, Elaboratable, Memory
 
 class TestMemory(Elaboratable):
     def __init__(self, regwid, addrw, granularity=None, init=True,
-                                      readonly=False):
+                 readonly=False):
         self.readonly = readonly
-        self.ddepth = 1 # regwid //8
-        depth = (1<<addrw) // self.ddepth
+        self.ddepth = 1  # regwid //8
+        depth = (1 << addrw) // self.ddepth
         self.depth = depth
         self.regwid = regwid
-        print ("test memory width depth", regwid, depth)
+        print("test memory width depth", regwid, depth)
         if init is True:
             init = range(0, depth*2, 2)
         else:
             init = None
         self.mem = Memory(width=regwid, depth=depth, init=init)
-        self.rdport = self.mem.read_port() # not now transparent=False)
+        self.rdport = self.mem.read_port()  # not now transparent=False)
         if self.readonly:
             return
         self.wrport = self.mem.write_port(granularity=granularity)
@@ -31,7 +31,7 @@ class TestMemory(Elaboratable):
     def __iter__(self):
         yield self.rdport.addr
         yield self.rdport.data
-        #yield self.rdport.en
+        # yield self.rdport.en
         if self.readonly:
             return
         yield self.wrport.addr

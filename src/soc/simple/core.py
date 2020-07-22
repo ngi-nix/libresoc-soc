@@ -30,7 +30,7 @@ from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
-from soc.experiment.l0_cache import TstL0CacheBuffer # test only
+from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.decoder.power_enums import MicrOp
 import operator
@@ -40,6 +40,7 @@ import operator
 # ORed single signal.
 def ortreereduce(tree, attr="data_o"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
+
 
 def ortreereduce_sig(tree):
     return treereduce(tree, operator.or_, lambda x: x)
@@ -54,7 +55,7 @@ def sort_fuspecs(fuspecs):
     for (regname, fspec) in fuspecs.items():
         if not regname.startswith("full"):
             res.append((regname, fspec))
-    return res # enumerate(res)
+    return res  # enumerate(res)
 
 
 class NonProductionCore(Elaboratable):
@@ -85,7 +86,7 @@ class NonProductionCore(Elaboratable):
         # start/stop and terminated signalling
         self.core_start_i = Signal(reset_less=True)
         self.core_stop_i = Signal(reset_less=True)
-        self.core_terminated_o = Signal(reset=0) # indicates stopped
+        self.core_terminated_o = Signal(reset=0)  # indicates stopped
 
     def elaborate(self, platform):
         m = Module()
@@ -98,7 +99,7 @@ class NonProductionCore(Elaboratable):
         fus = self.fus.fus
 
         # core start/stopped state
-        core_stopped = Signal(reset=1) # begins in stopped state
+        core_stopped = Signal(reset=1)  # begins in stopped state
 
         # start/stop signalling
         with m.If(self.core_start_i):
@@ -156,7 +157,7 @@ class NonProductionCore(Elaboratable):
 
         with m.If(can_run):
             with m.Switch(dec2.e.do.insn_type):
-            # check for ATTN: halt if true
+                # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):
                     m.d.sync += core_stopped.eq(1)
 
@@ -203,7 +204,7 @@ class NonProductionCore(Elaboratable):
 
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):
-                print ("connect rd", regname, fspec)
+                print("connect rd", regname, fspec)
                 rpidx = regname
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
@@ -212,12 +213,14 @@ class NonProductionCore(Elaboratable):
                 comb += rdflag.eq(rf)
 
                 # select the required read port.  these are pre-defined sizes
-                print (rpidx, regfile, regs.rf.keys())
+                print(rpidx, regfile, regs.rf.keys())
                 rport = regs.rf[regfile.lower()].r_ports[rpidx]
 
                 # create a priority picker to manage this port
-                rdpickers[regfile][rpidx] = rdpick = PriorityPicker(len(fuspec))
-                setattr(m.submodules, "rdpick_%s_%s" % (regfile, rpidx), rdpick)
+                rdpickers[regfile][rpidx] = rdpick = PriorityPicker(
+                    len(fuspec))
+                setattr(m.submodules, "rdpick_%s_%s" %
+                        (regfile, rpidx), rdpick)
 
                 # connect the regspec "reg select" number to this port
                 with m.If(rdpick.en_o):
@@ -235,10 +238,11 @@ class NonProductionCore(Elaboratable):
                     comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
 
                     # connect regfile port to input, creating a Broadcast Bus
-                    print ("reg connect widths",
-                           regfile, regname, pi, funame,
-                           src.shape(), rport.data_o.shape())
-                    comb += src.eq(rport.data_o) # all FUs connect to same port
+                    print("reg connect widths",
+                          regfile, regname, pi, funame,
+                          src.shape(), rport.data_o.shape())
+                    # all FUs connect to same port
+                    comb += src.eq(rport.data_o)
 
     def connect_wrports(self, m, fu_bitdict):
         """connect write ports
@@ -264,18 +268,20 @@ class NonProductionCore(Elaboratable):
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
             for (regname, fspec) in sort_fuspecs(fuspecs):
-                print ("connect wr", regname, fspec)
+                print("connect wr", regname, fspec)
                 rpidx = regname
                 # get the regfile specs for this regfile port
                 (rf, read, write, wid, fuspec) = fspec
 
                 # select the required write port.  these are pre-defined sizes
-                print (regfile, regs.rf.keys())
+                print(regfile, regs.rf.keys())
                 wport = regs.rf[regfile.lower()].w_ports[rpidx]
 
                 # create a priority picker to manage this port
-                wrpickers[regfile][rpidx] = wrpick = PriorityPicker(len(fuspec))
-                setattr(m.submodules, "wrpick_%s_%s" % (regfile, rpidx), wrpick)
+                wrpickers[regfile][rpidx] = wrpick = PriorityPicker(
+                    len(fuspec))
+                setattr(m.submodules, "wrpick_%s_%s" %
+                        (regfile, rpidx), wrpick)
 
                 # connect the regspec write "reg select" number to this port
                 # only if one FU actually requests (and is granted) the port
@@ -291,20 +297,20 @@ class NonProductionCore(Elaboratable):
                 for pi, (funame, fu, idx) in enumerate(fuspec):
                     # write-request comes from dest.ok
                     dest = fu.get_out(idx)
-                    fu_dest_latch = fu.get_fu_out(idx) # latched output
+                    fu_dest_latch = fu.get_fu_out(idx)  # latched output
                     name = "wrflag_%s_%s_%d" % (funame, regname, idx)
                     wrflag = Signal(name=name, reset_less=True)
                     comb += wrflag.eq(dest.ok & fu.busy_o)
 
                     # connect request-read to picker input, and output to go-wr
                     fu_active = fu_bitdict[funame]
-                    pick = fu.wr.rel[idx] & fu_active #& wrflag
+                    pick = fu.wr.rel[idx] & fu_active  # & wrflag
                     comb += wrpick.i[pi].eq(pick)
                     comb += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
                     # connect regfile port to input
-                    print ("reg connect widths",
-                           regfile, regname, pi, funame,
-                           dest.shape(), wport.data_i.shape())
+                    print("reg connect widths",
+                          regfile, regname, pi, funame,
+                          dest.shape(), wport.data_i.shape())
                     wsigs.append(fu_dest_latch)
 
                 # here is where we create the Write Broadcast Bus. simple, eh?
@@ -321,13 +327,13 @@ class NonProductionCore(Elaboratable):
         byregfiles = {}
         byregfiles_spec = {}
         for (funame, fu) in fus.items():
-            print ("%s ports for %s" % (mode, funame))
+            print("%s ports for %s" % (mode, funame))
             for idx in range(fu.n_src if readmode else fu.n_dst):
                 if readmode:
                     (regfile, regname, wid) = fu.get_in_spec(idx)
                 else:
                     (regfile, regname, wid) = fu.get_out_spec(idx)
-                print ("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
+                print("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
                 if readmode:
                     rdflag, read = dec2.regspecmap_read(regfile, regname)
                     write = None
@@ -339,7 +345,7 @@ class NonProductionCore(Elaboratable):
                     byregfiles_spec[regfile] = {}
                 if regname not in byregfiles_spec[regfile]:
                     byregfiles_spec[regfile][regname] = \
-                                [rdflag, read, write, wid, []]
+                        [rdflag, read, write, wid, []]
                 # here we start to create "lanes"
                 if idx not in byregfiles[regfile]:
                     byregfiles[regfile][idx] = []
@@ -349,16 +355,16 @@ class NonProductionCore(Elaboratable):
 
         # ok just print that out, for convenience
         for regfile, spec in byregfiles.items():
-            print ("regfile %s ports:" % mode, regfile)
+            print("regfile %s ports:" % mode, regfile)
             fuspecs = byregfiles_spec[regfile]
             for regname, fspec in fuspecs.items():
                 [rdflag, read, write, wid, fuspec] = fspec
-                print ("  rf %s port %s lane: %s" % (mode, regfile, regname))
-                print ("  %s" % regname, wid, read, write, rdflag)
+                print("  rf %s port %s lane: %s" % (mode, regfile, regname))
+                print("  %s" % regname, wid, read, write, rdflag)
                 for (funame, fu, idx) in fuspec:
                     fusig = fu.src_i[idx] if readmode else fu.dest[idx]
-                    print ("    ", funame, fu, idx, fusig)
-                    print ()
+                    print("    ", funame, fu, idx, fusig)
+                    print()
 
         return byregfiles, byregfiles_spec
 

@@ -8,16 +8,15 @@ from math import log
 class MemSim:
     def __init__(self, regwid, addrw):
         self.regwid = regwid
-        self.ddepth = 1 # regwid//8
-        depth = (1<<addrw) // self.ddepth
+        self.ddepth = 1  # regwid//8
+        depth = (1 << addrw) // self.ddepth
         self.mem = list(range(0, depth))
 
     def ld(self, addr):
-        return self.mem[addr>>self.ddepth]
+        return self.mem[addr >> self.ddepth]
 
     def st(self, addr, data):
-        self.mem[addr>>self.ddepth] = data & ((1<<self.regwid)-1)
-
+        self.mem[addr >> self.ddepth] = data & ((1 << self.regwid)-1)
 
 
 IADD = 0
@@ -36,7 +35,7 @@ class RegSim:
         self.regs = [0] * nregs
 
     def op(self, op, op_imm, imm, src1, src2, dest):
-        print ("regsim op src1, src2", op, op_imm, imm, src1, src2, dest)
+        print("regsim op src1, src2", op, op_imm, imm, src1, src2, dest)
         maxbits = (1 << self.rwidth) - 1
         src1 = self.regs[src1] & maxbits
         if op_imm:
@@ -47,7 +46,7 @@ class RegSim:
             val = src1 + src2
         elif op == MicrOp.OP_MUL_L64:
             val = src1 * src2
-            print ("mul src1, src2", src1, src2, val)
+            print("mul src1, src2", src1, src2, val)
         elif op == ISUB:
             val = src1 - src2
         elif op == ISHF:
@@ -61,13 +60,13 @@ class RegSim:
         elif op == IBNE:
             val = int(src1 != src2)
         else:
-            return 0 # LD/ST TODO
+            return 0  # LD/ST TODO
         val &= maxbits
         self.setval(dest, val)
         return val
 
     def setval(self, dest, val):
-        print ("sim setval", dest, hex(val))
+        print("sim setval", dest, hex(val))
         self.regs[dest] = val
 
     def dump(self, dut):
@@ -83,4 +82,3 @@ class RegSim:
                 print("reg %d expected %x received %x\n" % (i, val, reg))
                 yield from self.dump(dut)
                 assert False
-

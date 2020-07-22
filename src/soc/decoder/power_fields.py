@@ -109,7 +109,7 @@ def decode_form(form):
 class DecodeFields:
 
     def __init__(self, bitkls=BitRange, bitargs=(), fname=None,
-                       name_on_wiki=None):
+                 name_on_wiki=None):
         self.bitkls = bitkls
         self.bitargs = bitargs
         if fname is None:
@@ -217,7 +217,8 @@ class DecodeFields:
                     txt = "%s (%s)" % (f0, s0)
                     individualfields.append(txt)
                 if len(fs) > 1:
-                  res.update(self.decode_instruction_fields(individualfields))
+                    res.update(self.decode_instruction_fields(
+                        individualfields))
             d = self.bitkls(*self.bitargs)
             idx = 0
             for s in ss:
@@ -244,6 +245,6 @@ if __name__ == '__main__':
     dec.create_specs()
     forms, instrs = dec.forms, dec.instrs
     for form, fields in instrs.items():
-        print ("Form", form)
+        print("Form", form)
         for field, bits in fields.items():
-            print ("\tfield", field, bits)
+            print("\tfield", field, bits)

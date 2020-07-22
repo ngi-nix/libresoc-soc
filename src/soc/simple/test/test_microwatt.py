@@ -44,7 +44,7 @@ class BinaryTestCase(FHDLTestCase):
     def run_tst_program(self, prog):
         initial_regs = [0] * 32
         tc = TestCase(prog, self.test_name, initial_regs, None, 0,
-                                            None, 0,
+                      None, 0,
                       do_sim=False)
         self.test_data.append(tc)
 
@@ -96,23 +96,23 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                print ("regs", test.regs)
-                print ("sprs", test.sprs)
-                print ("cr", test.cr)
-                print ("mem", test.mem)
-                print ("msr", test.msr)
-                print ("assem", program.assembly)
+                print("regs", test.regs)
+                print("sprs", test.sprs)
+                print("cr", test.cr)
+                print("mem", test.mem)
+                print("msr", test.msr)
+                print("assem", program.assembly)
                 instructions = list(program.generate_instructions())
 
-                print ("instructions", len(instructions))
+                print("instructions", len(instructions))
 
-                pc = 0 # start of memory
+                pc = 0  # start of memory
 
                 yield from setup_i_memory(imem, pc, instructions)
                 # blech!  put the same listing into the data memory
                 data_mem = get_l0_mem(l0)
                 yield from setup_i_memory(data_mem, pc, instructions)
-                #yield from setup_test_memory(l0, sim)
+                # yield from setup_test_memory(l0, sim)
                 yield from setup_regs(core, test)
 
                 yield pc_i.eq(pc)
@@ -123,7 +123,7 @@ class TestRunner(FHDLTestCase):
                     # start the instruction
                     yield go_insn_i.eq(1)
                     yield
-                    yield pc_i_ok.eq(0) # don't change PC from now on
+                    yield pc_i_ok.eq(0)  # don't change PC from now on
                     yield go_insn_i.eq(0)      # and don't issue a new insn
                     yield from wait_for_busy_hi(core)
                     yield Settle()
@@ -135,21 +135,21 @@ class TestRunner(FHDLTestCase):
                     yield from wait_for_busy_clear(core)
 
                     terminated = yield core.core_terminated_o
-                    print ("terminated", terminated)
+                    print("terminated", terminated)
 
                     terminated = yield core.core_terminated_o
                     if terminated:
                         break
 
             # register check
-            #yield from check_regs(self, sim, core, test, code)
+            # yield from check_regs(self, sim, core, test, code)
 
             # Memory check
-            #yield from check_sim_memory(self, l0, sim, code)
+            # yield from check_sim_memory(self, l0, sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("binary_issuer_simulator.vcd",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
 
@@ -160,4 +160,3 @@ if __name__ == "__main__":
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
-

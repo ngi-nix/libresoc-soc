@@ -8,7 +8,7 @@ from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.config.endian import bigendian
 
-from soc.regfile.util import fast_reg_to_spr # HACK!
+from soc.regfile.util import fast_reg_to_spr  # HACK!
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
@@ -30,7 +30,7 @@ class BranchTestRunner(TestRunner):
         """naming (res) must conform to BranchFunctionUnit output regspec
         """
 
-        print ("check extra output", repr(code), res)
+        print("check extra output", repr(code), res)
 
         # NIA (next instruction address aka PC)
         branch_taken = 'nia' in res

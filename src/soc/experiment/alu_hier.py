@@ -24,14 +24,12 @@ from soc.fu.cr.cr_input_record import CompCROpSubset
 import operator
 
 
-
-
 class Adder(Elaboratable):
     def __init__(self, width):
         self.invert_a = Signal()
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width, name="add_o")
+        self.a = Signal(width)
+        self.b = Signal(width)
+        self.o = Signal(width, name="add_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -44,9 +42,9 @@ class Adder(Elaboratable):
 
 class Subtractor(Elaboratable):
     def __init__(self, width):
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width, name="sub_o")
+        self.a = Signal(width)
+        self.b = Signal(width)
+        self.o = Signal(width, name="sub_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -56,9 +54,9 @@ class Subtractor(Elaboratable):
 
 class Multiplier(Elaboratable):
     def __init__(self, width):
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width, name="mul_o")
+        self.a = Signal(width)
+        self.b = Signal(width)
+        self.o = Signal(width, name="mul_o")
 
     def elaborate(self, platform):
         m = Module()
@@ -69,16 +67,17 @@ class Multiplier(Elaboratable):
 class Shifter(Elaboratable):
     def __init__(self, width):
         self.width = width
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width, name="shf_o")
+        self.a = Signal(width)
+        self.b = Signal(width)
+        self.o = Signal(width, name="shf_o")
 
     def elaborate(self, platform):
         m = Module()
         btrunc = Signal(self.width)
-        m.d.comb += btrunc.eq(self.b & Const((1<<self.width)-1))
+        m.d.comb += btrunc.eq(self.b & Const((1 << self.width)-1))
         m.d.comb += self.o.eq(self.a >> btrunc)
         return m
+
 
 class Dummy:
     pass
@@ -86,17 +85,17 @@ class Dummy:
 
 class DummyALU(Elaboratable):
     def __init__(self, width):
-        self.p = Dummy() # make look like nmutil pipeline API
+        self.p = Dummy()  # make look like nmutil pipeline API
         self.p.data_i = Dummy()
         self.p.data_i.ctx = Dummy()
-        self.n = Dummy() # make look like nmutil pipeline API
+        self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
         self.p.valid_i = Signal()
         self.p.ready_o = Signal()
         self.n.ready_i = Signal()
         self.n.valid_o = Signal()
-        self.counter   = Signal(4)
-        self.op  = CompCROpSubset()
+        self.counter = Signal(4)
+        self.op = CompCROpSubset()
         i = []
         i.append(Signal(width, name="i1"))
         i.append(Signal(width, name="i2"))
@@ -116,7 +115,7 @@ class DummyALU(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        go_now = Signal(reset_less=True) # testing no-delay ALU
+        go_now = Signal(reset_less=True)  # testing no-delay ALU
 
         with m.If(self.p.valid_i):
             # input is valid. next check, if we already said "ready" or not
@@ -140,8 +139,8 @@ class DummyALU(Elaboratable):
         with m.If(self.n.ready_i & self.n.valid_o):
             m.d.sync += self.n.valid_o.eq(0)
             # recipient said it was ready: reset back to known-good.
-            m.d.sync += self.counter.eq(0) # reset the counter
-            m.d.sync += self.o.eq(0) # clear the output for tidiness sake
+            m.d.sync += self.counter.eq(0)  # reset the counter
+            m.d.sync += self.o.eq(0)  # clear the output for tidiness sake
 
         # countdown to 1 (transition from 1 to 0 only on acknowledgement)
         with m.If(self.counter > 1):
@@ -162,16 +161,16 @@ class DummyALU(Elaboratable):
 
 class ALU(Elaboratable):
     def __init__(self, width):
-        self.p = Dummy() # make look like nmutil pipeline API
+        self.p = Dummy()  # make look like nmutil pipeline API
         self.p.data_i = Dummy()
         self.p.data_i.ctx = Dummy()
-        self.n = Dummy() # make look like nmutil pipeline API
+        self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
         self.p.valid_i = Signal()
         self.p.ready_o = Signal()
         self.n.ready_i = Signal()
         self.n.valid_o = Signal()
-        self.counter   = Signal(4)
+        self.counter = Signal(4)
         self.op = CompALUOpSubset(name="op")
         i = []
         i.append(Signal(width, name="i1"))
@@ -209,7 +208,7 @@ class ALU(Elaboratable):
         # pass invert (and carry later)
         m.d.comb += add.invert_a.eq(self.op.invert_a)
 
-        go_now = Signal(reset_less=True) # testing no-delay ALU
+        go_now = Signal(reset_less=True)  # testing no-delay ALU
 
         # ALU sequencer is idle when the count is zero
         alu_idle = Signal(reset_less=True)
@@ -291,9 +290,9 @@ class ALU(Elaboratable):
 
 class BranchOp(Elaboratable):
     def __init__(self, width, op):
-        self.a   = Signal(width)
-        self.b   = Signal(width)
-        self.o   = Signal(width)
+        self.a = Signal(width)
+        self.b = Signal(width)
+        self.o = Signal(width)
         self.op = op
 
     def elaborate(self, platform):
@@ -304,17 +303,17 @@ class BranchOp(Elaboratable):
 
 class BranchALU(Elaboratable):
     def __init__(self, width):
-        self.p = Dummy() # make look like nmutil pipeline API
+        self.p = Dummy()  # make look like nmutil pipeline API
         self.p.data_i = Dummy()
         self.p.data_i.ctx = Dummy()
-        self.n = Dummy() # make look like nmutil pipeline API
+        self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
         self.p.valid_i = Signal()
         self.p.ready_o = Signal()
         self.n.ready_i = Signal()
         self.n.valid_o = Signal()
-        self.counter   = Signal(4)
-        self.op  = Signal(2)
+        self.counter = Signal(4)
+        self.op = Signal(2)
         i = []
         i.append(Signal(width, name="i1"))
         i.append(Signal(width, name="i2"))
@@ -341,7 +340,7 @@ class BranchALU(Elaboratable):
                 mod.b.eq(self.b),
             ]
 
-        go_now = Signal(reset_less=True) # testing no-delay ALU
+        go_now = Signal(reset_less=True)  # testing no-delay ALU
         with m.If(self.p.valid_i):
             # input is valid. next check, if we already said "ready" or not
             with m.If(~self.p.ready_o):
@@ -353,7 +352,8 @@ class BranchALU(Elaboratable):
                     for i, mod in enumerate([bgt, blt, beq, bne]):
                         with m.Case(i):
                             m.d.sync += self.o.eq(mod.o)
-                m.d.sync += self.counter.eq(5) # branch to take 5 cycles (fake)
+                # branch to take 5 cycles (fake)
+                m.d.sync += self.counter.eq(5)
                 #m.d.comb += go_now.eq(1)
         with m.Else():
             # input says no longer valid, so drop ready as well.
@@ -367,8 +367,8 @@ class BranchALU(Elaboratable):
         with m.If(self.n.ready_i & self.n.valid_o):
             m.d.sync += self.n.valid_o.eq(0)
             # recipient said it was ready: reset back to known-good.
-            m.d.sync += self.counter.eq(0) # reset the counter
-            m.d.sync += self.o.eq(0) # clear the output for tidiness sake
+            m.d.sync += self.counter.eq(0)  # reset the counter
+            m.d.sync += self.o.eq(0)  # clear the output for tidiness sake
 
         # countdown to 1 (transition from 1 to 0 only on acknowledgement)
         with m.If(self.counter > 1):
@@ -384,6 +384,7 @@ class BranchALU(Elaboratable):
 
     def ports(self):
         return list(self)
+
 
 def run_op(dut, a, b, op, inv_a=0):
     yield dut.a.eq(a)
@@ -418,25 +419,25 @@ def run_op(dut, a, b, op, inv_a=0):
 
 def alu_sim(dut):
     result = yield from run_op(dut, 5, 3, MicrOp.OP_ADD)
-    print ("alu_sim add", result)
+    print("alu_sim add", result)
     assert (result == 8)
 
     result = yield from run_op(dut, 2, 3, MicrOp.OP_MUL_L64)
-    print ("alu_sim mul", result)
+    print("alu_sim mul", result)
     assert (result == 6)
 
     result = yield from run_op(dut, 5, 3, MicrOp.OP_ADD, inv_a=1)
-    print ("alu_sim add-inv", result)
+    print("alu_sim add-inv", result)
     assert (result == 65533)
 
     # test zero-delay ALU
     # don't have OP_SUB, so use any other
     result = yield from run_op(dut, 5, 3, MicrOp.OP_NOP)
-    print ("alu_sim sub", result)
+    print("alu_sim sub", result)
     assert (result == 2)
 
     result = yield from run_op(dut, 13, 2, MicrOp.OP_SHR)
-    print ("alu_sim shr", result)
+    print("alu_sim shr", result)
     assert (result == 3)
 
 
@@ -559,4 +560,3 @@ if __name__ == "__main__":
     # vl = rtlil.convert(alu, ports=alu.ports())
     # with open("test_branch_alu.il", "w") as f:
     #     f.write(vl)
-

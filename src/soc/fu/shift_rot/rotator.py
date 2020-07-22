@@ -13,12 +13,13 @@ from nmigen.back.pysim import Settle
 def right_mask(m, mask_begin):
     ret = Signal(64, name="right_mask", reset_less=True)
     with m.If(mask_begin <= 64):
-        m.d.comb += ret.eq((1<<(64-mask_begin)) - 1)
+        m.d.comb += ret.eq((1 << (64-mask_begin)) - 1)
     return ret
+
 
 def left_mask(m, mask_end):
     ret = Signal(64, name="left_mask", reset_less=True)
-    m.d.comb += ret.eq(~((1<<(63-mask_end)) - 1))
+    m.d.comb += ret.eq(~((1 << (63-mask_end)) - 1))
     return ret
 
 
@@ -40,11 +41,13 @@ class Rotator(Elaboratable):
         * clear_left = 1 when insn_type is OP_RLC or OP_RLCL
         * clear_right = 1 when insn_type is OP_RLC or OP_RLCR
     """
+
     def __init__(self):
         # input
         self.me = Signal(5, reset_less=True)        # ME field
         self.mb = Signal(5, reset_less=True)        # MB field
-        self.mb_extra = Signal(1, reset_less=True)  # extra bit of mb in MD-form
+        # extra bit of mb in MD-form
+        self.mb_extra = Signal(1, reset_less=True)
         self.ra = Signal(64, reset_less=True)       # RA
         self.rs = Signal(64, reset_less=True)       # RS
         self.shift = Signal(7, reset_less=True)     # RB[0:7]
@@ -162,6 +165,7 @@ class Rotator(Elaboratable):
 
         return m
 
+
 if __name__ == '__main__':
 
     m = Module()
@@ -175,8 +179,7 @@ if __name__ == '__main__':
             yield mb.eq(63-i)
             yield Settle()
             res = yield mr
-            print (i, hex(res))
+            print(i, hex(res))
 
     run_simulation(m, [loop()],
                    vcd_name="test_mask.vcd")
-

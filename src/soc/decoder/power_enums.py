@@ -4,6 +4,7 @@ import os
 from os.path import dirname, join
 from collections import namedtuple
 
+
 def find_wiki_file(name):
     filedir = os.path.dirname(os.path.abspath(__file__))
     basedir = dirname(dirname(dirname(filedir)))
@@ -47,16 +48,16 @@ def get_signal_name(name):
 @unique
 class Function(Enum):
     NONE = 0
-    ALU = 1<<1
-    LDST = 1<<2
-    SHIFT_ROT = 1<<3
-    LOGICAL = 1<<4
-    BRANCH = 1<<5
-    CR = 1<<6
-    TRAP = 1<<7
-    MUL = 1<<8
-    DIV = 1<<9
-    SPR = 1<<10
+    ALU = 1 << 1
+    LDST = 1 << 2
+    SHIFT_ROT = 1 << 3
+    LOGICAL = 1 << 4
+    BRANCH = 1 << 5
+    CR = 1 << 6
+    TRAP = 1 << 7
+    MUL = 1 << 8
+    DIV = 1 << 9
+    SPR = 1 << 10
 
 
 @unique
@@ -90,6 +91,7 @@ class Form(Enum):
     EVS = 26
     Z22 = 27
     Z23 = 28
+
 
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
@@ -231,14 +233,14 @@ class In2Sel(Enum):
     CONST_SH = 10
     CONST_SH32 = 11
     SPR = 12
-    RS = 13 # for shiftrot (M-Form)
+    RS = 13  # for shiftrot (M-Form)
 
 
 @unique
 class In3Sel(Enum):
     NONE = 0
     RS = 1
-    RB = 2 # for shiftrot (M-Form)
+    RB = 2  # for shiftrot (M-Form)
 
 
 @unique
@@ -279,6 +281,7 @@ class CryIn(Enum):
     ONE = 1
     CA = 2
 
+
 @unique
 class CRInSel(Enum):
     NONE = 0
@@ -288,6 +291,7 @@ class CRInSel(Enum):
     BA_BB = 4
     BC = 5
     WHOLE_REG = 6
+
 
 @unique
 class CROutSel(Enum):
@@ -322,13 +326,13 @@ XER_bits = {
     'CA': 34,
     'OV32': 44,
     'CA32': 45
-    }
+}
 
 if __name__ == '__main__':
     # find out what the heck is in SPR enum :)
-    print ("sprs", len(SPR))
-    print (dir(SPR))
-    print (dir(Enum))
-    print (SPR.__members__['TAR'])
+    print("sprs", len(SPR))
+    print(dir(SPR))
+    print(dir(Enum))
+    print(SPR.__members__['TAR'])
     for x in SPR:
-        print (x, x.value, str(x), x.name)
+        print(x, x.value, str(x), x.name)

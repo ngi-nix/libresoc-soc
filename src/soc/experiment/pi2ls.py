@@ -35,8 +35,8 @@ from nmutil.latch import SRLatch
 class Pi2LSUI(PortInterfaceBase):
 
     def __init__(self, name, lsui=None,
-                             data_wid=64, mask_wid=8, addr_wid=48):
-        print ("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
+                 data_wid=64, mask_wid=8, addr_wid=48):
+        print("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
         super().__init__(data_wid, addr_wid)
         if lsui is None:
             lsui = LoadStoreUnitInterface(addr_wid, self.addrbits, data_wid)
@@ -53,7 +53,7 @@ class Pi2LSUI(PortInterfaceBase):
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
 
-    def set_wr_data(self, m, data, wen): # mask already done in addr setup
+    def set_wr_data(self, m, data, wen):  # mask already done in addr setup
         m.d.comb += self.lsui.x_st_data_i.eq(data)
         return ~self.lsui.x_busy_o
 
@@ -76,7 +76,7 @@ class Pi2LSUI(PortInterfaceBase):
         m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q)
 
         # reset the valid latch when not busy
-        m.d.comb += self.valid_l.r.eq(~pi.busy_o)#self.lsui.x_busy_o)
+        m.d.comb += self.valid_l.r.eq(~pi.busy_o)  # self.lsui.x_busy_o)
 
         return m
 
@@ -84,8 +84,8 @@ class Pi2LSUI(PortInterfaceBase):
 class Pi2LSUI1(Elaboratable):
 
     def __init__(self, name, pi=None, lsui=None,
-                             data_wid=64, mask_wid=8, addr_wid=48):
-        print ("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
+                 data_wid=64, mask_wid=8, addr_wid=48):
+        print("pi2lsui reg mask addr", data_wid, mask_wid, addr_wid)
         self.addrbits = mask_wid
         if pi is None:
             piname = "%s_pi" % name
@@ -113,12 +113,12 @@ class Pi2LSUI1(Elaboratable):
 
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
-        m.d.comb += pi.busy_o.eq(pi.is_ld_i | pi.is_st_i)#lsui.x_busy_o)
+        m.d.comb += pi.busy_o.eq(pi.is_ld_i | pi.is_st_i)  # lsui.x_busy_o)
 
         lsbaddr, msbaddr = self.splitaddr(pi.addr.data)
         m.d.comb += lenexp.len_i.eq(pi.data_len)
-        m.d.comb += lenexp.addr_i.eq(lsbaddr) # LSBs of addr
-        m.d.comb += lsui.x_addr_i.eq(pi.addr.data) # XXX hmmm...
+        m.d.comb += lenexp.addr_i.eq(lsbaddr)  # LSBs of addr
+        m.d.comb += lsui.x_addr_i.eq(pi.addr.data)  # XXX hmmm...
 
         with m.If(pi.addr.ok):
             # expand the LSBs of address plus LD/ST len into 16-bit mask
@@ -129,7 +129,7 @@ class Pi2LSUI1(Elaboratable):
             m.d.comb += pi.addr_ok_o.eq(1)
 
         with m.If(~lsui.x_busy_o & pi.is_st_i & pi.addr.ok):
-                m.d.sync += st_in_progress.eq(1)
+            m.d.sync += st_in_progress.eq(1)
 
         with m.If(pi.is_ld_i):
             # shift/mask out the loaded data

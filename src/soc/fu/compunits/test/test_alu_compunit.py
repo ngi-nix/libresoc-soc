@@ -2,7 +2,7 @@ import unittest
 from soc.decoder.power_enums import (XER_bits, Function)
 
 from soc.fu.alu.test.test_pipe_caller import get_cu_inputs
-from soc.fu.alu.test.test_pipe_caller import ALUTestCase # creates the tests
+from soc.fu.alu.test.test_pipe_caller import ALUTestCase  # creates the tests
 
 from soc.fu.test.common import ALUHelpers
 from soc.fu.compunits.compunits import ALUFunctionUnit
@@ -30,7 +30,7 @@ class ALUTestRunner(TestRunner):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
 
         if rc:
             self.assertEqual(cridx_ok, 1, code)

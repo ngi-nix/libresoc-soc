@@ -26,14 +26,14 @@ class Program:
             self.endian_fmt = "elf64-little"
             self.obj_fmt = "-le"
 
-        if isinstance(instructions, str): # filename
+        if isinstance(instructions, str):  # filename
             self.binfile = open(instructions, "rb")
-            self.assembly = '' # noo disassemble number fiiive
-            print ("program", self.binfile)
+            self.assembly = ''  # noo disassemble number fiiive
+            print("program", self.binfile)
         else:
             if isinstance(instructions, list):
                 instructions = '\n'.join(instructions)
-            self.assembly = instructions + '\n' # plus final newline
+            self.assembly = instructions + '\n'  # plus final newline
             self._assemble()
         self._instructions = list(self._get_instructions())
 
@@ -82,7 +82,7 @@ class Program:
             data = self.binfile.read(4)
             if not data:
                 break
-            yield struct.unpack('<I', data)[0] # unsigned int
+            yield struct.unpack('<I', data)[0]  # unsigned int
 
     def generate_instructions(self):
         yield from self._instructions

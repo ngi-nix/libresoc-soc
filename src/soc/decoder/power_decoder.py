@@ -95,14 +95,15 @@ from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 # key data structure in which the POWER decoder is specified,
 # in a hierarchical fashion
 Subdecoder = namedtuple("Subdecoder",
-        ["pattern",    # the major pattern to search for (e.g. major opcode)
-         "opcodes",    # a dictionary of minor patterns to find
-         "opint",      # true => the pattern must not be in "10----11" format
-         "bitsel",     # the bits (as a range) against which "pattern" matches
-         "suffix",     # shift the opcode down before decoding
-         "subdecoders" # list of further subdecoders for *additional* matches,
-                       # *ONLY* after "pattern" has *ALSO* been matched against.
-        ])
+                        ["pattern",    # the major pattern to search for (e.g. major opcode)
+                         "opcodes",    # a dictionary of minor patterns to find
+                         "opint",      # true => the pattern must not be in "10----11" format
+                         # the bits (as a range) against which "pattern" matches
+                         "bitsel",
+                         "suffix",     # shift the opcode down before decoding
+                         "subdecoders"  # list of further subdecoders for *additional* matches,
+                         # *ONLY* after "pattern" has *ALSO* been matched against.
+                         ])
 
 
 class PowerOp:
@@ -119,7 +120,7 @@ class PowerOp:
         self.function_unit = Signal(Function, reset_less=True)
         self.internal_op = Signal(MicrOp, reset_less=True)
         self.form = Signal(Form, reset_less=True)
-        if incl_asm: # for simulator only
+        if incl_asm:  # for simulator only
             self.asmcode = Signal(8, reset_less=True)
         self.in1_sel = Signal(In1Sel, reset_less=True)
         self.in2_sel = Signal(In2Sel, reset_less=True)
@@ -141,12 +142,14 @@ class PowerOp:
         # TODO: this conversion process from a dict to an object
         # should really be done using e.g. namedtuple and then
         # call eq not _eq
-        if False: # debugging
+        if False:  # debugging
             if row['CR in'] == '1':
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
                 print(row)
             if row['CR out'] == '0':
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
                 print(row)
             print(row)
         ldst_mode = row['upd']
@@ -169,7 +172,7 @@ class PowerOp:
                self.cry_in.eq(CryIn[row['cry in']]),
                ]
         if False:
-            print (row.keys())
+            print(row.keys())
         asmcode = row['comment']
         if hasattr(self, "asmcode") and asmcode in asmidx:
             res.append(self.asmcode.eq(asmidx[asmcode]))
@@ -302,7 +305,7 @@ class PowerDecoder(Elaboratable):
     def handle_subdecoders(self, m, d):
         for dec in d.subdecoders:
             subdecoder = PowerDecoder(self.width, dec)
-            if isinstance(dec, list): # XXX HACK: take first pattern
+            if isinstance(dec, list):  # XXX HACK: take first pattern
                 dec = dec[0]
             setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
             m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
@@ -390,9 +393,9 @@ def create_pdecode():
     # minor 19 has extra patterns
     m19 = []
     m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19.csv"),
-                   opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]))
+                          opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]))
     m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19_00000.csv"),
-                   opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]))
+                          opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]))
 
     # minor opcodes.
     pminor = [
@@ -411,10 +414,10 @@ def create_pdecode():
     dec = []
     opcodes = get_csv("major.csv")
     dec.append(Subdecoder(pattern=None, opint=True, opcodes=opcodes,
-                     bitsel=(26, 32), suffix=None, subdecoders=pminor))
+                          bitsel=(26, 32), suffix=None, subdecoders=pminor))
     opcodes = get_csv("extra.csv")
     dec.append(Subdecoder(pattern=None, opint=False, opcodes=opcodes,
-                     bitsel=(0, 32), suffix=None, subdecoders=[]))
+                          bitsel=(0, 32), suffix=None, subdecoders=[]))
 
     return TopPowerDecoder(32, dec)
 

@@ -24,14 +24,14 @@ class LDSTTestRunner(TestRunner):
         """naming (res) must conform to LDSTFunctionUnit output regspec
         """
 
-        print ("check cu outputs", code, res)
+        print("check cu outputs", code, res)
 
         rc = yield dec2.e.do.rc.data
         op = yield dec2.e.do.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
 
         if rc:
             self.assertEqual(cridx_ok, 1, code)

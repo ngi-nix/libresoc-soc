@@ -68,7 +68,7 @@ class ISA:
         self.forms = {}
         self.page = {}
         for pth in os.listdir(os.path.join(get_isa_dir())):
-            print (get_isa_dir(), pth)
+            print(get_isa_dir(), pth)
             assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
             self.read_file(pth)
             continue
@@ -85,16 +85,16 @@ class ISA:
             lines = f.readlines()
         rewrite = []
 
-        l = lines.pop(0).rstrip() # get first line
+        l = lines.pop(0).rstrip()  # get first line
         rewrite.append(l)
         while lines:
-            print (l)
+            print(l)
             # expect get heading
             assert l.startswith('#'), ("# not found in line %s" % l)
 
             # whitespace expected
             l = lines.pop(0).strip()
-            print (repr(l))
+            print(repr(l))
             assert len(l) == 0, ("blank line not found %s" % l)
             rewrite.append(l)
 
@@ -112,7 +112,8 @@ class ISA:
             while True:
                 l = lines.pop(0).strip()
                 rewrite.append(l)
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('*'), ("* not found in line %s" % l)
 
             rewrite.append("Pseudo-code:")
@@ -121,7 +122,8 @@ class ISA:
             while True:
                 l = lines.pop(0).rstrip()
                 rewrite.append(l)
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('    '), ("4spcs not found in line %s" % l)
 
             # "Special Registers Altered" expected
@@ -138,14 +140,16 @@ class ISA:
             while lines:
                 l = lines.pop(0).rstrip()
                 rewrite.append(l)
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('    '), ("4spcs not found in line %s" % l)
 
             # expect and drop whitespace
             while lines:
                 l = lines.pop(0).rstrip()
                 rewrite.append(l)
-                if len(l) != 0: break
+                if len(l) != 0:
+                    break
 
         return rewrite
 
@@ -162,16 +166,16 @@ class ISA:
         # line off the list and checks it.  nothing complicated needed,
         # all sections are mandatory so no need for a full LALR parser.
 
-        l = lines.pop(0).rstrip() # get first line
+        l = lines.pop(0).rstrip()  # get first line
         while lines:
-            print (l)
+            print(l)
             # expect get heading
             assert l.startswith('#'), ("# not found in line %s" % l)
             d['desc'] = l[1:].strip()
 
             # whitespace expected
             l = lines.pop(0).strip()
-            print (repr(l))
+            print(repr(l))
             assert len(l) == 0, ("blank line not found %s" % l)
 
             # Form expected
@@ -187,10 +191,11 @@ class ISA:
             li = []
             while True:
                 l = lines.pop(0).strip()
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('*'), ("* not found in line %s" % l)
-                l = l[1:].split(' ') # lose star
-                l = filter(lambda x: len(x) != 0, l) # strip blanks
+                l = l[1:].split(' ')  # lose star
+                l = filter(lambda x: len(x) != 0, l)  # strip blanks
                 li.append(list(l))
             opcodes = li
 
@@ -200,16 +205,17 @@ class ISA:
 
             # whitespace expected
             l = lines.pop(0).strip()
-            print (repr(l))
+            print(repr(l))
             assert len(l) == 0, ("blank line not found %s" % l)
 
             # get pseudocode
             li = []
             while True:
                 l = lines.pop(0).rstrip()
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('    '), ("4spcs not found in line %s" % l)
-                l = l[4:] # lose 4 spaces
+                l = l[4:]  # lose 4 spaces
                 li.append(l)
             d['pcode'] = li
 
@@ -225,9 +231,10 @@ class ISA:
             li = []
             while lines:
                 l = lines.pop(0).rstrip()
-                if len(l) == 0: break
+                if len(l) == 0:
+                    break
                 assert l.startswith('    '), ("4spcs not found in line %s" % l)
-                l = l[4:] # lose 4 spaces
+                l = l[4:]  # lose 4 spaces
                 li.append(l)
             d['sregs'] = li
 
@@ -238,7 +245,8 @@ class ISA:
             # expect and drop whitespace
             while lines:
                 l = lines.pop(0).rstrip()
-                if len(l) != 0: break
+                if len(l) != 0:
+                    break
 
     def add_op(self, o, d):
         opcode, regs = o[0], o[1:]
@@ -260,14 +268,15 @@ class ISA:
 
     def pprint_ops(self):
         for k, v in self.instr.items():
-            print ("# %s %s" % (v.opcode, v.desc))
-            print ("Form: %s Regs: %s" % (v.form, v.regs))
-            print ('\n'.join(map(lambda x: "    %s" % x, v.pcode)))
-            print ("Specials")
-            print ('\n'.join(map(lambda x: "    %s" % x, v.sregs)))
-            print ()
+            print("# %s %s" % (v.opcode, v.desc))
+            print("Form: %s Regs: %s" % (v.form, v.regs))
+            print('\n'.join(map(lambda x: "    %s" % x, v.pcode)))
+            print("Specials")
+            print('\n'.join(map(lambda x: "    %s" % x, v.sregs)))
+            print()
         for k, v in isa.forms.items():
-            print (k, v)
+            print(k, v)
+
 
 if __name__ == '__main__':
     isa = ISA()

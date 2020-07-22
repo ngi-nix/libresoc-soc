@@ -15,7 +15,7 @@ from soc.decoder.power_enums import Function, XER_bits
 from soc.config.endian import bigendian
 
 from soc.simple.issuer import TestIssuer
-from soc.experiment.compalu_multi import find_ok # hack
+from soc.experiment.compalu_multi import find_ok  # hack
 
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.simple.test.test_core import (setup_regs, check_regs,
@@ -39,32 +39,32 @@ from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 def setup_i_memory(imem, startaddr, instructions):
     mem = imem
-    print ("insn before, init mem", mem.depth, mem.width, mem,
-                                    len(instructions))
+    print("insn before, init mem", mem.depth, mem.width, mem,
+          len(instructions))
     for i in range(mem.depth):
         yield mem._array[i].eq(0)
     yield Settle()
-    startaddr //= 4 # instructions are 32-bit
-    mask = ((1<<64)-1)
+    startaddr //= 4  # instructions are 32-bit
+    mask = ((1 << 64)-1)
     for ins in instructions:
         if isinstance(ins, tuple):
             insn, code = ins
         else:
             insn, code = ins, ''
         insn = insn & 0xffffffff
-        msbs = (startaddr>>1) & mask
+        msbs = (startaddr >> 1) & mask
         val = yield mem._array[msbs]
         if insn != 0:
-            print ("before set", hex(4*startaddr),
-                                 hex(msbs), hex(val), hex(insn))
+            print("before set", hex(4*startaddr),
+                  hex(msbs), hex(val), hex(insn))
         lsb = 1 if (startaddr & 1) else 0
         val = (val | (insn << (lsb*32)))
         val = val & mask
         yield mem._array[msbs].eq(val)
         yield Settle()
         if insn != 0:
-            print ("after  set", hex(4*startaddr), hex(msbs), hex(val))
-            print ("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
+            print("after  set", hex(4*startaddr), hex(msbs), hex(val))
+            print("instr: %06x 0x%x %s %08x" % (4*startaddr, insn, code, val))
         startaddr += 1
         startaddr = startaddr & mask
 
@@ -112,12 +112,12 @@ class TestRunner(FHDLTestCase):
                 print(test.name)
                 program = test.program
                 self.subTest(test.name)
-                print ("regs", test.regs)
-                print ("sprs", test.sprs)
-                print ("cr", test.cr)
-                print ("mem", test.mem)
-                print ("msr", test.msr)
-                print ("assem", program.assembly)
+                print("regs", test.regs)
+                print("sprs", test.sprs)
+                print("cr", test.cr)
+                print("mem", test.mem)
+                print("msr", test.msr)
+                print("assem", program.assembly)
                 gen = list(program.generate_instructions())
                 insncode = program.assembly.splitlines()
                 instructions = list(zip(gen, insncode))
@@ -127,7 +127,7 @@ class TestRunner(FHDLTestCase):
                           disassembly=insncode,
                           bigendian=bigendian)
 
-                pc = 0 # start address
+                pc = 0  # start address
 
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
@@ -146,7 +146,7 @@ class TestRunner(FHDLTestCase):
                     # start the instruction
                     yield go_insn_i.eq(1)
                     yield
-                    yield issuer.pc_i.ok.eq(0) # don't change PC from now on
+                    yield issuer.pc_i.ok.eq(0)  # don't change PC from now on
                     yield go_insn_i.eq(0)      # and don't issue a new insn
                     yield Settle()
 
@@ -155,9 +155,9 @@ class TestRunner(FHDLTestCase):
                     yield from wait_for_busy_clear(core)
 
                     terminated = yield issuer.halted_o
-                    print ("terminated", terminated)
+                    print("terminated", terminated)
 
-                    print ("sim", code)
+                    print("sim", code)
                     # call simulated operation
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
@@ -176,25 +176,24 @@ class TestRunner(FHDLTestCase):
 
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",
-                            traces=[]):
+                           traces=[]):
             sim.run()
 
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    #suite.addTest(TestRunner(HelloTestCases.test_data))
-    #suite.addTest(TestRunner(DivTestCase.test_data))
+    # suite.addTest(TestRunner(HelloTestCases.test_data))
+    # suite.addTest(TestRunner(DivTestCase.test_data))
     suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase.test_data))
-    #suite.addTest(TestRunner(CRTestCase.test_data))
-    #suite.addTest(TestRunner(ShiftRotTestCase.test_data))
-    #suite.addTest(TestRunner(LogicalTestCase.test_data))
-    #suite.addTest(TestRunner(ALUTestCase.test_data))
-    #suite.addTest(TestRunner(BranchTestCase.test_data))
-    #suite.addTest(TestRunner(SPRTestCase.test_data))
+    # suite.addTest(TestRunner(CRTestCase.test_data))
+    # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    # suite.addTest(TestRunner(LogicalTestCase.test_data))
+    # suite.addTest(TestRunner(ALUTestCase.test_data))
+    # suite.addTest(TestRunner(BranchTestCase.test_data))
+    # suite.addTest(TestRunner(SPRTestCase.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
-

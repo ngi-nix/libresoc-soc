@@ -45,9 +45,9 @@ def Assign(autoassign, assignname, left, right, iea_mode):
     elif isinstance(left, ast.Subscript):
         ls = left.slice
         if (isinstance(ls, ast.Slice) and isinstance(right, ast.Name) and
-            right.id == 'undefined'):
+                right.id == 'undefined'):
             # undefined needs to be copied the exact same slice
-            right =  ast.Subscript(right, ls, ast.Load())
+            right = ast.Subscript(right, ls, ast.Load())
             return ast.Assign([left], right)
         res = ast.Assign([left], right)
         if autoassign and isinstance(ls, ast.Slice):
@@ -57,7 +57,7 @@ def Assign(autoassign, assignname, left, right, iea_mode):
             #       dividend[0:32] = (RA)[0:32]
             # the declaration makes the slice-assignment "work"
             lower, upper, step = ls.lower, ls.upper, ls.step
-            print ("lower, upper, step", repr(lower), repr(upper), step)
+            print("lower, upper, step", repr(lower), repr(upper), step)
             if not isinstance(lower, ast.Constant) or \
                not isinstance(upper, ast.Constant):
                 return res
@@ -271,7 +271,7 @@ class PowerParser:
         self.read_regs = OrderedSet()
         self.uninit_regs = OrderedSet()
         self.write_regs = OrderedSet()
-        self.special_regs = OrderedSet() # see p_atom_name
+        self.special_regs = OrderedSet()  # see p_atom_name
 
     # The grammar comments come from Python's Grammar/Grammar file
 
@@ -621,7 +621,7 @@ class PowerParser:
                     else:
                         fn = 'trunc_rems'
                     # return "function trunc_xxx(l, r)"
-                    p[0] =  ast.Call(ast.Name(fn, ast.Load()), (l, r), [])
+                    p[0] = ast.Call(ast.Name(fn, ast.Load()), (l, r), [])
                 else:
                     # return "l {binop} r"
                     p[0] = ast.BinOp(p[1], binary_ops[p[2]], p[3])
@@ -672,7 +672,7 @@ class PowerParser:
                 self.write_regs.add(name)
         if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR', 'MSR']:
             self.special_regs.add(name)
-            self.write_regs.add(name) # and add to list to write
+            self.write_regs.add(name)  # and add to list to write
         p[0] = ast.Name(id=name, ctx=ast.Load())
 
     def p_atom_number(self, p):

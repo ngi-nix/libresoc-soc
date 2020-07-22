@@ -9,11 +9,11 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         super().__init__(pspec)
         # small 32-entry Memory
         if (hasattr(pspec, "dmem_test_depth") and
-            isinstance(pspec.dmem_test_depth, int)):
+                isinstance(pspec.dmem_test_depth, int)):
             depth = pspec.dmem_test_depth
         else:
             depth = 32
-        print ("TestSRAMBareLoadStoreUnit depth", depth)
+        print("TestSRAMBareLoadStoreUnit depth", depth)
 
         self.mem = Memory(width=self.data_wid, depth=depth)
 
@@ -29,8 +29,8 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         fanouts = ['dat_w', 'sel', 'cyc', 'stb', 'we', 'cti', 'bte']
         fanins = ['dat_r', 'ack', 'err']
         for fanout in fanouts:
-            print ("fanout", fanout, getattr(sram.bus, fanout).shape(),
-                                     getattr(dbus, fanout).shape())
+            print("fanout", fanout, getattr(sram.bus, fanout).shape(),
+                  getattr(dbus, fanout).shape())
             comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
             comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
         for fanin in fanins:
@@ -46,11 +46,11 @@ class TestSRAMBareFetchUnit(BareFetchUnit):
         super().__init__(pspec)
         # default: small 32-entry Memory
         if (hasattr(pspec, "imem_test_depth") and
-            isinstance(pspec.imem_test_depth, int)):
+                isinstance(pspec.imem_test_depth, int)):
             depth = pspec.imem_test_depth
         else:
             depth = 32
-        print ("TestSRAMBareFetchUnit depth", depth)
+        print("TestSRAMBareFetchUnit depth", depth)
         self.mem = Memory(width=self.data_wid, depth=depth)
 
     def _get_memory(self):
@@ -68,8 +68,8 @@ class TestSRAMBareFetchUnit(BareFetchUnit):
         fanouts = ['dat_w', 'sel', 'cyc', 'stb', 'we', 'cti', 'bte']
         fanins = ['dat_r', 'ack', 'err']
         for fanout in fanouts:
-            print ("fanout", fanout, getattr(sram.bus, fanout).shape(),
-                                     getattr(ibus, fanout).shape())
+            print("fanout", fanout, getattr(sram.bus, fanout).shape(),
+                  getattr(ibus, fanout).shape())
             comb += getattr(sram.bus, fanout).eq(getattr(ibus, fanout))
             comb += getattr(sram.bus, fanout).eq(getattr(ibus, fanout))
         for fanin in fanins:

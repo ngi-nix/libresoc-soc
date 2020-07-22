@@ -59,8 +59,8 @@ class LDSTSplitter(Elaboratable):
 
     def __init__(self, dwidth, awidth, dlen):
         self.dwidth, self.awidth, self.dlen = dwidth, awidth, dlen
-        #cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
-        cline_wid = dwidth # TODO: make this bytes not bits
+        # cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
+        cline_wid = dwidth  # TODO: make this bytes not bits
         self.addr_i = Signal(awidth, reset_less=True)
         self.len_i = Signal(dlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
@@ -77,12 +77,12 @@ class LDSTSplitter(Elaboratable):
         self.sld_valid_o = Signal(2, reset_less=True)
         self.sld_valid_i = Signal(2, reset_less=True)
         self.sld_data_i = Array((LDData(cline_wid, "ld_data_i1"),
-                                LDData(cline_wid, "ld_data_i2")))
+                                 LDData(cline_wid, "ld_data_i2")))
 
         self.sst_valid_o = Signal(2, reset_less=True)
         self.sst_valid_i = Signal(2, reset_less=True)
         self.sst_data_o = Array((LDData(cline_wid, "st_data_i1"),
-                                LDData(cline_wid, "st_data_i2")))
+                                 LDData(cline_wid, "st_data_i2")))
 
     def elaborate(self, platform):
         m = Module()
@@ -99,14 +99,14 @@ class LDSTSplitter(Elaboratable):
         comb += lenexp.len_i.eq(self.len_i)
         mask1 = Signal(mlen, reset_less=True)
         mask2 = Signal(mlen, reset_less=True)
-        comb += mask1.eq(lenexp.lexp_o[0:mlen]) # Lo bits of expanded len-mask
+        comb += mask1.eq(lenexp.lexp_o[0:mlen])  # Lo bits of expanded len-mask
         comb += mask2.eq(lenexp.lexp_o[mlen:])  # Hi bits of expanded len-mask
 
         # set up new address records: addr1 is "as-is", addr2 is +1
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
         ld2_value = self.addr_i[dlen:] + 1
         comb += ld2.addr_i.eq(ld2_value)
-        #exception if rolls
+        # exception if rolls
         with m.If(ld2_value[self.awidth-dlen]):
             comb += self.exc.eq(1)
 
@@ -114,7 +114,7 @@ class LDSTSplitter(Elaboratable):
         ashift1 = Signal(self.dlen, reset_less=True)
         ashift2 = Signal(self.dlen, reset_less=True)
         comb += ashift1.eq(self.addr_i[:self.dlen])
-        comb += ashift2.eq((1<<dlen)-ashift1)
+        comb += ashift2.eq((1 << dlen)-ashift1)
 
         with m.If(self.is_ld_i):
             # set up connections to LD-split.  note: not active if mask is zero
@@ -140,7 +140,7 @@ class LDSTSplitter(Elaboratable):
                 # note that data from LD1 will be in *cache-line* byte position
                 # likewise from LD2 but we *know* it is at the start of the line
                 comb += self.ld_data_o.data.eq((ld1.ld_o.data >> ashift1) |
-                                                (ld2.ld_o.data << ashift2))
+                                               (ld2.ld_o.data << ashift2))
 
         with m.If(self.is_st_i):
             for i, (ld, mask) in enumerate(((ld1, mask1),
@@ -183,33 +183,34 @@ class LDSTSplitter(Elaboratable):
     def ports(self):
         return list(self)
 
+
 def sim(dut):
 
     sim = Simulator(dut)
     sim.add_clock(1e-6)
     data = 0b11010011
-    dlen = 4 # 4 bits
+    dlen = 4  # 4 bits
     addr = 0b1100
     ld_len = 8
-    ldm = ((1<<ld_len)-1)
-    dlm = ((1<<dlen)-1)
-    data = data & ldm # truncate data to be tested, mask to within ld len
-    print ("ldm", ldm, bin(data&ldm))
-    print ("dlm", dlm, bin(addr&dlm))
+    ldm = ((1 << ld_len)-1)
+    dlm = ((1 << dlen)-1)
+    data = data & ldm  # truncate data to be tested, mask to within ld len
+    print("ldm", ldm, bin(data & ldm))
+    print("dlm", dlm, bin(addr & dlm))
     dmask = ldm << (addr & dlm)
-    print ("dmask", bin(dmask))
-    dmask1 = dmask >> (1<<dlen)
-    print ("dmask1", bin(dmask1))
-    dmask = dmask & ((1<<(1<<dlen))-1)
-    print ("dmask", bin(dmask))
+    print("dmask", bin(dmask))
+    dmask1 = dmask >> (1 << dlen)
+    print("dmask1", bin(dmask1))
+    dmask = dmask & ((1 << (1 << dlen))-1)
+    print("dmask", bin(dmask))
 
     def send_ld():
-        print ("send_ld")
+        print("send_ld")
         yield dut.is_ld_i.eq(1)
         yield dut.len_i.eq(ld_len)
         yield dut.addr_i.eq(addr)
         yield dut.valid_i.eq(1)
-        print ("waiting")
+        print("waiting")
         while True:
             valid_o = yield dut.valid_o
             if valid_o:
@@ -219,11 +220,11 @@ def sim(dut):
         yield dut.is_ld_i.eq(0)
         yield
 
-        print (bin(ld_data_o), bin(data))
+        print(bin(ld_data_o), bin(data))
         assert ld_data_o == data
 
     def lds():
-        print ("lds")
+        print("lds")
         while True:
             valid_i = yield dut.valid_i
             if valid_i:
@@ -233,10 +234,10 @@ def sim(dut):
         shf = addr & dlm
         shfdata = (data << shf)
         data1 = shfdata & dmask
-        print ("ld data1", bin(data), bin(data1), shf, bin(dmask))
+        print("ld data1", bin(data), bin(data1), shf, bin(dmask))
 
         data2 = (shfdata >> 16) & dmask1
-        print ("ld data2", 1<<dlen, bin(data >> (1<<dlen)), bin(data2))
+        print("ld data2", 1 << dlen, bin(data >> (1 << dlen)), bin(data2))
         yield dut.sld_data_i[0].data.eq(data1)
         yield dut.sld_valid_i[0].eq(1)
         yield

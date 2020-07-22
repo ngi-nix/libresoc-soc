@@ -15,6 +15,7 @@ Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=324 - add trunc_div and trunc_rem
 """
 
+
 def exts(value, bits):
     sign = 1 << (bits - 1)
     return (value & (sign - 1)) - (value & sign)
@@ -26,6 +27,7 @@ def EXTS(value):
     assert isinstance(value, SelectableInt)
     return SelectableInt(exts(value.value, value.bits) & ((1 << 256)-1), 256)
 
+
 def EXTS64(value):
     """ extends sign bit out from current MSB to 64 bits
     """
@@ -35,10 +37,10 @@ def EXTS64(value):
 
 # signed version of MUL
 def MULS(a, b):
-    a_s = a.value & (1<<(a.bits-1)) != 0
-    b_s = b.value & (1<<(b.bits-1)) != 0
+    a_s = a.value & (1 << (a.bits-1)) != 0
+    b_s = b.value & (1 << (b.bits-1)) != 0
     result = abs(a) * abs(b)
-    print ("MULS", result, a_s, b_s)
+    print("MULS", result, a_s, b_s)
     if a_s == b_s:
         return result
     return -result
@@ -48,7 +50,7 @@ def MULS(a, b):
 def EXTZ64(value):
     if isinstance(value, SelectableInt):
         value = value.value
-    return SelectableInt(value & ((1<<32)-1), 64)
+    return SelectableInt(value & ((1 << 32)-1), 64)
 
 
 def rotl(value, bits, wordlen):
@@ -88,23 +90,30 @@ def MASK(x, y):
         mask_b = (~((1 << y) - 1)) & ((1 << 64) - 1)
     return mask_a ^ mask_b
 
+
 def ne(a, b):
     return onebit(a != b)
+
 
 def eq(a, b):
     return onebit(a == b)
 
+
 def gt(a, b):
     return onebit(a > b)
+
 
 def ge(a, b):
     return onebit(a >= b)
 
+
 def lt(a, b):
     return onebit(a < b)
 
+
 def le(a, b):
     return onebit(a <= b)
+
 
 def length(a):
     return len(a)
@@ -114,6 +123,7 @@ def length(a):
 # testing the MASK() function, I chose rlwinm and rldicl because if I
 # set the shift equal to 0 and passed in a value of all ones, the
 # result I got would be exactly the same as the output of MASK()
+
 
 class HelperTests(unittest.TestCase):
     def test_MASK(self):
@@ -187,5 +197,5 @@ class HelperTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print (SelectableInt.__bases__)
+    print(SelectableInt.__bases__)
     unittest.main()

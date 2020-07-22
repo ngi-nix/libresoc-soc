@@ -12,7 +12,7 @@ from copy import copy
 from ply import lex
 from soc.decoder.selectable_int import SelectableInt
 
-## I implemented INDENT / DEDENT generation as a post-processing filter
+# I implemented INDENT / DEDENT generation as a post-processing filter
 
 # The original lex token stream contains WS and NEWLINE characters.
 # WS will only occur before any other tokens on a line.
@@ -35,6 +35,8 @@ MUST_INDENT = 2
 # identify tokens which tell us whether a "hidden colon" is needed.
 # this in turn means that track_tokens_filter "works" without needing
 # complex grammar rules
+
+
 def python_colonify(lexer, tokens):
 
     implied_colon_needed = False
@@ -111,6 +113,7 @@ def track_tokens_filter(lexer, tokens):
         yield token
         lexer.at_line_start = at_line_start
 
+
 def _new_token(type, lineno):
     tok = lex.LexToken()
     tok.type = type
@@ -120,18 +123,24 @@ def _new_token(type, lineno):
     return tok
 
 # Synthesize a DEDENT tag
+
+
 def DEDENT(lineno):
     return _new_token("DEDENT", lineno)
 
 # Synthesize an INDENT tag
+
+
 def INDENT(lineno):
     return _new_token("INDENT", lineno)
+
 
 def count_spaces(l):
     for i in range(len(l)):
         if l[i] != ' ':
             return i
     return 0
+
 
 def annoying_case_hack_filter(code):
     """add annoying "silent keyword" (fallthrough)
@@ -154,14 +163,14 @@ def annoying_case_hack_filter(code):
     for l in code.split("\n"):
         spc_count = count_spaces(l)
         nwhite = l[spc_count:]
-        if len(nwhite) == 0: # skip blank lines
+        if len(nwhite) == 0:  # skip blank lines
             continue
         if nwhite.startswith("case") or nwhite.startswith("default"):
             #print ("case/default", nwhite, spc_count, prev_spc_count)
             if (prev_spc_count is not None and
                 prev_spc_count == spc_count and
-                (res[-1].endswith(":") or res[-1].endswith(": fallthrough"))):
-                res[-1] += " fallthrough" # add to previous line
+                    (res[-1].endswith(":") or res[-1].endswith(": fallthrough"))):
+                res[-1] += " fallthrough"  # add to previous line
             prev_spc_count = spc_count
         else:
             #print ("notstarts", spc_count, nwhite)
@@ -179,11 +188,11 @@ def indentation_filter(tokens):
     prev_was_ws = False
     for token in tokens:
         if 0:
-            print ("Process", depth, token.indent, token,)
+            print("Process", depth, token.indent, token,)
             if token.at_line_start:
-                print ("at_line_start",)
+                print("at_line_start",)
             if token.must_indent:
-                print ("must_indent",)
+                print("must_indent",)
             print
 
         # WS only occurs at the start of the line
@@ -248,7 +257,7 @@ def indentation_filter(tokens):
 
 # The top-level filter adds an ENDMARKER, if requested.
 # Python's grammar uses it.
-def filter(lexer, add_endmarker = True):
+def filter(lexer, add_endmarker=True):
     token = None
     tokens = iter(lexer.token, None)
     tokens = python_colonify(lexer, tokens)
@@ -263,6 +272,7 @@ def filter(lexer, add_endmarker = True):
         yield _new_token("ENDMARKER", lineno)
 
 ##### Lexer ######
+
 
 class PowerLexer:
     tokens = (
@@ -316,16 +326,16 @@ class PowerLexer:
         'INDENT',
         'DEDENT',
         'ENDMARKER',
-        )
+    )
 
     # Build the lexer
-    def build(self,**kwargs):
-         self.lexer = lex.lex(module=self, **kwargs)
+    def build(self, **kwargs):
+        self.lexer = lex.lex(module=self, **kwargs)
 
     def t_HEX(self, t):
         r"""0x[0-9a-fA-F_]+"""
         val = t.value.replace("_", "")
-        t.value = SelectableInt(int(val, 16), (len(val)-2)*4) # hex = nibble
+        t.value = SelectableInt(int(val, 16), (len(val)-2)*4)  # hex = nibble
         return t
 
     def t_BINARY(self, t):
@@ -342,8 +352,8 @@ class PowerLexer:
 
     def t_STRING(self, t):
         r"'([^\\']+|\\'|\\\\)*'"  # I think this is right ...
-        print (repr(t.value))
-        t.value=t.value[1:-1]
+        print(repr(t.value))
+        t.value = t.value[1:-1]
         return t
 
     t_COLON = r':'
@@ -373,20 +383,20 @@ class PowerLexer:
     # Ply nicely documented how to do this.
 
     RESERVED = {
-      "def": "DEF",
-      "if": "IF",
-      "then": "THEN",
-      "else": "ELSE",
-      "leave": "BREAK",
-      "for": "FOR",
-      "to": "TO",
-      "while": "WHILE",
-      "do": "DO",
-      "return": "RETURN",
-      "switch": "SWITCH",
-      "case": "CASE",
-      "default": "DEFAULT",
-      }
+        "def": "DEF",
+        "if": "IF",
+        "then": "THEN",
+        "else": "ELSE",
+        "leave": "BREAK",
+        "for": "FOR",
+        "to": "TO",
+        "while": "WHILE",
+        "do": "DO",
+        "return": "RETURN",
+        "switch": "SWITCH",
+        "case": "CASE",
+        "default": "DEFAULT",
+    }
 
     def t_NAME(self, t):
         r'[a-zA-Z_][a-zA-Z0-9_]*'
@@ -400,12 +410,12 @@ class PowerLexer:
         r"[ ]*\043[^\n]*"  # \043 is '#'
         pass
 
-
     # Whitespace
+
     def t_WS(self, t):
         r'[ ]+'
         if t.lexer.at_line_start and t.lexer.paren_count == 0 and \
-                                     t.lexer.brack_count == 0:
+                t.lexer.brack_count == 0:
             return t
 
     # Don't generate newline tokens when inside of parenthesis, eg
@@ -444,7 +454,7 @@ class PowerLexer:
 
     def t_error(self, t):
         raise SyntaxError("Unknown symbol %r" % (t.value[0],))
-        print ("Skipping", repr(t.value[0]))
+        print("Skipping", repr(t.value[0]))
         t.lexer.skip(1)
 
 
@@ -454,13 +464,13 @@ class IndentLexer(PowerLexer):
     def __init__(self, debug=0, optimize=0, lextab='lextab', reflags=0):
         self.debug = debug
         self.build(debug=debug, optimize=optimize,
-                                lextab=lextab, reflags=reflags)
+                   lextab=lextab, reflags=reflags)
         self.token_stream = None
 
     def input(self, s, add_endmarker=True):
         s = annoying_case_hack_filter(s)
         if self.debug:
-            print (s)
+            print(s)
         s += "\n"
         self.lexer.paren_count = 0
         self.lexer.brack_count = 0
@@ -472,6 +482,7 @@ class IndentLexer(PowerLexer):
             return next(self.token_stream)
         except StopIteration:
             return None
+
 
 switchtest = """
 switch (n)
@@ -503,15 +514,14 @@ if __name__ == '__main__':
     # quick test/demo
     #code = cnttzd
     code = switchtest
-    print (code)
+    print(code)
 
     lexer = IndentLexer(debug=1)
     # Give the lexer some input
-    print ("code")
-    print (code)
+    print("code")
+    print(code)
     lexer.input(code)
 
     tokens = iter(lexer.token, None)
     for token in tokens:
-        print (token)
-
+        print(token)

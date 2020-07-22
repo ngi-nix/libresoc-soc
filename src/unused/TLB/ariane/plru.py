@@ -16,6 +16,7 @@ class PLRU(Elaboratable):
               / \ /\/\  /\
              ... ... ... ...
     """
+
     def __init__(self, entries):
         self.entries = entries
         self.lu_hit = Signal(entries)
@@ -52,13 +53,13 @@ class PLRU(Elaboratable):
             with m.If(hit):
                 # Set the nodes to the values we would expect
                 for lvl in range(LOG_TLB):
-                    idx_base = (1<<lvl)-1
+                    idx_base = (1 << lvl)-1
                     # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-                    shift = LOG_TLB - lvl;
+                    shift = LOG_TLB - lvl
                     new_idx = Const(~((i >> (shift-1)) & 1), (1, False))
                     plru_idx = idx_base + (i >> shift)
-                    print ("plru", i, lvl, hex(idx_base),
-                                  plru_idx, shift, new_idx)
+                    print("plru", i, lvl, hex(idx_base),
+                          plru_idx, shift, new_idx)
                     m.d.comb += self.plru_tree_o[plru_idx].eq(new_idx)
 
         # Decode tree to write enable signals
@@ -79,20 +80,20 @@ class PLRU(Elaboratable):
         for i in range(self.entries):
             en = []
             for lvl in range(LOG_TLB):
-                idx_base = (1<<lvl)-1
+                idx_base = (1 << lvl)-1
                 # lvl0 <=> MSB, lvl1 <=> MSB-1, ...
-                shift = LOG_TLB - lvl;
-                new_idx = (i >> (shift-1)) & 1;
-                plru_idx = idx_base + (i>>shift)
+                shift = LOG_TLB - lvl
+                new_idx = (i >> (shift-1)) & 1
+                plru_idx = idx_base + (i >> shift)
                 plru = Signal(reset_less=True,
                               name="plru-%d-%d-%d" % (i, lvl, plru_idx))
                 m.d.comb += plru.eq(self.plru_tree[plru_idx])
                 # en &= plru_tree_q[idx_base + (i>>shift)] == new_idx;
                 if new_idx:
-                    en.append(~plru) # yes inverted (using bool())
+                    en.append(~plru)  # yes inverted (using bool())
                 else:
                     en.append(plru)  # yes inverted (using bool())
-            print ("plru", i, en)
+            print("plru", i, en)
             # boolean logic manipulation:
             # plru0 & plru1 & plru2 == ~(~plru0 | ~plru1 | ~plru2)
             replace.append(~Cat(*en).bool())

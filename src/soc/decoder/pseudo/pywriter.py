@@ -9,6 +9,7 @@ from soc.decoder.power_pseudo import convert_to_python
 from soc.decoder.orderedset import OrderedSet
 from soc.decoder.isa.caller import create_args
 
+
 def get_isasrc_dir():
     fdir = os.path.abspath(os.path.dirname(__file__))
     fdir = os.path.split(fdir)[0]
@@ -37,6 +38,7 @@ iinfo_template = """instruction_info(func=%s,
                 form='%s',
                 asmregs=%s)"""
 
+
 class PyISAWriter(ISA):
     def __init__(self):
         ISA.__init__(self)
@@ -49,13 +51,13 @@ class PyISAWriter(ISA):
         fname = os.path.join(isadir, "%s.py" % pagename)
         with open(fname, "w") as f:
             iinf = ''
-            f.write(header % pagename) # write out header
+            f.write(header % pagename)  # write out header
             # go through all instructions
             for page in instrs:
                 d = self.instr[page]
-                print ("page", pagename, page, fname, d.opcode)
+                print("page", pagename, page, fname, d.opcode)
                 pcode = '\n'.join(d.pcode) + '\n'
-                print (pcode)
+                print(pcode)
                 incl_carry = pagename == 'fixedshift'
                 pycode, rused = convert_to_python(pcode, d.form, incl_carry)
                 # create list of arguments to call
@@ -66,7 +68,7 @@ class PyISAWriter(ISA):
                 retargs = ', '.join(create_args(rused['write_regs']))
                 # write out function.  pre-pend "op_" because some instrs are
                 # also python keywords (cmp).  also replace "." with "_"
-                op_fname ="op_%s" % page.replace(".", "_")
+                op_fname = "op_%s" % page.replace(".", "_")
                 f.write("    @inject()\n")
                 f.write("    def %s(%s):\n" % (op_fname, args))
                 if 'NIA' in pycode:  # HACK - TODO fix
@@ -105,7 +107,6 @@ class PyISAWriter(ISA):
         except:
             pass
 
-
     def write_isa_class(self):
         isadir = get_isasrc_dir()
         fname = os.path.join(isadir, "all.py")
@@ -129,8 +130,8 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
-    if len(sys.argv) == 1: # quick way to do it
-        print (dir(isa))
+    if len(sys.argv) == 1:  # quick way to do it
+        print(dir(isa))
         sources = isa.page.keys()
     else:
         sources = sys.argv[1:]

@@ -25,7 +25,7 @@ class ShiftRotTestRunner(TestRunner):
         """naming (res) must conform to ShiftRotFunctionUnit output regspec
         """
 
-        print ("outputs", repr(code), res)
+        print("outputs", repr(code), res)
 
         # RT
         out_reg_valid = yield dec2.e.write_reg.ok
@@ -41,7 +41,7 @@ class ShiftRotTestRunner(TestRunner):
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print ("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), cridx_ok, cridx)
 
         if rc:
             self.assertEqual(cridx_ok, 1, code)
@@ -51,7 +51,7 @@ class ShiftRotTestRunner(TestRunner):
         if cridx_ok:
             cr_expected = sim.crl[cridx].get_range().value
             cr_actual = res['cr_a']
-            print ("CR", cridx, cr_expected, cr_actual)
+            print("CR", cridx, cr_expected, cr_actual)
             self.assertEqual(cr_expected, cr_actual, "CR%d %s" % (cridx, code))
 
         # XER.ca
@@ -59,10 +59,10 @@ class ShiftRotTestRunner(TestRunner):
         if cry_out:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             xer_ca = res['xer_ca']
-            real_carry = xer_ca & 0b1 # XXX CO not CO32
+            real_carry = xer_ca & 0b1  # XXX CO not CO32
             self.assertEqual(expected_carry, real_carry, code)
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
-            real_carry32 = bool(xer_ca & 0b10) # XXX CO32
+            real_carry32 = bool(xer_ca & 0b10)  # XXX CO32
             self.assertEqual(expected_carry32, real_carry32, code)
 
 
