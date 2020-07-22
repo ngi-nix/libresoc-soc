@@ -8,13 +8,13 @@ import argparse
 
 from migen import *
 
-from litex.build.generic_platform import *
+from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.soc import SoCRegion
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
+from litex.soc.integration.soc_core import SoCCore
+from litex.soc.integration.common import get_mem_data
 
 from litedram.modules import MT41K128M16
 from litedram.phy.model import SDRAMPHYModel
@@ -22,9 +22,9 @@ from litedram.core.controller import ControllerSettings
 
 from litex.tools.litex_sim import get_sdram_phy_settings
 
-from vexriscv_smp import VexRiscvSMP
+from soc.litex.core import LibreSOC
 
-# IOs ----------------------------------------------------------------------------------------------
+# IOs ------------------------------------------------------------------
 
 _io = [
     ("sys_clk", 0, Pins(1)),
@@ -40,13 +40,13 @@ _io = [
     ),
 ]
 
-# Platform -----------------------------------------------------------------------------------------
+# Platform --------------------------------------------------------------
 
 class Platform(SimPlatform):
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
 
-# SoCSMP -------------------------------------------------------------------------------------------
+# SoCSMP ----------------------------------------------------------------
 
 class SoCSMP(SoCCore):
     def __init__(self, cpu_variant, init_memories=False, with_sdcard=False):
@@ -62,28 +62,18 @@ class SoCSMP(SoCCore):
                 "images/rootfs.cpio": "0x01000000",
                 }, "little")
 
-        # SoCCore ----------------------------------------------------------------------------------
+        # SoCCore --------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            cpu_type                 = "vexriscv", cpu_variant=cpu_variant, cpu_cls=VexRiscvSMP,
+            cpu_type                 = "libre-soc",
+            cpu_variant=cpu_variant,
+            cpu_cls=LibreSOC,
             uart_name                = "sim",
             integrated_rom_size      = 0x8000,
             integrated_main_ram_size = 0x00000000)
         self.platform.name = "sim"
         self.add_constant("SIM")
 
-        # PLIC ------------------------------------------------------------------------------------
-        self.bus.add_slave("plic", self.cpu.plicbus, region=SoCRegion(origin=0xf0C00000, size=0x400000, cached=False))
-        interrupt_map = {**SoCCore.interrupt_map, **{
-            "uart":       1,
-        }}
-
-        # CLINT ------------------------------------------------------------------------------------
-        self.bus.add_slave("clint", self.cpu.cbus, region=SoCRegion(origin=0xf0010000, size=0x10000, cached=False))
-
-        # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
-
-        # SDRAM ------------------------------------------------------------------------------------
+        # SDRAM ----------------------------------------------------------
         phy_settings = get_sdram_phy_settings(
             memtype    = "DDR3",
             data_width = 16,
@@ -103,39 +93,50 @@ class SoCSMP(SoCCore):
             )
         )
         if init_memories:
-            self.add_constant("MEMTEST_BUS_SIZE",  0) # Skip test if memory is initialized to avoid
-            self.add_constant("MEMTEST_ADDR_SIZE", 0) # corrumpting the content.
-            self.add_constant("MEMTEST_DATA_SIZE", 0)
-            self.add_constant("ROM_BOOT_ADDRESS", 0x40f00000) # Jump to fw_jump.bin
+            addr = 0x40f00000
+            self.add_constant("MEMTEST_BUS_SIZE",  0) # Skip test if memory is
+            self.add_constant("MEMTEST_ADDR_SIZE", 0) # initialized to avoid
+            self.add_constant("MEMTEST_DATA_SIZE", 0) # corrumpting the content.
+            self.add_constant("ROM_BOOT_ADDRESS", addr) # Jump to fw_jump.bin
         else:
             self.add_constant("MEMTEST_BUS_SIZE",  4096)
             self.add_constant("MEMTEST_ADDR_SIZE", 4096)
             self.add_constant("MEMTEST_DATA_SIZE", 4096)
 
-        # SDCard -----------------------------------------------------------------------------------
+        # SDCard -----------------------------------------------------
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Linux on LiteX-VexRiscv Simulation")
-    parser.add_argument("--cpu-variant",          default="2c",            help="Select CPU netlist variant")
-    parser.add_argument("--sdram-init",           action="store_true",     help="Init SDRAM with Linux images")
-    parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
-    parser.add_argument("--trace",                action="store_true",     help="Enable VCD tracing")
-    parser.add_argument("--trace-start",          default=0,               help="Cycle to start VCD tracing")
-    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end VCD tracing")
-    parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser = argparse.ArgumentParser(
+                        description="Linux on LiteX-LibreSOC Simulation")
+    parser.add_argument("--cpu-variant", default="standard",
+                        help="Select CPU netlist variant")
+    parser.add_argument("--sdram-init",  action="store_true",
+                        help="Init SDRAM with Linux images")
+    parser.add_argument("--with-sdcard", action="store_true",
+                        help="Enable SDCard support")
+    parser.add_argument("--trace",       action="store_true",
+                        help="Enable VCD tracing")
+    parser.add_argument("--trace-start", default=0,
+                        help="Cycle to start VCD tracing")
+    parser.add_argument("--trace-end",   default=-1,
+                        help="Cycle to end VCD tracing")
+    parser.add_argument("--opt-level",   default="O3",
+                        help="Compilation optimization level")
     args = parser.parse_args()
 
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
 
     for i in range(2):
-        soc = SoCSMP(args.cpu_variant, args.sdram_init and i!=0, args.with_sdcard)
+        to_run = (i != 0) # first build, then run
+        soc = SoCSMP(args.cpu_variant, args.sdram_init and to_run,
+                     args.with_sdcard)
         builder = Builder(soc,
-            compile_gateware = i!=0,
+            compile_gateware = to_run,
             csr_json         = "build/sim/csr.json")
         builder.build(sim_config=sim_config,
             run         = i!=0,
@@ -145,10 +146,10 @@ def main():
             trace_end   = int(args.trace_end),
             trace_fst   = 1)
         os.chdir("../")
-        if i == 0:
-            os.system("./json2dts.py build/sim/csr.json > build/sim/dts") # FIXME
-            os.system("dtc -O dtb -o images/dtb build/sim/dts")           # FIXME
-            os.system("cp verilog/*.bin build/sim/gateware/")
+        #if not to_run:
+        #  os.system("./json2dts.py build/sim/csr.json > build/sim/dts") # FIXME
+        #  os.system("dtc -O dtb -o images/dtb build/sim/dts") # FIXME
+        #  os.system("cp verilog/*.bin build/sim/gateware/")
 
 if __name__ == "__main__":
     main()
