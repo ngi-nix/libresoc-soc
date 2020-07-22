@@ -275,7 +275,7 @@ class Driver(Elaboratable):
                 comb += [
                     Assert(field(msr_o, 0, 2) == field(srr1_i, 0, 2)),
                     Assert(field(msr_o, 4, 28) == field(srr1_i, 4, 28)),
-                    Assert(field(msr_o, 32) == field(srr1_i, 32),
+                    Assert(field(msr_o, 32) == field(srr1_i, 32)),
                     Assert(field(msr_o, 37, 41) == field(srr1_i, 37, 41)),
                     Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
                     Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
