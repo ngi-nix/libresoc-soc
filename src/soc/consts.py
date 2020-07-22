@@ -1,29 +1,42 @@
-# Listed in V3.0B Book III Chap 4.2.1
-# MSR bit numbers
+# sigh create little-ended versions of bitfield flags
+def botchify(bekls, lekls):
+    for attr in dir(bekls):
+        if attr[0] == '_':
+            continue
+        setattr(lekls, attr, 63-getattr(bekls, attr))
 
+# Listed in V3.0B Book III Chap 4.2.1
+# MSR bit numbers, *bigendian* order (PowerISA format)
+# use this in the simulator
+class MSRb:
+    SF  = 0     # Sixty-Four bit mode
+    HV  = 3     # Hypervisor state
+    UND = 5     # Undefined behavior state (see Bk 2, Sect. 3.2.1)
+    TSs = 29    # Transactional State (subfield)
+    TSe = 30    # Transactional State (subfield)
+    TM  = 31    # Transactional Memory Available
+    VEC = 38    # Vector Available
+    VSX = 40    # VSX Available
+    S   = 41    # Secure state
+    EE  = 48    # External interrupt Enable
+    PR  = 49    # PRoblem state
+    FP  = 50    # FP available
+    ME  = 51    # Machine Check int enable
+    FE0 = 52    # Floating-Point Exception Mode 0
+    TEs = 53    # Trace Enable (subfield)
+    TEe = 54    # Trace Enable (subfield)
+    FE1 = 55    # Floating-Point Exception Mode 1
+    IR  = 58    # Instruction Relocation
+    DR  = 59    # Data Relocation
+    PMM = 60    # Performance Monitor Mark
+    RI  = 62    # Recoverable Interrupt
+    LE  = 63    # Little Endian
+
+# use this inside the HDL (where everything is little-endian)
 class MSR:
-    SF  = (63 - 0)     # Sixty-Four bit mode
-    HV  = (63 - 3)     # Hypervisor state
-    UND = (63 - 5)     # Undefined behavior state (see Bk 2, Sect. 3.2.1)
-    TSs = (63 - 29)    # Transactional State (subfield)
-    TSe = (63 - 30)    # Transactional State (subfield)
-    TM  = (63 - 31)    # Transactional Memory Available
-    VEC = (63 - 38)    # Vector Available
-    VSX = (63 - 40)    # VSX Available
-    S   = (63 - 41)    # Secure state
-    EE  = (63 - 48)    # External interrupt Enable
-    PR  = (63 - 49)    # PRoblem state
-    FP  = (63 - 50)    # FP available
-    ME  = (63 - 51)    # Machine Check int enable
-    FE0 = (63 - 52)    # Floating-Point Exception Mode 0
-    TEs = (63 - 53)    # Trace Enable (subfield)
-    TEe = (63 - 54)    # Trace Enable (subfield)
-    FE1 = (63 - 55)    # Floating-Point Exception Mode 1
-    IR  = (63 - 58)    # Instruction Relocation
-    DR  = (63 - 59)    # Data Relocation
-    PMM = (63 - 60)    # Performance Monitor Mark
-    RI  = (63 - 62)    # Recoverable Interrupt
-    LE  = (63 - 63)    # Little Endian
+    pass
+
+botchify(MSRb, MSR)
 
 # Listed in V3.0B Book III 7.5.9 "Program Interrupt"
 
@@ -32,13 +45,20 @@ class MSR:
 # IMPORTANT: when adding extra bits here it is CRITICALLY IMPORTANT
 # to expand traptype to cope with the increased range
 
+# use this in the simulator
+class PIb:
+    TM_BAD_THING = 42 # 1 for a TM Bad Thing type interrupt
+    FP           = 43    # 1 if FP exception
+    ILLEG        = 44    # 1 if illegal instruction (not doing hypervisor)
+    PRIV         = 45    # 1 if privileged interrupt
+    TRAP         = 46    # 1 if exception is "trap" type
+    ADR          = 47    # 0 if SRR0 = address of instruction causing exception
+
+# and use this in the HDL
 class PI:
-    TM_BAD_THING = (63 - 42) # 1 for a TM Bad Thing type interrupt
-    FP    = (63 - 43)    # 1 if FP exception
-    ILLEG = (63 - 44)    # 1 if illegal instruction (not doing hypervisor)
-    PRIV  = (63 - 45)    # 1 if privileged interrupt
-    TRAP  = (63 - 46)    # 1 if exception is "trap" type
-    ADR   = (63 - 47)    # 0 if SRR0 = address of instruction causing exception
+    pass
+
+botchify(PIb, PI)
 
 # see traptype (and trap main_stage.py)
 # IMPORTANT: when adding extra bits here it is CRITICALLY IMPORTANT
