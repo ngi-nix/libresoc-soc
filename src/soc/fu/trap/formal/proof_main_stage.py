@@ -33,7 +33,7 @@ def field(r, start, end=None):
     the start and end bits use IBM conventions.  start < end.
     """
     if end is None:
-        return r[3-start]
+        return r[63-start]
     return r[63-end:64-start]
 
 
