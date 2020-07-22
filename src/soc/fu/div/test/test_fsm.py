@@ -207,9 +207,6 @@ class TestDivState(unittest.TestCase):
             sim.run()
 
     def test_div_state_fsm(self, quotient_width=8):
-        # TODO(programmerjake): fix test: for some reason
-        # the check process is delayed to the second division
-        # before it tries to do the first check
         test_cases = get_cases(quotient_width)
         mask = ~(~0 << quotient_width)
         dut = DivStateFSMTest(quotient_width)
@@ -228,17 +225,26 @@ class TestDivState(unittest.TestCase):
                     yield Tick()
                     yield Delay(0.1e-6)
                     yield from dut.check_done_event.trigger()
-                    # done must be correct and eventually true
-                    # even if a div-by-zero or overflow occurred
-                    done = yield dut.state.done
-                    self.assertEqual(done, i == quotient_width)
+                    with self.subTest():
+                        # done must be correct and eventually true
+                        # even if a div-by-zero or overflow occurred
+                        done = yield dut.state.done
+                        self.assertEqual(done, i == quotient_width)
                 yield from dut.check_event.trigger()
+                now = None
+                try:
+                    # FIXME(programmerjake): replace with public API
+                    # see https://github.com/nmigen/nmigen/issues/443
+                    now = sim._state.timeline.now
+                except KeyError:
+                    pass
                 if divisor != 0:
                     quotient = dividend // divisor
                     remainder = dividend % divisor
                     if quotient <= mask:
                         with self.subTest(quotient=f"{quotient:#x}",
-                                          remainder=f"{remainder:#x}"):
+                                          remainder=f"{remainder:#x}",
+                                          now=f"{now}"):
                             self.assertTrue((yield dut.expected_valid))
                             self.assertEqual((yield dut.expected_quotient), quotient)
                             self.assertEqual((yield dut.expected_remainder), remainder)
@@ -252,10 +258,10 @@ class TestDivState(unittest.TestCase):
         def process(gen):
             if gen:
                 yield dut.clear.eq(1)
+                yield Tick()
             else:
                 yield from dut.check_event.trigger()
                 yield from dut.check_done_event.trigger()
-            yield Tick()
             for dividend_high in test_cases:
                 for dividend_low in test_cases:
                     dividend = dividend_low + \
@@ -266,7 +272,7 @@ class TestDivState(unittest.TestCase):
                             yield dut.clear.eq(0)
                             yield dut.dividend.eq(dividend)
                             yield dut.divisor.eq(divisor)
-                            for _ in range(quotient_width):
+                            for _ in range(quotient_width + 1):
                                 yield Tick()
                         else:
                             yield from check(dividend, divisor)
