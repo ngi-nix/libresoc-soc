@@ -61,6 +61,10 @@ class Driver(Elaboratable):
 
         # start of properties
         with m.Switch(op.insn_type):
+
+            ###############
+            # TDI/TWI/TD/TW.  v3.0B p90-91
+            ###############
             with m.Case(MicrOp.OP_TRAP):
                 # TODO: put back use of fields, do not access insn bits direct
                 # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
@@ -157,6 +161,9 @@ class Driver(Elaboratable):
                         Assert(nia_o.data == op.trapaddr << 4),
                     ]
 
+            #################
+            # SC.  v3.0B p952
+            #################
             with m.Case(MicrOp.OP_SC):
                 expected_msr = Signal(len(msr_o.data))
                 comb += expected_msr.eq(op.msr)
@@ -220,6 +227,9 @@ class Driver(Elaboratable):
                 with m.Else():
                     comb += Assert(msr_o[MSR.HV] == 0)
 
+            ###################
+            # RFID.  v3.0B p955
+            ###################
             with m.Case(MicrOp.OP_RFID):
                 comb += [
                     Assert(msr_o.ok),
