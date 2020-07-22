@@ -108,7 +108,7 @@ class LibreSOC(CPU):
             # monitoring / debugging
             i_go_insn_i        = 1,  # set to "always running"
             i_pc_i             = self.pc,
-            i_ pc_i_ok         = self.pc_ok,
+            i_pc_i_ok          = self.pc_ok,
             i_core_start_i     = self.core_start,
             i_core_stop_i      = self.core_stop,
             i_core_bigendian_i = self.bigendian,
