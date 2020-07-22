@@ -56,9 +56,9 @@ class TestIssuer(Elaboratable):
         self.memerr_o = Signal(reset_less=True)
 
         # FAST regfile read /write ports for PC and MSR
-        self.fast_r_pc = self.core.regs.rf['fast'].r_ports['d_rd1'] # PC rd
+        self.fast_r_pc = self.core.regs.rf['fast'].r_ports['cia'] # PC rd
         self.fast_w_pc = self.core.regs.rf['fast'].w_ports['d_wr1'] # PC wr
-        self.fast_r_msr = self.core.regs.rf['fast'].r_ports['d_rd2'] # MSR rd
+        self.fast_r_msr = self.core.regs.rf['fast'].r_ports['msr'] # MSR rd
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']

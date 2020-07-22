@@ -73,13 +73,12 @@ class FastRegs(RegFileArray):
                         'msr': self.write_port("dest2"),
                         'fast1': self.write_port("dest3"),
                         'fast2': self.write_port("dest4"),
-                        'd_wr1': self.write_port("d_wr1")} # writing PC
-        self.r_ports = {'cia': self.read_port("src1"),
-                        'msr': self.read_port("src2"),
-                        'fast1': self.read_port("src3"),
-                        'fast2': self.read_port("src4"),
-                        'd_rd1': self.read_port("d_rd1"), # reading PC
-                        'd_rd2': self.read_port("d_rd2")} # reading MSR
+                        'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
+        self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
+                        'msr': self.read_port("msr"), # reading MSR (issuer)
+                        'fast1': self.read_port("src1"),
+                        'fast2': self.read_port("src2"),
+                        }
 
 
 # CR Regfile
