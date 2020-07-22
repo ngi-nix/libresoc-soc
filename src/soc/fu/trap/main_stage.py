@@ -264,15 +264,27 @@ class TrapMainStage(PipeModBase):
                 # According to V3.0B, Book II, section 3.3.1, the System Call
                 # instruction allows you to trap directly into the hypervisor
                 # if the opcode's LEV sub-field is equal to 1.
+
+                # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=325#c104
+                # do not access op.insn bits directly: PowerISA requires
+                # that fields be REVERSED and that has not been done here,
+                # where self.fields.FormNNN has that handled.
+
+                # in addition, we are following *microwatt* - which has
+                # not implemented hypervisor.  therefore this is incorrect
+                # behaviour.  see execute1.vhdl
+                # https://github.com/antonblanchard/microwatt/
+
                 trap_to_hv = Signal(reset_less=True)
                 lev = Signal(6, reset_less=True)
-                comb += lev.eq(op[31-26:32-20])
+                comb += lev.eq(op[31-26:32-20]) # no.  use fields.FormSC.LEV
                 comb += trap_to_hv.eq(lev == Const(1, 6))
 
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
 
                 # and update several MSR bits
+                # XXX TODO: disable msr_hv.  we are not doing hypervisor.
                 self.msr_exception(m, 0xc00, msr_hv=trap_to_hv)
 
             # TODO (later)
