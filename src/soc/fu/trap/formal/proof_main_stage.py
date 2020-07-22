@@ -248,14 +248,15 @@ class Driver(Elaboratable):
                 # which field it is (3 == HV etc.)
 
                 # spec: MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
-                with m.If(msr_i[3]): # HV
-                    comb += Assert(msr_o[51] == srr1_i[51]) # ME from SRR1
+                with m.If(field(msr_i, 3)): # HV
+                    comb += Assert(field(msr_o, 51) == field(srr1_i, 51) # ME
                 with m.Else():
-                    comb += Assert(msr_o[51] == msr_i[51]) # ME from MSR (in)
+                    comb += Assert(field(msr_o, 51) == field(msr_i, 51)) # ME
 
                 comb += [
                     # spec: MSR[3] <- (MSR[3] & SRR1[3])
-                    Assert(msr_o[3] == (srr1_i[3] & msr_i[3])), # HV
+                    Assert(field(msr_o, 3) == (field(srr1_i, 3) &
+                                               field(msr_i, 3))), # HV
                 ]
 
                 # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
