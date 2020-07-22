@@ -353,12 +353,22 @@ class ISACaller:
         # in figure 66 p1065 V3.0B and the table figure 65 p1063 set these
         # bits appropriately.  however it turns out that *for now* in all
         # cases (all trap_addrs) the exact same thing is needed.
-        self.msr[MSRb.SF] = 1
-        self.msr[MSRb.EE] = 0
-        self.msr[MSRb.PR] = 0
         self.msr[MSRb.IR] = 0
         self.msr[MSRb.DR] = 0
+        self.msr[MSRb.FE0] = 0
+        self.msr[MSRb.FE1] = 0
+        self.msr[MSRb.EE] = 0
         self.msr[MSRb.RI] = 0
+        self.msr[MSRb.SF] = 1
+        self.msr[MSRb.TM] = 0
+        self.msr[MSRb.VEC] = 0
+        self.msr[MSRb.VSX] = 0
+        self.msr[MSRb.PR] = 0
+        self.msr[MSRb.FP] = 0
+        self.msr[MSRb.PMM] = 0
+        self.msr[MSRb.TEs] = 0
+        self.msr[MSRb.TEe] = 0
+        self.msr[MSRb.UND] = 0
         self.msr[MSRb.LE] = 1
 
     def memassign(self, ea, sz, val):
