@@ -198,6 +198,11 @@ class TestIssuer(Elaboratable):
         yield self.memerr_o
         yield from self.core.ports()
         yield from self.imem.ports()
+        yield self.core_start_i
+        yield self.core_stop_i
+        yield self.core_bigendian_i
+        yield self.busy_o
+        yield self.halted_o
 
     def ports(self):
         return list(self)
