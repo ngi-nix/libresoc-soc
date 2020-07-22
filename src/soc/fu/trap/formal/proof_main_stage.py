@@ -212,7 +212,9 @@ class Driver(Elaboratable):
                 # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
                 # XXX what is this for?  it is not possible to identify
                 # it because the "direct access to insn bits" provides
-                # absolutely no clue as to its purpose
+                # absolutely no clue as to its purpose.
+                # also: this is likely to be wrong because of PowerISA
+                # field ordering (see V3.0B p4 section 1.3.4)
                 with m.If(field(op.insn, 20, 26) == 1):
                     comb += Assert(msr_o[MSR.HV] == 1)
                 with m.Else():
