@@ -59,6 +59,7 @@ class LibreSOC(CPU):
         self.core_busy    = Signal()   # core is running (busy)
 
         # instruction and data bus: 64-bit, 48 bit addressing
+        # sigh self.ibus  = wishbone.Interface(data_width=32, adr_width=48)
         self.ibus         = wishbone.Interface(data_width=64, adr_width=48)
         self.dbus         = wishbone.Interface(data_width=64, adr_width=48)
 
@@ -85,7 +86,8 @@ class LibreSOC(CPU):
             o_ibus__cti   = self.ibus.cti,
             o_ibus__bte   = self.ibus.bte,
             o_ibus__we    = self.ibus.we,
-            o_ibus__adr   = Cat(Signal(3), self.ibus.adr), # 64-bit
+            #o_ibus__adr   = self.ibus.adr, # 64-bit
+            sigh o_ibus__adr   = Cat(Signal(3), self.ibus.adr), # 64-bit
             o_ibus__dat_w = self.ibus.dat_w,
             o_ibus__sel   = self.ibus.sel,
             i_ibus__ack   = self.ibus.ack,

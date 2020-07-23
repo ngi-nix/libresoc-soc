@@ -17,7 +17,10 @@ if __name__ == '__main__':
                          imem_ifacetype='bare_wb',
                          addr_wid=48,
                          mask_wid=8,
+                         # must leave at 64
                          reg_wid=64,
+                         # set to 32 for instruction-memory width=32
+                         imem_reg_wid=64,
                          units=units)
     dut = TestIssuer(pspec)
 

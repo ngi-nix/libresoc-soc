@@ -44,8 +44,25 @@ def setup_i_memory(imem, startaddr, instructions):
     for i in range(mem.depth):
         yield mem._array[i].eq(0)
     yield Settle()
-    startaddr //= 4  # instructions are 32-bit
-    mask = ((1 << 64)-1)
+    startaddr //= 4 # instructions are 32-bit
+    if mem.width == 32:
+        mask = ((1<<32)-1)
+        for ins in instructions:
+            if isinstance(ins, tuple):
+                insn, code = ins
+            else:
+                insn, code = ins, ''
+            insn = insn & 0xffffffff
+            yield mem._array[startaddr].eq(insn)
+            yield Settle()
+            if insn != 0:
+                print ("instr: %06x 0x%x %s" % (4*startaddr, insn, code))
+            startaddr += 1
+            startaddr = startaddr & mask
+        return
+
+    # 64 bit
+    mask = ((1<<64)-1)
     for ins in instructions:
         if isinstance(ins, tuple):
             insn, code = ins
@@ -84,6 +101,7 @@ class TestRunner(FHDLTestCase):
                              imem_ifacetype='test_bare_wb',
                              addr_wid=48,
                              mask_wid=8,
+                             imem_reg_wid=64,
                              reg_wid=64)
         m.submodules.issuer = issuer = TestIssuer(pspec)
         imem = issuer.imem._get_memory()
