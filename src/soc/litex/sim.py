@@ -17,7 +17,7 @@ from litex.soc.integration.soc_core import SoCCore
 from litex.soc.integration.common import get_mem_data
 from litex.soc.integration.builder import Builder
 
-from litedram.modules import IS42S16160 #, MT41K128M16
+from litedram.modules import IS42S16160, MT41K128M16
 from litedram.phy.model import SDRAMPHYModel
 from litedram.core.controller import ControllerSettings
 
@@ -68,7 +68,7 @@ class SoCSMP(SoCCore):
             cpu_type                 = "microwatt", # XXX use microwatt
             cpu_variant              = cpu_variant,
             cpu_cls                  = LibreSOC,
-            bus_data_width           = 64, # 64 bit wishbone data bus
+            bus_data_width           = 32, # XXX TODO 64 bit wishbone data bus
             uart_name                = "sim",
             integrated_rom_size      = 0x8000,
             integrated_main_ram_size = 0x00000000)
@@ -80,27 +80,27 @@ class SoCSMP(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ----------------------------------------------------------
-        if True:
+        if False:
             phy_settings = get_sdram_phy_settings(
-                memtype    = "DDR3",
-                #memtype    = "SDR",
+                #memtype    = "DDR3",
+                memtype    = "SDR",
                 data_width = 16,
                 clk_freq   = 100e6)
             self.submodules.sdrphy = SDRAMPHYModel(
-                module    = MT41K128M16(100e6, "1:4"),
-                #module                  = IS42S16160(100e6, "1:4"),
+                #module    = MT41K128M16(100e6, "1:4"),
+                module                  = IS42S16160(100e6, "1:4"),
                 settings  = phy_settings,
                 clk_freq  = 100e6,
                 init      = sdram_init)
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
-                module                  = MT41K128M16(100e6, "1:4"),
-                #module                  = IS42S16160(100e6, "1:4"),
+                #module                  = MT41K128M16(100e6, "1:4"),
+                module                  = IS42S16160(100e6, "1:4"),
                 origin                  = self.mem_map["main_ram"],
-                controller_settings     = ControllerSettings(
-                    cmd_buffer_buffered = False,
-                    with_auto_precharge = True
-                )
+                #controller_settings     = ControllerSettings(
+                #    cmd_buffer_buffered = False,
+                #    with_auto_precharge = True
+                #)
             )
         if init_memories:
             addr = 0x40f00000
