@@ -12,8 +12,11 @@ class FetchUnitInterface:
     def __init__(self, pspec):
         self.pspec = pspec
         self.addr_wid = pspec.addr_wid
-        self.data_wid = pspec.reg_wid
-        self.adr_lsbs = log2_int(pspec.reg_wid//8)
+        if isinstance(pspec.imem_reg_wid, int):
+            self.data_wid = pspec.imem_reg_wid
+        else:
+            self.data_wid = pspec.reg_wid
+        self.adr_lsbs = log2_int(self.data_wid//8)
         self.ibus = Record(make_wb_layout(pspec))
         bad_wid = pspec.addr_wid - self.adr_lsbs # TODO: is this correct?
 

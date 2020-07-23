@@ -150,7 +150,11 @@ class TestIssuer(Elaboratable):
                         comb += self.imem.f_valid_i.eq(1)
                     with m.Else():
                         # not busy: instruction fetched
-                        insn = self.imem.f_instr_o.word_select(cur_pc[2], 32)
+                        f_instr_o = self.imem.f_instr_o
+                        if f_instr_o.width == 32:
+                            insn = f_instr_o
+                        else:
+                            insn = f_instr_o.word_select(cur_pc[2], 32)
                         comb += current_insn.eq(insn)
                         comb += core_ivalid_i.eq(1) # instruction is valid
                         comb += core_issue_i.eq(1)  # and issued 
