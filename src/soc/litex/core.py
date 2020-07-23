@@ -86,8 +86,8 @@ class LibreSOC(CPU):
             o_ibus__cti   = self.ibus.cti,
             o_ibus__bte   = self.ibus.bte,
             o_ibus__we    = self.ibus.we,
-            #o_ibus__adr   = self.ibus.adr, # 64-bit
-            sigh o_ibus__adr   = Cat(Signal(3), self.ibus.adr), # 64-bit
+            # sigh o_ibus__adr   = self.ibus.adr, # for 32-bit
+            o_ibus__adr   = Cat(Signal(3), self.ibus.adr), # 64-bit
             o_ibus__dat_w = self.ibus.dat_w,
             o_ibus__sel   = self.ibus.sel,
             i_ibus__ack   = self.ibus.ack,
