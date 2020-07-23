@@ -99,7 +99,7 @@ class NonProductionCore(Elaboratable):
         fus = self.fus.fus
 
         # core start/stopped state
-        core_stopped = Signal(reset=1)  # begins in stopped state
+        core_stopped = Signal(reset=0) # begins in running state
 
         # start/stop signalling
         with m.If(self.core_start_i):
