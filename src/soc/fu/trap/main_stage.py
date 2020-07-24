@@ -103,6 +103,10 @@ class TrapMainStage(PipeModBase):
         comb += msr_o.data[MSR.VEC].eq(0)
         comb += msr_o.data[MSR.FP].eq(0)
         comb += msr_o.data[MSR.PMM].eq(0)
+        # XXX no.  slice quantity still inverted producing an empty list
+        # https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
+        # also add a comment explaining this very non-obvious
+        # behaviour.
         comb += field(msr_o.data, MSRb.TEs, MSRb.TEe).eq(0)
         comb += msr_o.data[MSR.UND].eq(0)
         if msr_hv is not None:
@@ -218,11 +222,16 @@ class TrapMainStage(PipeModBase):
                         for stt, end in [(1,12), (13, 32)]:
                             comb += msr_o.data[stt:end].eq(a_i[stt:end])
                     msr_check_pr(m, msr_o.data)
+
+                    # XXX code removed, needs reverting.
+                    # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c124
+                    # XXX
+
                 comb += msr_o.ok.eq(1)
 
             # move from MSR
             with m.Case(MicrOp.OP_MFMSR):
-                # TODO: some of the bits need zeroing?  apparently not
+                # some of the bits need zeroing?  apparently not
                 comb += o.data.eq(msr_i)
                 comb += o.ok.eq(1)
 
@@ -242,6 +251,11 @@ class TrapMainStage(PipeModBase):
 
                 # don't understand but it's in the spec.  again: bits 32-34
                 # are copied from srr1_i and need *restoring* to msr_i
+
+                # XXX bug introduced here.  this needs to be field_slice(31, 29)
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c126
+                # XXX
+
                 bits = field_slice(29, 31)  # bits 29, 30, 31 (Power notation)
                 with m.If((msr_i[bits] == Const(0b010, 3)) &
                           (srr1_i[bits] == Const(0b000, 3))):
@@ -257,16 +271,8 @@ class TrapMainStage(PipeModBase):
                 # According to V3.0B, Book II, section 3.3.1, the System Call
                 # instruction allows you to trap directly into the hypervisor
                 # if the opcode's LEV sub-field is equal to 1.
-
-                # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=325#c104
-                # do not access op.insn bits directly: PowerISA requires
-                # that fields be REVERSED and that has not been done here,
-                # where self.fields.FormNNN has that handled.
-
-                # in addition, we are following *microwatt* - which has
-                # not implemented hypervisor.  therefore this is incorrect
-                # behaviour.  see execute1.vhdl
-                # https://github.com/antonblanchard/microwatt/
+                # however we are following *microwatt* - which has
+                # not implemented hypervisor.
 
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)

@@ -120,14 +120,29 @@ class Driver(Elaboratable):
                     comb += field(expected_msr, MSRb.PR).eq(0)
                     comb += field(expected_msr, MSRb.FP).eq(0)
                     comb += field(expected_msr, MSRb.PMM).eq(0)
+
+                    # still wrong.
+                    # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
                     comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
+
                     comb += field(expected_msr, MSRb.UND).eq(0)
                     comb += field(expected_msr, MSRb.LE).eq(1)
 
                     expected_srr1 = Signal(len(srr1_o.data))
                     comb += expected_srr1.eq(op.msr)
 
-                    comb += expected_srr1[63-36:63-32].eq(0)
+                    # note here: 36 is ***LESS*** than 32  ***BUT***
+                    # ***63-36*** is less than 63-32
+                    # could do with using field_slice here however
+                    # *get the number order right*.
+
+                    # however before doing that: why are these bits
+                    # initialised to zero then every single one of them
+                    # is over-ridden?  5 bits, 32-36 (36-32, haha)
+                    # are set to zero, then 5 bits are set to expressions.
+
+                    # redundant comb += expected_srr1[63-36:63-32].eq(0)
+
                     comb += expected_srr1[PI.TRAP].eq(traptype == 0)
                     comb += expected_srr1[PI.PRIV].eq(traptype[1])
                     comb += expected_srr1[PI.FP].eq(traptype[0])
@@ -169,6 +184,10 @@ class Driver(Elaboratable):
                 comb += field(expected_msr, MSRb.PR).eq(0)
                 comb += field(expected_msr, MSRb.FP).eq(0)
                 comb += field(expected_msr, MSRb.PMM).eq(0)
+                # XXX no.  slice quantity still inverted producing an empty list
+                # https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
+                # also add a comment explaining this very non-obvious
+                # behaviour
                 comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
                 comb += field(expected_msr, MSRb.UND).eq(0)
                 comb += field(expected_msr, MSRb.LE).eq(1)
@@ -197,6 +216,13 @@ class Driver(Elaboratable):
                     Assert(nia_o.ok),
                 ]
 
+                # XXX code comment has been removed, which explains
+                # why the code is written the way it is written
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c127
+
+                # XXX restore HV check
+                # https://bugs.libre-soc.org/show_bug.cgi?id=325#c125
+
                 # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
                 #     MSR[29:31] <- SRR1[29:31]
                 with m.If((field(msr_i , 29, 31) != 0b010) |
@@ -208,6 +234,9 @@ class Driver(Elaboratable):
                                    field(msr_i, 29, 31))
 
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
+
+                # XXX does not look as clear.  revert
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c122
                 for bit in [48, 58, 59]:
                     comb += Assert(
                         field(msr_o, bit) ==
