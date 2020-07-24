@@ -208,8 +208,9 @@ class DivTestCases:
                     initial_regs = [0] * 32
                     initial_regs[1] = ra
                     initial_regs[2] = rb
-                    prog = Program(l, bigendian)
-                    self.run_test_program(prog, initial_regs)
+                    # use "with" so as to close the files used
+                    with Program(l, bigendian) as prog:
+                        self.run_test_program(prog, initial_regs)
 
     def tst_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
