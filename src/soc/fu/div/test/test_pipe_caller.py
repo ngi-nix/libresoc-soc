@@ -173,8 +173,8 @@ class DivTestCases(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    #suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.DivPipeCore))
-    #suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.FSMDivCore))
+    suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.DivPipeCore))
+    suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.FSMDivCore))
     suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.SimOnly))
 
     runner = unittest.TextTestRunner()

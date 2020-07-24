@@ -7,9 +7,10 @@ from soc.fu.test.common import TestCase
 from soc.fu.div.test.runner import DivRunner
 
 
-class DivTestCasesLong(unittest.TestCase):
-    def __init__(self):
-        self.test_data = []
+class DivTestLong(unittest.TestCase):
+    test_data = []
+    def __init__(self, name):
+        super().__init__(name)
         for n, v in self.__class__.__dict__.items():
             if n.startswith("test") and callable(v):
                 self._current_test_name = n
@@ -58,7 +59,10 @@ class DivTestCasesLong(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(DivRunner(DivTestCasesLong.test_data))
+    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.DivPipeCore))
+    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.FSMDivCore))
+    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.SimOnly))
+
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
