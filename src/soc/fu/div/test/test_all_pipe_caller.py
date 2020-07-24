@@ -4,10 +4,10 @@ from soc.simulator.program import Program
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import TestCase
-from soc.fu.div.test.test_pipe_caller import TestRunner
+from soc.fu.div.test.runner import DivRunner
 
 
-class DivTestCasesLong:
+class DivTestCasesLong(unittest.TestCase):
     def __init__(self):
         self.test_data = []
         for n, v in self.__class__.__dict__.items():
@@ -58,8 +58,7 @@ class DivTestCasesLong:
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(DivTestCasesLong())
-    suite.addTest(TestRunner(DivTestCasesLong.test_data))
+    suite.addTest(DivRunner(DivTestCasesLong.test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
