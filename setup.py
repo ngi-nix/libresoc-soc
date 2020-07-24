@@ -13,7 +13,7 @@ install_requires = [
     #    'sfpy',
     'ieee754fpu',  # needs to be installed manually from git.libre-soc.org
     'pygdbmi',
-    'nmigen-soc', # install manually from git.libre-soc.org
+    'nmigen-soc',  # install manually from git.libre-soc.org
     'ply',  # needs to be installed manually
     'astor',
 ]
