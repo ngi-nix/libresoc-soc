@@ -273,14 +273,13 @@ class TestRunner(unittest.TestCase):
         def process():
             for test in test_data:
                 print(test.name)
-                program = test.program
+                prog = test.program
                 with self.subTest(test.name):
                     isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                                   test.mem, test.msr,
                                   bigendian=bigendian)
-                    gen = program.generate_instructions()
-                    instructions = list(
-                        zip(gen, program.assembly.splitlines()))
+                    gen = prog.generate_instructions()
+                    instructions = list(zip(gen, prog.assembly.splitlines()))
                     yield Delay(0.1e-6)
 
                     index = isa_sim.pc.CIA.value//4
