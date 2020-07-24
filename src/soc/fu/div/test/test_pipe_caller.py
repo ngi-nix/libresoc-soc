@@ -78,7 +78,7 @@ class DivTestCases:
                       initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def tst_0_regression(self):
+    def test_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
             initial_regs = [0] * 32
@@ -86,35 +86,35 @@ class DivTestCases:
             initial_regs[2] = 0xcdf69a7f7042db66
             self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_1_regression(self):
+    def test_1_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x10000000000000000-4
         initial_regs[2] = 0x10000000000000000-2
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_2_regression(self):
+    def test_2_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffff9321
         initial_regs[2] = 0xffffffffffff7012
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_3_regression(self):
+    def test_3_regression(self):
         lst = ["divwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1b8e32f2458746af
         initial_regs[2] = 0x6b8aee2ccf7d62e9
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_4_regression(self):
+    def test_4_regression(self):
         lst = ["divw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1c4e6c2f3aa4a05c
         initial_regs[2] = 0xe730c2eed6cc8dd7
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_5_regression(self):
+    def test_5_regression(self):
         lst = ["divw 3, 1, 2",
                "divwo. 6, 4, 5"]
         initial_regs = [0] * 32
@@ -124,7 +124,7 @@ class DivTestCases:
         initial_regs[5] = 0x6b8aee2ccf7d62e9
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_6_regression(self):
+    def test_6_regression(self):
         # CR0 not getting set properly for this one
         # turns out that overflow is not set correctly in
         # fu/div/output_stage.py calc_overflow
@@ -135,7 +135,7 @@ class DivTestCases:
         initial_regs[2] = 0x9dc66a7622c32bc0
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_7_regression(self):
+    def test_7_regression(self):
         # https://bugs.libre-soc.org/show_bug.cgi?id=425
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
@@ -143,42 +143,42 @@ class DivTestCases:
         initial_regs[2] = 0xffc868bf4573da0b
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divw_by_zero_1(self):
+    def test_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1
         initial_regs[2] = 0x0
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divw_overflow2(self):
+    def test_divw_overflow2(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffffffffffff  # top bits don't seem to matter
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divw_overflow3(self):
+    def test_divw_overflow3(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffff
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divwuo_regression_1(self):
+    def test_divwuo_regression_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7591a398c4e32b68
         initial_regs[2] = 0x48674ab432867d69
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_divwuo_1(self):
+    def test_divwuo_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x50
         initial_regs[2] = 0x2
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_rand_divwu(self):
+    def test_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -188,7 +188,7 @@ class DivTestCases:
             initial_regs[2] = log_rand(32)
             self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def tst_rand_divw(self):
+    def test_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
             choice = random.choice(insns)
