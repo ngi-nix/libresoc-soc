@@ -615,7 +615,8 @@ class PowerParser:
                 l, r = p[1], p[3]
                 # actual call will be "dividend / divisor" - just check
                 # LHS name
-                if isinstance(l, ast.Name) and l.id == 'dividend':
+                # XXX DISABLE BAD HACK (False)
+                if False and isinstance(l, ast.Name) and l.id == 'dividend':
                     if p[2] == '/':
                         fn = 'trunc_divs'
                     else:
