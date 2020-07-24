@@ -1,6 +1,5 @@
 import random
 import unittest
-import power_instruction_analyzer as pia
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay
 from nmigen.cli import rtlil
@@ -14,7 +13,6 @@ from soc.config.endian import bigendian
 from soc.fu.test.common import (TestCase, ALUHelpers)
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
-from typing import List
 
 
 def log_rand(n, min_val=1):
@@ -46,38 +44,6 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
-    return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"], rc=0)
-
-
-def pia_result_to_output(pia_result: pia.InstructionResult):
-    retval = {}
-    if pia_result.rt is not None:
-        retval["o"] = pia_result.rt
-    if pia_result.cr0 is not None:
-        cr0: pia.ConditionRegister = pia_result.cr0
-        v = 0
-        if cr0.lt:
-            v |= 8
-        if cr0.gt:
-            v |= 4
-        if cr0.eq:
-            v |= 2
-        if cr0.so:
-            v |= 1
-        retval["cr_a"] = v
-    if pia_result.overflow is not None:
-        overflow: pia.OverflowFlags = pia_result.overflow
-        v = 0
-        if overflow.ov:
-            v |= 1
-        if overflow.ov32:
-            v |= 2
-        retval["xer_ov"] = v
-        retval["xer_so"] = overflow.so
-    else:
-        retval["xer_ov"] = 0
-        retval["xer_so"] = 0
-    return retval
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -100,8 +66,6 @@ def pia_result_to_output(pia_result: pia.InstructionResult):
 
 
 class DivTestCases:
-    test_data: List[TestCase]
-
     def __init__(self):
         self.test_data = []
         for n, v in self.__class__.__dict__.items():
@@ -114,7 +78,7 @@ class DivTestCases:
                       initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_0_regression(self):
+    def tst_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
             initial_regs = [0] * 32
@@ -122,35 +86,35 @@ class DivTestCases:
             initial_regs[2] = 0xcdf69a7f7042db66
             self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_1_regression(self):
+    def tst_1_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x10000000000000000-4
         initial_regs[2] = 0x10000000000000000-2
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_2_regression(self):
+    def tst_2_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffff9321
         initial_regs[2] = 0xffffffffffff7012
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_3_regression(self):
+    def tst_3_regression(self):
         lst = ["divwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1b8e32f2458746af
         initial_regs[2] = 0x6b8aee2ccf7d62e9
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_4_regression(self):
+    def tst_4_regression(self):
         lst = ["divw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1c4e6c2f3aa4a05c
         initial_regs[2] = 0xe730c2eed6cc8dd7
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_5_regression(self):
+    def tst_5_regression(self):
         lst = ["divw 3, 1, 2",
                "divwo. 6, 4, 5"]
         initial_regs = [0] * 32
@@ -160,7 +124,7 @@ class DivTestCases:
         initial_regs[5] = 0x6b8aee2ccf7d62e9
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_6_regression(self):
+    def tst_6_regression(self):
         # CR0 not getting set properly for this one
         # turns out that overflow is not set correctly in
         # fu/div/output_stage.py calc_overflow
@@ -171,7 +135,7 @@ class DivTestCases:
         initial_regs[2] = 0x9dc66a7622c32bc0
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_7_regression(self):
+    def tst_7_regression(self):
         # https://bugs.libre-soc.org/show_bug.cgi?id=425
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
@@ -179,35 +143,35 @@ class DivTestCases:
         initial_regs[2] = 0xffc868bf4573da0b
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_divw_by_zero_1(self):
+    def tst_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1
         initial_regs[2] = 0x0
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_divw_overflow2(self):
+    def tst_divw_overflow2(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffffffffffff  # top bits don't seem to matter
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_divw_overflow3(self):
+    def tst_divw_overflow3(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0xffffffff
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_divwuo_regression_1(self):
+    def tst_divwuo_regression_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7591a398c4e32b68
         initial_regs[2] = 0x48674ab432867d69
         self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_divwuo_1(self):
+    def tst_divwuo_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x50
@@ -247,7 +211,7 @@ class DivTestCases:
                     prog = Program(l, bigendian)
                     self.run_test_program(prog, initial_regs)
 
-    def test_rand_divwu(self):
+    def tst_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -257,7 +221,7 @@ class DivTestCases:
             initial_regs[2] = log_rand(32)
             self.run_test_program(Program(lst, bigendian), initial_regs)
 
-    def test_rand_divw(self):
+    def tst_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -318,7 +282,7 @@ class TestRunner(unittest.TestCase):
                         zip(gen, program.assembly.splitlines()))
                     yield Delay(0.1e-6)
 
-                    index = isa_sim.pc.CIA.value // 4
+                    index = isa_sim.pc.CIA.value//4
                     while index < len(instructions):
                         ins, code = instructions[index]
 
@@ -328,10 +292,7 @@ class TestRunner(unittest.TestCase):
                             so = 1 if isa_sim.spr['XER'][XER_bits['SO']] else 0
                             ov = 1 if isa_sim.spr['XER'][XER_bits['OV']] else 0
                             ov32 = 1 if isa_sim.spr['XER'][XER_bits['OV32']] else 0
-                            xer_zero = not (so or ov or ov32)
                             print("before: so/ov/32", so, ov, ov32)
-                        else:
-                            xer_zero = True
 
                         # ask the decoder to decode this binary data (endian'd)
                         # little / big?
@@ -340,7 +301,7 @@ class TestRunner(unittest.TestCase):
                         yield Delay(0.1e-6)
                         fn_unit = yield pdecode2.e.do.fn_unit
                         self.assertEqual(fn_unit, Function.DIV.value)
-                        pia_inputs = yield from set_alu_inputs(alu, pdecode2, isa_sim)
+                        yield from set_alu_inputs(alu, pdecode2, isa_sim)
 
                         # set valid for one cycle, propagate through pipeline...
                         yield alu.p.valid_i.eq(1)
@@ -348,14 +309,6 @@ class TestRunner(unittest.TestCase):
                         yield alu.p.valid_i.eq(0)
 
                         opname = code.split(' ')[0]
-                        if xer_zero:
-                            fnname = opname.replace(".", "_")
-                            print(f"{fnname}({pia_inputs})")
-                            pia_result = getattr(
-                                pia, opname.replace(".", "_"))(pia_inputs)
-                            print(f"-> {pia_result}")
-                        else:
-                            pia_result = None
                         yield from isa_sim.call(opname)
                         index = isa_sim.pc.CIA.value//4
 
@@ -386,7 +339,7 @@ class TestRunner(unittest.TestCase):
 
                         yield Delay(0.1e-6)
                         print("time:", sim._state.timeline.now)
-                        yield from self.check_alu_outputs(alu, pdecode2, isa_sim, code, pia_result)
+                        yield from self.check_alu_outputs(alu, pdecode2, isa_sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"div_simulator_{div_pipe_kind.name}.vcd",
@@ -394,7 +347,7 @@ class TestRunner(unittest.TestCase):
                            traces=[]):
             sim.run()
 
-    def check_alu_outputs(self, alu, dec2, sim, code, pia_result):
+    def check_alu_outputs(self, alu, dec2, sim, code):
 
         rc = yield dec2.e.do.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
@@ -421,23 +374,10 @@ class TestRunner(unittest.TestCase):
 
         print("sim output", sim_o)
 
-        print("power-instruction-analyzer result:")
-        print(pia_result)
-        if pia_result is not None:
-            with self.subTest(check="pia", sim_o=sim_o, pia_result=str(pia_result)):
-                pia_o = pia_result_to_output(pia_result)
-
-                ALUHelpers.check_int_o(self, res, pia_o, code)
-                ALUHelpers.check_cr_a(self, res, pia_o,
-                                      "CR%d %s" % (cridx, code))
-                ALUHelpers.check_xer_ov(self, res, pia_o, code)
-                ALUHelpers.check_xer_so(self, res, pia_o, code)
-
-        with self.subTest(check="sim", sim_o=sim_o, pia_result=str(pia_result)):
-            ALUHelpers.check_int_o(self, res, sim_o, code)
-            ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
-            ALUHelpers.check_xer_ov(self, res, sim_o, code)
-            ALUHelpers.check_xer_so(self, res, sim_o, code)
+        ALUHelpers.check_int_o(self, res, sim_o, code)
+        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
 
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
