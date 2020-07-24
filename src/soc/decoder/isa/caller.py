@@ -475,8 +475,8 @@ class ISACaller:
 
     def handle_comparison(self, outputs):
         out = outputs[0]
-        assert isinstance(out, SelectableInt),
-                          "out zero not a SelectableInt %s" % repr(outputs))
+        assert isinstance(out, SelectableInt), \
+                          "out zero not a SelectableInt %s" % repr(outputs)
         print("handle_comparison", out.bits, hex(out.value))
         # TODO - XXX *processor* in 32-bit mode
         # https://bugs.libre-soc.org/show_bug.cgi?id=424
