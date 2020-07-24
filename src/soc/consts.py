@@ -9,10 +9,16 @@ def botchify(bekls, lekls):
 # Can't think of a better place to put these functions.
 # Return an arbitrary subfield of a larger field.
 def field_slice(msb0_start, msb0_end, field_width=64):
-    """Answers with a subfield slice of the signal r ("register"),
-    where the start and end bits use IBM conventions.  msb0_start < msb0_end.
-    The range specified is inclusive on both ends.
-    field_width specifies the total number of bits (not bits-1)
+    """field_slice
+
+    Answers with a subfield slice of the signal r ("register"),
+    where the start and end bits use IBM "MSB 0" conventions.
+
+    see: https://en.wikipedia.org/wiki/Bit_numbering#MSB_0_bit_numbering
+
+    * assertion: msb0_start < msb0_end.
+    * The range specified is inclusive on both ends.
+    * field_width specifies the total number of bits (note: not bits-1)
     """
     if msb0_start >= msb0_end:
         raise ValueError(
