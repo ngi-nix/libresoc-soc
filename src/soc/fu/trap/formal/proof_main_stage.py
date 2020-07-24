@@ -143,12 +143,14 @@ class Driver(Elaboratable):
                     expected_srr1 = Signal(len(srr1_o.data))
                     comb += expected_srr1.eq(op.msr)
 
-                    comb += expected_srr1[PI.TRAP].eq(traptype == 0)
-                    comb += expected_srr1[PI.PRIV].eq(traptype[1])
-                    comb += expected_srr1[PI.FP].eq(traptype[0])
-                    comb += expected_srr1[PI.ADR].eq(traptype[3])
-                    comb += expected_srr1[PI.ILLEG].eq(traptype[4])
-                    comb += expected_srr1[PI.TM_BAD_THING].eq(0)
+                    # Per V3.0B, page 1075
+                    comb += field(expected_srr1, 33, 36).eq(0)
+                    comb += field(expected_srr1, 42).eq(0)  # TM_BAD_THING
+                    comb += field(expected_srr1, 43).eq(traptype[0])    # FP
+                    comb += field(expected_srr1, 44).eq(traptype[4])    # ILLEG
+                    comb += field(expected_srr1, 45).eq(traptype[1])    # PRIV
+                    comb += field(expected_srr1, 46).eq(traptype == 0)  # TRAP
+                    comb += field(expected_srr1, 47).eq(traptype[3])    # ADDR
 
                     comb += [
                         Assert(msr_o.ok),
@@ -237,15 +239,15 @@ class Driver(Elaboratable):
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
                 comb += [
                     Assert(
-                        field(msr_o.data, 48) ==
+                        field(msr_o, 48) ==
                         field(srr1_i, 48) | field(srr1_i, 49)
                     ),
                     Assert(
-                        field(msr_o.data, 58) ==
+                        field(msr_o, 58) ==
                         field(srr1_i, 58) | field(srr1_i, 49)
                     ),
                     Assert(
-                        field(msr_o.data, 59) ==
+                        field(msr_o, 59) ==
                         field(srr1_i, 59) | field(srr1_i, 49)
                     ),
                 ]
