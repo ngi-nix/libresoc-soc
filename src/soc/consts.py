@@ -13,12 +13,15 @@ def field_slice(start, end):
     where the start and end bits use IBM conventions.  start < end.
     The range specified is inclusive on both ends.
     """
+    start = 63 - start
+    end = 63 - end
+    # XXX must do the endian-reversing BEFORE doing the comparison
+    # if done after, that instead asserts that (after modification)
+    # start *MUST* be greater than end!
     if start >= end:
         raise ValueError(
             "start ({}) must be less than end ({})".format(start, end)
         )
-    start = 63 - start
-    end = 63 - end
     return slice(end, start + 1)
 
 
