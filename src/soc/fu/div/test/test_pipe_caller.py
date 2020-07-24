@@ -343,7 +343,13 @@ class TestRunner(unittest.TestCase):
                         yield
 
                         yield Delay(0.1e-6)
-                        print("time:", sim._state.timeline.now)
+                        # XXX sim._state is an internal variable
+                        # and timeline does not exist
+                        # AttributeError: '_SimulatorState' object
+                        #                 has no attribute 'timeline'
+                        # TODO: raise bugreport with whitequark
+                        # requesting a public API to access this "officially"
+                        # XXX print("time:", sim._state.timeline.now)
                         yield from self.check_alu_outputs(alu, pdecode2,
                                                           isa_sim, code)
 
