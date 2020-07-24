@@ -19,23 +19,7 @@ from soc.decoder.power_enums import MicrOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.consts import MSR, MSRb, PI, TT
-
-
-def field(r, start, end=None):
-    """Answers with a subfield of the signal r ("register"), where
-    the start and end bits use IBM conventions.  start < end, if
-    end is provided.  The range specified is inclusive on both ends.
-    """
-    if end is None:
-        return r[63 - start]
-    if start >= end:
-        raise ValueError(
-            "start ({}) must be less than end ({})".format(start, end)
-        )
-    start = 63 - start
-    end = 63 - end
-    return r[end:start+1]
+from soc.consts import MSR, MSRb, PI, TT, field, field_slice
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):
@@ -258,7 +242,7 @@ class TrapMainStage(PipeModBase):
 
                 # don't understand but it's in the spec.  again: bits 32-34
                 # are copied from srr1_i and need *restoring* to msr_i
-                bits = slice(63-31,63-29+1) # bits 29, 30, 31 (Power notation)
+                bits = field_slice(29, 31)  # bits 29, 30, 31 (Power notation)
                 with m.If((msr_i[bits] == Const(0b010, 3)) &
                           (srr1_i[bits] == Const(0b000, 3))):
                     comb += msr_o.data[bits].eq(msr_i[bits])

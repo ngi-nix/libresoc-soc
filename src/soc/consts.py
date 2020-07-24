@@ -5,6 +5,34 @@ def botchify(bekls, lekls):
             continue
         setattr(lekls, attr, 63-getattr(bekls, attr))
 
+
+# Can't think of a better place to put these functions.
+# Return an arbitrary subfield of a larger field.
+def field_slice(start, end):
+    """Answers with a subfield slice of the signal r ("register"),
+    where the start and end bits use IBM conventions.  start < end.
+    The range specified is inclusive on both ends.
+    """
+    if start >= end:
+        raise ValueError(
+            "start ({}) must be less than end ({})".format(start, end)
+        )
+    start = 63 - start
+    end = 63 - end
+    return slice(end, start + 1)
+
+
+def field(r, start, end=None):
+    """Answers with a subfield of the signal r ("register"), where
+    the start and end bits use IBM conventions.  start < end, if
+    end is provided.  The range specified is inclusive on both ends.
+    """
+    if end is None:
+        return r[63 - start]
+    else:
+        return r[field_slice(start, end)]
+
+
 # Listed in V3.0B Book III Chap 4.2.1
 # MSR bit numbers, *bigendian* order (PowerISA format)
 # use this in the simulator
@@ -47,7 +75,7 @@ botchify(MSRb, MSR)
 
 # use this in the simulator
 class PIb:
-    TM_BAD_THING = 42 # 1 for a TM Bad Thing type interrupt
+    TM_BAD_THING = 42    # 1 for a TM Bad Thing type interrupt
     FP           = 43    # 1 if FP exception
     ILLEG        = 44    # 1 if illegal instruction (not doing hypervisor)
     PRIV         = 45    # 1 if privileged interrupt
