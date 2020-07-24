@@ -8,21 +8,22 @@ def botchify(bekls, lekls):
 
 # Can't think of a better place to put these functions.
 # Return an arbitrary subfield of a larger field.
-def field_slice(start, end):
+def field_slice(msb0_start, msb0_end, field_width=64):
     """Answers with a subfield slice of the signal r ("register"),
-    where the start and end bits use IBM conventions.  start < end.
+    where the start and end bits use IBM conventions.  msb0_start < msb0_end.
     The range specified is inclusive on both ends.
+    field_width specifies the total number of bits (not bits-1)
     """
-    start = 63 - start
-    end = 63 - end
-    # XXX must do the endian-reversing BEFORE doing the comparison
-    # if done after, that instead asserts that (after modification)
-    # start *MUST* be greater than end!
-    if start >= end:
+    if msb0_start >= msb0_end:
         raise ValueError(
             "start ({}) must be less than end ({})".format(start, end)
         )
-    return slice(end, start + 1)
+    # sigh.  MSB0 (IBM numbering) is inverted.  converting to python
+    # we *swap names* so as not to get confused by having "end, start"
+    end = (field_width-1) - msb0_start
+    start = (field_width-1) - msb0_end
+
+    return slice(start, end + 1)
 
 
 def field(r, start, end=None):
