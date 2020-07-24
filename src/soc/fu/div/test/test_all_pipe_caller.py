@@ -6,6 +6,7 @@ from soc.config.endian import bigendian
 
 from soc.fu.test.common import TestCase
 from soc.fu.div.test.runner import DivRunner
+from soc.fu.div.pipe_data import DivPipeKind
 
 
 class DivTestLong(unittest.TestCase):
