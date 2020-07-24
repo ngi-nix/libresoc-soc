@@ -163,47 +163,13 @@ class Driver(Elaboratable):
                         Assert(nia_o.data == op.trapaddr << 4),
                     ]
 
-            #################
-            # SC.  v3.0B p952
-            #################
-            with m.Case(MicrOp.OP_SC):
-                expected_msr = Signal(len(msr_o.data))
-                comb += expected_msr.eq(op.msr)
-                # Unless otherwise documented, these exceptions to the MSR bits
-                # are documented in Power ISA V3.0B, page 1063 or 1064.
-                # We are not supporting hypervisor or transactional semantics,
-                # so we skip enforcing those fields' properties.
-                comb += field(expected_msr, MSRb.IR).eq(0)
-                comb += field(expected_msr, MSRb.DR).eq(0)
-                comb += field(expected_msr, MSRb.FE0).eq(0)
-                comb += field(expected_msr, MSRb.FE1).eq(0)
-                comb += field(expected_msr, MSRb.EE).eq(0)
-                comb += field(expected_msr, MSRb.RI).eq(0)
-                comb += field(expected_msr, MSRb.SF).eq(1)
-                comb += field(expected_msr, MSRb.TM).eq(0)
-                comb += field(expected_msr, MSRb.VEC).eq(0)
-                comb += field(expected_msr, MSRb.VSX).eq(0)
-                comb += field(expected_msr, MSRb.PR).eq(0)
-                comb += field(expected_msr, MSRb.FP).eq(0)
-                comb += field(expected_msr, MSRb.PMM).eq(0)
-                comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
-                comb += field(expected_msr, MSRb.UND).eq(0)
-                comb += field(expected_msr, MSRb.LE).eq(1)
+            ###################
+            # MTMSR
+            ###################
 
-                comb += [
-                    Assert(dut.o.srr0.ok),
-                    Assert(srr1_o.ok),
-                    Assert(msr_o.ok),
-
-                    Assert(dut.o.srr0.data == (op.cia + 4)[0:64]),
-                    Assert(field(srr1_o, 33, 36) == 0),
-                    Assert(field(srr1_o, 42, 47) == 0),
-                    Assert(field(srr1_o, 0, 32) == field(msr_i, 0, 32)),
-                    Assert(field(srr1_o, 37, 41) == field(msr_i, 37, 41)),
-                    Assert(field(srr1_o, 48, 63) == field(msr_i, 48, 63)),
-
-                    Assert(msr_o.data == expected_msr),
-                ]
+            ###################
+            # MFMSR
+            ###################
 
             ###################
             # RFID.  v3.0B p955
@@ -266,6 +232,48 @@ class Driver(Elaboratable):
 
                 # check NIA against SRR0.  2 LSBs are set to zero (word-align)
                 comb += Assert(nia_o.data == Cat(Const(0, 2), dut.i.srr0[2:]))
+
+            #################
+            # SC.  v3.0B p952
+            #################
+            with m.Case(MicrOp.OP_SC):
+                expected_msr = Signal(len(msr_o.data))
+                comb += expected_msr.eq(op.msr)
+                # Unless otherwise documented, these exceptions to the MSR bits
+                # are documented in Power ISA V3.0B, page 1063 or 1064.
+                # We are not supporting hypervisor or transactional semantics,
+                # so we skip enforcing those fields' properties.
+                comb += field(expected_msr, MSRb.IR).eq(0)
+                comb += field(expected_msr, MSRb.DR).eq(0)
+                comb += field(expected_msr, MSRb.FE0).eq(0)
+                comb += field(expected_msr, MSRb.FE1).eq(0)
+                comb += field(expected_msr, MSRb.EE).eq(0)
+                comb += field(expected_msr, MSRb.RI).eq(0)
+                comb += field(expected_msr, MSRb.SF).eq(1)
+                comb += field(expected_msr, MSRb.TM).eq(0)
+                comb += field(expected_msr, MSRb.VEC).eq(0)
+                comb += field(expected_msr, MSRb.VSX).eq(0)
+                comb += field(expected_msr, MSRb.PR).eq(0)
+                comb += field(expected_msr, MSRb.FP).eq(0)
+                comb += field(expected_msr, MSRb.PMM).eq(0)
+                comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
+                comb += field(expected_msr, MSRb.UND).eq(0)
+                comb += field(expected_msr, MSRb.LE).eq(1)
+
+                comb += [
+                    Assert(dut.o.srr0.ok),
+                    Assert(srr1_o.ok),
+                    Assert(msr_o.ok),
+
+                    Assert(dut.o.srr0.data == (op.cia + 4)[0:64]),
+                    Assert(field(srr1_o, 33, 36) == 0),
+                    Assert(field(srr1_o, 42, 47) == 0),
+                    Assert(field(srr1_o, 0, 32) == field(msr_i, 0, 32)),
+                    Assert(field(srr1_o, 37, 41) == field(msr_i, 37, 41)),
+                    Assert(field(srr1_o, 48, 63) == field(msr_i, 48, 63)),
+
+                    Assert(msr_o.data == expected_msr),
+                ]
 
         comb += dut.i.ctx.matches(dut.o.ctx)
 
