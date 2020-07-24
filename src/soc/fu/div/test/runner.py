@@ -188,8 +188,10 @@ class DivRunner(unittest.TestCase):
                         # TODO: raise bugreport with whitequark
                         # requesting a public API to access this "officially"
                         # XXX print("time:", sim._state.timeline.now)
+                        msg = "%s: %s" % (self.div_pipe_kind.name, core)
+                        msg += " %s" % (repr(prog.assembly))
                         yield from self.check_alu_outputs(alu, pdecode2,
-                                                          isa_sim, code)
+                                                          isa_sim, msg)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"div_simulator_{self.div_pipe_kind.name}.vcd"):
