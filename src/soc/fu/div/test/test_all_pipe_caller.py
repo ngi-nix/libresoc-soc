@@ -1,4 +1,5 @@
 import random
+import inspect
 import unittest
 from soc.simulator.program import Program
 from soc.config.endian import bigendian
@@ -11,14 +12,10 @@ class DivTestLong(unittest.TestCase):
     test_data = []
     def __init__(self, name):
         super().__init__(name)
-        for n, v in self.__class__.__dict__.items():
-            if n.startswith("test") and callable(v):
-                self._current_test_name = n
-                v(self)
 
     def run_test_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self._current_test_name,
-                      initial_regs, initial_sprs)
+        test_name = inspect.stack()[1][3] # name of caller of this function
+        tc = TestCase(prog, test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
     def test_all(self):
