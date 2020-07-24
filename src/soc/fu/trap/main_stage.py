@@ -19,7 +19,23 @@ from soc.decoder.power_enums import MicrOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.consts import MSR, PI, TT
+from soc.consts import MSR, MSRb, PI, TT
+
+
+def field(r, start, end=None):
+    """Answers with a subfield of the signal r ("register"), where
+    the start and end bits use IBM conventions.  start < end, if
+    end is provided.  The range specified is inclusive on both ends.
+    """
+    if end is None:
+        return r[63 - start]
+    if start >= end:
+        raise ValueError(
+            "start ({}) must be less than end ({})".format(start, end)
+        )
+    start = 63 - start
+    end = 63 - end
+    return r[end:start+1]
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):
@@ -103,9 +119,7 @@ class TrapMainStage(PipeModBase):
         comb += msr_o.data[MSR.VEC].eq(0)
         comb += msr_o.data[MSR.FP].eq(0)
         comb += msr_o.data[MSR.PMM].eq(0)
-        # XXX check ordering
-        # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c107
-        comb += msr_o.data[MSR.TEs:MSR.TEe+1].eq(0)
+        comb += field(msr_o.data, MSRb.TEs, MSRb.TEe).eq(0)
         comb += msr_o.data[MSR.UND].eq(0)
         if msr_hv is not None:
             comb += msr_o.data[MSR.HV].eq(msr_hv)
@@ -242,13 +256,6 @@ class TrapMainStage(PipeModBase):
                 # check problem state
                 msr_check_pr(m, msr_o.data)
 
-                # hypervisor stuff.  here: bits 3 (HV) and 51 (ME) were
-                # copied over by msr_copy but if HV was not set we need
-                # the *original* (msr_i) bits
-                with m.If(~msr_i[MSR.HV]):
-                    comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV])
-                    comb += msr_o.data[MSR.ME].eq(msr_i[MSR.ME])
-
                 # don't understand but it's in the spec.  again: bits 32-34
                 # are copied from srr1_i and need *restoring* to msr_i
                 bits = slice(63-31,63-29+1) # bits 29, 30, 31 (Power notation)
@@ -277,17 +284,9 @@ class TrapMainStage(PipeModBase):
                 # behaviour.  see execute1.vhdl
                 # https://github.com/antonblanchard/microwatt/
 
-                trap_to_hv = Signal(reset_less=True)
-                lev = Signal(6, reset_less=True)
-                comb += lev.eq(op[31-26:32-20]) # no.  use fields.FormSC.LEV
-                comb += trap_to_hv.eq(lev == Const(1, 6))
-
                 # jump to the trap address, return at cia+4
                 self.trap(m, 0xc00, cia_i+4)
-
-                # and update several MSR bits
-                # XXX TODO: disable msr_hv.  we are not doing hypervisor.
-                self.msr_exception(m, 0xc00, msr_hv=trap_to_hv)
+                self.msr_exception(m, 0xc00)
 
             # TODO (later)
             #with m.Case(MicrOp.OP_ADDPCIS):

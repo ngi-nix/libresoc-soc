@@ -19,7 +19,7 @@ from nmigen.cli import rtlil
 from nmutil.extend import exts
 from nmutil.formaltest import FHDLTestCase
 
-from soc.consts import MSR, PI, TT
+from soc.consts import MSR, MSRb, PI, TT
 
 from soc.decoder.power_enums import MicrOp
 
@@ -30,11 +30,18 @@ from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 def field(r, start, end=None):
     """Answers with a subfield of the signal r ("register"), where
-    the start and end bits use IBM conventions.  start < end.
+    the start and end bits use IBM conventions.  start < end, if
+    end is provided.  The range specified is inclusive on both ends.
     """
     if end is None:
-        return r[63-start]
-    return r[63-end:64-start]
+        return r[63 - start]
+    if start >= end:
+        raise ValueError(
+            "start ({}) must be less than end ({})".format(start, end)
+        )
+    start = 63 - start
+    end = 63 - end
+    return r[end:start+1]
 
 
 class Driver(Elaboratable):
@@ -59,6 +66,9 @@ class Driver(Elaboratable):
 
         comb += op.eq(rec)
 
+        d_fields = dut.fields.FormD
+        sc_fields = dut.fields.FormSC
+
         # start of properties
         with m.Switch(op.insn_type):
 
@@ -66,10 +76,8 @@ class Driver(Elaboratable):
             # TDI/TWI/TD/TW.  v3.0B p90-91
             ###############
             with m.Case(MicrOp.OP_TRAP):
-                # TODO: put back use of fields, do not access insn bits direct
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
-                to = Signal(5)
-                comb += to.eq(op.insn[31-10:31-5])
+                to = Signal(len(d_fields.TO))
+                comb += to.eq(d_fields.TO[0:-1])
 
                 a_i = Signal(64)
                 b_i = Signal(64)
@@ -115,29 +123,22 @@ class Driver(Elaboratable):
                     expected_msr = Signal(len(msr_o.data))
                     comb += expected_msr.eq(op.msr)
 
-                    comb += expected_msr[MSR.IR].eq(0)
-                    comb += expected_msr[MSR.DR].eq(0)
-                    comb += expected_msr[MSR.FE0].eq(0)
-                    comb += expected_msr[MSR.FE1].eq(0)
-                    comb += expected_msr[MSR.EE].eq(0)
-                    comb += expected_msr[MSR.RI].eq(0)
-                    comb += expected_msr[MSR.SF].eq(1)
-                    comb += expected_msr[MSR.TM].eq(0)
-                    comb += expected_msr[MSR.VEC].eq(0)
-                    comb += expected_msr[MSR.VSX].eq(0)
-                    comb += expected_msr[MSR.PR].eq(0)
-                    comb += expected_msr[MSR.FP].eq(0)
-                    comb += expected_msr[MSR.PMM].eq(0)
-                    comb += expected_msr[MSR.TEs:MSR.TEe+1].eq(0)
-                    comb += expected_msr[MSR.UND].eq(0)
-                    comb += expected_msr[MSR.LE].eq(1)
-
-                    with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
-                        comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
-                    with m.Else():
-                        comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(
-                            op.msr[MSR.TSs:MSR.TSe+1]
-                        )
+                    comb += field(expected_msr, MSRb.IR).eq(0)
+                    comb += field(expected_msr, MSRb.DR).eq(0)
+                    comb += field(expected_msr, MSRb.FE0).eq(0)
+                    comb += field(expected_msr, MSRb.FE1).eq(0)
+                    comb += field(expected_msr, MSRb.EE).eq(0)
+                    comb += field(expected_msr, MSRb.RI).eq(0)
+                    comb += field(expected_msr, MSRb.SF).eq(1)
+                    comb += field(expected_msr, MSRb.TM).eq(0)
+                    comb += field(expected_msr, MSRb.VEC).eq(0)
+                    comb += field(expected_msr, MSRb.VSX).eq(0)
+                    comb += field(expected_msr, MSRb.PR).eq(0)
+                    comb += field(expected_msr, MSRb.FP).eq(0)
+                    comb += field(expected_msr, MSRb.PMM).eq(0)
+                    comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
+                    comb += field(expected_msr, MSRb.UND).eq(0)
+                    comb += field(expected_msr, MSRb.LE).eq(1)
 
                     expected_srr1 = Signal(len(srr1_o.data))
                     comb += expected_srr1.eq(op.msr)
@@ -169,42 +170,24 @@ class Driver(Elaboratable):
                 comb += expected_msr.eq(op.msr)
                 # Unless otherwise documented, these exceptions to the MSR bits
                 # are documented in Power ISA V3.0B, page 1063 or 1064.
-                comb += expected_msr[MSR.IR].eq(0)
-                comb += expected_msr[MSR.DR].eq(0)
-                comb += expected_msr[MSR.FE0].eq(0)
-                comb += expected_msr[MSR.FE1].eq(0)
-                comb += expected_msr[MSR.EE].eq(0)
-                comb += expected_msr[MSR.RI].eq(0)
-                comb += expected_msr[MSR.SF].eq(1)
-                comb += expected_msr[MSR.TM].eq(0)
-                comb += expected_msr[MSR.VEC].eq(0)
-                comb += expected_msr[MSR.VSX].eq(0)
-                comb += expected_msr[MSR.PR].eq(0)
-                comb += expected_msr[MSR.FP].eq(0)
-                comb += expected_msr[MSR.PMM].eq(0)
-                # TODO: check ordering (which is smaller, which is larger)
-                # MSR.TSs or MSR.TSe+1?
-                comb += expected_msr[MSR.TEs:MSR.TEe+1].eq(0)
-                comb += expected_msr[MSR.UND].eq(0)
-                comb += expected_msr[MSR.LE].eq(1)
-
-                # TODO: check ordering (which is smaller, which is larger)
-                # MSR.TSs or MSR.TSe+1?
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c107
-                with m.If(op.msr[MSR.TSs:MSR.TSe+1] == 0b10):
-                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(0b01)
-                with m.Else():
-                    comb += expected_msr[MSR.TSs:MSR.TSe+1].eq(
-                        op.msr[MSR.TSs:MSR.TSe+1]
-                    )
-
-                # Power ISA V3.0B, Book 2, Section 3.3.1
-                # TODO: put back use of fields, do not access insn bits direct
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
-                with m.If(field(op.insn, 20, 26) == 1):
-                    comb += expected_msr[MSR.HV].eq(1)
-                with m.Else():
-                    comb += expected_msr[MSR.HV].eq(0)
+                # We are not supporting hypervisor or transactional semantics,
+                # so we skip enforcing those fields' properties.
+                comb += field(expected_msr, MSRb.IR).eq(0)
+                comb += field(expected_msr, MSRb.DR).eq(0)
+                comb += field(expected_msr, MSRb.FE0).eq(0)
+                comb += field(expected_msr, MSRb.FE1).eq(0)
+                comb += field(expected_msr, MSRb.EE).eq(0)
+                comb += field(expected_msr, MSRb.RI).eq(0)
+                comb += field(expected_msr, MSRb.SF).eq(1)
+                comb += field(expected_msr, MSRb.TM).eq(0)
+                comb += field(expected_msr, MSRb.VEC).eq(0)
+                comb += field(expected_msr, MSRb.VSX).eq(0)
+                comb += field(expected_msr, MSRb.PR).eq(0)
+                comb += field(expected_msr, MSRb.FP).eq(0)
+                comb += field(expected_msr, MSRb.PMM).eq(0)
+                comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
+                comb += field(expected_msr, MSRb.UND).eq(0)
+                comb += field(expected_msr, MSRb.LE).eq(1)
 
                 comb += [
                     Assert(dut.o.srr0.ok),
@@ -220,17 +203,6 @@ class Driver(Elaboratable):
 
                     Assert(msr_o.data == expected_msr),
                 ]
-                # TODO: put back use of fields, do not access insn bits direct
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=421#c24
-                # XXX what is this for?  it is not possible to identify
-                # it because the "direct access to insn bits" provides
-                # absolutely no clue as to its purpose.
-                # also: this is likely to be wrong because of PowerISA
-                # field ordering (see V3.0B p4 section 1.3.4)
-                with m.If(field(op.insn, 20, 26) == 1):
-                    comb += Assert(msr_o[MSR.HV] == 1)
-                with m.Else():
-                    comb += Assert(msr_o[MSR.HV] == 0)
 
             ###################
             # RFID.  v3.0B p955
@@ -239,24 +211,6 @@ class Driver(Elaboratable):
                 comb += [
                     Assert(msr_o.ok),
                     Assert(nia_o.ok),
-                    ]
-
-                # Note: going through the spec pseudo-code, line-by-line,
-                # in order, with these assertions.  idea is: compare
-                # *directly* against the pseudo-code.  therefore, leave
-                # numbering in (from pseudo-code) and add *comments* about
-                # which field it is (3 == HV etc.)
-
-                # spec: MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
-                with m.If(field(msr_i, 3)): # HV
-                    comb += Assert(field(msr_o, 51) == field(srr1_i, 51) # ME
-                with m.Else():
-                    comb += Assert(field(msr_o, 51) == field(msr_i, 51)) # ME
-
-                comb += [
-                    # spec: MSR[3] <- (MSR[3] & SRR1[3])
-                    Assert(field(msr_o, 3) == (field(srr1_i, 3) &
-                                               field(msr_i, 3))), # HV
                 ]
 
                 # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
@@ -270,11 +224,11 @@ class Driver(Elaboratable):
                                    field(msr_i, 29, 31))
 
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
-                comb += [
-                    Assert(msr_o[48] == (srr1_i[48] | srr1_i[48])), # EE
-                    Assert(msr_o[58] == (srr1_i[58] | srr1_i[58])), # IR
-                    Assert(msr_o[59] == (srr1_i[59] | srr1_i[59])), # DR
-                ]
+                for bit in [48, 58, 59]:
+                    comb += Assert(
+                        field(msr_o, bit) ==
+                        (field(srr1_i, bit) | field(srr1_i, 49))
+                    )
 
                 # remaining bits: straight copy.  don't know what these are:
                 # just trust the v3.0B spec is correct.
