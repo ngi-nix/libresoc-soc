@@ -72,21 +72,15 @@ class DivRunner(unittest.TestCase):
         self.test_data = test_data
         self.div_pipe_kind = div_pipe_kind
 
-    def write_ilang(self, div_pipe_kind):
-        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=div_pipe_kind)
+    def write_ilang(self):
+        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=self.div_pipe_kind)
         alu = DivBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
         with open(f"div_pipeline_{div_pipe_kind.name}.il", "w") as f:
             f.write(vl)
 
-    def test_write_ilang_div_pipe_core(self):
-        self.write_ilang(DivPipeKind.DivPipeCore)
-
-    def test_write_ilang_fsm_div_core(self):
-        self.write_ilang(DivPipeKind.FSMDivCore)
-
-    def test_write_ilang_sim_only(self):
-        self.write_ilang(DivPipeKind.SimOnly)
+    def test_write_ilang(self):
+        self.write_ilang(self.div_pipe_kind)
 
     def run_all(self):
         # *sigh* this is a mess.  unit test gets added by code-walking
