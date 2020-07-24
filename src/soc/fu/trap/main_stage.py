@@ -19,7 +19,7 @@ from soc.decoder.power_enums import MicrOp
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 
-from soc.consts import MSR, MSRb, PI, TT, field, field_slice
+from soc.consts import MSR, PI, TT, field, field_slice
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):
@@ -103,11 +103,8 @@ class TrapMainStage(PipeModBase):
         comb += msr_o.data[MSR.VEC].eq(0)
         comb += msr_o.data[MSR.FP].eq(0)
         comb += msr_o.data[MSR.PMM].eq(0)
-        # XXX no.  slice quantity still inverted producing an empty list
-        # https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
-        # also add a comment explaining this very non-obvious
-        # behaviour.
-        comb += field(msr_o.data, MSRb.TEs, MSRb.TEe).eq(0)
+        comb += msr_o.data[MSR.TEs].eq(0) # this is only 2 bits
+        comb += msr_o.data[MSR.TEe].eq(0) # so just zero them both
         comb += msr_o.data[MSR.UND].eq(0)
         if msr_hv is not None:
             comb += msr_o.data[MSR.HV].eq(msr_hv)
