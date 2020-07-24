@@ -27,7 +27,10 @@ class Program:
             self.obj_fmt = "-le"
 
         if isinstance(instructions, str):  # filename
-            self.binfile = open(instructions, "rb")
+            # read instructions into a BytesIO to avoid "too many open files"
+            with open(instructions, "rb") as f:
+                b = f.read()
+            self.binfile = BytesIO(b, 'rb')
             self.assembly = ''  # noo disassemble number fiiive
             print("program", self.binfile)
         else:
