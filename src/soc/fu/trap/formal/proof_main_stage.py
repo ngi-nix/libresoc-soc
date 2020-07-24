@@ -171,6 +171,12 @@ class Driver(Elaboratable):
             # MFMSR
             ###################
 
+            with m.Case(MicrOp.OP_MFMSR):
+                comb += [
+                    Assert(dut.o.o.ok),
+                    Assert(dut.o.o.data == msr_i),
+                ]
+
             ###################
             # RFID.  v3.0B p955
             ###################
