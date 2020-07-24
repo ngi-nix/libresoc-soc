@@ -288,10 +288,11 @@ class TestRunner(unittest.TestCase):
 
                         print("instruction: 0x{:X}".format(ins & 0xffffffff))
                         print(code)
-                        if 'XER' in isa_sim.spr:
-                            so = 1 if isa_sim.spr['XER'][XER_bits['SO']] else 0
-                            ov = 1 if isa_sim.spr['XER'][XER_bits['OV']] else 0
-                            ov32 = 1 if isa_sim.spr['XER'][XER_bits['OV32']] else 0
+                        spr = isa_sim.spr
+                        if 'XER' in spr:
+                            so = 1 if spr['XER'][XER_bits['SO']] else 0
+                            ov = 1 if spr['XER'][XER_bits['OV']] else 0
+                            ov32 = 1 if spr['XER'][XER_bits['OV32']] else 0
                             print("before: so/ov/32", so, ov, ov32)
 
                         # ask the decoder to decode this binary data (endian'd)
@@ -303,7 +304,10 @@ class TestRunner(unittest.TestCase):
                         self.assertEqual(fn_unit, Function.DIV.value)
                         yield from set_alu_inputs(alu, pdecode2, isa_sim)
 
-                        # set valid for one cycle, propagate through pipeline...
+                        # set valid for one cycle, propagate through pipeline..
+                        # note that it is critically important to do this
+                        # for DIV otherwise it starts trying to produce
+                        # multiple results.
                         yield alu.p.valid_i.eq(1)
                         yield
                         yield alu.p.valid_i.eq(0)
@@ -339,7 +343,8 @@ class TestRunner(unittest.TestCase):
 
                         yield Delay(0.1e-6)
                         print("time:", sim._state.timeline.now)
-                        yield from self.check_alu_outputs(alu, pdecode2, isa_sim, code)
+                        yield from self.check_alu_outputs(alu, pdecode2,
+                                                          isa_sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"div_simulator_{div_pipe_kind.name}.vcd",
