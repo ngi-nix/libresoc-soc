@@ -22,25 +22,59 @@ def field_slice(msb0_start, msb0_end, field_width=64):
     """
     if msb0_start >= msb0_end:
         raise ValueError(
-            "start ({}) must be less than end ({})".format(start, end)
+            "start ({}) must be less than end ({})".format(msb0_start, msb0_end)
         )
     # sigh.  MSB0 (IBM numbering) is inverted.  converting to python
     # we *swap names* so as not to get confused by having "end, start"
-    end = (field_width-1) - msb0_start
-    start = (field_width-1) - msb0_end
+    lsb0_end = (field_width-1) - msb0_start
+    lsb0_start = (field_width-1) - msb0_end
 
-    return slice(start, end + 1)
+    return slice(lsb0_start, lsb0_end + 1)
 
 
-def field(r, start, end=None):
+def field(r, msb0_start, msb0_end=None, field_width=64):
     """Answers with a subfield of the signal r ("register"), where
     the start and end bits use IBM conventions.  start < end, if
     end is provided.  The range specified is inclusive on both ends.
+
+    Answers with a subfield of the signal r ("register"),
+    where the start and end bits use IBM "MSB 0" conventions.
+    If end is not provided, a single bit subfield is returned.
+
+    see: https://en.wikipedia.org/wiki/Bit_numbering#MSB_0_bit_numbering
+
+    * assertion: msb0_start < msb0_end.
+    * The range specified is inclusive on both ends.
+    * field_width specifies the total number of bits (note: not bits-1)
+
+    Example usage:
+
+        comb += field(insn, 0, 6, field_width=32).eq(17)
+        # NOTE: NEVER DIRECTLY ACCESS OPCODE FIELDS IN INSTRUCTIONS.
+        # This example is purely for illustrative purposes only.
+        # Use self.fields.FormXYZ.etcetc instead.
+
+        comb += field(msr, MSRb.TEs, MSRb.TEe).eq(0)
+
+    Proof by substitution:
+
+           field(insn, 0, 6, field_width=32).eq(17)
+        == insn[field_slice(0, 6, field_width=32)].eq(17)
+        == insn[slice((31-6), (31-0)+1)].eq(17)
+        == insn[slice(25, 32)].eq(17)
+        == insn[25:32].eq(17)
+
+           field(msr, MSRb.TEs, MSRb.TEe).eq(0)
+        == field(msr, 53, 54).eq(0)
+        == msr[field_slice(53, 54)].eq(0)
+        == msr[slice((63-54), (63-53)+1)].eq(0)  # note cross-over!
+        == msr[slice(9, 11)].eq(0)
+        == msr[9:11].eq(0)
     """
-    if end is None:
-        return r[63 - start]
+    if msb0_end is None:
+        return r[(field_width - 1) - msb0_start]
     else:
-        return r[field_slice(start, end)]
+        return r[field_slice(msb0_start, msb0_end)]
 
 
 # Listed in V3.0B Book III Chap 4.2.1

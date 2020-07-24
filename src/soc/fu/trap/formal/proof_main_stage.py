@@ -123,6 +123,18 @@ class Driver(Elaboratable):
 
                     # still wrong.
                     # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
+                    #
+                    # saf2: no it's not.  Proof by substitution:
+                    #
+                    # field(R,MSRb.TEs,MSRb.TEe).eq(0)
+                    # == field(R,53,54).eq(0)
+                    # == R[field_slice(53,54)].eq(0)
+                    # == R[slice(63-54, (63-53)+1)].eq(0)
+                    # == R[slice(9, 11)].eq(0)
+                    # == R[9:11].eq(0)
+                    #
+                    # Also put proof in py-doc for field().
+
                     comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
 
                     comb += field(expected_msr, MSRb.UND).eq(0)
@@ -130,18 +142,6 @@ class Driver(Elaboratable):
 
                     expected_srr1 = Signal(len(srr1_o.data))
                     comb += expected_srr1.eq(op.msr)
-
-                    # note here: 36 is ***LESS*** than 32  ***BUT***
-                    # ***63-36*** is less than 63-32
-                    # could do with using field_slice here however
-                    # *get the number order right*.
-
-                    # however before doing that: why are these bits
-                    # initialised to zero then every single one of them
-                    # is over-ridden?  5 bits, 32-36 (36-32, haha)
-                    # are set to zero, then 5 bits are set to expressions.
-
-                    # redundant comb += expected_srr1[63-36:63-32].eq(0)
 
                     comb += expected_srr1[PI.TRAP].eq(traptype == 0)
                     comb += expected_srr1[PI.PRIV].eq(traptype[1])
@@ -184,10 +184,6 @@ class Driver(Elaboratable):
                 comb += field(expected_msr, MSRb.PR).eq(0)
                 comb += field(expected_msr, MSRb.FP).eq(0)
                 comb += field(expected_msr, MSRb.PMM).eq(0)
-                # XXX no.  slice quantity still inverted producing an empty list
-                # https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
-                # also add a comment explaining this very non-obvious
-                # behaviour
                 comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
                 comb += field(expected_msr, MSRb.UND).eq(0)
                 comb += field(expected_msr, MSRb.LE).eq(1)
@@ -216,12 +212,17 @@ class Driver(Elaboratable):
                     Assert(nia_o.ok),
                 ]
 
-                # XXX code comment has been removed, which explains
-                # why the code is written the way it is written
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c127
+                # Note: going through the spec pseudo-code, line-by-line,
+                # in order, with these assertions.  idea is: compare
+                # *directly* against the pseudo-code.  therefore, leave
+                # numbering in (from pseudo-code) and add *comments* about
+                # which field it is (3 == HV etc.)
 
-                # XXX restore HV check
-                # https://bugs.libre-soc.org/show_bug.cgi?id=325#c125
+                # spec: MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
+                with m.If(field(msr_i, 3)): # HV
+                    comb += Assert(field(msr_o, 51) == field(srr1_i, 51)) # ME
+                with m.Else():
+                    comb += Assert(field(msr_o, 51) == field(msr_i, 51)) # ME
 
                 # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
                 #     MSR[29:31] <- SRR1[29:31]
@@ -234,14 +235,20 @@ class Driver(Elaboratable):
                                    field(msr_i, 29, 31))
 
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
-
-                # XXX does not look as clear.  revert
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c122
-                for bit in [48, 58, 59]:
-                    comb += Assert(
-                        field(msr_o, bit) ==
-                        (field(srr1_i, bit) | field(srr1_i, 49))
-                    )
+                comb += [
+                    Assert(
+                        field(msr_o.data, 48) ==
+                        field(srr1_i, 48) | field(srr1_i, 49)
+                    ),
+                    Assert(
+                        field(msr_o.data, 58) ==
+                        field(srr1_i, 58) | field(srr1_i, 49)
+                    ),
+                    Assert(
+                        field(msr_o.data, 59) ==
+                        field(srr1_i, 59) | field(srr1_i, 49)
+                    ),
+                ]
 
                 # remaining bits: straight copy.  don't know what these are:
                 # just trust the v3.0B spec is correct.

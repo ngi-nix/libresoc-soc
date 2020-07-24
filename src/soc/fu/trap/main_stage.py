@@ -220,9 +220,15 @@ class TrapMainStage(PipeModBase):
                             comb += msr_o.data[stt:end].eq(a_i[stt:end])
                     msr_check_pr(m, msr_o.data)
 
-                    # XXX code removed, needs reverting.
-                    # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c124
-                    # XXX
+                # Per https://bugs.libre-soc.org/show_bug.cgi?id=325#c123,
+                # this actually *is* in the microwatt code now.
+                #
+                # hypervisor stuff.  here: bits 3 (HV) and 51 (ME) were
+                # copied over by msr_copy but if HV was not set we need
+                # the *original* (msr_i) bits
+                with m.If(~msr_i[MSR.HV]):
+                    comb += msr_o.data[MSR.HV].eq(msr_i[MSR.HV])
+                    comb += msr_o.data[MSR.ME].eq(msr_i[MSR.ME])
 
                 comb += msr_o.ok.eq(1)
 
@@ -243,15 +249,16 @@ class TrapMainStage(PipeModBase):
                 # MSR was in srr1: copy it over, however *caveats below*
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
 
+                with m.If(field(msr_i, 3)): # HV
+                    comb += field(msr_o, 51).eq(field(srr1_i, 51)) # ME
+                with m.Else():
+                    comb += field(msr_o, 51).eq(field(msr_i, 51)) # ME
+
                 # check problem state
                 msr_check_pr(m, msr_o.data)
 
                 # don't understand but it's in the spec.  again: bits 32-34
                 # are copied from srr1_i and need *restoring* to msr_i
-
-                # XXX bug introduced here.  this needs to be field_slice(31, 29)
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c126
-                # XXX
 
                 bits = field_slice(29, 31)  # bits 29, 30, 31 (Power notation)
                 with m.If((msr_i[bits] == Const(0b010, 3)) &
