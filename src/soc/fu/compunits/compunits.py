@@ -185,8 +185,8 @@ class SPRFunctionUnit(FunctionUnitBaseSingle):
     def __init__(self, idx):
         super().__init__(SPRPipeSpec, SPRBasePipe, idx)
 
-# special-case
 
+# special-case: LD/ST conforms to the CompUnit API but is not a pipeline
 
 class LDSTFunctionUnit(LDSTCompUnit):
     fnunit = Function.LDST
