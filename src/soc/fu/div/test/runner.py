@@ -34,6 +34,37 @@ def get_cu_inputs(dec2, sim):
     return res
 
 
+def pia_result_to_output(pia_result):
+    retval = {}
+    if pia_result.rt is not None:
+        retval["o"] = pia_result.rt
+    if pia_result.cr0 is not None:
+        cr0 = pia_result.cr0
+        v = 0
+        if cr0.lt:
+            v |= 8
+        if cr0.gt:
+            v |= 4
+        if cr0.eq:
+            v |= 2
+        if cr0.so:
+            v |= 1
+        retval["cr_a"] = v
+    if pia_result.overflow is not None:
+        overflow = pia_result.overflow
+        v = 0
+        if overflow.ov:
+            v |= 1
+        if overflow.ov32:
+            v |= 2
+        retval["xer_ov"] = v
+        retval["xer_so"] = overflow.so
+    else:
+        retval["xer_ov"] = 0
+        retval["xer_so"] = 0
+    return retval
+
+
 def set_alu_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
