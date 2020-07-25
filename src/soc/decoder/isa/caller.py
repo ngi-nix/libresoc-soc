@@ -543,14 +543,16 @@ class ISACaller:
         rc_en = yield self.dec2.e.do.rc.data
         rc_ok = yield self.dec2.e.do.rc.ok
         # grrrr have to special-case MUL op (see DecodeOE)
-        print("ov en rc en", ov_ok, ov_en, rc_ok, rc_en, int_op)
+        print("ov %d en %d rc %d en %d op %d" % \
+                        (ov_ok, ov_en, rc_ok, rc_en, int_op))
         if int_op in [MicrOp.OP_MUL_H64.value, MicrOp.OP_MUL_H32.value]:
             print("mul op")
             if rc_en & rc_ok:
                 asmop += "."
         else:
-            if ov_en & ov_ok:
-                asmop += "."
+            if not asmop.endswith("."): # don't add "." to "andis."
+                if rc_en & rc_ok:
+                    asmop += "."
         lk = yield self.dec2.e.do.lk
         if lk:
             asmop += "l"
@@ -626,6 +628,7 @@ class ISACaller:
             illegal = name != asmop
 
         if illegal:
+            print ("illegal", name, asmop)
             self.TRAP(0x700, PIb.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)

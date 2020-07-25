@@ -147,7 +147,7 @@ class DecodeFields:
             "LK": self.FormI.LK,
             "AA": self.FormB.AA,
             "Rc": self.FormX.Rc,
-            "OE": self.FormXO.Rc,
+            "OE": self.FormXO.OE,
             "BD": self.FormB.BD,
             "BF": self.FormX.BF,
             "CR": self.FormXL.XO,
