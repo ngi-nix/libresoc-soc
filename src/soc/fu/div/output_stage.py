@@ -71,27 +71,6 @@ class DivOutputStage(PipeModBase):
         comb += self.o.xer_ov.ok.eq(1)
         xer_ov = self.o.xer_ov.data
 
-        # see test_6_regression in div test_pipe_caller.py
-        # https://bugs.libre-soc.org/show_bug.cgi?id=425
-        def calc_overflow(dive_abs_overflow, sign_bit_mask):
-            nonlocal comb
-            overflow = dive_abs_overflow | self.i.div_by_zero
-            ov = Signal(reset_less=True)
-            with m.If(op.is_signed):
-                comb += ov.eq(overflow
-                              | (abs_quotient > sign_bit_mask)
-                              | ((abs_quotient == sign_bit_mask)
-                                 & ~self.quotient_neg))
-            with m.Else():
-                comb += ov.eq(overflow)
-            comb += xer_ov.eq(Repl(ov, 2))  # set OV _and_ OV32
-
-        # check 32/64 bit version of overflow
-        with m.If(op.is_32bit):
-            calc_overflow(self.i.dive_abs_ov32, 0x80000000)
-        with m.Else():
-            calc_overflow(self.i.dive_abs_ov64, 0x8000000000000000)
-
         # microwatt overflow detection
         ov = Signal(reset_less=True)
         with m.If(self.i.div_by_zero):
