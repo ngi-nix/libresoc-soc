@@ -57,7 +57,10 @@ class ALUMainStage(PipeModBase):
         # main switch-statement for handling arithmetic operations
 
         with m.Switch(op.insn_type):
-            #### CMP, CMPL ####
+
+            ###################
+            #### CMP, CMPL v3.0B p85-86
+
             with m.Case(MicrOp.OP_CMP):
                 # this is supposed to be inverted (b-a, not a-b)
                 # however we have a trick: instead of adding either 2x 64-bit
@@ -66,7 +69,9 @@ class ALUMainStage(PipeModBase):
                 comb += o.data.eq(add_o[1:-1])
                 comb += o.ok.eq(0) # use o.data but do *not* actually output
 
-            #### add ####
+            ###################
+            #### add v3.0B p67, p69-72
+
             with m.Case(MicrOp.OP_ADD):
                 # bit 0 is not part of the result, top bit is the carry-out
                 comb += o.data.eq(add_o[1:-1])
@@ -86,7 +91,9 @@ class ALUMainStage(PipeModBase):
                 comb += ov_o.data.eq(ov)
                 comb += ov_o.ok.eq(1)
 
-            #### exts (sign-extend) ####
+            ###################
+            #### exts (sign-extend) v3.0B p96
+
             with m.Case(MicrOp.OP_EXTS):
                 with m.If(op.data_len == 1):
                     comb += o.data.eq(exts(a, 8, 64))
@@ -96,7 +103,9 @@ class ALUMainStage(PipeModBase):
                     comb += o.data.eq(exts(a, 32, 64))
                 comb += o.ok.eq(1) # output register
 
-            #### cmpeqb ####
+            ###################
+            #### cmpeqb v3.0B p88
+
             with m.Case(MicrOp.OP_CMPEQB):
                 eqs = Signal(8, reset_less=True)
                 src1 = Signal(8, reset_less=True)
