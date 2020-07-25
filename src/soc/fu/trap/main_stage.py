@@ -177,7 +177,10 @@ class TrapMainStage(PipeModBase):
 
         # TODO: some #defines for the bits n stuff.
         with m.Switch(op.insn_type):
-            #### trap ####
+
+            ###############
+            # TDI/TWI/TD/TW.  v3.0B p90-91
+
             with m.Case(MicrOp.OP_TRAP):
                 # trap instructions (tw, twi, td, tdi)
                 with m.If(should_trap):
@@ -199,7 +202,9 @@ class TrapMainStage(PipeModBase):
                     # when SRR1 is written to, update MSR bits
                     self.msr_exception(m, trapaddr)
 
-            # move to MSR
+            ###################
+            # MTMSR/D.  v3.0B p TODO - move to MSR
+
             with m.Case(MicrOp.OP_MTMSRD, MicrOp.OP_MTMSR):
                 L = self.fields.FormX.L[0:-1] # X-Form field L
                 # start with copy of msr
@@ -232,11 +237,16 @@ class TrapMainStage(PipeModBase):
 
                 comb += msr_o.ok.eq(1)
 
-            # move from MSR
+            ###################
+            # MFMSR.  v3.0B p TODO - move from MSR
+
             with m.Case(MicrOp.OP_MFMSR):
                 # some of the bits need zeroing?  apparently not
                 comb += o.data.eq(msr_i)
                 comb += o.ok.eq(1)
+
+            ###################
+            # RFID.  v3.0B p955
 
             with m.Case(MicrOp.OP_RFID):
                 # XXX f_out.virt_mode <= b_in(MSR.IR) or b_in(MSR.PR);
@@ -267,7 +277,9 @@ class TrapMainStage(PipeModBase):
 
                 comb += msr_o.ok.eq(1)
 
-            # OP_SC
+            #################
+            # SC.  v3.0B p952
+
             with m.Case(MicrOp.OP_SC):
                 # scv is not covered here. currently an illegal instruction.
                 # raising "illegal" is the decoder's job, not ours, here.
