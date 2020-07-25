@@ -301,9 +301,6 @@ class TestRunner(FHDLTestCase):
                     print("after got outputs, rd_rel, wr_rel, wrmask: ",
                           bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 
-                    # reset read-mask.  IMPORTANT when there are no operands
-                    yield cu.rdmaskn.eq(0)
-
                     # wait for busy to go low
                     while True:
                         busy_o = yield cu.busy_o
@@ -311,6 +308,9 @@ class TestRunner(FHDLTestCase):
                         if not busy_o:
                             break
                         yield
+
+                    # reset read-mask.  IMPORTANT when there are no operands
+                    yield cu.rdmaskn.eq(0)
                     yield
 
                     # debugging issue with branch
