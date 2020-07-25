@@ -80,6 +80,13 @@ def set_operand(cu, dec2, sim):
 
 def get_cu_outputs(cu, code):
     res = {}
+    # wait for pipeline to indicate valid.  this because for long
+    # pipelines (or FSMs) the write mask is only valid at that time.
+    while True:
+        valid_o = yield cu.alu.n.valid_o
+        if valid_o:
+            break
+        yield
     wrmask = yield cu.wrmask
     wr_rel_o = yield cu.wr.rel
     print("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
