@@ -46,7 +46,9 @@ class LogicalMainStage(PipeModBase):
 
         with m.Switch(op.insn_type):
 
-            ###### AND, OR, XOR #######
+            ###################
+            ###### AND, OR, XOR  v3.0B p92-95
+
             with m.Case(MicrOp.OP_AND):
                 comb += o.data.eq(a & b)
             with m.Case(MicrOp.OP_OR):
@@ -54,7 +56,9 @@ class LogicalMainStage(PipeModBase):
             with m.Case(MicrOp.OP_XOR):
                 comb += o.data.eq(a ^ b)
 
-            ###### cmpb #######
+            ###################
+            ###### cmpb  v3.0B p97
+
             with m.Case(MicrOp.OP_CMPB):
                 l = []
                 for i in range(8):
@@ -62,14 +66,18 @@ class LogicalMainStage(PipeModBase):
                     l.append(Repl(a[slc] == b[slc], 8))
                 comb += o.data.eq(Cat(*l))
 
-            ###### popcount #######
+            ###################
+            ###### popcount v3.0B p97, p98
+
             with m.Case(MicrOp.OP_POPCNT):
                 comb += popcount.a.eq(a)
                 comb += popcount.b.eq(b)
                 comb += popcount.data_len.eq(op.data_len)
                 comb += o.data.eq(popcount.o)
 
-            ###### parity #######
+            ###################
+            ###### parity v3.0B p98
+
             with m.Case(MicrOp.OP_PRTY):
                 # strange instruction which XORs together the LSBs of each byte
                 par0 = Signal(reset_less=True)
@@ -82,7 +90,9 @@ class LogicalMainStage(PipeModBase):
                     comb += o[0].eq(par0)
                     comb += o[32].eq(par1)
 
-            ###### cntlz #######
+            ###################
+            ###### cntlz v3.0B p99
+
             with m.Case(MicrOp.OP_CNTZ):
                 XO = self.fields.FormX.XO[0:-1]
                 count_right = Signal(reset_less=True)
@@ -101,7 +111,9 @@ class LogicalMainStage(PipeModBase):
                 comb += clz.sig_in.eq(cntz_i)
                 comb += o.data.eq(Mux(op.is_32bit, clz.lz-32, clz.lz))
 
-            ###### bpermd #######
+            ###################
+            ###### bpermd v3.0B p100
+
             with m.Case(MicrOp.OP_BPERM):
                 comb += bpermd.rs.eq(a)
                 comb += bpermd.rb.eq(b)

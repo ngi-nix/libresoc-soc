@@ -92,7 +92,7 @@ class ALUMainStage(PipeModBase):
                 comb += ov_o.ok.eq(1)
 
             ###################
-            #### exts (sign-extend) v3.0B p96
+            #### exts (sign-extend) v3.0B p96, p99
 
             with m.Case(MicrOp.OP_EXTS):
                 with m.If(op.data_len == 1):
