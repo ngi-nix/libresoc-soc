@@ -68,7 +68,7 @@ class DivOutputStage(PipeModBase):
         ]
 
         # calculate overflow
-        self.o.xer_ov.ok.eq(1)
+        comb += self.o.xer_ov.ok.eq(1)
         xer_ov = self.o.xer_ov.data
 
         # see test_6_regression in div test_pipe_caller.py
