@@ -14,6 +14,7 @@ from soc.fu.test.common import ALUHelpers
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
 
+import power_instruction_analyzer as pia
 
 def log_rand(n, min_val=1):
     logrange = random.randint(1, n)
@@ -34,12 +35,12 @@ def get_cu_inputs(dec2, sim):
     return res
 
 
-def pia_result_to_output(pia_result):
+def pia_res_to_output(pia_res):
     retval = {}
-    if pia_result.rt is not None:
-        retval["o"] = pia_result.rt
-    if pia_result.cr0 is not None:
-        cr0 = pia_result.cr0
+    if pia_res.rt is not None:
+        retval["o"] = pia_res.rt
+    if pia_res.cr0 is not None:
+        cr0 = pia_res.cr0
         v = 0
         if cr0.lt:
             v |= 8
@@ -50,8 +51,8 @@ def pia_result_to_output(pia_result):
         if cr0.so:
             v |= 1
         retval["cr_a"] = v
-    if pia_result.overflow is not None:
-        overflow = pia_result.overflow
+    if pia_res.overflow is not None:
+        overflow = pia_res.overflow
         v = 0
         if overflow.ov:
             v |= 1
@@ -75,6 +76,7 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
+    return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"], rc=0)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -163,7 +165,10 @@ class DivRunner(unittest.TestCase):
                             so = 1 if spr['XER'][XER_bits['SO']] else 0
                             ov = 1 if spr['XER'][XER_bits['OV']] else 0
                             ov32 = 1 if spr['XER'][XER_bits['OV32']] else 0
+                            xer_zero = not (so or ov or ov32)
                             print("before: so/ov/32", so, ov, ov32)
+                        else:
+                            xer_zero = True
 
                         # ask the decoder to decode this binary data (endian'd)
                         # little / big?
@@ -172,7 +177,8 @@ class DivRunner(unittest.TestCase):
                         yield Delay(0.1e-6)
                         fn_unit = yield pdecode2.e.do.fn_unit
                         self.assertEqual(fn_unit, Function.DIV.value)
-                        yield from set_alu_inputs(alu, pdecode2, isa_sim)
+                        pia_inputs = yield from set_alu_inputs(alu, pdecode2,
+                                                               isa_sim)
 
                         # set valid for one cycle, propagate through pipeline..
                         # note that it is critically important to do this
@@ -183,6 +189,15 @@ class DivRunner(unittest.TestCase):
                         yield alu.p.valid_i.eq(0)
 
                         opname = code.split(' ')[0]
+                        if xer_zero:
+                            fnname = opname.replace(".", "_")
+                            print(f"{fnname}({pia_inputs})")
+                            pia_res = getattr(
+                                pia, opname.replace(".", "_"))(pia_inputs)
+                            print(f"-> {pia_res}")
+                        else:
+                            pia_res = None
+
                         yield from isa_sim.call(opname)
                         index = isa_sim.pc.CIA.value//4
 
@@ -223,13 +238,14 @@ class DivRunner(unittest.TestCase):
                         msg += " %s" % (repr(prog.assembly))
                         msg += " %s" % (repr(test.regs))
                         yield from self.check_alu_outputs(alu, pdecode2,
-                                                          isa_sim, msg)
+                                                          isa_sim, msg,
+                                                          pia_res)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"div_simulator_{self.div_pipe_kind.name}.vcd"):
             sim.run()
 
-    def check_alu_outputs(self, alu, dec2, sim, code):
+    def check_alu_outputs(self, alu, dec2, sim, code, pia_res):
 
         rc = yield dec2.e.do.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
@@ -256,10 +272,21 @@ class DivRunner(unittest.TestCase):
 
         print("sim output", sim_o)
 
-        ALUHelpers.check_int_o(self, res, sim_o, code)
-        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
-        ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
+        print("power-instruction-analyzer result:")
+        print(pia_res)
+        if pia_res is not None:
+            with self.subTest(check="pia", sim_o=sim_o, pia_res=str(pia_res)):
+                pia_o = pia_res_to_output(pia_res)
+                ALUHelpers.check_int_o(self, res, pia_o, code)
+                ALUHelpers.check_cr_a(self, res, pia_o, code)
+                ALUHelpers.check_xer_ov(self, res, pia_o, code)
+                ALUHelpers.check_xer_so(self, res, pia_o, code)
+
+        with self.subTest(check="sim", sim_o=sim_o, pia_res=str(pia_res)):
+            ALUHelpers.check_int_o(self, res, sim_o, code)
+            ALUHelpers.check_cr_a(self, res, sim_o, code)
+            ALUHelpers.check_xer_ov(self, res, sim_o, code)
+            ALUHelpers.check_xer_so(self, res, sim_o, code)
 
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
