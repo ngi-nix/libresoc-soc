@@ -8,6 +8,12 @@ class CompOpSubsetBase(Record):
     base class of subset Operation information
     """
     def __init__(self, layout, name):
+        if name is None:
+            name = self.__class__.__name__
+            print ("Subset name", name)
+            assert name.startswith("Comp")
+            assert name.endswith("OpSubset")
+            name = name[4:-8].lower() + "_op"
 
         Record.__init__(self, Layout(layout), name=name)
 

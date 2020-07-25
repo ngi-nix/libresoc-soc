@@ -67,6 +67,6 @@ class CommonPipeSpec:
     def __init__(self, id_wid):
         self.pipekls = SimpleHandshakeRedir
         self.id_wid = id_wid
-        self.opkls = lambda _: self.opsubsetkls(name="op")
+        self.opkls = lambda _: self.opsubsetkls()
         self.op_wid = get_rec_width(self.opkls(None)) # hmm..
         self.stage = None

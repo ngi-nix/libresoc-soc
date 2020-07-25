@@ -57,7 +57,8 @@ class CompUnitRecord(RegSpec, RecordObject):
 
     def __init__(self, subkls, rwid, n_src=None, n_dst=None, name=None):
         RegSpec.__init__(self, rwid, n_src, n_dst)
-        RecordObject.__init__(self, name)
+        print ("name", name)
+        RecordObject.__init__(self)
         self._subkls = subkls
         n_src, n_dst = self._n_src, self._n_dst
 
@@ -65,10 +66,10 @@ class CompUnitRecord(RegSpec, RecordObject):
         src = []
         for i in range(n_src):
             j = i + 1  # name numbering to match src1/src2
-            name = "src%d_i" % j
+            sname = "src%d_i" % j
             rw = self._get_srcwid(i)
-            sreg = Signal(rw, name=name, reset_less=True)
-            setattr(self, name, sreg)
+            sreg = Signal(rw, name=sname, reset_less=True)
+            setattr(self, sname, sreg)
             src.append(sreg)
         self._src_i = src
 
@@ -76,16 +77,16 @@ class CompUnitRecord(RegSpec, RecordObject):
         dst = []
         for i in range(n_dst):
             j = i + 1  # name numbering to match dest1/2...
-            name = "dest%d_o" % j
+            dname = "dest%d_o" % j
             rw = self._get_dstwid(i)
             # dreg = Data(rw, name=name) XXX ??? output needs to be a Data type?
-            dreg = Signal(rw, name=name, reset_less=True)
-            setattr(self, name, dreg)
+            dreg = Signal(rw, name=dname, reset_less=True)
+            setattr(self, dname, dreg)
             dst.append(dreg)
         self._dest = dst
 
         # operation / data input
-        self.oper_i = subkls(name="oper_i")  # operand
+        self.oper_i = subkls(name="oper_i_%s" % name)  # operand
 
         # create read/write and other scoreboard signalling
         self.rd = go_record(n_src, name="rd")  # read in, req out
@@ -114,7 +115,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         RegSpecALUAPI.__init__(self, rwid, alu)
         self.alu_name = name or "alu"
         self.opsubsetkls = opsubsetkls
-        self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst)
+        self.cu = cu = CompUnitRecord(opsubsetkls, rwid, n_src, n_dst,
+                                      name=name)
         n_src, n_dst = self.n_src, self.n_dst = cu._n_src, cu._n_dst
         print("n_src %d n_dst %d" % (self.n_src, self.n_dst))
 

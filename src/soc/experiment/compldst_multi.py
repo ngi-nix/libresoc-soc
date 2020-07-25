@@ -171,11 +171,11 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
     """
 
     def __init__(self, pi=None, rwid=64, awid=48, opsubset=CompLDSTOpSubset,
-                 debugtest=False):
+                 debugtest=False, name=None):
         super().__init__(rwid)
         self.awid = awid
         self.pi = pi
-        self.cu = cu = LDSTCompUnitRecord(rwid, opsubset)
+        self.cu = cu = LDSTCompUnitRecord(rwid, opsubset, name=name)
         self.debugtest = debugtest
 
         # POWER-compliant LD/ST has index and update: *fixed* number of ports

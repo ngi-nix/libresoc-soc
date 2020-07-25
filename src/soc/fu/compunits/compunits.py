@@ -192,10 +192,11 @@ class LDSTFunctionUnit(LDSTCompUnit):
     fnunit = Function.LDST
 
     def __init__(self, pi, awid, idx):
+        alu_name = "ldst_%s%d" % (self.fnunit.name.lower(), idx)
         pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
-        super().__init__(pi, regspec, awid, opsubset)
+        super().__init__(pi, regspec, awid, opsubset, name=alu_name)
 
 
 #####################################################################
