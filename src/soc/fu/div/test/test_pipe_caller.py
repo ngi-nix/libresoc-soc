@@ -103,6 +103,14 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
+    def test_8_regression(self):
+        lst = ["divwu. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 18
+        initial_regs[2] = 3
+        with Program(lst, bigendian) as prog:
+            self.run_test_program(prog, initial_regs)
+
     def test_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
