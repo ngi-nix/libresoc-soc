@@ -209,19 +209,11 @@ class Driver(Elaboratable):
                                    field(msr_i, 29, 31))
 
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
+                PR = field(srr1_i, 49) # alias/copy of SRR1 PR field
                 comb += [
-                    Assert(
-                        field(msr_o, 48) ==
-                        field(srr1_i, 48) | field(srr1_i, 49)
-                    ),
-                    Assert(
-                        field(msr_o, 58) ==
-                        field(srr1_i, 58) | field(srr1_i, 49)
-                    ),
-                    Assert(
-                        field(msr_o, 59) ==
-                        field(srr1_i, 59) | field(srr1_i, 49)
-                    ),
+                    Assert(field(msr_o, 48) == field(srr1_i, 48) | PR), # EE
+                    Assert(field(msr_o, 58) == field(srr1_i, 58) | PR), # IR
+                    Assert(field(msr_o, 59) == field(srr1_i, 59) | PR), # DR
                 ]
 
                 # remaining bits: straight copy.  don't know what these are:
