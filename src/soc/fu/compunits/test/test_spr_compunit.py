@@ -7,12 +7,13 @@ from soc.fu.spr.test.test_pipe_caller import SPRTestCase  # creates the tests
 from soc.fu.test.common import ALUHelpers
 from soc.fu.compunits.compunits import SPRFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.config.endian import bigendian
 
 
 class SPRTestRunner(TestRunner):
     def __init__(self, test_data):
         super().__init__(test_data, SPRFunctionUnit, self,
-                         Function.SPR)
+                         Function.SPR, bigendian)
 
     def get_cu_inputs(self, dec2, sim):
         """naming (res) must conform to SPRFunctionUnit input regspec
@@ -66,7 +67,7 @@ class SPRTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(SPRTestRunner(SPRTestCase.test_data))
+    suite.addTest(SPRTestRunner(SPRTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

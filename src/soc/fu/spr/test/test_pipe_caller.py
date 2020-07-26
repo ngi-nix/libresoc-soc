@@ -1,6 +1,5 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
@@ -14,7 +13,7 @@ from soc.config.endian import bigendian
 from soc.consts import MSR
 
 
-from soc.fu.test.common import (TestCase, ALUHelpers)
+from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.spr.pipeline import SPRBasePipe
 from soc.fu.spr.pipe_data import SPRPipeSpec
 import random
@@ -73,20 +72,9 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class SPRTestCase(FHDLTestCase):
-    test_data = []
+class SPRTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                        initial_msr=0):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
-                      msr=initial_msr)
-        self.test_data.append(tc)
-
-    def test_1_mfspr(self):
+    def case_1_mfspr(self):
         lst = ["mfspr 1, 26",  # SRR0
                "mfspr 2, 27",  # SRR1
                "mfspr 3, 8",  # LR
@@ -94,10 +82,10 @@ class SPRTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0xe00c0000}
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs)
 
-    def test_1_mtspr(self):
+    def case_1_mtspr(self):
         lst = ["mtspr 26, 1",  # SRR0
                "mtspr 27, 2",  # SRR1
                "mtspr 1, 3",  # XER
@@ -109,10 +97,10 @@ class SPRTestCase(FHDLTestCase):
         initial_regs[4] = 0x1010101010101010
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs)
 
-    def test_2_mtspr_mfspr(self):
+    def case_2_mtspr_mfspr(self):
         lst = ["mtspr 26, 1",  # SRR0
                "mtspr 27, 2",  # SRR1
                "mtspr 1, 3",  # XER
@@ -128,11 +116,12 @@ class SPRTestCase(FHDLTestCase):
         initial_regs[4] = 0x1010101010101010
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs)
 
-    @unittest.skip("spr does not have TRAP in it. has to be done another way")
-    def test_3_mtspr_priv(self):
+    # TODO XXX whoops...
+    #@unittest.skip("spr does not have TRAP in it. has to be done another way")
+    def _skip_case_3_mtspr_priv(self):
         lst = ["mtspr 26, 1",  # SRR0
                "mtspr 27, 2",  # SRR1
                "mtspr 1, 3",  # XER
@@ -145,10 +134,10 @@ class SPRTestCase(FHDLTestCase):
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
         msr = 1 << MSR.PR
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs, initial_msr=msr)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)
         alu = SPRBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -156,7 +145,7 @@ class SPRTestCase(FHDLTestCase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
@@ -289,7 +278,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(SPRTestCase.test_data))
+    suite.addTest(TestRunner(SPRTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
