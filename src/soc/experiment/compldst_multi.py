@@ -350,7 +350,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += sto_l.s.eq(addr_ok & op_is_st)
         comb += sto_l.r.eq(reset_s | p_st_go)
 
-        # ld/st done
+        # ld/st done.  needed to stop LD/ST from activating repeatedly
         comb += lsd_l.s.eq(issue_i)
         sync += lsd_l.r.eq(reset_s | p_st_go | ld_ok)
 
@@ -476,8 +476,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += pi.data_len.eq(self.oper_i.data_len)  # data_len
         # address
         comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok & (lod_l.q | sto_l.q) & lsd_l.q
-                              )  # "do address stuff"
+        comb += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
         comb += self.addr_exc_o.eq(pi.addr_exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
