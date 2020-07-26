@@ -2,7 +2,7 @@ import random
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
-from soc.fu.test.common import TestCase, ALUHelpers
+from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.config.endian import bigendian
 from soc.decoder.isa.all import ISA
 from soc.simulator.program import Program
@@ -13,7 +13,6 @@ from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.isa.caller import ISACaller, special_sprs
 import unittest
 from nmigen.cli import rtlil
-from nmutil.formaltest import FHDLTestCase
 from nmigen import Module, Signal
 from nmigen.back.pysim import Delay, Settle
 # NOTE: to use this (set to True), at present it is necessary to check
@@ -76,18 +75,9 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class ShiftRotTestCase(FHDLTestCase):
-    test_data = []
+class ShiftRotTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        self.test_data.append(tc)
-
-    def test_shift(self):
+    def case_shift(self):
         insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
         for i in range(20):
             choice = random.choice(insns)
@@ -96,26 +86,26 @@ class ShiftRotTestCase(FHDLTestCase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, 63)
             print(initial_regs[1], initial_regs[2])
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_shift_arith(self):
+    def case_shift_arith(self):
         lst = ["sraw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
         initial_regs[2] = random.randint(0, 63)
         print(initial_regs[1], initial_regs[2])
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_shift_once(self):
+    def case_shift_once(self):
         lst = ["slw 3, 1, 4",
                "slw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
         initial_regs[2] = 0x40
         initial_regs[4] = 0x00
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rlwinm(self):
+    def case_rlwinm(self):
         for i in range(10):
             mb = random.randint(0, 31)
             me = random.randint(0, 31)
@@ -125,47 +115,47 @@ class ShiftRotTestCase(FHDLTestCase):
                    ]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rlwimi(self):
+    def case_rlwimi(self):
         lst = ["rlwimi 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeef
         initial_regs[3] = 0x12345678
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rlwnm(self):
+    def case_rlwnm(self):
         lst = ["rlwnm 3, 1, 2, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
         initial_regs[2] = random.randint(0, 63)
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rldicl(self):
+    def case_rldicl(self):
         lst = ["rldicl 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rldicr(self):
+    def case_rldicr(self):
         lst = ["rldicr 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_regression_extswsli(self):
+    def case_regression_extswsli(self):
         lst = [f"extswsli 3, 1, 34"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x5678
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_regression_extswsli_2(self):
+    def case_regression_extswsli_2(self):
         lst = [f"extswsli 3, 1, 7"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3ffffd7377f19fdd
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_regression_extswsli_3(self):
+    def case_regression_extswsli_3(self):
         lst = [f"extswsli 3, 1, 0"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0x80000000fb4013e2
@@ -173,17 +163,17 @@ class ShiftRotTestCase(FHDLTestCase):
         #initial_regs[1] = 0x00000000ffffffff
         initial_regs[1] = 0x0000010180122900
         #initial_regs[1] = 0x3ffffd73f7f19fdd
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_extswsli(self):
+    def case_extswsli(self):
         for i in range(40):
             sh = random.randint(0, 63)
             lst = [f"extswsli 3, 1, {sh}"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rlc(self):
+    def case_rlc(self):
         insns = ["rldic", "rldicl", "rldicr"]
         for i in range(20):
             choice = random.choice(insns)
@@ -192,9 +182,9 @@ class ShiftRotTestCase(FHDLTestCase):
             lst = [f"{choice} 3, 1, {sh}, {m}"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = ShiftRotPipeSpec(id_wid=2)
         alu = ShiftRotBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -202,7 +192,7 @@ class ShiftRotTestCase(FHDLTestCase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
@@ -306,7 +296,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(ShiftRotTestCase.test_data))
+    suite.addTest(TestRunner(ShiftRotTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
