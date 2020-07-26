@@ -7,6 +7,17 @@ from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr  # HACK!
 from soc.regfile.regfiles import FastRegs
 
+class TestAccumulatorBase:
+
+    def __init__(self):
+        self.test_data = []
+        # automatically identifies anything starting with "case_" and
+        # runs it.  very similar to unittest auto-identification except
+        # we need a different system
+        for n, v in self.__class__.__dict__.items():
+            if n.startswith("case_") and callable(v):
+                v(self)
+
 
 class TestCase:
     def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
