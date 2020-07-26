@@ -48,7 +48,7 @@ class LogicalTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(LogicalTestRunner(LogicalTestCase.test_data))
+    suite.addTest(LogicalTestRunner(LogicalTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

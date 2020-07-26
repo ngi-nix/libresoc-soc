@@ -13,7 +13,7 @@ from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 
-from soc.fu.test.common import TestCase, ALUHelpers
+from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.logical.pipeline import LogicalBasePipe
 from soc.fu.logical.pipe_data import LogicalPipeSpec
 import random
@@ -59,18 +59,9 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class LogicalTestCase(FHDLTestCase):
-    test_data = []
+class LogicalTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        self.test_data.append(tc)
-
-    def test_rand(self):
+    def case_rand(self):
         insns = ["and", "or", "xor"]
         for i in range(40):
             choice = random.choice(insns)
@@ -78,9 +69,9 @@ class LogicalTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_imm_logical(self):
+    def case_rand_imm_logical(self):
         insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
         for i in range(10):
             choice = random.choice(insns)
@@ -89,9 +80,9 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_cntz(self):
+    def case_cntz(self):
         insns = ["cntlzd", "cnttzd", "cntlzw", "cnttzw"]
         for i in range(100):
             choice = random.choice(insns)
@@ -99,9 +90,9 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_parity(self):
+    def case_parity(self):
         insns = ["prtyw", "prtyd"]
         for i in range(10):
             choice = random.choice(insns)
@@ -109,9 +100,9 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_popcnt(self):
+    def case_popcnt(self):
         insns = ["popcntb", "popcntw", "popcntd"]
         for i in range(10):
             choice = random.choice(insns)
@@ -119,32 +110,32 @@ class LogicalTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_popcnt_edge(self):
+    def case_popcnt_edge(self):
         insns = ["popcntb", "popcntw", "popcntd"]
         for choice in insns:
             lst = [f"{choice} 3, 1"]
             initial_regs = [0] * 32
             initial_regs[1] = -1
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_cmpb(self):
+    def case_cmpb(self):
         lst = ["cmpb 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeefcafec0de
         initial_regs[2] = 0xd0adb0000afec1de
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_bpermd(self):
+    def case_bpermd(self):
         lst = ["bpermd 3, 1, 2"]
         for i in range(20):
             initial_regs = [0] * 32
             initial_regs[1] = 1 << random.randint(0, 63)
             initial_regs[2] = 0xdeadbeefcafec0de
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = LogicalPipeSpec(id_wid=2)
         alu = LogicalBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -247,7 +238,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(LogicalTestCase.test_data))
+    suite.addTest(TestRunner(LogicalTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
