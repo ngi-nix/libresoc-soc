@@ -13,7 +13,7 @@ from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 from soc.consts import MSR
 
-from soc.fu.test.common import (TestCase, ALUHelpers)
+from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 import random
@@ -70,37 +70,26 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class TrapTestCase(FHDLTestCase):
-    test_data = []
+class TrapTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                        initial_msr=0):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
-                      msr=initial_msr)
-        self.test_data.append(tc)
-
-    def test_1_rfid(self):
+    def case_1_rfid(self):
         lst = ["rfid"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs)
 
-    def test_0_trap_eq_imm(self):
+    def case_0_trap_eq_imm(self):
         insns = ["twi", "tdi"]
         for i in range(2):
             choice = random.choice(insns)
             lst = [f"{choice} 4, 1, %d" % i]  # TO=4: trap equal
             initial_regs = [0] * 32
             initial_regs[1] = 1
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_0_trap_eq(self):
+    def case_0_trap_eq(self):
         insns = ["tw", "td"]
         for i in range(2):
             choice = insns[i]
@@ -108,73 +97,73 @@ class TrapTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = 1
             initial_regs[2] = 1
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_3_mtmsr_0(self):
+    def case_3_mtmsr_0(self):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_3_mtmsr_1(self):
+    def case_3_mtmsr_1(self):
         lst = ["mtmsr 1,1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_4_mtmsrd_0(self):
+    def case_4_mtmsrd_0(self):
         lst = ["mtmsrd 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_5_mtmsrd_1(self):
+    def case_5_mtmsrd_1(self):
         lst = ["mtmsrd 1,1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_6_mtmsr_priv_0(self):
+    def case_6_mtmsr_priv_0(self):
         lst = ["mtmsr 1,0"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffffff
         msr = 1 << MSR.PR  # set in "problem state"
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_msr=msr)
 
-    def test_7_rfid_priv_0(self):
+    def case_7_rfid_priv_0(self):
         lst = ["rfid"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
         msr = 1 << MSR.PR  # set in "problem state"
-        self.run_tst_program(Program(lst, bigendian),
+        self.add_case(Program(lst, bigendian),
                              initial_regs, initial_sprs,
                              initial_msr=msr)
 
-    def test_8_mfmsr(self):
+    def case_8_mfmsr(self):
         lst = ["mfmsr 1"]
         initial_regs = [0] * 32
         msr = (~(1 << MSR.PR)) & 0xffffffffffffffff
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_msr=msr)
 
-    def test_9_mfmsr_priv(self):
+    def case_9_mfmsr_priv(self):
         lst = ["mfmsr 1"]
         initial_regs = [0] * 32
         msr = 1 << MSR.PR  # set in "problem state"
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_msr=msr)
 
-    def test_999_illegal(self):
+    def case_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know
         # is not implemented by either ISACaller or the core
         lst = ["tbegin.",
                "mtmsr 1,1"]  # should not get executed
         initial_regs = [0] * 32
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = TrapPipeSpec(id_wid=2)
         alu = TrapBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -182,7 +171,7 @@ class TrapTestCase(FHDLTestCase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
@@ -303,7 +292,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(TrapTestCase.test_data))
+    suite.addTest(TestRunner(TrapTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
