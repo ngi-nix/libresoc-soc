@@ -1,7 +1,7 @@
 import random
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.pipeline import ALUBasePipe
-from soc.fu.test.common import (TestCase, ALUHelpers)
+from soc.fu.test.common import (TestCase, TestAccumulatorBase, ALUHelpers)
 from soc.config.endian import bigendian
 from soc.decoder.isa.all import ISA
 from soc.simulator.program import Program
@@ -76,48 +76,39 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class ALUTestCase(FHDLTestCase):
-    test_data = []
+class ALUTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        self.test_data.append(tc)
-
-    def test_1_regression(self):
+    def case_1_regression(self):
         lst = [f"extsw 3, 1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xb6a1fc6c8576af91
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
         lst = [f"subf 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3d7f3f7ca24bac7b
         initial_regs[2] = 0xf6b2ac5e13ee15c2
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
         lst = [f"subf 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x833652d96c7c0058
         initial_regs[2] = 0x1c27ecff8a086c1a
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
         lst = [f"extsb 3, 1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7f9497aaff900ea0
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
         lst = [f"add. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xc523e996a8ff6215
         initial_regs[2] = 0xe1e5b9cc9864c4a8
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
         lst = [f"add 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x2e08ae202742baf8
         initial_regs[2] = 0x86c43ece9efe5baa
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand(self):
+    def case_rand(self):
         insns = ["add", "add.", "subf"]
         for i in range(40):
             choice = random.choice(insns)
@@ -125,9 +116,9 @@ class ALUTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_imm(self):
+    def case_rand_imm(self):
         insns = ["addi", "addis", "subfic"]
         for i in range(10):
             choice = random.choice(insns)
@@ -136,9 +127,9 @@ class ALUTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_0_adde(self):
+    def case_0_adde(self):
         lst = ["adde. 5, 6, 7"]
         for i in range(10):
             initial_regs = [0] * 32
@@ -148,18 +139,18 @@ class ALUTestCase(FHDLTestCase):
             xer = SelectableInt(0, 64)
             xer[XER_bits['CA']] = 1
             initial_sprs[special_sprs['XER']] = xer
-            self.run_tst_program(Program(lst, bigendian),
+            self.add_case(Program(lst, bigendian),
                                  initial_regs, initial_sprs)
 
-    def test_cmp(self):
+    def case_cmp(self):
         lst = ["subf. 1, 6, 7",
                "cmp cr2, 1, 6, 7"]
         initial_regs = [0] * 32
         initial_regs[6] = 0x10
         initial_regs[7] = 0x05
-        self.run_tst_program(Program(lst, bigendian), initial_regs, {})
+        self.add_case(Program(lst, bigendian), initial_regs, {})
 
-    def test_extsb(self):
+    def case_extsb(self):
         insns = ["extsb", "extsh", "extsw"]
         for i in range(10):
             choice = random.choice(insns)
@@ -167,17 +158,17 @@ class ALUTestCase(FHDLTestCase):
             print(lst)
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_cmpeqb(self):
+    def case_cmpeqb(self):
         lst = ["cmpeqb cr1, 1, 2"]
         for i in range(20):
             initial_regs = [0] * 32
             initial_regs[1] = i
             initial_regs[2] = 0x0001030507090b0f
-            self.run_tst_program(Program(lst, bigendian), initial_regs, {})
+            self.add_case(Program(lst, bigendian), initial_regs, {})
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = ALUPipeSpec(id_wid=2)
         alu = ALUBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -301,7 +292,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(ALUTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
