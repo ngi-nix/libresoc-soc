@@ -52,7 +52,7 @@ class DivTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(DivTestRunner(DivTestCases.test_data))
+    suite.addTest(DivTestRunner(DivTestCases().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
