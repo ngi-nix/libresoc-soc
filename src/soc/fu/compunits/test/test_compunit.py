@@ -90,7 +90,7 @@ def get_cu_outputs(cu, code):
             yield
     else: # LDST CompUnit
         # not a lot can be done about this - simply wait a few cycles
-        for i in range(10):
+        for i in range(5):
             yield
 
     wrmask = yield cu.wrmask
@@ -288,7 +288,6 @@ class TestRunner(FHDLTestCase):
             # reset read-mask.  IMPORTANT when there are no operands
             yield cu.rdmaskn.eq(0)
             yield
-
 
             # debugging issue with branch
             if self.funit == Function.BRANCH:
