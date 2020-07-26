@@ -82,11 +82,17 @@ def get_cu_outputs(cu, code):
     res = {}
     # wait for pipeline to indicate valid.  this because for long
     # pipelines (or FSMs) the write mask is only valid at that time.
-    while True:
-        valid_o = yield cu.alu.n.valid_o
-        if valid_o:
-            break
-        yield
+    if hasattr(cu, "alu"): # ALU CompUnits
+        while True:
+            valid_o = yield cu.alu.n.valid_o
+            if valid_o:
+                break
+            yield
+    else: # LDST CompUnit
+        # not a lot can be done about this - simply wait a few cycles
+        for i in range(10):
+            yield
+
     wrmask = yield cu.wrmask
     wr_rel_o = yield cu.wr.rel
     print("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
@@ -282,6 +288,7 @@ class TestRunner(FHDLTestCase):
             # reset read-mask.  IMPORTANT when there are no operands
             yield cu.rdmaskn.eq(0)
             yield
+
 
             # debugging issue with branch
             if self.funit == Function.BRANCH:
