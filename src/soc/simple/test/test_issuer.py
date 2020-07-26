@@ -29,7 +29,7 @@ from soc.fu.compunits.test.test_compunit import (setup_test_memory,
 #from soc.fu.div.test.test_pipe_caller import DivTestCase
 #from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 #from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
-#from soc.fu.cr.test.test_pipe_caller import CRTestCase
+from soc.fu.cr.test.test_pipe_caller import CRTestCase
 #from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 #from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
@@ -205,8 +205,8 @@ if __name__ == "__main__":
     # suite.addTest(TestRunner(DivTestCase.test_data))
     suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
-    suite.addTest(TestRunner(LDSTTestCase.test_data))
-    # suite.addTest(TestRunner(CRTestCase.test_data))
+    suite.addTest(TestRunner(LDSTTestCase().test_data))
+    suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     # suite.addTest(TestRunner(LogicalTestCase.test_data))
     # suite.addTest(TestRunner(ALUTestCase.test_data))
