@@ -11,12 +11,7 @@ from soc.fu.div.pipe_data import DivPipeKind
 
 class DivTestLong(TestAccumulatorBase):
 
-    def run_test_program(self, prog, initial_regs=None, initial_sprs=None):
-        test_name = inspect.stack()[1][3] # name of caller of this function
-        tc = TestCase(prog, test_name, initial_regs, initial_sprs)
-        self.test_data.append(tc)
-
-    def case__all(self):
+    def case_all(self):
         instrs = []
         for width in ("w", "d"):
             for sign in ("", "u"):
@@ -48,7 +43,7 @@ class DivTestLong(TestAccumulatorBase):
                     initial_regs[2] = rb
                     # use "with" so as to close the files used
                     with Program(l, bigendian) as prog:
-                        self.run_test_program(prog, initial_regs)
+                        self.add_case(prog, initial_regs)
 
 
 if __name__ == "__main__":

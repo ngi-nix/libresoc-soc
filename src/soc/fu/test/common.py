@@ -3,6 +3,7 @@ Bugreports:
 * https://bugs.libre-soc.org/show_bug.cgi?id=361
 """
 
+import inspect
 from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr  # HACK!
 from soc.regfile.regfiles import FastRegs
@@ -17,6 +18,11 @@ class TestAccumulatorBase:
         for n, v in self.__class__.__dict__.items():
             if n.startswith("case_") and callable(v):
                 v(self)
+
+    def add_case(self, prog, initial_regs=None, initial_sprs=None):
+        test_name = inspect.stack()[1][3] # name of caller of this function
+        tc = TestCase(prog, test_name, initial_regs, initial_sprs)
+        self.test_data.append(tc)
 
 
 class TestCase:
