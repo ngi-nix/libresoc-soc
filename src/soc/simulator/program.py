@@ -9,6 +9,8 @@ import subprocess
 import struct
 import os
 import sys
+from io import BytesIO
+
 
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
@@ -26,11 +28,15 @@ class Program:
             self.endian_fmt = "elf64-little"
             self.obj_fmt = "-le"
 
-        if isinstance(instructions, str):  # filename
+        if isinstance(instructions, bytes):  # actual bytes
+            self.binfile = BytesIO(instructions)
+            self.binfile.name = "assembly"
+            self.assembly = ''  # noo disassemble number fiiive
+        elif isinstance(instructions, str):  # filename
             # read instructions into a BytesIO to avoid "too many open files"
             with open(instructions, "rb") as f:
                 b = f.read()
-            self.binfile = BytesIO(b, 'rb')
+            self.binfile = BytesIO(b)
             self.assembly = ''  # noo disassemble number fiiive
             print("program", self.binfile)
         else:

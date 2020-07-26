@@ -205,11 +205,24 @@ class GeneralTestCases(FHDLTestCase):
 
     def test_nop(self):
         lst = ["addi 1, 0, 0x1004",
-               "nop",
+               "ori 0,0,0", # "preferred" form of nop
                "addi 3, 0, 0x15eb",
               ]
         initial_regs = [0] * 32
         with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [1, 3])
+
+    @unittest.skip("disable")
+    def test_zero_illegal(self):
+        lst = bytes([0x10,0x00,0x20,0x39,
+                     0x0,0x0,0x0,0x0,
+                     0x0,0x0,0x0,0x0 ])
+        disassembly = ["addi 9, 0, 0x10",
+                       "nop", # not quite
+                       "nop"] # not quite
+        initial_regs = [0] * 32
+        with Program(lst, bigendian) as program:
+            program.assembly = '\n'.join(disassembly) + '\n' # XXX HACK!
             self.run_tst_program(program, [1, 3])
 
     def test_loop(self):

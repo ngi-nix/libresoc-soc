@@ -154,6 +154,8 @@ class TestRunner(FHDLTestCase):
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
 
+                print ("instructions", instructions)
+
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
@@ -203,10 +205,10 @@ if __name__ == "__main__":
     suite = unittest.TestSuite()
     # suite.addTest(TestRunner(HelloTestCases.test_data))
     # suite.addTest(TestRunner(DivTestCase.test_data))
-    suite.addTest(TestRunner(AttnTestCase.test_data))
+    #suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
-    suite.addTest(TestRunner(LDSTTestCase().test_data))
-    suite.addTest(TestRunner(CRTestCase().test_data))
+    #suite.addTest(TestRunner(LDSTTestCase().test_data))
+    #suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     # suite.addTest(TestRunner(LogicalTestCase.test_data))
     # suite.addTest(TestRunner(ALUTestCase.test_data))
