@@ -4,22 +4,19 @@ import unittest
 from soc.simulator.program import Program
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestCase, TestAccumulatorBase
 from soc.fu.div.test.runner import DivRunner
 from soc.fu.div.pipe_data import DivPipeKind
 
 
-class DivTestLong(unittest.TestCase):
-    test_data = []
-    def __init__(self, name):
-        super().__init__(name)
+class DivTestLong(TestAccumulatorBase):
 
     def run_test_program(self, prog, initial_regs=None, initial_sprs=None):
         test_name = inspect.stack()[1][3] # name of caller of this function
         tc = TestCase(prog, test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_all(self):
+    def case__all(self):
         instrs = []
         for width in ("w", "d"):
             for sign in ("", "u"):
@@ -57,9 +54,9 @@ class DivTestLong(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.DivPipeCore))
-    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.FSMDivCore))
-    suite.addTest(DivRunner(DivTestLong.test_data, DivPipeKind.SimOnly))
+    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.DivPipeCore))
+    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.FSMDivCore))
+    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.SimOnly))
 
 
     runner = unittest.TextTestRunner()

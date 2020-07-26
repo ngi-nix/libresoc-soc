@@ -1,36 +1,23 @@
 import inspect
 import random
 import unittest
-from nmutil.formaltest import FHDLTestCase
-from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay
-from nmigen.cli import rtlil
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import XER_bits, Function
 from soc.simulator.program import Program
-from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import (TestCase, ALUHelpers)
-from soc.fu.div.pipeline import DivBasePipe
-from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
+from soc.fu.test.common import (TestCase, TestAccumulatorBase)
+from soc.fu.div.pipe_data import DivPipeKind
 
-from soc.fu.div.test.runner import (log_rand, get_cu_inputs,
-                                    set_alu_inputs, DivRunner)
+from soc.fu.div.test.runner import (log_rand, DivRunner)
 
 
-class DivTestCases(unittest.TestCase):
-    test_data = []
-    def __init__(self, name):
-        super().__init__(name)
+class DivTestCases(TestAccumulatorBase):
 
     def run_test_program(self, prog, initial_regs=None, initial_sprs=None):
         test_name = inspect.stack()[1][3] # name of caller of this function
         tc = TestCase(prog, test_name, initial_regs, initial_sprs)
         self.test_data.append(tc)
 
-    def test_0_regression(self):
+    def case_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
             initial_regs = [0] * 32
@@ -39,7 +26,7 @@ class DivTestCases(unittest.TestCase):
             with Program(lst, bigendian) as prog:
                 self.run_test_program(prog, initial_regs)
 
-    def test_1_regression(self):
+    def case_1_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x10000000000000000-4
@@ -47,7 +34,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_2_regression(self):
+    def case_2_regression(self):
         lst = ["divwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffff9321
@@ -55,7 +42,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_3_regression(self):
+    def case_3_regression(self):
         lst = ["divwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1b8e32f2458746af
@@ -63,7 +50,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_4_regression(self):
+    def case_4_regression(self):
         lst = ["divw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1c4e6c2f3aa4a05c
@@ -71,7 +58,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_5_regression(self):
+    def case_5_regression(self):
         lst = ["divw 3, 1, 2",
                "divwo. 6, 4, 5"]
         initial_regs = [0] * 32
@@ -82,7 +69,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_6_regression(self):
+    def case_6_regression(self):
         # CR0 not getting set properly for this one
         # turns out that overflow is not set correctly in
         # fu/div/output_stage.py calc_overflow
@@ -94,7 +81,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_7_regression(self):
+    def case_7_regression(self):
         # https://bugs.libre-soc.org/show_bug.cgi?id=425
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
@@ -103,7 +90,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_8_fsm_regression(self): # FSM result is "36" not 6
+    def case_8_fsm_regression(self): # FSM result is "36" not 6
         lst = ["divwu. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 18
@@ -111,7 +98,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_9_regression(self): # CR0 fails: expected 0b10, actual 0b11
+    def case_9_regression(self): # CR0 fails: expected 0b10, actual 0b11
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
@@ -119,7 +106,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_divw_by_zero_1(self):
+    def case_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1
@@ -127,7 +114,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_divw_overflow2(self):
+    def case_divw_overflow2(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
@@ -135,7 +122,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_divw_overflow3(self):
+    def case_divw_overflow3(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x80000000
@@ -143,7 +130,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_divwuo_regression_1(self):
+    def case_divwuo_regression_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7591a398c4e32b68
@@ -151,7 +138,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_divwuo_1(self):
+    def case_divwuo_1(self):
         lst = ["divwuo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x50
@@ -159,7 +146,7 @@ class DivTestCases(unittest.TestCase):
         with Program(lst, bigendian) as prog:
             self.run_test_program(prog, initial_regs)
 
-    def test_rand_divwu(self):
+    def case_rand_divwu(self):
         insns = ["divwu", "divwu.", "divwuo", "divwuo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -170,7 +157,7 @@ class DivTestCases(unittest.TestCase):
             with Program(lst, bigendian) as prog:
                 self.run_test_program(prog, initial_regs)
 
-    def test_rand_divw(self):
+    def case_rand_divw(self):
         insns = ["divw", "divw.", "divwo", "divwo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -185,9 +172,9 @@ class DivTestCases(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.DivPipeCore))
-    suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.FSMDivCore))
-    suite.addTest(DivRunner(DivTestCases.test_data, DivPipeKind.SimOnly))
+    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.DivPipeCore))
+    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.FSMDivCore))
+    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.SimOnly))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
