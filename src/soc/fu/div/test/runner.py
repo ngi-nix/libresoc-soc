@@ -115,6 +115,102 @@ class DivRunner(unittest.TestCase):
     def test_write_ilang(self):
         self.write_ilang(self.div_pipe_kind)
 
+    def execute(self, alu, instruction, pdecode2, test):
+        prog = test.program
+        isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                      test.mem, test.msr,
+                      bigendian=bigendian)
+        gen = prog.generate_instructions()
+        instructions = list(zip(gen, prog.assembly.splitlines()))
+        yield Delay(0.1e-6)
+
+        index = isa_sim.pc.CIA.value//4
+        while index < len(instructions):
+            ins, code = instructions[index]
+
+            print("instruction: 0x{:X}".format(ins & 0xffffffff))
+            print(code)
+            spr = isa_sim.spr
+            if 'XER' in spr:
+                so = 1 if spr['XER'][XER_bits['SO']] else 0
+                ov = 1 if spr['XER'][XER_bits['OV']] else 0
+                ov32 = 1 if spr['XER'][XER_bits['OV32']] else 0
+                xer_zero = not (so or ov or ov32)
+                print("before: so/ov/32", so, ov, ov32)
+            else:
+                xer_zero = True
+
+            # ask the decoder to decode this binary data (endian'd)
+            # little / big?
+            yield pdecode2.dec.bigendian.eq(bigendian)
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Delay(0.1e-6)
+            fn_unit = yield pdecode2.e.do.fn_unit
+            self.assertEqual(fn_unit, Function.DIV.value)
+            pia_inputs = yield from set_alu_inputs(alu, pdecode2,
+                                                   isa_sim)
+
+            # set valid for one cycle, propagate through pipeline..
+            # note that it is critically important to do this
+            # for DIV otherwise it starts trying to produce
+            # multiple results.
+            yield alu.p.valid_i.eq(1)
+            yield
+            yield alu.p.valid_i.eq(0)
+
+            opname = code.split(' ')[0]
+            if xer_zero:
+                fnname = opname.replace(".", "_")
+                print(f"{fnname}({pia_inputs})")
+                pia_res = getattr(
+                    pia, opname.replace(".", "_"))(pia_inputs)
+                print(f"-> {pia_res}")
+            else:
+                pia_res = None
+
+            yield from isa_sim.call(opname)
+            index = isa_sim.pc.CIA.value//4
+
+            vld = yield alu.n.valid_o
+            while not vld:
+                yield
+                yield Delay(0.1e-6)
+                vld = yield alu.n.valid_o
+                # bug #425 investigation
+                do = alu.pipe_end.div_out
+                ctx_op = do.i.ctx.op
+                is_32bit = yield ctx_op.is_32bit
+                is_signed = yield ctx_op.is_signed
+                quotient_root = yield do.i.core.quotient_root
+                quotient_65 = yield do.quotient_65
+                dive_abs_ov32 = yield do.i.dive_abs_ov32
+                div_by_zero = yield do.i.div_by_zero
+                quotient_neg = yield do.quotient_neg
+                print("32bit", hex(is_32bit))
+                print("signed", hex(is_signed))
+                print("quotient_root", hex(quotient_root))
+                print("quotient_65", hex(quotient_65))
+                print("div_by_zero", hex(div_by_zero))
+                print("dive_abs_ov32", hex(dive_abs_ov32))
+                print("quotient_neg", hex(quotient_neg))
+                print("")
+            yield
+
+            yield Delay(0.1e-6)
+            # XXX sim._state is an internal variable
+            # and timeline does not exist
+            # AttributeError: '_SimulatorState' object
+            #                 has no attribute 'timeline'
+            # TODO: raise bugreport with whitequark
+            # requesting a public API to access this "officially"
+            # XXX print("time:", sim._state.timeline.now)
+            msg = "%s: %s" % (self.div_pipe_kind.name, code)
+            msg += " %s" % (repr(prog.assembly))
+            msg += " %s" % (repr(test.regs))
+            yield from self.check_alu_outputs(alu, pdecode2,
+                                              isa_sim, msg,
+                                              pia_res)
+
     def run_all(self):
         # *sigh* this is a mess.  unit test gets added by code-walking
         # (unittest module) and picked up with a test name.
@@ -145,101 +241,8 @@ class DivRunner(unittest.TestCase):
         def process():
             for test in self.test_data:
                 print(test.name)
-                prog = test.program
                 with self.subTest(test.name):
-                    isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                  test.mem, test.msr,
-                                  bigendian=bigendian)
-                    gen = prog.generate_instructions()
-                    instructions = list(zip(gen, prog.assembly.splitlines()))
-                    yield Delay(0.1e-6)
-
-                    index = isa_sim.pc.CIA.value//4
-                    while index < len(instructions):
-                        ins, code = instructions[index]
-
-                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                        print(code)
-                        spr = isa_sim.spr
-                        if 'XER' in spr:
-                            so = 1 if spr['XER'][XER_bits['SO']] else 0
-                            ov = 1 if spr['XER'][XER_bits['OV']] else 0
-                            ov32 = 1 if spr['XER'][XER_bits['OV32']] else 0
-                            xer_zero = not (so or ov or ov32)
-                            print("before: so/ov/32", so, ov, ov32)
-                        else:
-                            xer_zero = True
-
-                        # ask the decoder to decode this binary data (endian'd)
-                        # little / big?
-                        yield pdecode2.dec.bigendian.eq(bigendian)
-                        yield instruction.eq(ins)          # raw binary instr.
-                        yield Delay(0.1e-6)
-                        fn_unit = yield pdecode2.e.do.fn_unit
-                        self.assertEqual(fn_unit, Function.DIV.value)
-                        pia_inputs = yield from set_alu_inputs(alu, pdecode2,
-                                                               isa_sim)
-
-                        # set valid for one cycle, propagate through pipeline..
-                        # note that it is critically important to do this
-                        # for DIV otherwise it starts trying to produce
-                        # multiple results.
-                        yield alu.p.valid_i.eq(1)
-                        yield
-                        yield alu.p.valid_i.eq(0)
-
-                        opname = code.split(' ')[0]
-                        if xer_zero:
-                            fnname = opname.replace(".", "_")
-                            print(f"{fnname}({pia_inputs})")
-                            pia_res = getattr(
-                                pia, opname.replace(".", "_"))(pia_inputs)
-                            print(f"-> {pia_res}")
-                        else:
-                            pia_res = None
-
-                        yield from isa_sim.call(opname)
-                        index = isa_sim.pc.CIA.value//4
-
-                        vld = yield alu.n.valid_o
-                        while not vld:
-                            yield
-                            yield Delay(0.1e-6)
-                            vld = yield alu.n.valid_o
-                            # bug #425 investigation
-                            do = alu.pipe_end.div_out
-                            ctx_op = do.i.ctx.op
-                            is_32bit = yield ctx_op.is_32bit
-                            is_signed = yield ctx_op.is_signed
-                            quotient_root = yield do.i.core.quotient_root
-                            quotient_65 = yield do.quotient_65
-                            dive_abs_ov32 = yield do.i.dive_abs_ov32
-                            div_by_zero = yield do.i.div_by_zero
-                            quotient_neg = yield do.quotient_neg
-                            print("32bit", hex(is_32bit))
-                            print("signed", hex(is_signed))
-                            print("quotient_root", hex(quotient_root))
-                            print("quotient_65", hex(quotient_65))
-                            print("div_by_zero", hex(div_by_zero))
-                            print("dive_abs_ov32", hex(dive_abs_ov32))
-                            print("quotient_neg", hex(quotient_neg))
-                            print("")
-                        yield
-
-                        yield Delay(0.1e-6)
-                        # XXX sim._state is an internal variable
-                        # and timeline does not exist
-                        # AttributeError: '_SimulatorState' object
-                        #                 has no attribute 'timeline'
-                        # TODO: raise bugreport with whitequark
-                        # requesting a public API to access this "officially"
-                        # XXX print("time:", sim._state.timeline.now)
-                        msg = "%s: %s" % (self.div_pipe_kind.name, code)
-                        msg += " %s" % (repr(prog.assembly))
-                        msg += " %s" % (repr(test.regs))
-                        yield from self.check_alu_outputs(alu, pdecode2,
-                                                          isa_sim, msg,
-                                                          pia_res)
+                    yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"div_simulator_{self.div_pipe_kind.name}.vcd"):
