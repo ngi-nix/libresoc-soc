@@ -1,7 +1,6 @@
 import unittest
 from soc.decoder.power_enums import (XER_bits, Function, spr_dict, SPR)
 
-# XXX bad practice: use of global variables
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase, get_cu_inputs
 
 from soc.fu.compunits.compunits import BranchFunctionUnit
@@ -9,6 +8,7 @@ from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.config.endian import bigendian
 
 from soc.regfile.util import fast_reg_to_spr  # HACK!
+
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
@@ -59,7 +59,7 @@ class BranchTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(BranchTestRunner(BranchTestCase.test_data))
+    suite.addTest(BranchTestRunner(BranchTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

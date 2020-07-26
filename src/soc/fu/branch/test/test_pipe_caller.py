@@ -1,6 +1,5 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
@@ -13,7 +12,7 @@ from soc.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestCase, ALUHelpers
+from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
@@ -65,36 +64,25 @@ def get_cu_inputs(dec2, sim):
     return res
 
 
-class BranchTestCase(FHDLTestCase):
-    test_data = []
+class BranchTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None,
-                        initial_sprs=None, initial_cr=0):
-        tc = TestCase(prog, self.test_name,
-                      initial_regs, initial_sprs, initial_cr)
-        self.test_data.append(tc)
-
-    def test_0_regression_unconditional(self):
+    def case_0_regression_unconditional(self):
         for i in range(2):
             imm = random.randrange(-1 << 23, (1 << 23)-1) * 4
             lst = [f"bl {imm}"]
             initial_regs = [0] * 32
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_unconditional(self):
+    def case_unconditional(self):
         choices = ["b", "ba", "bl", "bla"]
         for i in range(20):
             choice = random.choice(choices)
             imm = random.randrange(-1 << 23, (1 << 23)-1) * 4
             lst = [f"{choice} {imm}"]
             initial_regs = [0] * 32
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_bc_cr(self):
+    def case_bc_cr(self):
         for i in range(20):
             bc = random.randrange(-1 << 13, (1 << 13)-1) * 4
             bo = random.choice([0b01100, 0b00100, 0b10100])
@@ -102,9 +90,9 @@ class BranchTestCase(FHDLTestCase):
             cr = random.randrange(0, (1 << 32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_regs = [0] * 32
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_bc_ctr(self):
+    def case_bc_ctr(self):
         for i in range(20):
             bc = random.randrange(-1 << 13, (1 << 13)-1) * 4
             bo = random.choice([0, 2, 8, 10, 16, 18])
@@ -113,11 +101,11 @@ class BranchTestCase(FHDLTestCase):
             ctr = random.randint(0, (1 << 32)-1)
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_sprs = {9: SelectableInt(ctr, 64)}
-            self.run_tst_program(Program(lst, bigendian),
+            self.add_case(Program(lst, bigendian),
                                  initial_sprs=initial_sprs,
                                  initial_cr=cr)
 
-    def test_bc_reg(self):
+    def case_bc_reg(self):
         # XXX: bcctr and bcctrl time out (irony: they're counters)
         choices = ["bclr", "bclrl", "bcctr", "bcctrl", "bctar", "bctarl"]
         for insn in choices:
@@ -133,11 +121,11 @@ class BranchTestCase(FHDLTestCase):
                 initial_sprs = {9: SelectableInt(ctr, 64),
                                 8: SelectableInt(lr, 64),
                                 815: SelectableInt(tar, 64)}
-                self.run_tst_program(Program(lst, bigendian),
+                self.add_case(Program(lst, bigendian),
                                      initial_sprs=initial_sprs,
                                      initial_cr=cr)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
         alu = BranchBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -145,7 +133,7 @@ class BranchTestCase(FHDLTestCase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
@@ -258,7 +246,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(BranchTestCase.test_data))
+    suite.addTest(TestRunner(BranchTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
