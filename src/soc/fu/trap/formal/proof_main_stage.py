@@ -47,11 +47,24 @@ class Driver(Elaboratable):
         srr0_o, srr0_i = dut.o.srr0, dut.i.srr0
         srr1_o, srr1_i = dut.o.srr1, dut.i.srr1
         nia_o = dut.o.nia
+        rs = dut.i.a
 
         comb += op.eq(rec)
 
+        expected_msr = Signal(len(msr_o.data))
+        expected_srr1 = Signal(len(srr1_o.data))
+
         d_fields = dut.fields.FormD
         sc_fields = dut.fields.FormSC
+        x_fields = dut.fields.FormX
+
+        L = x_fields.L[0:-1]
+
+        # This alias exists because some of our assertions exceed PEP8
+        # width constraints.  Avoid using this alias in the general
+        # case; ONLY use it when you're simultaneously trying to preserve
+        # line-oriented readibility while preserving PEP8 compliance.
+        F = field
 
         # start of properties
         with m.Switch(op.insn_type):
@@ -104,7 +117,6 @@ class Driver(Elaboratable):
                 comb += take_trap.eq(traptype.any() | (trapbits & to).any())
 
                 with m.If(take_trap):
-                    expected_msr = Signal(len(msr_o.data))
                     comb += expected_msr.eq(op.msr)
 
                     comb += field(expected_msr, MSRb.IR).eq(0)
@@ -140,7 +152,6 @@ class Driver(Elaboratable):
                     comb += field(expected_msr, MSRb.UND).eq(0)
                     comb += field(expected_msr, MSRb.LE).eq(1)
 
-                    expected_srr1 = Signal(len(srr1_o.data))
                     comb += expected_srr1.eq(op.msr)
 
                     # Per V3.0B, page 1075
@@ -165,7 +176,75 @@ class Driver(Elaboratable):
 
             ###################
             # MTMSR
+            # Specs found on V3.0B, page 977.
             ###################
+
+            with m.Case(MicrOp.OP_MTMSR):
+                comb += expected_msr.eq(msr_i)    # will copy and override
+
+                with m.If(L == 0):
+                    comb += [
+                        field(expected_msr, 48).eq(F(rs, 48) | F(rs, 49)),
+                        field(expected_msr, 58).eq(F(rs, 58) | F(rs, 49)),
+                        field(expected_msr, 59).eq(F(rs, 59) | F(rs, 49)),
+                        field(expected_msr, 32, 47).eq(field(rs, 32, 47)),
+                        field(expected_msr, 49, 50).eq(field(rs, 49, 50)),
+                        field(expected_msr, 52, 57).eq(field(rs, 52, 57)),
+                        field(expected_msr, 60, 62).eq(field(rs, 60, 62)),
+                    ]
+                with m.Else():
+                    comb += [
+                        field(expected_msr, 48).eq(field(rs, 48)),
+                        field(expected_msr, 62).eq(field(rs, 62)),
+                    ]
+
+                comb += [
+                    Assert(msr_o.data == expected_msr),
+                    Assert(msr_o.ok),
+                ]
+
+            ###################
+            # MTMSRD
+            # Specs found on V3.0B, page 978.
+            ###################
+
+            with m.Case(MicrOp.OP_MTMSRD):
+                comb += expected_msr.eq(msr_i)    # will copy and override
+
+                with m.If(L == 0):
+                    with m.If((field(msr_i, 29, 31) != 0b010) |
+                              (field(rs, 29, 31) != 0b000)):
+                        comb += field(expected_msr, 29, 31).eq(F(rs, 29, 31)),
+
+                    comb += [
+                        field(expected_msr, 48).eq(F(rs, 48) | F(rs, 49)),
+                        field(expected_msr, 58).eq(F(rs, 58) | F(rs, 49)),
+                        field(expected_msr, 59).eq(F(rs, 59) | F(rs, 49)),
+                        field(expected_msr, 0, 2).eq(field(rs, 0, 2)),
+
+                        # Ambiguity in specification on page 978 of V3.0B:
+                        # MSR[4:28] <- RS[4 6:28].
+                        #
+                        # I've decided to follow the prose in the programmer
+                        # note just underneath the typographical ambiguity.
+                        # MSR[4:28] <- RS[4:28].
+                        field(expected_msr, 4, 28).eq(field(rs, 4, 28)),
+
+                        field(expected_msr, 32, 47).eq(field(rs, 32, 47)),
+                        field(expected_msr, 49, 50).eq(field(rs, 49, 50)),
+                        field(expected_msr, 52, 57).eq(field(rs, 52, 57)),
+                        field(expected_msr, 60, 62).eq(field(rs, 60, 62)),
+                    ]
+                with m.Else():
+                    comb += [
+                        field(expected_msr, 48).eq(field(rs, 48)),
+                        field(expected_msr, 62).eq(field(rs, 62)),
+                    ]
+
+                comb += [
+                    Assert(msr_o.data == expected_msr),
+                    Assert(msr_o.ok),
+                ]
 
             ###################
             # MFMSR
@@ -235,7 +314,6 @@ class Driver(Elaboratable):
             # SC.  v3.0B p952
             #################
             with m.Case(MicrOp.OP_SC):
-                expected_msr = Signal(len(msr_o.data))
                 comb += expected_msr.eq(op.msr)
                 # Unless otherwise documented, these exceptions to the MSR bits
                 # are documented in Power ISA V3.0B, page 1063 or 1064.
