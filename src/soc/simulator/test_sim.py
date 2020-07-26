@@ -203,6 +203,15 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4], initial_mem)
 
+    def test_nop(self):
+        lst = ["addi 1, 0, 0x1004",
+               "nop",
+               "addi 3, 0, 0x15eb",
+              ]
+        initial_regs = [0] * 32
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [1, 3])
+
     def test_loop(self):
         """in godbolt.org:
         register unsigned long i asm ("r12");
