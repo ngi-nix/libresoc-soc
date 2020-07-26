@@ -171,6 +171,138 @@ class TestRunner(FHDLTestCase):
         self.funit = funit
         self.bigendian = bigendian
 
+    def execute(self, cu, instruction, pdecode2, simdec2, test):
+
+        program = test.program
+        print("test", test.name, test.mem)
+        gen = list(program.generate_instructions())
+        insncode = program.assembly.splitlines()
+        instructions = list(zip(gen, insncode))
+        sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
+                  test.msr,
+                  initial_insns=gen, respect_pc=True,
+                  disassembly=insncode,
+                  bigendian=self.bigendian)
+
+        # initialise memory
+        if self.funit == Function.LDST:
+            yield from setup_test_memory(l0, sim)
+
+        pc = sim.pc.CIA.value
+        index = pc//4
+        msr = sim.msr.value
+        while True:
+            print("instr pc", pc)
+            try:
+                yield from sim.setup_one()
+            except KeyError:  # indicates instruction not in imem: stop
+                break
+            yield Settle()
+            ins, code = instructions[index]
+            print("instruction @", index, code)
+
+            # ask the decoder to decode this binary data (endian'd)
+            yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
+            yield pdecode2.msr.eq(msr)  # set MSR "state"
+            yield pdecode2.cia.eq(pc)  # set PC "state"
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Settle()
+            # debugging issue with branch
+            if self.funit == Function.BRANCH:
+                lk = yield pdecode2.e.do.lk
+                fast_out2 = yield pdecode2.e.write_fast2.data
+                fast_out2_ok = yield pdecode2.e.write_fast2.ok
+                print("lk:", lk, fast_out2, fast_out2_ok)
+                op_lk = yield cu.alu.pipe1.p.data_i.ctx.op.lk
+                print("op_lk:", op_lk)
+                print(dir(cu.alu.pipe1.n.data_o))
+            fn_unit = yield pdecode2.e.do.fn_unit
+            fuval = self.funit.value
+            self.assertEqual(fn_unit & fuval, fuval)
+
+            # set operand and get inputs
+            yield from set_operand(cu, pdecode2, sim)
+            # reset read-operand mask
+            rdmask = pdecode2.rdflags(cu)
+            #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
+            #print ("decoder rdmask", rdmask)
+            yield cu.rdmaskn.eq(~rdmask)
+
+            yield Settle()
+            iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
+            inp = get_inp_indexed(cu, iname)
+
+            # reset write-operand mask
+            for idx in range(cu.n_dst):
+                wrok = cu.get_out(idx)
+                fname = find_ok(wrok.fields)
+                yield getattr(wrok, fname).eq(0)
+
+            yield Settle()
+
+            # set inputs into CU
+            rd_rel_o = yield cu.rd.rel
+            wr_rel_o = yield cu.wr.rel
+            print("before inputs, rd_rel, wr_rel: ",
+                  bin(rd_rel_o), bin(wr_rel_o))
+            assert wr_rel_o == 0, "wr.rel %s must be zero. "\
+                "previous instr not written all regs\n"\
+                "respec %s" % \
+                (bin(wr_rel_o), cu.rwid[1])
+            yield from set_cu_inputs(cu, inp)
+            rd_rel_o = yield cu.rd.rel
+            wr_rel_o = yield cu.wr.rel
+            wrmask = yield cu.wrmask
+            print("after inputs, rd_rel, wr_rel, wrmask: ",
+                  bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
+
+            # call simulated operation
+            yield from sim.execute_one()
+            yield Settle()
+            pc = sim.pc.CIA.value
+            index = pc//4
+            msr = sim.msr.value
+
+            # get all outputs (one by one, just "because")
+            res = yield from get_cu_outputs(cu, code)
+            wrmask = yield cu.wrmask
+            rd_rel_o = yield cu.rd.rel
+            wr_rel_o = yield cu.wr.rel
+            print("after got outputs, rd_rel, wr_rel, wrmask: ",
+                  bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
+
+            # wait for busy to go low
+            while True:
+                busy_o = yield cu.busy_o
+                print("busy", busy_o)
+                if not busy_o:
+                    break
+                yield
+
+            # reset read-mask.  IMPORTANT when there are no operands
+            yield cu.rdmaskn.eq(0)
+            yield
+
+            # debugging issue with branch
+            if self.funit == Function.BRANCH:
+                lr = yield cu.alu.pipe1.n.data_o.lr.data
+                lr_ok = yield cu.alu.pipe1.n.data_o.lr.ok
+                print("lr:", hex(lr), lr_ok)
+
+            if self.funit == Function.LDST:
+                yield from dump_sim_memory(self, l0, sim, code)
+
+            # sigh.  hard-coded.  test memory
+            if self.funit == Function.LDST:
+                yield from check_sim_memory(self, l0, sim, code)
+                yield from self.iodef.check_cu_outputs(res, pdecode2,
+                                                       sim, cu,
+                                                       code)
+            else:
+                yield from self.iodef.check_cu_outputs(res, pdecode2,
+                                                       sim, cu.alu,
+                                                       code)
+
     def run_all(self):
         m = Module()
         comb = m.d.comb
@@ -209,136 +341,10 @@ class TestRunner(FHDLTestCase):
 
             for test in self.test_data:
                 print(test.name)
-                program = test.program
-                self.subTest(test.name)
-                print("test", test.name, test.mem)
-                gen = list(program.generate_instructions())
-                insncode = program.assembly.splitlines()
-                instructions = list(zip(gen, insncode))
-                sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr,
-                          initial_insns=gen, respect_pc=True,
-                          disassembly=insncode,
-                          bigendian=self.bigendian)
-
-                # initialise memory
-                if self.funit == Function.LDST:
-                    yield from setup_test_memory(l0, sim)
-
-                pc = sim.pc.CIA.value
-                index = pc//4
-                msr = sim.msr.value
-                while True:
-                    print("instr pc", pc)
-                    try:
-                        yield from sim.setup_one()
-                    except KeyError:  # indicates instruction not in imem: stop
-                        break
-                    yield Settle()
-                    ins, code = instructions[index]
-                    print("instruction @", index, code)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
-                    yield pdecode2.msr.eq(msr)  # set MSR "state"
-                    yield pdecode2.cia.eq(pc)  # set PC "state"
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    # debugging issue with branch
-                    if self.funit == Function.BRANCH:
-                        lk = yield pdecode2.e.do.lk
-                        fast_out2 = yield pdecode2.e.write_fast2.data
-                        fast_out2_ok = yield pdecode2.e.write_fast2.ok
-                        print("lk:", lk, fast_out2, fast_out2_ok)
-                        op_lk = yield cu.alu.pipe1.p.data_i.ctx.op.lk
-                        print("op_lk:", op_lk)
-                        print(dir(cu.alu.pipe1.n.data_o))
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    fuval = self.funit.value
-                    self.assertEqual(fn_unit & fuval, fuval)
-
-                    # set operand and get inputs
-                    yield from set_operand(cu, pdecode2, sim)
-                    # reset read-operand mask
-                    rdmask = pdecode2.rdflags(cu)
-                    #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
-                    #print ("decoder rdmask", rdmask)
-                    yield cu.rdmaskn.eq(~rdmask)
-
-                    yield Settle()
-                    iname = yield from self.iodef.get_cu_inputs(pdecode2, sim)
-                    inp = get_inp_indexed(cu, iname)
-
-                    # reset write-operand mask
-                    for idx in range(cu.n_dst):
-                        wrok = cu.get_out(idx)
-                        fname = find_ok(wrok.fields)
-                        yield getattr(wrok, fname).eq(0)
-
-                    yield Settle()
-
-                    # set inputs into CU
-                    rd_rel_o = yield cu.rd.rel
-                    wr_rel_o = yield cu.wr.rel
-                    print("before inputs, rd_rel, wr_rel: ",
-                          bin(rd_rel_o), bin(wr_rel_o))
-                    assert wr_rel_o == 0, "wr.rel %s must be zero. "\
-                        "previous instr not written all regs\n"\
-                        "respec %s" % \
-                        (bin(wr_rel_o), cu.rwid[1])
-                    yield from set_cu_inputs(cu, inp)
-                    rd_rel_o = yield cu.rd.rel
-                    wr_rel_o = yield cu.wr.rel
-                    wrmask = yield cu.wrmask
-                    print("after inputs, rd_rel, wr_rel, wrmask: ",
-                          bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
-
-                    # call simulated operation
-                    yield from sim.execute_one()
-                    yield Settle()
-                    pc = sim.pc.CIA.value
-                    index = pc//4
-                    msr = sim.msr.value
-
-                    # get all outputs (one by one, just "because")
-                    res = yield from get_cu_outputs(cu, code)
-                    wrmask = yield cu.wrmask
-                    rd_rel_o = yield cu.rd.rel
-                    wr_rel_o = yield cu.wr.rel
-                    print("after got outputs, rd_rel, wr_rel, wrmask: ",
-                          bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
-
-                    # wait for busy to go low
-                    while True:
-                        busy_o = yield cu.busy_o
-                        print("busy", busy_o)
-                        if not busy_o:
-                            break
-                        yield
-
-                    # reset read-mask.  IMPORTANT when there are no operands
-                    yield cu.rdmaskn.eq(0)
-                    yield
-
-                    # debugging issue with branch
-                    if self.funit == Function.BRANCH:
-                        lr = yield cu.alu.pipe1.n.data_o.lr.data
-                        lr_ok = yield cu.alu.pipe1.n.data_o.lr.ok
-                        print("lr:", hex(lr), lr_ok)
-
-                    if self.funit == Function.LDST:
-                        yield from dump_sim_memory(self, l0, sim, code)
-
-                    # sigh.  hard-coded.  test memory
-                    if self.funit == Function.LDST:
-                        yield from check_sim_memory(self, l0, sim, code)
-                        yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                               sim, cu,
-                                                               code)
-                    else:
-                        yield from self.iodef.check_cu_outputs(res, pdecode2,
-                                                               sim, cu.alu,
-                                                               code)
+                with self.subTest(test.name):
+                    yield from self.execute(cu, instruction,
+                                            pdecode2, simdec2,
+                                            test)
 
         sim.add_sync_process(process)
 
