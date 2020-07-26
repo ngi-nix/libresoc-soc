@@ -59,7 +59,7 @@ class LDSTTestRunner(TestRunner):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(LDSTTestRunner(LDSTTestCase.test_data))
+    suite.addTest(LDSTTestRunner(LDSTTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

@@ -1,6 +1,5 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import special_sprs
@@ -13,7 +12,7 @@ from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 
-from soc.fu.test.common import TestCase
+from soc.fu.test.common import TestAccumulatorBase, TestCase
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 import random
 
@@ -50,20 +49,9 @@ def get_cu_inputs(dec2, sim):
     return res
 
 
-class LDSTTestCase(FHDLTestCase):
-    test_data = []
+class LDSTTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None,
-                        initial_sprs=None, initial_mem=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs,
-                      mem=initial_mem)
-        self.test_data.append(tc)
-
-    def test_1_load(self):
+    def case_1_load(self):
         lst = ["lhz 3, 0(1)"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x0004
@@ -72,10 +60,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_2_load_store(self):
+    def case_2_load_store(self):
         lst = [
                "stb 3, 1(2)",
                "lbz 4, 1(2)",
@@ -88,10 +76,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_3_load_store(self):
+    def case_3_load_store(self):
         lst = ["sth 4, 0(2)",
                "lhz 4, 0(2)"]
         initial_regs = [0] * 32
@@ -102,10 +90,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_4_load_store_rev_ext(self):
+    def case_4_load_store_rev_ext(self):
         lst = ["stwx 1, 4, 2",
                "lwbrx 3, 4, 2"]
         initial_regs = [0] * 32
@@ -116,10 +104,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_5_load_store_rev_ext(self):
+    def case_5_load_store_rev_ext(self):
         lst = ["stwbrx 1, 4, 2",
                "lwzx 3, 4, 2"]
         initial_regs = [0] * 32
@@ -130,10 +118,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_6_load_store_rev_ext(self):
+    def case_6_load_store_rev_ext(self):
         lst = ["stwbrx 1, 4, 2",
                "lwbrx 3, 4, 2"]
         initial_regs = [0] * 32
@@ -144,10 +132,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_7_load_store_d(self):
+    def case_7_load_store_d(self):
         lst = [
                "std 3, 0(2)",
                "ld 4, 0(2)",
@@ -160,10 +148,10 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
-    def test_8_load_store_d_update(self):
+    def case_8_load_store_d_update(self):
         lst = [
                "stdu 3, 0(2)",
                "ld 4, 0(2)",
@@ -176,6 +164,6 @@ class LDSTTestCase(FHDLTestCase):
                        0x0008: (0xabcdef0187654321, 8),
                        0x0020: (0x1828384822324252, 8),
                         }
-        self.run_tst_program(Program(lst, bigendian), initial_regs,
+        self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 

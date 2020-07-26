@@ -171,7 +171,7 @@ class TestRunner(FHDLTestCase):
         self.funit = funit
         self.bigendian = bigendian
 
-    def execute(self, cu, instruction, pdecode2, simdec2, test):
+    def execute(self, cu, l0, instruction, pdecode2, simdec2, test):
 
         program = test.program
         print("test", test.name, test.mem)
@@ -329,6 +329,7 @@ class TestRunner(FHDLTestCase):
             m.d.comb += cu.st.go.eq(cu.st.rel)  # link store-go direct to rel
         else:
             m.submodules.cu = cu = self.fukls(0)
+            l0 = None
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -342,7 +343,7 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
                 print(test.name)
                 with self.subTest(test.name):
-                    yield from self.execute(cu, instruction,
+                    yield from self.execute(cu, l0, instruction,
                                             pdecode2, simdec2,
                                             test)
 
