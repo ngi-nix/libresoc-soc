@@ -1,6 +1,5 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
@@ -12,7 +11,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import (TestCase, ALUHelpers)
+from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
 import random
@@ -64,81 +63,72 @@ def set_alu_inputs(alu, dec2, sim):
 # takes around 3 seconds
 
 
-class MulTestCase(FHDLTestCase):
-    test_data = []
+class MulTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None):
-        tc = TestCase(prog, self.test_name, initial_regs, initial_sprs)
-        self.test_data.append(tc)
-
-    def test_0_mullw(self):
+    def case_0_mullw(self):
         lst = [f"mullw 3, 1, 2"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0xffffffffffffffff
         #initial_regs[2] = 0xffffffffffffffff
         initial_regs[1] = 0x2ffffffff
         initial_regs[2] = 0x2
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_1_mullwo_(self):
+    def case_1_mullwo_(self):
         lst = [f"mullwo. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3b34b06f
         initial_regs[2] = 0xfdeba998
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_2_mullwo(self):
+    def case_2_mullwo(self):
         lst = [f"mullwo 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffffffa988  # -5678
         initial_regs[2] = 0xffffffffffffedcc  # -1234
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_3_mullw(self):
+    def case_3_mullw(self):
         lst = ["mullw 3, 1, 2",
                "mullw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x6
         initial_regs[2] = 0xe
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_4_mullw_rand(self):
+    def case_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_4_mullw_nonrand(self):
+    def case_4_mullw_nonrand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = i+1
             initial_regs[2] = i+20
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_mulhw__regression_1(self):
+    def case_mulhw__regression_1(self):
         lst = ["mulhw. 3, 1, 2"
                ]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7745b36eca6646fa
         initial_regs[2] = 0x47dfba3a63834ba2
-        self.run_tst_program(Program(lst, bigendian), initial_regs)
+        self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_4_mullw_rand(self):
+    def case_4_mullw_rand(self):
         for i in range(40):
             lst = ["mullw 3, 1, 2"]
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_mul_lh(self):
+    def case_rand_mul_lh(self):
         insns = ["mulhw", "mulhw.", "mulhwu", "mulhwu."]
         for i in range(40):
             choice = random.choice(insns)
@@ -146,9 +136,9 @@ class MulTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_mullw(self):
+    def case_rand_mullw(self):
         insns = ["mullw", "mullw.", "mullwo", "mullwo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -156,9 +146,9 @@ class MulTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_mulld(self):
+    def case_rand_mulld(self):
         insns = ["mulld", "mulld.", "mulldo", "mulldo."]
         for i in range(40):
             choice = random.choice(insns)
@@ -166,9 +156,9 @@ class MulTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_rand_mulhd(self):
+    def case_rand_mulhd(self):
         insns = ["mulhd", "mulhd."]
         for i in range(40):
             choice = random.choice(insns)
@@ -176,9 +166,9 @@ class MulTestCase(FHDLTestCase):
             initial_regs = [0] * 32
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs)
+            self.add_case(Program(lst, bigendian), initial_regs)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
         alu = MulBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -186,7 +176,7 @@ class MulTestCase(FHDLTestCase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
@@ -307,7 +297,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(MulTestCase.test_data))
+    suite.addTest(TestRunner(MulTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
