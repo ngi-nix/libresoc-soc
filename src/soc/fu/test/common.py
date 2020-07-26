@@ -19,9 +19,11 @@ class TestAccumulatorBase:
             if n.startswith("case_") and callable(v):
                 v(self)
 
-    def add_case(self, prog, initial_regs=None, initial_sprs=None):
+    def add_case(self, prog, initial_regs=None, initial_sprs=None,
+                        initial_cr=0):
         test_name = inspect.stack()[1][3] # name of caller of this function
-        tc = TestCase(prog, test_name, initial_regs, initial_sprs)
+        tc = TestCase(prog, test_name, 
+                      regs=initial_regs, sprs=initial_sprs, cr=initial_cr)
         self.test_data.append(tc)
 
 

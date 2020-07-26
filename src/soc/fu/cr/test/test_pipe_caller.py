@@ -12,7 +12,7 @@ from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestCase, ALUHelpers
+from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 import random
@@ -37,20 +37,9 @@ import random
 # takes around 3 seconds
 
 
-class CRTestCase(FHDLTestCase):
-    test_data = []
+class CRTestCase(TestAccumulatorBase):
 
-    def __init__(self, name):
-        super().__init__(name)
-        self.test_name = name
-
-    def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
-                        initial_cr=0):
-        tc = TestCase(prog, self.test_name,
-                      regs=initial_regs, sprs=initial_sprs, cr=initial_cr)
-        self.test_data.append(tc)
-
-    def test_crop(self):
+    def case_crop(self):
         insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
                  "crandc", "crorc"]
         for i in range(40):
@@ -60,62 +49,62 @@ class CRTestCase(FHDLTestCase):
             bt = random.randint(0, 31)
             lst = [f"{choice} {ba}, {bb}, {bt}"]
             cr = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_crand(self):
+    def case_crand(self):
         for i in range(20):
             lst = ["crand 0, 11, 13"]
             cr = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_1_mcrf(self):
+    def case_1_mcrf(self):
         for i in range(20):
             src = random.randint(0, 7)
             dst = random.randint(0, 7)
             lst = [f"mcrf {src}, {dst}"]
             cr = random.randint(0, (1 << 32)-1)
-        self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+        self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_0_mcrf(self):
+    def case_0_mcrf(self):
         for i in range(8):
             lst = [f"mcrf 5, {i}"]
             cr = 0xfeff0001
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_mtcrf(self):
+    def case_mtcrf(self):
         for i in range(20):
             mask = random.randint(0, 255)
             lst = [f"mtcrf {mask}, 2"]
             cr = random.randint(0, (1 << 32)-1)
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
+            self.add_case(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
 
-    def test_mtocrf(self):
+    def case_mtocrf(self):
         for i in range(20):
             mask = 1 << random.randint(0, 7)
             lst = [f"mtocrf {mask}, 2"]
             cr = random.randint(0, (1 << 32)-1)
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_regs=initial_regs,
+            self.add_case(Program(lst, bigendian), initial_regs=initial_regs,
                                  initial_cr=cr)
 
-    def test_mfcr(self):
+    def case_mfcr(self):
         for i in range(5):
             lst = ["mfcr 2"]
             cr = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_mfocrf(self):
+    def case_mfocrf(self):
         for i in range(20):
             mask = 1 << random.randint(0, 7)
             lst = [f"mfocrf 2, {mask}"]
             cr = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_isel(self):
+    def case_isel(self):
         for i in range(20):
             bc = random.randint(0, 31)
             lst = [f"isel 1, 2, 3, {bc}"]
@@ -125,22 +114,22 @@ class CRTestCase(FHDLTestCase):
             initial_regs[3] = random.randint(0, (1 << 64)-1)
             #initial_regs[2] = i*2
             #initial_regs[3] = i*2+1
-            self.run_tst_program(Program(lst, bigendian),
+            self.add_case(Program(lst, bigendian),
                                  initial_regs=initial_regs, initial_cr=cr)
 
-    def test_setb(self):
+    def case_setb(self):
         for i in range(20):
             bfa = random.randint(0, 7)
             lst = [f"setb 1, {bfa}"]
             cr = random.randint(0, (1 << 32)-1)
-            self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+            self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_regression_setb(self):
+    def case_regression_setb(self):
         lst = [f"setb 1, 6"]
         cr = random.randint(0, 0x66f6b106)
-        self.run_tst_program(Program(lst, bigendian), initial_cr=cr)
+        self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def test_ilang(self):
+    def case_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
         alu = CRBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
@@ -295,7 +284,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(CRTestCase.test_data))
+    suite.addTest(TestRunner(CRTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
