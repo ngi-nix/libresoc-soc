@@ -1,6 +1,5 @@
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay, Settle
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import ISACaller, special_sprs
@@ -180,7 +179,7 @@ def get_cu_inputs(dec2, sim):
     return res
 
 
-class TestRunner(FHDLTestCase):
+class TestRunner(unittest.TestCase):
     def __init__(self, test_data):
         super().__init__("run_all")
         self.test_data = test_data
