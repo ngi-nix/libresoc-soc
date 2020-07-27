@@ -51,8 +51,9 @@ class Driver(Elaboratable):
 
         comb += op.eq(rec)
 
-        expected_msr = Signal(len(msr_o.data))
-        expected_srr1 = Signal(len(srr1_o.data))
+        # expected values
+        exp_msr = Signal(len(msr_o.data))
+        exp_srr1 = Signal(len(srr1_o.data))
 
         d_fields = dut.fields.FormD
         sc_fields = dut.fields.FormSC
@@ -117,21 +118,21 @@ class Driver(Elaboratable):
                 comb += take_trap.eq(traptype.any() | (trapbits & to).any())
 
                 with m.If(take_trap):
-                    comb += expected_msr.eq(op.msr)
+                    comb += exp_msr.eq(op.msr)
 
-                    comb += field(expected_msr, MSRb.IR).eq(0)
-                    comb += field(expected_msr, MSRb.DR).eq(0)
-                    comb += field(expected_msr, MSRb.FE0).eq(0)
-                    comb += field(expected_msr, MSRb.FE1).eq(0)
-                    comb += field(expected_msr, MSRb.EE).eq(0)
-                    comb += field(expected_msr, MSRb.RI).eq(0)
-                    comb += field(expected_msr, MSRb.SF).eq(1)
-                    comb += field(expected_msr, MSRb.TM).eq(0)
-                    comb += field(expected_msr, MSRb.VEC).eq(0)
-                    comb += field(expected_msr, MSRb.VSX).eq(0)
-                    comb += field(expected_msr, MSRb.PR).eq(0)
-                    comb += field(expected_msr, MSRb.FP).eq(0)
-                    comb += field(expected_msr, MSRb.PMM).eq(0)
+                    comb += field(exp_msr, MSRb.IR).eq(0)
+                    comb += field(exp_msr, MSRb.DR).eq(0)
+                    comb += field(exp_msr, MSRb.FE0).eq(0)
+                    comb += field(exp_msr, MSRb.FE1).eq(0)
+                    comb += field(exp_msr, MSRb.EE).eq(0)
+                    comb += field(exp_msr, MSRb.RI).eq(0)
+                    comb += field(exp_msr, MSRb.SF).eq(1)
+                    comb += field(exp_msr, MSRb.TM).eq(0)
+                    comb += field(exp_msr, MSRb.VEC).eq(0)
+                    comb += field(exp_msr, MSRb.VSX).eq(0)
+                    comb += field(exp_msr, MSRb.PR).eq(0)
+                    comb += field(exp_msr, MSRb.FP).eq(0)
+                    comb += field(exp_msr, MSRb.PMM).eq(0)
 
                     # still wrong.
                     # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
@@ -147,29 +148,29 @@ class Driver(Elaboratable):
                     #
                     # Also put proof in py-doc for field().
 
-                    comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
+                    comb += field(exp_msr, MSRb.TEs, MSRb.TEe).eq(0)
 
-                    comb += field(expected_msr, MSRb.UND).eq(0)
-                    comb += field(expected_msr, MSRb.LE).eq(1)
+                    comb += field(exp_msr, MSRb.UND).eq(0)
+                    comb += field(exp_msr, MSRb.LE).eq(1)
 
-                    comb += expected_srr1.eq(op.msr)
+                    comb += exp_srr1.eq(op.msr)
 
                     # Per V3.0B, page 1075
-                    comb += field(expected_srr1, 33, 36).eq(0)
-                    comb += field(expected_srr1, 42).eq(0)  # TM_BAD_THING
-                    comb += field(expected_srr1, 43).eq(traptype[0])    # FP
-                    comb += field(expected_srr1, 44).eq(traptype[4])    # ILLEG
-                    comb += field(expected_srr1, 45).eq(traptype[1])    # PRIV
-                    comb += field(expected_srr1, 46).eq(traptype == 0)  # TRAP
-                    comb += field(expected_srr1, 47).eq(traptype[3])    # ADDR
+                    comb += field(exp_srr1, 33, 36).eq(0)
+                    comb += field(exp_srr1, 42).eq(0)  # TM_BAD_THING
+                    comb += field(exp_srr1, 43).eq(traptype[0])    # FP
+                    comb += field(exp_srr1, 44).eq(traptype[4])    # ILLEG
+                    comb += field(exp_srr1, 45).eq(traptype[1])    # PRIV
+                    comb += field(exp_srr1, 46).eq(traptype == 0)  # TRAP
+                    comb += field(exp_srr1, 47).eq(traptype[3])    # ADDR
 
                     comb += [
                         Assert(msr_o.ok),
-                        Assert(msr_o.data == expected_msr),
+                        Assert(msr_o.data == exp_msr),
                         Assert(srr0_o.ok),
                         Assert(srr0_o.data == op.cia),
                         Assert(srr1_o.ok),
-                        Assert(srr1_o.data == expected_srr1),
+                        Assert(srr1_o.data == exp_srr1),
                         Assert(nia_o.ok),
                         Assert(nia_o.data == op.trapaddr << 4),
                     ]
@@ -180,26 +181,26 @@ class Driver(Elaboratable):
             ###################
 
             with m.Case(MicrOp.OP_MTMSR):
-                comb += expected_msr.eq(msr_i)    # will copy and override
+                comb += exp_msr.eq(msr_i)    # will copy and override
 
                 with m.If(L == 0):
                     comb += [
-                        field(expected_msr, 48).eq(F(rs, 48) | F(rs, 49)),
-                        field(expected_msr, 58).eq(F(rs, 58) | F(rs, 49)),
-                        field(expected_msr, 59).eq(F(rs, 59) | F(rs, 49)),
-                        field(expected_msr, 32, 47).eq(field(rs, 32, 47)),
-                        field(expected_msr, 49, 50).eq(field(rs, 49, 50)),
-                        field(expected_msr, 52, 57).eq(field(rs, 52, 57)),
-                        field(expected_msr, 60, 62).eq(field(rs, 60, 62)),
+                        field(exp_msr, 48).eq(F(rs, 48) | F(rs, 49)),
+                        field(exp_msr, 58).eq(F(rs, 58) | F(rs, 49)),
+                        field(exp_msr, 59).eq(F(rs, 59) | F(rs, 49)),
+                        field(exp_msr, 32, 47).eq(field(rs, 32, 47)),
+                        field(exp_msr, 49, 50).eq(field(rs, 49, 50)),
+                        field(exp_msr, 52, 57).eq(field(rs, 52, 57)),
+                        field(exp_msr, 60, 62).eq(field(rs, 60, 62)),
                     ]
                 with m.Else():
                     comb += [
-                        field(expected_msr, 48).eq(field(rs, 48)),
-                        field(expected_msr, 62).eq(field(rs, 62)),
+                        field(exp_msr, 48).eq(field(rs, 48)),
+                        field(exp_msr, 62).eq(field(rs, 62)),
                     ]
 
                 comb += [
-                    Assert(msr_o.data == expected_msr),
+                    Assert(msr_o.data == exp_msr),
                     Assert(msr_o.ok),
                 ]
 
@@ -209,18 +210,18 @@ class Driver(Elaboratable):
             ###################
 
             with m.Case(MicrOp.OP_MTMSRD):
-                comb += expected_msr.eq(msr_i)    # will copy and override
+                comb += exp_msr.eq(msr_i)    # will copy and override
 
                 with m.If(L == 0):
                     with m.If((field(msr_i, 29, 31) != 0b010) |
                               (field(rs, 29, 31) != 0b000)):
-                        comb += field(expected_msr, 29, 31).eq(F(rs, 29, 31)),
+                        comb += field(exp_msr, 29, 31).eq(F(rs, 29, 31)),
 
                     comb += [
-                        field(expected_msr, 48).eq(F(rs, 48) | F(rs, 49)),
-                        field(expected_msr, 58).eq(F(rs, 58) | F(rs, 49)),
-                        field(expected_msr, 59).eq(F(rs, 59) | F(rs, 49)),
-                        field(expected_msr, 0, 2).eq(field(rs, 0, 2)),
+                        field(exp_msr, 48).eq(F(rs, 48) | F(rs, 49)),
+                        field(exp_msr, 58).eq(F(rs, 58) | F(rs, 49)),
+                        field(exp_msr, 59).eq(F(rs, 59) | F(rs, 49)),
+                        field(exp_msr, 0, 2).eq(field(rs, 0, 2)),
 
                         # Ambiguity in specification on page 978 of V3.0B:
                         # MSR[4:28] <- RS[4 6:28].
@@ -228,21 +229,21 @@ class Driver(Elaboratable):
                         # I've decided to follow the prose in the programmer
                         # note just underneath the typographical ambiguity.
                         # MSR[4:28] <- RS[4:28].
-                        field(expected_msr, 4, 28).eq(field(rs, 4, 28)),
+                        field(exp_msr, 4, 28).eq(field(rs, 4, 28)),
 
-                        field(expected_msr, 32, 47).eq(field(rs, 32, 47)),
-                        field(expected_msr, 49, 50).eq(field(rs, 49, 50)),
-                        field(expected_msr, 52, 57).eq(field(rs, 52, 57)),
-                        field(expected_msr, 60, 62).eq(field(rs, 60, 62)),
+                        field(exp_msr, 32, 47).eq(field(rs, 32, 47)),
+                        field(exp_msr, 49, 50).eq(field(rs, 49, 50)),
+                        field(exp_msr, 52, 57).eq(field(rs, 52, 57)),
+                        field(exp_msr, 60, 62).eq(field(rs, 60, 62)),
                     ]
                 with m.Else():
                     comb += [
-                        field(expected_msr, 48).eq(field(rs, 48)),
-                        field(expected_msr, 62).eq(field(rs, 62)),
+                        field(exp_msr, 48).eq(field(rs, 48)),
+                        field(exp_msr, 62).eq(field(rs, 62)),
                     ]
 
                 comb += [
-                    Assert(msr_o.data == expected_msr),
+                    Assert(msr_o.data == exp_msr),
                     Assert(msr_o.ok),
                 ]
 
@@ -314,27 +315,27 @@ class Driver(Elaboratable):
             # SC.  v3.0B p952
             #################
             with m.Case(MicrOp.OP_SC):
-                comb += expected_msr.eq(op.msr)
+                comb += exp_msr.eq(op.msr)
                 # Unless otherwise documented, these exceptions to the MSR bits
                 # are documented in Power ISA V3.0B, page 1063 or 1064.
                 # We are not supporting hypervisor or transactional semantics,
                 # so we skip enforcing those fields' properties.
-                comb += field(expected_msr, MSRb.IR).eq(0)
-                comb += field(expected_msr, MSRb.DR).eq(0)
-                comb += field(expected_msr, MSRb.FE0).eq(0)
-                comb += field(expected_msr, MSRb.FE1).eq(0)
-                comb += field(expected_msr, MSRb.EE).eq(0)
-                comb += field(expected_msr, MSRb.RI).eq(0)
-                comb += field(expected_msr, MSRb.SF).eq(1)
-                comb += field(expected_msr, MSRb.TM).eq(0)
-                comb += field(expected_msr, MSRb.VEC).eq(0)
-                comb += field(expected_msr, MSRb.VSX).eq(0)
-                comb += field(expected_msr, MSRb.PR).eq(0)
-                comb += field(expected_msr, MSRb.FP).eq(0)
-                comb += field(expected_msr, MSRb.PMM).eq(0)
-                comb += field(expected_msr, MSRb.TEs, MSRb.TEe).eq(0)
-                comb += field(expected_msr, MSRb.UND).eq(0)
-                comb += field(expected_msr, MSRb.LE).eq(1)
+                comb += field(exp_msr, MSRb.IR).eq(0)
+                comb += field(exp_msr, MSRb.DR).eq(0)
+                comb += field(exp_msr, MSRb.FE0).eq(0)
+                comb += field(exp_msr, MSRb.FE1).eq(0)
+                comb += field(exp_msr, MSRb.EE).eq(0)
+                comb += field(exp_msr, MSRb.RI).eq(0)
+                comb += field(exp_msr, MSRb.SF).eq(1)
+                comb += field(exp_msr, MSRb.TM).eq(0)
+                comb += field(exp_msr, MSRb.VEC).eq(0)
+                comb += field(exp_msr, MSRb.VSX).eq(0)
+                comb += field(exp_msr, MSRb.PR).eq(0)
+                comb += field(exp_msr, MSRb.FP).eq(0)
+                comb += field(exp_msr, MSRb.PMM).eq(0)
+                comb += field(exp_msr, MSRb.TEs, MSRb.TEe).eq(0)
+                comb += field(exp_msr, MSRb.UND).eq(0)
+                comb += field(exp_msr, MSRb.LE).eq(1)
 
                 comb += [
                     Assert(dut.o.srr0.ok),
@@ -348,7 +349,7 @@ class Driver(Elaboratable):
                     Assert(field(srr1_o, 37, 41) == field(msr_i, 37, 41)),
                     Assert(field(srr1_o, 48, 63) == field(msr_i, 48, 63)),
 
-                    Assert(msr_o.data == expected_msr),
+                    Assert(msr_o.data == exp_msr),
                 ]
 
         comb += dut.i.ctx.matches(dut.o.ctx)
