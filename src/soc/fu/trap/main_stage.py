@@ -217,8 +217,15 @@ class TrapMainStage(PipeModBase):
                     # Architecture says to leave out bits 3 (HV), 51 (ME)
                     # and 63 (LE) (IBM bit numbering)
                     with m.If(op.insn_type == MicrOp.OP_MTMSRD):
+                        # not MSB0 notation here!
                         for stt, end in [(1,12), (13, 60), (61, 64)]:
                             comb += msr_o.data[stt:end].eq(a_i[stt:end])
+                        # put *back* bits 29-31 (MSB0 notation)
+                        bits = field_slice(29, 31)
+                        with m.If((msr_i[bits] == Const(0b010, 3)) &
+                                  (a_i[bits] == Const(0b000, 3))):
+                            comb += msr_o.data[bits].eq(msr_i[bits])
+
                     with m.Else():
                         # mtmsr - 32-bit, only room for bottom 32 LSB flags
                         for stt, end in [(1,12), (13, 32)]:

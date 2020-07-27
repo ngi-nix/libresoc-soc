@@ -200,6 +200,7 @@ class Driver(Elaboratable):
                     ]
 
                 comb += [
+                    # L=1 only checks 48 and 62
                     Assert(msr_o.data == exp_msr),
                     Assert(msr_o.ok),
                 ]
@@ -210,42 +211,52 @@ class Driver(Elaboratable):
             ###################
 
             with m.Case(MicrOp.OP_MTMSRD):
-                comb += exp_msr.eq(msr_i)    # will copy and override
+                msr_od = msr_o.data
 
                 with m.If(L == 0):
+                    # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
+                    #     MSR[29:31] <- SRR1[29:31]
                     with m.If((field(msr_i, 29, 31) != 0b010) |
                               (field(rs, 29, 31) != 0b000)):
-                        comb += field(exp_msr, 29, 31).eq(F(rs, 29, 31)),
+                        comb += Assert(F(msr_od, 29, 31) == F(rs, 29, 31))
+                    with m.Else():
+                        comb += Assert(F(msr_od, 29, 31) == F(msr_i, 29, 31))
+
+                    # MSR[48] <- (RS)[48] | (RS)[49]
+                    # MSR[58] <- (RS)[58] | (RS)[49]
+                    # MSR[59] <- (RS)[59] | (RS)[49]
+                    PR = field(rs, 49) # alias/copy of SRR1 PR field
+                    comb += [
+                        Assert(field(msr_od, 48) == F(rs, 48) | PR),
+                        Assert(field(msr_od, 58) == F(rs, 58) | PR),
+                        Assert(field(msr_od, 59) == F(rs, 59) | PR),
+                    ]
 
                     comb += [
-                        field(exp_msr, 48).eq(F(rs, 48) | F(rs, 49)),
-                        field(exp_msr, 58).eq(F(rs, 58) | F(rs, 49)),
-                        field(exp_msr, 59).eq(F(rs, 59) | F(rs, 49)),
-                        field(exp_msr, 0, 2).eq(field(rs, 0, 2)),
-
-                        # Ambiguity in specification on page 978 of V3.0B:
-                        # MSR[4:28] <- RS[4 6:28].
+                        # XXX Ambiguity in specification on page 978 of V3.0B:
+                        #   MSR[4:28] <- RS[4 6:28].
                         #
                         # I've decided to follow the prose in the programmer
                         # note just underneath the typographical ambiguity.
-                        # MSR[4:28] <- RS[4:28].
-                        field(exp_msr, 4, 28).eq(field(rs, 4, 28)),
+                        #   MSR[4:28] <- RS[4:28].
 
-                        field(exp_msr, 32, 47).eq(field(rs, 32, 47)),
-                        field(exp_msr, 49, 50).eq(field(rs, 49, 50)),
-                        field(exp_msr, 52, 57).eq(field(rs, 52, 57)),
-                        field(exp_msr, 60, 62).eq(field(rs, 60, 62)),
+                        # range = 0:2 4:28 32:40 42:47 49:50 52:57 60:62
+                        # MSR[range] <- (RS)[range]
+                        Assert(field(msr_od, 0, 2) == field(rs, 0, 2)),
+                        Assert(field(msr_od, 4, 28) == field(rs, 4, 28)),
+                        Assert(field(msr_od, 32, 47) == field(rs, 32, 47)),
+                        Assert(field(msr_od, 49, 50) == field(rs, 49, 50)),
+                        Assert(field(msr_od, 52, 57) == field(rs, 52, 57)),
+                        Assert(field(msr_od, 60, 62) == field(rs, 60, 62)),
                     ]
                 with m.Else():
+                    # L=1 only checks 48 and 62
                     comb += [
-                        field(exp_msr, 48).eq(field(rs, 48)),
-                        field(exp_msr, 62).eq(field(rs, 62)),
+                        Assert(field(msr_od, 48) == field(rs, 48)),
+                        Assert(field(msr_od, 62) == field(rs, 62)),
                     ]
 
-                comb += [
-                    Assert(msr_o.data == exp_msr),
-                    Assert(msr_o.ok),
-                ]
+                comb += Assert(msr_o.ok)
 
             ###################
             # MFMSR
@@ -261,6 +272,7 @@ class Driver(Elaboratable):
             # RFID.  v3.0B p955
             ###################
             with m.Case(MicrOp.OP_RFID):
+                msr_od = msr_o.data
                 comb += [
                     Assert(msr_o.ok),
                     Assert(nia_o.ok),
@@ -272,40 +284,40 @@ class Driver(Elaboratable):
                 # numbering in (from pseudo-code) and add *comments* about
                 # which field it is (3 == HV etc.)
 
-                # spec: MSR[51] <- (MSR[3] & SRR1[51]) | ((¬MSR[3] & MSR[51]))
-                with m.If(field(msr_i, 3)): # HV
-                    comb += Assert(field(msr_o, 51) == field(srr1_i, 51)) # ME
-                with m.Else():
-                    comb += Assert(field(msr_o, 51) == field(msr_i, 51)) # ME
+                # spec: MSR[51] <- MSR[3] & SRR1[51]
+                comb += Assert(field(msr_o, 3) == field(srr1_i, 3))
 
                 # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
                 #     MSR[29:31] <- SRR1[29:31]
                 with m.If((field(msr_i , 29, 31) != 0b010) |
                           (field(srr1_i, 29, 31) != 0b000)):
-                    comb += Assert(field(msr_o.data, 29, 31) ==
-                                   field(srr1_i, 29, 31))
+                    comb += Assert(F(msr_od, 29, 31) == F(srr1_i, 29, 31))
                 with m.Else():
-                    comb += Assert(field(msr_o.data, 29, 31) ==
-                                   field(msr_i, 29, 31))
+                    comb += Assert(F(msr_od, 29, 31) == F(msr_i, 29, 31))
 
                 # check EE (48) IR (58), DR (59): PR (49) will over-ride
+                # MSR[48] <- (RS)[48] | (RS)[49]
+                # MSR[58] <- (RS)[58] | (RS)[49]
+                # MSR[59] <- (RS)[59] | (RS)[49]
                 PR = field(srr1_i, 49) # alias/copy of SRR1 PR field
                 comb += [
-                    Assert(field(msr_o, 48) == field(srr1_i, 48) | PR), # EE
-                    Assert(field(msr_o, 58) == field(srr1_i, 58) | PR), # IR
-                    Assert(field(msr_o, 59) == field(srr1_i, 59) | PR), # DR
+                    Assert(field(msr_od, 48) == field(srr1_i, 48) | PR),
+                    Assert(field(msr_od, 58) == field(srr1_i, 58) | PR),
+                    Assert(field(msr_od, 59) == field(srr1_i, 59) | PR),
                 ]
 
                 # remaining bits: straight copy.  don't know what these are:
                 # just trust the v3.0B spec is correct.
+                # range = 0:2 4:28 32:40 42:47 49:50 52:57 60:62
+                # MSR[range] <- (RS)[range]
                 comb += [
-                    Assert(field(msr_o, 0, 2) == field(srr1_i, 0, 2)),
-                    Assert(field(msr_o, 4, 28) == field(srr1_i, 4, 28)),
-                    Assert(field(msr_o, 32) == field(srr1_i, 32)),
-                    Assert(field(msr_o, 37, 41) == field(srr1_i, 37, 41)),
-                    Assert(field(msr_o, 49, 50) == field(srr1_i, 49, 50)),
-                    Assert(field(msr_o, 52, 57) == field(srr1_i, 52, 57)),
-                    Assert(field(msr_o, 60, 63) == field(srr1_i, 60, 63)),
+                    Assert(field(msr_od, 0, 2) == field(srr1_i, 0, 2)),
+                    Assert(field(msr_od, 4, 28) == field(srr1_i, 4, 28)),
+                    Assert(field(msr_od, 32) == field(srr1_i, 32)),
+                    Assert(field(msr_od, 37, 41) == field(srr1_i, 37, 41)),
+                    Assert(field(msr_od, 49, 50) == field(srr1_i, 49, 50)),
+                    Assert(field(msr_od, 52, 57) == field(srr1_i, 52, 57)),
+                    Assert(field(msr_od, 60, 63) == field(srr1_i, 60, 63)),
                 ]
 
                 # check NIA against SRR0.  2 LSBs are set to zero (word-align)
