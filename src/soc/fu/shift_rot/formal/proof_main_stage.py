@@ -13,8 +13,8 @@ from nmigen.cli import rtlil
 
 from soc.fu.shift_rot.main_stage import ShiftRotMainStage
 from soc.fu.shift_rot.rotator import right_mask, left_mask
-from soc.fu.alu.pipe_data import ALUPipeSpec
-from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
+from soc.fu.shift_rot.sr_input_record import CompSROpSubset
 from soc.decoder.power_enums import MicrOp
 import unittest
 from nmutil.extend import exts
@@ -31,12 +31,12 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        rec = CompALUOpSubset()
+        rec = CompSROpSubset()
         # Setup random inputs for dut.op
         for p in rec.ports():
             comb += p.eq(AnyConst(p.width))
 
-        pspec = ALUPipeSpec(id_wid=2)
+        pspec = ShiftRotPipeSpec(id_wid=2)
         m.submodules.dut = dut = ShiftRotMainStage(pspec)
 
         # convenience variables
@@ -47,6 +47,7 @@ class Driver(Elaboratable):
         carry_in32 = dut.i.xer_ca[1]
         carry_out = dut.o.xer_ca
         o = dut.o.o.data
+        print ("fields", rec.fields)
         itype = rec.insn_type
 
         # instruction fields
@@ -62,11 +63,9 @@ class Driver(Elaboratable):
         # copy operation
         comb += dut.i.ctx.op.eq(rec)
 
-        # Assert that op gets copied from the input to output
-        for rec_sig in rec.ports():
-            name = rec_sig.name
-            dut_sig = getattr(dut.o.ctx.op, name)
-            comb += Assert(dut_sig == rec_sig)
+        # check that the operation (op) is passed through (and muxid)
+        comb += Assert(dut.o.ctx.op == dut.i.ctx.op)
+        comb += Assert(dut.o.ctx.muxid == dut.i.ctx.muxid)
 
         # signed and signed/32 versions of input a
         a_signed = Signal(signed(64))
