@@ -15,10 +15,10 @@ class TestPipeIlang(unittest.TestCase):
     def test_div_pipe_core(self):
         self.write_ilang(DivPipeKind.DivPipeCore)
 
-    def test_div_pipe_core(self):
+    def test_fsm_div_core(self):
         self.write_ilang(DivPipeKind.FSMDivCore)
 
-    def test_div_pipe_core(self):
+    def test_sim_only(self):
         self.write_ilang(DivPipeKind.SimOnly)
 
 
