@@ -85,7 +85,7 @@ class DivTestCases(TestAccumulatorBase):
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
-    def case_8_fsm_regression(self): # FSM result is "36" not 6
+    def case_8_fsm_regression(self):  # FSM result is "36" not 6
         lst = ["divwu. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 18
@@ -93,7 +93,7 @@ class DivTestCases(TestAccumulatorBase):
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
-    def case_9_regression(self): # CR0 fails: expected 0b10, actual 0b11
+    def case_9_regression(self):  # CR0 fails: expected 0b10, actual 0b11
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
@@ -173,4 +173,3 @@ if __name__ == "__main__":
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
-

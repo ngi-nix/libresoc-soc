@@ -53,7 +53,5 @@ if __name__ == "__main__":
     suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.FSMDivCore))
     suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.SimOnly))
 
-
     runner = unittest.TextTestRunner()
     runner.run(suite)
-

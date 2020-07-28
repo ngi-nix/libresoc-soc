@@ -16,6 +16,7 @@ from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
 
 import power_instruction_analyzer as pia
 
+
 def log_rand(n, min_val=1):
     logrange = random.randint(1, n)
     return random.randint(min_val, (1 << logrange)-1)
@@ -100,7 +101,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 class DivRunner(unittest.TestCase):
     def __init__(self, test_data, div_pipe_kind=None):
-        print ("DivRunner", test_data, div_pipe_kind)
+        print("DivRunner", test_data, div_pipe_kind)
         super().__init__("run_all")
         self.test_data = test_data
         self.div_pipe_kind = div_pipe_kind
@@ -301,4 +302,3 @@ class DivRunner(unittest.TestCase):
             print("so, ov", so_ok, ov_ok)
             self.assertEqual(ov_ok, False, code)
             self.assertEqual(so_ok, False, code)
-
