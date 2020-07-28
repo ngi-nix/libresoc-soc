@@ -14,3 +14,5 @@ Waveforms
 .vscode/*
 build
 gen
+.noseids
+nosetests.xml
