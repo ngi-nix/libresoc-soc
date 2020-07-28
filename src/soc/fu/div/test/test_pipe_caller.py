@@ -6,8 +6,8 @@ from soc.config.endian import bigendian
 from soc.fu.test.common import (TestCase, TestAccumulatorBase)
 from soc.fu.div.pipe_data import DivPipeKind
 
-from soc.fu.div.test.runner import (log_rand, get_cu_inputs,
-                                    set_alu_inputs, DivRunner)
+from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
+                                    set_alu_inputs, DivTestHelper)
 
 
 class DivTestCases(TestAccumulatorBase):
@@ -164,12 +164,19 @@ class DivTestCases(TestAccumulatorBase):
                 self.add_case(prog, initial_regs)
 
 
-if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.DivPipeCore))
-    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.FSMDivCore))
-    suite.addTest(DivRunner(DivTestCases().test_data, DivPipeKind.SimOnly))
+class TestPipe(DivTestHelper):
+    def test_div_pipe_core(self):
+        self.run_all(DivTestCases().test_data,
+                     DivPipeKind.DivPipeCore, "div_pipe_caller")
 
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    def test_fsm_div_core(self):
+        self.run_all(DivTestCases().test_data,
+                     DivPipeKind.FSMDivCore, "div_pipe_caller")
+
+    def test_sim_only(self):
+        self.run_all(DivTestCases().test_data,
+                     DivPipeKind.SimOnly, "div_pipe_caller")
+
+
+if __name__ == "__main__":
+    unittest.main()

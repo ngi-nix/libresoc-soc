@@ -1,16 +1,13 @@
-import random
-import inspect
 import unittest
 from soc.simulator.program import Program
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestCase, TestAccumulatorBase
-from soc.fu.div.test.runner import DivRunner
+from soc.fu.test.common import TestAccumulatorBase
+from soc.fu.div.test.helper import DivTestHelper
 from soc.fu.div.pipe_data import DivPipeKind
 
 
 class DivTestLong(TestAccumulatorBase):
-
     def case_all(self):
         instrs = []
         for width in ("w", "d"):
@@ -46,12 +43,19 @@ class DivTestLong(TestAccumulatorBase):
                         self.add_case(prog, initial_regs)
 
 
-if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.DivPipeCore))
-    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.FSMDivCore))
-    suite.addTest(DivRunner(DivTestLong().test_data, DivPipeKind.SimOnly))
+class TestPipeLong(DivTestHelper):
+    def test_div_pipe_core(self):
+        self.run_all(DivTestLong().test_data,
+                     DivPipeKind.DivPipeCore, "div_pipe_caller_long")
 
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    def test_fsm_div_core(self):
+        self.run_all(DivTestLong().test_data,
+                     DivPipeKind.FSMDivCore, "div_pipe_caller_long")
+
+    def test_sim_only(self):
+        self.run_all(DivTestLong().test_data,
+                     DivPipeKind.SimOnly, "div_pipe_caller_long")
+
+
+if __name__ == "__main__":
+    unittest.main()

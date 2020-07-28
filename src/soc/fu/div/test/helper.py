@@ -1,20 +1,17 @@
 import random
 import unittest
+import power_instruction_analyzer as pia
 from nmigen import Module, Signal
 from nmigen.back.pysim import Simulator, Delay
-from nmigen.cli import rtlil
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.decoder.power_enums import XER_bits, Function
-from soc.simulator.program import Program
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import ALUHelpers
 from soc.fu.div.pipeline import DivBasePipe
-from soc.fu.div.pipe_data import DivPipeSpec, DivPipeKind
-
-import power_instruction_analyzer as pia
+from soc.fu.div.pipe_data import DivPipeSpec
 
 
 def log_rand(n, min_val=1):
@@ -80,33 +77,8 @@ def set_alu_inputs(alu, dec2, sim):
     return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"], rc=0)
 
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in DivTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
-class DivRunner(unittest.TestCase):
-    def __init__(self, test_data, div_pipe_kind=None):
-        print("DivRunner", test_data, div_pipe_kind)
-        super().__init__("run_all")
-        self.test_data = test_data
-        self.div_pipe_kind = div_pipe_kind
-
-    def execute(self, alu, instruction, pdecode2, test):
+class DivTestHelper(unittest.TestCase):
+    def execute(self, alu, instruction, pdecode2, test, div_pipe_kind):
         prog = test.program
         isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                       test.mem, test.msr,
@@ -195,22 +167,14 @@ class DivRunner(unittest.TestCase):
             # TODO: raise bugreport with whitequark
             # requesting a public API to access this "officially"
             # XXX print("time:", sim._state.timeline.now)
-            msg = "%s: %s" % (self.div_pipe_kind.name, code)
+            msg = "%s: %s" % (div_pipe_kind.name, code)
             msg += " %s" % (repr(prog.assembly))
             msg += " %s" % (repr(test.regs))
             yield from self.check_alu_outputs(alu, pdecode2,
                                               isa_sim, msg,
                                               pia_res)
 
-    def run_all(self):
-        # *sigh* this is a mess.  unit test gets added by code-walking
-        # (unittest module) and picked up with a test name.
-        # we don't want that: we want it explicitly called
-        # (see div test_pipe_caller.py) - don't know what to do,
-        # so "fix" it by adding default param and returning here
-        if self.div_pipe_kind is None:
-            return
-
+    def run_all(self, test_data, div_pipe_kind, file_name_prefix):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -219,7 +183,7 @@ class DivRunner(unittest.TestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=self.div_pipe_kind)
+        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=div_pipe_kind)
         m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
@@ -230,13 +194,13 @@ class DivRunner(unittest.TestCase):
         sim.add_clock(1e-6)
 
         def process():
-            for test in self.test_data:
+            for test in test_data:
                 print(test.name)
                 with self.subTest(test.name):
-                    yield from self.execute(alu, instruction, pdecode2, test)
+                    yield from self.execute(alu, instruction, pdecode2, test, div_pipe_kind)
 
         sim.add_sync_process(process)
-        with sim.write_vcd(f"div_simulator_{self.div_pipe_kind.name}.vcd"):
+        with sim.write_vcd(f"{file_name_prefix}_{div_pipe_kind.name}.vcd"):
             sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code, pia_res):
