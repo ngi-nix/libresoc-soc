@@ -64,7 +64,8 @@ class Driver(Elaboratable):
         # This alias exists because some of our assertions exceed PEP8
         # width constraints.  Avoid using this alias in the general
         # case; ONLY use it when you're simultaneously trying to preserve
-        # line-oriented readibility while preserving PEP8 compliance.
+        # line-oriented readability (to make the code easy to compare with
+        # the v3.0B spec) while simultaneously preserving PEP8 compliance.
         F = field
 
         # start of properties
@@ -120,6 +121,10 @@ class Driver(Elaboratable):
                 with m.If(take_trap):
                     comb += exp_msr.eq(op.msr)
 
+                    # these are all set depending on the trap address (type)
+                    # see V3.0B p1063 however as noted in main_stage.py
+                    # the types of interrupts supported all need the same
+                    # values (for now)
                     comb += field(exp_msr, MSRb.IR).eq(0)
                     comb += field(exp_msr, MSRb.DR).eq(0)
                     comb += field(exp_msr, MSRb.FE0).eq(0)
@@ -133,20 +138,6 @@ class Driver(Elaboratable):
                     comb += field(exp_msr, MSRb.PR).eq(0)
                     comb += field(exp_msr, MSRb.FP).eq(0)
                     comb += field(exp_msr, MSRb.PMM).eq(0)
-
-                    # still wrong.
-                    # see https://bugs.libre-soc.org/show_bug.cgi?id=325#c120
-                    #
-                    # saf2: no it's not.  Proof by substitution:
-                    #
-                    # field(R,MSRb.TEs,MSRb.TEe).eq(0)
-                    # == field(R,53,54).eq(0)
-                    # == R[field_slice(53,54)].eq(0)
-                    # == R[slice(63-54, (63-53)+1)].eq(0)
-                    # == R[slice(9, 11)].eq(0)
-                    # == R[9:11].eq(0)
-                    #
-                    # Also put proof in py-doc for field().
 
                     comb += field(exp_msr, MSRb.TEs, MSRb.TEe).eq(0)
 
@@ -185,9 +176,9 @@ class Driver(Elaboratable):
 
                 with m.If(L == 0):
                     comb += [
-                        field(exp_msr, 48).eq(F(rs, 48) | F(rs, 49)),
-                        field(exp_msr, 58).eq(F(rs, 58) | F(rs, 49)),
-                        field(exp_msr, 59).eq(F(rs, 59) | F(rs, 49)),
+                        field(exp_msr, 48).eq(field(rs, 48) | field(rs, 49)),
+                        field(exp_msr, 58).eq(field(rs, 58) | field(rs, 49)),
+                        field(exp_msr, 59).eq(field(rs, 59) | field(rs, 49)),
                         field(exp_msr, 32, 47).eq(field(rs, 32, 47)),
                         field(exp_msr, 49, 50).eq(field(rs, 49, 50)),
                         field(exp_msr, 52, 57).eq(field(rs, 52, 57)),
@@ -211,7 +202,7 @@ class Driver(Elaboratable):
             ###################
 
             with m.Case(MicrOp.OP_MTMSRD):
-                msr_od = msr_o.data
+                msr_od = msr_o.data # another "shortener"
 
                 with m.If(L == 0):
                     # if (MSR[29:31] != 0b010) | (SRR1[29:31] != 0b000) then
@@ -227,9 +218,9 @@ class Driver(Elaboratable):
                     # MSR[59] <- (RS)[59] | (RS)[49]
                     PR = field(rs, 49) # alias/copy of SRR1 PR field
                     comb += [
-                        Assert(field(msr_od, 48) == F(rs, 48) | PR),
-                        Assert(field(msr_od, 58) == F(rs, 58) | PR),
-                        Assert(field(msr_od, 59) == F(rs, 59) | PR),
+                        Assert(field(msr_od, 48) == field(rs, 48) | PR),
+                        Assert(field(msr_od, 58) == field(rs, 58) | PR),
+                        Assert(field(msr_od, 59) == field(rs, 59) | PR),
                     ]
 
                     comb += [
@@ -250,7 +241,7 @@ class Driver(Elaboratable):
                         Assert(field(msr_od, 60, 62) == field(rs, 60, 62)),
                     ]
                 with m.Else():
-                    # L=1 only checks 48 and 62
+                    # L=1 only checks 48 and 62 (MSR.EE, MSR.RI)
                     comb += [
                         Assert(field(msr_od, 48) == field(rs, 48)),
                         Assert(field(msr_od, 62) == field(rs, 62)),
@@ -272,7 +263,7 @@ class Driver(Elaboratable):
             # RFID.  v3.0B p955
             ###################
             with m.Case(MicrOp.OP_RFID):
-                msr_od = msr_o.data
+                msr_od = msr_o.data # another "shortener"
                 comb += [
                     Assert(msr_o.ok),
                     Assert(nia_o.ok),
