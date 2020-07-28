@@ -22,6 +22,14 @@ from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
 from nmigen.cli import rtlil
 from soc.minerva.wishbone import make_wb_layout
+from nmutil.util import wrap
+
+cxxsim = False
+if cxxsim:
+    from nmigen.sim.cxxsim import Simulator, Settle
+else:
+    from nmigen.back.pysim import Simulator, Settle
+
 
 
 class ICS2ICP(RecordObject):
@@ -143,7 +151,7 @@ class XICS_ICP(Elaboratable):
                 with m.Switch( self.bus.adr[:8]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL read";
-                        comb += be_out.eq(r.xisr & r.cppr )
+                        comb += be_out.eq(r.xisr & r.cppr)
                     with m.Case(XIRR):
                         # report "ICP XIRR read";
                         comb += be_out.eq(Cat(r.xisr, r.cppr))
@@ -163,8 +171,7 @@ class XICS_ICP(Elaboratable):
 
         # Check MFRR
         with m.If(r.mfrr < pending_priority):
-            # special XICS MFRR IRQ source number
-            comb += v.xisr.eq(Const(0x000002))
+            comb += v.xisr.eq(Const(0x2)) # special XICS MFRR IRQ source number
             comb += pending_priority.eq(r.mfrr)
 
         # Accept the interrupt
@@ -177,7 +184,9 @@ class XICS_ICP(Elaboratable):
 
         comb += v.wb_rd_data.eq(bswap(be_out))
 
-        with m.If(pending_priority < v.cppr):
+        pp_ok = Signal()
+        comb += pp_ok.eq(pending_priority < v.cppr)
+        with m.If(pp_ok):
             with m.If(~r.irq):
                 #report "IRQ set";
                 pass
@@ -368,6 +377,156 @@ class XICS_ICS(Elaboratable):
         return list(self)
 
 
+def wb_write(dut, addr, data, sel=True):
+
+    # read wb
+    yield dut.bus.cyc.eq(1)
+    yield dut.bus.stb.eq(1)
+    yield dut.bus.we.eq(1)
+    yield dut.bus.sel.eq(0b1111 if sel else 0b1) # 32-bit / 8-bit
+    yield dut.bus.adr.eq(addr)
+    yield dut.bus.dat_w.eq(data)
+
+    # wait for ack to go high
+    while True:
+        ack = yield dut.bus.ack
+        print ("ack", ack)
+        if ack:
+            break
+        yield # loop until ack
+
+    # leave cyc/stb valid for 1 cycle while writing
+    yield
+
+    # clear out before returning data
+    yield dut.bus.cyc.eq(0)
+    yield dut.bus.stb.eq(0)
+    yield dut.bus.we.eq(0)
+    yield dut.bus.adr.eq(0)
+    yield dut.bus.sel.eq(0)
+    yield dut.bus.dat_w.eq(0)
+
+
+def wb_read(dut, addr, sel=True):
+
+    # read wb
+    yield dut.bus.cyc.eq(1)
+    yield dut.bus.stb.eq(1)
+    yield dut.bus.we.eq(0)
+    yield dut.bus.sel.eq(0b1111 if sel else 0b1) # 32-bit / 8-bit
+    yield dut.bus.adr.eq(addr)
+
+    # wait for ack to go high
+    while True:
+        ack = yield dut.bus.ack
+        print ("ack", ack)
+        if ack:
+            break
+        yield # loop until ack
+
+    # get data on same cycle that ack raises
+    data = yield dut.bus.dat_r
+
+    # leave cyc/stb valid for 1 cycle while reading
+    yield
+
+    # clear out before returning data
+    yield dut.bus.cyc.eq(0)
+    yield dut.bus.stb.eq(0)
+    yield dut.bus.we.eq(0)
+    yield dut.bus.adr.eq(0)
+    yield dut.bus.sel.eq(0)
+    return data
+
+
+def sim_xics_icp(dut):
+
+    # read wb XIRR_MFRR
+    data = yield from wb_read(dut, MFRR)
+    print ("mfrr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR (8-bit)
+    data = yield from wb_read(dut, XIRR, False)
+    print ("xirr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR (32-bit)
+    data = yield from wb_read(dut, XIRR)
+    print ("xirr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR_POLL
+    data = yield from wb_read(dut, XIRR_POLL)
+    print ("xirr poll", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    ##################
+    # set dut src/pri to something, anything
+
+    yield dut.ics_i.src.eq(9)
+    yield dut.ics_i.pri.eq(0x1e)
+
+    # read wb XIRR_MFRR
+    data = yield from wb_read(dut, MFRR)
+    print ("mfrr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR (8-bit)
+    data = yield from wb_read(dut, XIRR, False)
+    print ("xirr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR (32-bit)
+    data = yield from wb_read(dut, XIRR)
+    print ("xirr", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+    # read wb XIRR_POLL
+    data = yield from wb_read(dut, XIRR_POLL)
+    print ("xirr poll", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 0
+
+    ######################
+    # write XIRR
+    data = 0xff
+    yield from wb_write(dut, XIRR, data)
+    print ("xirr written", hex(data), bin(data))
+
+    yield
+    assert (yield dut.core_irq_o) == 1
+    yield
+    yield
+    yield
+
+    # read wb XIRR_POLL
+    #data = yield from wb_read(dut, XIRR_POLL, False)
+    #print ("xirr poll", hex(data), bin(data))
+    #assert (yield dut.core_irq_o) == 1
+
+    yield
+
+    # read wb XIRR (32-bit)
+    data = yield from wb_read(dut, XIRR)
+    print ("xirr", hex(data), bin(data))
+    yield
+    assert (yield dut.core_irq_o) == 0
+
+    yield
+
+
 def test_xics_icp():
 
     dut = XICS_ICP()
@@ -375,7 +534,16 @@ def test_xics_icp():
     with open("test_xics_icp.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, ldst_sim(dut), vcd_name='test_ldst_regspec.vcd')
+    m = Module()
+    m.submodules.xics_icp = dut
+
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(sim_xics_icp(dut)))
+    sim_writer = sim.write_vcd('test_xics_icp.vcd')
+    with sim_writer:
+        sim.run()
 
 def test_xics_ics():
 
