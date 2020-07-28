@@ -106,16 +106,6 @@ class DivRunner(unittest.TestCase):
         self.test_data = test_data
         self.div_pipe_kind = div_pipe_kind
 
-    def write_ilang(self):
-        pspec = DivPipeSpec(id_wid=2, div_pipe_kind=self.div_pipe_kind)
-        alu = DivBasePipe(pspec)
-        vl = rtlil.convert(alu, ports=alu.ports())
-        with open(f"div_pipeline_{div_pipe_kind.name}.il", "w") as f:
-            f.write(vl)
-
-    def test_write_ilang(self):
-        self.write_ilang(self.div_pipe_kind)
-
     def execute(self, alu, instruction, pdecode2, test):
         prog = test.program
         isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
