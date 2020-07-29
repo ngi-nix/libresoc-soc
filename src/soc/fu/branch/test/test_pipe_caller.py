@@ -29,25 +29,6 @@ def get_rec_width(rec):
     return recwidth
 
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in ALUTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to BranchFunctionUnit input regspec
     """
@@ -134,11 +115,8 @@ class BranchTestCase(TestAccumulatorBase):
 
 
 class TestRunner(unittest.TestCase):
-    def __init__(self, test_data):
-        super().__init__("run_all")
-        self.test_data = test_data
-
-    def run_all(self):
+    def test_it(self):
+        test_data = BranchTestCase().test_data
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -159,56 +137,58 @@ class TestRunner(unittest.TestCase):
         sim.add_clock(1e-6)
 
         def process():
-            for test in self.test_data:
+            for test in test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr,
-                                bigendian=bigendian)
-                initial_cia = 0x2000
-                simulator.set_pc(initial_cia)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                with self.subTest(test.name):
+                    simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                                    test.mem, test.msr,
+                                    bigendian=bigendian)
+                    initial_cia = 0x2000
+                    simulator.set_pc(initial_cia)
+                    gen = program.generate_instructions()
+                    instructions = list(
+                        zip(gen, program.assembly.splitlines()))
 
-                pc = simulator.pc.CIA.value
-                msr = simulator.msr.value
-                index = (pc - initial_cia)//4
-                while index < len(instructions) and index >= 0:
-                    print(index)
-                    ins, code = instructions[index]
-
-                    print("0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
-                    yield pdecode2.cia.eq(pc)  # set PC in pdecode2
-                    yield instruction.eq(ins)          # raw binary instr.
-                    # note, here, the op will need further decoding in order
-                    # to set the correct SPRs on SPR1/2/3.  op_bc* require
-                    # spr1 to be set to CTR, op_bctar require spr2 to be
-                    # set to TAR, op_bclr* require spr2 to be set to LR.
-                    # if op_sc*, op_rf* and op_hrfid are to be added here
-                    # then additional op-decoding is required, accordingly
-                    yield Settle()
-                    lk = yield pdecode2.e.do.lk
-                    print("lk:", lk)
-                    yield from self.set_inputs(branch, pdecode2, simulator)
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.BRANCH.value, code)
-                    yield
-                    yield
-                    opname = code.split(' ')[0]
-                    prev_nia = simulator.pc.NIA.value
-                    yield from simulator.call(opname)
                     pc = simulator.pc.CIA.value
                     msr = simulator.msr.value
                     index = (pc - initial_cia)//4
+                    while index < len(instructions) and index >= 0:
+                        print(index)
+                        ins, code = instructions[index]
 
-                    yield from self.assert_outputs(branch, pdecode2,
-                                                   simulator, prev_nia, code)
+                        print("0x{:X}".format(ins & 0xffffffff))
+                        print(code)
+
+                        # ask the decoder to decode this binary data (endian'd)
+                        # little / big?
+                        yield pdecode2.dec.bigendian.eq(bigendian)
+                        yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
+                        yield pdecode2.cia.eq(pc)  # set PC in pdecode2
+                        yield instruction.eq(ins)          # raw binary instr.
+                        # note, here, the op will need further decoding in order
+                        # to set the correct SPRs on SPR1/2/3.  op_bc* require
+                        # spr1 to be set to CTR, op_bctar require spr2 to be
+                        # set to TAR, op_bclr* require spr2 to be set to LR.
+                        # if op_sc*, op_rf* and op_hrfid are to be added here
+                        # then additional op-decoding is required, accordingly
+                        yield Settle()
+                        lk = yield pdecode2.e.do.lk
+                        print("lk:", lk)
+                        yield from self.set_inputs(branch, pdecode2, simulator)
+                        fn_unit = yield pdecode2.e.do.fn_unit
+                        self.assertEqual(fn_unit, Function.BRANCH.value, code)
+                        yield
+                        yield
+                        opname = code.split(' ')[0]
+                        prev_nia = simulator.pc.NIA.value
+                        yield from simulator.call(opname)
+                        pc = simulator.pc.CIA.value
+                        msr = simulator.msr.value
+                        index = (pc - initial_cia)//4
+
+                        yield from self.assert_outputs(branch, pdecode2,
+                                                       simulator, prev_nia, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("branch_simulator.vcd"):
@@ -244,9 +224,4 @@ class TestRunner(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(TestRunner(BranchTestCase().test_data))
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    unittest.main()
