@@ -57,25 +57,6 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in ALUTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
 class ALUTestCase(TestAccumulatorBase):
 
     def case_1_regression(self):
@@ -176,12 +157,9 @@ class ALUTestCase(TestAccumulatorBase):
             f.write(vl)
 
 
-class TestRunner(FHDLTestCase):
-    def __init__(self, test_data):
-        super().__init__("run_all")
-        self.test_data = test_data
-
-    def run_all(self):
+class TestRunner(unittest.TestCase):
+    def test_it(self):
+        test_data = ALUTestCase().test_data
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
@@ -202,47 +180,49 @@ class TestRunner(FHDLTestCase):
         sim.add_clock(1e-6)
 
         def process():
-            for test in self.test_data:
+            for test in test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                          test.mem, test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                with self.subTest(test.name):
+                    sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                              test.mem, test.msr,
+                              bigendian=bigendian)
+                    gen = program.generate_instructions()
+                    instructions = list(
+                        zip(gen, program.assembly.splitlines()))
 
-                index = sim.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-                    if 'XER' in sim.spr:
-                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print("before: so/ov/32", so, ov, ov32)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.ALU.value)
-                    yield from set_alu_inputs(alu, pdecode2, sim)
-                    yield
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
                     index = sim.pc.CIA.value//4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
 
-                    vld = yield alu.n.valid_o
-                    while not vld:
+                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                        print(code)
+                        if 'XER' in sim.spr:
+                            so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                            ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                            ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                            print("before: so/ov/32", so, ov, ov32)
+
+                        # ask the decoder to decode this binary data (endian'd)
+                        # little / big?
+                        yield pdecode2.dec.bigendian.eq(bigendian)
+                        yield instruction.eq(ins)          # raw binary instr.
+                        yield Settle()
+                        fn_unit = yield pdecode2.e.do.fn_unit
+                        self.assertEqual(fn_unit, Function.ALU.value)
+                        yield from set_alu_inputs(alu, pdecode2, sim)
                         yield
-                        vld = yield alu.n.valid_o
-                    yield
+                        opname = code.split(' ')[0]
+                        yield from sim.call(opname)
+                        index = sim.pc.CIA.value//4
 
-                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                        vld = yield alu.n.valid_o
+                        while not vld:
+                            yield
+                            vld = yield alu.n.valid_o
+                        yield
+
+                        yield from self.check_alu_outputs(alu, pdecode2, sim, code)
 
         sim.add_sync_process(process)
         sim.write_vcd("alu_simulator.vcd")
@@ -290,9 +270,4 @@ class TestRunner(FHDLTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(TestRunner(ALUTestCase().test_data))
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    unittest.main()
