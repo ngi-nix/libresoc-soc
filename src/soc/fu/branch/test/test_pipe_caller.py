@@ -102,8 +102,8 @@ class BranchTestCase(TestAccumulatorBase):
             lst = [f"bc {bo}, {bi}, {bc}"]
             initial_sprs = {9: SelectableInt(ctr, 64)}
             self.add_case(Program(lst, bigendian),
-                                 initial_sprs=initial_sprs,
-                                 initial_cr=cr)
+                          initial_sprs=initial_sprs,
+                          initial_cr=cr)
 
     def case_bc_reg(self):
         # XXX: bcctr and bcctrl time out (irony: they're counters)
@@ -122,8 +122,8 @@ class BranchTestCase(TestAccumulatorBase):
                                 8: SelectableInt(lr, 64),
                                 815: SelectableInt(tar, 64)}
                 self.add_case(Program(lst, bigendian),
-                                     initial_sprs=initial_sprs,
-                                     initial_cr=cr)
+                              initial_sprs=initial_sprs,
+                              initial_cr=cr)
 
     def case_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)

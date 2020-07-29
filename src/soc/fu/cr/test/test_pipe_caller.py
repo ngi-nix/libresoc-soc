@@ -78,7 +78,7 @@ class CRTestCase(TestAccumulatorBase):
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_regs=initial_regs,
-                                 initial_cr=cr)
+                          initial_cr=cr)
 
     def case_mtocrf(self):
         for i in range(20):
@@ -88,7 +88,7 @@ class CRTestCase(TestAccumulatorBase):
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_regs=initial_regs,
-                                 initial_cr=cr)
+                          initial_cr=cr)
 
     def case_mfcr(self):
         for i in range(5):
@@ -114,7 +114,7 @@ class CRTestCase(TestAccumulatorBase):
             #initial_regs[2] = i*2
             #initial_regs[3] = i*2+1
             self.add_case(Program(lst, bigendian),
-                                 initial_regs=initial_regs, initial_cr=cr)
+                          initial_regs=initial_regs, initial_cr=cr)
 
     def case_setb(self):
         for i in range(20):

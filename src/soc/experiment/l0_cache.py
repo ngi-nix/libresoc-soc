@@ -63,17 +63,18 @@ class DualPortSplitter(Elaboratable):
     PortInterface *may* need to be changed so that the length is
     a binary number (accepting values 1-16).
     """
+
     def __init__(self):
         self.outp = [PortInterface(name="outp_0"),
                      PortInterface(name="outp_1")]
-        self.inp  = PortInterface(name="inp")
+        self.inp = PortInterface(name="inp")
         print(self.outp)
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
         m.submodules.splitter = splitter = LDSTSplitter(64, 48, 4)
-        comb += splitter.addr_i.eq(self.inp.addr) #XXX
+        comb += splitter.addr_i.eq(self.inp.addr)  # XXX
         #comb += splitter.len_i.eq()
         #comb += splitter.valid_i.eq()
         comb += splitter.is_ld_i.eq(self.inp.is_ld_i)
@@ -147,13 +148,13 @@ class DataMerger(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        #(1) pick a row
+        # (1) pick a row
         m.submodules.pick = pick = PriorityEncoder(self.array_size)
         for j in range(self.array_size):
             comb += pick.i[j].eq(self.addr_array_i[j].bool())
         valid = ~pick.n
         idx = pick.o
-        #(2) merge
+        # (2) merge
         with m.If(valid):
             l = []
             for j in range(self.array_size):
@@ -162,8 +163,8 @@ class DataMerger(Elaboratable):
                 with m.If(select):
                     comb += r.eq(self.data_i[j])
                 l.append(r)
-            comb += self.data_o.data.eq(ortreereduce(l,"data"))
-            comb += self.data_o.en.eq(ortreereduce(l,"en"))
+            comb += self.data_o.data.eq(ortreereduce(l, "data"))
+            comb += self.data_o.en.eq(ortreereduce(l, "en"))
 
         return m
 
@@ -202,7 +203,7 @@ class L0CacheBuffer(Elaboratable):
         comb, sync = m.d.comb, m.d.sync
 
         # connect the ports as modules
-        #for i in range(self.n_units):
+        # for i in range(self.n_units):
         #    setattr(m.submodules, "port%d" % i, self.dports[i])
 
         # state-machine latches
@@ -218,8 +219,8 @@ class L0CacheBuffer(Elaboratable):
         ldsti = []
         for i in range(self.n_units):
             pi = self.dports[i]
-            busy = (pi.is_ld_i | pi.is_st_i)# & pi.busy_o
-            ldsti.append(busy) # accumulate ld/st-req
+            busy = (pi.is_ld_i | pi.is_st_i)  # & pi.busy_o
+            ldsti.append(busy)  # accumulate ld/st-req
         # put the requests into the priority-picker
         comb += pick.i.eq(Cat(*ldsti))
 
@@ -245,7 +246,7 @@ class L0CacheBuffer(Elaboratable):
         with m.If(idx_l.q):
             comb += self.pimem.connect_port(port)
             with m.If(~self.pimem.pi.busy_o):
-                comb += reset_l.s.eq(1) # reset when no longer busy
+                comb += reset_l.s.eq(1)  # reset when no longer busy
 
         # ugly hack, due to simultaneous addr req-go acknowledge
         reset_delay = Signal(reset_less=True)
@@ -269,13 +270,13 @@ class TstL0CacheBuffer(Elaboratable):
         addrwid = pspec.addr_wid
         self.cmpi = ConfigMemoryPortInterface(pspec)
         self.pimem = self.cmpi.pi
-        self.l0 = L0CacheBuffer(n_units, self.pimem, regwid, addrwid<<1)
+        self.l0 = L0CacheBuffer(n_units, self.pimem, regwid, addrwid << 1)
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.pimem = self.pimem
         m.submodules.l0 = self.l0
-        if hasattr(self.cmpi, 'lsmem'): # hmmm not happy about this
+        if hasattr(self.cmpi, 'lsmem'):  # hmmm not happy about this
             m.submodules.lsmem = self.cmpi.lsmem.lsi
 
         return m
@@ -328,7 +329,7 @@ def l0_cache_ldst(arg, dut):
 
 def data_merger_merge(dut):
     print("data_merger")
-    #starting with all inputs zero
+    # starting with all inputs zero
     yield Settle()
     en = yield dut.data_o.en
     data = yield dut.data_o.data
@@ -358,7 +359,7 @@ class TestL0Cache(unittest.TestCase):
                              mask_wid=8,
                              reg_wid=64)
         dut = TstL0CacheBuffer(pspec)
-        vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
+        vl = rtlil.convert(dut, ports=[])  # TODOdut.ports())
         with open("test_basic_l0_cache_bare_wb.il", "w") as f:
             f.write(vl)
 
@@ -372,7 +373,7 @@ class TestL0Cache(unittest.TestCase):
                              mask_wid=8,
                              reg_wid=64)
         dut = TstL0CacheBuffer(pspec)
-        vl = rtlil.convert(dut, ports=[])# TODOdut.ports())
+        vl = rtlil.convert(dut, ports=[])  # TODOdut.ports())
         with open("test_basic_l0_cache.il", "w") as f:
             f.write(vl)
 
@@ -386,7 +387,7 @@ class TestDataMerger(unittest.TestCase):
 
         dut = DataMerger(8)
         #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_data_merger.il", "w") as f:
+        # with open("test_data_merger.il", "w") as f:
         #    f.write(vl)
 
         run_simulation(dut, data_merger_merge(dut),
@@ -399,13 +400,12 @@ class TestDualPortSplitter(unittest.TestCase):
 
         dut = DualPortSplitter()
         #vl = rtlil.convert(dut, ports=dut.ports())
-        #with open("test_data_merger.il", "w") as f:
+        # with open("test_data_merger.il", "w") as f:
         #    f.write(vl)
 
-        #run_simulation(dut, data_merger_merge(dut),
+        # run_simulation(dut, data_merger_merge(dut),
         #               vcd_name='test_dual_port_splitter.vcd')
 
 
 if __name__ == '__main__':
     unittest.main(exit=False)
-

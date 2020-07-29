@@ -140,7 +140,7 @@ class ALUTestCase(TestAccumulatorBase):
             xer[XER_bits['CA']] = 1
             initial_sprs[special_sprs['XER']] = xer
             self.add_case(Program(lst, bigendian),
-                                 initial_regs, initial_sprs)
+                          initial_regs, initial_sprs)
 
     def case_cmp(self):
         lst = ["subf. 1, 6, 7",

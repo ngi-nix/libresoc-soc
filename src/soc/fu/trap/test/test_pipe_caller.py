@@ -78,7 +78,7 @@ class TrapTestCase(TestAccumulatorBase):
         initial_regs[1] = 1
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs)
+                      initial_regs, initial_sprs)
 
     def case_0_trap_eq_imm(self):
         insns = ["twi", "tdi"]
@@ -129,7 +129,7 @@ class TrapTestCase(TestAccumulatorBase):
         initial_regs[1] = 0xffffffffffffffff
         msr = 1 << MSR.PR  # set in "problem state"
         self.add_case(Program(lst, bigendian), initial_regs,
-                             initial_msr=msr)
+                      initial_msr=msr)
 
     def case_7_rfid_priv_0(self):
         lst = ["rfid"]
@@ -138,22 +138,22 @@ class TrapTestCase(TestAccumulatorBase):
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
         msr = 1 << MSR.PR  # set in "problem state"
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs,
-                             initial_msr=msr)
+                      initial_regs, initial_sprs,
+                      initial_msr=msr)
 
     def case_8_mfmsr(self):
         lst = ["mfmsr 1"]
         initial_regs = [0] * 32
         msr = (~(1 << MSR.PR)) & 0xffffffffffffffff
         self.add_case(Program(lst, bigendian), initial_regs,
-                             initial_msr=msr)
+                      initial_msr=msr)
 
     def case_9_mfmsr_priv(self):
         lst = ["mfmsr 1"]
         initial_regs = [0] * 32
         msr = 1 << MSR.PR  # set in "problem state"
         self.add_case(Program(lst, bigendian), initial_regs,
-                             initial_msr=msr)
+                      initial_msr=msr)
 
     def case_999_illegal(self):
         # ok, um this is a bit of a cheat: use an instruction we know

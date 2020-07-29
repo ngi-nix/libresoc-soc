@@ -44,9 +44,9 @@ def setup_i_memory(imem, startaddr, instructions):
     for i in range(mem.depth):
         yield mem._array[i].eq(0)
     yield Settle()
-    startaddr //= 4 # instructions are 32-bit
+    startaddr //= 4  # instructions are 32-bit
     if mem.width == 32:
-        mask = ((1<<32)-1)
+        mask = ((1 << 32)-1)
         for ins in instructions:
             if isinstance(ins, tuple):
                 insn, code = ins
@@ -56,13 +56,13 @@ def setup_i_memory(imem, startaddr, instructions):
             yield mem._array[startaddr].eq(insn)
             yield Settle()
             if insn != 0:
-                print ("instr: %06x 0x%x %s" % (4*startaddr, insn, code))
+                print("instr: %06x 0x%x %s" % (4*startaddr, insn, code))
             startaddr += 1
             startaddr = startaddr & mask
         return
 
     # 64 bit
-    mask = ((1<<64)-1)
+    mask = ((1 << 64)-1)
     for ins in instructions:
         if isinstance(ins, tuple):
             insn, code = ins
@@ -154,7 +154,7 @@ class TestRunner(FHDLTestCase):
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
 
-                print ("instructions", instructions)
+                print("instructions", instructions)
 
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
@@ -205,10 +205,10 @@ if __name__ == "__main__":
     suite = unittest.TestSuite()
     # suite.addTest(TestRunner(HelloTestCases.test_data))
     # suite.addTest(TestRunner(DivTestCase.test_data))
-    #suite.addTest(TestRunner(AttnTestCase.test_data))
+    # suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
-    #suite.addTest(TestRunner(LDSTTestCase().test_data))
-    #suite.addTest(TestRunner(CRTestCase().test_data))
+    # suite.addTest(TestRunner(LDSTTestCase().test_data))
+    # suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     # suite.addTest(TestRunner(LogicalTestCase.test_data))
     # suite.addTest(TestRunner(ALUTestCase.test_data))

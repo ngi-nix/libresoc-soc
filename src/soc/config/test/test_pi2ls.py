@@ -119,9 +119,9 @@ def tst_config_pi(testcls, ifacetype):
                          reg_wid=64)
     cmpi = ConfigMemoryPortInterface(pspec)
     dut.submodules.pi = cmpi.pi
-    if hasattr(cmpi, 'lsmem'): # hmmm not happy about this
+    if hasattr(cmpi, 'lsmem'):  # hmmm not happy about this
         dut.submodules.lsmem = cmpi.lsmem.lsi
-    vl = rtlil.convert(dut, ports=[])#dut.ports())
+    vl = rtlil.convert(dut, ports=[])  # dut.ports())
     with open("test_pi_%s.il" % ifacetype, "w") as f:
         f.write(vl)
 
@@ -143,4 +143,3 @@ class TestPIMem(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(exit=False)
-
