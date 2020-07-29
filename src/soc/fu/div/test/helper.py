@@ -197,7 +197,8 @@ class DivTestHelper(unittest.TestCase):
             for test in test_data:
                 print(test.name)
                 with self.subTest(test.name):
-                    yield from self.execute(alu, instruction, pdecode2, test, div_pipe_kind)
+                    yield from self.execute(alu, instruction, pdecode2,
+                                            test, div_pipe_kind)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"{file_name_prefix}_{div_pipe_kind.name}.vcd"):
