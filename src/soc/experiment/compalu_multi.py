@@ -29,10 +29,10 @@ def find_ok(fields):
 
 
 def go_record(n, name):
-    r = Record([('go', n, DIR_FANIN),
-                ('rel', n, DIR_FANOUT)], name=name)
-    r.go.reset_less = True
-    r.rel.reset_less = True
+    r = Record([('go_i', n, DIR_FANIN),
+                ('rel_o', n, DIR_FANOUT)], name=name)
+    r.go_i.reset_less = True
+    r.rel_o.reset_less = True
     return r
 
 
@@ -89,17 +89,22 @@ class CompUnitRecord(RegSpec, RecordObject):
         self.oper_i = subkls(name="oper_i_%s" % name)  # operand
 
         # create read/write and other scoreboard signalling
-        self.rd = go_record(n_src, name="rd")  # read in, req out
-        self.wr = go_record(n_dst, name="wr")  # write in, req out
-        self.rdmaskn = Signal(n_src, reset_less=True)  # read mask
-        self.wrmask = Signal(n_dst, reset_less=True)  # write mask
-        self.issue_i = Signal(reset_less=True)  # fn issue in
-        self.shadown_i = Signal(reset=1)  # shadow function, defaults to ON
-        self.go_die_i = Signal()  # go die (reset)
+        self.rd = go_record(n_src, name="cu_rd")  # read in, req out
+        self.wr = go_record(n_dst, name="cu_wr")  # write in, req out
+        # read / write mask
+        self.rdmaskn = Signal(n_src, name="cu_rdmaskn_i", reset_less=True)
+        self.wrmask = Signal(n_dst, name="cu_wrmask_o", reset_less=True)
+
+        # fn issue in
+        self.issue_i = Signal(name="cu_issue_i", reset_less=True)
+        # shadow function, defaults to ON
+        self.shadown_i = Signal(name="cu_shadown_i", reset=1)
+        # go die (reset)
+        self.go_die_i = Signal(name="cu_go_die_i")
 
         # output (busy/done)
-        self.busy_o = Signal(reset_less=True)  # fn busy out
-        self.done_o = Signal(reset_less=True)
+        self.busy_o = Signal(name="cu_busy_o", reset_less=True)  # fn busy out
+        self.done_o = Signal(name="cu_done_o", reset_less=True)
 
 
 class MultiCompUnit(RegSpecALUAPI, Elaboratable):
@@ -137,10 +142,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         self.wr = cu.wr
         self.rdmaskn = cu.rdmaskn
         self.wrmask = cu.wrmask
-        self.go_rd_i = self.rd.go  # temporary naming
-        self.go_wr_i = self.wr.go  # temporary naming
-        self.rd_rel_o = self.rd.rel  # temporary naming
-        self.req_rel_o = self.wr.rel  # temporary naming
+        self.go_rd_i = self.rd.go_i  # temporary naming
+        self.go_wr_i = self.wr.go_i  # temporary naming
+        self.rd_rel_o = self.rd.rel_o  # temporary naming
+        self.req_rel_o = self.wr.rel_o  # temporary naming
         self.issue_i = cu.issue_i
         self.shadown_i = cu.shadown_i
         self.go_die_i = cu.go_die_i
@@ -180,7 +185,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # so combine it with go_rd_i.  if all bits are set we're good
         all_rd = Signal(reset_less=True)
         m.d.comb += all_rd.eq(self.busy_o & rok_l.q &
-                              (((~self.rd.rel) | self.rd.go).all()))
+                              (((~self.rd.rel_o) | self.rd.go_i).all()))
 
         # generate read-done pulse
         all_rd_dly = Signal(reset_less=True)
@@ -201,7 +206,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # sigh bug where req_l gets both set and reset raised at same time
         prev_wr_go = Signal(self.n_dst)
         brd = Repl(self.busy_o, self.n_dst)
-        m.d.sync += prev_wr_go.eq(self.wr.go & brd)
+        m.d.sync += prev_wr_go.eq(self.wr.go_i & brd)
 
         # write_requests all done
         # req_done works because any one of the last of the writes
@@ -209,8 +214,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         wr_any = Signal(reset_less=True)
         req_done = Signal(reset_less=True)
         m.d.comb += self.done_o.eq(self.busy_o &
-                                   ~((self.wr.rel & ~self.wrmask).bool()))
-        m.d.comb += wr_any.eq(self.wr.go.bool() | prev_wr_go.bool())
+                                   ~((self.wr.rel_o & ~self.wrmask).bool()))
+        m.d.comb += wr_any.eq(self.wr.go_i.bool() | prev_wr_go.bool())
         m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i &
                                 ((req_l.q & self.wrmask) == 0))
         # argh, complicated hack: if there are no regs to write,
@@ -227,8 +232,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         reset_r = Signal(self.n_src, reset_less=True)
         m.d.comb += reset.eq(req_done | self.go_die_i)
         m.d.comb += rst_r.eq(self.issue_i | self.go_die_i)
-        m.d.comb += reset_w.eq(self.wr.go | Repl(self.go_die_i, self.n_dst))
-        m.d.comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
+        m.d.comb += reset_w.eq(self.wr.go_i | Repl(self.go_die_i, self.n_dst))
+        m.d.comb += reset_r.eq(self.rd.go_i | Repl(self.go_die_i, self.n_src))
 
         # read-done,wr-proceed latch
         m.d.comb += rok_l.s.eq(self.issue_i)  # set up when issue starts
@@ -341,15 +346,15 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # read-release gated by busy (and read-mask)
         bro = Repl(self.busy_o, self.n_src)
-        m.d.comb += self.rd.rel.eq(src_l.q & bro & slg & ~self.rdmaskn)
+        m.d.comb += self.rd.rel_o.eq(src_l.q & bro & slg & ~self.rdmaskn)
 
         # write-release gated by busy and by shadow (and write-mask)
         brd = Repl(self.busy_o & self.shadown_i, self.n_dst)
-        m.d.comb += self.wr.rel.eq(req_l.q & brd & self.wrmask)
+        m.d.comb += self.wr.rel_o.eq(req_l.q & brd & self.wrmask)
 
         # output the data from the latch on go_write
         for i in range(self.n_dst):
-            with m.If(self.wr.go[i] & self.busy_o):
+            with m.If(self.wr.go_i[i] & self.busy_o):
                 m.d.comb += self.dest[i].eq(drl[i])
 
         return m
@@ -358,8 +363,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         return self.dest[i]
 
     def __iter__(self):
-        yield self.rd.go
-        yield self.wr.go
+        yield self.rd.go_i
+        yield self.wr.go_i
         yield self.issue_i
         yield self.shadown_i
         yield self.go_die_i
@@ -367,8 +372,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         yield self.src1_i
         yield self.src2_i
         yield self.busy_o
-        yield self.rd.rel
-        yield self.wr.rel
+        yield self.rd.rel_o
+        yield self.wr.rel_o
         yield self.data_o
 
     def ports(self):

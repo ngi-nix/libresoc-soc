@@ -16,20 +16,20 @@ def set_cu_input(cu, idx, data):
     rdop = cu.get_in_name(idx)
     yield cu.src_i[idx].eq(data)
     while True:
-        rd_rel_o = yield cu.rd.rel[idx]
+        rd_rel_o = yield cu.rd.rel_o[idx]
         print("rd_rel %d wait HI" % idx, rd_rel_o, rdop, hex(data))
         if rd_rel_o:
             break
         yield
-    yield cu.rd.go[idx].eq(1)
+    yield cu.rd.go_i[idx].eq(1)
     while True:
         yield
-        rd_rel_o = yield cu.rd.rel[idx]
+        rd_rel_o = yield cu.rd.rel_o[idx]
         if rd_rel_o:
             break
         print("rd_rel %d wait HI" % idx, rd_rel_o)
         yield
-    yield cu.rd.go[idx].eq(0)
+    yield cu.rd.go_i[idx].eq(0)
     yield cu.src_i[idx].eq(0)
 
 
@@ -45,17 +45,17 @@ def get_cu_output(cu, idx, code):
         "write-operand '%s' Data.ok likely not set (%s)" \
         % (code, idx, wrop, hex(wrok))
     while True:
-        wr_relall_o = yield cu.wr.rel
-        wr_rel_o = yield cu.wr.rel[idx]
+        wr_relall_o = yield cu.wr.rel_o
+        wr_rel_o = yield cu.wr.rel_o[idx]
         print("wr_rel %d wait" % idx, hex(wr_relall_o), wr_rel_o)
         if wr_rel_o:
             break
         yield
-    yield cu.wr.go[idx].eq(1)
+    yield cu.wr.go_i[idx].eq(1)
     yield Settle()
     result = yield cu.dest[idx]
     yield
-    yield cu.wr.go[idx].eq(0)
+    yield cu.wr.go_i[idx].eq(0)
     print("result", repr(code), idx, wrop, wrok, hex(result))
 
     return result
@@ -94,19 +94,19 @@ def get_cu_outputs(cu, code):
             yield
 
     wrmask = yield cu.wrmask
-    wr_rel_o = yield cu.wr.rel
+    wr_rel_o = yield cu.wr.rel_o
     print("get_cu_outputs", cu.n_dst, wrmask, wr_rel_o)
     # no point waiting (however really should doublecheck wr.rel)
     if not wrmask:
         return {}
     # wait for at least one result
     while True:
-        wr_rel_o = yield cu.wr.rel
+        wr_rel_o = yield cu.wr.rel_o
         if wr_rel_o:
             break
         yield
     for i in range(cu.n_dst):
-        wr_rel_o = yield cu.wr.rel[i]
+        wr_rel_o = yield cu.wr.rel_o[i]
         if wr_rel_o:
             result = yield from get_cu_output(cu, i, code)
             wrop = cu.get_out_name(i)
@@ -247,8 +247,8 @@ class TestRunner(FHDLTestCase):
             yield Settle()
 
             # set inputs into CU
-            rd_rel_o = yield cu.rd.rel
-            wr_rel_o = yield cu.wr.rel
+            rd_rel_o = yield cu.rd.rel_o
+            wr_rel_o = yield cu.wr.rel_o
             print("before inputs, rd_rel, wr_rel: ",
                   bin(rd_rel_o), bin(wr_rel_o))
             assert wr_rel_o == 0, "wr.rel %s must be zero. "\
@@ -256,8 +256,8 @@ class TestRunner(FHDLTestCase):
                 "respec %s" % \
                 (bin(wr_rel_o), cu.rwid[1])
             yield from set_cu_inputs(cu, inp)
-            rd_rel_o = yield cu.rd.rel
-            wr_rel_o = yield cu.wr.rel
+            rd_rel_o = yield cu.rd.rel_o
+            wr_rel_o = yield cu.wr.rel_o
             wrmask = yield cu.wrmask
             print("after inputs, rd_rel, wr_rel, wrmask: ",
                   bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
@@ -272,8 +272,8 @@ class TestRunner(FHDLTestCase):
             # get all outputs (one by one, just "because")
             res = yield from get_cu_outputs(cu, code)
             wrmask = yield cu.wrmask
-            rd_rel_o = yield cu.rd.rel
-            wr_rel_o = yield cu.wr.rel
+            rd_rel_o = yield cu.rd.rel_o
+            wr_rel_o = yield cu.wr.rel_o
             print("after got outputs, rd_rel, wr_rel, wrmask: ",
                   bin(rd_rel_o), bin(wr_rel_o), bin(wrmask))
 

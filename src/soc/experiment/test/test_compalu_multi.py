@@ -42,31 +42,31 @@ def op_sim_fsm(dut, a, b, direction):
     yield dut.issue_i.eq(0)
     yield
 
-    yield dut.rd.go.eq(0b11)
+    yield dut.rd.go_i.eq(0b11)
     while True:
         yield
-        rd_rel_o = yield dut.rd.rel
+        rd_rel_o = yield dut.rd.rel_o
         print("rd_rel", rd_rel_o)
         if rd_rel_o:
             break
-    yield dut.rd.go.eq(0)
+    yield dut.rd.go_i.eq(0)
 
-    req_rel_o = yield dut.wr.rel
+    req_rel_o = yield dut.wr.rel_o
     result = yield dut.data_o
     print("req_rel", req_rel_o, result)
     while True:
-        req_rel_o = yield dut.wr.rel
+        req_rel_o = yield dut.wr.rel_o
         result = yield dut.data_o
         print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
-    yield dut.wr.go[0].eq(1)
+    yield dut.wr.go_i[0].eq(1)
     yield Settle()
     result = yield dut.data_o
     yield
     print("result", result)
-    yield dut.wr.go[0].eq(0)
+    yield dut.wr.go_i[0].eq(0)
     yield
     return result
 
@@ -86,45 +86,45 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield dut.issue_i.eq(0)
     yield
     if not imm_ok or not zero_a:
-        yield dut.rd.go.eq(0b11)
+        yield dut.rd.go_i.eq(0b11)
         while True:
             yield
-            rd_rel_o = yield dut.rd.rel
+            rd_rel_o = yield dut.rd.rel_o
             print("rd_rel", rd_rel_o)
             if rd_rel_o:
                 break
-        yield dut.rd.go.eq(0)
+        yield dut.rd.go_i.eq(0)
     else:
         print("no go rd")
 
     if len(dut.src_i) == 3:
-        yield dut.rd.go.eq(0b100)
+        yield dut.rd.go_i.eq(0b100)
         while True:
             yield
-            rd_rel_o = yield dut.rd.rel
+            rd_rel_o = yield dut.rd.rel_o
             print("rd_rel", rd_rel_o)
             if rd_rel_o:
                 break
-        yield dut.rd.go.eq(0)
+        yield dut.rd.go_i.eq(0)
     else:
         print("no 3rd rd")
 
-    req_rel_o = yield dut.wr.rel
+    req_rel_o = yield dut.wr.rel_o
     result = yield dut.data_o
     print("req_rel", req_rel_o, result)
     while True:
-        req_rel_o = yield dut.wr.rel
+        req_rel_o = yield dut.wr.rel_o
         result = yield dut.data_o
         print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
-    yield dut.wr.go[0].eq(1)
+    yield dut.wr.go_i[0].eq(1)
     yield Settle()
     result = yield dut.data_o
     yield
     print("result", result)
-    yield dut.wr.go[0].eq(0)
+    yield dut.wr.go_i[0].eq(0)
     yield
     return result
 
@@ -346,7 +346,7 @@ class CompUnitParallelTest:
             if issue_i:
                 break
             # issue_i has not risen yet, so rd must keep low
-            rel = yield self.dut.rd.rel[rd_idx]
+            rel = yield self.dut.rd.rel_o[rd_idx]
             assert not rel
             yield
 
@@ -360,24 +360,24 @@ class CompUnitParallelTest:
             return
 
         # issue_i has risen. rel must rise on the next cycle
-        rel = yield self.dut.rd.rel[rd_idx]
+        rel = yield self.dut.rd.rel_o[rd_idx]
         assert not rel
 
         # stall for additional cycles. Check that rel doesn't fall on its own
         for n in range(self.RD_GO_DELAY[rd_idx]):
             yield
-            rel = yield self.dut.rd.rel[rd_idx]
+            rel = yield self.dut.rd.rel_o[rd_idx]
             assert rel
 
         # Before asserting "go", make sure "rel" has risen.
         # The use of Settle allows "go" to be set combinatorially,
         # rising on the same cycle as "rel".
         yield Settle()
-        rel = yield self.dut.rd.rel[rd_idx]
+        rel = yield self.dut.rd.rel_o[rd_idx]
         assert rel
 
         # assert go for one cycle, passing along the operand value
-        yield self.dut.rd.go[rd_idx].eq(1)
+        yield self.dut.rd.go_i[rd_idx].eq(1)
         yield self.dut.src_i[rd_idx].eq(self.operands[rd_idx])
         # check that the operand was sent to the alu
         # TODO: Properly check the alu protocol
@@ -387,17 +387,17 @@ class CompUnitParallelTest:
         yield
 
         # rel must keep high, since go was inactive in the last cycle
-        rel = yield self.dut.rd.rel[rd_idx]
+        rel = yield self.dut.rd.rel_o[rd_idx]
         assert rel
 
         # finish the go one-clock pulse
-        yield self.dut.rd.go[rd_idx].eq(0)
+        yield self.dut.rd.go_i[rd_idx].eq(0)
         yield self.dut.src_i[rd_idx].eq(0)
         yield
 
         # rel must have gone low in response to go being high
         # on the previous cycle
-        rel = yield self.dut.rd.rel[rd_idx]
+        rel = yield self.dut.rd.rel_o[rd_idx]
         assert not rel
 
         self.rd_complete[rd_idx] = True

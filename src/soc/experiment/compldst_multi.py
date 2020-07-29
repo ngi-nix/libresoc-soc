@@ -207,15 +207,15 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # (it really shouldn't be)
         self.data_wid = self.dest[0].shape()
 
-        self.go_rd_i = self.rd.go  # temporary naming
-        self.go_wr_i = self.wr.go  # temporary naming
-        self.go_ad_i = self.ad.go  # temp naming: go address in
-        self.go_st_i = self.st.go  # temp naming: go store in
+        self.go_rd_i = self.rd.go_i  # temporary naming
+        self.go_wr_i = self.wr.go_i  # temporary naming
+        self.go_ad_i = self.ad.go_i  # temp naming: go address in
+        self.go_st_i = self.st.go_i  # temp naming: go store in
 
-        self.rd_rel_o = self.rd.rel  # temporary naming
-        self.req_rel_o = self.wr.rel  # temporary naming
-        self.adr_rel_o = self.ad.rel  # request address (from mem)
-        self.sto_rel_o = self.st.rel  # request store (to mem)
+        self.rd_rel_o = self.rd.rel_o  # temporary naming
+        self.req_rel_o = self.wr.rel_o  # temporary naming
+        self.adr_rel_o = self.ad.rel_o  # request address (from mem)
+        self.sto_rel_o = self.st.rel_o  # request store (to mem)
 
         self.issue_i = cu.issue_i
         self.shadown_i = cu.shadown_i
@@ -292,14 +292,14 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         comb += reset_i.eq(issue_i | self.go_die_i)       # various
         comb += reset_o.eq(wr_reset | self.go_die_i)      # opcode reset
-        comb += reset_w.eq(self.wr.go[0] | self.go_die_i)  # write reg 1
-        comb += reset_u.eq(self.wr.go[1] | self.go_die_i)  # update (reg 2)
+        comb += reset_w.eq(self.wr.go_i[0] | self.go_die_i)  # write reg 1
+        comb += reset_u.eq(self.wr.go_i[1] | self.go_die_i)  # update (reg 2)
         comb += reset_s.eq(self.go_st_i | self.go_die_i)  # store reset
-        comb += reset_r.eq(self.rd.go | Repl(self.go_die_i, self.n_src))
+        comb += reset_r.eq(self.rd.go_i | Repl(self.go_die_i, self.n_src))
         comb += reset_a.eq(self.go_ad_i | self.go_die_i)
 
         p_st_go = Signal(reset_less=True)
-        sync += p_st_go.eq(self.st.go)
+        sync += p_st_go.eq(self.st.go_i)
 
         ##########################
         # FSM implemented through sequence of latches.  approximately this:
@@ -413,39 +413,41 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # 2nd operand only needed when immediate is not active
         slg = Cat(op_is_z, op_is_imm)
         bro = Repl(self.busy_o, self.n_src)
-        comb += self.rd.rel.eq(src_l.q & bro & ~slg & ~self.rdmaskn)
+        comb += self.rd.rel_o.eq(src_l.q & bro & ~slg & ~self.rdmaskn)
 
         # note when the address-related read "go" signals are active
-        comb += rda_any.eq(self.rd.go[0] | self.rd.go[1])
+        comb += rda_any.eq(self.rd.go_i[0] | self.rd.go_i[1])
 
         # alu input valid when 1st and 2nd ops done (or imm not active)
-        comb += alu_valid.eq(busy_o & ~(self.rd.rel[0] | self.rd.rel[1]))
+        comb += alu_valid.eq(busy_o & ~(self.rd.rel_o[0] | self.rd.rel_o[1]))
 
         # 3rd operand only needed when operation is a store
-        comb += self.rd.rel[2].eq(src_l.q[2] & busy_o & op_is_st)
+        comb += self.rd.rel_o[2].eq(src_l.q[2] & busy_o & op_is_st)
 
         # all reads done when alu is valid and 3rd operand needed
-        comb += rd_done.eq(alu_valid & ~self.rd.rel[2])
+        comb += rd_done.eq(alu_valid & ~self.rd.rel_o[2])
 
         # address release only if addr ready, but Port must be idle
         comb += self.adr_rel_o.eq(alu_valid & adr_l.q & busy_o)
 
         # store release when st ready *and* all operands read (and no shadow)
-        comb += self.st.rel.eq(sto_l.q & busy_o & rd_done & op_is_st &
+        comb += self.st.rel_o.eq(sto_l.q & busy_o & rd_done & op_is_st &
                                self.shadown_i)
 
         # request write of LD result.  waits until shadow is dropped.
-        comb += self.wr.rel[0].eq(rd_done & wri_l.q & busy_o & lod_l.qn &
+        comb += self.wr.rel_o[0].eq(rd_done & wri_l.q & busy_o & lod_l.qn &
                                   op_is_ld & self.shadown_i)
 
         # request write of EA result only in update mode
-        comb += self.wr.rel[1].eq(upd_l.q & busy_o & op_is_update & alu_valid &
-                                  self.shadown_i)
+        comb += self.wr.rel_o[1].eq(upd_l.q & busy_o & op_is_update &
+                                  alu_valid & self.shadown_i)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
-        comb += wr_any.eq(self.st.go | p_st_go | self.wr.go[0] | self.wr.go[1])
+        comb += wr_any.eq(self.st.go_i | p_st_go |
+                          self.wr.go_i[0] | self.wr.go_i[1])
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
-                            ~(self.st.rel | self.wr.rel[0] | self.wr.rel[1]) &
+                            ~(self.st.rel_o | self.wr.rel_o[0] |
+                              self.wr.rel_o[1]) &
                             (lod_l.qn | op_is_st))
         comb += self.done_o.eq(wr_reset)
 
@@ -454,12 +456,12 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # put the LD-output register directly onto the output bus on a go_write
         comb += self.data_o.data.eq(self.dest[0])
-        with m.If(self.wr.go[0]):
+        with m.If(self.wr.go_i[0]):
             comb += self.dest[0].eq(ldd_r)
 
         # "update" mode, put address out on 2nd go-write
         comb += self.addr_o.data.eq(self.dest[1])
-        with m.If(op_is_update & self.wr.go[1]):
+        with m.If(op_is_update & self.wr.go_i[1]):
             comb += self.dest[1].eq(addr_r)
 
         # need to look like MultiCompUnit: put wrmask out.
@@ -500,7 +502,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
             stdata_r = byte_reverse(m, 'stdata_r', srl[2], data_len)
             comb += pi.st.data.eq(stdata_r)
         # store - data goes in based on go_st
-        comb += pi.st.ok.eq(self.st.go)  # go store signals st data valid
+        comb += pi.st.ok.eq(self.st.go_i)  # go store signals st data valid
 
         return m
 
@@ -516,9 +518,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         return self.get_out(i)
 
     def __iter__(self):
-        yield self.rd.go
+        yield self.rd.go_i
         yield self.go_ad_i
-        yield self.wr.go
+        yield self.wr.go_i
         yield self.go_st_i
         yield self.issue_i
         yield self.shadown_i
@@ -526,10 +528,10 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         yield from self.oper_i.ports()
         yield from self.src_i
         yield self.busy_o
-        yield self.rd.rel
+        yield self.rd.rel_o
         yield self.adr_rel_o
         yield self.sto_rel_o
-        yield self.wr.rel
+        yield self.wr.rel_o
         yield from self.data_o.ports()
         yield from self.addr_o.ports()
         yield self.load_mem_o
@@ -574,7 +576,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
         active_rel = 0b111
     # wait for all active rel signals to come up
     while True:
-        rel = yield dut.rd.rel
+        rel = yield dut.rd.rel_o
         if rel == active_rel:
             break
         yield
@@ -589,7 +591,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
     # yield dut.ad.go.eq(0)
 
     if update:
-        yield from wait_for(dut.wr.rel[1])
+        yield from wait_for(dut.wr.rel_o[1])
         yield dut.wr.go.eq(0b10)
         yield
         addr = yield dut.addr_o
@@ -634,7 +636,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     # wait for the operands (RA, RB, or both)
     if rd:
         yield dut.rd.go.eq(rd)
-        yield from wait_for(dut.rd.rel)
+        yield from wait_for(dut.rd.rel_o)
         yield dut.rd.go.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
@@ -643,7 +645,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     # yield dut.ad.go.eq(0)
 
     if update:
-        yield from wait_for(dut.wr.rel[1])
+        yield from wait_for(dut.wr.rel_o[1])
         yield dut.wr.go.eq(0b10)
         yield
         addr = yield dut.addr_o
@@ -652,7 +654,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     else:
         addr = None
 
-    yield from wait_for(dut.wr.rel[0], test1st=True)
+    yield from wait_for(dut.wr.rel_o[0], test1st=True)
     yield dut.wr.go.eq(1)
     yield
     data = yield dut.data_o

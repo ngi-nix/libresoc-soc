@@ -304,7 +304,7 @@ class NonProductionCore(Elaboratable):
 
                     # connect request-read to picker input, and output to go-wr
                     fu_active = fu_bitdict[funame]
-                    pick = fu.wr.rel[idx] & fu_active  # & wrflag
+                    pick = fu.wr.rel_o[idx] & fu_active  # & wrflag
                     comb += wrpick.i[pi].eq(pick)
                     comb += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
                     # connect regfile port to input
