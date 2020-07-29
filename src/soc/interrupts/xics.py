@@ -229,7 +229,7 @@ class XICS_ICS(Elaboratable):
         self.bus = Record(make_wb_layout(spec))
 
         self.int_level_i = Signal(SRC_NUM)
-        self.icp_out = ICS2ICP("icp_o")
+        self.icp_o = ICS2ICP("icp_o")
 
     def prio_pack(self, pri8):
         return pri8[:self.PRIO_BITS]
@@ -253,7 +253,7 @@ class XICS_ICS(Elaboratable):
 
         wb_valid = Signal()
         reg_idx = Signal(log2_int(self.SRC_NUM))
-        icp_out_next = ICS2ICP("icp_r")
+        icp_o_next = ICS2ICP("icp_r")
         int_level_l = Signal(self.SRC_NUM)
 
         # Register map
@@ -320,9 +320,9 @@ class XICS_ICS(Elaboratable):
                                   Const(0, 4)))             # 28-31
         # Debug reg
         with m.Elif(reg_is_debug):
-            comb += be_out.eq(Cat(icp_out_next.pri,  # 0-7
+            comb += be_out.eq(Cat(icp_o_next.pri,  # 0-7
                                   Const(0, 20),      # 8-27
-                                  icp_out_next.src)) # 28-31
+                                  icp_o_next.src)) # 28-31
 
         sync += self.bus.dat_r.eq(bswap(be_out))
         sync += self.bus.ack.eq(wb_valid)
@@ -346,7 +346,7 @@ class XICS_ICS(Elaboratable):
         # could be replaced with iterative state machines and a message
         # system between ICSs' (plural) and ICP  incl. reject etc...
         #
-        sync += self.icp_out.eq(icp_out_next)
+        sync += self.icp_o.eq(icp_o_next)
 
         max_idx = Signal(log2_int(self.SRC_NUM))
         max_pri = Signal(self.PRIO_BITS)
@@ -362,8 +362,8 @@ class XICS_ICS(Elaboratable):
             #report "MFI: " & integer'image(max_idx) &
             #" pri=" & to_hstring(prio_unpack(max_pri));
             pass
-        comb += icp_out_next.src.eq(max_idx)
-        comb += icp_out_next.pri.eq(self.prio_unpack(max_pri))
+        comb += icp_o_next.src.eq(max_idx)
+        comb += icp_o_next.pri.eq(self.prio_unpack(max_pri))
 
         return m
 
@@ -371,7 +371,7 @@ class XICS_ICS(Elaboratable):
         for field in self.bus.fields.values():
             yield field
         yield self.int_level_i
-        yield from self.icp_out.ports()
+        yield from self.icp_o.ports()
 
     def ports(self):
         return list(self)
@@ -561,8 +561,28 @@ def test_xics_ics():
 
     #run_simulation(dut, ldst_sim(dut), vcd_name='test_ldst_regspec.vcd')
 
+def test_xics():
+
+    m = Module()
+    m.submodules.icp = icp = XICS_ICP()
+    m.submodules.ics = ics = XICS_ICS()
+    m.d.comb += icp.ics_i.eq(ics.icp_o)
+
+    vl = rtlil.convert(m, ports=icp.ports()+ics.ports())
+    with open("test_xics.il", "w") as f:
+        f.write(vl)
+
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    #sim.add_sync_process(wrap(sim_xics_icp(dut)))
+    sim_writer = sim.write_vcd('test_xics.vcd')
+    with sim_writer:
+        sim.run()
+
 
 if __name__ == '__main__':
     test_xics_icp()
     test_xics_ics()
+    test_xics()
 
