@@ -6,6 +6,8 @@ Links:
 * http://bugs.libre-riscv.org/show_bug.cgi?id=216
 """
 
+from soc.experiment.pimem import PortInterface
+
 from nmigen import Elaboratable, Module, Signal, Record, Array, Const
 from nmutil.latch import SRLatch, latchregister
 from nmigen.back.pysim import Simulator, Delay
@@ -61,18 +63,24 @@ class LDSTSplitter(Elaboratable):
         self.dwidth, self.awidth, self.dlen = dwidth, awidth, dlen
         # cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
         cline_wid = dwidth  # TODO: make this bytes not bits
-        self.addr_i = Signal(awidth, reset_less=True)
+
+        self.pi =  PortInterface()
+
+        self.addr_i = self.pi.addr.data  #Signal(awidth, reset_less=True)
+        # no match in PortInterface
         self.len_i = Signal(dlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
         self.valid_o = Signal(reset_less=True)
 
-        self.is_ld_i = Signal(reset_less=True)
-        self.is_st_i = Signal(reset_less=True)
+        self.is_ld_i = self.pi.is_ld_i #Signal(reset_less=True)
+        self.is_st_i = self.pi.is_st_i #Signal(reset_less=True)
 
-        self.ld_data_o = LDData(dwidth, "ld_data_o")
-        self.st_data_i = LDData(dwidth, "st_data_i")
+        self.ld_data_o = LDData(dwidth, "ld_data_o") #port.ld
+        self.st_data_i = LDData(dwidth, "st_data_i") #port.st
 
-        self.exc = Signal(reset_less=True)
+        self.exc = Signal(reset_less=True) # pi.exc TODO
+
+        # TODO : create/connect two outgoing port interfaces
 
         self.sld_valid_o = Signal(2, reset_less=True)
         self.sld_valid_i = Signal(2, reset_less=True)
