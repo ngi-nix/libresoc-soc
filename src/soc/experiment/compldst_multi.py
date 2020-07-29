@@ -100,8 +100,8 @@ class LDSTCompUnitRecord(CompUnitRecord):
         CompUnitRecord.__init__(self, opsubset, rwid,
                                 n_src=3, n_dst=2, name=name)
 
-        self.ad = go_record(1, name="ad")  # address go in, req out
-        self.st = go_record(1, name="st")  # store go in, req out
+        self.ad = go_record(1, name="cu_ad")  # address go in, req out
+        self.st = go_record(1, name="cu_st")  # store go in, req out
 
         self.addr_exc_o = Signal(reset_less=True)   # address exception
 
