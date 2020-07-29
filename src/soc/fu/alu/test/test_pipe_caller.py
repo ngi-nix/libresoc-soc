@@ -158,6 +158,48 @@ class ALUTestCase(TestAccumulatorBase):
 
 
 class TestRunner(unittest.TestCase):
+
+    def execute(self, alu,instruction, pdecode2, test):
+        program = test.program
+        sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                  test.mem, test.msr,
+                  bigendian=bigendian)
+        gen = program.generate_instructions()
+        instructions = list(zip(gen, program.assembly.splitlines()))
+
+        index = sim.pc.CIA.value//4
+        while index < len(instructions):
+            ins, code = instructions[index]
+
+            print("instruction: 0x{:X}".format(ins & 0xffffffff))
+            print(code)
+            if 'XER' in sim.spr:
+                so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                print("before: so/ov/32", so, ov, ov32)
+
+            # ask the decoder to decode this binary data (endian'd)
+            # little / big?
+            yield pdecode2.dec.bigendian.eq(bigendian)
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Settle()
+            fn_unit = yield pdecode2.e.do.fn_unit
+            self.assertEqual(fn_unit, Function.ALU.value)
+            yield from set_alu_inputs(alu, pdecode2, sim)
+            yield
+            opname = code.split(' ')[0]
+            yield from sim.call(opname)
+            index = sim.pc.CIA.value//4
+
+            vld = yield alu.n.valid_o
+            while not vld:
+                yield
+                vld = yield alu.n.valid_o
+            yield
+
+            yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+
     def test_it(self):
         test_data = ALUTestCase().test_data
         m = Module()
@@ -173,7 +215,7 @@ class TestRunner(unittest.TestCase):
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
         comb += alu.p.valid_i.eq(1)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.n.ready_i.eq(1) # XXX ONLY works because ALU is 1 stage pipe
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
@@ -184,45 +226,7 @@ class TestRunner(unittest.TestCase):
                 print(test.name)
                 program = test.program
                 with self.subTest(test.name):
-                    sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                              test.mem, test.msr,
-                              bigendian=bigendian)
-                    gen = program.generate_instructions()
-                    instructions = list(
-                        zip(gen, program.assembly.splitlines()))
-
-                    index = sim.pc.CIA.value//4
-                    while index < len(instructions):
-                        ins, code = instructions[index]
-
-                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                        print(code)
-                        if 'XER' in sim.spr:
-                            so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                            ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                            ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                            print("before: so/ov/32", so, ov, ov32)
-
-                        # ask the decoder to decode this binary data (endian'd)
-                        # little / big?
-                        yield pdecode2.dec.bigendian.eq(bigendian)
-                        yield instruction.eq(ins)          # raw binary instr.
-                        yield Settle()
-                        fn_unit = yield pdecode2.e.do.fn_unit
-                        self.assertEqual(fn_unit, Function.ALU.value)
-                        yield from set_alu_inputs(alu, pdecode2, sim)
-                        yield
-                        opname = code.split(' ')[0]
-                        yield from sim.call(opname)
-                        index = sim.pc.CIA.value//4
-
-                        vld = yield alu.n.valid_o
-                        while not vld:
-                            yield
-                            vld = yield alu.n.valid_o
-                        yield
-
-                        yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                    yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         sim.write_vcd("alu_simulator.vcd")
