@@ -167,7 +167,7 @@ class XICS_ICP(Elaboratable):
 
         # set XISR
         with m.If(self.ics_i.pri != 0xff):
-            comb += v.xisr.eq(Cat(self.ics_i.src, Const(0x00001)))
+            comb += v.xisr.eq(Cat(self.ics_i.src, Const(0x00001, 20)))
             comb += pending_priority.eq(self.ics_i.pri)
 
         # Check MFRR
@@ -235,7 +235,7 @@ class XICS_ICS(Elaboratable):
         return pri8[:self.PRIO_BITS]
 
     def prio_unpack(self, pri):
-        return Mux(pri == self.pri_masked, 0xff, pri[:self.PRIO_BITS])
+        return Mux(pri == self.pri_masked, Const(0xff, 8), pri[:self.PRIO_BITS])
 
     # A more favored than b ?
     def a_mf_b(self, a, b):
@@ -339,6 +339,7 @@ class XICS_ICS(Elaboratable):
                 sync += xives[reg_idx].pri.eq(self.prio_pack(be_in[:8]))
                 #report "ICS irq " & integer'image(reg_idx) &
                 #    " set to:" & to_hstring(be_in(7 downto 0));
+                pass
 
         # generate interrupt. This is a simple combinational process,
         # potentially wasteful in HW for large number of interrupts.
@@ -351,13 +352,19 @@ class XICS_ICS(Elaboratable):
         max_idx = Signal(log2_int(self.SRC_NUM))
         max_pri = Signal(self.PRIO_BITS)
 
-        # XXX FIXME: Use a tree
+        # XXX FIXME: Use a tree (or examine each bit in turn)
         comb += max_pri.eq(self.pri_masked)
         comb += max_idx.eq(0)
         for i in range(self.SRC_NUM):
+            cur_idx = Signal(log2_int(self.SRC_NUM), name="cur_idx%d" % i)
+            cur_pri = Signal(self.PRIO_BITS, name="cur_pri%d" % i)
+            comb += cur_pri.eq(max_pri)
+            comb += cur_idx.eq(max_idx)
             with m.If(int_level_l[i] & self.a_mf_b(xives[i].pri, max_pri)):
-                comb += max_pri.eq(xives[i].pri)
-                comb += max_idx.eq(i)
+                comb += cur_pri.eq(xives[i].pri)
+                comb += cur_idx.eq(i)
+            max_pri = cur_pri
+            max_idx = cur_idx
         with m.If(max_pri != self.pri_masked):
             #report "MFI: " & integer'image(max_idx) &
             #" pri=" & to_hstring(prio_unpack(max_pri));
@@ -534,6 +541,129 @@ def sim_xics_icp(dut):
     yield
 
 
+def swap32(x):
+    return int.from_bytes(x.to_bytes(4, byteorder='little'),
+                          byteorder='big', signed=False)
+
+def get_field(x, wid, shift):
+    x = x >> shift
+    return x & ((1<<wid)-1)
+
+
+def sim_xics(icp, ics):
+
+    # read config
+    data = yield from wb_read(ics, 0)
+    print ("config", hex(data), bin(data))
+    data = swap32(data)
+    base = get_field(data, 24, 0)
+    pri = get_field(data, 8, 24)
+    print ("    base", hex(base))
+    print ("    pri", hex(pri))
+    assert base == 16
+    assert pri == 8
+
+    yield
+    yield
+
+    # read XIVE0
+    data = yield from wb_read(ics, 0x800)
+    print ("xive0", hex(data), bin(data))
+    data = swap32(data)
+    irq = get_field(data, 1, 31)
+    rsvd = get_field(data, 1, 30)
+    p = get_field(data, 1, 29)
+    q = get_field(data, 1, 28)
+    rsvd2 = get_field(data, 8, 20)
+    target = get_field(data, 12, 8)
+    prio = get_field(data, 8, 0)
+    print("    irq", hex(irq))
+    print("    rsvd", hex(rsvd))
+    print("    p", hex(p))
+    print("    q", hex(q))
+    print("    rsvd2", hex(rsvd2))
+    print("    target", hex(target))
+    print("    prio", hex(prio))
+    assert irq == 0 # not active
+    assert rsvd == 0
+    assert rsvd2 == 0
+    assert target == 0 # not implemented
+    assert prio == 0xff
+
+    yield
+    yield
+
+    # raise XIVE 1 (just for fun)
+    yield ics.int_level_i.eq(1<<1)
+
+    yield
+    yield
+
+    # read XIVE1
+    data = yield from wb_read(ics, 0x804)
+    print ("xive1", hex(data), bin(data))
+    data = swap32(data)
+    irq = get_field(data, 1, 31)
+    rsvd = get_field(data, 1, 30)
+    p = get_field(data, 1, 29)
+    q = get_field(data, 1, 28)
+    rsvd2 = get_field(data, 8, 20)
+    target = get_field(data, 12, 8)
+    prio = get_field(data, 8, 0)
+    print("    irq", hex(irq))
+    print("    rsvd", hex(rsvd))
+    print("    p", hex(p))
+    print("    q", hex(q))
+    print("    rsvd2", hex(rsvd2))
+    print("    target", hex(target))
+    print("    prio", hex(prio))
+    assert irq == 1 # active!
+    assert rsvd == 0
+    assert rsvd2 == 0
+    assert target == 0 # not implemented
+    assert prio == 0xff
+
+    yield
+    yield
+
+    # check that after setting IRQ 2 core is still 0 because priority is 0xff
+    assert (yield icp.core_irq_o) == 0
+    yield
+
+    # set XIVE1 priority to 0xf0
+    data = swap32(0xf0)
+    yield from wb_write(ics, 0x804, data)
+    print ("XIVE1 priority written", hex(data), bin(data))
+
+    yield
+    yield
+
+    ######################
+    # write XIRR
+    data = 0xfe
+    yield from wb_write(icp, XIRR, data)
+    print ("xirr written", hex(data), bin(data))
+
+    assert (yield icp.core_irq_o) == 1 # ok *now* it should be set
+
+    yield
+    yield
+
+    # read wb XIRR (32-bit)
+    data = yield from wb_read(icp, XIRR)
+    print ("xirr", hex(data), bin(data))
+    data = swap32(data)
+    cppr = get_field(data, 8, 24)
+    xisr = get_field(data, 24, 0)
+    print("    cppr", hex(cppr))
+    print("    xisr", hex(xisr))
+    yield
+    assert (yield icp.core_irq_o) == 0
+
+    yield
+
+
+
 def test_xics_icp():
 
     dut = XICS_ICP()
@@ -575,7 +705,7 @@ def test_xics():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    #sim.add_sync_process(wrap(sim_xics_icp(dut)))
+    sim.add_sync_process(wrap(sim_xics(icp, ics)))
     sim_writer = sim.write_vcd('test_xics.vcd')
     with sim_writer:
         sim.run()
