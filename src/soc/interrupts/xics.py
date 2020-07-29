@@ -102,7 +102,7 @@ class XICS_ICP(Elaboratable):
 
         pending_priority = Signal(8)
 
-        comb += v.eq(r)
+        comb += v.eq(r) # start from the register (r)
         comb += v.wb_ack.eq(0)
 
         comb += xirr_accept_rd.eq(0)
@@ -148,7 +148,7 @@ class XICS_ICP(Elaboratable):
 
             with m.Else(): # read
 
-                with m.Switch( self.bus.adr[:8]):
+                with m.Switch(self.bus.adr[:8]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL read";
                         comb += be_out.eq(r.xisr & r.cppr)
@@ -165,6 +165,7 @@ class XICS_ICP(Elaboratable):
         comb += v.xisr.eq(0x0)
         comb += v.irq.eq(0x0)
 
+        # set XISR
         with m.If(self.ics_i.pri != 0xff):
             comb += v.xisr.eq(Cat(self.ics_i.src, Const(0x00001)))
             comb += pending_priority.eq(self.ics_i.pri)
@@ -184,13 +185,12 @@ class XICS_ICP(Elaboratable):
 
         comb += v.wb_rd_data.eq(bswap(be_out))
 
-        pp_ok = Signal()
-        comb += pp_ok.eq(pending_priority < v.cppr)
-        with m.If(pp_ok):
+        # check if the core needs an interrupt notification (or clearing)
+        comb += v.irq.eq(pending_priority < v.cppr)
+        with m.If(v.irq):
             with m.If(~r.irq):
                 #report "IRQ set";
                 pass
-            comb += v.irq.eq(1)
         with m.Elif(r.irq):
             #report "IRQ clr";
             pass
@@ -380,9 +380,9 @@ class XICS_ICS(Elaboratable):
 def wb_write(dut, addr, data, sel=True):
 
     # read wb
+    yield dut.bus.we.eq(1)
     yield dut.bus.cyc.eq(1)
     yield dut.bus.stb.eq(1)
-    yield dut.bus.we.eq(1)
     yield dut.bus.sel.eq(0b1111 if sel else 0b1) # 32-bit / 8-bit
     yield dut.bus.adr.eq(addr)
     yield dut.bus.dat_w.eq(data)
@@ -501,20 +501,27 @@ def sim_xics_icp(dut):
 
     ######################
     # write XIRR
-    data = 0xff
+    data = 0xfe
     yield from wb_write(dut, XIRR, data)
     print ("xirr written", hex(data), bin(data))
 
-    yield
-    assert (yield dut.core_irq_o) == 1
-    yield
-    yield
-    yield
+    assert (yield dut.core_irq_o) == 0 # write takes 1 cycle to propagate
+    yield # wait for it...
+    assert (yield dut.core_irq_o) == 1 # ok *now* it should be set
 
     # read wb XIRR_POLL
-    #data = yield from wb_read(dut, XIRR_POLL, False)
-    #print ("xirr poll", hex(data), bin(data))
-    #assert (yield dut.core_irq_o) == 1
+    data = yield from wb_read(dut, XIRR_POLL, False)
+    print ("xirr poll", hex(data), bin(data))
+    assert (yield dut.core_irq_o) == 1 # should not clear
+
+    yield # XXX only works if there is a 2-clock delay between POLL and XIRR
+    yield
+
+    # read wb XIRR (8-bit)
+    data = yield from wb_read(dut, XIRR, False)
+    print ("xirr", hex(data), bin(data))
+    yield
+    assert (yield dut.core_irq_o) == 1 # should not clear
 
     yield
 
