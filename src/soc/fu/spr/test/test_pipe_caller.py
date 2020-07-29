@@ -13,7 +13,8 @@ from soc.config.endian import bigendian
 from soc.consts import MSR
 
 
-from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
+from soc.fu.test.common import (
+    TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
 from soc.fu.spr.pipeline import SPRBasePipe
 from soc.fu.spr.pipe_data import SPRPipeSpec
 import random
@@ -83,7 +84,7 @@ class SPRTestCase(TestAccumulatorBase):
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0xe00c0000}
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs)
+                      initial_regs, initial_sprs)
 
     def case_1_mtspr(self):
         lst = ["mtspr 26, 1",  # SRR0
@@ -98,7 +99,7 @@ class SPRTestCase(TestAccumulatorBase):
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs)
+                      initial_regs, initial_sprs)
 
     def case_2_mtspr_mfspr(self):
         lst = ["mtspr 26, 1",  # SRR0
@@ -117,11 +118,11 @@ class SPRTestCase(TestAccumulatorBase):
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0x0}
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs)
+                      initial_regs, initial_sprs)
 
     # TODO XXX whoops...
-    #@unittest.skip("spr does not have TRAP in it. has to be done another way")
-    def _skip_case_3_mtspr_priv(self):
+    @skip_case("spr does not have TRAP in it. has to be done another way")
+    def case_3_mtspr_priv(self):
         lst = ["mtspr 26, 1",  # SRR0
                "mtspr 27, 2",  # SRR1
                "mtspr 1, 3",  # XER
@@ -135,7 +136,7 @@ class SPRTestCase(TestAccumulatorBase):
                         'XER': 0x0}
         msr = 1 << MSR.PR
         self.add_case(Program(lst, bigendian),
-                             initial_regs, initial_sprs, initial_msr=msr)
+                      initial_regs, initial_sprs, initial_msr=msr)
 
     def case_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)

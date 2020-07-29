@@ -4,9 +4,72 @@ Bugreports:
 """
 
 import inspect
+import functools
+import types
 from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr  # HACK!
 from soc.regfile.regfiles import FastRegs
+
+
+class SkipCase(Exception):
+    """Raise this exception to skip a test case.
+
+    Usually you'd use one of the skip_case* decorators.
+
+    For use with TestAccumulatorBase
+    """
+
+
+def _id(obj):
+    """identity function"""
+    return obj
+
+
+def skip_case(reason):
+    """
+    Unconditionally skip a test case.
+
+    Use like:
+        @skip_case("my reason for skipping")
+        def case_abc(self):
+            ...
+    or:
+        @skip_case
+        def case_def(self):
+            ...
+
+    For use with TestAccumulatorBase
+    """
+    def decorator(item):
+        assert not isinstance(item, type), \
+            "can't use skip_case to decorate types"
+
+        @functools.wraps(item)
+        def wrapper(*args, **kwargs):
+            raise SkipCase(reason)
+        return wrapper
+    if isinstance(reason, types.FunctionType):
+        item = reason
+        reason = ""
+        return decorator(item)
+    return decorator
+
+
+def skip_case_if(condition, reason):
+    """
+    Conditionally skip a test case.
+
+    Use like:
+        @skip_case_if(should_i_skip(), "my reason for skipping")
+        def case_abc(self):
+            ...
+
+    For use with TestAccumulatorBase
+    """
+    if condition:
+        return skip_case(reason)
+    return _id
+
 
 class TestAccumulatorBase:
 
@@ -17,14 +80,20 @@ class TestAccumulatorBase:
         # we need a different system
         for n, v in self.__class__.__dict__.items():
             if n.startswith("case_") and callable(v):
-                v(self)
+                try:
+                    v(self)
+                except SkipCase as e:
+                    # TODO(programmerjake): translate to final test sending
+                    # skip signal to unittest. for now, just print the skipped
+                    # reason and ignore
+                    print(f"SKIPPED({n}):", str(e))
 
     def add_case(self, prog, initial_regs=None, initial_sprs=None,
-                        initial_cr=0, initial_msr=0,
-                        initial_mem=None):
+                 initial_cr=0, initial_msr=0,
+                 initial_mem=None):
 
-        test_name = inspect.stack()[1][3] # name of caller of this function
-        tc = TestCase(prog, test_name, 
+        test_name = inspect.stack()[1][3]  # name of caller of this function
+        tc = TestCase(prog, test_name,
                       regs=initial_regs, sprs=initial_sprs, cr=initial_cr,
                       msr=initial_msr,
                       mem=initial_mem)
