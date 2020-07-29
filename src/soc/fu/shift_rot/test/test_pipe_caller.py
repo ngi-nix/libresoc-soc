@@ -197,6 +197,43 @@ class TestRunner(unittest.TestCase):
         super().__init__("run_all")
         self.test_data = test_data
 
+    def execute(self, alu, instruction, pdecode2, test):
+        program = test.program
+        simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                        test.mem, test.msr,
+                        bigendian=bigendian)
+        gen = program.generate_instructions()
+        instructions = list(zip(gen, program.assembly.splitlines()))
+
+        index = simulator.pc.CIA.value//4
+        while index < len(instructions):
+            ins, code = instructions[index]
+
+            print("0x{:X}".format(ins & 0xffffffff))
+            print(code)
+
+            # ask the decoder to decode this binary data (endian'd)
+            yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Settle()
+            fn_unit = yield pdecode2.e.do.fn_unit
+            self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
+            yield from set_alu_inputs(alu, pdecode2, simulator)
+            yield
+            opname = code.split(' ')[0]
+            yield from simulator.call(opname)
+            index = simulator.pc.CIA.value//4
+
+            vld = yield alu.n.valid_o
+            while not vld:
+                yield
+                vld = yield alu.n.valid_o
+            yield
+            alu_out = yield alu.n.data_o.o.data
+
+            yield from self.check_alu_outputs(alu, pdecode2,
+                                              simulator, code)
+
     def run_all(self):
         m = Module()
         comb = m.d.comb
@@ -221,42 +258,8 @@ class TestRunner(unittest.TestCase):
             for test in self.test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                                test.mem, test.msr,
-                                bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
-
-                index = simulator.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
-                    yield from set_alu_inputs(alu, pdecode2, simulator)
-                    yield
-                    opname = code.split(' ')[0]
-                    yield from simulator.call(opname)
-                    index = simulator.pc.CIA.value//4
-
-                    vld = yield alu.n.valid_o
-                    while not vld:
-                        yield
-                        vld = yield alu.n.valid_o
-                    yield
-                    alu_out = yield alu.n.data_o.o.data
-
-                    yield from self.check_alu_outputs(alu, pdecode2,
-                                                      simulator, code)
-                    break
+                with self.subTest(test.name):
+                    yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         print(dir(sim))
