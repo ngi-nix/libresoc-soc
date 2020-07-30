@@ -99,6 +99,26 @@ class DataMergerRecord(Record):
         self.data.reset_less = True
         self.en.reset_less = True
 
+class CacheRecord(Record):
+    def __init__(self, name=None):
+        layout = (('addr', 37),
+                  ('a_even', 7),
+                  ('bytemask_even', 16),
+                  ('data_even', 128),
+                  ('a_odd', 7),
+                  ('bytemask_odd', 16),
+                  ('data_odd', 128))
+        Record.__init__(self, Layout(layout), name=name)
+
+        self.addr.reset_less = True
+        self.a_even.reset_less = True
+        self.bytemask_even.reset_less = True
+        self.data_even.reset_less = True
+        self.a_odd.reset_less = True
+        self.bytemask_odd.reset_less = True
+        self.data_odd.reset_less = True
+
+
 
 # TODO: formal verification
 class DataMerger(Elaboratable):
