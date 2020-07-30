@@ -188,6 +188,32 @@ class DataMerger(Elaboratable):
 
         return m
 
+class TstDataMerger2(Elaboratable):
+    def __init__(self):
+        self.data_odd = Signal(128,reset_less=True)
+        self.data_even = Signal(128,reset_less=True)
+        self.n_units = 8
+        ul = []
+        for i in range(self.n_units):
+            ul.append(CacheRecord())
+        self.input_array = Array(ul)
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules.dm_odd = dm_odd = DataMerger(self.n_units)
+        m.submodules.dm_even = dm_even = DataMerger(self.n_units)
+
+        #TODO assign data and address match
+        #m.d.comb += dm_even.addr_array_i.eq(TODO)
+        #m.d.comb += dm_odd.addr_array_i.eq(TODO)
+        #m.d.comb += dm_even.data_i.eq(TODO)
+        #m.d.comb += dm_odd.data_i.eq(TODO)
+
+        m.d.comb += self.data_odd.eq(dm_odd.data_o.data)
+        m.d.comb += self.data_even.eq(dm_even.data_o.data)
+        self.data
+        return m
+
 
 class L0CacheBuffer(Elaboratable):
     """L0 Cache / Buffer
