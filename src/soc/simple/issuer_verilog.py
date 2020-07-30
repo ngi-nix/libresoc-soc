@@ -24,6 +24,6 @@ if __name__ == '__main__':
                          units=units)
     dut = TestIssuer(pspec)
 
-    vl = verilog.convert(dut, ports=dut.ports(), name="test_issuer")
+    vl = verilog.convert(dut, ports=dut.external_ports(), name="test_issuer")
     with open(sys.argv[1], "w") as f:
         f.write(vl)

@@ -211,6 +211,23 @@ class TestIssuer(Elaboratable):
     def ports(self):
         return list(self)
 
+    def external_ports(self):
+        return self.pc_i.ports() + [self.pc_o,
+                                    self.go_insn_i,
+                                    self.memerr_o,
+                                    self.core_start_i,
+                                    self.core_stop_i,
+                                    self.core_bigendian_i,
+                                    self.busy_o,
+                                    self.halted_o,
+                                    ] + \
+                self.imem.ports() + \
+                self.core.l0.cmpi.lsmem.lsi.ports()
+
+
+    def ports(self):
+        return list(self)
+
 
 if __name__ == '__main__':
     units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1, 'logical': 1,
@@ -227,6 +244,6 @@ if __name__ == '__main__':
     vl = main(dut, ports=dut.ports(), name="test_issuer")
 
     if len(sys.argv) == 1:
-        vl = rtlil.convert(dut, ports=dut.ports(), name="test_issuer")
+        vl = rtlil.convert(dut, ports=dut.external_ports(), name="test_issuer")
         with open("test_issuer.il", "w") as f:
             f.write(vl)

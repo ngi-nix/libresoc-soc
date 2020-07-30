@@ -259,9 +259,12 @@ class L0CacheBuffer(Elaboratable):
 
         return m
 
-    def ports(self):
+    def __iter__(self):
         for p in self.dports:
             yield from p.ports()
+
+    def ports(self):
+        return list(self)
 
 
 class TstL0CacheBuffer(Elaboratable):
