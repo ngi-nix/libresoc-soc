@@ -74,9 +74,9 @@ class TestIssuer(Elaboratable):
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
         comb += self.halted_o.eq(core.core_terminated_o)
-        comb += self.core_start_i.eq(core.core_start_i)
-        comb += self.core_stop_i.eq(core.core_stop_i)
-        comb += self.core_bigendian_i.eq(core.bigendian_i)
+        comb += core.core_start_i.eq(self.core_start_i)
+        comb += core.core_stop_i.eq(self.core_stop_i)
+        comb += core.bigendian_i.eq(self.core_bigendian_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
         l0 = core.l0
