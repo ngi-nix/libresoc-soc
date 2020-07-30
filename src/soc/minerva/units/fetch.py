@@ -62,13 +62,15 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
                 m.d.sync += [
                     self.ibus.cyc.eq(0),
                     self.ibus.stb.eq(0),
+                    self.ibus.sel.eq(0),
                     ibus_rdata.eq(self.ibus.dat_r)
                 ]
         with m.Elif(self.a_valid_i & ~self.a_stall_i):
             m.d.sync += [
                 self.ibus.adr.eq(self.a_pc_i[self.adr_lsbs:]),
                 self.ibus.cyc.eq(1),
-                self.ibus.stb.eq(1)
+                self.ibus.stb.eq(1),
+                self.ibus.sel.eq((1<<(1<<self.adr_lsbs))-1),
             ]
 
         with m.If(self.ibus.cyc & self.ibus.err):
@@ -172,12 +174,14 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
                 m.d.sync += [
                     bare_port.cyc.eq(0),
                     bare_port.stb.eq(0),
+                    bare_port.sel.eq(0),
                     bare_rdata.eq(bare_port.dat_r)
                 ]
         with m.Elif(~a_icache_select & self.a_valid_i & ~self.a_stall_i):
             m.d.sync += [
                 bare_port.cyc.eq(1),
                 bare_port.stb.eq(1),
+                bare_port.sel.eq((1<<(1<<self.adr_lsbs))-1),
                 bare_port.adr.eq(self.a_pc_i[self.adr_lsbs:])
             ]
 
