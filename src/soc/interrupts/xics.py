@@ -401,6 +401,7 @@ def wb_write(dut, addr, data, sel=True):
         if ack:
             break
         yield # loop until ack
+        yield dut.bus.stb.eq(0) # drop stb so only 1 thing into pipeline
 
     # leave cyc/stb valid for 1 cycle while writing
     yield
@@ -430,6 +431,7 @@ def wb_read(dut, addr, sel=True):
         if ack:
             break
         yield # loop until ack
+        yield dut.bus.stb.eq(0) # drop stb so only 1 thing into pipeline
 
     # get data on same cycle that ack raises
     data = yield dut.bus.dat_r
@@ -512,8 +514,6 @@ def sim_xics_icp(dut):
     yield from wb_write(dut, XIRR, data)
     print ("xirr written", hex(data), bin(data))
 
-    assert (yield dut.core_irq_o) == 0 # write takes 1 cycle to propagate
-    yield # wait for it...
     assert (yield dut.core_irq_o) == 1 # ok *now* it should be set
 
     # read wb XIRR_POLL
@@ -521,16 +521,10 @@ def sim_xics_icp(dut):
     print ("xirr poll", hex(data), bin(data))
     assert (yield dut.core_irq_o) == 1 # should not clear
 
-    yield # XXX only works if there is a 2-clock delay between POLL and XIRR
-    yield
-
     # read wb XIRR (8-bit)
     data = yield from wb_read(dut, XIRR, False)
     print ("xirr", hex(data), bin(data))
-    yield
     assert (yield dut.core_irq_o) == 1 # should not clear
-
-    yield
 
     # read wb XIRR (32-bit)
     data = yield from wb_read(dut, XIRR)
@@ -596,8 +590,7 @@ def sim_xics(icp, ics):
     # raise XIVE 1 (just for fun)
     yield ics.int_level_i.eq(1<<1)
 
-    yield
-    yield
+    yield # wait for interrupt to propagate through from ics to icp...
 
     # read XIVE1
     data = yield from wb_read(ics, 0x804)
@@ -635,9 +628,6 @@ def sim_xics(icp, ics):
     yield from wb_write(ics, 0x804, data)
     print ("XIVE1 priority written", hex(data), bin(data))
 
-    yield
-    yield
-
     ######################
     # write XIRR
     data = 0xfe
@@ -645,9 +635,6 @@ def sim_xics(icp, ics):
     print ("xirr written", hex(data), bin(data))
 
     assert (yield icp.core_irq_o) == 1 # ok *now* it should be set
-
-    yield
-    yield
 
     # read wb XIRR (32-bit)
     data = yield from wb_read(icp, XIRR)
