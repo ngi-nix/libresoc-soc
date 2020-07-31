@@ -161,25 +161,31 @@ class Driver(Elaboratable):
                 # Duplicate some signals so that they're much easier to find in gtkwave.
                 # Pro-tip: when debugging, factor out expressions into explicitly named
                 # signals, and search using a unique grep-tag (RLC in my case).  After
-                # debugging, resubstitute values to taste.
+                # debugging, resubstitute values to comply with surrounding code norms.
 
-                mrl = Signal(32, reset_less=True, name='MASK_FOR_RLC')
-                comb += mrl.eq(ml & mr)
+                mrl = Signal(64, reset_less=True, name='MASK_FOR_RLC')
+                comb += mrl.eq(ml | mr)
 
-                ainp = Signal(32, reset_less=True, name='A_INP_FOR_RLC')
+                ainp = Signal(64, reset_less=True, name='A_INP_FOR_RLC')
                 comb += ainp.eq(field(a, 32, 63))
 
                 sh = Signal(6, reset_less=True, name='SH_FOR_RLC')
                 comb += sh.eq(b[0:6])
 
-                exp_shl = Signal(32, reset_less=True, name='A_SHIFTED_LEFT_BY_SH_FOR_RLC')
+                exp_shl = Signal(64, reset_less=True, name='A_SHIFTED_LEFT_BY_SH_FOR_RLC')
                 comb += exp_shl.eq((ainp << sh) & 0xFFFFFFFF)
 
-                exp_shr = Signal(32, reset_less=True, name='A_SHIFTED_RIGHT_FOR_RLC')
+                exp_shr = Signal(64, reset_less=True, name='A_SHIFTED_RIGHT_FOR_RLC')
                 comb += exp_shr.eq((ainp >> (32 - sh)) & 0xFFFFFFFF)
 
+                exp_rot = Signal(64, reset_less=True, name='A_ROTATED_LEFT_FOR_RLC')
+                comb += exp_rot.eq(exp_shl | exp_shr)
+
                 exp_ol = Signal(32, reset_less=True, name='EXPECTED_OL_FOR_RLC')
-                comb += exp_ol.eq(((exp_shl | exp_shr) & mrl) | (ainp & ~mrl))
+                comb += exp_ol.eq(field((exp_rot & mrl) | (ainp & ~mrl), 32, 63))
+
+                act_ol = Signal(32, reset_less=True, name='ACTUAL_OL_FOR_RLC')
+                comb += act_ol.eq(field(o, 32, 63))
 
                 # If I uncomment the following lines, I can confirm that all
                 # 32-bit rotations work.  If I uncomment only one of the
@@ -190,7 +196,7 @@ class Driver(Elaboratable):
 #               comb += Assume(mr == 0xFFFFFFFF)
 #               comb += Assume(ml == 0xFFFFFFFF)
                 with m.If(rec.is_32bit):
-                    comb += Assert(field(o, 32, 63) == exp_ol)
+                    comb += Assert(act_ol == exp_ol)
                     comb += Assert(field(o, 0, 31) == 0)
 
             #TODO
