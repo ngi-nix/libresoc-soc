@@ -221,8 +221,8 @@ class TestIssuer(Elaboratable):
                                     self.busy_o,
                                     self.halted_o,
                                     ] + \
-                self.imem.ports() + \
-                self.core.l0.cmpi.lsmem.lsi.ports()
+                list(self.imem.ibus.fields.values()) + \
+                list(self.core.l0.cmpi.lsmem.lsi.dbus.fields.values())
 
 
     def ports(self):
