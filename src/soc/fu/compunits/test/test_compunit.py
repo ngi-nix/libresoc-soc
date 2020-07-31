@@ -331,8 +331,8 @@ class TestRunner(FHDLTestCase):
             m.submodules.l0 = l0 = TstL0CacheBuffer(pspec, n_units=1)
             pi = l0.l0.dports[0]
             m.submodules.cu = cu = self.fukls(pi, idx=0, awid=3)
-            m.d.comb += cu.ad.go.eq(cu.ad.rel)  # link addr-go direct to rel
-            m.d.comb += cu.st.go.eq(cu.st.rel)  # link store-go direct to rel
+            m.d.comb += cu.ad.go_i.eq(cu.ad.rel_o)  # link addr direct to rel
+            m.d.comb += cu.st.go_i.eq(cu.st.rel_o)  # link store direct to rel
         else:
             m.submodules.cu = cu = self.fukls(0)
             l0 = None
