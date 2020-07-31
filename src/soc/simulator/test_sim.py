@@ -245,7 +245,14 @@ class GeneralTestCases(FHDLTestCase):
 
     def test_litex_trampoline(self):
         lst = ["tdi   0,0,0x48",
-               "b     0x24",
+               "b     0x28",
+               "mfmsr r11",
+               "bcl 20,31,4",
+               "mflr r10",
+               "addi r10,r10,20",
+               "mthsrr0 r10",
+               "mthsrr1 r11",
+               "hrfid",
                ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [], initial_mem={})
