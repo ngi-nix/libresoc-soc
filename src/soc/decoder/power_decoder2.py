@@ -185,37 +185,46 @@ class DecodeB(Elaboratable):
                 # for M-Form shiftrot
                 comb += self.reg_out.data.eq(self.dec.RS)
                 comb += self.reg_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_UI):
+            with m.Case(In2Sel.CONST_UI): # unsigned
                 comb += self.imm_out.data.eq(self.dec.UI)
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SI):  # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(
-                    exts(self.dec.SI, 16, 64))
+            with m.Case(In2Sel.CONST_SI):  # sign-extended 16-bit
+                si = Signal(16, reset_less=True)
+                comb += si.eq(self.dec.SI)
+                comb += self.imm_out.data.eq(exts(si, 16, 64))
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_UI_HI):
-                comb += self.imm_out.data.eq(self.dec.UI << 16)
+            with m.Case(In2Sel.CONST_SI_HI):  # sign-extended 16+16=32 bit
+                si_hi = Signal(32, reset_less=True)
+                comb += si_hi.eq(self.dec.SI << 16)
+                comb += self.imm_out.data.eq(exts(si_hi, 32, 64))
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SI_HI):  # TODO: sign-extend here?
-                comb += self.imm_out.data.eq(self.dec.SI << 16)
-                comb += self.imm_out.data.eq(
-                    exts(self.dec.SI << 16, 32, 64))
+            with m.Case(In2Sel.CONST_UI_HI): # unsigned
+                ui = Signal(16, reset_less=True)
+                comb += ui.eq(self.dec.UI)
+                comb += self.imm_out.data.eq(ui << 16)
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_LI):
-                comb += self.imm_out.data.eq(self.dec.LI << 2)
+            with m.Case(In2Sel.CONST_LI): # sign-extend 24+2=26 bit
+                li = Signal(26, reset_less=True)
+                comb += li.eq(self.dec.LI << 2)
+                comb += self.imm_out.data.eq(exts(li, 26, 64))
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_BD):
-                comb += self.imm_out.data.eq(self.dec.BD << 2)
+            with m.Case(In2Sel.CONST_BD): # sign-extend (14+2)=16 bit
+                bd = Signal(16, reset_less=True)
+                comb += bd.eq(self.dec.BD << 2)
+                comb += self.imm_out.data.eq(exts(bd, 16, 64))
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_DS):
-                comb += self.imm_out.data.eq(self.dec.DS << 2)
+            with m.Case(In2Sel.CONST_DS): # sign-extended (14+2=16) bit
+                ds = Signal(16, reset_less=True)
+                comb += ds.eq(self.dec.DS << 2)
+                comb += self.imm_out.data.eq(exts(ds, 16, 64))
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_M1):
+            with m.Case(In2Sel.CONST_M1): # signed (-1)
                 comb += self.imm_out.data.eq(~Const(0, 64))  # all 1s
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SH):
+            with m.Case(In2Sel.CONST_SH): # unsigned - for shift
                 comb += self.imm_out.data.eq(self.dec.sh)
                 comb += self.imm_out.ok.eq(1)
-            with m.Case(In2Sel.CONST_SH32):
+            with m.Case(In2Sel.CONST_SH32): # unsigned - for shift
                 comb += self.imm_out.data.eq(self.dec.SH32)
                 comb += self.imm_out.ok.eq(1)
 
