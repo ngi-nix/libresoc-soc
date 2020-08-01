@@ -532,8 +532,9 @@ class ISACaller:
     def get_assembly_name(self):
         # TODO, asmregs is from the spec, e.g. add RT,RA,RB
         # see http://bugs.libre-riscv.org/show_bug.cgi?id=282
+        dec_insn = yield self.dec2.e.do.insn
         asmcode = yield self.dec2.dec.op.asmcode
-        print("get assembly name asmcode", asmcode)
+        print("get assembly name asmcode", asmcode, hex(dec_insn))
         asmop = insns.get(asmcode, None)
         int_op = yield self.dec2.dec.op.internal_op
 

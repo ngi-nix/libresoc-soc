@@ -49,6 +49,33 @@ class GeneralTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    def test_0_litex_bios_r1(self):
+        """litex bios IMM64 macro test
+        """
+        lst = [ "addis     1,0,0",
+                 "ori     1,1,0",
+                 "rldicr  1,1,32,31",
+                 "oris    1,1,256",
+                 "ori     1,1,3832",
+               ]
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [1], initial_mem={})
+
+    @unittest.skip("disable")
+    def test_0_litex_trampoline(self):
+        lst = ["tdi   0,0,0x48",
+               "b     0x28",
+               "mfmsr r11",
+               "bcl 20,31,4",
+               "mflr r10",
+               "addi r10,r10,20",
+               "mthsrr0 r10",
+               "mthsrr1 r11",
+               "hrfid",
+               ]
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [], initial_mem={})
+
     @unittest.skip("disable")
     def test_0_cmp(self):
         lst = ["addi 6, 0, 0x10",
@@ -243,20 +270,6 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [9], initial_mem={})
 
-    def test_litex_trampoline(self):
-        lst = ["tdi   0,0,0x48",
-               "b     0x28",
-               "mfmsr r11",
-               "bcl 20,31,4",
-               "mflr r10",
-               "addi r10,r10,20",
-               "mthsrr0 r10",
-               "mthsrr1 r11",
-               "hrfid",
-               ]
-        with Program(lst, bigendian) as program:
-            self.run_tst_program(program, [], initial_mem={})
-
     def test_30_addis(self):
         lst = [  # "addi 0, 0, 5",
             "addis 12, 0, 0",
@@ -310,8 +323,7 @@ class DecoderBase:
                 yield Settle()
 
         sim.add_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                           traces=[]):
+        with sim.write_vcd("pdecode_simulator.vcd"):
             sim.run()
 
         return simulator
