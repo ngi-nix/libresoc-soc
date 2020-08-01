@@ -34,9 +34,26 @@ class Driver(Elaboratable):
         comb = m.d.comb
 
         rec = CompSROpSubset()
-        # Setup random inputs for dut.op
-        for p in rec.ports():
-            comb += p.eq(AnyConst(p.width))
+        # Setup random inputs for dut.op.  do them explicitly so that
+        # we can see which ones cause failures in the debug report
+        #for p in rec.ports():
+        #    comb += p.eq(AnyConst(p.width))
+        comb += rec.insn_type.eq(AnyConst(rec.insn_type.width))
+        comb += rec.fn_unit.eq(AnyConst(rec.fn_unit.width))
+        comb += rec.imm_data.imm.eq(AnyConst(rec.imm_data.imm.width))
+        comb += rec.imm_data.imm_ok.eq(AnyConst(rec.imm_data.imm_ok.width))
+        comb += rec.rc.rc.eq(AnyConst(rec.rc.rc.width))
+        comb += rec.rc.rc_ok.eq(AnyConst(rec.rc.rc_ok.width))
+        comb += rec.oe.oe.eq(AnyConst(rec.oe.oe.width))
+        comb += rec.oe.oe_ok.eq(AnyConst(rec.oe.oe_ok.width))
+        comb += rec.write_cr0.eq(AnyConst(rec.write_cr0.width))
+        comb += rec.input_carry.eq(AnyConst(rec.input_carry.width))
+        comb += rec.output_carry.eq(AnyConst(rec.output_carry.width))
+        comb += rec.input_cr.eq(AnyConst(rec.input_cr.width))
+        comb += rec.is_32bit.eq(AnyConst(rec.is_32bit.width))
+        comb += rec.is_signed.eq(AnyConst(rec.is_signed.width))
+        comb += rec.insn.eq(AnyConst(rec.insn.width))
+
 
         pspec = ShiftRotPipeSpec(id_wid=2)
         m.submodules.dut = dut = ShiftRotMainStage(pspec)
