@@ -77,6 +77,14 @@ def set_alu_inputs(alu, dec2, sim):
 
 class ShiftRotTestCase(TestAccumulatorBase):
 
+    def case_0_proof_regression_rlwnm(self):
+        lst = ["rlwnm 3, 1, 2, 16, 20"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x7ffdbffb91b906b9
+        initial_regs[2] = 31
+        print(initial_regs[1], initial_regs[2])
+        self.add_case(Program(lst, bigendian), initial_regs)
+
     def case_shift(self):
         insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
         for i in range(20):
@@ -266,8 +274,7 @@ class TestRunner(unittest.TestCase):
         if cxxsim:
             sim.run()
         else:
-            with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                               traces=[]):
+            with sim.write_vcd("shift_rot_simulator.vcd"):
                 sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
