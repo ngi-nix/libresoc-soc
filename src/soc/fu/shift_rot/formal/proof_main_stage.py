@@ -174,11 +174,15 @@ class Driver(Elaboratable):
             # *CAN* these even be 64-bit capable?  I don't think they are.
             with m.Case(MicrOp.OP_RLC):
                 comb += Assume(ra == 0)
-                
-                # Duplicate some signals so that they're much easier to find in gtkwave.
-                # Pro-tip: when debugging, factor out expressions into explicitly named
-                # signals, and search using a unique grep-tag (RLC in my case).  After
-                # debugging, resubstitute values to comply with surrounding code norms.
+
+                # Duplicate some signals so that they're much easier to find
+                # in gtkwave.
+                # Pro-tip: when debugging, factor out expressions into
+                # explicitly named
+                # signals, and search using a unique grep-tag (RLC in my case).
+                #   After
+                # debugging, resubstitute values to comply with surrounding
+                # code norms.
 
                 mrl = Signal(64, reset_less=True, name='MASK_FOR_RLC')
                 comb += mrl.eq(ml | mr)
@@ -189,17 +193,21 @@ class Driver(Elaboratable):
                 sh = Signal(6, reset_less=True, name='SH_FOR_RLC')
                 comb += sh.eq(b[0:6])
 
-                exp_shl = Signal(64, reset_less=True, name='A_SHIFTED_LEFT_BY_SH_FOR_RLC')
+                exp_shl = Signal(64, reset_less=True,
+                                    name='A_SHIFTED_LEFT_BY_SH_FOR_RLC')
                 comb += exp_shl.eq((ainp << sh) & 0xFFFFFFFF)
 
-                exp_shr = Signal(64, reset_less=True, name='A_SHIFTED_RIGHT_FOR_RLC')
+                exp_shr = Signal(64, reset_less=True,
+                                    name='A_SHIFTED_RIGHT_FOR_RLC')
                 comb += exp_shr.eq((ainp >> (32 - sh)) & 0xFFFFFFFF)
 
-                exp_rot = Signal(64, reset_less=True, name='A_ROTATED_LEFT_FOR_RLC')
+                exp_rot = Signal(64, reset_less=True,
+                                    name='A_ROTATED_LEFT_FOR_RLC')
                 comb += exp_rot.eq(exp_shl | exp_shr)
 
                 exp_ol = Signal(32, reset_less=True, name='EXPECTED_OL_FOR_RLC')
-                comb += exp_ol.eq(field((exp_rot & mrl) | (ainp & ~mrl), 32, 63))
+                comb += exp_ol.eq(field((exp_rot & mrl) | (ainp & ~mrl),
+                                    32, 63))
 
                 act_ol = Signal(32, reset_less=True, name='ACTUAL_OL_FOR_RLC')
                 comb += act_ol.eq(field(o, 32, 63))
