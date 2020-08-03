@@ -103,6 +103,24 @@ def set_dmi(dmi, addr, data):
     yield dmi.we_i.eq(0)
 
 
+def get_dmi(dmi, addr):
+    yield dmi.req_i.eq(1)
+    yield dmi.addr_i.eq(addr)
+    yield dmi.din.eq(0)
+    yield dmi.we_i.eq(1)
+    while True:
+        ack = yield dmi.ack_o
+        if ack:
+            break
+        yield
+    yield # wait one
+    data = yield dmi.dout # get data after ack valid for 1 cycle
+    yield dmi.req_i.eq(0)
+    yield dmi.addr_i.eq(0)
+    yield dmi.we_i.eq(0)
+    return data
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data):
         super().__init__("run_all")
@@ -223,6 +241,14 @@ class TestRunner(FHDLTestCase):
                     terminated = yield issuer.dbg.terminated_o
                     if terminated:
                         break
+
+                # test of dmi reg get
+                int_reg = 9
+                yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg) # int reg 9
+                value = yield from get_dmi(dmi, DBGCore.GSPR_DATA) # get data
+
+                print ("after test %s reg %x value %s" % \
+                            (test.name, int_reg, value))
 
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",

@@ -49,7 +49,6 @@ class TestIssuer(Elaboratable):
 
         # DMI interface
         self.dbg = CoreDebug()
-        self.dmi = self.dbg.dmi
 
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
@@ -63,6 +62,9 @@ class TestIssuer(Elaboratable):
         self.fast_w_pc = self.core.regs.rf['fast'].w_ports['d_wr1'] # PC wr
         self.fast_r_msr = self.core.regs.rf['fast'].r_ports['msr'] # MSR rd
 
+        # DMI interface access
+        self.int_r = self.core.regs.rf['int'].r_ports['dmi'] # INT read
+
         # hack method of keeping an eye on whether branch/trap set the PC
         self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']
         self.fast_nia.wen.name = 'fast_nia_wen'
@@ -74,6 +76,10 @@ class TestIssuer(Elaboratable):
         m.submodules.core = core = DomainRenamer("coresync")(self.core)
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
+
+        # convenience
+        dmi = dbg.dmi
+        d_reg = dbg.dbg_gpr
 
         # clock delay power-on reset
         cd_por  = ClockDomain(reset_less=True)
@@ -208,6 +214,16 @@ class TestIssuer(Elaboratable):
                         comb += self.fast_w_pc.wen.eq(1<<FastRegs.PC)
                         comb += self.fast_w_pc.data_i.eq(nia)
                     m.next = "IDLE" # back to idle
+
+        # this bit doesn't have to be in the FSM: connect up to read
+        # regfiles on demand from DMI
+
+        with m.If(d_reg.req): # request for regfile access being made
+            # TODO: error-check this
+            # XXX should this be combinatorial?  sync better?
+            comb += self.int_r.ren.eq(1<<d_reg.addr)
+            comb += d_reg.data.eq(self.int_r.data_o)
+            comb += d_reg.ack.eq(1)
 
         return m
 
