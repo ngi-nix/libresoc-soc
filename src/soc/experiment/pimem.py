@@ -105,6 +105,7 @@ class PortInterface(RecordObject):
         # addr is valid (TLB, L1 etc.)
         self.addr_ok_o = Signal(reset_less=True)
         self.addr_exc_o = Signal(reset_less=True)  # TODO, "type" of exception
+        self.exc_o = Signal(reset_less) # set by LDSTSplitter
 
         # LD/ST
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf

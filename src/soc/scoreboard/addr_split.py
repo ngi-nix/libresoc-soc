@@ -78,7 +78,7 @@ class LDSTSplitter(Elaboratable):
         self.ld_data_o = LDData(dwidth, "ld_data_o") #port.ld
         self.st_data_i = LDData(dwidth, "st_data_i") #port.st
 
-        self.exc = Signal(reset_less=True) # pi.exc TODO
+        self.exc = pi.exc_o
 
         # TODO : create/connect two outgoing port interfaces
 
