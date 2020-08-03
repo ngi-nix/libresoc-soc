@@ -29,6 +29,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
+from soc.config.state import CoreState
 
 
 class TestIssuer(Elaboratable):
@@ -93,6 +94,9 @@ class TestIssuer(Elaboratable):
         comb += self.busy_o.eq(core.busy_o)
         comb += core.bigendian_i.eq(self.core_bigendian_i)
 
+        # current state (MSR/PC at the moment
+        cur_state = CoreState("cur")
+
         # temporary hack: says "go" immediately for both address gen and ST
         l0 = core.l0
         ldst = core.fus.fus['ldst0']
@@ -101,26 +105,23 @@ class TestIssuer(Elaboratable):
 
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
-        cur_pc = Signal(64) # current PC (note it is reset/sync)
         pc_changed = Signal() # note write to PC
-        comb += self.pc_o.eq(cur_pc)
+        comb += self.pc_o.eq(cur_state.pc)
         ilatch = Signal(32)
 
         # MSR (temp and latched)
-        cur_msr = Signal(64) # current MSR (note it is reset/sync)
         msr = Signal(64, reset_less=True)
 
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
-        comb += nia.eq(cur_pc + 4)
+        comb += nia.eq(cur_state.pc + 4)
 
         # connect up debug signals
         comb += core.core_stopped_i.eq(dbg.core_stop_o)
         # TODO comb += core.reset_i.eq(dbg.core_rst_o)
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
-        comb += dbg.state.pc.eq(cur_pc)
-        comb += dbg.state.msr.eq(cur_msr)
+        comb += dbg.state.eq(cur_state)
 
         # temporaries
         core_busy_o = core.busy_o         # core is busy
@@ -130,8 +131,7 @@ class TestIssuer(Elaboratable):
         core_opcode_i = core.raw_opcode_i # raw opcode
 
         insn_type = core.pdecode2.e.do.insn_type
-        insn_msr = core.pdecode2.msr
-        insn_cia = core.pdecode2.cia
+        insn_state = core.pdecode2.state
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -159,7 +159,7 @@ class TestIssuer(Elaboratable):
                     comb += self.imem.a_pc_i.eq(pc)
                     comb += self.imem.a_valid_i.eq(1)
                     comb += self.imem.f_valid_i.eq(1)
-                    sync += cur_pc.eq(pc)
+                    sync += cur_state.pc.eq(pc)
                     m.next = "INSN_READ" # move to "wait for bus" phase
 
             # waiting for instruction bus (stays there until not busy)
@@ -174,7 +174,7 @@ class TestIssuer(Elaboratable):
                     if f_instr_o.width == 32:
                         insn = f_instr_o
                     else:
-                        insn = f_instr_o.word_select(cur_pc[2], 32)
+                        insn = f_instr_o.word_select(cur_state.pc[2], 32)
                     comb += current_insn.eq(insn)
                     comb += core_ivalid_i.eq(1) # instruction is valid
                     comb += core_issue_i.eq(1)  # and issued
@@ -184,11 +184,11 @@ class TestIssuer(Elaboratable):
                     # read MSR, latch it, and put it in decode "state"
                     comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
                     comb += msr.eq(self.fast_r_msr.data_o)
-                    comb += insn_msr.eq(msr)
-                    sync += cur_msr.eq(msr) # latch current MSR
+                    comb += insn_state.msr.eq(msr)
+                    sync += cur_state.msr.eq(msr) # latch current MSR
 
                     # also drop PC into decode "state"
-                    comb += insn_cia.eq(cur_pc)
+                    comb += insn_state.pc.eq(cur_state.pc)
 
                     m.next = "INSN_ACTIVE" # move to "wait completion"
 
@@ -197,8 +197,7 @@ class TestIssuer(Elaboratable):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_opcode_i.eq(ilatch) # actual opcode
-                comb += insn_msr.eq(cur_msr)     # and MSR
-                comb += insn_cia.eq(cur_pc)     # and PC
+                comb += insn_state.eq(cur_state)     # and MSR and PC
                 with m.If(self.fast_nia.wen):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!

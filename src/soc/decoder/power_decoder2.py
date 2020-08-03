@@ -24,6 +24,7 @@ from soc.consts import MSR
 
 from soc.regfile.regfiles import FastRegs
 from soc.consts import TT
+from soc.config.state import CoreState
 
 
 def decode_spr_num(spr):
@@ -580,8 +581,7 @@ class PowerDecode2(Elaboratable):
         self.valid = Signal()  # sync signal
 
         # state information needed by the Decoder (TODO: this as a Record)
-        self.msr = Signal(64, reset_less=True)  # copy of MSR
-        self.cia = Signal(64, reset_less=True)  # copy of Program Counter
+        self.state = CoreState("dec2")
 
     def ports(self):
         return self.dec.ports() + self.e.ports()
@@ -589,7 +589,8 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        e, op, do, msr, cia = self.e, self.dec.op, self.e.do, self.msr, self.cia
+        e, op, do = self.e, self.dec.op, self.e.do
+        msr, cia = self.state.msr, self.state.pc
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -623,8 +624,8 @@ class PowerDecode2(Elaboratable):
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
         # copy "state" over
-        comb += do.msr.eq(self.msr)
-        comb += do.cia.eq(self.cia)
+        comb += do.msr.eq(msr)
+        comb += do.cia.eq(cia)
 
         # set up instruction, pick fn unit
         # no op: defaults to OP_ILLEGAL
@@ -744,8 +745,8 @@ class PowerDecode2(Elaboratable):
         comb += do.fn_unit.eq(Function.TRAP)
         comb += do.trapaddr.eq(trapaddr >> 4)  # cut bottom 4 bits
         comb += do.traptype.eq(traptype)  # request type
-        comb += do.msr.eq(self.msr)  # copy of MSR "state"
-        comb += do.cia.eq(self.cia)  # copy of PC "state"
+        comb += do.msr.eq(self.state.msr)  # copy of MSR "state"
+        comb += do.cia.eq(self.state.pc)  # copy of PC "state"
 
     def regspecmap_read(self, regfile, regname):
         """regspecmap_read: provides PowerDecode2 with an encoding relationship
