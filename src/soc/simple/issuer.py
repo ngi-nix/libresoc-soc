@@ -15,7 +15,8 @@ way, and to at provide something that can be further incrementally
 improved.
 """
 
-from nmigen import Elaboratable, Module, Signal
+from nmigen import (Elaboratable, Module, Signal, ClockSignal, ResetSignal,
+                    ClockDomain, DomainRenamer)
 from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
@@ -27,6 +28,7 @@ from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import MicrOp
+from soc.debug.dmi import CoreDebug, DMIInterface
 
 
 class TestIssuer(Elaboratable):
@@ -44,15 +46,15 @@ class TestIssuer(Elaboratable):
         self.iline = Signal(64) # one instruction line
         self.iprev_adr = Signal(64) # previous address: if different, do read
 
+        # DMI interface
+        self.dbg = CoreDebug()
+        self.dmi = self.dbg.dmi
+
         # instruction go/monitor
-        self.go_insn_i = Signal()
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
-        self.core_start_i = Signal()
-        self.core_stop_i = Signal()
         self.core_bigendian_i = Signal()
         self.busy_o = Signal(reset_less=True)
-        self.halted_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
         # FAST regfile read /write ports for PC and MSR
@@ -68,14 +70,27 @@ class TestIssuer(Elaboratable):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
-        m.submodules.core = core = self.core
+        m.submodules.core = core = DomainRenamer("coresync")(self.core)
         m.submodules.imem = imem = self.imem
+        m.submodules.dbg = dbg = self.dbg
+
+        # clock delay power-on reset
+        cd_por  = ClockDomain(reset_less=True)
+        cd_sync = ClockDomain()
+        core_sync = ClockDomain("coresync")
+        m.domains += cd_por, cd_sync, core_sync
+
+        delay = Signal(range(4), reset=1)
+        with m.If(delay != 0):
+            m.d.por += delay.eq(delay - 1)
+        comb += cd_por.clk.eq(ClockSignal())
+        comb += core_sync.clk.eq(ClockSignal())
+        # XXX TODO: power-on reset delay (later)
+        #comb += core.core_reset_i.eq(delay != 0 | dbg.core_rst_o)
+        comb += core.core_reset_i.eq(dbg.core_rst_o)
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
-        comb += self.halted_o.eq(core.core_terminated_o)
-        comb += core.core_start_i.eq(self.core_start_i)
-        comb += core.core_stop_i.eq(self.core_stop_i)
         comb += core.bigendian_i.eq(self.core_bigendian_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
@@ -99,6 +114,12 @@ class TestIssuer(Elaboratable):
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_pc + 4)
 
+        # connect up debug signals
+        comb += core.core_stopped_i.eq(dbg.core_stop_o)
+        # TODO comb += core.reset_i.eq(dbg.core_rst_o)
+        # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
+        comb += dbg.terminate_i.eq(core.core_terminate_o)
+
         # temporaries
         core_busy_o = core.busy_o         # core is busy
         core_ivalid_i = core.ivalid_i     # instruction is valid
@@ -110,120 +131,105 @@ class TestIssuer(Elaboratable):
         insn_msr = core.pdecode2.msr
         insn_cia = core.pdecode2.cia
 
-        # only run if not in halted state
-        with m.If(~core.core_terminated_o):
+        # actually use a nmigen FSM for the first time (w00t)
+        # this FSM is perhaps unusual in that it detects conditions
+        # then "holds" information, combinatorially, for the core
+        # (as opposed to using sync - which would be on a clock's delay)
+        # this includes the actual opcode, valid flags and so on.
+        with m.FSM() as fsm:
 
-            # actually use a nmigen FSM for the first time (w00t)
-            # this FSM is perhaps unusual in that it detects conditions
-            # then "holds" information, combinatorially, for the core
-            # (as opposed to using sync - which would be on a clock's delay)
-            # this includes the actual opcode, valid flags and so on.
-            with m.FSM() as fsm:
-
-                # waiting (zzz)
-                with m.State("IDLE"):
-                    sync += pc_changed.eq(0)
-                    with m.If(self.go_insn_i):
-                        # instruction allowed to go: start by reading the PC
-                        pc = Signal(64, reset_less=True)
-                        with m.If(self.pc_i.ok):
-                            # incoming override (start from pc_i)
-                            comb += pc.eq(self.pc_i.data)
-                        with m.Else():
-                            # otherwise read FastRegs regfile for PC
-                            comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
-                            comb += pc.eq(self.fast_r_pc.data_o)
-                        # capture the PC and also drop it into Insn Memory
-                        # we have joined a pair of combinatorial memory
-                        # lookups together.  this is Generally Bad.
-                        comb += self.imem.a_pc_i.eq(pc)
-                        comb += self.imem.a_valid_i.eq(1)
-                        comb += self.imem.f_valid_i.eq(1)
-                        sync += cur_pc.eq(pc)
-                        m.next = "INSN_READ" # move to "wait for bus" phase
-
-                # waiting for instruction bus (stays there until not busy)
-                with m.State("INSN_READ"):
-                    with m.If(self.imem.f_busy_o): # zzz...
-                        # busy: stay in wait-read
-                        comb += self.imem.a_valid_i.eq(1)
-                        comb += self.imem.f_valid_i.eq(1)
+            # waiting (zzz)
+            with m.State("IDLE"):
+                sync += pc_changed.eq(0)
+                with m.If(~dbg.core_stop_o):
+                    # instruction allowed to go: start by reading the PC
+                    pc = Signal(64, reset_less=True)
+                    with m.If(self.pc_i.ok):
+                        # incoming override (start from pc_i)
+                        comb += pc.eq(self.pc_i.data)
                     with m.Else():
-                        # not busy: instruction fetched
-                        f_instr_o = self.imem.f_instr_o
-                        if f_instr_o.width == 32:
-                            insn = f_instr_o
-                        else:
-                            insn = f_instr_o.word_select(cur_pc[2], 32)
-                        comb += current_insn.eq(insn)
-                        comb += core_ivalid_i.eq(1) # instruction is valid
-                        comb += core_issue_i.eq(1)  # and issued 
-                        comb += core_opcode_i.eq(current_insn) # actual opcode
-                        sync += ilatch.eq(current_insn) # latch current insn
+                        # otherwise read FastRegs regfile for PC
+                        comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
+                        comb += pc.eq(self.fast_r_pc.data_o)
+                    # capture the PC and also drop it into Insn Memory
+                    # we have joined a pair of combinatorial memory
+                    # lookups together.  this is Generally Bad.
+                    comb += self.imem.a_pc_i.eq(pc)
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
+                    sync += cur_pc.eq(pc)
+                    m.next = "INSN_READ" # move to "wait for bus" phase
 
-                        # read MSR, latch it, and put it in decode "state"
-                        comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
-                        comb += msr.eq(self.fast_r_msr.data_o)
-                        comb += insn_msr.eq(msr)
-                        sync += cur_msr.eq(msr) # latch current MSR
+            # waiting for instruction bus (stays there until not busy)
+            with m.State("INSN_READ"):
+                with m.If(self.imem.f_busy_o): # zzz...
+                    # busy: stay in wait-read
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
+                with m.Else():
+                    # not busy: instruction fetched
+                    f_instr_o = self.imem.f_instr_o
+                    if f_instr_o.width == 32:
+                        insn = f_instr_o
+                    else:
+                        insn = f_instr_o.word_select(cur_pc[2], 32)
+                    comb += current_insn.eq(insn)
+                    comb += core_ivalid_i.eq(1) # instruction is valid
+                    comb += core_issue_i.eq(1)  # and issued
+                    comb += core_opcode_i.eq(current_insn) # actual opcode
+                    sync += ilatch.eq(current_insn) # latch current insn
 
-                        # also drop PC into decode "state"
-                        comb += insn_cia.eq(cur_pc)
+                    # read MSR, latch it, and put it in decode "state"
+                    comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
+                    comb += msr.eq(self.fast_r_msr.data_o)
+                    comb += insn_msr.eq(msr)
+                    sync += cur_msr.eq(msr) # latch current MSR
 
-                        m.next = "INSN_ACTIVE" # move to "wait completion" 
+                    # also drop PC into decode "state"
+                    comb += insn_cia.eq(cur_pc)
 
-                # instruction started: must wait till it finishes
-                with m.State("INSN_ACTIVE"):
-                    with m.If(core.core_terminated_o):
-                        m.next = "IDLE" # back to idle, immediately (OP_ATTN)
-                    with m.Else():
-                        with m.If(insn_type != MicrOp.OP_NOP):
-                            comb += core_ivalid_i.eq(1) # instruction is valid
-                        comb += core_opcode_i.eq(ilatch) # actual opcode
-                        comb += insn_msr.eq(cur_msr)     # and MSR
-                        comb += insn_cia.eq(cur_pc)     # and PC
-                        with m.If(self.fast_nia.wen):
-                            sync += pc_changed.eq(1)
-                        with m.If(~core_busy_o): # instruction done!
-                            # ok here we are not reading the branch unit.  TODO
-                            # this just blithely overwrites whatever pipeline
-                            # updated the PC
-                            with m.If(~pc_changed):
-                                comb += self.fast_w_pc.wen.eq(1<<FastRegs.PC)
-                                comb += self.fast_w_pc.data_i.eq(nia)
-                            m.next = "IDLE" # back to idle
+                    m.next = "INSN_ACTIVE" # move to "wait completion"
+
+            # instruction started: must wait till it finishes
+            with m.State("INSN_ACTIVE"):
+                with m.If(insn_type != MicrOp.OP_NOP):
+                    comb += core_ivalid_i.eq(1) # instruction is valid
+                comb += core_opcode_i.eq(ilatch) # actual opcode
+                comb += insn_msr.eq(cur_msr)     # and MSR
+                comb += insn_cia.eq(cur_pc)     # and PC
+                with m.If(self.fast_nia.wen):
+                    sync += pc_changed.eq(1)
+                with m.If(~core_busy_o): # instruction done!
+                    # ok here we are not reading the branch unit.  TODO
+                    # this just blithely overwrites whatever pipeline
+                    # updated the PC
+                    with m.If(~pc_changed):
+                        comb += self.fast_w_pc.wen.eq(1<<FastRegs.PC)
+                        comb += self.fast_w_pc.data_i.eq(nia)
+                    m.next = "IDLE" # back to idle
 
         return m
 
     def __iter__(self):
         yield from self.pc_i.ports()
         yield self.pc_o
-        yield self.go_insn_i
         yield self.memerr_o
         yield from self.core.ports()
         yield from self.imem.ports()
-        yield self.core_start_i
-        yield self.core_stop_i
         yield self.core_bigendian_i
         yield self.busy_o
-        yield self.halted_o
 
     def ports(self):
         return list(self)
 
     def external_ports(self):
         return self.pc_i.ports() + [self.pc_o,
-                                    self.go_insn_i,
                                     self.memerr_o,
-                                    self.core_start_i,
-                                    self.core_stop_i,
-                                    self.core_bigendian_i,
                                     self.busy_o,
-                                    self.halted_o,
                                     ] + \
+                list(self.dbg.dmi.ports()) + \
                 list(self.imem.ibus.fields.values()) + \
                 list(self.core.l0.cmpi.lsmem.lsi.dbus.fields.values())
-
 
     def ports(self):
         return list(self)
