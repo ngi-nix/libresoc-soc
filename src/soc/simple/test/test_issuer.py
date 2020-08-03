@@ -23,6 +23,7 @@ from soc.simple.test.test_core import (setup_regs, check_regs,
                                        wait_for_busy_hi)
 from soc.fu.compunits.test.test_compunit import (setup_test_memory,
                                                  check_sim_memory)
+from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 
 # test with ALU data and Logical data
 #from soc.fu.alu.test.test_pipe_caller import ALUTestCase
@@ -86,6 +87,22 @@ def setup_i_memory(imem, startaddr, instructions):
         startaddr = startaddr & mask
 
 
+def set_dmi(dmi, addr, data):
+    yield dmi.req_i.eq(1)
+    yield dmi.addr_i.eq(addr)
+    yield dmi.din.eq(data)
+    yield dmi.we_i.eq(1)
+    while True:
+        ack = yield dmi.ack_o
+        if ack:
+            break
+        yield
+    yield dmi.req_i.eq(0)
+    yield dmi.addr_i.eq(0)
+    yield dmi.din.eq(0)
+    yield dmi.we_i.eq(0)
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data):
         super().__init__("run_all")
@@ -94,7 +111,6 @@ class TestRunner(FHDLTestCase):
     def run_all(self):
         m = Module()
         comb = m.d.comb
-        go_insn_i = Signal()
         pc_i = Signal(32)
 
         pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
@@ -106,11 +122,11 @@ class TestRunner(FHDLTestCase):
         m.submodules.issuer = issuer = TestIssuer(pspec)
         imem = issuer.imem._get_memory()
         core = issuer.core
+        dmi = issuer.dbg.dmi
         pdecode2 = core.pdecode2
         l0 = core.l0
 
         comb += issuer.pc_i.data.eq(pc_i)
-        comb += issuer.go_insn_i.eq(go_insn_i)
 
         # nmigen Simulation
         sim = Simulator(m)
@@ -118,14 +134,24 @@ class TestRunner(FHDLTestCase):
 
         def process():
 
+            # start in stopped
+            yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+            yield
+            yield
+
             for test in self.test_data:
 
-                # get core going
+                # pull a reset
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+
+                # set up bigendian (TODO: don't do this, use MSR)
                 yield issuer.core_bigendian_i.eq(bigendian)
-                yield issuer.core_start_i.eq(1)
-                yield
-                yield issuer.core_start_i.eq(0)
                 yield Settle()
+
+                yield
+                yield
+                yield
+                yield
 
                 print(test.name)
                 program = test.program
@@ -146,6 +172,7 @@ class TestRunner(FHDLTestCase):
                           bigendian=bigendian)
 
                 pc = 0  # start address
+                counter = 0 # test to pause/start
 
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
@@ -163,18 +190,21 @@ class TestRunner(FHDLTestCase):
                     print("instruction: 0x{:X}".format(ins & 0xffffffff))
                     print(index, code)
 
-                    # start the instruction
-                    yield go_insn_i.eq(1)
-                    yield
-                    yield issuer.pc_i.ok.eq(0)  # don't change PC from now on
-                    yield go_insn_i.eq(0)      # and don't issue a new insn
-                    yield Settle()
+                    if counter == 0:
+                        # start the core
+                        yield
+                        yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.START)
+                        yield issuer.pc_i.ok.eq(0)  # no change PC after this
+                        yield
+                        yield
+
+                    counter = counter + 1
 
                     # wait until executed
                     yield from wait_for_busy_hi(core)
                     yield from wait_for_busy_clear(core)
 
-                    terminated = yield issuer.halted_o
+                    terminated = yield issuer.dbg.terminated_o
                     print("terminated", terminated)
 
                     print("sim", code)
@@ -190,7 +220,7 @@ class TestRunner(FHDLTestCase):
                     # Memory check
                     yield from check_sim_memory(self, l0, sim, code)
 
-                    terminated = yield issuer.halted_o
+                    terminated = yield issuer.dbg.terminated_o
                     if terminated:
                         break
 

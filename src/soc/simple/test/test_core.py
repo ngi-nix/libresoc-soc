@@ -170,11 +170,11 @@ def check_regs(dut, sim, core, test, code):
 def wait_for_busy_hi(cu):
     while True:
         busy_o = yield cu.busy_o
-        terminated_o = yield cu.core_terminated_o
-        if busy_o or terminated_o:
-            print("busy/terminated:", busy_o, terminated_o)
+        terminate_o = yield cu.core_terminate_o
+        if busy_o:
+            print("busy/terminate:", busy_o, terminate_o)
             break
-        print("!busy", busy_o, terminated_o)
+        print("!busy", busy_o, terminate_o)
         yield
 
 
@@ -188,9 +188,9 @@ def set_issue(core, dec2, sim):
 def wait_for_busy_clear(cu):
     while True:
         busy_o = yield cu.busy_o
-        terminated_o = yield cu.core_terminated_o
-        if not busy_o or terminated_o:
-            print("busy/terminated:", busy_o, terminated_o)
+        terminate_o = yield cu.core_terminate_o
+        if not busy_o:
+            print("busy/terminate:", busy_o, terminate_o)
             break
         print("busy",)
         yield

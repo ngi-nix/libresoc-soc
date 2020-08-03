@@ -19,7 +19,7 @@ and consequently it is safer to wait for the Function Unit to complete
 before allowing a new instruction to proceed.
 """
 
-from nmigen import Elaboratable, Module, Signal
+from nmigen import Elaboratable, Module, Signal, ResetSignal
 from nmigen.cli import rtlil
 
 from nmutil.picker import PriorityPicker
@@ -84,9 +84,9 @@ class NonProductionCore(Elaboratable):
         self.raw_opcode_i = self.pdecode2.dec.raw_opcode_in
 
         # start/stop and terminated signalling
-        self.core_start_i = Signal(reset_less=True)
-        self.core_stop_i = Signal(reset_less=True)
-        self.core_terminated_o = Signal(reset=0)  # indicates stopped
+        self.core_stopped_i = Signal(reset_less=True)
+        self.core_reset_i = Signal()
+        self.core_terminate_o = Signal(reset=0)  # indicates stopped
 
     def elaborate(self, platform):
         m = Module()
@@ -98,24 +98,17 @@ class NonProductionCore(Elaboratable):
         regs = self.regs
         fus = self.fus.fus
 
-        # core start/stopped state
-        core_stopped = Signal(reset=0) # begins in running state
-
-        # start/stop signalling
-        with m.If(self.core_start_i):
-            m.d.sync += core_stopped.eq(0)
-        with m.If(self.core_stop_i):
-            m.d.sync += core_stopped.eq(1)
-        m.d.comb += self.core_terminated_o.eq(core_stopped)
-
         # connect up Function Units, then read/write ports
-        fu_bitdict = self.connect_instruction(m, core_stopped)
+        fu_bitdict = self.connect_instruction(m)
         self.connect_rdports(m, fu_bitdict)
         self.connect_wrports(m, fu_bitdict)
 
+        # connect up reset
+        m.d.comb += ResetSignal().eq(self.core_reset_i)
+
         return m
 
-    def connect_instruction(self, m, core_stopped):
+    def connect_instruction(self, m):
         """connect_instruction
 
         uses decoded (from PowerOp) function unit information from CSV files
@@ -138,7 +131,7 @@ class NonProductionCore(Elaboratable):
             fu_bitdict[funame] = fu_enable[i]
         # only run when allowed and when instruction is valid
         can_run = Signal(reset_less=True)
-        comb += can_run.eq(self.ivalid_i & ~core_stopped)
+        comb += can_run.eq(self.ivalid_i & ~self.core_stopped_i)
 
         # enable the required Function Unit based on the opcode decode
         # note: this *only* works correctly for simple core when one and
@@ -159,7 +152,7 @@ class NonProductionCore(Elaboratable):
             with m.Switch(dec2.e.do.insn_type):
                 # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):
-                    m.d.sync += core_stopped.eq(1)
+                    m.d.sync += self.core_terminate_o.eq(1)
 
                 with m.Case(MicrOp.OP_NOP):
                     sync += counter.eq(2)
