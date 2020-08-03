@@ -42,7 +42,8 @@ class IntRegs(RegFileArray):
                         'o1': self.write_port("dest2")} # for now (LD/ST update)
         self.r_ports = {'ra': self.read_port("src1"),
                         'rb': self.read_port("src2"),
-                        'rc': self.read_port("src3")}
+                        'rc': self.read_port("src3"),
+                        'dmi': self.read_port("dmi")} # needed for Debug (DMI)
 
 
 # Fast SPRs Regfile
