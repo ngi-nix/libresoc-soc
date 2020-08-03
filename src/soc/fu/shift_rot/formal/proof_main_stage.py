@@ -185,7 +185,10 @@ class Driver(Elaboratable):
                 # code norms.
 
                 mrl = Signal(64, reset_less=True, name='MASK_FOR_RLC')
-                comb += mrl.eq(ml | mr)
+                with m.If(mb > me):
+                    comb += mrl.eq(ml | mr)
+                with m.Else():
+                    comb += mrl.eq(ml & mr)
 
                 ainp = Signal(64, reset_less=True, name='A_INP_FOR_RLC')
                 comb += ainp.eq(field(a, 32, 63))
