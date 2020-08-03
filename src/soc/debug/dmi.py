@@ -10,6 +10,7 @@ from nmigen import Elaboratable, Module, Signal, Cat, Const, Record, Array, Mux
 from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
 from nmigen.cli import rtlil
+from soc.config.state import CoreState
 
 
 # DMI register addresses
@@ -82,8 +83,7 @@ class CoreDebug(Elaboratable):
         # Core status inputs
         self.terminate_i    = Signal()
         self.core_stopped_i = Signal()
-        self.nia            = Signal(64)
-        self.msr            = Signal(64)
+        self.state = CoreState("core_dbg")
 
         # GSPR register read port
         self.dbg_gpr = DbgReg("dbg_gpr")
@@ -141,9 +141,9 @@ class CoreDebug(Elaboratable):
             with m.Case( DBGCore.STAT):
                 comb += self.dmi.dout.eq(stat_reg)
             with m.Case( DBGCore.NIA):
-                comb += self.dmi.dout.eq(self.nia)
+                comb += self.dmi.dout.eq(self.state.pc)
             with m.Case( DBGCore.MSR):
-                comb += self.dmi.dout.eq(self.msr)
+                comb += self.dmi.dout.eq(self.state.msr)
             with m.Case( DBGCore.GSPR_DATA):
                 comb += self.dmi.dout.eq(self.dbg_gpr.data_i)
             with m.Case( DBGCore.LOG_ADDR):
@@ -313,8 +313,7 @@ class CoreDebug(Elaboratable):
         yield self.icache_rst_o
         yield self.terminate_i
         yield self.core_stopped_i
-        yield self.nia
-        yield self.msr
+        yield from self.state
         yield from self.dbg_gpr
         yield self.log_data_i
         yield self.log_read_addr_i

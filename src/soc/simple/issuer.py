@@ -119,6 +119,8 @@ class TestIssuer(Elaboratable):
         # TODO comb += core.reset_i.eq(dbg.core_rst_o)
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
+        comb += dbg.state.pc.eq(cur_pc)
+        comb += dbg.state.msr.eq(cur_msr)
 
         # temporaries
         core_busy_o = core.busy_o         # core is busy
