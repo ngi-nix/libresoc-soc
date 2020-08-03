@@ -198,20 +198,35 @@ class TstDataMerger2(Elaboratable):
             ul.append(CacheRecord())
         self.input_array = Array(ul)
 
+    def addr_match(self,j,addr):
+        ret = []
+        for k in range(self.n_units):
+            ret += [(addr[j] == addr[k])]
+        return Cat(*ret)
+
     def elaborate(self, platform):
         m = Module()
         m.submodules.dm_odd = dm_odd = DataMerger(self.n_units)
         m.submodules.dm_even = dm_even = DataMerger(self.n_units)
 
-        #TODO assign data and address match
-        #m.d.comb += dm_even.addr_array_i.eq(TODO)
-        #m.d.comb += dm_odd.addr_array_i.eq(TODO)
-        #m.d.comb += dm_even.data_i.eq(TODO)
-        #m.d.comb += dm_odd.data_i.eq(TODO)
+        addr_even = []
+        addr_odd = []
+        for j in range(self.n_units):
+            inp = self.input_array[j]
+            addr_even += [Cat(inp.addr,inp.a_even)]
+            addr_odd +=  [Cat(inp.addr,inp.a_odd)]
+
+        for j in range(self.n_units):
+            inp = self.input_array[j]
+            m.d.comb += dm_even.data_i[j].en.eq(inp.bytemask_even)
+            m.d.comb += dm_odd.data_i[j].en.eq(inp.bytemask_odd)
+            m.d.comb += dm_even.data_i[j].data.eq(inp.data_even)
+            m.d.comb += dm_odd.data_i[j].data.eq(inp.data_odd)
+            m.d.comb += dm_even.addr_array_i[j].eq(self.addr_match(j,addr_even))
+            m.d.comb += dm_odd.addr_array_i[j].eq(self.addr_match(j,addr_odd))
 
         m.d.comb += self.data_odd.eq(dm_odd.data_o.data)
         m.d.comb += self.data_even.eq(dm_even.data_o.data)
-        self.data
         return m
 
 
@@ -377,7 +392,6 @@ def l0_cache_ldst(arg, dut):
 
 
 def data_merger_merge(dut):
-    print("data_merger")
     # starting with all inputs zero
     yield Settle()
     en = yield dut.data_o.en
@@ -396,6 +410,12 @@ def data_merger_merge(dut):
     data = yield dut.data_o.data
     assert data == 0xff00ff00ff00ff00ff00ff00ff00ff
     assert en == 0xff
+    yield
+
+def data_merger_test2(dut):
+    # starting with all inputs zero
+    yield Settle()
+    yield
     yield
 
 
@@ -434,13 +454,14 @@ class TestDataMerger(unittest.TestCase):
 
     def test_data_merger(self):
 
-        dut = DataMerger(8)
+        dut = TstDataMerger2()
         #vl = rtlil.convert(dut, ports=dut.ports())
         # with open("test_data_merger.il", "w") as f:
         #    f.write(vl)
 
-        run_simulation(dut, data_merger_merge(dut),
+        run_simulation(dut, data_merger_test2(dut),
                        vcd_name='test_data_merger.vcd')
+
 
 
 class TestDualPortSplitter(unittest.TestCase):
