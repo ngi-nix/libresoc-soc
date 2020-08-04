@@ -209,8 +209,8 @@ class TestRunner(FHDLTestCase):
 
             # ask the decoder to decode this binary data (endian'd)
             yield pdecode2.dec.bigendian.eq(self.bigendian)  # le / be?
-            yield pdecode2.msr.eq(msr)  # set MSR "state"
-            yield pdecode2.cia.eq(pc)  # set PC "state"
+            yield pdecode2.state.msr.eq(msr)  # set MSR "state"
+            yield pdecode2.state.pc.eq(pc)  # set PC "state"
             yield instruction.eq(ins)          # raw binary instr.
             yield Settle()
             # debugging issue with branch
