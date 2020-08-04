@@ -51,6 +51,11 @@ class LibreSoCSim(SoCCore):
         dmi_wen = Signal(1)
         dmi_req = Signal(1)
 
+        # debug log out
+        dbg_addr = Signal(3)
+        dbg_dout = Signal(64)
+        dbg_msg = Signal(1)
+
         uptime = Signal(64)
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
@@ -72,6 +77,19 @@ class LibreSoCSim(SoCCore):
                     )
                  ),
                 ),
+            ),
+            If(dmi_req & ~dmi_wen,
+                (self.cpu.dmi_addr.eq(dmi_addr),   # DMI Addr
+                 self.cpu.dmi_req.eq(1),    # DMI request
+                 self.cpu.dmi_wr.eq(0),    # DMI read
+                 If(self.cpu.dmi_ack,
+                    (NextState("IDLE"),
+                     NextValue(dbg_addr, dmi_addr),
+                     NextValue(dbg_dout, self.cpu.dmi_dout),
+                     NextValue(dbg_msg, 1),
+                    )
+                 ),
+                ),
             )
         )
 
@@ -84,6 +102,13 @@ class LibreSoCSim(SoCCore):
             )
         )
 
+        # debug messages out
+        self.sync += If(dbg_msg,
+             (Display("[%06x] dbg: %1x, %016x", uptime, dbg_addr, dbg_dout),
+              dbg_msg.eq(0)
+             )
+        )
+
         # kick off a "stop"
         self.sync += If(uptime == 0,
             (dmi_addr.eq(0), # CTRL
@@ -94,7 +119,7 @@ class LibreSoCSim(SoCCore):
         )
 
         # loop every 1<<N cycles
-        cyclewid = 7
+        cyclewid = 8
 
         # kick off a "step"
         self.sync += If(uptime[0:cyclewid] == 4,
@@ -102,6 +127,14 @@ class LibreSoCSim(SoCCore):
              dmi_din.eq(1<<3), # STEP
              dmi_req.eq(1),
              dmi_wen.eq(1),
+            )
+        )
+
+        # get the PC
+        self.sync += If(uptime[0:cyclewid] == 8,
+            (dmi_addr.eq(0b10), # NIA
+             dmi_req.eq(1),
+             dmi_wen.eq(0),
             )
         )
 
