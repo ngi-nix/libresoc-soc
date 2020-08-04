@@ -104,9 +104,17 @@ class LibreSoCSim(SoCCore):
 
         # debug messages out
         self.sync += If(dbg_msg,
-             (Display("[%06x] dbg: %1x, %016x", uptime, dbg_addr, dbg_dout),
-              dbg_msg.eq(0)
-             )
+            (If(dbg_addr == 0b10, # PC
+                Display("pc : %016x", dbg_dout),
+             ),
+             If(dbg_addr == 0b11, # PC
+                Display("    msr: %016x", dbg_dout),
+             ),
+             If(dbg_addr == 0b101, # GPR
+                Display("    gpr: %016x", dbg_dout),
+             ),
+             dbg_msg.eq(0)
+            )
         )
 
         # kick off a "stop"
@@ -119,10 +127,18 @@ class LibreSoCSim(SoCCore):
         )
 
         # loop every 1<<N cycles
-        cyclewid = 8
+        cyclewid = 9
+
+        # get the PC
+        self.sync += If(uptime[0:cyclewid] == 4,
+            (dmi_addr.eq(0b10), # NIA
+             dmi_req.eq(1),
+             dmi_wen.eq(0),
+            )
+        )
 
         # kick off a "step"
-        self.sync += If(uptime[0:cyclewid] == 4,
+        self.sync += If(uptime[0:cyclewid] == 8,
             (dmi_addr.eq(0), # CTRL
              dmi_din.eq(1<<3), # STEP
              dmi_req.eq(1),
@@ -130,18 +146,35 @@ class LibreSoCSim(SoCCore):
             )
         )
 
-        # get the PC
-        self.sync += If(uptime[0:cyclewid] == 8,
-            (dmi_addr.eq(0b10), # NIA
+        # get the MSR
+        self.sync += If(uptime[0:cyclewid] == 28,
+            (dmi_addr.eq(0b11), # MSR
              dmi_req.eq(1),
              dmi_wen.eq(0),
             )
         )
 
+        # read all 32 GPRs
+        for i in range(32):
+            self.sync += If(uptime[0:cyclewid] == 30+(i*8),
+                (dmi_addr.eq(0b100), # GSPR addr
+                 dmi_din.eq(i), # r1
+                 dmi_req.eq(1),
+                 dmi_wen.eq(1),
+                )
+            )
+
+            self.sync += If(uptime[0:cyclewid] == 34+(i*8),
+                (dmi_addr.eq(0b101), # GSPR data
+                 dmi_req.eq(1),
+                 dmi_wen.eq(0),
+                )
+            )
+
         # monitor ibus write
         self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
                         self.cpu.ibus.we,
-            Display("[%06x] iadr: %8x, s %01x w %016x",
+            Display("    [%06x] iadr: %8x, s %01x w %016x",
                 uptime,
                 self.cpu.ibus.adr,
                 self.cpu.ibus.sel,
@@ -151,7 +184,7 @@ class LibreSoCSim(SoCCore):
         # monitor ibus read
         self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
                         ~self.cpu.ibus.we,
-            Display("[%06x] iadr: %8x, s %01x r %016x",
+            Display("    [%06x] iadr: %8x, s %01x r %016x",
                 uptime,
                 self.cpu.ibus.adr,
                 self.cpu.ibus.sel,
@@ -161,7 +194,7 @@ class LibreSoCSim(SoCCore):
 
         # monitor bbus read/write
         self.sync += If(self.cpu.dbus.stb & self.cpu.dbus.ack,
-            Display("[%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
+            Display("    [%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
                 uptime,
                 self.cpu.dbus.adr,
                 self.cpu.dbus.we,
