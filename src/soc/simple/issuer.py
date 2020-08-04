@@ -114,19 +114,29 @@ class TestIssuer(Elaboratable):
         comb += self.pc_o.eq(cur_state.pc)
         ilatch = Signal(32)
 
-        # MSR (temp and latched)
+        # MSR
         msr = Signal(64, reset_less=True)
 
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_state.pc + 4)
 
+        # read the PC
+        pc = Signal(64, reset_less=True)
+        with m.If(self.pc_i.ok):
+            # incoming override (start from pc_i)
+            comb += pc.eq(self.pc_i.data)
+        with m.Else():
+            # otherwise read FastRegs regfile for PC
+            comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
+            comb += pc.eq(self.fast_r_pc.data_o)
+
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += core.core_stopped_i.eq(dbg.core_stop_o)
         comb += core.core_reset_i.eq(dbg.core_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
-        comb += dbg.state.pc.eq(nia)
+        comb += dbg.state.pc.eq(pc)
         comb += dbg.state.msr.eq(cur_state.msr)
 
         # temporaries
@@ -151,14 +161,6 @@ class TestIssuer(Elaboratable):
                 sync += pc_changed.eq(0)
                 with m.If(~dbg.core_stop_o):
                     # instruction allowed to go: start by reading the PC
-                    pc = Signal(64, reset_less=True)
-                    with m.If(self.pc_i.ok):
-                        # incoming override (start from pc_i)
-                        comb += pc.eq(self.pc_i.data)
-                    with m.Else():
-                        # otherwise read FastRegs regfile for PC
-                        comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
-                        comb += pc.eq(self.fast_r_pc.data_o)
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
