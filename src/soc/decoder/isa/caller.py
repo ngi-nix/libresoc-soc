@@ -131,13 +131,13 @@ class Mem:
         print("mem @ 0x{:x}: 0x{:x}".format(addr, self.mem[addr]))
 
     def __call__(self, addr, sz):
-        val = self.ld(addr.value, sz)
+        val = self.ld(addr.value, sz, swap=False)
         print("memread", addr, sz, val)
         return SelectableInt(val, sz*8)
 
     def memassign(self, addr, sz, val):
         print("memassign", addr, sz, val)
-        self.st(addr.value, val.value, sz)
+        self.st(addr.value, val.value, sz, swap=False)
 
 
 class GPR(dict):

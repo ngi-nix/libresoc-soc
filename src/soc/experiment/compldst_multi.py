@@ -483,7 +483,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
         # byte-reverse on LD - yes this is inverted
-        with m.If(self.oper_i.byte_reverse):
+        with m.If(~self.oper_i.byte_reverse):
             comb += ldd_o.eq(pi.ld.data)  # put data out, straight (as BE)
         with m.Else():
             # byte-reverse the data based on ld/st width (turn it to LE)
@@ -494,7 +494,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += ld_ok.eq(pi.ld.ok)  # ld.ok *closes* (freezes) ld data
 
         # yes this also looks odd (inverted)
-        with m.If(self.oper_i.byte_reverse):
+        with m.If(~self.oper_i.byte_reverse):
             comb += pi.st.data.eq(srl[2])  # 3rd operand latch
         with m.Else():
             # byte-reverse the data based on width

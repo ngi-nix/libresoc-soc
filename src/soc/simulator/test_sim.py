@@ -96,11 +96,26 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4])
 
-    @unittest.skip("disable")
+    #@unittest.skip("disable")
     def test_ldst(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
                "stw  1, 0(2)",
+               "lwz  3, 0(2)"
+               ]
+        initial_mem = {0x1230: (0x5432123412345678, 8),
+                       0x1238: (0xabcdef0187654321, 8),
+                       }
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program,
+                                 [1, 2, 3],
+                                 initial_mem)
+
+    #@unittest.skip("disable")
+    def test_ldst_update(self):
+        lst = ["addi 1, 0, 0x5678",
+               "addi 2, 0, 0x1234",
+               "stwu  1, 0(2)",
                "lwz  3, 0(2)"
                ]
         initial_mem = {0x1230: (0x5432123412345678, 8),
@@ -131,7 +146,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    @unittest.skip("disable")
+    #@unittest.skip("disable")
     def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -254,6 +269,7 @@ class GeneralTestCases(FHDLTestCase):
             program.assembly = '\n'.join(disassembly) + '\n' # XXX HACK!
             self.run_tst_program(program, [1, 3])
 
+    @unittest.skip("disable")
     def test_loop(self):
         """in godbolt.org:
         register unsigned long i asm ("r12");
@@ -272,6 +288,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [9], initial_mem={})
 
+    @unittest.skip("disable")
     def test_30_addis(self):
         lst = [  # "addi 0, 0, 5",
             "addis 12, 0, 0",
