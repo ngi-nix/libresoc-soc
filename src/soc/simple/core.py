@@ -129,9 +129,6 @@ class NonProductionCore(Elaboratable):
         fu_bitdict = {}
         for i, funame in enumerate(fus.keys()):
             fu_bitdict[funame] = fu_enable[i]
-        # only run when allowed and when instruction is valid
-        can_run = Signal(reset_less=True)
-        comb += can_run.eq(self.ivalid_i & ~self.core_stopped_i)
 
         # enable the required Function Unit based on the opcode decode
         # note: this *only* works correctly for simple core when one and
@@ -148,7 +145,7 @@ class NonProductionCore(Elaboratable):
             sync += counter.eq(counter - 1)
             comb += self.busy_o.eq(1)
 
-        with m.If(can_run):
+        with m.If(self.ivalid_i): # run only when valid
             with m.Switch(dec2.e.do.insn_type):
                 # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):
