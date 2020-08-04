@@ -94,7 +94,6 @@ class TestIssuer(Elaboratable):
         comb += core_sync.clk.eq(ClockSignal())
         # XXX TODO: power-on reset delay (later)
         #comb += core.core_reset_i.eq(delay != 0 | dbg.core_rst_o)
-        comb += core.core_reset_i.eq(dbg.core_rst_o)
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
@@ -123,11 +122,12 @@ class TestIssuer(Elaboratable):
         comb += nia.eq(cur_state.pc + 4)
 
         # connect up debug signals
-        comb += core.core_stopped_i.eq(dbg.core_stop_o)
-        # TODO comb += core.reset_i.eq(dbg.core_rst_o)
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
+        comb += core.core_stopped_i.eq(dbg.core_stop_o)
+        comb += core.core_reset_i.eq(dbg.core_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
-        comb += dbg.state.eq(cur_state)
+        comb += dbg.state.pc.eq(nia)
+        comb += dbg.state.msr.eq(cur_state.msr)
 
         # temporaries
         core_busy_o = core.busy_o         # core is busy
