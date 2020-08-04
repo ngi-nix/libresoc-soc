@@ -47,8 +47,8 @@ class LibreSoCSim(SoCCore):
         # setup running of DMI FSM
         dmi_addr = Signal(3)
         dmi_din = Signal(64)
-        dmi_wen = Signal(64)
         dmi_dout = Signal(64)
+        dmi_wen = Signal(1)
         dmi_req = Signal(1)
 
         uptime = Signal(64)
@@ -69,10 +69,6 @@ class LibreSoCSim(SoCCore):
                  self.cpu.dmi_wr.eq(1),    # DMI write
                  If(self.cpu.dmi_ack,
                     (NextState("IDLE"),
-                     self.cpu.dmi_addr.eq(0),
-                     self.cpu.dmi_din.eq(0),
-                     self.cpu.dmi_req.eq(0),
-                     self.cpu.dmi_wr.eq(0),
                     )
                  ),
                 ),
@@ -81,13 +77,29 @@ class LibreSoCSim(SoCCore):
 
         dmifsm.act("IDLE",
             (NextValue(dmi_req, 0),
+             NextValue(dmi_addr, 0),
+             NextValue(dmi_din, 0),
+             NextValue(dmi_wen, 0),
+             NextState("START"), # back to start on next cycle
             )
         )
 
         # kick off a "stop"
-        self.comb += If(uptime == 0,
+        self.sync += If(uptime == 0,
             (dmi_addr.eq(0), # CTRL
              dmi_din.eq(1<<0), # STOP
+             dmi_req.eq(1),
+             dmi_wen.eq(1),
+            )
+        )
+
+        # loop every 1<<N cycles
+        cyclewid = 7
+
+        # kick off a "step"
+        self.sync += If(uptime[0:cyclewid] == 4,
+            (dmi_addr.eq(0), # CTRL
+             dmi_din.eq(1<<3), # STEP
              dmi_req.eq(1),
              dmi_wen.eq(1),
             )
