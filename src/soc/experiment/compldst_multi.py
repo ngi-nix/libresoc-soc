@@ -482,25 +482,26 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += self.addr_exc_o.eq(pi.addr_exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
-        # byte-reverse on LD - yes this is inverted
-        with m.If(~self.oper_i.byte_reverse):
-            comb += ldd_o.eq(pi.ld.data)  # put data out, straight (as BE)
-        with m.Else():
+        # byte-reverse on LD
+        with m.If(self.oper_i.byte_reverse):
             # byte-reverse the data based on ld/st width (turn it to LE)
             data_len = self.oper_i.data_len
             lddata_r = byte_reverse(m, 'lddata_r', pi.ld.data, data_len)
             comb += ldd_o.eq(lddata_r)  # put reversed- data out
+        with m.Else():
+            comb += ldd_o.eq(pi.ld.data)  # put data out, straight (as BE)
         # ld - ld gets latched in via lod_l
         comb += ld_ok.eq(pi.ld.ok)  # ld.ok *closes* (freezes) ld data
 
-        # yes this also looks odd (inverted)
-        with m.If(~self.oper_i.byte_reverse):
-            comb += pi.st.data.eq(srl[2])  # 3rd operand latch
-        with m.Else():
+        # byte-reverse on ST
+        op3 = srl[2] # 3rd operand latch
+        with m.If(self.oper_i.byte_reverse):
             # byte-reverse the data based on width
             data_len = self.oper_i.data_len
-            stdata_r = byte_reverse(m, 'stdata_r', srl[2], data_len)
+            stdata_r = byte_reverse(m, 'stdata_r', op3, data_len)
             comb += pi.st.data.eq(stdata_r)
+        with m.Else():
+            comb += pi.st.data.eq(op3)
         # store - data goes in based on go_st
         comb += pi.st.ok.eq(self.st.go_i)  # go store signals st data valid
 
