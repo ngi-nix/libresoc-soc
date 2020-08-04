@@ -50,6 +50,13 @@ class LibreSoC(CPU):
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
 
+        self.dmi_addr = Signal(3)
+        self.dmi_din = Signal(64)
+        self.dmi_dout = Signal(64)
+        self.dmi_wr = Signal(1)
+        self.dmi_ack = Signal(1)
+        self.dmi_req = Signal(1)
+
         # # #
 
         self.cpu_params = dict(
@@ -84,14 +91,19 @@ class LibreSoC(CPU):
             i_dbus__dat_r      = self.dbus.dat_r,
 
             # Monitoring / Debugging
-            i_go_insn_i        = 1,
             i_pc_i             = 0,
             i_pc_i_ok          = 0,
-            i_core_start_i     = Signal(),
-            i_core_stop_i      = Signal(),
             i_core_bigendian_i = 0, # Signal(),
-            o_halted_o         = Signal(),
-            o_busy_o           = Signal()
+            o_busy_o           = Signal(),
+            o_memerr_o         = Signal(),
+
+            # Debug bus
+            i_dmi_addr_i          = self.dmi_addr,
+            i_dmi_din             = self.dmi_din,
+            o_dmi_dout            = self.dmi_dout,
+            i_dmi_req_i           = self.dmi_req,
+            i_dmi_we_i            = self.dmi_wr,
+            o_dmi_ack_o           = self.dmi_ack,
         )
 
         # add verilog sources

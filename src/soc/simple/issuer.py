@@ -242,6 +242,9 @@ class TestIssuer(Elaboratable):
     def external_ports(self):
         return self.pc_i.ports() + [self.pc_o,
                                     self.memerr_o,
+                                    self.core_bigendian_i,
+                                    ClockSignal(),
+                                    ResetSignal(),
                                     self.busy_o,
                                     ] + \
                 list(self.dbg.dmi.ports()) + \
