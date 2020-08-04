@@ -112,8 +112,8 @@ class Mem:
         staddr = addr
         remainder = addr & (self.bytes_per_word - 1)
         addr = addr >> self.word_log2
-        print("Writing 0x{:x} to ST 0x{:x} memaddr 0x{:x}/{:x}".format(v,
-                                                                       staddr, addr, remainder, swap))
+        print("Writing 0x{:x} to ST 0x{:x} "
+              "memaddr 0x{:x}/{:x}".format(v, staddr, addr, remainder, swap))
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
         if swap:
             v = swap_order(v, width)
