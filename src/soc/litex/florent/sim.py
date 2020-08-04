@@ -3,7 +3,7 @@
 import os
 import argparse
 
-from migen import Signal, FSM, If, Display, Finish
+from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState)
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -41,39 +41,90 @@ class LibreSoCSim(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # Debug ---------------------------------------------------------------
-        if debug:
-            uptime = Signal(64)
-            self.sync += uptime.eq(uptime + 1)
-            self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
-                            self.cpu.ibus.we,
-                Display("[%06x] iadr: %8x, s %01x w %016x",
-                    uptime,
-                    self.cpu.ibus.adr,
-                    self.cpu.ibus.sel,
-                    self.cpu.ibus.dat_w,
-                )
+        if not debug:
+            return
+
+        # setup running of DMI FSM
+        dmi_addr = Signal(3)
+        dmi_din = Signal(64)
+        dmi_wen = Signal(64)
+        dmi_dout = Signal(64)
+        dmi_req = Signal(1)
+
+        uptime = Signal(64)
+        # increment counter, Stop after 100000 cycles
+        uptime = Signal(64)
+        self.sync += uptime.eq(uptime + 1)
+        self.sync += If(uptime == 100000, Finish())
+
+        dmifsm = FSM()
+        self.submodules += dmifsm
+
+        # DMI FSM
+        dmifsm.act("START",
+            If(dmi_req & dmi_wen,
+                (self.cpu.dmi_addr.eq(dmi_addr),   # DMI Addr
+                 self.cpu.dmi_din.eq(dmi_din), # DMI in
+                 self.cpu.dmi_req.eq(1),    # DMI request
+                 self.cpu.dmi_wr.eq(1),    # DMI write
+                 If(self.cpu.dmi_ack,
+                    (NextState("IDLE"),
+                     self.cpu.dmi_addr.eq(0),
+                     self.cpu.dmi_din.eq(0),
+                     self.cpu.dmi_req.eq(0),
+                     self.cpu.dmi_wr.eq(0),
+                    )
+                 ),
+                ),
             )
-            self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
-                            ~self.cpu.ibus.we,
-                Display("[%06x] iadr: %8x, s %01x r %016x",
-                    uptime,
-                    self.cpu.ibus.adr,
-                    self.cpu.ibus.sel,
-                    self.cpu.ibus.dat_r
-                )
+        )
+
+        dmifsm.act("IDLE",
+            (NextValue(dmi_req, 0),
             )
-            self.sync += If(self.cpu.dbus.stb & self.cpu.dbus.ack,
-                Display("[%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
-                    uptime,
-                    self.cpu.dbus.adr,
-                    self.cpu.dbus.we,
-                    self.cpu.dbus.sel,
-                    self.cpu.dbus.dat_w,
-                    self.cpu.dbus.dat_r
-                )
+        )
+
+        # kick off a "stop"
+        self.comb += If(uptime == 0,
+            (dmi_addr.eq(0), # CTRL
+             dmi_din.eq(1<<0), # STOP
+             dmi_req.eq(1),
+             dmi_wen.eq(1),
             )
-            # Stop after 20000 cycles
-            self.sync += If(uptime == 100000, Finish())
+        )
+
+        # monitor ibus write
+        self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
+                        self.cpu.ibus.we,
+            Display("[%06x] iadr: %8x, s %01x w %016x",
+                uptime,
+                self.cpu.ibus.adr,
+                self.cpu.ibus.sel,
+                self.cpu.ibus.dat_w,
+            )
+        )
+        # monitor ibus read
+        self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
+                        ~self.cpu.ibus.we,
+            Display("[%06x] iadr: %8x, s %01x r %016x",
+                uptime,
+                self.cpu.ibus.adr,
+                self.cpu.ibus.sel,
+                self.cpu.ibus.dat_r
+            )
+        )
+
+        # monitor bbus read/write
+        self.sync += If(self.cpu.dbus.stb & self.cpu.dbus.ack,
+            Display("[%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
+                uptime,
+                self.cpu.dbus.adr,
+                self.cpu.dbus.we,
+                self.cpu.dbus.sel,
+                self.cpu.dbus.dat_w,
+                self.cpu.dbus.dat_r
+            )
+        )
 
 # Build -----------------------------------------------------------------------
 

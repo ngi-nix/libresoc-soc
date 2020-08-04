@@ -53,6 +53,13 @@ class Microwatt(CPU):
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
+        self.dmi_addr = Signal(3)
+        self.dmi_din = Signal(64)
+        self.dmi_dout = Signal(64)
+        self.dmi_wr = Signal(1)
+        self.dmi_ack = Signal(1)
+        self.dmi_req = Signal(1)
+
         # # #
 
         self.cpu_params = dict(
@@ -84,13 +91,14 @@ class Microwatt(CPU):
             o_wishbone_data_sel   = dbus.sel,
             o_wishbone_data_we    = dbus.we,
 
+
             # Debug bus
-            i_dmi_addr            = 0,
-            i_dmi_din             = 0,
-            #o_dmi_dout           =,
-            i_dmi_req             = 0,
-            i_dmi_wr              = 0,
-            #o_dmi_ack            =,
+            i_dmi_addr            = self.dmi_addr,
+            i_dmi_din             = self.dmi_din,
+            o_dmi_dout            = self.dmi_dout,
+            i_dmi_req             = self.dmi_req,
+            i_dmi_wr              = self.dmi_wr,
+            o_dmi_ack             = self.dmi_ack,
         )
 
         # add vhdl sources
