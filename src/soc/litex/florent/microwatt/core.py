@@ -4,7 +4,7 @@
 
 import os
 
-from migen import *
+from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -48,8 +48,8 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29)
-        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29)
+        self.ibus = ibus = wishbone.Interface(data_width=64, adr_width=29)
+        self.dbus = dbus = wishbone.Interface(data_width=64, adr_width=29)
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 

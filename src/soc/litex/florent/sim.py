@@ -3,7 +3,7 @@
 import os
 import argparse
 
-from migen import Signal, FSM
+from migen import Signal, FSM, If, Display, Finish
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform

@@ -1,6 +1,6 @@
 import os
 
-from migen import *
+from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
