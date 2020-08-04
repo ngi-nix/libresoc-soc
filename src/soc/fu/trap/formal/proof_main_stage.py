@@ -185,13 +185,13 @@ class Driver(Elaboratable):
                         field(exp_msr, 60, 62).eq(field(rs, 60, 62)),
                     ]
                 with m.Else():
+                    # L=1 only checks 48 and 62
                     comb += [
                         field(exp_msr, 48).eq(field(rs, 48)),
                         field(exp_msr, 62).eq(field(rs, 62)),
                     ]
 
                 comb += [
-                    # L=1 only checks 48 and 62
                     Assert(msr_o.data == exp_msr),
                     Assert(msr_o.ok),
                 ]
@@ -224,7 +224,7 @@ class Driver(Elaboratable):
                     ]
 
                     comb += [
-                        # XXX Ambiguity in specification on page 978 of V3.0B:
+                        # Ambiguity in specification on page 978 of V3.0B:
                         #   MSR[4:28] <- RS[4 6:28].
                         #
                         # I've decided to follow the prose in the programmer
