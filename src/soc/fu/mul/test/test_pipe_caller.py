@@ -161,7 +161,7 @@ class MulTestCase(TestAccumulatorBase):
             self.add_case(Program(lst, bigendian), initial_regs)
 
     def case_all(self):
-        instrs = ["mulli","mulhw",
+        instrs = [,"mulhw",
                   "mulhw.","mullw",
                   "mullw.","mullwo",
                   "mullwo.","mulhwu",
@@ -170,6 +170,8 @@ class MulTestCase(TestAccumulatorBase):
                   "mulldo.","mulhd",
                   "mulhd.","mulhdu",
                   "mulhdu."]
+
+# TODO add special test case for "mulli"
 
 # TODO add test case for these 3 operand cases
 # ,"maddhd","maddhdu","maddld"
@@ -205,7 +207,7 @@ class MulTestCase(TestAccumulatorBase):
                         self.add_case(prog, initial_regs)
 
     def case_all_rb_randint(self):
-        instrs = ["mulli","mulhw",
+        instrs = ["mulhw",
                   "mulhw.","mullw",
                   "mullw.","mullwo",
                   "mullwo.","mulhwu",
