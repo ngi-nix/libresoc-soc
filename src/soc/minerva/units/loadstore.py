@@ -85,6 +85,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                 m.d.sync += [
                     self.dbus.cyc.eq(0),
                     self.dbus.stb.eq(0),
+                    self.dbus.sel.eq(0),
                     self.m_ld_data_o.eq(self.dbus.dat_r)
                 ]
         with m.Elif((self.x_ld_i | self.x_st_i) &
