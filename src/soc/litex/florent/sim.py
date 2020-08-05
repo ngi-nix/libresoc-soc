@@ -32,6 +32,7 @@ class LibreSoCSim(SoCCore):
             cpu_type                 = "microwatt",
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
+            #bus_data_width           = 64,
             uart_name                = "sim",
             integrated_rom_size      = 0x10000,
             integrated_main_ram_size = 0x10000000) # 256MB
