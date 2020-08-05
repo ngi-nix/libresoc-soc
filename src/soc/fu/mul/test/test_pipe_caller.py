@@ -120,14 +120,6 @@ class MulTestCase(TestAccumulatorBase):
         initial_regs[2] = 0x47dfba3a63834ba2
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def case_4_mullw_rand(self):
-        for i in range(40):
-            lst = ["mullw 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
     def case_rand_mul_lh(self):
         insns = ["mulhw", "mulhw.", "mulhwu", "mulhwu."]
         for i in range(40):
@@ -167,6 +159,44 @@ class MulTestCase(TestAccumulatorBase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
+
+    def case_all(self):
+        instrs = ["mulli","mulhw",
+                  "mulhw.","mullw",
+                  "mullw.","mullwo",
+                  "mullwo.","mulhwu",
+                  "mulhwu.","mulld",
+                  "mulld.","mulldo",
+                  "mulldo.","mulhd",
+                  "mulhd.","mulhdu",
+                  "mulhdu.","maddhd",
+                  "maddhdu","maddld"]
+
+        test_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+        ]
+
+        for instr in instrs:
+            l = [f"{instr} 3, 1, 2"]
+            for ra in test_values:
+                for rb in test_values:
+                    initial_regs = [0] * 32
+                    initial_regs[1] = ra
+                    initial_regs[2] = rb
+                    # use "with" so as to close the files used
+                    with Program(l, bigendian) as prog:
+                        self.add_case(prog, initial_regs)
+
 
     def case_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
