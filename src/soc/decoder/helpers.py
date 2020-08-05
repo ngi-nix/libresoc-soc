@@ -4,6 +4,7 @@ from nmutil.divmod import trunc_divs, trunc_rems
 from operator import floordiv, mod
 from soc.decoder.selectable_int import selectltu as ltu
 from soc.decoder.selectable_int import selectgtu as gtu
+from soc.decoder.selectable_int import check_extsign
 
 trunc_div = floordiv
 trunc_rem = mod
@@ -37,6 +38,9 @@ def EXTS64(value):
 
 # signed version of MUL
 def MULS(a, b):
+    if isinstance(b, int):
+        b = SelectableInt(b, self.bits)
+    b = check_extsign(a, b)
     a_s = a.value & (1 << (a.bits-1)) != 0
     b_s = b.value & (1 << (b.bits-1)) != 0
     result = abs(a) * abs(b)
