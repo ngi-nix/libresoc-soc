@@ -72,7 +72,7 @@ from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 
 from soc.fu.div.pipeline import DivBasePipe
-from soc.fu.div.pipe_data import DivPipeSpecDivPipeCore
+from soc.fu.div.pipe_data import DivPipeSpecFSMDivCore
 
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
@@ -162,7 +162,7 @@ class DivFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
 
     def __init__(self, idx):
-        super().__init__(DivPipeSpecDivPipeCore, DivBasePipe, idx)
+        super().__init__(DivPipeSpecFSMDivCore, DivBasePipe, idx)
 
 
 class MulFunctionUnit(FunctionUnitBaseSingle):
