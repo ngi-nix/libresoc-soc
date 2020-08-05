@@ -100,7 +100,7 @@ class LDSTSplitter(Elaboratable):
         mzero = Const(0, mlen)
         m.submodules.ld1 = ld1 = LDLatch(self.dwidth, self.awidth-dlen, mlen)
         m.submodules.ld2 = ld2 = LDLatch(self.dwidth, self.awidth-dlen, mlen)
-        m.submodules.lenexp = lenexp = LenExpand(self.dlen, cover=8)
+        m.submodules.lenexp = lenexp = LenExpand(self.dlen)
 
         # set up len-expander, len to mask.  ld1 gets first bit, ld2 gets rest
         comb += lenexp.addr_i.eq(self.addr_i)
