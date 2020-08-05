@@ -161,7 +161,7 @@ class MulTestCase(TestAccumulatorBase):
             self.add_case(Program(lst, bigendian), initial_regs)
 
     def case_all(self):
-        instrs = [,"mulhw",
+        instrs = ["mulhw",
                   "mulhw.","mullw",
                   "mullw.","mullwo",
                   "mullwo.","mulhwu",
@@ -170,11 +170,6 @@ class MulTestCase(TestAccumulatorBase):
                   "mulldo.","mulhd",
                   "mulhd.","mulhdu",
                   "mulhdu."]
-
-# TODO add special test case for "mulli"
-
-# TODO add test case for these 3 operand cases
-# ,"maddhd","maddhdu","maddld"
 
         test_values = [
             0x0,
@@ -245,6 +240,55 @@ class MulTestCase(TestAccumulatorBase):
                 # use "with" so as to close the files used
                 with Program(l, bigendian) as prog:
                     self.add_case(prog, initial_regs)
+
+    def case_all_rb_close_to_ov(self):
+        instrs = ["mulhw",
+                  "mulhw.","mullw",
+                  "mullw.","mullwo",
+                  "mullwo.","mulhwu",
+                  "mulhwu.","mulld",
+                  "mulld.","mulldo",
+                  "mulldo.","mulhd",
+                  "mulhd.","mulhdu",
+                  "mulhdu."]
+
+        test_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
+
+        x = 0x7fffffff + random.randint(0,1)
+        ra = random.randint(0, (1 << 64)-1)
+        rb = x // ra
+
+        for instr in instrs:
+            l = [f"{instr} 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = ra
+            initial_regs[2] = rb
+            # use "with" so as to close the files used
+            with Program(l, bigendian) as prog:
+                self.add_case(prog, initial_regs)
+
+# TODO add special test case for "mulli"
+
+# TODO add test case for these 3 operand cases (madd
+# needs to be implemented)
+# "maddhd","maddhdu","maddld"
 
     def case_ilang(self):
         pspec = MulPipeSpec(id_wid=2)
