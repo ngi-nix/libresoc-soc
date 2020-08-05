@@ -186,6 +186,11 @@ class MulTestCase(TestAccumulatorBase):
             0x1234_5678_8000_0000,
             0x1234_5678_FFFF_FFFF,
             0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
         ]
 
         for instr in instrs:
@@ -222,6 +227,11 @@ class MulTestCase(TestAccumulatorBase):
             0x1234_5678_8000_0000,
             0x1234_5678_FFFF_FFFF,
             0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
         ]
 
         for instr in instrs:
