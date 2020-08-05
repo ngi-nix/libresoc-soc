@@ -78,7 +78,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 
 class DivTestHelper(unittest.TestCase):
-    def execute(self, alu, instruction, pdecode2, test, div_pipe_kind):
+    def execute(self, alu, instruction, pdecode2, test, div_pipe_kind, sim):
         prog = test.program
         isa_sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                       test.mem, test.msr,
@@ -138,6 +138,12 @@ class DivTestHelper(unittest.TestCase):
             while not vld:
                 yield
                 yield Delay(0.1e-6)
+                # XXX sim._state is an internal variable
+                # Waiting on https://github.com/nmigen/nmigen/issues/443
+                try:
+                    print(f"time: {sim._state.timeline.now * 1e6}us")
+                except AttributeError:
+                    pass
                 vld = yield alu.n.valid_o
                 # bug #425 investigation
                 do = alu.pipe_end.div_out
@@ -156,23 +162,23 @@ class DivTestHelper(unittest.TestCase):
                 print("div_by_zero", hex(div_by_zero))
                 print("dive_abs_ov32", hex(dive_abs_ov32))
                 print("quotient_neg", hex(quotient_neg))
+                print("vld", vld)
                 print("")
-            yield
 
             yield Delay(0.1e-6)
             # XXX sim._state is an internal variable
-            # and timeline does not exist
-            # AttributeError: '_SimulatorState' object
-            #                 has no attribute 'timeline'
-            # TODO: raise bugreport with whitequark
-            # requesting a public API to access this "officially"
-            # XXX print("time:", sim._state.timeline.now)
+            # Waiting on https://github.com/nmigen/nmigen/issues/443
+            try:
+                print(f"check time: {sim._state.timeline.now * 1e6}us")
+            except AttributeError:
+                pass
             msg = "%s: %s" % (div_pipe_kind.name, code)
             msg += " %s" % (repr(prog.assembly))
             msg += " %s" % (repr(test.regs))
             yield from self.check_alu_outputs(alu, pdecode2,
                                               isa_sim, msg,
                                               pia_res)
+            yield
 
     def run_all(self, test_data, div_pipe_kind, file_name_prefix):
         m = Module()
@@ -198,7 +204,7 @@ class DivTestHelper(unittest.TestCase):
                 print(test.name)
                 with self.subTest(test.name):
                     yield from self.execute(alu, instruction, pdecode2,
-                                            test, div_pipe_kind)
+                                            test, div_pipe_kind, sim)
 
         sim.add_sync_process(process)
         with sim.write_vcd(f"{file_name_prefix}_{div_pipe_kind.name}.vcd"):
