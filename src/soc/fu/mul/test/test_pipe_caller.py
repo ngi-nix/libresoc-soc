@@ -169,8 +169,10 @@ class MulTestCase(TestAccumulatorBase):
                   "mulld.","mulldo",
                   "mulldo.","mulhd",
                   "mulhd.","mulhdu",
-                  "mulhdu.","maddhd",
-                  "maddhdu","maddld"]
+                  "mulhdu."]
+
+# TODO add test case for these 3 operand cases
+# ,"maddhd","maddhdu","maddld"
 
         test_values = [
             0x0,
