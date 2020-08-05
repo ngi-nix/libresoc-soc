@@ -27,7 +27,7 @@ from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 
 # test with ALU data and Logical data
 #from soc.fu.alu.test.test_pipe_caller import ALUTestCase
-#from soc.fu.div.test.test_pipe_caller import DivTestCase
+from soc.fu.div.test.test_pipe_caller import DivTestCases
 #from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 #from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     # suite.addTest(TestRunner(HelloTestCases.test_data))
-    # suite.addTest(TestRunner(DivTestCase.test_data))
+    suite.addTest(TestRunner(DivTestCases().test_data))
     # suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
     # suite.addTest(TestRunner(LDSTTestCase().test_data))
