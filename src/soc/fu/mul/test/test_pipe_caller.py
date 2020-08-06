@@ -287,8 +287,12 @@ class MulTestCase(TestAccumulatorBase):
 
     def case_mulli(self):
 
-        test_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767, random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (
-            1 << 15) - 1), random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (1 << 15)-1)]
+        test_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767,
+                       random.randint(-1 << 15, (1 << 15)-1), random.randint(
+                       -1 << 15, (1 << 15) - 1), random.randint(-1 << 15,
+                       (1 << 15)-1), random.randint(-1 << 15, (1 << 15)-1),
+                       random.randint(-1 << 15, (1 << 15)-1)
+                      ]
 
         l = ["mulli 3, 1, 2"]
         for ra in test_values:
