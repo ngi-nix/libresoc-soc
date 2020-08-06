@@ -162,13 +162,13 @@ class MulTestCase(TestAccumulatorBase):
 
     def case_all(self):
         instrs = ["mulhw",
-                  "mulhw.","mullw",
-                  "mullw.","mullwo",
-                  "mullwo.","mulhwu",
-                  "mulhwu.","mulld",
-                  "mulld.","mulldo",
-                  "mulldo.","mulhd",
-                  "mulhd.","mulhdu",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
                   "mulhdu."]
 
         test_values = [
@@ -203,13 +203,13 @@ class MulTestCase(TestAccumulatorBase):
 
     def case_all_rb_randint(self):
         instrs = ["mulhw",
-                  "mulhw.","mullw",
-                  "mullw.","mullwo",
-                  "mullwo.","mulhwu",
-                  "mulhwu.","mulld",
-                  "mulld.","mulldo",
-                  "mulldo.","mulhd",
-                  "mulhd.","mulhdu",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
                   "mulhdu."]
 
         test_values = [
@@ -243,13 +243,13 @@ class MulTestCase(TestAccumulatorBase):
 
     def case_all_rb_close_to_ov(self):
         instrs = ["mulhw",
-                  "mulhw.","mullw",
-                  "mullw.","mullwo",
-                  "mullwo.","mulhwu",
-                  "mulhwu.","mulld",
-                  "mulld.","mulldo",
-                  "mulldo.","mulhd",
-                  "mulhd.","mulhdu",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
                   "mulhdu."]
 
         test_values = [
@@ -271,7 +271,7 @@ class MulTestCase(TestAccumulatorBase):
             0xfffffffd
         ]
 
-        x = 0x7fffffff + random.randint(0,1)
+        x = 0x7fffffff + random.randint(0, 1)
         ra = random.randint(0, (1 << 64)-1)
         rb = x // ra
 
@@ -284,7 +284,20 @@ class MulTestCase(TestAccumulatorBase):
             with Program(l, bigendian) as prog:
                 self.add_case(prog, initial_regs)
 
-# TODO add special test case for "mulli"
+    def case_mulli(self):
+
+        test_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767, random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (
+            1 << 15) - 1), random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (1 << 15)-1), random.randint(-1 << 15, (1 << 15)-1)]
+
+        l = ["mulli 3, 1, 2"]
+        for ra in test_values:
+            for rb in test_values:
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                initial_regs[2] = rb
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
 # TODO add test case for these 3 operand cases (madd
 # needs to be implemented)
