@@ -160,13 +160,20 @@ class PortInterfaceBase(Elaboratable):
 
         # state-machine latches
         m.submodules.st_active = st_active = SRLatch(False, name="st_active")
+        m.submodules.st_done = st_done = SRLatch(False, name="st_done")
         m.submodules.ld_active = ld_active = SRLatch(False, name="ld_active")
         m.submodules.reset_l = reset_l = SRLatch(True, name="reset")
         m.submodules.adrok_l = adrok_l = SRLatch(False, name="addr_acked")
         m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
         m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc")
+        comb += st_done.s.eq(0)
+        comb += st_done.r.eq(0)
+        comb += st_active.r.eq(0)
+        comb += ld_active.r.eq(0)
         comb += cyc_l.s.eq(0)
         comb += cyc_l.r.eq(0)
+        comb += busy_l.s.eq(0)
+        comb += busy_l.r.eq(0)
         sync += adrok_l.s.eq(0)
         comb += adrok_l.r.eq(0)
 
@@ -176,14 +183,22 @@ class PortInterfaceBase(Elaboratable):
         lds = Signal(reset_less=True)
         sts = Signal(reset_less=True)
         pi = self.pi
-        comb += lds.eq(pi.is_ld_i & pi.busy_o)  # ld-req signals
-        comb += sts.eq(pi.is_st_i & pi.busy_o)  # st-req signals
+        comb += lds.eq(pi.is_ld_i)  # ld-req signals
+        comb += sts.eq(pi.is_st_i)  # st-req signals
 
-        # activate mode
-        with m.If(lds):
-            comb += ld_active.s.eq(1)  # activate LD mode
-        with m.Elif(sts):
-            comb += st_active.s.eq(1)  # activate ST mode
+        # detect busy "edge"
+        busy_delay = Signal()
+        busy_edge = Signal()
+        sync += busy_delay.eq(pi.busy_o)
+        comb += busy_edge.eq(pi.busy_o & ~busy_delay)
+
+        # activate mode: only on "edge"
+        comb += ld_active.s.eq(lds & busy_edge)  # activate LD mode
+        comb += st_active.s.eq(sts & busy_edge)  # activate ST mode
+
+        # LD/ST requested activates "busy" (only if not already busy)
+        with m.If(self.pi.is_ld_i | self.pi.is_st_i):
+            comb += busy_l.s.eq(~busy_delay)
 
         # if now in "LD" mode: wait for addr_ok, then send the address out
         # to memory, acknowledge address, and send out LD data
@@ -234,6 +249,8 @@ class PortInterfaceBase(Elaboratable):
             # TODO: replace with link to LoadStoreUnitInterface.x_store_data
             # and also handle the ready/stall/busy protocol
             stok = self.set_wr_data(m, stdata, lenexp.lexp_o)
+            comb += st_done.s.eq(1)     # store done trigger
+        with m.If(st_done.q):
             comb += reset_l.s.eq(stok)   # reset mode after 1 cycle
 
         # ugly hack, due to simultaneous addr req-go acknowledge
@@ -248,17 +265,15 @@ class PortInterfaceBase(Elaboratable):
             comb += st_active.r.eq(1)   # leave the ST active for 1 cycle
             comb += reset_l.r.eq(1)     # clear reset
             comb += adrok_l.r.eq(1)     # address reset
-
-        # LD/ST requested activates "busy"
-        with m.If(self.pi.is_ld_i | self.pi.is_st_i):
-            comb += busy_l.s.eq(1)
+            comb += st_done.r.eq(1)     # store done reset
 
         # monitor for an exception or the completion of LD.
         with m.If(self.pi.addr_exc_o):
             comb += busy_l.r.eq(1)
 
         # however ST needs one cycle before busy is reset
-        with m.If(self.pi.st.ok | self.pi.ld.ok):
+        #with m.If(self.pi.st.ok | self.pi.ld.ok):
+        with m.If(reset_l.s):
             comb += cyc_l.s.eq(1)
 
         with m.If(cyc_l.q):
@@ -266,7 +281,7 @@ class PortInterfaceBase(Elaboratable):
             comb += busy_l.r.eq(1)
 
         # busy latch outputs to interface
-        comb += self.pi.busy_o.eq(busy_l.q)
+        comb += pi.busy_o.eq(busy_l.q)
 
         return m
 

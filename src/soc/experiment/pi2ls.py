@@ -41,6 +41,7 @@ class Pi2LSUI(PortInterfaceBase):
         if lsui is None:
             lsui = LoadStoreUnitInterface(addr_wid, self.addrbits, data_wid)
         self.lsui = lsui
+        self.lsui_busy = Signal()
         self.valid_l = SRLatch(False, name="valid")
 
     def set_wr_addr(self, m, addr, mask):
@@ -55,10 +56,10 @@ class Pi2LSUI(PortInterfaceBase):
 
     def set_wr_data(self, m, data, wen):  # mask already done in addr setup
         m.d.comb += self.lsui.x_st_data_i.eq(data)
-        return ~self.lsui.x_busy_o
+        return (~self.lsui_busy)
 
     def get_rd_data(self, m):
-        return self.lsui.m_ld_data_o, ~self.lsui.x_busy_o
+        return self.lsui.m_ld_data_o, ~self.lsui_busy
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
@@ -71,12 +72,37 @@ class Pi2LSUI(PortInterfaceBase):
         m.d.comb += lsui.x_ld_i.eq(pi.is_ld_i)
         m.d.comb += lsui.x_st_i.eq(pi.is_st_i)
 
+        # ooo how annoying.  x_busy_o is set synchronously, i.e. one
+        # clock too late for this converter to "notice".  consequently,
+        # when trying to wait for ld/st, here: on the first cycle
+        # it goes "oh, x_busy_o isn't set, the ld/st must have been
+        # completed already, we must be done" when in fact it hasn't
+        # started.  to "fix" that we actually have to have a full FSM
+        # tracking from when LD/ST starts, right the way through. sigh.
+        # first clock busy signal.  needed because x_busy_o is sync
+        with m.FSM() as fsm:
+            with m.State("IDLE"):
+                # detect when ld/st starts.  set busy *immediately*
+                with m.If((pi.is_ld_i | pi.is_st_i) & self.valid_l.q):
+                    m.d.comb += self.lsui_busy.eq(1)
+                    m.next = "BUSY"
+            with m.State("BUSY"):
+                # detect when busy drops: must then wait for ld/st to end..
+                #m.d.comb += self.lsui_busy.eq(self.lsui.x_busy_o)
+                m.d.comb += self.lsui_busy.eq(1)
+                with m.If(~self.lsui.x_busy_o):
+                    m.next = "WAITDEASSERT"
+            with m.State("WAITDEASSERT"):
+                # when no longer busy: back to start
+                with m.If(~self.valid_l.q):
+                    m.next = "IDLE"
+
         # indicate valid at both ends
         m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q)
         m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q)
 
         # reset the valid latch when not busy
-        m.d.comb += self.valid_l.r.eq(~pi.busy_o)  # self.lsui.x_busy_o)
+        m.d.comb += self.valid_l.r.eq(~self.lsui_busy)#~pi.busy_o)  # self.lsui.x_busy_o)
 
         return m
 
