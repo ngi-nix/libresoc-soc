@@ -271,18 +271,20 @@ class MulTestCase(TestAccumulatorBase):
             0xfffffffd
         ]
 
-        x = 0x7fffffff + random.randint(0, 1)
-        ra = random.randint(0, (1 << 64)-1)
-        rb = x // ra
+        for i in range(40):
+            for instr in instrs:
 
-        for instr in instrs:
-            l = [f"{instr} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = ra
-            initial_regs[2] = rb
-            # use "with" so as to close the files used
-            with Program(l, bigendian) as prog:
-                self.add_case(prog, initial_regs)
+                x = 0x7fffffff + random.randint(0, 1)
+                ra = random.randint(0, (1 << 32)-1)
+                rb = x // ra
+
+                l = [f"{instr} 3, 1, 2"]
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                initial_regs[2] = rb
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
     def case_mulli(self):
 
