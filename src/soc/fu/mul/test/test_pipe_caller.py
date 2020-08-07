@@ -289,11 +289,13 @@ class MulTestCase(TestAccumulatorBase):
 
         test_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767]
 
-        for i in range(40):
-            choice = random.choice(test_values)
-            l = [f"mulli 0, 1, {choice}"]
+        for i in range(20):
+            test_values.append(random.randint(-1 << 15, (1 << 15) - 1))
+
+        for imm in test_values:
+            l = [f"mulli 0, 1, {imm}"]
             initial_regs = [0] * 32
-            initial_regs[1] = random.randint(-1 << 15, (1 << 15) - 1)
+            initial_regs[1] = random.randint(0, (1 << 64) - 1)
             # use "with" so as to close the files used
             with Program(l, bigendian) as prog:
                 self.add_case(prog, initial_regs)
