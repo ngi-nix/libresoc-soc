@@ -287,18 +287,41 @@ class MulTestCase(TestAccumulatorBase):
 
     def case_mulli(self):
 
-        test_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767]
+        imm_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767]
+
+        ra_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
 
         for i in range(20):
-            test_values.append(random.randint(-1 << 15, (1 << 15) - 1))
+            imm_values.append(random.randint(-1 << 15, (1 << 15) - 1))
 
-        for imm in test_values:
-            l = [f"mulli 0, 1, {imm}"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64) - 1)
-            # use "with" so as to close the files used
-            with Program(l, bigendian) as prog:
-                self.add_case(prog, initial_regs)
+        for i in range(14):
+            ra_values.append(random.randint(0, (1 << 64) - 1))
+
+        for ra in ra_values:
+            for imm in imm_values:
+                l = [f"mulli 0, 1, {imm}"]
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
 # TODO add test case for these 3 operand cases (madd
 # needs to be implemented)
