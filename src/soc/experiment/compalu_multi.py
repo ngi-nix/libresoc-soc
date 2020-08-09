@@ -253,7 +253,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # dest operand latch (not using issue_i)
         m.d.comb += req_l.s.eq(alu_pulsem & self.wrmask)
-        m.d.comb += req_l.r.eq(reset_w | prev_wr_go)
+        m.d.sync += req_l.r.eq(reset_w | prev_wr_go)
 
         # create a latch/register for the operand
         oper_r = self.opsubsetkls(name="oper_r")
