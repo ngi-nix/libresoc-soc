@@ -114,9 +114,6 @@ class TestIssuer(Elaboratable):
         comb += self.pc_o.eq(cur_state.pc)
         ilatch = Signal(32)
 
-        # MSR
-        msr = Signal(64, reset_less=True)
-
         # next instruction (+4 on current)
         nia = Signal(64, reset_less=True)
         comb += nia.eq(cur_state.pc + 4)
@@ -149,6 +146,9 @@ class TestIssuer(Elaboratable):
         insn_type = core.pdecode2.e.do.insn_type
         insn_state = core.pdecode2.state
 
+        # don't read msr every cycle
+        sync += self.fast_r_msr.ren.eq(0)
+
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
         # then "holds" information, combinatorially, for the core
@@ -168,6 +168,11 @@ class TestIssuer(Elaboratable):
                     comb += self.imem.a_valid_i.eq(1)
                     comb += self.imem.f_valid_i.eq(1)
                     sync += cur_state.pc.eq(pc)
+
+                    # read MSR, latch it, and put it in decode "state"
+                    sync += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
+                    sync += cur_state.msr.eq(self.fast_r_msr.data_o)
+
                     m.next = "INSN_READ" # move to "wait for bus" phase
 
             # waiting for instruction bus (stays there until not busy)
@@ -189,14 +194,8 @@ class TestIssuer(Elaboratable):
                     comb += core_opcode_i.eq(current_insn) # actual opcode
                     sync += ilatch.eq(current_insn) # latch current insn
 
-                    # read MSR, latch it, and put it in decode "state"
-                    comb += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
-                    comb += msr.eq(self.fast_r_msr.data_o)
-                    comb += insn_state.msr.eq(msr)
-                    sync += cur_state.msr.eq(msr) # latch current MSR
-
-                    # also drop PC into decode "state"
-                    comb += insn_state.pc.eq(cur_state.pc)
+                    # also drop PC and MSR into decode "state"
+                    comb += insn_state.eq(cur_state)
 
                     m.next = "INSN_ACTIVE" # move to "wait completion"
 
