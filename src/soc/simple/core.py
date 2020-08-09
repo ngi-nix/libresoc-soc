@@ -35,6 +35,8 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.decoder.power_enums import MicrOp
 import operator
 
+from nmutil.util import rising_edge
+
 
 # helper function for reducing a list of signals down to a parallel
 # ORed single signal.
@@ -292,11 +294,14 @@ class NonProductionCore(Elaboratable):
                     wrflag = Signal(name=name, reset_less=True)
                     comb += wrflag.eq(dest.ok & fu.busy_o)
 
-                    # connect request-read to picker input, and output to go-wr
+                    # connect request-write to picker input, and output to go-wr
                     fu_active = fu_bitdict[funame]
                     pick = fu.wr.rel_o[idx] & fu_active  # & wrflag
                     comb += wrpick.i[pi].eq(pick)
-                    comb += fu.go_wr_i[idx].eq(wrpick.o[pi] & wrpick.en_o)
+                    # create a single-pulse go write from the picker output
+                    wr_pick = Signal()
+                    comb += wr_pick.eq(wrpick.o[pi] & wrpick.en_o)
+                    comb += fu.go_wr_i[idx].eq(rising_edge(m, wr_pick))
                     # connect regfile port to input
                     print("reg connect widths",
                           regfile, regname, pi, funame,
