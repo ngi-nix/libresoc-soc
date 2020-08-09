@@ -31,6 +31,8 @@ from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.config.state import CoreState
 
+from nmutil.util import rising_edge
+
 
 class TestIssuer(Elaboratable):
     """TestIssuer - reads instructions from TestMemory and issues them
@@ -105,8 +107,9 @@ class TestIssuer(Elaboratable):
         # temporary hack: says "go" immediately for both address gen and ST
         l0 = core.l0
         ldst = core.fus.fus['ldst0']
+        st_go_edge = rising_edge(m, ldst.st.rel_o)
         m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
-        m.d.sync += ldst.st.go_i.eq(ldst.st.rel_o) # link store-go direct to rel
+        m.d.sync += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
 
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
