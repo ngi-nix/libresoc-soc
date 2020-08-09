@@ -106,7 +106,7 @@ class TestIssuer(Elaboratable):
         l0 = core.l0
         ldst = core.fus.fus['ldst0']
         m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
-        m.d.comb += ldst.st.go_i.eq(ldst.st.rel_o) # link store-go direct to rel
+        m.d.sync += ldst.st.go_i.eq(ldst.st.rel_o) # link store-go direct to rel
 
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
