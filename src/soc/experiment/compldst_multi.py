@@ -348,7 +348,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # store latch
         comb += sto_l.s.eq(addr_ok & op_is_st)
-        comb += sto_l.r.eq(reset_s | p_st_go)
+        sync += sto_l.r.eq(reset_s | p_st_go)
 
         # ld/st done.  needed to stop LD/ST from activating repeatedly
         comb += lsd_l.s.eq(issue_i)

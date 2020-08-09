@@ -109,7 +109,7 @@ class TestIssuer(Elaboratable):
         ldst = core.fus.fus['ldst0']
         st_go_edge = rising_edge(m, ldst.st.rel_o)
         m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
-        m.d.sync += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
+        m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
 
         # PC and instruction from I-Memory
         current_insn = Signal(32) # current fetched instruction (note sync)
