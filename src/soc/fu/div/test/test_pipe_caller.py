@@ -101,6 +101,14 @@ class DivTestCases(TestAccumulatorBase):
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
+    def case_10_regression(self):  # overflow fails
+        lst = ["divwo 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xbc716835f32ac00c
+        initial_regs[2] = 0xcdf69a7f7042db66
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_divw_by_zero_1(self):
         lst = ["divw. 3, 1, 2"]
         initial_regs = [0] * 32
