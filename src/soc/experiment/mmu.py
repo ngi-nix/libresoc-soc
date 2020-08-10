@@ -176,83 +176,47 @@ class MMU(Elaboratable):
         with m.Else():
             comb += l_out.sprval.eq(0x00000000 & r)
 
+#       if rin.valid = '1' then
+#           report "MMU got tlb miss for " & to_hstring(rin.addr);
+#       end if;
+        with m.If(rin.valid == 1):
+            print(f"MMU got tlb miss for {rin.addr}")
 
+#       if l_out.done = '1' then
+#           report "MMU completing op without error";
+#       end if;
+        with m.If(l_out.done == 1):
+            print("MMU completing op without error")
 
-# mmu_0: process(clk)
-class MMU0(Elaboratable):
-    def __init__(self, clk):
-        self.clk = clk
-
-# begin
-    def elaborate(self, platform):
-
-        m = Module()
-
-        comb = m.d.comb
-        sync = m.d.sync
-
-        rst = ResetSignal()
-
-#       if rising_edge(clk) then
-        with m.If(rising_edge):
-#           if rst = '1' then
-            with m.If(rst == 1):
-#               r.state <= IDLE;
-#               r.valid <= '0';
-#               r.pt0_valid <= '0';
-#               r.pt3_valid <= '0';
-#               r.prtbl <= (others => '0');
-                sync += r.state.eq(State.IDLE)
-                sync += r.valid.eq(0)
-                sync += r.pt0_valid.eq(0)
-                sync += r.pt3_valid.eq(0)
-                # TODO value should be vhdl (others => '0') in nmigen
-                sync += r.prtbl.eq(0)
-#           else
-            with m.Else():
-#               if rin.valid = '1' then
-#                   report "MMU got tlb miss for " & to_hstring(rin.addr);
-#               end if;
-                with m.If(rin.valid == 1):
-                    print(f"MMU got tlb miss for {rin.addr}")
-
-#               if l_out.done = '1' then
-#                   report "MMU completing op without error";
-#               end if;
-                with m.If(l_out.done == 1):
-                    print("MMU completing op without error")
-
-#               if l_out.err = '1' then
-#                   report "MMU completing op with err invalid=" &
+#       if l_out.err = '1' then
+#           report "MMU completing op with err invalid=" &
 #                   std_ulogic'image(l_out.invalid) & " badtree=" &
 #                   std_ulogic'image(l_out.badtree);
-#               end if;
-                with m.If(l_out.err == 1):
-                    print(f"MMU completing op with err invalid={l_out.invalid}
-                          badtree={l_out.badtree}")
-
-#               if rin.state = RADIX_LOOKUP then
-#                   report "radix lookup shift=" & integer'image(to_integer(
-#                   rin.shift)) & " msize=" & integer'image(to_integer(rin.
-#                   mask_size));
-#               end if;
-                with m.If(rin.state == State.RADIX_LOOKUP):
-                    print(f"radix lookup shift={rin.shift}
-                          msize={rin.mask_size}")
-
-#               if r.state = RADIX_LOOKUP then
-#                   report "send load addr=" & to_hstring(d_out.addr) &
-#                   " addrsh=" & to_hstring(addrsh) & " mask=" &
-#                   to_hstring(mask);
-#               end if;
-                with m.If(r.state == State.RADIX_LOOKUP):
-                    print(f"send load addr={d_out.addr}
-                          addrsh={addrsh} mask={mask}")
-
-#               r <= rin;
-                sync += r.eq(rin)
-#           end if;
 #       end if;
+        with m.If(l_out.err == 1):
+            print(f"MMU completing op with err invalid={l_out.invalid}
+                  badtree={l_out.badtree}")
+
+#       if rin.state = RADIX_LOOKUP then
+#           report "radix lookup shift=" & integer'image(to_integer(
+#                   rin.shift)) & " msize=" & integer'image(to_integer(
+#                   rin.mask_size));
+#       end if;
+        with m.If(rin.state == State.RADIX_LOOKUP):
+            print(f"radix lookup shift={rin.shift}
+                  msize={rin.mask_size}")
+
+#       if r.state = RADIX_LOOKUP then
+#           report "send load addr=" & to_hstring(d_out.addr) &
+#                  " addrsh=" & to_hstring(addrsh) & " mask=" &
+#                  to_hstring(mask);
+#       end if;
+        with m.If(r.state == State.RADIX_LOOKUP):
+            print(f"send load addr={d_out.addr}
+                  addrsh={addrsh} mask={mask}")
+
+#       r <= rin;
+        sync += r.eq(rin)
 # end process;
 
 #     -- Shift address bits 61--12 right by 0--47 bits and
