@@ -506,13 +506,11 @@ class AddrShifter(Elaboratable):
         # Radix tree data structures in memory are big-endian,
         # so we need to byte-swap them
         for i in range(8):
-#           data(i * 8 + 7 downto i * 8) := d_in.data((7 - i) * 8 + 7 downto
-#           (7 - i) * 8);
-            comb += data[
-                      i * 8:i * 8 + 7 + 1
-                    ].eq(d_in.data[
-                      (7 - i) * 8:(7 - i) * 8 + 7 + 1
-                    ])
+#           data(i * 8 + 7 downto i * 8) := d_in.data((7 - i)
+#           * 8 + 7 downto (7 - i) * 8);
+            comb += data[i * 8:i * 8 + 7 + 1].eq(d_in.data[
+                         (7 - i) * 8:(7 - i) * 8 + 7 + 1
+                        ])
 #       end loop;
 
 #       case r.state is
@@ -536,7 +534,8 @@ class AddrShifter(Elaboratable):
 #           -- rts == radix tree size, # address bits being translated
 #           rts := unsigned('0' & pgtbl(62 downto 61) & pgtbl(7 downto 5));
             # rts == radix tree size, number of address bits being translated
-            comb += rts.eq(((Cat(Const(0b0, 1) , Cat(pgtbl[61:63], pgtbl[5:8]))).as_unsigned())
+            comb += rts.eq(((Cat(Const(0b0, 1), Cat(pgtbl[61:63],
+                           pgtbl[5:8]))).as_unsigned())
 
 #           -- mbits == # address bits to index top level of tree
 #           mbits := unsigned('0' & pgtbl(4 downto 0));
@@ -561,7 +560,7 @@ class AddrShifter(Elaboratable):
 #               v.priv := l_in.priv;
                 comb += v.addr.eq(l_in.addr
                 comb += v.iside.eq(l_in.iside)
-                comb += v.store.eq(~(l_in.load ^ l_in.siside))
+                comb += v.store.eq(~(l_in.load | l_in.siside))
 #               if l_in.tlbie = '1' then
                 with m.If(l_in.tlbie == 1):
 #                   -- Invalidate all iTLB/dTLB entries for tlbie with
@@ -571,9 +570,9 @@ class AddrShifter(Elaboratable):
 #                                  or l_in.addr(5);
                     # Invalidate all iTLB/dTLB entries for tlbie with
                     # RB[IS] != 0 or RB[AP] != 0, or for slbia
-                    comb += v.inval_all.eq(l_in.slbia ^ l_in.addr[11] ^
-                                           l_in.addr[10] ^ l_in.addr[7] ^
-                                           l_in.addr[6] ^ l_in.addr[5])
+                    comb += v.inval_all.eq(l_in.slbia | l_in.addr[11] |
+                                           l_in.addr[10] | l_in.addr[7] |
+                                           l_in.addr[6] | l_in.addr[5])
 #                   -- The RIC field of the tlbie instruction comes across
 #                   -- on the sprn bus as bits 2--3. RIC=2 flushes process
 #                   -- table caches.
@@ -744,15 +743,15 @@ class AddrShifter(Elaboratable):
 #           if r.addr(63) /= r.addr(62) or nonzero = '1' then
 #               v.state := RADIX_FINISH;
 #               v.segerror := '1';
-            with m.If((r.addr[63] != r.addr[62]) ^ (nonzero == 1)):
+            with m.If((r.addr[63] != r.addr[62]) | (nonzero == 1)):
                 comb += v.state.eq(State.RADIX_FINISH)
                 comb += v.segerror.eq(1)
 #           elsif mbits < 5 or mbits > 16 or mbits >
 #           (r.shift + (31 - 12)) then
 #               v.state := RADIX_FINISH;
 #               v.badtree := '1';
-            with m.If((mbits < 5) ^ (mbits > 16) ^ (mbits > (r.shift +
-                     (31-12)))):
+            with m.If((mbits < 5) | (mbits > 16)
+                      | (mbits > (r.shift + (31-12)))):
                 comb += v.state.eq(State.RADIX_FINISH)
                 comb += v.badtree.eq(1)
 #           else
@@ -786,13 +785,13 @@ class AddrShifter(Elaboratable):
 #                       perm_ok := '0';
                         comb += perm_ok.eq(0)
 #                       if r.priv = '1' or data(3) = '0' then
-                        with m.If((r.priv == 1) ^ (data[3] == 0)):
+                        with m.If((r.priv == 1) | (data[3] == 0)):
 #                           if r.iside = '0' then
 #                               perm_ok := data(1) or (data(2) and not
 #                                          r.store);
                             with m.If(r.iside == 0):
-                                comb += perm_ok.eq((data[1] ^ data[2]) &
-                                        (~r.store))
+                                comb += perm_ok.eq((data[1] | data[2])
+                                                   & (~r.store))
 #                           else
                             with m.Else():
 #                               -- no IAMR, so no KUEP support for now
@@ -805,7 +804,7 @@ class AddrShifter(Elaboratable):
 #                       end if;
 
 #                       rc_ok := data(8) and (data(7) or not r.store);
-                        comb += rc_ok.eq(data[8] & (data[7] ^ (~r.store)))
+                        comb += rc_ok.eq(data[8] & (data[7] | (~r.store)))
 #                       if perm_ok = '1' and rc_ok = '1' then
 #                           v.state := RADIX_LOAD_TLB;
                         with m.If(perm_ok == 1 & rc_ok == 1):
@@ -830,7 +829,7 @@ class AddrShifter(Elaboratable):
 #                       if mbits < 5 or mbits > 16 or mbits > r.shift then
 #                           v.state := RADIX_FINISH;
 #                           v.badtree := '1';
-                        with m.If((mbits < 5) & (mbits > 16) ^
+                        with m.If((mbits < 5) & (mbits > 16) |
                                   (mbits > r.shift)):
                             comb += v.state.eq(State.RADIX_FINISH)
                             comb += v.badtree.eq(1)
@@ -891,13 +890,13 @@ class AddrShifter(Elaboratable):
 #
 #       if v.state = RADIX_FINISH or (v.state = RADIX_LOAD_TLB
 #       and r.iside = '1') then
-        with m.If(v.state == State.RADIX_FINISH ^ (v.state ==
+        with m.If(v.state == State.RADIX_FINISH | (v.state ==
                   State.RADIX_LOAD_TLB & r.iside == 1))
 #           v.err := v.invalid or v.badtree or v.segerror or v.perm_err
 #           or v.rc_error;
 #           v.done := not v.err;
-            comb += v.err.eq(v.invalid ^ v.badtree ^ v.segerror ^ v.perm_err ^
-                             v.rc_error)
+            comb += v.err.eq(v.invalid | v.badtree | v.segerror
+                             | v.perm_err | v.rc_error)
             comb += v.done.eq(~v.err)
 #       end if;
 
@@ -915,20 +914,21 @@ class AddrShifter(Elaboratable):
 #                       23 downto 0)) or (effpid(31 downto 8) and
 #                       finalmask(23 downto 0))) & effpid(7 downto 0)
 #                       & "0000";
-        comb += prtable_addr.eq(0x00 & r.prtble[36:56] & ((r.prtble[12:36] &
-                                (~finalmask[0:24])) ^ effpid[8:32] &
-                                finalmask[0:24]) & effpid[0:8] & 0x0000)
+        comb += prtable_addr.eq(0x00 & r.prtble[36:56] &
+                                ((r.prtble[12:36] & (~finalmask[0:24]))
+                                | effpid[8:32] & finalmask[0:24])
+                                & effpid[0:8] & 0x0000)
 
 #       pgtable_addr := x"00" & r.pgbase(55 downto 19) &
 #                       ((r.pgbase(18 downto 3) and not mask) or
 #                       (addrsh and mask)) & "000";
-        comb += pgtable_addr.eq(0x00 & r.pgbase[19:56] & ((r.pgbase[3:19] &
-                                (~mask)) ^ (addrsh & mask)) & 0x000)
+        comb += pgtable_addr.eq(0x00 & r.pgbase[19:56] & ((r.pgbase[3:19]
+                                & (~mask)) | (addrsh & mask)) & 0x000)
 
 #       pte := x"00" & ((r.pde(55 downto 12) and not finalmask) or
 #              (r.addr(55 downto 12) and finalmask)) & r.pde(11 downto 0);
-        comb += pte.eq(0x00 & ((r.pde[12:56] & (~finalmask)) ^ (r.addr[12:56]
-                       & finalmask)) & r.pde[0:12])
+        comb += pte.eq(0x00 & ((r.pde[12:56] & (~finalmask))
+                       | (r.addr[12:56] & finalmask)) & r.pde[0:12])
 
 #       -- update registers
 #       rin <= v;
