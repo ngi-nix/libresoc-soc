@@ -768,7 +768,7 @@ class AddrShifter(Elaboratable):
             comb += v.state.eq(State.RADIX_READ_WAIT)
 
 #       when RADIX_READ_WAIT =>
-        with m.Case(State.RADIX_READ_WAIT)
+        with m.Case(State.RADIX_READ_WAIT):
 #           if d_in.done = '1' then
             with m.If(d_in.done == 1):
 #               v.pde := data;
