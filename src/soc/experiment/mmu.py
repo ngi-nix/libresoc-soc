@@ -572,7 +572,7 @@ class AddrShifter(Elaboratable):
 #           -- rts == radix tree size, # address bits being translated
 #           rts := unsigned('0' & pgtbl(62 downto 61) & pgtbl(7 downto 5));
             # rts == radix tree size, number of address bits being translated
-            comb += rts.eq((0 & pgtbl[61:63] & pgtbl[5:8]).as_unsigned())
+            comb += rts.eq(((Cat(Const(0b0, 1) , Cat(pgtbl[61:63], pgtbl[5:8]))).as_unsigned())
 
 #           -- mbits == # address bits to index top level of tree
 #           mbits := unsigned('0' & pgtbl(4 downto 0));
