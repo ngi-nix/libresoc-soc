@@ -566,6 +566,7 @@ class AddrShifter(Elaboratable):
 #               pt_valid := r.pt3_valid;
             with m.Else():
                 comb += pgtbl.eq(r.pt3_valid)
+                comb += pt_valid.eq(r.pt3_valid)
 #           end if;
 
 #           -- rts == radix tree size, # address bits being translated
