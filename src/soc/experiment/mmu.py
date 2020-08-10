@@ -43,7 +43,7 @@ class State(Enum):
     RADIX_LOOKUP = 6
     RADIX_READ_WAIT = 7
     RADIX_LOAD_TLB = 8
-    RADIX_FINIS = 9
+    RADIX_FINISH = 9
 
 #    type reg_stage_t is record
 #        -- latched request from loadstore1
