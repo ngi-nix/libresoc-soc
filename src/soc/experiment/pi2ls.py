@@ -97,12 +97,12 @@ class Pi2LSUI(PortInterfaceBase):
                 with m.If(~self.valid_l.q):
                     m.next = "IDLE"
 
-        # indicate valid at both ends
-        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q)
-        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q)
+        # indicate valid at both ends. OR with lsui_busy (stops comb loop)
+        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q | self.lsui_busy)
+        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q | self.lsui_busy)
 
-        # reset the valid latch when not busy
-        m.d.comb += self.valid_l.r.eq(~self.lsui_busy)#~pi.busy_o)  # self.lsui.x_busy_o)
+        # reset the valid latch when not busy.  sync to stop loop
+        m.d.sync += self.valid_l.r.eq(~self.lsui_busy)
 
         return m
 
