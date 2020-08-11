@@ -35,7 +35,7 @@ has to be "remapped" to internal SPR Enum indices (see SPRMap in PowerDecode2)
 see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
 from nmigen import Const
-from soc.regfile.regfiles import XERRegs, FastRegs
+from soc.regfile.regfiles import XERRegs, FastRegs, StateRegs
 from soc.decoder.power_enums import CryIn
 
 
@@ -82,22 +82,26 @@ def regspec_decode_read(e, regfile, name):
         if name == 'xer_ca':
             return (e.do.input_carry == CryIn.CA.value) | e.xer_in, CA
 
+    # STATE regfile
+
+    if regfile == 'STATE':
+        # STATE register numbering is *unary* encoded
+        PC = 1<<StateRegs.PC
+        MSR = 1<<Stateegs.MSR
+        if name in ['cia', 'nia']:
+            return Const(1), PC # TODO: detect read-conditions
+        if name == 'msr':
+            return Const(1), MSR # TODO: detect read-conditions
+
     # FAST regfile
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
-        PC = 1<<FastRegs.PC
-        MSR = 1<<FastRegs.MSR
         CTR = 1<<FastRegs.CTR
         LR = 1<<FastRegs.LR
         TAR = 1<<FastRegs.TAR
         SRR0 = 1<<FastRegs.SRR0
         SRR1 = 1<<FastRegs.SRR1
-        if name in ['cia', 'nia']:
-            return Const(1), PC # TODO: detect read-conditions
-        if name == 'msr':
-            return Const(1), MSR # TODO: detect read-conditions
-        # TODO: remap the SPR numbers to FAST regs
         if name == 'fast1':
             return e.read_fast1.ok, 1<<e.read_fast1.data
         if name == 'fast2':
@@ -150,22 +154,26 @@ def regspec_decode_write(e, regfile, name):
         if name == 'xer_ca':
             return e.xer_out, CA # hmmm
 
+    # STATE regfile
+
+    if regfile == 'STATE':
+        # STATE register numbering is *unary* encoded
+        PC = 1<<StateRegs.PC
+        MSR = 1<<StateRegs.MSR
+        if name in ['cia', 'nia']:
+            return None, PC # hmmm
+        if name == 'msr':
+            return None, MSR # hmmm
+
     # FAST regfile
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
-        PC = 1<<FastRegs.PC
-        MSR = 1<<FastRegs.MSR
         CTR = 1<<FastRegs.CTR
         LR = 1<<FastRegs.LR
         TAR = 1<<FastRegs.TAR
         SRR0 = 1<<FastRegs.SRR0
         SRR1 = 1<<FastRegs.SRR1
-        if name in ['cia', 'nia']:
-            return None, PC # hmmm
-        if name == 'msr':
-            return None, MSR # hmmm
-        # TODO: remap the SPR numbers to FAST regs
         if name == 'fast1':
             return e.write_fast1, 1<<e.write_fast1.data
         if name == 'fast2':

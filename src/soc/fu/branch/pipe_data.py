@@ -47,7 +47,7 @@ class BranchInputData(IntegerData):
 class BranchOutputData(IntegerData):
     regspec = [('FAST', 'fast1', '0:63'),
                ('FAST', 'fast2', '0:63'),
-               ('FAST', 'nia', '0:63')]
+               ('STATE', 'nia', '0:63')]
     def __init__(self, pspec):
         super().__init__(pspec, True)
 

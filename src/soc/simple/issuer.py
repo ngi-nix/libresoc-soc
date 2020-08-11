@@ -2,7 +2,7 @@
 
 not in any way intended for production use.  this runs a FSM that:
 
-* reads the Program Counter from FastRegs
+* reads the Program Counter from StateRegs
 * reads an instruction from a fixed-size Test Memory
 * issues it to the Simple Core
 * waits for it to complete
@@ -23,7 +23,7 @@ import sys
 
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
-from soc.regfile.regfiles import FastRegs
+from soc.regfile.regfiles import StateRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
@@ -60,16 +60,16 @@ class TestIssuer(Elaboratable):
         self.memerr_o = Signal(reset_less=True)
 
         # FAST regfile read /write ports for PC and MSR
-        self.fast_r_pc = self.core.regs.rf['fast'].r_ports['cia'] # PC rd
-        self.fast_w_pc = self.core.regs.rf['fast'].w_ports['d_wr1'] # PC wr
-        self.fast_r_msr = self.core.regs.rf['fast'].r_ports['msr'] # MSR rd
+        self.state_r_pc = self.core.regs.rf['state'].r_ports['cia'] # PC rd
+        self.state_w_pc = self.core.regs.rf['state'].w_ports['d_wr1'] # PC wr
+        self.state_r_msr = self.core.regs.rf['state'].r_ports['msr'] # MSR rd
 
         # DMI interface access
         self.int_r = self.core.regs.rf['int'].r_ports['dmi'] # INT read
 
         # hack method of keeping an eye on whether branch/trap set the PC
-        self.fast_nia = self.core.regs.rf['fast'].w_ports['nia']
-        self.fast_nia.wen.name = 'fast_nia_wen'
+        self.state_nia = self.core.regs.rf['state'].w_ports['nia']
+        self.state_nia.wen.name = 'state_nia_wen'
 
     def elaborate(self, platform):
         m = Module()
@@ -127,9 +127,9 @@ class TestIssuer(Elaboratable):
             # incoming override (start from pc_i)
             comb += pc.eq(self.pc_i.data)
         with m.Else():
-            # otherwise read FastRegs regfile for PC
-            comb += self.fast_r_pc.ren.eq(1<<FastRegs.PC)
-            comb += pc.eq(self.fast_r_pc.data_o)
+            # otherwise read StateRegs regfile for PC
+            comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
+            comb += pc.eq(self.state_r_pc.data_o)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -150,7 +150,7 @@ class TestIssuer(Elaboratable):
         insn_state = core.pdecode2.state
 
         # don't read msr every cycle
-        sync += self.fast_r_msr.ren.eq(0)
+        sync += self.state_r_msr.ren.eq(0)
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -173,8 +173,8 @@ class TestIssuer(Elaboratable):
                     sync += cur_state.pc.eq(pc)
 
                     # read MSR, latch it, and put it in decode "state"
-                    sync += self.fast_r_msr.ren.eq(1<<FastRegs.MSR)
-                    sync += cur_state.msr.eq(self.fast_r_msr.data_o)
+                    sync += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
+                    sync += cur_state.msr.eq(self.state_r_msr.data_o)
 
                     m.next = "INSN_READ" # move to "wait for bus" phase
 
@@ -208,15 +208,15 @@ class TestIssuer(Elaboratable):
                     comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_opcode_i.eq(ilatch) # actual opcode
                 comb += insn_state.eq(cur_state)     # and MSR and PC
-                with m.If(self.fast_nia.wen):
+                with m.If(self.state_nia.wen):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
                     # ok here we are not reading the branch unit.  TODO
                     # this just blithely overwrites whatever pipeline
                     # updated the PC
                     with m.If(~pc_changed):
-                        comb += self.fast_w_pc.wen.eq(1<<FastRegs.PC)
-                        comb += self.fast_w_pc.data_i.eq(nia)
+                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(nia)
                     m.next = "IDLE" # back to idle
 
         # this bit doesn't have to be in the FSM: connect up to read

@@ -7,7 +7,8 @@ Defines the following register files:
     * SPR regfile   - 110x 64-bit
     * CR regfile    - CR0-7
     * XER regfile   - XER.so, XER.ca/ca32, XER.ov/ov32
-    * FAST regfile  - PC, MSR, CTR, LR, TAR, SRR1, SRR2
+    * FAST regfile  - CTR, LR, TAR, SRR1, SRR2
+    * STATE regfile  - PC, MSR, (SimpleV VL later)
 
 Note: this should NOT have name conventions hard-coded (dedicated ports per
 regname).  However it is convenient for now.
@@ -26,6 +27,33 @@ from soc.regfile.regfile import RegFile, RegFileArray
 from soc.regfile.virtual_port import VirtualRegPort
 from soc.decoder.power_enums import SPR
 from nmigen import Memory, Elaboratable
+
+
+# "State" Regfile
+class StateRegs(RegFileArray):
+    """StateRegs
+
+    State regfile  - PC, MSR and later SimpleV VL
+
+    * QTY 2of 64-bit registers
+    * 3R2W
+    * Array-based unary-indexed (not binary-indexed)
+    * write-through capability (read on same cycle as write)
+
+    Note: d_wr1 d_rd1 are for use by the decoder, to get at the PC.
+    will probably have to also add one so it can get at the MSR as well.
+    (d_rd2)
+    """
+    PC = 0
+    MSR = 1
+    def __init__(self):
+        super().__init__(64, 2)
+        self.w_ports = {'nia': self.write_port("nia"),
+                        'msr': self.write_port("msr"),
+                        'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
+        self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
+                        'msr': self.read_port("msr"), # reading MSR (issuer)
+                        }
 
 
 # Integer Regfile
@@ -50,34 +78,24 @@ class IntRegs(RegFileArray):
 class FastRegs(RegFileArray):
     """FastRegs
 
-    FAST regfile  - PC, MSR, CTR, LR, TAR, SRR1, SRR2
+    FAST regfile  - CTR, LR, TAR, SRR1, SRR2
 
-    * QTY 8of 64-bit registers
-    * 3R2W
+    * QTY 5of 64-bit registers
+    * 2R1W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
-
-    Note: d_wr1 d_rd1 are for use by the decoder, to get at the PC.
-    will probably have to also add one so it can get at the MSR as well.
-    (d_rd2)
     """
-    PC = 0
-    MSR = 1
-    CTR = 2
-    LR = 3
-    TAR = 4
-    SRR0 = 5
-    SRR1 = 6
+    CTR = 0
+    LR = 1
+    TAR = 2
+    SRR0 = 3
+    SRR1 = 4
     def __init__(self):
-        super().__init__(64, 8)
-        self.w_ports = {'nia': self.write_port("nia"),
-                        'msr': self.write_port("dest2"),
-                        'fast1': self.write_port("dest3"),
+        super().__init__(64, 5)
+        self.w_ports = {'fast1': self.write_port("dest3"),
                         'fast2': self.write_port("dest4"),
-                        'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
-        self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
-                        'msr': self.read_port("msr"), # reading MSR (issuer)
-                        'fast1': self.read_port("src1"),
+                       }
+        self.r_ports = {'fast1': self.read_port("src1"),
                         }
 
 
@@ -140,6 +158,7 @@ class SPRRegs(Memory, Elaboratable):
         self.w_ports = {'spr1': self.write_port()}
         self.r_ports = {'spr1': self.read_port()}
 
+        # make read/write ports look like RegFileArray
         self.w_ports['spr1'].wen = self.w_ports['spr1'].en
         self.w_ports['spr1'].data_i = self.w_ports['spr1'].data
 
@@ -155,6 +174,7 @@ class RegFiles:
                             ('cr', CRRegs),
                             ('xer', XERRegs),
                             ('fast', FastRegs),
+                            ('state', StateRegs),
                             ('spr', SPRRegs),]:
             rf = self.rf[name] = kls()
             setattr(self, name, rf)
