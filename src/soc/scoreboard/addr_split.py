@@ -69,18 +69,21 @@ def byteExpand(signal):
     lst = []
     for i in range(len(signal)):
         bit = signal[i]
-        for j in range(8):
+        for j in range(8): #TODO this can be optimized
             lst += [bit]
     return Cat(*lst)
 
 class LDSTSplitter(Elaboratable):
 
-    def __init__(self, dwidth, awidth, dlen):
+    def __init__(self, dwidth, awidth, dlen, pi=None):
         self.dwidth, self.awidth, self.dlen = dwidth, awidth, dlen
         # cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
         cline_wid = dwidth*8  # convert bytes to bits
 
-        self.pi =  PortInterface()
+        if(pi is None):
+            self.pi = PortInterface()
+        else:
+            self.pi = pi
 
         self.addr_i = self.pi.addr.data  #Signal(awidth, reset_less=True)
         # no match in PortInterface
