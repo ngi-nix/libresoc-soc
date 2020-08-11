@@ -366,6 +366,15 @@ class NonProductionCore(Elaboratable):
         for regfile, spec in byregfiles_wr.items():
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
+
+            # argh, more port-merging
+            if regfile == 'INT':
+                fuspecs['o'] = [fuspecs.pop('o')]
+                fuspecs['o'].append(fuspecs.pop('o1'))
+            if regfile == 'FAST':
+                fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                fuspecs['fast1'].append(fuspecs.pop('fast2'))
+
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 self.connect_wrport(m, fu_bitdict, wrpickers,
                                         regfile, regname, fspec)
