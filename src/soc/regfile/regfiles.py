@@ -70,8 +70,8 @@ class IntRegs(RegFileArray):
         self.w_ports = {'o': self.write_port("dest1"),
                         #'o1': self.write_port("dest2") # for now (LD/ST update)
                         }
-        self.r_ports = {'ra': self.read_port("src1"),
-                        'rbc': self.read_port("src3"),
+        self.r_ports = {'rabc': self.read_port("src1"),
+                        #'rbc': self.read_port("src3"),
                         'dmi': self.read_port("dmi")} # needed for Debug (DMI)
 
 

@@ -268,8 +268,9 @@ class NonProductionCore(Elaboratable):
             # argh.  an experiment to merge RA and RB in the INT regfile
             # (we have too many read/write ports)
             if regfile == 'INT':
-                fuspecs['rbc'] = [fuspecs.pop('rb')]
-                fuspecs['rbc'].append(fuspecs.pop('rc'))
+                fuspecs['rabc'] = [fuspecs.pop('rb')]
+                fuspecs['rabc'].append(fuspecs.pop('rc'))
+                fuspecs['rabc'].append(fuspecs.pop('ra'))
             if regfile == 'FAST':
                 fuspecs['fast1'] = [fuspecs.pop('fast1')]
                 fuspecs['fast1'].append(fuspecs.pop('fast2'))
