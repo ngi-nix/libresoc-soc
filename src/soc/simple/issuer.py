@@ -264,7 +264,8 @@ if __name__ == '__main__':
              'spr': 1,
              'div': 1,
              'mul': 1,
-             'shiftrot': 1}
+             'shiftrot': 1
+            }
     pspec = TestMemPspec(ldst_ifacetype='bare_wb',
                          imem_ifacetype='bare_wb',
                          addr_wid=48,

@@ -19,7 +19,7 @@ and consequently it is safer to wait for the Function Unit to complete
 before allowing a new instruction to proceed.
 """
 
-from nmigen import Elaboratable, Module, Signal, ResetSignal
+from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat
 from nmigen.cli import rtlil
 
 from nmutil.picker import PriorityPicker
@@ -173,6 +173,71 @@ class NonProductionCore(Elaboratable):
 
         return fu_bitdict
 
+    def connect_rdport(self, m, fu_bitdict, rdpickers, regfile, regname, fspec):
+        comb, sync = m.d.comb, m.d.sync
+        fus = self.fus.fus
+        regs = self.regs
+
+        rpidx = regname
+
+        # select the required read port.  these are pre-defined sizes
+        print(rpidx, regfile, regs.rf.keys())
+        rport = regs.rf[regfile.lower()].r_ports[rpidx]
+
+        fspecs = fspec
+        if not isinstance(fspecs, list):
+            fspecs = [fspecs]
+
+        rdflags = []
+        pplen = 0
+        reads = []
+        ppoffs = []
+        for i, fspec in enumerate(fspecs):
+            # get the regfile specs for this regfile port
+            (rf, read, write, wid, fuspec) = fspec
+            print ("fpsec", i, fspec, len(fuspec))
+            ppoffs.append(pplen) # record offset for picker
+            pplen += len(fuspec)
+            name = "rdflag_%s_%s_%d" % (regfile, regname, i)
+            rdflag = Signal(name=name, reset_less=True)
+            comb += rdflag.eq(rf)
+            rdflags.append(rdflag)
+            reads.append(read)
+
+        print ("pplen", pplen)
+
+        # create a priority picker to manage this port
+        rdpickers[regfile][rpidx] = rdpick = PriorityPicker(pplen)
+        setattr(m.submodules, "rdpick_%s_%s" % (regfile, rpidx), rdpick)
+
+        for i, fspec in enumerate(fspecs):
+            (rf, read, write, wid, fuspec) = fspec
+            # connect up the FU req/go signals, and the reg-read to the FU
+            # and create a Read Broadcast Bus
+            for pi, (funame, fu, idx) in enumerate(fuspec):
+                pi += ppoffs[i]
+                src = fu.src_i[idx]
+
+                # connect request-read to picker input, and output to go-rd
+                fu_active = fu_bitdict[funame]
+                pick = Signal()
+                comb += pick.eq(fu.rd_rel_o[idx] & fu_active & rdflags[i])
+                print (pick, len(pick))
+                print (rdpick.i, len(rdpick.i), pi)
+                comb += rdpick.i[pi].eq(pick)
+                comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
+
+                # if picked, select read-port "reg select" number to port
+                with m.If(rdpick.o[pi] & rdpick.en_o):
+                    comb += rport.ren.eq(reads[i])
+
+                    # connect regfile port to input, creating a Broadcast Bus
+                    print("reg connect widths",
+                          regfile, regname, pi, funame,
+                          src.shape(), rport.data_o.shape())
+                    # all FUs connect to same port
+                    comb += src.eq(rport.data_o)
+
     def connect_rdports(self, m, fu_bitdict):
         """connect read ports
 
@@ -194,47 +259,20 @@ class NonProductionCore(Elaboratable):
             fuspecs = byregfiles_rdspec[regfile]
             rdpickers[regfile] = {}
 
+            # argh.  an experiment to merge RA and RB in the INT regfile
+            # (we have too many read/write ports)
+            if regfile == 'INT':
+                fuspecs['rbc'] = [fuspecs.pop('rb')]
+                fuspecs['rbc'].append(fuspecs.pop('rc'))
+            if regfile == 'FAST':
+                fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                fuspecs['fast1'].append(fuspecs.pop('fast2'))
+
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 print("connect rd", regname, fspec)
-                rpidx = regname
-                # get the regfile specs for this regfile port
-                (rf, read, write, wid, fuspec) = fspec
-                name = "rdflag_%s_%s" % (regfile, regname)
-                rdflag = Signal(name=name, reset_less=True)
-                comb += rdflag.eq(rf)
-
-                # select the required read port.  these are pre-defined sizes
-                print(rpidx, regfile, regs.rf.keys())
-                rport = regs.rf[regfile.lower()].r_ports[rpidx]
-
-                # create a priority picker to manage this port
-                rdpickers[regfile][rpidx] = rdpick = PriorityPicker(
-                    len(fuspec))
-                setattr(m.submodules, "rdpick_%s_%s" %
-                        (regfile, rpidx), rdpick)
-
-                # connect the regspec "reg select" number to this port
-                with m.If(rdpick.en_o):
-                    comb += rport.ren.eq(read)
-
-                # connect up the FU req/go signals, and the reg-read to the FU
-                # and create a Read Broadcast Bus
-                for pi, (funame, fu, idx) in enumerate(fuspec):
-                    src = fu.src_i[idx]
-
-                    # connect request-read to picker input, and output to go-rd
-                    fu_active = fu_bitdict[funame]
-                    pick = fu.rd_rel_o[idx] & fu_active & rdflag
-                    comb += rdpick.i[pi].eq(pick)
-                    comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
-
-                    # connect regfile port to input, creating a Broadcast Bus
-                    print("reg connect widths",
-                          regfile, regname, pi, funame,
-                          src.shape(), rport.data_o.shape())
-                    # all FUs connect to same port
-                    comb += src.eq(rport.data_o)
+                self.connect_rdport(m, fu_bitdict, rdpickers, regfile,
+                                       regname, fspec)
 
     def connect_wrports(self, m, fu_bitdict):
         """connect write ports
@@ -340,7 +378,7 @@ class NonProductionCore(Elaboratable):
                     byregfiles_spec[regfile] = {}
                 if regname not in byregfiles_spec[regfile]:
                     byregfiles_spec[regfile][regname] = \
-                        [rdflag, read, write, wid, []]
+                        (rdflag, read, write, wid, [])
                 # here we start to create "lanes"
                 if idx not in byregfiles[regfile]:
                     byregfiles[regfile][idx] = []

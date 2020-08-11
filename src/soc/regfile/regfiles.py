@@ -25,6 +25,7 @@ Links:
 from soc.regfile.regfile import RegFile, RegFileArray
 from soc.regfile.virtual_port import VirtualRegPort
 from soc.decoder.power_enums import SPR
+from nmigen import Memory, Elaboratable
 
 
 # Integer Regfile
@@ -41,8 +42,7 @@ class IntRegs(RegFileArray):
         self.w_ports = {'o': self.write_port("dest1"),
                         'o1': self.write_port("dest2")} # for now (LD/ST update)
         self.r_ports = {'ra': self.read_port("src1"),
-                        'rb': self.read_port("src2"),
-                        'rc': self.read_port("src3"),
+                        'rbc': self.read_port("src3"),
                         'dmi': self.read_port("dmi")} # needed for Debug (DMI)
 
 
@@ -78,7 +78,6 @@ class FastRegs(RegFileArray):
         self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
                         'msr': self.read_port("msr"), # reading MSR (issuer)
                         'fast1': self.read_port("src1"),
-                        'fast2': self.read_port("src2"),
                         }
 
 
@@ -127,7 +126,7 @@ class XERRegs(VirtualRegPort):
 
 
 # SPR Regfile
-class SPRRegs(RegFile):
+class SPRRegs(Memory, Elaboratable):
     """SPRRegs
 
     * QTY len(SPRs) 64-bit registers
@@ -137,9 +136,15 @@ class SPRRegs(RegFile):
     """
     def __init__(self):
         n_sprs = len(SPR)
-        super().__init__(64, n_sprs)
-        self.w_ports = {'spr1': self.write_port(name="dest")}
-        self.r_ports = {'spr1': self.read_port("src")}
+        super().__init__(width=64, depth=n_sprs)
+        self.w_ports = {'spr1': self.write_port()}
+        self.r_ports = {'spr1': self.read_port()}
+
+        self.w_ports['spr1'].wen = self.w_ports['spr1'].en
+        self.w_ports['spr1'].data_i = self.w_ports['spr1'].data
+
+        self.r_ports['spr1'].ren = self.w_ports['spr1'].en
+        self.r_ports['spr1'].data_o = self.w_ports['spr1'].data
 
 
 # class containing all regfiles: int, cr, xer, fast, spr
