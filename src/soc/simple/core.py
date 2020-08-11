@@ -19,7 +19,7 @@ and consequently it is safer to wait for the Function Unit to complete
 before allowing a new instruction to proceed.
 """
 
-from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat
+from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat, Mux
 from nmigen.cli import rtlil
 
 from nmutil.picker import PriorityPicker
@@ -210,6 +210,7 @@ class NonProductionCore(Elaboratable):
         rdpickers[regfile][rpidx] = rdpick = PriorityPicker(pplen)
         setattr(m.submodules, "rdpick_%s_%s" % (regfile, rpidx), rdpick)
 
+        rens = []
         for i, fspec in enumerate(fspecs):
             (rf, read, write, wid, fuspec) = fspec
             # connect up the FU req/go signals, and the reg-read to the FU
@@ -228,15 +229,20 @@ class NonProductionCore(Elaboratable):
                 comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
 
                 # if picked, select read-port "reg select" number to port
-                with m.If(rdpick.o[pi] & rdpick.en_o):
-                    comb += rport.ren.eq(reads[i])
+                read_en = Signal.like(reads[i])
+                comb += read_en.eq(Mux(rdpick.o[pi] & rdpick.en_o, reads[i], 0))
+                rens.append(read_en)
 
+                with m.If(rdpick.o[pi] & rdpick.en_o):
                     # connect regfile port to input, creating a Broadcast Bus
                     print("reg connect widths",
                           regfile, regname, pi, funame,
                           src.shape(), rport.data_o.shape())
                     # all FUs connect to same port
                     comb += src.eq(rport.data_o)
+
+        # or-reduce the muxed read signals
+        comb += rport.ren.eq(ortreereduce_sig(rens))
 
     def connect_rdports(self, m, fu_bitdict):
         """connect read ports
@@ -305,6 +311,7 @@ class NonProductionCore(Elaboratable):
         setattr(m.submodules, "wrpick_%s_%s" % (regfile, rpidx), wrpick)
 
         wsigs = []
+        wens = []
         for i, fspec in enumerate(fspecs):
             # connect up the FU req/go signals and the reg-read to the FU
             # these are arbitrated by Data.ok signals
@@ -331,8 +338,9 @@ class NonProductionCore(Elaboratable):
                 # connect the regspec write "reg select" number to this port
                 # only if one FU actually requests (and is granted) the port
                 # will the write-enable be activated
-                with m.If(wr_pick & wrpick.en_o):
-                    comb += wport.wen.eq(write)
+                write_en = Signal.like(write)
+                comb += write_en.eq(Mux(wr_pick & wrpick.en_o, write, 0))
+                wens.append(write_en)
 
                 # connect regfile port to input
                 print("reg connect widths",
@@ -342,6 +350,7 @@ class NonProductionCore(Elaboratable):
 
         # here is where we create the Write Broadcast Bus. simple, eh?
         comb += wport.data_i.eq(ortreereduce_sig(wsigs))
+        comb += wport.wen.eq(ortreereduce_sig(wens))
 
     def connect_wrports(self, m, fu_bitdict):
         """connect write ports
