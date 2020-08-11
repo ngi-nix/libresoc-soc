@@ -274,6 +274,62 @@ class NonProductionCore(Elaboratable):
                 self.connect_rdport(m, fu_bitdict, rdpickers, regfile,
                                        regname, fspec)
 
+    def connect_wrport(self, m, fu_bitdict, wrpickers, regfile, regname, fspec):
+        comb, sync = m.d.comb, m.d.sync
+        fus = self.fus.fus
+        regs = self.regs
+
+        print("connect wr", regname, fspec)
+        rpidx = regname
+        # get the regfile specs for this regfile port
+        (rf, read, write, wid, fuspec) = fspec
+
+        # select the required write port.  these are pre-defined sizes
+        print(regfile, regs.rf.keys())
+        wport = regs.rf[regfile.lower()].w_ports[rpidx]
+
+        # create a priority picker to manage this port
+        wrpickers[regfile][rpidx] = wrpick = PriorityPicker(
+            len(fuspec))
+        setattr(m.submodules, "wrpick_%s_%s" %
+                (regfile, rpidx), wrpick)
+
+        # connect the regspec write "reg select" number to this port
+        # only if one FU actually requests (and is granted) the port
+        # will the write-enable be activated
+        with m.If(wrpick.en_o):
+            comb += wport.wen.eq(write)
+        with m.Else():
+            comb += wport.wen.eq(0)
+
+        # connect up the FU req/go signals and the reg-read to the FU
+        # these are arbitrated by Data.ok signals
+        wsigs = []
+        for pi, (funame, fu, idx) in enumerate(fuspec):
+            # write-request comes from dest.ok
+            dest = fu.get_out(idx)
+            fu_dest_latch = fu.get_fu_out(idx)  # latched output
+            name = "wrflag_%s_%s_%d" % (funame, regname, idx)
+            wrflag = Signal(name=name, reset_less=True)
+            comb += wrflag.eq(dest.ok & fu.busy_o)
+
+            # connect request-write to picker input, and output to go-wr
+            fu_active = fu_bitdict[funame]
+            pick = fu.wr.rel_o[idx] & fu_active  # & wrflag
+            comb += wrpick.i[pi].eq(pick)
+            # create a single-pulse go write from the picker output
+            wr_pick = Signal()
+            comb += wr_pick.eq(wrpick.o[pi] & wrpick.en_o)
+            comb += fu.go_wr_i[idx].eq(rising_edge(m, wr_pick))
+            # connect regfile port to input
+            print("reg connect widths",
+                  regfile, regname, pi, funame,
+                  dest.shape(), wport.data_i.shape())
+            wsigs.append(fu_dest_latch)
+
+        # here is where we create the Write Broadcast Bus. simple, eh?
+        comb += wport.data_i.eq(ortreereduce_sig(wsigs))
+
     def connect_wrports(self, m, fu_bitdict):
         """connect write ports
 
@@ -298,56 +354,8 @@ class NonProductionCore(Elaboratable):
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
             for (regname, fspec) in sort_fuspecs(fuspecs):
-                print("connect wr", regname, fspec)
-                rpidx = regname
-                # get the regfile specs for this regfile port
-                (rf, read, write, wid, fuspec) = fspec
-
-                # select the required write port.  these are pre-defined sizes
-                print(regfile, regs.rf.keys())
-                wport = regs.rf[regfile.lower()].w_ports[rpidx]
-
-                # create a priority picker to manage this port
-                wrpickers[regfile][rpidx] = wrpick = PriorityPicker(
-                    len(fuspec))
-                setattr(m.submodules, "wrpick_%s_%s" %
-                        (regfile, rpidx), wrpick)
-
-                # connect the regspec write "reg select" number to this port
-                # only if one FU actually requests (and is granted) the port
-                # will the write-enable be activated
-                with m.If(wrpick.en_o):
-                    comb += wport.wen.eq(write)
-                with m.Else():
-                    comb += wport.wen.eq(0)
-
-                # connect up the FU req/go signals and the reg-read to the FU
-                # these are arbitrated by Data.ok signals
-                wsigs = []
-                for pi, (funame, fu, idx) in enumerate(fuspec):
-                    # write-request comes from dest.ok
-                    dest = fu.get_out(idx)
-                    fu_dest_latch = fu.get_fu_out(idx)  # latched output
-                    name = "wrflag_%s_%s_%d" % (funame, regname, idx)
-                    wrflag = Signal(name=name, reset_less=True)
-                    comb += wrflag.eq(dest.ok & fu.busy_o)
-
-                    # connect request-write to picker input, and output to go-wr
-                    fu_active = fu_bitdict[funame]
-                    pick = fu.wr.rel_o[idx] & fu_active  # & wrflag
-                    comb += wrpick.i[pi].eq(pick)
-                    # create a single-pulse go write from the picker output
-                    wr_pick = Signal()
-                    comb += wr_pick.eq(wrpick.o[pi] & wrpick.en_o)
-                    comb += fu.go_wr_i[idx].eq(rising_edge(m, wr_pick))
-                    # connect regfile port to input
-                    print("reg connect widths",
-                          regfile, regname, pi, funame,
-                          dest.shape(), wport.data_i.shape())
-                    wsigs.append(fu_dest_latch)
-
-                # here is where we create the Write Broadcast Bus. simple, eh?
-                comb += wport.data_i.eq(ortreereduce_sig(wsigs))
+                self.connect_wrport(m, fu_bitdict, wrpickers,
+                                        regfile, regname, fspec)
 
     def get_byregfiles(self, readmode):
 
