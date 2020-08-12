@@ -255,8 +255,7 @@ class AddrMaskGen(Elaboratable, MMU):
 #       -- mask_count has to be >= 5
 #       m := x"001f";
         # mask_count has to be >= 5
-        # TODO check hex conts with lkcl
-        comb += mask.eq(Const(0x001F, 5)
+        comb += mask.eq(Const(0x001F, 16)
 
 #       for i in 5 to 15 loop
         for i in range(5,16):
