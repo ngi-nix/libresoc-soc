@@ -1152,3 +1152,51 @@ class MMU1(Elaboratable):
 
 #   end process;
 # end;
+
+
+def mmu_sim():
+    yield wp.waddr.eq(1)
+    yield wp.data_i.eq(2)
+    yield wp.wen.eq(1)
+    yield
+    yield wp.wen.eq(0)
+    yield rp.ren.eq(1)
+    yield rp.raddr.eq(1)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 2
+    yield
+
+    yield wp.waddr.eq(5)
+    yield rp.raddr.eq(5)
+    yield rp.ren.eq(1)
+    yield wp.wen.eq(1)
+    yield wp.data_i.eq(6)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 6
+    yield
+    yield wp.wen.eq(0)
+    yield rp.ren.eq(0)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 0
+    yield
+    data = yield rp.data_o
+    print(data)
+
+def test_mmu():
+    dut = MMU()
+    rp = dut.read_port()
+    wp = dut.write_port()
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_mmu.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(dut, mmu_sim(), vcd_name='test_mmu.vcd')
+
+if __name__ == '__main__':
+    test_mmu()
