@@ -262,8 +262,6 @@ def elaborate(self, platform):
         comb = m.d.comb
         sync = m.d.sync
 
-        rst = ResetSignal()
-
         l_in  = self.l_in
         l_out = self.l_out
         d_out = self.d_out
@@ -284,7 +282,7 @@ def elaborate(self, platform):
 #       else x"00000000" & r.pid;
         with m.Else():
             comb += l_out.sprval.eq(Cat(r.pid,
-                                    Const(0x00000000, 8))
+                                    Const(0x00000000, 32))
 
 #       if rin.valid = '1' then
 #           report "MMU got tlb miss for "
@@ -462,9 +460,6 @@ class MMU1(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        rst = ResetSignal()
-
-
         l_in = self.l_in
         l_out = self.l_out
         d_out = self.d_out
@@ -591,7 +586,7 @@ class MMU1(Elaboratable):
                 comb += v.shift.eq(rts)
                 comb += v.mask_size.eq(mbits[0:5])
                 comb += v.pgbase.eq(Cat(
-                                     Cont(0x00, 2),
+                                     Cont(0x00, 8),
                                      pgtbl[8:56]
                                     ))
 
@@ -705,7 +700,7 @@ class MMU1(Elaboratable):
 #                   v.inval_all := '1';
 #                   v.state := DO_TLBIE;
                     comb += v.pt0_valid.eq(0)
-                    comb += v.inval_all.eq(0)
+                    comb += v.inval_all.eq(1)
                     comb += v.state.eq(State.DO_TLBIE)
 #               end if;
 
@@ -759,16 +754,26 @@ class MMU1(Elaboratable):
                     # rts == radix tree size, # address bits
                     # being translated
                     comb += rts.eq((
-                                   0 & data[61:63] & data[5:8]
-                                  ).as_unsigned())
+                             Cat(
+                              Cat(
+                               data[5:8],
+                               data[61:63]
+                              ),
+                              Const(0b0, 1)
+                             )
+                            ).as_unsigned())
+
 #                   -- mbits == # address bits to index
 #                   -- top level of tree
 #                   mbits := unsigned('0' & data(4 downto 0));
                     # mbits == # address bits to index
                     # top level of tree
                     comb += mbits.eq((
-                                     0 & data[0:5]
-                                    ).as_unsigned())
+                             Cat(
+                              data[0:5],
+                              Const(0b0, 1)
+                             )
+                            ).as_unsigned())
 #               -- set v.shift to rts so that we can use
 #               -- finalmask for the segment check
 #               v.shift := rts;
@@ -778,7 +783,13 @@ class MMU1(Elaboratable):
                     # finalmask for the segment check
                     comb += v.shift.eq(rts)
                     comb += v.mask_size.eq(mbits[0:5])
-                    comb += v.pgbase.eq(data[8:56] & 0x00)
+                    comb += v.pgbase.eq(
+                             Cat(
+                              Const(0x00, 8),
+                              data[8:56]
+                             )
+                            )
+
 #                   if mbits = 0 then
                     with m.If(~mbits):
 #                       v.state := RADIX_FINISH;
@@ -792,7 +803,7 @@ class MMU1(Elaboratable):
 #               end if;
 
 #               if d_in.err = '1' then
-                with m.If(d_in.err === 1):
+                with m.If(d_in.err):
 #                   v.state := RADIX_FINISH;
 #                   v.badtree := '1';
                     comb += v.state.eq(State.RADIX_FINISH)
@@ -805,7 +816,12 @@ class MMU1(Elaboratable):
 #               v.shift := r.shift + (31 - 12) - mbits;
 #               nonzero := or(r.addr(61 downto 31) and
 #                           not finalmask(30 downto 0));
-                comb += mbits.eq(0 & r.mask_size)
+                comb += mbits.eq(
+                         Cat(
+                          r.mask_size,
+                          Const(0b0, 1)
+                         )
+                        )
                 comb += v.shift.eq(r.shift + (31 -12) - mbits)
                 comb += nonzero.eq((
                          r.addr[31:62] & ~finalmask[0:31]
@@ -814,7 +830,7 @@ class MMU1(Elaboratable):
 #                   v.state := RADIX_FINISH;
 #                   v.segerror := '1';
                 with m.If((r.addr[63] != r.addr[62])
-                          | (nonzero == 1)):
+                          | nonzero):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.segerror.eq(1)
 #               elsif mbits < 5 or mbits > 16 or mbits
@@ -856,14 +872,14 @@ class MMU1(Elaboratable):
 #                           perm_ok := '0';
                             comb += perm_ok.eq(0)
 #                           if r.priv = '1' or data(3) = '0' then
-                            with m.If((r.priv == 1) | (data[3] == 0)):
+                            with m.If(r.priv | ~data[3])):
 #                               if r.iside = '0' then
 #                                   perm_ok := data(1) or (data(2)
 #                                              and not r.store);
-                                with m.If(r.iside == 0):
+                                with m.If(~r.iside):
                                     comb += perm_ok.eq(
-                                              (data[1] | data[2])
-                                              & (~r.store)
+                                             (data[1] | data[2])
+                                             & (~r.store)
                                             )
 #                               else
                                 with m.Else():
@@ -876,7 +892,7 @@ class MMU1(Elaboratable):
                                     # for now deny execute
                                     # permission if cache inhibited
                                     comb += perm_ok.eq(
-                                              data[0] & (~data[5])
+                                              data[0] & ~data[5]
                                             )
 #                               end if;
 #                           end if;
@@ -884,14 +900,14 @@ class MMU1(Elaboratable):
 #                           rc_ok := data(8) and (data(7) or
 #                                    not r.store);
                             comb += rc_ok.eq(
-                                      data[8] &
-                                      (data[7] | (~r.store))
+                                     data[8] &
+                                     (data[7] | (~r.store))
                                     )
 #                           if perm_ok = '1' and rc_ok = '1' then
 #                               v.state := RADIX_LOAD_TLB;
                             with m.If(perm_ok & rc_ok):
                                 comb += v.state.eq(
-                                          State.RADIX_LOAD_TLB
+                                         State.RADIX_LOAD_TLB
                                         )
 #                           else
                             with m.Else():
@@ -901,7 +917,7 @@ class MMU1(Elaboratable):
 #                           -- over RC error
 #                               v.rc_error := perm_ok;
                                 comb += vl.state.eq(
-                                          State.RADIX_FINISH
+                                         State.RADIX_FINISH
                                         )
                                 comb += v.perm_err.eq(~perm_ok)
                                 # permission error takes precedence
@@ -912,15 +928,17 @@ class MMU1(Elaboratable):
                         with m.Else():
 #                           mbits := unsigned('0' &
 #                                    data(4 downto 0));
-                            comb += mbits.eq((Cat(
+                            comb += mbits.eq((
+                                     Cat(
                                       data[0:5]
                                       Cont(0b0,1)
-                                    )).as_unsigned())
+                                     )
+                                    ).as_unsigned())
 #                           if mbits < 5 or mbits > 16 or
 #                           mbits > r.shift then
 #                               v.state := RADIX_FINISH;
 #                               v.badtree := '1';
-                            with m.If((mbits < 5) & (mbits > 16) |
+                            with m.If((mbits < 5) | (mbits > 16) |
                                       (mbits > r.shift)):
                                 comb += v.state.eq(
                                           State.RADIX_FINISH
@@ -935,12 +953,14 @@ class MMU1(Elaboratable):
 #                               v.state := RADIX_LOOKUP;
                                 comb += v.shift.eq(v.shif - mbits)
                                 comb += v.mask_size.eq(mbits[0:5])
-                                comb += v.pgbase.eq(Cat(
-                                          Const(0x00, 2),
-                                          mbits[8:56])
+                                comb += v.pgbase.eq(
+                                         Cat(
+                                          Const(0x00, 8),
+                                          mbits[8:56]
+                                         )
                                         )
                                 comb += v.state.eq(
-                                          State.RADIX_LOOKUP
+                                         State.RADIX_LOOKUP
                                         )
 #                           end if;
 #                       end if;
@@ -1004,7 +1024,7 @@ class MMU1(Elaboratable):
 #       if r.addr(63) = '1' then
         with m.If(r.addr[63]):
 #           effpid := x"00000000";
-            comb += effpid.eq(Const(0x00000000,1))
+            comb += effpid.eq(Const(0x00000000, 32))
 #       else
         with m.Else():
 #           effpid := r.pid;
@@ -1019,15 +1039,15 @@ class MMU1(Elaboratable):
                  Cat(
                   Cat(
                    Cat(
-                    Cat(Const(0b000, 4), effpid[0:8]),
+                    Cat(Const(0b0000, 4), effpid[0:8]),
                     (
-                     (r.prtble[12:36] & (~finalmask[0:24]))
-                     | effpid[8:32] & finalmask[0:24]
+                     (r.prtble[12:36] & ~finalmask[0:24])
+                     | effpid[8:32]   &  finalmask[0:24]
                     )
                    ),
                    r.prtbl[36:56]
                   ),
-                  Const(0x00, 2)
+                  Const(0x00, 8)
                  )
                 )
 
@@ -1039,11 +1059,11 @@ class MMU1(Elaboratable):
                   Cat(
                    Const(0b000, 3),
                    (
-                    (r.pgbase[3:19] & (~mask))
-                    | (addrsh & mask)
+                    (r.pgbase[3:19] & ~mask)
+                    | (addrsh       &  mask)
                    )
                   ),
-                  Const(0x00, 2)
+                  Const(0x00, 8)
                  )
                 )
 
@@ -1054,11 +1074,11 @@ class MMU1(Elaboratable):
                   Cat(
                    r.pde[0:12],
                    (
-                    (r.pde[12:56] & (~finalmask))
-                    | (r.addr[12:56] & finalmask)
+                    (r.pde[12:56]    & ~finalmask)
+                    | (r.addr[12:56] &  finalmask)
                    )
                   ),
-                  Const(0x00, 2)
+                  Const(0x00, 8)
                  )
                 )
 
@@ -1078,7 +1098,7 @@ class MMU1(Elaboratable):
         with m.If(tlb_load):
 #           addr := r.addr(63 downto 12) & x"000";
 #           tlb_data := pte;
-            comb += addr.eq(Cat(Const(0x000, 3), r.addr[12:64]))
+            comb += addr.eq(Cat(Const(0x000, 12), r.addr[12:64]))
 #       elsif prtbl_rd = '1' then
         with m.If(prtbl_rd):
 #           addr := prtable_addr;
