@@ -707,10 +707,9 @@ class MMU1(Elaboratable):
 #                           not finalmask(30 downto 0));
                 comb += mbits.eq(0 & r.mask_size)
                 comb += v.shift.eq(r.shift + (31 -12) - mbits)
-                # TODO need lkcl to check this is correct
-                comb += nonzero.eq(0 | Cat((~finalmask[0:31]),
-                                   r.addr[31:62]
-                                  ))
+                comb += nonzero.eq((
+                         r.addr[31:62] & ~finalmask[0:31]
+                        ).bool())
 #               if r.addr(63) /= r.addr(62) or nonzero = '1' then
 #                   v.state := RADIX_FINISH;
 #                   v.segerror := '1';
