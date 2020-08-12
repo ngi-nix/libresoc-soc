@@ -294,10 +294,6 @@ class FinalMaskGen(Elaboratable, MMU):
 
         msk = self.msk
 
-#       m := (others => '0');
-        # TODO value should be vhdl (others => '0') in nmigen
-        comb += msk.eq(0)
-
 #       for i in 0 to 43 loop
         for i in range(44):
 #           if i < to_integer(r.shift) then
@@ -974,7 +970,6 @@ class MMU1(Elaboratable):
 #           addr := r.addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(r.addr)
-            comb += tlb_data.eq('''TODO ()others => '0') ''')
 #       elsif tlb_load = '1' then
         with m.If(tlb_load):
 #           addr := r.addr(63 downto 12) & x"000";
@@ -985,13 +980,11 @@ class MMU1(Elaboratable):
 #           addr := prtable_addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(prtable_addr)
-            comb += tlb_data.eq('''TODO (others => '0')''')
 #       else
         with m.Else():
 #           addr := pgtable_addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(pgtable_addr)
-            comb += tlb_data.eq('''TODO (others => '0')''')
 #       end if;
 
 #       l_out.done <= r.done;
