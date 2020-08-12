@@ -24,6 +24,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Cat, Const, Array, Signal, Elaboratable, Module
 from nmutil.iocontrol import RecordObject
 from nmutil.util import treereduce
+from nmigen import Memory
 
 from math import log
 import operator
@@ -93,6 +94,7 @@ def ortreereduce(tree, attr="data_o"):
 
 
 class RegFileArray(Elaboratable):
+    unary = True
     """ an array-based register file (register having write-through capability)
         that has no "address" decoder, instead it has individual write-en
         and read-en signals (per port).
@@ -166,7 +168,32 @@ class RegFileArray(Elaboratable):
         return list(self)
 
 
+class RegFileMem(Elaboratable):
+    unary = False
+    def __init__(self, width, depth):
+        self.memory = Memory(width=width, depth=depth)
+        self._rdports = {}
+        self._wrports = {}
+
+    def read_port(self, name=None):
+        port = self._rdports[name] = self.memory.read_port()
+        return port
+
+    def write_port(self, name=None):
+        port = self._wrports[name] = self.memory.write_port()
+        return port
+
+    def elaborate(self, platform):
+        m = Module()
+        for name, rp in self._rdports.items():
+            setattr(m.submodules, "rp_"+name, rp)
+        for name, wp in self._wrports.items():
+            setattr(m.submodules, "wp_"+name, wp)
+        return m
+
+
 class RegFile(Elaboratable):
+    unary = False
     def __init__(self, width, depth):
         self.width = width
         self.depth = depth

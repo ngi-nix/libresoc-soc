@@ -23,10 +23,9 @@ Links:
 
 # TODO
 
-from soc.regfile.regfile import RegFile, RegFileArray
+from soc.regfile.regfile import RegFile, RegFileArray, RegFileMem
 from soc.regfile.virtual_port import VirtualRegPort
 from soc.decoder.power_enums import SPR
-from nmigen import Memory, Elaboratable
 
 
 # "State" Regfile
@@ -144,7 +143,7 @@ class XERRegs(VirtualRegPort):
 
 
 # SPR Regfile
-class SPRRegs(Memory, Elaboratable):
+class SPRRegs(RegFileMem):
     """SPRRegs
 
     * QTY len(SPRs) 64-bit registers
@@ -155,8 +154,8 @@ class SPRRegs(Memory, Elaboratable):
     def __init__(self):
         n_sprs = len(SPR)
         super().__init__(width=64, depth=n_sprs)
-        self.w_ports = {'spr1': self.write_port()}
-        self.r_ports = {'spr1': self.read_port()}
+        self.w_ports = {'spr1': self.write_port("spr1")}
+        self.r_ports = {'spr1': self.read_port("spr1")}
 
         # make read/write ports look like RegFileArray
         self.w_ports['spr1'].wen = self.w_ports['spr1'].en
