@@ -800,7 +800,7 @@ class MMU1(Elaboratable):
 #                           not finalmask(30 downto 0));
                 comb += mbits.eq(0 & r.mask_size)
                 comb += v.shift.eq(r.shift + (31 -12) - mbits)
-                # TODO need lckl to check this is correct
+                # TODO need lkcl to check this is correct
                 comb += nonzero.eq(0 | Cat((~finalmask[0:31]),
                                    r.addr[31:62]
                                   ))
