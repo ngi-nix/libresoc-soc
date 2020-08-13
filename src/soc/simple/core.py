@@ -220,22 +220,18 @@ class NonProductionCore(Elaboratable):
             # and create a Read Broadcast Bus
             for pi, (funame, fu, idx) in enumerate(fuspec):
                 pi += ppoffs[i]
-                src = fu.src_i[idx]
 
                 # connect request-read to picker input, and output to go-rd
                 fu_active = fu_bitdict[funame]
-                pick = Signal()
-                comb += pick.eq(fu.rd_rel_o[idx] & fu_active & rdflags[i])
-                print (pick, len(pick))
-                print (rdpick.i, len(rdpick.i), pi)
-                comb += rdpick.i[pi].eq(pick)
-                comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
-
-                # if picked, select read-port "reg select" number to port
                 name = "%s_%s_%s_%i" % (regfile, rpidx, funame, pi)
-                addr_en = Signal.like(reads[i])
+                addr_en = Signal.like(reads[i], name="addr_en_"+name)
                 rp = Signal(name="rp_"+name)
-                addr_en.name = "addr_en_"+name
+                pick = Signal()
+
+                comb += pick.eq(fu.rd_rel_o[idx] & fu_active & rdflags[i])
+                comb += rdpick.i[pi].eq(pick)
+                sync += fu.go_rd_i[idx].eq(rising_edge(m, rp))
+                # if picked, select read-port "reg select" number to port
                 comb += rp.eq(rdpick.o[pi] & rdpick.en_o)
                 comb += addr_en.eq(Mux(rp, reads[i], 0))
                 if rfile.unary:
@@ -246,11 +242,12 @@ class NonProductionCore(Elaboratable):
 
                 with m.If(rp):
                     # connect regfile port to input, creating fan-out Bus
+                    src = fu.src_i[idx]
                     print("reg connect widths",
                           regfile, regname, pi, funame,
                           src.shape(), rport.data_o.shape())
                     # all FUs connect to same port
-                    comb += src.eq(rport.data_o)
+                    sync += src.eq(rport.data_o)
 
         # or-reduce the muxed read signals
         if rfile.unary:
