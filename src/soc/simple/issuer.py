@@ -65,7 +65,8 @@ class TestIssuer(Elaboratable):
         self.state_r_msr = self.core.regs.rf['state'].r_ports['msr'] # MSR rd
 
         # DMI interface access
-        self.int_r = self.core.regs.rf['int'].r_ports['dmi'] # INT read
+        intrf = self.core.regs.rf['int']
+        self.int_r = intrf.r_ports['dmi'] # INT read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -82,6 +83,7 @@ class TestIssuer(Elaboratable):
         # convenience
         dmi = dbg.dmi
         d_reg = dbg.dbg_gpr
+        intrf = self.core.regs.rf['int']
 
         # clock delay power-on reset
         cd_por  = ClockDomain(reset_less=True)
@@ -229,11 +231,11 @@ class TestIssuer(Elaboratable):
         with m.If(d_reg.req): # request for regfile access being made
             # TODO: error-check this
             # XXX should this be combinatorial?  sync better?
-            if hasattr(self.int_r, "ren"):
+            if intrf.unary:
                 comb += self.int_r.ren.eq(1<<d_reg.addr)
             else:
                 comb += self.int_r.addr.eq(d_reg.addr)
-                comb += self.int_r.en.eq(1)
+                comb += self.int_r.ren.eq(1)
             comb += d_reg.data.eq(self.int_r.data_o)
             comb += d_reg.ack.eq(1)
 
