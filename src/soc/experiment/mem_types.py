@@ -96,8 +96,52 @@ class DcacheToMmuType(RecordObject):
 # end record;
 class MmuToIcacheType(RecordObject):
     def __init__(self):
+        super().__init__()
         self.tlbld = Signal()
         self.tlbie = Signal()
         self.doall = Signal()
         self.addr  = Signal(64)
         self.pte   = Signal(64)
+
+# type Loadstore1ToDcacheType is record
+#     valid     : std_ulogic;
+#     load      : std_ulogic; -- is this a load
+#     dcbz      : std_ulogic;
+#     nc        : std_ulogic;
+#     reserve   : std_ulogic;
+#     virt_mode : std_ulogic;
+#     priv_mode : std_ulogic;
+#     addr      : std_ulogic_vector(63 downto 0);
+#     data      : std_ulogic_vector(63 downto 0);
+#     byte_sel  : std_ulogic_vector(7 downto 0);
+# end record;
+class LoadStore1ToDcacheType(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.valid     = Signal()
+        self.load      = Signal() # this is a load
+        self.dcbz      = Signal()
+        self.nc        = Signal()
+        self.nc        = Signal()
+        self.reserve   = Signal()
+        self.virt_mode = Signal()
+        self.priv_mode = Signal()
+        self.addr      = Signal()
+        self.data      = Signal()
+        self.byte_sel  = Signal()
+
+# type DcacheToLoadstore1Type is record
+#     valid         : std_ulogic;
+#     data          : std_ulogic_vector(63 downto 0);
+#     store_done    : std_ulogic;
+#     error         : std_ulogic;
+#     cache_paradox : std_ulogic;
+# end record;
+class DcacheToLoadStore1Type(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.valid         = Signal()
+        self.data          = Signal()
+        self.store_done    = Signal()
+        self.error         = Signal()
+        self.cache_paradox = Signal()
