@@ -372,7 +372,10 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         for i in range(self.n_src):
             name = "src_r%d" % i
             src_r = Signal(self.data_wid, name=name, reset_less=True)
-            latchregister(m, self.src_i[i], src_r, src_l.q[i], name + '_l')
+            with m.If(self.rd.go_i[i]):
+                sync += src_r.eq(self.src_i[i])
+            with m.If(self.issue_i):
+                sync += src_r.eq(0)
             srl.append(src_r)
 
         # and one for the output from the ADD (for the EA)
@@ -390,8 +393,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
-        sync += alu_o.eq(src1_or_z + src2_or_imm)  # actual EA
-        sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
+        comb += alu_o.eq(src1_or_z + src2_or_imm)  # actual EA
+        m.d.sync += alu_ok.eq(alu_valid)             # keep ack in sync with EA
 
         # decode bits of operand (latched)
         comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE)  # ST
