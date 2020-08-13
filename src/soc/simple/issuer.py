@@ -131,6 +131,13 @@ class TestIssuer(Elaboratable):
             comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
             comb += pc.eq(self.state_r_pc.data_o)
 
+        # don't write pc every cycle
+        sync += self.state_w_pc.wen.eq(0)
+        sync += self.state_w_pc.data_i.eq(0)
+
+        # don't read msr every cycle
+        sync += self.state_r_msr.ren.eq(0)
+
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += core.core_stopped_i.eq(dbg.core_stop_o)
@@ -148,9 +155,6 @@ class TestIssuer(Elaboratable):
 
         insn_type = core.pdecode2.e.do.insn_type
         insn_state = core.pdecode2.state
-
-        # don't read msr every cycle
-        sync += self.state_r_msr.ren.eq(0)
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -215,8 +219,8 @@ class TestIssuer(Elaboratable):
                     # this just blithely overwrites whatever pipeline
                     # updated the PC
                     with m.If(~pc_changed):
-                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(nia)
+                        sync += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+                        sync += self.state_w_pc.data_i.eq(nia)
                     m.next = "IDLE" # back to idle
 
         # this bit doesn't have to be in the FSM: connect up to read
