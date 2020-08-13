@@ -285,8 +285,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # a regfile port because this particular output is not valid"
         m.d.comb += self.wrmask.eq(Cat(*wrok))
 
-        # pass the operation to the ALU
-        m.d.comb += self.get_op().eq(oper_r)
+        # pass operation to the ALU (sync because time to wait for src reads)
+        m.d.sync += self.get_op().eq(oper_r)
 
         # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
         # in the case, for ALU and Logical pipelines, we assume RB is the
