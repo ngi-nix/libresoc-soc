@@ -75,7 +75,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
 
 
 # Fast SPRs Regfile
-class FastRegs(RegFileArray):
+class FastRegs(RegFileMem): #RegFileArray):
     """FastRegs
 
     FAST regfile  - CTR, LR, TAR, SRR1, SRR2

@@ -97,15 +97,10 @@ def regspec_decode_read(e, regfile, name):
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
-        CTR = 1<<FastRegs.CTR
-        LR = 1<<FastRegs.LR
-        TAR = 1<<FastRegs.TAR
-        SRR0 = 1<<FastRegs.SRR0
-        SRR1 = 1<<FastRegs.SRR1
         if name == 'fast1':
-            return e.read_fast1.ok, 1<<e.read_fast1.data
+            return e.read_fast1.ok, e.read_fast1.data
         if name == 'fast2':
-            return e.read_fast2.ok, 1<<e.read_fast2.data
+            return e.read_fast2.ok, e.read_fast2.data
 
     # SPR regfile
 
@@ -170,9 +165,9 @@ def regspec_decode_write(e, regfile, name):
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
         if name == 'fast1':
-            return e.write_fast1, 1<<e.write_fast1.data
+            return e.write_fast1, e.write_fast1.data
         if name == 'fast2':
-            return e.write_fast2, 1<<e.write_fast2.data
+            return e.write_fast2, e.write_fast2.data
 
     # SPR regfile
 
