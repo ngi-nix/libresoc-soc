@@ -187,7 +187,12 @@ class TestRunner(unittest.TestCase):
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.ALU.value)
             yield from set_alu_inputs(alu, pdecode2, sim)
+
+            # set valid for one cycle, propagate through pipeline...
+            yield alu.p.valid_i.eq(1)
             yield
+            yield alu.p.valid_i.eq(0)
+
             opname = code.split(' ')[0]
             yield from sim.call(opname)
             index = sim.pc.CIA.value//4
@@ -199,6 +204,7 @@ class TestRunner(unittest.TestCase):
             yield
 
             yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+            yield Settle()
 
     def test_it(self):
         test_data = ALUTestCase().test_data
@@ -214,8 +220,7 @@ class TestRunner(unittest.TestCase):
         m.submodules.alu = alu = ALUBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
-        comb += alu.n.ready_i.eq(1) # XXX ONLY works because ALU is 1 stage pipe
+        comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 

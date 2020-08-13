@@ -8,8 +8,13 @@ class ALUStages(PipeModBaseChain):
     def get_chain(self):
         inp = ALUInputStage(self.pspec)
         main = ALUMainStage(self.pspec)
+        return [inp, main]
+
+
+class ALUStageEnd(PipeModBaseChain):
+    def get_chain(self):
         out = ALUOutputStage(self.pspec)
-        return [inp, main, out]
+        return [out]
 
 
 class ALUBasePipe(ControlBase):
@@ -17,10 +22,12 @@ class ALUBasePipe(ControlBase):
         ControlBase.__init__(self)
         self.pspec = pspec
         self.pipe1 = ALUStages(pspec)
-        self._eqs = self.connect([self.pipe1])
+        self.pipe2 = ALUStageEnd(pspec)
+        self._eqs = self.connect([self.pipe1, self.pipe2])
 
     def elaborate(self, platform):
         m = ControlBase.elaborate(self, platform)
-        m.submodules.pipe = self.pipe1
+        m.submodules.pipe1 = self.pipe1
+        m.submodules.pipe2 = self.pipe2
         m.d.comb += self._eqs
         return m
