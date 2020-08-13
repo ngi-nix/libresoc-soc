@@ -165,7 +165,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # to trigger *from* the opcode latch instead.
         src_or_imm = Signal(self.cu._get_srcwid(i), reset_less=True)
         src_sel = Signal(reset_less=True)
-        m.d.comb += src_sel.eq(Mux(op_is_imm, self.opc_l.q, self.src_l.q[i]))
+        m.d.comb += src_sel.eq(Mux(op_is_imm, self.opc_l.q, sl[i][2]))
         m.d.comb += src_or_imm.eq(Mux(op_is_imm, imm, self.src_i[i]))
         # overwrite 1st src-latch with immediate-muxed stuff
         sl[i][0] = src_or_imm
