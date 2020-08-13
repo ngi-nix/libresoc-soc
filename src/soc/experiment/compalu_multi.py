@@ -15,6 +15,7 @@ from nmigen.hdl.rec import (Record, DIR_FANIN, DIR_FANOUT)
 
 from nmutil.latch import SRLatch, latchregister
 from nmutil.iocontrol import RecordObject
+from nmutil.util import rising_edge
 
 from soc.fu.regspec import RegSpec, RegSpecALUAPI
 
@@ -188,19 +189,15 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
                               (((~self.rd.rel_o) | self.rd.go_i).all()))
 
         # generate read-done pulse
-        all_rd_dly = Signal(reset_less=True)
         all_rd_pulse = Signal(reset_less=True)
-        m.d.sync += all_rd_dly.eq(all_rd)
-        m.d.comb += all_rd_pulse.eq(all_rd & ~all_rd_dly)
+        m.d.comb += all_rd_pulse.eq(rising_edge(m, all_rd))
 
         # create rising pulse from alu valid condition.
         alu_done = Signal(reset_less=True)
-        alu_done_dly = Signal(reset_less=True)
         alu_pulse = Signal(reset_less=True)
         alu_pulsem = Signal(self.n_dst, reset_less=True)
         m.d.comb += alu_done.eq(self.alu.n.valid_o)
-        m.d.sync += alu_done_dly.eq(alu_done)
-        m.d.comb += alu_pulse.eq(alu_done & ~alu_done_dly)
+        m.d.comb += alu_pulse.eq(rising_edge(m, alu_done))
         m.d.comb += alu_pulsem.eq(Repl(alu_pulse, self.n_dst))
 
         # sigh bug where req_l gets both set and reset raised at same time
@@ -285,8 +282,9 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # a regfile port because this particular output is not valid"
         m.d.comb += self.wrmask.eq(Cat(*wrok))
 
-        # pass operation to the ALU (sync because time to wait for src reads)
-        m.d.sync += self.get_op().eq(oper_r)
+        # pass operation to the ALU (sync: plenty time to wait for src reads)
+        op = self.get_op()
+        m.d.sync += op.eq(oper_r)
 
         # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
         # in the case, for ALU and Logical pipelines, we assume RB is the
@@ -300,18 +298,18 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # if the operand subset has "zero_a" we implicitly assume that means
         # src_i[0] is an INT reg type where zero can be multiplexed in, instead.
         # see https://bugs.libre-soc.org/show_bug.cgi?id=336
-        if hasattr(oper_r, "zero_a"):
+        if hasattr(op, "zero_a"):
             # select zero imm if opcode says so.  however also change the latch
             # to trigger *from* the opcode latch instead.
-            self._mux_op(m, sl, oper_r.zero_a, 0, 0)
+            self._mux_op(m, sl, op.zero_a, 0, 0)
 
         # if the operand subset has "imm_data" we implicitly assume that means
         # "this is an INT ALU/Logical FU jobbie, RB is muxed with the immediate"
-        if hasattr(oper_r, "imm_data"):
+        if hasattr(op, "imm_data"):
             # select immediate if opcode says so. however also change the latch
             # to trigger *from* the opcode latch instead.
-            op_is_imm = oper_r.imm_data.imm_ok
-            imm = oper_r.imm_data.imm
+            op_is_imm = op.imm_data.imm_ok
+            imm = op.imm_data.imm
             self._mux_op(m, sl, op_is_imm, imm, 1)
 
         # create a latch/register for src1/src2 (even if it is a copy of imm)
