@@ -8,8 +8,13 @@ class ShiftRotStages(PipeModBaseChain):
     def get_chain(self):
         inp = ShiftRotInputStage(self.pspec)
         main = ShiftRotMainStage(self.pspec)
+        return [inp, main]
+
+
+class ShiftRotStageEnd(PipeModBaseChain):
+    def get_chain(self):
         out = LogicalOutputStage(self.pspec)
-        return [inp, main, out]
+        return [out]
 
 
 class ShiftRotBasePipe(ControlBase):
@@ -17,10 +22,12 @@ class ShiftRotBasePipe(ControlBase):
         ControlBase.__init__(self)
         self.pspec = pspec
         self.pipe1 = ShiftRotStages(pspec)
-        self._eqs = self.connect([self.pipe1])
+        self.pipe2 = ShiftRotStageEnd(pspec)
+        self._eqs = self.connect([self.pipe1, self.pipe2])
 
     def elaborate(self, platform):
         m = ControlBase.elaborate(self, platform)
-        m.submodules.pipe = self.pipe1
+        m.submodules.pipe1 = self.pipe1
+        m.submodules.pipe2 = self.pipe2
         m.d.comb += self._eqs
         return m

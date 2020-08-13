@@ -227,7 +227,12 @@ class TestRunner(unittest.TestCase):
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.SHIFT_ROT.value)
             yield from set_alu_inputs(alu, pdecode2, simulator)
+
+            # set valid for one cycle, propagate through pipeline...
+            yield alu.p.valid_i.eq(1)
             yield
+            yield alu.p.valid_i.eq(0)
+
             opname = code.split(' ')[0]
             yield from simulator.call(opname)
             index = simulator.pc.CIA.value//4
@@ -241,6 +246,7 @@ class TestRunner(unittest.TestCase):
 
             yield from self.check_alu_outputs(alu, pdecode2,
                                               simulator, code)
+            yield Settle()
 
     def run_all(self):
         m = Module()
@@ -255,7 +261,6 @@ class TestRunner(unittest.TestCase):
         m.submodules.alu = alu = ShiftRotBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
