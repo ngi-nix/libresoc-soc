@@ -225,7 +225,11 @@ class TestIssuer(Elaboratable):
         with m.If(d_reg.req): # request for regfile access being made
             # TODO: error-check this
             # XXX should this be combinatorial?  sync better?
-            comb += self.int_r.ren.eq(1<<d_reg.addr)
+            if hasattr(self.int_r, "ren"):
+                comb += self.int_r.ren.eq(1<<d_reg.addr)
+            else:
+                comb += self.int_r.addr.eq(d_reg.addr)
+                comb += self.int_r.en.eq(1)
             comb += d_reg.data.eq(self.int_r.data_o)
             comb += d_reg.ack.eq(1)
 

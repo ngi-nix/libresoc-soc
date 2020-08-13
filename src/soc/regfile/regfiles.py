@@ -56,7 +56,7 @@ class StateRegs(RegFileArray):
 
 
 # Integer Regfile
-class IntRegs(RegFileArray):
+class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
     """IntRegs
 
     * QTY 32of 64-bit registers
@@ -156,13 +156,6 @@ class SPRRegs(RegFileMem):
         super().__init__(width=64, depth=n_sprs)
         self.w_ports = {'spr1': self.write_port("spr1")}
         self.r_ports = {'spr1': self.read_port("spr1")}
-
-        # make read/write ports look like RegFileArray
-        self.w_ports['spr1'].wen = self.w_ports['spr1'].en
-        self.w_ports['spr1'].data_i = self.w_ports['spr1'].data
-
-        self.r_ports['spr1'].ren = self.w_ports['spr1'].en
-        self.r_ports['spr1'].data_o = self.w_ports['spr1'].data
 
 
 # class containing all regfiles: int, cr, xer, fast, spr

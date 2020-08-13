@@ -39,7 +39,11 @@ def setup_regs(core, test):
     # set up INT regfile, "direct" write (bypass rd/write ports)
     intregs = core.regs.int
     for i in range(32):
-        yield intregs.regs[i].reg.eq(test.regs[i])
+        if intregs.unary:
+            yield intregs.regs[i].reg.eq(test.regs[i])
+        else:
+            yield intregs.memory._array[i].eq(test.regs[i])
+    yield Settle()
 
     # set up CR regfile, "direct" write across all CRs
     cr = test.cr
@@ -123,7 +127,10 @@ def check_regs(dut, sim, core, test, code):
     # int regs
     intregs = []
     for i in range(32):
-        rval = yield core.regs.int.regs[i].reg
+        if core.regs.int.unary:
+            rval = yield core.regs.int.regs[i].reg
+        else:
+            rval = yield core.regs.int.memory._array[i]
         intregs.append(rval)
     print("int regs", list(map(hex, intregs)))
     for i in range(32):

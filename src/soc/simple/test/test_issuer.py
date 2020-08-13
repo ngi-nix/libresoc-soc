@@ -26,7 +26,7 @@ from soc.fu.compunits.test.test_compunit import (setup_test_memory,
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 
 # test with ALU data and Logical data
-#from soc.fu.alu.test.test_pipe_caller import ALUTestCase
+from soc.fu.alu.test.test_pipe_caller import ALUTestCase
 from soc.fu.div.test.test_pipe_caller import DivTestCases
 from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 #from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     # suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase().test_data))
-    # suite.addTest(TestRunner(ALUTestCase.test_data))
+    suite.addTest(TestRunner(ALUTestCase().test_data))
     # suite.addTest(TestRunner(BranchTestCase.test_data))
     # suite.addTest(TestRunner(SPRTestCase.test_data))
 

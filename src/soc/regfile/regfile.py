@@ -24,6 +24,7 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Cat, Const, Array, Signal, Elaboratable, Module
 from nmutil.iocontrol import RecordObject
 from nmutil.util import treereduce
+from nmigen.utils import log2_int
 from nmigen import Memory
 
 from math import log
@@ -171,24 +172,54 @@ class RegFileArray(Elaboratable):
 class RegFileMem(Elaboratable):
     unary = False
     def __init__(self, width, depth):
+        self.width, self.depth = width, depth
         self.memory = Memory(width=width, depth=depth)
         self._rdports = {}
         self._wrports = {}
 
     def read_port(self, name=None):
-        port = self._rdports[name] = self.memory.read_port()
+        bsz = log2_int(self.depth, False)
+        port = RecordObject([("addr", bsz),
+                             ("ren", 1),
+                             ("data_o", self.width)], name=name)
+        self._rdports[name] = (port, self.memory.read_port(domain="comb"))
         return port
 
     def write_port(self, name=None):
-        port = self._wrports[name] = self.memory.write_port()
+        bsz = log2_int(self.depth, False)
+        port = RecordObject([("addr", bsz),
+                             ("wen", 1),
+                             ("data_i", self.width)], name=name)
+        self._wrports[name] = (port, self.memory.write_port())
         return port
 
     def elaborate(self, platform):
         m = Module()
-        for name, rp in self._rdports.items():
-            setattr(m.submodules, "rp_"+name, rp)
-        for name, wp in self._wrports.items():
+        comb = m.d.comb
+
+        # read ports. has write-through detection (returns data written)
+        for name, (rp, rport) in self._rdports.items():
+            setattr(m.submodules, "rp_"+name, rport)
+            wr_detect = Signal(reset_less=False)
+            comb += rport.addr.eq(rp.addr)
+            with m.If(rp.ren):
+                m.d.comb += wr_detect.eq(0)
+                for _, (wp, wport) in self._wrports.items():
+                    addrmatch = Signal(reset_less=False)
+                    m.d.comb += addrmatch.eq(wp.addr == rp.addr)
+                    with m.If(wp.wen & addrmatch):
+                        m.d.comb += rp.data_o.eq(wp.data_i)
+                        m.d.comb += wr_detect.eq(1)
+                with m.If(~wr_detect):
+                    m.d.comb += rp.data_o.eq(rport.data)
+
+        # write ports, delayed by one cycle (in the memory itself)
+        for name, (port, wp) in self._wrports.items():
             setattr(m.submodules, "wp_"+name, wp)
+            comb += wp.addr.eq(port.addr)
+            comb += wp.en.eq(port.wen)
+            comb += wp.data.eq(port.data_i)
+
         return m
 
 
@@ -202,7 +233,7 @@ class RegFile(Elaboratable):
 
     def read_port(self, name=None):
         bsz = int(log(self.width) / log(2))
-        port = RecordObject([("raddr", bsz),
+        port = RecordObject([("addr", bsz),
                              ("ren", 1),
                              ("data_o", self.width)], name=name)
         self._rdports.append(port)
@@ -210,7 +241,7 @@ class RegFile(Elaboratable):
 
     def write_port(self, name=None):
         bsz = int(log(self.width) / log(2))
-        port = RecordObject([("waddr", bsz),
+        port = RecordObject([("addr", bsz),
                              ("wen", 1),
                              ("data_i", self.width)], name=name)
         self._wrports.append(port)
@@ -228,17 +259,17 @@ class RegFile(Elaboratable):
                 m.d.comb += wr_detect.eq(0)
                 for wp in self._wrports:
                     addrmatch = Signal(reset_less=False)
-                    m.d.comb += addrmatch.eq(wp.waddr == rp.raddr)
+                    m.d.comb += addrmatch.eq(wp.addr == rp.addr)
                     with m.If(wp.wen & addrmatch):
                         m.d.comb += rp.data_o.eq(wp.data_i)
                         m.d.comb += wr_detect.eq(1)
                 with m.If(~wr_detect):
-                    m.d.comb += rp.data_o.eq(regs[rp.raddr])
+                    m.d.comb += rp.data_o.eq(regs[rp.addr])
 
         # write ports, delayed by one cycle
         for wp in self._wrports:
             with m.If(wp.wen):
-                m.d.sync += regs[wp.waddr].eq(wp.data_i)
+                m.d.sync += regs[wp.addr].eq(wp.data_i)
 
         return m
 
@@ -256,32 +287,41 @@ class RegFile(Elaboratable):
 
 
 def regfile_sim(dut, rp, wp):
-    yield wp.waddr.eq(1)
+    yield wp.addr.eq(1)
     yield wp.data_i.eq(2)
     yield wp.wen.eq(1)
     yield
     yield wp.wen.eq(0)
+    yield wp.addr.eq(0)
+    yield
+    yield
     yield rp.ren.eq(1)
-    yield rp.raddr.eq(1)
+    yield rp.addr.eq(1)
     yield Settle()
     data = yield rp.data_o
     print(data)
+    yield
+    data = yield rp.data_o
+    print(data)
+    yield
+    data2 = yield rp.data_o
+    print(data2)
     assert data == 2
     yield
 
-    yield wp.waddr.eq(5)
-    yield rp.raddr.eq(5)
+    yield wp.addr.eq(5)
+    yield rp.addr.eq(5)
     yield rp.ren.eq(1)
     yield wp.wen.eq(1)
     yield wp.data_i.eq(6)
-    yield Settle()
+    yield
     data = yield rp.data_o
     print(data)
     assert data == 6
     yield
     yield wp.wen.eq(0)
     yield rp.ren.eq(0)
-    yield Settle()
+    yield
     data = yield rp.data_o
     print(data)
     assert data == 0
@@ -333,11 +373,20 @@ def test_regfile():
     dut = RegFile(32, 8)
     rp = dut.read_port()
     wp = dut.write_port()
-    vl = rtlil.convert(dut, ports=dut.ports())
+    vl = rtlil.convert(dut)#, ports=dut.ports())
     with open("test_regfile.il", "w") as f:
         f.write(vl)
 
     run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regfile.vcd')
+
+    dut = RegFileMem(32, 8)
+    rp = dut.read_port("rp1")
+    wp = dut.write_port("wp1")
+    vl = rtlil.convert(dut)#, ports=dut.ports())
+    with open("test_regmem.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(dut, regfile_sim(dut, rp, wp), vcd_name='test_regmem.vcd')
 
     dut = RegFileArray(32, 8)
     rp1 = dut.read_port("read1")

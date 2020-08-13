@@ -181,8 +181,10 @@ class NonProductionCore(Elaboratable):
         rpidx = regname
 
         # select the required read port.  these are pre-defined sizes
-        print(rpidx, regfile, regs.rf.keys())
-        rport = regs.rf[regfile.lower()].r_ports[rpidx]
+        rfile = regs.rf[regfile.lower()]
+        rport = rfile.r_ports[rpidx]
+        print("read regfile", rpidx, regfile, regs.rf.keys(),
+                              rfile, rfile.unary)
 
         fspecs = fspec
         if not isinstance(fspecs, list):
@@ -211,6 +213,7 @@ class NonProductionCore(Elaboratable):
         setattr(m.submodules, "rdpick_%s_%s" % (regfile, rpidx), rdpick)
 
         rens = []
+        addrs = []
         for i, fspec in enumerate(fspecs):
             (rf, read, write, wid, fuspec) = fspec
             # connect up the FU req/go signals, and the reg-read to the FU
@@ -229,12 +232,20 @@ class NonProductionCore(Elaboratable):
                 comb += fu.go_rd_i[idx].eq(rdpick.o[pi])
 
                 # if picked, select read-port "reg select" number to port
-                read_en = Signal.like(reads[i])
-                comb += read_en.eq(Mux(rdpick.o[pi] & rdpick.en_o, reads[i], 0))
-                rens.append(read_en)
+                name = "%s_%s_%s_%i" % (regfile, rpidx, funame, pi)
+                addr_en = Signal.like(reads[i])
+                rp = Signal(name="rp_"+name)
+                addr_en.name = "addr_en_"+name
+                comb += rp.eq(rdpick.o[pi] & rdpick.en_o)
+                comb += addr_en.eq(Mux(rp, reads[i], 0))
+                if rfile.unary:
+                    rens.append(addr_en)
+                else:
+                    addrs.append(addr_en)
+                    rens.append(rp)
 
-                with m.If(rdpick.o[pi] & rdpick.en_o):
-                    # connect regfile port to input, creating a Broadcast Bus
+                with m.If(rp):
+                    # connect regfile port to input, creating fan-out Bus
                     print("reg connect widths",
                           regfile, regname, pi, funame,
                           src.shape(), rport.data_o.shape())
@@ -242,7 +253,14 @@ class NonProductionCore(Elaboratable):
                     comb += src.eq(rport.data_o)
 
         # or-reduce the muxed read signals
-        comb += rport.ren.eq(ortreereduce_sig(rens))
+        if rfile.unary:
+            # for unary-addressed
+            comb += rport.ren.eq(ortreereduce_sig(rens))
+        else:
+            # for binary-addressed
+            comb += rport.addr.eq(ortreereduce_sig(addrs))
+            comb += rport.ren.eq(Cat(*rens).bool())
+            print ("binary", regfile, rpidx, rport, rport.ren, rens, addrs)
 
     def connect_rdports(self, m, fu_bitdict):
         """connect read ports
@@ -291,7 +309,8 @@ class NonProductionCore(Elaboratable):
 
         # select the required write port.  these are pre-defined sizes
         print(regfile, regs.rf.keys())
-        wport = regs.rf[regfile.lower()].w_ports[rpidx]
+        rfile = regs.rf[regfile.lower()]
+        wport = rfile.w_ports[rpidx]
 
         fspecs = fspec
         if not isinstance(fspecs, list):
@@ -313,6 +332,7 @@ class NonProductionCore(Elaboratable):
 
         wsigs = []
         wens = []
+        addrs = []
         for i, fspec in enumerate(fspecs):
             # connect up the FU req/go signals and the reg-read to the FU
             # these are arbitrated by Data.ok signals
@@ -339,9 +359,15 @@ class NonProductionCore(Elaboratable):
                 # connect the regspec write "reg select" number to this port
                 # only if one FU actually requests (and is granted) the port
                 # will the write-enable be activated
-                write_en = Signal.like(write)
-                comb += write_en.eq(Mux(wr_pick & wrpick.en_o, write, 0))
-                wens.append(write_en)
+                addr_en = Signal.like(write)
+                wp = Signal()
+                comb += wp.eq(wr_pick & wrpick.en_o)
+                comb += addr_en.eq(Mux(wp, write, 0))
+                if rfile.unary:
+                    wens.append(addr_en)
+                else:
+                    addrs.append(addr_en)
+                    wens.append(wp)
 
                 # connect regfile port to input
                 print("reg connect widths",
@@ -351,7 +377,13 @@ class NonProductionCore(Elaboratable):
 
         # here is where we create the Write Broadcast Bus. simple, eh?
         comb += wport.data_i.eq(ortreereduce_sig(wsigs))
-        comb += wport.wen.eq(ortreereduce_sig(wens))
+        if rfile.unary:
+            # for unary-addressed
+            comb += wport.wen.eq(ortreereduce_sig(wens))
+        else:
+            # for binary-addressed
+            comb += wport.addr.eq(ortreereduce_sig(addrs))
+            comb += wport.wen.eq(ortreereduce_sig(wens))
 
     def connect_wrports(self, m, fu_bitdict):
         """connect write ports

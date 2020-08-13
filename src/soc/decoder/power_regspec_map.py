@@ -48,11 +48,11 @@ def regspec_decode_read(e, regfile, name):
     if regfile == 'INT':
         # Int register numbering is *unary* encoded
         if name == 'ra': # RA
-            return e.read_reg1.ok, 1<<e.read_reg1.data
+            return e.read_reg1.ok, e.read_reg1.data
         if name == 'rb': # RB
-            return e.read_reg2.ok, 1<<e.read_reg2.data
+            return e.read_reg2.ok, e.read_reg2.data
         if name == 'rc': # RS
-            return e.read_reg3.ok, 1<<e.read_reg3.data
+            return e.read_reg3.ok, e.read_reg3.data
 
     # CR regfile
 
@@ -126,9 +126,9 @@ def regspec_decode_write(e, regfile, name):
     if regfile == 'INT':
         # Int register numbering is *unary* encoded
         if name == 'o': # RT
-            return e.write_reg, 1<<e.write_reg.data
+            return e.write_reg, e.write_reg.data
         if name == 'o1': # RA (update mode: LD/ST EA)
-            return e.write_ea, 1<<e.write_ea.data
+            return e.write_ea, e.write_ea.data
 
     # CR regfile
 
@@ -169,11 +169,6 @@ def regspec_decode_write(e, regfile, name):
 
     if regfile == 'FAST':
         # FAST register numbering is *unary* encoded
-        CTR = 1<<FastRegs.CTR
-        LR = 1<<FastRegs.LR
-        TAR = 1<<FastRegs.TAR
-        SRR0 = 1<<FastRegs.SRR0
-        SRR1 = 1<<FastRegs.SRR1
         if name == 'fast1':
             return e.write_fast1, 1<<e.write_fast1.data
         if name == 'fast2':
