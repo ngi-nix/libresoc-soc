@@ -237,8 +237,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += rok_l.r.eq(self.alu.n.valid_o & self.busy_o)  # ALU done
 
         # wr-done, back-to-start latch
-        m.d.comb += rst_l.s.eq(all_rd)     # set when read-phase is fully done
-        m.d.comb += rst_l.r.eq(rst_r)        # *off* on issue
+        m.d.sync += rst_l.s.eq(all_rd)     # set when read-phase is fully done
+        m.d.sync += rst_l.r.eq(rst_r)        # *off* on issue
 
         # opcode latch (not using go_rd_i) - inverted so that busy resets to 0
         m.d.sync += opc_l.s.eq(self.issue_i)       # set on issue
