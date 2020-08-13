@@ -360,7 +360,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # create a latch/register for the operand
         oper_r = CompLDSTOpSubset(name="oper_r")  # Dest register
-        latchregister(m, self.oper_i, oper_r, self.issue_i, name="oper_l")
+        with m.If(self.issue_i):
+            sync += oper_r.eq(self.oper_i)
 
         # and for LD
         ldd_r = Signal(self.data_wid, reset_less=True)  # Dest register
@@ -475,17 +476,17 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # connect to LD/ST PortInterface.
         comb += pi.is_ld_i.eq(op_is_ld & busy_o)  # decoded-LD
         comb += pi.is_st_i.eq(op_is_st & busy_o)  # decoded-ST
-        comb += pi.data_len.eq(self.oper_i.data_len)  # data_len
-        # address
-        comb += pi.addr.data.eq(addr_r)           # EA from adder
-        comb += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
+        comb += pi.data_len.eq(oper_r.data_len)  # data_len
+        # address: use sync to avoid long latency
+        sync += pi.addr.data.eq(addr_r)           # EA from adder
+        sync += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
         comb += self.addr_exc_o.eq(pi.addr_exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
         # byte-reverse on LD
-        with m.If(self.oper_i.byte_reverse):
+        with m.If(oper_r.byte_reverse):
             # byte-reverse the data based on ld/st width (turn it to LE)
-            data_len = self.oper_i.data_len
+            data_len = oper_r.data_len
             lddata_r = byte_reverse(m, 'lddata_r', pi.ld.data, data_len)
             comb += ldd_o.eq(lddata_r)  # put reversed- data out
         with m.Else():
@@ -495,9 +496,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # byte-reverse on ST
         op3 = srl[2] # 3rd operand latch
-        with m.If(self.oper_i.byte_reverse):
+        with m.If(oper_r.byte_reverse):
             # byte-reverse the data based on width
-            data_len = self.oper_i.data_len
+            data_len = oper_r.data_len
             stdata_r = byte_reverse(m, 'stdata_r', op3, data_len)
             comb += pi.st.data.eq(stdata_r)
         with m.Else():
