@@ -161,7 +161,6 @@ class TestRunner(FHDLTestCase):
         m.submodules.alu = alu = LogicalBasePipe(pspec)
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
-        comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -193,7 +192,12 @@ class TestRunner(FHDLTestCase):
                     fn_unit = yield pdecode2.e.do.fn_unit
                     self.assertEqual(fn_unit, Function.LOGICAL.value, code)
                     yield from set_alu_inputs(alu, pdecode2, simulator)
+
+                    # set valid for one cycle, propagate through pipeline...
+                    yield alu.p.valid_i.eq(1)
                     yield
+                    yield alu.p.valid_i.eq(0)
+
                     opname = code.split(' ')[0]
                     yield from simulator.call(opname)
                     index = simulator.pc.CIA.value//4
@@ -206,6 +210,8 @@ class TestRunner(FHDLTestCase):
 
                     yield from self.check_alu_outputs(alu, pdecode2,
                                                       simulator, code)
+                    yield Settle()
+
 
         sim.add_sync_process(process)
         with sim.write_vcd("logical_simulator.vcd", "logical_simulator.gtkw",
