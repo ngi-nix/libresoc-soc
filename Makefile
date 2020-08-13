@@ -12,7 +12,7 @@ install:
 
 run_sim: install
 	# TODO: get it to work
-	python3 src/soc/litex/florent/sim.py
+	python3 src/soc/litex/florent/sim.py --cpu=libresoc
 
 test: install
 	python3 setup.py test # could just run nosetest3...
