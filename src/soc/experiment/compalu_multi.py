@@ -252,9 +252,10 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += req_l.s.eq(alu_pulsem & self.wrmask)
         m.d.sync += req_l.r.eq(reset_w | prev_wr_go)
 
-        # create a latch/register for the operand
-        oper_r = self.opsubsetkls(name="oper_r")
-        latchregister(m, self.oper_i, oper_r, self.issue_i, "oper_l")
+        # pass operation to the ALU (sync: plenty time to wait for src reads)
+        op = self.get_op()
+        with m.If(self.issue_i):
+            m.d.sync += op.eq(self.oper_i)
 
         # and for each output from the ALU: capture when ALU output is valid
         drl = []
@@ -281,10 +282,6 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         # is now the Function Unit API tells the Comp Unit "do not request
         # a regfile port because this particular output is not valid"
         m.d.comb += self.wrmask.eq(Cat(*wrok))
-
-        # pass operation to the ALU (sync: plenty time to wait for src reads)
-        op = self.get_op()
-        m.d.sync += op.eq(oper_r)
 
         # create list of src/alu-src/src-latch.  override 1st and 2nd one below.
         # in the case, for ALU and Logical pipelines, we assume RB is the
