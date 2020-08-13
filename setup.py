@@ -16,6 +16,7 @@ install_requires = [
     'nmigen-soc',  # install manually from git.libre-soc.org
     'ply',  # needs to be installed manually
     'astor',
+    'pyvcd',  # for stylish GTKWave save files
 
     # install from https://salsa.debian.org/Kazan-team/power-instruction-analyzer
     'power-instruction-analyzer',
