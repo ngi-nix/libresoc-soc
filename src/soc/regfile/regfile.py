@@ -171,7 +171,8 @@ class RegFileArray(Elaboratable):
 
 class RegFileMem(Elaboratable):
     unary = False
-    def __init__(self, width, depth):
+    def __init__(self, width, depth, fwd_bus_mode=False):
+        self.fwd_bus_mode = fwd_bus_mode
         self.width, self.depth = width, depth
         self.memory = Memory(width=width, depth=depth)
         self._rdports = {}
@@ -202,15 +203,19 @@ class RegFileMem(Elaboratable):
             setattr(m.submodules, "rp_"+name, rport)
             wr_detect = Signal(reset_less=False)
             comb += rport.addr.eq(rp.addr)
-            with m.If(rp.ren):
-                m.d.comb += wr_detect.eq(0)
-                for _, (wp, wport) in self._wrports.items():
-                    addrmatch = Signal(reset_less=False)
-                    m.d.comb += addrmatch.eq(wp.addr == rp.addr)
-                    with m.If(wp.wen & addrmatch):
-                        m.d.comb += rp.data_o.eq(wp.data_i)
-                        m.d.comb += wr_detect.eq(1)
-                with m.If(~wr_detect):
+            if self.fwd_bus_mode:
+                with m.If(rp.ren):
+                    m.d.comb += wr_detect.eq(0)
+                    for _, (wp, wport) in self._wrports.items():
+                        addrmatch = Signal(reset_less=False)
+                        m.d.comb += addrmatch.eq(wp.addr == rp.addr)
+                        with m.If(wp.wen & addrmatch):
+                            m.d.comb += rp.data_o.eq(wp.data_i)
+                            m.d.comb += wr_detect.eq(1)
+                    with m.If(~wr_detect):
+                        m.d.comb += rp.data_o.eq(rport.data)
+            else:
+                with m.If(rp.ren):
                     m.d.comb += rp.data_o.eq(rport.data)
 
         # write ports, delayed by one cycle (in the memory itself)
