@@ -11,7 +11,7 @@ install:
 	python3 src/soc/decoder/pseudo/pywriter.py
 
 run_sim: install
-	# TODO: get it to work
+	python3 src/soc/simple/issuer_verilog.py src/soc/litex/florent/libresoc/libresoc.v
 	python3 src/soc/litex/florent/sim.py --cpu=libresoc
 
 test: install
