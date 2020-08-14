@@ -237,6 +237,9 @@ def write_gtkw(base_name, top_dut_name, loc):
             # change the displayed name in the panel
             gtkw.trace("top.zero", alias='zero delay shift',
                        color=style_debug)
+            gtkw.trace("top.interesting", color=style_debug)
+            gtkw.trace("top.test_case", alias="test case", color=style_debug)
+            gtkw.trace("top.msg", color=style_debug)
         with gtkw.group("internal"):
             gtkw.trace(dut + "fsm_state")
             gtkw.trace(dut + "count[3:0]")
@@ -270,6 +273,18 @@ def test_shifter():
     # they end up in the top module
     #
     zero = Signal()  # mark an interesting place
+    #
+    # demonstrates string traces
+    #
+    # display a message when the signal is high
+    # the low level is just an horizontal line
+    interesting = Signal(decoder=lambda v: 'interesting!' if v else '')
+    # choose between alternate strings based on numerical value
+    test_cases = ['', '13>>2', '3<<4', '21<<0']
+    test_case = Signal(8, decoder=lambda v: test_cases[v])
+    # hack to display arbitrary strings, like debug statements
+    msg = Signal(decoder=lambda _: msg.str)
+    msg.str = ''
 
     def send(data, shift, direction):
         # present input data and assert valid_i
@@ -281,6 +296,15 @@ def test_shifter():
         # wait for p.ready_o to be asserted
         while not (yield dut.p.ready_o):
             yield
+        # show current operation operation
+        if direction:
+            msg.str = f'{data}>>{shift}'
+        else:
+            msg.str = f'{data}<<{shift}'
+        # force dump of the above message by toggling the
+        # underlying signal
+        yield msg.eq(0)
+        yield msg.eq(1)
         # clear input data and negate p.valid_i
         yield dut.p.valid_i.eq(0)
         yield dut.p.data_i.data.eq(0)
@@ -300,6 +324,10 @@ def test_shifter():
         yield dut.n.ready_i.eq(0)
         # check result
         assert result == expected
+        # finish displaying the current operation
+        msg.str = ''
+        yield msg.eq(0)
+        yield msg.eq(1)
 
     def producer():
         # 13 >> 2
@@ -307,28 +335,36 @@ def test_shifter():
         # 3 << 4
         yield from send(3, 4, 0)
         # 21 << 0
+        # use a debug signal to mark an interesting operation
+        # in this case, it is a shift by zero
+        yield interesting.eq(1)
         yield from send(21, 0, 0)
+        yield interesting.eq(0)
 
     def consumer():
         # the consumer is not in step with the producer, but the
         # order of the results are preserved
         # 13 >> 2 = 3
+        yield test_case.eq(1)
         yield from receive(3)
         # 3 << 4 = 48
+        yield test_case.eq(2)
         yield from receive(48)
         # 21 << 0 = 21
+        yield test_case.eq(3)
         # you can look for the rising edge of this signal to quickly
         # locate this point in the traces
         yield zero.eq(1)
         yield from receive(21)
         yield zero.eq(0)
+        yield test_case.eq(0)
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
     sim_writer = sim.write_vcd(
         "test_shifter.vcd",
         # include additional signals in the trace dump
-        traces=[zero]
+        traces=[zero, interesting, test_case, msg],
     )
     with sim_writer:
         sim.run()
