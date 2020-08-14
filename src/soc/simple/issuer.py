@@ -66,9 +66,10 @@ class TestIssuer(Elaboratable):
         self.memerr_o = Signal(reset_less=True)
 
         # FAST regfile read /write ports for PC and MSR
-        self.state_r_pc = self.core.regs.rf['state'].r_ports['cia'] # PC rd
-        self.state_w_pc = self.core.regs.rf['state'].w_ports['d_wr1'] # PC wr
-        self.state_r_msr = self.core.regs.rf['state'].r_ports['msr'] # MSR rd
+        staterf = self.core.regs.rf['state']
+        self.state_r_pc = staterf.r_ports['cia'] # PC rd
+        self.state_w_pc = staterf.w_ports['d_wr1'] # PC wr
+        self.state_r_msr = staterf.r_ports['msr'] # MSR rd
 
         # DMI interface access
         intrf = self.core.regs.rf['int']
@@ -163,7 +164,7 @@ class TestIssuer(Elaboratable):
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
         insn_type = core.e.do.insn_type
-        insn_state = pdecode2.state
+        dec_state = pdecode2.state
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -206,10 +207,10 @@ class TestIssuer(Elaboratable):
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
                     comb += dec_opcode_i.eq(insn) # actual opcode
+                    comb += dec_state.eq(cur_state)
                     sync += core.e.eq(pdecode2.e)
                     sync += ilatch.eq(insn) # latch current insn
                     # also drop PC and MSR into decode "state"
-                    sync += insn_state.eq(cur_state)
                     m.next = "INSN_START" # move to "start"
 
             # waiting for instruction bus (stays there until not busy)
