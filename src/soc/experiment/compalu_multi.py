@@ -270,11 +270,14 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
                 # bye-bye abstract interface design..
                 fname = find_ok(data_r.fields)
                 if fname:
-                    ok = data_r[fname]
+                    ok = getattr(lro, fname)
             else:
                 data_r = Signal.like(lro, name=name, reset_less=True)
             wrok.append(ok & self.busy_o)
-            latchregister(m, lro, data_r, alu_pulsem, name + "_l")
+            with m.If(alu_pulse):
+                m.d.sync += data_r.eq(lro)
+            with m.Elif(self.issue_i):
+                m.d.sync += data_r.eq(0)
             drl.append(data_r)
 
         # ok, above we collated anything with an "ok" on the output side
