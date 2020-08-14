@@ -69,8 +69,9 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
         self.w_ports = {'o': self.write_port("dest1"),
                         #'o1': self.write_port("dest2") # for now (LD/ST update)
                         }
-        self.r_ports = {'rabc': self.read_port("src1"),
-                        #'rbc': self.read_port("src3"),
+        self.r_ports = {'ra': self.read_port("src1"),
+                        'rb': self.read_port("src2"),
+                        'rc': self.read_port("src3"),
                         'dmi': self.read_port("dmi")} # needed for Debug (DMI)
 
 
@@ -92,9 +93,10 @@ class FastRegs(RegFileMem): #RegFileArray):
     SRR1 = 4
     def __init__(self):
         super().__init__(64, 5)
-        self.w_ports = {'fast1': self.write_port("dest3"),
+        self.w_ports = {'fast1': self.write_port("dest1"),
                        }
         self.r_ports = {'fast1': self.read_port("src1"),
+                        'fast2': self.read_port("src2"),
                         }
 
 

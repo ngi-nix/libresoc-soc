@@ -282,13 +282,14 @@ class NonProductionCore(Elaboratable):
 
             # argh.  an experiment to merge RA and RB in the INT regfile
             # (we have too many read/write ports)
-            if regfile == 'INT':
-                fuspecs['rabc'] = [fuspecs.pop('rb')]
-                fuspecs['rabc'].append(fuspecs.pop('rc'))
-                fuspecs['rabc'].append(fuspecs.pop('ra'))
-            if regfile == 'FAST':
-                fuspecs['fast1'] = [fuspecs.pop('fast1')]
-                fuspecs['fast1'].append(fuspecs.pop('fast2'))
+            #if regfile == 'INT':
+                #fuspecs['rabc'] = [fuspecs.pop('rb')]
+                #fuspecs['rabc'].append(fuspecs.pop('rc'))
+                #fuspecs['rabc'].append(fuspecs.pop('ra'))
+            #if regfile == 'FAST':
+            #    fuspecs['fast1'] = [fuspecs.pop('fast1')]
+            #    if 'fast2' in fuspecs:
+            #        fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):
@@ -412,7 +413,8 @@ class NonProductionCore(Elaboratable):
                 fuspecs['o'].append(fuspecs.pop('o1'))
             if regfile == 'FAST':
                 fuspecs['fast1'] = [fuspecs.pop('fast1')]
-                fuspecs['fast1'].append(fuspecs.pop('fast2'))
+                if 'fast2' in fuspecs:
+                    fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 self.connect_wrport(m, fu_bitdict, wrpickers,

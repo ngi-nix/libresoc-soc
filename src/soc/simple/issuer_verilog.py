@@ -9,11 +9,14 @@ from soc.simple.issuer import TestIssuer
 
 
 if __name__ == '__main__':
-    units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1, 'logical': 1,
+    units = {'alu': 1,
+             'cr': 1, 'branch': 1, 'trap': 1,
+            'logical': 1,
              'spr': 1,
              'div': 1,
              'mul': 1,
-             'shiftrot': 1}
+             'shiftrot': 1
+                }
     pspec = TestMemPspec(ldst_ifacetype='bare_wb',
                          imem_ifacetype='bare_wb',
                          addr_wid=48,
