@@ -395,7 +395,8 @@ class PowerParser:
                     if name in self.gprs:
                         # add to list of uninitialised
                         self.uninit_regs.add(name)
-                    autoassign = name not in self.declared_vars
+                    autoassign = (name not in self.declared_vars and
+                                  name not in self.special_regs)
             elif isinstance(p[1], ast.Call) and p[1].func.id in ['GPR', 'SPR']:
                 print(astor.dump_tree(p[1]))
                 # replace GPR(x) with GPR[x]
