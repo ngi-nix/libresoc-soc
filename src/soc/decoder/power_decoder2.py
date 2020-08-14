@@ -589,8 +589,13 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        e, op, do = self.e, self.dec.op, self.e.do
+        e_out, op, do_out = self.e, self.dec.op, self.e.do
         msr, cia = self.state.msr, self.state.pc
+
+        # fill in for a normal instruction (not an exception)
+        # copy over if non-exception, non-privileged etc. is detected
+        e = Decode2ToExecute1Type()
+        do = e.do
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -711,25 +716,29 @@ class PowerDecode2(Elaboratable):
             # illegal instruction trap
             self.trap(m, TT.ILLEG, 0x700)
 
+        # no exception, just copy things to the output
+        with m.Else():
+            comb += e_out.eq(e)
+
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
         # Note: OP_SC could actually be modified to just be a trap
-        with m.If((do.insn_type == MicrOp.OP_TRAP) |
-                  (do.insn_type == MicrOp.OP_SC)):
+        with m.If((do_out.insn_type == MicrOp.OP_TRAP) |
+                  (do_out.insn_type == MicrOp.OP_SC)):
             # TRAP write fast1 = SRR0
-            comb += e.write_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
-            comb += e.write_fast1.ok.eq(1)
+            comb += e_out.write_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
+            comb += e_out.write_fast1.ok.eq(1)
             # TRAP write fast2 = SRR1
-            comb += e.write_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
-            comb += e.write_fast2.ok.eq(1)
+            comb += e_out.write_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
+            comb += e_out.write_fast2.ok.eq(1)
 
         # RFID: needs to read SRR0/1
-        with m.If(do.insn_type == MicrOp.OP_RFID):
+        with m.If(do_out.insn_type == MicrOp.OP_RFID):
             # TRAP read fast1 = SRR0
-            comb += e.read_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
-            comb += e.read_fast1.ok.eq(1)
+            comb += e_out.read_fast1.data.eq(FastRegs.SRR0)  # constant: SRR0
+            comb += e_out.read_fast1.ok.eq(1)
             # TRAP read fast2 = SRR1
-            comb += e.read_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
-            comb += e.read_fast2.ok.eq(1)
+            comb += e_out.read_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
+            comb += e_out.read_fast2.ok.eq(1)
 
         return m
 
@@ -737,8 +746,9 @@ class PowerDecode2(Elaboratable):
         """trap: this basically "rewrites" the decoded instruction as a trap
         """
         comb = m.d.comb
-        e, op, do = self.e, self.dec.op, self.e.do
+        op, do, e = self.dec.op, self.e.do, self.e
         comb += e.eq(0)  # reset eeeeeverything
+
         # start again
         comb += do.insn.eq(self.dec.opcode_in)
         comb += do.insn_type.eq(MicrOp.OP_TRAP)
