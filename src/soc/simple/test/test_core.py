@@ -34,7 +34,7 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 from soc.regfile.util import spr_to_fast_reg
 
 
-def setup_regs(core, test):
+def setup_regs(pdecode2, core, test):
 
     # set up INT regfile, "direct" write (bypass rd/write ports)
     intregs = core.regs.int
@@ -112,7 +112,6 @@ def setup_regs(core, test):
     yield Settle()
 
     # XER
-    pdecode2 = core.pdecode2
     so = yield xregs.regs[xregs.SO].reg
     ov = yield xregs.regs[xregs.OV].reg
     ca = yield xregs.regs[xregs.CA].reg

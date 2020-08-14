@@ -578,7 +578,6 @@ class PowerDecode2(Elaboratable):
 
         self.dec = dec
         self.e = Decode2ToExecute1Type()
-        self.valid = Signal()  # sync signal
 
         # state information needed by the Decoder (TODO: this as a Record)
         self.state = CoreState("dec2")

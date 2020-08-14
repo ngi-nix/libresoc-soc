@@ -30,8 +30,8 @@ from nmutil.util import treereduce
 
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2, get_rdflags
+from soc.decoder.decode2execute1 import Decode2ToExecute1Type
+from soc.decoder.power_decoder2 import get_rdflags
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
 from soc.config.test.test_loadstore import TestMemPspec
@@ -76,17 +76,12 @@ class NonProductionCore(Elaboratable):
         self.regs = RegFiles()
 
         # instruction decoder
-        pdecode = create_pdecode()
-        self.pdecode2 = PowerDecode2(pdecode)   # instruction decoder
+        self.e = Decode2ToExecute1Type() # decoded instruction
 
         # issue/valid/busy signalling
-        self.ivalid_i = self.pdecode2.valid   # instruction is valid
+        self.ivalid_i = Signal(reset_less=True) # instruction is valid
         self.issue_i = Signal(reset_less=True)
         self.busy_o = Signal(name="corebusy_o", reset_less=True)
-
-        # instruction input
-        self.bigendian_i = self.pdecode2.dec.bigendian
-        self.raw_opcode_i = self.pdecode2.dec.raw_opcode_in
 
         # start/stop and terminated signalling
         self.core_stopped_i = Signal(reset_less=True)
@@ -96,7 +91,6 @@ class NonProductionCore(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.pdecode2 = dec2 = self.pdecode2
         m.submodules.fus = self.fus
         m.submodules.l0 = l0 = self.l0
         self.regs.elaborate_into(m, platform)
@@ -127,8 +121,7 @@ class NonProductionCore(Elaboratable):
         """
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
-        dec2 = self.pdecode2
-        e = dec2.e # to execute
+        e = self.e # to execute
 
         # enable-signals for each FU, get one bit for each FU (by name)
         fu_enable = Signal(len(fus), reset_less=True)
@@ -142,7 +135,7 @@ class NonProductionCore(Elaboratable):
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq((dec2.e.do.fn_unit & fnunit).bool())
+            comb += enable.eq((e.do.fn_unit & fnunit).bool())
             comb += fu_bitdict[funame].eq(enable)
 
         # sigh - need a NOP counter
@@ -152,7 +145,7 @@ class NonProductionCore(Elaboratable):
             comb += self.busy_o.eq(1)
 
         with m.If(self.ivalid_i): # run only when valid
-            with m.Switch(dec2.e.do.insn_type):
+            with m.Switch(e.do.insn_type):
                 # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):
                     m.d.sync += self.core_terminate_o.eq(1)
@@ -169,7 +162,7 @@ class NonProductionCore(Elaboratable):
                         # run this FunctionUnit if enabled
                         with m.If(enable):
                             # route op, issue, busy, read flags and mask to FU
-                            comb += fu.oper_i.eq_from_execute1(dec2.e)
+                            comb += fu.oper_i.eq_from_execute1(e)
                             comb += fu.issue_i.eq(self.issue_i)
                             comb += self.busy_o.eq(fu.busy_o)
                             rdmask = get_rdflags(e, fu)
@@ -427,10 +420,9 @@ class NonProductionCore(Elaboratable):
     def get_byregfiles(self, readmode):
 
         mode = "read" if readmode else "write"
-        dec2 = self.pdecode2
         regs = self.regs
         fus = self.fus.fus
-        e = dec2.e # decoded instruction to execute
+        e = self.e # decoded instruction to execute
 
         # dictionary of lists of regfile ports
         byregfiles = {}
@@ -479,7 +471,7 @@ class NonProductionCore(Elaboratable):
 
     def __iter__(self):
         yield from self.fus.ports()
-        yield from self.pdecode2.ports()
+        yield from self.e.ports()
         yield from self.l0.ports()
         # TODO: regs
 

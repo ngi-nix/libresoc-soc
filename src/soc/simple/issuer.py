@@ -21,6 +21,8 @@ from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
 
+from soc.decoder.power_decoder import create_pdecode
+from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
 from soc.regfile.regfiles import StateRegs
@@ -42,6 +44,10 @@ class TestIssuer(Elaboratable):
     def __init__(self, pspec):
         # main instruction core
         self.core = core = NonProductionCore(pspec)
+
+        # instruction decoder
+        pdecode = create_pdecode()
+        self. pdecode2 = PowerDecode2(pdecode)   # decoder
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
@@ -80,6 +86,10 @@ class TestIssuer(Elaboratable):
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
 
+        # instruction decoder
+        pdecode = create_pdecode()
+        m.submodules.dec2 = pdecode2 = self.pdecode2
+
         # convenience
         dmi = dbg.dmi
         d_reg = dbg.dbg_gpr
@@ -101,7 +111,7 @@ class TestIssuer(Elaboratable):
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
-        comb += core.bigendian_i.eq(self.core_bigendian_i)
+        comb += pdecode2.dec.bigendian.eq(self.core_bigendian_i)
 
         # current state (MSR/PC at the moment
         cur_state = CoreState("cur")
@@ -147,15 +157,18 @@ class TestIssuer(Elaboratable):
         comb += dbg.state.pc.eq(pc)
         comb += dbg.state.msr.eq(cur_state.msr)
 
-        # temporaries
-        core_busy_o = core.busy_o         # core is busy
-        core_ivalid_i = core.ivalid_i     # instruction is valid
-        core_issue_i = core.issue_i       # instruction is issued
-        core_be_i = core.bigendian_i      # bigendian mode
-        core_opcode_i = core.raw_opcode_i # raw opcode
+        # temporarily connect up core execute decode to pdecode2
+        comb += core.e.eq(pdecode2.e)
 
-        insn_type = core.pdecode2.e.do.insn_type
-        insn_state = core.pdecode2.state
+        # temporaries
+        core_busy_o = core.busy_o                  # core is busy
+        core_ivalid_i = core.ivalid_i              # instruction is valid
+        core_issue_i = core.issue_i                # instruction is issued
+        core_be_i = pdecode2.dec.bigendian         # bigendian mode
+        core_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+
+        insn_type = pdecode2.e.do.insn_type
+        insn_state = pdecode2.state
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions

@@ -144,7 +144,7 @@ class TestRunner(FHDLTestCase):
         imem = issuer.imem._get_memory()
         core = issuer.core
         dmi = issuer.dbg.dmi
-        pdecode2 = core.pdecode2
+        pdecode2 = issuer.pdecode2
         l0 = core.l0
 
         # copy of the decoder for simulator
@@ -202,7 +202,7 @@ class TestRunner(FHDLTestCase):
 
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
-                yield from setup_regs(core, test)
+                yield from setup_regs(pdecode2, core, test)
 
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
