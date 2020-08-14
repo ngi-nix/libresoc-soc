@@ -256,8 +256,6 @@ class TrapMainStage(PipeModBase):
             # RFID.  v3.0B p955
 
             with m.Case(MicrOp.OP_RFID):
-                # XXX f_out.virt_mode <= b_in(MSR.IR) or b_in(MSR.PR);
-                # XXX f_out.priv_mode <= not b_in(MSR.PR);
 
                 # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
@@ -266,10 +264,11 @@ class TrapMainStage(PipeModBase):
                 # MSR was in srr1: copy it over, however *caveats below*
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
 
-                with m.If(field(msr_i, 3)): # HV
-                    comb += field(msr_o, 51).eq(field(srr1_i, 51)) # ME
-                with m.Else():
-                    comb += field(msr_o, 51).eq(field(msr_i, 51)) # ME
+                with m.If(~self.i.ctx.op.insn[9]): # XXX BAD HACK! (hrfid)
+                    with m.If(field(msr_i, 3)): # HV
+                        comb += field(msr_o, 51).eq(field(srr1_i, 51)) # ME
+                    with m.Else():
+                        comb += field(msr_o, 51).eq(field(msr_i, 51)) # ME
 
                 # check problem state
                 msr_check_pr(m, msr_o.data)
