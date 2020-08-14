@@ -76,7 +76,7 @@ class TrapTestCase(TestAccumulatorBase):
         lst = ["hrfid"]
         initial_regs = [0] * 32
         initial_regs[1] = 1
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        initial_sprs = {'HSRR0': 0x12345678, 'HSRR1': 0x5678}
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
 
