@@ -22,13 +22,16 @@ before allowing a new instruction to proceed.
 from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat, Mux
 from nmigen.cli import rtlil
 
+from soc.decoder.power_regspec_map import regspec_decode_read
+from soc.decoder.power_regspec_map import regspec_decode_write
+
 from nmutil.picker import PriorityPicker
 from nmutil.util import treereduce
 
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.power_decoder2 import PowerDecode2, get_rdflags
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
 from soc.config.test.test_loadstore import TestMemPspec
@@ -125,6 +128,7 @@ class NonProductionCore(Elaboratable):
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
         dec2 = self.pdecode2
+        e = dec2.e # to execute
 
         # enable-signals for each FU, get one bit for each FU (by name)
         fu_enable = Signal(len(fus), reset_less=True)
@@ -168,7 +172,7 @@ class NonProductionCore(Elaboratable):
                             comb += fu.oper_i.eq_from_execute1(dec2.e)
                             comb += fu.issue_i.eq(self.issue_i)
                             comb += self.busy_o.eq(fu.busy_o)
-                            rdmask = dec2.rdflags(fu)
+                            rdmask = get_rdflags(e, fu)
                             comb += fu.rdmaskn.eq(~rdmask)
 
         return fu_bitdict
@@ -426,6 +430,7 @@ class NonProductionCore(Elaboratable):
         dec2 = self.pdecode2
         regs = self.regs
         fus = self.fus.fus
+        e = dec2.e # decoded instruction to execute
 
         # dictionary of lists of regfile ports
         byregfiles = {}
@@ -439,11 +444,11 @@ class NonProductionCore(Elaboratable):
                     (regfile, regname, wid) = fu.get_out_spec(idx)
                 print("    %d %s %s %s" % (idx, regfile, regname, str(wid)))
                 if readmode:
-                    rdflag, read = dec2.regspecmap_read(regfile, regname)
+                    rdflag, read = regspec_decode_read(e, regfile, regname)
                     write = None
                 else:
                     rdflag, read = None, None
-                    wrport, write = dec2.regspecmap_write(regfile, regname)
+                    wrport, write = regspec_decode_write(e, regfile, regname)
                 if regfile not in byregfiles:
                     byregfiles[regfile] = {}
                     byregfiles_spec[regfile] = {}

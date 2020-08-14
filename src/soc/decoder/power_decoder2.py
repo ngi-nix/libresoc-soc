@@ -758,28 +758,15 @@ class PowerDecode2(Elaboratable):
         comb += do.msr.eq(self.state.msr)  # copy of MSR "state"
         comb += do.cia.eq(self.state.pc)  # copy of PC "state"
 
-    def regspecmap_read(self, regfile, regname):
-        """regspecmap_read: provides PowerDecode2 with an encoding relationship
-        to Function Unit port regfiles (read-enable, read regnum, write regnum)
-        regfile and regname arguments are fields 1 and 2 from a given regspec.
-        """
-        return regspec_decode_read(self.e, regfile, regname)
 
-    def regspecmap_write(self, regfile, regname):
-        """regspecmap_write: provides PowerDecode2 with an encoding relationship
-        to Function Unit port regfiles (write port, write regnum)
-        regfile and regname arguments are fields 1 and 2 from a given regspec.
-        """
-        return regspec_decode_write(self.e, regfile, regname)
-
-    def rdflags(self, cu):
-        rdl = []
-        for idx in range(cu.n_src):
-            regfile, regname, _ = cu.get_in_spec(idx)
-            rdflag, read = self.regspecmap_read(regfile, regname)
-            rdl.append(rdflag)
-        print("rdflags", rdl)
-        return Cat(*rdl)
+def get_rdflags(e, cu):
+    rdl = []
+    for idx in range(cu.n_src):
+        regfile, regname, _ = cu.get_in_spec(idx)
+        rdflag, read = regspec_decode_read(e, regfile, regname)
+        rdl.append(rdflag)
+    print("rdflags", rdl)
+    return Cat(*rdl)
 
 
 if __name__ == '__main__':
