@@ -101,13 +101,13 @@ class TestIssuer(Elaboratable):
         core_sync = ClockDomain("coresync")
         m.domains += cd_por, cd_sync, core_sync
 
-        delay = Signal(range(4), reset=1)
+        delay = Signal(range(4), reset=3)
         with m.If(delay != 0):
             m.d.por += delay.eq(delay - 1)
         comb += cd_por.clk.eq(ClockSignal())
         comb += core_sync.clk.eq(ClockSignal())
-        # XXX TODO: power-on reset delay (later)
-        #comb += core.core_reset_i.eq(delay != 0 | dbg.core_rst_o)
+        # power-on reset delay 
+        comb += core.core_reset_i.eq(delay != 0 | dbg.core_rst_o)
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
@@ -152,7 +152,6 @@ class TestIssuer(Elaboratable):
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += core.core_stopped_i.eq(dbg.core_stop_o)
-        comb += core.core_reset_i.eq(dbg.core_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
         comb += dbg.state.pc.eq(pc)
         comb += dbg.state.msr.eq(cur_state.msr)
@@ -163,7 +162,7 @@ class TestIssuer(Elaboratable):
         core_issue_i = core.issue_i               # instruction is issued
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
-        insn_type = pdecode2.e.do.insn_type
+        insn_type = core.e.do.insn_type
         insn_state = pdecode2.state
 
         # actually use a nmigen FSM for the first time (w00t)
@@ -177,7 +176,7 @@ class TestIssuer(Elaboratable):
             with m.State("IDLE"):
                 sync += pc_changed.eq(0)
                 sync += core.e.eq(0)
-                with m.If(~dbg.core_stop_o):
+                with m.If(~dbg.core_stop_o & ~core.core_reset_i):
                     # instruction allowed to go: start by reading the PC
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
@@ -215,7 +214,6 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_START"):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
-                comb += dec_opcode_i.eq(ilatch) # actual opcode
 
                 # also drop PC and MSR into decode "state"
                 comb += insn_state.eq(cur_state)
@@ -226,7 +224,6 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
-                comb += dec_opcode_i.eq(ilatch) # actual opcode
                 comb += insn_state.eq(cur_state)     # and MSR and PC
                 with m.If(self.state_nia.wen):
                     sync += pc_changed.eq(1)
