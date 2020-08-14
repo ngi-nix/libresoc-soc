@@ -4,7 +4,7 @@ from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.power_decoder2 import PowerDecode2, get_rdflags
 from soc.decoder.power_enums import Function
 from soc.decoder.isa.all import ISA
 
@@ -229,7 +229,7 @@ class TestRunner(FHDLTestCase):
             # set operand and get inputs
             yield from set_operand(cu, pdecode2, sim)
             # reset read-operand mask
-            rdmask = pdecode2.rdflags(cu)
+            rdmask = get_rdflags(pdecode2.e, cu)
             #print ("hardcoded rdmask", cu.rdflags(pdecode2.e))
             #print ("decoder rdmask", rdmask)
             yield cu.rdmaskn.eq(~rdmask)
