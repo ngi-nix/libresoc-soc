@@ -105,7 +105,7 @@ _insns = [
     "dcbt", "dcbtst", "dcbz", "divd", "divde", "divdeo", "divdeu",
     "divdeuo", "divdo", "divdu", "divduo", "divw", "divwe", "divweo",
     "divweu", "divweuo", "divwo", "divwu", "divwuo", "eqv", "extsb",
-    "extsh", "extsw", "extswsli", "icbi", "icbt", "isel", "isync",
+    "extsh", "extsw", "extswsli", "hrfid", "icbi", "icbt", "isel", "isync",
     "lbarx", "lbz", "lbzu", "lbzux", "lbzx", "ld", "ldarx", "ldbrx",
     "ldu", "ldux", "ldx", "lha", "lharx", "lhau", "lhaux", "lhax",
     "lhbrx", "lhz", "lhzu", "lhzux", "lhzx", "lwa", "lwarx", "lwaux",
