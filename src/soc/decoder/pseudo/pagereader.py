@@ -69,6 +69,8 @@ class ISA:
         self.page = {}
         for pth in os.listdir(os.path.join(get_isa_dir())):
             print(get_isa_dir(), pth)
+            if "swp" in pth:
+                continue
             assert pth.endswith(".mdwn"), "only %s in isa dir" % pth
             self.read_file(pth)
             continue
