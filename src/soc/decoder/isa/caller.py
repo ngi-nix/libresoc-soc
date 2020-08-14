@@ -216,6 +216,10 @@ class SPR(dict):
         if isinstance(key, int):
             key = spr_dict[key].SPR
         key = special_sprs.get(key, key)
+        if key == 'HSRR0': # HACK!
+            key = 'SRR0'
+        if key == 'HSRR1': # HACK!
+            key = 'SRR1'
         if key in self:
             res = dict.__getitem__(self, key)
         else:
@@ -235,6 +239,10 @@ class SPR(dict):
             key = spr_dict[key].SPR
             print("spr key", key)
         key = special_sprs.get(key, key)
+        if key == 'HSRR0': # HACK!
+            self.__setitem__('SRR0', value)
+        if key == 'HSRR1': # HACK!
+            self.__setitem__('SRR1', value)
         print("setting spr", key, value)
         dict.__setitem__(self, key, value)
 
