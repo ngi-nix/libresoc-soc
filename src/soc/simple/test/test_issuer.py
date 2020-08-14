@@ -14,6 +14,9 @@ from soc.decoder.isa.all import ISA
 from soc.decoder.power_enums import Function, XER_bits
 from soc.config.endian import bigendian
 
+from soc.decoder.power_decoder import create_pdecode
+from soc.decoder.power_decoder2 import PowerDecode2
+
 from soc.simple.issuer import TestIssuer
 from soc.experiment.compalu_multi import find_ok  # hack
 
@@ -144,6 +147,11 @@ class TestRunner(FHDLTestCase):
         pdecode2 = core.pdecode2
         l0 = core.l0
 
+        # copy of the decoder for simulator
+        simdec = create_pdecode()
+        simdec2 = PowerDecode2(simdec)
+        m.submodules.simdec2 = simdec2  # pain in the neck
+
         comb += issuer.pc_i.data.eq(pc_i)
 
         # nmigen Simulation
@@ -183,7 +191,7 @@ class TestRunner(FHDLTestCase):
                 gen = list(program.generate_instructions())
                 insncode = program.assembly.splitlines()
                 instructions = list(zip(gen, insncode))
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
+                sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr,
                           initial_insns=gen, respect_pc=True,
                           disassembly=insncode,
@@ -198,6 +206,7 @@ class TestRunner(FHDLTestCase):
 
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
+                yield
 
                 print("instructions", instructions)
 
@@ -222,15 +231,21 @@ class TestRunner(FHDLTestCase):
                     yield from wait_for_busy_hi(core)
                     yield from wait_for_busy_clear(core)
 
-                    terminated = yield issuer.dbg.terminated_o
-                    print("terminated", terminated)
+                    # set up simulated instruction (in simdec2)
+                    try:
+                        yield from sim.setup_one()
+                    except KeyError:  # indicates instruction not in imem: stop
+                        break
+                    yield Settle()
 
-                    print("sim", code)
                     # call simulated operation
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
+                    print("sim", code)
+                    yield from sim.execute_one()
                     yield Settle()
                     index = sim.pc.CIA.value//4
+
+                    terminated = yield issuer.dbg.terminated_o
+                    print("terminated", terminated)
 
                     # register check
                     yield from check_regs(self, sim, core, test, code)

@@ -114,7 +114,6 @@ class TestIssuer(Elaboratable):
         m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
 
         # PC and instruction from I-Memory
-        current_insn = Signal(32) # current fetched instruction (note sync)
         pc_changed = Signal() # note write to PC
         comb += self.pc_o.eq(cur_state.pc)
         ilatch = Signal(32)
@@ -184,9 +183,11 @@ class TestIssuer(Elaboratable):
 
                     m.next = "INSN_READ" # move to "wait for bus" phase
 
-            # waiting for instruction bus (stays there until not busy)
+            # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
-                with m.If(self.imem.f_busy_o): # zzz...
+                with m.If(dbg.core_stop_o):
+                    m.next = "IDLE" # back to idle
+                with m.Elif(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
                     comb += self.imem.f_valid_i.eq(1)
@@ -197,16 +198,20 @@ class TestIssuer(Elaboratable):
                         insn = f_instr_o
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
-                    comb += current_insn.eq(insn)
-                    comb += core_ivalid_i.eq(1) # instruction is valid
-                    comb += core_issue_i.eq(1)  # and issued
-                    comb += core_opcode_i.eq(current_insn) # actual opcode
-                    sync += ilatch.eq(current_insn) # latch current insn
+                    comb += core_opcode_i.eq(insn) # actual opcode
+                    sync += ilatch.eq(insn) # latch current insn
+                    m.next = "INSN_START" # move to "start"
 
-                    # also drop PC and MSR into decode "state"
-                    comb += insn_state.eq(cur_state)
+            # waiting for instruction bus (stays there until not busy)
+            with m.State("INSN_START"):
+                comb += core_ivalid_i.eq(1) # instruction is valid
+                comb += core_issue_i.eq(1)  # and issued
+                comb += core_opcode_i.eq(ilatch) # actual opcode
 
-                    m.next = "INSN_ACTIVE" # move to "wait completion"
+                # also drop PC and MSR into decode "state"
+                comb += insn_state.eq(cur_state)
+
+                m.next = "INSN_ACTIVE" # move to "wait completion"
 
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
