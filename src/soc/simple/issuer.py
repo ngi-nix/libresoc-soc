@@ -208,6 +208,8 @@ class TestIssuer(Elaboratable):
                     comb += dec_opcode_i.eq(insn) # actual opcode
                     sync += core.e.eq(pdecode2.e)
                     sync += ilatch.eq(insn) # latch current insn
+                    # also drop PC and MSR into decode "state"
+                    sync += insn_state.eq(cur_state)
                     m.next = "INSN_START" # move to "start"
 
             # waiting for instruction bus (stays there until not busy)
@@ -215,8 +217,6 @@ class TestIssuer(Elaboratable):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
 
-                # also drop PC and MSR into decode "state"
-                comb += insn_state.eq(cur_state)
 
                 m.next = "INSN_ACTIVE" # move to "wait completion"
 
@@ -224,7 +224,6 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
-                comb += insn_state.eq(cur_state)     # and MSR and PC
                 with m.If(self.state_nia.wen):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
