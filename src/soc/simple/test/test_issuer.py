@@ -168,7 +168,7 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
 
                 # pull a reset
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                #yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
 
                 # set up bigendian (TODO: don't do this, use MSR)
                 yield issuer.core_bigendian_i.eq(bigendian)

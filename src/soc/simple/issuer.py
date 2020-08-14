@@ -47,7 +47,7 @@ class TestIssuer(Elaboratable):
 
         # instruction decoder
         pdecode = create_pdecode()
-        self. pdecode2 = PowerDecode2(pdecode)   # decoder
+        self.pdecode2 = PowerDecode2(pdecode)   # decoder
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
@@ -157,15 +157,11 @@ class TestIssuer(Elaboratable):
         comb += dbg.state.pc.eq(pc)
         comb += dbg.state.msr.eq(cur_state.msr)
 
-        # temporarily connect up core execute decode to pdecode2
-        comb += core.e.eq(pdecode2.e)
-
         # temporaries
-        core_busy_o = core.busy_o                  # core is busy
-        core_ivalid_i = core.ivalid_i              # instruction is valid
-        core_issue_i = core.issue_i                # instruction is issued
-        core_be_i = pdecode2.dec.bigendian         # bigendian mode
-        core_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+        core_busy_o = core.busy_o                 # core is busy
+        core_ivalid_i = core.ivalid_i             # instruction is valid
+        core_issue_i = core.issue_i               # instruction is issued
+        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
         insn_type = pdecode2.e.do.insn_type
         insn_state = pdecode2.state
@@ -180,6 +176,7 @@ class TestIssuer(Elaboratable):
             # waiting (zzz)
             with m.State("IDLE"):
                 sync += pc_changed.eq(0)
+                sync += core.e.eq(0)
                 with m.If(~dbg.core_stop_o):
                     # instruction allowed to go: start by reading the PC
                     # capture the PC and also drop it into Insn Memory
@@ -198,9 +195,7 @@ class TestIssuer(Elaboratable):
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
-                with m.If(dbg.core_stop_o):
-                    m.next = "IDLE" # back to idle
-                with m.Elif(self.imem.f_busy_o): # zzz...
+                with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
                     comb += self.imem.f_valid_i.eq(1)
@@ -211,7 +206,8 @@ class TestIssuer(Elaboratable):
                         insn = f_instr_o
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
-                    comb += core_opcode_i.eq(insn) # actual opcode
+                    comb += dec_opcode_i.eq(insn) # actual opcode
+                    sync += core.e.eq(pdecode2.e)
                     sync += ilatch.eq(insn) # latch current insn
                     m.next = "INSN_START" # move to "start"
 
@@ -219,7 +215,7 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_START"):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
-                comb += core_opcode_i.eq(ilatch) # actual opcode
+                comb += dec_opcode_i.eq(ilatch) # actual opcode
 
                 # also drop PC and MSR into decode "state"
                 comb += insn_state.eq(cur_state)
@@ -230,7 +226,7 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
-                comb += core_opcode_i.eq(ilatch) # actual opcode
+                comb += dec_opcode_i.eq(ilatch) # actual opcode
                 comb += insn_state.eq(cur_state)     # and MSR and PC
                 with m.If(self.state_nia.wen):
                     sync += pc_changed.eq(1)
@@ -241,6 +237,7 @@ class TestIssuer(Elaboratable):
                     with m.If(~pc_changed):
                         sync += self.state_w_pc.wen.eq(1<<StateRegs.PC)
                         sync += self.state_w_pc.data_i.eq(nia)
+                    sync += core.e.eq(0)
                     m.next = "IDLE" # back to idle
 
         # this bit doesn't have to be in the FSM: connect up to read
