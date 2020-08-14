@@ -72,6 +72,14 @@ def set_alu_inputs(alu, dec2, sim):
 
 class TrapTestCase(TestAccumulatorBase):
 
+    def case_0_hrfid(self):
+        lst = ["hrfid"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 1
+        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
+        self.add_case(Program(lst, bigendian),
+                      initial_regs, initial_sprs)
+
     def case_1_rfid(self):
         lst = ["rfid"]
         initial_regs = [0] * 32
