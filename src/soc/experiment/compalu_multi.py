@@ -249,7 +249,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.sync += src_l.r.eq(reset_r)
 
         # dest operand latch (not using issue_i)
-        m.d.comb += req_l.s.eq(alu_pulsem & self.wrmask)
+        m.d.sync += req_l.s.eq(alu_pulsem & self.wrmask)
         m.d.sync += req_l.r.eq(reset_w | prev_wr_go)
 
         # pass operation to the ALU (sync: plenty time to wait for src reads)
