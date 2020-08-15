@@ -1001,21 +1001,25 @@ class MMU1(Elaboratable):
 #           addr := r.addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(r.addr)
+            comb += tlb_data.eq(0)
 #       elsif tlb_load = '1' then
         with m.If(tlb_load):
 #           addr := r.addr(63 downto 12) & x"000";
 #           tlb_data := pte;
             comb += addr.eq(Cat(Const(0x000, 12), r.addr[12:64]))
+            comb += tlb_data.eq(pte)
 #       elsif prtbl_rd = '1' then
         with m.If(prtbl_rd):
 #           addr := prtable_addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(prtable_addr)
+            comb += tlb_data.eq(0)
 #       else
         with m.Else():
 #           addr := pgtable_addr;
 #           tlb_data := (others => '0');
             comb += addr.eq(pgtable_addr)
+            comb += tlb_data.eq(0)
 #       end if;
 
 #       l_out.done <= r.done;
