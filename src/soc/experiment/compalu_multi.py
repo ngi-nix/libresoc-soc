@@ -276,7 +276,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
             wrok.append(ok & self.busy_o)
             with m.If(alu_pulse):
                 m.d.sync += data_r.eq(lro)
-            with m.Elif(self.issue_i):
+            with m.If(self.issue_i):
                 m.d.sync += data_r.eq(0)
             drl.append(data_r)
 
