@@ -49,18 +49,18 @@ def setup_regs(pdecode2, core, test):
     cr = test.cr
     crregs = core.regs.cr
     #cr = int('{:32b}'.format(cr)[::-1], 2)
-    print("cr reg", hex(cr))
+    print("setup cr reg", hex(cr))
     for i in range(8):
         #j = 7-i
         cri = (cr >> (i*4)) & 0xf
         #cri = int('{:04b}'.format(cri)[::-1], 2)
-        print("cr reg", hex(cri), i,
+        print("setup cr reg", hex(cri), i,
               crregs.regs[i].reg.shape())
         yield crregs.regs[i].reg.eq(cri)
 
     # set up XER.  "direct" write (bypass rd/write ports)
     xregs = core.regs.xer
-    print("sprs", test.sprs)
+    print("setup sprs", test.sprs)
     xer = None
     if 'XER' in test.sprs:
         xer = test.sprs['XER']

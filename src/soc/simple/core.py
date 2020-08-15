@@ -222,29 +222,38 @@ class NonProductionCore(Elaboratable):
                 fu_active = fu_bitdict[funame]
                 name = "%s_%s_%s_%i" % (regfile, rpidx, funame, pi)
                 addr_en = Signal.like(reads[i], name="addr_en_"+name)
-                rp = Signal(name="rp_"+name)
-                pick = Signal()
+                pick = Signal(name="pick_"+name)     # picker input
+                rp = Signal(name="rp_"+name)         # picker output
+                delay_pick = Signal(name="dp_"+name) # read-enable "underway"
 
-                comb += pick.eq(fu.rd_rel_o[idx] & fu_active & rdflags[i])
+                # exclude any currently-enabled read-request (mask out active)
+                comb += pick.eq(fu.rd_rel_o[idx] & fu_active & rdflags[i] &
+                                ~delay_pick)
                 comb += rdpick.i[pi].eq(pick)
-                sync += fu.go_rd_i[idx].eq(rising_edge(m, rp))
+                comb += fu.go_rd_i[idx].eq(delay_pick) # pass in *delayed* pick
+
                 # if picked, select read-port "reg select" number to port
                 comb += rp.eq(rdpick.o[pi] & rdpick.en_o)
+                sync += delay_pick.eq(rp) # delayed "pick"
                 comb += addr_en.eq(Mux(rp, reads[i], 0))
+
+                # the read-enable happens combinatorially (see mux-bus below)
+                # but it results in the data coming out on a one-cycle delay.
                 if rfile.unary:
                     rens.append(addr_en)
                 else:
                     addrs.append(addr_en)
                     rens.append(rp)
 
-                with m.If(rp):
+                # use the *delayed* pick signal to put requested data onto bus
+                with m.If(delay_pick):
                     # connect regfile port to input, creating fan-out Bus
                     src = fu.src_i[idx]
                     print("reg connect widths",
                           regfile, regname, pi, funame,
                           src.shape(), rport.data_o.shape())
                     # all FUs connect to same port
-                    sync += src.eq(rport.data_o)
+                    comb += src.eq(rport.data_o)
 
         # or-reduce the muxed read signals
         if rfile.unary:

@@ -247,6 +247,16 @@ class TestRunner(FHDLTestCase):
                     terminated = yield issuer.dbg.terminated_o
                     print("terminated", terminated)
 
+                    if index >= len(instructions):
+                        print ("index over, send dmi stop")
+                        # stop at end
+                        yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                        yield
+                        yield
+
+                    # wait one cycle for registers to settle
+                    yield
+
                     # register check
                     yield from check_regs(self, sim, core, test, code)
 
@@ -254,8 +264,14 @@ class TestRunner(FHDLTestCase):
                     yield from check_sim_memory(self, l0, sim, code)
 
                     terminated = yield issuer.dbg.terminated_o
+                    print("terminated(2)", terminated)
                     if terminated:
                         break
+
+                # stop at end
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                yield
+                yield
 
                 # test of dmi reg get
                 int_reg = 9

@@ -135,20 +135,24 @@ class TestIssuer(Elaboratable):
 
         # read the PC
         pc = Signal(64, reset_less=True)
+        pc_ok_delay = Signal()
+        sync += pc_ok_delay.eq(~self.pc_i.ok)
         with m.If(self.pc_i.ok):
             # incoming override (start from pc_i)
             comb += pc.eq(self.pc_i.data)
         with m.Else():
-            # otherwise read StateRegs regfile for PC
+            # otherwise read StateRegs regfile for PC...
             comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
+        # ... but on a 1-clock delay
+        with m.If(pc_ok_delay):
             comb += pc.eq(self.state_r_pc.data_o)
 
         # don't write pc every cycle
-        sync += self.state_w_pc.wen.eq(0)
-        sync += self.state_w_pc.data_i.eq(0)
+        comb += self.state_w_pc.wen.eq(0)
+        comb += self.state_w_pc.data_i.eq(0)
 
         # don't read msr every cycle
-        sync += self.state_r_msr.ren.eq(0)
+        comb += self.state_r_msr.ren.eq(0)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -187,14 +191,15 @@ class TestIssuer(Elaboratable):
                     comb += self.imem.f_valid_i.eq(1)
                     sync += cur_state.pc.eq(pc)
 
-                    # read MSR, latch it, and put it in decode "state"
-                    sync += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
-                    sync += cur_state.msr.eq(self.state_r_msr.data_o)
+                    # initiate read of MSR
+                    comb += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
 
                     m.next = "INSN_READ" # move to "wait for bus" phase
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
+                # one cycle later, msr read arrives
+                sync += cur_state.msr.eq(self.state_r_msr.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
@@ -232,14 +237,15 @@ class TestIssuer(Elaboratable):
                     # this just blithely overwrites whatever pipeline
                     # updated the PC
                     with m.If(~pc_changed):
-                        sync += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-                        sync += self.state_w_pc.data_i.eq(nia)
+                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(nia)
                     sync += core.e.eq(0)
                     m.next = "IDLE" # back to idle
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
-
+        sync += d_reg.ack.eq(0)
+        sync += d_reg.data.eq(0)
         with m.If(d_reg.req): # request for regfile access being made
             # TODO: error-check this
             # XXX should this be combinatorial?  sync better?
@@ -248,8 +254,9 @@ class TestIssuer(Elaboratable):
             else:
                 comb += self.int_r.addr.eq(d_reg.addr)
                 comb += self.int_r.ren.eq(1)
-            comb += d_reg.data.eq(self.int_r.data_o)
-            comb += d_reg.ack.eq(1)
+            # data arrives one clock later
+            sync += d_reg.data.eq(self.int_r.data_o)
+            sync += d_reg.ack.eq(1)
 
         return m
 
