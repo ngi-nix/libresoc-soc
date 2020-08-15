@@ -12,7 +12,12 @@ from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import SoCCore
+from litex.soc.integration.soc_sdram import SoCSDRAM
 from litex.soc.integration.builder import Builder
+
+from litedram import modules as litedram_modules
+from litedram.phy.model import SDRAMPHYModel
+from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
 from litex.tools.litex_sim import Platform
 
@@ -21,25 +26,62 @@ from microwatt import Microwatt
 
 # LibreSoCSim -----------------------------------------------------------------
 
-class LibreSoCSim(SoCCore):
-    def __init__(self, cpu="libresoc", debug=False):
+class LibreSoCSim(SoCSDRAM):
+    def __init__(self, cpu="libresoc", debug=False, with_sdram=True,
+            #sdram_module          = "AS4C16M16",
+            #sdram_data_width      = 16,
+            sdram_module          = "MT48LC16M16",
+            sdram_data_width      = 32,
+            ):
         assert cpu in ["libresoc", "microwatt"]
         platform     = Platform()
-        sys_clk_freq = int(1e6)
+        sys_clk_freq = int(100e6)
 
         # SoCCore -------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             cpu_type                 = "microwatt",
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
             #bus_data_width           = 64,
             uart_name                = "sim",
+            with_sdram               = with_sdram,
+            sdram_module          = sdram_module,
+            sdram_data_width      = sdram_data_width,
             integrated_rom_size      = 0x10000,
-            integrated_main_ram_size = 0x10000000) # 256MB
+            integrated_main_ram_size = 0x00000000 if with_sdram \
+                                        else 0x10000000 , # 256MB
+            ) 
         self.platform.name = "sim"
 
         # CRG -----------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
+
+        ram_init = []
+
+        # SDRAM ----------------------------------------------------
+        if with_sdram:
+            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
+            sdram_module_cls = getattr(litedram_modules, sdram_module)
+            sdram_rate       = "1:{}".format(
+                    sdram_module_nphases[sdram_module_cls.memtype])
+            sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+            phy_settings     = get_sdram_phy_settings(
+                            memtype    = sdram_module.memtype,
+                            data_width = sdram_data_width,
+                            clk_freq   = sdram_clk_freq)
+            self.submodules.sdrphy = SDRAMPHYModel(sdram_module,
+                                                   phy_settings,
+                                                   init=ram_init
+                                                    )
+            self.register_sdram(
+                            self.sdrphy,
+                            sdram_module.geom_settings,
+                            sdram_module.timing_settings)
+            # FIXME: skip memtest to avoid corrupting memory
+            self.add_constant("MEMTEST_BUS_SIZE",  64//16)
+            self.add_constant("MEMTEST_DATA_SIZE", 64//16)
+            self.add_constant("MEMTEST_ADDR_SIZE", 64//16)
+
 
         # Debug ---------------------------------------------------------------
         if not debug:
