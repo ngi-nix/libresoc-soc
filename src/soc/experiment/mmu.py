@@ -502,7 +502,7 @@ class MMU1(Elaboratable):
 #                   v.priv := l_in.priv;
                     comb += v.addr.eq(l_in.addr
                     comb += v.iside.eq(l_in.iside)
-                    comb += v.store.eq(~(l_in.load | l_in.siside))
+                    comb += v.store.eq(~(l_in.load | l_in.iside))
 #                   if l_in.tlbie = '1' then
                     with m.If(l_in.tlbie):
 #                       -- Invalidate all iTLB/dTLB entries for
