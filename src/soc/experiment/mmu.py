@@ -961,13 +961,16 @@ class MMU1(Elaboratable):
         comb += pgtable_addr.eq(
                  Cat(
                   Cat(
-                   Const(0b000, 3),
-                   (
-                    (r.pgbase[3:19] & ~mask)
-                    | (addrsh       &  mask)
-                   )
+                   Cat(
+                    Const(0b000, 3),
+                    (
+                     (r.pgbase[3:19] & ~mask)
+                     | (addrsh       &  mask)
+                    )
+                   ),
+                   r.pgbase[19:56]
                   ),
-                  Const(0x00, 8)
+                 Const(0x00, 8)
                  )
                 )
 
