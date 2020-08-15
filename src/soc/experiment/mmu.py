@@ -184,9 +184,6 @@ def elaborate(self, platform):
             comb += l_out.sprval.eq(r.prtbl)
 
 #       else x"00000000" & r.pid;
-        with m.Else():
-            comb += l_out.sprval.eq(Cat(r.pid,
-                                    Const(0x00000000, 32))
 
 #       if rin.valid = '1' then
 #           report "MMU got tlb miss for "
@@ -464,22 +461,15 @@ class MMU1(Elaboratable):
 #                       pgtbl(7 downto 5));
                 # rts == radix tree size, number of address bits
                 # being translated
-                comb += rts.eq((Cat(
-                                 Cat(
-                                  pgtbl[5:8],
-                                  pgtbl[61:63]
-                                 ),
-                                 Const(0b0,1)
-                                )).as_unsigned())
+                comb += rts.eq(Cat(pgtbl[5:8], pgtbl[61:63]))
 
 #               -- mbits == # address bits to index top level
 #               -- of tree
 #               mbits := unsigned('0' & pgtbl(4 downto 0));
                 # mbits == number of address bits to index top
                 # level of tree
-                comb += mbits.eq((
-                                 Cat(pgtbl[0:5], Const(0b0, 1))
-                                ).as_unsigned())
+                comb += mbits.eq(pgtbl[0:5])
+
 #               -- set v.shift to rts so that we can use finalmask
 #               -- for the segment check
 #               v.shift := rts;
@@ -489,10 +479,7 @@ class MMU1(Elaboratable):
                 # for the segment check
                 comb += v.shift.eq(rts)
                 comb += v.mask_size.eq(mbits[0:5])
-                comb += v.pgbase.eq(Cat(
-                                     Cont(0x00, 8),
-                                     pgtbl[8:56]
-                                    ))
+                comb += v.pgbase.eq(pgtbl[8:56])
 
 #               if l_in.valid = '1' then
                 with m.If(l_in.valid):
@@ -554,10 +541,7 @@ class MMU1(Elaboratable):
                             # set v.shift so we can use finalmask
                             # for generating the process table
                             # entry address
-                            comb += v.shift.eq((Cat(
-                                               r.prtble[0:5],
-                                               Const(0b0, 1)
-                                              )).as_unsigned())
+                            comb += v.shift.eq(r.prtble[0:5])
                             comb += v.state.eq(State.PROC_TBL_READ)
 
 #                       elsif mbits = 0 then
@@ -657,27 +641,14 @@ class MMU1(Elaboratable):
 #                                   data(7 downto 5));
                     # rts == radix tree size, # address bits
                     # being translated
-                    comb += rts.eq((
-                             Cat(
-                              Cat(
-                               data[5:8],
-                               data[61:63]
-                              ),
-                              Const(0b0, 1)
-                             )
-                            ).as_unsigned())
+                    comb += rts.eq(Cat(data[5:8], data[61:63]))
 
 #                   -- mbits == # address bits to index
 #                   -- top level of tree
 #                   mbits := unsigned('0' & data(4 downto 0));
                     # mbits == # address bits to index
                     # top level of tree
-                    comb += mbits.eq((
-                             Cat(
-                              data[0:5],
-                              Const(0b0, 1)
-                             )
-                            ).as_unsigned())
+                    comb += mbits.eq(data[0:5])
 #               -- set v.shift to rts so that we can use
 #               -- finalmask for the segment check
 #               v.shift := rts;
@@ -687,12 +658,7 @@ class MMU1(Elaboratable):
                     # finalmask for the segment check
                     comb += v.shift.eq(rts)
                     comb += v.mask_size.eq(mbits[0:5])
-                    comb += v.pgbase.eq(
-                             Cat(
-                              Const(0x00, 8),
-                              data[8:56]
-                             )
-                            )
+                    comb += v.pgbase.eq(data[8:56])
 
 #                   if mbits = 0 then
                     with m.If(~mbits):
@@ -720,12 +686,7 @@ class MMU1(Elaboratable):
 #               v.shift := r.shift + (31 - 12) - mbits;
 #               nonzero := or(r.addr(61 downto 31) and
 #                           not finalmask(30 downto 0));
-                comb += mbits.eq(
-                         Cat(
-                          r.mask_size,
-                          Const(0b0, 1)
-                         )
-                        )
+                comb += mbits.eq(r.mask_size)
                 comb += v.shift.eq(r.shift + (31 -12) - mbits)
                 comb += nonzero.eq((
                          r.addr[31:62] & ~finalmask[0:31]
@@ -832,12 +793,7 @@ class MMU1(Elaboratable):
                         with m.Else():
 #                           mbits := unsigned('0' &
 #                                    data(4 downto 0));
-                            comb += mbits.eq((
-                                     Cat(
-                                      data[0:5]
-                                      Cont(0b0,1)
-                                     )
-                                    ).as_unsigned())
+                            comb += mbits.eq(data[0:5])
 #                           if mbits < 5 or mbits > 16 or
 #                           mbits > r.shift then
 #                               v.state := RADIX_FINISH;
@@ -857,12 +813,7 @@ class MMU1(Elaboratable):
 #                               v.state := RADIX_LOOKUP;
                                 comb += v.shift.eq(v.shif - mbits)
                                 comb += v.mask_size.eq(mbits[0:5])
-                                comb += v.pgbase.eq(
-                                         Cat(
-                                          Const(0x00, 8),
-                                          mbits[8:56]
-                                         )
-                                        )
+                                comb += v.pgbase.eq(mbits[8:56])
                                 comb += v.state.eq(
                                          State.RADIX_LOOKUP
                                         )
@@ -939,55 +890,36 @@ class MMU1(Elaboratable):
 #                       23 downto 0)) or (effpid(31 downto 8) and
 #                       finalmask(23 downto 0))) & effpid(7 downto 0)
 #                       & "0000";
-        comb += prtable_addr.eq(
-                 Cat(
-                  Cat(
-                   Cat(
-                    Cat(Const(0b0000, 4), effpid[0:8]),
-                    (
-                     (r.prtble[12:36] & ~finalmask[0:24])
-                     | effpid[8:32]   &  finalmask[0:24]
-                    )
-                   ),
-                   r.prtbl[36:56]
-                  ),
-                  Const(0x00, 8)
-                 )
-                )
+        comb += prtable_addr.eq(Cat(
+                 Const(0b0000, 4), effpid[0:8],
+                 (
+                  (r.prtble[12:36] & ~finalmask[0:24])
+                  | effpid[8:32]   &  finalmask[0:24]
+                 ),
+                 r.prtbl[36:56]
+                ))
 
 #       pgtable_addr := x"00" & r.pgbase(55 downto 19) &
 #                       ((r.pgbase(18 downto 3) and not mask) or
 #                       (addrsh and mask)) & "000";
-        comb += pgtable_addr.eq(
-                 Cat(
-                  Cat(
-                   Cat(
-                    Const(0b000, 3),
-                    (
-                     (r.pgbase[3:19] & ~mask)
-                     | (addrsh       &  mask)
-                    )
-                   ),
-                   r.pgbase[19:56]
-                  ),
-                 Const(0x00, 8)
-                 )
-                )
+        comb += pgtable_addr.eq(Cat(
+                 Const(0b000, 3),
+                 (
+                  (r.pgbase[3:19] & ~mask)
+                  | (addrsh       &  mask)
+                 ),
+                 r.pgbase[19:56]
+                ))
 
 #       pte := x"00" & ((r.pde(55 downto 12) and not finalmask) or
 #              (r.addr(55 downto 12) and finalmask)) & r.pde(11 downto 0);
-        comb += pte.eq(
-                 Cat(
-                  Cat(
-                   r.pde[0:12],
-                   (
-                    (r.pde[12:56]    & ~finalmask)
-                    | (r.addr[12:56] &  finalmask)
-                   )
-                  ),
-                  Const(0x00, 8)
-                 )
-                )
+        comb += pte.eq(Cat(
+                 r.pde[0:12],
+                 (
+                  (r.pde[12:56]    & ~finalmask)
+                  | (r.addr[12:56] &  finalmask)
+                 ),
+                ))
 
 #       -- update registers
 #       rin <= v;
@@ -1006,7 +938,7 @@ class MMU1(Elaboratable):
         with m.If(tlb_load):
 #           addr := r.addr(63 downto 12) & x"000";
 #           tlb_data := pte;
-            comb += addr.eq(Cat(Const(0x000, 12), r.addr[12:64]))
+            comb += addr.eq(r.addr[12:64])
             comb += tlb_data.eq(pte)
 #       elsif prtbl_rd = '1' then
         with m.If(prtbl_rd):
