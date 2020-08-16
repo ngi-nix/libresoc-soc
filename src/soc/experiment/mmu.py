@@ -35,86 +35,6 @@ class State(Enum):
     RADIX_FINISH = 9
 
 
-# -- generate mask for extracting address fields for PTE address
-# -- generation
-# addrmaskgen: process(all)
-# generate mask for extracting address fields for PTE address
-# generation
-class AddrMaskGen(Elaboratable):
-    def __init__(self):
-#       variable m : std_ulogic_vector(15 downto 0);
-        super().__init__()
-        self.msk = Signal(16)
-
-#   begin
-    def elaborate(self, platform):
-        m = Module()
-
-        comb = m.d.comb
-        sync = m.d.sync
-
-        rst = ResetSignal()
-
-        msk = self.msk
-
-        r    = self.r
-        mask = self.mask
-
-#       -- mask_count has to be >= 5
-#       m := x"001f";
-        # mask_count has to be >= 5
-        comb += mask.eq(C(0x001F, 16))
-
-#       for i in 5 to 15 loop
-        for i in range(5,16):
-#           if i < to_integer(r.mask_size) then
-            with m.If(i < r.mask_size):
-#               m(i) := '1';
-                comb += msk[i].eq(1)
-#           end if;
-#       end loop;
-#       mask <= m;
-        comb += mask.eq(msk)
-#   end process;
-
-# -- generate mask for extracting address bits to go in
-# -- TLB entry in order to support pages > 4kB
-# finalmaskgen: process(all)
-# generate mask for extracting address bits to go in
-# TLB entry in order to support pages > 4kB
-class FinalMaskGen(Elaboratable):
-    def __init__(self):
-#       variable m : std_ulogic_vector(43 downto 0);
-        super().__init__()
-        self.msk = Signal(44)
-
-#   begin
-    def elaborate(self, platform):
-        m = Module()
-
-        comb = m.d.comb
-        sync = m.d.sync
-
-        rst = ResetSignal()
-
-        mask = self.mask
-        r    = self.r
-
-        msk = self.msk
-
-#       for i in 0 to 43 loop
-        for i in range(44):
-#           if i < to_integer(r.shift) then
-            with m.If(i < r.shift):
-#               m(i) := '1';
-                comb += msk.eq(1)
-#           end if;
-#       end loop;
-#       finalmask <= m;
-        comb += self.finalmask(mask)
-#   end process;
-
-
 class RegStage(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
@@ -409,6 +329,13 @@ class MMU(Elaboratable):
         # Radix tree data structures in memory are
         # big-endian, so we need to byte-swap them
         data = byte_reverse(m, "data", d_in.data, 8)
+
+        # generate mask for extracting address fields for PTE addr generation
+        comb += mask.eq(Cat(C(0x1f,5), ((1<<r.mask_size)-1)))
+
+        # generate mask for extracting address bits to go in
+        # TLB entry in order to support pages > 4kB
+        comb += finalmask.eq(((1<<r.shift)-1))
 
         with m.Switch(r.state):
             with m.Case(State.IDLE):
