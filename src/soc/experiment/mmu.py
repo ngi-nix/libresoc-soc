@@ -117,34 +117,34 @@ class FinalMaskGen(Elaboratable):
 
 class RegStage(RecordObject):
     def __init__(self, name=None):
-        super().__init__(self, name=name)
+        super().__init__(name=name)
         # latched request from loadstore1
-        self.valid = Signal(reset_less=True)
-        self.iside = Signal(reset_less=True)
-        self.store = Signal(reset_less=True)
-        self.priv = Signal(reset_less=True)
-        self.addr = Signal(64, reset_less=True)
-        self.inval_all = Signal(reset_less=True)
+        self.valid = Signal()
+        self.iside = Signal()
+        self.store = Signal()
+        self.priv = Signal()
+        self.addr = Signal(64)
+        self.inval_all = Signal()
         # config SPRs
-        self.prtbl = Signal(64, reset_less=True)
-        self.pid = Signal(32, reset_less=True)
+        self.prtbl = Signal(64)
+        self.pid = Signal(32)
         # internal state
-        self.state = State.IDLE
-        self.done = Signal(reset_less=True)
-        self.err = Signal(reset_less=True)
-        self.pgtbl0 = Signal(64, reset_less=True)
-        self.pt0_valid = Signal(reset_less=True)
-        self.pgtbl3 = Signal(64, reset_less=True)
-        self.pt3_valid = Signal(reset_less=True)
-        self.shift = Signal(6, reset_less=True)
-        self.mask_size = Signal(5, reset_less=True)
-        self.pgbase = Signal(56, reset_less=True)
-        self.pde = Signal(64, reset_less=True)
-        self.invalid = Signal(reset_less=True)
-        self.badtree = Signal(reset_less=True)
-        self.segerror = Signal(reset_less=True)
-        self.perm_err = Signal(reset_less=True)
-        self.rc_error = Signal(reset_less=True)
+        self.state = Signal(State) # resets to IDLE
+        self.done = Signal()
+        self.err = Signal()
+        self.pgtbl0 = Signal(64)
+        self.pt0_valid = Signal()
+        self.pgtbl3 = Signal(64)
+        self.pt3_valid = Signal()
+        self.shift = Signal(6)
+        self.mask_size = Signal(5)
+        self.pgbase = Signal(56)
+        self.pde = Signal(64)
+        self.invalid = Signal()
+        self.badtree = Signal()
+        self.segerror = Signal()
+        self.perm_err = Signal()
+        self.rc_error = Signal()
 
 
 class MMU(Elaboratable):
@@ -161,7 +161,7 @@ class MMU(Elaboratable):
         self.d_in  = DcacheToMmuType()
         self.i_out = MmuToIcacheType()
 
-    def radix_tree_idle(self, m, l_in, v):
+    def radix_tree_idle(self, m, l_in, r, v):
         comb = m.d.comb
         pt_valid = Signal()
         pgtbl = Signal(64)
@@ -218,7 +218,7 @@ class MMU(Elaboratable):
                     # set v.shift so we can use finalmask
                     # for generating the process table
                     # entry address
-                    comb += v.shift.eq(r.prtble[0:5])
+                    comb += v.shift.eq(r.prtbl[0:5])
                     comb += v.state.eq(State.PROC_TBL_READ)
 
                 with m.If(~mbits):
@@ -292,7 +292,7 @@ class MMU(Elaboratable):
                 with m.If(perm_ok & rc_ok):
                     comb += v.state.eq(State.RADIX_LOAD_TLB)
                 with m.Else():
-                    comb += v.state.eq(State.RADIX_ERROR)
+                    comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.perm_err.eq(~perm_ok)
                     # permission error takes precedence
                     # over RC error
@@ -304,12 +304,12 @@ class MMU(Elaboratable):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
                 with m.Else():
-                    comb += v.shift.eq(v.shif - mbits)
+                    comb += v.shift.eq(v.shift - mbits)
                     comb += v.mask_size.eq(mbits[0:5])
                     comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
                     comb += v.state.eq(State.RADIX_LOOKUP)
 
-    def segment_check(self, m, v, r, data):
+    def segment_check(self, m, v, r, data, finalmask):
         comb = m.d.comb
         mbits = Signal(6)
         nonzero = Signal()
@@ -336,8 +336,8 @@ class MMU(Elaboratable):
         mask = Signal(16)
         finalmask = Signal(44)
 
-        r = RegStage()
-        rin = RegStage()
+        r = RegStage("r")
+        rin = RegStage("r_in")
 
         l_in  = self.l_in
         l_out = self.l_out
@@ -412,7 +412,7 @@ class MMU(Elaboratable):
 
         with m.Switch(r.state):
             with m.Case(State.IDLE):
-                self.radix_tree_idle(m, l_in, v)
+                self.radix_tree_idle(m, l_in, r, v)
 
             with m.Case(State.DO_TLBIE):
                 comb += dcreq.eq(1)
@@ -437,7 +437,7 @@ class MMU(Elaboratable):
                     comb += v.badtree.eq(1)
 
             with m.Case(State.SEGMENT_CHECK):
-                self.segment_check(m, v, r, data)
+                self.segment_check(m, v, r, data, finalmask)
 
             with m.Case(State.RADIX_LOOKUP):
                 comb += dcreq.eq(1)
@@ -479,8 +479,8 @@ class MMU(Elaboratable):
         comb += prtable_addr.eq(Cat(
                                  C(0b0000, 4),
                                  effpid[0:8],
-                                 (r.prtble[12:36] & ~finalmask[0:24]) |
-                                 (effpid[8:32]    &  finalmask[0:24]),
+                                 (r.prtbl[12:36] & ~finalmask[0:24]) |
+                                 (effpid[8:32]   &  finalmask[0:24]),
                                  r.prtbl[36:56]
                                 ))
 
@@ -527,10 +527,12 @@ class MMU(Elaboratable):
         comb += d_out.pte.eq(tlb_data)
 
         comb += i_out.tlbld.eq(itlb_load)
-        comb += i_out.tblie.eq(tlbie_req)
+        comb += i_out.tlbie.eq(tlbie_req)
         comb += i_out.doall.eq(r.inval_all)
         comb += i_out.addr.eq(addr)
         comb += i_out.pte.eq(tlb_data)
+
+        return m
 
 
 def mmu_sim():
