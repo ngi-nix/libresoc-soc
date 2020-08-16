@@ -6,15 +6,15 @@ based on Anton Blanchard microwatt mmu.vhdl
 from enum import Enum, unique
 from nmigen import (Module, Signal, Elaboratable,
                     Mux, Cat, Repl, signed,
-                    ResetSignal)
+                    Signal)
 from nmigen.cli import main
-from nmigen.iocontrol import RecordObject
+from nmutil.iocontrol import RecordObject
 
-from experiment.mem_types import LoadStore1ToMmuType,
+from soc.experiment.mem_types import (LoadStore1ToMmuType,
                                  MmuToLoadStore1Type,
                                  MmuToDcacheType,
                                  DcacheToMmuType,
-                                 MmuToIcacheType
+                                 MmuToIcacheType)
 
 # -- Radix MMU
 # -- Supports 4-level trees as in arch 3.0B, but not the
@@ -40,7 +40,7 @@ class State(Enum):
 # addrmaskgen: process(all)
 # generate mask for extracting address fields for PTE address
 # generation
-class AddrMaskGen(Elaboratable, MMU):
+class AddrMaskGen(Elaboratable):
     def __init__(self):
 #       variable m : std_ulogic_vector(15 downto 0);
         super().__init__()
@@ -63,7 +63,7 @@ class AddrMaskGen(Elaboratable, MMU):
 #       -- mask_count has to be >= 5
 #       m := x"001f";
         # mask_count has to be >= 5
-        comb += mask.eq(Const(0x001F, 16)
+        comb += mask.eq(Const(0x001F, 16))
 
 #       for i in 5 to 15 loop
         for i in range(5,16):
@@ -82,7 +82,7 @@ class AddrMaskGen(Elaboratable, MMU):
 # finalmaskgen: process(all)
 # generate mask for extracting address bits to go in
 # TLB entry in order to support pages > 4kB
-class FinalMaskGen(Elaboratable, MMU):
+class FinalMaskGen(Elaboratable):
     def __init__(self):
 #       variable m : std_ulogic_vector(43 downto 0);
         super().__init__()
@@ -207,8 +207,8 @@ def elaborate(self, platform):
 #                   l_out.badtree);
 #       end if;
         with m.If(l_out.err):
-            print(f"MMU completing op with err invalid=
-                  {l_out.invalid} badtree={l_out.badtree}")
+            print(f"MMU completing op with err invalid"
+                  "{l_out.invalid} badtree={l_out.badtree}")
 
 #       if rin.state = RADIX_LOOKUP then
 #           report "radix lookup shift=" & integer'image(
@@ -216,8 +216,8 @@ def elaborate(self, platform):
 #                   integer'image(to_integer(rin.mask_size));
 #       end if;
         with m.If(rin.state == State.RADIX_LOOKUP):
-            print(f"radix lookup shift={rin.shift}
-                  msize={rin.mask_size}")
+            print(f"radix lookup shift={rin.shift}"
+                  "msize={rin.mask_size}")
 
 #       if r.state = RADIX_LOOKUP then
 #           report "send load addr=" & to_hstring(d_out.addr)
@@ -225,8 +225,8 @@ def elaborate(self, platform):
 #                   " mask=" & to_hstring(mask);
 #       end if;
         with m.If(r.state == State.RADIX_LOOKUP):
-            print(f"send load addr={d_out.addr}
-                  addrsh={addrsh} mask={mask}")
+            print(f"send load addr={d_out.addr}"
+                  "addrsh={addrsh} mask={mask}")
 
 #       r <= rin;
         sync += r.eq(rin)
@@ -333,7 +333,7 @@ def elaborate(self, platform):
 #                   v.iside := l_in.iside;
 #                   v.store := not (l_in.load or l_in.iside);
 #                   v.priv := l_in.priv;
-                    comb += v.addr.eq(l_in.addr
+                    comb += v.addr.eq(l_in.addr)
                     comb += v.iside.eq(l_in.iside)
                     comb += v.store.eq(~(l_in.load | l_in.iside))
 #                   if l_in.tlbie = '1' then
@@ -583,7 +583,7 @@ def elaborate(self, platform):
 #                           perm_ok := '0';
                             comb += perm_ok.eq(0)
 #                           if r.priv = '1' or data(3) = '0' then
-                            with m.If(r.priv | ~data[3])):
+                            with m.If(r.priv | ~data[3]):
 #                               if r.iside = '0' then
 #                                   perm_ok := data(1) or (data(2)
 #                                              and not r.store);
@@ -711,9 +711,9 @@ def elaborate(self, platform):
 #
 #       if v.state = RADIX_FINISH or (v.state = RADIX_LOAD_TLB
 #       and r.iside = '1') then
-        with m.If(v.state == State.RADIX_FINISH
+        with m.If((v.state == State.RADIX_FINISH)
                   | (v.state == State.RADIX_LOAD_TLB & r.iside)
-                 )
+                 ):
 #           v.err := v.invalid or v.badtree or v.segerror
 #                    or v.perm_err or v.rc_error;
 #           v.done := not v.err;

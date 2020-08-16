@@ -3,7 +3,8 @@
 based on Anton Blanchard microwatt common.vhdl
 
 """
-from nmigen.iocontrol import RecordObject
+from nmutil.iocontrol import RecordObject
+from nmigen import Signal
 
 
 # type Loadstore1ToMmuType is record
