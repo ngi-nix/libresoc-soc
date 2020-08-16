@@ -49,6 +49,22 @@ class GeneralTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    def test_0_litex_bios_cmp(self):
+        """litex bios cmp test
+        """
+        lst = [ "addis    26, 0, 21845",
+                "ori      26, 26, 21845",
+                "addi     5, 26, 0",
+                "rldicr  5,5,32,31",
+                "addi     5, 26, 0",
+                "cmp     0, 0, 5, 26",
+                "bc      12, 2, 28",
+                "addis   6, 0, 1",
+                "addis   7, 0, 1",
+               ]
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [5,6,7,26], initial_mem={})
+
     @unittest.skip("disable")
     def test_0_litex_bios_r1(self):
         """litex bios IMM64 macro test
@@ -96,7 +112,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4])
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_ldst(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -146,7 +162,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_ldst_extended(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -181,7 +197,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3, 4, 5])
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_add_with_carry(self):
         lst = ["addi 1, 0, 5",
                "neg 1, 1",
