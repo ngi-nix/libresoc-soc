@@ -277,7 +277,7 @@ class MMU(Elaboratable):
                 # for the segment check
                 comb += v.shift.eq(rts)
                 comb += v.mask_size.eq(mbits[0:5])
-                comb += v.pgbase.eq(pgtbl[8:56])
+                comb += v.pgbase.eq(Cat(Const(0, 8), pgtbl[8:56]))
 
 #               if l_in.valid = '1' then
                 with m.If(l_in.valid):
