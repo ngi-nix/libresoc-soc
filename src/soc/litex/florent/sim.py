@@ -81,6 +81,7 @@ class LibreSoCSim(SoCSDRAM):
             self.add_constant("MEMTEST_BUS_SIZE",  64//16)
             self.add_constant("MEMTEST_DATA_SIZE", 64//16)
             self.add_constant("MEMTEST_ADDR_SIZE", 64//16)
+            self.add_constant("MEMTEST_BUS_DEBUG", 1)
 
 
         # Debug ---------------------------------------------------------------
@@ -99,11 +100,14 @@ class LibreSoCSim(SoCSDRAM):
         dbg_dout = Signal(64)
         dbg_msg = Signal(1)
 
-        uptime = Signal(64)
+        # capture pc from dmi
+        pc = Signal(64)
+        active_dbg = Signal()
+
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
         self.sync += uptime.eq(uptime + 1)
-        self.sync += If(uptime == 100000, Finish())
+        self.sync += If(uptime == 100000000, Finish())
 
         dmifsm = FSM()
         self.submodules += dmifsm
@@ -147,10 +151,13 @@ class LibreSoCSim(SoCSDRAM):
 
         # debug messages out
         self.sync += If(dbg_msg,
-            (If(dbg_addr == 0b10, # PC
+            (If(active_dbg & (dbg_addr == 0b10), # PC
                 Display("pc : %016x", dbg_dout),
              ),
-             If(dbg_addr == 0b11, # PC
+             If(dbg_addr == 0b10, # PC
+                 pc.eq(dbg_dout),     # capture PC
+             ),
+             If(dbg_addr == 0b11, # MSR
                 Display("    msr: %016x", dbg_dout),
              ),
              If(dbg_addr == 0b101, # GPR
@@ -189,8 +196,12 @@ class LibreSoCSim(SoCSDRAM):
             )
         )
 
+        # limit range of pc for debug reporting
+        self.comb += active_dbg.eq((0x51b0 < pc) & (pc < 0x51dc))
+        #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
+
         # get the MSR
-        self.sync += If(uptime[0:cyclewid] == 28,
+        self.sync += If(active_dbg & (uptime[0:cyclewid] == 28),
             (dmi_addr.eq(0b11), # MSR
              dmi_req.eq(1),
              dmi_wen.eq(0),
@@ -199,7 +210,7 @@ class LibreSoCSim(SoCSDRAM):
 
         # read all 32 GPRs
         for i in range(32):
-            self.sync += If(uptime[0:cyclewid] == 30+(i*8),
+            self.sync += If(active_dbg & (uptime[0:cyclewid] == 30+(i*8)),
                 (dmi_addr.eq(0b100), # GSPR addr
                  dmi_din.eq(i), # r1
                  dmi_req.eq(1),
@@ -207,7 +218,7 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
-            self.sync += If(uptime[0:cyclewid] == 34+(i*8),
+            self.sync += If(active_dbg & (uptime[0:cyclewid] == 34+(i*8)),
                 (dmi_addr.eq(0b101), # GSPR data
                  dmi_req.eq(1),
                  dmi_wen.eq(0),
@@ -215,7 +226,7 @@ class LibreSoCSim(SoCSDRAM):
             )
 
         # monitor ibus write
-        self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
+        self.sync += If(active_dbg & self.cpu.ibus.stb & self.cpu.ibus.ack &
                         self.cpu.ibus.we,
             Display("    [%06x] iadr: %8x, s %01x w %016x",
                 uptime,
@@ -225,7 +236,7 @@ class LibreSoCSim(SoCSDRAM):
             )
         )
         # monitor ibus read
-        self.sync += If(self.cpu.ibus.stb & self.cpu.ibus.ack &
+        self.sync += If(active_dbg & self.cpu.ibus.stb & self.cpu.ibus.ack &
                         ~self.cpu.ibus.we,
             Display("    [%06x] iadr: %8x, s %01x r %016x",
                 uptime,
@@ -236,7 +247,7 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # monitor bbus read/write
-        self.sync += If(self.cpu.dbus.stb & self.cpu.dbus.ack,
+        self.sync += If(active_dbg & self.cpu.dbus.stb & self.cpu.dbus.ack,
             Display("    [%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
                 uptime,
                 self.cpu.dbus.adr,
