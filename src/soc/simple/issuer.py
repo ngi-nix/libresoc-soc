@@ -244,8 +244,6 @@ class TestIssuer(Elaboratable):
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
-        sync += d_reg.ack.eq(0)
-        sync += d_reg.data.eq(0)
         with m.If(d_reg.req): # request for regfile access being made
             # TODO: error-check this
             # XXX should this be combinatorial?  sync better?
@@ -254,9 +252,12 @@ class TestIssuer(Elaboratable):
             else:
                 comb += self.int_r.addr.eq(d_reg.addr)
                 comb += self.int_r.ren.eq(1)
+        d_reg_delay  = Signal()
+        sync += d_reg_delay.eq(d_reg.req)
+        with m.If(d_reg_delay):
             # data arrives one clock later
-            sync += d_reg.data.eq(self.int_r.data_o)
-            sync += d_reg.ack.eq(1)
+            comb += d_reg.data.eq(self.int_r.data_o)
+            comb += d_reg.ack.eq(1)
 
         return m
 
