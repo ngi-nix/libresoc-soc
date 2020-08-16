@@ -422,11 +422,6 @@ class MMU(Elaboratable):
                                 comb += v.state.eq(State.RADIX_FINISH)
                                 comb += v.badtree.eq(1)
                             with m.Else():
-#                               v.shift := v.shift - mbits;
-#                               v.mask_size := mbits(4 downto 0);
-#                               v.pgbase := data(55 downto 8)
-#                                           & x"00";
-#                               v.state := RADIX_LOOKUP;
                                 comb += v.shift.eq(v.shif - mbits)
                                 comb += v.mask_size.eq(mbits[0:5])
                                 comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
