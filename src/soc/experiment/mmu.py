@@ -268,35 +268,17 @@ class MMU(Elaboratable):
                 # level of tree
                 comb += mbits.eq(pgtbl[0:5])
 
-#               -- set v.shift to rts so that we can use finalmask
-#               -- for the segment check
-#               v.shift := rts;
-#               v.mask_size := mbits(4 downto 0);
-#               v.pgbase := pgtbl(55 downto 8) & x"00";
                 # set v.shift to rts so that we can use finalmask
                 # for the segment check
                 comb += v.shift.eq(rts)
                 comb += v.mask_size.eq(mbits[0:5])
                 comb += v.pgbase.eq(Cat(Const(0, 8), pgtbl[8:56]))
 
-#               if l_in.valid = '1' then
                 with m.If(l_in.valid):
-#                   v.addr := l_in.addr;
-#                   v.iside := l_in.iside;
-#                   v.store := not (l_in.load or l_in.iside);
-#                   v.priv := l_in.priv;
                     comb += v.addr.eq(l_in.addr)
                     comb += v.iside.eq(l_in.iside)
                     comb += v.store.eq(~(l_in.load | l_in.iside))
-#                   if l_in.tlbie = '1' then
                     with m.If(l_in.tlbie):
-#                       -- Invalidate all iTLB/dTLB entries for
-#                       -- tlbie with RB[IS] != 0 or RB[AP] != 0,
-#                       -- or for slbia
-#                       v.inval_all := l_in.slbia or l_in.addr(11)
-#                                      or l_in.addr(10) or
-#                                      l_in.addr(7) or l_in.addr(6)
-#                                      or l_in.addr(5);
                         # Invalidate all iTLB/dTLB entries for
                         # tlbie with RB[IS] != 0 or RB[AP] != 0,
                         # or for slbia
@@ -307,34 +289,16 @@ class MMU(Elaboratable):
                                                | l_in.addr[6]
                                                | l_in.addr[5]
                                               )
-#                       -- The RIC field of the tlbie instruction
-#                       -- comes across on the sprn bus as bits 2--3.
-#                       -- RIC=2 flushes process table caches.
-#                       if l_in.sprn(3) = '1' then
                         # The RIC field of the tlbie instruction
                         # comes across on the sprn bus as bits 2--3.
                         # RIC=2 flushes process table caches.
                         with m.If(l_in.sprn[3]):
-#                           v.pt0_valid := '0';
-#                           v.pt3_valid := '0';
                             comb += v.pt0_valid.eq(0)
                             comb += v.pt3_valid.eq(0)
-#                       end if;
-#                       v.state := DO_TLBIE;
                         comb += v.state.eq(State.DO_TLBIE)
-#                   else
                     with m.Else():
-#                       v.valid := '1';
                         comb += v.valid.eq(1)
-#                       if pt_valid = '0' then
                         with m.If(~pt_valid):
-#                           -- need to fetch process table entry
-#                           -- set v.shift so we can use finalmask
-#                           -- for generating the process table
-#                           -- entry address
-#                           v.shift := unsigned('0' & r.prtbl(
-#                                               4 downto 0));
-#                           v.state := PROC_TBL_READ;
                             # need to fetch process table entry
                             # set v.shift so we can use finalmask
                             # for generating the process table
@@ -342,246 +306,111 @@ class MMU(Elaboratable):
                             comb += v.shift.eq(r.prtble[0:5])
                             comb += v.state.eq(State.PROC_TBL_READ)
 
-#                       elsif mbits = 0 then
                         with m.If(~mbits):
-#                           -- Use RPDS = 0 to disable radix
-#                           -- tree walks
-#                           v.state := RADIX_FINISH;
-#                           v.invalid := '1';
-                            # Use RPDS = 0 to disable radix
-                            # tree walks
+                            # Use RPDS = 0 to disable radix tree walks
                             comb += v.state.eq(State.RADIX_FINISH)
                             comb += v.invalid.eq(1)
-#                       else
                         with m.Else():
-#                           v.state := SEGMENT_CHECK;
                             comb += v.state.eq(State.SEGMENT_CHECK)
-#                       end if;
-#                   end if;
-#               end if;
 
-#               if l_in.mtspr = '1' then
                 with m.If(l_in.mtspr):
-#                   -- Move to PID needs to invalidate L1 TLBs
-#                   -- and cached pgtbl0 value.  Move to PRTBL
-#                   -- does that plus invalidating the cached
-#                   -- pgtbl3 value as well.
-#                   if l_in.sprn(9) = '0' then
                     # Move to PID needs to invalidate L1 TLBs
                     # and cached pgtbl0 value.  Move to PRTBL
                     # does that plus invalidating the cached
                     # pgtbl3 value as well.
                     with m.If(~l_in.sprn[9]):
-#                       v.pid := l_in.rs(31 downto 0);
                         comb += v.pid.eq(l_in.rs[0:32])
-#                   else
                     with m.Else():
-#                       v.prtbl := l_in.rs;
-#                       v.pt3_valid := '0';
                         comb += v.prtbl.eq(l_in.rs)
                         comb += v.pt3_valid.eq(0)
-#                   end if;
 
-#                   v.pt0_valid := '0';
-#                   v.inval_all := '1';
-#                   v.state := DO_TLBIE;
                     comb += v.pt0_valid.eq(0)
                     comb += v.inval_all.eq(1)
                     comb += v.state.eq(State.DO_TLBIE)
-#               end if;
 
-#       when DO_TLBIE =>
             with m.Case(State.DO_TLBIE):
-#               dcreq := '1';
-#               tlbie_req := '1';
-#               v.state := TLB_WAIT;
                 comb += dcreq.eq(1)
                 comb += tlbie_req.eq(1)
                 comb += v.state.eq(State.TLB_WAIT)
 
-#       when TLB_WAIT =>
             with m.Case(State.TLB_WAIT):
-#               if d_in.done = '1' then
                 with m.If(d_in.done):
-#                   v.state := RADIX_FINISH;
                     comb += v.state.eq(State.RADIX_FINISH)
-#               end if;
 
-#       when PROC_TBL_READ =>
             with m.Case(State.PROC_TBL_READ):
-#           dcreq := '1';
-#           prtbl_rd := '1';
-#           v.state := PROC_TBL_WAIT;
                 comb += dcreq.eq(1)
                 comb += prtbl_rd.eq(1)
                 comb += v.state.eq(State.PROC_TBL_WAIT)
 
-#       when PROC_TBL_WAIT =>
             with m.Case(State.PROC_TBL_WAIT):
-#           if d_in.done = '1' then
                 with m.If(d_in.done):
-#               if r.addr(63) = '1' then
                     with m.If(r.addr[63]):
-#                   v.pgtbl3 := data;
-#                   v.pt3_valid := '1';
                         comb += v.pgtbl3.eq(data)
                         comb += v.pt3_valid.eq(1)
-#                   else
                     with m.Else():
-#                       v.pgtbl0 := data;
-#                       v.pt0_valid := '1';
                         comb += v.pgtbl0.eq(data)
                         comb += v.pt0_valid.eq(1)
-#                   end if;
-#                   -- rts == radix tree size, # address bits
-#                   -- being translated
-#                   rts := unsigned('0' & data(62 downto 61) &
-#                                   data(7 downto 5));
-                    # rts == radix tree size, # address bits
-                    # being translated
+                    # rts == radix tree size, # address bits being translated
                     comb += rts.eq(Cat(data[5:8], data[61:63]))
 
-#                   -- mbits == # address bits to index
-#                   -- top level of tree
-#                   mbits := unsigned('0' & data(4 downto 0));
-                    # mbits == # address bits to index
-                    # top level of tree
+                    # mbits == # address bits to index top level of tree
                     comb += mbits.eq(data[0:5])
-#               -- set v.shift to rts so that we can use
-#               -- finalmask for the segment check
-#               v.shift := rts;
-#               v.mask_size := mbits(4 downto 0);
-#               v.pgbase := data(55 downto 8) & x"00";
                     # set v.shift to rts so that we can use
                     # finalmask for the segment check
                     comb += v.shift.eq(rts)
                     comb += v.mask_size.eq(mbits[0:5])
-                    comb += v.pgbase.eq(data[8:56])
+                    comb += v.pgbase.eq(Cat(Const(0, 8), data[8:56]))
 
-#                   if mbits = 0 then
                     with m.If(~mbits):
-#                       v.state := RADIX_FINISH;
-#                       v.invalid := '1';
                         comb += v.state.eq(State.RADIX_FINISH)
                         comb += v.invalid.eq(1)
-#                   else
-#                       v.state := SEGMENT_CHECK;
                         comb += v.state.eq(State.SEGMENT_CHECK)
-#                   end if;
-#               end if;
 
-#               if d_in.err = '1' then
                 with m.If(d_in.err):
-#                   v.state := RADIX_FINISH;
-#                   v.badtree := '1';
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
-#               end if;
 
-#           when SEGMENT_CHECK =>
             with m.Case(State.SEGMENT_CHECK):
-#               mbits := '0' & r.mask_size;
-#               v.shift := r.shift + (31 - 12) - mbits;
-#               nonzero := or(r.addr(61 downto 31) and
-#                           not finalmask(30 downto 0));
                 comb += mbits.eq(r.mask_size)
-                comb += v.shift.eq(r.shift + (31 -12) - mbits)
-                comb += nonzero.eq((
-                         r.addr[31:62] & ~finalmask[0:31]
-                        ).bool())
-#               if r.addr(63) /= r.addr(62) or nonzero = '1' then
-#                   v.state := RADIX_FINISH;
-#                   v.segerror := '1';
-                with m.If((r.addr[63] != r.addr[62])
-                          | nonzero):
+                comb += v.shift.eq(r.shift + (31 - 12) - mbits)
+                comb += nonzero.eq((r.addr[31:62] & ~finalmask[0:31]).bool())
+                with m.If((r.addr[63] ^ r.addr[62]) | nonzero):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.segerror.eq(1)
-#               elsif mbits < 5 or mbits > 16 or mbits
-#                       > (r.shift + (31 - 12)) then
-#                   v.state := RADIX_FINISH;
-#                   v.badtree := '1';
-                with m.If((mbits < 5) | (mbits > 16)
+                with m.Elif((mbits < 5) | (mbits > 16)
                           | (mbits > (r.shift + (31-12)))):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
-#           else
-#               v.state := RADIX_LOOKUP;
                 with m.Else():
                     comb += v.state.eq(State.RADIX_LOOKUP)
-#           end if;
-#
-#           when RADIX_LOOKUP =>
+
             with m.Case(State.RADIX_LOOKUP):
-#               dcreq := '1';
-#               v.state := RADIX_READ_WAIT;
                 comb += dcreq.eq(1)
                 comb += v.state.eq(State.RADIX_READ_WAIT)
 
-#           when RADIX_READ_WAIT =>
             with m.Case(State.RADIX_READ_WAIT):
-#               if d_in.done = '1' then
                 with m.If(d_in.done):
-#                   v.pde := data;
                     comb += v.pde.eq(data)
-#                   -- test valid bit
-#                   if data(63) = '1' then
                     # test valid bit
                     with m.If(data[63]):
-#                       -- test leaf bit
-#                       if data(62) = '1' then
-                        # test leaf bit
                         with m.If(data[62]):
-#                           -- check permissions and RC bits
-#                           perm_ok := '0';
+                            # check permissions and RC bits
                             comb += perm_ok.eq(0)
-#                           if r.priv = '1' or data(3) = '0' then
                             with m.If(r.priv | ~data[3]):
-#                               if r.iside = '0' then
-#                                   perm_ok := data(1) or (data(2)
-#                                              and not r.store);
                                 with m.If(~r.iside):
-                                    comb += perm_ok.eq(
-                                             (data[1] | data[2])
-                                             & (~r.store)
-                                            )
-#                               else
+                                    comb += perm_ok.eq((data[1] | data[2]) &
+                                                       (~r.store))
                                 with m.Else():
-#                                   -- no IAMR, so no KUEP support
-#                                   -- for now deny execute
-#                                   -- permission if cache inhibited
-#                                   perm_ok :=
-#                                       data(0) and not data(5);
                                     # no IAMR, so no KUEP support
                                     # for now deny execute
                                     # permission if cache inhibited
-                                    comb += perm_ok.eq(
-                                              data[0] & ~data[5]
-                                            )
-#                               end if;
-#                           end if;
+                                    comb += perm_ok.eq(data[0] & ~data[5])
 
-#                           rc_ok := data(8) and (data(7) or
-#                                    not r.store);
-                            comb += rc_ok.eq(
-                                     data[8] &
-                                     (data[7] | (~r.store))
-                                    )
-#                           if perm_ok = '1' and rc_ok = '1' then
-#                               v.state := RADIX_LOAD_TLB;
+                            comb += rc_ok.eq(data[8] & (data[7] | (~r.store)))
                             with m.If(perm_ok & rc_ok):
-                                comb += v.state.eq(
-                                         State.RADIX_LOAD_TLB
-                                        )
-#                           else
+                                comb += v.state.eq(State.RADIX_LOAD_TLB)
                             with m.Else():
-#                           v.state := RADIX_FINISH;
-#                           v.perm_err := not perm_ok;
-#                           -- permission error takes precedence
-#                           -- over RC error
-#                               v.rc_error := perm_ok;
-                                comb += vl.state.eq(
-                                         State.RADIX_FINISH
-                                        )
+                                comb += vl.state.eq(State.RADIX_ERROR)
                                 comb += v.perm_err.eq(~perm_ok)
                                 # permission error takes precedence
                                 # over RC error
