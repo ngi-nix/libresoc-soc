@@ -4,11 +4,10 @@ based on Anton Blanchard microwatt mmu.vhdl
 
 """
 from enum import Enum, unique
-from nmigen import (Module, Signal, Elaboratable,
-                    Mux, Cat, Repl, signed,
-                    Signal)
+from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl, Signal)
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
+from nmutil.byterev import byte_reverse
 
 from soc.experiment.mem_types import (LoadStore1ToMmuType,
                                  MmuToLoadStore1Type,
@@ -23,7 +22,7 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 
 @unique
 class State(Enum):
-    IDLE = 0
+    IDLE = 0            # zero is default on reset for r.state
     DO_TLBIE = 1
     TLB_WAIT = 2
     PROC_TBL_READ = 3
@@ -147,11 +146,13 @@ class RegStage(RecordObject):
         self.rc_error = Signal(reset_less=True)
 
 
-# Radix MMU
-# Supports 4-level trees as in arch 3.0B, but not the
-# two-step translation for guests under a hypervisor
-# (i.e. there is no gRA -> hRA translation).
 class MMU(Elaboratable):
+    """Radix MMU
+
+    Supports 4-level trees as in arch 3.0B, but not the
+    two-step translation for guests under a hypervisor
+    (i.e. there is no gRA -> hRA translation).
+    """
     def __init__(self):
         self.l_in  = LoadStore1ToMmuType()
         self.l_out = MmuToLoadStore1Type()
@@ -159,10 +160,7 @@ class MMU(Elaboratable):
         self.d_in  = DcacheToMmuType()
         self.i_out = MmuToIcacheType()
 
-# begin
-def elaborate(self, platform):
-        # Multiplex internal SPR values back to loadstore1,
-        # selected by l_in.sprn.
+    def elaborate(self, platform):
         m = Module()
 
         comb = m.d.comb
@@ -181,54 +179,36 @@ def elaborate(self, platform):
         d_in  = self.d_in
         i_out = self.i_out
 
-#       l_out.sprval <= r.prtbl when l_in.sprn(9) = '1'
+        # Multiplex internal SPR values back to loadstore1,
+        # selected by l_in.sprn.
         with m.If(l_in.sprn[9]):
             comb += l_out.sprval.eq(r.prtbl)
+        with m.Else():
+            comb += l_out.sprval.eq(r.pid)
 
-#       else x"00000000" & r.pid;
-
-#       if rin.valid = '1' then
-#           report "MMU got tlb miss for "
-#                   & to_hstring(rin.addr);
-#       end if;
         with m.If(rin.valid):
-            print(f"MMU got tlb miss for {rin.addr}")
+            pass
+            #sync += Display(f"MMU got tlb miss for {rin.addr}")
 
-#       if l_out.done = '1' then
-#           report "MMU completing op without error";
-#       end if;
         with m.If(l_out.done):
-            print("MMU completing op without error")
+            pass
+            # sync += Display("MMU completing op without error")
 
-#       if l_out.err = '1' then
-#           report "MMU completing op with err invalid=" &
-#                   std_ulogic'image(l_out.invalid) &
-#                   " badtree=" & std_ulogic'image(
-#                   l_out.badtree);
-#       end if;
         with m.If(l_out.err):
-            print(f"MMU completing op with err invalid"
-                  "{l_out.invalid} badtree={l_out.badtree}")
+            pass
+            # sync += Display(f"MMU completing op with err invalid"
+            #                 "{l_out.invalid} badtree={l_out.badtree}")
 
-#       if rin.state = RADIX_LOOKUP then
-#           report "radix lookup shift=" & integer'image(
-#                   to_integer(rin.shift)) & " msize=" &
-#                   integer'image(to_integer(rin.mask_size));
-#       end if;
         with m.If(rin.state == State.RADIX_LOOKUP):
-            print(f"radix lookup shift={rin.shift}"
-                  "msize={rin.mask_size}")
+            pass
+            # sync += Display (f"radix lookup shift={rin.shift}"
+            #          "msize={rin.mask_size}")
 
-#       if r.state = RADIX_LOOKUP then
-#           report "send load addr=" & to_hstring(d_out.addr)
-#                   & " addrsh=" & to_hstring(addrsh) &
-#                   " mask=" & to_hstring(mask);
-#       end if;
         with m.If(r.state == State.RADIX_LOOKUP):
-            print(f"send load addr={d_out.addr}"
-                  "addrsh={addrsh} mask={mask}")
+            pass
+            # sync += Display(f"send load addr={d_out.addr}"
+            #           "addrsh={addrsh} mask={mask}")
 
-#       r <= rin;
         sync += r.eq(rin)
 
         v = RegStage()
@@ -250,7 +230,6 @@ def elaborate(self, platform):
         perm_ok = Signal()
         rc_ok = Signal()
         addr = Signal(64)
-        data = Signal(64)
 
         comb += v.eq(r)
         comb += v.valid.eq(0)
@@ -268,50 +247,23 @@ def elaborate(self, platform):
         comb += v.inval_all.eq(0)
         comb += prtbl_rd.eq(0)
 
-
-#       -- Radix tree data structures in memory are
-#       -- big-endian, so we need to byte-swap them
-#       for i in 0 to 7 loop
         # Radix tree data structures in memory are
         # big-endian, so we need to byte-swap them
-        for i in range(8):
-#           data(i * 8 + 7 downto i * 8) := d_in.data(
-#                   (7 - i) * 8 + 7 downto (7 - i) * 8);
-            comb += data[i * 8:i * 8 + 7 + 1].eq(
-                         d_in.data[
-                           (7 - i) * 8:(7 - i) * 8 + 7 + 1
-                         ])
-#       end loop;
+        data = byte_reverse(m, "data", d_in.data, 8)
 
-#       case r.state is
         with m.Switch(r.state):
-#           when IDLE =>
             with m.Case(State.IDLE):
-#               if l_in.addr(63) = '0' then
-#                   pgtbl := r.pgtbl0;
-#                   pt_valid := r.pt0_valid;
                 with m.If(~l_in.addr[63]):
                     comb += pgtbl.eq(r.pgtbl0)
                     comb += pt_valid.eq(r.pt0_valid)
-#               else
-#                   pgtbl := r.pgtbl3;
-#                   pt_valid := r.pt3_valid;
                 with m.Else():
                     comb += pgtbl.eq(r.pt3_valid)
                     comb += pt_valid.eq(r.pt3_valid)
-#               end if;
 
-#               -- rts == radix tree size, # address bits being
-#               -- translated
-#               rts := unsigned('0' & pgtbl(62 downto 61) &
-#                       pgtbl(7 downto 5));
                 # rts == radix tree size, number of address bits
                 # being translated
                 comb += rts.eq(Cat(pgtbl[5:8], pgtbl[61:63]))
 
-#               -- mbits == # address bits to index top level
-#               -- of tree
-#               mbits := unsigned('0' & pgtbl(4 downto 0));
                 # mbits == number of address bits to index top
                 # level of tree
                 comb += mbits.eq(pgtbl[0:5])
