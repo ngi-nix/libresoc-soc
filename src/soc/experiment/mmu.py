@@ -16,31 +16,10 @@ from experiment.mem_types import LoadStore1ToMmuType,
                                  DcacheToMmuType,
                                  MmuToIcacheType
 
-# library ieee; use ieee.std_logic_1164.all;
-#               use ieee.numeric_std.all;
-
-# library work; use work.common.all;
-
-
 # -- Radix MMU
 # -- Supports 4-level trees as in arch 3.0B, but not the
 # -- two-step translation
 # -- for guests under a hypervisor (i.e. there is no gRA -> hRA translation).
-
-# type state_t is
-#    (IDLE,
-#     DO_TLBIE,
-#     TLB_WAIT,
-#     PROC_TBL_READ,
-#     PROC_TBL_WAIT,
-#     SEGMENT_CHECK,
-#     RADIX_LOOKUP,
-#     RADIX_READ_WAIT,
-#     RADIX_LOAD_TLB,
-#     RADIX_FINISH
-#    );
-
-# architecture behave of mmu is
 
 @unique
 class State(Enum):
@@ -55,180 +34,6 @@ class State(Enum):
     RADIX_LOAD_TLB = 8
     RADIX_FINISH = 9
 
-#    type reg_stage_t is record
-#        -- latched request from loadstore1
-#        valid     : std_ulogic;
-#        iside     : std_ulogic;
-#        store     : std_ulogic;
-#        priv      : std_ulogic;
-#        addr      : std_ulogic_vector(63 downto 0);
-#        inval_all : std_ulogic;
-#        -- config SPRs
-#        prtbl     : std_ulogic_vector(63 downto 0);
-#        pid       : std_ulogic_vector(31 downto 0);
-#        -- internal state
-#        state     : state_t;
-#        done      : std_ulogic;
-#        err       : std_ulogic;
-#        pgtbl0    : std_ulogic_vector(63 downto 0);
-#        pt0_valid : std_ulogic;
-#        pgtbl3    : std_ulogic_vector(63 downto 0);
-#        pt3_valid : std_ulogic;
-#        shift     : unsigned(5 downto 0);
-#        mask_size : unsigned(4 downto 0);
-#        pgbase    : std_ulogic_vector(55 downto 0);
-#        pde       : std_ulogic_vector(63 downto 0);
-#        invalid   : std_ulogic;
-#        badtree   : std_ulogic;
-#        segerror  : std_ulogic;
-#        perm_err  : std_ulogic;
-#        rc_error  : std_ulogic;
-#    end record;
-
-
-class RegStage(RecordObject):
-    def __init__(self, name=None):
-        super().__init__(self, name=name)
-        # latched request from loadstore1
-        self.valid = Signal(reset_less=True)
-        self.iside = Signal(reset_less=True)
-        self.store = Signal(reset_less=True)
-        self.priv = Signal(reset_less=True)
-        self.addr = Signal(64, reset_less=True)
-        self.inval_all = Signal(reset_less=True)
-        # config SPRs
-        self.prtbl = Signal(64, reset_less=True)
-        self.pid = Signal(32, reset_less=True)
-        # internal state
-        self.state = State.IDLE
-        self.done = Signal(reset_less=True)
-        self.err = Signal(reset_less=True)
-        self.pgtbl0 = Signal(64, reset_less=True)
-        self.pt0_valid = Signal(reset_less=True)
-        self.pgtbl3 = Signal(64, reset_less=True)
-        self.pt3_valid = Signal(reset_less=True)
-        self.shift = Signal(6, reset_less=True)
-        self.mask_size = Signal(5, reset_less=True)
-        self.pgbase = Signal(56, reset_less=True)
-        self.pde = Signal(64, reset_less=True)
-        self.invalid = Signal(reset_less=True)
-        self.badtree = Signal(reset_less=True)
-        self.segerror = Signal(reset_less=True)
-        self.perm_err = Signal(reset_less=True)
-        self.rc_error = Signal(reset_less=True)
-
-
-# Radix MMU
-# Supports 4-level trees as in arch 3.0B, but not the
-# two-step translation for guests under a hypervisor
-# (i.e. there is no gRA -> hRA translation).
-class MMU(Elaboratable):
-# entity mmu is
-#     port (
-#         clk   : in std_ulogic;
-#         rst   : in std_ulogic;
-#
-#         l_in  : in Loadstore1ToMmuType;
-#         l_out : out MmuToLoadstore1Type;
-#
-#         d_out : out MmuToDcacheType;
-#         d_in  : in DcacheToMmuType;
-#
-#         i_out : out MmuToIcacheType
-#         );
-# end mmu;
-    def __init__(self):
-        self.l_in  = LoadStore1ToMmuType()
-        self.l_out = MmuToLoadStore1Type()
-        self.d_out = MmuToDcacheType()
-        self.d_in  = DcacheToMmuType()
-        self.i_out = MmuToIcacheType()
-
-#       signal addrsh  : std_ulogic_vector(15 downto 0);
-#       signal mask    : std_ulogic_vector(15 downto 0);
-#       signal finalmask : std_ulogic_vector(43 downto 0);
-        self.addrsh = Signal(16)
-        self.mask = Signal(16)
-        self.finalmask = Signal(44)
-
-#       signal r, rin : reg_stage_t;
-        self.r = RegStage()
-        self.rin = RegStage()
-
-# begin
-def elaborate(self, platform):
-#       -- Multiplex internal SPR values back to loadstore1,
-#       -- selected by l_in.sprn.
-        # Multiplex internal SPR values back to loadstore1,
-        # selected by l_in.sprn.
-        m = Module()
-
-        comb = m.d.comb
-        sync = m.d.sync
-
-        l_in  = self.l_in
-        l_out = self.l_out
-        d_out = self.d_out
-        d_in  = self.d_in
-        i_out = self.i_out
-
-        addrsh    = self.addrsh
-        mask      = self.mask
-        finalmask = self.finalmask
-
-        r = self.r
-        rin = self.rin
-
-#       l_out.sprval <= r.prtbl when l_in.sprn(9) = '1'
-        with m.If(l_in.sprn[9]):
-            comb += l_out.sprval.eq(r.prtbl)
-
-#       else x"00000000" & r.pid;
-
-#       if rin.valid = '1' then
-#           report "MMU got tlb miss for "
-#                   & to_hstring(rin.addr);
-#       end if;
-        with m.If(rin.valid):
-            print(f"MMU got tlb miss for {rin.addr}")
-
-#       if l_out.done = '1' then
-#           report "MMU completing op without error";
-#       end if;
-        with m.If(l_out.done):
-            print("MMU completing op without error")
-
-#       if l_out.err = '1' then
-#           report "MMU completing op with err invalid=" &
-#                   std_ulogic'image(l_out.invalid) &
-#                   " badtree=" & std_ulogic'image(
-#                   l_out.badtree);
-#       end if;
-        with m.If(l_out.err):
-            print(f"MMU completing op with err invalid=
-                  {l_out.invalid} badtree={l_out.badtree}")
-
-#       if rin.state = RADIX_LOOKUP then
-#           report "radix lookup shift=" & integer'image(
-#                   to_integer(rin.shift)) & " msize=" &
-#                   integer'image(to_integer(rin.mask_size));
-#       end if;
-        with m.If(rin.state == State.RADIX_LOOKUP):
-            print(f"radix lookup shift={rin.shift}
-                  msize={rin.mask_size}")
-
-#       if r.state = RADIX_LOOKUP then
-#           report "send load addr=" & to_hstring(d_out.addr)
-#                   & " addrsh=" & to_hstring(addrsh) &
-#                   " mask=" & to_hstring(mask);
-#       end if;
-        with m.If(r.state == State.RADIX_LOOKUP):
-            print(f"send load addr={d_out.addr}
-                  addrsh={addrsh} mask={mask}")
-
-#       r <= rin;
-        sync += r.eq(rin)
-# end process;
 
 # -- generate mask for extracting address fields for PTE address
 # -- generation
@@ -309,102 +114,143 @@ class FinalMaskGen(Elaboratable, MMU):
         comb += self.finalmask(mask)
 #   end process;
 
-# mmu_1: process(all)
-class MMU1(Elaboratable):
+
+class RegStage(RecordObject):
+    def __init__(self, name=None):
+        super().__init__(self, name=name)
+        # latched request from loadstore1
+        self.valid = Signal(reset_less=True)
+        self.iside = Signal(reset_less=True)
+        self.store = Signal(reset_less=True)
+        self.priv = Signal(reset_less=True)
+        self.addr = Signal(64, reset_less=True)
+        self.inval_all = Signal(reset_less=True)
+        # config SPRs
+        self.prtbl = Signal(64, reset_less=True)
+        self.pid = Signal(32, reset_less=True)
+        # internal state
+        self.state = State.IDLE
+        self.done = Signal(reset_less=True)
+        self.err = Signal(reset_less=True)
+        self.pgtbl0 = Signal(64, reset_less=True)
+        self.pt0_valid = Signal(reset_less=True)
+        self.pgtbl3 = Signal(64, reset_less=True)
+        self.pt3_valid = Signal(reset_less=True)
+        self.shift = Signal(6, reset_less=True)
+        self.mask_size = Signal(5, reset_less=True)
+        self.pgbase = Signal(56, reset_less=True)
+        self.pde = Signal(64, reset_less=True)
+        self.invalid = Signal(reset_less=True)
+        self.badtree = Signal(reset_less=True)
+        self.segerror = Signal(reset_less=True)
+        self.perm_err = Signal(reset_less=True)
+        self.rc_error = Signal(reset_less=True)
+
+
+# Radix MMU
+# Supports 4-level trees as in arch 3.0B, but not the
+# two-step translation for guests under a hypervisor
+# (i.e. there is no gRA -> hRA translation).
+class MMU(Elaboratable):
     def __init__(self):
-#       variable v : reg_stage_t;
-#       variable dcreq : std_ulogic;
-#       variable tlb_load : std_ulogic;
-#       variable itlb_load : std_ulogic;
-#       variable tlbie_req : std_ulogic;
-#       variable prtbl_rd : std_ulogic;
-#       variable pt_valid : std_ulogic;
-#       variable effpid : std_ulogic_vector(31 downto 0);
-#       variable prtable_addr : std_ulogic_vector(63 downto 0);
-#       variable rts : unsigned(5 downto 0);
-#       variable mbits : unsigned(5 downto 0);
-#       variable pgtable_addr : std_ulogic_vector(63 downto 0);
-#       variable pte : std_ulogic_vector(63 downto 0);
-#       variable tlb_data : std_ulogic_vector(63 downto 0);
-#       variable nonzero : std_ulogic;
-#       variable pgtbl : std_ulogic_vector(63 downto 0);
-#       variable perm_ok : std_ulogic;
-#       variable rc_ok : std_ulogic;
-#       variable addr : std_ulogic_vector(63 downto 0);
-#       variable data : std_ulogic_vector(63 downto 0);
-        self.v = RegStage()
-        self.dcrq = Signal()
-        self.tlb_load = Signal()
-        self.itlb_load = Signal()
-        self.tlbie_req = Signal()
-        self.prtbl_rd = Signal()
-        self.pt_valid = Signal()
-        self.effpid = Signal(32)
-        self.prtable_addr = Signal(64)
-        self.rts = Signal(6)
-        self.mbits = Signal(6)
-        self.pgtable_addr = Signal(64)
-        self.pte = Signal(64)
-        self.tlb_data = Signal(64)
-        self.nonzero = Signal()
-        self.pgtbl = Signal(64)
-        self.perm_ok = Signal()
-        self.rc_ok = Signal()
-        self.addr = Signal(64)
-        self.data = Signal(64)
+        self.l_in  = LoadStore1ToMmuType()
+        self.l_out = MmuToLoadStore1Type()
+        self.d_out = MmuToDcacheType()
+        self.d_in  = DcacheToMmuType()
+        self.i_out = MmuToIcacheType()
 
-#   begin
-    def elaborate(self, platform):
-
+# begin
+def elaborate(self, platform):
+        # Multiplex internal SPR values back to loadstore1,
+        # selected by l_in.sprn.
         m = Module()
 
         comb = m.d.comb
         sync = m.d.sync
 
-        l_in = self.l_in
+        addrsh = Signal(16)
+        mask = Signal(16)
+        finalmask = Signal(44)
+
+        r = RegStage()
+        rin = RegStage()
+
+        l_in  = self.l_in
         l_out = self.l_out
         d_out = self.d_out
-        d_in = self.d_in
+        d_in  = self.d_in
         i_out = self.i_out
 
-        r = self.r
+#       l_out.sprval <= r.prtbl when l_in.sprn(9) = '1'
+        with m.If(l_in.sprn[9]):
+            comb += l_out.sprval.eq(r.prtbl)
 
-        v = self.v
-        dcrq = self.dcrq
-        tlb_load = self.tlb_load
-        itlb_load = self.itlb_load
-        tlbie_req = self.tlbie_req
-        prtbl_rd = self.prtbl_rd
-        pt_valid = self.pt_valid
-        effpid = self.effpid
-        prtable_addr = self.prtable_addr
-        rts = self.rts
-        mbits = self.mbits
-        pgtable_addr = self.pgtable_addr
-        pte = self.pte
-        tlb_data = self.tlb_data
-        nonzero = self.nonzero
-        pgtbl = self.pgtbl
-        perm_ok = self.perm_ok
-        rc_ok = self.rc_ok
-        addr = self.addr
-        data = self.data
+#       else x"00000000" & r.pid;
 
-#       v := r;
-#       v.valid := '0';
-#       dcreq := '0';
-#       v.done := '0';
-#       v.err := '0';
-#       v.invalid := '0';
-#       v.badtree := '0';
-#       v.segerror := '0';
-#       v.perm_err := '0';
-#       v.rc_error := '0';
-#       tlb_load := '0';
-#       itlb_load := '0';
-#       tlbie_req := '0';
-#       v.inval_all := '0';
-#       prtbl_rd := '0';
+#       if rin.valid = '1' then
+#           report "MMU got tlb miss for "
+#                   & to_hstring(rin.addr);
+#       end if;
+        with m.If(rin.valid):
+            print(f"MMU got tlb miss for {rin.addr}")
+
+#       if l_out.done = '1' then
+#           report "MMU completing op without error";
+#       end if;
+        with m.If(l_out.done):
+            print("MMU completing op without error")
+
+#       if l_out.err = '1' then
+#           report "MMU completing op with err invalid=" &
+#                   std_ulogic'image(l_out.invalid) &
+#                   " badtree=" & std_ulogic'image(
+#                   l_out.badtree);
+#       end if;
+        with m.If(l_out.err):
+            print(f"MMU completing op with err invalid=
+                  {l_out.invalid} badtree={l_out.badtree}")
+
+#       if rin.state = RADIX_LOOKUP then
+#           report "radix lookup shift=" & integer'image(
+#                   to_integer(rin.shift)) & " msize=" &
+#                   integer'image(to_integer(rin.mask_size));
+#       end if;
+        with m.If(rin.state == State.RADIX_LOOKUP):
+            print(f"radix lookup shift={rin.shift}
+                  msize={rin.mask_size}")
+
+#       if r.state = RADIX_LOOKUP then
+#           report "send load addr=" & to_hstring(d_out.addr)
+#                   & " addrsh=" & to_hstring(addrsh) &
+#                   " mask=" & to_hstring(mask);
+#       end if;
+        with m.If(r.state == State.RADIX_LOOKUP):
+            print(f"send load addr={d_out.addr}
+                  addrsh={addrsh} mask={mask}")
+
+#       r <= rin;
+        sync += r.eq(rin)
+
+        v = RegStage()
+        dcrq = Signal()
+        tlb_load = Signal()
+        itlb_load = Signal()
+        tlbie_req = Signal()
+        prtbl_rd = Signal()
+        pt_valid = Signal()
+        effpid = Signal(32)
+        prtable_addr = Signal(64)
+        rts = Signal(6)
+        mbits = Signal(6)
+        pgtable_addr = Signal(64)
+        pte = Signal(64)
+        tlb_data = Signal(64)
+        nonzero = Signal()
+        pgtbl = Signal(64)
+        perm_ok = Signal()
+        rc_ok = Signal()
+        addr = Signal(64)
+        data = Signal(64)
 
         comb += v.eq(r)
         comb += v.valid.eq(0)
