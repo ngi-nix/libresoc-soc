@@ -22,6 +22,7 @@ from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
 
 from nmutil.latch import SRLatch, latchregister
+from nmutil.util import rising_edge
 from soc.decoder.power_decoder2 import Data
 from soc.scoreboard.addr_match import LenExpand
 
@@ -193,8 +194,8 @@ class PortInterfaceBase(Elaboratable):
         comb += busy_edge.eq(pi.busy_o & ~busy_delay)
 
         # activate mode: only on "edge"
-        comb += ld_active.s.eq(lds & busy_edge)  # activate LD mode
-        comb += st_active.s.eq(sts & busy_edge)  # activate ST mode
+        comb += ld_active.s.eq(rising_edge(m, lds))  # activate LD mode
+        comb += st_active.s.eq(rising_edge(m, sts))  # activate ST mode
 
         # LD/ST requested activates "busy" (only if not already busy)
         with m.If(self.pi.is_ld_i | self.pi.is_st_i):

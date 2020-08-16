@@ -362,6 +362,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         oper_r = CompLDSTOpSubset(name="oper_r")  # Dest register
         with m.If(self.issue_i):
             sync += oper_r.eq(self.oper_i)
+        with m.If(self.done_o):
+            sync += oper_r.eq(0)
 
         # and for LD
         ldd_r = Signal(self.data_wid, reset_less=True)  # Dest register
