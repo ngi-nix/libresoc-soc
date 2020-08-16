@@ -4,7 +4,7 @@ based on Anton Blanchard microwatt mmu.vhdl
 
 """
 from enum import Enum, unique
-from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl, Signal)
+from nmigen import (C, Module, Signal, Elaboratable, Mux, Cat, Repl, Signal)
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
@@ -62,7 +62,7 @@ class AddrMaskGen(Elaboratable):
 #       -- mask_count has to be >= 5
 #       m := x"001f";
         # mask_count has to be >= 5
-        comb += mask.eq(Const(0x001F, 16))
+        comb += mask.eq(C(0x001F, 16))
 
 #       for i in 5 to 15 loop
         for i in range(5,16):
@@ -272,7 +272,7 @@ class MMU(Elaboratable):
                 # for the segment check
                 comb += v.shift.eq(rts)
                 comb += v.mask_size.eq(mbits[0:5])
-                comb += v.pgbase.eq(Cat(Const(0, 8), pgtbl[8:56]))
+                comb += v.pgbase.eq(Cat(C(0, 8), pgtbl[8:56]))
 
                 with m.If(l_in.valid):
                     comb += v.addr.eq(l_in.addr)
@@ -359,7 +359,7 @@ class MMU(Elaboratable):
                     # finalmask for the segment check
                     comb += v.shift.eq(rts)
                     comb += v.mask_size.eq(mbits[0:5])
-                    comb += v.pgbase.eq(Cat(Const(0, 8), data[8:56]))
+                    comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
 
                     with m.If(~mbits):
                         comb += v.state.eq(State.RADIX_FINISH)
@@ -415,23 +415,12 @@ class MMU(Elaboratable):
                                 # permission error takes precedence
                                 # over RC error
                                 comb += v.rc_error.eq(perm_ok)
-#                           end if;
-#                       else
                         with m.Else():
-#                           mbits := unsigned('0' &
-#                                    data(4 downto 0));
                             comb += mbits.eq(data[0:5])
-#                           if mbits < 5 or mbits > 16 or
-#                           mbits > r.shift then
-#                               v.state := RADIX_FINISH;
-#                               v.badtree := '1';
                             with m.If((mbits < 5) | (mbits > 16) |
                                       (mbits > r.shift)):
-                                comb += v.state.eq(
-                                          State.RADIX_FINISH
-                                        )
+                                comb += v.state.eq(State.RADIX_FINISH)
                                 comb += v.badtree.eq(1)
-#                           else
                             with m.Else():
 #                               v.shift := v.shift - mbits;
 #                               v.mask_size := mbits(4 downto 0);
@@ -440,154 +429,73 @@ class MMU(Elaboratable):
 #                               v.state := RADIX_LOOKUP;
                                 comb += v.shift.eq(v.shif - mbits)
                                 comb += v.mask_size.eq(mbits[0:5])
-                                comb += v.pgbase.eq(mbits[8:56])
-                                comb += v.state.eq(
-                                         State.RADIX_LOOKUP
-                                        )
-#                           end if;
-#                       end if;
-#                   else
+                                comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
+                                comb += v.state.eq(State.RADIX_LOOKUP)
                     with m.Else():
-#                       -- non-present PTE, generate a DSI
-#                       v.state := RADIX_FINISH;
-#                       v.invalid := '1';
                         # non-present PTE, generate a DSI
                         comb += v.state.eq(State.RADIX_FINISH)
                         comb += v.invalid.eq(1)
-#                   end if;
-#               end if;
 
-#               if d_in.err = '1' then
                 with m.If(d_in.err):
-#                   v.state := RADIX_FINISH;
-#                   v.badtree := '1';
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
-#               end if;
 
-#           when RADIX_LOAD_TLB =>
             with m.Case(State.RADIX_LOAD_TLB):
-#               tlb_load := '1';
                 comb +=  tlb_load.eq(1)
-#               if r.iside = '0' then
                 with m.If(~r.iside):
-#                   dcreq := '1';
-#                   v.state := TLB_WAIT;
                     comb += dcreq.eq(1)
                     comb += v.state.eq(State.TLB_WAIT)
-#               else
                 with m.Else():
-#                   itlb_load := '1';
-#                   v.state := IDLE;
                     comb += itlb_load.eq(1)
                     comb += v.state.eq(State.IDLE)
-#               end if;
 
-#           when RADIX_FINISH =>
-#               v.state := IDLE;
             with m.Case(State.RADIX_FINISH):
-#               v.state := IDLE
                 comb += v.state.eq(State.IDLE)
-#       end case;
-#
-#       if v.state = RADIX_FINISH or (v.state = RADIX_LOAD_TLB
-#       and r.iside = '1') then
+
         with m.If((v.state == State.RADIX_FINISH)
-                  | (v.state == State.RADIX_LOAD_TLB & r.iside)
-                 ):
-#           v.err := v.invalid or v.badtree or v.segerror
-#                    or v.perm_err or v.rc_error;
-#           v.done := not v.err;
+                  | ((v.state == State.RADIX_LOAD_TLB) & r.iside)):
             comb += v.err.eq(v.invalid | v.badtree | v.segerror
                              | v.perm_err | v.rc_error)
             comb += v.done.eq(~v.err)
-#       end if;
 
-#       if r.addr(63) = '1' then
-        with m.If(r.addr[63]):
-#           effpid := x"00000000";
-            comb += effpid.eq(Const(0x00000000, 32))
-#       else
-        with m.Else():
-#           effpid := r.pid;
+        with m.If(~r.addr[63]):
             comb += effpid.eq(r.pid)
-#       end if;
-#       prtable_addr := x"00" & r.prtbl(55 downto 36) &
-#                       ((r.prtbl(35 downto 12) and not finalmask(
-#                       23 downto 0)) or (effpid(31 downto 8) and
-#                       finalmask(23 downto 0))) & effpid(7 downto 0)
-#                       & "0000";
+
         comb += prtable_addr.eq(Cat(
-                 Const(0b0000, 4), effpid[0:8],
-                 (
-                  (r.prtble[12:36] & ~finalmask[0:24])
-                  | effpid[8:32]   &  finalmask[0:24]
-                 ),
-                 r.prtbl[36:56]
-                ))
+                                 C(0b0000, 4),
+                                 effpid[0:8],
+                                 (r.prtble[12:36] & ~finalmask[0:24]) |
+                                 (effpid[8:32]    &  finalmask[0:24]),
+                                 r.prtbl[36:56]
+                                ))
 
-#       pgtable_addr := x"00" & r.pgbase(55 downto 19) &
-#                       ((r.pgbase(18 downto 3) and not mask) or
-#                       (addrsh and mask)) & "000";
         comb += pgtable_addr.eq(Cat(
-                 Const(0b000, 3),
-                 (
-                  (r.pgbase[3:19] & ~mask)
-                  | (addrsh       &  mask)
-                 ),
-                 r.pgbase[19:56]
-                ))
+                                 C(0b000, 3),
+                                 (r.pgbase[3:19] & ~mask) |
+                                 (addrsh         &  mask),
+                                 r.pgbase[19:56]
+                                ))
 
-#       pte := x"00" & ((r.pde(55 downto 12) and not finalmask) or
-#              (r.addr(55 downto 12) and finalmask)) & r.pde(11 downto 0);
         comb += pte.eq(Cat(
-                 r.pde[0:12],
-                 (
-                  (r.pde[12:56]    & ~finalmask)
-                  | (r.addr[12:56] &  finalmask)
-                 ),
-                ))
+                         r.pde[0:12],
+                          (r.pde[12:56]    & ~finalmask) |
+                          (r.addr[12:56] &  finalmask),
+                        ))
 
-#       -- update registers
-#       rin <= v;
         # update registers
         rin.eq(v)
 
-#       -- drive outputs
-#       if tlbie_req = '1' then
         # drive outputs
         with m.If(tlbie_req):
-#           addr := r.addr;
-#           tlb_data := (others => '0');
             comb += addr.eq(r.addr)
-            comb += tlb_data.eq(0)
-#       elsif tlb_load = '1' then
-        with m.If(tlb_load):
-#           addr := r.addr(63 downto 12) & x"000";
-#           tlb_data := pte;
-            comb += addr.eq(r.addr[12:64])
+        with m.Elif(tlb_load):
+            comb += addr.eq(Cat(C(0, 12), r.addr[12:64]))
             comb += tlb_data.eq(pte)
-#       elsif prtbl_rd = '1' then
-        with m.If(prtbl_rd):
-#           addr := prtable_addr;
-#           tlb_data := (others => '0');
+        with m.Elif(prtbl_rd):
             comb += addr.eq(prtable_addr)
-            comb += tlb_data.eq(0)
-#       else
         with m.Else():
-#           addr := pgtable_addr;
-#           tlb_data := (others => '0');
             comb += addr.eq(pgtable_addr)
-            comb += tlb_data.eq(0)
-#       end if;
 
-#       l_out.done <= r.done;
-#       l_out.err <= r.err;
-#       l_out.invalid <= r.invalid;
-#       l_out.badtree <= r.badtree;
-#       l_out.segerr <= r.segerror;
-#       l_out.perm_error <= r.perm_err;
-#       l_out.rc_error <= r.rc_error;
         comb += l_out.done.eq(r.done)
         comb += l_out.err.eq(r.err)
         comb += l_out.invalid.eq(r.invalid)
@@ -596,12 +504,6 @@ class MMU(Elaboratable):
         comb += l_out.perm_error.eq(r.perm_err)
         comb += l_out.rc_error.eq(r.rc_error)
 
-#       d_out.valid <= dcreq;
-#       d_out.tlbie <= tlbie_req;
-#       d_out.doall <= r.inval_all;
-#       d_out.tlbld <= tlb_load;
-#       d_out.addr <= addr;
-#       d_out.pte <= tlb_data;
         comb += d_out.valid.eq(dcreq)
         comb += d_out.tlbie.eq(tlbie_req)
         comb += d_out.doall.eq(r.inval_all)
@@ -609,19 +511,11 @@ class MMU(Elaboratable):
         comb += d_out.addr.eq(addr)
         comb += d_out.pte.eq(tlb_data)
 
-#       i_out.tlbld <= itlb_load;
-#       i_out.tlbie <= tlbie_req;
-#       i_out.doall <= r.inval_all;
-#       i_out.addr <= addr;
-#       i_out.pte <= tlb_data;
         comb += i_out.tlbld.eq(itlb_load)
         comb += i_out.tblie.eq(tlbie_req)
         comb += i_out.doall.eq(r.inval_all)
         comb += i_out.addr.eq(addr)
         comb += i_out.pte.eq(tlb_data)
-
-#   end process;
-# end;
 
 
 def mmu_sim():
