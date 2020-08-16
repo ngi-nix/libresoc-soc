@@ -200,7 +200,10 @@ class MMU(Elaboratable):
                 comb += perm_ok.eq(0)
                 with m.If(r.priv | ~data[3]):
                     with m.If(~r.iside):
-                        comb += perm_ok.eq((data[1] | data[2]) & (~r.store))
+                        comb += perm_ok.eq(
+                                 (data[1] | data[2])
+                                 & (~r.store)
+                                )
                     with m.Else():
                         # no IAMR, so no KUEP support
                         # for now deny execute
