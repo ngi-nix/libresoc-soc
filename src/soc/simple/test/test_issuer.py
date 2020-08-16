@@ -100,17 +100,19 @@ def set_dmi(dmi, addr, data):
         if ack:
             break
         yield
+    yield
     yield dmi.req_i.eq(0)
     yield dmi.addr_i.eq(0)
     yield dmi.din.eq(0)
     yield dmi.we_i.eq(0)
+    yield
 
 
 def get_dmi(dmi, addr):
     yield dmi.req_i.eq(1)
     yield dmi.addr_i.eq(addr)
     yield dmi.din.eq(0)
-    yield dmi.we_i.eq(1)
+    yield dmi.we_i.eq(0)
     while True:
         ack = yield dmi.ack_o
         if ack:
@@ -121,6 +123,7 @@ def get_dmi(dmi, addr):
     yield dmi.req_i.eq(0)
     yield dmi.addr_i.eq(0)
     yield dmi.we_i.eq(0)
+    yield
     return data
 
 
@@ -274,12 +277,12 @@ class TestRunner(FHDLTestCase):
                 yield
 
                 # test of dmi reg get
-                int_reg = 9
-                yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg) # int reg 9
-                value = yield from get_dmi(dmi, DBGCore.GSPR_DATA) # get data
+                for int_reg in range(32):
+                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg) 
+                    value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
 
-                print ("after test %s reg %x value %s" % \
-                            (test.name, int_reg, value))
+                    print ("after test %s reg %2d value %x" % \
+                                (test.name, int_reg, value))
 
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd",
@@ -294,7 +297,7 @@ if __name__ == "__main__":
     suite.addTest(TestRunner(DivTestCases().test_data))
     # suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
-    # suite.addTest(TestRunner(LDSTTestCase().test_data))
+    suite.addTest(TestRunner(LDSTTestCase().test_data))
     # suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase().test_data))

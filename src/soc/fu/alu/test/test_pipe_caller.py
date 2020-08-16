@@ -127,6 +127,14 @@ class ALUTestCase(TestAccumulatorBase):
         lst = ["subf. 1, 6, 7",
                "cmp cr2, 1, 6, 7"]
         initial_regs = [0] * 32
+        initial_regs[6] = 0xffffffffaaaaaaaa
+        initial_regs[7] = 0x00000000aaaaaaaa
+        self.add_case(Program(lst, bigendian), initial_regs, {})
+
+    def case_cmp(self):
+        lst = ["subf. 1, 6, 7",
+               "cmp cr2, 1, 6, 7"]
+        initial_regs = [0] * 32
         initial_regs[6] = 0x10
         initial_regs[7] = 0x05
         self.add_case(Program(lst, bigendian), initial_regs, {})

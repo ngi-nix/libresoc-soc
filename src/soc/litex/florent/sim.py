@@ -107,7 +107,7 @@ class LibreSoCSim(SoCSDRAM):
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
         self.sync += uptime.eq(uptime + 1)
-        self.sync += If(uptime == 100000000, Finish())
+        #self.sync += If(uptime == 1000000000000, Finish())
 
         dmifsm = FSM()
         self.submodules += dmifsm
@@ -197,7 +197,7 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # limit range of pc for debug reporting
-        self.comb += active_dbg.eq((0x51b0 < pc) & (pc < 0x51dc))
+        self.comb += active_dbg.eq((0x5108 <= pc) & (pc <= 0x5234))
         #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
 
         # get the MSR
