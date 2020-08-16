@@ -227,7 +227,6 @@ class MMU(Elaboratable):
         tlb_data = Signal(64)
         nonzero = Signal()
         pgtbl = Signal(64)
-        perm_ok = Signal()
         rc_ok = Signal()
         addr = Signal(64)
 
@@ -395,6 +394,7 @@ class MMU(Elaboratable):
                     with m.If(data[63]):
                         with m.If(data[62]):
                             # check permissions and RC bits
+                            perm_ok = Signal()
                             comb += perm_ok.eq(0)
                             with m.If(r.priv | ~data[3]):
                                 with m.If(~r.iside):
@@ -410,7 +410,7 @@ class MMU(Elaboratable):
                             with m.If(perm_ok & rc_ok):
                                 comb += v.state.eq(State.RADIX_LOAD_TLB)
                             with m.Else():
-                                comb += vl.state.eq(State.RADIX_ERROR)
+                                comb += v.state.eq(State.RADIX_ERROR)
                                 comb += v.perm_err.eq(~perm_ok)
                                 # permission error takes precedence
                                 # over RC error
