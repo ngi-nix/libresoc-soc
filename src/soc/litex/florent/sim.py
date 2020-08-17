@@ -31,7 +31,7 @@ class LibreSoCSim(SoCSDRAM):
             #sdram_module          = "AS4C16M16",
             #sdram_data_width      = 16,
             sdram_module          = "MT48LC16M16",
-            sdram_data_width      = 32,
+            sdram_data_width      = 16,
             ):
         assert cpu in ["libresoc", "microwatt"]
         platform     = Platform()
@@ -43,6 +43,8 @@ class LibreSoCSim(SoCSDRAM):
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
             #bus_data_width           = 64,
+            csr_data_width            = 32,
+            l2_cache_size             = 0,
             uart_name                = "sim",
             with_sdram               = with_sdram,
             sdram_module          = sdram_module,
@@ -78,10 +80,12 @@ class LibreSoCSim(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
             # FIXME: skip memtest to avoid corrupting memory
-            #self.add_constant("MEMTEST_BUS_SIZE",  64//16)
-            #self.add_constant("MEMTEST_DATA_SIZE", 64//16)
-            #self.add_constant("MEMTEST_ADDR_SIZE", 64//16)
+            self.add_constant("MEMTEST_BUS_SIZE",  128//16)
+            self.add_constant("MEMTEST_DATA_SIZE", 128//16)
+            self.add_constant("MEMTEST_ADDR_SIZE", 128//16)
             self.add_constant("MEMTEST_BUS_DEBUG", 1)
+            self.add_constant("MEMTEST_ADDR_DEBUG", 1)
+            self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
 
         # Debug ---------------------------------------------------------------

@@ -9,7 +9,8 @@ from nmigen.cli import main
 from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
-from nmigen.utils import log2_int
+from nmutil.mask import Mask
+
 
 from soc.experiment.mem_types import (LoadStore1ToMmuType,
                                  MmuToLoadStore1Type,
@@ -66,24 +67,6 @@ class RegStage(RecordObject):
         self.segerror = Signal()
         self.perm_err = Signal()
         self.rc_error = Signal()
-
-
-class Mask(Elaboratable):
-    def __init__(self, sz):
-        self.sz = sz
-        self.shift = Signal(log2_int(sz, False))
-        self.mask = Signal(sz)
-
-    def elaborate(self, platform):
-        m = Module()
-
-        comb = m.d.comb
-
-        for i in range(self.sz):
-            with m.If(self.shift > i):
-                comb += self.mask[i].eq(1)
-
-        return m
 
 
 class MMU(Elaboratable):
