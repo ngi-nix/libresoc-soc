@@ -16,7 +16,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp)
-from soc.decoder.helpers import exts
+from soc.decoder.helpers import exts, gtu, ltu
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 
 from collections import namedtuple
@@ -423,7 +423,7 @@ class ISACaller:
         gts = []
         for x in inputs:
             print("gt input", x, output)
-            gt = (x > output)
+            gt = (gtu(x, output))
             gts.append(gt)
         print(gts)
         cy = 1 if any(gts) else 0
@@ -435,7 +435,7 @@ class ISACaller:
         gts = []
         for x in inputs:
             print("input", x, output)
-            gt = (x[32:64] > output[32:64]) == SelectableInt(1, 1)
+            gt = (gtu(x[32:64], output[32:64])) == SelectableInt(1, 1)
             gts.append(gt)
         cy32 = 1 if any(gts) else 0
         if not (2 & already_done):

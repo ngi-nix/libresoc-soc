@@ -153,7 +153,6 @@ class FieldSelectableIntTestCase(unittest.TestCase):
         fs[0:2] = 0b10
         self.assertEqual(fs.get_range(), 0b1011)
 
-
 class SelectableInt:
     """SelectableInt - a class that behaves exactly like python int
 
@@ -176,6 +175,16 @@ class SelectableInt:
     def eq(self, b):
         self.value = b.value
         self.bits = b.bits
+
+    def to_signed_int(self):
+        print ("to signed?", self.value & (1<<(self.bits-1)), self.value)
+        if self.value & (1<<(self.bits-1)) != 0: # negative
+            res = self.value - (1<<self.bits)
+            print ("    val -ve:", self.bits, res)
+        else:
+            res = self.value
+            print ("    val +ve:", res)
+        return res
 
     def _op(self, op, b):
         if isinstance(b, int):
@@ -320,9 +329,9 @@ class SelectableInt:
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
-            other = other.value
+            other = other.to_signed_int()
         if isinstance(other, int):
-            return onebit(self.value >= other.value)
+            return onebit(self.to_signed_int() >= other)
         assert False
 
     def __le__(self, other):
@@ -331,9 +340,9 @@ class SelectableInt:
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
-            other = other.value
+            other = other.to_signed_int()
         if isinstance(other, int):
-            return onebit(self.value <= other)
+            return onebit(self.to_signed_int() <= other)
         assert False
 
     def __gt__(self, other):
@@ -342,20 +351,24 @@ class SelectableInt:
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
-            other = other.value
+            other = other.to_signed_int()
         if isinstance(other, int):
-            return onebit(self.value > other)
+            return onebit(self.to_signed_int() > other)
         assert False
 
     def __lt__(self, other):
+        print ("SelectableInt lt", self, other)
         if isinstance(other, FieldSelectableInt):
             other = other.get_range()
         if isinstance(other, SelectableInt):
             other = check_extsign(self, other)
             assert other.bits == self.bits
-            other = other.value
+            other = other.to_signed_int()
         if isinstance(other, int):
-            return onebit(self.value < other)
+            a = self.to_signed_int()
+            res = onebit(a  < other)
+            print ("    a < b", a, other, res)
+            return res
         assert False
 
     def __eq__(self, other):
@@ -366,6 +379,7 @@ class SelectableInt:
             other = check_extsign(self, other)
             assert other.bits == self.bits
             other = other.value
+        print ("    eq", other, self.value, other == self.value)
         if isinstance(other, int):
             return onebit(other == self.value)
         assert False

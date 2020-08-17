@@ -40,6 +40,9 @@ class CommonInputStage(PipeModBase):
                     comb += self.o.xer_ca.eq(0b11) # XER CA/CA32
                 with m.Case(CryIn.CA):
                     comb += self.o.xer_ca.eq(self.i.xer_ca)
+                # XXX TODO
+                #with m.Case(CryIn.OV):
+                #    comb += self.o.xer_ca.eq(self.i.xer_ov)
 
         ##### sticky overflow and context (both pass-through) #####
 
