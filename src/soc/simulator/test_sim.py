@@ -52,11 +52,11 @@ class GeneralTestCases(FHDLTestCase):
     def test_0_litex_bios_cmp(self):
         """litex bios cmp test
         """
-        lst = [ "addi     26, 0, 43690",
-                "ori      26, 26, 43690",
+        lst = [ "addis    26, 0, 21845",
+                "ori      26, 26, 21845",
                 "addi     5, 26, 0",
-                #"rldicr  5,5,32,31",
-                #"addi     5, 26, 0",
+                "rldicr  5,5,32,31",
+                "addi     5, 26, 0",
                 "cmp     0, 0, 5, 26",
                 "bc      12, 2, 28",
                 "addis   6, 0, 1",
