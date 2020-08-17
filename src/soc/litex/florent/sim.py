@@ -78,9 +78,9 @@ class LibreSoCSim(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
             # FIXME: skip memtest to avoid corrupting memory
-            self.add_constant("MEMTEST_BUS_SIZE",  64//16)
-            self.add_constant("MEMTEST_DATA_SIZE", 64//16)
-            self.add_constant("MEMTEST_ADDR_SIZE", 64//16)
+            #self.add_constant("MEMTEST_BUS_SIZE",  64//16)
+            #self.add_constant("MEMTEST_DATA_SIZE", 64//16)
+            #self.add_constant("MEMTEST_ADDR_SIZE", 64//16)
             self.add_constant("MEMTEST_BUS_DEBUG", 1)
 
 
