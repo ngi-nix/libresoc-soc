@@ -9,6 +9,7 @@ from nmigen.cli import main
 from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
+from nmigen.utils import log2_int
 
 from soc.experiment.mem_types import (LoadStore1ToMmuType,
                                  MmuToLoadStore1Type,
@@ -65,6 +66,24 @@ class RegStage(RecordObject):
         self.segerror = Signal()
         self.perm_err = Signal()
         self.rc_error = Signal()
+
+
+class Mask(Elaboratable):
+    def __init__(self, sz):
+        self.sz = sz
+        self.shift = Signal(log2_int(sz, False))
+        self.mask = Signal(sz)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+
+        for i in range(self.sz):
+            with m.If(self.shift > i):
+                comb += self.mask[i].eq(1)
+
+        return m
 
 
 class MMU(Elaboratable):
@@ -334,11 +353,15 @@ class MMU(Elaboratable):
         data = byte_reverse(m, "data", d_in.data, 8)
 
         # generate mask for extracting address fields for PTE addr generation
-        comb += mask.eq(Cat(C(0x1f,5), ((1<<r.mask_size)-1)))
+        m.submodules.pte_mask = pte_mask = Mask(16-5)
+        comb += pte_mask.shift.eq(r.mask_size - 5)
+        comb += mask.eq(Cat(C(0x1f,5), pte_mask.mask))
 
         # generate mask for extracting address bits to go in
         # TLB entry in order to support pages > 4kB
-        comb += finalmask.eq(((1<<r.shift)-1))
+        m.submodules.tlb_mask = tlb_mask = Mask(44)
+        comb += tlb_mask.shift.eq(r.shift)
+        comb += finalmask.eq(tlb_mask.mask)
 
         with m.Switch(r.state):
             with m.Case(State.IDLE):
