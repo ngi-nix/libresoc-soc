@@ -4,15 +4,24 @@ based on Anton Blanchard microwatt dcache.vhdl
 
 """
 
+from enum import Enum, unique
+
 from nmigen import Module, Signal, Elaboratable,
                    Cat, Repl
 from nmigen.cli import main
 from nmigen.iocontrol import RecordObject
+from nmigen.util import log2_int
 
 from experiment.mem_types import LoadStore1ToDcacheType,
                                  DcacheToLoadStore1Type,
                                  MmuToDcacheType,
-                                 DacheToMmuType
+                                 DcacheToMmuType
+
+from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
+                                WBAddrType, WBDataType, WBSelType,
+                                WbMasterOut, WBSlaveOut, WBMasterOutVector,
+                                WBSlaveOutVector, WBIOMasterOut,
+                                WBIOSlaveOut
 
 # --
 # -- Set associative dcache write-through
@@ -35,6 +44,7 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 # use work.wishbone_types.all;
 #
 # entity dcache is
+class Dcache(Elaboratable):
 #     generic (
 #         -- Line size in bytes
 #         LINE_SIZE : positive := 64;
@@ -51,6 +61,21 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         -- Non-zero to enable log data collection
 #         LOG_LENGTH : natural := 0
 #         );
+    def __init__(self):
+        # Line size in bytes
+        self.LINE_SIZE = 64
+        # Number of lines in a set
+        self.NUM_LINES = 32
+        # Number of ways
+        self.NUM_WAYS = 4
+        # L1 DTLB entries per set
+        self.TLB_SET_SIZE = 64
+        # L1 DTLB number of sets
+        self.TLB_NUM_WAYS = 2
+        # L1 DTLB log_2(page_size)
+        self.TLB_LG_PGSZ = 12
+        # Non-zero to enable log data collection
+        self.LOG_LENGTH = 0
 #     port (
 #         clk          : in std_ulogic;
 #         rst          : in std_ulogic;
@@ -68,9 +93,30 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #
 #         log_out      : out std_ulogic_vector(19 downto 0)
 #         );
+        self.d_in      = LoadStore1ToDcacheType()
+        self.d_out     = DcacheToLoadStore1Type()
+
+        self.m_in      = MmuToDcacheType()
+        self.m_out     = DcacheToMmuType()
+
+        self.stall_out = Signal()
+
+        self.wb_out    = WBMasterOut()
+        self.wb_in     = WBSlaveOut()
+
+        self.log_out   = Signal(20)
 # end entity dcache;
-#
+
 # architecture rtl of dcache is
+    def elaborate(self, platform):
+        LINE_SIZE    = self.LINE_SIZE
+        NUM_LINES    = self.NUM_LINES
+        NUM_WAYS     = self.NUM_WAYS
+        TLB_SET_SIZE = self.TLB_SET_SIZE
+        TLB_NUM_WAYS = self.TLB_NUM_WAYS
+        TLB_LG_PGSZ  = self.TLB_LG_PGSZ
+        LOG_LENGTH   = self.LOG_LENGTH
+
 #     -- BRAM organisation: We never access more than
 #     -- wishbone_data_bits at a time so to save
 #     -- resources we make the array only that wide, and
@@ -79,13 +125,28 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #     -- ROW_SIZE is the width in bytes of the BRAM
 #     -- (based on WB, so 64-bits)
 #     constant ROW_SIZE : natural := wishbone_data_bits / 8;
+        # BRAM organisation: We never access more than
+        #     -- wishbone_data_bits at a time so to save
+        #     -- resources we make the array only that wide, and
+        #     -- use consecutive indices for to make a cache "line"
+        #     --
+        #     -- ROW_SIZE is the width in bytes of the BRAM
+        #     -- (based on WB, so 64-bits)
+        ROW_SIZE = wishbone_data_bits / 8;
+
 #     -- ROW_PER_LINE is the number of row (wishbone
 #     -- transactions) in a line
 #     constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
 #     -- BRAM_ROWS is the number of rows in BRAM needed
 #     -- to represent the full dcache
 #     constant BRAM_ROWS : natural := NUM_LINES * ROW_PER_LINE;
-#
+        # ROW_PER_LINE is the number of row (wishbone
+        # transactions) in a line
+        ROW_PER_LINE = LINE_SIZE / ROW_SIZE
+        # BRAM_ROWS is the number of rows in BRAM needed
+        # to represent the full dcache
+        BRAM_ROWS = NUM_LINES * ROW_PER_LINE
+
 #     -- Bit fields counts in the address
 #
 #     -- REAL_ADDR_BITS is the number of real address
@@ -116,7 +177,35 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #                                     - ((TAG_BITS + 7) mod 8);
 #     -- WAY_BITS is the number of bits to select a way
 #     constant WAY_BITS : natural := log2(NUM_WAYS);
-#
+        # Bit fields counts in the address
+
+        # REAL_ADDR_BITS is the number of real address
+        # bits that we store
+        REAL_ADDR_BITS = 56
+        # ROW_BITS is the number of bits to select a row
+        ROW_BITS = log2_int(BRAM_ROWS)
+        # ROW_LINEBITS is the number of bits to select
+        # a row within a line
+        ROW_LINEBITS = log2_int(ROW_PER_LINE)
+        # LINE_OFF_BITS is the number of bits for
+        # the offset in a cache line
+        LINE_OFF_BITS = log2_int(LINE_SIZE)
+        # ROW_OFF_BITS is the number of bits for
+        # the offset in a row
+        ROW_OFF_BITS = log2_int(ROW_SIZE)
+        # INDEX_BITS is the number if bits to
+        # select a cache line
+        INDEX_BITS = log2_int(NUM_LINES)
+        # SET_SIZE_BITS is the log base 2 of the set size
+        SET_SIZE_BITS = LINE_OFF_BITS + INDEX_BITS
+        # TAG_BITS is the number of bits of
+        # the tag part of the address
+        TAG_BITS = REAL_ADDR_BITS - SET_SIZE_BITS
+        # TAG_WIDTH is the width in bits of each way of the tag RAM
+        TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
+        # WAY_BITS is the number of bits to select a way
+        WAY_BITS = log2_int(NUM_WAYS)
+
 #     -- Example of layout for 32 lines of 64 bytes:
 #     --
 #     -- ..  tag    |index|  line  |
@@ -127,36 +216,85 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #     -- ..         |----- ---|    | ROW_BITS      (8)
 #     -- ..         |-----|        | INDEX_BITS    (5)
 #     -- .. --------|              | TAG_BITS      (45)
-#
+        # Example of layout for 32 lines of 64 bytes:
+        #
+        # ..  tag    |index|  line  |
+        # ..         |   row   |    |
+        # ..         |     |---|    | ROW_LINEBITS  (3)
+        # ..         |     |--- - --| LINE_OFF_BITS (6)
+        # ..         |         |- --| ROW_OFF_BITS  (3)
+        # ..         |----- ---|    | ROW_BITS      (8)
+        # ..         |-----|        | INDEX_BITS    (5)
+        # .. --------|              | TAG_BITS      (45)
+
+
 #     subtype row_t is integer range 0 to BRAM_ROWS-1;
 #     subtype index_t is integer range 0 to NUM_LINES-1;
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
 #     subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
-#
+        def Row():
+            return Signal(BRAM_ROWS)
+
+        def Index():
+            return Signal(NUM_LINES)
+
+        def Way():
+            return Signal(NUM_WAYS)
+
+        def RowInLine():
+            return Signal(ROW_LINEBITS)
+
 #     -- The cache data BRAM organized as described above for each way
 #     subtype cache_row_t is
 #      std_ulogic_vector(wishbone_data_bits-1 downto 0);
-#
+        # The cache data BRAM organized as described above for each way
+        def CacheRow():
+            return Signal(WB_DATA_BITS)
+
 #     -- The cache tags LUTRAM has a row per set.
 #     -- Vivado is a pain and will not handle a
 #     -- clean (commented) definition of the cache
 #     -- tags as a 3d memory. For now, work around
 #     -- it by putting all the tags
 #     subtype cache_tag_t is std_logic_vector(TAG_BITS-1 downto 0);
+        # The cache tags LUTRAM has a row per set.
+        # Vivado is a pain and will not handle a
+        # clean (commented) definition of the cache
+        # tags as a 3d memory. For now, work around
+        # it by putting all the tags
+        def CacheTag():
+            return Signal(TAG_BITS)
+
 #     -- type cache_tags_set_t is array(way_t) of cache_tag_t;
 #     -- type cache_tags_array_t is array(index_t) of cache_tags_set_t;
 #     constant TAG_RAM_WIDTH : natural := TAG_WIDTH * NUM_WAYS;
 #     subtype cache_tags_set_t is
 #      std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
 #     type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-#
+        # type cache_tags_set_t is array(way_t) of cache_tag_t;
+        # type cache_tags_array_t is array(index_t) of cache_tags_set_t;
+        TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
+
+        def CacheTagSet():
+            return Signal(TAG_RAM_WIDTH)
+
+        def CacheTagArray():
+            return Array(CacheTagSet() for x in range(Index()))
+
 #     -- The cache valid bits
 #     subtype cache_way_valids_t is
 #      std_ulogic_vector(NUM_WAYS-1 downto 0);
 #     type cache_valids_t is array(index_t) of cache_way_valids_t;
 #     type row_per_line_valid_t is
 #      array(0 to ROW_PER_LINE - 1) of std_ulogic;
-#
+        # The cache valid bits
+        def CacheWayValidBits():
+            return Signal(NUM_WAYS)
+        def CacheValidBits():
+            return Array(CacheWayValidBits() for x in range(Index()))
+        def RowPerLineValid():
+            return Array(Signal() for x in range(ROW_PER_LINE))
+
 #     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
 #     signal cache_tags    : cache_tags_array_t;
 #     signal cache_tag_set : cache_tags_set_t;
@@ -164,7 +302,14 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #
 #     attribute ram_style : string;
 #     attribute ram_style of cache_tags : signal is "distributed";
-#
+        # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
+        cache_tags       = CacheTagArray()
+        cache_tag_set    = CacheTagSet()
+        cache_valid_bits = CacheValidBits()
+
+        # TODO attribute ram_style : string;
+        # TODO attribute ram_style of cache_tags : signal is "distributed";
+
 #     -- L1 TLB.
 #     constant TLB_SET_BITS : natural := log2(TLB_SET_SIZE);
 #     constant TLB_WAY_BITS : natural := log2(TLB_NUM_WAYS);
@@ -175,7 +320,14 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #     constant TLB_PTE_BITS : natural := 64;
 #     constant TLB_PTE_WAY_BITS : natural :=
 #      TLB_NUM_WAYS * TLB_PTE_BITS;
-#
+        # L1 TLB
+        TLB_SET_BITS     = log2_int(TLB_SET_SIZE)
+        TLB_WAY_BITS     = log2_int(TLB_NUM_WAYS)
+        TLB_EA_TAG_BITS  = 64 - (TLB_LG_PGSZ + TLB_SET_BITS)
+        TLB_TAG_WAY_BITS = TLB_NUM_WAYS * TLB_EA_TAG_BITS
+        TLB_PTE_BITS     = 64
+        TLB_PTE_WAY_BITS = TLB_NUM_WAYS * TLB_PTE_BITS;
+
 #     subtype tlb_way_t is integer range 0 to TLB_NUM_WAYS - 1;
 #     subtype tlb_index_t is integer range 0 to TLB_SET_SIZE - 1;
 #     subtype tlb_way_valids_t is
@@ -194,13 +346,51 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #      std_ulogic_vector(TLB_PTE_WAY_BITS-1 downto 0);
 #     type tlb_ptes_t is array(tlb_index_t) of tlb_way_ptes_t;
 #     type hit_way_set_t is array(tlb_way_t) of way_t;
-#
+        def TLBWay():
+            return Signal(TLB_NUM_WAYS)
+
+        def TLBIndex():
+            return Signal(TLB_SET_SIZE)
+
+        def TLBWayValidBits():
+            return Signal(TLB_NUM_WAYS)
+
+        def TLBValidBits():
+            return Array(TLBValidBits() for x in range(TLBIndex()))
+
+        def TLBTag():
+            return Signal(TLB_EA_TAG_BITS)
+
+        def TLBWayTags():
+            return Signal(TLB_TAG_WAY_BITS)
+
+        def TLBTags():
+            return Array(TLBWayTags() for x in range (TLBIndex()))
+
+        def TLBPte():
+            return Signal(TLB_PTE_BITS)
+
+        def TLBWayPtes():
+            return Signal(TLB_PTE_WAY_BITS)
+
+        def TLBPtes():
+            return Array(TLBWayPtes() for x in range(TLBIndex()))
+
+        def HitWaySet():
+            return Array(Way() for x in range(TLBWay()))
+
 #     signal dtlb_valids : tlb_valids_t;
 #     signal dtlb_tags : tlb_tags_t;
 #     signal dtlb_ptes : tlb_ptes_t;
 #     attribute ram_style of dtlb_tags : signal is "distributed";
 #     attribute ram_style of dtlb_ptes : signal is "distributed";
-#
+        dtlb_valids = tlb_valids_t;
+        dtlb_tags   = tlb_tags_t;
+        dtlb_ptes   = tlb_ptes_t;
+        # TODO attribute ram_style of dtlb_tags : signal is "distributed";
+        # TODO attribute ram_style of dtlb_ptes : signal is "distributed";
+
+
 #     -- Record for storing permission, attribute, etc. bits from a PTE
 #     type perm_attr_t is record
 #         reference : std_ulogic;
@@ -210,7 +400,17 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         rd_perm   : std_ulogic;
 #         wr_perm   : std_ulogic;
 #     end record;
-#
+        # Record for storing permission, attribute, etc. bits from a PTE
+        class PermAttr(RecordObject):
+            def __init__(self):
+                super().__init__()
+                self.reference = Signal()
+                self.changed   = Signal()
+                self.nocache   = Signal()
+                self.priv      = Signal()
+                self.rd_perm   = Signal()
+                self.wr_perm   = Signal()
+
 #     function extract_perm_attr(
 #      pte : std_ulogic_vector(TLB_PTE_BITS - 1 downto 0))
 #      return perm_attr_t is
@@ -224,10 +424,25 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         pa.wr_perm := pte(1);
 #         return pa;
 #     end;
-#
+        def extract_perm_attr(pte=Signal(TLB_PTE_BITS)):
+            pa = PermAttr()
+            pa.reference = pte[8]
+            pa.changed   = pte[7]
+            pa.nocache   = pte[5]
+            pa.priv      = pte[3]
+            pa.rd_perm   = pte[2]
+            pa.wr_perm   = pte[1]
+            return pa;
+
 #     constant real_mode_perm_attr : perm_attr_t :=
 #      (nocache => '0', others => '1');
-#
+        REAL_MODE_PERM_ATTR = PermAttr()
+        REAL_MODE_PERM_ATTR.reference = 1
+        REAL_MODE_PERM_ATTR.changed   = 1
+        REAL_MODE_PERM_ATTR.priv      = 1
+        REAL_MODE_PERM_ATTR.rd_perm   = 1
+        REAL_MODE_PERM_ATTR.wr_perm   = 1
+
 #     -- Type of operation on a "valid" input
 #     type op_t is
 #      (
@@ -240,7 +455,18 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 # 	OP_STORE_HIT,  -- Store hitting cache
 # 	OP_STORE_MISS  -- Store missing cache
 #      );
-#
+        # Type of operation on a "valid" input
+        @unique
+        class OP(Enum):
+          OP_NONE       = 0
+          OP_BAD        = 1 # NC cache hit, TLB miss, prot/RC failure
+          OP_STCX_FAIL  = 2 # conditional store w/o reservation
+          OP_LOAD_HIT   = 3 # Cache hit on load
+          OP_LOAD_MISS  = 4 # Load missing cache
+          OP_LOAD_NC    = 5 # Non-cachable load
+          OP_STORE_HIT  = 6 # Store hitting cache
+          OP_STORE_MISS = 7 # Store missing cache
+
 #     -- Cache state machine
 #     type state_t is
 #      (
@@ -249,8 +475,14 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #       STORE_WAIT_ACK,  -- Store wait ack
 #       NC_LOAD_WAIT_ACK -- Non-cachable load wait ack
 #      );
-#
-#     --
+        # Cache state machine
+        @unique
+        class State(Enum):
+            IDLE             = 0 # Normal load hit processing
+            RELOAD_WAIT_ACK  = 1 # Cache reload wait ack
+            STORE_WAIT_ACK   = 2 # Store wait ack
+            NC_LOAD_WAIT_ACK = 3 # Non-cachable load wait ack
+
 #     -- Dcache operations:
 #     --
 #     -- In order to make timing, we use the BRAMs with
@@ -274,10 +506,36 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         tlbld : std_ulogic;
 #         mmu_req : std_ulogic;   -- indicates source of request
 #     end record;
+# Dcache operations:
 #
+# In order to make timing, we use the BRAMs with
+# an output buffer, which means that the BRAM
+# output is delayed by an extra cycle.
+#
+# Thus, the dcache has a 2-stage internal pipeline
+# for cache hits with no stalls.
+#
+# All other operations are handled via stalling
+# in the first stage.
+#
+# The second stage can thus complete a hit at the same
+# time as the first stage emits a stall for a complex op.
+#
+        # Stage 0 register, basically contains just the latched request
+        class RegStage0(RecordObject):
+            def __init__(self):
+                super().__init__()
+                self.req     = LoadStore1ToDcacheType()
+                self.tlbie   = Signal()
+                self.doall   = Signal()
+                self.tlbld   = Signal()
+                self.mmu_req = Signal() # indicates source of request
+
 #     signal r0 : reg_stage_0_t;
 #     signal r0_full : std_ulogic;
-#
+        r0      = RegStage0()
+        r0_full = Signal()
+
 #     type mem_access_request_t is record
 #         op        : op_t;
 #         valid     : std_ulogic;
@@ -289,7 +547,19 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         same_tag  : std_ulogic;
 #         mmu_req   : std_ulogic;
 #     end record;
-#
+        class MemAccessRequest(RecordObject):
+            def __init__(self):
+                super().__init__()
+                self.op        = Op()
+                self.valid     = Signal()
+                self.dcbz      = Signal()
+                self.real_addr = Signal(REAL_ADDR_BITS)
+                self.data      = Signal(64)
+                self.byte_sel  = Signal(8)
+                self.hit_way   = Way()
+                self.same_tag  = Signal()
+                self.mmu_req   = Signal()
+
 #     -- First stage register, contains state for stage 1 of load hits
 #     -- and for the state machine used by all other operations
 #     type reg_stage_1_t is record
@@ -346,16 +616,81 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 #         -- Signal to complete a failed stcx.
 #         stcx_fail        : std_ulogic;
 #     end record;
-#
+# First stage register, contains state for stage 1 of load hits
+# and for the state machine used by all other operations
+        class RegStage1(RecordObject):
+            def __init__(self):
+                super().__init__()
+                # Info about the request
+                self.full             = Signal() # have uncompleted request
+                self.mmu_req          = Signal() # request is from MMU
+                self.req              = MemAccessRequest()
+
+                # Cache hit state
+                self.hit_way          = Way()
+                self.hit_load_valid   = Signal()
+                self.hit_index        = Index()
+                self.cache_hit        = Signal()
+
+                # TLB hit state
+                self.tlb_hit          = Signal()
+                self.tlb_hit_way      = TLBWay()
+                self.tlb_hit_index    = TLBIndex()
+                self.
+                # 2-stage data buffer for data forwarded from writes to reads
+                self.forward_data1    = Signal(64)
+                self.forward_data2    = Signal(64)
+                self.forward_sel1     = Signal(8)
+                self.forward_valid1   = Signal()
+                self.forward_way1     = Way()
+                self.forward_row1     = Row()
+                self.use_forward1     = Signal()
+                self.forward_sel      = Signal(8)
+
+                # Cache miss state (reload state machine)
+                self.state            = State()
+                self.dcbz             = Signal()
+                self.write_bram       = Signal()
+                self.write_tag        = Signal()
+                self.slow_valid       = Signal()
+                self.wb               = WishboneMasterOut()
+                self.reload_tag       = CacheTag()
+                self.store_way        = Way()
+                self.store_row        = Row()
+                self.store_index      = Index()
+                self.end_row_ix       = RowInLine()
+                self.rows_valid       = RowPerLineValid()
+                self.acks_pending     = Signal(3)
+                self.inc_acks         = Signal()
+                self.dec_acks         = Signal()
+
+                # Signals to complete (possibly with error)
+                self.ls_valid         = Signal()
+                self.ls_error         = Signal()
+                self.mmu_done         = Signal()
+                self.mmu_error        = Signal()
+                self.cache_paradox    = Signal()
+
+                # Signal to complete a failed stcx.
+                self.stcx_fail        = Signal()
+
 #     signal r1 : reg_stage_1_t;
-#
+        r1 = RegStage1()
+
 #     -- Reservation information
 #     --
 #     type reservation_t is record
 #         valid : std_ulogic;
 #         addr  : std_ulogic_vector(63 downto LINE_OFF_BITS);
 #     end record;
-#
+# Reservation information
+
+class Reservation(RecordObject):
+    def __init__(self):
+        super().__init__()
+        valid = Signal()
+        addr  = Signal(63 downto LINE_OFF_BITS) # TODO LINE_OFF_BITS is 6
+
 #     signal reservation : reservation_t;
 #
 #     -- Async signals on incoming request
