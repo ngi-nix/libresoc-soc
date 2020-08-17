@@ -127,16 +127,34 @@ class ALUTestCase(TestAccumulatorBase):
         lst = ["subf. 1, 6, 7",
                "cmp cr2, 1, 6, 7"]
         initial_regs = [0] * 32
-        initial_regs[6] = 0xffffffffaaaaaaaa
-        initial_regs[7] = 0x00000000aaaaaaaa
-        self.add_case(Program(lst, bigendian), initial_regs, {})
-
-    def case_cmp(self):
-        lst = ["subf. 1, 6, 7",
-               "cmp cr2, 1, 6, 7"]
-        initial_regs = [0] * 32
         initial_regs[6] = 0x10
         initial_regs[7] = 0x05
+        self.add_case(Program(lst, bigendian), initial_regs, {})
+
+    def case_cmp2(self):
+        lst = ["cmp cr2, 0, 2, 3"]
+        initial_regs = [0] * 32
+        initial_regs[2] = 0xffffffffaaaaaaaa
+        initial_regs[3] = 0x00000000aaaaaaaa
+        self.add_case(Program(lst, bigendian), initial_regs, {})
+
+        lst = ["cmp cr2, 0, 4, 5"]
+        initial_regs = [0] * 32
+        initial_regs[4] = 0x00000000aaaaaaaa
+        initial_regs[5] = 0xffffffffaaaaaaaa
+        self.add_case(Program(lst, bigendian), initial_regs, {})
+
+    def case_cmp3(self):
+        lst = ["cmp cr2, 1, 2, 3"]
+        initial_regs = [0] * 32
+        initial_regs[2] = 0xffffffffaaaaaaaa
+        initial_regs[3] = 0x00000000aaaaaaaa
+        self.add_case(Program(lst, bigendian), initial_regs, {})
+
+        lst = ["cmp cr2, 1, 4, 5"]
+        initial_regs = [0] * 32
+        initial_regs[4] = 0x00000000aaaaaaaa
+        initial_regs[5] = 0xffffffffaaaaaaaa
         self.add_case(Program(lst, bigendian), initial_regs, {})
 
     def case_extsb(self):
@@ -242,8 +260,8 @@ class TestRunner(unittest.TestCase):
                     yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
-        sim.write_vcd("alu_simulator.vcd")
-        sim.run()
+        with sim.write_vcd("alu_simulator.vcd"):
+            sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
