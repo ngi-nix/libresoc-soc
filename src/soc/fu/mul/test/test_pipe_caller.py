@@ -273,7 +273,7 @@ class MulTestCase(TestAccumulatorBase):
 
         for instr in instrs:
             for i in range(20):
-                x = 0x7fffffff + random.randint(0, 1)
+                x = 0x7fffffff + random.randint((-1 << 31), (1 << 31) - 1)
                 ra = random.randint(0, (1 << 32)-1)
                 rb = x // ra
 
