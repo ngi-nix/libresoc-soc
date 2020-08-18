@@ -382,6 +382,10 @@ class Dcache(Elaboratable):
 #     signal dtlb_valids : tlb_valids_t;
 #     signal dtlb_tags : tlb_tags_t;
 #     signal dtlb_ptes : tlb_ptes_t;
+
+"""note: these are passed to nmigen.hdl.Memory as "attributes".  don't
+   know how, just that they are.
+"""
 #     attribute ram_style of dtlb_tags : signal is "distributed";
 #     attribute ram_style of dtlb_ptes : signal is "distributed";
         dtlb_valids = tlb_valids_t;
