@@ -200,8 +200,8 @@ class TestRunner(unittest.TestCase):
 
                     # ask the decoder to decode this binary data (endian'd)
                     yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
-                    yield pdecode2.cia.eq(pc)  # set PC in pdecode2
+                    yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
+                    yield pdecode2.state.pc.eq(pc)  # set PC in pdecode2
                     yield instruction.eq(ins)          # raw binary instr.
                     yield Settle()
 
