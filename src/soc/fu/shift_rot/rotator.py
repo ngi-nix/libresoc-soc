@@ -5,8 +5,9 @@ from nmigen.compat.sim import run_simulation
 from nmigen import (Elaboratable, Signal, Module, Const, Cat, Repl,
                     unsigned, signed)
 from soc.fu.shift_rot.rotl import ROTL
-from nmutil.extend import exts
 from nmigen.back.pysim import Settle
+from nmutil.extend import exts
+from nmutil.mask import Mask
 
 
 # note BE bit numbering
@@ -14,6 +15,8 @@ def right_mask(m, mask_begin):
     ret = Signal(64, name="right_mask", reset_less=True)
     with m.If(mask_begin <= 64):
         m.d.comb += ret.eq((1 << (64-mask_begin)) - 1)
+    with m.Else():
+        m.d.comb += ret.eq(0)
     return ret
 
 
@@ -136,8 +139,19 @@ class Rotator(Elaboratable):
             comb += me.eq(Cat(~sh[0:6], sh[6]))
 
         # Calculate left and right masks
-        comb += mr.eq(right_mask(m, mb))
-        comb += ml.eq(left_mask(m, me))
+        m.submodules.right_mask = right_mask = Mask(64)
+        with m.If(mb <= 64):
+            comb += right_mask.shift.eq(64-mb)
+            comb += mr.eq(right_mask.mask)
+        with m.Else():
+            comb += mr.eq(0)
+        #comb += mr.eq(right_mask(m, mb))
+
+        m.submodules.left_mask = left_mask = Mask(64)
+        comb += left_mask.shift.eq(63-me)
+        comb += ml.eq(~left_mask.mask)
+        #comb += ml.eq(left_mask(m, me))
+
 
         # Work out output mode
         # 00 for sl[wd]
