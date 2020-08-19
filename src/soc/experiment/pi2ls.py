@@ -30,6 +30,8 @@ from nmigen.utils import log2_int
 
 from nmigen import Elaboratable, Module, Signal
 from nmutil.latch import SRLatch
+from nmutil.util import rising_edge
+
 
 
 class Pi2LSUI(PortInterfaceBase):
@@ -56,7 +58,7 @@ class Pi2LSUI(PortInterfaceBase):
 
     def set_wr_data(self, m, data, wen):  # mask already done in addr setup
         m.d.comb += self.lsui.x_st_data_i.eq(data)
-        return (~self.lsui_busy)
+        return (~(self.lsui.x_busy_o | self.lsui_busy))
 
     def get_rd_data(self, m):
         return self.lsui.m_ld_data_o, ~self.lsui_busy
@@ -94,15 +96,17 @@ class Pi2LSUI(PortInterfaceBase):
                     m.next = "WAITDEASSERT"
             with m.State("WAITDEASSERT"):
                 # when no longer busy: back to start
-                with m.If(~self.valid_l.q):
+                with m.If(~pi.is_st_i & ~pi.busy_o):
                     m.next = "IDLE"
 
         # indicate valid at both ends. OR with lsui_busy (stops comb loop)
-        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q | self.lsui_busy)
-        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q | self.lsui_busy)
+        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q )
+        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q )
 
         # reset the valid latch when not busy.  sync to stop loop
-        m.d.sync += self.valid_l.r.eq(~self.lsui_busy)
+        lsui_active = Signal()
+        m.d.comb += lsui_active.eq(~self.lsui.x_busy_o)
+        m.d.comb += self.valid_l.r.eq(rising_edge(m, lsui_active))
 
         return m
 

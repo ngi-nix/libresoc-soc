@@ -454,7 +454,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
                             ~(self.st.rel_o | self.wr.rel_o[0] |
                               self.wr.rel_o[1]) &
-                            (lod_l.qn | op_is_st))
+                            (lod_l.qn | op_is_st) &
+                            (~self.pi.busy_o | op_is_ld))
         comb += self.done_o.eq(wr_reset)
 
         ######################

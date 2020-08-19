@@ -167,7 +167,10 @@ class PortInterfaceBase(Elaboratable):
         m.submodules.adrok_l = adrok_l = SRLatch(False, name="addr_acked")
         m.submodules.busy_l = busy_l = SRLatch(False, name="busy")
         m.submodules.cyc_l = cyc_l = SRLatch(True, name="cyc")
-        comb += st_done.s.eq(0)
+
+        self.busy_l = busy_l
+
+        sync += st_done.s.eq(0)
         comb += st_done.r.eq(0)
         comb += st_active.r.eq(0)
         comb += ld_active.r.eq(0)
@@ -250,7 +253,7 @@ class PortInterfaceBase(Elaboratable):
             # TODO: replace with link to LoadStoreUnitInterface.x_store_data
             # and also handle the ready/stall/busy protocol
             stok = self.set_wr_data(m, stdata, lenexp.lexp_o)
-            comb += st_done.s.eq(1)     # store done trigger
+            sync += st_done.s.eq(1)     # store done trigger
         with m.If(st_done.q):
             comb += reset_l.s.eq(stok)   # reset mode after 1 cycle
 
