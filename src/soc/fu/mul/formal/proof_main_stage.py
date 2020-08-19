@@ -52,6 +52,12 @@ class Driver(Elaboratable):
         StageChain(chain).setup(m, dut.i) # input linked here, through chain
         dut.o = chain[-1].o # output is the last thing in the chain...
 
+        # I don't know how to check instruction behavior without picking
+        # apart individual stages and peeking inside what should be private
+        # interfaces.  Otherwise, I'm just rewriting, line for line, the
+        # logic that is already in the implementation code.
+        stage2_inputs = pipe2.ispec()
+
         # convenience variables
 #       a = dut.i.rs
 #       b = dut.i.rb
@@ -75,35 +81,30 @@ class Driver(Elaboratable):
         comb += Assert(dut.o.ctx.op == dut.i.ctx.op)
         comb += Assert(dut.o.ctx.muxid == dut.i.ctx.muxid)
 
+        # Assert that XER_SO propagates through as well.
+        # Doesn't mean that the ok signal is always set though.
+        comb += Assert(dut.o.xer_so.data == dut.i.xer_so)
+
+
         # signed and signed/32 versions of input a
 #       a_signed = Signal(signed(64))
 #       a_signed_32 = Signal(signed(32))
 #       comb += a_signed.eq(a)
 #       comb += a_signed_32.eq(a[0:32])
 
+        intermediate_result = Signal(len(stage2_inputs.a) + len(stage2_inputs.b))
+        comb += intermediate_result.eq(stage2_inputs.a * stage2_inputs.b)
+
+        expected_product = Signal.like(intermediate_result)
+        with m.If(stage2_inputs.neg_res):
+            comb += expected_product.eq(-intermediate_result)
+        with m.Else():
+            comb += expected_product.eq(intermediate_result)
+
         # main assertion of arithmetic operations
-#       with m.Switch(rec.insn_type):
-#           with m.Case(MicrOp.OP_SHL):
-#               comb += Assume(ra == 0)
-#               with m.If(rec.is_32bit):
-#                   comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
-#                   comb += Assert(o[32:64] == 0)
-#               with m.Else():
-#                   comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
-#           with m.Case(MicrOp.OP_SHR):
-#               comb += Assume(ra == 0)
-#               with m.If(~rec.is_signed):
-#                   with m.If(rec.is_32bit):
-#                       comb += Assert(o[0:32] == (a[0:32] >> b[0:6]))
-#                       comb += Assert(o[32:64] == 0)
-#                   with m.Else():
-#                       comb += Assert(o == (a >> b[0:7]))
-#               with m.Else():
-#                   with m.If(rec.is_32bit):
-#                       comb += Assert(o[0:32] == (a_signed_32 >> b[0:6]))
-#                       comb += Assert(o[32:64] == Repl(a[31], 32))
-#                   with m.Else():
-#                       comb += Assert(o == (a_signed >> b[0:7]))
+        with m.Switch(rec.insn_type):
+            with m.Case(MicrOp.OP_MUL_H32):
+                comb += Assert(dut.o.o.data == Repl(expected_product[32:64], 2))
 
         return m
 
