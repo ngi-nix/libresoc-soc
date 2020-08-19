@@ -65,107 +65,168 @@ def set_alu_inputs(alu, dec2, sim):
 
 class MulTestCase(TestAccumulatorBase):
 
-    def case_0_mullw(self):
-        lst = [f"mullw 3, 1, 2"]
-        initial_regs = [0] * 32
-        #initial_regs[1] = 0xffffffffffffffff
-        #initial_regs[2] = 0xffffffffffffffff
-        initial_regs[1] = 0x2ffffffff
-        initial_regs[2] = 0x2
-        self.add_case(Program(lst, bigendian), initial_regs)
+    def case_all(self):
+        instrs = ["mulhw",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
+                  "mulhdu."]
 
-    def case_1_mullwo_(self):
-        lst = [f"mullwo. 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x3b34b06f
-        initial_regs[2] = 0xfdeba998
-        self.add_case(Program(lst, bigendian), initial_regs)
+        test_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
 
-    def case_2_mullwo(self):
-        lst = [f"mullwo 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffa988  # -5678
-        initial_regs[2] = 0xffffffffffffedcc  # -1234
-        self.add_case(Program(lst, bigendian), initial_regs)
+        for instr in instrs:
+            l = [f"{instr} 3, 1, 2"]
+            for ra in test_values:
+                for rb in test_values:
+                    initial_regs = [0] * 32
+                    initial_regs[1] = ra
+                    initial_regs[2] = rb
+                    # use "with" so as to close the files used
+                    with Program(l, bigendian) as prog:
+                        self.add_case(prog, initial_regs)
 
-    def case_3_mullw(self):
-        lst = ["mullw 3, 1, 2",
-               "mullw 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x6
-        initial_regs[2] = 0xe
-        self.add_case(Program(lst, bigendian), initial_regs)
+    def case_all_rb_randint(self):
+        instrs = ["mulhw",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
+                  "mulhdu."]
 
-    def case_4_mullw_rand(self):
-        for i in range(40):
-            lst = ["mullw 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
+        test_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
 
-    def case_4_mullw_nonrand(self):
-        for i in range(40):
-            lst = ["mullw 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = i+1
-            initial_regs[2] = i+20
-            self.add_case(Program(lst, bigendian), initial_regs)
+        for instr in instrs:
+            l = [f"{instr} 3, 1, 2"]
+            for ra in test_values:
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                initial_regs[2] = random.randint(0, (1 << 64)-1)
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
-    def case_mulhw__regression_1(self):
-        lst = ["mulhw. 3, 1, 2"
-               ]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x7745b36eca6646fa
-        initial_regs[2] = 0x47dfba3a63834ba2
-        self.add_case(Program(lst, bigendian), initial_regs)
+    def case_all_rb_close_to_ov(self):
+        instrs = ["mulhw",
+                  "mulhw.", "mullw",
+                  "mullw.", "mullwo",
+                  "mullwo.", "mulhwu",
+                  "mulhwu.", "mulld",
+                  "mulld.", "mulldo",
+                  "mulldo.", "mulhd",
+                  "mulhd.", "mulhdu",
+                  "mulhdu."]
 
-    def case_rand_mul_lh(self):
-        insns = ["mulhw", "mulhw.", "mulhwu", "mulhwu."]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
+        test_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
 
-    def case_rand_mullw(self):
-        insns = ["mullw", "mullw.", "mullwo", "mullwo."]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
+        for instr in instrs:
+            for i in range(20):
+                x = 0x7fffffff + random.randint((-1 << 31), (1 << 31) - 1)
+                ra = random.randint(0, (1 << 32)-1)
+                rb = x // ra
 
-    def case_rand_mulld(self):
-        insns = ["mulld", "mulld.", "mulldo", "mulldo."]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
+                l = [f"{instr} 3, 1, 2"]
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                initial_regs[2] = rb
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
-    def case_rand_mulhd(self):
-        insns = ["mulhd", "mulhd."]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
+    def case_mulli(self):
 
-    def case_0_mullhw_regression(self):
-        lst = [f"mulhwu 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x4000000000000000
-        initial_regs[2] = 0x0000000000000002
-        self.add_case(Program(lst, bigendian), initial_regs)
+        imm_values = [-32768, -32767, -32766, -2, -1, 0, 1, 2, 32766, 32767]
+
+        ra_values = [
+            0x0,
+            0x1,
+            0x2,
+            0xFFFF_FFFF_FFFF_FFFF,
+            0xFFFF_FFFF_FFFF_FFFE,
+            0x7FFF_FFFF_FFFF_FFFF,
+            0x8000_0000_0000_0000,
+            0x1234_5678_0000_0000,
+            0x1234_5678_8000_0000,
+            0x1234_5678_FFFF_FFFF,
+            0x1234_5678_7FFF_FFFF,
+            0xffffffff,
+            0x7fffffff,
+            0x80000000,
+            0xfffffffe,
+            0xfffffffd
+        ]
+
+        for i in range(20):
+            imm_values.append(random.randint(-1 << 15, (1 << 15) - 1))
+
+        for i in range(14):
+            ra_values.append(random.randint(0, (1 << 64) - 1))
+
+        for ra in ra_values:
+            for imm in imm_values:
+                l = [f"mulli 0, 1, {imm}"]
+                initial_regs = [0] * 32
+                initial_regs[1] = ra
+                # use "with" so as to close the files used
+                with Program(l, bigendian) as prog:
+                    self.add_case(prog, initial_regs)
 
 # TODO add test case for these 3 operand cases (madd
 # needs to be implemented)
