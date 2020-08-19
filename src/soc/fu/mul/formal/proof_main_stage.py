@@ -31,11 +31,13 @@ class Driver(Elaboratable):
         rec = CompMULOpSubset()
 
         # Setup random inputs for dut.op
-        recwidth = 0
-        for p in rec.ports():
-            width = p.width
-            recwidth += width
-            comb += p.eq(AnyConst(width))
+        comb += rec.insn_type.eq(AnyConst(rec.insn_type.width))
+        comb += rec.fn_unit.eq(AnyConst(rec.fn_unit.width))
+        comb += rec.is_signed.eq(AnyConst(rec.is_signed.width))
+        comb += rec.is_32bit.eq(AnyConst(rec.is_32bit.width))
+        comb += rec.imm_data.imm.eq(AnyConst(64))
+        comb += rec.imm_data.imm_ok.eq(AnyConst(1))
+        # TODO, the rest of these.  (the for-loop hides Assert-failures)
 
         # set up the mul stages.  do not add them to m.submodules, this
         # is handled by StageChain.setup().
@@ -52,15 +54,9 @@ class Driver(Elaboratable):
         StageChain(chain).setup(m, dut.i) # input linked here, through chain
         dut.o = chain[-1].o # output is the last thing in the chain...
 
-        # I don't know how to check instruction behavior without picking
-        # apart individual stages and peeking inside what should be private
-        # interfaces.  Otherwise, I'm just rewriting, line for line, the
-        # logic that is already in the implementation code.
-        stage2_inputs = pipe2.ispec()
-
         # convenience variables
-#       a = dut.i.rs
-#       b = dut.i.rb
+        a = dut.i.ra
+        b = dut.i.rb
 #       ra = dut.i.ra
 #       carry_in = dut.i.xer_ca[0]
 #       carry_in32 = dut.i.xer_ca[1]
@@ -69,11 +65,9 @@ class Driver(Elaboratable):
 #       o = dut.o.o
 
         # setup random inputs
-#       comb += [a.eq(AnyConst(64)),
-#                b.eq(AnyConst(64)),
-#                carry_in.eq(AnyConst(1)),
-#                carry_in32.eq(AnyConst(1)),
-#                so_in.eq(AnyConst(1))]
+        comb += [a.eq(AnyConst(64)),
+                 b.eq(AnyConst(64)),
+                ]
 
         comb += dut.i.ctx.op.eq(rec)
 
@@ -92,19 +86,23 @@ class Driver(Elaboratable):
 #       comb += a_signed.eq(a)
 #       comb += a_signed_32.eq(a[0:32])
 
-        intermediate_result = Signal(len(stage2_inputs.a) + len(stage2_inputs.b))
-        comb += intermediate_result.eq(stage2_inputs.a * stage2_inputs.b)
-
-        expected_product = Signal.like(intermediate_result)
-        with m.If(stage2_inputs.neg_res):
-            comb += expected_product.eq(-intermediate_result)
-        with m.Else():
-            comb += expected_product.eq(intermediate_result)
-
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(MicrOp.OP_MUL_H32):
-                comb += Assert(dut.o.o.data == Repl(expected_product[32:64], 2))
+                comb += Assume(rec.is_32bit) # OP_MUL_H32 is a 32-bit op
+
+                # unsigned hi32 - mulhwu
+                with m.If(~rec.is_signed):
+                    expected_product = Signal(64)
+                    expected_o = Signal(64)
+                    comb += expected_product.eq(a[0:32] * b[0:32])
+                    comb += expected_o.eq(Repl(expected_product[32:64], 2))
+                    comb += Assert(dut.o.o.data[0:64] == expected_o)
+
+                # signed hi32 - mulhw
+                with m.Else():
+                    pass
+
 
         return m
 
