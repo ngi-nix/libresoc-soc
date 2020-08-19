@@ -5,10 +5,13 @@ from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
 from nmigen.asserts import Assert, AnyConst, Assume, Cover
 from nmutil.formaltest import FHDLTestCase
+from nmutil.stageapi import StageChain
 from nmigen.cli import rtlil
 
 from soc.fu.mul.pipe_data import CompMULOpSubset, MulPipeSpec
+from soc.fu.mul.pre_stage import MulMainStage1
 from soc.fu.mul.main_stage import MulMainStage2
+from soc.fu.mul.post_stage import MulMainStage3
 
 from soc.decoder.power_enums import MicrOp
 import unittest
@@ -34,8 +37,20 @@ class Driver(Elaboratable):
             recwidth += width
             comb += p.eq(AnyConst(width))
 
+        # set up the mul stages.  do not add them to m.submodules, this
+        # is handled by StageChain.setup().
         pspec = MulPipeSpec(id_wid=2)
-        m.submodules.dut = dut = MulMainStage2(pspec)
+        pipe1 = MulMainStage1(pspec)
+        pipe2 = MulMainStage2(pspec)
+        pipe3 = MulMainStage3(pspec)
+
+        class Dummy: pass
+        dut = Dummy() # make a class into which dut.i and dut.o can be dropped
+        dut.i = pipe1.ispec()
+        chain = [pipe1, pipe2, pipe3] # chain of 3 mul stages
+
+        StageChain(chain).setup(m, dut.i) # input linked here, through chain
+        dut.o = chain[-1].o # output is the last thing in the chain...
 
         # convenience variables
 #       a = dut.i.rs
