@@ -59,9 +59,9 @@ class Driver(Elaboratable):
         m.submodules.dut = dut = ShiftRotMainStage(pspec)
 
         # convenience variables
-        a = dut.i.rs
-        b = dut.i.rb
-        ra = dut.i.a
+        rs = dut.i.rs  # register to shift
+        b = dut.i.rb   # register containing amount to shift by
+        ra = dut.i.a   # source register if masking is to be done
         carry_in = dut.i.xer_ca[0]
         carry_in32 = dut.i.xer_ca[1]
         carry_out = dut.o.xer_ca
@@ -74,7 +74,8 @@ class Driver(Elaboratable):
         md_fields = dut.fields.FormMD
 
         # setup random inputs
-        comb += a.eq(AnyConst(64))
+        comb += rs.eq(AnyConst(64))
+        comb += ra.eq(AnyConst(64))
         comb += b.eq(AnyConst(64))
         comb += carry_in.eq(AnyConst(1))
         comb += carry_in32.eq(AnyConst(1))
@@ -86,11 +87,11 @@ class Driver(Elaboratable):
         comb += Assert(dut.o.ctx.op == dut.i.ctx.op)
         comb += Assert(dut.o.ctx.muxid == dut.i.ctx.muxid)
 
-        # signed and signed/32 versions of input a
+        # signed and signed/32 versions of input rs
         a_signed = Signal(signed(64))
         a_signed_32 = Signal(signed(32))
-        comb += a_signed.eq(a)
-        comb += a_signed_32.eq(a[0:32])
+        comb += a_signed.eq(rs)
+        comb += a_signed_32.eq(rs[0:32])
 
         # masks: start-left
         mb = Signal(7, reset_less=True)
@@ -137,24 +138,24 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_SHL):
                 comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
-                    comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
+                    comb += Assert(o[0:32] == ((rs << b[0:6]) & 0xffffffff))
                     comb += Assert(o[32:64] == 0)
                 with m.Else():
-                    comb += Assert(o == ((a << b[0:7]) & ((1 << 64)-1)))
+                    comb += Assert(o == ((rs << b[0:7]) & ((1 << 64)-1)))
 
             # right-shift: 64/32-bit / signed
             with m.Case(MicrOp.OP_SHR):
                 comb += Assume(ra == 0)
                 with m.If(~rec.is_signed):
                     with m.If(rec.is_32bit):
-                        comb += Assert(o[0:32] == (a[0:32] >> b[0:6]))
+                        comb += Assert(o[0:32] == (rs[0:32] >> b[0:6]))
                         comb += Assert(o[32:64] == 0)
                     with m.Else():
-                        comb += Assert(o == (a >> b[0:7]))
+                        comb += Assert(o == (rs >> b[0:7]))
                 with m.Else():
                     with m.If(rec.is_32bit):
                         comb += Assert(o[0:32] == (a_signed_32 >> b[0:6]))
-                        comb += Assert(o[32:64] == Repl(a[31], 32))
+                        comb += Assert(o[32:64] == Repl(rs[31], 32))
                     with m.Else():
                         comb += Assert(o == (a_signed >> b[0:7]))
 
@@ -162,18 +163,19 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_EXTSWSLI):
                 comb += Assume(ra == 0)
                 with m.If(rec.is_32bit):
-                    comb += Assert(o[0:32] == ((a << b[0:6]) & 0xffffffff))
+                    comb += Assert(o[0:32] == ((rs << b[0:6]) & 0xffffffff))
                     comb += Assert(o[32:64] == 0)
                 with m.Else():
                     # sign-extend to 64 bit
                     a_s = Signal(64, reset_less=True)
-                    comb += a_s.eq(exts(a, 32, 64))
+                    comb += a_s.eq(exts(rs, 32, 64))
                     comb += Assert(o == ((a_s << b[0:7]) & ((1 << 64)-1)))
 
             # rlwinm, rlwnm, rlwimi
             # *CAN* these even be 64-bit capable?  I don't think they are.
             with m.Case(MicrOp.OP_RLC):
                 comb += Assume(ra == 0)
+                comb += Assume(rec.is_32bit)
 
                 # Duplicate some signals so that they're much easier to find
                 # in gtkwave.
@@ -191,7 +193,7 @@ class Driver(Elaboratable):
                     comb += mrl.eq(ml & mr)
 
                 ainp = Signal(64, reset_less=True, name='A_INP_FOR_RLC')
-                comb += ainp.eq(field(a, 32, 63))
+                comb += ainp.eq(field(rs, 32, 63))
 
                 sh = Signal(6, reset_less=True, name='SH_FOR_RLC')
                 comb += sh.eq(b[0:6])
@@ -223,9 +225,9 @@ class Driver(Elaboratable):
 
 #               comb += Assume(mr == 0xFFFFFFFF)
 #               comb += Assume(ml == 0xFFFFFFFF)
-                with m.If(rec.is_32bit):
-                    comb += Assert(act_ol == exp_ol)
-                    comb += Assert(field(o, 0, 31) == 0)
+                #with m.If(rec.is_32bit):
+                #    comb += Assert(act_ol == exp_ol)
+                #    comb += Assert(field(o, 0, 31) == 0)
 
             #TODO
             with m.Case(MicrOp.OP_RLCR):
