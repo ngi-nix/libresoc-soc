@@ -63,6 +63,11 @@ class Driver(Elaboratable):
         comb += abs32_a.eq(Mux(a[31], -a[0:32], a[0:32]))
         comb += abs32_b.eq(Mux(b[31], -b[0:32], b[0:32]))
 
+        abs64_a = Signal(64)
+        abs64_b = Signal(64)
+        comb += abs64_a.eq(Mux(a[63], -a[0:64], a[0:64]))
+        comb += abs64_b.eq(Mux(b[63], -b[0:64], b[0:64]))
+
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
                  b.eq(AnyConst(64)),
@@ -100,6 +105,22 @@ class Driver(Elaboratable):
                     comb += expected_o.eq(Repl(expected_product[32:64], 2))
                     comb += Assert(dut.o.o.data[0:64] == expected_o)
 
+            with m.Case(MicrOp.OP_MUL_H64):
+                comb += Assume(~rec.is_32bit)
+
+                expected_product = Signal(128)
+
+                # unsigned hi64 - mulhdu
+                with m.If(~rec.is_signed):
+                    comb += expected_product.eq(a[0:64] * b[0:64])
+                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
+
+                # signed hi64 - mulhd
+                with m.Else():
+                    prod = Signal.like(expected_product)    # intermediate product
+                    comb += prod.eq(abs64_a * abs64_b)
+                    comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
+                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
 
         return m
 
