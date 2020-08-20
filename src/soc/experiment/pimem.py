@@ -28,6 +28,8 @@ from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
+#from soc.scoreboard.addr_split import LDSTSplitter
+
 
 import unittest
 
@@ -310,46 +312,6 @@ class TestMemoryPortInterface(PortInterfaceBase):
         super().__init__(regwid, addrwid)
         # hard-code memory addressing width to 6 bits
         self.mem = TestMemory(regwid, 5, granularity=regwid//8, init=False)
-
-    def set_wr_addr(self, m, addr, mask):
-        lsbaddr, msbaddr = self.splitaddr(addr)
-        m.d.comb += self.mem.wrport.addr.eq(msbaddr)
-
-    def set_rd_addr(self, m, addr, mask):
-        lsbaddr, msbaddr = self.splitaddr(addr)
-        m.d.comb += self.mem.rdport.addr.eq(msbaddr)
-
-    def set_wr_data(self, m, data, wen):
-        m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
-        m.d.comb += self.mem.wrport.en.eq(wen)  # enable writes
-        return Const(1, 1)
-
-    def get_rd_data(self, m):
-        return self.mem.rdport.data, Const(1, 1)
-
-    def elaborate(self, platform):
-        m = super().elaborate(platform)
-
-        # add TestMemory as submodule
-        m.submodules.mem = self.mem
-
-        return m
-
-    def ports(self):
-        yield from super().ports()
-        # TODO: memory ports
-
-class TestCachedMemoryPortInterface(PortInterfaceBase):
-    """TestCacheMemoryPortInterface
-
-    This is a test class for simple verification of LDSTSplitter
-    conforming to PortInterface,
-    """
-
-    def __init__(self, regwid=64, addrwid=4):
-        super().__init__(regwid, addrwid)
-        # hard-code memory addressing width to 6 bits
-        self.mem = None
 
     def set_wr_addr(self, m, addr, mask):
         lsbaddr, msbaddr = self.splitaddr(addr)
