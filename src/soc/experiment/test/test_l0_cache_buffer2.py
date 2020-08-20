@@ -3,7 +3,7 @@ test cases for LDSTSplitter and L0CacheBuffer2
 """
 
 from soc.experiment.l0_cache import L0CacheBuffer2
-from nmigen import Module
+from nmigen import Module, Signal, Mux, Elaboratable, Cat, Const
 from nmigen.cli import rtlil
 from soc.scoreboard.addr_split import LDSTSplitter
 from soc.scoreboard.addr_match import LenExpand
@@ -18,20 +18,22 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
     """TestCacheMemoryPortInterface
 
     This is a test class for simple verification of LDSTSplitter
-    conforming to PortInterface,
+    conforming to PortInterface
     """
 
     def __init__(self, regwid=64, addrwid=4):
         super().__init__(regwid, addrwid)
-        #self.ldst = LDSTSplitter()
+        self.ldst = LDSTSplitter(32, 48, 4)
+
+    # TODO implement these
 
     def set_wr_addr(self, m, addr, mask):
         lsbaddr, msbaddr = self.splitaddr(addr)
-        #m.d.comb += self.mem.wrport.addr.eq(msbaddr)
+        #m.d.comb += self.ldst... ### .eq(msbaddr)
 
     def set_rd_addr(self, m, addr, mask):
         lsbaddr, msbaddr = self.splitaddr(addr)
-        #m.d.comb += self.mem.rdport.addr.eq(msbaddr)
+        #m.d.comb += self..eq(msbaddr)
 
     def set_wr_data(self, m, data, wen):
         #m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
@@ -39,8 +41,7 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
         return Const(1, 1) #document return value
 
     def get_rd_data(self, m):
-        #return self.mem.rdport.data, Const(1, 1)
-        return None 
+        return self.ldst.ld_data_o.data, Const(1, 1)
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
