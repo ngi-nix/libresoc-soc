@@ -44,7 +44,7 @@ class WishboneDownConvert(Elaboratable):
         cached_data = Signal(dw_from)
         shift_reg = Signal(dw_from)
 
-        counter = Signal(log2_int(ratio, False)+1)
+        counter = Signal(log2_int(ratio, False))
         counter_reset = Signal()
         counter_ce = Signal()
         with m.If(counter_reset):
@@ -59,7 +59,7 @@ class WishboneDownConvert(Elaboratable):
         with m.FSM() as fsm:
             with m.State("IDLE"):
                 comb += counter_reset.eq(1)
-                sync += shift_reg.eq(0)
+                sync += cached_data.eq(0)
                 with m.If(master.stb & master.cyc):
                     with m.If(master.we):
                         m.next = "WRITE"
@@ -89,24 +89,27 @@ class WishboneDownConvert(Elaboratable):
                         comb += counter_ce.eq(1)
                         with m.If(counter_done):
                             comb += master.ack.eq(1)
-                            comb += master.dat_r.eq(cached_data)
+                            comb += master.dat_r.eq(shift_reg)
                             m.next = "IDLE"
                 with m.Elif(~master.cyc):
                     m.next = "IDLE"
 
         # Address
-        with m.If(counter_done):
-            comb += slave.cti.eq(7) # indicate end of burst
-        with m.Else():
-            comb += slave.cti.eq(2)
+        if hasattr(slave, 'cti'):
+            with m.If(counter_done):
+                comb += slave.cti.eq(7) # indicate end of burst
+            with m.Else():
+                comb += slave.cti.eq(2)
         comb += slave.adr.eq(Cat(counter, master.adr))
 
         # write Datapath - select fragments of data, depending on "counter"
         with m.Switch(counter):
+            slen = slave.sel.width
             for i in range(ratio):
                 with m.Case(i):
                     # select fractions of dat_w and associated "sel" bits
-                    comb += slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to//8])
+                    print ("sel", i, "from", i*slen, "to", (i+1)*slen)
+                    comb += slave.sel.eq(master.sel[i*slen:(i+1)*slen])
                     comb += slave.dat_w.eq(master.dat_w[i*dw_to:(i+1)*dw_to])
 
         # read Datapath - uses cached_data and master.dat_r as a shift-register.
@@ -116,3 +119,4 @@ class WishboneDownConvert(Elaboratable):
             sync += cached_data.eq(shift_reg)
 
 
+        return m
