@@ -124,15 +124,18 @@ class Driver(Elaboratable):
 
             # mulli, mullw(o)
             with m.Case(MicrOp.OP_MUL_L64):
-                with m.If(rec.is_32bit):
-                    expected_product = Signal(64)
-#                   expected_o = Signal.like(expected_product)
+                expected_product = Signal(64)
+                expected_ov = Signal()
 
+                with m.If(rec.is_32bit):
                     # unsigned lo64 - mulwu
                     with m.If(~rec.is_signed):
                         comb += expected_product.eq(a[0:32] * b[0:32])
-#                       comb += expected_o.eq(Repl(expected_product[0:32], 2))
                         comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+
+                        m31 = expected_product[31:64]
+                        comb += expected_ov.eq(m31.bool() & ~m31.all())
+                        comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
 
                     # signed lo64 - mulw
                     with m.Else():
