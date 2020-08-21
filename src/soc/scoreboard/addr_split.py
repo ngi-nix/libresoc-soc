@@ -6,7 +6,7 @@ Links:
 * http://bugs.libre-riscv.org/show_bug.cgi?id=216
 """
 
-from soc.experiment.pimem import PortInterface
+#from soc.experiment.pimem import PortInterface
 
 from nmigen import Elaboratable, Module, Signal, Record, Array, Const, Cat
 from nmutil.latch import SRLatch, latchregister
@@ -80,19 +80,14 @@ class LDSTSplitter(Elaboratable):
         # cline_wid = 8<<dlen # cache line width: bytes (8) times (2^^dlen)
         cline_wid = dwidth*8  # convert bytes to bits
 
-        if(pi is None):
-            self.pi = PortInterface()
-        else:
-            self.pi = pi
-
-        self.addr_i = self.pi.addr.data  #Signal(awidth, reset_less=True)
+        self.addr_i = Signal(awidth, reset_less=True)
         # no match in PortInterface
         self.len_i = Signal(dlen, reset_less=True)
         self.valid_i = Signal(reset_less=True)
         self.valid_o = Signal(reset_less=True)
 
-        self.is_ld_i = self.pi.is_ld_i #Signal(reset_less=True)
-        self.is_st_i = self.pi.is_st_i #Signal(reset_less=True)
+        self.is_ld_i = Signal(reset_less=True)
+        self.is_st_i = Signal(reset_less=True)
 
         self.ld_data_o = LDData(dwidth*8, "ld_data_o") #port.ld
         self.st_data_i = LDData(dwidth*8, "st_data_i") #port.st
@@ -120,6 +115,10 @@ class LDSTSplitter(Elaboratable):
         m.submodules.ld2 = ld2 = LDLatch(self.dwidth*8, self.awidth-dlen, mlen)
         m.submodules.lenexp = lenexp = LenExpand(self.dlen)
 
+        #comb += self.pi.addr_ok_o.eq(self.addr_i < 65536) #FIXME 64k limit
+        #comb += self.pi.busy_o.eq(busy)
+
+
         # FIXME bytes not bits
         # set up len-expander, len to mask.  ld1 gets first bit, ld2 gets rest
         comb += lenexp.addr_i.eq(self.addr_i)
@@ -127,7 +126,7 @@ class LDSTSplitter(Elaboratable):
         mask1 = Signal(mlen, reset_less=True)
         mask2 = Signal(mlen, reset_less=True)
         comb += mask1.eq(lenexp.lexp_o[0:mlen])  # Lo bits of expanded len-mask
-        comb += mask2.eq(lenexp.lexp_o[mlen:])  # Hi bits of expanded len-mask
+        comb += mask2.eq(lenexp.lexp_o[mlen:])   # Hi bits of expanded len-mask
 
         # set up new address records: addr1 is "as-is", addr2 is +1
         comb += ld1.addr_i.eq(self.addr_i[dlen:])
@@ -177,6 +176,7 @@ class LDSTSplitter(Elaboratable):
                                                (ld2.ld_o.data << (ashift2*8)))
 
         with m.If(self.is_st_i):
+            # set busy flag -- required for unit test
             for i, (ld, mask) in enumerate(((ld1, mask1),
                                             (ld2, mask2))):
                 valid = Signal(name="stvalid_i%d" % i, reset_less=True)

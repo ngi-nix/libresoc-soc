@@ -28,6 +28,8 @@ from soc.scoreboard.addr_match import LenExpand
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
+#from soc.scoreboard.addr_split import LDSTSplitter
+
 
 import unittest
 

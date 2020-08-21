@@ -57,12 +57,16 @@ class Driver(Elaboratable):
         # convenience variables
         a = dut.i.ra
         b = dut.i.rb
-#       ra = dut.i.ra
-#       carry_in = dut.i.xer_ca[0]
-#       carry_in32 = dut.i.xer_ca[1]
-#       so_in = dut.i.xer_so
-#       carry_out = dut.o.xer_ca
-#       o = dut.o.o
+
+        abs32_a = Signal(32)
+        abs32_b = Signal(32)
+        comb += abs32_a.eq(Mux(a[31], -a[0:32], a[0:32]))
+        comb += abs32_b.eq(Mux(b[31], -b[0:32], b[0:32]))
+
+        abs64_a = Signal(64)
+        abs64_b = Signal(64)
+        comb += abs64_a.eq(Mux(a[63], -a[0:64], a[0:64]))
+        comb += abs64_b.eq(Mux(b[63], -b[0:64], b[0:64]))
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -79,30 +83,63 @@ class Driver(Elaboratable):
         # Doesn't mean that the ok signal is always set though.
         comb += Assert(dut.o.xer_so.data == dut.i.xer_so)
 
-
-        # signed and signed/32 versions of input a
-#       a_signed = Signal(signed(64))
-#       a_signed_32 = Signal(signed(32))
-#       comb += a_signed.eq(a)
-#       comb += a_signed_32.eq(a[0:32])
-
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
             with m.Case(MicrOp.OP_MUL_H32):
                 comb += Assume(rec.is_32bit) # OP_MUL_H32 is a 32-bit op
 
+                expected_product = Signal(64)
+                expected_o = Signal.like(expected_product)
+
                 # unsigned hi32 - mulhwu
                 with m.If(~rec.is_signed):
-                    expected_product = Signal(64)
-                    expected_o = Signal(64)
                     comb += expected_product.eq(a[0:32] * b[0:32])
                     comb += expected_o.eq(Repl(expected_product[32:64], 2))
                     comb += Assert(dut.o.o.data[0:64] == expected_o)
 
                 # signed hi32 - mulhw
                 with m.Else():
-                    pass
+                    prod = Signal.like(expected_product)    # intermediate product
+                    comb += prod.eq(abs32_a * abs32_b)
+                    comb += expected_product.eq(Mux(a[31] ^ b[31], -prod, prod))
+                    comb += expected_o.eq(Repl(expected_product[32:64], 2))
+                    comb += Assert(dut.o.o.data[0:64] == expected_o)
 
+            with m.Case(MicrOp.OP_MUL_H64):
+                comb += Assume(~rec.is_32bit)
+
+                expected_product = Signal(128)
+
+                # unsigned hi64 - mulhdu
+                with m.If(~rec.is_signed):
+                    comb += expected_product.eq(a[0:64] * b[0:64])
+                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
+
+                # signed hi64 - mulhd
+                with m.Else():
+                    prod = Signal.like(expected_product)    # intermediate product
+                    comb += prod.eq(abs64_a * abs64_b)
+                    comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
+                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
+
+            # mulli, mullw(o)
+            with m.Case(MicrOp.OP_MUL_L64):
+                with m.If(rec.is_32bit):
+                    expected_product = Signal(64)
+#                   expected_o = Signal.like(expected_product)
+
+                    # unsigned lo64 - mulwu
+                    with m.If(~rec.is_signed):
+                        comb += expected_product.eq(a[0:32] * b[0:32])
+#                       comb += expected_o.eq(Repl(expected_product[0:32], 2))
+                        comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+
+                    # signed lo64 - mulw
+                    with m.Else():
+                        pass
+
+                with m.Else(): # is 64-bit
+                    pass
 
         return m
 

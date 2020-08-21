@@ -1003,6 +1003,10 @@ class Dcache(Elaboratable):
 
 # begin
 #
+"""these, because they are constants, can actually be done *as*
+   python asserts:
+   assert LINE_SIZE % ROWSIZE == 0, "line size not ...."
+"""
 #     assert LINE_SIZE mod ROW_SIZE = 0
 #      report "LINE_SIZE not multiple of ROW_SIZE" severity FAILURE;
 #     assert ispow2(LINE_SIZE)
