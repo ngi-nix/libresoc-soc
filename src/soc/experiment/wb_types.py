@@ -70,7 +70,7 @@ def WBMasterOutInit():
 #     ack   : std_ulogic;
 #     stall : std_ulogic;
 # end record;
-def class WBSlaveOut(RecordObject):
+class WBSlaveOut(RecordObject):
     def __init__(self):
         super().__init__()
         self.dat   = WBDataType()
