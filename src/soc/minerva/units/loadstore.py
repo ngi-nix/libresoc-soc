@@ -19,7 +19,7 @@ class LoadStoreUnitInterface:
         print(self.dbus.sel.shape())
         if isinstance(pspec.wb_data_wid, int):
             pspecslave = deepcopy(pspec)
-            pspecslave.data_wid = pspec.wb_data_wid
+            pspecslave.reg_wid = pspec.wb_data_wid
             self.slavebus = Record(make_wb_layout(pspecslave))
             self.cvt = WishboneDownConvert(self.dbus, self.slavebus)
         self.mask_wid = mask_wid = pspec.mask_wid
@@ -88,7 +88,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         m = Module()
 
         if hasattr(self, "cvt"):
-            m.submodules.cvt = cvt
+            m.submodules.cvt = self.cvt
 
         with m.If(self.dbus.cyc):
             with m.If(self.dbus.ack | self.dbus.err | ~self.m_valid_i):

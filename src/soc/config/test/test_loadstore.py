@@ -82,7 +82,8 @@ def tst_lsmemtype(ifacetype):
     pspec = TestMemPspec(ldst_ifacetype=ifacetype,
                          imem_ifacetype='', addr_wid=64,
                          mask_wid=4,
-                         reg_wid=32)
+                         wb_data_wid=32,
+                         reg_wid=64)
     dut = ConfigLoadStoreUnit(pspec).lsi
     vl = rtlil.convert(dut, ports=[])  # TODOdut.ports())
     with open("test_loadstore_%s.il" % ifacetype, "w") as f:

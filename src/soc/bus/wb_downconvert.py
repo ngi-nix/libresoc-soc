@@ -36,6 +36,8 @@ class WishboneDownConvert(Elaboratable):
         dw_to = len(slave.dat_w)
         ratio = dw_from//dw_to
 
+        print ("wb downconvert from to ratio", dw_from, dw_to, ratio)
+
         # # #
 
         read = Signal()
