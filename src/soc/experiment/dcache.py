@@ -349,14 +349,11 @@ class Dcache(Elaboratable):
         def TLBWay():
             return Signal(TLB_NUM_WAYS)
 
-        def TLBIndex():
-            return Signal(TLB_SET_SIZE)
-
         def TLBWayValidBits():
             return Signal(TLB_NUM_WAYS)
 
         def TLBValidBits():
-            return Array(TLBValidBits() for x in range(TLBIndex()))
+            return Array(TLBValidBits() for x in range(TLB_SET_SIZE))
 
         def TLBTag():
             return Signal(TLB_EA_TAG_BITS)
@@ -365,7 +362,7 @@ class Dcache(Elaboratable):
             return Signal(TLB_TAG_WAY_BITS)
 
         def TLBTags():
-            return Array(TLBWayTags() for x in range (TLBIndex()))
+            return Array(TLBWayTags() for x in range (TLB_SET_SIZE))
 
         def TLBPte():
             return Signal(TLB_PTE_BITS)
@@ -374,10 +371,10 @@ class Dcache(Elaboratable):
             return Signal(TLB_PTE_WAY_BITS)
 
         def TLBPtes():
-            return Array(TLBWayPtes() for x in range(TLBIndex()))
+            return Array(TLBWayPtes() for x in range(TLB_SET_SIZE))
 
         def HitWaySet():
-            return Array(Way() for x in range(TLBWay()))
+            return Array(Way() for x in range(TLB_NUM_WAYS))
 
 #     signal dtlb_valids : tlb_valids_t;
 #     signal dtlb_tags : tlb_tags_t;
@@ -639,7 +636,7 @@ class Dcache(Elaboratable):
                 # TLB hit state
                 self.tlb_hit          = Signal()
                 self.tlb_hit_way      = TLBWay()
-                self.tlb_hit_index    = TLBIndex()
+                self.tlb_hit_index    = Signal(TLB_SET_SIZE)
                 self.
                 # 2-stage data buffer for data forwarded from writes to reads
                 self.forward_data1    = Signal(64)
@@ -746,7 +743,7 @@ class Dcache(Elaboratable):
 #     signal cache_out   : cache_ram_out_t;
         # Cache RAM interface
         def CacheRamOut():
-            return Array(CacheRow() for x in range(Way()))
+            return Array(CacheRow() for x in range(NUM_WAYS))
 
         cache_out = CacheRamOut()
 
@@ -785,7 +782,7 @@ class Dcache(Elaboratable):
         tlb_tag_way   = TLBWayTags()
         tlb_pte_way   = TLBWayPtes()
         tlb_valid_way = TLBWayValidBits()
-        tlb_req_index = TLBIndex()
+        tlb_req_index = Signal(TLB_SET_SIZE)
         tlb_hit       = Signal()
         tlb_hit_way   = TLBWay()
         pte           = TLBPte()
@@ -802,7 +799,7 @@ class Dcache(Elaboratable):
 #     signal tlb_plru_victim : tlb_plru_out_t;
         # TLB PLRU output interface
         TLBPLRUOut():
-            return Array(Signal(TLB_WAY_BITS) for x in range(TLBIndex()))
+            return Array(Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE))
 
         tlb_plru_victim = TLBPLRUOut()
 
@@ -1166,7 +1163,7 @@ class TLBRead(Elaboratable):
 #         variable index : tlb_index_t;
 #         variable addrbits :
 #          std_ulogic_vector(TLB_SET_BITS - 1 downto 0);
-        index    = TLBIndex()
+        index    = TLB_SET_SIZE
         addrbits = Signal(TLB_SET_BITS)
 
         comb += index
@@ -1399,7 +1396,7 @@ class TLBUpdate(Elaboratable):
 #                     dtlb_valids(i) <= (others => '0');
 #                 end loop;
             # clear all valid bits at once
-            for i in range(TLBIndex()):
+            for i in range(TLB_SET_SIZE):
                 sync += dtlb_valids[i].eq(0)
 #             elsif tlbie = '1' then
         with m.Elif(tlbie):
