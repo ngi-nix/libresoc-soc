@@ -15,13 +15,20 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 class LoadStoreUnitInterface:
     def __init__(self, pspec):
         self.pspec = pspec
+        self.pspecslave = pspec
         self.dbus = self.slavebus = Record(make_wb_layout(pspec))
         print(self.dbus.sel.shape())
-        if isinstance(pspec.wb_data_wid, int):
+        self.needs_cvt = False
+        if (hasattr(pspec, "dmem_test_depth") and
+                     isinstance(pspec.wb_data_wid, int) and
+                    pspec.wb_data_wid != pspec.reg_wid):
             pspecslave = deepcopy(pspec)
             pspecslave.reg_wid = pspec.wb_data_wid
+            mask_ratio = (pspec.reg_wid // pspec.wb_data_wid)
+            pspecslave.mask_wid = pspec.mask_wid // mask_ratio
+            self.pspecslave = pspecslave
             self.slavebus = Record(make_wb_layout(pspecslave))
-            self.cvt = WishboneDownConvert(self.dbus, self.slavebus)
+            self.needs_cvt = True
         self.mask_wid = mask_wid = pspec.mask_wid
         self.addr_wid = addr_wid = pspec.addr_wid
         self.data_wid = data_wid = pspec.reg_wid
@@ -87,7 +94,8 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        if hasattr(self, "cvt"):
+        if self.needs_cvt:
+            self.cvt = WishboneDownConvert(self.dbus, self.slavebus)
             m.submodules.cvt = self.cvt
 
         with m.If(self.dbus.cyc):

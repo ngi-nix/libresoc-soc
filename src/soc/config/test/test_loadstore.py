@@ -24,6 +24,7 @@ def write_to_addr(dut, addr, value):
 
     yield dut.x_stall_i.eq(0)
     yield
+    yield
     yield dut.x_st_i.eq(0)
     while (yield dut.x_busy_o):
         yield
@@ -82,8 +83,8 @@ def tst_lsmemtype(ifacetype):
     pspec = TestMemPspec(ldst_ifacetype=ifacetype,
                          imem_ifacetype='', addr_wid=64,
                          mask_wid=4,
-                         wb_data_wid=32,
-                         reg_wid=64)
+                         wb_data_wid=16,
+                         reg_wid=32)
     dut = ConfigLoadStoreUnit(pspec).lsi
     vl = rtlil.convert(dut, ports=[])  # TODOdut.ports())
     with open("test_loadstore_%s.il" % ifacetype, "w") as f:
@@ -96,7 +97,7 @@ def tst_lsmemtype(ifacetype):
 
     def process():
 
-        values = [random.randint(0, 255) for x in range(16*4)]
+        values = [random.randint(0, 255) for x in range(0)]
         for addr, val in enumerate(values):
             yield from write_byte(dut, addr, val)
             x = yield from read_from_addr(dut, addr << 2)
