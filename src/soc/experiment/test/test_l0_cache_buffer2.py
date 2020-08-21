@@ -25,22 +25,22 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
         super().__init__(regwid, addrwid)
         self.ldst = LDSTSplitter(32, 48, 4)
 
-    # TODO implement these
-
     def set_wr_addr(self, m, addr, mask):
-        lsbaddr, msbaddr = self.splitaddr(addr)
-        #m.d.comb += self.ldst... ### .eq(msbaddr)
+        m.d.comb += self.ldst.addr_i.eq(addr)
+        #lsbaddr, msbaddr = self.splitaddr(addr)
 
     def set_rd_addr(self, m, addr, mask):
-        lsbaddr, msbaddr = self.splitaddr(addr)
+        m.d.comb += self.ldst.addr_i.eq(addr)
+        #lsbaddr, msbaddr = self.splitaddr(addr)
         #m.d.comb += self..eq(msbaddr)
 
     def set_wr_data(self, m, data, wen):
-        #m.d.comb += self.mem.wrport.data.eq(data)  # write st to mem
-        #m.d.comb += self.mem.wrport.en.eq(wen)  # enable writes
-        return Const(1, 1) #document return value
+        m.d.comb += self.ldst.st_data_i.eq(data)  # write st to mem
+        m.d.comb += self.ldst.is_st_i.eq(wen)  # enable writes
+        return Const(1, 1) #fixme -- write may be longer than one cycle
 
     def get_rd_data(self, m):
+        # this path is still untested
         return self.ldst.ld_data_o.data, Const(1, 1)
 
     def elaborate(self, platform):
