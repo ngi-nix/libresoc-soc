@@ -132,7 +132,7 @@ class Dcache(Elaboratable):
         #     --
         #     -- ROW_SIZE is the width in bytes of the BRAM
         #     -- (based on WB, so 64-bits)
-        ROW_SIZE = wishbone_data_bits / 8;
+        ROW_SIZE = WB_DATA_BITS / 8;
 
 #     -- ROW_PER_LINE is the number of row (wishbone
 #     -- transactions) in a line
@@ -232,24 +232,16 @@ class Dcache(Elaboratable):
 #     subtype index_t is integer range 0 to NUM_LINES-1;
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
 #     subtype row_in_line_t is unsigned(ROW_LINE_BITS-1 downto 0);
-        def Row():
-            return Signal(BRAM_ROWS)
-
-        def Index():
-            return Signal(NUM_LINES)
-
-        def Way():
-            return Signal(NUM_WAYS)
-
-        def RowInLine():
-            return Signal(ROW_LINE_BITS)
+        ROW         = BRAM_ROWS
+        INDEX       = NUM_LINES
+        WAY         = NUM_WAYS
+        ROW_IN_LINE = ROW_LINE_BITS
 
 #     -- The cache data BRAM organized as described above for each way
 #     subtype cache_row_t is
 #      std_ulogic_vector(wishbone_data_bits-1 downto 0);
         # The cache data BRAM organized as described above for each way
-        def CacheRow():
-            return Signal(WB_DATA_BITS)
+        CACHE_ROW   = WB_DATA_BITS
 
 #     -- The cache tags LUTRAM has a row per set.
 #     -- Vivado is a pain and will not handle a
@@ -262,8 +254,7 @@ class Dcache(Elaboratable):
         # clean (commented) definition of the cache
         # tags as a 3d memory. For now, work around
         # it by putting all the tags
-        def CacheTag():
-            return Signal(TAG_BITS)
+        CACHE_TAG   = TAG_BITS
 
 #     -- type cache_tags_set_t is array(way_t) of cache_tag_t;
 #     -- type cache_tags_array_t is array(index_t) of cache_tags_set_t;
@@ -275,11 +266,10 @@ class Dcache(Elaboratable):
         # type cache_tags_array_t is array(index_t) of cache_tags_set_t;
         TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
 
-        def CacheTagSet():
-            return Signal(TAG_RAM_WIDTH)
+        CACHE_TAG_SET = TAG_RAM_WIDTH
 
         def CacheTagArray():
-            return Array(CacheTagSet() for x in range(Index()))
+            return Array(CacheTagSet() for x in range(INDEX))
 
 #     -- The cache valid bits
 #     subtype cache_way_valids_t is
@@ -288,11 +278,12 @@ class Dcache(Elaboratable):
 #     type row_per_line_valid_t is
 #      array(0 to ROW_PER_LINE - 1) of std_ulogic;
         # The cache valid bits
-        def CacheWayValidBits():
-            return Signal(NUM_WAYS)
-        def CacheValidBits():
-            return Array(CacheWayValidBits() for x in range(Index()))
-        def RowPerLineValid():
+        CACHE_WAY_VALID_BITS = NUM_WAYS
+
+        def CacheValidBitsArray():
+            return Array(CacheWayValidBits() for x in range(INDEX))
+
+        def RowPerLineValidArray():
             return Array(Signal() for x in range(ROW_PER_LINE))
 
 #     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
@@ -304,8 +295,8 @@ class Dcache(Elaboratable):
 #     attribute ram_style of cache_tags : signal is "distributed";
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags       = CacheTagArray()
-        cache_tag_set    = CacheTagSet()
-        cache_valid_bits = CacheValidBits()
+        cache_tag_set    = Signal(CACHE_TAG_SET)
+        cache_valid_bits = CacheValidBitsArray()
 
         # TODO attribute ram_style : string;
         # TODO attribute ram_style of cache_tags : signal is "distributed";
@@ -346,35 +337,37 @@ class Dcache(Elaboratable):
 #      std_ulogic_vector(TLB_PTE_WAY_BITS-1 downto 0);
 #     type tlb_ptes_t is array(tlb_index_t) of tlb_way_ptes_t;
 #     type hit_way_set_t is array(tlb_way_t) of way_t;
-        def TLBWay():
-            return Signal(TLB_NUM_WAYS)
+        TLB_WAY = TLB_NUM_WAYS
 
-        def TLBWayValidBits():
-            return Signal(TLB_NUM_WAYS)
+        TLB_INDEX = TLB_SET_SIZE
 
-        def TLBValidBits():
-            return Array(TLBValidBits() for x in range(TLB_SET_SIZE))
+        TLB_WAY_VALID_BITS = TLB_NUM_WAYS
 
-        def TLBTag():
-            return Signal(TLB_EA_TAG_BITS)
+        def TLBValidBitsArray():
+            return Array(
+             Signal(TLB_WAY_VALID_BITS) for x in range(TLB_SET_SIZE)
+            )
 
-        def TLBWayTags():
-            return Signal(TLB_TAG_WAY_BITS)
+        TLB_TAG = TLB_EA_TAG_BITS
 
-        def TLBTags():
-            return Array(TLBWayTags() for x in range (TLB_SET_SIZE))
+        TLB_WAY_TAGS = TLB_TAG_WAY_BITS
 
-        def TLBPte():
-            return Signal(TLB_PTE_BITS)
+        def TLBTagsArray():
+            return Array(
+             Signal(TLB_WAY_TAGS) for x in range (TLB_SET_SIZE)
+            )
 
-        def TLBWayPtes():
-            return Signal(TLB_PTE_WAY_BITS)
+        TLB_PTE = TLB_PTE_BITS
 
-        def TLBPtes():
-            return Array(TLBWayPtes() for x in range(TLB_SET_SIZE))
+        TLB_WAY_PTES = TLB_PTE_WAY_BITS
+
+        def TLBPtesArray():
+            return Array(
+             Signal(TLB_WAY_PTES) for x in range(TLB_SET_SIZE)
+            )
 
         def HitWaySet():
-            return Array(Way() for x in range(TLB_NUM_WAYS))
+            return Array(Signal(WAY) for x in range(TLB_NUM_WAYS))
 
 #     signal dtlb_valids : tlb_valids_t;
 #     signal dtlb_tags : tlb_tags_t;
@@ -385,9 +378,9 @@ class Dcache(Elaboratable):
 """
 #     attribute ram_style of dtlb_tags : signal is "distributed";
 #     attribute ram_style of dtlb_ptes : signal is "distributed";
-        dtlb_valids = tlb_valids_t;
-        dtlb_tags   = tlb_tags_t;
-        dtlb_ptes   = tlb_ptes_t;
+        dtlb_valids = TLBValidBitsArray()
+        dtlb_tags   = TLBTagsArray()
+        dtlb_ptes   = TLBPtesArray()
         # TODO attribute ram_style of dtlb_tags : signal is "distributed";
         # TODO attribute ram_style of dtlb_ptes : signal is "distributed";
 
@@ -557,7 +550,7 @@ class Dcache(Elaboratable):
                 self.real_addr = Signal(REAL_ADDR_BITS)
                 self.data      = Signal(64)
                 self.byte_sel  = Signal(8)
-                self.hit_way   = Way()
+                self.hit_way   = Signal(WAY)
                 self.same_tag  = Signal()
                 self.mmu_req   = Signal()
 
@@ -628,14 +621,14 @@ class Dcache(Elaboratable):
                 self.req              = MemAccessRequest()
 
                 # Cache hit state
-                self.hit_way          = Way()
+                self.hit_way          = Signal(WAY)
                 self.hit_load_valid   = Signal()
-                self.hit_index        = Index()
+                self.hit_index        = Signal(INDEX)
                 self.cache_hit        = Signal()
 
                 # TLB hit state
                 self.tlb_hit          = Signal()
-                self.tlb_hit_way      = TLBWay()
+                self.tlb_hit_way      = Signal(TLB_WAY)
                 self.tlb_hit_index    = Signal(TLB_SET_SIZE)
                 self.
                 # 2-stage data buffer for data forwarded from writes to reads
@@ -643,8 +636,8 @@ class Dcache(Elaboratable):
                 self.forward_data2    = Signal(64)
                 self.forward_sel1     = Signal(8)
                 self.forward_valid1   = Signal()
-                self.forward_way1     = Way()
-                self.forward_row1     = Row()
+                self.forward_way1     = Signal(WAY)
+                self.forward_row1     = Signal(ROW)
                 self.use_forward1     = Signal()
                 self.forward_sel      = Signal(8)
 
@@ -655,12 +648,12 @@ class Dcache(Elaboratable):
                 self.write_tag        = Signal()
                 self.slow_valid       = Signal()
                 self.wb               = WishboneMasterOut()
-                self.reload_tag       = CacheTag()
-                self.store_way        = Way()
-                self.store_row        = Row()
-                self.store_index      = Index()
-                self.end_row_ix       = RowInLine()
-                self.rows_valid       = RowPerLineValid()
+                self.reload_tag       = Signal(CACHE_TAG)
+                self.store_way        = Signal(WAY)
+                self.store_row        = Signal(ROW)
+                self.store_index      = Signal(INDEX)
+                self.end_row_ix       = Signal(ROW_IN_LINE)
+                self.rows_valid       = RowPerLineValidArray()
                 self.acks_pending     = Signal(3)
                 self.inc_acks         = Signal()
                 self.dec_acks         = Signal()
@@ -706,10 +699,10 @@ class Dcache(Elaboratable):
 #     signal req_same_tag : std_ulogic;
 #     signal req_go      : std_ulogic;
         # Async signals on incoming request
-        req_index    = Index()
-        req_row      = Row()
-        req_hit_way  = Way()
-        req_tag      = CacheTag()
+        req_index    = Signal(INDEX)
+        req_row      = Signal(ROW)
+        req_hit_way  = Signal(WAY)
+        req_tag      = Signal(CACHE_TAG)
         req_op       = Op()
         req_data     = Signal(64)
         req_same_tag = Signal()
@@ -726,7 +719,7 @@ class Dcache(Elaboratable):
 #
 #     signal use_forward1_next : std_ulogic;
 #     signal use_forward2_next : std_ulogic;
-        early_req_row  = Row()
+        early_req_row  = Signal(ROW)
 
         cancel_store = Signal()
         set_rsrv     = Signal()
@@ -743,7 +736,7 @@ class Dcache(Elaboratable):
 #     signal cache_out   : cache_ram_out_t;
         # Cache RAM interface
         def CacheRamOut():
-            return Array(CacheRow() for x in range(NUM_WAYS))
+            return Array(Signal(CACHE_ROW) for x in range(NUM_WAYS))
 
         cache_out = CacheRamOut()
 
@@ -757,7 +750,7 @@ class Dcache(Elaboratable):
             return Array(Signal(WAY_BITS) for x in range(Index()))
 
         plru_victim = PLRUOut()
-        replace_way = Way()
+        replace_way = Signal(WAY)
 
 #     -- Wishbone read/write/cache write formatting signals
 #     signal bus_sel     : std_ulogic_vector(7 downto 0);
@@ -779,13 +772,13 @@ class Dcache(Elaboratable):
 #     signal perm_ok : std_ulogic;
 #     signal access_ok : std_ulogic;
         # TLB signals
-        tlb_tag_way   = TLBWayTags()
-        tlb_pte_way   = TLBWayPtes()
-        tlb_valid_way = TLBWayValidBits()
+        tlb_tag_way   = Signal(TLB_WAY_TAGS)
+        tlb_pte_way   = Signal(TLB_WAY_PTES)
+        tlb_valid_way = Signal(TLB_WAY_VALID_BITS)
         tlb_req_index = Signal(TLB_SET_SIZE)
         tlb_hit       = Signal()
-        tlb_hit_way   = TLBWay()
-        pte           = TLBPte()
+        tlb_hit_way   = Signal(TLB_WAY)
+        pte           = Signal(TLB_PTE)
         ra            = Signal(REAL_ADDR_BITS)
         valid_ra      = Signal()
         perm_attr     = PermAttr()
@@ -798,7 +791,7 @@ class Dcache(Elaboratable):
 #      std_ulogic_vector(TLB_WAY_BITS-1 downto 0);
 #     signal tlb_plru_victim : tlb_plru_out_t;
         # TLB PLRU output interface
-        TLBPLRUOut():
+        DEF TLBPLRUOut():
             return Array(Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE))
 
         tlb_plru_victim = TLBPLRUOut()
@@ -990,9 +983,7 @@ class Dcache(Elaboratable):
 #         j := way * TLB_PTE_BITS;
 #         ptes(j + TLB_PTE_BITS - 1 downto j) := newpte;
 #     end;
-        def write_tlb_pte(way, ptes),
-         newpte=TLBPte()):
-
+        def write_tlb_pte(way, ptes,newpte):
             j = Signal()
 
             j = way * TLB_PTE_BITS
