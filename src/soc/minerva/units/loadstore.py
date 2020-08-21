@@ -16,19 +16,22 @@ class LoadStoreUnitInterface:
     def __init__(self, pspec):
         self.pspec = pspec
         self.pspecslave = pspec
-        self.dbus = self.slavebus = Record(make_wb_layout(pspec))
-        print(self.dbus.sel.shape())
-        self.needs_cvt = False
         if (hasattr(pspec, "dmem_test_depth") and
                      isinstance(pspec.wb_data_wid, int) and
                     pspec.wb_data_wid != pspec.reg_wid):
+            self.dbus = Record(make_wb_layout(pspec), name="int_dbus")
             pspecslave = deepcopy(pspec)
             pspecslave.reg_wid = pspec.wb_data_wid
             mask_ratio = (pspec.reg_wid // pspec.wb_data_wid)
             pspecslave.mask_wid = pspec.mask_wid // mask_ratio
             self.pspecslave = pspecslave
-            self.slavebus = Record(make_wb_layout(pspecslave))
+            self.slavebus = Record(make_wb_layout(pspecslave), name="dbus")
             self.needs_cvt = True
+        else:
+            self.needs_cvt = False
+            self.dbus = self.slavebus = Record(make_wb_layout(pspec))
+
+        print(self.dbus.sel.shape())
         self.mask_wid = mask_wid = pspec.mask_wid
         self.addr_wid = addr_wid = pspec.addr_wid
         self.data_wid = data_wid = pspec.reg_wid
@@ -83,7 +86,7 @@ class LoadStoreUnitInterface:
         yield self.m_load_err_o
         yield self.m_store_err_o
         yield self.m_badaddr_o
-        for sig in self.dbus.fields.values():
+        for sig in self.slavebus.fields.values():
             yield sig
 
     def ports(self):

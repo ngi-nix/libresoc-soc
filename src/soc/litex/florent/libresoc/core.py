@@ -5,14 +5,13 @@ from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = ["standard", "standard32"]
 
 
 class LibreSoC(CPU):
     name                 = "libre_soc"
     human_name           = "Libre-SoC"
     variants             = CPU_VARIANTS
-    data_width           = 64
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux", "powerpc64le-linux-gnu")
     linker_output_format = "elf64-powerpcle"
@@ -44,8 +43,14 @@ class LibreSoC(CPU):
         self.variant      = variant
         self.reset        = Signal()
 
+
+        if variant == "standard32":
+            self.data_width           = 32
+            self.dbus = dbus = wishbone.Interface(data_width=32, adr_width=30)
+        else:
+            self.dbus = dbus = wishbone.Interface(data_width=64, adr_width=29)
+            self.data_width           = 64
         self.ibus = ibus = wishbone.Interface(data_width=64, adr_width=29)
-        self.dbus = dbus = wishbone.Interface(data_width=64, adr_width=29)
 
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []

@@ -283,7 +283,7 @@ class TestIssuer(Elaboratable):
                                     ] + \
                 list(self.dbg.dmi.ports()) + \
                 list(self.imem.ibus.fields.values()) + \
-                list(self.core.l0.cmpi.lsmem.lsi.dbus.fields.values())
+                list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
 
     def ports(self):
         return list(self)

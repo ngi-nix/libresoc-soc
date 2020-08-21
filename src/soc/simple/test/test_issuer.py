@@ -142,6 +142,7 @@ class TestRunner(FHDLTestCase):
                              addr_wid=48,
                              mask_wid=8,
                              imem_reg_wid=64,
+                             #wb_data_width=32,
                              reg_wid=64)
         m.submodules.issuer = issuer = TestIssuer(pspec)
         imem = issuer.imem._get_memory()
