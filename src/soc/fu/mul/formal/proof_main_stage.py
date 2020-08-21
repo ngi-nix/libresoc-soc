@@ -122,6 +122,25 @@ class Driver(Elaboratable):
                     comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
                     comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
 
+            # mulli, mullw(o)
+            with m.Case(MicrOp.OP_MUL_L64):
+                with m.If(rec.is_32bit):
+                    expected_product = Signal(64)
+#                   expected_o = Signal.like(expected_product)
+
+                    # unsigned lo64 - mulwu
+                    with m.If(~rec.is_signed):
+                        comb += expected_product.eq(a[0:32] * b[0:32])
+#                       comb += expected_o.eq(Repl(expected_product[0:32], 2))
+                        comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+
+                    # signed lo64 - mulw
+                    with m.Else():
+                        pass
+
+                with m.Else(): # is 64-bit
+                    pass
+
         return m
 
 
