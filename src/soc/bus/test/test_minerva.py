@@ -12,7 +12,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
                 isinstance(pspec.dmem_test_depth, int)):
             depth = pspec.dmem_test_depth
         else:
-            depth = 32
+            depth = 64
         print("TestSRAMBareLoadStoreUnit depth", depth)
 
         self.mem = Memory(width=self.data_wid, depth=depth)
