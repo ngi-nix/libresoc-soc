@@ -1025,11 +1025,11 @@ class Dcache(Elaboratable):
 #      severity FAILURE;
 #     assert SET_SIZE_BITS <= TLB_LG_PGSZ
 #      report "Set indexed by virtual address" severity FAILURE;
-        assert (LINE_SIZE % ROW_SIZE) == 0 "LINE_SIZE not
-         multiple of ROW_SIZE -!- severity FAILURE"
+        assert (LINE_SIZE % ROW_SIZE) == 0 "LINE_SIZE not " \
+                          "multiple of ROW_SIZE -!- severity FAILURE"
 
-        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of
-         2 -!- severity FAILURE"
+        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of" \
+                        "2 -!- severity FAILURE"
 
         assert (NUM_LINES % 2) == 0 "NUM_LINES not power of
          2 -!- severity FAILURE"
