@@ -815,7 +815,7 @@ class Dcache(Elaboratable):
 # Helper functions to decode incoming requests
 #
         # Return the cache line index (tag index) for an address
-        def get_index(addr=Signal()):
+        def get_index(addr):
             return addr[LINE_OFF_BITS:SET_SIZE_BITS]
 
 #     -- Return the cache row index (data memory) for an address
@@ -826,7 +826,7 @@ class Dcache(Elaboratable):
 #         );
 #     end;
         # Return the cache row index (data memory) for an address
-        def get_row(addr=Signal()):
+        def get_row(addr):
             return addr[ROW_OFF_BITS:SET_SIZE_BITS]
 
 #     -- Return the index of a row within a line
@@ -837,7 +837,7 @@ class Dcache(Elaboratable):
 #         return row_v(ROW_LINEBITS-1 downto 0);
 #     end;
         # Return the index of a row within a line
-        def get_row_of_line(row=Row()):
+        def get_row_of_line(row):
             row_v = Signal(ROW_BITS)
             row_v = Signal(row)
             return row_v[0:ROW_LINE_BITS]
@@ -850,7 +850,7 @@ class Dcache(Elaboratable):
 #        unsigned(addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)) = last;
 #     end;
         # Returns whether this is the last row of a line
-        def is_last_row_addr(addr=WBAddrType(), last=RowInLine()):
+        def is_last_row_addr(addr, last):
             return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
 
 #     -- Returns whether this is the last row of a line
@@ -860,7 +860,7 @@ class Dcache(Elaboratable):
 #         return get_row_of_line(row) = last;
 #     end;
         # Returns whether this is the last row of a line
-        def is_last_row(row=Row(), last=RowInLine()):
+        def is_last_row(row, last):
             return get_row_of_line(row) == last
 
 #     -- Return the address of the next row in the current cache line
@@ -878,7 +878,7 @@ class Dcache(Elaboratable):
 # 	return result;
 #     end;
         # Return the address of the next row in the current cache line
-        def next_row_addr(addr=WBAddrType()):
+        def next_row_addr(addr):
             row_idx = Signal(ROW_LINE_BITS)
             result  = WBAddrType()
             # Is there no simpler way in VHDL to
@@ -908,7 +908,7 @@ class Dcache(Elaboratable):
 # dedicated function in order to limit the size of the
 # generated adder to be only the bits within a cache line
 # (3 bits with default settings)
-        def next_row(row=Row())
+        def next_row(row)
             row_v   = Signal(ROW_BITS)
             row_idx = Signal(ROW_LINE_BITS)
             result  = Signal(ROW_BITS)
@@ -924,7 +924,7 @@ class Dcache(Elaboratable):
 #         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
 #     end;
         # Get the tag value from the address
-        def get_tag(addr=Signal()):
+        def get_tag(addr):
             return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
 
 #     -- Read a tag from a tag memory row
@@ -935,7 +935,7 @@ class Dcache(Elaboratable):
 #                     - 1 downto way * TAG_WIDTH);
 #     end;
         # Read a tag from a tag memory row
-        def read_tag(way=Way(), tagset=CacheTagsSet()):
+        def read_tag(way, tagset):
             return tagset[way *TAG_WIDTH:way * TAG_WIDTH + TAG_BITS]
 
 #     -- Read a TLB tag from a TLB tag memory row
@@ -947,7 +947,7 @@ class Dcache(Elaboratable):
 #         return tags(j + TLB_EA_TAG_BITS - 1 downto j);
 #     end;
         # Read a TLB tag from a TLB tag memory row
-        def read_tlb_tag(way=TLBWay(), tags=TLBWayTags()):
+        def read_tlb_tag(way, tags):
             j = Signal()
 
             j = way * TLB_EA_TAG_BITS
@@ -962,7 +962,7 @@ class Dcache(Elaboratable):
 #         tags(j + TLB_EA_TAG_BITS - 1 downto j) := tag;
 #     end;
         # Write a TLB tag to a TLB tag memory row
-        def write_tlb_tag(way=TLBWay(), tags=TLBWayTags()), tag=TLBTag()):
+        def write_tlb_tag(way, tags), tag):
             j = Signal()
 
             j = way * TLB_EA_TAG_BITS
@@ -977,7 +977,7 @@ class Dcache(Elaboratable):
 #         return ptes(j + TLB_PTE_BITS - 1 downto j);
 #     end;
         # Read a PTE from a TLB PTE memory row
-        def read_tlb_pte(way: TLBWay(), ptes=TLBWayPtes()):
+        def read_tlb_pte(way, ptes):
             j = Signal()
 
             j = way * TLB_PTE_BITS
@@ -990,7 +990,7 @@ class Dcache(Elaboratable):
 #         j := way * TLB_PTE_BITS;
 #         ptes(j + TLB_PTE_BITS - 1 downto j) := newpte;
 #     end;
-        def write_tlb_pte(way=TLBWay(), ptes=TLBWayPtes(),
+        def write_tlb_pte(way, ptes),
          newpte=TLBPte()):
 
             j = Signal()
