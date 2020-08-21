@@ -26,7 +26,7 @@ if __name__ == '__main__':
                          # set to 32 for instruction-memory width=32
                          imem_reg_wid=64,
                          # set to 32 to make data wishbone bus 32-bit
-                         wb_data_wid=32,
+                         #wb_data_wid=32,
                          units=units)
     dut = TestIssuer(pspec)
 

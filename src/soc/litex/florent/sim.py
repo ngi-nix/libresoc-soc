@@ -37,8 +37,8 @@ class LibreSoCSim(SoCSDRAM):
         platform     = Platform()
         sys_clk_freq = int(100e6)
 
-        cpu_data_width = 32
-        #cpu_data_width = 64
+        #cpu_data_width = 32
+        cpu_data_width = 64
 
         if cpu_data_width == 32:
             variant = "standard32"
@@ -53,7 +53,7 @@ class LibreSoCSim(SoCSDRAM):
             #bus_data_width           = 64,
             cpu_variant              = variant,
             csr_data_width            = 32,
-            l2_cache_size             = 0,
+            l2_size             = 0,
             uart_name                = "sim",
             with_sdram               = with_sdram,
             sdram_module          = sdram_module,
@@ -210,9 +210,9 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # limit range of pc for debug reporting
-        #self.comb += active_dbg.eq((0x5108 <= pc) & (pc <= 0x5234))
+        self.comb += active_dbg.eq((0x5108 <= pc) & (pc <= 0x5234))
         #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
-        self.comb += active_dbg.eq(1)
+        #self.comb += active_dbg.eq(1)
 
         # get the MSR
         self.sync += If(active_dbg & (uptime[0:cyclewid] == 28),
