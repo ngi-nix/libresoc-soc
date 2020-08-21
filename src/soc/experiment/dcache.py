@@ -184,9 +184,9 @@ class Dcache(Elaboratable):
         REAL_ADDR_BITS = 56
         # ROW_BITS is the number of bits to select a row
         ROW_BITS = log2_int(BRAM_ROWS)
-        # ROW_LINEBITS is the number of bits to select
+        # ROW_LINE_BITS is the number of bits to select
         # a row within a line
-        ROW_LINEBITS = log2_int(ROW_PER_LINE)
+        ROW_LINE_BITS = log2_int(ROW_PER_LINE)
         # LINE_OFF_BITS is the number of bits for
         # the offset in a cache line
         LINE_OFF_BITS = log2_int(LINE_SIZE)
@@ -220,7 +220,7 @@ class Dcache(Elaboratable):
         #
         # ..  tag    |index|  line  |
         # ..         |   row   |    |
-        # ..         |     |---|    | ROW_LINEBITS  (3)
+        # ..         |     |---|    | ROW_LINE_BITS  (3)
         # ..         |     |--- - --| LINE_OFF_BITS (6)
         # ..         |         |- --| ROW_OFF_BITS  (3)
         # ..         |----- ---|    | ROW_BITS      (8)
@@ -231,7 +231,7 @@ class Dcache(Elaboratable):
 #     subtype row_t is integer range 0 to BRAM_ROWS-1;
 #     subtype index_t is integer range 0 to NUM_LINES-1;
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
-#     subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
+#     subtype row_in_line_t is unsigned(ROW_LINE_BITS-1 downto 0);
         def Row():
             return Signal(BRAM_ROWS)
 
@@ -242,7 +242,7 @@ class Dcache(Elaboratable):
             return Signal(NUM_WAYS)
 
         def RowInLine():
-            return Signal(ROW_LINEBITS)
+            return Signal(ROW_LINE_BITS)
 
 #     -- The cache data BRAM organized as described above for each way
 #     subtype cache_row_t is
@@ -689,14 +689,16 @@ class Dcache(Elaboratable):
 #     end record;
 # Reservation information
 
-class Reservation(RecordObject):
-    def __init__(self):
-        super().__init__()
-        valid = Signal()
-        addr  = Signal(63 downto LINE_OFF_BITS) # TODO LINE_OFF_BITS is 6
+        class Reservation(RecordObject):
+            def __init__(self):
+                super().__init__()
+                valid = Signal()
+                # TODO LINE_OFF_BITS is 6
+                addr  = Signal(63 downto LINE_OFF_BITS)
 
 #     signal reservation : reservation_t;
-#
+        reservation = Reservation()
+
 #     -- Async signals on incoming request
 #     signal req_index   : index_t;
 #     signal req_row     : row_t;
@@ -706,7 +708,16 @@ class Reservation(RecordObject):
 #     signal req_data    : std_ulogic_vector(63 downto 0);
 #     signal req_same_tag : std_ulogic;
 #     signal req_go      : std_ulogic;
-#
+        # Async signals on incoming request
+        req_index    = Index()
+        req_row      = Row()
+        req_hit_way  = Way()
+        req_tag      = CacheTag()
+        req_op       = Op()
+        req_data     = Signal(64)
+        req_same_tag = Signal()
+        req_go       = Signal()
+
 #     signal early_req_row  : row_t;
 #
 #     signal cancel_store : std_ulogic;
@@ -718,20 +729,44 @@ class Reservation(RecordObject):
 #
 #     signal use_forward1_next : std_ulogic;
 #     signal use_forward2_next : std_ulogic;
-#
+        early_req_row  = Row()
+
+        cancel_store = Signal()
+        set_rsrv     = Signal()
+        clear_rsrv   = Signal()
+
+        r0_valid   = Signal()
+        r0_stall   = Signal()
+
+        use_forward1_next = Signal()
+        use_forward2_next = Signal()
+
 #     -- Cache RAM interface
 #     type cache_ram_out_t is array(way_t) of cache_row_t;
 #     signal cache_out   : cache_ram_out_t;
-#
+        # Cache RAM interface
+        def CacheRamOut():
+            return Array(CacheRow() for x in range(Way()))
+
+        cache_out = CacheRamOut()
+
 #     -- PLRU output interface
 #     type plru_out_t is array(index_t) of
 #      std_ulogic_vector(WAY_BITS-1 downto 0);
 #     signal plru_victim : plru_out_t;
 #     signal replace_way : way_t;
-#
+        # PLRU output interface
+        def PLRUOut():
+            return Array(Signal(WAY_BITS) for x in range(Index()))
+
+        plru_victim = PLRUOut()
+        replace_way = Way()
+
 #     -- Wishbone read/write/cache write formatting signals
 #     signal bus_sel     : std_ulogic_vector(7 downto 0);
-#
+        # Wishbone read/write/cache write formatting signals
+        bus_sel = Signal(8)
+
 #     -- TLB signals
 #     signal tlb_tag_way : tlb_way_tags_t;
 #     signal tlb_pte_way : tlb_way_ptes_t;
@@ -746,15 +781,32 @@ class Reservation(RecordObject):
 #     signal rc_ok : std_ulogic;
 #     signal perm_ok : std_ulogic;
 #     signal access_ok : std_ulogic;
-#
+        # TLB signals
+        tlb_tag_way   = TLBWayTags()
+        tlb_pte_way   = TLBWayPtes()
+        tlb_valid_way = TLBWayValidBits()
+        tlb_req_index = TLBIndex()
+        tlb_hit       = Signal()
+        tlb_hit_way   = TLBWay()
+        pte           = TLBPte()
+        ra            = Signal(REAL_ADDR_BITS)
+        valid_ra      = Signal()
+        perm_attr     = PermAttr()
+        rc_ok         = Signal()
+        perm_ok       = Signal()
+        access_ok     = Signal()
+
 #     -- TLB PLRU output interface
 #     type tlb_plru_out_t is array(tlb_index_t) of
 #      std_ulogic_vector(TLB_WAY_BITS-1 downto 0);
 #     signal tlb_plru_victim : tlb_plru_out_t;
-#
-#     --
+        # TLB PLRU output interface
+        TLBPLRUOut():
+            return Array(Signal(TLB_WAY_BITS) for x in range(TLBIndex()))
+
+        tlb_plru_victim = TLBPLRUOut()
+
 #     -- Helper functions to decode incoming requests
-#     --
 #
 #     -- Return the cache line index (tag index) for an address
 #     function get_index(addr: std_ulogic_vector) return index_t is
@@ -763,7 +815,12 @@ class Reservation(RecordObject):
 #          unsigned(addr(SET_SIZE_BITS - 1 downto LINE_OFF_BITS))
 #         );
 #     end;
+# Helper functions to decode incoming requests
 #
+        # Return the cache line index (tag index) for an address
+        def get_index(addr=Signal()):
+            return addr[LINE_OFF_BITS:SET_SIZE_BITS]
+
 #     -- Return the cache row index (data memory) for an address
 #     function get_row(addr: std_ulogic_vector) return row_t is
 #     begin
@@ -771,7 +828,10 @@ class Reservation(RecordObject):
 #          unsigned(addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS))
 #         );
 #     end;
-#
+        # Return the cache row index (data memory) for an address
+        def get_row(addr=Signal()):
+            return addr[ROW_OFF_BITS:SET_SIZE_BITS]
+
 #     -- Return the index of a row within a line
 #     function get_row_of_line(row: row_t) return row_in_line_t is
 # 	variable row_v : unsigned(ROW_BITS-1 downto 0);
@@ -779,7 +839,12 @@ class Reservation(RecordObject):
 # 	row_v := to_unsigned(row, ROW_BITS);
 #         return row_v(ROW_LINEBITS-1 downto 0);
 #     end;
-#
+        # Return the index of a row within a line
+        def get_row_of_line(row=Row()):
+            row_v = Signal(ROW_BITS)
+            row_v = Signal(row)
+            return row_v[0:ROW_LINE_BITS]
+
 #     -- Returns whether this is the last row of a line
 #     function is_last_row_addr(addr: wishbone_addr_type;
 #      last: row_in_line_t) return boolean is
@@ -787,14 +852,20 @@ class Reservation(RecordObject):
 # 	return
 #        unsigned(addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)) = last;
 #     end;
-#
+        # Returns whether this is the last row of a line
+        def is_last_row_addr(addr=WBAddrType(), last=RowInLine()):
+            return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
+
 #     -- Returns whether this is the last row of a line
 #     function is_last_row(row: row_t; last: row_in_line_t)
 #      return boolean is
 #     begin
 #         return get_row_of_line(row) = last;
 #     end;
-#
+        # Returns whether this is the last row of a line
+        def is_last_row(row=Row(), last=RowInLine()):
+            return get_row_of_line(row) == last
+
 #     -- Return the address of the next row in the current cache line
 #     function next_row_addr(addr: wishbone_addr_type)
 #      return std_ulogic_vector is
@@ -809,7 +880,18 @@ class Reservation(RecordObject):
 # 	result(LINE_OFF_BITS-1 downto ROW_OFF_BITS) := row_idx;
 # 	return result;
 #     end;
-#
+        # Return the address of the next row in the current cache line
+        def next_row_addr(addr=WBAddrType()):
+            row_idx = Signal(ROW_LINE_BITS)
+            result  = WBAddrType()
+            # Is there no simpler way in VHDL to
+            # generate that 3 bits adder ?
+            row_idx = addr[ROW_OFF_BITS:LINE_OFF_BITS]
+            row_idx = Signal(row_idx + 1)
+            result = addr
+            result[ROW_OFF_BITS:LINE_OFF_BITS] = row_idx
+            return result
+
 #     -- Return the next row in the current cache line. We use a
 #     -- dedicated function in order to limit the size of the
 #     -- generated adder to be only the bits within a cache line
@@ -825,13 +907,29 @@ class Reservation(RecordObject):
 #         std_ulogic_vector(unsigned(row_idx) + 1);
 #        return to_integer(unsigned(row_v));
 #     end;
-#
+# Return the next row in the current cache line. We use a
+# dedicated function in order to limit the size of the
+# generated adder to be only the bits within a cache line
+# (3 bits with default settings)
+        def next_row(row=Row())
+            row_v   = Signal(ROW_BITS)
+            row_idx = Signal(ROW_LINE_BITS)
+            result  = Signal(ROW_BITS)
+
+            row_v = Signal(row)
+            row_idx = row_v[ROW_LINE_BITS]
+            row_v[0:ROW_LINE_BITS] = Signal(row_idx + 1)
+            return row_v
+
 #     -- Get the tag value from the address
 #     function get_tag(addr: std_ulogic_vector) return cache_tag_t is
 #     begin
 #         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
 #     end;
-#
+        # Get the tag value from the address
+        def get_tag(addr=Signal()):
+            return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
+
 #     -- Read a tag from a tag memory row
 #     function read_tag(way: way_t; tagset: cache_tags_set_t)
 #      return cache_tag_t is
@@ -839,7 +937,10 @@ class Reservation(RecordObject):
 # 	return tagset(way * TAG_WIDTH + TAG_BITS
 #                     - 1 downto way * TAG_WIDTH);
 #     end;
-#
+        # Read a tag from a tag memory row
+        def read_tag(way=Way(), tagset=CacheTagsSet()):
+            return tagset[way *TAG_WIDTH:way * TAG_WIDTH + TAG_BITS]
+
 #     -- Read a TLB tag from a TLB tag memory row
 #     function read_tlb_tag(way: tlb_way_t; tags: tlb_way_tags_t)
 #      return tlb_tag_t is
@@ -848,7 +949,13 @@ class Reservation(RecordObject):
 #         j := way * TLB_EA_TAG_BITS;
 #         return tags(j + TLB_EA_TAG_BITS - 1 downto j);
 #     end;
-#
+        # Read a TLB tag from a TLB tag memory row
+        def read_tlb_tag(way=TLBWay(), tags=TLBWayTags()):
+            j = Signal()
+
+            j = way * TLB_EA_TAG_BITS
+            return tags[j:j + TLB_EA_TAG_BITS]
+
 #     -- Write a TLB tag to a TLB tag memory row
 #     procedure write_tlb_tag(way: tlb_way_t; tags: inout tlb_way_tags_t;
 #                             tag: tlb_tag_t) is
@@ -857,7 +964,13 @@ class Reservation(RecordObject):
 #         j := way * TLB_EA_TAG_BITS;
 #         tags(j + TLB_EA_TAG_BITS - 1 downto j) := tag;
 #     end;
-#
+        # Write a TLB tag to a TLB tag memory row
+        def write_tlb_tag(way=TLBWay(), tags=TLBWayTags()), tag=TLBTag()):
+            j = Signal()
+
+            j = way * TLB_EA_TAG_BITS
+            tags[j:j + TLB_EA_TAG_BITS] = tag
+
 #     -- Read a PTE from a TLB PTE memory row
 #     function read_tlb_pte(way: tlb_way_t; ptes: tlb_way_ptes_t)
 #      return tlb_pte_t is
@@ -866,7 +979,13 @@ class Reservation(RecordObject):
 #         j := way * TLB_PTE_BITS;
 #         return ptes(j + TLB_PTE_BITS - 1 downto j);
 #     end;
-#
+        # Read a PTE from a TLB PTE memory row
+        def read_tlb_pte(way: TLBWay(), ptes=TLBWayPtes()):
+            j = Signal()
+
+            j = way * TLB_PTE_BITS
+            return ptes[j:j + TLB_PTE_BITS]
+
 #     procedure write_tlb_pte(way: tlb_way_t;
 #      ptes: inout tlb_way_ptes_t; newpte: tlb_pte_t) is
 #         variable j : integer;
@@ -874,7 +993,14 @@ class Reservation(RecordObject):
 #         j := way * TLB_PTE_BITS;
 #         ptes(j + TLB_PTE_BITS - 1 downto j) := newpte;
 #     end;
-#
+        def write_tlb_pte(way=TLBWay(), ptes=TLBWayPtes(),
+         newpte=TLBPte()):
+
+            j = Signal()
+
+            j = way * TLB_PTE_BITS
+            return ptes[j:j + TLB_PTE_BITS] = newpte
+
 # begin
 #
 #     assert LINE_SIZE mod ROW_SIZE = 0
@@ -898,15 +1024,63 @@ class Reservation(RecordObject):
 #      severity FAILURE;
 #     assert SET_SIZE_BITS <= TLB_LG_PGSZ
 #      report "Set indexed by virtual address" severity FAILURE;
-#
+        assert (LINE_SIZE % ROW_SIZE) == 0 "LINE_SIZE not
+         multiple of ROW_SIZE -!- severity FAILURE"
+
+        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of
+         2 -!- severity FAILURE"
+
+        assert (NUM_LINES % 2) == 0 "NUM_LINES not power of
+         2 -!- severity FAILURE"
+
+        assert (ROW_PER_LINE % 2) == 0 "ROW_PER_LINE not
+         power of 2 -!- severity FAILURE"
+
+        assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS)
+         "geometry bits don't add up -!- severity FAILURE"
+
+        assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
+         "geometry bits don't add up -!- severity FAILURE"
+
+        assert REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS
+         + LINE_OFF_BITS) "geometry bits don't add up -!-
+         severity FAILURE"
+
+        assert REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS)
+         "geometry bits don't add up -!- severity FAILURE"
+
+        assert 64 == wishbone_data_bits "Can't yet handle a
+         wishbone width that isn't 64-bits -!- severity FAILURE"
+
+        assert SET_SIZE_BITS <= TLB_LG_PGSZ "Set indexed by
+         virtual address -!- severity FAILURE"
+
 #     -- Latch the request in r0.req as long as we're not stalling
 #     stage_0 : process(clk)
+# Latch the request in r0.req as long as we're not stalling
+class Stage0(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
 #         variable r : reg_stage_0_t;
+        r = RegStage0()
+        comb += r
+
 #     begin
 #         if rising_edge(clk) then
 #             assert (d_in.valid and m_in.valid) = '0'
 #              report "request collision loadstore vs MMU";
+        assert ~(d_in.valid & m_in.valid) "request collision
+         loadstore vs MMU"
+
 #             if m_in.valid = '1' then
+        with m.If(m_in.valid):
 #                 r.req.valid := '1';
 #                 r.req.load := not (m_in.tlbie or m_in.tlbld);
 #                 r.req.dcbz := '0';
@@ -921,18 +1095,33 @@ class Reservation(RecordObject):
 #                 r.doall := m_in.doall;
 #                 r.tlbld := m_in.tlbld;
 #                 r.mmu_req := '1';
+            sync += r.req.valid.eq(1)
+            sync += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))
+            sync += r.req.priv_mode.eq(1)
+            sync += r.req.addr.eq(m_in.addr)
+            sync += r.req.data.eq(m_in.pte)
+            sync += r.req.byte_sel.eq(1)
+            sync += r.tlbie.eq(m_in.tlbie)
+            sync += r.doall.eq(m_in.doall)
+            sync += r.tlbld.eq(m_in.tlbld)
+            sync += r.mmu_req.eq(1)
 #             else
+        with m.Else():
 #                 r.req := d_in;
 #                 r.tlbie := '0';
 #                 r.doall := '0';
 #                 r.tlbld := '0';
 #                 r.mmu_req := '0';
+            sync += r.req.eq(d_in)
 #             end if;
 #             if rst = '1' then
 #                 r0_full <= '0';
 #             elsif r1.full = '0' or r0_full = '0' then
+            with m.If(~r1.full | ~r0_full):
 #                 r0 <= r;
 #                 r0_full <= r.req.valid;
+                sync += r0.eq(r)
+                sync += r0_full.eq(r.req.valid)
 #             end if;
 #         end if;
 #     end process;
@@ -940,42 +1129,94 @@ class Reservation(RecordObject):
 #     -- we don't yet handle collisions between loadstore1 requests
 #     -- and MMU requests
 #     m_out.stall <= '0';
-#
+# we don't yet handle collisions between loadstore1 requests
+# and MMU requests
+comb += m_out.stall.eq(0)
+
 #     -- Hold off the request in r0 when r1 has an uncompleted request
 #     r0_stall <= r0_full and r1.full;
 #     r0_valid <= r0_full and not r1.full;
 #     stall_out <= r0_stall;
-#
+# Hold off the request in r0 when r1 has an uncompleted request
+comb += r0_stall.eq(r0_full & r1.full)
+comb += r0_valid.eq(r0_full & ~r1.full)
+comb += stall_out.eq(r0_stall)
+
 #     -- TLB
 #     -- Operates in the second cycle on the request latched in r0.req.
 #     -- TLB updates write the entry at the end of the second cycle.
 #     tlb_read : process(clk)
+# TLB
+# Operates in the second cycle on the request latched in r0.req.
+# TLB updates write the entry at the end of the second cycle.
+class TLBRead(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
 #         variable index : tlb_index_t;
 #         variable addrbits :
 #          std_ulogic_vector(TLB_SET_BITS - 1 downto 0);
+        index    = TLBIndex()
+        addrbits = Signal(TLB_SET_BITS)
+
+        comb += index
+        comb += addrbits
+
 #     begin
 #         if rising_edge(clk) then
 #             if m_in.valid = '1' then
+        with m.If(m_in.valid):
 #                 addrbits := m_in.addr(TLB_LG_PGSZ + TLB_SET_BITS
 #                                       - 1 downto TLB_LG_PGSZ);
+            sync += addrbits.eq(m_in.addr[
+                     TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
+                    ])
 #             else
+        with m.Else():
 #                 addrbits := d_in.addr(TLB_LG_PGSZ + TLB_SET_BITS
 #                                       - 1 downto TLB_LG_PGSZ);
+            sync += addrbits.eq(d_in.addr[
+                     TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
+                    ])
 #             end if;
+
 #             index := to_integer(unsigned(addrbits));
+        sync += index.eq(addrbits)
 #             -- If we have any op and the previous op isn't finished,
 #             -- then keep the same output for next cycle.
 #             if r0_stall = '0' then
-#                 tlb_valid_way <= dtlb_valids(index);
-#                 tlb_tag_way <= dtlb_tags(index);
-#                 tlb_pte_way <= dtlb_ptes(index);
+# If we have any op and the previous op isn't finished,
+# then keep the same output for next cycle.
+        with m.If(~r0_stall):
+            sync += tlb_valid_way.eq(dtlb_valids[index])
+            sync += tlb_tag_way.eq(dtlb_tags[index])
+            sync += tlb_pte_way.eq(dtlb_ptes[index])
 #             end if;
 #         end if;
 #     end process;
-#
+
 #     -- Generate TLB PLRUs
 #     maybe_tlb_plrus: if TLB_NUM_WAYS > 1 generate
+# Generate TLB PLRUs
+class MaybeTLBPLRUs(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
+        with m.If(TLB_NUM_WAYS > 1):
 #     begin
+# TODO understand how to conver generate statements
 # 	tlb_plrus: for i in 0 to TLB_SET_SIZE - 1 generate
 # 	    -- TLB PLRU interface
 # 	    signal tlb_plru_acc :
@@ -1012,11 +1253,30 @@ class Reservation(RecordObject):
 # 	    end process;
 # 	end generate;
 #     end generate;
+# end TODO
 #
 #     tlb_search : process(all)
+class TLBSearch(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
 #         variable hitway : tlb_way_t;
 #         variable hit : std_ulogic;
 #         variable eatag : tlb_tag_t;
+        hitway = TLBWay()
+        hit    = Signal()
+        eatag  = TLBTag()
+
+        comb += hitway
+        comb += hit
+        comb += eatag
+
 #     begin
 #         tlb_req_index <=
 #          to_integer(unsigned(r0.req.addr(
@@ -1034,51 +1294,127 @@ class Reservation(RecordObject):
 #         end loop;
 #         tlb_hit <= hit and r0_valid;
 #         tlb_hit_way <= hitway;
+        comb += tlb_req_index.eq(r0.req.addr[
+                 TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
+                ])
+
+        comb += eatag.eq(r0.req.addr[
+                 TLB_LG_PGSZ + TLB_SET_BITS:64
+                ])
+
+        for i in TLBWay():
+            with m.If(tlb_valid_way(i)
+                      & read_tlb_tag(i, tlb_tag_way) == eatag):
+
+                comb += hitway.eq(i)
+                comb += hit.eq(1)
+
+        comb += tlb_hit.eq(hit & r0_valid)
+        comb += tlb_hit_way.eq(hitway)
+
 #         if tlb_hit = '1' then
+        with m.If(tlb_hit):
 #             pte <= read_tlb_pte(hitway, tlb_pte_way);
+            comb += pte.eq(read_tlb_pte(hitway, tlb_pte_way))
 #         else
+        with m.Else():
 #             pte <= (others => '0');
+            comb += pte.eq(0)
 #         end if;
 #         valid_ra <= tlb_hit or not r0.req.virt_mode;
+        comb += valid_ra.eq(tlb_hit | ~r0.req.virt_mode)
 #         if r0.req.virt_mode = '1' then
+        with m.If(r0.req.virt_mode):
 #             ra <= pte(REAL_ADDR_BITS - 1 downto TLB_LG_PGSZ) &
 #                   r0.req.addr(TLB_LG_PGSZ - 1 downto ROW_OFF_BITS) &
 #                   (ROW_OFF_BITS-1 downto 0 => '0');
 #             perm_attr <= extract_perm_attr(pte);
+            comb += ra.eq(Cat(
+                     Const(ROW_OFF_BITS, ROW_OFF_BITS),
+                     r0.req.addr[ROW_OFF_BITS:TLB_LG_PGSZ],
+                     pte[TLB_LG_PGSZ:REAL_ADDR_BITS]
+                    ))
+            comb += perm_attr.eq(extract_perm_attr(pte))
 #         else
+        with m.Else():
 #             ra <= r0.req.addr(
 #                    REAL_ADDR_BITS - 1 downto ROW_OFF_BITS
 #                   ) & (ROW_OFF_BITS-1 downto 0 => '0');
+            comb += ra.eq(Cat(
+                     Const(ROW_OFF_BITS, ROW_OFF_BITS),
+                     r0.rq.addr[ROW_OFF_BITS:REAL_ADDR_BITS]
+                    )
+
 #             perm_attr <= real_mode_perm_attr;
+            comb += perm_attr.eq(real_mode_perm_attr)
 #         end if;
 #     end process;
-#
+
 #     tlb_update : process(clk)
+class TLBUpdate(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
 #         variable tlbie : std_ulogic;
 #         variable tlbwe : std_ulogic;
 #         variable repl_way : tlb_way_t;
 #         variable eatag : tlb_tag_t;
 #         variable tagset : tlb_way_tags_t;
 #         variable pteset : tlb_way_ptes_t;
+        tlbie    = Signal()
+        tlbwe    = Signal()
+        repl_way = TLBWay()
+        eatag    = TLBTag()
+        tagset   = TLBWayTags()
+        pteset   = TLBWayPtes()
+
+        comb += tlbie
+        comb += tlbwe
+        comb += repl_way
+        comb += eatag
+        comb += tagset
+        comb += pteset
+
 #     begin
 #         if rising_edge(clk) then
 #             tlbie := r0_valid and r0.tlbie;
-#             tlbwe := r0_valid and r0.tlbld;
+#             tlbwe := r0_valid and r0.tlbldoi;
+        sync += tlbie.eq(r0_valid & r0.tlbie)
+        sync += tlbwe.eq(r0_valid & r0.tlbldoi)
+
 #             if rst = '1' or (tlbie = '1' and r0.doall = '1') then
+#        with m.If (TODO understand how signal resets work in nmigen)
 #                 -- clear all valid bits at once
 #                 for i in tlb_index_t loop
 #                     dtlb_valids(i) <= (others => '0');
 #                 end loop;
+            # clear all valid bits at once
+            for i in range(TLBIndex()):
+                sync += dtlb_valids[i].eq(0)
 #             elsif tlbie = '1' then
+        with m.Elif(tlbie):
 #                 if tlb_hit = '1' then
+            with m.If(tlb_hit):
 #                     dtlb_valids(tlb_req_index)(tlb_hit_way) <= '0';
+                sync += dtlb_valids[tlb_req_index][tlb_hit_way].eq(0)
 #                 end if;
 #             elsif tlbwe = '1' then
+        with m.Elif(tlbwe):
 #                 if tlb_hit = '1' then
+            with m.If(tlb_hit):
 #                     repl_way := tlb_hit_way;
+                sync += repl_way.eq(tlb_hit_way)
 #                 else
+            with m.Else():
 #                     repl_way := to_integer(unsigned(
 #                       tlb_plru_victim(tlb_req_index)));
+                sync += repl_way.eq(tlb_plru_victim[tlb_req_index])
 #                 end if;
 #                 eatag := r0.req.addr(
 #                           63 downto TLB_LG_PGSZ + TLB_SET_BITS
@@ -1090,13 +1426,32 @@ class Reservation(RecordObject):
 #                 write_tlb_pte(repl_way, pteset, r0.req.data);
 #                 dtlb_ptes(tlb_req_index) <= pteset;
 #                 dtlb_valids(tlb_req_index)(repl_way) <= '1';
+            sync += eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
+            sync += tagset.eq(tlb_tag_way)
+            sync += write_tlb_tag(repl_way, tagset, eatag)
+            sync += dtlb_tags[tlb_req_index].eq(tagset)
+            sync += pteset.eq(tlb_pte_way)
+            sync += write_tlb_pte(repl_way, pteset, r0.req.data)
+            sync += dtlb_ptes[tlb_req_index].eq(pteset)
+            sync += dtlb_valids[tlb_req_index][repl_way].eq(1)
 #             end if;
 #         end if;
 #     end process;
-#
+
 #     -- Generate PLRUs
 #     maybe_plrus: if NUM_WAYS > 1 generate
+class MaybePLRUs(Elaboratable):
+    def __init__(self):
+        pass
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
 #     begin
+        # TODO learn translation of generate into nmgien @lkcl
 # 	plrus: for i in 0 to NUM_LINES-1 generate
 # 	    -- PLRU interface
 # 	    signal plru_acc    : std_ulogic_vector(WAY_BITS-1 downto 0);
@@ -1104,6 +1459,8 @@ class Reservation(RecordObject):
 # 	    signal plru_out    : std_ulogic_vector(WAY_BITS-1 downto 0);
 #
 # 	begin
+        # TODO learn tranlation of entity, generic map, port map in
+        # nmigen @lkcl
 # 	    plru : entity work.plru
 # 		generic map (
 # 		    BITS => WAY_BITS
