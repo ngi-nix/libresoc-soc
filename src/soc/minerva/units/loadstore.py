@@ -4,7 +4,9 @@ from nmigen.lib.fifo import SyncFIFO
 
 from soc.minerva.cache import L1Cache
 from soc.minerva.wishbone import make_wb_layout, WishboneArbiter, Cycle
+from soc.bus.wb_downconvert import WishboneDownConvert
 
+from copy import deepcopy
 
 __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
            "CachedLoadStoreUnit"]
@@ -13,8 +15,13 @@ __all__ = ["LoadStoreUnitInterface", "BareLoadStoreUnit",
 class LoadStoreUnitInterface:
     def __init__(self, pspec):
         self.pspec = pspec
-        self.dbus = Record(make_wb_layout(pspec))
+        self.dbus = self.slavebus = Record(make_wb_layout(pspec))
         print(self.dbus.sel.shape())
+        if isinstance(pspec.wb_data_wid, int):
+            pspecslave = deepcopy(pspec)
+            pspecslave.data_wid = pspec.wb_data_wid
+            self.slavebus = Record(make_wb_layout(pspecslave))
+            self.cvt = WishboneDownConvert(self.dbus, self.slavebus)
         self.mask_wid = mask_wid = pspec.mask_wid
         self.addr_wid = addr_wid = pspec.addr_wid
         self.data_wid = data_wid = pspec.reg_wid
@@ -79,6 +86,9 @@ class LoadStoreUnitInterface:
 class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
     def elaborate(self, platform):
         m = Module()
+
+        if hasattr(self, "cvt"):
+            m.submodules.cvt = cvt
 
         with m.If(self.dbus.cyc):
             with m.If(self.dbus.ack | self.dbus.err | ~self.m_valid_i):

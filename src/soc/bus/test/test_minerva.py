@@ -22,7 +22,7 @@ class TestSRAMBareLoadStoreUnit(BareLoadStoreUnit):
         comb = m.d.comb
         m.submodules.sram = sram = SRAM(memory=self.mem, granularity=8,
                                         features={'cti', 'bte', 'err'})
-        dbus = self.dbus
+        dbus = self.slavebus
 
         # directly connect the wishbone bus of LoadStoreUnitInterface to SRAM
         # note: SRAM is a target (slave), dbus is initiator (master)
