@@ -266,6 +266,84 @@ def test_shifter():
     # Write the GTKWave project file
     write_gtkw("test_shifter", "top.shf", __file__)
 
+    # Describe a GTKWave document
+    # Uses a split CSS + DOM approach, where style is separated from
+    # content.
+
+    # Style for signals, classes and groups
+    # Syntax: {selector: {attribute: value, ...}, ...}
+    # "selector" can be a signal, class or group
+    # signal groups propagate most attributes to their children
+    # attribute choices:
+    # - module: instance path, for prepending to the signal name
+    # - color: trace color
+    # - base: numerical base for value display
+    # - display: alternate text to display in the signal pane
+    # - comment: comment to display in the signal pane
+
+    gtkwave_style = {
+        # Root selector. Gives default attributes for every signal.
+        '': {'module': 'top.shf', 'base': 'dec'},
+        # color the traces, according to class
+        # class names are not hardcoded, they are just strings
+        'in': {'color': 'orange'},
+        'out': {'color': 'yellow'},
+        # signals in the debug group have a common color and module path
+        'debug': {'module': 'top', 'color': 'red'},
+        # display a different string replacing the signal name
+        'test_case': {'display': 'test case'},
+    }
+
+    # DOM style description for the trace pane
+    # Syntax: [signal, (signal, class), (group, [children]), comment, ...]
+    # The DOM is a list of nodes.
+    # Nodes are signals, signal groups or comments.
+    # - signals are strings, or tuples: (signal name, class, class, ...)
+    # - signal groups are tuples: (group name, class, class, ..., [nodes])
+    # - comments are: {'comment': 'comment string'}
+    # In place of a class name, an inline class description can be used.
+    # (signal, {attribute: value, ...}, ...)
+
+    gtkwave_desc = [
+        # simple signal, without a class
+        # even so, it inherits the top-level root attributes
+        'clk',
+        # comment
+        {'comment': 'Shifter Demonstration'},
+        # collapsible signal group
+        ('prev port', [
+            # attach a class style for each signal
+            ('op__sdir', 'in'),
+            ('p_data_i[7:0]', 'in'),
+            ('p_shift_i[7:0]', 'in'),
+            ('p_valid_i', 'in'),
+            ('p_ready_o', 'out'),
+        ]),
+        # Signals in a signal group inherit the group attributes.
+        # In this case, a different module path and color.
+        ('debug', [
+            {'comment': 'Some debug statements'},
+            # inline attributes, instead of a class name
+            ('zero', {'display': 'zero delay shift'}),
+            'interesting',
+            'test_case',
+            'msg',
+        ]),
+        ('internal', [
+            'fsm_state',
+            'count[3:0]',
+            'shift_reg[7:0]',
+        ]),
+        ('next port', [
+            ('n_data_o[7:0]', 'out'),
+            ('n_valid_o', 'out'),
+            ('n_ready_i', 'in'),
+        ]),
+    ]
+
+    # TODO: Read and interpret the mini-language above, writing
+    # TODO: the corresponding GTKWave document.
+
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
