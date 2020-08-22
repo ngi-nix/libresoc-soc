@@ -49,6 +49,18 @@ class GeneralTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    def test_0_litex_bios_ctr_loop(self):
+        """
+        32a4:   ff ff 63 38     addi    r3,r3,-1
+        32a8:   20 00 63 78     clrldi  r3,r3,32
+        32ac:   01 00 23 39     addi    r9,r3,1
+        32b0:   a6 03 29 7d     mtctr   r9
+        32b4:   00 00 00 60     nop
+        32b8:   fc ff 00 42     bdnz    32b4 <cdelay+0x10>
+        32bc:   20 00 80 4e     blr
+        """
+        pass
+
     def test_0_litex_bios_cmp(self):
         """litex bios cmp test
         """
