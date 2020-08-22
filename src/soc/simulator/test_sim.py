@@ -58,6 +58,12 @@ class GeneralTestCases(FHDLTestCase):
         32b4:   00 00 00 60     nop
         32b8:   fc ff 00 42     bdnz    32b4 <cdelay+0x10>
         32bc:   20 00 80 4e     blr
+
+        notes on converting pseudo-assembler to actual:
+
+        * bdnz target (equivalent to: bc 16,0,target)
+        * Clear left immediate clrldi ra,rs,n (n < 64) rldicl ra,rs,0,n
+        * CTR mtctr Rx mtspr 9,Rx
         """
         pass
 
