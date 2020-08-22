@@ -26,14 +26,14 @@ import operator
 
 class Adder(Elaboratable):
     def __init__(self, width):
-        self.invert_a = Signal()
+        self.invert_in = Signal()
         self.a = Signal(width)
         self.b = Signal(width)
         self.o = Signal(width, name="add_o")
 
     def elaborate(self, platform):
         m = Module()
-        with m.If(self.invert_a):
+        with m.If(self.invert_in):
             m.d.comb += self.o.eq((~self.a) + self.b)
         with m.Else():
             m.d.comb += self.o.eq(self.a + self.b)
@@ -206,7 +206,7 @@ class ALU(Elaboratable):
             ]
 
         # pass invert (and carry later)
-        m.d.comb += add.invert_a.eq(self.op.invert_a)
+        m.d.comb += add.invert_in.eq(self.op.invert_in)
 
         go_now = Signal(reset_less=True)  # testing no-delay ALU
 
@@ -390,7 +390,7 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.a.eq(a)
     yield dut.b.eq(b)
     yield dut.op.insn_type.eq(op)
-    yield dut.op.invert_a.eq(inv_a)
+    yield dut.op.invert_in.eq(inv_a)
     yield dut.n.ready_i.eq(0)
     yield dut.p.valid_i.eq(1)
     yield dut.n.ready_i.eq(1)
@@ -404,7 +404,7 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.a.eq(0)
     yield dut.b.eq(0)
     yield dut.op.insn_type.eq(0)
-    yield dut.op.invert_a.eq(0)
+    yield dut.op.invert_in.eq(0)
 
     # wait for the ALU to present the output data
     while not (yield dut.n.valid_o):
@@ -462,7 +462,7 @@ def test_alu_parallel():
         yield dut.a.eq(a)
         yield dut.b.eq(b)
         yield dut.op.insn_type.eq(op)
-        yield dut.op.invert_a.eq(inv_a)
+        yield dut.op.invert_in.eq(inv_a)
         yield dut.p.valid_i.eq(1)
         yield
         # wait for ready_o to be asserted
@@ -475,7 +475,7 @@ def test_alu_parallel():
         yield dut.a.eq(0)
         yield dut.b.eq(0)
         yield dut.op.insn_type.eq(0)
-        yield dut.op.invert_a.eq(0)
+        yield dut.op.invert_in.eq(0)
 
     def receive():
         # signal readiness to receive data

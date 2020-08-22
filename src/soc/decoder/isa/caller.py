@@ -406,7 +406,7 @@ class ISACaller:
         self.namespace['CA32'] = self.spr['XER'][XER_bits['CA32']].value
 
     def handle_carry_(self, inputs, outputs, already_done):
-        inv_a = yield self.dec2.e.do.invert_a
+        inv_a = yield self.dec2.e.do.invert_in
         if inv_a:
             inputs[0] = ~inputs[0]
 
@@ -442,7 +442,7 @@ class ISACaller:
             self.spr['XER'][XER_bits['CA32']] = cy32
 
     def handle_overflow(self, inputs, outputs, div_overflow):
-        inv_a = yield self.dec2.e.do.invert_a
+        inv_a = yield self.dec2.e.do.invert_in
         if inv_a:
             inputs[0] = ~inputs[0]
 

@@ -671,7 +671,7 @@ class PowerDecode2(Elaboratable):
 
         # decoded/selected instruction flags
         comb += do.data_len.eq(op.ldst_len)
-        comb += do.invert_a.eq(op.inv_a)
+        comb += do.invert_in.eq(op.inv_a)
         comb += do.invert_out.eq(op.inv_out)
         comb += do.input_carry.eq(op.cry_in)   # carry comes in
         comb += do.output_carry.eq(op.cry_out)  # carry goes out

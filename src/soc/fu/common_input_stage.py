@@ -23,8 +23,8 @@ class CommonInputStage(PipeModBase):
         if hasattr(self, "invert_op"):
             op_to_invert = self.invert_op
 
-        if hasattr(op, "invert_a") and op_to_invert == 'ra':
-            with m.If(op.invert_a):
+        if hasattr(op, "invert_in") and op_to_invert == 'ra':
+            with m.If(op.invert_in):
                 comb += a.eq(~self.i.a)
             with m.Else():
                 comb += a.eq(self.i.a)
@@ -38,8 +38,8 @@ class CommonInputStage(PipeModBase):
         # operand b to be as-is or inverted
         b = Signal.like(self.i.b)
 
-        if hasattr(op, "invert_a") and op_to_invert == 'rb':
-            with m.If(op.invert_a):
+        if hasattr(op, "invert_in") and op_to_invert == 'rb':
+            with m.If(op.invert_in):
                 comb += b.eq(~self.i.b)
             with m.Else():
                 comb += b.eq(self.i.b)

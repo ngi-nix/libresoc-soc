@@ -42,7 +42,7 @@ class Decode2ToOperand(RecordObject):
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
-        self.invert_a = Signal(reset_less=True)
+        self.invert_in = Signal(reset_less=True)
         self.zero_a = Signal(reset_less=True)
         self.input_carry = Signal(CryIn, reset_less=True)
         self.output_carry = Signal(reset_less=True)

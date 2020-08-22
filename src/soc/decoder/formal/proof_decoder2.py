@@ -182,7 +182,7 @@ class Driver(Elaboratable):
         pdecode2 = m.submodules.pdecode2
         dec = pdecode2.dec
         e = pdecode2.e
-        comb += Assert(e.invert_a == dec.op.inv_a)
+        comb += Assert(e.invert_in == dec.op.inv_a)
         comb += Assert(e.invert_out == dec.op.inv_out)
         comb += Assert(e.input_carry == dec.op.cry_in)
         comb += Assert(e.output_carry == dec.op.cry_out)
