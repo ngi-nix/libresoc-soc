@@ -14,6 +14,7 @@ from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import SoCCore
 from litex.soc.integration.soc_sdram import SoCSDRAM
 from litex.soc.integration.builder import Builder
+from litex.soc.integration.common import get_mem_data
 
 from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
@@ -28,9 +29,9 @@ from microwatt import Microwatt
 
 class LibreSoCSim(SoCSDRAM):
     def __init__(self, cpu="libresoc", debug=False, with_sdram=True,
-            #sdram_module          = "AS4C16M16",
+            sdram_module          = "AS4C16M16",
             #sdram_data_width      = 16,
-            sdram_module          = "MT48LC16M16",
+            #sdram_module          = "MT48LC16M16",
             sdram_data_width      = 16,
             ):
         assert cpu in ["libresoc", "microwatt"]
@@ -45,6 +46,21 @@ class LibreSoCSim(SoCSDRAM):
         else:
             variant = "standard"
 
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "hello_world/hello_world.bin"
+        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+                    "tests/1.bin"
+
+        ram_init = []
+        if ram_fname:
+            #ram_init = get_mem_data({
+            #    ram_fname:       "0x00000000",
+            #    }, "little")
+            ram_init = get_mem_data(ram_fname, "little")
+            self.mem_map["main_ram"] = 0x00000000
+            self.mem_map["sram"] = 0x90000000
+
+
         # SoCCore -------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             cpu_type                 = "microwatt",
@@ -58,7 +74,9 @@ class LibreSoCSim(SoCSDRAM):
             with_sdram               = with_sdram,
             sdram_module          = sdram_module,
             sdram_data_width      = sdram_data_width,
-            integrated_rom_size      = 0x10000,
+            integrated_rom_size      = 0 if ram_fname else 0x10000,
+            integrated_sram_size     = 0x40000,
+            #integrated_main_ram_init  = ram_init,
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
             ) 
@@ -67,7 +85,7 @@ class LibreSoCSim(SoCSDRAM):
         # CRG -----------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
-        ram_init = []
+        #ram_init = []
 
         # SDRAM ----------------------------------------------------
         if with_sdram:
@@ -210,9 +228,9 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # limit range of pc for debug reporting
-        self.comb += active_dbg.eq((0x378c <= pc) & (pc <= 0x38d8))
+        #self.comb += active_dbg.eq((0x378c <= pc) & (pc <= 0x38d8))
         #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
-        #self.comb += active_dbg.eq(1)
+        self.comb += active_dbg.eq(1)
 
         # get the MSR
         self.sync += If(active_dbg & (uptime[0:cyclewid] == 28),
