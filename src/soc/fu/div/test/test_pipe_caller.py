@@ -12,6 +12,15 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 class DivTestCases(TestAccumulatorBase):
 
+    # modulo
+    def case_modsd_regression(self):
+        lst = [f"modsd 17, 27, 0"]
+        initial_regs = [0] * 32
+        initial_regs[0] = 0xff
+        initial_regs[27] = 0x7fffffffffffffff
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
