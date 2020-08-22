@@ -9,6 +9,7 @@ from soc.fu.logical.pipe_data import LogicalInputData
 class LogicalInputStage(CommonInputStage):
     def __init__(self, pspec):
         super().__init__(pspec, "input")
+        self.invert_op = "rb" # inversion is on register b
 
     def ispec(self):
         return LogicalInputData(self.pspec)
@@ -17,11 +18,8 @@ class LogicalInputStage(CommonInputStage):
         return LogicalInputData(self.pspec)
 
     def elaborate(self, platform):
-        m = super().elaborate(platform) # covers A-invert, carry, excludes SO
+        m = super().elaborate(platform) # covers B-invert, carry, excludes SO
         comb = m.d.comb
         ctx = self.i.ctx
-
-        # operand b
-        comb += self.o.b.eq(self.i.b)
 
         return m
