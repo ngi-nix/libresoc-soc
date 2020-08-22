@@ -99,6 +99,13 @@ class ALUTestCase(TestAccumulatorBase):
             initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
 
+    def case_addis_nonzero_r0_regression(self):
+        lst = [f"addis 3, 0, 1"]
+        print(lst)
+        initial_regs = [0] * 32
+        initial_regs[0] = 5
+        self.add_case(Program(lst, bigendian), initial_regs)
+
     def case_addis_nonzero_r0(self):
         for i in range(10):
             imm = random.randint(-(1 << 15), (1 << 15)-1)
