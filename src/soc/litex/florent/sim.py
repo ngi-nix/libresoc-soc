@@ -170,9 +170,9 @@ class LibreSoCSim(SoCSDRAM):
              If(dbg_addr == 0b10, # PC
                  pc.eq(dbg_dout),     # capture PC
              ),
-             If(dbg_addr == 0b11, # MSR
-                Display("    msr: %016x", dbg_dout),
-             ),
+             #If(dbg_addr == 0b11, # MSR
+             #   Display("    msr: %016x", dbg_dout),
+             #),
              If(dbg_addr == 0b101, # GPR
                 Display("    gpr: %016x", dbg_dout),
              ),
@@ -210,7 +210,7 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # limit range of pc for debug reporting
-        self.comb += active_dbg.eq((0x5108 <= pc) & (pc <= 0x5234))
+        self.comb += active_dbg.eq((0x378c <= pc) & (pc <= 0x38d8))
         #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
         #self.comb += active_dbg.eq(1)
 
@@ -239,11 +239,27 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
+        # monitor bbus read/write
+        self.sync += If(active_dbg & self.cpu.dbus.stb & self.cpu.dbus.ack,
+            Display("    [%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
+                #uptime,
+                0,
+                self.cpu.dbus.adr,
+                self.cpu.dbus.we,
+                self.cpu.dbus.sel,
+                self.cpu.dbus.dat_w,
+                self.cpu.dbus.dat_r
+            )
+        )
+
+        return
+
         # monitor ibus write
         self.sync += If(active_dbg & self.cpu.ibus.stb & self.cpu.ibus.ack &
                         self.cpu.ibus.we,
             Display("    [%06x] iadr: %8x, s %01x w %016x",
-                uptime,
+                #uptime,
+                0,
                 self.cpu.ibus.adr,
                 self.cpu.ibus.sel,
                 self.cpu.ibus.dat_w,
@@ -253,22 +269,11 @@ class LibreSoCSim(SoCSDRAM):
         self.sync += If(active_dbg & self.cpu.ibus.stb & self.cpu.ibus.ack &
                         ~self.cpu.ibus.we,
             Display("    [%06x] iadr: %8x, s %01x r %016x",
-                uptime,
+                #uptime,
+                0,
                 self.cpu.ibus.adr,
                 self.cpu.ibus.sel,
                 self.cpu.ibus.dat_r
-            )
-        )
-
-        # monitor bbus read/write
-        self.sync += If(active_dbg & self.cpu.dbus.stb & self.cpu.dbus.ack,
-            Display("    [%06x] dadr: %8x, we %d s %01x w %016x r: %016x",
-                uptime,
-                self.cpu.dbus.adr,
-                self.cpu.dbus.we,
-                self.cpu.dbus.sel,
-                self.cpu.dbus.dat_w,
-                self.cpu.dbus.dat_r
             )
         )
 
