@@ -330,6 +330,18 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [12])
 
+    #@unittest.skip("disable")
+    def test_31_addis(self):
+        """tests for zero not in register zero
+        """
+        lst = [  "rldicr  0, 0,32,31",
+                 "oris    0, 0,32767",
+                 "ori     0, 0,65535",
+                "addis 1, 0, 1",
+        ]
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [0, 1])
+
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                         initial_mem=None):
         initial_regs = [0] * 32
