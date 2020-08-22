@@ -21,6 +21,17 @@ class DivTestCases(TestAccumulatorBase):
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
+    def case_divduo_regression(self):
+        lst = [f"divduo. 11, 20, 6"]
+        initial_regs = [0] * 32
+        #gpr: 00ff00ff00ff0080 <- r6
+        #gpr: 000000000000007f <- r11
+        #gpr: 7f6e5d4c3b2a1908 <- r20
+        initial_regs[6] = 0x00ff00ff00ff0080
+        initial_regs[20] = 0x7f6e5d4c3b2a1908
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_0_regression(self):
         for i in range(40):
             lst = ["divwo 3, 1, 2"]
@@ -116,6 +127,14 @@ class DivTestCases(TestAccumulatorBase):
         initial_regs = [0] * 32
         initial_regs[1] = 0xbc716835f32ac00c
         initial_regs[2] = 0xcdf69a7f7042db66
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
+    def case_11_regression(self):
+        lst = ["divwo. 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        initial_regs[2] = 0xffffffffffffffff
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
