@@ -61,6 +61,16 @@ def set_alu_inputs(alu, dec2, sim):
 
 class LogicalTestCase(TestAccumulatorBase):
 
+    def case_complement(self):
+        insns = ["andc", "orc"]
+        for i in range(40):
+            choice = random.choice(insns)
+            lst = [f"{choice} 3, 1, 2"]
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
+            initial_regs[2] = random.randint(0, (1 << 64)-1)
+            self.add_case(Program(lst, bigendian), initial_regs)
+
     def case_rand(self):
         insns = ["and", "or", "xor"]
         for i in range(40):
