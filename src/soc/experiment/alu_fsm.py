@@ -251,10 +251,50 @@ def write_gtkw_v1(base_name, top_dut_name, loc):
             gtkw.trace(dut + "n_ready_i", color=style_input)
 
 
-# write a GTKWave document according to the supplied style and DOM
 # TODO: Apply styles
 def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                loc=None, zoom=-22.9, marker=-1):
+    """ Write a GTKWave document according to the supplied style and DOM.
+
+    :param gtkw_name: name of the generated GTKWave document
+    :param vcd_name: name of the waveform file
+    :param gtkw_style: style for signals, classes and groups
+    :param gtkw_dom: DOM style description for the trace pane
+    :param loc: source code location to include as a comment
+    :param zoom: initial zoom level, in GTKWave format
+    :param marker: initial location of a marker
+
+    **gtkw_style format**
+
+    Syntax: ``{selector: {attribute: value, ...}, ...}``
+
+    "selector" can be a signal, class or group
+
+    Signal groups propagate most attributes to their children
+
+    Attribute choices:
+
+    * module: instance path, for prepending to the signal name
+    * color: trace color
+    * base: numerical base for value display
+    * display: alternate text to display in the signal pane
+    * comment: comment to display in the signal pane
+
+    **gtkw_dom format**
+
+    Syntax: ``[signal, (signal, class), (group, [children]), comment, ...]``
+
+    The DOM is a list of nodes.
+
+    Nodes are signals, signal groups or comments.
+
+    * signals are strings, or tuples: ``(signal name, class, class, ...)``
+    * signal groups are tuples: ``(group name, class, class, ..., [nodes])``
+    * comments are: ``{'comment': 'comment string'}``
+
+    In place of a class name, an inline class description can be used.
+    ``(signal, {attribute: value, ...}, ...)``
+    """
     with open(gtkw_name, "wt") as gtkw_file:
         gtkw = GTKWSave(gtkw_file)
         if loc is not None:
@@ -307,20 +347,8 @@ def test_shifter():
     write_gtkw_v1("test_shifter", "top.shf", __file__)
 
     # Describe a GTKWave document
-    # Uses a split CSS + DOM approach, where style is separated from
-    # content.
 
     # Style for signals, classes and groups
-    # Syntax: {selector: {attribute: value, ...}, ...}
-    # "selector" can be a signal, class or group
-    # signal groups propagate most attributes to their children
-    # attribute choices:
-    # - module: instance path, for prepending to the signal name
-    # - color: trace color
-    # - base: numerical base for value display
-    # - display: alternate text to display in the signal pane
-    # - comment: comment to display in the signal pane
-
     gtkwave_style = {
         # Root selector. Gives default attributes for every signal.
         '': {'module': 'top.shf', 'base': 'dec'},
@@ -335,15 +363,6 @@ def test_shifter():
     }
 
     # DOM style description for the trace pane
-    # Syntax: [signal, (signal, class), (group, [children]), comment, ...]
-    # The DOM is a list of nodes.
-    # Nodes are signals, signal groups or comments.
-    # - signals are strings, or tuples: (signal name, class, class, ...)
-    # - signal groups are tuples: (group name, class, class, ..., [nodes])
-    # - comments are: {'comment': 'comment string'}
-    # In place of a class name, an inline class description can be used.
-    # (signal, {attribute: value, ...}, ...)
-
     gtkwave_desc = [
         # simple signal, without a class
         # even so, it inherits the top-level root attributes
