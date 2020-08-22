@@ -334,13 +334,18 @@ class GeneralTestCases(FHDLTestCase):
     def test_31_addis(self):
         """tests for zero not in register zero
         """
-        lst = [  "rldicr  0, 0,32,31",
-                 "oris    0, 0,32767",
-                 "ori     0, 0,65535",
-                "addis 1, 0, 1",
+        lst = [  "rldicr  0, 0, 32, 31",
+                 "oris    0, 0, 32767",
+                 "ori     0, 0, 65535",
+                 "addis 1, 0, 1",
+                 "ori     1, 1, 515",
+                 "rldicr  1, 1, 32, 31",
+                 "oris    1, 1, 1029",
+                 "ori     1, 1, 1543",
+                 "addis   2, 0, -1",
         ]
         with Program(lst, bigendian) as program:
-            self.run_tst_program(program, [0, 1])
+            self.run_tst_program(program, [0, 1, 2])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                         initial_mem=None):
