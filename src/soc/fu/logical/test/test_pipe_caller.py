@@ -72,7 +72,7 @@ class LogicalTestCase(TestAccumulatorBase):
             self.add_case(Program(lst, bigendian), initial_regs)
 
     def case_rand(self):
-        insns = ["and", "or", "xor"]
+        insns = ["and", "or", "xor", "eqv"]
         for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
