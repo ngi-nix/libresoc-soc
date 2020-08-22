@@ -62,7 +62,7 @@ def set_alu_inputs(alu, dec2, sim):
 class LogicalTestCase(TestAccumulatorBase):
 
     def case_complement(self):
-        insns = ["andc", "orc"]
+        insns = ["andc", "orc", "nand", "nor"]
         for i in range(40):
             choice = random.choice(insns)
             lst = [f"{choice} 3, 1, 2"]
