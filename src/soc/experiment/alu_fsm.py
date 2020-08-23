@@ -251,14 +251,18 @@ def write_gtkw_v1(base_name, top_dut_name, loc):
             gtkw.trace(dut + "n_ready_i", color=style_input)
 
 
-def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
-               loc=None, zoom=-22.9, marker=-1):
+def write_gtkw(gtkw_name, vcd_name, gtkw_dom, gtkw_style=None,
+               module=None, loc=None, color=None, base=None,
+               zoom=-22.9, marker=-1):
     """ Write a GTKWave document according to the supplied style and DOM.
 
     :param gtkw_name: name of the generated GTKWave document
     :param vcd_name: name of the waveform file
-    :param gtkw_style: style for signals, classes and groups
     :param gtkw_dom: DOM style description for the trace pane
+    :param gtkw_style: style for signals, classes and groups
+    :param module: default module
+    :param color: default trace color
+    :param base: default numerical base
     :param loc: source code location to include as a comment
     :param zoom: initial zoom level, in GTKWave format
     :param marker: initial location of a marker
@@ -315,10 +319,23 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
         # also, move the marker to an interesting place
         gtkw.zoom_markers(zoom, marker)
 
-        if '' in gtkw_style:
-            root_style = gtkw_style['']
-        else:
-            root_style = dict()
+        # create an empty style, if needed
+        if gtkw_style is None:
+            gtkw_style = dict()
+
+        # create an empty root selector, if needed
+        root_style = gtkw_style.get('', dict())
+
+        # apply styles to the root selector, if provided
+        if module is not None:
+            root_style['module'] = module
+        if color is not None:
+            root_style['color'] = color
+        if base is not None:
+            root_style['base'] = base
+        # base cannot be None, use 'hex' by default
+        if root_style.get('base') is None:
+            root_style['base'] = 'hex'
 
         # recursively walk the DOM
         def walk(dom, style):
@@ -366,12 +383,14 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                     signal_name = node_name
                     # prepend module name to signal
                     if 'module' in node_style:
-                        signal_name = node_style['module'] + '.' + signal_name
-                    color = colors.get(node_style.get('color'))
-                    base = node_style.get('base')
+                        node_module = node_style['module']
+                        if node_module is not None:
+                            signal_name = node_module + '.' + signal_name
+                    node_color = colors.get(node_style.get('color'))
+                    node_base = node_style.get('base')
                     display = node_style.get('display')
-                    gtkw.trace(signal_name, color=color, datafmt=base,
-                               alias=display)
+                    gtkw.trace(signal_name, color=node_color,
+                               datafmt=node_base, alias=display)
 
         walk(gtkw_dom, root_style)
 
@@ -396,7 +415,7 @@ def test_shifter():
     # Style for signals, classes and groups
     gtkwave_style = {
         # Root selector. Gives default attributes for every signal.
-        '': {'module': 'top.shf', 'base': 'dec'},
+        '': {'base': 'dec'},
         # color the traces, according to class
         # class names are not hardcoded, they are just strings
         'in': {'color': 'orange'},
@@ -446,8 +465,8 @@ def test_shifter():
     ]
 
     write_gtkw("test_shifter_v2.gtkw", "test_shifter.vcd",
-               gtkwave_style, gtkwave_desc,
-               loc=__file__, marker=10500000)
+               gtkwave_desc,  gtkwave_style,
+               module="top.shf", loc=__file__, marker=10500000)
 
     sim = Simulator(m)
     sim.add_clock(1e-6)
