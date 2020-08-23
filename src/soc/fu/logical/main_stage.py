@@ -5,6 +5,7 @@
 # This module however should not gate the carry or overflow, that's up
 # to the output stage
 
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.clz import CLZ
