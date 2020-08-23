@@ -50,7 +50,7 @@ class LibreSoCSim(SoCSDRAM):
         #            "hello_world/hello_world.bin"
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
                     "tests/1.bin"
-        ram_fname = None
+        #ram_fname = None
 
         ram_init = []
         if ram_fname:
@@ -221,7 +221,7 @@ class LibreSoCSim(SoCSDRAM):
              ),
             # also check if this is a "stat"
             If(dbg_addr == 1, # requested a STAT
-                Display("    stat: %x", dbg_dout),
+                #Display("    stat: %x", dbg_dout),
                 If(dbg_dout & 2, # bit 2 of STAT is "stopped" mode
                      dmirunning.eq(1), # continue running
                      dmi_monitor.eq(0), # and stop monitor mode
