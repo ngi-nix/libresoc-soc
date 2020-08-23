@@ -58,7 +58,11 @@ class LibreSoCSim(SoCSDRAM):
             #    ram_fname:       "0x00000000",
             #    }, "little")
             ram_init = get_mem_data(ram_fname, "little")
+
+            # remap the main RAM to reset-start-address
             self.mem_map["main_ram"] = 0x00000000
+
+            # without sram nothing works, therefore move it to higher up
             self.mem_map["sram"] = 0x90000000
 
 
