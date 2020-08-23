@@ -17,9 +17,6 @@ class CompMULOpSubset(CompOpSubsetBase):
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))), # Data
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))), # Data
-                  ('invert_in', 1),
-                  ('zero_a', 1),
-                  ('invert_out', 1),
                   ('write_cr0', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),
