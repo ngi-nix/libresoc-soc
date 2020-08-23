@@ -77,6 +77,9 @@ Top Level:
       ),
     ]
 
+
+Copyrights:
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 """
 
 from collections import namedtuple
