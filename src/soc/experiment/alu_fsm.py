@@ -304,8 +304,13 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
         # also, move the marker to an interesting place
         gtkw.zoom_markers(zoom, marker)
 
+        if '' in gtkw_style:
+            root_style = gtkw_style['']
+        else:
+            root_style = dict()
+
         # recursively walk the DOM
-        def walk(dom):
+        def walk(dom, style):
             for node in dom:
                 node_name = None
                 children = None
@@ -322,13 +327,17 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                 # emit the group delimiters and walk over the child list
                 if children is not None:
                     gtkw.begin_group(node_name)
-                    walk(children)
+                    walk(children, style)
                     gtkw.end_group(node_name)
                 # emit a trace, if the node is a signal
                 elif node_name is not None:
-                    gtkw.trace(node_name)
+                    signal_name = node_name
+                    # prepend module name to signal
+                    if 'module' in style:
+                        signal_name = style['module'] + '.' + signal_name
+                    gtkw.trace(signal_name)
 
-        walk(gtkw_dom)
+        walk(gtkw_dom, root_style)
 
 
 def test_shifter():
