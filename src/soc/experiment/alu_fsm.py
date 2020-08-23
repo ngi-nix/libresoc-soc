@@ -351,6 +351,10 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                     # node is a group if it has a child list
                     if isinstance(node[-1], list):
                         children = node[-1]
+                # comment
+                elif isinstance(node, dict):
+                    if 'comment' in node:
+                        gtkw.blank(node['comment'])
                 # emit the group delimiters and walk over the child list
                 if children is not None:
                     gtkw.begin_group(node_name)
