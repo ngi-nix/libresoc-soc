@@ -251,7 +251,6 @@ def write_gtkw_v1(base_name, top_dut_name, loc):
             gtkw.trace(dut + "n_ready_i", color=style_input)
 
 
-# TODO: Apply styles
 def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                loc=None, zoom=-22.9, marker=-1):
     """ Write a GTKWave document according to the supplied style and DOM.
@@ -314,6 +313,8 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
             for node in dom:
                 node_name = None
                 children = None
+                # copy the style from the parent
+                node_style = style.copy()
                 # node is a signal name string
                 if isinstance(node, str):
                     node_name = node
@@ -321,20 +322,32 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                 # could be a signal or a group
                 elif isinstance(node, tuple):
                     node_name = node[0]
+                    # collect styles from the selectors
+                    # order goes from the most specific to most generic
+                    # which means earlier selectors override later ones
+                    for selector in reversed(node):
+                        # update the node style from the selector
+                        if isinstance(selector, str):
+                            if selector in gtkw_style:
+                                node_style.update(gtkw_style[selector])
+                        # apply an inline style description
+                        elif isinstance(selector, dict):
+                            node_style.update(selector)
                     # node is a group if it has a child list
                     if isinstance(node[-1], list):
                         children = node[-1]
                 # emit the group delimiters and walk over the child list
                 if children is not None:
                     gtkw.begin_group(node_name)
-                    walk(children, style)
+                    # pass on the group style to its children
+                    walk(children, node_style)
                     gtkw.end_group(node_name)
                 # emit a trace, if the node is a signal
                 elif node_name is not None:
                     signal_name = node_name
                     # prepend module name to signal
-                    if 'module' in style:
-                        signal_name = style['module'] + '.' + signal_name
+                    if 'module' in node_style:
+                        signal_name = node_style['module'] + '.' + signal_name
                     gtkw.trace(signal_name)
 
         walk(gtkw_dom, root_style)
