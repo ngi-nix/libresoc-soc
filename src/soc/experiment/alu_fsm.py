@@ -330,6 +330,9 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                 # node is a signal name string
                 if isinstance(node, str):
                     node_name = node
+                    # apply style from node name, if specified
+                    if node_name in gtkw_style:
+                        node_style.update(gtkw_style[node_name])
                 # node is a tuple
                 # could be a signal or a group
                 elif isinstance(node, tuple):
