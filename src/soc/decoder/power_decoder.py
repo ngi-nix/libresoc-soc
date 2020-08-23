@@ -1,5 +1,10 @@
 """Cascading Power ISA Decoder
 
+License: LGPLv3
+
+# Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+
 This module uses CSV tables in a hierarchical/peer cascading fashion,
 to create a multi-level instruction decoder by recognising appropriate
 patterns.  The output is a wide, flattened (1-level) series of bitfields,
@@ -78,8 +83,6 @@ Top Level:
     ]
 
 
-Copyrights:
-# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 """
 
 from collections import namedtuple

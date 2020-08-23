@@ -1,8 +1,11 @@
+# License: LGPLv3
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+# Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+
 # This stage is intended to do most of the work of executing shift
 # instructions, as well as carry and overflow generation. This module
 # however should not gate the carry or overflow, that's up to the
 # output stage
-# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.logical.pipe_data import LogicalOutputData

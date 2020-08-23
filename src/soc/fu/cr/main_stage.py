@@ -1,3 +1,7 @@
+# License: LGPLv3
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+# Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+
 # This stage is intended to do Condition Register instructions (and ISEL)
 # and output, as well as carry and overflow generation.
 # NOTE: with the exception of mtcrf and mfcr, we really should be doing
@@ -8,7 +12,6 @@
 # own "Register File" (indexed by bt, ba and bb),
 # exactly how INT regs are done (by RA, RB, RS and RT)
 # however we are pushed for time so do it as *one* register.
-# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
