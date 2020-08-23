@@ -363,10 +363,11 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                     # prepend module name to signal
                     if 'module' in node_style:
                         signal_name = node_style['module'] + '.' + signal_name
-                    color = None
-                    if 'color' in node_style:
-                        color = colors[node_style['color']]
-                    gtkw.trace(signal_name, color=color)
+                    color = colors.get(node_style.get('color'))
+                    base = node_style.get('base')
+                    display = node_style.get('display')
+                    gtkw.trace(signal_name, color=color, datafmt=base,
+                               alias=display)
 
         walk(gtkw_dom, root_style)
 
