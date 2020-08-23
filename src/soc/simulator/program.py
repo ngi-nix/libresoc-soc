@@ -3,6 +3,7 @@
 takes powerpc assembly instructions and turns them into LE/BE binary
 data.  calls powerpc64-linux-gnu-as, ld and objcopy to do so.
 """
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
 import tempfile
 import subprocess

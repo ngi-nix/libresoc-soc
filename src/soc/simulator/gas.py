@@ -1,6 +1,7 @@
 import tempfile
 import subprocess
 import struct
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
 
 def get_assembled_instruction(instruction, bigendian=False):
