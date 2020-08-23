@@ -294,6 +294,18 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
     In place of a class name, an inline class description can be used.
     ``(signal, {attribute: value, ...}, ...)``
     """
+    colors = {
+        'blue': GTKWColor.blue,
+        'cycle': GTKWColor.cycle,
+        'green': GTKWColor.green,
+        'indigo': GTKWColor.indigo,
+        'normal': GTKWColor.normal,
+        'orange': GTKWColor.orange,
+        'red': GTKWColor.red,
+        'violet': GTKWColor.violet,
+        'yellow': GTKWColor.yellow,
+    }
+
     with open(gtkw_name, "wt") as gtkw_file:
         gtkw = GTKWSave(gtkw_file)
         if loc is not None:
@@ -348,7 +360,10 @@ def write_gtkw(gtkw_name, vcd_name, gtkw_style, gtkw_dom,
                     # prepend module name to signal
                     if 'module' in node_style:
                         signal_name = node_style['module'] + '.' + signal_name
-                    gtkw.trace(signal_name)
+                    color = None
+                    if 'color' in node_style:
+                        color = colors[node_style['color']]
+                    gtkw.trace(signal_name, color=color)
 
         walk(gtkw_dom, root_style)
 
