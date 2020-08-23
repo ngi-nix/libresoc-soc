@@ -84,7 +84,7 @@ class LibreSoCSim(SoCSDRAM):
             #integrated_main_ram_init  = ram_init,
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
-            ) 
+            )
         self.platform.name = "sim"
 
         # CRG -----------------------------------------------------------------
@@ -145,6 +145,10 @@ class LibreSoCSim(SoCSDRAM):
         self.sync += uptime.eq(uptime + 1)
         #self.sync += If(uptime == 1000000000000, Finish())
 
+        # DMI FSM counter and FSM itself
+        dmicount = Signal(10)
+        dmirunning = Signal(1)
+        dmi_monitor = Signal(1)
         dmifsm = FSM()
         self.submodules += dmifsm
 
@@ -166,21 +170,37 @@ class LibreSoCSim(SoCSDRAM):
                  self.cpu.dmi_req.eq(1),    # DMI request
                  self.cpu.dmi_wr.eq(0),    # DMI read
                  If(self.cpu.dmi_ack,
+                    # acknowledge received: capture data.
                     (NextState("IDLE"),
                      NextValue(dbg_addr, dmi_addr),
                      NextValue(dbg_dout, self.cpu.dmi_dout),
                      NextValue(dbg_msg, 1),
-                    )
+                    ),
                  ),
                 ),
             )
         )
 
+        # DMI response received: reset the dmi request and check if
+        # in "monitor" mode
         dmifsm.act("IDLE",
-            (NextValue(dmi_req, 0),
-             NextValue(dmi_addr, 0),
+            If(dmi_monitor,
+                 NextState("FIRE_MONITOR"), # fire "monitor" on next cycle
+            ).Else(
+                 NextState("START"), # back to start on next cycle
+            ),
+            NextValue(dmi_req, 0),
+            NextValue(dmi_addr, 0),
+            NextValue(dmi_din, 0),
+            NextValue(dmi_wen, 0),
+        )
+
+        # "monitor" mode fires off a STAT request
+        dmifsm.act("FIRE_MONITOR",
+            (NextValue(dmi_req, 1),
+             NextValue(dmi_addr, 1), # DMI STAT address
              NextValue(dmi_din, 0),
-             NextValue(dmi_wen, 0),
+             NextValue(dmi_wen, 0), # read STAT
              NextState("START"), # back to start on next cycle
             )
         )
@@ -199,6 +219,14 @@ class LibreSoCSim(SoCSDRAM):
              If(dbg_addr == 0b101, # GPR
                 Display("    gpr: %016x", dbg_dout),
              ),
+            # also check if this is a "stat"
+            If(dbg_addr == 1, # requested a STAT
+                Display("    stat: %x", dbg_dout),
+                If(dbg_dout & 2, # bit 2 of STAT is "stopped" mode
+                     dmirunning.eq(1), # continue running
+                     dmi_monitor.eq(0), # and stop monitor mode
+                ),
+            ),
              dbg_msg.eq(0)
             )
         )
@@ -212,11 +240,19 @@ class LibreSoCSim(SoCSDRAM):
             )
         )
 
+        self.sync += If(uptime == 4,
+             dmirunning.eq(1),
+        )
+
+        self.sync += If(dmirunning,
+             dmicount.eq(dmicount + 1),
+        )
+
         # loop every 1<<N cycles
         cyclewid = 9
 
         # get the PC
-        self.sync += If(uptime[0:cyclewid] == 4,
+        self.sync += If(dmicount == 4,
             (dmi_addr.eq(0b10), # NIA
              dmi_req.eq(1),
              dmi_wen.eq(0),
@@ -224,11 +260,13 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         # kick off a "step"
-        self.sync += If(uptime[0:cyclewid] == 8,
+        self.sync += If(dmicount == 8,
             (dmi_addr.eq(0), # CTRL
              dmi_din.eq(1<<3), # STEP
              dmi_req.eq(1),
              dmi_wen.eq(1),
+             dmirunning.eq(0), # stop counter, need to fire "monitor"
+             dmi_monitor.eq(1), # start "monitor" instead
             )
         )
 
@@ -238,7 +276,7 @@ class LibreSoCSim(SoCSDRAM):
         self.comb += active_dbg.eq(1)
 
         # get the MSR
-        self.sync += If(active_dbg & (uptime[0:cyclewid] == 28),
+        self.sync += If(active_dbg & (dmicount == 12),
             (dmi_addr.eq(0b11), # MSR
              dmi_req.eq(1),
              dmi_wen.eq(0),
@@ -247,7 +285,7 @@ class LibreSoCSim(SoCSDRAM):
 
         # read all 32 GPRs
         for i in range(32):
-            self.sync += If(active_dbg & (uptime[0:cyclewid] == 30+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 14+(i*8)),
                 (dmi_addr.eq(0b100), # GSPR addr
                  dmi_din.eq(i), # r1
                  dmi_req.eq(1),
@@ -255,7 +293,7 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
-            self.sync += If(active_dbg & (uptime[0:cyclewid] == 34+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 18+(i*8)),
                 (dmi_addr.eq(0b101), # GSPR data
                  dmi_req.eq(1),
                  dmi_wen.eq(0),
