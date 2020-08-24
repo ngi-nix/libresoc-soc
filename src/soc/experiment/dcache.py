@@ -423,7 +423,7 @@ class Dcache(Elaboratable):
 #         pa.wr_perm := pte(1);
 #         return pa;
 #     end;
-        def extract_perm_attr(pte=Signal(TLB_PTE_BITS)):
+        def extract_perm_attr(pte):
             pa = PermAttr()
             pa.reference = pte[8]
             pa.changed   = pte[7]
