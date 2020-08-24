@@ -230,6 +230,11 @@ class Dcache(Elaboratable):
 
 #     subtype row_t is integer range 0 to BRAM_ROWS-1;
 #     subtype index_t is integer range 0 to NUM_LINES-1;
+"""wherever way_t is used to make a Signal it must be substituted with
+   log2_int(NUM_WAYS) i.e. WAY_BITS.  this because whilst the *range*
+   of the number is 0..NUM_WAYS it requires log2_int(NUM_WAYS) i.e.
+   WAY_BITS of space to store it
+"""
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
 #     subtype row_in_line_t is unsigned(ROW_LINE_BITS-1 downto 0);
         ROW         = BRAM_ROWS
@@ -367,7 +372,7 @@ class Dcache(Elaboratable):
             )
 
         def HitWaySet():
-            return Array(Signal(WAY) for x in range(TLB_NUM_WAYS))
+            return Array(Signal(NUM_WAYS) for x in range(TLB_NUM_WAYS))
 
 #     signal dtlb_valids : tlb_valids_t;
 #     signal dtlb_tags : tlb_tags_t;
@@ -550,7 +555,7 @@ class Dcache(Elaboratable):
                 self.real_addr = Signal(REAL_ADDR_BITS)
                 self.data      = Signal(64)
                 self.byte_sel  = Signal(8)
-                self.hit_way   = Signal(WAY)
+                self.hit_way   = Signal(WAY_BITS)
                 self.same_tag  = Signal()
                 self.mmu_req   = Signal()
 
@@ -621,7 +626,7 @@ class Dcache(Elaboratable):
                 self.req              = MemAccessRequest()
 
                 # Cache hit state
-                self.hit_way          = Signal(WAY)
+                self.hit_way          = Signal(WAY_BITS)
                 self.hit_load_valid   = Signal()
                 self.hit_index        = Signal(INDEX)
                 self.cache_hit        = Signal()
@@ -636,7 +641,7 @@ class Dcache(Elaboratable):
                 self.forward_data2    = Signal(64)
                 self.forward_sel1     = Signal(8)
                 self.forward_valid1   = Signal()
-                self.forward_way1     = Signal(WAY)
+                self.forward_way1     = Signal(WAY_BITS)
                 self.forward_row1     = Signal(ROW)
                 self.use_forward1     = Signal()
                 self.forward_sel      = Signal(8)
@@ -649,7 +654,7 @@ class Dcache(Elaboratable):
                 self.slow_valid       = Signal()
                 self.wb               = WishboneMasterOut()
                 self.reload_tag       = Signal(CACHE_TAG)
-                self.store_way        = Signal(WAY)
+                self.store_way        = Signal(WAY_BITS)
                 self.store_row        = Signal(ROW)
                 self.store_index      = Signal(INDEX)
                 self.end_row_ix       = Signal(ROW_IN_LINE)
@@ -701,7 +706,7 @@ class Dcache(Elaboratable):
         # Async signals on incoming request
         req_index    = Signal(INDEX)
         req_row      = Signal(ROW)
-        req_hit_way  = Signal(WAY)
+        req_hit_way  = Signal(WAY_BITS)
         req_tag      = Signal(CACHE_TAG)
         req_op       = Op()
         req_data     = Signal(64)
@@ -750,7 +755,7 @@ class Dcache(Elaboratable):
             return Array(Signal(WAY_BITS) for x in range(Index()))
 
         plru_victim = PLRUOut()
-        replace_way = Signal(WAY)
+        replace_way = Signal(WAY_BITS)
 
 #     -- Wishbone read/write/cache write formatting signals
 #     signal bus_sel     : std_ulogic_vector(7 downto 0);
@@ -1554,7 +1559,7 @@ class DcacheRequest(Elaboratable):
 #                                );
         rel_match   = Signal()
         is_hit      = Signal()
-        hit_way     = Signal(WAY)
+        hit_way     = Signal(WAY_BITS)
         op          = Op()
         opsel       = Signal(3)
         go          = Signal()
