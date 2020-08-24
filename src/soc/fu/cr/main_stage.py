@@ -143,7 +143,7 @@ class CRMainStage(PipeModBase):
                 # just like in branch, CR0-7 is incoming into cr_a, we
                 # need to select from the last 2 bits of BC
                 a_fields = self.fields.FormA
-                BC = a_fields.BC[0:-1][0:2]
+                BC = a_fields.BC[0:2]
                 cr_bits = Array([cr_a[3-i] for i in range(4)])
 
                 # The bit of (cr_a=CR0-7) selected by BC

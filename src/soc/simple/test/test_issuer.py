@@ -299,7 +299,7 @@ if __name__ == "__main__":
     # suite.addTest(TestRunner(AttnTestCase.test_data))
     suite.addTest(TestRunner(GeneralTestCases.test_data))
     suite.addTest(TestRunner(LDSTTestCase().test_data))
-    # suite.addTest(TestRunner(CRTestCase().test_data))
+    suite.addTest(TestRunner(CRTestCase().test_data))
     # suite.addTest(TestRunner(ShiftRotTestCase.test_data))
     suite.addTest(TestRunner(LogicalTestCase().test_data))
     suite.addTest(TestRunner(ALUTestCase().test_data))

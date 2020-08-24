@@ -67,6 +67,7 @@ class GeneralTestCases(FHDLTestCase):
         """
         pass
 
+    @unittest.skip("disable")
     def test_0_litex_bios_cmp(self):
         """litex bios cmp test
         """
@@ -145,7 +146,7 @@ class GeneralTestCases(FHDLTestCase):
                                  [1, 2, 3],
                                  initial_mem)
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_ldst_update(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -170,7 +171,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1, 2, 3])
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_st_rev_ext(self):
         lst = ["addi 1, 0, 0x5678",
                "addi 2, 0, 0x1234",
@@ -242,6 +243,34 @@ class GeneralTestCases(FHDLTestCase):
                ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
+
+    def test_isel_1(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "isel 4, 1, 2, 2"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x00ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    def test_isel_2(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "isel 4, 1, 2, 30"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x00ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
 
     @unittest.skip("disable")
     def test_2_load_store(self):
@@ -330,7 +359,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [12])
 
-    #@unittest.skip("disable")
+    @unittest.skip("disable")
     def test_31_addis(self):
         """tests for zero not in register zero
         """

@@ -107,7 +107,7 @@ class CRTestCase(TestAccumulatorBase):
         for i in range(20):
             bc = random.randint(0, 31)
             lst = [f"isel 1, 2, 3, {bc}"]
-            cr = random.randint(0, (1 << 32)-1)
+            cr = random.randint(0, (1 << 64)-1)
             initial_regs = [0] * 32
             initial_regs[2] = random.randint(0, (1 << 64)-1)
             initial_regs[3] = random.randint(0, (1 << 64)-1)
