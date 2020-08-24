@@ -27,21 +27,20 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
 
     def set_wr_addr(self, m, addr, mask):
         m.d.comb += self.ldst.addr_i.eq(addr)
-        #lsbaddr, msbaddr = self.splitaddr(addr)
 
     def set_rd_addr(self, m, addr, mask):
         m.d.comb += self.ldst.addr_i.eq(addr)
-        #lsbaddr, msbaddr = self.splitaddr(addr)
-        #m.d.comb += self..eq(msbaddr)
 
     def set_wr_data(self, m, data, wen):
         m.d.comb += self.ldst.st_data_i.data.eq(data)  # write st to mem
         m.d.comb += self.ldst.is_st_i.eq(wen)  # enable writes
-        return Const(1, 1) #fixme -- write may be longer than one cycle
+        st_ok = Const(1, 1)
+        return st_ok
 
     def get_rd_data(self, m):
         # this path is still untested
-        return self.ldst.ld_data_o.data, Const(1, 1)
+        ld_ok = Const(1, 1)
+        return self.ldst.ld_data_o.data, ld_ok
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
