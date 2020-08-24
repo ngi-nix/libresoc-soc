@@ -51,7 +51,7 @@ class Driver(Elaboratable):
             dut_sig = getattr(dut.o.ctx.op, name)
             comb += Assert(dut_sig == rec_sig)
 
-        with m.If(rec.invert_a):
+        with m.If(rec.invert_in):
             comb += Assert(dut.o.a == ~a)
         with m.Else():
             comb += Assert(dut.o.a == a)

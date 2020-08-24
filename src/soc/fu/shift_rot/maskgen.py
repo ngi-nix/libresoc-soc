@@ -1,5 +1,6 @@
 from nmigen import (Elaboratable, Signal, Module)
 import math
+# Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 
 class MaskGen(Elaboratable):
     """MaskGen - create a diff mask

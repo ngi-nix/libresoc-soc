@@ -11,7 +11,8 @@ class ShiftRotInputData(IntegerData):
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience
-        self.a, self.rs = self.ra, self.rc
+        self.a, self.b, self.rs = self.ra, self.rb, self.rc
+
 
 
 class ShiftRotPipeSpec(CommonPipeSpec):

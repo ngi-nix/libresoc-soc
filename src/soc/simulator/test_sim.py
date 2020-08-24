@@ -49,6 +49,24 @@ class GeneralTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    def test_0_litex_bios_ctr_loop(self):
+        """
+        32a4:   ff ff 63 38     addi    r3,r3,-1
+        32a8:   20 00 63 78     clrldi  r3,r3,32
+        32ac:   01 00 23 39     addi    r9,r3,1
+        32b0:   a6 03 29 7d     mtctr   r9
+        32b4:   00 00 00 60     nop
+        32b8:   fc ff 00 42     bdnz    32b4 <cdelay+0x10>
+        32bc:   20 00 80 4e     blr
+
+        notes on converting pseudo-assembler to actual:
+
+        * bdnz target (equivalent to: bc 16,0,target)
+        * Clear left immediate clrldi ra,rs,n (n < 64) rldicl ra,rs,0,n
+        * CTR mtctr Rx mtspr 9,Rx
+        """
+        pass
+
     def test_0_litex_bios_cmp(self):
         """litex bios cmp test
         """
@@ -311,6 +329,23 @@ class GeneralTestCases(FHDLTestCase):
         ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [12])
+
+    #@unittest.skip("disable")
+    def test_31_addis(self):
+        """tests for zero not in register zero
+        """
+        lst = [  "rldicr  0, 0, 32, 31",
+                 "oris    0, 0, 32767",
+                 "ori     0, 0, 65535",
+                 "addis 1, 0, 1",
+                 "ori     1, 1, 515",
+                 "rldicr  1, 1, 32, 31",
+                 "oris    1, 1, 1029",
+                 "ori     1, 1, 1543",
+                 "addis   2, 0, -1",
+        ]
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [0, 1, 2])
 
     def run_tst_program(self, prog, initial_regs=None, initial_sprs=None,
                         initial_mem=None):

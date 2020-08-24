@@ -1017,35 +1017,32 @@ class Dcache(Elaboratable):
 #     assert SET_SIZE_BITS <= TLB_LG_PGSZ
 #      report "Set indexed by virtual address" severity FAILURE;
         assert (LINE_SIZE % ROW_SIZE) == 0 "LINE_SIZE not " \
-         "multiple of ROW_SIZE -!- severity FAILURE"
+         "multiple of ROW_SIZE"
 
-        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of" \
-         "2 -!- severity FAILURE"
+        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of 2"
 
-        assert (NUM_LINES % 2) == 0 "NUM_LINES not power of" \
-         "2 -!- severity FAILURE"
+        assert (NUM_LINES % 2) == 0 "NUM_LINES not power of 2"
 
         assert (ROW_PER_LINE % 2) == 0 "ROW_PER_LINE not" \
-         "power of 2 -!- severity FAILURE"
+         "power of 2"
 
         assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS) \
-         "geometry bits don't add up -!- severity FAILURE"
+         "geometry bits don't add up"
 
         assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS) \
-         "geometry bits don't add up -!- severity FAILURE"
+         "geometry bits don't add up"
 
         assert REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS \
-         + LINE_OFF_BITS) "geometry bits don't add up -!-" \
-         "severity FAILURE"
+         + LINE_OFF_BITS) "geometry bits don't add up"
 
         assert REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS) \
-         "geometry bits don't add up -!- severity FAILURE"
+         "geometry bits don't add up"
 
         assert 64 == wishbone_data_bits "Can't yet handle a" \
-         "wishbone width that isn't 64-bits -!- severity FAILURE"
+         "wishbone width that isn't 64-bits"
 
         assert SET_SIZE_BITS <= TLB_LG_PGSZ "Set indexed by" \
-         "virtual address -!- severity FAILURE"
+         "virtual address"
 
 #     -- Latch the request in r0.req as long as we're not stalling
 #     stage_0 : process(clk)

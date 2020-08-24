@@ -20,8 +20,7 @@ class ShiftRotInputStage(CommonInputStage):
         m = super().elaborate(platform) # handles A, carry and sticky overflow
         comb = m.d.comb
 
-        # operands ra and rb
-        comb += self.o.rb.eq(self.i.rb)
+        # operand rs
         comb += self.o.rs.eq(self.i.rs)
 
         return m

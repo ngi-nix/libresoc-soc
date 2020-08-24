@@ -16,7 +16,7 @@ class CompLogicalOpSubset(CompOpSubsetBase):
                   ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
                   ('rc', Layout((("rc", 1), ("rc_ok", 1)))),
                   ('oe', Layout((("oe", 1), ("oe_ok", 1)))),
-                  ('invert_a', 1),
+                  ('invert_in', 1),
                   ('zero_a', 1),
                   ('input_carry', CryIn),
                   ('invert_out', 1),

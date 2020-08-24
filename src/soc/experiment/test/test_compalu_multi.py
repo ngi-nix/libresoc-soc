@@ -77,7 +77,7 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield dut.src_i[0].eq(a)
     yield dut.src_i[1].eq(b)
     yield dut.oper_i.insn_type.eq(op)
-    yield dut.oper_i.invert_a.eq(inv_a)
+    yield dut.oper_i.invert_in.eq(inv_a)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.oper_i.zero_a.eq(zero_a)
@@ -285,7 +285,7 @@ class CompUnitParallelTest:
 
         # at the same time, present the operation
         yield self.dut.oper_i.insn_type.eq(self.op)
-        yield self.dut.oper_i.invert_a.eq(self.inv_a)
+        yield self.dut.oper_i.invert_in.eq(self.inv_a)
         yield self.dut.oper_i.imm_data.imm.eq(self.imm)
         yield self.dut.oper_i.imm_data.imm_ok.eq(self.imm_ok)
         yield self.dut.oper_i.zero_a.eq(self.zero_a)
@@ -310,7 +310,7 @@ class CompUnitParallelTest:
         # note: rdmaskn must be held, while busy_o is active
         # TODO: deactivate rdmaskn when the busy_o cycle ends
         yield self.dut.oper_i.insn_type.eq(0)
-        yield self.dut.oper_i.invert_a.eq(0)
+        yield self.dut.oper_i.invert_in.eq(0)
         yield self.dut.oper_i.imm_data.imm.eq(0)
         yield self.dut.oper_i.imm_data.imm_ok.eq(0)
         yield self.dut.oper_i.zero_a.eq(0)

@@ -156,9 +156,9 @@ class TestIssuer(Elaboratable):
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
-        comb += core.core_stopped_i.eq(dbg.core_stop_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
         comb += dbg.state.pc.eq(pc)
+        #comb += dbg.state.pc.eq(cur_state.pc)
         comb += dbg.state.msr.eq(cur_state.msr)
 
         # temporaries
@@ -195,6 +195,9 @@ class TestIssuer(Elaboratable):
                     comb += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
 
                     m.next = "INSN_READ" # move to "wait for bus" phase
+                with m.Else():
+                    comb += core.core_stopped_i.eq(1)
+                    comb += dbg.core_stopped_i.eq(1)
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):

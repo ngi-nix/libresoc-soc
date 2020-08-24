@@ -175,7 +175,7 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield dut.src1_i.eq(a)
     yield dut.src2_i.eq(b)
     yield dut.oper_i.insn_type.eq(op)
-    yield dut.oper_i.invert_a.eq(inv_a)
+    yield dut.oper_i.invert_in.eq(inv_a)
     yield dut.oper_i.imm_data.imm.eq(imm)
     yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
     yield dut.issue_i.eq(1)

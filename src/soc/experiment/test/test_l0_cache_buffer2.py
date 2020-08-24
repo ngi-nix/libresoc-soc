@@ -35,7 +35,7 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
         #m.d.comb += self..eq(msbaddr)
 
     def set_wr_data(self, m, data, wen):
-        m.d.comb += self.ldst.st_data_i.eq(data)  # write st to mem
+        m.d.comb += self.ldst.st_data_i.data.eq(data)  # write st to mem
         m.d.comb += self.ldst.is_st_i.eq(wen)  # enable writes
         return Const(1, 1) #fixme -- write may be longer than one cycle
 
