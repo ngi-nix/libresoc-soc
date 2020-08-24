@@ -23,6 +23,50 @@ from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBSlaveOutVector, WBIOMasterOut,
                                 WBIOSlaveOut
 
+# Record for storing permission, attribute, etc. bits from a PTE
+class PermAttr(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.reference = Signal()
+        self.changed   = Signal()
+        self.nocache   = Signal()
+        self.priv      = Signal()
+        self.rd_perm   = Signal()
+        self.wr_perm   = Signal()
+
+
+def extract_perm_attr(pte):
+    pa = PermAttr()
+    pa.reference = pte[8]
+    pa.changed   = pte[7]
+    pa.nocache   = pte[5]
+    pa.priv      = pte[3]
+    pa.rd_perm   = pte[2]
+    pa.wr_perm   = pte[1]
+    return pa;
+
+
+# Type of operation on a "valid" input
+@unique
+class OP(Enum):
+    OP_NONE       = 0
+    OP_BAD        = 1 # NC cache hit, TLB miss, prot/RC failure
+    OP_STCX_FAIL  = 2 # conditional store w/o reservation
+    OP_LOAD_HIT   = 3 # Cache hit on load
+    OP_LOAD_MISS  = 4 # Load missing cache
+    OP_LOAD_NC    = 5 # Non-cachable load
+    OP_STORE_HIT  = 6 # Store hitting cache
+    OP_STORE_MISS = 7 # Store missing cache
+
+# Cache state machine
+@unique
+class State(Enum):
+    IDLE             = 0 # Normal load hit processing
+    RELOAD_WAIT_ACK  = 1 # Cache reload wait ack
+    STORE_WAIT_ACK   = 2 # Store wait ack
+    NC_LOAD_WAIT_ACK = 3 # Non-cachable load wait ack
+
+
 # --
 # -- Set associative dcache write-through
 # --
@@ -33,66 +77,18 @@ from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
 # --   at the end of line (this requires dealing with requests coming in
 # --   while not idle...)
 # --
-# library ieee;
-# use ieee.std_logic_1164.all;
-# use ieee.numeric_std.all;
-#
-# library work;
-# use work.utils.all;
-# use work.common.all;
-# use work.helpers.all;
-# use work.wishbone_types.all;
-#
-# entity dcache is
+
 class Dcache(Elaboratable):
-#     generic (
-#         -- Line size in bytes
-#         LINE_SIZE : positive := 64;
-#         -- Number of lines in a set
-#         NUM_LINES : positive := 32;
-#         -- Number of ways
-#         NUM_WAYS  : positive := 4;
-#         -- L1 DTLB entries per set
-#         TLB_SET_SIZE : positive := 64;
-#         -- L1 DTLB number of sets
-#         TLB_NUM_WAYS : positive := 2;
-#         -- L1 DTLB log_2(page_size)
-#         TLB_LG_PGSZ : positive := 12;
-#         -- Non-zero to enable log data collection
-#         LOG_LENGTH : natural := 0
-#         );
     def __init__(self):
-        # Line size in bytes
-        self.LINE_SIZE = 64
-        # Number of lines in a set
-        self.NUM_LINES = 32
-        # Number of ways
-        self.NUM_WAYS = 4
-        # L1 DTLB entries per set
-        self.TLB_SET_SIZE = 64
-        # L1 DTLB number of sets
-        self.TLB_NUM_WAYS = 2
-        # L1 DTLB log_2(page_size)
-        self.TLB_LG_PGSZ = 12
-        # Non-zero to enable log data collection
-        self.LOG_LENGTH = 0
-#     port (
-#         clk          : in std_ulogic;
-#         rst          : in std_ulogic;
-#
-#         d_in         : in Loadstore1ToDcacheType;
-#         d_out        : out DcacheToLoadstore1Type;
-#
-#         m_in         : in MmuToDcacheType;
-#         m_out        : out DcacheToMmuType;
-#
-# 	stall_out    : out std_ulogic;
-#
-#         wishbone_out : out wishbone_master_out;
-#         wishbone_in  : in wishbone_slave_out;
-#
-#         log_out      : out std_ulogic_vector(19 downto 0)
-#         );
+        # TODO: make these parameters of Dcache at some point
+        self.LINE_SIZE = 64    # Line size in bytes
+        self.NUM_LINES = 32    # Number of lines in a set
+        self.NUM_WAYS = 4      # Number of ways
+        self.TLB_SET_SIZE = 64 # L1 DTLB entries per set
+        self.TLB_NUM_WAYS = 2  # L1 DTLB number of sets
+        self.TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
+        self.LOG_LENGTH = 0    # Non-zero to enable log data collection
+
         self.d_in      = LoadStore1ToDcacheType()
         self.d_out     = DcacheToLoadStore1Type()
 
@@ -105,9 +101,7 @@ class Dcache(Elaboratable):
         self.wb_in     = WBSlaveOut()
 
         self.log_out   = Signal(20)
-# end entity dcache;
 
-# architecture rtl of dcache is
     def elaborate(self, platform):
         LINE_SIZE    = self.LINE_SIZE
         NUM_LINES    = self.NUM_LINES
@@ -117,14 +111,6 @@ class Dcache(Elaboratable):
         TLB_LG_PGSZ  = self.TLB_LG_PGSZ
         LOG_LENGTH   = self.LOG_LENGTH
 
-#     -- BRAM organisation: We never access more than
-#     -- wishbone_data_bits at a time so to save
-#     -- resources we make the array only that wide, and
-#     -- use consecutive indices for to make a cache "line"
-#     --
-#     -- ROW_SIZE is the width in bytes of the BRAM
-#     -- (based on WB, so 64-bits)
-#     constant ROW_SIZE : natural := wishbone_data_bits / 8;
         # BRAM organisation: We never access more than
         #     -- wishbone_data_bits at a time so to save
         #     -- resources we make the array only that wide, and
@@ -134,88 +120,53 @@ class Dcache(Elaboratable):
         #     -- (based on WB, so 64-bits)
         ROW_SIZE = WB_DATA_BITS / 8;
 
-#     -- ROW_PER_LINE is the number of row (wishbone
-#     -- transactions) in a line
-#     constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
-#     -- BRAM_ROWS is the number of rows in BRAM needed
-#     -- to represent the full dcache
-#     constant BRAM_ROWS : natural := NUM_LINES * ROW_PER_LINE;
         # ROW_PER_LINE is the number of row (wishbone
         # transactions) in a line
-        ROW_PER_LINE = LINE_SIZE / ROW_SIZE
+        ROW_PER_LINE = LINE_SIZE // ROW_SIZE
+
         # BRAM_ROWS is the number of rows in BRAM needed
         # to represent the full dcache
         BRAM_ROWS = NUM_LINES * ROW_PER_LINE
 
-#     -- Bit fields counts in the address
-#
-#     -- REAL_ADDR_BITS is the number of real address
-#     -- bits that we store
-#     constant REAL_ADDR_BITS : positive := 56;
-#     -- ROW_BITS is the number of bits to select a row
-#     constant ROW_BITS      : natural := log2(BRAM_ROWS);
-#     -- ROW_LINEBITS is the number of bits to select
-#     -- a row within a line
-#     constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
-#     -- LINE_OFF_BITS is the number of bits for
-#     -- the offset in a cache line
-#     constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
-#     -- ROW_OFF_BITS is the number of bits for
-#     -- the offset in a row
-#     constant ROW_OFF_BITS : natural := log2(ROW_SIZE);
-#     -- INDEX_BITS is the number if bits to
-#     -- select a cache line
-#     constant INDEX_BITS : natural := log2(NUM_LINES);
-#     -- SET_SIZE_BITS is the log base 2 of the set size
-#     constant SET_SIZE_BITS : natural := LINE_OFF_BITS
-#                                         + INDEX_BITS;
-#     -- TAG_BITS is the number of bits of
-#     -- the tag part of the address
-#     constant TAG_BITS : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
-#     -- TAG_WIDTH is the width in bits of each way of the tag RAM
-#     constant TAG_WIDTH : natural := TAG_BITS + 7
-#                                     - ((TAG_BITS + 7) mod 8);
-#     -- WAY_BITS is the number of bits to select a way
-#     constant WAY_BITS : natural := log2(NUM_WAYS);
+
         # Bit fields counts in the address
 
         # REAL_ADDR_BITS is the number of real address
         # bits that we store
         REAL_ADDR_BITS = 56
+
         # ROW_BITS is the number of bits to select a row
         ROW_BITS = log2_int(BRAM_ROWS)
+
         # ROW_LINE_BITS is the number of bits to select
         # a row within a line
         ROW_LINE_BITS = log2_int(ROW_PER_LINE)
+
         # LINE_OFF_BITS is the number of bits for
         # the offset in a cache line
         LINE_OFF_BITS = log2_int(LINE_SIZE)
+
         # ROW_OFF_BITS is the number of bits for
         # the offset in a row
         ROW_OFF_BITS = log2_int(ROW_SIZE)
+
         # INDEX_BITS is the number if bits to
         # select a cache line
         INDEX_BITS = log2_int(NUM_LINES)
+
         # SET_SIZE_BITS is the log base 2 of the set size
         SET_SIZE_BITS = LINE_OFF_BITS + INDEX_BITS
+
         # TAG_BITS is the number of bits of
         # the tag part of the address
         TAG_BITS = REAL_ADDR_BITS - SET_SIZE_BITS
+
         # TAG_WIDTH is the width in bits of each way of the tag RAM
         TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
+
         # WAY_BITS is the number of bits to select a way
         WAY_BITS = log2_int(NUM_WAYS)
 
-#     -- Example of layout for 32 lines of 64 bytes:
-#     --
-#     -- ..  tag    |index|  line  |
-#     -- ..         |   row   |    |
-#     -- ..         |     |---|    | ROW_LINEBITS  (3)
-#     -- ..         |     |--- - --| LINE_OFF_BITS (6)
-#     -- ..         |         |- --| ROW_OFF_BITS  (3)
-#     -- ..         |----- ---|    | ROW_BITS      (8)
-#     -- ..         |-----|        | INDEX_BITS    (5)
-#     -- .. --------|              | TAG_BITS      (45)
         # Example of layout for 32 lines of 64 bytes:
         #
         # ..  tag    |index|  line  |
@@ -237,10 +188,10 @@ class Dcache(Elaboratable):
 """
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
 #     subtype row_in_line_t is unsigned(ROW_LINE_BITS-1 downto 0);
-        ROW         = BRAM_ROWS
-        INDEX       = NUM_LINES
-        WAY         = NUM_WAYS
-        ROW_IN_LINE = ROW_LINE_BITS
+        ROW         = BRAM_ROWS   # yyyeah not really necessary, delete
+        INDEX       = NUM_LINES   # yyyeah not really necessary, delete
+        WAY         = NUM_WAYS   # yyyeah not really necessary, delete
+        ROW_IN_LINE = ROW_LINE_BITS   # yyyeah not really necessary, delete
 
 #     -- The cache data BRAM organized as described above for each way
 #     subtype cache_row_t is
@@ -390,97 +341,6 @@ class Dcache(Elaboratable):
         # TODO attribute ram_style of dtlb_ptes : signal is "distributed";
 
 
-#     -- Record for storing permission, attribute, etc. bits from a PTE
-#     type perm_attr_t is record
-#         reference : std_ulogic;
-#         changed   : std_ulogic;
-#         nocache   : std_ulogic;
-#         priv      : std_ulogic;
-#         rd_perm   : std_ulogic;
-#         wr_perm   : std_ulogic;
-#     end record;
-        # Record for storing permission, attribute, etc. bits from a PTE
-        class PermAttr(RecordObject):
-            def __init__(self):
-                super().__init__()
-                self.reference = Signal()
-                self.changed   = Signal()
-                self.nocache   = Signal()
-                self.priv      = Signal()
-                self.rd_perm   = Signal()
-                self.wr_perm   = Signal()
-
-#     function extract_perm_attr(
-#      pte : std_ulogic_vector(TLB_PTE_BITS - 1 downto 0))
-#      return perm_attr_t is
-#         variable pa : perm_attr_t;
-#     begin
-#         pa.reference := pte(8);
-#         pa.changed := pte(7);
-#         pa.nocache := pte(5);
-#         pa.priv := pte(3);
-#         pa.rd_perm := pte(2);
-#         pa.wr_perm := pte(1);
-#         return pa;
-#     end;
-        def extract_perm_attr(pte):
-            pa = PermAttr()
-            pa.reference = pte[8]
-            pa.changed   = pte[7]
-            pa.nocache   = pte[5]
-            pa.priv      = pte[3]
-            pa.rd_perm   = pte[2]
-            pa.wr_perm   = pte[1]
-            return pa;
-
-#     constant real_mode_perm_attr : perm_attr_t :=
-#      (nocache => '0', others => '1');
-        REAL_MODE_PERM_ATTR = PermAttr()
-        REAL_MODE_PERM_ATTR.reference = 1
-        REAL_MODE_PERM_ATTR.changed   = 1
-        REAL_MODE_PERM_ATTR.priv      = 1
-        REAL_MODE_PERM_ATTR.rd_perm   = 1
-        REAL_MODE_PERM_ATTR.wr_perm   = 1
-
-#     -- Type of operation on a "valid" input
-#     type op_t is
-#      (
-#       OP_NONE,
-# 	OP_BAD,        -- NC cache hit, TLB miss, prot/RC failure
-#       OP_STCX_FAIL,  -- conditional store w/o reservation
-# 	OP_LOAD_HIT,   -- Cache hit on load
-# 	OP_LOAD_MISS,  -- Load missing cache
-# 	OP_LOAD_NC,    -- Non-cachable load
-# 	OP_STORE_HIT,  -- Store hitting cache
-# 	OP_STORE_MISS  -- Store missing cache
-#      );
-        # Type of operation on a "valid" input
-        @unique
-        class OP(Enum):
-          OP_NONE       = 0
-          OP_BAD        = 1 # NC cache hit, TLB miss, prot/RC failure
-          OP_STCX_FAIL  = 2 # conditional store w/o reservation
-          OP_LOAD_HIT   = 3 # Cache hit on load
-          OP_LOAD_MISS  = 4 # Load missing cache
-          OP_LOAD_NC    = 5 # Non-cachable load
-          OP_STORE_HIT  = 6 # Store hitting cache
-          OP_STORE_MISS = 7 # Store missing cache
-
-#     -- Cache state machine
-#     type state_t is
-#      (
-#       IDLE,            -- Normal load hit processing
-#       RELOAD_WAIT_ACK, -- Cache reload wait ack
-#       STORE_WAIT_ACK,  -- Store wait ack
-#       NC_LOAD_WAIT_ACK -- Non-cachable load wait ack
-#      );
-        # Cache state machine
-        @unique
-        class State(Enum):
-            IDLE             = 0 # Normal load hit processing
-            RELOAD_WAIT_ACK  = 1 # Cache reload wait ack
-            STORE_WAIT_ACK   = 2 # Store wait ack
-            NC_LOAD_WAIT_ACK = 3 # Non-cachable load wait ack
 
 #     -- Dcache operations:
 #     --
@@ -1340,7 +1200,12 @@ class TLBSearch(Elaboratable):
                     )
 
 #             perm_attr <= real_mode_perm_attr;
-            comb += perm_attr.eq(real_mode_perm_attr)
+            comb += perm_attr.reference.eq(1)
+            comb += perm_attr.changed.eq(1)
+            comb += perm_attr.priv.eq(1)
+            comb += perm_attr.nocache.eq(0)
+            comb += perm_attr.rd_perm.eq(1)
+            comb += perm_attr.wr_perm.eq(1)
 #         end if;
 #     end process;
 
