@@ -292,7 +292,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         reset_s = Signal(reset_less=True)             # reset store
 
         comb += reset_i.eq(issue_i | self.go_die_i)       # various
-        comb += reset_o.eq(wr_reset | self.go_die_i)      # opcode reset
+        comb += reset_o.eq(self.done_o | self.go_die_i)      # opcode reset
         comb += reset_w.eq(self.wr.go_i[0] | self.go_die_i)  # write reg 1
         comb += reset_u.eq(self.wr.go_i[1] | self.go_die_i)  # update (reg 2)
         comb += reset_s.eq(self.go_st_i | self.go_die_i)  # store reset
@@ -352,8 +352,10 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # dest operand latch
         comb += wri_l.s.eq(issue_i)
-        sync += wri_l.r.eq(reset_w | Repl(self.done_o |
-                                          (self.pi.busy_o & op_is_update),
+        sync += wri_l.r.eq(reset_w | Repl(wr_reset |
+                                          (~self.pi.busy_o & op_is_update),
+                                          #(self.pi.busy_o & op_is_update),
+                            #self.done_o | (self.pi.busy_o & op_is_update),
                                           self.n_dst))
 
         # update-mode operand latch (EA written to reg 2)
@@ -457,9 +459,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
                             ~(self.st.rel_o | self.wr.rel_o[0] |
                               self.wr.rel_o[1]) &
-                            (lod_l.qn | op_is_st) &
-                            (~self.pi.busy_o | op_is_ld))
-        comb += self.done_o.eq(wr_reset)
+                            (lod_l.qn | op_is_st)
+                            )
+        comb += self.done_o.eq(wr_reset & (~self.pi.busy_o | op_is_ld))
 
         ######################
         # Data/Address outputs
