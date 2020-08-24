@@ -159,11 +159,17 @@ class ShiftRotFunctionUnit(FunctionUnitBaseSingle):
         super().__init__(ShiftRotPipeSpec, ShiftRotBasePipe, idx)
 
 
-class DivFunctionUnit(FunctionUnitBaseSingle):
+class DivFSMFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
 
     def __init__(self, idx):
-        #super().__init__(DivPipeSpecFSMDivCore, DivBasePipe, idx)
+        super().__init__(DivPipeSpecFSMDivCore, DivBasePipe, idx)
+
+
+class DivPipeFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.DIV
+
+    def __init__(self, idx):
         super().__init__(DivPipeSpecDivPipeCore, DivBasePipe, idx)
 
 
@@ -220,7 +226,7 @@ class AllFunctionUnits(Elaboratable):
 
     """
 
-    def __init__(self, pspec, pilist=None):
+    def __init__(self, pspec, pilist=None, div_fsm=False):
         addrwid = pspec.addr_wid
         units = pspec.units
         if not isinstance(units, dict):
@@ -234,11 +240,15 @@ class AllFunctionUnits(Elaboratable):
                 'branch': BranchFunctionUnit,
                 'trap': TrapFunctionUnit,
                 'spr': SPRFunctionUnit,
-                'div': DivFunctionUnit,
                 'mul': MulFunctionUnit,
                 'logical': LogicalFunctionUnit,
                 'shiftrot': ShiftRotFunctionUnit,
                 }
+        if div_fsm:
+            alus['div'] = DivFSMFunctionUnit
+        else:
+            alus['div'] = DivPipeFunctionUnit
+
         self.fus = {}
         for name, qty in units.items():
             kls = alus[name]
