@@ -1643,7 +1643,7 @@ class DcacheRequest(Elaboratable):
                 comb += s_tag.eq(get_tag(s_ra))
 
 #                 for i in way_t loop
-                for i in range(WAY):
+                for i in range(NUM_WAYS):
 #                     if go = '1' and cache_valids(req_index)(i) = '1'
 #                      and read_tag(i, cache_tag_set) = s_tag
 #                      and tlb_valid_way(j) = '1' then
@@ -1678,7 +1678,7 @@ class DcacheRequest(Elaboratable):
 #             s_tag := get_tag(r0.req.addr);
             comb += s_tag.eq(get_tag(r0.req.addr))
 #             for i in way_t loop
-            for i in range(WAY):
+            for i in range(NUM_WAYS):
 #                 if go = '1' and cache_valids(req_index)(i) = '1' and
 #                     read_tag(i, cache_tag_set) = s_tag then
                 with m.If(go & cache_valid_bits[req_index][i] &
