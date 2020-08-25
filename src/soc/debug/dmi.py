@@ -139,7 +139,7 @@ class CoreDebug(Elaboratable):
         LOG_INDEX_BITS = log2_int(self.LOG_LENGTH)
 
         # Single cycle register accesses on DMI except for GSPR data
-        with m.Switch(.dmi.addr_i):
+        with m.Switch(dmi.addr_i):
             with m.Case(DBGCore.GSPR_DATA):
                 comb += dmi.ack_o.eq(dbg_gpr.ack)
                 comb += dbg_gpr.req.eq(dmi.req_i)
