@@ -436,16 +436,18 @@ class Dcache(Elaboratable):
 #     signal dtlb_tags : tlb_tags_t;
 #     signal dtlb_ptes : tlb_ptes_t;
 
-"""note: these are passed to nmigen.hdl.Memory as "attributes".  don't
-   know how, just that they are.
+"""note: these are passed to nmigen.hdl.Memory as "attributes".
+   don't know how, just that they are.
 """
 #     attribute ram_style of dtlb_tags : signal is "distributed";
 #     attribute ram_style of dtlb_ptes : signal is "distributed";
         dtlb_valids = TLBValidBitsArray()
         dtlb_tags   = TLBTagsArray()
         dtlb_ptes   = TLBPtesArray()
-        # TODO attribute ram_style of dtlb_tags : signal is "distributed";
-        # TODO attribute ram_style of dtlb_ptes : signal is "distributed";
+        # TODO attribute ram_style of
+        #  dtlb_tags : signal is "distributed";
+        # TODO attribute ram_style of
+        #  dtlb_ptes : signal is "distributed";
 
 #     signal r0 : reg_stage_0_t;
 #     signal r0_full : std_ulogic;
@@ -1014,7 +1016,7 @@ class MaybeTLBPLRUs(Elaboratable):
 # 	end generate;
 #     end generate;
 # end TODO
-#
+
 #     tlb_search : process(all)
 class TLBSearch(Elaboratable):
     def __init__(self):
@@ -1469,20 +1471,23 @@ class DcacheRequest(Elaboratable):
 #         req_same_tag <= rel_match;
         comb += req_same_tag.eq(rel_match)
 
-#         -- See if the request matches the line currently being reloaded
+#         -- See if the request matches the line
+#         -- currently being reloaded
 #         if r1.state = RELOAD_WAIT_ACK and req_index = r1.store_index
 #          and rel_match = '1' then
         # See if the request matches the line currently being reloaded
         with m.If(r1.state == State.RELOAD_WAIT_ACK & req_index ==
                   r1.store_index & rel_match):
-#             -- For a store, consider this a hit even if the row isn't
-#             -- valid since it will be by the time we perform the store.
-#             -- For a load, check the appropriate row valid bit.
+#             -- For a store, consider this a hit even if the row
+#             -- isn't valid since it will be by the time we
+#             -- perform the store. For a load, check the
+#             -- appropriate row valid bit.
             # For a store, consider this a hit even if the row isn't
             # valid since it will be by the time we perform the store.
             # For a load, check the appropriate row valid bit.
 #             is_hit :=
-#              not r0.req.load or r1.rows_valid(req_row mod ROW_PER_LINE);
+#              not r0.req.load
+#               or r1.rows_valid(req_row mod ROW_PER_LINE);
 #             hit_way := replace_way;
             comb += is_hit.eq(~r0.req.load
                      | r1.rows_valid[req_row % ROW_PER_LINE])
@@ -1500,11 +1505,12 @@ class DcacheRequest(Elaboratable):
 #             -- Only need to consider r1.write_bram here, since if we
 #             -- are writing refill data here, then we don't have a
 #             -- cache hit this cycle on the line being refilled.
-#             -- (There is the possibility that the load following the
-#             -- load miss that started the refill could be to the old
-#             -- contents of the victim line, since it is a couple of
-#             -- cycles after the refill starts before we see the updated
-#             -- cache tag. In that case we don't use the bypass.)
+#             -- (There is the possibility that the load following
+#             -- the load miss that started the refill could be to
+#             -- the old contents of the victim line, since it is a
+#             -- couple of cycles after the refill starts before we
+#             -- see the updated cache tag.
+#             -- In that case we don't use the bypass.)
             # Only need to consider r1.write_bram here, since if we
             # are writing refill data here, then we don't have a
             # cache hit this cycle on the line being refilled.
@@ -1518,8 +1524,10 @@ class DcacheRequest(Elaboratable):
 #         end if;
 #         use_forward2_next <= '0';
         comb += use_forward2_next.eq(0)
-#         if r1.forward_row1 = req_row and r1.forward_way1 = hit_way then
-        with m.If(r1.forward_row1 == req_row & r1.forward_way1 == hit_way):
+#         if r1.forward_row1 = req_row
+#          and r1.forward_way1 = hit_way then
+        with m.If(r1.forward_row1 == req_row
+                  & r1.forward_way1 == hit_way):
 #             use_forward2_next <= r1.forward_valid1;
             comb += use_forward2_next.eq(r1.forward_valid1)
 #         end if;
@@ -1554,7 +1562,8 @@ class DcacheRequest(Elaboratable):
 #                    and perm_attr.rd_perm));
 #         access_ok <= valid_ra and perm_ok and rc_ok;
         comb += rc_ok.eq(
-                 perm_attr.reference & (r0.req.load | perm_attr.changed)
+                 perm_attr.reference
+                 & (r0.req.load | perm_attr.changed)
                 )
         comb += perm_ok.eq((r0.req.prive_mode | ~perm_attr.priv)
                            & perm_attr.wr_perm
@@ -1734,7 +1743,9 @@ class ReservationReg(Elaboratable):
 #                     reservation.addr <=
 #                      r0.req.addr(63 downto LINE_OFF_BITS);
                     sync += reservation.valid.eq(1)
-                    sync += reservation.addr(r0.req.addr[LINE_OFF_BITS:64])
+                    sync += reservation.addr.eq(
+                             r0.req.addr[LINE_OFF_BITS:64]
+                            )
 #                 end if;
 #             end if;
 #         end if;
@@ -2028,8 +2039,8 @@ class TODO(Elaboratable):
 
 #                 if r1.state = RELOAD_WAIT_ACK and
 #                 wishbone_in.ack = '1' and replace_way = i then
-            with m.If(r1.state == State.RELOAD_WAIT_ACK & wishbone_in.ack
-                      & relpace_way == i):
+            with m.If(r1.state == State.RELOAD_WAIT_ACK
+                      & wishbone_in.ack & relpace_way == i):
 #                     do_write <= '1';
                 comb += do_write.eq(1)
 #                 end if;
@@ -2311,7 +2322,8 @@ class DcacheSlow(Elaboratable):
             sync += r1.mmu_done.eq(r0_valid & (r0.tlbie | r0.tlbld))
 
 #                 if req_op = OP_LOAD_HIT or req_op = OP_STCX_FAIL then
-            with m.If(req_op == Op.OP_LOAD_HIT | req_op == Op.OP_STCX_FAIL)
+            with m.If(req_op == Op.OP_LOAD_HIT
+                      | req_op == Op.OP_STCX_FAIL):
 #                     if r0.mmu_req = '0' then
                 with m.If(~r0.mmu_req):
 #                         r1.ls_valid <= '1';
@@ -2433,7 +2445,9 @@ class DcacheSlow(Elaboratable):
 
 #                 when IDLE =>
                 with m.Case(State.IDLE)
-#                     r1.wb.adr <= req.real_addr(r1.wb.adr'left downto 0);
+#                     r1.wb.adr <= req.real_addr(
+#                                   r1.wb.adr'left downto 0
+#                                  );
 #                     r1.wb.sel <= req.byte_sel;
 #                     r1.wb.dat <= req.data;
 #                     r1.dcbz <= req.dcbz;
@@ -2495,7 +2509,8 @@ class DcacheSlow(Elaboratable):
 # 			 " tag:" & to_hstring(get_tag(req.real_addr));
                             # Normal load cache miss,
                             # start the reload machine
-                            print(f"cache miss real addr:{req_real_addr}" \
+                            print(f"cache miss real addr:" \
+                                  f"{req_real_addr}" \
                                   f" idx:{get_index(req_real_addr)}" \
                                   f" tag:{get_tag(req.real_addr)}")
 
@@ -2527,14 +2542,17 @@ class DcacheSlow(Elaboratable):
                             sync += r1.state.eq(State.NC_LOAD_WAIT_ACK)
 
 #                     when OP_STORE_HIT | OP_STORE_MISS =>
-                        with m.Case(Op.OP_STORE_HIT | Op.OP_STORE_MISS):
+                        with m.Case(Op.OP_STORE_HIT
+                                    | Op.OP_STORE_MISS):
 #                         if req.dcbz = '0' then
                             with m.If(~req.bcbz):
 #                             r1.state <= STORE_WAIT_ACK;
 #                             r1.acks_pending <= to_unsigned(1, 3);
 #                             r1.full <= '0';
 #                             r1.slow_valid <= '1';
-                                sync += r1.state.eq(State.STORE_WAIT_ACK)
+                                sync += r1.state.eq(
+                                         State.STORE_WAIT_ACK
+                                        )
                                 sync += r1.acks_pending.eq(
                                          '''TODO to_unsignes(1,3)'''
                                         )
@@ -2588,7 +2606,8 @@ class DcacheSlow(Elaboratable):
 #                     when OP_BAD =>
 #                     when OP_STCX_FAIL =>
                         # OP_NONE and OP_BAD do nothing
-                        # OP_BAD & OP_STCX_FAIL were handled above already
+                        # OP_BAD & OP_STCX_FAIL were
+                        # handled above already
                         with m.Case(Op.OP_NONE):
                             pass
 
@@ -2615,10 +2634,14 @@ class DcacheSlow(Elaboratable):
 # 			-- That was the last word ? We are done sending.
 #                       -- Clear stb and set stbs_done so we can handle
 #                       -- an eventual last ack on the same cycle.
-# 			if is_last_row_addr(r1.wb.adr, r1.end_row_ix) then
-                            # That was the last word ? We are done sending.
-                            # Clear stb and set stbs_done so we can handle
-                            # an eventual last ack on the same cycle.
+# 			if is_last_row_addr(
+#                        r1.wb.adr, r1.end_row_ix
+#                       ) then
+                            # That was the last word?
+                            # We are done sending.
+                            # Clear stb and set stbs_done
+                            # so we can handle an eventual
+                            # last ack on the same cycle.
                             with m.If(is_last_row_addr(
                                       r1.wb.adr, r1.end_row_ix)):
 # 			    r1.wb.stb <= '0';
@@ -2717,7 +2740,9 @@ class DcacheSlow(Elaboratable):
 # 			-- Increment store row counter
 # 			r1.store_row <= next_row(r1.store_row);
                             # Increment store row counter
-                            sync += r1.store_row.eq(next_row(r1.store_row))
+                            sync += r1.store_row.eq(next_row(
+                                     r1.store_row
+                                    ))
 # 		    end if;
 
 #                 when STORE_WAIT_ACK =>
