@@ -560,8 +560,10 @@ class Dcache(Elaboratable):
 #      std_ulogic_vector(TLB_WAY_BITS-1 downto 0);
 #     signal tlb_plru_victim : tlb_plru_out_t;
         # TLB PLRU output interface
-        DEF TLBPLRUOut():
-            return Array(Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE))
+        def TLBPLRUOut():
+            return Array(
+                Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE)
+            )
 
         tlb_plru_victim = TLBPLRUOut()
 
