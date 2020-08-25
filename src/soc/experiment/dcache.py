@@ -48,7 +48,7 @@ def extract_perm_attr(pte):
 
 # Type of operation on a "valid" input
 @unique
-class OP(Enum):
+class Op(Enum):
     OP_NONE       = 0
     OP_BAD        = 1 # NC cache hit, TLB miss, prot/RC failure
     OP_STCX_FAIL  = 2 # conditional store w/o reservation
@@ -66,6 +66,30 @@ class State(Enum):
     STORE_WAIT_ACK   = 2 # Store wait ack
     NC_LOAD_WAIT_ACK = 3 # Non-cachable load wait ack
 
+# Dcache operations:
+#
+# In order to make timing, we use the BRAMs with
+# an output buffer, which means that the BRAM
+# output is delayed by an extra cycle.
+#
+# Thus, the dcache has a 2-stage internal pipeline
+# for cache hits with no stalls.
+#
+# All other operations are handled via stalling
+# in the first stage.
+#
+# The second stage can thus complete a hit at the same
+# time as the first stage emits a stall for a complex op.
+#
+# Stage 0 register, basically contains just the latched request
+class RegStage0(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.req     = LoadStore1ToDcacheType()
+        self.tlbie   = Signal()
+        self.doall   = Signal()
+        self.tlbld   = Signal()
+        self.mmu_req = Signal() # indicates source of request
 
 # --
 # -- Set associative dcache write-through
@@ -339,56 +363,6 @@ class Dcache(Elaboratable):
         dtlb_ptes   = TLBPtesArray()
         # TODO attribute ram_style of dtlb_tags : signal is "distributed";
         # TODO attribute ram_style of dtlb_ptes : signal is "distributed";
-
-
-
-#     -- Dcache operations:
-#     --
-#     -- In order to make timing, we use the BRAMs with
-#     -- an output buffer, which means that the BRAM
-#     -- output is delayed by an extra cycle.
-#     --
-#     -- Thus, the dcache has a 2-stage internal pipeline
-#     -- for cache hits with no stalls.
-#     --
-#     -- All other operations are handled via stalling
-#     -- in the first stage.
-#     --
-#     -- The second stage can thus complete a hit at the same
-#     -- time as the first stage emits a stall for a complex op.
-#
-#     -- Stage 0 register, basically contains just the latched request
-#     type reg_stage_0_t is record
-#         req   : Loadstore1ToDcacheType;
-#         tlbie : std_ulogic;
-#         doall : std_ulogic;
-#         tlbld : std_ulogic;
-#         mmu_req : std_ulogic;   -- indicates source of request
-#     end record;
-# Dcache operations:
-#
-# In order to make timing, we use the BRAMs with
-# an output buffer, which means that the BRAM
-# output is delayed by an extra cycle.
-#
-# Thus, the dcache has a 2-stage internal pipeline
-# for cache hits with no stalls.
-#
-# All other operations are handled via stalling
-# in the first stage.
-#
-# The second stage can thus complete a hit at the same
-# time as the first stage emits a stall for a complex op.
-#
-        # Stage 0 register, basically contains just the latched request
-        class RegStage0(RecordObject):
-            def __init__(self):
-                super().__init__()
-                self.req     = LoadStore1ToDcacheType()
-                self.tlbie   = Signal()
-                self.doall   = Signal()
-                self.tlbld   = Signal()
-                self.mmu_req = Signal() # indicates source of request
 
 #     signal r0 : reg_stage_0_t;
 #     signal r0_full : std_ulogic;
