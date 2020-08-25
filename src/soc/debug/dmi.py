@@ -23,6 +23,7 @@ class DBGCore:
     GSPR_DATA    = 0b0101 # GSPR register data
     LOG_ADDR     = 0b0110 # Log buffer address register
     LOG_DATA     = 0b0111 # Log buffer data register
+    CR           = 0b1000 # CR (read only)
 
 
 # CTRL register (direct actions, write 1 to act, read back 0)
@@ -69,6 +70,14 @@ class DbgReg(RecordObject):
         self.data    = Signal(64)
 
 
+class DbgCRReg(RecordObject):
+    def __init__(self, name):
+        super().__init__(name=name)
+        self.req     = Signal()
+        self.ack     = Signal()
+        self.data    = Signal(32)
+
+
 class CoreDebug(Elaboratable):
     def __init__(self, LOG_LENGTH=0): # TODO - debug log 512):
         # Length of log buffer
@@ -87,6 +96,9 @@ class CoreDebug(Elaboratable):
 
         # GSPR register read port
         self.dbg_gpr = DbgReg("dbg_gpr")
+
+        # CR register read port
+        self.dbg_cr = DbgReg("dbg_cr")
 
         # Core logging data
         self.log_data_i        = Signal(256)
@@ -126,10 +138,15 @@ class CoreDebug(Elaboratable):
         LOG_INDEX_BITS = log2_int(self.LOG_LENGTH)
 
         # Single cycle register accesses on DMI except for GSPR data
-        comb += self.dmi.ack_o.eq(Mux(self.dmi.addr_i == DBGCore.GSPR_DATA,
-                                      self.dbg_gpr.ack, self.dmi.req_i))
-        comb += self.dbg_gpr.req.eq(Mux(self.dmi.addr_i == DBGCore.GSPR_DATA,
-                                      self.dmi.req_i, 0))
+        with m.Switch(self.dmi.addr_i):
+            with m.Case(DBGCore.GSPR_DATA):
+                comb += self.dmi.ack_o.eq(self.dbg_gpr.ack)
+                comb += self.dbg_gpr.req.eq(self.dmi.req_i)
+            with m.Case(DBGCore.CR):
+                comb += self.dmi.ack_o.eq(self.dbg_cr.ack)
+                comb += self.dbg_cr.req.eq(self.dmi.req_i)
+            with m.Default():
+                comb += self.dmi.ack_o.eq(self.dmi.req_i)
 
         # Status register read composition (DBUG_CORE_STAT_xxx)
         comb += stat_reg.eq(Cat(stopping,            # bit 0
@@ -151,6 +168,8 @@ class CoreDebug(Elaboratable):
                                              self.log_write_addr_o))
             with m.Case( DBGCore.LOG_DATA):
                 comb += self.dmi.dout.eq(log_dmi_data)
+            with m.Case(DBGCore.CR):
+                comb += self.dmi.dout.eq(self.dbg_cr.data)
 
         # DMI writes
         # Reset the 1-cycle "do" signals
