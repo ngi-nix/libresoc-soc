@@ -11,7 +11,6 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 
 class DivTestCases(TestAccumulatorBase):
-
     # modulo
     def case_modsd_regression(self):
         lst = [f"modsd 17, 27, 0"]
@@ -24,9 +23,9 @@ class DivTestCases(TestAccumulatorBase):
     def case_divduo_regression(self):
         lst = [f"divduo. 11, 20, 6"]
         initial_regs = [0] * 32
-        #gpr: 00ff00ff00ff0080 <- r6
-        #gpr: 000000000000007f <- r11
-        #gpr: 7f6e5d4c3b2a1908 <- r20
+        # gpr: 00ff00ff00ff0080 <- r6
+        # gpr: 000000000000007f <- r11
+        # gpr: 7f6e5d4c3b2a1908 <- r20
         initial_regs[6] = 0x00ff00ff00ff0080
         initial_regs[20] = 0x7f6e5d4c3b2a1908
         with Program(lst, bigendian) as prog:
