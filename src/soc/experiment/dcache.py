@@ -168,6 +168,15 @@ class RegStage1(RecordObject):
         self.stcx_fail        = Signal()
 
 
+# Reservation information
+class Reservation(RecordObject):
+    def __init__(self):
+        super().__init__()
+        valid = Signal()
+        # TODO LINE_OFF_BITS is 6
+        addr  = Signal(63 downto LINE_OFF_BITS)
+
+
 # Set associative dcache write-through
 #
 # TODO (in no specific order):
@@ -445,21 +454,6 @@ class Dcache(Elaboratable):
 
 #     signal r1 : reg_stage_1_t;
         r1 = RegStage1()
-
-#     -- Reservation information
-#     --
-#     type reservation_t is record
-#         valid : std_ulogic;
-#         addr  : std_ulogic_vector(63 downto LINE_OFF_BITS);
-#     end record;
-# Reservation information
-
-        class Reservation(RecordObject):
-            def __init__(self):
-                super().__init__()
-                valid = Signal()
-                # TODO LINE_OFF_BITS is 6
-                addr  = Signal(63 downto LINE_OFF_BITS)
 
 #     signal reservation : reservation_t;
         reservation = Reservation()
