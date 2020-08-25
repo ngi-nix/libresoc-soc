@@ -244,6 +244,22 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
+    def test_crxor(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "crnand 3, 30, 4",
+               "mfcr 3",
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x01ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    @unittest.skip("disable")
     def test_isel_1(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
@@ -258,6 +274,7 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [3, 4])
 
+    @unittest.skip("disable")
     def test_isel_2(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
