@@ -38,8 +38,9 @@ def get_cu_inputs(dec2, sim):
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
     yield from ALUHelpers.get_sim_int_rc(res, sim, dec2)  # RC
     yield from ALUHelpers.get_rd_sim_xer_ca(res, sim, dec2)  # XER.ca
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
 
-    print("inputs", res)
+    print("alu get_cu_inputs", res)
 
     return res
 
@@ -54,6 +55,7 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
     yield from ALUHelpers.set_int_rc(alu, dec2, inp)
     yield from ALUHelpers.set_xer_ca(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -83,6 +85,25 @@ class ShiftRotTestCase(TestAccumulatorBase):
         initial_regs[1] = 0x7ffdbffb91b906b9
         initial_regs[2] = 31
         print(initial_regs[1], initial_regs[2])
+        self.add_case(Program(lst, bigendian), initial_regs)
+
+    def case_regression_rldicr_0(self):
+        lst = ["rldicr. 29, 19, 1, 21"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x3f
+        initial_regs[19] = 0x00000000ffff8000
+
+        initial_sprs = {'XER': 0xe00c0000}
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                                initial_sprs=initial_sprs)
+
+    def case_regression_rldicr_1(self):
+        lst = ["rldicr. 29, 19, 1, 21"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x3f
+        initial_regs[19] = 0x00000000ffff8000
+
         self.add_case(Program(lst, bigendian), initial_regs)
 
     def case_shift(self):
@@ -297,14 +318,24 @@ class TestRunner(unittest.TestCase):
 
         yield from ALUHelpers.get_cr_a(res, alu, dec2)
         yield from ALUHelpers.get_xer_ca(res, alu, dec2)
+        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_xer_so(res, alu, dec2)
         yield from ALUHelpers.get_int_o(res, alu, dec2)
+
+        print ("hw outputs", res)
 
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        print ("sim outputs", sim_o)
 
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
+        ALUHelpers.check_xer_so(self, res, sim_o, code)
+        ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
 
 
