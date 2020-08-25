@@ -171,7 +171,13 @@ class FSMDivCoreStage(ControlBase):
 
         m.d.comb += data_o.eq_without_core(self.saved_input_data)
         m.d.comb += core_o.quotient_root.eq(self.div_state_next.o.quotient)
-        m.d.comb += core_o.remainder.eq(self.div_state_next.o.remainder)
+        # fract width of `DivPipeCoreOutputData.remainder`
+        remainder_fract_width = 64 * 3
+        # fract width of `DivPipeCoreInputData.dividend`
+        dividend_fract_width = 64 * 2
+        rem_start = remainder_fract_width - dividend_fract_width
+        m.d.comb += core_o.remainder.eq(self.div_state_next.o.remainder
+                                        << rem_start)
         m.d.comb += self.n.valid_o.eq(~self.empty & self.div_state_next.o.done)
         m.d.comb += self.p.ready_o.eq(self.empty)
         m.d.sync += self.saved_state.eq(self.div_state_next.o)
