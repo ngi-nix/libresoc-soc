@@ -109,6 +109,65 @@ class MemAccessRequest(RecordObject):
         self.mmu_req   = Signal()
 
 
+# First stage register, contains state for stage 1 of load hits
+# and for the state machine used by all other operations
+class RegStage1(RecordObject):
+    def __init__(self):
+        super().__init__()
+        # Info about the request
+        self.full             = Signal() # have uncompleted request
+        self.mmu_req          = Signal() # request is from MMU
+        self.req              = MemAccessRequest()
+
+        # Cache hit state
+        self.hit_way          = Signal(WAY_BITS)
+        self.hit_load_valid   = Signal()
+        self.hit_index        = Signal(INDEX)
+        self.cache_hit        = Signal()
+
+        # TLB hit state
+        self.tlb_hit          = Signal()
+        self.tlb_hit_way      = Signal(TLB_WAY)
+        self.tlb_hit_index    = Signal(TLB_SET_SIZE)
+        self.
+        # 2-stage data buffer for data forwarded from writes to reads
+        self.forward_data1    = Signal(64)
+        self.forward_data2    = Signal(64)
+        self.forward_sel1     = Signal(8)
+        self.forward_valid1   = Signal()
+        self.forward_way1     = Signal(WAY_BITS)
+        self.forward_row1     = Signal(ROW)
+        self.use_forward1     = Signal()
+        self.forward_sel      = Signal(8)
+
+        # Cache miss state (reload state machine)
+        self.state            = State()
+        self.dcbz             = Signal()
+        self.write_bram       = Signal()
+        self.write_tag        = Signal()
+        self.slow_valid       = Signal()
+        self.wb               = WishboneMasterOut()
+        self.reload_tag       = Signal(CACHE_TAG)
+        self.store_way        = Signal(WAY_BITS)
+        self.store_row        = Signal(ROW)
+        self.store_index      = Signal(INDEX)
+        self.end_row_ix       = Signal(ROW_IN_LINE)
+        self.rows_valid       = RowPerLineValidArray()
+        self.acks_pending     = Signal(3)
+        self.inc_acks         = Signal()
+        self.dec_acks         = Signal()
+
+        # Signals to complete (possibly with error)
+        self.ls_valid         = Signal()
+        self.ls_error         = Signal()
+        self.mmu_done         = Signal()
+        self.mmu_error        = Signal()
+        self.cache_paradox    = Signal()
+
+        # Signal to complete a failed stcx.
+        self.stcx_fail        = Signal()
+
+
 # Set associative dcache write-through
 #
 # TODO (in no specific order):
@@ -383,121 +442,6 @@ class Dcache(Elaboratable):
 #     signal r0_full : std_ulogic;
         r0      = RegStage0()
         r0_full = Signal()
-
-
-#     -- First stage register, contains state for stage 1 of load hits
-#     -- and for the state machine used by all other operations
-#     type reg_stage_1_t is record
-#         -- Info about the request
-#         full    : std_ulogic; -- have uncompleted request
-#         mmu_req : std_ulogic; -- request is from MMU
-#         req     : mem_access_request_t;
-#
-#         -- Cache hit state
-# 	  hit_way        : way_t;
-# 	  hit_load_valid : std_ulogic;
-#         hit_index      : index_t;
-#         cache_hit      : std_ulogic;
-#
-#         -- TLB hit state
-#         tlb_hit       : std_ulogic;
-#         tlb_hit_way   : tlb_way_t;
-#         tlb_hit_index : tlb_index_t;
-#
-# 	  -- 2-stage data buffer for data forwarded from writes to reads
-# 	  forward_data1  : std_ulogic_vector(63 downto 0);
-# 	  forward_data2  : std_ulogic_vector(63 downto 0);
-#         forward_sel1   : std_ulogic_vector(7 downto 0);
-# 	  forward_valid1 : std_ulogic;
-#         forward_way1   : way_t;
-#         forward_row1   : row_t;
-#         use_forward1   : std_ulogic;
-#         forward_sel    : std_ulogic_vector(7 downto 0);
-#
-# 	  -- Cache miss state (reload state machine)
-#         state            : state_t;
-#         dcbz             : std_ulogic;
-#         write_bram       : std_ulogic;
-#         write_tag        : std_ulogic;
-#         slow_valid       : std_ulogic;
-#         wb               : wishbone_master_out;
-#         reload_tag       : cache_tag_t;
-# 	  store_way        : way_t;
-# 	  store_row        : row_t;
-#         store_index      : index_t;
-#         end_row_ix       : row_in_line_t;
-#         rows_valid       : row_per_line_valid_t;
-#         acks_pending     : unsigned(2 downto 0);
-#         inc_acks         : std_ulogic;
-#         dec_acks         : std_ulogic;
-#
-#         -- Signals to complete (possibly with error)
-#         ls_valid         : std_ulogic;
-#         ls_error         : std_ulogic;
-#         mmu_done         : std_ulogic;
-#         mmu_error        : std_ulogic;
-#         cache_paradox    : std_ulogic;
-#
-#         -- Signal to complete a failed stcx.
-#         stcx_fail        : std_ulogic;
-#     end record;
-# First stage register, contains state for stage 1 of load hits
-# and for the state machine used by all other operations
-        class RegStage1(RecordObject):
-            def __init__(self):
-                super().__init__()
-                # Info about the request
-                self.full             = Signal() # have uncompleted request
-                self.mmu_req          = Signal() # request is from MMU
-                self.req              = MemAccessRequest()
-
-                # Cache hit state
-                self.hit_way          = Signal(WAY_BITS)
-                self.hit_load_valid   = Signal()
-                self.hit_index        = Signal(INDEX)
-                self.cache_hit        = Signal()
-
-                # TLB hit state
-                self.tlb_hit          = Signal()
-                self.tlb_hit_way      = Signal(TLB_WAY)
-                self.tlb_hit_index    = Signal(TLB_SET_SIZE)
-                self.
-                # 2-stage data buffer for data forwarded from writes to reads
-                self.forward_data1    = Signal(64)
-                self.forward_data2    = Signal(64)
-                self.forward_sel1     = Signal(8)
-                self.forward_valid1   = Signal()
-                self.forward_way1     = Signal(WAY_BITS)
-                self.forward_row1     = Signal(ROW)
-                self.use_forward1     = Signal()
-                self.forward_sel      = Signal(8)
-
-                # Cache miss state (reload state machine)
-                self.state            = State()
-                self.dcbz             = Signal()
-                self.write_bram       = Signal()
-                self.write_tag        = Signal()
-                self.slow_valid       = Signal()
-                self.wb               = WishboneMasterOut()
-                self.reload_tag       = Signal(CACHE_TAG)
-                self.store_way        = Signal(WAY_BITS)
-                self.store_row        = Signal(ROW)
-                self.store_index      = Signal(INDEX)
-                self.end_row_ix       = Signal(ROW_IN_LINE)
-                self.rows_valid       = RowPerLineValidArray()
-                self.acks_pending     = Signal(3)
-                self.inc_acks         = Signal()
-                self.dec_acks         = Signal()
-
-                # Signals to complete (possibly with error)
-                self.ls_valid         = Signal()
-                self.ls_error         = Signal()
-                self.mmu_done         = Signal()
-                self.mmu_error        = Signal()
-                self.cache_paradox    = Signal()
-
-                # Signal to complete a failed stcx.
-                self.stcx_fail        = Signal()
 
 #     signal r1 : reg_stage_1_t;
         r1 = RegStage1()
