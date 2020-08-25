@@ -55,7 +55,7 @@ class LibreSoC(CPU):
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
-        self.dmi_addr = Signal(3)
+        self.dmi_addr = Signal(4)
         self.dmi_din = Signal(64)
         self.dmi_dout = Signal(64)
         self.dmi_wr = Signal(1)
