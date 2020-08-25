@@ -110,11 +110,12 @@ class CRRegs(VirtualRegPort):
     * write-through capability (read on same cycle as write)
     """
     def __init__(self):
-        super().__init__(32, 8)
+        super().__init__(32, 8, rd2=True)
         self.w_ports = {'full_cr': self.full_wr, # 32-bit (masked, 8-en lines)
                         'cr_a': self.write_port("dest1"), # 4-bit, unary-indexed
                         'cr_b': self.write_port("dest2")} # 4-bit, unary-indexed
         self.r_ports = {'full_cr': self.full_rd, # 32-bit (masked, 8-en lines)
+                        'full_cr_dbg': self.full_rd2, # for DMI
                         'cr_a': self.read_port("src1"),
                         'cr_b': self.read_port("src2"),
                         'cr_c': self.read_port("src3")}

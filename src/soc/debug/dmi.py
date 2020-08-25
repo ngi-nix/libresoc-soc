@@ -23,6 +23,7 @@ class DBGCore:
     GSPR_DATA    = 0b0101 # GSPR register data
     LOG_ADDR     = 0b0110 # Log buffer address register
     LOG_DATA     = 0b0111 # Log buffer data register
+    CR           = 0b1000 # CR (read only)
 
 
 # CTRL register (direct actions, write 1 to act, read back 0)
@@ -69,6 +70,14 @@ class DbgReg(RecordObject):
         self.data    = Signal(64)
 
 
+class DbgCRReg(RecordObject):
+    def __init__(self, name):
+        super().__init__(name=name)
+        self.req     = Signal()
+        self.ack     = Signal()
+        self.data    = Signal(32)
+
+
 class CoreDebug(Elaboratable):
     def __init__(self, LOG_LENGTH=0): # TODO - debug log 512):
         # Length of log buffer
@@ -88,6 +97,9 @@ class CoreDebug(Elaboratable):
         # GSPR register read port
         self.dbg_gpr = DbgReg("dbg_gpr")
 
+        # CR register read port
+        self.dbg_cr = DbgReg("dbg_cr")
+
         # Core logging data
         self.log_data_i        = Signal(256)
         self.log_read_addr_i   = Signal(32)
@@ -101,6 +113,7 @@ class CoreDebug(Elaboratable):
 
         m = Module()
         comb, sync = m.d.comb, m.d.sync
+        dmi, dbg_gpr, dbg_cr = self.dmi, self.dbg_gpr, self.dbg_cr
 
         # DMI needs fixing... make a one clock pulse
         dmi_req_i_1 = Signal()
@@ -115,7 +128,7 @@ class CoreDebug(Elaboratable):
         do_icreset   = Signal()
         terminated   = Signal()
         do_gspr_rd   = Signal()
-        gspr_index   = Signal.like(self.dbg_gpr.addr)
+        gspr_index   = Signal.like(dbg_gpr.addr)
 
         log_dmi_addr = Signal(32)
         log_dmi_data = Signal(64)
@@ -126,10 +139,15 @@ class CoreDebug(Elaboratable):
         LOG_INDEX_BITS = log2_int(self.LOG_LENGTH)
 
         # Single cycle register accesses on DMI except for GSPR data
-        comb += self.dmi.ack_o.eq(Mux(self.dmi.addr_i == DBGCore.GSPR_DATA,
-                                      self.dbg_gpr.ack, self.dmi.req_i))
-        comb += self.dbg_gpr.req.eq(Mux(self.dmi.addr_i == DBGCore.GSPR_DATA,
-                                      self.dmi.req_i, 0))
+        with m.Switch(dmi.addr_i):
+            with m.Case(DBGCore.GSPR_DATA):
+                comb += dmi.ack_o.eq(dbg_gpr.ack)
+                comb += dbg_gpr.req.eq(dmi.req_i)
+            with m.Case(DBGCore.CR):
+                comb += dmi.ack_o.eq(dbg_cr.ack)
+                comb += dbg_cr.req.eq(dmi.req_i)
+            with m.Default():
+                comb += dmi.ack_o.eq(dmi.req_i)
 
         # Status register read composition (DBUG_CORE_STAT_xxx)
         comb += stat_reg.eq(Cat(stopping,            # bit 0
@@ -137,20 +155,21 @@ class CoreDebug(Elaboratable):
                                 terminated))         # bit 2
 
         # DMI read data mux
-        with m.Switch(self.dmi.addr_i):
+        with m.Switch(dmi.addr_i):
             with m.Case( DBGCore.STAT):
-                comb += self.dmi.dout.eq(stat_reg)
+                comb += dmi.dout.eq(stat_reg)
             with m.Case( DBGCore.NIA):
-                comb += self.dmi.dout.eq(self.state.pc)
+                comb += dmi.dout.eq(self.state.pc)
             with m.Case( DBGCore.MSR):
-                comb += self.dmi.dout.eq(self.state.msr)
+                comb += dmi.dout.eq(self.state.msr)
             with m.Case( DBGCore.GSPR_DATA):
-                comb += self.dmi.dout.eq(self.dbg_gpr.data)
+                comb += dmi.dout.eq(dbg_gpr.data)
             with m.Case( DBGCore.LOG_ADDR):
-                comb += self.dmi.dout.eq(Cat(log_dmi_addr,
-                                             self.log_write_addr_o))
+                comb += dmi.dout.eq(Cat(log_dmi_addr, self.log_write_addr_o))
             with m.Case( DBGCore.LOG_DATA):
-                comb += self.dmi.dout.eq(log_dmi_data)
+                comb += dmi.dout.eq(log_dmi_data)
+            with m.Case(DBGCore.CR):
+                comb += dmi.dout.eq(dbg_cr.data)
 
         # DMI writes
         # Reset the 1-cycle "do" signals
@@ -160,36 +179,36 @@ class CoreDebug(Elaboratable):
         sync += do_dmi_log_rd.eq(0)
 
         # Edge detect on dmi_req_i for 1-shot pulses
-        sync += dmi_req_i_1.eq(self.dmi.req_i)
-        with m.If(self.dmi.req_i & ~dmi_req_i_1):
-            with m.If(self.dmi.we_i):
+        sync += dmi_req_i_1.eq(dmi.req_i)
+        with m.If(dmi.req_i & ~dmi_req_i_1):
+            with m.If(dmi.we_i):
                 #sync += Display("DMI write to " & to_hstring(dmi_addr))
 
                 # Control register actions
 
                 # Core control
-                with m.If(self.dmi.addr_i == DBGCore.CTRL):
-                    with m.If(self.dmi.din[DBGCtrl.RESET]):
+                with m.If(dmi.addr_i == DBGCore.CTRL):
+                    with m.If(dmi.din[DBGCtrl.RESET]):
                         sync += do_reset.eq(1)
                         sync += terminated.eq(0)
-                    with m.If(self.dmi.din[DBGCtrl.STOP]):
+                    with m.If(dmi.din[DBGCtrl.STOP]):
                         sync += stopping.eq(1)
-                    with m.If(self.dmi.din[DBGCtrl.STEP]):
+                    with m.If(dmi.din[DBGCtrl.STEP]):
                         sync += do_step.eq(1)
                         sync += terminated.eq(0)
-                    with m.If(self.dmi.din[DBGCtrl.ICRESET]):
+                    with m.If(dmi.din[DBGCtrl.ICRESET]):
                         sync += do_icreset.eq(1)
-                    with m.If(self.dmi.din[DBGCtrl.START]):
+                    with m.If(dmi.din[DBGCtrl.START]):
                         sync += stopping.eq(0)
                         sync += terminated.eq(0)
 
                 # GSPR address
-                with m.Elif(self.dmi.addr_i == DBGCore.GSPR_IDX):
-                    sync += gspr_index.eq(self.dmi.din)
+                with m.Elif(dmi.addr_i == DBGCore.GSPR_IDX):
+                    sync += gspr_index.eq(dmi.din)
 
                 # Log address
-                with m.Elif(self.dmi.addr_i == DBGCore.LOG_ADDR):
-                    sync += log_dmi_addr.eq(self.dmi.din)
+                with m.Elif(dmi.addr_i == DBGCore.LOG_ADDR):
+                    sync += log_dmi_addr.eq(dmi.din)
                     sync += do_dmi_log_rd.eq(1)
             with m.Else():
                 # sync += Display("DMI read from " & to_string(dmi_addr))
@@ -202,8 +221,8 @@ class CoreDebug(Elaboratable):
             sync += do_dmi_log_rd.eq(1)
 
         sync += dmi_read_log_data_1.eq(dmi_read_log_data)
-        sync += dmi_read_log_data.eq(self.dmi.req_i &
-                                     (self.dmi.addr_i == DBGCore.LOG_DATA))
+        sync += dmi_read_log_data.eq(dmi.req_i &
+                                     (dmi.addr_i == DBGCore.LOG_DATA))
 
         # Set core stop on terminate. We'll be stopping some time *after*
         # the offending instruction, at least until we can do back flushes
@@ -212,7 +231,7 @@ class CoreDebug(Elaboratable):
             sync += stopping.eq(1)
             sync += terminated.eq(1)
 
-        comb += self.dbg_gpr.addr.eq(gspr_index)
+        comb += dbg_gpr.addr.eq(gspr_index)
 
         # Core control signals generated by the debug module
         comb += self.core_stop_o.eq(stopping & ~do_step)

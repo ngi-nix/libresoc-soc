@@ -125,20 +125,21 @@ class LibreSoCSim(SoCSDRAM):
             return
 
         # setup running of DMI FSM
-        dmi_addr = Signal(3)
+        dmi_addr = Signal(4)
         dmi_din = Signal(64)
         dmi_dout = Signal(64)
         dmi_wen = Signal(1)
         dmi_req = Signal(1)
 
         # debug log out
-        dbg_addr = Signal(3)
+        dbg_addr = Signal(4)
         dbg_dout = Signal(64)
         dbg_msg = Signal(1)
 
         # capture pc from dmi
         pc = Signal(64)
         active_dbg = Signal()
+        active_dbg_cr = Signal()
 
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
@@ -216,6 +217,9 @@ class LibreSoCSim(SoCSDRAM):
              #If(dbg_addr == 0b11, # MSR
              #   Display("    msr: %016x", dbg_dout),
              #),
+             If(dbg_addr == 0b1000, # CR
+                Display("    cr: %016x", dbg_dout),
+             ),
              If(dbg_addr == 0b101, # GPR
                 Display("    gpr: %016x", dbg_dout),
              ),
@@ -275,6 +279,7 @@ class LibreSoCSim(SoCSDRAM):
         #self.comb += active_dbg.eq((0x0 < pc) & (pc < 0x58))
         self.comb += active_dbg.eq(1)
 
+
         # get the MSR
         self.sync += If(active_dbg & (dmicount == 12),
             (dmi_addr.eq(0b11), # MSR
@@ -283,9 +288,21 @@ class LibreSoCSim(SoCSDRAM):
             )
         )
 
+        if cpu == "libresoc":
+            self.comb += active_dbg_cr.eq((0x10300 <= pc) & (pc <= 0x105ec))
+            #self.comb += active_dbg_cr.eq(1)
+
+            # get the CR
+            self.sync += If(active_dbg_cr & (dmicount == 16),
+                (dmi_addr.eq(0b1000), # CR
+                 dmi_req.eq(1),
+                 dmi_wen.eq(0),
+                )
+            )
+
         # read all 32 GPRs
         for i in range(32):
-            self.sync += If(active_dbg & (dmicount == 16+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 20+(i*8)),
                 (dmi_addr.eq(0b100), # GSPR addr
                  dmi_din.eq(i), # r1
                  dmi_req.eq(1),
@@ -293,7 +310,7 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
-            self.sync += If(active_dbg & (dmicount == 20+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 24+(i*8)),
                 (dmi_addr.eq(0b101), # GSPR data
                  dmi_req.eq(1),
                  dmi_wen.eq(0),

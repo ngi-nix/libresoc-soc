@@ -73,7 +73,9 @@ class TestIssuer(Elaboratable):
 
         # DMI interface access
         intrf = self.core.regs.rf['int']
+        crrf = self.core.regs.rf['cr']
         self.int_r = intrf.r_ports['dmi'] # INT read
+        self.cr_r = crrf.r_ports['full_cr_dbg'] # CR read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -92,8 +94,7 @@ class TestIssuer(Elaboratable):
         m.submodules.dec2 = pdecode2 = self.pdecode2
 
         # convenience
-        dmi = dbg.dmi
-        d_reg = dbg.dbg_gpr
+        dmi, d_reg, d_cr = dbg.dmi, dbg.dbg_gpr, dbg.dbg_cr
         intrf = self.core.regs.rf['int']
 
         # clock delay power-on reset
@@ -261,6 +262,16 @@ class TestIssuer(Elaboratable):
             # data arrives one clock later
             comb += d_reg.data.eq(self.int_r.data_o)
             comb += d_reg.ack.eq(1)
+
+        # sigh same thing for CR debug
+        with m.If(d_cr.req): # request for regfile access being made
+            comb += self.cr_r.ren.eq(0b11111111) # enable all
+        d_cr_delay  = Signal()
+        sync += d_cr_delay.eq(d_cr.req)
+        with m.If(d_cr_delay):
+            # data arrives one clock later
+            comb += d_cr.data.eq(self.cr_r.data_o)
+            comb += d_cr.ack.eq(1)
 
         return m
 
