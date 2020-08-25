@@ -19,9 +19,10 @@ from experiment.mem_types import LoadStore1ToDcacheType,
 
 from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBAddrType, WBDataType, WBSelType,
-                                WbMasterOut, WBSlaveOut, WBMasterOutVector,
-                                WBSlaveOutVector, WBIOMasterOut,
-                                WBIOSlaveOut
+                                WbMasterOut, WBSlaveOut,
+                                WBMasterOutVector, WBSlaveOutVector,
+                                WBIOMasterOut, WBIOSlaveOut
+
 
 # Record for storing permission, attribute, etc. bits from a PTE
 class PermAttr(RecordObject):
@@ -58,6 +59,7 @@ class Op(Enum):
     OP_STORE_HIT  = 6 # Store hitting cache
     OP_STORE_MISS = 7 # Store missing cache
 
+
 # Cache state machine
 @unique
 class State(Enum):
@@ -65,6 +67,7 @@ class State(Enum):
     RELOAD_WAIT_ACK  = 1 # Cache reload wait ack
     STORE_WAIT_ACK   = 2 # Store wait ack
     NC_LOAD_WAIT_ACK = 3 # Non-cachable load wait ack
+
 
 # Dcache operations:
 #
@@ -91,17 +94,29 @@ class RegStage0(RecordObject):
         self.tlbld   = Signal()
         self.mmu_req = Signal() # indicates source of request
 
-# --
-# -- Set associative dcache write-through
-# --
-# -- TODO (in no specific order):
-# --
-# -- * See list in icache.vhdl
-# -- * Complete load misses on the cycle when WB data comes instead of
-# --   at the end of line (this requires dealing with requests coming in
-# --   while not idle...)
-# --
 
+class MemAccessRequest(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.op        = Op()
+        self.valid     = Signal()
+        self.dcbz      = Signal()
+        self.real_addr = Signal(REAL_ADDR_BITS)
+        self.data      = Signal(64)
+        self.byte_sel  = Signal(8)
+        self.hit_way   = Signal(WAY_BITS)
+        self.same_tag  = Signal()
+        self.mmu_req   = Signal()
+
+
+# Set associative dcache write-through
+#
+# TODO (in no specific order):
+#
+# * See list in icache.vhdl
+# * Complete load misses on the cycle when WB data comes instead of
+#   at the end of line (this requires dealing with requests coming in
+#   while not idle...)
 class Dcache(Elaboratable):
     def __init__(self):
         # TODO: make these parameters of Dcache at some point
@@ -369,29 +384,6 @@ class Dcache(Elaboratable):
         r0      = RegStage0()
         r0_full = Signal()
 
-#     type mem_access_request_t is record
-#         op        : op_t;
-#         valid     : std_ulogic;
-#         dcbz      : std_ulogic;
-#         real_addr : std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0);
-#         data      : std_ulogic_vector(63 downto 0);
-#         byte_sel  : std_ulogic_vector(7 downto 0);
-#         hit_way   : way_t;
-#         same_tag  : std_ulogic;
-#         mmu_req   : std_ulogic;
-#     end record;
-        class MemAccessRequest(RecordObject):
-            def __init__(self):
-                super().__init__()
-                self.op        = Op()
-                self.valid     = Signal()
-                self.dcbz      = Signal()
-                self.real_addr = Signal(REAL_ADDR_BITS)
-                self.data      = Signal(64)
-                self.byte_sel  = Signal(8)
-                self.hit_way   = Signal(WAY_BITS)
-                self.same_tag  = Signal()
-                self.mmu_req   = Signal()
 
 #     -- First stage register, contains state for stage 1 of load hits
 #     -- and for the state machine used by all other operations
