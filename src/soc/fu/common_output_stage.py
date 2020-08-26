@@ -14,10 +14,17 @@ class CommonOutputStage(PipeModBase):
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op
+        # ok so there are two different ways this goes:
+        # (1) something involving XER ov in which case so gets modified
+        #     and that means we need the modified version of so in CR0
+        # (2) something that does *not* have XER ov, in which case so
+        #     has been pass-through just to get it into CR0
+        # in case (1) we don't *have* an xer_so output so put xer_so *input*
+        # into CR0.
         if hasattr(self.o, "xer_so"):
             xer_so_o = self.o.xer_so.data[0]
         else:
-            xer_so_o = Const(0, 1)
+            xer_so_o = self.i.xer_so.data[0]
 
         # op requests inversion of the output...
         o = Signal.like(self.i.o)
@@ -53,7 +60,6 @@ class CommonOutputStage(PipeModBase):
         msb_test = Signal(reset_less=True) # set equal to MSB, invert if OP=CMP
         is_cmp = Signal(reset_less=True)     # true if OP=CMP
         is_cmpeqb = Signal(reset_less=True)  # true if OP=CMPEQB
-        self.so = Signal(1, reset_less=True)
         cr0 = Signal(4, reset_less=True)
 
         # TODO: if o[63] is XORed with "operand == OP_CMP"

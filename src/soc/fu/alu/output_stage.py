@@ -21,6 +21,7 @@ class ALUOutputStage(CommonOutputStage):
         comb = m.d.comb
         op = self.i.ctx.op
         xer_so_i, xer_ov_i = self.i.xer_so.data, self.i.xer_ov.data
+        xer_so_o, xer_ov_o = self.o.xer_so, self.o.xer_ov
 
         # copy overflow and sticky-overflow.  indicate to CompALU if they
         # are actually required (oe enabled/set) otherwise the CompALU
@@ -29,10 +30,9 @@ class ALUOutputStage(CommonOutputStage):
         comb += oe.eq(op.oe.oe & op.oe.oe_ok)
         with m.If(oe):
             # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
-            comb += self.so.eq(xer_so_i[0] | xer_ov_i[0]) # SO
-            comb += self.o.xer_so.data.eq(self.so)
-            comb += self.o.xer_so.ok.eq(1)
-            comb += self.o.xer_ov.data.eq(xer_ov_i)
-            comb += self.o.xer_ov.ok.eq(1) # OV/32 is to be set
+            comb += xer_so_o.data.eq(xer_so_i[0] | xer_ov_i[0]) # SO
+            comb += xer_so_o.ok.eq(1)
+            comb += xer_ov_o.data.eq(xer_ov_i)
+            comb += xer_ov_o.ok.eq(1) # OV/32 is to be set
 
         return m
