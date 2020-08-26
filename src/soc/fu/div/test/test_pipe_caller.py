@@ -12,7 +12,7 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 class DivTestCases(TestAccumulatorBase):
     def case_divw_regression(self):
-        # simulator is wrong, FSM and power-instruction-analyzer are both correct
+        # simulator is wrong, FSM and power-instruction-analyzer both correct
         lst = [f"divw 0, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[2] = 0x2

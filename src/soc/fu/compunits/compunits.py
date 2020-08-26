@@ -226,7 +226,7 @@ class AllFunctionUnits(Elaboratable):
 
     """
 
-    def __init__(self, pspec, pilist=None, div_fsm=False):
+    def __init__(self, pspec, pilist=None, div_fsm=True):
         addrwid = pspec.addr_wid
         units = pspec.units
         if not isinstance(units, dict):
