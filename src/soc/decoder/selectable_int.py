@@ -254,7 +254,9 @@ class SelectableInt:
         return SelectableInt(~self.value, self.bits)
 
     def __neg__(self):
-        return SelectableInt(~self.value + 1, self.bits)
+        res = SelectableInt((~self.value) + 1, self.bits)
+        print ("neg", hex(self.value), hex(res.value))
+        return res
 
     def __lshift__(self, b):
         b = check_extsign(self, b)
