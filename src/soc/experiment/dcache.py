@@ -327,50 +327,35 @@ class Dcache(Elaboratable):
     #     -- Generate TLB PLRUs
     #     maybe_tlb_plrus: if TLB_NUM_WAYS > 1 generate
     # Generate TLB PLRUs
-    def maybe_tlb_plrus(self, m, r1, tlb_plru_victim):
+    def maybe_tlb_plrus(self, m, r1, tlb_plru_victim, acc, acc_en, lru):
             comb = m.d.comb
             sync = m.d.sync
 
             with m.If(TLB_NUM_WAYS > 1):
-    #     begin
-    # TODO understand how to conver generate statements
-    # 	tlb_plrus: for i in 0 to TLB_SET_SIZE - 1 generate
-    # 	    -- TLB PLRU interface
-    # 	    signal tlb_plru_acc :
-    #            std_ulogic_vector(TLB_WAY_BITS-1 downto 0);
-    # 	    signal tlb_plru_acc_en : std_ulogic;
-    # 	    signal tlb_plru_out :
-    #            std_ulogic_vector(TLB_WAY_BITS-1 downto 0);
-    # 	begin
-    # 	    tlb_plru : entity work.plru
-    # 		generic map (
-    # 		    BITS => TLB_WAY_BITS
-    # 		    )
-    # 		port map (
-    # 		    clk => clk,
-    # 		    rst => rst,
-    # 		    acc => tlb_plru_acc,
-    # 		    acc_en => tlb_plru_acc_en,
-    # 		    lru => tlb_plru_out
-    # 		    );
-    #
-    # 	    process(all)
-    # 	    begin
-    # 		-- PLRU interface
-    # 		if r1.tlb_hit_index = i then
-    # 		    tlb_plru_acc_en <= r1.tlb_hit;
-    # 		else
-    # 		    tlb_plru_acc_en <= '0';
-    # 		end if;
-    # 		tlb_plru_acc <=
-    #                std_ulogic_vector(to_unsigned(
-    #                                   r1.tlb_hit_way, TLB_WAY_BITS
-    #                                  ));
-    # 		tlb_plru_victim(i) <= tlb_plru_out;
-    # 	    end process;
-    # 	end generate;
-    #     end generate;
-    # end TODO
+                for i in range(TLB_SET_SIZE):
+                    # TLB PLRU interface
+                    tlb_plru        = PLRU(TLB_WAY_BITS)
+                    tlb_plru_acc    = Signal(TLB_WAY_BITS)
+                    tlb_plru_acc_en = Signal()
+                    tlb_plru_out    = Signal(TLB_WAY_BITS)
+
+                    comb += tlb_plru.acc.eq(tlb_plru_acc)
+                    comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
+                    comb += tlb_plru.lru.eq(tlb_plru_out)
+
+                    # PLRU interface
+                    with m.If(r1.tlb_hit_index == i):
+                        comb += tlb_plru.acc_en.eq(
+                                 r1.tlb_hit
+                                )
+
+                    with m.Else():
+                        comb += tlb_plru.acc_en.eq(0)
+                    comb += tlb_plru.acc.eq(
+                             r1.tlb_hit_way
+                            )
+
+                    comb += tlb_plru_victim[i].eq(tlb_plru.lru)
 
     def tlb_search(self, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
                    tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra):
@@ -507,9 +492,10 @@ class Dcache(Elaboratable):
     #                 for i in tlb_index_t loop
     #                     dtlb_valids(i) <= (others => '0');
     #                 end loop;
-            # clear all valid bits at once
-            for i in range(TLB_SET_SIZE):
-                sync += dtlb_valid_bits[i].eq(0)
+        # clear all valid bits at once
+        for i in range(TLB_SET_SIZE):
+            sync += dtlb_valid_bits[i].eq(0)
+
     #             elsif tlbie = '1' then
         with m.Elif(tlbie):
     #                 if tlb_hit = '1' then
@@ -562,10 +548,15 @@ class Dcache(Elaboratable):
 #     begin
         # TODO learn translation of generate into nmgien @lkcl
 # 	plrus: for i in 0 to NUM_LINES-1 generate
+        for i in range(NUM_LINES):
 # 	    -- PLRU interface
 # 	    signal plru_acc    : std_ulogic_vector(WAY_BITS-1 downto 0);
 # 	    signal plru_acc_en : std_ulogic;
 # 	    signal plru_out    : std_ulogic_vector(WAY_BITS-1 downto 0);
+            plru        = PLRU(WAY_BITS)
+            plru_acc    = Signal(WAY_BITS)
+            plru_acc_en = Signal()
+            plru_out    = Signal(WAY_BITS)
 #
 # 	begin
         # TODO learn tranlation of entity, generic map, port map in
@@ -581,26 +572,29 @@ class Dcache(Elaboratable):
 # 		    acc_en => plru_acc_en,
 # 		    lru => plru_out
 # 		    );
-#
+            comb += plru.acc.eq(plru_acc)
+            comb += plru.acc_en.eq(plru_acc_en)
+            comb += plru.lru.eq(plru_out)
+
 # 	    process(all)
 # 	    begin
 # 		-- PLRU interface
 # 		if r1.hit_index = i then
-        # PLRU interface
-        with m.If(r1.hit_index == i):
+            # PLRU interface
+            with m.If(r1.hit_index == i):
 # 		    plru_acc_en <= r1.cache_hit;
-            comb += plru_acc_en.eq(r1.cache_hit)
+                comb += plru_acc_en.eq(r1.cache_hit)
 # 		else
-        with m.Else():
-# 		    plru_acc_en <= '0';
-            comb += plru_acc_en.eq(0)
+            with m.Else():
+# 	    	    plru_acc_en <= '0';
+                comb += plru_acc_en.eq(0)
 # 		end if;
 # 		plru_acc <= std_ulogic_vector(to_unsigned(
 #                            r1.hit_way, WAY_BITS
 #                           ));
 # 		plru_victim(i) <= plru_out;
-        comb += plru_acc.eq(r1.hit_way)
-        comb += plru_victim[i].eq(plru_out)
+            comb += plru_acc.eq(r1.hit_way)
+            comb += plru_victim[i].eq(plru_out)
 # 	    end process;
 # 	end generate;
 #     end generate;
@@ -687,22 +681,6 @@ class Dcache(Elaboratable):
         rel_matches = Signal(TLB_NUM_WAYS)
         rel_match   = Signal()
 
-        comb += rel_match
-        comb += is_hit
-        comb += hit_way
-        comb += op
-        comb += opsel
-        comb += go
-        comb += nc
-        comb += s_hit
-        comb += s_tag
-        comb += s_pte
-        comb += s_ra
-        comb += hit_set
-        comb += hit_way_set
-        comb += rel_matches
-        comb += rel_match
-
 #     begin
 # 	  -- Extract line, row and tag from request
 #         req_index <= get_index(r0.req.addr);
@@ -726,9 +704,6 @@ class Dcache(Elaboratable):
         # when we are using the TLB, we compare each
         # way with each of the real addresses from each way of
         # the TLB, and then decide later which match to use.
-        comb += hit_way.eq(0)
-        comb += is_hit.eq(0)
-        comb += rel_match.eq(0)
 
 #         if r0.req.virt_mode = '1' then
         with m.If(r0.req.virt_mode):
@@ -1028,7 +1003,7 @@ class Dcache(Elaboratable):
 #                 reservation.valid <= '0';
             # TODO understand how resets work in nmigen
 #             elsif r0_valid = '1' and access_ok = '1' then
-            with m.Elif(r0_valid & access_ok)""
+            with m.Elif(r0_valid & access_ok):
 #                 if clear_rsrv = '1' then
                 with m.If(clear_rsrv):
 #                     reservation.valid <= '0';
@@ -1209,7 +1184,6 @@ class Dcache(Elaboratable):
 #         end if;
 #     end process;
 
-# begin TODO
 #     -- Generate a cache RAM for each way. This handles the normal
 #     -- reads, writes from reloads and the special store-hit update
 #     -- path as well.
@@ -1220,6 +1194,16 @@ class Dcache(Elaboratable):
 #     -- account by using 1-cycle delayed signals for load hits.
 #     --
 #     rams: for i in 0 to NUM_WAYS-1 generate
+    # Generate a cache RAM for each way. This handles the normal
+    # reads, writes from reloads and the special store-hit update
+    # path as well.
+    #
+    # Note: the BRAMs have an extra read buffer, meaning the output
+    # is pipelined an extra cycle. This differs from the
+    # icache. The writeback logic needs to take that into
+    # account by using 1-cycle delayed signals for load hits.
+    def rams(self, ):
+        for i in range(NUM_WAYS):
 # 	signal do_read  : std_ulogic;
 # 	signal rd_addr  : std_ulogic_vector(ROW_BITS-1 downto 0);
 # 	signal do_write : std_ulogic;
@@ -1229,6 +1213,15 @@ class Dcache(Elaboratable):
 # 	signal wr_sel   : std_ulogic_vector(ROW_SIZE-1 downto 0);
 # 	signal wr_sel_m : std_ulogic_vector(ROW_SIZE-1 downto 0);
 # 	signal dout     : cache_row_t;
+            do_read  = Signal()
+            rd_addr  = Signal(ROW_BITS)
+            do_write = Signal()
+            wr_addr  = Signal(ROW_BITS)
+            wr_data  = Signal(WB_DATA_BITS)
+            wr_sel   = Signal(ROW_SIZE)
+            wr_sel_m = Signal(ROW_SIZE)
+            _d_out   = Signal(WB_DATA_BITS)
+
 #     begin
 # 	way: entity work.cache_ram
 # 	    generic map (
@@ -1246,16 +1239,13 @@ class Dcache(Elaboratable):
 # 		wr_data => wr_data
 # 		);
 # 	process(all)
-# end TODO
-class TODO(Elaboratable):
-    def __init__(self):
-        pass
-
-    def elaborate(self, platform):
-        m = Module()
-
-        comb = m.d.comb
-        sync = m.d.sync
+            way = CacheRam(ROW_BITS, WB_DATA_BITS, True)
+            comb += way.rd_en.eq(do_read)
+            comb += way.rd_addr.eq(rd_addr)
+            comb += way.rd_data.eq(_d_out)
+            comb += way.wr_sel.eq(wr_sel_m)
+            comb += way.wr_addr.eq(wr_addr)
+            comb += way.wr_data.eq(wr_data)
 
 # 	begin
 # 	    -- Cache hit reads
@@ -1263,10 +1253,10 @@ class TODO(Elaboratable):
 # 	    rd_addr <=
 #            std_ulogic_vector(to_unsigned(early_req_row, ROW_BITS));
 # 	    cache_out(i) <= dout;
-        # Cache hit reads
-        comb += do_read.eq(1)
-        comb += rd_addr.eq(Signal(BRAM_ROWS))
-        comb += cache_out[i].eq(dout)
+            # Cache hit reads
+            comb += do_read.eq(1)
+            comb += rd_addr.eq(Signal(BRAM_ROWS))
+            comb += cache_out[i].eq(dout)
 
 # 	    -- Write mux:
 # 	    --
@@ -1281,57 +1271,57 @@ class TODO(Elaboratable):
         # For timing, the mux on wr_data/sel/addr is not
         # dependent on anything other than the current state.
 #           wr_sel_m <= (others => '0');
-        comb += wr_sel_m.eq(0)
+            comb += wr_sel_m.eq(0)
 
 # 	    do_write <= '0';
-        comb += do_write.eq(0)
+            comb += do_write.eq(0)
 #             if r1.write_bram = '1' then
-        with m.If(r1.write_bram):
+            with m.If(r1.write_bram):
 #                 -- Write store data to BRAM.  This happens one
 #                 -- cycle after the store is in r0.
-            # Write store data to BRAM.  This happens one
-            # cycle after the store is in r0.
+                # Write store data to BRAM.  This happens one
+                # cycle after the store is in r0.
 #                 wr_data <= r1.req.data;
 #                 wr_sel  <= r1.req.byte_sel;
 #                 wr_addr <= std_ulogic_vector(to_unsigned(
 #                             get_row(r1.req.real_addr), ROW_BITS
 #                            ));
-            comb += wr_data.eq(r1.req.data)
-            comb += wr_sel.eq(r1.req.byte_sel)
-            comb += wr_addr.eq(Signal(get_row(r1.req.real_addr)))
+                comb += wr_data.eq(r1.req.data)
+                comb += wr_sel.eq(r1.req.byte_sel)
+                comb += wr_addr.eq(Signal(get_row(r1.req.real_addr)))
 
 #                 if i = r1.req.hit_way then
-            with m.If(i == r1.req.hit_way):
+                with m.If(i == r1.req.hit_way):
 #                     do_write <= '1';
-                comb += do_write.eq(1)
+                    comb += do_write.eq(1)
 #                 end if;
 # 	    else
-            with m.Else():
+                with m.Else():
 # 		-- Otherwise, we might be doing a reload or a DCBZ
 #                 if r1.dcbz = '1' then
                 # Otherwise, we might be doing a reload or a DCBZ
-                with m.If(r1.dcbz):
+                    with m.If(r1.dcbz):
 #                     wr_data <= (others => '0');
-                    comb += wr_data.eq(0)
+                        comb += wr_data.eq(0)
 #                 else
-                with m.Else():
+                    with m.Else():
 #                     wr_data <= wishbone_in.dat;
-                    comb += wr_data.eq(wishbone_in.dat)
+                        comb += wr_data.eq(wishbone_in.dat)
 #                 end if;
 
 #                 wr_addr <= std_ulogic_vector(to_unsigned(
 #                             r1.store_row, ROW_BITS
 #                            ));
 #                 wr_sel <= (others => '1');
-            comb += wr_addr.eq(Signal(r1.store_row))
-            comb += wr_sel.eq(1)
+                    comb += wr_addr.eq(Signal(r1.store_row))
+                    comb += wr_sel.eq(1)
 
 #                 if r1.state = RELOAD_WAIT_ACK and
 #                 wishbone_in.ack = '1' and replace_way = i then
-            with m.If(r1.state == State.RELOAD_WAIT_ACK
-                      & wishbone_in.ack & relpace_way == i):
+                with m.If(r1.state == State.RELOAD_WAIT_ACK
+                          & wishbone_in.ack & relpace_way == i):
 #                     do_write <= '1';
-                comb += do_write.eq(1)
+                    comb += do_write.eq(1)
 #                 end if;
 # 	    end if;
 
@@ -1340,9 +1330,9 @@ class TODO(Elaboratable):
 #             if do_write = '1' then
 #             -- Mask write selects with do_write since BRAM
 #             -- doesn't have a global write-enable
-            with m.If(do_write):
+                with m.If(do_write):
 #                 wr_sel_m <= wr_sel;
-                comb += wr_sel_m.eq(wr_sel)
+                    comb += wr_sel_m.eq(wr_sel)
 #             end if;
 #         end process;
 #     end generate;
