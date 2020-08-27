@@ -217,7 +217,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         pspec = ShiftRotPipeSpec(id_wid=2)
         alu = ShiftRotBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
-        with open("pipeline.il", "w") as f:
+        with open("shift_rot_pipeline.il", "w") as f:
             f.write(vl)
 
 
@@ -318,8 +318,6 @@ class TestRunner(unittest.TestCase):
 
         yield from ALUHelpers.get_cr_a(res, alu, dec2)
         yield from ALUHelpers.get_xer_ca(res, alu, dec2)
-        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
-        yield from ALUHelpers.get_xer_so(res, alu, dec2)
         yield from ALUHelpers.get_int_o(res, alu, dec2)
 
         print ("hw outputs", res)
@@ -327,15 +325,11 @@ class TestRunner(unittest.TestCase):
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
 
         print ("sim outputs", sim_o)
 
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
         ALUHelpers.check_xer_ca(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
-        ALUHelpers.check_xer_ov(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
 
 

@@ -15,10 +15,32 @@ class ShiftRotInputData(IntegerData):
         self.a, self.b, self.rs = self.ra, self.rb, self.rc
 
 
-# sigh although ShiftRot never changes xer_ov it is just easier
-# right now to have it.  also SO never gets changed, although it
-# is an input (to create CR).  really need something similar to
-# MulOutputData which has xer_so yet derives from LogicalOutputData
+# input to shiftrot final stage (common output)
+class ShiftRotOutputData(IntegerData):
+    regspec = [('INT', 'o', '0:63'),        # RT
+               ('CR', 'cr_a', '0:3'),
+               ('XER', 'xer_so', '32'),    # bit0: so
+               ('XER', 'xer_ca', '34,45'), # XER bit 34/45: CA/CA32
+               ]
+    def __init__(self, pspec):
+        super().__init__(pspec, True)
+        # convenience
+        self.cr0 = self.cr_a
+
+
+# output from shiftrot final stage (common output) - note that XER.so
+# is *not* included (the only reason it's in the input is because of CR0)
+class ShiftRotOutputDataFinal(IntegerData):
+    regspec = [('INT', 'o', '0:63'),        # RT
+               ('CR', 'cr_a', '0:3'),
+               ('XER', 'xer_ca', '34,45'), # XER bit 34/45: CA/CA32
+               ]
+    def __init__(self, pspec):
+        super().__init__(pspec, True)
+        # convenience
+        self.cr0 = self.cr_a
+
+
 class ShiftRotPipeSpec(CommonPipeSpec):
-    regspec = (ShiftRotInputData.regspec, ALUOutputData.regspec)
+    regspec = (ShiftRotInputData.regspec, ShiftRotOutputDataFinal.regspec)
     opsubsetkls = CompSROpSubset
