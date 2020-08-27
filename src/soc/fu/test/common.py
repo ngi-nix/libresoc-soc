@@ -438,10 +438,13 @@ class ALUHelpers:
             res['xer_ov'] = expected_ov | (expected_ov32 << 1)
 
     def get_sim_xer_so(res, sim, dec2):
+        print ("XER", sim.spr.__class__, sim.spr, sim.spr['XER'])
         oe = yield dec2.e.do.oe.oe
         oe_ok = yield dec2.e.do.oe.ok
         xer_in = yield dec2.e.xer_in
-        if xer_in or (oe and oe_ok):
+        rc = yield dec2.e.do.rc.rc
+        rc_ok = yield dec2.e.do.rc.ok
+        if xer_in or (oe and oe_ok) or (rc and rc_ok):
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
 
     def check_slow_spr1(dut, res, sim_o, msg):

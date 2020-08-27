@@ -37,18 +37,20 @@ class ShiftRotTestRunner(TestRunner):
             self.assertEqual(expected, cu_out, code)
 
         rc = yield dec2.e.do.rc.data
+        rc_ok = yield dec2.e.do.rc.ok
         op = yield dec2.e.do.insn_type
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 
-        print("check extra output", repr(code), cridx_ok, cridx)
+        print("check extra output", repr(code), "cr", cridx_ok, cridx,
+                                    "rc", rc, rc_ok)
 
-        if rc:
+        if rc and rc_ok:
             self.assertEqual(cridx_ok, 1, code)
             self.assertEqual(cridx, 0, code)
 
         # CR (CR0-7)
-        if cridx_ok:
+        if cridx_ok and rc and rc_ok:
             cr_expected = sim.crl[cridx].get_range().value
             cr_actual = res['cr_a']
             print("CR", cridx, cr_expected, cr_actual)

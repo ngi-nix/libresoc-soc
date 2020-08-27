@@ -26,6 +26,9 @@ def get_cu_inputs(dec2, sim):
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
+    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
+
+    print("alu get_cu_inputs", res)
 
     return res
 
@@ -36,8 +39,10 @@ def set_alu_inputs(alu, dec2, sim):
     # and place it into data_i.b
 
     inp = yield from get_cu_inputs(dec2, sim)
+    print ("set alu inputs", inp)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
+    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
 # This test bench is a bit different than is usual. Initially when I
@@ -80,6 +85,33 @@ class LogicalTestCase(TestAccumulatorBase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
+
+    def case_rand_(self):
+        insns = ["and.", "or.", "xor.", "eqv.", "andc.",
+                 "orc.", "nand.", "nor."]
+        for XER in [0, 0xe00c0000]:
+            for i in range(40):
+                choice = random.choice(insns)
+                lst = [f"{choice} 3, 1, 2"]
+                initial_regs = [0] * 32
+                initial_regs[1] = random.randint(0, (1 << 64)-1)
+                initial_regs[2] = random.randint(0, (1 << 64)-1)
+                self.add_case(Program(lst, bigendian), initial_regs,
+                                initial_sprs = {'XER': XER})
+
+    def case_rand_imm_so(self):
+        insns = ["andi.", "andis."]
+        for i in range(1):
+            choice = random.choice(insns)
+            imm = random.randint(0, (1 << 16)-1)
+            lst = [f"{choice} 3, 1, {imm}"]
+            print(lst)
+            initial_regs = [0] * 32
+            initial_regs[1] = random.randint(0, (1 << 64)-1)
+            initial_sprs = {'XER': 0xe00c0000}
+
+            self.add_case(Program(lst, bigendian), initial_regs,
+                          initial_sprs=initial_sprs)
 
     def case_rand_imm_logical(self):
         insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
@@ -253,6 +285,7 @@ class TestRunner(FHDLTestCase):
         yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
 
         ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+        ALUHelpers.check_xer_ca(self, res, sim_o, code)
         ALUHelpers.check_int_o(self, res, sim_o, code)
 
 

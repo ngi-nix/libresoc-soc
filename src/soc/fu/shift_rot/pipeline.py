@@ -2,7 +2,7 @@ from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
 from soc.fu.shift_rot.input_stage import ShiftRotInputStage
 from soc.fu.shift_rot.main_stage import ShiftRotMainStage
-from soc.fu.alu.output_stage import ALUOutputStage
+from soc.fu.shift_rot.output_stage import ShiftRotOutputStage
 
 class ShiftRotStages(PipeModBaseChain):
     def get_chain(self):
@@ -13,7 +13,7 @@ class ShiftRotStages(PipeModBaseChain):
 
 class ShiftRotStageEnd(PipeModBaseChain):
     def get_chain(self):
-        out = ALUOutputStage(self.pspec)
+        out = ShiftRotOutputStage(self.pspec)
         return [out]
 
 

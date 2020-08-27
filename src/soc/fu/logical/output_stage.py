@@ -4,7 +4,8 @@
 from nmigen import (Module, Signal, Cat, Repl)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.common_output_stage import CommonOutputStage
-from soc.fu.logical.pipe_data import LogicalInputData, LogicalOutputData
+from soc.fu.logical.pipe_data import (LogicalInputData, LogicalOutputData,
+                                      LogicalOutputDataFinal)
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import MicrOp
 
@@ -15,5 +16,5 @@ class LogicalOutputStage(CommonOutputStage):
         return LogicalOutputData(self.pspec)
 
     def ospec(self):
-        return LogicalOutputData(self.pspec)
+        return LogicalOutputDataFinal(self.pspec)
 

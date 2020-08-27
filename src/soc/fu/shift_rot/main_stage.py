@@ -8,8 +8,8 @@
 # output stage
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
-from soc.fu.alu.pipe_data import ALUOutputData
-from soc.fu.shift_rot.pipe_data import ShiftRotInputData
+from soc.fu.shift_rot.pipe_data import (ShiftRotOutputData,
+                                       ShiftRotInputData)
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import MicrOp
 from soc.fu.shift_rot.rotator import Rotator
@@ -28,7 +28,7 @@ class ShiftRotMainStage(PipeModBase):
         return ShiftRotInputData(self.pspec)
 
     def ospec(self):
-        return ALUOutputData(self.pspec)
+        return ShiftRotOutputData(self.pspec)
 
     def elaborate(self, platform):
         m = Module()

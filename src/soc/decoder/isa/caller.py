@@ -427,17 +427,33 @@ class ISACaller:
             gts.append(gt)
         print(gts)
         cy = 1 if any(gts) else 0
+        print ("CA", cy, gts)
         if not (1 & already_done):
             self.spr['XER'][XER_bits['CA']] = cy
 
-        print("inputs", inputs)
+        print("inputs", already_done, inputs)
         # 32 bit carry
-        gts = []
-        for x in inputs:
-            print("input", x, output)
-            gt = (gtu(x[32:64], output[32:64])) == SelectableInt(1, 1)
-            gts.append(gt)
-        cy32 = 1 if any(gts) else 0
+        # ARGH... different for OP_ADD... *sigh*...
+        op = yield self.dec2.e.do.insn_type
+        if op == MicrOp.OP_ADD.value:
+            res32 = (output.value & (1<<32)) != 0
+            a32 = (inputs[0].value & (1<<32)) != 0
+            if len(inputs) >= 2:
+                b32 = (inputs[1].value & (1<<32)) != 0
+            else:
+                b32 = False
+            cy32 = res32 ^ a32 ^ b32
+            print ("CA32 ADD", cy32)
+        else:
+            gts = []
+            for x in inputs:
+                print("input", x, output)
+                print("     x[32:64]", x, x[32:64])
+                print("     o[32:64]", output, output[32:64])
+                gt = (gtu(x[32:64], output[32:64])) == SelectableInt(1, 1)
+                gts.append(gt)
+            cy32 = 1 if any(gts) else 0
+            print ("CA32", cy32, gts)
         if not (2 & already_done):
             self.spr['XER'][XER_bits['CA32']] = cy32
 
