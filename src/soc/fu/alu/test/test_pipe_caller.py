@@ -99,6 +99,46 @@ class ALUTestCase(TestAccumulatorBase):
             initial_regs[2] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
 
+    def case_addme_ca_0(self):
+        insns = ["addme", "addme.", "addmeo", "addmeo."]
+        for choice in insns:
+            lst = [f"{choice} 6, 16"]
+            initial_regs = [0] * 32
+            initial_regs[16] = 0x7ffffffff
+            initial_sprs = {}
+            xer = SelectableInt(0, 64)
+            xer[XER_bits['CA']] = 0
+            initial_sprs[special_sprs['XER']] = xer
+            self.add_case(Program(lst, bigendian),
+                          initial_regs, initial_sprs)
+
+        self.add_case(Program(lst, bigendian), initial_regs)
+
+    def case_addme_ca_1(self):
+        insns = ["addme", "addme.", "addmeo", "addmeo."]
+        for choice in insns:
+            lst = [f"{choice} 6, 16"]
+            initial_regs = [0] * 32
+            initial_regs[16] = 0x7ffffffff
+            initial_sprs = {}
+            xer = SelectableInt(0, 64)
+            xer[XER_bits['CA']] = 1
+            initial_sprs[special_sprs['XER']] = xer
+            self.add_case(Program(lst, bigendian),
+                          initial_regs, initial_sprs)
+
+        self.add_case(Program(lst, bigendian), initial_regs)
+
+    def case_addze(self):
+        insns = ["addze", "addze.", "addzeo", "addzeo."]
+        for choice in insns:
+            lst = [f"{choice} 6, 16"]
+            initial_regs = [0] * 32
+            initial_regs[16] = 0x00ff00ff00ff0080
+            self.add_case(Program(lst, bigendian), initial_regs)
+
+        self.add_case(Program(lst, bigendian), initial_regs)
+
     def case_addis_nonzero_r0_regression(self):
         lst = [f"addis 3, 0, 1"]
         print(lst)
