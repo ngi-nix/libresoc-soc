@@ -2520,3 +2520,49 @@ class Dcache(Elaboratable):
         # Wire up wishbone request latch out of stage 1
         comb += wishbone_out.eq(r1.wb)
 
+
+def dcache_sim():
+    yield wp.waddr.eq(1)
+    yield wp.data_i.eq(2)
+    yield wp.wen.eq(1)
+    yield
+    yield wp.wen.eq(0)
+    yield rp.ren.eq(1)
+    yield rp.raddr.eq(1)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 2
+    yield
+
+    yield wp.waddr.eq(5)
+    yield rp.raddr.eq(5)
+    yield rp.ren.eq(1)
+    yield wp.wen.eq(1)
+    yield wp.data_i.eq(6)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 6
+    yield
+    yield wp.wen.eq(0)
+    yield rp.ren.eq(0)
+    yield Settle()
+    data = yield rp.data_o
+    print(data)
+    assert data == 0
+    yield
+    data = yield rp.data_o
+    print(data)
+
+def test_dcache():
+    dut = Dcache()
+    vl = rtlil.convert(dut, ports=[])
+    with open("test_dcache.il", "w") as f:
+        f.write(vl)
+
+    run_simulation(dut, dcache_sim(), vcd_name='test_dcache.vcd')
+
+if __name__ == '__main__':
+    test_dcache()
+
