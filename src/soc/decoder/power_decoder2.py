@@ -450,7 +450,11 @@ class DecodeOE(Elaboratable):
         with m.Switch(op.internal_op):
 
             # mulhw, mulhwu, mulhd, mulhdu - these *ignore* OE
-            with m.Case(MicrOp.OP_MUL_H64, MicrOp.OP_MUL_H32):
+            # also rotate
+            with m.Case(MicrOp.OP_MUL_H64, MicrOp.OP_MUL_H32,
+                        MicrOp.OP_SHL, MicrOp.OP_SHR, MicrOp.OP_RLC,
+                        MicrOp.OP_RLCL, MicrOp.OP_RLCR,
+                        MicrOp.OP_EXTSWSLI):
                 pass
 
             # all other ops decode OE field
