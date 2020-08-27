@@ -103,31 +103,31 @@ class ALUTestCase(TestAccumulatorBase):
         insns = ["addme", "addme.", "addmeo", "addmeo."]
         for choice in insns:
             lst = [f"{choice} 6, 16"]
-            initial_regs = [0] * 32
-            initial_regs[16] = 0x7ffffffff
-            initial_sprs = {}
-            xer = SelectableInt(0, 64)
-            xer[XER_bits['CA']] = 0
-            initial_sprs[special_sprs['XER']] = xer
-            self.add_case(Program(lst, bigendian),
-                          initial_regs, initial_sprs)
-
-        self.add_case(Program(lst, bigendian), initial_regs)
+            for value in [0x7ffffffff,
+                          0xffff80000]:
+                initial_regs = [0] * 32
+                initial_regs[16] = value
+                initial_sprs = {}
+                xer = SelectableInt(0, 64)
+                xer[XER_bits['CA']] = 0
+                initial_sprs[special_sprs['XER']] = xer
+                self.add_case(Program(lst, bigendian),
+                              initial_regs, initial_sprs)
 
     def case_addme_ca_1(self):
         insns = ["addme", "addme.", "addmeo", "addmeo."]
         for choice in insns:
             lst = [f"{choice} 6, 16"]
-            initial_regs = [0] * 32
-            initial_regs[16] = 0x7ffffffff
-            initial_sprs = {}
-            xer = SelectableInt(0, 64)
-            xer[XER_bits['CA']] = 1
-            initial_sprs[special_sprs['XER']] = xer
-            self.add_case(Program(lst, bigendian),
-                          initial_regs, initial_sprs)
-
-        self.add_case(Program(lst, bigendian), initial_regs)
+            for value in [0x7ffffffff, # fails, bug #476
+                          0xffff80000]:
+                initial_regs = [0] * 32
+                initial_regs[16] = value
+                initial_sprs = {}
+                xer = SelectableInt(0, 64)
+                xer[XER_bits['CA']] = 1
+                initial_sprs[special_sprs['XER']] = xer
+                self.add_case(Program(lst, bigendian),
+                              initial_regs, initial_sprs)
 
     def case_addze(self):
         insns = ["addze", "addze.", "addzeo", "addzeo."]
