@@ -21,10 +21,18 @@ class CommonOutputStage(PipeModBase):
         #     has been pass-through just to get it into CR0
         # in case (1) we don't *have* an xer_so output so put xer_so *input*
         # into CR0.
+        xer_so_i = self.i.xer_so.data[0]
         if hasattr(self.o, "xer_so"):
             xer_so_o = self.o.xer_so.data[0]
+            so = Signal(reset_less=True)
+            oe = Signal(reset_less=True)
+            comb += oe.eq(op.oe.oe & op.oe.oe_ok)
+            with m.If(oe):
+                comb += so.eq(xer_so_o)
+            with m.Else():
+                comb += so.eq(xer_so_i)
         else:
-            xer_so_o = self.i.xer_so.data[0]
+            so = xer_so_i
 
         # op requests inversion of the output...
         o = Signal.like(self.i.o)
@@ -85,7 +93,7 @@ class CommonOutputStage(PipeModBase):
         with m.If(is_cmpeqb):
             comb += cr0.eq(self.i.cr0.data)
         with m.Else():
-            comb += cr0.eq(Cat(xer_so_o, ~is_nzero, is_positive, is_negative))
+            comb += cr0.eq(Cat(so, ~is_nzero, is_positive, is_negative))
 
         # copy out [inverted?] output, cr0, and context out
         comb += self.o.o.data.eq(o)
