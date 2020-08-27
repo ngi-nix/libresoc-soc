@@ -171,6 +171,7 @@ class SelectableInt:
         mask = (1 << bits) - 1
         self.value = value & mask
         self.bits = bits
+        self.overflow = (value & ~mask) != 0
 
     def eq(self, b):
         self.value = b.value
@@ -288,7 +289,7 @@ class SelectableInt:
             start = self.bits - key.stop
 
             bits = stop - start
-            #print ("__getitem__ slice num bits", bits)
+            #print ("__getitem__ slice num bits", start, stop, bits)
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
             return SelectableInt(value, bits)
