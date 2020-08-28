@@ -2521,39 +2521,207 @@ class Dcache(Elaboratable):
         comb += wishbone_out.eq(r1.wb)
 
 
-def dcache_sim():
-    yield wp.waddr.eq(1)
-    yield wp.data_i.eq(2)
-    yield wp.wen.eq(1)
+
+# dcache_tb.vhdl
+#
+# entity dcache_tb is
+# end dcache_tb;
+#
+# architecture behave of dcache_tb is
+#     signal clk          : std_ulogic;
+#     signal rst          : std_ulogic;
+#
+#     signal d_in         : Loadstore1ToDcacheType;
+#     signal d_out        : DcacheToLoadstore1Type;
+#
+#     signal m_in         : MmuToDcacheType;
+#     signal m_out        : DcacheToMmuType;
+#
+#     signal wb_bram_in   : wishbone_master_out;
+#     signal wb_bram_out  : wishbone_slave_out;
+#
+#     constant clk_period : time := 10 ns;
+# begin
+#     dcache0: entity work.dcache
+#         generic map(
+#
+#             LINE_SIZE => 64,
+#             NUM_LINES => 4
+#             )
+#         port map(
+#             clk => clk,
+#             rst => rst,
+#             d_in => d_in,
+#             d_out => d_out,
+#             m_in => m_in,
+#             m_out => m_out,
+#             wishbone_out => wb_bram_in,
+#             wishbone_in => wb_bram_out
+#             );
+#
+#     -- BRAM Memory slave
+#     bram0: entity work.wishbone_bram_wrapper
+#         generic map(
+#             MEMORY_SIZE   => 1024,
+#             RAM_INIT_FILE => "icache_test.bin"
+#             )
+#         port map(
+#             clk => clk,
+#             rst => rst,
+#             wishbone_in => wb_bram_in,
+#             wishbone_out => wb_bram_out
+#             );
+#
+#     clk_process: process
+#     begin
+#         clk <= '0';
+#         wait for clk_period/2;
+#         clk <= '1';
+#         wait for clk_period/2;
+#     end process;
+#
+#     rst_process: process
+#     begin
+#         rst <= '1';
+#         wait for 2*clk_period;
+#         rst <= '0';
+#         wait;
+#     end process;
+#
+#     stim: process
+#     begin
+#     -- Clear stuff
+#     d_in.valid <= '0';
+#     d_in.load <= '0';
+#     d_in.nc <= '0';
+#     d_in.addr <= (others => '0');
+#     d_in.data <= (others => '0');
+#         m_in.valid <= '0';
+#         m_in.addr <= (others => '0');
+#         m_in.pte <= (others => '0');
+#
+#         wait for 4*clk_period;
+#     wait until rising_edge(clk);
+#
+#     -- Cacheable read of address 4
+#     d_in.load <= '1';
+#     d_in.nc <= '0';
+#         d_in.addr <= x"0000000000000004";
+#         d_in.valid <= '1';
+#     wait until rising_edge(clk);
+#         d_in.valid <= '0';
+#
+#     wait until rising_edge(clk) and d_out.valid = '1';
+#         assert d_out.data = x"0000000100000000"
+#         report "data @" & to_hstring(d_in.addr) &
+#         "=" & to_hstring(d_out.data) &
+#         " expected 0000000100000000"
+#         severity failure;
+# --      wait for clk_period;
+#
+#     -- Cacheable read of address 30
+#     d_in.load <= '1';
+#     d_in.nc <= '0';
+#         d_in.addr <= x"0000000000000030";
+#         d_in.valid <= '1';
+#     wait until rising_edge(clk);
+#         d_in.valid <= '0';
+#
+#     wait until rising_edge(clk) and d_out.valid = '1';
+#         assert d_out.data = x"0000000D0000000C"
+#         report "data @" & to_hstring(d_in.addr) &
+#         "=" & to_hstring(d_out.data) &
+#         " expected 0000000D0000000C"
+#         severity failure;
+#
+#     -- Non-cacheable read of address 100
+#     d_in.load <= '1';
+#     d_in.nc <= '1';
+#         d_in.addr <= x"0000000000000100";
+#         d_in.valid <= '1';
+#     wait until rising_edge(clk);
+#     d_in.valid <= '0';
+#     wait until rising_edge(clk) and d_out.valid = '1';
+#         assert d_out.data = x"0000004100000040"
+#         report "data @" & to_hstring(d_in.addr) &
+#         "=" & to_hstring(d_out.data) &
+#         " expected 0000004100000040"
+#         severity failure;
+#
+#     wait until rising_edge(clk);
+#     wait until rising_edge(clk);
+#     wait until rising_edge(clk);
+#     wait until rising_edge(clk);
+#
+#     std.env.finish;
+#     end process;
+# end;
+def dcache_sim(dut):
+    # clear stuff
+    yield dut.d_in.valid.eq(0)
+    yield dut.d_in.load.eq(0)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.adrr.eq(0)
+    yield dut.d_in.data.eq(0)
+    yield dut.m_in.valid.eq(0)
+    yield dut.m_in.addr.eq(0)
+    yield dut.m_in.pte.eq(0)
+    # wait 4 * clk_period
     yield
-    yield wp.wen.eq(0)
-    yield rp.ren.eq(1)
-    yield rp.raddr.eq(1)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 2
+    yield
+    yield
+    yield
+    # wait_until rising_edge(clk)
+    yield
+    # Cacheable read of address 4
+    yield dut.d_in.load.eq(1)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.addr.eq(Const(0x0000000000000004, 64))
+    yield dut.d_in.valid.eq(1)
+    # wait-until rising_edge(clk)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+    assert dut.d_out.data == Const(0x0000000100000000, 64) f"data @" \
+        f"{dut.d_in.addr}={dut.d_in.data} expected 0000000100000000" \
+        " -!- severity failure"
+
+
+    # Cacheable read of address 30
+    yield dut.d_in.load.eq(1)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.addr.eq(Const(0x0000000000000030, 64))
+    yield dut.d_in.valid.eq(1)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+    assert dut.d_out.data == Const(0x0000000D0000000C, 64) f"data @" \
+        f"{dut.d_in.addr}={dut.d_out.data} expected 0000000D0000000C" \
+        f"-!- severity failure"
+
+    # Non-cacheable read of address 100
+    yield dut.d_in.load.eq(1)
+    yield dut.d_in.nc.eq(1)
+    yield dut.d_in.addr.eq(Const(0x0000000000000100, 64))
+    yield dut.d_in.valid.eq(1)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+    assert dut.d_out.data == Const(0x0000004100000040, 64) f"data @" \
+        f"{dut.d_in.addr}={dut.d_out.data} expected 0000004100000040" \
+        f"-!- severity failure"
+
+    yield
+    yield
+    yield
     yield
 
-    yield wp.waddr.eq(5)
-    yield rp.raddr.eq(5)
-    yield rp.ren.eq(1)
-    yield wp.wen.eq(1)
-    yield wp.data_i.eq(6)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 6
-    yield
-    yield wp.wen.eq(0)
-    yield rp.ren.eq(0)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 0
-    yield
-    data = yield rp.data_o
-    print(data)
 
 def test_dcache():
     dut = Dcache()
