@@ -79,7 +79,7 @@ class Decode2ToExecute1Type(RecordObject):
         self.read_spr1 = Data(SPR, name="spr1")
         #self.read_spr2 = Data(SPR, name="spr2") # only one needed
 
-        self.xer_in = Signal(reset_less=True)   # xer might be read
+        self.xer_in = Signal(3, reset_less=True)   # xer might be read
         self.xer_out = Signal(reset_less=True)  # xer might be written
 
         self.read_fast1 = Data(3, name="fast1")

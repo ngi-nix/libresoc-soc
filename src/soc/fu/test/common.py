@@ -8,7 +8,7 @@ import functools
 import types
 from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr  # HACK!
-from soc.regfile.regfiles import FastRegs
+from soc.regfile.regfiles import XERRegs, FastRegs
 
 
 # TODO: make this a util routine (somewhere)
@@ -203,7 +203,7 @@ class ALUHelpers:
     def get_rd_sim_xer_ca(res, sim, dec2):
         cry_in = yield dec2.e.do.input_carry
         xer_in = yield dec2.e.xer_in
-        if xer_in or cry_in == CryIn.CA.value:
+        if (xer_in & (1<<XERRegs.CA)) or cry_in == CryIn.CA.value:
             expected_carry = 1 if sim.spr['XER'][XER_bits['CA']] else 0
             expected_carry32 = 1 if sim.spr['XER'][XER_bits['CA32']] else 0
             res['xer_ca'] = expected_carry | (expected_carry32 << 1)
@@ -445,7 +445,7 @@ class ALUHelpers:
         oe_ok = yield dec2.e.do.oe.ok
         xer_in = yield dec2.e.xer_in
         print("get_sim_xer_ov", xer_in)
-        if xer_in or (oe and oe_ok):
+        if (xer_in & (1<<XERRegs.OV)) or (oe and oe_ok):
             expected_ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
             expected_ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
             res['xer_ov'] = expected_ov | (expected_ov32 << 1)
@@ -457,7 +457,7 @@ class ALUHelpers:
         xer_in = yield dec2.e.xer_in
         rc = yield dec2.e.do.rc.rc
         rc_ok = yield dec2.e.do.rc.ok
-        if xer_in or (oe and oe_ok) or (rc and rc_ok):
+        if (xer_in & (1<<XERRegs.SO)) or (oe and oe_ok) or (rc and rc_ok):
             res['xer_so'] = 1 if sim.spr['XER'][XER_bits['SO']] else 0
 
     def check_slow_spr1(dut, res, sim_o, msg):

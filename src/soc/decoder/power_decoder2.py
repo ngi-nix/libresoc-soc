@@ -8,6 +8,7 @@ over-riding the internal opcode when an exception is needed.
 
 from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
+from soc.regfile.regfiles import XERRegs
 
 from nmutil.picker import PriorityPicker
 from nmutil.iocontrol import RecordObject
@@ -457,6 +458,7 @@ class DecodeOE(Elaboratable):
             with m.Case(MicrOp.OP_MUL_H64, MicrOp.OP_MUL_H32,
                         MicrOp.OP_EXTS, MicrOp.OP_CNTZ,
                         MicrOp.OP_SHL, MicrOp.OP_SHR, MicrOp.OP_RLC,
+                        MicrOp.OP_LOAD, MicrOp.OP_STORE,
                         MicrOp.OP_RLCL, MicrOp.OP_RLCR,
                         MicrOp.OP_EXTSWSLI):
                 pass
@@ -727,7 +729,9 @@ class PowerDecode2(Elaboratable):
         # decoder is designed to not need.  MTSPR, MFSPR and others need
         # access to the XER bits.  however setting e.oe is not appropriate
         with m.If(op.internal_op == MicrOp.OP_MFSPR):
-            comb += e.xer_in.eq(1)
+            comb += e.xer_in.eq(0b111) # SO, CA, OV
+        with m.If(op.internal_op == MicrOp.OP_CMP):
+            comb += e.xer_in.eq(1<<XERRegs.SO) # SO
         with m.If(op.internal_op == MicrOp.OP_MTSPR):
             comb += e.xer_out.eq(1)
 

@@ -77,12 +77,14 @@ def regspec_decode_read(e, regfile, name):
         if name == 'xer_so':
             # SO needs to be read for overflow *and* for creation
             # of CR0 and also for MFSPR
-            return ((e.do.oe.oe[0] & e.do.oe.oe_ok) | e.xer_in |
+            return ((e.do.oe.oe[0] & e.do.oe.oe_ok) | (e.xer_in & SO == SO)|
                      (e.do.rc.rc & e.do.rc.ok)), SO
         if name == 'xer_ov':
-            return (e.do.oe.oe[0] & e.do.oe.oe_ok) | e.xer_in, OV
+            return ((e.do.oe.oe[0] & e.do.oe.oe_ok) |
+                    (e.xer_in & CA == CA)), OV
         if name == 'xer_ca':
-            return (e.do.input_carry == CryIn.CA.value) | e.xer_in, CA
+            return ((e.do.input_carry == CryIn.CA.value) |
+                    (e.xer_in & OV == OV)), CA
 
     # STATE regfile
 
