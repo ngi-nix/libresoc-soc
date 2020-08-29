@@ -454,7 +454,8 @@ class DecodeOE(Elaboratable):
             # also rotate
             # XXX ARGH! ignoring OE causes incompatibility with microwatt
             # http://lists.libre-soc.org/pipermail/libre-soc-dev/2020-August/000302.html
-            with m.Case(#MicrOp.OP_MUL_H64, MicrOp.OP_MUL_H32,
+            with m.Case(MicrOp.OP_MUL_H64, MicrOp.OP_MUL_H32,
+                        MicrOp.OP_EXTS, MicrOp.OP_CNTZ,
                         MicrOp.OP_SHL, MicrOp.OP_SHR, MicrOp.OP_RLC,
                         MicrOp.OP_RLCL, MicrOp.OP_RLCR,
                         MicrOp.OP_EXTSWSLI):
