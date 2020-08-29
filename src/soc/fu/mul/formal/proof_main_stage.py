@@ -8,6 +8,9 @@ from nmutil.formaltest import FHDLTestCase
 from nmutil.stageapi import StageChain
 from nmigen.cli import rtlil
 
+from soc.decoder.power_fields import DecodeFields
+from soc.decoder.power_fieldsn import SignalBitRange
+
 from soc.fu.mul.pipe_data import CompMULOpSubset, MulPipeSpec
 from soc.fu.mul.pre_stage import MulMainStage1
 from soc.fu.mul.main_stage import MulMainStage2
@@ -58,6 +61,7 @@ class Driver(Elaboratable):
         b = dut.i.rb
         o = dut.o.o.data
         xer_ov_o = dut.o.xer_ov.data
+        xer_ov_ok = dut.o.xer_ov.ok
 
         # For 32- and 64-bit parameters, work out the absolute values of the
         # input parameters for signed multiplies.  Needed for signed
@@ -103,6 +107,15 @@ class Driver(Elaboratable):
                 ]
 
         comb += dut.i.ctx.op.eq(rec)
+
+        # Gain access to the OE field of XO-format instructions.
+        fields = DecodeFields(SignalBitRange, [dut.i.ctx.op.insn])
+        fields.create_specs()
+
+        enable_overflow = fields.FormXO.OE[0:-1]
+
+        with m.If(~enable_overflow):
+            comb += Assert(~xer_ov_ok)
 
         # Assert that op gets copied from the input to output
         comb += Assert(dut.o.ctx.op == dut.i.ctx.op)
@@ -213,7 +226,9 @@ class Driver(Elaboratable):
 
                     m31 = exp_prod[31:64]
                     comb += expected_ov.eq(m31.bool() & ~m31.all())
-                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
+                    with m.If(enable_overflow):
+                        comb += Assert(xer_ov_o == Repl(expected_ov, 2))
+                        comb += Assert(xer_ov_ok)
 
                 with m.Else(): # is 64-bit; mulld
                     expected_ov = Signal()
@@ -264,7 +279,9 @@ class Driver(Elaboratable):
 
                     m63 = exp_prod[63:128]
                     comb += expected_ov.eq(m63.bool() & ~m63.all())
-                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
+                    with m.If(enable_overflow):
+                        comb += Assert(xer_ov_o == Repl(expected_ov, 2))
+                        comb += Assert(xer_ov_ok)
 
         return m
 
