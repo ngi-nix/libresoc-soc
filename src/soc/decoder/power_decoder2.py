@@ -489,7 +489,8 @@ class DecodeCRIn(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.ppick = ppick = PriorityPicker(8)#reverse_i=True)
+        m.submodules.ppick = ppick = PriorityPicker(8, reverse_i=True,
+                                                       reverse_o=True)
 
         comb = m.d.comb
         op = self.dec.op

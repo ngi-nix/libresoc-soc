@@ -298,7 +298,7 @@ class SelectableInt:
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
             key = key.value
-        print("setitem", key, self.bits, hex(self.value), hex(value.value))
+        print("setitem", key, self.bits, hex(self.value))
         if isinstance(key, int):
             assert key < self.bits
             assert key >= 0
