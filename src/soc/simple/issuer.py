@@ -277,7 +277,7 @@ class TestIssuer(Elaboratable):
 
         # aaand XER...
         with m.If(d_xer.req): # request for regfile access being made
-            comb += self.xer_r.ren.eq(0b111) # enable all
+            comb += self.xer_r.ren.eq(0b111111) # enable all
         d_xer_delay  = Signal()
         sync += d_xer_delay.eq(d_xer.req)
         with m.If(d_xer_delay):

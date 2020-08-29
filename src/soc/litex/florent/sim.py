@@ -141,6 +141,7 @@ class LibreSoCSim(SoCSDRAM):
         pc = Signal(64)
         active_dbg = Signal()
         active_dbg_cr = Signal()
+        active_dbg_xer = Signal()
 
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
@@ -219,7 +220,10 @@ class LibreSoCSim(SoCSDRAM):
              #   Display("    msr: %016x", dbg_dout),
              #),
              If(dbg_addr == 0b1000, # CR
-                Display("    cr: %016x", dbg_dout),
+                Display("    cr : %016x", dbg_dout),
+             ),
+             If(dbg_addr == 0b1001, # XER
+                Display("    xer: %016x", dbg_dout),
              ),
              If(dbg_addr == 0b101, # GPR
                 Display("    gpr: %016x", dbg_dout),
@@ -301,9 +305,20 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
+            #self.comb += active_dbg_xer.eq((0x10300 <= pc) & (pc <= 0x1094c))
+            self.comb += active_dbg_xer.eq(active_dbg_cr)
+
+            # get the CR
+            self.sync += If(active_dbg_xer & (dmicount == 20),
+                (dmi_addr.eq(0b1001), # XER
+                 dmi_req.eq(1),
+                 dmi_wen.eq(0),
+                )
+            )
+
         # read all 32 GPRs
         for i in range(32):
-            self.sync += If(active_dbg & (dmicount == 20+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 24+(i*8)),
                 (dmi_addr.eq(0b100), # GSPR addr
                  dmi_din.eq(i), # r1
                  dmi_req.eq(1),
@@ -311,7 +326,7 @@ class LibreSoCSim(SoCSDRAM):
                 )
             )
 
-            self.sync += If(active_dbg & (dmicount == 24+(i*8)),
+            self.sync += If(active_dbg & (dmicount == 28+(i*8)),
                 (dmi_addr.eq(0b101), # GSPR data
                  dmi_req.eq(1),
                  dmi_wen.eq(0),
