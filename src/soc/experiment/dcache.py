@@ -1,4 +1,4 @@
-"""Dcache
+"""DCache
 
 based on Anton Blanchard microwatt dcache.vhdl
 
@@ -12,10 +12,10 @@ from nmigen.cli import main
 from nmigen.iocontrol import RecordObject
 from nmigen.util import log2_int
 
-from experiment.mem_types import LoadStore1ToDcacheType,
-                                 DcacheToLoadStore1Type,
-                                 MmuToDcacheType,
-                                 DcacheToMmuType
+from experiment.mem_types import LoadStore1ToDCacheType,
+                                 DCacheToLoadStore1Type,
+                                 MMUToDCacheType,
+                                 DCacheToMMUType
 
 from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBAddrType, WBDataType, WBSelType,
@@ -88,7 +88,7 @@ class State(Enum):
 class RegStage0(RecordObject):
     def __init__(self):
         super().__init__()
-        self.req     = LoadStore1ToDcacheType()
+        self.req     = LoadStore1ToDCacheType()
         self.tlbie   = Signal()
         self.doall   = Signal()
         self.tlbld   = Signal()
@@ -185,9 +185,9 @@ class Reservation(RecordObject):
 # * Complete load misses on the cycle when WB data comes instead of
 #   at the end of line (this requires dealing with requests coming in
 #   while not idle...)
-class Dcache(Elaboratable):
+class DCache(Elaboratable):
     def __init__(self):
-        # TODO: make these parameters of Dcache at some point
+        # TODO: make these parameters of DCache at some point
         self.LINE_SIZE = 64    # Line size in bytes
         self.NUM_LINES = 32    # Number of lines in a set
         self.NUM_WAYS = 4      # Number of ways
@@ -196,11 +196,11 @@ class Dcache(Elaboratable):
         self.TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
         self.LOG_LENGTH = 0    # Non-zero to enable log data collection
 
-        self.d_in      = LoadStore1ToDcacheType()
-        self.d_out     = DcacheToLoadStore1Type()
+        self.d_in      = LoadStore1ToDCacheType()
+        self.d_out     = DCacheToLoadStore1Type()
 
-        self.m_in      = MmuToDcacheType()
-        self.m_out     = DcacheToMmuType()
+        self.m_in      = MMUToDCacheType()
+        self.m_out     = DCacheToMMUType()
 
         self.stall_out = Signal()
 
@@ -2724,7 +2724,7 @@ def dcache_sim(dut):
 
 
 def test_dcache():
-    dut = Dcache()
+    dut = DCache()
     vl = rtlil.convert(dut, ports=[])
     with open("test_dcache.il", "w") as f:
         f.write(vl)

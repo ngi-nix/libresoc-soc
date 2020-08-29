@@ -7,7 +7,7 @@ from nmutil.iocontrol import RecordObject
 from nmigen import Signal
 
 
-class DcacheToLoadStore1Type(RecordObject):
+class DCacheToLoadStore1Type(RecordObject):
     def __init__(self):
         super().__init__()
         self.valid         = Signal()
@@ -17,7 +17,7 @@ class DcacheToLoadStore1Type(RecordObject):
         self.cache_paradox = Signal()
 
 
-class DcacheToMmuType(RecordObject):
+class DCacheToMMUType(RecordObject):
     def __init__(self):
         super().__init__()
         self.stall         = Signal()
@@ -25,7 +25,7 @@ class DcacheToMmuType(RecordObject):
         self.err           = Signal()
         self.data          = Signal(64)
 
-class Fetch1ToIcacheType(RecordObject):
+class Fetch1ToICacheType(RecordObject):
     def __init__(self):
         super().__init__()
         self.req           = Signal()
@@ -35,7 +35,7 @@ class Fetch1ToIcacheType(RecordObject):
         self.sequential    = Signal()
         self.nia           = Signal(64)
 
-class IcacheToDecode1Type(RecordObject):
+class ICacheToDecode1Type(RecordObject):
     def __init__(self):
         super().__init__()
         self.valid         = Signal()
@@ -44,7 +44,7 @@ class IcacheToDecode1Type(RecordObject):
         self.nia           = Signal(64)
         self.insn          = Signal(32)
 
-class LoadStore1ToDcacheType(RecordObject):
+class LoadStore1ToDCacheType(RecordObject):
     def __init__(self):
         super().__init__()
         self.valid         = Signal()
@@ -59,7 +59,7 @@ class LoadStore1ToDcacheType(RecordObject):
         self.data          = Signal()
         self.byte_sel      = Signal()
 
-class LoadStore1ToMmuType(RecordObject):
+class LoadStore1ToMMUType(RecordObject):
     def __init__(self):
         super().__init__()
         self.valid         = Signal()
@@ -73,7 +73,7 @@ class LoadStore1ToMmuType(RecordObject):
         self.addr          = Signal(64)
         self.rs            = Signal(64)
 
-class MmuToLoadStore1Type(RecordObject):
+class MMUToLoadStore1Type(RecordObject):
     def __init__(self):
         super().__init__()
         self.done          = Signal()
@@ -85,7 +85,7 @@ class MmuToLoadStore1Type(RecordObject):
         self.rc_error      = Signal()
         self.sprval        = Signal(64)
 
-class MmuToDcacheType(RecordObject):
+class MMUToDCacheType(RecordObject):
     def __init__(self):
         super().__init__()
         self.valid         = Signal()
@@ -95,7 +95,7 @@ class MmuToDcacheType(RecordObject):
         self.addr          = Signal(64)
         self.pte           = Signal(64)
 
-class MmuToIcacheType(RecordObject):
+class MMUToICacheType(RecordObject):
     def __init__(self):
         super().__init__()
         self.tlbld         = Signal()

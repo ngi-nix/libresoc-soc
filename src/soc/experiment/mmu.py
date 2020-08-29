@@ -12,11 +12,11 @@ from nmutil.byterev import byte_reverse
 from nmutil.mask import Mask
 
 
-from soc.experiment.mem_types import (LoadStore1ToMmuType,
-                                 MmuToLoadStore1Type,
-                                 MmuToDcacheType,
-                                 DcacheToMmuType,
-                                 MmuToIcacheType)
+from soc.experiment.mem_types import (LoadStore1ToMMUType,
+                                 MMUToLoadStore1Type,
+                                 MMUToDCacheType,
+                                 DCacheToMMUType,
+                                 MMUToICacheType)
 
 
 @unique
@@ -73,11 +73,11 @@ class MMU(Elaboratable):
     (i.e. there is no gRA -> hRA translation).
     """
     def __init__(self):
-        self.l_in  = LoadStore1ToMmuType()
-        self.l_out = MmuToLoadStore1Type()
-        self.d_out = MmuToDcacheType()
-        self.d_in  = DcacheToMmuType()
-        self.i_out = MmuToIcacheType()
+        self.l_in  = LoadStore1ToMMUType()
+        self.l_out = MMUToLoadStore1Type()
+        self.d_out = MMUToDCacheType()
+        self.d_in  = DCacheToMMUType()
+        self.i_out = MMUToICacheType()
 
     def radix_tree_idle(self, m, l_in, r, v):
         comb = m.d.comb
