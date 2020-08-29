@@ -25,6 +25,25 @@ class DcacheToMmuType(RecordObject):
         self.err           = Signal()
         self.data          = Signal(64)
 
+class Fetch1ToIcacheType(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.req           = Signal()
+        self.virt_mode     = Signal()
+        self.priv_mode     = Signal()
+        self.stop_mark     = Signal()
+        self.sequential    = Signal()
+        self.nia           = Signal(64)
+
+class IcacheToDecode1Type(RecordObject):
+    def __init__(self):
+        super().__init__()
+        self.valid         = Signal()
+        self.stop_mark     = Signal()
+        self.fetch_failed  = Signal()
+        self.nia           = Signal(64)
+        self.insn          = Signal(32)
+
 class LoadStore1ToDcacheType(RecordObject):
     def __init__(self):
         super().__init__()
