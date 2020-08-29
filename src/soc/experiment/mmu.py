@@ -18,10 +18,6 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
                                  DcacheToMmuType,
                                  MmuToIcacheType)
 
-# -- Radix MMU
-# -- Supports 4-level trees as in arch 3.0B, but not the
-# -- two-step translation
-# -- for guests under a hypervisor (i.e. there is no gRA -> hRA translation).
 
 @unique
 class State(Enum):
