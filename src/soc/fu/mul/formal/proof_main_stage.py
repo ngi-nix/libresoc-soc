@@ -57,16 +57,33 @@ class Driver(Elaboratable):
         # convenience variables
         a = dut.i.ra
         b = dut.i.rb
+        o = dut.o.o.data
 
+        # work out absolute (as 32 bit signed) of a and b
         abs32_a = Signal(32)
         abs32_b = Signal(32)
-        comb += abs32_a.eq(Mux(a[31], -a[0:32], a[0:32]))
-        comb += abs32_b.eq(Mux(b[31], -b[0:32], b[0:32]))
+        a32_s = Signal(1)
+        b32_s = Signal(1)
+        comb += a32_s.eq(a[31])
+        comb += b32_s.eq(b[31])
+        comb += abs32_a.eq(Mux(a32_s, -a[0:32], a[0:32]))
+        comb += abs32_b.eq(Mux(b32_s, -b[0:32], b[0:32]))
 
+        # work out absolute (as 64 bit signed) of a and b
         abs64_a = Signal(64)
         abs64_b = Signal(64)
-        comb += abs64_a.eq(Mux(a[63], -a[0:64], a[0:64]))
-        comb += abs64_b.eq(Mux(b[63], -b[0:64], b[0:64]))
+        a64_s = Signal(1)
+        b64_s = Signal(1)
+        comb += a64_s.eq(a[63])
+        comb += b64_s.eq(b[63])
+        comb += abs64_a.eq(Mux(a64_s, -a[0:64], a[0:64]))
+        comb += abs64_b.eq(Mux(b64_s, -b[0:64], b[0:64]))
+
+        # a same sign as b
+        ab32_seq = Signal()
+        ab64_seq = Signal()
+        comb += ab32_seq.eq(a32_s ^ b32_s)
+        comb += ab64_seq.eq(a64_s ^ b64_s)
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -88,86 +105,81 @@ class Driver(Elaboratable):
             with m.Case(MicrOp.OP_MUL_H32):
                 comb += Assume(rec.is_32bit) # OP_MUL_H32 is a 32-bit op
 
-                expected_product = Signal(64)
-                expected_o = Signal.like(expected_product)
+                exp_prod = Signal(64)
+                expected_o = Signal.like(exp_prod)
 
                 # unsigned hi32 - mulhwu
                 with m.If(~rec.is_signed):
-                    comb += expected_product.eq(a[0:32] * b[0:32])
-                    comb += expected_o.eq(Repl(expected_product[32:64], 2))
-                    comb += Assert(dut.o.o.data[0:64] == expected_o)
+                    comb += exp_prod.eq(a[0:32] * b[0:32])
+                    comb += expected_o.eq(Repl(exp_prod[32:64], 2))
+                    comb += Assert(o[0:64] == expected_o)
 
                 # signed hi32 - mulhw
                 with m.Else():
-                    prod = Signal.like(expected_product) # intermediate product
+                    prod = Signal.like(exp_prod) # intermediate product
                     comb += prod.eq(abs32_a * abs32_b)
-                    comb += expected_product.eq(Mux(a[31] ^ b[31], -prod, prod))
-                    comb += expected_o.eq(Repl(expected_product[32:64], 2))
-                    comb += Assert(dut.o.o.data[0:64] == expected_o)
+                    # TODO: comment why a[31]^b[31] is used to invert prod?
+                    comb += exp_prod.eq(Mux(ab32_seq, -prod, prod))
+                    comb += expected_o.eq(Repl(exp_prod[32:64], 2))
+                    comb += Assert(o[0:64] == expected_o)
 
             with m.Case(MicrOp.OP_MUL_H64):
                 comb += Assume(~rec.is_32bit)
 
-                expected_product = Signal(128)
+                exp_prod = Signal(128)
 
                 # unsigned hi64 - mulhdu
                 with m.If(~rec.is_signed):
-                    comb += expected_product.eq(a[0:64] * b[0:64])
-                    comb += Assert(
-                        dut.o.o.data[0:64] == expected_product[64:128]
-                    )
+                    comb += exp_prod.eq(a[0:64] * b[0:64])
+                    comb += Assert(o[0:64] == exp_prod[64:128])
 
                 # signed hi64 - mulhd
                 with m.Else():
-                    prod = Signal.like(expected_product) # intermediate product
+                    prod = Signal.like(exp_prod) # intermediate product
                     comb += prod.eq(abs64_a * abs64_b)
-                    comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
-                    comb += Assert(
-                        dut.o.o.data[0:64] == expected_product[64:128]
-                    )
+                    comb += exp_prod.eq(Mux(ab64_seq, -prod, prod))
+                    comb += Assert(o[0:64] == exp_prod[64:128])
 
             # mulli, mullw(o)(u), mulld(o)
             with m.Case(MicrOp.OP_MUL_L64):
                 with m.If(rec.is_32bit):
                     expected_ov = Signal()
                     prod = Signal(64)
-                    expected_product = Signal.like(prod)
+                    exp_prod = Signal.like(prod)
 
                     # unsigned lo32 - mullwu
                     with m.If(~rec.is_signed):
-                        comb += expected_product.eq(a[0:32] * b[0:32])
-                        comb += Assert(
-                            dut.o.o.data[0:64] == expected_product[0:64]
-                        )
+                        comb += exp_prod.eq(a[0:32] * b[0:32])
+                        comb += Assert(o[0:64] == exp_prod[0:64])
 
                     # signed lo32 - mullw
                     with m.Else():
+                        # TODO: comment why a[31]^b[31] is used to invert prod?
                         comb += prod.eq(abs32_a[0:64] * abs32_b[0:64])
-                        comb += expected_product.eq(
-                            Mux(a[31] ^ b[31], -prod, prod)
-                        )
-                        comb += Assert(
-                            dut.o.o.data[0:64] == expected_product[0:64]
-                        )
+                        comb += exp_prod.eq(Mux(ab32_seq, -prod, prod))
+                        comb += Assert( o[0:64] == exp_prod[0:64])
 
-                    m31 = expected_product[31:64]
+                    # TODO: how does m31.bool &  ~m31.all work?
+                    m31 = exp_prod[31:64]
                     comb += expected_ov.eq(m31.bool() & ~m31.all())
                     comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
 
                 with m.Else(): # is 64-bit; mulld
                     expected_ov = Signal()
                     prod = Signal(128)
-                    expected_product = Signal.like(prod)
+                    exp_prod = Signal.like(prod)
 
                     # From my reading of the v3.0B ISA spec,
                     # only signed instructions exist.
                     comb += Assume(rec.is_signed)
 
+                    # TODO: comment why a[63]^b[63] is used to invert prod?
                     comb += prod.eq(abs64_a[0:64] * abs64_b[0:64])
-                    comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
-                    comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+                    comb += exp_prod.eq(Mux(ab64_seq, -prod, prod))
+                    comb += Assert(o[0:64] == exp_prod[0:64])
 
-                    m63 = expected_product[63:128]
+                    # TODO: how does m63.bool &  ~m63.all work?
+                    m63 = exp_prod[63:128]
                     comb += expected_ov.eq(m63.bool() & ~m63.all())
                     comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
 
