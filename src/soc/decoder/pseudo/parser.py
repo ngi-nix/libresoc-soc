@@ -448,10 +448,17 @@ class PowerParser:
         """for_stmt : FOR atom EQ test TO test COLON suite
                     | DO atom EQ test TO test COLON suite
         """
-        # auto-add-one (sigh) due to python range
         start = p[4]
-        end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
-        it = ast.Call(ast.Name("range", ast.Load()), [start, end], [])
+        end = p[6]
+        if start.value > end.value: # start greater than end, must go -ve
+            # auto-subtract-one (sigh) due to python range
+            end = ast.BinOp(p[6], ast.Add(), ast.Constant(-1))
+            arange = [start, end, ast.Constant(-1)]
+        else:
+            # auto-add-one (sigh) due to python range
+            end = ast.BinOp(p[6], ast.Add(), ast.Constant(1))
+            arange = [start, end]
+        it = ast.Call(ast.Name("range", ast.Load()), arange, [])
         p[0] = ast.For(p[2], it, p[8], [])
 
     def p_while_stmt(self, p):
