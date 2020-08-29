@@ -11,6 +11,16 @@ from soc.regfile.util import fast_reg_to_spr  # HACK!
 from soc.regfile.regfiles import FastRegs
 
 
+# TODO: make this a util routine (somewhere)
+def mask_extend(x, nbits, repeat):
+    res = 0
+    extended = (1<<repeat)-1
+    for i in range(nbits):
+        if x & (1<<i):
+            res |= extended << (i*repeat)
+    return res
+
+
 class SkipCase(Exception):
     """Raise this exception to skip a test case.
 
@@ -277,7 +287,10 @@ class ALUHelpers:
 
     def set_full_cr(alu, dec2, inp):
         if 'full_cr' in inp:
-            yield alu.p.data_i.full_cr.eq(inp['full_cr'])
+            full_reg = yield dec2.e.do.read_cr_whole.data
+            full_reg_ok = yield dec2.e.do.read_cr_whole.ok
+            full_cr_mask = mask_extend(full_reg, 8, 4)
+            yield alu.p.data_i.full_cr.eq(inp['full_cr'] & full_cr_mask)
         else:
             yield alu.p.data_i.full_cr.eq(0)
 

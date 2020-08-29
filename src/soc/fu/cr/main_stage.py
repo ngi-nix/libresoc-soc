@@ -43,13 +43,6 @@ class CRMainStage(PipeModBase):
         cr_o, full_cr_o, rt_o = self.o.cr, self.o.full_cr, self.o.o
 
         xl_fields = self.fields.FormXL
-        xfx_fields = self.fields.FormXFX
-
-        # Generate the mask for mtcrf, mtocrf, and mfocrf
-        # replicate every fxm field in the insn to 4-bit, as a mask
-        FXM = xfx_fields.FXM[0:-1]
-        mask = Signal(32, reset_less=True)
-        comb += mask.eq(Cat(*[Repl(FXM[i], 4) for i in range(8)]))
 
         # Generate array of bits for cr_a, cr_b and cr_c
         cr_a_arr = Array([cr_a[i] for i in range(4)])
@@ -114,28 +107,20 @@ class CRMainStage(PipeModBase):
 
             ##### mtcrf #####
             with m.Case(MicrOp.OP_MTCRF):
-                # mtocrf and mtcrf are essentially identical
-                # put input (RA) - mask-selected - into output CR, leave
-                # rest of CR alone.
-                comb += full_cr_o.data.eq((a[0:32] & mask) | (full_cr & ~mask))
+                # mtocrf and mtcrf are essentially identical.  PowerDecoder2
+                # takes care of the mask, by putting FXM (as-is or one-hot)
+                # into the CR regfile "full_cr" write-enable, in conjunction
+                # with regspec_decode_write
+                comb += full_cr_o.data.eq(a[0:32])
                 comb += full_cr_o.ok.eq(1) # indicate "this CR has changed"
 
             # ##### mfcr #####
             with m.Case(MicrOp.OP_MFCR):
-                # Ugh. mtocrf and mtcrf have one random bit differentiating
-                # them. This bit is not in any particular field, so this
-                # extracts that bit from the instruction
-                move_one = Signal(reset_less=True)
-                comb += move_one.eq(op.insn[20])
-
-                # mfocrf
-                with m.If(move_one):
-                    # output register RT
-                    comb += rt_o.data.eq(full_cr & mask)
-                # mfcrf
-                with m.Else():
-                    # output register RT
-                    comb += rt_o.data.eq(full_cr)
+                # output register RT.  again, like mtocrf/mtcrf, PowerDecoder2
+                # takes care of the masking, this time by putting FXM (or 1hot)
+                # into the CR regfile "full_cr" *read* enable, in conjunction
+                # with regspect_decode_read.
+                comb += rt_o.data.eq(full_cr)
                 comb += rt_o.ok.eq(1) # indicate "INT reg changed"
 
             # ##### isel #####

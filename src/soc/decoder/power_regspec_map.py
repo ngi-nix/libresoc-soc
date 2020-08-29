@@ -58,9 +58,8 @@ def regspec_decode_read(e, regfile, name):
 
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
-        # *sigh*.  numbering inverted on part-CRs.  because POWER.
-        if name == 'full_cr': # full CR
-            return e.do.read_cr_whole, 0b11111111
+        if name == 'full_cr': # full CR (from FXM field)
+            return e.do.read_cr_whole.ok, e.do.read_cr_whole.data
         if name == 'cr_a': # CR A
             return e.read_cr1.ok, 1<<(7-e.read_cr1.data)
         if name == 'cr_b': # CR B
@@ -133,8 +132,8 @@ def regspec_decode_write(e, regfile, name):
     if regfile == 'CR':
         # CRRegs register numbering is *unary* encoded
         # *sigh*.  numbering inverted on part-CRs.  because POWER.
-        if name == 'full_cr': # full CR
-            return e.do.write_cr_whole, 0b11111111
+        if name == 'full_cr': # full CR (from FXM field)
+            return e.do.write_cr_whole.ok, e.do.write_cr_whole.data
         if name == 'cr_a': # CR A
             return e.write_cr, 1<<(7-e.write_cr.data)
 

@@ -57,8 +57,8 @@ class Decode2ToOperand(RecordObject):
         self.ldst_mode  = Signal(LDSTMode, reset_less=True) # LD/ST mode
         self.traptype  = Signal(TT.size, reset_less=True) # trap main_stage.py
         self.trapaddr  = Signal(13, reset_less=True)
-        self.read_cr_whole = Signal(reset_less=True)
-        self.write_cr_whole = Signal(reset_less=True)
+        self.read_cr_whole = Data(8, "cr_rd") # CR full read mask
+        self.write_cr_whole = Data(8, "cr_wr") # CR full write mask
         self.write_cr0 = Signal(reset_less=True)
 
 

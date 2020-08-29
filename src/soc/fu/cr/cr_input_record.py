@@ -13,8 +13,6 @@ class CompCROpSubset(CompOpSubsetBase):
         layout = (('insn_type', MicrOp),
                   ('fn_unit', Function),
                   ('insn', 32),
-                  ('read_cr_whole', 1),
-                  ('write_cr_whole', 1),
                   )
 
         super().__init__(layout, name=name)

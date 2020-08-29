@@ -9,6 +9,7 @@ over-riding the internal opcode when an exception is needed.
 from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
 
+from nmutil.picker import PriorityPicker
 from nmutil.iocontrol import RecordObject
 from nmutil.extend import exts
 
@@ -484,15 +485,18 @@ class DecodeCRIn(Elaboratable):
         self.cr_bitfield = Data(3, "cr_bitfield")
         self.cr_bitfield_b = Data(3, "cr_bitfield_b")
         self.cr_bitfield_o = Data(3, "cr_bitfield_o")
-        self.whole_reg = Signal(reset_less=True)
+        self.whole_reg = Data(8,  "cr_fxm")
 
     def elaborate(self, platform):
         m = Module()
+        m.submodules.ppick = ppick = PriorityPicker(8)#reverse_i=True)
+
         comb = m.d.comb
+        op = self.dec.op
 
         comb += self.cr_bitfield.ok.eq(0)
         comb += self.cr_bitfield_b.ok.eq(0)
-        comb += self.whole_reg.eq(0)
+        comb += self.whole_reg.ok.eq(0)
         with m.Switch(self.sel_in):
             with m.Case(CRInSel.NONE):
                 pass  # No bitfield activated
@@ -516,7 +520,16 @@ class DecodeCRIn(Elaboratable):
                 comb += self.cr_bitfield.data.eq(self.dec.BC[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.WHOLE_REG):
-                comb += self.whole_reg.eq(1)
+                comb += self.whole_reg.ok.eq(1)
+                move_one = Signal(reset_less=True)
+                comb += move_one.eq(self.insn_in[20]) # MSB0 bit 11
+                with m.If((op.internal_op == MicrOp.OP_MFCR) & move_one):
+                    # must one-hot the FXM field
+                    comb += ppick.i.eq(self.dec.FXM)
+                    comb += self.whole_reg.data.eq(ppick.o)
+                with m.Else():
+                    # otherwise use all of it
+                    comb += self.whole_reg.data.eq(0xff)
 
         return m
 
@@ -534,14 +547,16 @@ class DecodeCROut(Elaboratable):
         self.sel_in = Signal(CROutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
-        self.whole_reg = Signal(reset_less=True)
+        self.whole_reg = Data(8,  "cr_fxm")
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
+        m.submodules.ppick = ppick = PriorityPicker(8)
 
         comb += self.cr_bitfield.ok.eq(0)
-        comb += self.whole_reg.eq(0)
+        comb += self.whole_reg.ok.eq(0)
         with m.Switch(self.sel_in):
             with m.Case(CROutSel.NONE):
                 pass  # No bitfield activated
@@ -555,7 +570,19 @@ class DecodeCROut(Elaboratable):
                 comb += self.cr_bitfield.data.eq(self.dec.FormXL.BT[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CROutSel.WHOLE_REG):
-                comb += self.whole_reg.eq(1)
+                comb += self.whole_reg.ok.eq(1)
+                move_one = Signal(reset_less=True)
+                comb += move_one.eq(self.insn_in[20])
+                with m.If((op.internal_op == MicrOp.OP_MTCRF)):
+                    with m.If(move_one):
+                        # must one-hot the FXM field
+                        comb += ppick.i.eq(self.dec.FXM)
+                        comb += self.whole_reg.data.eq(ppick.o)
+                    with m.Else():
+                        comb += self.whole_reg.data.eq(self.dec.FXM)
+                with m.Else():
+                    # otherwise use all of it
+                    comb += self.whole_reg.data.eq(0xff)
 
         return m
 

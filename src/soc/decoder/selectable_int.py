@@ -270,6 +270,7 @@ class SelectableInt:
     def __getitem__(self, key):
         if isinstance(key, SelectableInt):
             key = key.value
+        print("getitem", key, self.bits, hex(self.value))
         if isinstance(key, int):
             assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
@@ -297,6 +298,7 @@ class SelectableInt:
     def __setitem__(self, key, value):
         if isinstance(key, SelectableInt):
             key = key.value
+        print("setitem", key, self.bits, hex(self.value), hex(value.value))
         if isinstance(key, int):
             assert key < self.bits
             assert key >= 0

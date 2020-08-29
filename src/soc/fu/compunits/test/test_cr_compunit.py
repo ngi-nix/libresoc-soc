@@ -7,6 +7,7 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 
 from soc.fu.compunits.compunits import CRFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
+from soc.fu.test.common import mask_extend
 from soc.config.endian import bigendian
 
 
@@ -28,13 +29,18 @@ class CRTestRunner(TestRunner):
         print("check extra output", repr(code), res)
 
         # full CR
-        whole_reg = yield dec2.e.do.write_cr_whole
+        whole_reg_ok = yield dec2.e.do.write_cr_whole.ok
+        whole_reg_data = yield dec2.e.do.write_cr_whole.data
+        full_cr_mask = mask_extend(whole_reg_data, 8, 4)
+
         cr_en = yield dec2.e.write_cr.ok
-        if whole_reg:
+        if whole_reg_ok:
             full_cr = res['full_cr']
             expected_cr = sim.cr.get_range().value
-            print(f"expected cr {expected_cr:x}, actual: {full_cr:x}")
-            self.assertEqual(expected_cr, full_cr, code)
+            print("CR whole: expected %x, actual: %x mask: %x" % \
+                (expected_cr, full_cr, full_cr_mask))
+            self.assertEqual(expected_cr & full_cr_mask,
+                             full_cr & full_cr_mask, code)
 
         # part-CR
         if cr_en:
