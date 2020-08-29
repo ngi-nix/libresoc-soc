@@ -281,6 +281,10 @@ class TestRunner(FHDLTestCase):
                 cr = yield from get_dmi(dmi, DBGCore.CR)
                 print ("after test %s cr value %x" % (test.name, cr))
 
+                # get CR
+                xer = yield from get_dmi(dmi, DBGCore.XER)
+                print ("after test %s XER value %x" % (test.name, xer))
+
                 # test of dmi reg get
                 for int_reg in range(32):
                     yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg) 

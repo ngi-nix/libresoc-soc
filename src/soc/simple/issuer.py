@@ -74,8 +74,10 @@ class TestIssuer(Elaboratable):
         # DMI interface access
         intrf = self.core.regs.rf['int']
         crrf = self.core.regs.rf['cr']
+        xerrf = self.core.regs.rf['xer']
         self.int_r = intrf.r_ports['dmi'] # INT read
         self.cr_r = crrf.r_ports['full_cr_dbg'] # CR read
+        self.xer_r = xerrf.r_ports['full_xer'] # XER read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -94,7 +96,7 @@ class TestIssuer(Elaboratable):
         m.submodules.dec2 = pdecode2 = self.pdecode2
 
         # convenience
-        dmi, d_reg, d_cr = dbg.dmi, dbg.dbg_gpr, dbg.dbg_cr
+        dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
         intrf = self.core.regs.rf['int']
 
         # clock delay power-on reset
@@ -272,6 +274,16 @@ class TestIssuer(Elaboratable):
             # data arrives one clock later
             comb += d_cr.data.eq(self.cr_r.data_o)
             comb += d_cr.ack.eq(1)
+
+        # aaand XER...
+        with m.If(d_xer.req): # request for regfile access being made
+            comb += self.xer_r.ren.eq(0b111) # enable all
+        d_xer_delay  = Signal()
+        sync += d_xer_delay.eq(d_xer.req)
+        with m.If(d_xer_delay):
+            # data arrives one clock later
+            comb += d_xer.data.eq(self.xer_r.data_o)
+            comb += d_xer.ack.eq(1)
 
         return m
 
