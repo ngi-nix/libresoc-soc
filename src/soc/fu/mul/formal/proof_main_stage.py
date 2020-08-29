@@ -99,7 +99,7 @@ class Driver(Elaboratable):
 
                 # signed hi32 - mulhw
                 with m.Else():
-                    prod = Signal.like(expected_product)    # intermediate product
+                    prod = Signal.like(expected_product) # intermediate product
                     comb += prod.eq(abs32_a * abs32_b)
                     comb += expected_product.eq(Mux(a[31] ^ b[31], -prod, prod))
                     comb += expected_o.eq(Repl(expected_product[32:64], 2))
@@ -113,44 +113,63 @@ class Driver(Elaboratable):
                 # unsigned hi64 - mulhdu
                 with m.If(~rec.is_signed):
                     comb += expected_product.eq(a[0:64] * b[0:64])
-                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
+                    comb += Assert(
+                        dut.o.o.data[0:64] == expected_product[64:128]
+                    )
 
                 # signed hi64 - mulhd
                 with m.Else():
-                    prod = Signal.like(expected_product)    # intermediate product
+                    prod = Signal.like(expected_product) # intermediate product
                     comb += prod.eq(abs64_a * abs64_b)
                     comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
-                    comb += Assert(dut.o.o.data[0:64] == expected_product[64:128])
+                    comb += Assert(
+                        dut.o.o.data[0:64] == expected_product[64:128]
+                    )
 
-            # mulli, mullw(o)(u), mulld(o)(u)
+            # mulli, mullw(o)(u), mulld(o)
             with m.Case(MicrOp.OP_MUL_L64):
-                expected_ov = Signal()
-                prod = Signal(64)
-                expected_product = Signal.like(prod)
-
                 with m.If(rec.is_32bit):
+                    expected_ov = Signal()
+                    prod = Signal(64)
+                    expected_product = Signal.like(prod)
+
                     # unsigned lo32 - mullwu
                     with m.If(~rec.is_signed):
                         comb += expected_product.eq(a[0:32] * b[0:32])
-                        comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+                        comb += Assert(
+                            dut.o.o.data[0:64] == expected_product[0:64]
+                        )
 
                     # signed lo32 - mullw
                     with m.Else():
                         comb += prod.eq(abs32_a[0:64] * abs32_b[0:64])
-                        comb += expected_product.eq(Mux(a[31] ^ b[31], -prod, prod))
-                        comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+                        comb += expected_product.eq(
+                            Mux(a[31] ^ b[31], -prod, prod)
+                        )
+                        comb += Assert(
+                            dut.o.o.data[0:64] == expected_product[0:64]
+                        )
 
                     m31 = expected_product[31:64]
                     comb += expected_ov.eq(m31.bool() & ~m31.all())
                     comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
 
-                with m.Else(): # is 64-bit
-                    # unsigned lo64 - mulldu
-                    with m.If(~rec.is_signed):
-                        pass
+                with m.Else(): # is 64-bit; mulld
+                    expected_ov = Signal()
+                    prod = Signal(128)
+                    expected_product = Signal.like(prod)
 
-                    with m.Else():
-                        pass
+                    # From my reading of the v3.0B ISA spec,
+                    # only signed instructions exist.
+                    comb += Assume(rec.is_signed)
+
+                    comb += prod.eq(abs64_a[0:64] * abs64_b[0:64])
+                    comb += expected_product.eq(Mux(a[63] ^ b[63], -prod, prod))
+                    comb += Assert(dut.o.o.data[0:64] == expected_product[0:64])
+
+                    m63 = expected_product[63:128]
+                    comb += expected_ov.eq(m63.bool() & ~m63.all())
+                    comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
 
         return m
 
