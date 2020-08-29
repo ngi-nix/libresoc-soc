@@ -143,6 +143,13 @@ class LibreSoCSim(SoCSDRAM):
         active_dbg_cr = Signal()
         active_dbg_xer = Signal()
 
+        # xer flags
+        xer_so = Signal()
+        xer_ca = Signal()
+        xer_ca32 = Signal()
+        xer_ov = Signal()
+        xer_ov32 = Signal()
+
         # increment counter, Stop after 100000 cycles
         uptime = Signal(64)
         self.sync += uptime.eq(uptime + 1)
@@ -208,6 +215,12 @@ class LibreSoCSim(SoCSDRAM):
             )
         )
 
+        self.comb += xer_so.eq((dbg_dout & 1) == 1)
+        self.comb += xer_ca.eq((dbg_dout & 4) == 4)
+        self.comb += xer_ca32.eq((dbg_dout & 8) == 8)
+        self.comb += xer_ov.eq((dbg_dout & 16) == 16)
+        self.comb += xer_ov32.eq((dbg_dout & 32) == 32)
+
         # debug messages out
         self.sync += If(dbg_msg,
             (If(active_dbg & (dbg_addr == 0b10), # PC
@@ -223,7 +236,8 @@ class LibreSoCSim(SoCSDRAM):
                 Display("    cr : %016x", dbg_dout),
              ),
              If(dbg_addr == 0b1001, # XER
-                Display("    xer: %016x", dbg_dout),
+                Display("    xer: so %d ca %d 32 %d ov %d 32 %d",
+                            xer_so, xer_ca, xer_ca32, xer_ov, xer_ov32),
              ),
              If(dbg_addr == 0b101, # GPR
                 Display("    gpr: %016x", dbg_dout),
