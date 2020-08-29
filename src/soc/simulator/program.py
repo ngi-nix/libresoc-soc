@@ -110,5 +110,20 @@ class Program:
         self.binfile.seek(curpos, 0)
         return size
 
+    def write_bin(self, fname):
+        self.reset()
+        data = self.binfile.read()
+        with open(fname, "wb") as f:
+            f.write(data)
+
     def close(self):
         self.binfile.close()
+
+if __name__ == '__main__':
+    lst = ['addi 5, 0, 4660',
+           'mtcrf 255, 5',
+           'mfocrf 2, 1',
+           'attn',
+          ]
+    with Program(lst, False) as p:
+        p.write_bin("/tmp/test.bin")
