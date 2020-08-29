@@ -37,7 +37,6 @@ class Driver(Elaboratable):
         comb += rec.is_32bit.eq(AnyConst(rec.is_32bit.width))
         comb += rec.imm_data.imm.eq(AnyConst(64))
         comb += rec.imm_data.imm_ok.eq(AnyConst(1))
-        # TODO, the rest of these.  (the for-loop hides Assert-failures)
 
         # set up the mul stages.  do not add them to m.submodules, this
         # is handled by StageChain.setup().
@@ -58,32 +57,45 @@ class Driver(Elaboratable):
         a = dut.i.ra
         b = dut.i.rb
         o = dut.o.o.data
+        xer_ov_o = dut.o.xer_ov.data
 
-        # work out absolute (as 32 bit signed) of a and b
+        # For 32- and 64-bit parameters, work out the absolute values of the
+        # input parameters for signed multiplies.  Needed for signed
+        # multiplication.
+
         abs32_a = Signal(32)
         abs32_b = Signal(32)
-        a32_s = Signal(1)
-        b32_s = Signal(1)
-        comb += a32_s.eq(a[31])
-        comb += b32_s.eq(b[31])
-        comb += abs32_a.eq(Mux(a32_s, -a[0:32], a[0:32]))
-        comb += abs32_b.eq(Mux(b32_s, -b[0:32], b[0:32]))
-
-        # work out absolute (as 64 bit signed) of a and b
         abs64_a = Signal(64)
         abs64_b = Signal(64)
+        a32_s = Signal(1)
+        b32_s = Signal(1)
         a64_s = Signal(1)
         b64_s = Signal(1)
+
+        comb += a32_s.eq(a[31])
+        comb += b32_s.eq(b[31])
         comb += a64_s.eq(a[63])
         comb += b64_s.eq(b[63])
+
+        comb += abs32_a.eq(Mux(a32_s, -a[0:32], a[0:32]))
+        comb += abs32_b.eq(Mux(b32_s, -b[0:32], b[0:32]))
         comb += abs64_a.eq(Mux(a64_s, -a[0:64], a[0:64]))
         comb += abs64_b.eq(Mux(b64_s, -b[0:64], b[0:64]))
 
-        # a same sign as b
-        ab32_seq = Signal()
-        ab64_seq = Signal()
-        comb += ab32_seq.eq(a32_s ^ b32_s)
-        comb += ab64_seq.eq(a64_s ^ b64_s)
+        # For 32- and 64-bit quantities, break out whether signs differ.
+        # (the _sne suffix is read as "signs not equal").
+        #
+        # This is required because of the rules of signed multiplication:
+        #
+        # a*b = +(abs(a)*abs(b)) for two positive numbers a and b.
+        # a*b = -(abs(a)*abs(b)) for any one positive number and negative
+        #                        number.
+        # a*b = +(abs(a)*abs(b)) for two negative numbers a and b.
+
+        ab32_sne = Signal()
+        ab64_sne = Signal()
+        comb += ab32_sne.eq(a32_s ^ b32_s)
+        comb += ab64_sne.eq(a64_s ^ b64_s)
 
         # setup random inputs
         comb += [a.eq(AnyConst(64)),
@@ -98,7 +110,7 @@ class Driver(Elaboratable):
 
         # Assert that XER_SO propagates through as well.
         # Doesn't mean that the ok signal is always set though.
-        comb += Assert(dut.o.xer_so.data == dut.i.xer_so)
+        comb += Assert(xer_ov_o == dut.i.xer_so)
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
@@ -116,10 +128,13 @@ class Driver(Elaboratable):
 
                 # signed hi32 - mulhw
                 with m.Else():
+                    # Per rules of signed multiplication, if input signs
+                    # differ, we negate the product.  This implies that
+                    # the product is calculated from the absolute values
+                    # of the inputs.
                     prod = Signal.like(exp_prod) # intermediate product
                     comb += prod.eq(abs32_a * abs32_b)
-                    # TODO: comment why a[31]^b[31] is used to invert prod?
-                    comb += exp_prod.eq(Mux(ab32_seq, -prod, prod))
+                    comb += exp_prod.eq(Mux(ab32_sne, -prod, prod))
                     comb += expected_o.eq(Repl(exp_prod[32:64], 2))
                     comb += Assert(o[0:64] == expected_o)
 
@@ -135,9 +150,13 @@ class Driver(Elaboratable):
 
                 # signed hi64 - mulhd
                 with m.Else():
+                    # Per rules of signed multiplication, if input signs
+                    # differ, we negate the product.  This implies that
+                    # the product is calculated from the absolute values
+                    # of the inputs.
                     prod = Signal.like(exp_prod) # intermediate product
                     comb += prod.eq(abs64_a * abs64_b)
-                    comb += exp_prod.eq(Mux(ab64_seq, -prod, prod))
+                    comb += exp_prod.eq(Mux(ab64_sne, -prod, prod))
                     comb += Assert(o[0:64] == exp_prod[64:128])
 
             # mulli, mullw(o)(u), mulld(o)
@@ -154,15 +173,47 @@ class Driver(Elaboratable):
 
                     # signed lo32 - mullw
                     with m.Else():
-                        # TODO: comment why a[31]^b[31] is used to invert prod?
+                        # Per rules of signed multiplication, if input signs
+                        # differ, we negate the product.  This implies that
+                        # the product is calculated from the absolute values
+                        # of the inputs.
                         comb += prod.eq(abs32_a[0:64] * abs32_b[0:64])
-                        comb += exp_prod.eq(Mux(ab32_seq, -prod, prod))
-                        comb += Assert( o[0:64] == exp_prod[0:64])
+                        comb += exp_prod.eq(Mux(ab32_sne, -prod, prod))
+                        comb += Assert(o[0:64] == exp_prod[0:64])
 
-                    # TODO: how does m31.bool &  ~m31.all work?
+                    # If the instruction enables the OV and OV32 flags to be
+                    # set, then we must set them both to 1 if and only if
+                    # the resulting product *cannot* be contained within a 
+                    # 32-bit quantity.
+                    #
+                    # This is detected by checking to see if the resulting
+                    # upper bits are either all 1s or all 0s.  If even *one*
+                    # bit in this set differs from its peers, then we know
+                    # the signed value cannot be contained in the destination's
+                    # field width.
+                    #
+                    # m31.bool() is true if *any* high bit is set.
+                    # m31.all() is true if *all* high bits are set.
+                    #
+                    # m31.bool()  m31.all()  Meaning
+                    #     0           x      All upper bits are 0, so product
+                    #                        is positive.  Thus, it fits.
+                    #     1           0      At least *one* high bit is clear.
+                    #                        Implying, not all high bits are
+                    #                        clones of the output sign bit.
+                    #                        Thus, product extends beyond
+                    #                        destination register size.
+                    #     1           1      All high bits are set *and* they
+                    #                        match the sign bit.  The number
+                    #                        is properly negative, and fits
+                    #                        in the destination register width.
+                    #
+                    # Note that OV/OV32 are set to the *inverse* of m31.all(),
+                    # hence the expression m31.bool() & ~m31.all().
+
                     m31 = exp_prod[31:64]
                     comb += expected_ov.eq(m31.bool() & ~m31.all())
-                    comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
+                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
 
                 with m.Else(): # is 64-bit; mulld
                     expected_ov = Signal()
@@ -171,17 +222,49 @@ class Driver(Elaboratable):
 
                     # From my reading of the v3.0B ISA spec,
                     # only signed instructions exist.
+                    #
+                    # Per rules of signed multiplication, if input signs
+                    # differ, we negate the product.  This implies that
+                    # the product is calculated from the absolute values
+                    # of the inputs.
                     comb += Assume(rec.is_signed)
-
-                    # TODO: comment why a[63]^b[63] is used to invert prod?
                     comb += prod.eq(abs64_a[0:64] * abs64_b[0:64])
-                    comb += exp_prod.eq(Mux(ab64_seq, -prod, prod))
+                    comb += exp_prod.eq(Mux(ab64_sne, -prod, prod))
                     comb += Assert(o[0:64] == exp_prod[0:64])
 
-                    # TODO: how does m63.bool &  ~m63.all work?
+                    # If the instruction enables the OV and OV32 flags to be
+                    # set, then we must set them both to 1 if and only if
+                    # the resulting product *cannot* be contained within a 
+                    # 64-bit quantity.
+                    #
+                    # This is detected by checking to see if the resulting
+                    # upper bits are either all 1s or all 0s.  If even *one*
+                    # bit in this set differs from its peers, then we know
+                    # the signed value cannot be contained in the destination's
+                    # field width.
+                    #
+                    # m63.bool() is true if *any* high bit is set.
+                    # m63.all() is true if *all* high bits are set.
+                    #
+                    # m63.bool()  m63.all()  Meaning
+                    #     0           x      All upper bits are 0, so product
+                    #                        is positive.  Thus, it fits.
+                    #     1           0      At least *one* high bit is clear.
+                    #                        Implying, not all high bits are
+                    #                        clones of the output sign bit.
+                    #                        Thus, product extends beyond
+                    #                        destination register size.
+                    #     1           1      All high bits are set *and* they
+                    #                        match the sign bit.  The number
+                    #                        is properly negative, and fits
+                    #                        in the destination register width.
+                    #
+                    # Note that OV/OV32 are set to the *inverse* of m63.all(),
+                    # hence the expression m63.bool() & ~m63.all().
+
                     m63 = exp_prod[63:128]
                     comb += expected_ov.eq(m63.bool() & ~m63.all())
-                    comb += Assert(dut.o.xer_ov.data == Repl(expected_ov, 2))
+                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
 
         return m
 
