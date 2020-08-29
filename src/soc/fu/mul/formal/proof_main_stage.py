@@ -110,7 +110,7 @@ class Driver(Elaboratable):
 
         # Assert that XER_SO propagates through as well.
         # Doesn't mean that the ok signal is always set though.
-        comb += Assert(xer_ov_o == dut.i.xer_so)
+        comb += Assert(dut.o.xer_so.data == dut.i.xer_so)
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
