@@ -39,7 +39,7 @@ import random
 
 class CRTestCase(TestAccumulatorBase):
 
-    def cse_crop(self):
+    def case_crop(self):
         insns = ["crand", "cror", "crnand", "crnor", "crxor", "creqv",
                  "crandc", "crorc"]
         for i in range(40):
@@ -51,13 +51,13 @@ class CRTestCase(TestAccumulatorBase):
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_crand(self):
+    def case_crand(self):
         for i in range(20):
             lst = ["crand 0, 11, 13"]
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_1_mcrf(self):
+    def case_1_mcrf(self):
         for i in range(20):
             src = random.randint(0, 7)
             dst = random.randint(0, 7)
@@ -65,7 +65,7 @@ class CRTestCase(TestAccumulatorBase):
             cr = random.randint(0, (1 << 32)-1)
         self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_0_mcrf(self):
+    def case_0_mcrf(self):
         for i in range(8):
             lst = [f"mcrf 5, {i}"]
             cr = 0xfeff0001
@@ -91,11 +91,29 @@ class CRTestCase(TestAccumulatorBase):
             self.add_case(Program(lst, bigendian), initial_regs=initial_regs,
                           initial_cr=cr)
 
-    def cse_mfcr(self):
+    def case_mfcr(self):
         for i in range(1):
             lst = ["mfcr 2"]
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
+
+    def case_mfocrf_regression(self):
+        """bit of a bad hack.  comes from microwatt 1.bin instruction 0x106d0
+        as the mask is non-standard, gnu-as barfs.  so we fake it up directly
+        from the binary
+        """
+        mask = 0b10000111
+        dis = [f"mfocrf 2, {mask}"]
+        lst = bytes([0x26, 0x78, 0xb8, 0x7c]) # 0x7cb87826
+        cr = 0x5F9E080E
+        p = Program(lst, bigendian)
+        p.assembly = '\n'.join(dis)+'\n'
+        self.add_case(p, initial_cr=cr)
+
+    def case_mfocrf_1(self):
+        lst = [f"mfocrf 2, 1"]
+        cr = 0x1234
+        self.add_case(Program(lst, bigendian), initial_cr=cr)
 
     def case_mfocrf(self):
         for i in range(1):
@@ -104,7 +122,7 @@ class CRTestCase(TestAccumulatorBase):
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_isel(self):
+    def case_isel(self):
         for i in range(20):
             bc = random.randint(0, 31)
             lst = [f"isel 1, 2, 3, {bc}"]
@@ -117,19 +135,19 @@ class CRTestCase(TestAccumulatorBase):
             self.add_case(Program(lst, bigendian),
                           initial_regs=initial_regs, initial_cr=cr)
 
-    def cse_setb(self):
+    def case_setb(self):
         for i in range(20):
             bfa = random.randint(0, 7)
             lst = [f"setb 1, {bfa}"]
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_regression_setb(self):
+    def case_regression_setb(self):
         lst = [f"setb 1, 6"]
         cr = random.randint(0, 0x66f6b106)
         self.add_case(Program(lst, bigendian), initial_cr=cr)
 
-    def cse_ilang(self):
+    def case_ilang(self):
         pspec = CRPipeSpec(id_wid=2)
         alu = CRBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
