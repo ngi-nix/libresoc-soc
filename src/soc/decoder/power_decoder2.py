@@ -557,7 +557,8 @@ class DecodeCROut(Elaboratable):
         m = Module()
         comb = m.d.comb
         op = self.dec.op
-        m.submodules.ppick = ppick = PriorityPicker(8)
+        m.submodules.ppick = ppick = PriorityPicker(8, reverse_i=True,
+                                                       reverse_o=True)
 
         comb += self.cr_bitfield.ok.eq(0)
         comb += self.whole_reg.ok.eq(0)

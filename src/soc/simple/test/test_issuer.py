@@ -281,7 +281,7 @@ class TestRunner(FHDLTestCase):
                 cr = yield from get_dmi(dmi, DBGCore.CR)
                 print ("after test %s cr value %x" % (test.name, cr))
 
-                # get CR
+                # get XER
                 xer = yield from get_dmi(dmi, DBGCore.XER)
                 print ("after test %s XER value %x" % (test.name, xer))
 

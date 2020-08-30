@@ -110,6 +110,20 @@ class CRTestCase(TestAccumulatorBase):
         p.assembly = '\n'.join(dis)+'\n'
         self.add_case(p, initial_cr=cr)
 
+    def case_mtocrf_regression(self):
+        """microwatt 1.bin regression, same hack as above.
+           106b4:   21 d9 96 7d     .long 0x7d96d921   # mtocrf 12, 0b01101101
+        """
+        mask = 0b01101101
+        dis = [f"mtocrf 12, {mask}"]
+        lst = bytes([0x21, 0xd9, 0x96, 0x7d]) # 0x7d96d921
+        cr = 0x529e08fe
+        initial_regs = [0] * 32
+        initial_regs[12] = 0xffffffffffffffff
+        p = Program(lst, bigendian)
+        p.assembly = '\n'.join(dis)+'\n'
+        self.add_case(p, initial_regs=initial_regs, initial_cr=cr)
+
     def case_mfocrf_1(self):
         lst = [f"mfocrf 2, 1"]
         cr = 0x1234
