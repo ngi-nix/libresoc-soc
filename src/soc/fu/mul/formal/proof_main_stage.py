@@ -1,5 +1,46 @@
-# Proof of correctness for partitioned equal signal combiner
+# Proof of correctness for multiplier
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+# Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+# Copyright (C) 2020 Samuel Falvo
+
+"""Formal Correctness Proof for POWER9 multiplier
+
+notes for ov/32.  similar logic applies for 64-bit quantities (m63)
+
+    m31 = exp_prod[31:64]
+    comb += expected_ov.eq(m31.bool() & ~m31.all())
+
+    If the instruction enables the OV and OV32 flags to be
+    set, then we must set them both to 1 if and only if
+    the resulting product *cannot* be contained within a
+    32-bit quantity.
+
+    This is detected by checking to see if the resulting
+    upper bits are either all 1s or all 0s.  If even *one*
+    bit in this set differs from its peers, then we know
+    the signed value cannot be contained in the destination's
+    field width.
+
+    m31.bool() is true if *any* high bit is set.
+    m31.all() is true if *all* high bits are set.
+
+    m31.bool()  m31.all()  Meaning
+        0           x      All upper bits are 0, so product
+                           is positive.  Thus, it fits.
+        1           0      At least *one* high bit is clear.
+                           Implying, not all high bits are
+                           clones of the output sign bit.
+                           Thus, product extends beyond
+                           destination register size.
+        1           1      All high bits are set *and* they
+                           match the sign bit.  The number
+                           is properly negative, and fits
+                           in the destination register width.
+
+    Note that OV/OV32 are set to the *inverse* of m31.all(),
+    hence the expression m31.bool() & ~m31.all().
+"""
+
 
 from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
                     signed)
@@ -108,25 +149,25 @@ class Driver(Elaboratable):
 
         comb += dut.i.ctx.op.eq(rec)
 
-        # Gain access to the OE field of XO-format instructions.
-        fields = DecodeFields(SignalBitRange, [dut.i.ctx.op.insn])
-        fields.create_specs()
+        # check overflow and result flags
+        result_ok = Signal()
+        enable_overflow = Signal()
 
-        enable_overflow = fields.FormXO.OE[0:-1]
-
-        with m.If(~enable_overflow):
-            comb += Assert(~xer_ov_ok)
+        # default to 1, disabled if default case is hit
+        comb += result_ok.eq(1)
 
         # Assert that op gets copied from the input to output
         comb += Assert(dut.o.ctx.op == dut.i.ctx.op)
         comb += Assert(dut.o.ctx.muxid == dut.i.ctx.muxid)
 
         # Assert that XER_SO propagates through as well.
-        # Doesn't mean that the ok signal is always set though.
-        comb += Assert(dut.o.xer_so.data == dut.i.xer_so)
+        comb += Assert(dut.o.xer_so == dut.i.xer_so)
 
         # main assertion of arithmetic operations
         with m.Switch(rec.insn_type):
+
+            ###### HI-32 #####
+
             with m.Case(MicrOp.OP_MUL_H32):
                 comb += Assume(rec.is_32bit) # OP_MUL_H32 is a 32-bit op
 
@@ -151,6 +192,8 @@ class Driver(Elaboratable):
                     comb += expected_o.eq(Repl(exp_prod[32:64], 2))
                     comb += Assert(o[0:64] == expected_o)
 
+            ###### HI-64 #####
+
             with m.Case(MicrOp.OP_MUL_H64):
                 comb += Assume(~rec.is_32bit)
 
@@ -172,9 +215,12 @@ class Driver(Elaboratable):
                     comb += exp_prod.eq(Mux(ab64_sne, -prod, prod))
                     comb += Assert(o[0:64] == exp_prod[64:128])
 
+            ###### LO-64 #####
             # mulli, mullw(o)(u), mulld(o)
+
             with m.Case(MicrOp.OP_MUL_L64):
-                with m.If(rec.is_32bit):
+
+                with m.If(rec.is_32bit):                  # 32-bit mode
                     expected_ov = Signal()
                     prod = Signal(64)
                     exp_prod = Signal.like(prod)
@@ -194,43 +240,13 @@ class Driver(Elaboratable):
                         comb += exp_prod.eq(Mux(ab32_sne, -prod, prod))
                         comb += Assert(o[0:64] == exp_prod[0:64])
 
-                    # If the instruction enables the OV and OV32 flags to be
-                    # set, then we must set them both to 1 if and only if
-                    # the resulting product *cannot* be contained within a 
-                    # 32-bit quantity.
-                    #
-                    # This is detected by checking to see if the resulting
-                    # upper bits are either all 1s or all 0s.  If even *one*
-                    # bit in this set differs from its peers, then we know
-                    # the signed value cannot be contained in the destination's
-                    # field width.
-                    #
-                    # m31.bool() is true if *any* high bit is set.
-                    # m31.all() is true if *all* high bits are set.
-                    #
-                    # m31.bool()  m31.all()  Meaning
-                    #     0           x      All upper bits are 0, so product
-                    #                        is positive.  Thus, it fits.
-                    #     1           0      At least *one* high bit is clear.
-                    #                        Implying, not all high bits are
-                    #                        clones of the output sign bit.
-                    #                        Thus, product extends beyond
-                    #                        destination register size.
-                    #     1           1      All high bits are set *and* they
-                    #                        match the sign bit.  The number
-                    #                        is properly negative, and fits
-                    #                        in the destination register width.
-                    #
-                    # Note that OV/OV32 are set to the *inverse* of m31.all(),
-                    # hence the expression m31.bool() & ~m31.all().
-
+                    # see notes on overflow detection, above
                     m31 = exp_prod[31:64]
                     comb += expected_ov.eq(m31.bool() & ~m31.all())
-                    with m.If(enable_overflow):
-                        comb += Assert(xer_ov_o == Repl(expected_ov, 2))
-                        comb += Assert(xer_ov_ok)
+                    comb += enable_overflow.eq(1)
+                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
 
-                with m.Else(): # is 64-bit; mulld
+                with m.Else():                       # is 64-bit; mulld
                     expected_ov = Signal()
                     prod = Signal(128)
                     exp_prod = Signal.like(prod)
@@ -247,41 +263,19 @@ class Driver(Elaboratable):
                     comb += exp_prod.eq(Mux(ab64_sne, -prod, prod))
                     comb += Assert(o[0:64] == exp_prod[0:64])
 
-                    # If the instruction enables the OV and OV32 flags to be
-                    # set, then we must set them both to 1 if and only if
-                    # the resulting product *cannot* be contained within a 
-                    # 64-bit quantity.
-                    #
-                    # This is detected by checking to see if the resulting
-                    # upper bits are either all 1s or all 0s.  If even *one*
-                    # bit in this set differs from its peers, then we know
-                    # the signed value cannot be contained in the destination's
-                    # field width.
-                    #
-                    # m63.bool() is true if *any* high bit is set.
-                    # m63.all() is true if *all* high bits are set.
-                    #
-                    # m63.bool()  m63.all()  Meaning
-                    #     0           x      All upper bits are 0, so product
-                    #                        is positive.  Thus, it fits.
-                    #     1           0      At least *one* high bit is clear.
-                    #                        Implying, not all high bits are
-                    #                        clones of the output sign bit.
-                    #                        Thus, product extends beyond
-                    #                        destination register size.
-                    #     1           1      All high bits are set *and* they
-                    #                        match the sign bit.  The number
-                    #                        is properly negative, and fits
-                    #                        in the destination register width.
-                    #
-                    # Note that OV/OV32 are set to the *inverse* of m63.all(),
-                    # hence the expression m63.bool() & ~m63.all().
-
+                    # see notes on overflow detection, above
                     m63 = exp_prod[63:128]
                     comb += expected_ov.eq(m63.bool() & ~m63.all())
-                    with m.If(enable_overflow):
-                        comb += Assert(xer_ov_o == Repl(expected_ov, 2))
-                        comb += Assert(xer_ov_ok)
+                    comb += enable_overflow.eq(1)
+                    comb += Assert(xer_ov_o == Repl(expected_ov, 2))
+
+            # not any of the cases above, disable result checking
+            with m.Default():
+                comb += result_ok.eq(0)
+
+        # check result "write" is correctly requested
+        comb += Assert(dut.o.o.ok == result_ok)
+        comb += Assert(xer_ov_ok == enable_overflow)
 
         return m
 
