@@ -39,20 +39,22 @@ class MulMainStage3(PipeModBase):
         # check negate: select signed/unsigned
         mul_o = Signal(o_i.width, reset_less=True)
         comb += mul_o.eq(Mux(self.i.neg_res, -o_i, o_i))
-        comb += o.ok.eq(1)
 
         # OP_MUL_nnn - select hi32/hi64/lo64 from result
         with m.Switch(op.insn_type):
             # hi-32 replicated twice
             with m.Case(MicrOp.OP_MUL_H32):
                 comb += o.data.eq(Repl(mul_o[32:64], 2))
+                comb += o.ok.eq(1)
             # hi-64 
             with m.Case(MicrOp.OP_MUL_H64):
                 comb += o.data.eq(mul_o[64:128])
+                comb += o.ok.eq(1)
             # lo-64 - overflow
-            with m.Default():
+            with m.Case(MicrOp.OP_MUL_L64):
                 # take the low 64 bits of the mul
                 comb += o.data.eq(mul_o[0:64])
+                comb += o.ok.eq(1)
 
                 # compute overflow 32/64
                 mul_ov = Signal(reset_less=True)
@@ -73,7 +75,7 @@ class MulMainStage3(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
+        comb += self.o.xer_so.eq(self.i.xer_so)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
