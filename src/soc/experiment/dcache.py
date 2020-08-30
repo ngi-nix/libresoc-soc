@@ -214,63 +214,39 @@ class DCache(Elaboratable):
             comb = m.d.comb
             sync = m.d.sync
 
-    #         variable r : reg_stage_0_t;
             r = RegStage0()
-            comb += r
 
-    #     begin
-    #         if rising_edge(clk) then
-    #             assert (d_in.valid and m_in.valid) = '0'
-    #              report "request collision loadstore vs MMU";
-            assert ~(d_in.valid & m_in.valid) "request collision
-             loadstore vs MMU"
+            # TODO, this goes in unit tests and formal proofs
+            # assert ~(d_in.valid & m_in.valid),
+            # "request collision loadstore vs MMU"
+            with m.If(~(d_in.valid & m_in.valid)):
+                #sync += Display("request collision loadstore vs MMU")
+                pass
 
-    #             if m_in.valid = '1' then
             with m.If(m_in.valid):
-    #                 r.req.valid := '1';
-    #                 r.req.load := not (m_in.tlbie or m_in.tlbld);
-    #                 r.req.dcbz := '0';
-    #                 r.req.nc := '0';
-    #                 r.req.reserve := '0';
-    #                 r.req.virt_mode := '0';
-    #                 r.req.priv_mode := '1';
-    #                 r.req.addr := m_in.addr;
-    #                 r.req.data := m_in.pte;
-    #                 r.req.byte_sel := (others => '1');
-    #                 r.tlbie := m_in.tlbie;
-    #                 r.doall := m_in.doall;
-    #                 r.tlbld := m_in.tlbld;
-    #                 r.mmu_req := '1';
                 sync += r.req.valid.eq(1)
                 sync += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))
+                sync += r.req.dcbz.eq(0)
+                sync += r.req.nc.eq(0)
+                sync += r.req.reserve.eq(0)
+                sync += r.req.virt_mode.eq(1)
                 sync += r.req.priv_mode.eq(1)
                 sync += r.req.addr.eq(m_in.addr)
                 sync += r.req.data.eq(m_in.pte)
-                sync += r.req.byte_sel.eq(1)
+                sync += r.req.byte_sel.eq(-1) # Const -1 sets all to 0b111....
                 sync += r.tlbie.eq(m_in.tlbie)
                 sync += r.doall.eq(m_in.doall)
                 sync += r.tlbld.eq(m_in.tlbld)
                 sync += r.mmu_req.eq(1)
-    #             else
             with m.Else():
-    #                 r.req := d_in;
-    #                 r.tlbie := '0';
-    #                 r.doall := '0';
-    #                 r.tlbld := '0';
-    #                 r.mmu_req := '0';
                 sync += r.req.eq(d_in)
-    #             end if;
-    #             if rst = '1' then
-    #                 r0_full <= '0';
-    #             elsif r1.full = '0' or r0_full = '0' then
-                with m.If(~r1.full | ~r0_full):
-    #                 r0 <= r;
-    #                 r0_full <= r.req.valid;
+                sync += r.req.tlbie.eq(0)
+                sync += r.req.doall.eq(0)
+                sync += r.req.tlbd.eq(0)
+                sync += r.req.mmu_req.eq(0)
+                with m.If(~(r1.full & r0_full)):
                     sync += r0.eq(r)
                     sync += r0_full.eq(r.req.valid)
-    #             end if;
-    #         end if;
-    #     end process;
 
     # TLB
     # Operates in the second cycle on the request latched in r0.req.
@@ -282,80 +258,50 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-    #         variable index : tlb_index_t;
-    #         variable addrbits :
-    #          std_ulogic_vector(TLB_SET_BITS - 1 downto 0);
-        index    = TLB_SET_SIZE
+        index    = Signal(log2_int(TLB_SET_BITS), False)
         addrbits = Signal(TLB_SET_BITS)
 
-        comb += index
-        comb += addrbits
+        amin = TLB_LG_PGSZ
+        amax = TLB_LG_PGSZ + TLB_SET_BITS
 
-    #     begin
-    #         if rising_edge(clk) then
-    #             if m_in.valid = '1' then
         with m.If(m_in.valid):
-    #                 addrbits := m_in.addr(TLB_LG_PGSZ + TLB_SET_BITS
-    #                                       - 1 downto TLB_LG_PGSZ);
-            sync += addrbits.eq(m_in.addr[
-                     TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
-                    ])
-    #             else
+            comb += addrbits.eq(m_in.addr[amin : amax])
         with m.Else():
-    #                 addrbits := d_in.addr(TLB_LG_PGSZ + TLB_SET_BITS
-    #                                       - 1 downto TLB_LG_PGSZ);
-            sync += addrbits.eq(d_in.addr[
-                     TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
-                    ])
-    #             end if;
+            comb += addrbits.eq(d_in.addr[amin : amax])
+        comb += index.eq(addrbits)
 
-    #             index := to_integer(unsigned(addrbits));
-        sync += index.eq(addrbits)
-    #             -- If we have any op and the previous op isn't
-    #             -- finished, then keep the same output for next cycle.
-    #             if r0_stall = '0' then
-    # If we have any op and the previous op isn't finished,
-    # then keep the same output for next cycle.
+        # If we have any op and the previous op isn't finished,
+        # then keep the same output for next cycle.
         with m.If(~r0_stall):
             sync += tlb_valid_way.eq(dtlb_valid_bits[index])
             sync += tlb_tag_way.eq(dtlb_tags[index])
             sync += tlb_pte_way.eq(dtlb_ptes[index])
-    #             end if;
-    #         end if;
-    #     end process;
 
-    #     -- Generate TLB PLRUs
-    #     maybe_tlb_plrus: if TLB_NUM_WAYS > 1 generate
     # Generate TLB PLRUs
     def maybe_tlb_plrus(self, m, r1, tlb_plru_victim, acc, acc_en, lru):
-            comb = m.d.comb
-            sync = m.d.sync
+        comb = m.d.comb
+        sync = m.d.sync
 
-            with m.If(TLB_NUM_WAYS > 1):
-                for i in range(TLB_SET_SIZE):
-                    # TLB PLRU interface
-                    tlb_plru        = PLRU(TLB_WAY_BITS)
-                    tlb_plru_acc    = Signal(TLB_WAY_BITS)
-                    tlb_plru_acc_en = Signal()
-                    tlb_plru_out    = Signal(TLB_WAY_BITS)
+        with m.If(TLB_NUM_WAYS > 1):
+            for i in range(TLB_SET_SIZE):
+                # TLB PLRU interface
+                tlb_plru        = PLRU(TLB_WAY_BITS)
+                tlb_plru_acc    = Signal(TLB_WAY_BITS)
+                tlb_plru_acc_en = Signal()
+                tlb_plru_out    = Signal(TLB_WAY_BITS)
 
-                    comb += tlb_plru.acc.eq(tlb_plru_acc)
-                    comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
-                    comb += tlb_plru.lru.eq(tlb_plru_out)
+                comb += tlb_plru.acc.eq(tlb_plru_acc)
+                comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
+                comb += tlb_plru.lru.eq(tlb_plru_out)
 
-                    # PLRU interface
-                    with m.If(r1.tlb_hit_index == i):
-                        comb += tlb_plru.acc_en.eq(
-                                 r1.tlb_hit
-                                )
+                # PLRU interface
+                with m.If(r1.tlb_hit_index == i):
+                    comb += tlb_plru.acc_en.eq(r1.tlb_hit)
+                with m.Else():
+                    comb += tlb_plru.acc_en.eq(0)
+                comb += tlb_plru.acc.eq(r1.tlb_hit_way)
 
-                    with m.Else():
-                        comb += tlb_plru.acc_en.eq(0)
-                    comb += tlb_plru.acc.eq(
-                             r1.tlb_hit_way
-                            )
-
-                    comb += tlb_plru_victim[i].eq(tlb_plru.lru)
+                comb += tlb_plru_victim[i].eq(tlb_plru.lru)
 
     def tlb_search(self, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
                    tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra):
@@ -363,94 +309,43 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#         variable hitway : tlb_way_t;
-#         variable hit : std_ulogic;
-#         variable eatag : tlb_tag_t;
-        hitway = TLBWay()
+        hitway = Signal(TLB_WAY_BITS)
         hit    = Signal()
-        eatag  = TLBTag()
+        eatag  = Signal(log2_int(TLB_EA_TAG_BITS, False))
 
-        comb += hitway
-        comb += hit
-        comb += eatag
+        TLB_LG_END = TLB_LG_PGSZ + TLB_SET_BITS
+        comb += tlb_req_index.eq(r0.req.addr[TLB_LG_PGSZ : TLB_LG_END])
+        comb += eatag.eq(r0.req.addr[TLB_LG_END : 64 ])
 
-#     begin
-#         tlb_req_index <=
-#          to_integer(unsigned(r0.req.addr(
-#           TLB_LG_PGSZ + TLB_SET_BITS - 1 downto TLB_LG_PGSZ
-#          )));
-#         hitway := 0;
-#         hit := '0';
-#         eatag := r0.req.addr(63 downto TLB_LG_PGSZ + TLB_SET_BITS);
-#         for i in tlb_way_t loop
-#             if tlb_valid_way(i) = '1' and
-#                 read_tlb_tag(i, tlb_tag_way) = eatag then
-#                 hitway := i;
-#                 hit := '1';
-#             end if;
-#         end loop;
-#         tlb_hit <= hit and r0_valid;
-#         tlb_hit_way <= hitway;
-        comb += tlb_req_index.eq(r0.req.addr[
-                 TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_SET_BITS
-                ])
-
-        comb += eatag.eq(r0.req.addr[
-                 TLB_LG_PGSZ + TLB_SET_BITS:64
-                ])
-
-        for i in TLBWay():
+        for i in range(TLB_NUM_WAYS):
             with m.If(tlb_valid_way(i)
                       & read_tlb_tag(i, tlb_tag_way) == eatag):
-
                 comb += hitway.eq(i)
                 comb += hit.eq(1)
 
         comb += tlb_hit.eq(hit & r0_valid)
         comb += tlb_hit_way.eq(hitway)
 
-#         if tlb_hit = '1' then
         with m.If(tlb_hit):
-#             pte <= read_tlb_pte(hitway, tlb_pte_way);
             comb += pte.eq(read_tlb_pte(hitway, tlb_pte_way))
-#         else
         with m.Else():
-#             pte <= (others => '0');
             comb += pte.eq(0)
-#         end if;
-#         valid_ra <= tlb_hit or not r0.req.virt_mode;
         comb += valid_ra.eq(tlb_hit | ~r0.req.virt_mode)
-#         if r0.req.virt_mode = '1' then
         with m.If(r0.req.virt_mode):
-#             ra <= pte(REAL_ADDR_BITS - 1 downto TLB_LG_PGSZ) &
-#                   r0.req.addr(TLB_LG_PGSZ - 1 downto ROW_OFF_BITS) &
-#                   (ROW_OFF_BITS-1 downto 0 => '0');
-#             perm_attr <= extract_perm_attr(pte);
-            comb += ra.eq(Cat(
-                     Const(ROW_OFF_BITS, ROW_OFF_BITS),
-                     r0.req.addr[ROW_OFF_BITS:TLB_LG_PGSZ],
-                     pte[TLB_LG_PGSZ:REAL_ADDR_BITS]
-                    ))
+            comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
+                              r0.req.addr[ROW_OFF_BITS:TLB_LG_PGSZ],
+                              pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
             comb += perm_attr.eq(extract_perm_attr(pte))
-#         else
         with m.Else():
-#             ra <= r0.req.addr(
-#                    REAL_ADDR_BITS - 1 downto ROW_OFF_BITS
-#                   ) & (ROW_OFF_BITS-1 downto 0 => '0');
-            comb += ra.eq(Cat(
-                     Const(ROW_OFF_BITS, ROW_OFF_BITS),
-                     r0.rq.addr[ROW_OFF_BITS:REAL_ADDR_BITS]
-                    )
+            comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
+                              r0.rq.addr[ROW_OFF_BITS:REAL_ADDR_BITS]))
 
-#             perm_attr <= real_mode_perm_attr;
             comb += perm_attr.reference.eq(1)
             comb += perm_attr.changed.eq(1)
             comb += perm_attr.priv.eq(1)
             comb += perm_attr.nocache.eq(0)
             comb += perm_attr.rd_perm.eq(1)
             comb += perm_attr.wr_perm.eq(1)
-#         end if;
-#     end process;
 
     def tlb_update(self, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                     tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
@@ -465,10 +360,13 @@ class DCache(Elaboratable):
     #         variable eatag : tlb_tag_t;
     #         variable tagset : tlb_way_tags_t;
     #         variable pteset : tlb_way_ptes_t;
+    #type tlb_tags_t is array(tlb_index_t) of tlb_way_tags_t;
+    # --> Array([Signal(log(way_tags length)) for i in range(number of tlbs)])
+
         tlbie    = Signal()
         tlbwe    = Signal()
-        repl_way = TLBWay()
-        eatag    = TLBTag()
+        repl_way = Signal(TLB_WAY_BITS)
+        eatag    = Signal(log2_int(TLB_EA_TAG_BITS, False))
         tagset   = TLBWayTags()
         pteset   = TLBWayPtes()
 
@@ -483,59 +381,30 @@ class DCache(Elaboratable):
     #         if rising_edge(clk) then
     #             tlbie := r0_valid and r0.tlbie;
     #             tlbwe := r0_valid and r0.tlbldoi;
-        sync += tlbie.eq(r0_valid & r0.tlbie)
-        sync += tlbwe.eq(r0_valid & r0.tlbldoi)
+        comb += tlbie.eq(r0_valid & r0.tlbie)
+        comb += tlbwe.eq(r0_valid & r0.tlbldoi)
 
-    #             if rst = '1' or (tlbie = '1' and r0.doall = '1') then
-    #        with m.If (TODO understand how signal resets work in nmigen)
-    #                 -- clear all valid bits at once
-    #                 for i in tlb_index_t loop
-    #                     dtlb_valids(i) <= (others => '0');
-    #                 end loop;
-        # clear all valid bits at once
-        for i in range(TLB_SET_SIZE):
-            sync += dtlb_valid_bits[i].eq(0)
+        with m.If(tlbie & r0.doall):
+            # clear all valid bits at once
+            for i in range(TLB_SET_SIZE):
+                sync += dtlb_valid_bits[i].eq(0)
 
-    #             elsif tlbie = '1' then
         with m.Elif(tlbie):
-    #                 if tlb_hit = '1' then
             with m.If(tlb_hit):
-    #                     dtlb_valids(tlb_req_index)(tlb_hit_way) <= '0';
                 sync += dtlb_valid_bits[tlb_req_index][tlb_hit_way].eq(0)
-    #                 end if;
-    #             elsif tlbwe = '1' then
         with m.Elif(tlbwe):
-    #                 if tlb_hit = '1' then
             with m.If(tlb_hit):
-    #                     repl_way := tlb_hit_way;
-                sync += repl_way.eq(tlb_hit_way)
-    #                 else
+                comb += repl_way.eq(tlb_hit_way)
             with m.Else():
-    #                     repl_way := to_integer(unsigned(
-    #                       tlb_plru_victim(tlb_req_index)));
-                sync += repl_way.eq(tlb_plru_victim[tlb_req_index])
-    #                 end if;
-    #                 eatag := r0.req.addr(
-    #                           63 downto TLB_LG_PGSZ + TLB_SET_BITS
-    #                          );
-    #                 tagset := tlb_tag_way;
-    #                 write_tlb_tag(repl_way, tagset, eatag);
-    #                 dtlb_tags(tlb_req_index) <= tagset;
-    #                 pteset := tlb_pte_way;
-    #                 write_tlb_pte(repl_way, pteset, r0.req.data);
-    #                 dtlb_ptes(tlb_req_index) <= pteset;
-    #                 dtlb_valids(tlb_req_index)(repl_way) <= '1';
-            sync += eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
-            sync += tagset.eq(tlb_tag_way)
+                comb += repl_way.eq(tlb_plru_victim[tlb_req_index])
+            comb += eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
+            comb += tagset.eq(tlb_tag_way)
             sync += write_tlb_tag(repl_way, tagset, eatag)
             sync += dtlb_tags[tlb_req_index].eq(tagset)
-            sync += pteset.eq(tlb_pte_way)
+            comb += pteset.eq(tlb_pte_way)
             sync += write_tlb_pte(repl_way, pteset, r0.req.data)
             sync += dtlb_ptes[tlb_req_index].eq(pteset)
             sync += dtlb_valid_bits[tlb_req_index][repl_way].eq(1)
-    #             end if;
-    #         end if;
-    #     end process;
 
 #     -- Generate PLRUs
 #     maybe_plrus: if NUM_WAYS > 1 generate
