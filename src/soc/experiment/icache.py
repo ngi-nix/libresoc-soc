@@ -1,6 +1,22 @@
-"""Icache
+"""ICache
 
 based on Anton Blanchard microwatt icache.vhdl
+
+Set associative icache
+
+TODO (in no specific order):
+* Add debug interface to inspect cache content
+* Add snoop/invalidate path
+* Add multi-hit error detection
+* Pipelined bus interface (wb or axi)
+* Maybe add parity? There's a few bits free in each BRAM row on Xilinx
+* Add optimization: service hits on partially loaded lines
+* Add optimization: (maybe) interrupt reload on fluch/redirect
+* Check if playing with the geometry of the cache tags allow for more
+  efficient use of distributed RAM and less logic/muxes. Currently we
+  write TAG_BITS width which may not match full ram blocks and might
+  cause muxes to be inferred for "partial writes".
+* Check if making the read size of PLRU a ROM helps utilization
 
 """
 from enum import Enum, unique
@@ -10,41 +26,71 @@ from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
 from nmutil.mask import Mask
+from nmigen.util import log2_int
 
 
-from soc.experiment.mem_types import (LoadStore1ToMmuType,
-                                 MmuToLoadStore1Type,
-                                 MmuToDcacheType,
-                                 DcacheToMmuType,
-                                 MmuToIcacheType)
+from soc.experiment.mem_types import Fetch1ToICacheType,
+                                     ICacheToDecode1Type,
+                                     MMUToICacheType
+
+from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
+                                WBAddrType, WBDataType, WBSelType,
+                                WbMasterOut, WBSlaveOut,
+                                WBMasterOutVector, WBSlaveOutVector,
+                                WBIOMasterOut, WBIOSlaveOut
 
 
-# -- Set associative icache
-# --
-# -- TODO (in no specific order):
-# --
-# --   * Add debug interface to inspect cache content
-# --   * Add snoop/invalidate path
-# --   * Add multi-hit error detection
-# --   * Pipelined bus interface (wb or axi)
-# --   * Maybe add parity? There's a few bits free in each BRAM row on Xilinx
-# --   * Add optimization: service hits on partially loaded lines
-# --   * Add optimization: (maybe) interrupt reload on fluch/redirect
-# --   * Check if playing with the geometry of the cache tags allow for more
-# --     efficient use of distributed RAM and less logic/muxes. Currently we
-# --     write TAG_BITS width which may not match full ram blocks and might
-# --     cause muxes to be inferred for "partial writes".
-# --   * Check if making the read size of PLRU a ROM helps utilization
-# --
-# library ieee;
-# use ieee.std_logic_1164.all;
-# use ieee.numeric_std.all;
+# Cache reload state machine
+@unique
+class State(Enum):
+    IDLE
+    CLR_TAG
+    WAIT_ACK
+
+#     type reg_internal_t is record
+# 	-- Cache hit state (Latches for 1 cycle BRAM access)
+# 	hit_way   : way_t;
+# 	hit_nia   : std_ulogic_vector(63 downto 0);
+# 	hit_smark : std_ulogic;
+# 	hit_valid : std_ulogic;
 #
-# library work;
-# use work.utils.all;
-# use work.common.all;
-# use work.wishbone_types.all;
+# 	-- Cache miss state (reload state machine)
+#         state            : state_t;
+#         wb               : wishbone_master_out;
+# 	store_way        : way_t;
+#         store_index      : index_t;
+# 	store_row        : row_t;
+#         store_tag        : cache_tag_t;
+#         store_valid      : std_ulogic;
+#         end_row_ix       : row_in_line_t;
+#         rows_valid       : row_per_line_valid_t;
 #
+#         -- TLB miss state
+#         fetch_failed     : std_ulogic;
+#     end record;
+class RegInternal(RecordObject):
+    def __init__(self):
+        super().__init__()
+        # Cache hit state (Latches for 1 cycle BRAM access)
+        self.hit_way      = Signal(NUM_WAYS)
+        self.hit_nia      = Signal(64)
+        self.hit_smark    = Signal()
+        self.hit_valid    = Signal()
+
+        # Cache miss state (reload state machine)
+        self.state        = State()
+        self.wb           = WBMasterOut()
+        self.store_way    = Signal(NUM_WAYS)
+        self.store_index  = Signal(NUM_LINES)
+        self.store_row    = Signal(BRAM_ROWS)
+        self.store_tag    = Signal(TAG_BITS)
+        self.store_valid  = Signal()
+        self.end_row_ix   = Signal(ROW_LINE_BITS)
+        self.rows_valid   = RowPerLineValidArray()
+
+        # TLB miss state
+        self.fetch_failed = Signal()
+
 # -- 64 bit direct mapped icache. All instructions are 4B aligned.
 #
 # entity icache is
@@ -92,7 +138,47 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 #         log_out      : out std_ulogic_vector(53 downto 0)
 #         );
 # end entity icache;
-#
+# 64 bit direct mapped icache. All instructions are 4B aligned.
+class ICache(Elaboratable):
+    """64 bit direct mapped icache. All instructions are 4B aligned."""
+    def __init__(self):
+        self.SIM            = 0
+        self.LINE_SIZE      = 64
+        # BRAM organisation: We never access more than wishbone_data_bits
+        # at a time so to save resources we make the array only that wide,
+        # and use consecutive indices for to make a cache "line"
+        #
+        # ROW_SIZE is the width in bytes of the BRAM (based on WB, so 64-bits)
+        self.ROW_SIZE       = WB_DATA_BITS / 8
+        # Number of lines in a set
+        self.NUM_LINES      = 32
+        # Number of ways
+        self.NUM_WAYS       = 4
+        # L1 ITLB number of entries (direct mapped)
+        self.TLB_SIZE       = 64
+        # L1 ITLB log_2(page_size)
+        self.TLB_LG_PGSZ    = 12
+        # Number of real address bits that we store
+        self.REAL_ADDR_BITS = 56
+        # Non-zero to enable log data collection
+        self.LOG_LENGTH     = 0
+
+        self.i_in           = Fetch1ToICacheType()
+        self.i_out          = ICacheToDecode1Type()
+
+        self.m_in           = MMUToICacheType()
+
+        self.stall_in       = Signal()
+        self.stall_out      = Signal()
+        self.flush_in       = Signal()
+        self.inval_in       = Signal()
+
+        self.wb_out         = WBMasterOut()
+        self.wb_in          = WBSlaveOut()
+
+        self.log_out        = Signal(54)
+
+    def elaborate(self, platform):
 # architecture rtl of icache is
 #     constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
 #     -- ROW_PER_LINE is the number of row (wishbone transactions) in a line
@@ -122,7 +208,49 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 #     constant TAG_BITS      : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
 #     -- WAY_BITS is the number of bits to select a way
 #     constant WAY_BITS     : natural := log2(NUM_WAYS);
-#
+
+        ROW_SIZE_BITS  = ROW_SIZE * 8
+        # ROW_PER_LINE is the number of row
+        # (wishbone) transactions in a line
+        ROW_PER_LINE   = LINE_SIZE / ROW_SIZE
+        # BRAM_ROWS is the number of rows in
+        # BRAM needed to represent the full icache
+        BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
+        # INSN_PER_ROW is the number of 32bit
+        # instructions per BRAM row
+        INSN_PER_ROW   = ROW_SIZE_BITS / 32
+
+        # Bit fields counts in the address
+        #
+        # INSN_BITS is the number of bits to
+        # select an instruction in a row
+        INSN_BITS      = log2_int(INSN_PER_ROW)
+        # ROW_BITS is the number of bits to
+        # select a row
+        ROW_BITS       = log2_int(BRAM_ROWS)
+        # ROW_LINEBITS is the number of bits to
+        # select a row within a line
+        ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
+        # LINE_OFF_BITS is the number of bits for
+        # the offset in a cache line
+        LINE_OFF_BITS  = log2_int(LINE_SIZE)
+        # ROW_OFF_BITS is the number of bits for
+        # the offset in a row
+        ROW_OFF_BITS   = log2_int(ROW_SIZE)
+        # INDEX_BITS is the number of bits to
+        # select a cache line
+        INDEX_BITS     = log2_int(NUM_LINES)
+        # SET_SIZE_BITS is the log base 2 of
+        # the set size
+        SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
+        # TAG_BITS is the number of bits of
+        # the tag part of the address
+        TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
+        # WAY_BITS is the number of bits to
+        # select a way
+        WAY_BITS       = log2_int(NUM_WAYS)
+        TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
+
 #     -- Example of layout for 32 lines of 64 bytes:
 #     --
 #     -- ..  tag    |index|  line  |
@@ -135,7 +263,19 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 #     -- ..         |----- ---|    | ROW_BITS      (8)
 #     -- ..         |-----|        | INDEX_BITS    (5)
 #     -- .. --------|              | TAG_BITS      (53)
-#
+        # Example of layout for 32 lines of 64 bytes:
+        #
+        # ..  tag    |index|  line  |
+        # ..         |   row   |    |
+        # ..         |     |   | |00| zero          (2)
+        # ..         |     |   |-|  | INSN_BITS     (1)
+        # ..         |     |---|    | ROW_LINEBITS  (3)
+        # ..         |     |--- - --| LINE_OFF_BITS (6)
+        # ..         |         |- --| ROW_OFF_BITS  (3)
+        # ..         |----- ---|    | ROW_BITS      (8)
+        # ..         |-----|        | INDEX_BITS    (5)
+        # .. --------|              | TAG_BITS      (53)
+
 #     subtype row_t is integer range 0 to BRAM_ROWS-1;
 #     subtype index_t is integer range 0 to NUM_LINES-1;
 #     subtype way_t is integer range 0 to NUM_WAYS-1;
@@ -153,67 +293,76 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 #     constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
 #     subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
 #     type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-#
+        def CacheTagArray():
+            return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
+
 #     -- The cache valid bits
 #     subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
 #     type cache_valids_t is array(index_t) of cache_way_valids_t;
 #     type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
-#
+        def CacheValidBitsArray():
+            return Array(Signal() for x in ROW_PER_LINE)
+
+        def RowPerLineValidArray():
+            return Array(Signal() for x in range ROW_PER_LINE)
+
 #     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
 #     signal cache_tags   : cache_tags_array_t;
 #     signal cache_valids : cache_valids_t;
-#
+        # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
+        cache_tags = CacheTagArray()
+        cache_valid_bits = CacheValidBitsArray()
+
 #     attribute ram_style : string;
 #     attribute ram_style of cache_tags : signal is "distributed";
-#
+        # TODO to be passed to nigmen as ram attributes
+        # attribute ram_style : string;
+        # attribute ram_style of cache_tags : signal is "distributed";
+
 #     -- L1 ITLB.
 #     constant TLB_BITS : natural := log2(TLB_SIZE);
 #     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
 #     constant TLB_PTE_BITS : natural := 64;
-#
+        TLB_BITS        = log2_int(TLB_SIZE)
+        TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
+        TLB_PTE_BITS    = 64
+
 #     subtype tlb_index_t is integer range 0 to TLB_SIZE - 1;
 #     type tlb_valids_t is array(tlb_index_t) of std_ulogic;
 #     subtype tlb_tag_t is std_ulogic_vector(TLB_EA_TAG_BITS - 1 downto 0);
 #     type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
 #     subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
 #     type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
-#
+        def TLBValidBitsArray():
+            return Array(Signal() for x in range(TLB_SIZE))
+
+        def TLBTagArray():
+            return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
+
+        def TLBPTEArray():
+            return Array(Signal(LTB_PTE_BITS) for x in range(TLB_SIZE))
+
 #     signal itlb_valids : tlb_valids_t;
 #     signal itlb_tags : tlb_tags_t;
 #     signal itlb_ptes : tlb_ptes_t;
 #     attribute ram_style of itlb_tags : signal is "distributed";
 #     attribute ram_style of itlb_ptes : signal is "distributed";
-#
+        itlb_valid_bits = TLBValidBitsArray()
+        itlb_tags       = TLBTagArray()
+        itlb_ptes       = TLBPTEArray()
+        # TODO to be passed to nmigen as ram attributes
+        # attribute ram_style of itlb_tags : signal is "distributed";
+        # attribute ram_style of itlb_ptes : signal is "distributed";
+
 #     -- Privilege bit from PTE EAA field
 #     signal eaa_priv  : std_ulogic;
-#
-#     -- Cache reload state machine
-#     type state_t is (IDLE, CLR_TAG, WAIT_ACK);
-#
-#     type reg_internal_t is record
-# 	-- Cache hit state (Latches for 1 cycle BRAM access)
-# 	hit_way   : way_t;
-# 	hit_nia   : std_ulogic_vector(63 downto 0);
-# 	hit_smark : std_ulogic;
-# 	hit_valid : std_ulogic;
-#
-# 	-- Cache miss state (reload state machine)
-#         state            : state_t;
-#         wb               : wishbone_master_out;
-# 	store_way        : way_t;
-#         store_index      : index_t;
-# 	store_row        : row_t;
-#         store_tag        : cache_tag_t;
-#         store_valid      : std_ulogic;
-#         end_row_ix       : row_in_line_t;
-#         rows_valid       : row_per_line_valid_t;
-#
-#         -- TLB miss state
-#         fetch_failed     : std_ulogic;
-#     end record;
-#
+        # Privilege bit from PTE EAA field
+        eaa_priv        = Signal()
+
+
 #     signal r : reg_internal_t;
-#
+        r = RegInternal()
+
 #     -- Async signals on incoming request
 #     signal req_index   : index_t;
 #     signal req_row     : row_t;
@@ -222,24 +371,49 @@ from soc.experiment.mem_types import (LoadStore1ToMmuType,
 #     signal req_is_hit  : std_ulogic;
 #     signal req_is_miss : std_ulogic;
 #     signal req_laddr   : std_ulogic_vector(63 downto 0);
-#
+        # Async signal on incoming request
+        req_index     = Signal(NUM_LINES)
+        req_row       = Signal(BRAM_ROWS)
+        req_hit_way   = Signal(NUM_WAYS)
+        req_tag       = Signal(TAG_BITS)
+        req_is_hit    = Signal()
+        req_is_miss   = Signal()
+        req_laddr     = Signal(64)
+
 #     signal tlb_req_index : tlb_index_t;
 #     signal real_addr     : std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0);
 #     signal ra_valid      : std_ulogic;
 #     signal priv_fault    : std_ulogic;
 #     signal access_ok     : std_ulogic;
 #     signal use_previous  : std_ulogic;
-#
+        tlb_req_index = Signal(TLB_SIZE)
+        real_addr     = Signal(REAL_ADDR_BITS)
+        ra_valid      = Signal()
+        priv_fault    = Signal()
+        access_ok     = Signal()
+        use_previous  = Signal()
+
 #     -- Cache RAM interface
 #     type cache_ram_out_t is array(way_t) of cache_row_t;
 #     signal cache_out   : cache_ram_out_t;
-#
+        # Cache RAM interface
+        def CacheRamOut():
+            return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
+
+        cache_out     = CacheRamOut()
+
 #     -- PLRU output interface
 #     type plru_out_t is array(index_t) of
 #      std_ulogic_vector(WAY_BITS-1 downto 0);
 #     signal plru_victim : plru_out_t;
 #     signal replace_way : way_t;
-#
+        # PLRU output interface
+        def PLRUOut():
+            return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
+
+        plru_victim   = PLRUOut()
+        replace_way   = Signal(NUM_WAYS)
+
 #     -- Return the cache line index (tag index) for an address
 #     function get_index(addr: std_ulogic_vector(63 downto 0))
 #      return index_t is
