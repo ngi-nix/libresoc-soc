@@ -76,21 +76,13 @@ class CommonOutputStage(PipeModBase):
 
         comb += is_cmp.eq(op.insn_type == MicrOp.OP_CMP)
         comb += is_cmpeqb.eq(op.insn_type == MicrOp.OP_CMPEQB)
-        # nope - if *processor* mode is 32-bit
-        #with m.If(op.is_32bit):
-        #    comb += msb_test.eq(target[-1] ^ is_cmp) # 64-bit MSB
-        #with m.Else():
-        #    comb += msb_test.eq(target[31] ^ is_cmp) # 32-bit MSB
+
         comb += msb_test.eq(target[-1]) # 64-bit MSB
         comb += is_nzero.eq(target.bool())
-        with m.If(is_cmp): # invert pos/neg tests
-            comb += is_positive.eq(msb_test)
-            comb += is_negative.eq(is_nzero & ~msb_test)
-        with m.Else():
-            comb += is_negative.eq(msb_test)
-            comb += is_positive.eq(is_nzero & ~msb_test)
+        comb += is_negative.eq(msb_test)
+        comb += is_positive.eq(is_nzero & ~msb_test)
 
-        with m.If(is_cmpeqb):
+        with m.If(is_cmpeqb | is_cmp):
             comb += cr0.eq(self.i.cr0.data)
         with m.Else():
             comb += cr0.eq(Cat(so, ~is_nzero, is_positive, is_negative))

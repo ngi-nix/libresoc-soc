@@ -227,6 +227,24 @@ class ALUTestCase(TestAccumulatorBase):
         initial_regs[5] = 0xffffffffaaaaaaaa
         self.add_case(Program(lst, bigendian), initial_regs, {})
 
+    def case_cmplw_microwatt_1(self):
+        """microwatt 1.bin:
+           10d94:   40 20 96 7c     cmplw   cr1,r22,r4
+            gpr: 00000000ffff6dc1 <- r4
+            gpr: 0000000000000000 <- r22
+        """
+
+        lst = ["cmpl 1, 0, 22, 4"]
+        initial_regs = [0] * 32
+        initial_regs[4] = 0xffff6dc1
+        initial_regs[22] = 0
+        XER = 0xe00c0000
+        CR = 0x50759999
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                                initial_sprs = {'XER': XER},
+                                initial_cr = CR)
+
     def case_extsb(self):
         insns = ["extsb", "extsh", "extsw"]
         for i in range(10):

@@ -7,7 +7,7 @@
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
-from nmutil.extend import exts
+from nmutil.extend import exts, extz
 from soc.fu.alu.pipe_data import ALUInputData, ALUOutputData
 from ieee754.part.partsig import PartitionedSignal
 from soc.decoder.power_enums import MicrOp
@@ -39,7 +39,7 @@ class ALUMainStage(PipeModBase):
 
         # convenience variables
         cry_o, o, cr0 = self.o.xer_ca, self.o.o, self.o.cr0
-        ov_o = self.o.xer_ov
+        xer_so_i, ov_o = self.i.xer_so, self.o.xer_ov
         a, b, cry_i, op = self.i.a, self.i.b, self.i.xer_ca, self.i.ctx.op
 
         # get L-field for OP_CMP
@@ -61,8 +61,12 @@ class ALUMainStage(PipeModBase):
         a_i = Signal.like(a)
         b_i = Signal.like(b)
         with m.If(is_32bit):
-            comb += a_i.eq(exts(a, 32, 64))
-            comb += b_i.eq(exts(b, 32, 64))
+            with m.If(op.is_signed):
+                comb += a_i.eq(exts(a, 32, 64))
+                comb += b_i.eq(exts(b, 32, 64))
+            with m.Else():
+                comb += a_i.eq(extz(a, 32, 64))
+                comb += b_i.eq(extz(b, 32, 64))
         with m.Else():
             comb += a_i.eq(a)
             comb += b_i.eq(b)
@@ -83,12 +87,48 @@ class ALUMainStage(PipeModBase):
             #### CMP, CMPL v3.0B p85-86
 
             with m.Case(MicrOp.OP_CMP):
+                a_n = Signal(64) # temporary - inverted a
+                tval = Signal(5)
+                a_lt = Signal()
+                carry_32 = Signal()
+                carry_64 = Signal()
+                zerolo = Signal()
+                zerohi = Signal()
+                msb_a = Signal()
+                msb_b = Signal()
+                newcrf = Signal(4)
+
                 # this is supposed to be inverted (b-a, not a-b)
-                # however we have a trick: instead of adding either 2x 64-bit
-                # MUXes to invert a and b, or messing with a 64-bit output,
-                # swap +ve and -ve test in the *output* stage using an XOR gate
-                comb += o.data.eq(add_o[1:-1])
-                comb += o.ok.eq(0) # use o.data but do *not* actually output
+                comb += a_n.eq(~a) # sigh a gets inverted
+                comb += carry_32.eq(add_o[33] ^ a_n[32] ^ b[32])
+                comb += carry_64.eq(add_o[65])
+
+                comb += zerolo.eq(~((a_n[0:32] ^ b[0:32]).bool()))
+                comb += zerohi.eq(~((a_n[32:64] ^ b[32:64]).bool()))
+
+                with m.If(zerolo & (is_32bit | zerohi)):
+                    # values are equal
+                    comb += tval[2].eq(1)
+                with m.Else():
+                    comb += msb_a.eq(Mux(is_32bit, a_n[31], a_n[63]))
+                    comb += msb_b.eq(Mux(is_32bit, b[31], b[63]))
+                    C0 = Const(0, 1)
+                    with m.If(msb_a != msb_b):
+                        # Subtraction might overflow, but
+                        # comparison is clear from MSB difference.
+                        # for signed, 0 is greater; for unsigned, 1 is greater
+                        comb += tval.eq(Cat(msb_a, msb_b, C0, msb_b, msb_a))
+                    with m.Else():
+                        # Subtraction cannot overflow since MSBs are equal.
+                        # carry = 1 indicates RA is smaller (signed or unsigned)
+                        comb += a_lt.eq(Mux(is_32bit, carry_32, carry_64))
+                        comb += tval.eq(Cat(~a_lt, a_lt, C0, ~a_lt, a_lt))
+                comb += cr0.data[0:2].eq(Cat(xer_so_i[0], tval[2]))
+                with m.If(op.is_signed):
+                    comb += cr0.data[2:4].eq(tval[3:5])
+                with m.Else():
+                    comb += cr0.data[2:4].eq(tval[0:2])
+                comb += cr0.ok.eq(1)
 
             ###################
             #### add v3.0B p67, p69-72
@@ -140,7 +180,7 @@ class ALUMainStage(PipeModBase):
 
         ###### sticky overflow and context, both pass-through #####
 
-        comb += self.o.xer_so.data.eq(self.i.xer_so)
+        comb += self.o.xer_so.data.eq(xer_so_i)
         comb += self.o.ctx.eq(self.i.ctx)
 
         return m
