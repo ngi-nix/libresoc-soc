@@ -79,9 +79,9 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
 class FastRegs(RegFileMem): #RegFileArray):
     """FastRegs
 
-    FAST regfile  - CTR, LR, TAR, SRR1, SRR2
+    FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER
 
-    * QTY 5of 64-bit registers
+    * QTY 6of 64-bit registers
     * 2R1W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
@@ -91,8 +91,9 @@ class FastRegs(RegFileMem): #RegFileArray):
     TAR = 2
     SRR0 = 3
     SRR1 = 4
+    XER = 5 # non-XER bits
     def __init__(self):
-        super().__init__(64, 5)
+        super().__init__(64, 6)
         self.w_ports = {'fast1': self.write_port("dest1"),
                        }
         self.r_ports = {'fast1': self.read_port("src1"),

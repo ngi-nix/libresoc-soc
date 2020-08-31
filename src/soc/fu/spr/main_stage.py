@@ -48,22 +48,23 @@ class SPRMainStage(PipeModBase):
             with m.Case(MicrOp.OP_MTSPR):
                 with m.Switch(spr):
                     # fast SPRs first
-                    with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1):
+                    with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0,
+                                SPR.SRR1, SPR.XER):
                         comb += fast1_o.data.eq(a_i)
                         comb += fast1_o.ok.eq(1)
-                    # XER is constructed
-                    with m.Case(SPR.XER):
-                        # sticky
-                        comb += so_o.data.eq(a_i[63-XER_bits['SO']])
-                        comb += so_o.ok.eq(1)
-                        # overflow
-                        comb += ov_o.data[0].eq(a_i[63-XER_bits['OV']])
-                        comb += ov_o.data[1].eq(a_i[63-XER_bits['OV32']])
-                        comb += ov_o.ok.eq(1)
-                        # carry
-                        comb += ca_o.data[0].eq(a_i[63-XER_bits['CA']])
-                        comb += ca_o.data[1].eq(a_i[63-XER_bits['CA32']])
-                        comb += ca_o.ok.eq(1)
+                        # XER is constructed
+                        with m.If(spr == SPR.XER):
+                            # sticky
+                            comb += so_o.data.eq(a_i[63-XER_bits['SO']])
+                            comb += so_o.ok.eq(1)
+                            # overflow
+                            comb += ov_o.data[0].eq(a_i[63-XER_bits['OV']])
+                            comb += ov_o.data[1].eq(a_i[63-XER_bits['OV32']])
+                            comb += ov_o.ok.eq(1)
+                            # carry
+                            comb += ca_o.data[0].eq(a_i[63-XER_bits['CA']])
+                            comb += ca_o.data[1].eq(a_i[63-XER_bits['CA32']])
+                            comb += ca_o.ok.eq(1)
                     # slow SPRs TODO
 
             # move from SPRs
@@ -71,18 +72,22 @@ class SPRMainStage(PipeModBase):
                 comb += o.ok.eq(1)
                 with m.Switch(spr):
                     # fast SPRs first
-                    with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1):
+                    with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1,
+                                SPR.XER):
                         comb += o.data.eq(fast1_i)
-                    # XER is constructed
-                    with m.Case(SPR.XER):
-                        # sticky
-                        comb += o[63-XER_bits['SO']].eq(so_i)
-                        # overflow
-                        comb += o[63-XER_bits['OV']].eq(ov_i[0])
-                        comb += o[63-XER_bits['OV32']].eq(ov_i[1])
-                        # carry
-                        comb += o[63-XER_bits['CA']].eq(ca_i[0])
-                        comb += o[63-XER_bits['CA32']].eq(ca_i[1])
+                        with m.If(spr == SPR.XER):
+                            # bits 0:31 and 35:43 are treated as reserved
+                            # and return 0s when read using mfxer
+                            comb += o[32:64].eq(0)       # MBS0 bits 0-31
+                            comb += o[63-43:64-35].eq(0) # MSB0 bits 35-43
+                            # sticky
+                            comb += o[63-XER_bits['SO']].eq(so_i)
+                            # overflow
+                            comb += o[63-XER_bits['OV']].eq(ov_i[0])
+                            comb += o[63-XER_bits['OV32']].eq(ov_i[1])
+                            # carry
+                            comb += o[63-XER_bits['CA']].eq(ca_i[0])
+                            comb += o[63-XER_bits['CA32']].eq(ca_i[1])
                     # slow SPRs TODO
 
         comb += self.o.ctx.eq(self.i.ctx)
