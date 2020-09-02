@@ -218,3 +218,29 @@ class LDSTTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                              initial_mem=initial_mem)
 
+    def case_10_load_algebraic_1(self):
+        lst = ["lhax 3, 4, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x5678
+        initial_regs[2] = 0x001c
+        initial_regs[4] = 0x0008
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0008: (0xabcdef0187654321, 8),
+                       0x0020: (0x0000f00f0000ffff, 8),
+                        }
+        self.add_case(Program(lst, bigendian), initial_regs,
+                             initial_mem=initial_mem)
+
+    def case_10_load_algebraic_2(self):
+        lst = ["lhax 3, 4, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x5678
+        initial_regs[2] = 0x001c
+        initial_regs[4] = 0x0008
+        initial_mem = {0x0000: (0x5432123412345678, 8),
+                       0x0008: (0xabcdef0187654321, 8),
+                       0x0020: (0x0000700f0000ffff, 8),
+                        }
+        self.add_case(Program(lst, bigendian), initial_regs,
+                             initial_mem=initial_mem)
+

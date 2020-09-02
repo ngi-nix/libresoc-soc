@@ -506,7 +506,11 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # then check sign-extend
         with m.If(oper_r.sign_extend):
-            comb += ldd_o.eq(exts(revnorev, 32, 64))  # sign-extend
+            # okok really should "if data_len == 4" and so on here
+            with m.If(oper_r.data_len == 2):
+                comb += ldd_o.eq(exts(revnorev, 16, 64))  # sign-extend hword
+            with m.Else():
+                comb += ldd_o.eq(exts(revnorev, 32, 64))  # sign-extend dword
         with m.Else():
             comb += ldd_o.eq(revnorev)
 
