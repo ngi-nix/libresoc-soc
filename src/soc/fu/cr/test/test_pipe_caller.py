@@ -134,6 +134,19 @@ class CRTestCase(TestAccumulatorBase):
         p.assembly = '\n'.join(dis)+'\n'
         self.add_case(p, initial_regs=initial_regs, initial_cr=cr)
 
+    def case_mtocrf_regression_2(self):
+        """microwatt 1.bin regression, zero fxm
+           mtocrf 0,16     14928:   21 09 10 7e     .long 0x7e100921
+        """
+        dis = ["mtocrf 16, 0"]
+        lst = bytes([0x21, 0x09, 0x10, 0x7e]) # 0x7e100921
+        cr = 0x3F089F7F
+        initial_regs = [0] * 32
+        initial_regs[16] = 0x0001C020
+        p = Program(lst, bigendian)
+        p.assembly = '\n'.join(dis)+'\n'
+        self.add_case(p, initial_regs=initial_regs, initial_cr=cr)
+
     def case_mfocrf_1(self):
         lst = [f"mfocrf 2, 1"]
         cr = 0x1234

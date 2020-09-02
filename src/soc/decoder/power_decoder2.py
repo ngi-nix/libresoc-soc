@@ -586,7 +586,10 @@ class DecodeCROut(Elaboratable):
                     with m.If(move_one):
                         # must one-hot the FXM field
                         comb += ppick.i.eq(self.dec.FXM)
-                        comb += self.whole_reg.data.eq(ppick.o)
+                        with m.If(ppick.en_o):
+                            comb += self.whole_reg.data.eq(ppick.o)
+                        with m.Else():
+                            comb += self.whole_reg.data.eq(0b00000001) # CR7
                     with m.Else():
                         comb += self.whole_reg.data.eq(self.dec.FXM)
                 with m.Else():
