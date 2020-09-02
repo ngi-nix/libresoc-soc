@@ -96,10 +96,14 @@ class BranchMainStage(PipeModBase):
 
         # fields for conditional branches (BO and BI are same for BC and BCREG)
         b_fields = self.fields.FormB
-        BO = b_fields.BO[0:-1]
-        BI = b_fields.BI[0:-1][0:2] # CR0-7 selected already in PowerDecode2.
+        BO = b_fields.BO
+        BI = b_fields.BI[0:2] # CR0-7 selected already in PowerDecode2.
 
         cr_bits = Array([cr[3-i] for i in range(4)]) # invert. Because POWER.
+
+        # copy of BO in a signal
+        bo = Signal(5, reset_less=True)
+        comb += bo.eq(BO[0:5])
 
         # The bit of CR selected by BI
         bi = Signal(2, reset_less=True)
@@ -113,8 +117,8 @@ class BranchMainStage(PipeModBase):
 
         # Whether the conditional branch should be taken
         bc_taken = Signal(reset_less=True)
-        with m.If(BO[2]):
-            comb += bc_taken.eq((cr_bit == BO[3]) | BO[4])
+        with m.If(bo[2]):
+            comb += bc_taken.eq((cr_bit == bo[3]) | bo[4])
         with m.Else():
             # decrement the counter and place into output
             ctr_n = Signal(64, reset_less=True)
@@ -127,14 +131,14 @@ class BranchMainStage(PipeModBase):
                 comb += ctr_m.eq(ctr[:32])
             with m.Else():
                 comb += ctr_m.eq(ctr)
-            # check CTR zero/non-zero against BO[1]
-            ctr_zero_bo1 = Signal(reset_less=True) # BO[1] == (ctr==0)
-            comb += ctr_zero_bo1.eq(BO[1] ^ ctr_m.any())
-            with m.If(BO[3:5] == 0b00):
+            # check CTR zero/non-zero against bo[1]
+            ctr_zero_bo1 = Signal(reset_less=True) # bo[1] == (ctr==0)
+            comb += ctr_zero_bo1.eq(bo[1] ^ ctr_n.any())
+            with m.If(bo[3:5] == 0b00):
                 comb += bc_taken.eq(ctr_zero_bo1 & ~cr_bit)
-            with m.Elif(BO[3:5] == 0b01):
+            with m.Elif(bo[3:5] == 0b01):
                 comb += bc_taken.eq(ctr_zero_bo1 & cr_bit)
-            with m.Elif(BO[4] == 1):
+            with m.Elif(bo[4] == 1):
                 comb += bc_taken.eq(ctr_zero_bo1)
 
         ### Main Switch Statement ###

@@ -106,6 +106,30 @@ class BranchTestCase(TestAccumulatorBase):
                               initial_sprs=initial_sprs,
                               initial_cr=cr)
 
+    def case_bc_microwatt_1_regression(self):
+        """bc found to be testing ctr rather than (ctr-1)
+        11fb4:   08 00 49 40     bc      2,4*cr2+gt,0x11fbc
+        cr_file.vhdl:83:13:@136835ns:(report note): Reading CR 33209703
+        """
+        lst = ["bc 2, 9, 8"]
+        initial_regs = [0] * 32
+        cr = 0x33209703
+        self.add_case(Program(lst, bigendian), initial_regs,
+                              initial_cr=cr)
+
+    def case_bc_microwatt_2_regression(self):
+        """modified version, set CTR=1 so that it hits zero in BC
+        """
+        lst = ["bc 2, 9, 8"]
+        initial_regs = [0] * 32
+        cr = 0x33209703
+        ctr = 1
+        initial_sprs = {9: SelectableInt(ctr, 64),
+                        }
+        self.add_case(Program(lst, bigendian), initial_regs,
+                              initial_sprs=initial_sprs,
+                              initial_cr=cr)
+
     def case_ilang(self):
         pspec = BranchPipeSpec(id_wid=2)
         alu = BranchBasePipe(pspec)
