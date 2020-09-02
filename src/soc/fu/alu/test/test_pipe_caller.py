@@ -238,12 +238,35 @@ class ALUTestCase(TestAccumulatorBase):
 
         lst = ["cmpl 6, 0, 17, 10"]
         initial_regs = [0] * 32
-        initial_regs[0x11] = 0xffff6dc1
-        initial_regs[0xa] = 0
+        initial_regs[0x11] = 0x1c026
+        initial_regs[0xa] =  0xFEDF3FFF0001C025
         XER = 0xe00c0000
         CR = 0x35055050
 
         self.add_case(Program(lst, bigendian), initial_regs,
+                                initial_sprs = {'XER': XER},
+                                initial_cr = CR)
+
+    def case_cmpl_microwatt_0_disasm(self):
+        """microwatt 1.bin: disassembled version
+           115b8:   40 50 d1 7c     .long 0x7cd15040 # cmpl 6, 0, 17, 10
+            register_file.vhdl: Reading GPR 11 000000000001C026
+            register_file.vhdl: Reading GPR 0A FEDF3FFF0001C025
+            cr_file.vhdl: Reading CR 35055050
+            cr_file.vhdl: Writing 35055058 to CR mask 01 35055058
+        """
+
+        dis = ["cmpl 6, 0, 17, 10"]
+        lst = bytes([0x40, 0x50, 0xd1, 0x7c]) # 0x7cd15040
+        initial_regs = [0] * 32
+        initial_regs[0x11] = 0x1c026
+        initial_regs[0xa] =  0xFEDF3FFF0001C025
+        XER = 0xe00c0000
+        CR = 0x35055050
+
+        p = Program(lst, bigendian)
+        p.assembly = '\n'.join(dis)+'\n'
+        self.add_case(p, initial_regs,
                                 initial_sprs = {'XER': XER},
                                 initial_cr = CR)
 
