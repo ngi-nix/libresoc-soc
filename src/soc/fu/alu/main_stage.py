@@ -100,7 +100,7 @@ class ALUMainStage(PipeModBase):
 
                 # this is supposed to be inverted (b-a, not a-b)
                 comb += a_n.eq(~a) # sigh a gets inverted
-                comb += carry_32.eq(add_o[33] ^ a_n[32] ^ b[32])
+                comb += carry_32.eq(add_o[33] ^ a[32] ^ b[32])
                 comb += carry_64.eq(add_o[65])
 
                 comb += zerolo.eq(~((a_n[0:32] ^ b[0:32]).bool()))
