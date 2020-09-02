@@ -308,7 +308,7 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         if cpu == "libresoc":
-            self.comb += active_dbg_cr.eq((0x10300 <= pc) & (pc <= 0x12000))
+            self.comb += active_dbg_cr.eq((0x10300 <= pc) & (pc <= 0x12600))
             #self.comb += active_dbg_cr.eq(1)
 
             # get the CR

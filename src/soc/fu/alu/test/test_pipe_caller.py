@@ -288,6 +288,25 @@ class ALUTestCase(TestAccumulatorBase):
                                 initial_sprs = {'XER': XER},
                                 initial_cr = CR)
 
+    def case_cmpli_microwatt(self):
+        """microwatt 1.bin: cmpli
+           123ac:   9c 79 8d 2a     cmpli   cr5,0,r13,31132
+            gpr: 00000000301fc7a7 <- r13
+            cr : 0000000090215393
+            xer: so 1 ca 0 32 0 ov 0 32 0
+
+        """
+
+        lst = ["cmpli 5, 0, 13, 31132"]
+        initial_regs = [0] * 32
+        initial_regs[13] = 0x301fc7a7
+        XER = 0xe00c0000
+        CR = 0x90215393
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                                initial_sprs = {'XER': XER},
+                                initial_cr = CR)
+
     def case_extsb(self):
         insns = ["extsb", "extsh", "extsw"]
         for i in range(10):

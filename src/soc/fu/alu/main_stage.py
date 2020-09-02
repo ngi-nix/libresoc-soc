@@ -60,7 +60,10 @@ class ALUMainStage(PipeModBase):
 
         a_i = Signal.like(a)
         b_i = Signal.like(b)
-        with m.If(is_32bit):
+        with m.If(op.insn_type == MicrOp.OP_CMP): # another temporary hack
+            comb += a_i.eq(a)                     # reaaaally need to move CMP
+            comb += b_i.eq(b)                     # into trap pipeline
+        with m.Elif(is_32bit):
             with m.If(op.is_signed):
                 comb += a_i.eq(exts(a, 32, 64))
                 comb += b_i.eq(exts(b, 32, 64))
