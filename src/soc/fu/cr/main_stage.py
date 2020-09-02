@@ -75,9 +75,9 @@ class CRMainStage(PipeModBase):
                 # instruction. This operation takes in the little CR
                 # bitfields, so these fields need to get truncated to
                 # the least significant 2 bits
-                BT = xl_fields.BT[0:-1]
-                BA = xl_fields.BA[0:-1]
-                BB = xl_fields.BB[0:-1]
+                BT = xl_fields.BT
+                BA = xl_fields.BA
+                BB = xl_fields.BB
                 bt = Signal(2, reset_less=True)
                 ba = Signal(2, reset_less=True)
                 bb = Signal(2, reset_less=True)
@@ -128,7 +128,8 @@ class CRMainStage(PipeModBase):
                 # just like in branch, CR0-7 is incoming into cr_a, we
                 # need to select from the last 2 bits of BC
                 a_fields = self.fields.FormA
-                BC = a_fields.BC[0:2]
+                BC = Signal(2, reset_less=True)
+                comb += BC.eq(a_fields.BC[0:2])
                 cr_bits = Array([cr_a[3-i] for i in range(4)])
 
                 # The bit of (cr_a=CR0-7) selected by BC

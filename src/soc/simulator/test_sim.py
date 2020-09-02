@@ -49,6 +49,7 @@ class GeneralTestCases(FHDLTestCase):
         super().__init__(name)
         self.test_name = name
 
+    @unittest.skip("disable")
     def test_0_litex_bios_ctr_loop(self):
         """
         32a4:   ff ff 63 38     addi    r3,r3,-1
@@ -244,12 +245,61 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [1])
 
+    #@unittest.skip("disable")
     def test_crxor(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
                "addi 3, 0, 0x01ee",
                "mtcrf 0b1111111, 3",
+               "crxor 3, 30, 4",
+               "mfcr 3",
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x01ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    #@unittest.skip("disable")
+    def test_crxor_2(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "crxor 29, 30, 29",
+               "mfcr 3",
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x01ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    #@unittest.skip("disable")
+    def test_crnand(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
                "crnand 3, 30, 4",
+               "mfcr 3",
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x01ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    #@unittest.skip("disable")
+    def test_crnand_2(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "crnand 28, 30, 29",
                "mfcr 3",
                ]
         initial_regs = [0] * 32
@@ -274,13 +324,28 @@ class GeneralTestCases(FHDLTestCase):
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [3, 4])
 
-    @unittest.skip("disable")
+    #@unittest.skip("disable")
     def test_isel_2(self):
         lst = ["addi 1, 0, 0x1004",
                "addi 2, 0, 0x1008",
                "addi 3, 0, 0x01ee",
                "mtcrf 0b1111111, 3",
                "isel 4, 1, 2, 30"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        initial_regs[3] = 0x00ee
+        with Program(lst, bigendian) as program:
+            self.run_tst_program(program, [3, 4])
+
+    @unittest.skip("disable")
+    def test_isel_3(self):
+        lst = ["addi 1, 0, 0x1004",
+               "addi 2, 0, 0x1008",
+               "addi 3, 0, 0x01ee",
+               "mtcrf 0b1111111, 3",
+               "isel 4, 1, 2, 31"
                ]
         initial_regs = [0] * 32
         initial_regs[1] = 0x1004
@@ -363,7 +428,7 @@ class GeneralTestCases(FHDLTestCase):
         lst = ["addi 9, 0, 0x10",  # i = 16
                "addi 9,9,-1",    # i = i - 1
                "cmpi 0,1,9,12",     # compare 9 to value 0, store in CR2
-               "bc 4,0,-8"         # branch if CR2 "test was != 0"
+               "bc 2,0,-8"         # branch if CR2 "test was != 0"
                ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [9], initial_mem={})
@@ -477,7 +542,7 @@ class DecoderBase:
 
     def qemu_register_compare(self, sim, qemu, regs):
         qpc, qxer, qcr = qemu.get_pc(), qemu.get_xer(), qemu.get_cr()
-        sim_cr = sim.cr.get_range().value
+        sim_cr = sim.cr.value
         sim_pc = sim.pc.CIA.value
         sim_xer = sim.spr['XER'].value
         print("qemu pc", hex(qpc))

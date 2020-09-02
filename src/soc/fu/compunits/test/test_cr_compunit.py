@@ -36,7 +36,7 @@ class CRTestRunner(TestRunner):
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg_ok:
             full_cr = res['full_cr']
-            expected_cr = sim.cr.get_range().value
+            expected_cr = sim.cr.value
             print("CR whole: expected %x, actual: %x mask: %x" % \
                 (expected_cr, full_cr, full_cr_mask))
             self.assertEqual(expected_cr & full_cr_mask,

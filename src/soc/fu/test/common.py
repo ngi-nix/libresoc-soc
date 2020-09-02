@@ -181,6 +181,18 @@ class ALUHelpers:
             cridx = yield dec2.e.read_cr1.data
             res['cr_a'] = sim.crl[cridx].get_range().value
 
+    def get_sim_cr_b(res, sim, dec2):
+        cridx_ok = yield dec2.e.read_cr2.ok
+        if cridx_ok:
+            cridx = yield dec2.e.read_cr2.data
+            res['cr_b'] = sim.crl[cridx].get_range().value
+
+    def get_sim_cr_c(res, sim, dec2):
+        cridx_ok = yield dec2.e.read_cr3.ok
+        if cridx_ok:
+            cridx = yield dec2.e.read_cr3.data
+            res['cr_c'] = sim.crl[cridx].get_range().value
+
     def get_sim_int_ra(res, sim, dec2):
         # TODO: immediate RA zero
         reg1_ok = yield dec2.e.read_reg1.ok

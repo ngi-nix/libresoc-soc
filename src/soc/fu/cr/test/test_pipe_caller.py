@@ -97,6 +97,16 @@ class CRTestCase(TestAccumulatorBase):
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
+    def case_cror_regression(self):
+        """another bad hack!
+        """
+        dis = ["cror 28, 5, 11"]
+        lst = bytes([0x83, 0x5b, 0x75, 0x4f]) # 4f855b83
+        cr = 0x35055058
+        p = Program(lst, bigendian)
+        p.assembly = '\n'.join(dis)+'\n'
+        self.add_case(p, initial_cr=cr)
+
     def case_mfocrf_regression(self):
         """bit of a bad hack.  comes from microwatt 1.bin instruction 0x106d0
         as the mask is non-standard, gnu-as barfs.  so we fake it up directly
@@ -136,16 +146,57 @@ class CRTestCase(TestAccumulatorBase):
             cr = random.randint(0, (1 << 32)-1)
             self.add_case(Program(lst, bigendian), initial_cr=cr)
 
+    def case_isel_0(self):
+        lst = [ "isel 4, 1, 2, 31"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        cr= 0x1ee
+        self.add_case(Program(lst, bigendian),
+                      initial_regs=initial_regs, initial_cr=cr)
+
+    def case_isel_1(self):
+        lst = [ "isel 4, 1, 2, 30"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        cr= 0x1ee
+        self.add_case(Program(lst, bigendian),
+                      initial_regs=initial_regs, initial_cr=cr)
+
+    def case_isel_2(self):
+        lst = [ "isel 4, 1, 2, 2"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1004
+        initial_regs[2] = 0x1008
+        cr= 0x1ee
+        self.add_case(Program(lst, bigendian),
+                      initial_regs=initial_regs, initial_cr=cr)
+
+    def case_isel_3(self):
+        lst = [ "isel 1, 2, 3, 13"
+               ]
+        initial_regs = [0] * 32
+        initial_regs[2] = 0x1004
+        initial_regs[3] = 0x1008
+        cr= 0x5d677571b8229f1
+        cr= 0x1b8229f1
+        self.add_case(Program(lst, bigendian),
+                      initial_regs=initial_regs, initial_cr=cr)
+
     def case_isel(self):
         for i in range(20):
             bc = random.randint(0, 31)
             lst = [f"isel 1, 2, 3, {bc}"]
             cr = random.randint(0, (1 << 64)-1)
             initial_regs = [0] * 32
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            initial_regs[3] = random.randint(0, (1 << 64)-1)
-            #initial_regs[2] = i*2
-            #initial_regs[3] = i*2+1
+            #initial_regs[2] = random.randint(0, (1 << 64)-1)
+            #initial_regs[3] = random.randint(0, (1 << 64)-1)
+            initial_regs[2] = i*2+1
+            initial_regs[3] = i*2+2
             self.add_case(Program(lst, bigendian),
                           initial_regs=initial_regs, initial_cr=cr)
 
@@ -178,37 +229,16 @@ def get_cu_inputs(dec2, sim):
     full_cr_mask = mask_extend(full_reg, 8, 4)
 
     # full CR
-    print(sim.cr.get_range().value)
+    print(sim.cr.value)
     if full_reg_ok:
-        res['full_cr'] = sim.cr.get_range().value & full_cr_mask
+        res['full_cr'] = sim.cr.value & full_cr_mask
     else:
-        # CR A
-        cr1_en = yield dec2.e.read_cr1.ok
-        if cr1_en:
-            cr1_sel = yield dec2.e.read_cr1.data
-            res['cr_a'] = sim.crl[cr1_sel].get_range().value
-        cr2_en = yield dec2.e.read_cr2.ok
-        # CR B
-        if cr2_en:
-            cr2_sel = yield dec2.e.read_cr2.data
-            res['cr_b'] = sim.crl[cr2_sel].get_range().value
-        cr3_en = yield dec2.e.read_cr3.ok
-        # CR C
-        if cr3_en:
-            cr3_sel = yield dec2.e.read_cr3.data
-            res['cr_c'] = sim.crl[cr3_sel].get_range().value
+        yield from ALUHelpers.get_sim_cr_a(res, sim, dec2)  # CR A
+        yield from ALUHelpers.get_sim_cr_b(res, sim, dec2)  # CR B
+        yield from ALUHelpers.get_sim_cr_c(res, sim, dec2)  # CR C
 
-    # RA/RC
-    reg1_ok = yield dec2.e.read_reg1.ok
-    if reg1_ok:
-        data1 = yield dec2.e.read_reg1.data
-        res['ra'] = sim.gpr(data1).value
-
-    # RB (or immediate)
-    reg2_ok = yield dec2.e.read_reg2.ok
-    if reg2_ok:
-        data2 = yield dec2.e.read_reg2.data
-        res['rb'] = sim.gpr(data2).value
+    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
+    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
 
     print("get inputs", res)
     return res
@@ -236,14 +266,14 @@ class TestRunner(unittest.TestCase):
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg_ok:
             full_cr = yield alu.n.data_o.full_cr.data & full_cr_mask
-            expected_cr = simulator.cr.get_range().value
+            expected_cr = simulator.cr.value
             print("CR whole: expected %x, actual: %x mask: %x" % \
                 (expected_cr, full_cr, full_cr_mask))
             # HACK: only look at the bits that we expected to change
             self.assertEqual(expected_cr & full_cr_mask, full_cr, code)
         elif cr_en:
             cr_sel = yield dec2.e.write_cr.data
-            expected_cr = simulator.cr.get_range().value
+            expected_cr = simulator.cr.value
             print(f"CR whole: {expected_cr:x}, sel {cr_sel}")
             expected_cr = simulator.crl[cr_sel].get_range().value
             real_cr = yield alu.n.data_o.cr.data

@@ -314,8 +314,9 @@ class ISACaller:
         # 3.2.3 p46 p232 VRSAVE (actually SPR #256)
 
         # create CR then allow portions of it to be "selectable" (below)
-        self._cr = SelectableInt(initial_cr, 64)  # underlying reg
-        self.cr = FieldSelectableInt(self._cr, list(range(32, 64)))
+        #rev_cr = int('{:016b}'.format(initial_cr)[::-1], 2)
+        self.cr = SelectableInt(initial_cr, 64)  # underlying reg
+        #self.cr = FieldSelectableInt(self._cr, list(range(32, 64)))
 
         # "undefined", just set to variable-bit-width int (use exts "max")
         self.undefined = SelectableInt(0, 256)  # TODO, not hard-code 256!
@@ -341,7 +342,7 @@ class ISACaller:
         # field-selectable versions of Condition Register TODO check bitranges?
         self.crl = []
         for i in range(8):
-            bits = tuple(range(i*4, (i+1)*4))  # errr... maybe?
+            bits = tuple(range(i*4+32, (i+1)*4+32))  # errr... maybe?
             _cr = FieldSelectableInt(self.cr, bits)
             self.crl.append(_cr)
             self.namespace["CR%d" % i] = _cr
@@ -396,7 +397,10 @@ class ISACaller:
             else:
                 sig = getattr(fields, name)
             val = yield sig
-            if name in ['BF', 'BFA']:
+            # these are all opcode fields involved in index-selection of CR,
+            # and need to do "standard" arithmetic.  CR[BA+32] for example
+            # would, if using SelectableInt, only be 5-bit.
+            if name in ['BF', 'BFA', 'BC', 'BA', 'BB', 'BT']:
                 self.namespace[name] = val
             else:
                 self.namespace[name] = SelectableInt(val, sig.width)

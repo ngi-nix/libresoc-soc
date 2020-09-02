@@ -25,7 +25,7 @@ import ast
 
 def Assign(autoassign, assignname, left, right, iea_mode):
     names = []
-    print("Assign", left, right)
+    print("Assign", assignname, left, right)
     if isinstance(left, ast.Name):
         # Single assignment on left
         # XXX when doing IntClass, which will have an "eq" function,
@@ -205,6 +205,9 @@ def apply_trailer(atom, trailer):
             idx = subs[0]
         else:
             idx = ast.Slice(subs[0], subs[1], None)
+        #if isinstance(atom, ast.Name) and atom.id == 'CR':
+            #atom.id = 'CR' # bad hack
+            #print ("apply_trailer Subscript", atom.id, idx)
         return ast.Subscript(atom, idx, ast.Load())
 
 ##########   Parser (tokens -> AST) ######
