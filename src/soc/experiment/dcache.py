@@ -370,17 +370,6 @@ class DCache(Elaboratable):
         tagset   = TLBWayTags()
         pteset   = TLBWayPtes()
 
-        comb += tlbie
-        comb += tlbwe
-        comb += repl_way
-        comb += eatag
-        comb += tagset
-        comb += pteset
-
-    #     begin
-    #         if rising_edge(clk) then
-    #             tlbie := r0_valid and r0.tlbie;
-    #             tlbwe := r0_valid and r0.tlbldoi;
         comb += tlbie.eq(r0_valid & r0.tlbie)
         comb += tlbwe.eq(r0_valid & r0.tlbldoi)
 
@@ -406,70 +395,30 @@ class DCache(Elaboratable):
             sync += dtlb_ptes[tlb_req_index].eq(pteset)
             sync += dtlb_valid_bits[tlb_req_index][repl_way].eq(1)
 
-#     -- Generate PLRUs
-#     maybe_plrus: if NUM_WAYS > 1 generate
     # Generate PLRUs
     def maybe_plrus(self, r1):
 
         comb = m.d.comb
         sync = m.d.sync
 
-#     begin
-        # TODO learn translation of generate into nmgien @lkcl
-# 	plrus: for i in 0 to NUM_LINES-1 generate
         for i in range(NUM_LINES):
-# 	    -- PLRU interface
-# 	    signal plru_acc    : std_ulogic_vector(WAY_BITS-1 downto 0);
-# 	    signal plru_acc_en : std_ulogic;
-# 	    signal plru_out    : std_ulogic_vector(WAY_BITS-1 downto 0);
-            plru        = PLRU(WAY_BITS)
-            plru_acc    = Signal(WAY_BITS)
+            # PLRU interface
+            plru        = PLRU(TLB_WAY_BITS)
+            setattr(m.submodules, "plru%d" % i, plru)
+            plru_acc    = Signal(TLB_WAY_BITS)
             plru_acc_en = Signal()
-            plru_out    = Signal(WAY_BITS)
-#
-# 	begin
-        # TODO learn tranlation of entity, generic map, port map in
-        # nmigen @lkcl
-# 	    plru : entity work.plru
-# 		generic map (
-# 		    BITS => WAY_BITS
-# 		    )
-# 		port map (
-# 		    clk => clk,
-# 		    rst => rst,
-# 		    acc => plru_acc,
-# 		    acc_en => plru_acc_en,
-# 		    lru => plru_out
-# 		    );
+            plru_out    = Signal(TLB_WAY_BITS)
+
             comb += plru.acc.eq(plru_acc)
             comb += plru.acc_en.eq(plru_acc_en)
             comb += plru.lru.eq(plru_out)
 
-# 	    process(all)
-# 	    begin
-# 		-- PLRU interface
-# 		if r1.hit_index = i then
-            # PLRU interface
             with m.If(r1.hit_index == i):
-# 		    plru_acc_en <= r1.cache_hit;
                 comb += plru_acc_en.eq(r1.cache_hit)
-# 		else
-            with m.Else():
-# 	    	    plru_acc_en <= '0';
-                comb += plru_acc_en.eq(0)
-# 		end if;
-# 		plru_acc <= std_ulogic_vector(to_unsigned(
-#                            r1.hit_way, WAY_BITS
-#                           ));
-# 		plru_victim(i) <= plru_out;
+
             comb += plru_acc.eq(r1.hit_way)
             comb += plru_victim[i].eq(plru_out)
-# 	    end process;
-# 	end generate;
-#     end generate;
 
-#     -- Cache tag RAM read port
-#     cache_tag_read : process(clk)
     # Cache tag RAM read port
     def cache_tag_read(self, r0_stall, req_index, m_in, d_in,
                        cache_tag_set, cache_tags):
@@ -477,32 +426,15 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#         variable index : index_t;
-        index = Signal(NUM_LINES)
+        index = Signal(INDEX_BITS)
 
-        comb += index
-
-#     begin
-#         if rising_edge(clk) then
-#             if r0_stall = '1' then
         with m.If(r0_stall):
-#                 index := req_index;
-            sync += index.eq(req_index)
-
-#             elsif m_in.valid = '1' then
+            comb += index.eq(req_index)
         with m.Elif(m_in.valid):
-#                 index := get_index(m_in.addr);
-            sync += index.eq(get_index(m_in.addr))
-
-#             else
+            comb += index.eq(get_index(m_in.addr))
         with m.Else():
-#                 index := get_index(d_in.addr);
-            sync += index.eq(get_index(d_in.addr))
-#             end if;
-#             cache_tag_set <= cache_tags(index);
+            comb += index.eq(get_index(d_in.addr))
         sync += cache_tag_set.eq(cache_tags[index])
-#         end if;
-#     end process;
 
     # Cache request parsing and hit detection
     def dcache_request(self, r0, ra, req_index, req_row, req_tag,
@@ -515,26 +447,6 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#         variable is_hit  : std_ulogic;
-#         variable hit_way : way_t;
-#         variable op      : op_t;
-#         variable opsel   : std_ulogic_vector(2 downto 0);
-#         variable go      : std_ulogic;
-#         variable nc      : std_ulogic;
-#         variable s_hit   : std_ulogic;
-#         variable s_tag   : cache_tag_t;
-#         variable s_pte   : tlb_pte_t;
-#         variable s_ra    : std_ulogic_vector(
-#                             REAL_ADDR_BITS - 1 downto 0
-#                            );
-#         variable hit_set     : std_ulogic_vector(
-#                                 TLB_NUM_WAYS - 1 downto 0
-#                                );
-#         variable hit_way_set : hit_way_set_t;
-#         variable rel_matches : std_ulogic_vector(
-#                                 TLB_NUM_WAYS - 1 downto 0
-#                                );
-        rel_match   = Signal()
         is_hit      = Signal()
         hit_way     = Signal(WAY_BITS)
         op          = Op()
@@ -550,14 +462,6 @@ class DCache(Elaboratable):
         rel_matches = Signal(TLB_NUM_WAYS)
         rel_match   = Signal()
 
-#     begin
-# 	  -- Extract line, row and tag from request
-#         req_index <= get_index(r0.req.addr);
-#         req_row <= get_row(r0.req.addr);
-#         req_tag <= get_tag(ra);
-#
-#         go := r0_valid and not (r0.tlbie or r0.tlbld)
-#               and not r1.ls_error;
         # Extract line, row and tag from request
         comb += req_index.eq(get_index(r0.req.addr))
         comb += req_row.eq(get_row(r0.req.addr))
@@ -565,118 +469,58 @@ class DCache(Elaboratable):
 
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
 
-#         hit_way := 0;
-#         is_hit := '0';
-#         rel_match := '0';
         # Test if pending request is a hit on any way
         # In order to make timing in virtual mode,
         # when we are using the TLB, we compare each
         # way with each of the real addresses from each way of
         # the TLB, and then decide later which match to use.
 
-#         if r0.req.virt_mode = '1' then
         with m.If(r0.req.virt_mode):
-#             rel_matches := (others => '0');
             comb += rel_matches.eq(0)
-#             for j in tlb_way_t loop
             for j in range(TLB_NUM_WAYS):
-#                 hit_way_set(j) := 0;
-#                 s_hit := '0';
-#                 s_pte := read_tlb_pte(j, tlb_pte_way);
-#                 s_ra  := s_pte(REAL_ADDR_BITS - 1 downto TLB_LG_PGSZ)
-#                          & r0.req.addr(TLB_LG_PGSZ - 1 downto 0);
-#                 s_tag := get_tag(s_ra);
-                comb += hit_way_set[j].eq(0)
-                comb += s_hit.eq(0)
                 comb += s_pte.eq(read_tlb_pte(j, tlb_pte_way))
-                comb += s_ra.eq(Cat(
-                         r0.req.addr[0:TLB_LG_PGSZ],
-                         s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]
-                        ))
+                comb += s_ra.eq(Cat(r0.req.addr[0:TLB_LG_PGSZ],
+                                    s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
                 comb += s_tag.eq(get_tag(s_ra))
 
-#                 for i in way_t loop
                 for i in range(NUM_WAYS):
-#                     if go = '1' and cache_valids(req_index)(i) = '1'
-#                      and read_tag(i, cache_tag_set) = s_tag
-#                      and tlb_valid_way(j) = '1' then
                     with m.If(go & cache_valid_bits[req_index][i] &
                               read_tag(i, cache_tag_set) == s_tag
                               & tlb_valid_way[j]):
-#                         hit_way_set(j) := i;
-#                         s_hit := '1';
                         comb += hit_way_set[j].eq(i)
                         comb += s_hit.eq(1)
-#                     end if;
-#                 end loop;
-#                 hit_set(j) := s_hit;
                 comb += hit_set[j].eq(s_hit)
-#                 if s_tag = r1.reload_tag then
                 with m.If(s_tag == r1.reload_tag):
-#                     rel_matches(j) := '1';
                     comb += rel_matches[j].eq(1)
-#                 end if;
-#             end loop;
-#             if tlb_hit = '1' then
             with m.If(tlb_hit):
-#                 is_hit := hit_set(tlb_hit_way);
-#                 hit_way := hit_way_set(tlb_hit_way);
-#                 rel_match := rel_matches(tlb_hit_way);
                 comb += is_hit.eq(hit_set[tlb_hit_way])
                 comb += hit_way.eq(hit_way_set[tlb_hit_way])
                 comb += rel_match.eq(rel_matches[tlb_hit_way])
-#             end if;
-#         else
         with m.Else():
-#             s_tag := get_tag(r0.req.addr);
             comb += s_tag.eq(get_tag(r0.req.addr))
-#             for i in way_t loop
             for i in range(NUM_WAYS):
-#                 if go = '1' and cache_valids(req_index)(i) = '1' and
-#                     read_tag(i, cache_tag_set) = s_tag then
                 with m.If(go & cache_valid_bits[req_index][i] &
                           read_tag(i, cache_tag_set) == s_tag):
-#                     hit_way := i;
-#                     is_hit := '1';
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
-#                 end if;
-#             end loop;
-#             if s_tag = r1.reload_tag then
             with m.If(s_tag == r1.reload_tag):
-#                 rel_match := '1';
                 comb += rel_match.eq(1)
-#             end if;
-#         end if;
-#         req_same_tag <= rel_match;
         comb += req_same_tag.eq(rel_match)
 
-#         if r1.state = RELOAD_WAIT_ACK and req_index = r1.store_index
-#          and rel_match = '1' then
         # See if the request matches the line currently being reloaded
-        with m.If(r1.state == State.RELOAD_WAIT_ACK & req_index ==
-                  r1.store_index & rel_match):
+        with m.If((r1.state == State.RELOAD_WAIT_ACK) &
+                  (req_index == r1.store_index) & rel_match):
             # For a store, consider this a hit even if the row isn't
             # valid since it will be by the time we perform the store.
             # For a load, check the appropriate row valid bit.
-#             is_hit :=
-#              not r0.req.load
-#               or r1.rows_valid(req_row mod ROW_PER_LINE);
-#             hit_way := replace_way;
-            comb += is_hit.eq(~r0.req.load
-                              | r1.rows_valid[req_row % ROW_PER_LINE]
-                             )
+            valid = r1.rows_valid[req_row % ROW_PER_LINE]
+            comb += is_hit.eq(~r0.req.load | valid)
             comb += hit_way.eq(replace_way)
-#         end if;
 
-#         -- Whether to use forwarded data for a load or not
         # Whether to use forwarded data for a load or not
-#         use_forward1_next <= '0';
         comb += use_forward1_next.eq(0)
-#         if get_row(r1.req.real_addr) = req_row
-#          and r1.req.hit_way = hit_way then
-        with m.If(get_row(r1.req.real_addr) == req_row
-                  & r1.req.hit_way == hit_way)
+        with m.If((get_row(r1.req.real_addr) == req_row)
+                  & (r1.req.hit_way == hit_way))
             # Only need to consider r1.write_bram here, since if we
             # are writing refill data here, then we don't have a
             # cache hit this cycle on the line being refilled.
@@ -685,115 +529,60 @@ class DCache(Elaboratable):
             # contents of the victim line, since it is a couple of
             # cycles after the refill starts before we see the updated
             # cache tag. In that case we don't use the bypass.)
-#             use_forward1_next <= r1.write_bram;
             comb += use_forward1_next.eq(r1.write_bram)
-#         end if;
-#         use_forward2_next <= '0';
         comb += use_forward2_next.eq(0)
-#         if r1.forward_row1 = req_row
-#          and r1.forward_way1 = hit_way then
-        with m.If(r1.forward_row1 == req_row
-                  & r1.forward_way1 == hit_way):
-#             use_forward2_next <= r1.forward_valid1;
+        with m.If((r1.forward_row1 == req_row) & (r1.forward_way1 == hit_way)):
             comb += use_forward2_next.eq(r1.forward_valid1)
-#         end if;
 
         # The way that matched on a hit
-# 	    req_hit_way <= hit_way;
         comb += req_hit_way.eq(hit_way)
 
         # The way to replace on a miss
-#         if r1.write_tag = '1' then
         with m.If(r1.write_tag):
-#             replace_way <= to_integer(unsigned(
-#                             plru_victim(r1.store_index)
-#                            ));
             replace_way.eq(plru_victim[r1.store_index])
-#         else
         with m.Else():
-#             replace_way <= r1.store_way;
             comb += replace_way.eq(r1.store_way)
-#         end if;
 
         # work out whether we have permission for this access
         # NB we don't yet implement AMR, thus no KUAP
-#         rc_ok <= perm_attr.reference and
-#                  (r0.req.load or perm_attr.changed);
-#         perm_ok <= (r0.req.priv_mode or not perm_attr.priv) and
-#                    (perm_attr.wr_perm or (r0.req.load
-#                    and perm_attr.rd_perm));
-#         access_ok <= valid_ra and perm_ok and rc_ok;
-        comb += rc_ok.eq(
-                 perm_attr.reference
-                 & (r0.req.load | perm_attr.changed)
+        comb += rc_ok.eq( perm_attr.reference
+                         & (r0.req.load | perm_attr.changed)
                 )
         comb += perm_ok.eq((r0.req.prive_mode | ~perm_attr.priv)
                            & perm_attr.wr_perm
                            | (r0.req.load & perm_attr.rd_perm)
                           )
         comb += access_ok.eq(valid_ra & perm_ok & rc_ok)
-#         nc := r0.req.nc or perm_attr.nocache;
-#         op := OP_NONE;
         # Combine the request and cache hit status to decide what
         # operation needs to be done
         comb += nc.eq(r0.req.nc | perm_attr.nocache)
         comb += op.eq(Op.OP_NONE)
-#         if go = '1' then
         with m.If(go):
-#             if access_ok = '0' then
             with m.If(~access_ok):
-#                 op := OP_BAD;
                 comb += op.eq(Op.OP_BAD)
-#             elsif cancel_store = '1' then
             with m.Elif(cancel_store):
-#                 op := OP_STCX_FAIL;
                 comb += op.eq(Op.OP_STCX_FAIL)
-#             else
             with m.Else():
-#                 opsel := r0.req.load & nc & is_hit;
                 comb += opsel.eq(Cat(is_hit, nc, r0.req.load))
-#                 case opsel is
                 with m.Switch(opsel):
-#                     when "101" => op := OP_LOAD_HIT;
-#                     when "100" => op := OP_LOAD_MISS;
-#                     when "110" => op := OP_LOAD_NC;
-#                     when "001" => op := OP_STORE_HIT;
-#                     when "000" => op := OP_STORE_MISS;
-#                     when "010" => op := OP_STORE_MISS;
-#                     when "011" => op := OP_BAD;
-#                     when "111" => op := OP_BAD;
-#                     when others => op := OP_NONE;
                     with m.Case(Const(0b101, 3)):
                         comb += op.eq(Op.OP_LOAD_HIT)
-
                     with m.Case(Cosnt(0b100, 3)):
                         comb += op.eq(Op.OP_LOAD_MISS)
-
                     with m.Case(Const(0b110, 3)):
                         comb += op.eq(Op.OP_LOAD_NC)
-
                     with m.Case(Const(0b001, 3)):
                         comb += op.eq(Op.OP_STORE_HIT)
-
                     with m.Case(Const(0b000, 3)):
                         comb += op.eq(Op.OP_STORE_MISS)
-
                     with m.Case(Const(0b010, 3)):
                         comb += op.eq(Op.OP_STORE_MISS)
-
                     with m.Case(Const(0b011, 3)):
                         comb += op.eq(Op.OP_BAD)
-
                     with m.Case(Const(0b111, 3)):
                         comb += op.eq(Op.OP_BAD)
-
                     with m.Default():
                         comb += op.eq(Op.OP_NONE)
-#                 end case;
-#             end if;
-#         end if;
-# 	req_op <= op;
-#         req_go <= go;
         comb += req_op.eq(op)
         comb += req_go.eq(go)
 
@@ -801,23 +590,13 @@ class DCache(Elaboratable):
         # in the cases where we need to read the cache data BRAM.
         # If we're stalling then we need to keep reading the last
         # row requested.
-#         if r0_stall = '0' then
         with m.If(~r0_stall):
-#             if m_in.valid = '1' then
             with m.If(m_in.valid):
-#                 early_req_row <= get_row(m_in.addr);
                 comb += early_req_row.eq(get_row(m_in.addr))
-#             else
             with m.Else():
-#                 early_req_row <= get_row(d_in.addr);
                 comb += early_req_row.eq(get_row(d_in.addr))
-#             end if;
-#         else
         with m.Else():
-#             early_req_row <= req_row;
             comb += early_req_row.eq(req_row)
-#         end if;
-#     end process;
 
     # Handle load-with-reservation and store-conditional instructions
     def reservation_comb(self, cancel_store, set_rsrv, clear_rsrv,
@@ -826,39 +605,16 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#     begin
-#         cancel_store <= '0';
-#         set_rsrv <= '0';
-#         clear_rsrv <= '0';
-#         if r0_valid = '1' and r0.req.reserve = '1' then
         with m.If(r0_valid & r0.req.reserve):
 
-#             -- XXX generate alignment interrupt if address
-#             -- is not aligned XXX or if r0.req.nc = '1'
-#             if r0.req.load = '1' then
             # XXX generate alignment interrupt if address
             # is not aligned XXX or if r0.req.nc = '1'
             with m.If(r0.req.load):
-#                 -- load with reservation
-#                 set_rsrv <= '1';
-                # load with reservation
-                comb += set_rsrv(1)
-#             else
+                comb += set_rsrv(1) # load with reservation
             with m.Else():
-#                 -- store conditional
-#                 clear_rsrv <= '1';
-                # store conditional
-                comb += clear_rsrv.eq(1)
-#                 if reservation.valid = '0' or r0.req.addr(63
-#                  downto LINE_OFF_BITS) /= reservation.addr then
-                with m.If(~reservation.valid
-                          | r0.req.addr[LINE_OFF_BITS:64]):
-#                     cancel_store <= '1';
+                comb += clear_rsrv.eq(1) # store conditional
+                with m.If(~reservation.valid | r0.req.addr[LINE_OFF_BITS:64]):
                     comb += cancel_store.eq(1)
-#                 end if;
-#             end if;
-#         end if;
-#     end process;
 
     def reservation_reg(self, r0_valid, access_ok, clear_rsrv,
                         reservation, r0):
@@ -866,30 +622,12 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#     begin
-#         if rising_edge(clk) then
-#             if rst = '1' then
-#                 reservation.valid <= '0';
-            # TODO understand how resets work in nmigen
-#             elsif r0_valid = '1' and access_ok = '1' then
-            with m.Elif(r0_valid & access_ok):
-#                 if clear_rsrv = '1' then
-                with m.If(clear_rsrv):
-#                     reservation.valid <= '0';
-                    sync += reservation.valid.ea(0)
-#                 elsif set_rsrv = '1' then
-                with m.Elif(set_rsrv):
-#                     reservation.valid <= '1';
-#                     reservation.addr <=
-#                      r0.req.addr(63 downto LINE_OFF_BITS);
-                    sync += reservation.valid.eq(1)
-                    sync += reservation.addr.eq(
-                             r0.req.addr[LINE_OFF_BITS:64]
-                            )
-#                 end if;
-#             end if;
-#         end if;
-#     end process;
+        with m.If(r0_valid & access_ok):
+            with m.If(clear_rsrv):
+                sync += reservation.valid.eq(0)
+            with m.Elif(set_rsrv):
+                sync += reservation.valid.eq(1)
+                sync += reservation.addr.eq(r0.req.addr[LINE_OFF_BITS:64])
 
     # Return data for loads & completion control logic
     def writeback_control(self, r1, cache_out, d_out, m_out):
@@ -897,83 +635,37 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-#         variable data_out : std_ulogic_vector(63 downto 0);
-#         variable data_fwd : std_ulogic_vector(63 downto 0);
-#         variable j        : integer;
         data_out = Signal(64)
         data_fwd = Signal(64)
         j        = Signal()
 
-#     begin
-#         -- Use the bypass if are reading the row that was
-#         -- written 1 or 2 cycles ago, including for the
-#         -- slow_valid = 1 case (i.e. completing a load
-#         -- miss or a non-cacheable load).
-#         if r1.use_forward1 = '1' then
         # Use the bypass if are reading the row that was
         # written 1 or 2 cycles ago, including for the
         # slow_valid = 1 case (i.e. completing a load
         # miss or a non-cacheable load).
         with m.If(r1.use_forward1):
-#             data_fwd := r1.forward_data1;
             comb += data_fwd.eq(r1.forward_data1)
-#         else
         with m.Else():
-#             data_fwd := r1.forward_data2;
             comb += data_fwd.eq(r1.forward_data2)
-#         end if;
 
-#         data_out := cache_out(r1.hit_way);
         comb += data_out.eq(cache_out[r1.hit_way])
 
-#         for i in 0 to 7 loop
         for i in range(8):
-#             j := i * 8;
-            comb += i * 8
-
-#             if r1.forward_sel(i) = '1' then
             with m.If(r1.forward_sel[i]):
-#                 data_out(j + 7 downto j) := data_fwd(j + 7 downto j);
-                comb += data_out[j:j+8].eq(data_fwd[j:j+8])
-#             end if;
-#         end loop;
+                dsel = data_fwd.word_select(i, 8)
+                comb += data_out.word_select(i, 8).eq(dsel)
 
-# 	  d_out.valid <= r1.ls_valid;
-# 	  d_out.data <= data_out;
-#         d_out.store_done <= not r1.stcx_fail;
-#         d_out.error <= r1.ls_error;
-#         d_out.cache_paradox <= r1.cache_paradox;
         comb += d_out.valid.eq(r1.ls_valid)
         comb += d_out.data.eq(data_out)
         comb += d_out.store_done.eq(~r1.stcx_fail)
         comb += d_out.error.eq(r1.ls_error)
         comb += d_out.cache_paradox.eq(r1.cache_paradox)
 
-#         -- Outputs to MMU
-#         m_out.done <= r1.mmu_done;
-#         m_out.err <= r1.mmu_error;
-#         m_out.data <= data_out;
+        # Outputs to MMU
         comb += m_out.done.eq(r1.mmu_done)
         comb += m_out.err.eq(r1.mmu_error)
         comb += m_out.data.eq(data_out)
 
-# 	  -- We have a valid load or store hit or we just completed
-#         -- a slow op such as a load miss, a NC load or a store
-# 	  --
-# 	  -- Note: the load hit is delayed by one cycle. However it
-#         -- can still not collide with r.slow_valid (well unless I
-#         -- miscalculated) because slow_valid can only be set on a
-#         -- subsequent request and not on its first cycle (the state
-#         -- machine must have advanced), which makes slow_valid
-#         -- at least 2 cycles from the previous hit_load_valid.
-#
-# 	  -- Sanity: Only one of these must be set in any given cycle
-# 	  assert (r1.slow_valid and r1.stcx_fail) /= '1'
-#          report "unexpected slow_valid collision with stcx_fail"
-# 	   severity FAILURE;
-# 	  assert ((r1.slow_valid or r1.stcx_fail) and r1.hit_load_valid)
-#          /= '1' report "unexpected hit_load_delayed collision with
-#          slow_valid" severity FAILURE;
         # We have a valid load or store hit or we just completed
         # a slow op such as a load miss, a NC load or a store
         #
@@ -985,84 +677,49 @@ class DCache(Elaboratable):
         # at least 2 cycles from the previous hit_load_valid.
 
         # Sanity: Only one of these must be set in any given cycle
-        assert (r1.slow_valid & r1.stcx_fail) != 1 "unexpected" \
-         "slow_valid collision with stcx_fail -!- severity FAILURE"
 
-        assert ((r1.slow_valid | r1.stcx_fail) | r1.hit_load_valid) != 1
-         "unexpected hit_load_delayed collision with slow_valid -!-" \
-         "severity FAILURE"
+        if False: # TODO: need Display to get this to work
+            assert (r1.slow_valid & r1.stcx_fail) != 1 "unexpected" \
+             "slow_valid collision with stcx_fail -!- severity FAILURE"
 
-#         if r1.mmu_req = '0' then
+            assert ((r1.slow_valid | r1.stcx_fail) | r1.hit_load_valid) != 1
+             "unexpected hit_load_delayed collision with slow_valid -!-" \
+             "severity FAILURE"
+
         with m.If(~r1._mmu_req):
-#             -- Request came from loadstore1...
-#             -- Load hit case is the standard path
-#             if r1.hit_load_valid = '1' then
             # Request came from loadstore1...
             # Load hit case is the standard path
             with m.If(r1.hit_load_valid):
 #                 report
 #                  "completing load hit data=" & to_hstring(data_out);
-                print(f"completing load hit data={data_out}")
-#             end if;
+                #Display(f"completing load hit data={data_out}")
+                pass
 
-#             -- error cases complete without stalling
-#             if r1.ls_error = '1' then
             # error cases complete without stalling
             with m.If(r1.ls_error):
-#                 report "completing ld/st with error";
-                print("completing ld/st with error")
-#             end if;
+                # Display("completing ld/st with error")
+                pass
 
-#             -- Slow ops (load miss, NC, stores)
-#             if r1.slow_valid = '1' then
             # Slow ops (load miss, NC, stores)
             with m.If(r1.slow_valid):
-#                 report
-#                  "completing store or load miss data="
-#                   & to_hstring(data_out);
-                print(f"completing store or load miss data={data_out}")
-#             end if;
+                #Display(f"completing store or load miss data={data_out}")
+                pass
 
-#         else
         with m.Else():
-#             -- Request came from MMU
-#             if r1.hit_load_valid = '1' then
             # Request came from MMU
             with m.If(r1.hit_load_valid):
-#                 report "completing load hit to MMU, data="
-#                  & to_hstring(m_out.data);
-                print(f"completing load hit to MMU, data={m_out.data}")
-#             end if;
-#
-#             -- error cases complete without stalling
-#             if r1.mmu_error = '1' then
-#                 report "completing MMU ld with error";
+                # Display(f"completing load hit to MMU, data={m_out.data}")
+                pass
             # error cases complete without stalling
             with m.If(r1.mmu_error):
-                print("combpleting MMU ld with error")
-#             end if;
-#
-#             -- Slow ops (i.e. load miss)
-#             if r1.slow_valid = '1' then
+                #Display("combpleting MMU ld with error")
+                pass
+
             # Slow ops (i.e. load miss)
             with m.If(r1.slow_valid):
-#                 report "completing MMU load miss, data="
-#                  & to_hstring(m_out.data);
-                print("completing MMU load miss, data={m_out.data}")
-#             end if;
-#         end if;
-#     end process;
+                #Display("completing MMU load miss, data={m_out.data}")
+                pass
 
-#     -- Generate a cache RAM for each way. This handles the normal
-#     -- reads, writes from reloads and the special store-hit update
-#     -- path as well.
-#     --
-#     -- Note: the BRAMs have an extra read buffer, meaning the output
-#     -- is pipelined an extra cycle. This differs from the
-#     -- icache. The writeback logic needs to take that into
-#     -- account by using 1-cycle delayed signals for load hits.
-#     --
-#     rams: for i in 0 to NUM_WAYS-1 generate
     # Generate a cache RAM for each way. This handles the normal
     # reads, writes from reloads and the special store-hit update
     # path as well.

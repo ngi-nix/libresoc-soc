@@ -51,7 +51,7 @@ class LibreSoCSim(SoCSDRAM):
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
                     "tests/3.bin"
         #ram_fname = "/tmp/test.bin"
-        #ram_fname = None
+        ram_fname = None
 
         ram_init = []
         if ram_fname:
