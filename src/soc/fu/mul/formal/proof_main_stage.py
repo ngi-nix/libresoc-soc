@@ -1,7 +1,7 @@
 # Proof of correctness for multiplier
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
 # Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
-# Copyright (C) 2020 Samuel Falvo
+# Copyright (C) 2020 Samuel A. Falvo II <kc5tja@arrl.net>
 
 """Formal Correctness Proof for POWER9 multiplier
 
