@@ -49,7 +49,7 @@ class LibreSoCSim(SoCSDRAM):
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-                    "tests/1.bin"
+                    "tests/3.bin"
         #ram_fname = "/tmp/test.bin"
         #ram_fname = None
 
@@ -308,8 +308,8 @@ class LibreSoCSim(SoCSDRAM):
         )
 
         if cpu == "libresoc":
-            self.comb += active_dbg_cr.eq((0x10300 <= pc) & (pc <= 0x12600))
-            #self.comb += active_dbg_cr.eq(1)
+            #self.comb += active_dbg_cr.eq((0x10300 <= pc) & (pc <= 0x12600))
+            self.comb += active_dbg_cr.eq(0)
 
             # get the CR
             self.sync += If(active_dbg_cr & (dmicount == 16),
