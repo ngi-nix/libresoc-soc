@@ -49,6 +49,7 @@ class TestIssuer(Elaboratable):
         if self.xics:
             self.xics_icp = XICS_ICP()
             self.xics_ics = XICS_ICS()
+            self.int_level_i = self.xics_ics.int_level_i
 
         # main instruction core
         self.core = core = NonProductionCore(pspec)
@@ -325,6 +326,7 @@ class TestIssuer(Elaboratable):
         if self.xics:
             ports += list(self.xics_icp.bus.fields.values())
             ports += list(self.xics_ics.bus.fields.values())
+            ports.append(self.int_level_i)
 
         return ports
 
