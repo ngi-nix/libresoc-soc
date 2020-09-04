@@ -52,6 +52,8 @@ class LibreSoCSim(SoCSDRAM):
                     "tests/3.bin"
         #ram_fname = "/tmp/test.bin"
         #ram_fname = None
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "micropython/firmware.bin"
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
                     "hello_world/hello_world.bin"
 

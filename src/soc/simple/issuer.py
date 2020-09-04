@@ -32,6 +32,7 @@ from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.config.state import CoreState
+from soc.interrupts.xics import XICS_ICP, XICS_ICS
 
 from nmutil.util import rising_edge
 
@@ -42,6 +43,13 @@ class TestIssuer(Elaboratable):
     efficiency and speed is not the main goal here: functional correctness is.
     """
     def __init__(self, pspec):
+
+        # add interrupt controller?
+        self.xics = hasattr(pspec, "xics") and pspec.xics == True
+        if self.xics:
+            self.xics_icp = XICS_ICP()
+            self.xics_ics = XICS_ICS()
+
         # main instruction core
         self.core = core = NonProductionCore(pspec)
 
@@ -90,6 +98,12 @@ class TestIssuer(Elaboratable):
         m.submodules.core = core = DomainRenamer("coresync")(self.core)
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
+
+        if self.xics:
+            m.submodules.xics_icp = icp = self.xics_icp
+            m.submodules.xics_ics = ics = self.xics_ics
+            comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
+            comb += core.ext_irq_i.eq(icp.core_irq_o) # connect ICP to core
 
         # instruction decoder
         pdecode = create_pdecode()
@@ -300,16 +314,19 @@ class TestIssuer(Elaboratable):
         return list(self)
 
     def external_ports(self):
-        return self.pc_i.ports() + [self.pc_o,
-                                    self.memerr_o,
-                                    self.core_bigendian_i,
-                                    ClockSignal(),
-                                    ResetSignal(),
-                                    self.busy_o,
-                                    ] + \
-                list(self.dbg.dmi.ports()) + \
-                list(self.imem.ibus.fields.values()) + \
-                list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
+        ports = self.pc_i.ports()
+        ports += [self.pc_o, self.memerr_o, self.core_bigendian_i, self.busy_o,
+                  ClockSignal(), ResetSignal(),
+                ]
+        ports += list(self.dbg.dmi.ports())
+        ports += list(self.imem.ibus.fields.values())
+        ports += list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
+
+        if self.xics:
+            ports += list(self.xics_icp.bus.fields.values())
+            ports += list(self.xics_ics.bus.fields.values())
+
+        return ports
 
     def ports(self):
         return list(self)

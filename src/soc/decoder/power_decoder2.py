@@ -634,7 +634,7 @@ class PowerDecode2(Elaboratable):
         m = Module()
         comb = m.d.comb
         e_out, op, do_out = self.e, self.dec.op, self.e.do
-        msr, cia = self.state.msr, self.state.pc
+        msr, cia, ext_irq = self.state.msr, self.state.pc, self.state.eint
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
@@ -749,9 +749,15 @@ class PowerDecode2(Elaboratable):
             # rverything including destroying read of RA and RB.
             comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
 
-        # TODO: get msr, then can do privileged instruction
-        with m.If(instr_is_priv(m, op.internal_op, e.do.insn) & msr[MSR.PR]):
-            # privileged instruction trap
+        # check if instruction is privileged
+        is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)
+
+        # external interrupt?
+        with m.If(ext_irq & msr[MSR.EE]):
+            self.trap(m, TT.EINT, 0x500)
+
+        # privileged instruction trap
+        with m.Elif(is_priv_insn & msr[MSR.PR]):
             self.trap(m, TT.PRIV, 0x700)
 
         # illegal instruction must redirect to trap. this is done by

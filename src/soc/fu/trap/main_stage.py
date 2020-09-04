@@ -195,6 +195,9 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.FP].eq(1)
                     with m.If(traptype & TT.ADDR):
                         comb += srr1_o.data[PI.ADR].eq(1)
+                    with m.If(traptype & TT.EINT):
+                        # do nothing unusual? see 3.0B Book III 6.5.7 p1073
+                        pass
                     with m.If(traptype & TT.ILLEG):
                         comb += srr1_o.data[PI.ILLEG].eq(1)
                     comb += srr1_o.ok.eq(1)
