@@ -25,6 +25,10 @@ from litex.tools.litex_sim import Platform
 from libresoc import LibreSoC
 from microwatt import Microwatt
 
+# HACK!
+from litex.soc.integration.soc import SoCCSRHandler
+SoCCSRHandler.supported_address_width.append(12)
+
 # LibreSoCSim -----------------------------------------------------------------
 
 class LibreSoCSim(SoCSDRAM):
@@ -54,8 +58,17 @@ class LibreSoCSim(SoCSDRAM):
         #ram_fname = None
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "micropython/firmware.bin"
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "tests/xics/xics.bin"
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
                     "hello_world/hello_world.bin"
+
+        # reserve XICS ICP and XICS memory addresses.
+        # TODO: not have these conflict with csr locations
+        self.mem_map['icp'] = 0xc0004000
+        self.mem_map['ics'] = 0xc0005000
+        #self.csr_map["icp"] = 8  #  8 x 0x800 == 0x4000
+        #self.csr_map["ics"] = 10 # 10 x 0x800 == 0x5000
 
         ram_init = []
         if ram_fname:
@@ -80,6 +93,7 @@ class LibreSoCSim(SoCSDRAM):
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
             #bus_data_width           = 64,
+            csr_address_width        = 12, # limit to 0x4000
             cpu_variant              = variant,
             csr_data_width            = 32,
             l2_size             = 0,
@@ -94,6 +108,17 @@ class LibreSoCSim(SoCSDRAM):
                                         else 0x10000000 , # 256MB
             )
         self.platform.name = "sim"
+
+        # XICS interrupt devices
+        icp_addr = self.mem_map['icp']
+        icp_wb = self.cpu.xics_icp
+        icp_region = SoCRegion(origin=icp_addr, size=0x1000, cached=False)
+        self.bus.add_slave(name='icp', slave=icp_wb, region=icp_region)
+
+        ics_addr = self.mem_map['ics']
+        ics_wb = self.cpu.xics_ics
+        ics_region = SoCRegion(origin=ics_addr, size=0x20, cached=False)
+        self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
 
         # CRG -----------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
