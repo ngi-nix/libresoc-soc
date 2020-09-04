@@ -8,6 +8,15 @@ from litex.soc.cores.cpu import CPU
 CPU_VARIANTS = ["standard", "standard32"]
 
 
+def make_wb_bus(prefix, obj):
+    res = {}
+    for o in ['stb', 'cyc', 'cti', 'bte', 'we', 'adr', 'dat_w', 'sel']:
+        res['o_%s_%s' % (prefix, o)] = getattr(obj, o)
+    for i in ['ack', 'err', 'dat_r']:
+        res['i_%s_%s' % (prefix, i)] = getattr(obj, i)
+    return res
+
+
 class LibreSoC(CPU):
     name                 = "libre_soc"
     human_name           = "Libre-SoC"
@@ -42,7 +51,7 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-
+        self.interrupt    = Signal(16)
 
         if variant == "standard32":
             self.data_width           = 32
@@ -52,6 +61,10 @@ class LibreSoC(CPU):
             self.data_width           = 64
         self.ibus = ibus = wishbone.Interface(data_width=64, adr_width=29)
 
+        self.xics_icp = icp = wishbone.Interface(data_width=32, adr_width=3)
+        self.xics_ics = ics = wishbone.Interface(data_width=32, adr_width=14)
+
+        self.ics_buses = [icp, ics]
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
@@ -69,38 +82,15 @@ class LibreSoC(CPU):
             i_clk              = ClockSignal(),
             i_rst              = ResetSignal() | self.reset,
 
-            # IBus
-            o_ibus__stb        = ibus.stb,
-            o_ibus__cyc        = ibus.cyc,
-            o_ibus__cti        = ibus.cti,
-            o_ibus__bte        = ibus.bte,
-            o_ibus__we         = ibus.we,
-            o_ibus__adr        = Cat(ibus.adr), # bytes to words addressing
-            o_ibus__dat_w      = ibus.dat_w,
-            o_ibus__sel        = ibus.sel,
-            i_ibus__ack        = ibus.ack,
-            i_ibus__err        = ibus.err,
-            i_ibus__dat_r      = ibus.dat_r,
-
-            # DBus
-            o_dbus__stb        = dbus.stb,
-            o_dbus__cyc        = dbus.cyc,
-            o_dbus__cti        = dbus.cti,
-            o_dbus__bte        = dbus.bte,
-            o_dbus__we         = dbus.we,
-            o_dbus__adr        = Cat(dbus.adr), # bytes to words addressing
-            o_dbus__dat_w      = dbus.dat_w,
-            o_dbus__sel        = dbus.sel,
-            i_dbus__ack        = dbus.ack,
-            i_dbus__err        = dbus.err,
-            i_dbus__dat_r      = dbus.dat_r,
-
             # Monitoring / Debugging
             i_pc_i             = 0,
             i_pc_i_ok          = 0,
             i_core_bigendian_i = 0, # Signal(),
             o_busy_o           = Signal(),
             o_memerr_o         = Signal(),
+
+            # interrupts
+            i_int_level_i      = self.interrupt,
 
             # Debug bus
             i_dmi_addr_i          = self.dmi_addr,
@@ -110,6 +100,12 @@ class LibreSoC(CPU):
             i_dmi_we_i            = self.dmi_wr,
             o_dmi_ack_o           = self.dmi_ack,
         )
+
+        # add wishbone buses to cpu params
+        self.cpu_params.update(make_wb_bus("ibus_", ibus))
+        self.cpu_params.update(make_wb_bus("dbus_", dbus))
+        self.cpu_params.update(make_wb_bus("ics_wb_", ics))
+        self.cpu_params.update(make_wb_bus("icp_wb_", icp))
 
         # add verilog sources
         self.add_sources(platform)
