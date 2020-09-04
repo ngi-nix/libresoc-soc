@@ -96,7 +96,7 @@ class LibreSoCSim(SoCSDRAM):
             #bus_data_width           = 64,
             csr_address_width        = 12, # limit to 0x4000
             cpu_variant              = variant,
-            csr_data_width            = 32,
+            csr_data_width            = 8,
             l2_size             = 0,
             uart_name                = "sim",
             with_sdram               = with_sdram,
