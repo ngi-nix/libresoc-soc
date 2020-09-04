@@ -37,6 +37,7 @@ class LibreSoCSim(SoCSDRAM):
             #sdram_data_width      = 16,
             #sdram_module          = "MT48LC16M16",
             sdram_data_width      = 16,
+            irq_reserved_irqs = {'uart': 0},
             ):
         assert cpu in ["libresoc", "microwatt"]
         platform     = Platform()
@@ -58,10 +59,10 @@ class LibreSoCSim(SoCSDRAM):
         #ram_fname = None
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "micropython/firmware.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "tests/xics/xics.bin"
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-                    "hello_world/hello_world.bin"
+                    "tests/xics/xics.bin"
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "hello_world/hello_world.bin"
 
         # reserve XICS ICP and XICS memory addresses.
         # TODO: not have these conflict with csr locations
