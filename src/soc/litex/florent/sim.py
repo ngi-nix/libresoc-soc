@@ -51,7 +51,9 @@ class LibreSoCSim(SoCSDRAM):
         ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
                     "tests/3.bin"
         #ram_fname = "/tmp/test.bin"
-        ram_fname = None
+        #ram_fname = None
+        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+                    "hello_world/hello_world.bin"
 
         ram_init = []
         if ram_fname:
@@ -65,6 +67,9 @@ class LibreSoCSim(SoCSDRAM):
 
             # without sram nothing works, therefore move it to higher up
             self.mem_map["sram"] = 0x90000000
+
+            # put UART at 0xc000200 (w00t!  this works!)
+            self.csr_map["uart"] = 4
 
 
         # SoCCore -------------------------------------------------------------
