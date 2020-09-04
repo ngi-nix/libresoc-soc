@@ -125,6 +125,14 @@ class ShiftRotTestCase(TestAccumulatorBase):
         print(initial_regs[1], initial_regs[2])
         self.add_case(Program(lst, bigendian), initial_regs)
 
+    def case_sld_rb_too_big(self):
+        lst = ["sld 3, 1, 4",
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        initial_regs[4] = 64 # too big, output should be zero
+        self.add_case(Program(lst, bigendian), initial_regs)
+
     def case_shift_once(self):
         lst = ["slw 3, 1, 4",
                "slw 3, 1, 2"]
