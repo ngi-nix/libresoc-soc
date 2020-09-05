@@ -187,6 +187,7 @@ class TestIssuer(Elaboratable):
 
         # don't read msr every cycle
         comb += self.state_r_msr.ren.eq(0)
+        msr_read = Signal(reset=1)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -227,6 +228,7 @@ class TestIssuer(Elaboratable):
 
                     # initiate read of MSR
                     comb += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
+                    sync += msr_read.eq(0)
 
                     m.next = "INSN_READ" # move to "wait for bus" phase
                 with m.Else():
@@ -236,7 +238,9 @@ class TestIssuer(Elaboratable):
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
                 # one cycle later, msr read arrives
-                sync += cur_state.msr.eq(self.state_r_msr.data_o)
+                with m.If(~msr_read):
+                    sync += msr_read.eq(1)
+                    sync += cur_state.msr.eq(self.state_r_msr.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
@@ -267,7 +271,7 @@ class TestIssuer(Elaboratable):
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
-                with m.If(self.state_nia.wen):
+                with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
                     # ok here we are not reading the branch unit.  TODO
