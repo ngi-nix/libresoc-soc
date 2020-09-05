@@ -61,9 +61,9 @@ class LibreSoC(CPU):
             self.data_width           = 64
         self.ibus = ibus = wishbone.Interface(data_width=64, adr_width=29)
 
-        self.xics_icp = icp = wishbone.Interface(data_width=32, adr_width=5)
-        self.xics_ics = ics = wishbone.Interface(data_width=32, adr_width=14)
-        self.simple_gpio = gpio = wishbone.Interface(data_width=32, adr_width=5)
+        self.xics_icp = icp = wishbone.Interface(data_width=32, adr_width=29)
+        self.xics_ics = ics = wishbone.Interface(data_width=32, adr_width=29)
+        self.simple_gpio = gpio = wishbone.Interface(data_width=32, adr_width=29)
 
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
