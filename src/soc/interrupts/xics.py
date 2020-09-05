@@ -93,8 +93,9 @@ class XICS_ICP(Elaboratable):
         # We delay core_irq_out by a cycle to help with timing
         sync += self.core_irq_o.eq(r.irq)
 
-        comb += self.bus.dat_r.eq(r.wb_rd_data)
-        comb += self.bus.ack.eq(r.wb_ack)
+        comb += self.bus.ack.eq(r.wb_ack & self.bus.cyc)
+        with m.If(self.bus.ack):
+            comb += self.bus.dat_r.eq(r.wb_rd_data)
 
         v = RegInternal()
         xirr_accept_rd = Signal()
