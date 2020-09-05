@@ -48,11 +48,11 @@ class ICS2ICP(RecordObject):
 # hardwire the hardware IRQ priority
 HW_PRIORITY = Const(0x80, 8)
 
-# 8 bit offsets for each presentation
+# 8 bit offsets for each presentation - all addresses are in "words"
 XIRR_POLL = 0x00
-XIRR      = 0x04
-RESV0     = 0x08
-MFRR      = 0x0c
+XIRR      = 0x01
+RESV0     = 0x02
+MFRR      = 0x03
 
 
 class RegInternal(RecordObject):
@@ -116,7 +116,7 @@ class XICS_ICP(Elaboratable):
             comb += v.wb_ack.eq(1) # always ack
             with m.If(self.bus.we): # write
                 # writes to both XIRR are the same
-                with m.Switch( self.bus.adr[:8]):
+                with m.Switch(self.bus.adr[:8]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL write";
                         comb += v.cppr.eq(be_in[24:32])
@@ -285,12 +285,12 @@ class XICS_ICS(Elaboratable):
 
         assert self.SRC_NUM == 16, "Fixup address decode with log2"
 
-        comb += reg_is_xive.eq(self.bus.adr[11])
-        comb += reg_is_config.eq(self.bus.adr[0:12] == 0x0)
-        comb += reg_is_debug.eq(self.bus.adr[0:12] == 0x4)
+        comb += reg_is_xive.eq(self.bus.adr[9])
+        comb += reg_is_config.eq(self.bus.adr[0:10] == 0x0)
+        comb += reg_is_debug.eq(self.bus.adr[0:10] == 0x4)
 
         # Register index XX FIXME: figure out bits from SRC_NUM
-        comb += reg_idx.eq(self.bus.adr[2:6])
+        comb += reg_idx.eq(self.bus.adr[:4])
 
         # Latch interrupt inputs for timing
         sync += int_level_l.eq(self.int_level_i)
@@ -500,7 +500,7 @@ def sim_xics(icp, ics):
     yield
 
     # read XIVE0
-    data = yield from wb_read(ics.bus, 0x800)
+    data = yield from wb_read(ics.bus, 0x800//4)
     print ("xive0", hex(data), bin(data))
     data = swap32(data)
     irq = get_field(data, 1, 31)
@@ -532,7 +532,7 @@ def sim_xics(icp, ics):
     yield # wait for interrupt to propagate through from ics to icp...
 
     # read XIVE1
-    data = yield from wb_read(ics.bus, 0x804)
+    data = yield from wb_read(ics.bus, 0x804//4)
     print ("xive1", hex(data), bin(data))
     data = swap32(data)
     irq = get_field(data, 1, 31)
@@ -564,7 +564,7 @@ def sim_xics(icp, ics):
 
     # set XIVE1 priority to 0xf0
     data = swap32(0xf0)
-    yield from wb_write(ics.bus, 0x804, data)
+    yield from wb_write(ics.bus, 0x804//4, data)
     print ("XIVE1 priority written", hex(data), bin(data))
 
     ######################
