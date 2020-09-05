@@ -49,10 +49,10 @@ class ICS2ICP(RecordObject):
 HW_PRIORITY = Const(0x80, 8)
 
 # 8 bit offsets for each presentation - all addresses are in "words"
-XIRR_POLL = 0x00
-XIRR      = 0x01
-RESV0     = 0x02
-MFRR      = 0x03
+XIRR_POLL = 0x00  # 0x000
+XIRR      = 0x01  # 0x004
+RESV0     = 0x02  # 0x008
+MFRR      = 0x03  # 0x00c
 
 
 class RegInternal(RecordObject):
@@ -103,6 +103,7 @@ class XICS_ICP(Elaboratable):
         be_out = Signal(32)
 
         pending_priority = Signal(8)
+        min_pri = Signal(8)
 
         comb += v.eq(r) # start from the register (r)
         comb += v.wb_ack.eq(0)
@@ -175,7 +176,9 @@ class XICS_ICP(Elaboratable):
         # Check MFRR
         with m.If(r.mfrr < pending_priority):
             comb += v.xisr.eq(Const(0x2)) # special XICS MFRR IRQ source number
-            comb += pending_priority.eq(r.mfrr)
+            comb += min_pri.eq(r.mfrr)
+        with m.Else():
+            comb += min_pri.eq(pending_priority)
 
         # Accept the interrupt
         with m.If(xirr_accept_rd):
@@ -183,12 +186,12 @@ class XICS_ICP(Elaboratable):
             #    " cppr:" &  to_hstring(r.cppr) &
             #    " xisr:" & to_hstring(r.xisr) &
             #    " mfrr:" & to_hstring(r.mfrr);
-            comb += v.cppr.eq(pending_priority)
+            comb += v.cppr.eq(min_pri)
 
         comb += v.wb_rd_data.eq(bswap(be_out))
 
         # check if the core needs an interrupt notification (or clearing)
-        comb += v.irq.eq(pending_priority < v.cppr)
+        comb += v.irq.eq(min_pri < v.cppr)
         with m.If(v.irq):
             with m.If(~r.irq):
                 #report "IRQ set";
