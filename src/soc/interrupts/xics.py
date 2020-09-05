@@ -117,7 +117,7 @@ class XICS_ICP(Elaboratable):
             comb += v.wb_ack.eq(1) # always ack
             with m.If(self.bus.we): # write
                 # writes to both XIRR are the same
-                with m.Switch(self.bus.adr[:8]):
+                with m.Switch(self.bus.adr[:6]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL write";
                         comb += v.cppr.eq(be_in[24:32])
@@ -151,7 +151,7 @@ class XICS_ICP(Elaboratable):
 
             with m.Else(): # read
 
-                with m.Switch(self.bus.adr[:8]):
+                with m.Switch(self.bus.adr[:6]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL read";
                         comb += be_out.eq(r.xisr & r.cppr)
