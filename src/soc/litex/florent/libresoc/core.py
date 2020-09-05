@@ -63,8 +63,8 @@ class LibreSoC(CPU):
 
         self.xics_icp = icp = wishbone.Interface(data_width=32, adr_width=5)
         self.xics_ics = ics = wishbone.Interface(data_width=32, adr_width=14)
+        self.simple_gpio = gpio = wishbone.Interface(data_width=32, adr_width=5)
 
-        self.ics_buses = [icp, ics]
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
@@ -106,6 +106,7 @@ class LibreSoC(CPU):
         self.cpu_params.update(make_wb_bus("dbus_", dbus))
         self.cpu_params.update(make_wb_bus("ics_wb_", ics))
         self.cpu_params.update(make_wb_bus("icp_wb_", icp))
+        self.cpu_params.update(make_wb_bus("gpio_wb_", gpio))
 
         # add verilog sources
         self.add_sources(platform)

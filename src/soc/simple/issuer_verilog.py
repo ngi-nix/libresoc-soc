@@ -30,6 +30,7 @@ if __name__ == '__main__':
                          xics=True,
                          gpio=True, # for test purposes
                          units=units)
+
     dut = TestIssuer(pspec)
 
     vl = verilog.convert(dut, ports=dut.external_ports(), name="test_issuer")

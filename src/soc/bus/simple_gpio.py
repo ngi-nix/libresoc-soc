@@ -27,7 +27,7 @@ class SimpleGPIO(Elaboratable):
         spec.addr_wid = 30
         spec.mask_wid = 4
         spec.reg_wid = 32
-        self.bus = Record(make_wb_layout(spec), name="icp_wb")
+        self.bus = Record(make_wb_layout(spec), name="gpio_wb")
         self.gpio_o = Signal(n_gpio)
 
     def elaborate(self, platform):
