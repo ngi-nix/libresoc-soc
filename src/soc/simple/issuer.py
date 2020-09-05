@@ -121,9 +121,9 @@ class TestIssuer(Elaboratable):
         if self.gpio:
             m.submodules.simple_gpio = simple_gpio = self.simple_gpio
 
-        # connect one GPIO output to ICS bit 5 (like in microwatt soc.vhdl)
+        # connect one GPIO output to ICS bit 15 (like in microwatt soc.vhdl)
         if self.gpio and self.xics:
-            comb += self.int_level_i[5].eq(simple_gpio.gpio_o[0])
+            comb += self.int_level_i[15].eq(simple_gpio.gpio_o[0])
 
         # instruction decoder
         pdecode = create_pdecode()

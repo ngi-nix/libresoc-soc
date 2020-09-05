@@ -51,7 +51,7 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(16)
+        self.interrupt    = Signal(4)
 
         if variant == "standard32":
             self.data_width           = 32
