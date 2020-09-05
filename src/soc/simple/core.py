@@ -66,11 +66,6 @@ def sort_fuspecs(fuspecs):
 class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
 
-        # add external interrupt?
-        self.xics = hasattr(pspec, "xics") and pspec.xics == True
-        if self.xics:
-            self.ext_irq_i = Signal()
-
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]

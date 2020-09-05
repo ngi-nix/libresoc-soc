@@ -107,12 +107,15 @@ class TestIssuer(Elaboratable):
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
 
+        # current state (MSR/PC at the moment
+        cur_state = CoreState("cur")
+
         # XICS interrupt handler
         if self.xics:
             m.submodules.xics_icp = icp = self.xics_icp
             m.submodules.xics_ics = ics = self.xics_ics
             comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
-            comb += core.ext_irq_i.eq(icp.core_irq_o) # connect ICP to core
+            comb += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
 
         # GPIO test peripheral
         if self.gpio:
@@ -147,9 +150,6 @@ class TestIssuer(Elaboratable):
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
         comb += pdecode2.dec.bigendian.eq(self.core_bigendian_i)
-
-        # current state (MSR/PC at the moment
-        cur_state = CoreState("cur")
 
         # temporary hack: says "go" immediately for both address gen and ST
         l0 = core.l0
