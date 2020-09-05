@@ -9,6 +9,7 @@ from nmigen.utils import log2_int
 from nmigen.cli import rtlil
 from soc.minerva.wishbone import make_wb_layout
 from nmutil.util import wrap
+from soc.bus.test.wb_rw import wb_read, wb_write
 
 cxxsim = False
 if cxxsim:
@@ -63,72 +64,9 @@ class SimpleGPIO(Elaboratable):
         return list(self)
 
 
-def wb_write(dut, addr, data, sel=True):
-
-    # write wb
-    yield dut.bus.we.eq(1)
-    yield dut.bus.cyc.eq(1)
-    yield dut.bus.stb.eq(1)
-    yield dut.bus.sel.eq(0b1111 if sel else 0b1) # 32-bit / 8-bit
-    yield dut.bus.adr.eq(addr)
-    yield dut.bus.dat_w.eq(data)
-
-    # wait for ack to go high
-    while True:
-        ack = yield dut.bus.ack
-        print ("ack", ack)
-        if ack:
-            break
-        yield # loop until ack
-        yield dut.bus.stb.eq(0) # drop stb so only 1 thing into pipeline
-
-    # leave cyc/stb valid for 1 cycle while writing
-    yield
-
-    # clear out before returning data
-    yield dut.bus.cyc.eq(0)
-    yield dut.bus.stb.eq(0)
-    yield dut.bus.we.eq(0)
-    yield dut.bus.adr.eq(0)
-    yield dut.bus.sel.eq(0)
-    yield dut.bus.dat_w.eq(0)
-
-
-def wb_read(dut, addr, sel=True):
-
-    # read wb
-    yield dut.bus.cyc.eq(1)
-    yield dut.bus.stb.eq(1)
-    yield dut.bus.we.eq(0)
-    yield dut.bus.sel.eq(0b1111 if sel else 0b1) # 32-bit / 8-bit
-    yield dut.bus.adr.eq(addr)
-
-    # wait for ack to go high
-    while True:
-        ack = yield dut.bus.ack
-        print ("ack", ack)
-        if ack:
-            break
-        yield # loop until ack
-        yield dut.bus.stb.eq(0) # drop stb so only 1 thing into pipeline
-
-    # get data on same cycle that ack raises
-    data = yield dut.bus.dat_r
-
-    # leave cyc/stb valid for 1 cycle while reading
-    yield
-
-    # clear out before returning data
-    yield dut.bus.cyc.eq(0)
-    yield dut.bus.stb.eq(0)
-    yield dut.bus.we.eq(0)
-    yield dut.bus.adr.eq(0)
-    yield dut.bus.sel.eq(0)
-    return data
-
 
 def read_gpio(gpio, addr):
-    data = yield from wb_read(gpio, addr)
+    data = yield from wb_read(gpio.bus, addr)
     print ("gpio%d" % addr, hex(data), bin(data))
     return data
 
@@ -139,7 +77,7 @@ def sim_gpio(gpio):
     data = yield from read_gpio(gpio, 0) # read gpio addr  0
     assert data == 0
     
-    yield from wb_write(gpio, 0, 1) # write gpio addr 0
+    yield from wb_write(gpio.bus, 0, 1) # write gpio addr 0
 
     data = yield from read_gpio(gpio, 0) # read gpio addr  0
     assert data == 1
@@ -148,7 +86,7 @@ def sim_gpio(gpio):
     data = yield from read_gpio(gpio, 1) # read gpio addr  1
     assert data == 0
     
-    yield from wb_write(gpio, 1, 1) # write gpio addr 1
+    yield from wb_write(gpio.bus, 1, 1) # write gpio addr 1
 
     data = yield from read_gpio(gpio, 1) # read gpio addr  1
     assert data == 1
@@ -157,7 +95,7 @@ def sim_gpio(gpio):
     data = yield from read_gpio(gpio, 0) # read gpio addr  0
     assert data == 1
     
-    yield from wb_write(gpio, 0, 0) # write gpio addr 0
+    yield from wb_write(gpio.bus, 0, 0) # write gpio addr 0
 
     data = yield from read_gpio(gpio, 0) # read gpio addr  0
     assert data == 0
