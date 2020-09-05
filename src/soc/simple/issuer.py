@@ -115,7 +115,7 @@ class TestIssuer(Elaboratable):
             m.submodules.xics_icp = icp = self.xics_icp
             m.submodules.xics_ics = ics = self.xics_ics
             comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
-            comb += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
+            sync += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
 
         # GPIO test peripheral
         if self.gpio:
