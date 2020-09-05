@@ -226,7 +226,7 @@ class TestIssuer(Elaboratable):
                     comb += self.imem.f_valid_i.eq(1)
                     sync += cur_state.pc.eq(pc)
 
-                    # initiate read of MSR
+                    # initiate read of MSR.  arrives one clock later
                     comb += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
                     sync += msr_read.eq(0)
 
@@ -237,9 +237,9 @@ class TestIssuer(Elaboratable):
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
-                # one cycle later, msr read arrives
+                # one cycle later, msr read arrives.  valid only once.
                 with m.If(~msr_read):
-                    sync += msr_read.eq(1)
+                    sync += msr_read.eq(1) # yeah don't read it again
                     sync += cur_state.msr.eq(self.state_r_msr.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
