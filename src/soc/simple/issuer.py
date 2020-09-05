@@ -33,6 +33,7 @@ from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
+from soc.bus.simple_gpio import SimpleGPIO
 
 from nmutil.util import rising_edge
 
@@ -50,6 +51,12 @@ class TestIssuer(Elaboratable):
             self.xics_icp = XICS_ICP()
             self.xics_ics = XICS_ICS()
             self.int_level_i = self.xics_ics.int_level_i
+
+        # add GPIO peripheral?
+        self.gpio = hasattr(pspec, "gpio") and pspec.gpio == True
+        if self.gpio:
+            self.simple_gpio = SimpleGPIO()
+            self.gpio_o = self.simple_gpio.gpio_o
 
         # main instruction core
         self.core = core = NonProductionCore(pspec)
@@ -100,11 +107,20 @@ class TestIssuer(Elaboratable):
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
 
+        # XICS interrupt handler
         if self.xics:
             m.submodules.xics_icp = icp = self.xics_icp
             m.submodules.xics_ics = ics = self.xics_ics
             comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
             comb += core.ext_irq_i.eq(icp.core_irq_o) # connect ICP to core
+
+        # GPIO test peripheral
+        if self.gpio:
+            m.submodules.simple_gpio = simple_gpio = self.simple_gpio
+
+        # connect one GPIO output to ICS bit 5 (like in microwatt soc.vhdl)
+        if self.gpio and self.xics:
+            comb += self.int_level_i[5].eq(simple_gpio.gpio_o[0])
 
         # instruction decoder
         pdecode = create_pdecode()
@@ -327,6 +343,10 @@ class TestIssuer(Elaboratable):
             ports += list(self.xics_icp.bus.fields.values())
             ports += list(self.xics_ics.bus.fields.values())
             ports.append(self.int_level_i)
+
+        if self.gpio:
+            ports += list(self.simple_gpio.bus.fields.values())
+            ports.append(self.gpio_o)
 
         return ports
 
