@@ -135,7 +135,7 @@ class XICS_ICP(Elaboratable):
                             #report "ICP XIRR UNSUPPORTED write ! sel=" & \
                             #           to_hstring(self.bus.sel);
                             pass
-                    with m.Case(MFRR ):
+                    with m.Case(MFRR):
                         comb += v.mfrr.eq(be_in[24:32])
                         with m.If(self.bus.sel == 0xf): #  # 4 byte
                             # report "ICP MFRR write word:" & to_hstring(be_in);
@@ -154,7 +154,7 @@ class XICS_ICP(Elaboratable):
                 with m.Switch(self.bus.adr[:6]):
                     with m.Case(XIRR_POLL):
                         # report "ICP XIRR_POLL read";
-                        comb += be_out.eq(r.xisr & r.cppr)
+                        comb += be_out.eq(Cat(r.xisr, r.cppr))
                     with m.Case(XIRR):
                         # report "ICP XIRR read";
                         comb += be_out.eq(Cat(r.xisr, r.cppr))
@@ -162,7 +162,7 @@ class XICS_ICP(Elaboratable):
                             comb += xirr_accept_rd.eq(1)
                     with m.Case(MFRR):
                         # report "ICP MFRR read";
-                        comb += be_out.eq(r.mfrr)
+                        comb += be_out[24:32].eq(r.mfrr)
 
         comb += pending_priority.eq(0xff)
         comb += v.xisr.eq(0x0)
@@ -175,7 +175,7 @@ class XICS_ICP(Elaboratable):
 
         # Check MFRR
         with m.If(r.mfrr < pending_priority):
-            comb += v.xisr.eq(Const(0x2)) # special XICS MFRR IRQ source number
+            comb += v.xisr.eq(Const(0x2, 24)) # special XICS MFRR IRQ src num
             comb += min_pri.eq(r.mfrr)
         with m.Else():
             comb += min_pri.eq(pending_priority)
@@ -191,11 +191,11 @@ class XICS_ICP(Elaboratable):
         comb += v.wb_rd_data.eq(bswap(be_out))
 
         # check if the core needs an interrupt notification (or clearing)
-        comb += v.irq.eq(min_pri < v.cppr)
-        with m.If(v.irq):
+        with m.If(min_pri < v.cppr):
             with m.If(~r.irq):
                 #report "IRQ set";
                 pass
+            comb += v.irq.eq(1)
         with m.Elif(r.irq):
             #report "IRQ clr";
             pass
