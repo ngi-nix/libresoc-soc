@@ -114,12 +114,12 @@ class LibreSoCSim(SoCSDRAM):
             # XICS interrupt devices
             icp_addr = self.mem_map['icp']
             icp_wb = self.cpu.xics_icp
-            icp_region = SoCRegion(origin=icp_addr, size=0x1000, cached=False)
+            icp_region = SoCRegion(origin=icp_addr, size=0x20, cached=False)
             self.bus.add_slave(name='icp', slave=icp_wb, region=icp_region)
 
             ics_addr = self.mem_map['ics']
             ics_wb = self.cpu.xics_ics
-            ics_region = SoCRegion(origin=ics_addr, size=0x20, cached=False)
+            ics_region = SoCRegion(origin=ics_addr, size=0x1000, cached=False)
             self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
 
             # Simple GPIO peripheral
