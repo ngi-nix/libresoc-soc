@@ -27,6 +27,7 @@ from soc.consts import MSR
 from soc.regfile.regfiles import FastRegs
 from soc.consts import TT
 from soc.config.state import CoreState
+from soc.regfile.util import spr_to_fast
 
 
 def decode_spr_num(spr):
@@ -51,19 +52,25 @@ def instr_is_priv(m, op, insn):
 
 
 class SPRMap(Elaboratable):
-    """SPRMap: maps POWER9 SPR numbers to internal enum values
+    """SPRMap: maps POWER9 SPR numbers to internal enum values, fast and slow
     """
 
     def __init__(self):
         self.spr_i = Signal(10, reset_less=True)
-        self.spr_o = Signal(SPR, reset_less=True)
+        self.spr_o = Data(SPR, name="spr_o")
+        self.fast_o = Data(3, name="fast_o")
 
     def elaborate(self, platform):
         m = Module()
         with m.Switch(self.spr_i):
             for i, x in enumerate(SPR):
                 with m.Case(x.value):
-                    m.d.comb += self.spr_o.eq(i)
+                    m.d.comb += self.spr_o.data.eq(i)
+                    m.d.comb += self.spr_o.ok.eq(1)
+            for x, v in spr_to_fast.items():
+                with m.Case(x.value):
+                    m.d.comb += self.fast_o.data.eq(v)
+                    m.d.comb += self.fast_o.ok.eq(1)
         return m
 
 
@@ -129,38 +136,9 @@ class DecodeA(Elaboratable):
             with m.Case(MicrOp.OP_MFSPR):
                 spr = Signal(10, reset_less=True)
                 comb += spr.eq(decode_spr_num(self.dec.SPR))  # from XFX
-                with m.Switch(spr):
-                    # fast SPRs
-                    with m.Case(SPR.CTR.value):
-                        comb += self.fast_out.data.eq(FastRegs.CTR)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.LR.value):
-                        comb += self.fast_out.data.eq(FastRegs.LR)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.TAR.value):
-                        comb += self.fast_out.data.eq(FastRegs.TAR)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.SRR0.value):
-                        comb += self.fast_out.data.eq(FastRegs.SRR0)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.SRR1.value):
-                        comb += self.fast_out.data.eq(FastRegs.SRR1)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.XER.value):
-                        comb += self.fast_out.data.eq(FastRegs.XER)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.DEC.value):
-                        comb += self.fast_out.data.eq(FastRegs.DEC)
-                        comb += self.fast_out.ok.eq(1)
-                    with m.Case(SPR.TB.value):
-                        comb += self.fast_out.data.eq(FastRegs.TB)
-                        comb += self.fast_out.ok.eq(1)
-                    # : map to internal SPR numbers
-                    # XXX TODO: dec and tb not to go through mapping.
-                    with m.Default():
-                        comb += sprmap.spr_i.eq(spr)
-                        comb += self.spr_out.data.eq(sprmap.spr_o)
-                        comb += self.spr_out.ok.eq(1)
+                comb += sprmap.spr_i.eq(spr)
+                comb += self.spr_out.eq(sprmap.spr_o)
+                comb += self.fast_out.eq(sprmap.fast_o)
 
         return m
 
@@ -315,40 +293,11 @@ class DecodeOut(Elaboratable):
             with m.Case(OutSel.SPR):
                 spr = Signal(10, reset_less=True)
                 comb += spr.eq(decode_spr_num(self.dec.SPR))  # from XFX
-                # TODO MTSPR 1st spr (fast)
+                # MFSPR move to SPRs - needs mapping
                 with m.If(op.internal_op == MicrOp.OP_MTSPR):
-                    with m.Switch(spr):
-                        # fast SPRs
-                        with m.Case(SPR.CTR.value):
-                            comb += self.fast_out.data.eq(FastRegs.CTR)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.LR.value):
-                            comb += self.fast_out.data.eq(FastRegs.LR)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.TAR.value):
-                            comb += self.fast_out.data.eq(FastRegs.TAR)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.SRR0.value):
-                            comb += self.fast_out.data.eq(FastRegs.SRR0)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.SRR1.value):
-                            comb += self.fast_out.data.eq(FastRegs.SRR1)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.XER.value):
-                            comb += self.fast_out.data.eq(FastRegs.XER)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.TB.value):
-                            comb += self.fast_out.data.eq(FastRegs.TB)
-                            comb += self.fast_out.ok.eq(1)
-                        with m.Case(SPR.DEC.value):
-                            comb += self.fast_out.data.eq(FastRegs.DEC)
-                            comb += self.fast_out.ok.eq(1)
-                        # : map to internal SPR numbers
-                        # XXX TODO: dec and tb not to go through mapping.
-                        with m.Default():
-                            comb += sprmap.spr_i.eq(spr)
-                            comb += self.spr_out.data.eq(sprmap.spr_o)
-                            comb += self.spr_out.ok.eq(1)
+                    comb += sprmap.spr_i.eq(spr)
+                    comb += self.spr_out.eq(sprmap.spr_o)
+                    comb += self.fast_out.eq(sprmap.fast_o)
 
         with m.Switch(op.internal_op):
 

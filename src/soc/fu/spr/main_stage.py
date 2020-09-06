@@ -67,6 +67,9 @@ class SPRMainStage(PipeModBase):
                             comb += ca_o.ok.eq(1)
 
                     # slow SPRs TODO
+                    with m.Default():
+                        comb += spr1_o.data.eq(a_i)
+                        comb += spr1_o.ok.eq(1)
 
             # move from SPRs
             with m.Case(MicrOp.OP_MFSPR):
@@ -93,6 +96,8 @@ class SPRMainStage(PipeModBase):
                         comb += o.data[0:32].eq(fast1_i[32:64])
 
                     # slow SPRs TODO
+                    with m.Default():
+                        comb += o.data.eq(spr1_i)
 
         comb += self.o.ctx.eq(self.i.ctx)
 

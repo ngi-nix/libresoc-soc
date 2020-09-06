@@ -97,8 +97,9 @@ class FastRegs(RegFileMem): #RegFileArray):
     XER = 5 # non-XER bits
     DEC = 6
     TB = 7
+    N_REGS = 8 # maximum number of regs
     def __init__(self):
-        super().__init__(64, 8)
+        super().__init__(64, self.N_REGS)
         self.w_ports = {'fast1': self.write_port("dest1"),
                         'issue': self.write_port("issue"), # writing DEC/TB
                        }
