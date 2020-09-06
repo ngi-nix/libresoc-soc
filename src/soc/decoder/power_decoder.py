@@ -252,9 +252,10 @@ class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
     """
 
-    def __init__(self, width, dec, name=None, col_subset=None):
+    def __init__(self, width, dec, name=None, col_subset=None, row_subset=None):
         self.pname = name
         self.col_subset = col_subset
+        self.row_subsetfn = row_subset
         if not isinstance(dec, list):
             dec = [dec]
         self.dec = dec
@@ -311,7 +312,8 @@ class PowerDecoder(Elaboratable):
                                         opint=False, subdecoders=[])
                         subdecoder = PowerDecoder(width=32, dec=sd,
                                                   name=self.pname,
-                                                  col_subset=self.col_subset)
+                                                  col_subset=self.col_subset,
+                                                  row_subset=self.row_subsetfn)
                         mname = get_pname("dec_sub%d" % key, self.pname)
                         setattr(m.submodules, mname, subdecoder)
                         comb += subdecoder.opcode_in.eq(self.opcode_in)
@@ -338,7 +340,8 @@ class PowerDecoder(Elaboratable):
         for dec in d.subdecoders:
             subdecoder = PowerDecoder(self.width, dec,
                                      name=self.pname,
-                                     col_subset=self.col_subset)
+                                     col_subset=self.col_subset,
+                                     row_subset=self.row_subsetfn)
             if isinstance(dec, list):  # XXX HACK: take first pattern
                 dec = dec[0]
             mname = get_pname("dec%d" % dec.pattern, self.pname)
@@ -359,8 +362,8 @@ class TopPowerDecoder(PowerDecoder):
     (reverses byte order).  See V3.0B p44 1.11.2
     """
 
-    def __init__(self, width, dec, name=None, col_subset=None):
-        PowerDecoder.__init__(self, width, dec, name, col_subset)
+    def __init__(self, width, dec, name=None, col_subset=None, row_subset=None):
+        PowerDecoder.__init__(self, width, dec, name, col_subset, row_subset)
         self.fields = df = DecodeFields(SignalBitRange, [self.opcode_in])
         self.fields.create_specs()
         self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
@@ -422,7 +425,7 @@ class TopPowerDecoder(PowerDecoder):
 ####################################################
 # PRIMARY FUNCTION SPECIFYING THE FULL POWER DECODER
 
-def create_pdecode(name=None, col_subset=None):
+def create_pdecode(name=None, col_subset=None, row_subset=None):
     """create_pdecode - creates a cascading hierarchical POWER ISA decoder
 
     subsetting of the PowerOp decoding is possible by setting col_subset
@@ -459,7 +462,8 @@ def create_pdecode(name=None, col_subset=None):
     dec.append(Subdecoder(pattern=None, opint=False, opcodes=opcodes,
                           bitsel=(0, 32), suffix=None, subdecoders=[]))
 
-    return TopPowerDecoder(32, dec, name=name, col_subset=col_subset)
+    return TopPowerDecoder(32, dec, name=name, col_subset=col_subset,
+                                               row_subset=row_subset)
 
 
 if __name__ == '__main__':
