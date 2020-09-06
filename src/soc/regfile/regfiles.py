@@ -32,26 +32,35 @@ from soc.decoder.power_enums import SPR
 class StateRegs(RegFileArray):
     """StateRegs
 
-    State regfile  - PC, MSR and later SimpleV VL
+    State regfile  - PC, MSR, DEC, TB and later SimpleV VL
 
-    * QTY 2of 64-bit registers
-    * 3R2W
+    * QTY 4of 64-bit registers
+    * 5R4W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
 
     Note: d_wr1 d_rd1 are for use by the decoder, to get at the PC.
     will probably have to also add one so it can get at the MSR as well.
     (d_rd2)
+
+    Note: r/w state are used by SPR for MTSPR / MFSPR.
+    Note: r/w issue are used by issuer to increment/decrement TB/DEC.
     """
     PC = 0
     MSR = 1
+    DEC = 2
+    TB = 3
     def __init__(self):
-        super().__init__(64, 2)
+        super().__init__(64, 4)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
+                        'state': self.read_port("state"), # writing DEC/TB
+                        'issue': self.read_port("issue"), # writing DEC/TB
                         'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
         self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
                         'msr': self.read_port("msr"), # reading MSR (issuer)
+                        'state': self.read_port("state"), # reading DEC/TB
+                        'issue': self.read_port("issue"), # reading DEC/TB
                         }
 
 
