@@ -317,6 +317,10 @@ class PowerDecoder(Elaboratable):
                         mname = get_pname("dec_sub%d" % key, self.pname)
                         setattr(m.submodules, mname, subdecoder)
                         comb += subdecoder.opcode_in.eq(self.opcode_in)
+                        # XXX hmmm...
+                        #if self.row_subsetfn:
+                        #    if not self.row_subsetfn(key, row):
+                        #        continue
                         # add in the dynamic Case statement here
                         with m.Case(key):
                             comb += self.op.eq(subdecoder.op)
@@ -331,6 +335,9 @@ class PowerDecoder(Elaboratable):
                             opcode = int(opcode, 0)
                         if not row['unit']:
                             continue
+                        if self.row_subsetfn:
+                            if not self.row_subsetfn(opcode, row):
+                                continue
                         # add in the dynamic Case statement here
                         with m.Case(opcode):
                             comb += self.op._eq(row)
@@ -467,12 +474,31 @@ def create_pdecode(name=None, col_subset=None, row_subset=None):
 
 
 if __name__ == '__main__':
-    pdecode = create_pdecode()
+
+    # row subset
+
+    def rowsubsetfn(opcode, row):
+        print ("row_subset", opcode, row)
+        return row['unit'] == 'ALU'
+
+    pdecode = create_pdecode(name="rowsub",
+                             col_subset={'function_unit', 'in1_sel'},
+                             row_subset=rowsubsetfn)
     vl = rtlil.convert(pdecode, ports=pdecode.ports())
-    with open("decoder.il", "w") as f:
+    with open("row_subset_decoder.il", "w") as f:
         f.write(vl)
+
+    # col subset
 
     pdecode = create_pdecode(name="fusubset", col_subset={'function_unit'})
     vl = rtlil.convert(pdecode, ports=pdecode.ports())
     with open("col_subset_decoder.il", "w") as f:
         f.write(vl)
+
+    # full decoder
+
+    pdecode = create_pdecode()
+    vl = rtlil.convert(pdecode, ports=pdecode.ports())
+    with open("decoder.il", "w") as f:
+        f.write(vl)
+
