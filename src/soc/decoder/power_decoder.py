@@ -101,15 +101,15 @@ from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 # key data structure in which the POWER decoder is specified,
 # in a hierarchical fashion
 Subdecoder = namedtuple("Subdecoder",
-                        ["pattern",    # the major pattern to search for (e.g. major opcode)
-                         "opcodes",    # a dictionary of minor patterns to find
-                         "opint",      # true => the pattern must not be in "10----11" format
-                         # the bits (as a range) against which "pattern" matches
-                         "bitsel",
-                         "suffix",     # shift the opcode down before decoding
-                         "subdecoders"  # list of further subdecoders for *additional* matches,
-                         # *ONLY* after "pattern" has *ALSO* been matched against.
-                         ])
+    ["pattern",    # the major pattern to search for (e.g. major opcode)
+     "opcodes",    # a dictionary of minor patterns to find
+     "opint",      # true => the pattern must not be in "10----11" format
+     # the bits (as a range) against which "pattern" matches
+     "bitsel",
+     "suffix",     # shift the opcode down before decoding
+     "subdecoders"  # list of further subdecoders for *additional* matches,
+     # *ONLY* after "pattern" has *ALSO* been matched against.
+     ])
 
 
 class PowerOp:
