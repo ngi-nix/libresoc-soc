@@ -320,11 +320,11 @@ class TestIssuer(Elaboratable):
             comb += d_xer.ack.eq(1)
 
         # DEC and TB inc/dec FSM
-        self.tb_dec_fsm(m)
+        self.tb_dec_fsm(m, cur_state.dec)
 
         return m
 
-    def tb_dec_fsm(self, m):
+    def tb_dec_fsm(self, m, spr_dec):
         """tb_dec_fsm
 
         this is a FSM for updating either dec or tb.  it runs alternately
@@ -356,6 +356,7 @@ class TestIssuer(Elaboratable):
                 comb += fast_w_dectb.addr.eq(FastRegs.DEC)
                 comb += fast_w_dectb.wen.eq(1)
                 comb += fast_w_dectb.data_i.eq(new_dec)
+                sync += spr_dec.eq(new_dec) # copy into cur_state for decoder
                 m.next = "TB_READ"
 
             # initiates read of current TB
