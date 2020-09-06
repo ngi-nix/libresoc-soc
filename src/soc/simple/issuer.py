@@ -25,7 +25,7 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
-from soc.regfile.regfiles import StateRegs
+from soc.regfile.regfiles import StateRegs, FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
@@ -81,7 +81,7 @@ class TestIssuer(Elaboratable):
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
-        # FAST regfile read /write ports for PC and MSR
+        # FAST regfile read /write ports for PC, MSR, DEC/TB
         staterf = self.core.regs.rf['state']
         self.state_r_pc = staterf.r_ports['cia'] # PC rd
         self.state_w_pc = staterf.w_ports['d_wr1'] # PC wr
@@ -264,7 +264,6 @@ class TestIssuer(Elaboratable):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
 
-
                 m.next = "INSN_ACTIVE" # move to "wait completion"
 
             # instruction started: must wait till it finishes
@@ -319,6 +318,54 @@ class TestIssuer(Elaboratable):
             # data arrives one clock later
             comb += d_xer.data.eq(self.xer_r.data_o)
             comb += d_xer.ack.eq(1)
+
+        # DEC and TB inc/dec FSM
+        self.tb_dec_fsm(m)
+
+        return m
+
+    def tb_dec_fsm(self, m):
+        """tb_dec_fsm
+
+        this is a FSM for updating either dec or tb.  it runs alternately
+        DEC, TB, DEC, TB.  note that SPR pipeline could have written a new
+        value to DEC, however the regfile has "passthrough" on it so this
+        *should* be ok.
+        """
+
+        comb, sync = m.d.comb, m.d.sync
+        fast_rf = self.core.regs.rf['fast']
+        fast_r_dectb = fast_rf.r_ports['issue'] # DEC/TB
+        fast_w_dectb = fast_rf.w_ports['issue'] # DEC/TB
+
+        with m.FSM() as fsm:
+
+            # initiates read of current DEC
+            with m.State("DEC_READ"):
+                comb += fast_r_dectb.ren.eq(1<<FastRegs.DEC)
+                m.next = "DEC_WRITE"
+
+            # waits for DEC read to arrive (1 cycle), updates with new value
+            with m.State("DEC_WRITE"):
+                new_dec = Signal(64)
+                # TODO: MSR.LPCR 32-bit decrement mode
+                comb += new_dec.eq(fast_r_dectb.data_o - 1)
+                comb += fast_w_dectb.wen.eq(1<<FastRegs.DEC)
+                comb += fast_w_dectb.data_i.eq(new_dec)
+                m.next = "TB_READ"
+
+            # initiates read of current TB
+            with m.State("TB_READ"):
+                comb += fast_r_dectb.ren.eq(1<<FastRegs.TB)
+                m.next = "TB_WRITE"
+
+            # waits for read TB to arrive, initiates write of current TB
+            with m.State("TB_WRITE"):
+                new_tb = Signal(64)
+                comb += new_tb.eq(fast_r_dectb.data_o + 1)
+                comb += fast_w_dectb.wen.eq(1<<FastRegs.TB)
+                comb += fast_w_dectb.data_i.eq(new_tb)
+                m.next = "DEC_READ"
 
         return m
 
