@@ -175,7 +175,6 @@ class DecodeB(Elaboratable):
         self.sel_in = Signal(In2Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_b")
-        self.imm_out = Data(64, "imm_b")
         self.fast_out = Data(3, "fast_b")
 
     def elaborate(self, platform):
@@ -191,6 +190,38 @@ class DecodeB(Elaboratable):
                 # for M-Form shiftrot
                 comb += self.reg_out.data.eq(self.dec.RS)
                 comb += self.reg_out.ok.eq(1)
+
+        # decode SPR2 based on instruction type
+        op = self.dec.op
+        # BCREG implicitly uses LR or TAR for 2nd reg
+        # CTR however is already in fast_spr1 *not* 2.
+        with m.If(op.internal_op == MicrOp.OP_BCREG):
+            xo9 = self.dec.FormXL.XO[9]  # 3.0B p38 top bit of XO
+            xo5 = self.dec.FormXL.XO[5]  # 3.0B p38
+            with m.If(~xo9):
+                comb += self.fast_out.data.eq(FastRegs.LR)
+                comb += self.fast_out.ok.eq(1)
+            with m.Elif(xo5):
+                comb += self.fast_out.data.eq(FastRegs.TAR)
+                comb += self.fast_out.ok.eq(1)
+
+        return m
+
+
+class DecodeBImm(Elaboratable):
+    """DecodeB immediate from instruction
+    """
+    def __init__(self, dec):
+        self.dec = dec
+        self.sel_in = Signal(In2Sel, reset_less=True)
+        self.imm_out = Data(64, "imm_b")
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # select Register B Immediate
+        with m.Switch(self.sel_in):
             with m.Case(In2Sel.CONST_UI): # unsigned
                 comb += self.imm_out.data.eq(self.dec.UI)
                 comb += self.imm_out.ok.eq(1)
@@ -233,20 +264,6 @@ class DecodeB(Elaboratable):
             with m.Case(In2Sel.CONST_SH32): # unsigned - for shift
                 comb += self.imm_out.data.eq(self.dec.SH32)
                 comb += self.imm_out.ok.eq(1)
-
-        # decode SPR2 based on instruction type
-        op = self.dec.op
-        # BCREG implicitly uses LR or TAR for 2nd reg
-        # CTR however is already in fast_spr1 *not* 2.
-        with m.If(op.internal_op == MicrOp.OP_BCREG):
-            xo9 = self.dec.FormXL.XO[9]  # 3.0B p38 top bit of XO
-            xo5 = self.dec.FormXL.XO[5]  # 3.0B p38
-            with m.If(~xo9):
-                comb += self.fast_out.data.eq(FastRegs.LR)
-                comb += self.fast_out.ok.eq(1)
-            with m.Elif(xo5):
-                comb += self.fast_out.data.eq(FastRegs.TAR)
-                comb += self.fast_out.ok.eq(1)
 
         return m
 
@@ -624,6 +641,7 @@ class PowerDecode2(Elaboratable):
         m.submodules.dec_a = dec_a = DecodeA(self.dec)
         m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
         m.submodules.dec_b = dec_b = DecodeB(self.dec)
+        m.submodules.dec_bi = dec_bi = DecodeBImm(self.dec)
         m.submodules.dec_c = dec_c = DecodeC(self.dec)
         m.submodules.dec_o = dec_o = DecodeOut(self.dec)
         m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
@@ -642,6 +660,7 @@ class PowerDecode2(Elaboratable):
         comb += dec_a.sel_in.eq(op.in1_sel)
         comb += dec_ai.sel_in.eq(op.in1_sel)
         comb += dec_b.sel_in.eq(op.in2_sel)
+        comb += dec_bi.sel_in.eq(op.in2_sel)
         comb += dec_c.sel_in.eq(op.in3_sel)
         comb += dec_o.sel_in.eq(op.out_sel)
         comb += dec_o2.sel_in.eq(op.out_sel)
@@ -667,7 +686,7 @@ class PowerDecode2(Elaboratable):
         comb += e.read_reg3.eq(dec_c.reg_out)
         comb += e.write_reg.eq(dec_o.reg_out)
         comb += e.write_ea.eq(dec_o2.reg_out)
-        comb += do.imm_data.eq(dec_b.imm_out)  # immediate in RB (usually)
+        comb += do.imm_data.eq(dec_bi.imm_out) # immediate in RB (usually)
         comb += do.zero_a.eq(dec_ai.immz_out)  # RA==0 detected
 
         # rc and oe out
