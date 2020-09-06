@@ -38,6 +38,7 @@ this includes specifying the information sufficient to perform subdecoding.
 create_pdecode()
 
     the full hierarchical tree for decoding POWER9 is specified here
+    subsetting is possible by specifying col_subset (row_subset TODO)
 
 PowerDecoder
 
@@ -169,6 +170,8 @@ class PowerOp:
             setattr(self, field, Signal(ptype, reset_less=True, name=fname))
         for bit in single_bit_flags:
             field = get_signal_name(bit)
+            if subset and field not in subset:
+                continue
             fname = get_pname(field, name)
             setattr(self, field, Signal(reset_less=True, name=fname))
 
@@ -210,7 +213,10 @@ class PowerOp:
         if hasattr(self, "asmcode") and asmcode in asmidx:
             res.append(self.asmcode.eq(asmidx[asmcode]))
         for bit in single_bit_flags:
-            sig = getattr(self, get_signal_name(bit))
+            field = get_signal_name(bit)
+            if not hasattr(self, field):
+                continue
+            sig = getattr(self, field)
             res.append(sig.eq(int(row.get(bit, 0))))
         return res
 
@@ -232,7 +238,7 @@ class PowerOp:
         res = []
         for field in power_op_types.keys():
             if hasattr(self, field):
-                regular.append(getattr(self, field))
+                res.append(getattr(self, field))
         if hasattr(self, "asmcode"):
             res.append(self.asmcode)
         for field in single_bit_flags:
@@ -247,6 +253,8 @@ class PowerDecoder(Elaboratable):
     """
 
     def __init__(self, width, dec, name=None, col_subset=None):
+        self.pname = name
+        self.col_subset = col_subset
         if not isinstance(dec, list):
             dec = [dec]
         self.dec = dec
@@ -301,8 +309,11 @@ class PowerDecoder(Elaboratable):
                         sd = Subdecoder(pattern=None, opcodes=row,
                                         bitsel=bitsel, suffix=None,
                                         opint=False, subdecoders=[])
-                        subdecoder = PowerDecoder(width=32, dec=sd)
-                        setattr(m.submodules, "dec_sub%d" % key, subdecoder)
+                        subdecoder = PowerDecoder(width=32, dec=sd,
+                                                  name=self.pname,
+                                                  col_subset=self.col_subset)
+                        mname = get_pname("dec_sub%d" % key, self.pname)
+                        setattr(m.submodules, mname, subdecoder)
                         comb += subdecoder.opcode_in.eq(self.opcode_in)
                         # add in the dynamic Case statement here
                         with m.Case(key):
@@ -325,10 +336,13 @@ class PowerDecoder(Elaboratable):
 
     def handle_subdecoders(self, m, d):
         for dec in d.subdecoders:
-            subdecoder = PowerDecoder(self.width, dec)
+            subdecoder = PowerDecoder(self.width, dec,
+                                     name=self.pname,
+                                     col_subset=self.col_subset)
             if isinstance(dec, list):  # XXX HACK: take first pattern
                 dec = dec[0]
-            setattr(m.submodules, "dec%d" % dec.pattern, subdecoder)
+            mname = get_pname("dec%d" % dec.pattern, self.pname)
+            setattr(m.submodules, mname, subdecoder)
             m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
             with m.Case(dec.pattern):
                 m.d.comb += self.op.eq(subdecoder.op)
@@ -345,16 +359,17 @@ class TopPowerDecoder(PowerDecoder):
     (reverses byte order).  See V3.0B p44 1.11.2
     """
 
-    def __init__(self, width, dec):
-        PowerDecoder.__init__(self, width, dec)
+    def __init__(self, width, dec, name=None, col_subset=None):
+        PowerDecoder.__init__(self, width, dec, name, col_subset)
         self.fields = df = DecodeFields(SignalBitRange, [self.opcode_in])
         self.fields.create_specs()
         self.raw_opcode_in = Signal.like(self.opcode_in, reset_less=True)
         self.bigendian = Signal(reset_less=True)
 
-        for name, value in self.fields.common_fields.items():
-            sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
-            setattr(self, name, sig)
+        for fname, value in self.fields.common_fields.items():
+            signame = get_pname(fname, name)
+            sig = Signal(value[0:-1].shape(), reset_less=True, name=signame)
+            setattr(self, fname, sig)
 
         # create signals for all field forms
         self.form_names = forms = self.fields.instrs.keys()
@@ -365,8 +380,8 @@ class TopPowerDecoder(PowerDecoder):
             Fields = namedtuple("Fields", fk)
             sf = {}
             for k, value in fields.items():
-                name = "%s_%s" % (form, k)
-                sig = Signal(value[0:-1].shape(), reset_less=True, name=name)
+                fname = "%s_%s" % (form, k)
+                sig = Signal(value[0:-1].shape(), reset_less=True, name=fname)
                 sf[k] = sig
             instr = Fields(**sf)
             setattr(self, "Form%s" % form, instr)
@@ -385,8 +400,8 @@ class TopPowerDecoder(PowerDecoder):
         comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # add all signal from commonly-used fields
-        for name, value in self.fields.common_fields.items():
-            sig = getattr(self, name)
+        for fname, value in self.fields.common_fields.items():
+            sig = getattr(self, fname)
             comb += sig.eq(value[0:-1])
 
         # link signals for all field forms
@@ -407,16 +422,20 @@ class TopPowerDecoder(PowerDecoder):
 ####################################################
 # PRIMARY FUNCTION SPECIFYING THE FULL POWER DECODER
 
-def create_pdecode():
+def create_pdecode(name=None, col_subset=None):
     """create_pdecode - creates a cascading hierarchical POWER ISA decoder
+
+    subsetting of the PowerOp decoding is possible by setting col_subset
     """
 
     # minor 19 has extra patterns
     m19 = []
     m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19.csv"),
-                          opint=True, bitsel=(1, 11), suffix=None, subdecoders=[]))
+                          opint=True, bitsel=(1, 11), suffix=None,
+                          subdecoders=[]))
     m19.append(Subdecoder(pattern=19, opcodes=get_csv("minor_19_00000.csv"),
-                          opint=True, bitsel=(1, 6), suffix=None, subdecoders=[]))
+                          opint=True, bitsel=(1, 6), suffix=None,
+                          subdecoders=[]))
 
     # minor opcodes.
     pminor = [
@@ -440,11 +459,16 @@ def create_pdecode():
     dec.append(Subdecoder(pattern=None, opint=False, opcodes=opcodes,
                           bitsel=(0, 32), suffix=None, subdecoders=[]))
 
-    return TopPowerDecoder(32, dec)
+    return TopPowerDecoder(32, dec, name=name, col_subset=col_subset)
 
 
 if __name__ == '__main__':
     pdecode = create_pdecode()
     vl = rtlil.convert(pdecode, ports=pdecode.ports())
     with open("decoder.il", "w") as f:
+        f.write(vl)
+
+    pdecode = create_pdecode(name="fusubset", col_subset={'function_unit'})
+    vl = rtlil.convert(pdecode, ports=pdecode.ports())
+    with open("col_subset_decoder.il", "w") as f:
         f.write(vl)
