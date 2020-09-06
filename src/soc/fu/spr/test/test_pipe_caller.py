@@ -151,6 +151,63 @@ class TestRunner(unittest.TestCase):
         super().__init__("run_all")
         self.test_data = test_data
 
+    def execute(self, alu, instruction, pdecode2, test):
+        program = test.program
+        sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                  test.mem, test.msr,
+                  bigendian=bigendian)
+        gen = program.generate_instructions()
+        instructions = list(zip(gen, program.assembly.splitlines()))
+
+        pc = sim.pc.CIA.value
+        msr = sim.msr.value
+        index = pc//4
+        while index < len(instructions):
+            ins, code = instructions[index]
+
+            print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
+            print(code)
+
+            if 'XER' in sim.spr:
+                so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                print("before: so/ov/32", so, ov, ov32)
+
+            # ask the decoder to decode this binary data (endian'd)
+            yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
+            yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
+            yield pdecode2.state.pc.eq(pc)  # set PC in pdecode2
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Settle()
+
+            fast_in = yield pdecode2.e.read_fast1.data
+            spr_in = yield pdecode2.e.read_spr1.data
+            print("dec2 spr/fast in", fast_in, spr_in)
+
+            fast_out = yield pdecode2.e.write_fast1.data
+            spr_out = yield pdecode2.e.write_spr.data
+            print("dec2 spr/fast in", fast_out, spr_out)
+
+            fn_unit = yield pdecode2.e.do.fn_unit
+            self.assertEqual(fn_unit, Function.SPR.value)
+            alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
+            yield
+            opname = code.split(' ')[0]
+            yield from sim.call(opname)
+            pc = sim.pc.CIA.value
+            msr = sim.msr.value
+            index = pc//4
+            print("pc after %08x" % (pc))
+
+            vld = yield alu.n.valid_o
+            while not vld:
+                yield
+                vld = yield alu.n.valid_o
+            yield
+
+            yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+
     def run_all(self):
         m = Module()
         comb = m.d.comb
@@ -176,61 +233,8 @@ class TestRunner(unittest.TestCase):
                 print("test", test.name)
                 print("sprs", test.sprs)
                 program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                          test.mem, test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
-
-                pc = sim.pc.CIA.value
-                msr = sim.msr.value
-                index = pc//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("pc %08x instr: %08x" % (pc, ins & 0xffffffff))
-                    print(code)
-
-                    if 'XER' in sim.spr:
-                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print("before: so/ov/32", so, ov, ov32)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
-                    yield pdecode2.state.pc.eq(pc)  # set PC in pdecode2
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-
-                    fast_in = yield pdecode2.e.read_fast1.data
-                    spr_in = yield pdecode2.e.read_spr1.data
-                    print("dec2 spr/fast in", fast_in, spr_in)
-
-                    fast_out = yield pdecode2.e.write_fast1.data
-                    spr_out = yield pdecode2.e.write_spr.data
-                    print("dec2 spr/fast in", fast_out, spr_out)
-
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.SPR.value)
-                    alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
-                    yield
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
-                    pc = sim.pc.CIA.value
-                    msr = sim.msr.value
-                    index = pc//4
-                    print("pc after %08x" % (pc))
-
-                    vld = yield alu.n.valid_o
-                    while not vld:
-                        yield
-                        vld = yield alu.n.valid_o
-                    yield
-
-                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                with self.subTest(test.name):
+                    yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
