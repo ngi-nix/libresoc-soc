@@ -32,8 +32,9 @@ import operator
 
 
 class Register(Elaboratable):
-    def __init__(self, width, writethru=True, synced=True):
+    def __init__(self, width, writethru=True, synced=True, resetval=0):
         self.width = width
+        self.reset = resetval
         self.writethru = writethru
         self.synced = synced
         self._rdports = []
@@ -55,7 +56,7 @@ class Register(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        self.reg = reg = Signal(self.width, name="reg")
+        self.reg = reg = Signal(self.width, name="reg", reset=self.reset)
 
         if self.synced:
             domain = m.d.sync
