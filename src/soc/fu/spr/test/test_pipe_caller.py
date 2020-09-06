@@ -138,6 +138,27 @@ class SPRTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs, initial_msr=msr)
 
+    def case_4_mfspr_slow(self):
+        lst = ["mfspr 1, 272",    # SPRG0
+               "mfspr 4, 273", ]  # SPRG1
+        initial_regs = [0] * 32
+        initial_sprs = {'SPRG0_priv': 0x12345678, 'SPRG1_priv': 0x5678,
+                        }
+        self.add_case(Program(lst, bigendian),
+                      initial_regs, initial_sprs)
+
+    def case_5_mtspr(self):
+        lst = ["mtspr 272, 1",  # SPRG0
+               "mtspr 273, 2",  # SPRG1
+               ]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x129518230011feed
+        initial_regs[2] = 0x123518230011fee0
+        initial_sprs = {'SPRG0_priv': 0x12345678, 'SPRG1_priv': 0x5678,
+                        }
+        self.add_case(Program(lst, bigendian),
+                      initial_regs, initial_sprs)
+
     def case_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)
         alu = SPRBasePipe(pspec)

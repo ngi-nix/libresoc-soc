@@ -25,3 +25,15 @@ def spr_to_fast_reg(spr_num):
     if not isinstance(spr_num, str):
         spr_num = spr_dict[spr_num].SPR
     return sprstr_to_fast[spr_num]
+
+
+def slow_reg_to_spr(slow_reg):
+    for i, x in enumerate(SPR):
+        if slow_reg == i:
+            return x.value
+
+
+def spr_to_slow_reg(spr_num):
+    for i, x in enumerate(SPR):
+        if spr_num == x.value:
+            return i

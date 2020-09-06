@@ -7,7 +7,7 @@ import inspect
 import functools
 import types
 from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
-from soc.regfile.util import fast_reg_to_spr  # HACK!
+from soc.regfile.util import fast_reg_to_spr, slow_reg_to_spr  # HACK!
 from soc.regfile.regfiles import XERRegs, FastRegs
 
 
@@ -156,6 +156,7 @@ class ALUHelpers:
         spr1_en = yield dec2.e.read_spr1.ok
         if spr1_en:
             spr1_sel = yield dec2.e.read_spr1.data
+            spr1_sel = slow_reg_to_spr(spr1_sel)
             spr1_data = sim.spr[spr1_sel].value
             res['spr1'] = spr1_data
 
@@ -418,6 +419,7 @@ class ALUHelpers:
         ok = yield dec2.e.write_spr.ok
         if ok:
             spr_num = yield dec2.e.write_spr.data
+            spr_num = slow_reg_to_spr(spr_num)
             spr_name = spr_dict[spr_num].SPR
             res['spr1'] = sim.spr[spr_name].value
 
