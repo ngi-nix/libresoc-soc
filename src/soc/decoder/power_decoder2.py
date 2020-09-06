@@ -77,8 +77,7 @@ class SPRMap(Elaboratable):
 class DecodeA(Elaboratable):
     """DecodeA from instruction
 
-    decodes register RA, whether immediate-zero, implicit and
-    explicit CSRs
+    decodes register RA, implicit and explicit CSRs
     """
 
     def __init__(self, dec):
@@ -86,7 +85,6 @@ class DecodeA(Elaboratable):
         self.sel_in = Signal(In1Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, name="reg_a")
-        self.immz_out = Signal(reset_less=True)
         self.spr_out = Data(SPR, "spr_a")
         self.fast_out = Data(3, "fast_a")
 
@@ -103,11 +101,6 @@ class DecodeA(Elaboratable):
                    (ra != Const(0, 5)))):
             comb += self.reg_out.data.eq(ra)
             comb += self.reg_out.ok.eq(1)
-
-        # zero immediate requested
-        with m.If((self.sel_in == In1Sel.RA_OR_ZERO) &
-                  (self.reg_out.data == Const(0, 5))):
-            comb += self.immz_out.eq(1)
 
         # some Logic/ALU ops have RS as the 3rd arg, but no "RA".
         with m.If(self.sel_in == In1Sel.RS):
@@ -139,6 +132,31 @@ class DecodeA(Elaboratable):
                 comb += sprmap.spr_i.eq(spr)
                 comb += self.spr_out.eq(sprmap.spr_o)
                 comb += self.fast_out.eq(sprmap.fast_o)
+
+        return m
+
+
+class DecodeAImm(Elaboratable):
+    """DecodeA immediate from instruction
+
+    decodes register RA, whether immediate-zero, implicit and
+    explicit CSRs
+    """
+
+    def __init__(self, dec):
+        self.dec = dec
+        self.sel_in = Signal(In1Sel, reset_less=True)
+        self.immz_out = Signal(reset_less=True)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # zero immediate requested
+        ra = Signal(5, reset_less=True)
+        comb += ra.eq(self.dec.RA)
+        with m.If((self.sel_in == In1Sel.RA_OR_ZERO) & (ra == Const(0, 5))):
+            comb += self.immz_out.eq(1)
 
         return m
 
@@ -604,6 +622,7 @@ class PowerDecode2(Elaboratable):
         # set up submodule decoders
         m.submodules.dec = self.dec
         m.submodules.dec_a = dec_a = DecodeA(self.dec)
+        m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
         m.submodules.dec_b = dec_b = DecodeB(self.dec)
         m.submodules.dec_c = dec_c = DecodeC(self.dec)
         m.submodules.dec_o = dec_o = DecodeOut(self.dec)
@@ -621,6 +640,7 @@ class PowerDecode2(Elaboratable):
 
         # ...and subdecoders' input fields
         comb += dec_a.sel_in.eq(op.in1_sel)
+        comb += dec_ai.sel_in.eq(op.in1_sel)
         comb += dec_b.sel_in.eq(op.in2_sel)
         comb += dec_c.sel_in.eq(op.in3_sel)
         comb += dec_o.sel_in.eq(op.out_sel)
@@ -648,7 +668,7 @@ class PowerDecode2(Elaboratable):
         comb += e.write_reg.eq(dec_o.reg_out)
         comb += e.write_ea.eq(dec_o2.reg_out)
         comb += do.imm_data.eq(dec_b.imm_out)  # immediate in RB (usually)
-        comb += do.zero_a.eq(dec_a.immz_out)  # RA==0 detected
+        comb += do.zero_a.eq(dec_ai.immz_out)  # RA==0 detected
 
         # rc and oe out
         comb += do.rc.eq(dec_rc.rc_out)
