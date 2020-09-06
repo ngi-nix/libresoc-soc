@@ -633,8 +633,9 @@ class PowerDecode2(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        state = self.state
         e_out, op, do_out = self.e, self.dec.op, self.e.do
-        msr, cia, ext_irq = self.state.msr, self.state.pc, self.state.eint
+        dec_spr, msr, cia, ext_irq = state.dec, state.msr, state.pc, state.eint
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
@@ -755,6 +756,10 @@ class PowerDecode2(Elaboratable):
         # external interrupt?
         with m.If(ext_irq & msr[MSR.EE]):
             self.trap(m, TT.EINT, 0x500)
+
+        # decrement counter: TODO 32-bit version (MSR.LPCR)
+        with m.If(dec_spr[63] & msr[MSR.EE]): # v3.0B 6.5.11 p1076
+            self.trap(m, TT.DEC, 0x900)   # v3.0B 6.5 p1065
 
         # privileged instruction trap
         with m.Elif(is_priv_insn & msr[MSR.PR]):

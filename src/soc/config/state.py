@@ -8,3 +8,4 @@ class CoreState(RecordObject):
         self.pc = Signal(64)      # Program Counter (CIA, NIA)
         self.msr = Signal(64)     # Machine Status Register (MSR)
         self.eint = Signal()      # External Interrupt
+        self.dec = Signal(64)     # DEC SPR (again, for interrupt generation)
