@@ -111,6 +111,28 @@ Subdecoder = namedtuple("Subdecoder",
      # *ONLY* after "pattern" has *ALSO* been matched against.
      ])
 
+power_op_types = {'function_unit': Function,
+                  'internal_op': MicrOp,
+                  'form': Form,
+                  'asmcode': 8,
+                  'in1_sel': In1Sel,
+                  'in2_sel': In2Sel,
+                  'in3_sel': In3Sel,
+                  'out_sel': OutSel,
+                  'cr_in': CRInSel,
+                  'cr_out': CROutSel,
+                  'ldst_len': LdstLen,
+                  'upd': LDSTMode,
+                  'rc_sel': RC,
+                  'cry_in': CryIn
+                  }
+
+
+def get_pname(field, pname):
+    if pname is None:
+        return field
+    return "%s_%s" % (pname, field)
+
 
 class PowerOp:
     """PowerOp: spec for execution.  op type (ADD etc.) reg specs etc.
@@ -120,27 +142,20 @@ class PowerOp:
 
     the "public" API (as far as actual usage as a useful decoder is concerned)
     is Decode2ToExecute1Type
+
+    the "subset" allows for only certain columns to be decoded
     """
 
-    def __init__(self, incl_asm=True):
-        self.function_unit = Signal(Function, reset_less=True)
-        self.internal_op = Signal(MicrOp, reset_less=True)
-        self.form = Signal(Form, reset_less=True)
-        if incl_asm:  # for simulator only
-            self.asmcode = Signal(8, reset_less=True)
-        self.in1_sel = Signal(In1Sel, reset_less=True)
-        self.in2_sel = Signal(In2Sel, reset_less=True)
-        self.in3_sel = Signal(In3Sel, reset_less=True)
-        self.out_sel = Signal(OutSel, reset_less=True)
-        self.cr_in = Signal(CRInSel, reset_less=True)
-        self.cr_out = Signal(CROutSel, reset_less=True)
-        self.ldst_len = Signal(LdstLen, reset_less=True)
-        self.upd = Signal(LDSTMode, reset_less=True)
-        self.rc_sel = Signal(RC, reset_less=True)
-        self.cry_in = Signal(CryIn, reset_less=True)
+    def __init__(self, incl_asm=True, name=None, subset=None):
+        for field, ptype in power_op_types.items():
+            if subset and field not in subset:
+                continue
+            fname = get_pname(field, name)
+            setattr(self, field, Signal(ptype, reset_less=True, name=fname))
         for bit in single_bit_flags:
-            name = get_signal_name(bit)
-            setattr(self, name, Signal(reset_less=True, name=name))
+            field = get_signal_name(bit)
+            fname = get_pname(field, name)
+            setattr(self, field, Signal(reset_less=True, name=fname))
 
     def _eq(self, row=None):
         if row is None:
