@@ -763,11 +763,11 @@ class PowerDecode2(Elaboratable):
         # check if instruction is privileged
         is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)
 
-        # external interrupt?
-        with m.If(ext_irq & msr[MSR.EE]):
+        # external interrupt? only if MSR.EE set
+        with m.If(ext_irq & msr[MSR.EE]): # v3.0B p944 (MSR.EE)
             self.trap(m, TT.EINT, 0x500)
 
-        # decrement counter: TODO 32-bit version (MSR.LPCR)
+        # decrement counter (v3.0B p1099): TODO 32-bit version (MSR.LPCR)
         with m.If(dec_spr[63] & msr[MSR.EE]): # v3.0B 6.5.11 p1076
             self.trap(m, TT.DEC, 0x900)   # v3.0B 6.5 p1065
 

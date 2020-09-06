@@ -331,6 +331,8 @@ class TestIssuer(Elaboratable):
         DEC, TB, DEC, TB.  note that SPR pipeline could have written a new
         value to DEC, however the regfile has "passthrough" on it so this
         *should* be ok.
+
+        see v3.0B p1097-1099 for Timeer Resource and p1065 and p1076
         """
 
         comb, sync = m.d.comb, m.d.sync
