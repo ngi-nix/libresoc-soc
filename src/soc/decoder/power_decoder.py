@@ -127,6 +127,20 @@ power_op_types = {'function_unit': Function,
                   'cry_in': CryIn
                   }
 
+power_op_csvmap = {'function_unit': 'unit',
+                   'form' : 'form',
+                   'internal_op' : 'internal op',
+                   'in1_sel' : 'in1',
+                   'in2_sel' : 'in2',
+                   'in3_sel' : 'in3',
+                   'out_sel' : 'out',
+                   'cr_in' : 'CR in',
+                   'cr_out' : 'CR out',
+                   'ldst_len' : 'ldst len',
+                   'upd' : 'upd',
+                   'rc_sel' : 'rc',
+                   'cry_in' : 'cry in',
+            }
 
 def get_pname(field, pname):
     if pname is None:
@@ -147,6 +161,7 @@ class PowerOp:
     """
 
     def __init__(self, incl_asm=True, name=None, subset=None):
+        self.subset = subset
         for field, ptype in power_op_types.items():
             if subset and field not in subset:
                 continue
@@ -175,23 +190,20 @@ class PowerOp:
             print(row)
         ldst_mode = row['upd']
         if ldst_mode.isdigit():
-            ldst_mode = LDSTMode(int(ldst_mode))
-        else:
-            ldst_mode = LDSTMode[ldst_mode]
-        res = [self.function_unit.eq(Function[row['unit']]),
-               self.form.eq(Form[row['form']]),
-               self.internal_op.eq(MicrOp[row['internal op']]),
-               self.in1_sel.eq(In1Sel[row['in1']]),
-               self.in2_sel.eq(In2Sel[row['in2']]),
-               self.in3_sel.eq(In3Sel[row['in3']]),
-               self.out_sel.eq(OutSel[row['out']]),
-               self.cr_in.eq(CRInSel[row['CR in']]),
-               self.cr_out.eq(CROutSel[row['CR out']]),
-               self.ldst_len.eq(LdstLen[row['ldst len']]),
-               self.upd.eq(ldst_mode),
-               self.rc_sel.eq(RC[row['rc']]),
-               self.cry_in.eq(CryIn[row['cry in']]),
-               ]
+            row['upd'] = int(ldst_mode)
+        res = []
+        for field, ptype in power_op_types.items():
+            if not hasattr(self, field):
+                continue
+            if field not in power_op_csvmap:
+                continue
+            csvname = power_op_csvmap[field]
+            val = row[csvname]
+            if csvname == 'upd' and isinstance(val, int): # LDSTMode different
+                val = ptype(val)
+            else:
+                val = ptype[val]
+            res.append(getattr(self, field).eq(val))
         if False:
             print(row.keys())
         asmcode = row['comment']
@@ -202,57 +214,45 @@ class PowerOp:
             res.append(sig.eq(int(row.get(bit, 0))))
         return res
 
+    def _get_eq(self, res, field, otherop):
+        copyfrom = getattr(otherop, field, None)
+        copyto = getattr(self, field, None)
+        if copyfrom is not None and copyto is not None:
+            res.append(copyto.eq(copyfrom))
+
     def eq(self, otherop):
-        res = [self.function_unit.eq(otherop.function_unit),
-               self.form.eq(otherop.form),
-               self.internal_op.eq(otherop.internal_op),
-               self.in1_sel.eq(otherop.in1_sel),
-               self.in2_sel.eq(otherop.in2_sel),
-               self.in3_sel.eq(otherop.in3_sel),
-               self.out_sel.eq(otherop.out_sel),
-               self.cr_in.eq(otherop.cr_in),
-               self.cr_out.eq(otherop.cr_out),
-               self.rc_sel.eq(otherop.rc_sel),
-               self.ldst_len.eq(otherop.ldst_len),
-               self.upd.eq(otherop.upd),
-               self.cry_in.eq(otherop.cry_in)]
+        res = []
+        for field in power_op_types.keys():
+            self._get_eq(res, field, otherop)
         for bit in single_bit_flags:
-            sig = getattr(self, get_signal_name(bit))
-            res.append(sig.eq(getattr(otherop, get_signal_name(bit))))
-        if hasattr(self, "asmcode"):
-            res.append(self.asmcode.eq(otherop.asmcode))
+            self._get_eq(res, get_signal_name(bit), otherop)
         return res
 
     def ports(self):
-        regular = [self.function_unit,
-                   self.in1_sel,
-                   self.in2_sel,
-                   self.in3_sel,
-                   self.out_sel,
-                   self.cr_in,
-                   self.cr_out,
-                   self.ldst_len,
-                   self.rc_sel,
-                   self.internal_op,
-                   self.form]
+        res = []
+        for field in power_op_types.keys():
+            if hasattr(self, field):
+                regular.append(getattr(self, field))
         if hasattr(self, "asmcode"):
-            regular.append(self.asmcode)
-        single_bit_ports = [getattr(self, get_signal_name(x))
-                            for x in single_bit_flags]
-        return regular + single_bit_ports
+            res.append(self.asmcode)
+        for field in single_bit_flags:
+            field = get_signal_name(field)
+            if hasattr(self, field):
+                res.append(getattr(self, field))
+        return res
 
 
 class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
     """
 
-    def __init__(self, width, dec):
+    def __init__(self, width, dec, name=None, col_subset=None):
         if not isinstance(dec, list):
             dec = [dec]
         self.dec = dec
         self.opcode_in = Signal(width, reset_less=True)
 
-        self.op = PowerOp()
+        self.op = PowerOp(name=name, subset=col_subset)
         for d in dec:
             if d.suffix is not None and d.suffix >= width:
                 d.suffix = None
