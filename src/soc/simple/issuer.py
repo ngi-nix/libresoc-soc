@@ -344,7 +344,8 @@ class TestIssuer(Elaboratable):
 
             # initiates read of current DEC
             with m.State("DEC_READ"):
-                comb += fast_r_dectb.ren.eq(1<<FastRegs.DEC)
+                comb += fast_r_dectb.addr.eq(FastRegs.DEC)
+                comb += fast_r_dectb.ren.eq(1)
                 m.next = "DEC_WRITE"
 
             # waits for DEC read to arrive (1 cycle), updates with new value
@@ -352,20 +353,23 @@ class TestIssuer(Elaboratable):
                 new_dec = Signal(64)
                 # TODO: MSR.LPCR 32-bit decrement mode
                 comb += new_dec.eq(fast_r_dectb.data_o - 1)
-                comb += fast_w_dectb.wen.eq(1<<FastRegs.DEC)
+                comb += fast_w_dectb.addr.eq(FastRegs.DEC)
+                comb += fast_w_dectb.wen.eq(1)
                 comb += fast_w_dectb.data_i.eq(new_dec)
                 m.next = "TB_READ"
 
             # initiates read of current TB
             with m.State("TB_READ"):
-                comb += fast_r_dectb.ren.eq(1<<FastRegs.TB)
+                comb += fast_r_dectb.addr.eq(FastRegs.TB)
+                comb += fast_r_dectb.ren.eq(1)
                 m.next = "TB_WRITE"
 
             # waits for read TB to arrive, initiates write of current TB
             with m.State("TB_WRITE"):
                 new_tb = Signal(64)
                 comb += new_tb.eq(fast_r_dectb.data_o + 1)
-                comb += fast_w_dectb.wen.eq(1<<FastRegs.TB)
+                comb += fast_w_dectb.addr.eq(FastRegs.TB)
+                comb += fast_w_dectb.wen.eq(1)
                 comb += fast_w_dectb.data_i.eq(new_tb)
                 m.next = "DEC_READ"
 
