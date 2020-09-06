@@ -35,7 +35,7 @@ class StateRegs(RegFileArray):
     State regfile  - PC, MSR, DEC, TB and later SimpleV VL
 
     * QTY 4of 64-bit registers
-    * 5R4W
+    * 3R2W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
 
@@ -43,24 +43,16 @@ class StateRegs(RegFileArray):
     will probably have to also add one so it can get at the MSR as well.
     (d_rd2)
 
-    Note: r/w state are used by SPR for MTSPR / MFSPR.
-    Note: r/w issue are used by issuer to increment/decrement TB/DEC.
     """
     PC = 0
     MSR = 1
-    DEC = 2
-    TB = 3
     def __init__(self):
         super().__init__(64, 4)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
-                        'state': self.read_port("state"), # writing DEC/TB
-                        'issue': self.read_port("issue"), # writing DEC/TB
                         'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
         self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
                         'msr': self.read_port("msr"), # reading MSR (issuer)
-                        'state': self.read_port("state"), # reading DEC/TB
-                        'issue': self.read_port("issue"), # reading DEC/TB
                         }
 
 
@@ -88,12 +80,14 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
 class FastRegs(RegFileMem): #RegFileArray):
     """FastRegs
 
-    FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER
+    FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER, TB, DEC
 
     * QTY 6of 64-bit registers
-    * 2R1W
+    * 3R2W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
+
+    Note: r/w issue are used by issuer to increment/decrement TB/DEC.
     """
     CTR = 0
     LR = 1
@@ -101,12 +95,16 @@ class FastRegs(RegFileMem): #RegFileArray):
     SRR0 = 3
     SRR1 = 4
     XER = 5 # non-XER bits
+    DEC = 6
+    TB = 7
     def __init__(self):
-        super().__init__(64, 6)
+        super().__init__(64, 8)
         self.w_ports = {'fast1': self.write_port("dest1"),
+                        'issue': self.write_port("issue"), # writing DEC/TB
                        }
         self.r_ports = {'fast1': self.read_port("src1"),
                         'fast2': self.read_port("src2"),
+                        'issue': self.read_port("issue"), # reading DEC/TB
                         }
 
 

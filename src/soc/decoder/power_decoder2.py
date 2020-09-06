@@ -149,7 +149,12 @@ class DecodeA(Elaboratable):
                     with m.Case(SPR.XER.value):
                         comb += self.fast_out.data.eq(FastRegs.XER)
                         comb += self.fast_out.ok.eq(1)
-                        pass  # do nothing
+                    with m.Case(SPR.DEC.value):
+                        comb += self.fast_out.data.eq(FastRegs.DEC)
+                        comb += self.fast_out.ok.eq(1)
+                    with m.Case(SPR.TB.value):
+                        comb += self.fast_out.data.eq(FastRegs.TB)
+                        comb += self.fast_out.ok.eq(1)
                     # : map to internal SPR numbers
                     # XXX TODO: dec and tb not to go through mapping.
                     with m.Default():
@@ -332,7 +337,12 @@ class DecodeOut(Elaboratable):
                         with m.Case(SPR.XER.value):
                             comb += self.fast_out.data.eq(FastRegs.XER)
                             comb += self.fast_out.ok.eq(1)
-                            pass  # do nothing
+                        with m.Case(SPR.TB.value):
+                            comb += self.fast_out.data.eq(FastRegs.TB)
+                            comb += self.fast_out.ok.eq(1)
+                        with m.Case(SPR.DEC.value):
+                            comb += self.fast_out.data.eq(FastRegs.DEC)
+                            comb += self.fast_out.ok.eq(1)
                         # : map to internal SPR numbers
                         # XXX TODO: dec and tb not to go through mapping.
                         with m.Default():

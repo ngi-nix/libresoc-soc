@@ -19,7 +19,6 @@ class SPRInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'),        # RA
                ('SPR', 'spr1', '0:63'),      # SPR (slow)
                ('FAST', 'fast1', '0:63'),    # SPR (fast: LR, CTR etc)
-               ('STATE', 'state', '0:63'),   # SPR (state: DEC, TB)
                ('XER', 'xer_so', '32'),      # XER bit 32: SO
                ('XER', 'xer_ov', '33,44'),   # XER bit 34/45: CA/CA32
                ('XER', 'xer_ca', '34,45')]   # bit0: ov, bit1: ov32
@@ -33,7 +32,6 @@ class SPROutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('SPR', 'spr1', '0:63'),     # SPR (slow)
                ('FAST', 'fast1', '0:63'),   # SPR (fast: LR, CTR etc)
-               ('STATE', 'state', '0:63'),   # SPR (state: DEC, TB)
                ('XER', 'xer_so', '32'),     # XER bit 32: SO
                ('XER', 'xer_ov', '33,44'),  # XER bit 34/45: CA/CA32
                ('XER', 'xer_ca', '34,45')]  # bit0: ov, bit1: ov32

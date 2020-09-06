@@ -91,7 +91,7 @@ def regspec_decode_read(e, regfile, name):
     if regfile == 'STATE':
         # STATE register numbering is *unary* encoded
         PC = 1<<StateRegs.PC
-        MSR = 1<<Stateegs.MSR
+        MSR = 1<<StateRegs.MSR
         if name in ['cia', 'nia']:
             return Const(1), PC # TODO: detect read-conditions
         if name == 'msr':

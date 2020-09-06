@@ -36,7 +36,6 @@ class SPRMainStage(PipeModBase):
         so_i, ov_i, ca_i = self.i.xer_so, self.i.xer_ov, self.i.xer_ca
         so_o, ov_o, ca_o = self.o.xer_so, self.o.xer_ov, self.o.xer_ca
         o, spr1_o, fast1_o = self.o.o, self.o.spr1, self.o.fast1
-        state_i, state_o = self.i.state, self.o.state
 
         # take copy of D-Form TO field
         x_fields = self.fields.FormXFX
@@ -50,7 +49,7 @@ class SPRMainStage(PipeModBase):
                 with m.Switch(spr):
                     # fast SPRs first
                     with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0,
-                                SPR.SRR1, SPR.XER):
+                                SPR.SRR1, SPR.XER, SPR.DEC):
                         comb += fast1_o.data.eq(a_i)
                         comb += fast1_o.ok.eq(1)
                         # XER is constructed
@@ -66,10 +65,6 @@ class SPRMainStage(PipeModBase):
                             comb += ca_o.data[0].eq(a_i[63-XER_bits['CA']])
                             comb += ca_o.data[1].eq(a_i[63-XER_bits['CA32']])
                             comb += ca_o.ok.eq(1)
-                    # STATE SPRs (dec, tb)
-                    with m.Case(SPR.DEC):
-                        comb += state_o.data.eq(a_i)
-                        comb += state_o.ok.eq(1)
 
                     # slow SPRs TODO
 
@@ -79,7 +74,7 @@ class SPRMainStage(PipeModBase):
                 with m.Switch(spr):
                     # fast SPRs first
                     with m.Case(SPR.CTR, SPR.LR, SPR.TAR, SPR.SRR0, SPR.SRR1,
-                                SPR.XER):
+                                SPR.XER, SPR.DEC, SPR.TB):
                         comb += o.data.eq(fast1_i)
                         with m.If(spr == SPR.XER):
                             # bits 0:31 and 35:43 are treated as reserved
@@ -94,11 +89,8 @@ class SPRMainStage(PipeModBase):
                             # carry
                             comb += o[63-XER_bits['CA']].eq(ca_i[0])
                             comb += o[63-XER_bits['CA32']].eq(ca_i[1])
-                    # STATE SPRs (dec, tb)
-                    with m.Case(SPR.DEC, SPR.TB):
-                        comb += o.data.eq(state_i)
                     with m.Case(SPR.TBU):
-                        comb += o.data[0:32].eq(state_i[32:64])
+                        comb += o.data[0:32].eq(fast1_i[32:64])
 
                     # slow SPRs TODO
 
