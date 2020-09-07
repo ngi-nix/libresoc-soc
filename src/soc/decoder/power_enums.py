@@ -337,3 +337,5 @@ if __name__ == '__main__':
     print(SPR.__members__['TAR'])
     for x in SPR:
         print(x, x.value, str(x), x.name)
+
+    print ("function", Function.ALU.name)

@@ -593,33 +593,29 @@ class DecodeCROut(Elaboratable):
         return m
 
 
-class PowerDecode2(Elaboratable):
-    """PowerDecode2: the main instruction decoder.
+class PowerDecodeSubset(Elaboratable):
+    """PowerDecodeSubset: dynamic subset decoder
 
-    whilst PowerDecode is responsible for decoding the actual opcode, this
-    module encapsulates further specialist, sparse information and
-    expansion of fields that is inconvenient to have in the CSV files.
-    for example: the encoding of the immediates, which are detected
-    and expanded out to their full value from an annotated (enum)
-    representation.
-
-    implicit register usage is also set up, here.  for example: OP_BC
-    requires implicitly reading CTR, OP_RFID requires implicitly writing
-    to SRR1 and so on.
-
-    in addition, PowerDecoder2 is responsible for detecting whether
-    instructions are illegal (or privileged) or not, and instead of
-    just leaving at that, *replacing* the instruction to execute with
-    a suitable alternative (trap).
     """
 
-    def __init__(self, dec):
+    def __init__(self, dec, fn_unit=None):
 
-        self.dec = dec
-        self.e = Decode2ToExecute1Type()
+        if dec is None:
+            self.opkls = fn_unit.opsubsetkls
+            self.fn_name = fn_unit.fnunit.name
+            self.dec = create_pdecode(name=fn_name, col_subset=col_subset,
+                                      row_subset=self.rowsubsetfn)
+        else:
+            self.dec = dec
+            self.opkls = None
+            self.fn_name = None
+        self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
 
         # state information needed by the Decoder (TODO: this as a Record)
         self.state = CoreState("dec2")
+
+    def rowsubsetfn(opcode, row):
+        return row['unit'] == self.fn_name
 
     def ports(self):
         return self.dec.ports() + self.e.ports()
@@ -649,76 +645,33 @@ class PowerDecode2(Elaboratable):
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
-        self.e_tmp = e = Decode2ToExecute1Type()
+        self.e_tmp = e = Decode2ToExecute1Type(name=self.fn_name,
+                                               opkls=self.opkls)
         do = e.do
 
         # set up submodule decoders
         m.submodules.dec = self.dec
-        m.submodules.dec_a = dec_a = DecodeA(self.dec)
         m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
-        m.submodules.dec_b = dec_b = DecodeB(self.dec)
         m.submodules.dec_bi = dec_bi = DecodeBImm(self.dec)
-        m.submodules.dec_c = dec_c = DecodeC(self.dec)
-        m.submodules.dec_o = dec_o = DecodeOut(self.dec)
-        m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
         m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
-        m.submodules.dec_cr_in = dec_cr_in = DecodeCRIn(self.dec)
-        m.submodules.dec_cr_out = dec_cr_out = DecodeCROut(self.dec)
+        m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
+        m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
 
         # copy instruction through...
-        for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
-                  dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in, dec_rc.insn_in,
-                  dec_oe.insn_in, dec_cr_in.insn_in, dec_cr_out.insn_in]:
+        for i in [do.insn,
+                  dec_rc.insn_in, dec_oe.insn_in,
+                  self.dec_cr_in.insn_in, self.dec_cr_out.insn_in]:
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
-        comb += dec_a.sel_in.eq(op.in1_sel)
         comb += dec_ai.sel_in.eq(op.in1_sel)
-        comb += dec_b.sel_in.eq(op.in2_sel)
         comb += dec_bi.sel_in.eq(op.in2_sel)
-        comb += dec_c.sel_in.eq(op.in3_sel)
-        comb += dec_o.sel_in.eq(op.out_sel)
-        comb += dec_o2.sel_in.eq(op.out_sel)
-        comb += dec_o2.lk.eq(do.lk)
         comb += dec_rc.sel_in.eq(op.rc_sel)
         comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
-        comb += dec_cr_in.sel_in.eq(op.cr_in)
-        comb += dec_cr_out.sel_in.eq(op.cr_out)
-        comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
-
-        # registers a, b, c and out and out2 (LD/ST EA)
-        comb += e.read_reg1.eq(dec_a.reg_out)
-        comb += e.read_reg2.eq(dec_b.reg_out)
-        comb += e.read_reg3.eq(dec_c.reg_out)
-        comb += e.write_reg.eq(dec_o.reg_out)
-        comb += e.write_ea.eq(dec_o2.reg_out)
-
-        # SPRs out
-        comb += e.read_spr1.eq(dec_a.spr_out)
-        comb += e.write_spr.eq(dec_o.spr_out)
-
-        # Fast regs out
-        comb += e.read_fast1.eq(dec_a.fast_out)
-        comb += e.read_fast2.eq(dec_b.fast_out)
-        comb += e.write_fast1.eq(dec_o.fast_out)
-        comb += e.write_fast2.eq(dec_o2.fast_out)
-
-        # condition registers (CR)
-        comb += e.read_cr1.eq(dec_cr_in.cr_bitfield)
-        comb += e.read_cr2.eq(dec_cr_in.cr_bitfield_b)
-        comb += e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
-        comb += e.write_cr.eq(dec_cr_out.cr_bitfield)
-
-        # sigh this is exactly the sort of thing for which the
-        # decoder is designed to not need.  MTSPR, MFSPR and others need
-        # access to the XER bits.  however setting e.oe is not appropriate
-        with m.If(op.internal_op == MicrOp.OP_MFSPR):
-            comb += e.xer_in.eq(0b111) # SO, CA, OV
-        with m.If(op.internal_op == MicrOp.OP_CMP):
-            comb += e.xer_in.eq(1<<XERRegs.SO) # SO
-        with m.If(op.internal_op == MicrOp.OP_MTSPR):
-            comb += e.xer_out.eq(1)
+        comb += self.dec_cr_in.sel_in.eq(op.cr_in)
+        comb += self.dec_cr_out.sel_in.eq(op.cr_out)
+        comb += self.dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
         # copy "state" over
         comb += self.do_copy("msr", msr)
@@ -737,9 +690,9 @@ class PowerDecode2(Elaboratable):
         comb += self.do_copy("rc", dec_rc.rc_out)
         comb += self.do_copy("oe", dec_oe.oe_out)
 
-        comb += self.do_copy("read_cr_whole", dec_cr_in.whole_reg)
-        comb += self.do_copy("write_cr_whole", dec_cr_out.whole_reg)
-        comb += self.do_copy("write_cr0", dec_cr_out.cr_bitfield.ok)
+        comb += self.do_copy("read_cr_whole", self.dec_cr_in.whole_reg)
+        comb += self.do_copy("write_cr_whole", self.dec_cr_out.whole_reg)
+        comb += self.do_copy("write_cr0", self.dec_cr_out.cr_bitfield.ok)
 
         # decoded/selected instruction flags
         comb += self.do_copy("data_len", self.op_get("ldst_len"))
@@ -761,6 +714,94 @@ class PowerDecode2(Elaboratable):
         # These should be removed eventually
         comb += self.do_copy("input_cr", self.op_get("cr_in"))   # CR in
         comb += self.do_copy("output_cr", self.op_get("cr_out"))  # CR out
+
+        return m
+
+
+class PowerDecode2(PowerDecodeSubset):
+    """PowerDecode2: the main instruction decoder.
+
+    whilst PowerDecode is responsible for decoding the actual opcode, this
+    module encapsulates further specialist, sparse information and
+    expansion of fields that is inconvenient to have in the CSV files.
+    for example: the encoding of the immediates, which are detected
+    and expanded out to their full value from an annotated (enum)
+    representation.
+
+    implicit register usage is also set up, here.  for example: OP_BC
+    requires implicitly reading CTR, OP_RFID requires implicitly writing
+    to SRR1 and so on.
+
+    in addition, PowerDecoder2 is responsible for detecting whether
+    instructions are illegal (or privileged) or not, and instead of
+    just leaving at that, *replacing* the instruction to execute with
+    a suitable alternative (trap).
+    """
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+        comb = m.d.comb
+        state = self.state
+        e_out, op, do_out = self.e, self.dec.op, self.e.do
+        dec_spr, msr, cia, ext_irq = state.dec, state.msr, state.pc, state.eint
+        e = self.e_tmp
+        do = e.do
+
+        # fill in for a normal instruction (not an exception)
+        # copy over if non-exception, non-privileged etc. is detected
+
+        # set up submodule decoders
+        m.submodules.dec_a = dec_a = DecodeA(self.dec)
+        m.submodules.dec_b = dec_b = DecodeB(self.dec)
+        m.submodules.dec_c = dec_c = DecodeC(self.dec)
+        m.submodules.dec_o = dec_o = DecodeOut(self.dec)
+        m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
+
+        # copy instruction through...
+        for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
+                  dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
+            comb += i.eq(self.dec.opcode_in)
+
+        # ...and subdecoders' input fields
+        comb += dec_a.sel_in.eq(op.in1_sel)
+        comb += dec_b.sel_in.eq(op.in2_sel)
+        comb += dec_c.sel_in.eq(op.in3_sel)
+        comb += dec_o.sel_in.eq(op.out_sel)
+        comb += dec_o2.sel_in.eq(op.out_sel)
+        comb += dec_o2.lk.eq(do.lk)
+
+        # registers a, b, c and out and out2 (LD/ST EA)
+        comb += e.read_reg1.eq(dec_a.reg_out)
+        comb += e.read_reg2.eq(dec_b.reg_out)
+        comb += e.read_reg3.eq(dec_c.reg_out)
+        comb += e.write_reg.eq(dec_o.reg_out)
+        comb += e.write_ea.eq(dec_o2.reg_out)
+
+        # SPRs out
+        comb += e.read_spr1.eq(dec_a.spr_out)
+        comb += e.write_spr.eq(dec_o.spr_out)
+
+        # Fast regs out
+        comb += e.read_fast1.eq(dec_a.fast_out)
+        comb += e.read_fast2.eq(dec_b.fast_out)
+        comb += e.write_fast1.eq(dec_o.fast_out)
+        comb += e.write_fast2.eq(dec_o2.fast_out)
+
+        # condition registers (CR)
+        comb += e.read_cr1.eq(self.dec_cr_in.cr_bitfield)
+        comb += e.read_cr2.eq(self.dec_cr_in.cr_bitfield_b)
+        comb += e.read_cr3.eq(self.dec_cr_in.cr_bitfield_o)
+        comb += e.write_cr.eq(self.dec_cr_out.cr_bitfield)
+
+        # sigh this is exactly the sort of thing for which the
+        # decoder is designed to not need.  MTSPR, MFSPR and others need
+        # access to the XER bits.  however setting e.oe is not appropriate
+        with m.If(op.internal_op == MicrOp.OP_MFSPR):
+            comb += e.xer_in.eq(0b111) # SO, CA, OV
+        with m.If(op.internal_op == MicrOp.OP_CMP):
+            comb += e.xer_in.eq(1<<XERRegs.SO) # SO
+        with m.If(op.internal_op == MicrOp.OP_MTSPR):
+            comb += e.xer_out.eq(1)
 
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == MicrOp.OP_TRAP):

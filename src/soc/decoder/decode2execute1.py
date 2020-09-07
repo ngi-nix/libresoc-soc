@@ -64,7 +64,10 @@ class Decode2ToOperand(RecordObject):
 
 class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self, name=None, asmcode=True, opkls=Decode2ToOperand):
+    def __init__(self, name=None, asmcode=True, opkls=None):
+
+        if opkls is None:
+            opkls = Decode2ToOperand
 
         RecordObject.__init__(self, name=name)
 
