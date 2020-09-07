@@ -624,6 +624,22 @@ class PowerDecode2(Elaboratable):
     def ports(self):
         return self.dec.ports() + self.e.ports()
 
+    def needs_field(self, field, op_field):
+        do = self.e_tmp.do
+        return hasattr(do, field) and self.op_get(op_field)
+
+    def do_copy(self, field, val, final=False):
+        if final:
+            do = self.e.do
+        else:
+            do = self.e_tmp.do
+        if hasattr(do, field) and val is not None:
+            return getattr(do, field).eq(val)
+        return []
+
+    def op_get(self, op_field):
+        return getattr(self.dec.op, op_field, None)
+
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
@@ -633,7 +649,7 @@ class PowerDecode2(Elaboratable):
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
-        e = Decode2ToExecute1Type()
+        self.e_tmp = e = Decode2ToExecute1Type()
         do = e.do
 
         # set up submodule decoders
@@ -671,27 +687,12 @@ class PowerDecode2(Elaboratable):
         comb += dec_cr_out.sel_in.eq(op.cr_out)
         comb += dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
-        # copy "state" over
-        comb += do.msr.eq(msr)
-        comb += do.cia.eq(cia)
-
-        # set up instruction, pick fn unit
-        # no op: defaults to OP_ILLEGAL
-        comb += do.insn_type.eq(op.internal_op)
-        comb += do.fn_unit.eq(op.function_unit)
-
         # registers a, b, c and out and out2 (LD/ST EA)
         comb += e.read_reg1.eq(dec_a.reg_out)
         comb += e.read_reg2.eq(dec_b.reg_out)
         comb += e.read_reg3.eq(dec_c.reg_out)
         comb += e.write_reg.eq(dec_o.reg_out)
         comb += e.write_ea.eq(dec_o2.reg_out)
-        comb += do.imm_data.eq(dec_bi.imm_out) # immediate in RB (usually)
-        comb += do.zero_a.eq(dec_ai.immz_out)  # RA==0 detected
-
-        # rc and oe out
-        comb += do.rc.eq(dec_rc.rc_out)
-        comb += do.oe.eq(dec_oe.oe_out)
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)
@@ -709,29 +710,6 @@ class PowerDecode2(Elaboratable):
         comb += e.read_cr3.eq(dec_cr_in.cr_bitfield_o)
         comb += e.write_cr.eq(dec_cr_out.cr_bitfield)
 
-        comb += do.read_cr_whole.eq(dec_cr_in.whole_reg)
-        comb += do.write_cr_whole.eq(dec_cr_out.whole_reg)
-        comb += do.write_cr0.eq(dec_cr_out.cr_bitfield.ok)
-
-        # decoded/selected instruction flags
-        comb += do.data_len.eq(op.ldst_len)
-        comb += do.invert_in.eq(op.inv_a)
-        comb += do.invert_out.eq(op.inv_out)
-        comb += do.input_carry.eq(op.cry_in)   # carry comes in
-        comb += do.output_carry.eq(op.cry_out)  # carry goes out
-        comb += do.is_32bit.eq(op.is_32b)
-        comb += do.is_signed.eq(op.sgn)
-        with m.If(op.lk):
-            comb += do.lk.eq(self.dec.LK)  # XXX TODO: accessor
-
-        comb += do.byte_reverse.eq(op.br)
-        comb += do.sign_extend.eq(op.sgn_ext)
-        comb += do.ldst_mode.eq(op.upd)  # LD/ST mode (update, cache-inhibit)
-
-        # These should be removed eventually
-        comb += do.input_cr.eq(op.cr_in)   # condition reg comes in
-        comb += do.output_cr.eq(op.cr_out)  # condition reg goes in
-
         # sigh this is exactly the sort of thing for which the
         # decoder is designed to not need.  MTSPR, MFSPR and others need
         # access to the XER bits.  however setting e.oe is not appropriate
@@ -741,6 +719,48 @@ class PowerDecode2(Elaboratable):
             comb += e.xer_in.eq(1<<XERRegs.SO) # SO
         with m.If(op.internal_op == MicrOp.OP_MTSPR):
             comb += e.xer_out.eq(1)
+
+        # copy "state" over
+        comb += self.do_copy("msr", msr)
+        comb += self.do_copy("cia", cia)
+
+        # set up instruction, pick fn unit
+        # no op: defaults to OP_ILLEGAL
+        comb += self.do_copy("insn_type", self.op_get("internal_op"))
+        comb += self.do_copy("fn_unit", self.op_get("function_unit"))
+
+        # immediates
+        comb += self.do_copy("imm_data", dec_bi.imm_out) # imm in RB
+        comb += self.do_copy("zero_a", dec_ai.immz_out)  # RA==0 detected
+
+        # rc and oe out
+        comb += self.do_copy("rc", dec_rc.rc_out)
+        comb += self.do_copy("oe", dec_oe.oe_out)
+
+        comb += self.do_copy("read_cr_whole", dec_cr_in.whole_reg)
+        comb += self.do_copy("write_cr_whole", dec_cr_out.whole_reg)
+        comb += self.do_copy("write_cr0", dec_cr_out.cr_bitfield.ok)
+
+        # decoded/selected instruction flags
+        comb += self.do_copy("data_len", self.op_get("ldst_len"))
+        comb += self.do_copy("invert_in", self.op_get("inv_a"))
+        comb += self.do_copy("invert_out", self.op_get("inv_out"))
+        comb += self.do_copy("input_carry", self.op_get("cry_in"))
+        comb += self.do_copy("output_carry", self.op_get("cry_out"))
+        comb += self.do_copy("is_32bit", self.op_get("is_32b"))
+        comb += self.do_copy("is_signed", self.op_get("sgn"))
+        lk = self.op_get("lk")
+        if lk is not None:
+            with m.If(lk):
+                comb += self.do_copy("lk", self.dec.LK)  # XXX TODO: accessor
+
+        comb += self.do_copy("byte_reverse", self.op_get("br"))
+        comb += self.do_copy("sign_extend", self.op_get("sgn_ext"))
+        comb += self.do_copy("ldst_mode", self.op_get("upd"))  # LD/ST mode
+
+        # These should be removed eventually
+        comb += self.do_copy("input_cr", self.op_get("cr_in"))   # CR in
+        comb += self.do_copy("output_cr", self.op_get("cr_out"))  # CR out
 
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == MicrOp.OP_TRAP):
@@ -801,17 +821,17 @@ class PowerDecode2(Elaboratable):
         """trap: this basically "rewrites" the decoded instruction as a trap
         """
         comb = m.d.comb
-        op, do, e = self.dec.op, self.e.do, self.e
+        op, e = self.dec.op, self.e
         comb += e.eq(0)  # reset eeeeeverything
 
         # start again
-        comb += do.insn.eq(self.dec.opcode_in)
-        comb += do.insn_type.eq(MicrOp.OP_TRAP)
-        comb += do.fn_unit.eq(Function.TRAP)
-        comb += do.trapaddr.eq(trapaddr >> 4)  # cut bottom 4 bits
-        comb += do.traptype.eq(traptype)  # request type
-        comb += do.msr.eq(self.state.msr)  # copy of MSR "state"
-        comb += do.cia.eq(self.state.pc)  # copy of PC "state"
+        comb += self.do_copy("insn", self.dec.opcode_in, True)
+        comb += self.do_copy("insn_type", MicrOp.OP_TRAP, True)
+        comb += self.do_copy("fn_unit", Function.TRAP, True)
+        comb += self.do_copy("trapaddr", trapaddr >> 4, True) # bottom 4 bits
+        comb += self.do_copy("traptype", traptype, True)  # request type
+        comb += self.do_copy("msr", self.state.msr, True) # copy of MSR "state"
+        comb += self.do_copy("cia", self.state.pc, True)  # copy of PC "state"
 
 
 def get_rdflags(e, cu):
