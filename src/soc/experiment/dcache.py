@@ -690,8 +690,6 @@ class DCache(Elaboratable):
             # Request came from loadstore1...
             # Load hit case is the standard path
             with m.If(r1.hit_load_valid):
-#                 report
-#                  "completing load hit data=" & to_hstring(data_out);
                 #Display(f"completing load hit data={data_out}")
                 pass
 
@@ -730,15 +728,6 @@ class DCache(Elaboratable):
     # account by using 1-cycle delayed signals for load hits.
     def rams(self, ):
         for i in range(NUM_WAYS):
-# 	signal do_read  : std_ulogic;
-# 	signal rd_addr  : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	signal do_write : std_ulogic;
-# 	signal wr_addr  : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	signal wr_data  :
-#        std_ulogic_vector(wishbone_data_bits-1 downto 0);
-# 	signal wr_sel   : std_ulogic_vector(ROW_SIZE-1 downto 0);
-# 	signal wr_sel_m : std_ulogic_vector(ROW_SIZE-1 downto 0);
-# 	signal dout     : cache_row_t;
             do_read  = Signal()
             rd_addr  = Signal(ROW_BITS)
             do_write = Signal()
@@ -768,100 +757,49 @@ class DCache(Elaboratable):
             way = CacheRam(ROW_BITS, WB_DATA_BITS, True)
             comb += way.rd_en.eq(do_read)
             comb += way.rd_addr.eq(rd_addr)
-            comb += way.rd_data.eq(_d_out)
+            comb += _d_out.eq(way.rd_data)
             comb += way.wr_sel.eq(wr_sel_m)
             comb += way.wr_addr.eq(wr_addr)
             comb += way.wr_data.eq(wr_data)
 
-# 	begin
-# 	    -- Cache hit reads
-# 	    do_read <= '1';
-# 	    rd_addr <=
-#            std_ulogic_vector(to_unsigned(early_req_row, ROW_BITS));
-# 	    cache_out(i) <= dout;
             # Cache hit reads
             comb += do_read.eq(1)
-            comb += rd_addr.eq(Signal(BRAM_ROWS))
-            comb += cache_out[i].eq(dout)
+            comb += rd_addr.eq(early_req_row)
+            comb += cache_out[i].eq(_d_out)
 
-# 	    -- Write mux:
-# 	    --
-# 	    -- Defaults to wishbone read responses (cache refill)
-# 	    --
-# 	    -- For timing, the mux on wr_data/sel/addr is not
-#           -- dependent on anything other than the current state.
         # Write mux:
         #
         # Defaults to wishbone read responses (cache refill)
         #
         # For timing, the mux on wr_data/sel/addr is not
         # dependent on anything other than the current state.
-#           wr_sel_m <= (others => '0');
-            comb += wr_sel_m.eq(0)
 
-# 	    do_write <= '0';
-            comb += do_write.eq(0)
-#             if r1.write_bram = '1' then
             with m.If(r1.write_bram):
-#                 -- Write store data to BRAM.  This happens one
-#                 -- cycle after the store is in r0.
                 # Write store data to BRAM.  This happens one
                 # cycle after the store is in r0.
-#                 wr_data <= r1.req.data;
-#                 wr_sel  <= r1.req.byte_sel;
-#                 wr_addr <= std_ulogic_vector(to_unsigned(
-#                             get_row(r1.req.real_addr), ROW_BITS
-#                            ));
                 comb += wr_data.eq(r1.req.data)
                 comb += wr_sel.eq(r1.req.byte_sel)
-                comb += wr_addr.eq(Signal(get_row(r1.req.real_addr)))
+                comb += wr_addr.eq(get_row(r1.req.real_addr))
 
-#                 if i = r1.req.hit_way then
                 with m.If(i == r1.req.hit_way):
-#                     do_write <= '1';
                     comb += do_write.eq(1)
-#                 end if;
-# 	    else
-                with m.Else():
-# 		-- Otherwise, we might be doing a reload or a DCBZ
-#                 if r1.dcbz = '1' then
+            with m.Else():
                 # Otherwise, we might be doing a reload or a DCBZ
-                    with m.If(r1.dcbz):
-#                     wr_data <= (others => '0');
-                        comb += wr_data.eq(0)
-#                 else
-                    with m.Else():
-#                     wr_data <= wishbone_in.dat;
-                        comb += wr_data.eq(wishbone_in.dat)
-#                 end if;
+                with m.If(r1.dcbz):
+                    comb += wr_data.eq(0)
+                with m.Else():
+                    comb += wr_data.eq(wishbone_in.dat)
+                comb += wr_addr.eq(r1.store_row)
+                comb += wr_sel.eq(~0) # all 1s
 
-#                 wr_addr <= std_ulogic_vector(to_unsigned(
-#                             r1.store_row, ROW_BITS
-#                            ));
-#                 wr_sel <= (others => '1');
-                    comb += wr_addr.eq(Signal(r1.store_row))
-                    comb += wr_sel.eq(1)
+            with m.If((r1.state == State.RELOAD_WAIT_ACK)
+                      & wishbone_in.ack & (relpace_way == i)):
+                comb += do_write.eq(1)
 
-#                 if r1.state = RELOAD_WAIT_ACK and
-#                 wishbone_in.ack = '1' and replace_way = i then
-                with m.If(r1.state == State.RELOAD_WAIT_ACK
-                          & wishbone_in.ack & relpace_way == i):
-#                     do_write <= '1';
-                    comb += do_write.eq(1)
-#                 end if;
-# 	    end if;
-
-#             -- Mask write selects with do_write since BRAM
-#             -- doesn't have a global write-enable
-#             if do_write = '1' then
-#             -- Mask write selects with do_write since BRAM
-#             -- doesn't have a global write-enable
+                # Mask write selects with do_write since BRAM
+                # doesn't have a global write-enable
                 with m.If(do_write):
-#                 wr_sel_m <= wr_sel;
                     comb += wr_sel_m.eq(wr_sel)
-#             end if;
-#         end process;
-#     end generate;
 
     # Cache hit synchronous machine for the easy case.
     # This handles load hits.
