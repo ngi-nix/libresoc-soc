@@ -145,9 +145,11 @@ class TestRunner(unittest.TestCase):
         comb = m.d.comb
         instruction = Signal(32)
 
-        pdecode = create_pdecode()
+        fn_name = "BRANCH"
+        opkls = BranchPipeSpec.opsubsetkls
 
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+        m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
+        pdecode = pdecode2.dec
 
         pspec = BranchPipeSpec(id_wid=2)
         m.submodules.branch = branch = BranchBasePipe(pspec)
@@ -187,8 +189,8 @@ class TestRunner(unittest.TestCase):
                         # ask the decoder to decode this binary data (endian'd)
                         # little / big?
                         yield pdecode2.dec.bigendian.eq(bigendian)
-                        yield pdecode2.msr.eq(msr)  # set MSR in pdecode2
-                        yield pdecode2.cia.eq(pc)  # set PC in pdecode2
+                        yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
+                        yield pdecode2.state.pc.eq(pc)  # set PC in pdecode2
                         yield instruction.eq(ins)          # raw binary instr.
                         # note, here, the op will need further decoding in order
                         # to set the correct SPRs on SPR1/2/3.  op_bc* require
