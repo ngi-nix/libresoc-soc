@@ -232,6 +232,8 @@ class ALUHelpers:
         yield alu.p.data_i.rb.eq(0)
         if 'rb' in inp:
             yield alu.p.data_i.rb.eq(inp['rb'])
+        if not hasattr(dec2.e.do, "imm_data"):
+            return
         # If there's an immediate, set the B operand to that
         imm_ok = yield dec2.e.do.imm_data.ok
         if imm_ok:
@@ -300,8 +302,8 @@ class ALUHelpers:
 
     def set_full_cr(alu, dec2, inp):
         if 'full_cr' in inp:
-            full_reg = yield dec2.e.do.read_cr_whole.data
-            full_reg_ok = yield dec2.e.do.read_cr_whole.ok
+            full_reg = yield dec2.dec_cr_in.whole_reg.data
+            full_reg_ok = yield dec2.dec_cr_in.whole_reg.ok
             full_cr_mask = mask_extend(full_reg, 8, 4)
             yield alu.p.data_i.full_cr.eq(inp['full_cr'] & full_cr_mask)
         else:

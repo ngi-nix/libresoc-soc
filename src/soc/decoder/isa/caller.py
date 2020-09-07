@@ -567,10 +567,18 @@ class ISACaller:
         int_op = yield self.dec2.dec.op.internal_op
 
         # sigh reconstruct the assembly instruction name
-        ov_en = yield self.dec2.e.do.oe.oe
-        ov_ok = yield self.dec2.e.do.oe.ok
-        rc_en = yield self.dec2.e.do.rc.rc
-        rc_ok = yield self.dec2.e.do.rc.ok
+        if hasattr(self.dec2.e.do, "oe"):
+            ov_en = yield self.dec2.e.do.oe.oe
+            ov_ok = yield self.dec2.e.do.oe.ok
+        else:
+            ov_en = False
+            ov_ok = False
+        if hasattr(self.dec2.e.do, "rc"):
+            rc_en = yield self.dec2.e.do.rc.rc
+            rc_ok = yield self.dec2.e.do.rc.ok
+        else:
+            rc_en = False
+            rc_ok = False
         # grrrr have to special-case MUL op (see DecodeOE)
         print("ov %d en %d rc %d en %d op %d" % \
                         (ov_ok, ov_en, rc_ok, rc_en, int_op))
@@ -715,7 +723,10 @@ class ISACaller:
                     already_done |= 2
 
         print("carry already done?", bin(already_done))
-        carry_en = yield self.dec2.e.do.output_carry
+        if hasattr(self.dec2.e.do, "outout_carry"):
+            carry_en = yield self.dec2.e.do.output_carry
+        else:
+            carry_en = False
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
 
@@ -726,13 +737,20 @@ class ISACaller:
                 if name == 'overflow':
                     overflow = output
 
-        ov_en = yield self.dec2.e.do.oe.oe
-        ov_ok = yield self.dec2.e.do.oe.ok
+        if hasattr(self.dec2.e.do, "oe"):
+            ov_en = yield self.dec2.e.do.oe.oe
+            ov_ok = yield self.dec2.e.do.oe.ok
+        else:
+            ov_en = False
+            ov_ok = False
         print("internal overflow", overflow, ov_en, ov_ok)
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results, overflow)
 
-        rc_en = yield self.dec2.e.do.rc.rc
+        if hasattr(self.dec2.e.do, "rc"):
+            rc_en = yield self.dec2.e.do.rc.rc
+        else:
+            rc_en = False
         if rc_en:
             self.handle_comparison(results)
 

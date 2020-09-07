@@ -237,8 +237,8 @@ def get_cu_inputs(dec2, sim):
     """naming (res) must conform to CRFunctionUnit input regspec
     """
     res = {}
-    full_reg = yield dec2.e.do.read_cr_whole.data
-    full_reg_ok = yield dec2.e.do.read_cr_whole.ok
+    full_reg = yield dec2.dec_cr_in.whole_reg.data
+    full_reg_ok = yield dec2.dec_cr_in.whole_reg.ok
     full_cr_mask = mask_extend(full_reg, 8, 4)
 
     # full CR
@@ -272,8 +272,8 @@ class TestRunner(unittest.TestCase):
         yield from ALUHelpers.set_int_rb(alu, dec2, inp)
 
     def assert_outputs(self, alu, dec2, simulator, code):
-        whole_reg_ok = yield dec2.e.do.write_cr_whole.ok
-        whole_reg_data = yield dec2.e.do.write_cr_whole.data
+        whole_reg_ok = yield dec2.dec_cr_out.whole_reg.ok
+        whole_reg_data = yield dec2.dec_cr_out.whole_reg.data
         full_cr_mask = mask_extend(whole_reg_data, 8, 4)
 
         cr_en = yield dec2.e.write_cr.ok
@@ -340,9 +340,11 @@ class TestRunner(unittest.TestCase):
         comb = m.d.comb
         instruction = Signal(32)
 
-        pdecode = create_pdecode()
+        fn_name = "CR"
+        opkls = CRPipeSpec.opsubsetkls
 
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+        m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
+        pdecode = pdecode2.dec
 
         pspec = CRPipeSpec(id_wid=2)
         m.submodules.alu = alu = CRBasePipe(pspec)
