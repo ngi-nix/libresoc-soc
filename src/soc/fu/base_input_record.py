@@ -21,16 +21,21 @@ class CompOpSubsetBase(Record):
         for fname, sig in self.fields.items():
             sig.reset_less = True
 
+    def eq_from(self, other):
+        """ use this to copy in from another CompRecord
+        """
+        res = []
+        print ("eq_from self", self, self.fields)
+        print ("        other", other, other.fields)
+        for fname, sig in self.fields.items():
+            eqfrom = other.fields[fname]
+            res.append(sig.eq(eqfrom))
+        return res
+
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
         """
-        res = []
-        print ("eq_from_execute self", self, self.fields)
-        print ("                other", other, other.fields)
-        for fname, sig in self.fields.items():
-            eqfrom = other.do.fields[fname]
-            res.append(sig.eq(eqfrom))
-        return res
+        return self.eq_from(other.do)
 
     def ports(self):
         res = []
