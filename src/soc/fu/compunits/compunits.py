@@ -111,6 +111,7 @@ class FunctionUnitBaseSingle(MultiCompUnit):
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
         alu = pipekls(pspec)                     # create actual NNNBasePipe
+        self.pspec = pspec
         super().__init__(regspec, alu, opsubset, name=alu_name)  # MultiCompUnit
 
 
@@ -204,6 +205,7 @@ class LDSTFunctionUnit(LDSTCompUnit):
         pspec = LDSTPipeSpec(id_wid=2)           # spec (NNNPipeSpec instance)
         opsubset = pspec.opsubsetkls             # get the operand subset class
         regspec = pspec.regspec                  # get the regspec
+        self.opsubsetkls = opsubset
         super().__init__(pi, regspec, awid, opsubset, name=alu_name)
 
 
