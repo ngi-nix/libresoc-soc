@@ -189,9 +189,11 @@ class TestRunner(unittest.TestCase):
         comb = m.d.comb
         instruction = Signal(32)
 
-        pdecode = create_pdecode()
+        fn_name = "MUL"
+        opkls = MulPipeSpec.opsubsetkls
 
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+        m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
+        pdecode = pdecode2.dec
 
         pspec = MulPipeSpec(id_wid=2)
         m.submodules.alu = alu = MulBasePipe(pspec)
@@ -261,7 +263,7 @@ class TestRunner(unittest.TestCase):
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 
-        rc = yield dec2.e.do.rc.data
+        rc = yield dec2.e.do.rc.rc
         cridx_ok = yield dec2.e.write_cr.ok
         cridx = yield dec2.e.write_cr.data
 

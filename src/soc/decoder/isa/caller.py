@@ -462,9 +462,10 @@ class ISACaller:
             self.spr['XER'][XER_bits['CA32']] = cy32
 
     def handle_overflow(self, inputs, outputs, div_overflow):
-        inv_a = yield self.dec2.e.do.invert_in
-        if inv_a:
-            inputs[0] = ~inputs[0]
+        if hasattr(self.dec2.e.do, "invert_in"):
+            inv_a = yield self.dec2.e.do.invert_in
+            if inv_a:
+                inputs[0] = ~inputs[0]
 
         imm_ok = yield self.dec2.e.do.imm_data.ok
         if imm_ok:
