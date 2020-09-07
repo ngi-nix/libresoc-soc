@@ -598,8 +598,10 @@ class PowerDecodeSubset(Elaboratable):
 
     """
 
-    def __init__(self, dec, opkls=None, fn_name=None, col_subset=None):
+    def __init__(self, dec, opkls=None, fn_name=None, col_subset=None,
+                            final=False):
 
+        self.final = final
         if dec is None:
             self.opkls = opkls
             self.fn_name = fn_name
@@ -622,10 +624,10 @@ class PowerDecodeSubset(Elaboratable):
 
     def needs_field(self, field, op_field):
         do = self.e_tmp.do
-        return hasattr(do, field) and self.op_get(op_field)
+        return hasattr(do, field) and self.op_get(op_field) is not None
 
     def do_copy(self, field, val, final=False):
-        if final:
+        if final or self.final:
             do = self.e.do
         else:
             do = self.e_tmp.do
@@ -645,14 +647,15 @@ class PowerDecodeSubset(Elaboratable):
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
-        self.e_tmp = e = Decode2ToExecute1Type(name=self.fn_name,
-                                               opkls=self.opkls)
+        if self.final:
+            e = self.e
+        else:
+            self.e_tmp = e = Decode2ToExecute1Type(name=self.fn_name,
+                                                   opkls=self.opkls)
         do = e.do
 
         # set up submodule decoders
         m.submodules.dec = self.dec
-        m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
-        m.submodules.dec_bi = dec_bi = DecodeBImm(self.dec)
         m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
         m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
@@ -665,8 +668,6 @@ class PowerDecodeSubset(Elaboratable):
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
-        comb += dec_ai.sel_in.eq(op.in1_sel)
-        comb += dec_bi.sel_in.eq(op.in2_sel)
         comb += dec_rc.sel_in.eq(op.rc_sel)
         comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
         comb += self.dec_cr_in.sel_in.eq(op.cr_in)
@@ -683,16 +684,26 @@ class PowerDecodeSubset(Elaboratable):
         comb += self.do_copy("fn_unit", self.op_get("function_unit"))
 
         # immediates
-        comb += self.do_copy("imm_data", dec_bi.imm_out) # imm in RB
-        comb += self.do_copy("zero_a", dec_ai.immz_out)  # RA==0 detected
+        if self.needs_field("zero_a", "in1_sel"):
+            m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
+            comb += dec_ai.sel_in.eq(op.in1_sel)
+            comb += self.do_copy("zero_a", dec_ai.immz_out)  # RA==0 detected
+        if self.needs_field("imm_data", "in2_sel"):
+            m.submodules.dec_bi = dec_bi = DecodeBImm(self.dec)
+            comb += dec_bi.sel_in.eq(op.in2_sel)
+            comb += self.do_copy("imm_data", dec_bi.imm_out) # imm in RB
 
         # rc and oe out
         comb += self.do_copy("rc", dec_rc.rc_out)
         comb += self.do_copy("oe", dec_oe.oe_out)
 
+        # CR in/out
         comb += self.do_copy("read_cr_whole", self.dec_cr_in.whole_reg)
         comb += self.do_copy("write_cr_whole", self.dec_cr_out.whole_reg)
         comb += self.do_copy("write_cr0", self.dec_cr_out.cr_bitfield.ok)
+
+        comb += self.do_copy("input_cr", self.op_get("cr_in"))   # CR in
+        comb += self.do_copy("output_cr", self.op_get("cr_out"))  # CR out
 
         # decoded/selected instruction flags
         comb += self.do_copy("data_len", self.op_get("ldst_len"))
@@ -710,10 +721,6 @@ class PowerDecodeSubset(Elaboratable):
         comb += self.do_copy("byte_reverse", self.op_get("br"))
         comb += self.do_copy("sign_extend", self.op_get("sgn_ext"))
         comb += self.do_copy("ldst_mode", self.op_get("upd"))  # LD/ST mode
-
-        # These should be removed eventually
-        comb += self.do_copy("input_cr", self.op_get("cr_in"))   # CR in
-        comb += self.do_copy("output_cr", self.op_get("cr_out"))  # CR out
 
         return m
 
