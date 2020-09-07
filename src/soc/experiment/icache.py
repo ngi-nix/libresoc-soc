@@ -178,6 +178,166 @@ class ICache(Elaboratable):
 
         self.log_out        = Signal(54)
 
+#     -- Return the cache line index (tag index) for an address
+#     function get_index(addr: std_ulogic_vector(63 downto 0))
+#      return index_t is
+#     begin
+#         return to_integer(unsigned(
+#          addr(SET_SIZE_BITS - 1 downto LINE_OFF_BITS)
+#         ));
+#     end;
+    # Return the cache line index (tag index) for an address
+    def get_index(addr):
+        return addr[LINE_OFF_BITS:SET_SIZE_BITS]
+
+#     -- Return the cache row index (data memory) for an address
+#     function get_row(addr: std_ulogic_vector(63 downto 0)) return row_t is
+#     begin
+#         return to_integer(unsigned(
+#          addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS)
+#         ));
+#     end;
+    # Return the cache row index (data memory) for an address
+    def get_row(addr):
+        return addr[ROW_OFF_BITS:SET_SIZE_BITS]
+
+#     -- Return the index of a row within a line
+#     function get_row_of_line(row: row_t) return row_in_line_t is
+# 	variable row_v : unsigned(ROW_BITS-1 downto 0);
+#     begin
+# 	row_v := to_unsigned(row, ROW_BITS);
+#         return row_v(ROW_LINEBITS-1 downto 0);
+#     end;
+    # Return the index of a row within a line
+    def get_row_of_line(row):
+        row[:ROW_LINE_BITS]
+
+#     -- Returns whether this is the last row of a line
+#     function is_last_row_addr(addr: wishbone_addr_type; last: row_in_line_t)
+#      return boolean is
+#     begin
+# 	return unsigned(addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)) = last;
+#     end;
+    # Returns whether this is the last row of a line
+    def is_last_row_addr(addr, last):
+        return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
+
+#     -- Returns whether this is the last row of a line
+#     function is_last_row(row: row_t; last: row_in_line_t) return boolean is
+#     begin
+# 	return get_row_of_line(row) = last;
+#     end;
+    # Returns whether this is the last row of a line
+    def is_last_row(row, last):
+        return get_row_of_line(row) == last
+
+#     -- Return the address of the next row in the current cache line
+#     function next_row_addr(addr: wishbone_addr_type)
+# 	return std_ulogic_vector is
+# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
+# 	variable result  : wishbone_addr_type;
+#     begin
+# 	-- Is there no simpler way in VHDL to generate that 3 bits adder ?
+# 	row_idx := addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS);
+# 	row_idx := std_ulogic_vector(unsigned(row_idx) + 1);
+# 	result := addr;
+# 	result(LINE_OFF_BITS-1 downto ROW_OFF_BITS) := row_idx;
+# 	return result;
+#     end;
+    # Return the address of the next row in the current cache line
+    def next_row_addr(addr):
+        # TODO no idea what's going on here, looks like double assignments
+        # overriding earlier assignments ??? Help please!
+
+#     -- Return the next row in the current cache line. We use a dedicated
+#     -- function in order to limit the size of the generated adder to be
+#     -- only the bits within a cache line (3 bits with default settings)
+#     function next_row(row: row_t) return row_t is
+# 	variable row_v   : std_ulogic_vector(ROW_BITS-1 downto 0);
+# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
+# 	variable result  : std_ulogic_vector(ROW_BITS-1 downto 0);
+#     begin
+# 	row_v := std_ulogic_vector(to_unsigned(row, ROW_BITS));
+# 	row_idx := row_v(ROW_LINEBITS-1 downto 0);
+# 	row_v(ROW_LINEBITS-1 downto 0) :=
+#        std_ulogic_vector(unsigned(row_idx) + 1);
+# 	return to_integer(unsigned(row_v));
+#     end;
+    # Return the next row in the current cache line. We use a dedicated
+    # function in order to limit the size of the generated adder to be
+    # only the bits within a cache line (3 bits with default settings)
+    def next_row(row):
+        # TODO no idea what's going on here, looks like double assignments
+        # overriding earlier assignments ??? Help please!
+
+#     -- Read the instruction word for the given address in the
+#     -- current cache row
+#     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
+# 			    data: cache_row_t) return std_ulogic_vector is
+# 	variable word: integer range 0 to INSN_PER_ROW-1;
+#     begin
+#         word := to_integer(unsigned(addr(INSN_BITS+2-1 downto 2)));
+# 	return data(31+word*32 downto word*32);
+#     end;
+    # Read the instruction word for the given address
+    # in the current cache row
+    def read_insn_word(addr, data):
+        word = addr[2:INSN_BITS+3]
+        return data[word * 32:32 + word * 32]
+
+#     -- Get the tag value from the address
+#     function get_tag(addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0))
+#      return cache_tag_t is
+#     begin
+#         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
+#     end;
+    # Get the tag value from the address
+    def get_tag(addr):
+        return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
+
+#     -- Read a tag from a tag memory row
+#     function read_tag(way: way_t; tagset: cache_tags_set_t)
+#      return cache_tag_t is
+#     begin
+# 	return tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS);
+#     end;
+    # Read a tag from a tag memory row
+    def read_tag(way, tagset):
+        return tagset[way * TAG_BITS:(way + 1) * TAG_BITS]
+
+#     -- Write a tag to tag memory row
+#     procedure write_tag(way: in way_t; tagset: inout cache_tags_set_t;
+# 			tag: cache_tag_t) is
+#     begin
+# 	tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS) := tag;
+#     end;
+    # Write a tag to tag memory row
+    def write_tag(way, tagset, tag):
+        tagset[way * TAG_BITS:(way + 1) * TAG_BITS] = tag
+
+#     -- Simple hash for direct-mapped TLB index
+#     function hash_ea(addr: std_ulogic_vector(63 downto 0))
+#      return tlb_index_t is
+#         variable hash : std_ulogic_vector(TLB_BITS - 1 downto 0);
+#     begin
+#         hash := addr(TLB_LG_PGSZ + TLB_BITS - 1 downto TLB_LG_PGSZ)
+#                 xor addr(
+#                  TLB_LG_PGSZ + 2 * TLB_BITS - 1 downto
+#                  TLB_LG_PGSZ + TLB_BITS
+#                 )
+#                 xor addr(
+#                  TLB_LG_PGSZ + 3 * TLB_BITS - 1 downto
+#                  TLB_LG_PGSZ + 2 * TLB_BITS
+#                 );
+#         return to_integer(unsigned(hash));
+#     end;
+    # Simple hash for direct-mapped TLB index
+    def hash_ea(addr):
+        hash = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS]
+               ^ addr[TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS]
+               ^ addr[TLB_LG_PGSZ + 2 * TLB_BITS: TLB_LG_PGSZE + 3 * TLB_BITS]
+        return hash
+
     def elaborate(self, platform):
 # architecture rtl of icache is
 #     constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
@@ -414,121 +574,6 @@ class ICache(Elaboratable):
         plru_victim   = PLRUOut()
         replace_way   = Signal(NUM_WAYS)
 
-#     -- Return the cache line index (tag index) for an address
-#     function get_index(addr: std_ulogic_vector(63 downto 0))
-#      return index_t is
-#     begin
-#         return to_integer(unsigned(
-#          addr(SET_SIZE_BITS - 1 downto LINE_OFF_BITS)
-#         ));
-#     end;
-#
-#     -- Return the cache row index (data memory) for an address
-#     function get_row(addr: std_ulogic_vector(63 downto 0)) return row_t is
-#     begin
-#         return to_integer(unsigned(
-#          addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS)
-#         ));
-#     end;
-#
-#     -- Return the index of a row within a line
-#     function get_row_of_line(row: row_t) return row_in_line_t is
-# 	variable row_v : unsigned(ROW_BITS-1 downto 0);
-#     begin
-# 	row_v := to_unsigned(row, ROW_BITS);
-#         return row_v(ROW_LINEBITS-1 downto 0);
-#     end;
-#
-#     -- Returns whether this is the last row of a line
-#     function is_last_row_addr(addr: wishbone_addr_type; last: row_in_line_t)
-#      return boolean is
-#     begin
-# 	return unsigned(addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)) = last;
-#     end;
-#
-#     -- Returns whether this is the last row of a line
-#     function is_last_row(row: row_t; last: row_in_line_t) return boolean is
-#     begin
-# 	return get_row_of_line(row) = last;
-#     end;
-#
-#     -- Return the address of the next row in the current cache line
-#     function next_row_addr(addr: wishbone_addr_type)
-# 	return std_ulogic_vector is
-# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
-# 	variable result  : wishbone_addr_type;
-#     begin
-# 	-- Is there no simpler way in VHDL to generate that 3 bits adder ?
-# 	row_idx := addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS);
-# 	row_idx := std_ulogic_vector(unsigned(row_idx) + 1);
-# 	result := addr;
-# 	result(LINE_OFF_BITS-1 downto ROW_OFF_BITS) := row_idx;
-# 	return result;
-#     end;
-#
-#     -- Return the next row in the current cache line. We use a dedicated
-#     -- function in order to limit the size of the generated adder to be
-#     -- only the bits within a cache line (3 bits with default settings)
-#     --
-#     function next_row(row: row_t) return row_t is
-# 	variable row_v   : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
-# 	variable result  : std_ulogic_vector(ROW_BITS-1 downto 0);
-#     begin
-# 	row_v := std_ulogic_vector(to_unsigned(row, ROW_BITS));
-# 	row_idx := row_v(ROW_LINEBITS-1 downto 0);
-# 	row_v(ROW_LINEBITS-1 downto 0) :=
-#        std_ulogic_vector(unsigned(row_idx) + 1);
-# 	return to_integer(unsigned(row_v));
-#     end;
-#
-#     -- Read the instruction word for the given address in the
-#     -- current cache row
-#     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
-# 			    data: cache_row_t) return std_ulogic_vector is
-# 	variable word: integer range 0 to INSN_PER_ROW-1;
-#     begin
-#         word := to_integer(unsigned(addr(INSN_BITS+2-1 downto 2)));
-# 	return data(31+word*32 downto word*32);
-#     end;
-#
-#     -- Get the tag value from the address
-#     function get_tag(addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0))
-#      return cache_tag_t is
-#     begin
-#         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
-#     end;
-#
-#     -- Read a tag from a tag memory row
-#     function read_tag(way: way_t; tagset: cache_tags_set_t)
-#      return cache_tag_t is
-#     begin
-# 	return tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS);
-#     end;
-#
-#     -- Write a tag to tag memory row
-#     procedure write_tag(way: in way_t; tagset: inout cache_tags_set_t;
-# 			tag: cache_tag_t) is
-#     begin
-# 	tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS) := tag;
-#     end;
-#
-#     -- Simple hash for direct-mapped TLB index
-#     function hash_ea(addr: std_ulogic_vector(63 downto 0))
-#      return tlb_index_t is
-#         variable hash : std_ulogic_vector(TLB_BITS - 1 downto 0);
-#     begin
-#         hash := addr(TLB_LG_PGSZ + TLB_BITS - 1 downto TLB_LG_PGSZ)
-#                 xor addr(
-#                  TLB_LG_PGSZ + 2 * TLB_BITS - 1 downto
-#                  TLB_LG_PGSZ + TLB_BITS
-#                 )
-#                 xor addr(
-#                  TLB_LG_PGSZ + 3 * TLB_BITS - 1 downto
-#                  TLB_LG_PGSZ + 2 * TLB_BITS
-#                 );
-#         return to_integer(unsigned(hash));
-#     end;
 # begin
 #
 #     assert LINE_SIZE mod ROW_SIZE = 0;
@@ -567,7 +612,7 @@ class ICache(Elaboratable):
 # 	wait;
 #     end process;
 #     end generate;
-#
+
 #     -- Generate a cache RAM for each way
 #     rams: for i in 0 to NUM_WAYS-1 generate
 # 	signal do_read  : std_ulogic;
@@ -606,7 +651,37 @@ class ICache(Elaboratable):
 #             end loop;
 # 	end process;
 #     end generate;
-#
+    def rams(self, m):
+        comb = m.d.comb
+
+        do_read  = Signal()
+        do_write = Signal()
+        rd_addr  = Signal(ROW_BITS)
+        wr_addr  = Signal(ROW_BITS)
+        _d_out   = Signal(ROW_SIZE_BITS)
+        wr_sel   = Signal(ROW_SIZE)
+
+        for i in range(NUM_WAYS)
+            way = CacheRam(ROW_BITS, ROW_SIZE_BITS)
+            comb += way.rd_en.eq(do_read)
+            comb += way.rd_addr.eq(rd_addr)
+            comb += way.rd_data.eq(_d_out)
+            comb += way.wr_sel.eq(wr_sel)
+            comb += way.wr_add.eq(wr_addr)
+            comb += way.wr_data.eq('''TODO ?? wishbone_in.data ??''')
+
+            comb += do_read.eq(~(stall_in | use_previous))
+            comb += do_write.eq(0)
+
+            with m.If(wb_in.ack & replace_way == i):
+                do_write.eq(1)
+
+            comb += cache_out[i].eq(_d_out)
+            comb += rd_addr.eq(Signal(req_row))
+            comb += wr_addr.eq(Signal(r.store_row))
+            for j in range(ROW_SIZE):
+                comb += wr_sel[j].eq(do_write)
+
 #     -- Generate PLRUs
 #     maybe_plrus: if NUM_WAYS > 1 generate
 #     begin
@@ -643,7 +718,30 @@ class ICache(Elaboratable):
 # 	    end process;
 # 	end generate;
 #     end generate;
-#
+    def maybe_plrus(self, m):
+        comb += m.d.comb
+
+        with m.If(NUM_WAYS > 1):
+            plru_acc    = Signal(WAY_BITS)
+            plru_acc_en = Signal()
+            plru_out    = Signal(WAY_BITS)
+
+            for i in range(NUM_LINES):
+                plru = PLRU(WAY_BITS)
+                comb += plru.acc.eq(plru_acc)
+                comb += plru.acc_en.eq(plru_acc_en)
+                comb += plru.lru.eq(plru_out)
+
+                # PLRU interface
+                with m.If(get_index(r.hit_nia) == i):
+                    comb += plru.acc_en.eq(r.hit_valid)
+
+                with m.Else():
+                    comb += plru.acc_en.eq(0)
+
+                comb += plru.acc.eq(r.hit_way)
+                comb += plru_victim[i].eq(plru.lru)
+
 #     -- TLB hit detection and real address generation
 #     itlb_lookup : process(all)
 #         variable pte : tlb_pte_t;
@@ -671,7 +769,35 @@ class ICache(Elaboratable):
 #         priv_fault <= eaa_priv and not i_in.priv_mode;
 #         access_ok <= ra_valid and not priv_fault;
 #     end process;
-#
+    # TLB hit detection and real address generation
+    def itlb_lookup(self, m):
+        comb = m.d.comb
+
+        comb += tlb_req_index.eq(hash_ea(i_in.nia))
+        comb += pte.eq(itlb_ptes[tlb_req_index])
+        comb += ttag.eq(itlb_tags[tlb_req_index])
+
+        with m.If(i_in.virt_mode):
+            comb += real_addr.eq(Cat(
+                     i_in.nia[:TLB_LB_PGSZ],
+                     pte[TLB_LG_PGSZ:REAL_ADDR_BITS]
+                    ))
+
+            with m.If(ttag == i_in.nia[TLB_LG_PGSZ + TLB_BITS:64]):
+                comb += ra_valid.eq(itlb_valid_bits[tlb_req_index])
+
+            with m.Else():
+                comb += ra_valid.eq(0)
+
+        with m.Else():
+            comb += real_addr.eq(i_in.nia[:REAL_ADDR_BITS])
+            comb += ra_valid.eq(1)
+            comb += eaa_priv.eq(1)
+
+        # No IAMR, so no KUEP support for now
+        comb += priv_fault.eq(eaa_priv & ~i_in.priv_mode)
+        comb += access_ok.eq(ra_valid & ~priv_fault)
+
 #     -- iTLB update
 #     itlb_update: process(clk)
 #         variable wr_index : tlb_index_t;
@@ -695,7 +821,29 @@ class ICache(Elaboratable):
 #             end if;
 #         end if;
 #     end process;
-#
+    # iTLB update
+    def itlb_update(self, m):
+        sync = m.d.sync
+
+        wr_index = Signal(TLB_SIZE)
+        sync += wr_index.eq(hash_ea(m_in.addr))
+
+        with m.If('''TODO rst in nmigen''' | (m_in.tlbie & m_in.doall)):
+            # Clear all valid bits
+            for i in range(TLB_SIZE):
+                sync += itlb_vlaids[i].eq(0)
+
+        with m.Elif(m_in.tlbie):
+            # Clear entry regardless of hit or miss
+            sync += itlb_valid_bits[wr_index].eq(0)
+
+        with m.Elif(m_in.tlbld):
+            sync += itlb_tags[wr_index].eq(
+                     m_in.addr[TLB_LG_PGSZ + TLB_BITS:64]
+                    )
+            sync += itlb_ptes[wr_index].eq(m_in.pte)
+            sync += itlb_valid_bits[wr_index].eq(1)
+
 #     -- Cache hit detection, output to fetch2 and other misc logic
 #     icache_comb : process(all)
 # 	variable is_hit  : std_ulogic;
