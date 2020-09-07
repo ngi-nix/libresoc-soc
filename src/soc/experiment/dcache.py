@@ -869,10 +869,6 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-# 	  variable stbs_done : boolean;
-#         variable req       : mem_access_request_t;
-#         variable acks      : unsigned(2 downto 0);
-        stbs_done   = Signal()
         req         = MemAccessRequest()
         acks        = Signal(3)
         adjust_acks = Signal(3)
@@ -886,7 +882,6 @@ class DCache(Elaboratable):
             sync += r1.forward_sel.eq(r1.forward_sel1)
 
         sync += r1.forward_data2.eq(r1.forward_data1)
-
         with m.If(r1.write_bram):
             sync += r1.forward_data1.eq(r1.req.data)
             sync += r1.forward_sel1.eq(r1.req.byte_sel)
@@ -903,293 +898,287 @@ class DCache(Elaboratable):
             sync += r1.forward_row1.eq(r1.store_row)
             sync += r1.forward_valid1.eq(0)
 
-        with m.Else():
-            sync += r1.slow_valid.eq(0)
-            sync += r1.write_bram.eq(0)
-            sync += r1.inc_acks.eq(0)
-            sync += r1.dec_acks.eq(0)
+        # One cycle pulses reset
+        sync += r1.slow_valid.eq(0)
+        sync += r1.write_bram.eq(0)
+        sync += r1.inc_acks.eq(0)
+        sync += r1.dec_acks.eq(0)
 
-            sync += r1.ls_valid.eq(0)
-            # complete tlbies and TLB loads in the third cycle
-            sync += r1.mmu_done.eq(r0_valid & (r0.tlbie | r0.tlbld))
+        sync += r1.ls_valid.eq(0)
+        # complete tlbies and TLB loads in the third cycle
+        sync += r1.mmu_done.eq(r0_valid & (r0.tlbie | r0.tlbld))
 
-            with m.If((req_op == Op.OP_LOAD_HIT)
-                      | (req_op == Op.OP_STCX_FAIL)):
-                with m.If(~r0.mmu_req):
-                    sync += r1.ls_valid.eq(1)
-                with m.Else():
-                    sync += r1.mmu_done.eq(1)
-
-            with m.If(r1.write_tag):
-                # Store new tag in selected way
-                for i in range(NUM_WAYS):
-                    with m.If(i == replace_way):
-                        idx = r1.store_index
-                        trange = range(i * TAG_WIDTH, (i+1) * TAG_WIDTH)
-                        sync += cache_tag[idx][trange].eq(r1.reload_tag)
-                sync += r1.store_way.eq(replace_way)
-                sync += r1.write_tag.eq(0)
-
-            # Take request from r1.req if there is one there,
-            # else from req_op, ra, etc.
-            with m.If(r1.full)
-                comb += req.eq(r1.req)
+        with m.If((req_op == Op.OP_LOAD_HIT)
+                  | (req_op == Op.OP_STCX_FAIL)):
+            with m.If(~r0.mmu_req):
+                sync += r1.ls_valid.eq(1)
             with m.Else():
-                comb += req.op.eq(req_op)
-                comb += req.valid.eq(req_go)
-                comb += req.mmu_req.eq(r0.mmu_req)
-                comb += req.dcbz.eq(r0.req.dcbz)
-                comb += req.real_addr.eq(ra)
+                sync += r1.mmu_done.eq(1)
 
-                with m.If(~r0.req.dcbz):
-                    comb += req.data.eq(r0.req.data)
-                with m.Else():
-                    comb += req.data.eq(0)
+        with m.If(r1.write_tag):
+            # Store new tag in selected way
+            for i in range(NUM_WAYS):
+                with m.If(i == replace_way):
+                    idx = r1.store_index
+                    trange = range(i * TAG_WIDTH, (i+1) * TAG_WIDTH)
+                    sync += cache_tag[idx][trange].eq(r1.reload_tag)
+            sync += r1.store_way.eq(replace_way)
+            sync += r1.write_tag.eq(0)
 
-                # Select all bytes for dcbz
-                # and for cacheable loads
-                with m.If(r0.req.dcbz | (r0.req.load & ~r0.req.nc):
-                    comb += req.byte_sel.eq(~0) # all 1s
-                with m.Else():
-                    comb += req.byte_sel.eq(r0.req.byte_sel)
-                comb += req.hit_way.eq(req_hit_way)
-                comb += req.same_tag.eq(req_same_tag)
+        # Take request from r1.req if there is one there,
+        # else from req_op, ra, etc.
+        with m.If(r1.full)
+            comb += req.eq(r1.req)
+        with m.Else():
+            comb += req.op.eq(req_op)
+            comb += req.valid.eq(req_go)
+            comb += req.mmu_req.eq(r0.mmu_req)
+            comb += req.dcbz.eq(r0.req.dcbz)
+            comb += req.real_addr.eq(ra)
 
-                # Store the incoming request from r0,
-                # if it is a slow request
-                # Note that r1.full = 1 implies req_op = OP_NONE
-                with m.If((req_op == Op.OP_LOAD_MISS)
-                          | (req_op == Op.OP_LOAD_NC)
-                          | (req_op == Op.OP_STORE_MISS)
-                          | (req_op == Op.OP_STORE_HIT)):
-                    sync += r1.req(req)
-                    sync += r1.full.eq(1)
+            with m.If(~r0.req.dcbz):
+                comb += req.data.eq(r0.req.data)
+            with m.Else():
+                comb += req.data.eq(0)
 
-            # Main state machine
-            with m.Switch(r1.state):
+            # Select all bytes for dcbz
+            # and for cacheable loads
+            with m.If(r0.req.dcbz | (r0.req.load & ~r0.req.nc):
+                comb += req.byte_sel.eq(~0) # all 1s
+            with m.Else():
+                comb += req.byte_sel.eq(r0.req.byte_sel)
+            comb += req.hit_way.eq(req_hit_way)
+            comb += req.same_tag.eq(req_same_tag)
 
-                with m.Case(State.IDLE)
+            # Store the incoming request from r0,
+            # if it is a slow request
+            # Note that r1.full = 1 implies req_op = OP_NONE
+            with m.If((req_op == Op.OP_LOAD_MISS)
+                      | (req_op == Op.OP_LOAD_NC)
+                      | (req_op == Op.OP_STORE_MISS)
+                      | (req_op == Op.OP_STORE_HIT)):
+                sync += r1.req(req)
+                sync += r1.full.eq(1)
+
+        # Main state machine
+        with m.Switch(r1.state):
+
+            with m.Case(State.IDLE)
 # XXX check 'left downto.  probably means len(r1.wb.adr)
 #                     r1.wb.adr <= req.real_addr(
 #                                   r1.wb.adr'left downto 0
 #                                  );
-                    sync += r1.wb.adr.eq(req.real_addr[0:r1.wb.adr])
-                    sync += r1.wb.sel.eq(req.byte_sel)
-                    sync += r1.wb.dat.eq(req.data)
-                    sync += r1.dcbz.eq(req.dcbz)
+                sync += r1.wb.adr.eq(req.real_addr[0:r1.wb.adr])
+                sync += r1.wb.sel.eq(req.byte_sel)
+                sync += r1.wb.dat.eq(req.data)
+                sync += r1.dcbz.eq(req.dcbz)
 
-                    # Keep track of our index and way
-                    # for subsequent stores.
-                    sync += r1.store_index.eq(get_index(req.real_addr))
-                    sync += r1.store_row.eq(get_row(req.real_addr))
-                    sync += r1.end_row_ix.eq(
-                             get_row_of_line(get_row(req.real_addr))
-                            )
-                    sync += r1.reload_tag.eq(get_tag(req.real_addr))
-                    sync += r1.req.same_tag.eq(1)
+                # Keep track of our index and way
+                # for subsequent stores.
+                sync += r1.store_index.eq(get_index(req.real_addr))
+                sync += r1.store_row.eq(get_row(req.real_addr))
+                sync += r1.end_row_ix.eq(
+                         get_row_of_line(get_row(req.real_addr))
+                        )
+                sync += r1.reload_tag.eq(get_tag(req.real_addr))
+                sync += r1.req.same_tag.eq(1)
 
-                    with m.If(req.op == Op.OP_STORE_HIT):
-                        sync += r1.store_way.eq(req.hit_way)
+                with m.If(req.op == Op.OP_STORE_HIT):
+                    sync += r1.store_way.eq(req.hit_way)
 
-                    # Reset per-row valid bits,
-                    # ready for handling OP_LOAD_MISS
-                    for i in range(ROW_PER_LINE):
-                        sync += r1.rows_valid[i].eq(0)
+                # Reset per-row valid bits,
+                # ready for handling OP_LOAD_MISS
+                for i in range(ROW_PER_LINE):
+                    sync += r1.rows_valid[i].eq(0)
 
-                    with m.Switch(req.op):
-                        with m.Case(Op.OP_LOAD_HIT):
-                            # stay in IDLE state
-                            pass
+                with m.Switch(req.op):
+                    with m.Case(Op.OP_LOAD_HIT):
+                        # stay in IDLE state
+                        pass
 
-                        with m.Case(Op.OP_LOAD_MISS):
-                            #Display(f"cache miss real addr:" \
-                            #      f"{req_real_addr}" \
-                            #      f" idx:{get_index(req_real_addr)}" \
-                            #      f" tag:{get_tag(req.real_addr)}")
-                            pass
+                    with m.Case(Op.OP_LOAD_MISS):
+                        #Display(f"cache miss real addr:" \
+                        #      f"{req_real_addr}" \
+                        #      f" idx:{get_index(req_real_addr)}" \
+                        #      f" tag:{get_tag(req.real_addr)}")
+                        pass
 
-                            # Start the wishbone cycle
-                            sync += r1.wb.we.eq(0)
-                            sync += r1.wb.cyc.eq(1)
-                            sync += r1.wb.stb.eq(1)
+                        # Start the wishbone cycle
+                        sync += r1.wb.we.eq(0)
+                        sync += r1.wb.cyc.eq(1)
+                        sync += r1.wb.stb.eq(1)
 
-                            # Track that we had one request sent
-                            sync += r1.state.eq(State.RELOAD_WAIT_ACK)
-                            sync += r1.write_tag.eq(1)
+                        # Track that we had one request sent
+                        sync += r1.state.eq(State.RELOAD_WAIT_ACK)
+                        sync += r1.write_tag.eq(1)
 
-                        with m.Case(Op.OP_LOAD_NC):
-                            sync += r1.wb.cyc.eq(1)
-                            sync += r1.wb.stb.eq(1)
-                            sync += r1.wb.we.eq(0)
-                            sync += r1.state.eq(State.NC_LOAD_WAIT_ACK)
+                    with m.Case(Op.OP_LOAD_NC):
+                        sync += r1.wb.cyc.eq(1)
+                        sync += r1.wb.stb.eq(1)
+                        sync += r1.wb.we.eq(0)
+                        sync += r1.state.eq(State.NC_LOAD_WAIT_ACK)
 
-                        with m.Case(Op.OP_STORE_HIT, Op.OP_STORE_MISS):
-                            with m.If(~req.bcbz):
-                                sync += r1.state.eq(State.STORE_WAIT_ACK)
-                                sync += r1.acks_pending.eq(1)
-                                sync += r1.full.eq(0)
-                                sync += r1.slow_valid.eq(1)
-
-                                with m.If(~req.mmu_req):
-                                    sync += r1.ls_valid.eq(1)
-                                with m.Else():
-                                    sync += r1.mmu_done.eq(1)
-
-                                with m.If(req.op == Op.OP_STORE_HIT):
-                                    sync += r1.write_bram.eq(1)
-                            with m.Else():
-                                sync += r1.state.eq(Op.RELOAD_WAIT_ACK)
-
-                                with m.If(req.op == Op.OP_STORE_MISS):
-                                    sync += r1.write_tag.eq(1)
-
-                            sync += r1.wb.we.eq(1)
-                            sync += r1.wb.cyc.eq(1)
-                            sync += r1.wb.stb.eq(1)
-
-                        # OP_NONE and OP_BAD do nothing
-                        # OP_BAD & OP_STCX_FAIL were
-                        # handled above already
-                        with m.Case(Op.OP_NONE):
-                            pass
-                        with m.Case(OP_BAD):
-                            pass
-                        with m.Case(OP_STCX_FAIL):
-                            pass
-
-                    with m.Case(State.RELOAD_WAIT_ACK):
-                        # Requests are all sent if stb is 0
-                        comb += stbs_done.eq(~r1.wb.stb)
-
-                        with m.If(~wb_in.stall & ~stbs_done):
-                            # That was the last word?
-                            # We are done sending.
-                            # Clear stb and set stbs_done
-                            # so we can handle an eventual
-                            # last ack on the same cycle.
-                            with m.If(is_last_row_addr(
-                                      r1.wb.adr, r1.end_row_ix)):
-                                sync += r1.wb.stb.eq(0)
-                                comb += stbs_done.eq(0)
-
-                            # Calculate the next row address
-                            sync += r1.wb.adr.eq(next_row_addr(r1.wb.adr))
-
-                        # Incoming acks processing
-                        sync += r1.forward_valid1.eq(wb_in.ack)
-
-                        with m.If(wb_in.ack):
-                            # XXX needs an Array bit-accessor here
-                            sync += r1.rows_valid[
-                                     r1.store_row % ROW_PER_LINE
-                                    ].eq(1)
-
-                            # If this is the data we were looking for,
-                            # we can complete the request next cycle.
-                            # Compare the whole address in case the
-                            # request in r1.req is not the one that
-                            # started this refill.
-                            with m.If(r1.full & r1.req.same_tag &
-                                      ((r1.dcbz & r1.req.dcbz) |
-                                       (~r1.dcbz &
-                                        r1.req.op == Op.OP_LOAD_MISS)
-                                       ) & (r1.store_row ==
-                                            get_row(r1.req.real_addr)):
-                                sync += r1.full.eq(0)
-                                sync += r1.slow_valid.eq(1)
-
-                                    with m.If(~r1.mmu_req):
-                                        sync += r1.ls_valid.eq(1)
-                                    with m.Else():
-                                        sync += r1.mmu_done.eq(1)
-                                sync += r1.forward_sel.eq(~0) # all 1s
-                                sync += r1.use_forward1.eq(1)
-
-                            # Check for completion
-                            with m.If(stbs_done &
-                                      is_last_row(r1.store_row, r1.end_row_ix)):
-                                # Complete wishbone cycle
-                                sync += r1.wb.cyc.eq(0)
-
-                                # Cache line is now valid
-                                cv = cache_valid_bits[r1.store_index]
-                                sync += cv[r1.store_way].eq(1)
-                                sync += r1.state.eq(State.IDLE)
-
-                            # Increment store row counter
-                            sync += r1.store_row.eq(next_row(r1.store_row))
-
-                    with m.Case(State.STORE_WAIT_ACK):
-                        comb += stbs_done.eq(~r1.wb.stb)
-                        comb += acks.eq(r1.acks_pending)
-
-                        with m.If(r1.inc_acks != r1.dec_acks):
-                            with m.If(r1.inc_acks):
-                                comb += adjust_acks.eq(acks + 1)
-                            with m.Else():
-                                comb += adjust_acks.eq(acks - 1)
-                        with m.Else():
-                            comb += adjust_acks.eq(acks)
-
-                        sync += r1.acks_pending.eq(adjust_acks)
-
-                        # Clear stb when slave accepted request
-                        with m.If(~wb_in.stall):
-                            # See if there is another store waiting
-                            # to be done which is in the same real page.
-                            with m.If(req.valid):
-                                ra = req.real_addr[0:SET_SIZE_BITS]
-                                sync += r1.wb.adr[0:SET_SIZE_BITS].eq(ra)
-                                sync += r1.wb.dat.eq(req.data)
-                                sync += r1.wb.sel.eq(req.byte_sel)
-
-                            with m.Elif((adjust_acks < 7) & req.same_tag &
-                                        ((req.op == Op.Op_STORE_MISS)
-                                         | (req.op == Op.OP_SOTRE_HIT))):
-                                sync += r1.wb.stb.eq(1)
-                                comb += stbs_done.eq(0)
-
-                                with m.If(req.op == Op.OP_STORE_HIT):
-                                    sync += r1.write_bram.eq(1)
-                                sync += r1.full.eq(0)
-                                sync += r1.slow_valid.eq(1)
-
-                                # Store request never come from the MMU
-                                sync += r1.ls_valid.eq(1)
-                                comb += stbs_done.eq(0)
-                                sync += r1.inc_acks.eq(1)
-                            with m.Else():
-                                sync += r1.wb.stb.eq(0)
-                                comb += stbs_done.eq(1)
-
-                        # Got ack ? See if complete.
-                        with m.If(wb_in.ack):
-                            with m.If(stbs_done & (adjust_acks == 1))
-                                sync += r1.state.eq(State.IDLE)
-                                sync += r1.wb.cyc.eq(0)
-                                sync += r1.wb.stb.eq(0)
-                            sync += r1.dec_acks.eq(1)
-
-                    with m.Case(State.NC_LOAD_WAIT_ACK):
-                        # Clear stb when slave accepted request
-                        with m.If(~wb_in.stall):
-                            sync += r1.wb.stb.eq(0)
-
-                        # Got ack ? complete.
-                        with m.If(wb_in.ack):
-                            sync += r1.state.eq(State.IDLE)
+                    with m.Case(Op.OP_STORE_HIT, Op.OP_STORE_MISS):
+                        with m.If(~req.bcbz):
+                            sync += r1.state.eq(State.STORE_WAIT_ACK)
+                            sync += r1.acks_pending.eq(1)
                             sync += r1.full.eq(0)
                             sync += r1.slow_valid.eq(1)
 
-                            with m.If(~r1.mmu_req):
+                            with m.If(~req.mmu_req):
                                 sync += r1.ls_valid.eq(1)
                             with m.Else():
                                 sync += r1.mmu_done.eq(1)
 
-                            sync += r1.forward_sel.eq(~0) # all 1s
-                            sync += r1.use_forward1.eq(1)
-                            sync += r1.wb.cyc.eq(0)
-                            sync += r1.wb.stb.eq(0)
+                            with m.If(req.op == Op.OP_STORE_HIT):
+                                sync += r1.write_bram.eq(1)
+                        with m.Else():
+                            sync += r1.state.eq(Op.RELOAD_WAIT_ACK)
+
+                            with m.If(req.op == Op.OP_STORE_MISS):
+                                sync += r1.write_tag.eq(1)
+
+                        sync += r1.wb.we.eq(1)
+                        sync += r1.wb.cyc.eq(1)
+                        sync += r1.wb.stb.eq(1)
+
+                    # OP_NONE and OP_BAD do nothing
+                    # OP_BAD & OP_STCX_FAIL were
+                    # handled above already
+                    with m.Case(Op.OP_NONE):
+                        pass
+                    with m.Case(OP_BAD):
+                        pass
+                    with m.Case(OP_STCX_FAIL):
+                        pass
+
+            with m.Case(State.RELOAD_WAIT_ACK):
+                # Requests are all sent if stb is 0
+                comb += stbs_done.eq(~r1.wb.stb)
+
+                with m.If(~wb_in.stall & ~stbs_done):
+                    # That was the last word?
+                    # We are done sending.
+                    # Clear stb and set stbs_done
+                    # so we can handle an eventual
+                    # last ack on the same cycle.
+                    with m.If(is_last_row_addr(
+                              r1.wb.adr, r1.end_row_ix)):
+                        sync += r1.wb.stb.eq(0)
+                        comb += stbs_done.eq(0)
+
+                    # Calculate the next row address
+                    sync += r1.wb.adr.eq(next_row_addr(r1.wb.adr))
+
+                # Incoming acks processing
+                sync += r1.forward_valid1.eq(wb_in.ack)
+                with m.If(wb_in.ack):
+                    # XXX needs an Array bit-accessor here
+                    sync += r1.rows_valid[r1.store_row % ROW_PER_LINE].eq(1)
+
+                    # If this is the data we were looking for,
+                    # we can complete the request next cycle.
+                    # Compare the whole address in case the
+                    # request in r1.req is not the one that
+                    # started this refill.
+                    with m.If(r1.full & r1.req.same_tag &
+                              ((r1.dcbz & r1.req.dcbz) |
+                               (~r1.dcbz & (r1.req.op == Op.OP_LOAD_MISS))) &
+                                (r1.store_row == get_row(r1.req.real_addr))):
+                        sync += r1.full.eq(0)
+                        sync += r1.slow_valid.eq(1)
+                            with m.If(~r1.mmu_req):
+                                sync += r1.ls_valid.eq(1)
+                            with m.Else():
+                                sync += r1.mmu_done.eq(1)
+                        sync += r1.forward_sel.eq(~0) # all 1s
+                        sync += r1.use_forward1.eq(1)
+
+                    # Check for completion
+                    with m.If(stbs_done & is_last_row(r1.store_row,
+                                                      r1.end_row_ix)):
+                        # Complete wishbone cycle
+                        sync += r1.wb.cyc.eq(0)
+
+                        # Cache line is now valid
+                        cv = cache_valid_bits[r1.store_index]
+                        sync += cv[r1.store_way].eq(1)
+                        sync += r1.state.eq(State.IDLE)
+
+                    # Increment store row counter
+                    sync += r1.store_row.eq(next_row(r1.store_row))
+
+            with m.Case(State.STORE_WAIT_ACK):
+                comb += stbs_done.eq(~r1.wb.stb)
+                comb += acks.eq(r1.acks_pending)
+
+                with m.If(r1.inc_acks != r1.dec_acks):
+                    with m.If(r1.inc_acks):
+                        comb += adjust_acks.eq(acks + 1)
+                    with m.Else():
+                        comb += adjust_acks.eq(acks - 1)
+                with m.Else():
+                    comb += adjust_acks.eq(acks)
+
+                sync += r1.acks_pending.eq(adjust_acks)
+
+                # Clear stb when slave accepted request
+                with m.If(~wb_in.stall):
+                    # See if there is another store waiting
+                    # to be done which is in the same real page.
+                    with m.If(req.valid):
+                        ra = req.real_addr[0:SET_SIZE_BITS]
+                        sync += r1.wb.adr[0:SET_SIZE_BITS].eq(ra)
+                        sync += r1.wb.dat.eq(req.data)
+                        sync += r1.wb.sel.eq(req.byte_sel)
+
+                    with m.Elif((adjust_acks < 7) & req.same_tag &
+                                ((req.op == Op.Op_STORE_MISS)
+                                 | (req.op == Op.OP_SOTRE_HIT))):
+                        sync += r1.wb.stb.eq(1)
+                        comb += stbs_done.eq(0)
+
+                        with m.If(req.op == Op.OP_STORE_HIT):
+                            sync += r1.write_bram.eq(1)
+                        sync += r1.full.eq(0)
+                        sync += r1.slow_valid.eq(1)
+
+                        # Store requests never come from the MMU
+                        sync += r1.ls_valid.eq(1)
+                        comb += stbs_done.eq(0)
+                        sync += r1.inc_acks.eq(1)
+                    with m.Else():
+                        sync += r1.wb.stb.eq(0)
+                        comb += stbs_done.eq(1)
+
+                # Got ack ? See if complete.
+                with m.If(wb_in.ack):
+                    with m.If(stbs_done & (adjust_acks == 1))
+                        sync += r1.state.eq(State.IDLE)
+                        sync += r1.wb.cyc.eq(0)
+                        sync += r1.wb.stb.eq(0)
+                    sync += r1.dec_acks.eq(1)
+
+            with m.Case(State.NC_LOAD_WAIT_ACK):
+                # Clear stb when slave accepted request
+                with m.If(~wb_in.stall):
+                    sync += r1.wb.stb.eq(0)
+
+                # Got ack ? complete.
+                with m.If(wb_in.ack):
+                    sync += r1.state.eq(State.IDLE)
+                    sync += r1.full.eq(0)
+                    sync += r1.slow_valid.eq(1)
+
+                    with m.If(~r1.mmu_req):
+                        sync += r1.ls_valid.eq(1)
+                    with m.Else():
+                        sync += r1.mmu_done.eq(1)
+
+                    sync += r1.forward_sel.eq(~0) # all 1s
+                    sync += r1.use_forward1.eq(1)
+                    sync += r1.wb.cyc.eq(0)
+                    sync += r1.wb.stb.eq(0)
 
 #     dc_log: if LOG_LENGTH > 0 generate
 # TODO learn how to tranlate vhdl generate into nmigen
