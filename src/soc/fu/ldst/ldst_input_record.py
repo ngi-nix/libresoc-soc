@@ -15,6 +15,7 @@ class CompLDSTOpSubset(CompOpSubsetBase):
     """
     def __init__(self, name=None):
         layout = (('insn_type', MicrOp),
+                  ('fn_unit', Function),
                   ('imm_data', Layout((("data", 64), ("ok", 1)))),
                   ('zero_a', 1),
                   ('rc', Layout((("rc", 1), ("ok", 1)))), # for later
@@ -24,7 +25,9 @@ class CompLDSTOpSubset(CompOpSubsetBase):
                   ('data_len', 4),
                   ('byte_reverse', 1),
                   ('sign_extend', 1),
-                  ('ldst_mode', LDSTMode))
+                  ('ldst_mode', LDSTMode),
+                  ('insn', 32),
+                 )
 
         super().__init__(layout, name=name)
 
