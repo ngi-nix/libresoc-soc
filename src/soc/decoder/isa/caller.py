@@ -724,7 +724,7 @@ class ISACaller:
                     already_done |= 2
 
         print("carry already done?", bin(already_done))
-        if hasattr(self.dec2.e.do, "outout_carry"):
+        if hasattr(self.dec2.e.do, "output_carry"):
             carry_en = yield self.dec2.e.do.output_carry
         else:
             carry_en = False
