@@ -22,6 +22,7 @@ before allowing a new instruction to proceed.
 from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat, Mux
 from nmigen.cli import rtlil
 
+from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.power_regspec_map import regspec_decode_read
 from soc.decoder.power_regspec_map import regspec_decode_write
 
@@ -36,6 +37,8 @@ from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.decoder.power_enums import MicrOp
+from soc.config.state import CoreState
+
 import operator
 
 from nmutil.util import rising_edge
@@ -78,6 +81,9 @@ class NonProductionCore(Elaboratable):
 
         # instruction decoder
         self.e = Decode2ToExecute1Type() # decoded instruction
+        self.state = CoreState("core")
+        self.raw_insn_i = Signal(32) # raw instruction
+        self.bigendian_i = Signal() # bigendian
 
         # issue/valid/busy signalling
         self.ivalid_i = Signal(reset_less=True) # instruction is valid
@@ -89,8 +95,18 @@ class NonProductionCore(Elaboratable):
         self.core_reset_i = Signal()
         self.core_terminate_o = Signal(reset=0)  # indicates stopped
 
+        # create per-FU instruction decoders (subsetted)
+        self.decoders = {}
+
+        for funame, fu in self.fus.fus.items():
+            f_name = fu.fnunit.name
+            fnunit = fu.fnunit.value
+            opkls = fu.opsubsetkls
+            self.decoders[funame] = PowerDecode2(None, opkls, f_name)
+
     def elaborate(self, platform):
         m = Module()
+        comb = m.d.comb
 
         m.submodules.fus = self.fus
         m.submodules.l0 = l0 = self.l0
@@ -105,6 +121,13 @@ class NonProductionCore(Elaboratable):
 
         # connect up reset
         m.d.comb += ResetSignal().eq(self.core_reset_i)
+
+        # connect decoders
+        for k, v in self.decoders.items():
+            setattr(m.submodules, "dec_%s" % v.fn_name, v)
+            comb += v.dec.raw_opcode_in.eq(self.raw_insn_i)
+            comb += v.dec.bigendian.eq(self.bigendian_i)
+            comb += v.state.eq(self.state)
 
         return m
 
@@ -122,7 +145,6 @@ class NonProductionCore(Elaboratable):
         """
         comb, sync = m.d.comb, m.d.sync
         fus = self.fus.fus
-        e = self.e # to execute
 
         # enable-signals for each FU, get one bit for each FU (by name)
         fu_enable = Signal(len(fus), reset_less=True)
@@ -136,7 +158,7 @@ class NonProductionCore(Elaboratable):
         for funame, fu in fus.items():
             fnunit = fu.fnunit.value
             enable = Signal(name="en_%s" % funame, reset_less=True)
-            comb += enable.eq((e.do.fn_unit & fnunit).bool())
+            comb += enable.eq((self.e.do.fn_unit & fnunit).bool())
             comb += fu_bitdict[funame].eq(enable)
 
         # sigh - need a NOP counter
@@ -146,7 +168,7 @@ class NonProductionCore(Elaboratable):
             comb += self.busy_o.eq(1)
 
         with m.If(self.ivalid_i): # run only when valid
-            with m.Switch(e.do.insn_type):
+            with m.Switch(self.e.do.insn_type):
                 # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):
                     m.d.sync += self.core_terminate_o.eq(1)
@@ -158,15 +180,20 @@ class NonProductionCore(Elaboratable):
                 with m.Default():
                     # connect up instructions.  only one enabled at a time
                     for funame, fu in fus.items():
+                        e = self.decoders[funame].e
                         enable = fu_bitdict[funame]
 
                         # run this FunctionUnit if enabled
+                        # route op, issue, busy, read flags and mask to FU
                         with m.If(enable):
-                            # route op, issue, busy, read flags and mask to FU
-                            comb += fu.oper_i.eq_from_execute1(e)
+                            # operand comes from the *local*  decoder
+                            comb += fu.oper_i.eq_from(e.do)
+                            #comb += fu.oper_i.eq_from_execute1(e)
                             comb += fu.issue_i.eq(self.issue_i)
                             comb += self.busy_o.eq(fu.busy_o)
-                            rdmask = get_rdflags(e, fu)
+                            # rdmask, which is for registers, needs to come
+                            # from the *main* decoder
+                            rdmask = get_rdflags(self.e, fu)
                             comb += fu.rdmaskn.eq(~rdmask)
 
         return fu_bitdict

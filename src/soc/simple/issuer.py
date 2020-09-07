@@ -216,6 +216,8 @@ class TestIssuer(Elaboratable):
             with m.State("IDLE"):
                 sync += pc_changed.eq(0)
                 sync += core.e.eq(0)
+                sync += core.raw_insn_i.eq(0)
+                sync += core.bigendian_i.eq(0)
                 with m.If(~dbg.core_stop_o & ~core.core_reset_i):
                     # instruction allowed to go: start by reading the PC
                     # capture the PC and also drop it into Insn Memory
@@ -255,6 +257,9 @@ class TestIssuer(Elaboratable):
                     comb += dec_opcode_i.eq(insn) # actual opcode
                     comb += dec_state.eq(cur_state)
                     sync += core.e.eq(pdecode2.e)
+                    sync += core.state.eq(cur_state)
+                    sync += core.raw_insn_i.eq(dec_opcode_i)
+                    sync += core.bigendian_i.eq(self.core_bigendian_i)
                     sync += ilatch.eq(insn) # latch current insn
                     # also drop PC and MSR into decode "state"
                     m.next = "INSN_START" # move to "start"
@@ -280,6 +285,8 @@ class TestIssuer(Elaboratable):
                         comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
                         comb += self.state_w_pc.data_i.eq(nia)
                     sync += core.e.eq(0)
+                    sync += core.raw_insn_i.eq(0)
+                    sync += core.bigendian_i.eq(0)
                     m.next = "IDLE" # back to idle
 
         # this bit doesn't have to be in the FSM: connect up to read
