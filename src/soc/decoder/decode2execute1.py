@@ -64,7 +64,7 @@ class Decode2ToOperand(RecordObject):
 
 class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self, name=None, asmcode=True):
+    def __init__(self, name=None, asmcode=True, opkls=Decode2ToOperand):
 
         RecordObject.__init__(self, name=name)
 
@@ -93,4 +93,4 @@ class Decode2ToExecute1Type(RecordObject):
         self.write_cr = Data(3, name="cr_out")
 
         # decode operand data
-        self.do = Decode2ToOperand(name)
+        self.do = opkls(name)
