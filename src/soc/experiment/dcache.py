@@ -23,6 +23,211 @@ from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBMasterOutVector, WBSlaveOutVector,
                                 WBIOMasterOut, WBIOSlaveOut
 
+# TODO: make these parameters of DCache at some point
+LINE_SIZE = 64    # Line size in bytes
+NUM_LINES = 32    # Number of lines in a set
+NUM_WAYS = 4      # Number of ways
+TLB_SET_SIZE = 64 # L1 DTLB entries per set
+TLB_NUM_WAYS = 2  # L1 DTLB number of sets
+TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
+LOG_LENGTH = 0    # Non-zero to enable log data collection
+
+# BRAM organisation: We never access more than
+#     -- wishbone_data_bits at a time so to save
+#     -- resources we make the array only that wide, and
+#     -- use consecutive indices for to make a cache "line"
+#     --
+#     -- ROW_SIZE is the width in bytes of the BRAM
+#     -- (based on WB, so 64-bits)
+ROW_SIZE = WB_DATA_BITS // 8;
+
+# ROW_PER_LINE is the number of row (wishbone
+# transactions) in a line
+ROW_PER_LINE = LINE_SIZE // ROW_SIZE
+
+# BRAM_ROWS is the number of rows in BRAM needed
+# to represent the full dcache
+BRAM_ROWS = NUM_LINES * ROW_PER_LINE
+
+
+# Bit fields counts in the address
+
+# REAL_ADDR_BITS is the number of real address
+# bits that we store
+REAL_ADDR_BITS = 56
+
+# ROW_BITS is the number of bits to select a row
+ROW_BITS = log2_int(BRAM_ROWS)
+
+# ROW_LINE_BITS is the number of bits to select
+# a row within a line
+ROW_LINE_BITS = log2_int(ROW_PER_LINE)
+
+# LINE_OFF_BITS is the number of bits for
+# the offset in a cache line
+LINE_OFF_BITS = log2_int(LINE_SIZE)
+
+# ROW_OFF_BITS is the number of bits for
+# the offset in a row
+ROW_OFF_BITS = log2_int(ROW_SIZE)
+
+# INDEX_BITS is the number if bits to
+# select a cache line
+INDEX_BITS = log2_int(NUM_LINES)
+
+# SET_SIZE_BITS is the log base 2 of the set size
+SET_SIZE_BITS = LINE_OFF_BITS + INDEX_BITS
+
+# TAG_BITS is the number of bits of
+# the tag part of the address
+TAG_BITS = REAL_ADDR_BITS - SET_SIZE_BITS
+
+# TAG_WIDTH is the width in bits of each way of the tag RAM
+TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
+
+# WAY_BITS is the number of bits to select a way
+WAY_BITS = log2_int(NUM_WAYS)
+
+# Example of layout for 32 lines of 64 bytes:
+#
+# ..  tag    |index|  line  |
+# ..         |   row   |    |
+# ..         |     |---|    | ROW_LINE_BITS  (3)
+# ..         |     |--- - --| LINE_OFF_BITS (6)
+# ..         |         |- --| ROW_OFF_BITS  (3)
+# ..         |----- ---|    | ROW_BITS      (8)
+# ..         |-----|        | INDEX_BITS    (5)
+# .. --------|              | TAG_BITS      (45)
+
+TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
+
+def CacheTagArray():
+    return Array(CacheTagSet() for x in range(NUM_LINES))
+
+def CacheValidBitsArray():
+    return Array(CacheWayValidBits() for x in range(NUM_LINES))
+
+def RowPerLineValidArray():
+    return Array(Signal() for x in range(ROW_PER_LINE))
+
+# L1 TLB
+TLB_SET_BITS     = log2_int(TLB_SET_SIZE)
+TLB_WAY_BITS     = log2_int(TLB_NUM_WAYS)
+TLB_EA_TAG_BITS  = 64 - (TLB_LG_PGSZ + TLB_SET_BITS)
+TLB_TAG_WAY_BITS = TLB_NUM_WAYS * TLB_EA_TAG_BITS
+TLB_PTE_BITS     = 64
+TLB_PTE_WAY_BITS = TLB_NUM_WAYS * TLB_PTE_BITS;
+
+assert (LINE_SIZE % ROW_SIZE) == 0, "LINE_SIZE not multiple of ROW_SIZE"
+assert (LINE_SIZE % 2) == 0, "LINE_SIZE not power of 2"
+assert (NUM_LINES % 2) == 0, "NUM_LINES not power of 2"
+assert (ROW_PER_LINE % 2) == 0, "ROW_PER_LINE not power of 2"
+assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS), "geometry bits don't add up"
+assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS), \
+        "geometry bits don't add up"
+assert REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS + LINE_OFF_BITS), \
+        "geometry bits don't add up"
+assert REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS), \
+         "geometry bits don't add up"
+assert 64 == wishbone_data_bits, "Can't yet handle wb width that isn't 64-bits"
+assert SET_SIZE_BITS <= TLB_LG_PGSZ, "Set indexed by virtual address"
+
+
+def TLBValidBitsArray():
+    return Array(Signal(TLB_NUM_WAYS) for x in range(TLB_SET_SIZE))
+
+def TLBTagsArray():
+    return Array(Signal(TLB_TAG_WAY_BITS) for x in range (TLB_SET_SIZE))
+
+def TLBPtesArray():
+    return Array(Signal(TLB_PTE_WAY_BITS) for x in range(TLB_SET_SIZE))
+
+def HitWaySet():
+    return Array(Signal(NUM_WAYS) for x in range(TLB_NUM_WAYS))
+
+# Cache RAM interface
+def CacheRamOut():
+    return Array(Signal(WB_DATA_BITS) for x in range(NUM_WAYS))
+
+# PLRU output interface
+def PLRUOut():
+    return Array(Signal(WAY_BITS) for x in range(Index()))
+
+# TLB PLRU output interface
+def TLBPLRUOut():
+    return Array(Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE))
+
+# Helper functions to decode incoming requests
+#
+# Return the cache line index (tag index) for an address
+def get_index(addr):
+    return addr[LINE_OFF_BITS:SET_SIZE_BITS]
+
+# Return the cache row index (data memory) for an address
+def get_row(addr):
+    return addr[ROW_OFF_BITS:SET_SIZE_BITS]
+
+# Return the index of a row within a line
+def get_row_of_line(row):
+    row_v = Signal(ROW_BITS)
+    row_v = Signal(row)
+    return row_v[0:ROW_LINE_BITS]
+
+# Returns whether this is the last row of a line
+def is_last_row_addr(addr, last):
+    return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
+
+# Returns whether this is the last row of a line
+def is_last_row(row, last):
+    return get_row_of_line(row) == last
+
+# Return the address of the next row in the current cache line
+def next_row_addr(addr):
+    row_idx = Signal(ROW_LINE_BITS)
+    result  = WBAddrType()
+    # Is there no simpler way in VHDL to
+    # generate that 3 bits adder ?
+    row_idx = addr[ROW_OFF_BITS:LINE_OFF_BITS]
+    row_idx = Signal(row_idx + 1)
+    result = addr
+    result[ROW_OFF_BITS:LINE_OFF_BITS] = row_idx
+    return result
+
+# Return the next row in the current cache line. We use a
+# dedicated function in order to limit the size of the
+# generated adder to be only the bits within a cache line
+# (3 bits with default settings)
+def next_row(row)
+    row_v = row[0:ROW_LINE_BITS] + 1
+    return Cat(row_v[:ROW_LINE_BITS], row[ROW_LINE_BITS:])
+
+# Get the tag value from the address
+def get_tag(addr):
+    return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
+
+# Read a tag from a tag memory row
+def read_tag(way, tagset):
+    return tagset[way *TAG_WIDTH:way * TAG_WIDTH + TAG_BITS]
+
+# Read a TLB tag from a TLB tag memory row
+def read_tlb_tag(way, tags):
+    j = way * TLB_EA_TAG_BITS
+    return tags[j:j + TLB_EA_TAG_BITS]
+
+# Write a TLB tag to a TLB tag memory row
+def write_tlb_tag(way, tags), tag):
+    j = way * TLB_EA_TAG_BITS
+    tags[j:j + TLB_EA_TAG_BITS] = tag
+
+# Read a PTE from a TLB PTE memory row
+def read_tlb_pte(way, ptes):
+    j = way * TLB_PTE_BITS
+    return ptes[j:j + TLB_PTE_BITS]
+
+def write_tlb_pte(way, ptes,newpte):
+    j = way * TLB_PTE_BITS
+    return ptes[j:j + TLB_PTE_BITS].eq(newpte)
+
 
 # Record for storing permission, attribute, etc. bits from a PTE
 class PermAttr(RecordObject):
@@ -85,6 +290,7 @@ class State(Enum):
 # time as the first stage emits a stall for a complex op.
 #
 # Stage 0 register, basically contains just the latched request
+
 class RegStage0(RecordObject):
     def __init__(self):
         super().__init__()
@@ -172,30 +378,19 @@ class RegStage1(RecordObject):
 class Reservation(RecordObject):
     def __init__(self):
         super().__init__()
-        valid = Signal()
-        # TODO LINE_OFF_BITS is 6
-        addr  = Signal(63 downto LINE_OFF_BITS)
+        self.valid = Signal()
+        self.addr  = Signal(64-LINE_OFF_BITS)
 
 
-# Set associative dcache write-through
-#
-# TODO (in no specific order):
-#
-# * See list in icache.vhdl
-# * Complete load misses on the cycle when WB data comes instead of
-#   at the end of line (this requires dealing with requests coming in
-#   while not idle...)
 class DCache(Elaboratable):
+    """Set associative dcache write-through
+    TODO (in no specific order):
+    * See list in icache.vhdl
+    * Complete load misses on the cycle when WB data comes instead of
+      at the end of line (this requires dealing with requests coming in
+      while not idle...)
+    """
     def __init__(self):
-        # TODO: make these parameters of DCache at some point
-        self.LINE_SIZE = 64    # Line size in bytes
-        self.NUM_LINES = 32    # Number of lines in a set
-        self.NUM_WAYS = 4      # Number of ways
-        self.TLB_SET_SIZE = 64 # L1 DTLB entries per set
-        self.TLB_NUM_WAYS = 2  # L1 DTLB number of sets
-        self.TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
-        self.LOG_LENGTH = 0    # Non-zero to enable log data collection
-
         self.d_in      = LoadStore1ToDCacheType()
         self.d_out     = DCacheToLoadStore1Type()
 
@@ -209,52 +404,51 @@ class DCache(Elaboratable):
 
         self.log_out   = Signal(20)
 
-    # Latch the request in r0.req as long as we're not stalling
     def stage_0(self, m, d_in, m_in):
-            comb = m.d.comb
-            sync = m.d.sync
+        """Latch the request in r0.req as long as we're not stalling
+        """
+        comb = m.d.comb
+        sync = m.d.sync
 
-            r = RegStage0()
+        r = RegStage0()
 
-            # TODO, this goes in unit tests and formal proofs
-            # assert ~(d_in.valid & m_in.valid),
-            # "request collision loadstore vs MMU"
-            with m.If(~(d_in.valid & m_in.valid)):
-                #sync += Display("request collision loadstore vs MMU")
-                pass
+        # TODO, this goes in unit tests and formal proofs
+        with m.If(~(d_in.valid & m_in.valid)):
+            #sync += Display("request collision loadstore vs MMU")
+            pass
 
-            with m.If(m_in.valid):
-                sync += r.req.valid.eq(1)
-                sync += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))
-                sync += r.req.dcbz.eq(0)
-                sync += r.req.nc.eq(0)
-                sync += r.req.reserve.eq(0)
-                sync += r.req.virt_mode.eq(1)
-                sync += r.req.priv_mode.eq(1)
-                sync += r.req.addr.eq(m_in.addr)
-                sync += r.req.data.eq(m_in.pte)
-                sync += r.req.byte_sel.eq(-1) # Const -1 sets all to 0b111....
-                sync += r.tlbie.eq(m_in.tlbie)
-                sync += r.doall.eq(m_in.doall)
-                sync += r.tlbld.eq(m_in.tlbld)
-                sync += r.mmu_req.eq(1)
-            with m.Else():
-                sync += r.req.eq(d_in)
-                sync += r.req.tlbie.eq(0)
-                sync += r.req.doall.eq(0)
-                sync += r.req.tlbd.eq(0)
-                sync += r.req.mmu_req.eq(0)
-                with m.If(~(r1.full & r0_full)):
-                    sync += r0.eq(r)
-                    sync += r0_full.eq(r.req.valid)
+        with m.If(m_in.valid):
+            sync += r.req.valid.eq(1)
+            sync += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))
+            sync += r.req.dcbz.eq(0)
+            sync += r.req.nc.eq(0)
+            sync += r.req.reserve.eq(0)
+            sync += r.req.virt_mode.eq(1)
+            sync += r.req.priv_mode.eq(1)
+            sync += r.req.addr.eq(m_in.addr)
+            sync += r.req.data.eq(m_in.pte)
+            sync += r.req.byte_sel.eq(-1) # Const -1 sets all to 0b111....
+            sync += r.tlbie.eq(m_in.tlbie)
+            sync += r.doall.eq(m_in.doall)
+            sync += r.tlbld.eq(m_in.tlbld)
+            sync += r.mmu_req.eq(1)
+        with m.Else():
+            sync += r.req.eq(d_in)
+            sync += r.req.tlbie.eq(0)
+            sync += r.req.doall.eq(0)
+            sync += r.req.tlbd.eq(0)
+            sync += r.req.mmu_req.eq(0)
+            with m.If(~(r1.full & r0_full)):
+                sync += r0.eq(r)
+                sync += r0_full.eq(r.req.valid)
 
-    # TLB
-    # Operates in the second cycle on the request latched in r0.req.
-    # TLB updates write the entry at the end of the second cycle.
     def tlb_read(self, m, m_in, d_in, r0_stall, tlb_valid_way,
                  tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
                  dtlb_tags, dtlb_ptes):
-
+        """TLB
+        Operates in the second cycle on the request latched in r0.req.
+        TLB updates write the entry at the end of the second cycle.
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -277,8 +471,9 @@ class DCache(Elaboratable):
             sync += tlb_tag_way.eq(dtlb_tags[index])
             sync += tlb_pte_way.eq(dtlb_ptes[index])
 
-    # Generate TLB PLRUs
     def maybe_tlb_plrus(self, m, r1, tlb_plru_victim, acc, acc_en, lru):
+        """Generate TLB PLRUs
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -303,7 +498,7 @@ class DCache(Elaboratable):
 
                 comb += tlb_plru_victim[i].eq(tlb_plru.lru)
 
-    def tlb_search(self, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
+    def tlb_search(self, m, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
                    tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra):
 
         comb = m.d.comb
@@ -347,7 +542,7 @@ class DCache(Elaboratable):
             comb += perm_attr.rd_perm.eq(1)
             comb += perm_attr.wr_perm.eq(1)
 
-    def tlb_update(self, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
+    def tlb_update(self, m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                     tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
                     dtlb_tags, tlb_pte_way, dtlb_ptes, dtlb_valid_bits):
 
@@ -366,7 +561,7 @@ class DCache(Elaboratable):
         tlbie    = Signal()
         tlbwe    = Signal()
         repl_way = Signal(TLB_WAY_BITS)
-        eatag    = Signal(log2_int(TLB_EA_TAG_BITS, False))
+        eatag    = Signal(TLB_EA_TAG_BITS)
         tagset   = TLBWayTags()
         pteset   = TLBWayPtes()
 
@@ -395,9 +590,9 @@ class DCache(Elaboratable):
             sync += dtlb_ptes[tlb_req_index].eq(pteset)
             sync += dtlb_valid_bits[tlb_req_index][repl_way].eq(1)
 
-    # Generate PLRUs
     def maybe_plrus(self, r1):
-
+        """Generate PLRUs
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -419,10 +614,10 @@ class DCache(Elaboratable):
             comb += plru_acc.eq(r1.hit_way)
             comb += plru_victim[i].eq(plru_out)
 
-    # Cache tag RAM read port
-    def cache_tag_read(self, r0_stall, req_index, m_in, d_in,
+    def cache_tag_read(self, m, r0_stall, req_index, m_in, d_in,
                        cache_tag_set, cache_tags):
-
+        """Cache tag RAM read port
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -436,13 +631,14 @@ class DCache(Elaboratable):
             comb += index.eq(get_index(d_in.addr))
         sync += cache_tag_set.eq(cache_tags[index])
 
-    # Cache request parsing and hit detection
-    def dcache_request(self, r0, ra, req_index, req_row, req_tag,
+    def dcache_request(self, m, r0, ra, req_index, req_row, req_tag,
                        r0_valid, r1, cache_valid_bits, replace_way,
                        use_forward1_next, use_forward2_next,
                        req_hit_way, plru_victim, rc_ok, perm_attr,
                        valid_ra, perm_ok, access_ok, req_op, req_ok,
                        r0_stall, m_in, early_req_row, d_in):
+        """Cache request parsing and hit detection
+        """
 
         comb = m.d.comb
         sync = m.d.sync
@@ -545,7 +741,7 @@ class DCache(Elaboratable):
 
         # work out whether we have permission for this access
         # NB we don't yet implement AMR, thus no KUAP
-        comb += rc_ok.eq( perm_attr.reference
+        comb += rc_ok.eq(perm_attr.reference
                          & (r0.req.load | perm_attr.changed)
                 )
         comb += perm_ok.eq((r0.req.prive_mode | ~perm_attr.priv)
@@ -598,10 +794,10 @@ class DCache(Elaboratable):
         with m.Else():
             comb += early_req_row.eq(req_row)
 
-    # Handle load-with-reservation and store-conditional instructions
-    def reservation_comb(self, cancel_store, set_rsrv, clear_rsrv,
+    def reservation_comb(self, m, cancel_store, set_rsrv, clear_rsrv,
                          r0_valid, r0, reservation):
-
+        """Handle load-with-reservation and store-conditional instructions
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -616,7 +812,7 @@ class DCache(Elaboratable):
                 with m.If(~reservation.valid | r0.req.addr[LINE_OFF_BITS:64]):
                     comb += cancel_store.eq(1)
 
-    def reservation_reg(self, r0_valid, access_ok, clear_rsrv,
+    def reservation_reg(self, m, r0_valid, access_ok, clear_rsrv,
                         reservation, r0):
 
         comb = m.d.comb
@@ -629,9 +825,9 @@ class DCache(Elaboratable):
                 sync += reservation.valid.eq(1)
                 sync += reservation.addr.eq(r0.req.addr[LINE_OFF_BITS:64])
 
-    # Return data for loads & completion control logic
-    def writeback_control(self, r1, cache_out, d_out, m_out):
-
+    def writeback_control(self, m, r1, cache_out, d_out, m_out):
+        """Return data for loads & completion control logic
+        """
         comb = m.d.comb
         sync = m.d.sync
 
@@ -718,15 +914,19 @@ class DCache(Elaboratable):
                 #Display("completing MMU load miss, data={m_out.data}")
                 pass
 
-    # Generate a cache RAM for each way. This handles the normal
-    # reads, writes from reloads and the special store-hit update
-    # path as well.
-    #
-    # Note: the BRAMs have an extra read buffer, meaning the output
-    # is pipelined an extra cycle. This differs from the
-    # icache. The writeback logic needs to take that into
-    # account by using 1-cycle delayed signals for load hits.
-    def rams(self, ):
+    def rams(self, m):
+        """rams
+        Generate a cache RAM for each way. This handles the normal
+        reads, writes from reloads and the special store-hit update
+        path as well.
+
+        Note: the BRAMs have an extra read buffer, meaning the output
+        is pipelined an extra cycle. This differs from the
+        icache. The writeback logic needs to take that into
+        account by using 1-cycle delayed signals for load hits.
+        """
+        comb = m.d.comb
+
         for i in range(NUM_WAYS):
             do_read  = Signal()
             rd_addr  = Signal(ROW_BITS)
@@ -737,24 +937,9 @@ class DCache(Elaboratable):
             wr_sel_m = Signal(ROW_SIZE)
             _d_out   = Signal(WB_DATA_BITS)
 
-#     begin
-# 	way: entity work.cache_ram
-# 	    generic map (
-# 		ROW_BITS => ROW_BITS,
-# 		WIDTH => wishbone_data_bits,
-# 		ADD_BUF => true
-# 		)
-# 	    port map (
-# 		clk     => clk,
-# 		rd_en   => do_read,
-# 		rd_addr => rd_addr,
-# 		rd_data => dout,
-# 		wr_sel  => wr_sel_m,
-# 		wr_addr => wr_addr,
-# 		wr_data => wr_data
-# 		);
-# 	process(all)
             way = CacheRam(ROW_BITS, WB_DATA_BITS, True)
+            setattr(m.submodules, "cacheram_%d" % i, way)
+
             comb += way.rd_en.eq(do_read)
             comb += way.rd_addr.eq(rd_addr)
             comb += _d_out.eq(way.rd_data)
@@ -767,12 +952,12 @@ class DCache(Elaboratable):
             comb += rd_addr.eq(early_req_row)
             comb += cache_out[i].eq(_d_out)
 
-        # Write mux:
-        #
-        # Defaults to wishbone read responses (cache refill)
-        #
-        # For timing, the mux on wr_data/sel/addr is not
-        # dependent on anything other than the current state.
+            # Write mux:
+            #
+            # Defaults to wishbone read responses (cache refill)
+            #
+            # For timing, the mux on wr_data/sel/addr is not
+            # dependent on anything other than the current state.
 
             with m.If(r1.write_bram):
                 # Write store data to BRAM.  This happens one
@@ -804,7 +989,7 @@ class DCache(Elaboratable):
     # Cache hit synchronous machine for the easy case.
     # This handles load hits.
     # It also handles error cases (TLB miss, cache paradox)
-    def dcache_fast_hit(self, req_op, r0_valid, r1, ):
+    def dcache_fast_hit(self, m, req_op, r0_valid, r1, ):
 
         comb = m.d.comb
         sync = m.d.sync
@@ -863,7 +1048,7 @@ class DCache(Elaboratable):
     #
     # All wishbone requests generation is done here.
     # This machine operates at stage 1.
-    def dcache_slow(self, r1, use_forward1_next, cache_valid_bits, r0,
+    def dcache_slow(self, m, r1, use_forward1_next, cache_valid_bits, r0,
                     r0_valid, req_op, cache_tag, req_go, ra, wb_in):
 
         comb = m.d.comb
@@ -1180,137 +1365,17 @@ class DCache(Elaboratable):
                     sync += r1.wb.cyc.eq(0)
                     sync += r1.wb.stb.eq(0)
 
-#     dc_log: if LOG_LENGTH > 0 generate
-# TODO learn how to tranlate vhdl generate into nmigen
-    def dcache_log(self, r1, valid_ra, tlb_hit_way, stall_out,
+    def dcache_log(self, m, r1, valid_ra, tlb_hit_way, stall_out,
                    d_out, wb_in, log_out):
 
-        comb = m.d.comb
         sync = m.d.sync
 
-#         signal log_data : std_ulogic_vector(19 downto 0);
-        log_data = Signal(20)
-
-        comb += log_data
-
-#     begin
-#         dcache_log: process(clk)
-#         begin
-#             if rising_edge(clk) then
-#                 log_data <= r1.wb.adr(5 downto 3) &
-#                             wishbone_in.stall &
-#                             wishbone_in.ack &
-#                             r1.wb.stb & r1.wb.cyc &
-#                             d_out.error &
-#                             d_out.valid &
-#                             std_ulogic_vector(
-#                              to_unsigned(op_t'pos(req_op), 3)) &
-#                             stall_out &
-#                             std_ulogic_vector(
-#                              to_unsigned(tlb_hit_way, 3)) &
-#                             valid_ra &
-#                             std_ulogic_vector(
-#                              to_unsigned(state_t'pos(r1.state), 3));
-        sync += log_data.eq(Cat(
-                 Const(r1.state, 3), valid_ra, Const(tlb_hit_way, 3),
-                 stall_out, Const(req_op, 3), d_out.valid, d_out.error,
-                 r1.wb.cyc, r1.wb.stb, wb_in.ack, wb_in.stall,
-                 r1.wb.adr[3:6]
-                ))
-#             end if;
-#         end process;
-#         log_out <= log_data;
-    # TODO ??? I am very confused need help
-    comb += log_out.eq(log_data)
-#     end generate;
-# end;
+        sync += log_out.eq(Cat(r1.state[:3], valid_ra, tlb_hit_way[:3],
+                               stall_out, req_op[:3], d_out.valid, d_out.error,
+                               r1.wb.cyc, r1.wb.stb, wb_in.ack, wb_in.stall,
+                               r1.wb.adr[3:6]))
 
     def elaborate(self, platform):
-        LINE_SIZE    = self.LINE_SIZE
-        NUM_LINES    = self.NUM_LINES
-        NUM_WAYS     = self.NUM_WAYS
-        TLB_SET_SIZE = self.TLB_SET_SIZE
-        TLB_NUM_WAYS = self.TLB_NUM_WAYS
-        TLB_LG_PGSZ  = self.TLB_LG_PGSZ
-        LOG_LENGTH   = self.LOG_LENGTH
-
-        # BRAM organisation: We never access more than
-        #     -- wishbone_data_bits at a time so to save
-        #     -- resources we make the array only that wide, and
-        #     -- use consecutive indices for to make a cache "line"
-        #     --
-        #     -- ROW_SIZE is the width in bytes of the BRAM
-        #     -- (based on WB, so 64-bits)
-        ROW_SIZE = WB_DATA_BITS / 8;
-
-        # ROW_PER_LINE is the number of row (wishbone
-        # transactions) in a line
-        ROW_PER_LINE = LINE_SIZE // ROW_SIZE
-
-        # BRAM_ROWS is the number of rows in BRAM needed
-        # to represent the full dcache
-        BRAM_ROWS = NUM_LINES * ROW_PER_LINE
-
-
-        # Bit fields counts in the address
-
-        # REAL_ADDR_BITS is the number of real address
-        # bits that we store
-        REAL_ADDR_BITS = 56
-
-        # ROW_BITS is the number of bits to select a row
-        ROW_BITS = log2_int(BRAM_ROWS)
-
-        # ROW_LINE_BITS is the number of bits to select
-        # a row within a line
-        ROW_LINE_BITS = log2_int(ROW_PER_LINE)
-
-        # LINE_OFF_BITS is the number of bits for
-        # the offset in a cache line
-        LINE_OFF_BITS = log2_int(LINE_SIZE)
-
-        # ROW_OFF_BITS is the number of bits for
-        # the offset in a row
-        ROW_OFF_BITS = log2_int(ROW_SIZE)
-
-        # INDEX_BITS is the number if bits to
-        # select a cache line
-        INDEX_BITS = log2_int(NUM_LINES)
-
-        # SET_SIZE_BITS is the log base 2 of the set size
-        SET_SIZE_BITS = LINE_OFF_BITS + INDEX_BITS
-
-        # TAG_BITS is the number of bits of
-        # the tag part of the address
-        TAG_BITS = REAL_ADDR_BITS - SET_SIZE_BITS
-
-        # TAG_WIDTH is the width in bits of each way of the tag RAM
-        TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
-
-        # WAY_BITS is the number of bits to select a way
-        WAY_BITS = log2_int(NUM_WAYS)
-
-        # Example of layout for 32 lines of 64 bytes:
-        #
-        # ..  tag    |index|  line  |
-        # ..         |   row   |    |
-        # ..         |     |---|    | ROW_LINE_BITS  (3)
-        # ..         |     |--- - --| LINE_OFF_BITS (6)
-        # ..         |         |- --| ROW_OFF_BITS  (3)
-        # ..         |----- ---|    | ROW_BITS      (8)
-        # ..         |-----|        | INDEX_BITS    (5)
-        # .. --------|              | TAG_BITS      (45)
-
-        TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
-
-        def CacheTagArray():
-            return Array(CacheTagSet() for x in range(NUM_LINES))
-
-        def CacheValidBitsArray():
-            return Array(CacheWayValidBits() for x in range(NUM_LINES))
-
-        def RowPerLineValidArray():
-            return Array(Signal() for x in range(ROW_PER_LINE))
 
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags       = CacheTagArray()
@@ -1319,32 +1384,6 @@ class DCache(Elaboratable):
 
         # TODO attribute ram_style : string;
         # TODO attribute ram_style of cache_tags : signal is "distributed";
-
-        # L1 TLB
-        TLB_SET_BITS     = log2_int(TLB_SET_SIZE)
-        TLB_WAY_BITS     = log2_int(TLB_NUM_WAYS)
-        TLB_EA_TAG_BITS  = 64 - (TLB_LG_PGSZ + TLB_SET_BITS)
-        TLB_TAG_WAY_BITS = TLB_NUM_WAYS * TLB_EA_TAG_BITS
-        TLB_PTE_BITS     = 64
-        TLB_PTE_WAY_BITS = TLB_NUM_WAYS * TLB_PTE_BITS;
-
-        def TLBValidBitsArray():
-            return Array(
-             Signal(TLB_NUM_WAYS) for x in range(TLB_SET_SIZE)
-            )
-
-        def TLBTagsArray():
-            return Array(
-             Signal(TLB_TAG_WAY_BITS) for x in range (TLB_SET_SIZE)
-            )
-
-        def TLBPtesArray():
-            return Array(
-             Signal(TLB_PTE_WAY_BITS) for x in range(TLB_SET_SIZE)
-            )
-
-        def HitWaySet():
-            return Array(Signal(NUM_WAYS) for x in range(TLB_NUM_WAYS))
 
 """note: these are passed to nmigen.hdl.Memory as "attributes".
    don't know how, just that they are.
@@ -1386,15 +1425,7 @@ class DCache(Elaboratable):
         use_forward1_next = Signal()
         use_forward2_next = Signal()
 
-        # Cache RAM interface
-        def CacheRamOut():
-            return Array(Signal(WB_DATA_BITS) for x in range(NUM_WAYS))
-
         cache_out         = CacheRamOut()
-
-        # PLRU output interface
-        def PLRUOut():
-            return Array(Signal(WAY_BITS) for x in range(Index()))
 
         plru_victim       = PLRUOut()
         replace_way       = Signal(WAY_BITS)
@@ -1417,126 +1448,7 @@ class DCache(Elaboratable):
         perm_ok       = Signal()
         access_ok     = Signal()
 
-        # TLB PLRU output interface
-        def TLBPLRUOut():
-            return Array(
-                Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE)
-            )
-
         tlb_plru_victim = TLBPLRUOut()
-
-        # Helper functions to decode incoming requests
-        #
-        # Return the cache line index (tag index) for an address
-        def get_index(addr):
-            return addr[LINE_OFF_BITS:SET_SIZE_BITS]
-
-        # Return the cache row index (data memory) for an address
-        def get_row(addr):
-            return addr[ROW_OFF_BITS:SET_SIZE_BITS]
-
-        # Return the index of a row within a line
-        def get_row_of_line(row):
-            row_v = Signal(ROW_BITS)
-            row_v = Signal(row)
-            return row_v[0:ROW_LINE_BITS]
-
-        # Returns whether this is the last row of a line
-        def is_last_row_addr(addr, last):
-            return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
-
-        # Returns whether this is the last row of a line
-        def is_last_row(row, last):
-            return get_row_of_line(row) == last
-
-        # Return the address of the next row in the current cache line
-        def next_row_addr(addr):
-            row_idx = Signal(ROW_LINE_BITS)
-            result  = WBAddrType()
-            # Is there no simpler way in VHDL to
-            # generate that 3 bits adder ?
-            row_idx = addr[ROW_OFF_BITS:LINE_OFF_BITS]
-            row_idx = Signal(row_idx + 1)
-            result = addr
-            result[ROW_OFF_BITS:LINE_OFF_BITS] = row_idx
-            return result
-
-        # Return the next row in the current cache line. We use a
-        # dedicated function in order to limit the size of the
-        # generated adder to be only the bits within a cache line
-        # (3 bits with default settings)
-        def next_row(row)
-            row_v   = Signal(ROW_BITS)
-            row_idx = Signal(ROW_LINE_BITS)
-            result  = Signal(ROW_BITS)
-
-            row_v = Signal(row)
-            row_idx = row_v[ROW_LINE_BITS]
-            row_v[0:ROW_LINE_BITS] = Signal(row_idx + 1)
-            return row_v
-
-        # Get the tag value from the address
-        def get_tag(addr):
-            return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
-
-        # Read a tag from a tag memory row
-        def read_tag(way, tagset):
-            return tagset[way *TAG_WIDTH:way * TAG_WIDTH + TAG_BITS]
-
-        # Read a TLB tag from a TLB tag memory row
-        def read_tlb_tag(way, tags):
-            j = Signal()
-
-            j = way * TLB_EA_TAG_BITS
-            return tags[j:j + TLB_EA_TAG_BITS]
-
-        # Write a TLB tag to a TLB tag memory row
-        def write_tlb_tag(way, tags), tag):
-            j = Signal()
-
-            j = way * TLB_EA_TAG_BITS
-            tags[j:j + TLB_EA_TAG_BITS] = tag
-
-        # Read a PTE from a TLB PTE memory row
-        def read_tlb_pte(way, ptes):
-            j = Signal()
-
-            j = way * TLB_PTE_BITS
-            return ptes[j:j + TLB_PTE_BITS]
-
-        def write_tlb_pte(way, ptes,newpte):
-            j = Signal()
-
-            j = way * TLB_PTE_BITS
-            return ptes[j:j + TLB_PTE_BITS] = newpte
-
-        assert (LINE_SIZE % ROW_SIZE) == 0 "LINE_SIZE not " \
-         "multiple of ROW_SIZE"
-
-        assert (LINE_SIZE % 2) == 0 "LINE_SIZE not power of 2"
-
-        assert (NUM_LINES % 2) == 0 "NUM_LINES not power of 2"
-
-        assert (ROW_PER_LINE % 2) == 0 "ROW_PER_LINE not" \
-         "power of 2"
-
-        assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS) \
-         "geometry bits don't add up"
-
-        assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS) \
-         "geometry bits don't add up"
-
-        assert REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS \
-         + LINE_OFF_BITS) "geometry bits don't add up"
-
-        assert REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS) \
-         "geometry bits don't add up"
-
-        assert 64 == wishbone_data_bits "Can't yet handle a" \
-         "wishbone width that isn't 64-bits"
-
-        assert SET_SIZE_BITS <= TLB_LG_PGSZ "Set indexed by" \
-         "virtual address"
 
         # we don't yet handle collisions between loadstore1 requests
         # and MMU requests
