@@ -308,8 +308,8 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         if hasattr(op, "imm_data"):
             # select immediate if opcode says so. however also change the latch
             # to trigger *from* the opcode latch instead.
-            op_is_imm = op.imm_data.imm_ok
-            imm = op.imm_data.imm
+            op_is_imm = op.imm_data.ok
+            imm = op.imm_data.data
             self._mux_op(m, sl, op_is_imm, imm, 1)
 
         # create a latch/register for src1/src2 (even if it is a copy of imm)

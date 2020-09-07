@@ -233,9 +233,9 @@ class ALUHelpers:
         if 'rb' in inp:
             yield alu.p.data_i.rb.eq(inp['rb'])
         # If there's an immediate, set the B operand to that
-        imm_ok = yield dec2.e.do.imm_data.imm_ok
+        imm_ok = yield dec2.e.do.imm_data.ok
         if imm_ok:
-            data2 = yield dec2.e.do.imm_data.imm
+            data2 = yield dec2.e.do.imm_data.data
             yield alu.p.data_i.rb.eq(data2)
 
     def set_int_rc(alu, dec2, inp):

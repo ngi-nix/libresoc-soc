@@ -405,9 +405,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         m.d.comb += src1_or_z.eq(Mux(op_is_z, 0, srl[0]))
 
         # select either immediate or src2 if opcode says so
-        op_is_imm = oper_r.imm_data.imm_ok
+        op_is_imm = oper_r.imm_data.ok
         src2_or_imm = Signal(self.data_wid, reset_less=True)
-        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.imm, srl[1]))
+        m.d.comb += src2_or_imm.eq(Mux(op_is_imm, oper_r.imm_data.data, srl[1]))
 
         # now do the ALU addr add: one cycle, and say "ready" (next cycle, too)
         comb += alu_o.eq(src1_or_z + src2_or_imm)  # actual EA
@@ -589,7 +589,7 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
     yield dut.src2_i.eq(src2)
     yield dut.src3_i.eq(src3)
     yield dut.oper_i.imm_data.imm.eq(imm)
-    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
+    yield dut.oper_i.imm_data.ok.eq(imm_ok)
     yield dut.oper_i.update.eq(update)
     yield dut.issue_i.eq(1)
     yield
@@ -645,7 +645,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     yield dut.src2_i.eq(src2)
     yield dut.oper_i.zero_a.eq(zero_a)
     yield dut.oper_i.imm_data.imm.eq(imm)
-    yield dut.oper_i.imm_data.imm_ok.eq(imm_ok)
+    yield dut.oper_i.imm_data.ok.eq(imm_ok)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)

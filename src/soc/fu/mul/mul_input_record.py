@@ -14,9 +14,9 @@ class CompMULOpSubset(CompOpSubsetBase):
     def __init__(self, name=None):
         layout = (('insn_type', MicrOp),
                   ('fn_unit', Function),
-                  ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
-                  ('rc', Layout((("rc", 1), ("rc_ok", 1)))), # Data
-                  ('oe', Layout((("oe", 1), ("oe_ok", 1)))), # Data
+                  ('imm_data', Layout((("data", 64), ("ok", 1)))),
+                  ('rc', Layout((("rc", 1), ("ok", 1)))), # Data
+                  ('oe', Layout((("oe", 1), ("ok", 1)))), # Data
                   ('write_cr0', 1),
                   ('is_32bit', 1),
                   ('is_signed', 1),

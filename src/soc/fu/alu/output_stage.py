@@ -27,7 +27,7 @@ class ALUOutputStage(CommonOutputStage):
         # are actually required (oe enabled/set) otherwise the CompALU
         # can (will) ignore them.
         oe = Signal(reset_less=True)
-        comb += oe.eq(op.oe.oe & op.oe.oe_ok)
+        comb += oe.eq(op.oe.oe & op.oe.ok)
         with m.If(oe):
             # XXX see https://bugs.libre-soc.org/show_bug.cgi?id=319#c5
             comb += xer_so_o.data.eq(xer_so_i[0] | xer_ov_i[0]) # SO

@@ -26,7 +26,7 @@ class CommonOutputStage(PipeModBase):
             xer_so_o = self.o.xer_so.data[0]
             so = Signal(reset_less=True)
             oe = Signal(reset_less=True)
-            comb += oe.eq(op.oe.oe & op.oe.oe_ok)
+            comb += oe.eq(op.oe.oe & op.oe.ok)
             with m.If(oe):
                 comb += so.eq(xer_so_o)
             with m.Else():

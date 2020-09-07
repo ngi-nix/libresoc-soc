@@ -96,4 +96,5 @@ class Decode2ToExecute1Type(RecordObject):
         self.write_cr = Data(3, name="cr_out")
 
         # decode operand data
+        print ("decode2execute init", name, opkls)
         self.do = opkls(name)

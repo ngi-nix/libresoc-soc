@@ -16,7 +16,7 @@ class CompBROpSubset(CompOpSubsetBase):
                   ('insn_type', MicrOp),
                   ('fn_unit', Function),
                   ('insn', 32),
-                  ('imm_data', Layout((("imm", 64), ("imm_ok", 1)))),
+                  ('imm_data', Layout((("data", 64), ("ok", 1)))),
                   ('lk', 1),
                   ('is_32bit', 1),
                   )

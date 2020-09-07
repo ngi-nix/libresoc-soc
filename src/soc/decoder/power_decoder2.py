@@ -598,11 +598,11 @@ class PowerDecodeSubset(Elaboratable):
 
     """
 
-    def __init__(self, dec, fn_unit=None):
+    def __init__(self, dec, opkls=None, fn_name=None, col_subset=None):
 
         if dec is None:
-            self.opkls = fn_unit.opsubsetkls
-            self.fn_name = fn_unit.fnunit.name
+            self.opkls = opkls
+            self.fn_name = fn_name
             self.dec = create_pdecode(name=fn_name, col_subset=col_subset,
                                       row_subset=self.rowsubsetfn)
         else:
@@ -614,7 +614,7 @@ class PowerDecodeSubset(Elaboratable):
         # state information needed by the Decoder (TODO: this as a Record)
         self.state = CoreState("dec2")
 
-    def rowsubsetfn(opcode, row):
+    def rowsubsetfn(self, opcode, row):
         return row['unit'] == self.fn_name
 
     def ports(self):
@@ -768,7 +768,8 @@ class PowerDecode2(PowerDecodeSubset):
         comb += dec_c.sel_in.eq(op.in3_sel)
         comb += dec_o.sel_in.eq(op.out_sel)
         comb += dec_o2.sel_in.eq(op.out_sel)
-        comb += dec_o2.lk.eq(do.lk)
+        if hasattr(do, "lk"):
+            comb += dec_o2.lk.eq(do.lk)
 
         # registers a, b, c and out and out2 (LD/ST EA)
         comb += e.read_reg1.eq(dec_a.reg_out)
@@ -807,7 +808,7 @@ class PowerDecode2(PowerDecodeSubset):
         with m.If(op.internal_op == MicrOp.OP_TRAP):
             # *DO NOT* call self.trap here.  that would reset absolutely
             # rverything including destroying read of RA and RB.
-            comb += do.trapaddr.eq(0x70)    # addr=0x700 (strip first nibble)
+            comb += self.do_copy("trapaddr", 0x70, True) # strip first nibble
 
         # check if instruction is privileged
         is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)

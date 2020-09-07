@@ -569,7 +569,7 @@ class ISACaller:
         # sigh reconstruct the assembly instruction name
         ov_en = yield self.dec2.e.do.oe.oe
         ov_ok = yield self.dec2.e.do.oe.ok
-        rc_en = yield self.dec2.e.do.rc.data
+        rc_en = yield self.dec2.e.do.rc.rc
         rc_ok = yield self.dec2.e.do.rc.ok
         # grrrr have to special-case MUL op (see DecodeOE)
         print("ov %d en %d rc %d en %d op %d" % \
@@ -582,9 +582,10 @@ class ISACaller:
             if not asmop.endswith("."): # don't add "." to "andis."
                 if rc_en & rc_ok:
                     asmop += "."
-        lk = yield self.dec2.e.do.lk
-        if lk:
-            asmop += "l"
+        if hasattr(self.dec2.e.do, "lk"):
+            lk = yield self.dec2.e.do.lk
+            if lk:
+                asmop += "l"
         print("int_op", int_op)
         if int_op in [MicrOp.OP_B.value, MicrOp.OP_BC.value]:
             AA = yield self.dec2.dec.fields.FormI.AA[0:-1]
@@ -731,7 +732,7 @@ class ISACaller:
         if ov_en & ov_ok:
             yield from self.handle_overflow(inputs, results, overflow)
 
-        rc_en = yield self.dec2.e.do.rc.data
+        rc_en = yield self.dec2.e.do.rc.rc
         if rc_en:
             self.handle_comparison(results)
 
