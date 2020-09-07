@@ -25,6 +25,8 @@ class CompOpSubsetBase(Record):
         """ use this to copy in from Decode2Execute1Type
         """
         res = []
+        print ("eq_from_execute self", self, self.fields)
+        print ("                other", other, other.fields)
         for fname, sig in self.fields.items():
             eqfrom = other.do.fields[fname]
             res.append(sig.eq(eqfrom))
