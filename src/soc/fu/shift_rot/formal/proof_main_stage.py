@@ -100,9 +100,9 @@ class Driver(Elaboratable):
         # clear left?
         with m.If((itype == MicrOp.OP_RLC) | (itype == MicrOp.OP_RLCL)):
             with m.If(rec.is_32bit):
-                comb += mb.eq(m_fields.MB[0:-1])
+                comb += mb.eq(m_fields.MB)
             with m.Else():
-                comb += mb.eq(md_fields.mb[0:-1])
+                comb += mb.eq(md_fields.mb)
         with m.Else():
             with m.If(rec.is_32bit):
                 comb += mb.eq(b[0:6])
@@ -117,9 +117,9 @@ class Driver(Elaboratable):
         # clear right?
         with m.If((itype == MicrOp.OP_RLC) | (itype == MicrOp.OP_RLCR)):
             with m.If(rec.is_32bit):
-                comb += me.eq(m_fields.ME[0:-1])
+                comb += me.eq(m_fields.ME)
             with m.Else():
-                comb += me.eq(md_fields.me[0:-1])
+                comb += me.eq(md_fields.me)
         with m.Else():
             with m.If(rec.is_32bit):
                 comb += me.eq(b[0:6])
