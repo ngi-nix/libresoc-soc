@@ -623,7 +623,10 @@ class PowerDecodeSubset(Elaboratable):
         return self.dec.ports() + self.e.ports()
 
     def needs_field(self, field, op_field):
-        do = self.e_tmp.do
+        if self.final:
+            do = self.e.do
+        else:
+            do = self.e_tmp.do
         return hasattr(do, field) and self.op_get(op_field) is not None
 
     def do_copy(self, field, val, final=False):

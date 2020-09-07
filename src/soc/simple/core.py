@@ -22,7 +22,7 @@ before allowing a new instruction to proceed.
 from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat, Mux
 from nmigen.cli import rtlil
 
-from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.power_decoder2 import PowerDecodeSubset
 from soc.decoder.power_regspec_map import regspec_decode_read
 from soc.decoder.power_regspec_map import regspec_decode_write
 
@@ -97,12 +97,18 @@ class NonProductionCore(Elaboratable):
 
         # create per-FU instruction decoders (subsetted)
         self.decoders = {}
+        self.ees = {}
 
         for funame, fu in self.fus.fus.items():
             f_name = fu.fnunit.name
             fnunit = fu.fnunit.value
             opkls = fu.opsubsetkls
-            self.decoders[funame] = PowerDecode2(None, opkls, f_name)
+            if f_name == 'TRAP':
+                self.trapunit = funame
+                continue
+            self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
+                                                      final=True)
+            self.ees[funame] = self.decoders[funame].e
 
     def elaborate(self, platform):
         m = Module()
@@ -114,6 +120,16 @@ class NonProductionCore(Elaboratable):
         regs = self.regs
         fus = self.fus.fus
 
+        # connect decoders
+        for k, v in self.decoders.items():
+            setattr(m.submodules, "dec_%s" % v.fn_name, v)
+            comb += v.dec.raw_opcode_in.eq(self.raw_insn_i)
+            comb += v.dec.bigendian.eq(self.bigendian_i)
+            comb += v.state.eq(self.state)
+
+        # ssh, cheat: trap uses the main decoder because of the rewriting
+        self.ees[self.trapunit] = self.e
+
         # connect up Function Units, then read/write ports
         fu_bitdict = self.connect_instruction(m)
         self.connect_rdports(m, fu_bitdict)
@@ -121,13 +137,6 @@ class NonProductionCore(Elaboratable):
 
         # connect up reset
         m.d.comb += ResetSignal().eq(self.core_reset_i)
-
-        # connect decoders
-        for k, v in self.decoders.items():
-            setattr(m.submodules, "dec_%s" % v.fn_name, v)
-            comb += v.dec.raw_opcode_in.eq(self.raw_insn_i)
-            comb += v.dec.bigendian.eq(self.bigendian_i)
-            comb += v.state.eq(self.state)
 
         return m
 
@@ -180,7 +189,7 @@ class NonProductionCore(Elaboratable):
                 with m.Default():
                     # connect up instructions.  only one enabled at a time
                     for funame, fu in fus.items():
-                        e = self.decoders[funame].e
+                        e = self.ees[funame]
                         enable = fu_bitdict[funame]
 
                         # run this FunctionUnit if enabled
