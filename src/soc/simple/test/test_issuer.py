@@ -5,7 +5,10 @@ related bugs:
  * https://bugs.libre-soc.org/show_bug.cgi?id=363
 """
 from nmigen import Module, Signal, Cat
-from nmigen.back.pysim import Simulator, Delay, Settle
+if True:
+    from nmigen.back.pysim import Simulator, Delay, Settle
+else:
+    from nmigen.sim.cxxsim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
