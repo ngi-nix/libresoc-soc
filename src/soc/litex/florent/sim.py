@@ -53,16 +53,16 @@ class LibreSoCSim(SoCSDRAM):
 
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
-        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-                    "tests/1.bin"
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "tests/1.bin"
         #ram_fname = "/tmp/test.bin"
         #ram_fname = None
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "micropython/firmware.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "tests/xics/xics.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "tests/decrementer/decrementer.bin"
+        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+                    "tests/decrementer/decrementer.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
 

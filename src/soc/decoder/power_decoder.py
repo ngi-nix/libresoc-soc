@@ -86,6 +86,7 @@ Top Level:
 
 """
 
+import gc
 from collections import namedtuple
 from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
@@ -261,6 +262,7 @@ class PowerDecoder(Elaboratable):
     """
 
     def __init__(self, width, dec, name=None, col_subset=None, row_subset=None):
+        self.actually_does_something = False
         self.pname = name
         self.col_subset = col_subset
         self.row_subsetfn = row_subset
@@ -295,75 +297,120 @@ class PowerDecoder(Elaboratable):
             divided[key].append(r)
         return divided
 
-    def elaborate(self, platform):
-        m = Module()
-        comb = m.d.comb
-
-        # note: default opcode is "illegal" as this is a combinatorial block
-        # this only works because OP_ILLEGAL=0 and the default (unset) is 0
+    def tree_analyse(self):
+        self.decs = decs = []
+        self.submodules = submodules = {}
+        self.eqs = eqs = []
 
         # go through the list of CSV decoders first
         for d in self.dec:
+            cases = []
             opcode_switch = Signal(d.bitsel[1] - d.bitsel[0],
                                    reset_less=True)
-            comb += opcode_switch.eq(self.opcode_in[d.bitsel[0]:d.bitsel[1]])
+            eq = []
+            case_does_something = False
+            eq.append(opcode_switch.eq(self.opcode_in[d.bitsel[0]:d.bitsel[1]]))
             if d.suffix:
                 opcodes = self.divide_opcodes(d)
                 opc_in = Signal(d.suffix, reset_less=True)
-                comb += opc_in.eq(opcode_switch[:d.suffix])
+                eq.append(opc_in.eq(opcode_switch[:d.suffix]))
                 # begin the dynamic Switch statement here
-                with m.Switch(opc_in):
-                    for key, row in opcodes.items():
-                        bitsel = (d.suffix+d.bitsel[0], d.bitsel[1])
-                        sd = Subdecoder(pattern=None, opcodes=row,
-                                        bitsel=bitsel, suffix=None,
-                                        opint=False, subdecoders=[])
-                        subdecoder = PowerDecoder(width=32, dec=sd,
-                                                  name=self.pname,
-                                                  col_subset=self.col_subset,
-                                                  row_subset=self.row_subsetfn)
-                        mname = get_pname("dec_sub%d" % key, self.pname)
-                        setattr(m.submodules, mname, subdecoder)
-                        comb += subdecoder.opcode_in.eq(self.opcode_in)
-                        # XXX hmmm...
-                        #if self.row_subsetfn:
-                        #    if not self.row_subsetfn(key, row):
-                        #        continue
-                        # add in the dynamic Case statement here
-                        with m.Case(key):
-                            comb += self.op.eq(subdecoder.op)
+                switch_case = {}
+                cases.append([opc_in, switch_case])
+                sub_eqs = []
+                for key, row in opcodes.items():
+                    bitsel = (d.suffix+d.bitsel[0], d.bitsel[1])
+                    sd = Subdecoder(pattern=None, opcodes=row,
+                                    bitsel=bitsel, suffix=None,
+                                    opint=False, subdecoders=[])
+                    mname = get_pname("dec_sub%d" % key, self.pname)
+                    subdecoder = PowerDecoder(width=32, dec=sd,
+                                              name=mname,
+                                              col_subset=self.col_subset,
+                                              row_subset=self.row_subsetfn)
+                    if not subdecoder.tree_analyse():
+                        del subdecoder
+                        continue
+                    submodules[mname] = subdecoder
+                    sub_eqs.append(subdecoder.opcode_in.eq(self.opcode_in))
+                    # add in the dynamic Case statement here
+                    switch_case[key] = self.op.eq(subdecoder.op)
+                    self.actually_does_something = True
+                    case_does_something = True
+                if case_does_something:
+                    eq += sub_eqs
             else:
                 # TODO: arguments, here (all of them) need to be a list.
                 # a for-loop around the *list* of decoder args.
-                with m.Switch(opcode_switch):
-                    self.handle_subdecoders(m, d)
-                    for row in d.opcodes:
-                        opcode = row['opcode']
-                        if d.opint and '-' not in opcode:
-                            opcode = int(opcode, 0)
-                        if not row['unit']:
+                switch_case = {}
+                cases.append([opcode_switch, switch_case])
+                seqs = self.handle_subdecoders(switch_case, submodules, d)
+                if seqs:
+                    case_does_something = True
+                eq += seqs
+                for row in d.opcodes:
+                    opcode = row['opcode']
+                    if d.opint and '-' not in opcode:
+                        opcode = int(opcode, 0)
+                    if not row['unit']:
+                        continue
+                    if self.row_subsetfn:
+                        if not self.row_subsetfn(opcode, row):
                             continue
-                        if self.row_subsetfn:
-                            if not self.row_subsetfn(opcode, row):
-                                continue
-                        # add in the dynamic Case statement here
-                        with m.Case(opcode):
-                            comb += self.op._eq(row)
-        return m
+                    # add in the dynamic Case statement here
+                    switch_case[opcode] = self.op._eq(row)
+                    self.actually_does_something = True
+                    case_does_something = True
 
-    def handle_subdecoders(self, m, d):
+            if cases:
+                decs.append(cases)
+            if case_does_something:
+                eqs += eq
+                print ("submodule eqs", self.pname, eq)
+
+        print ("submodules", self.pname, submodules)
+
+        gc.collect()
+        return self.actually_does_something
+
+    def handle_subdecoders(self, switch_case, submodules, d):
+        eqs = []
         for dec in d.subdecoders:
-            subdecoder = PowerDecoder(self.width, dec,
-                                     name=self.pname,
-                                     col_subset=self.col_subset,
-                                     row_subset=self.row_subsetfn)
             if isinstance(dec, list):  # XXX HACK: take first pattern
                 dec = dec[0]
+            print ("subdec", dec.pattern, self.pname)
             mname = get_pname("dec%d" % dec.pattern, self.pname)
+            subdecoder = PowerDecoder(self.width, dec,
+                                     name=mname,
+                                     col_subset=self.col_subset,
+                                     row_subset=self.row_subsetfn)
+            if not subdecoder.tree_analyse(): # doesn't do anything
+                del subdecoder
+                continue                      # skip
+            submodules[mname] = subdecoder
+            eqs.append(subdecoder.opcode_in.eq(self.opcode_in))
+            switch_case[dec.pattern] = self.op.eq(subdecoder.op)
+            self.actually_does_something = True
+
+        return eqs
+
+    def elaborate(self, platform):
+        print ("decoder elaborate", self.pname, self.submodules)
+        m = Module()
+        comb = m.d.comb
+
+        comb += self.eqs
+
+        for mname, subdecoder in self.submodules.items():
             setattr(m.submodules, mname, subdecoder)
-            m.d.comb += subdecoder.opcode_in.eq(self.opcode_in)
-            with m.Case(dec.pattern):
-                m.d.comb += self.op.eq(subdecoder.op)
+
+        for switch_case in self.decs:
+            for (switch, cases) in switch_case:
+                with m.Switch(switch):
+                    for key, eqs in cases.items():
+                        with m.Case(key):
+                            comb += eqs
+        return m
 
     def ports(self):
         return [self.opcode_in] + self.op.ports()
@@ -404,6 +451,8 @@ class TopPowerDecoder(PowerDecoder):
             instr = Fields(**sf)
             setattr(self, "Form%s" % form, instr)
             self.sigforms[form] = instr
+
+        self.tree_analyse()
 
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
@@ -483,25 +532,26 @@ def create_pdecode(name=None, col_subset=None, row_subset=None):
 
 if __name__ == '__main__':
 
-    # row subset
+    if True:
+        # row subset
 
-    def rowsubsetfn(opcode, row):
-        print ("row_subset", opcode, row)
-        return row['unit'] == 'ALU'
+        def rowsubsetfn(opcode, row):
+            print ("row_subset", opcode, row)
+            return row['unit'] == 'ALU'
 
-    pdecode = create_pdecode(name="rowsub",
-                             col_subset={'function_unit', 'in1_sel'},
-                             row_subset=rowsubsetfn)
-    vl = rtlil.convert(pdecode, ports=pdecode.ports())
-    with open("row_subset_decoder.il", "w") as f:
-        f.write(vl)
+        pdecode = create_pdecode(name="rowsub",
+                                 col_subset={'function_unit', 'in1_sel'},
+                                 row_subset=rowsubsetfn)
+        vl = rtlil.convert(pdecode, ports=pdecode.ports())
+        with open("row_subset_decoder.il", "w") as f:
+            f.write(vl)
 
-    # col subset
+        # col subset
 
-    pdecode = create_pdecode(name="fusubset", col_subset={'function_unit'})
-    vl = rtlil.convert(pdecode, ports=pdecode.ports())
-    with open("col_subset_decoder.il", "w") as f:
-        f.write(vl)
+        pdecode = create_pdecode(name="fusubset", col_subset={'function_unit'})
+        vl = rtlil.convert(pdecode, ports=pdecode.ports())
+        with open("col_subset_decoder.il", "w") as f:
+            f.write(vl)
 
     # full decoder
 
