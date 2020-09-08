@@ -649,7 +649,7 @@ class PowerDecodeSubset(Elaboratable):
         comb = m.d.comb
         state = self.state
         e_out, op, do_out = self.e, self.dec.op, self.e.do
-        dec_spr, msr, cia, ext_irq = state.dec, state.msr, state.pc, state.eint
+        msr, cia = state.msr, state.pc
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
@@ -829,23 +829,34 @@ class PowerDecode2(PowerDecodeSubset):
         # check if instruction is privileged
         is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)
 
+        # different trap conditions
+        ext_irq_ok = Signal()
+        dec_irq_ok = Signal()
+        priv_ok = Signal()
+        illeg_ok = Signal()
+
+        comb += ext_irq_ok.eq(ext_irq & msr[MSR.EE]) # v3.0B p944 (MSR.EE)
+        comb += dec_irq_ok.eq(dec_spr[63] & msr[MSR.EE]) # v3.0B 6.5.11 p1076
+        comb += priv_ok.eq(is_priv_insn & msr[MSR.PR])
+        comb += illeg_ok.eq(op.internal_op == MicrOp.OP_ILLEGAL)
+
         # external interrupt? only if MSR.EE set
-        with m.If(ext_irq & msr[MSR.EE]): # v3.0B p944 (MSR.EE)
+        with m.If(ext_irq_ok):
             self.trap(m, TT.EINT, 0x500)
 
         # decrement counter (v3.0B p1099): TODO 32-bit version (MSR.LPCR)
-        with m.If(dec_spr[63] & msr[MSR.EE]): # v3.0B 6.5.11 p1076
+        with m.If(dec_irq_ok):
             self.trap(m, TT.DEC, 0x900)   # v3.0B 6.5 p1065
 
         # privileged instruction trap
-        with m.Elif(is_priv_insn & msr[MSR.PR]):
+        with m.Elif(priv_ok):
             self.trap(m, TT.PRIV, 0x700)
 
         # illegal instruction must redirect to trap. this is done by
         # *overwriting* the decoded instruction and starting again.
         # (note: the same goes for interrupts and for privileged operations,
         # just with different trapaddr and traptype)
-        with m.Elif(op.internal_op == MicrOp.OP_ILLEGAL):
+        with m.Elif(illeg_ok):
             # illegal instruction trap
             self.trap(m, TT.ILLEG, 0x700)
 
