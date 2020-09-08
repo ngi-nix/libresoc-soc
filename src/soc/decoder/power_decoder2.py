@@ -592,31 +592,61 @@ class DecodeCROut(Elaboratable):
 
         return m
 
+# dictionary of Input Record field names that, if they exist,
+# will need a corresponding CSV Decoder file column (actually, PowerOp)
+# to be decoded (this includes the single bit names)
+record_names = {'insn_type': 'internal_op',
+                'fn_unit': 'function_unit',
+                'rc': 'rc_sel',
+                'oe': 'rc_sel',
+                'zero_a': 'in1_sel',
+                'imm_data': 'in2_sel',
+                'invert_in': 'inv_a',
+                'invert_out': 'inv_out',
+                'rc': 'cr_out',
+                'oe': 'cr_in',
+                'output_carry': 'cry_out',
+                'input_carry': 'cry_in',
+                'is_32bit': 'is_32b',
+                'is_signed': 'sgn',
+                'lk': 'lk',
+                'data_len': 'ldst_len',
+                'byte_reverse': 'br',
+                'sign_extend': 'sgn_ext',
+                'ldst_mode': 'upd',
+                }
 
 class PowerDecodeSubset(Elaboratable):
     """PowerDecodeSubset: dynamic subset decoder
 
     """
 
-    def __init__(self, dec, opkls=None, fn_name=None, col_subset=None,
+    def __init__(self, dec, opkls=None, fn_name=None,
                             final=False, state=None):
 
         self.final = final
         self.opkls = opkls
-        if dec is None:
-            self.fn_name = fn_name
-            self.dec = create_pdecode(name=fn_name, col_subset=col_subset,
-                                      row_subset=self.rowsubsetfn)
-        else:
-            self.dec = dec
-            self.fn_name = None
+        self.fn_name = fn_name
         self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
+        col_subset = self.get_col_subset(self.e.do)
+
+        if dec is None:
+            dec = create_pdecode(name=fn_name, col_subset=col_subset,
+                                      row_subset=self.rowsubsetfn)
+        self.dec = dec
 
         # state information needed by the Decoder
-        if state is not None:
-            self.state = state
-        else:
-            self.state = CoreState("dec2")
+        if state is None:
+            state = CoreState("dec2")
+        self.state = state
+
+    def get_col_subset(self, do):
+        subset = {'cr_in', 'cr_out', 'rc_sel'} # needed, non-optional
+        for k, v in record_names.items():
+            if hasattr(do, k):
+                subset.add(v)
+        print ("get_col_subset", self.fn_name, do.fields, subset)
+        return subset
 
     def rowsubsetfn(self, opcode, row):
         return row['unit'] == self.fn_name
@@ -752,6 +782,17 @@ class PowerDecode2(PowerDecodeSubset):
     just leaving at that, *replacing* the instruction to execute with
     a suitable alternative (trap).
     """
+
+    def get_col_subset(self, opkls):
+        subset = super().get_col_subset(opkls)
+        subset.add("in1_sel")
+        subset.add("in2_sel")
+        subset.add("in3_sel")
+        subset.add("out_sel")
+        subset.add("lk")
+        subset.add("internal_op")
+        subset.add("form")
+        return subset
 
     def elaborate(self, platform):
         m = super().elaborate(platform)

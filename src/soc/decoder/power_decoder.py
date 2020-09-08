@@ -163,17 +163,25 @@ class PowerOp:
 
     def __init__(self, incl_asm=True, name=None, subset=None):
         self.subset = subset
+        debug_report = set()
+        fields = set()
         for field, ptype in power_op_types.items():
+            fields.add(field)
             if subset and field not in subset:
                 continue
             fname = get_pname(field, name)
             setattr(self, field, Signal(ptype, reset_less=True, name=fname))
+            debug_report.add(field)
         for bit in single_bit_flags:
             field = get_signal_name(bit)
+            fields.add(field)
             if subset and field not in subset:
                 continue
+            debug_report.add(field)
             fname = get_pname(field, name)
             setattr(self, field, Signal(reset_less=True, name=fname))
+        print ("PowerOp debug", name, debug_report)
+        print ("        fields", fields)
 
     def _eq(self, row=None):
         if row is None:
