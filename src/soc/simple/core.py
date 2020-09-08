@@ -80,7 +80,7 @@ class NonProductionCore(Elaboratable):
         self.regs = RegFiles()
 
         # instruction decoder
-        self.e = Decode2ToExecute1Type() # decoded instruction
+        self.e = Decode2ToExecute1Type("core") # decoded instruction
         self.state = CoreState("core")
         self.raw_insn_i = Signal(32) # raw instruction
         self.bigendian_i = Signal() # bigendian
