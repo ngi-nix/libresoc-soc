@@ -259,6 +259,23 @@ class PowerOp:
 
 class PowerDecoder(Elaboratable):
     """PowerDecoder - decodes an incoming opcode into the type of operation
+
+    this is a recursive algorithm, creating Switch statements that can
+    have further match-and-decode on other parts of the opcode field before
+    finally landing at a "this CSV entry details gets returned" thing.
+
+    the complicating factor is the row and col subsetting.  column subsetting
+    dynamically chooses only the CSV columns requested, whilst row subsetting
+    allows a function to be called on the row to determine if the Case
+    statement is to be generated for that row.  this not only generates
+    completely different Decoders, it also means that some sub-decoders
+    will turn up blank (empty switch statements).  if that happens we do
+    not want the parent to include a Mux for an entirely blank switch statement
+    so we have to store the switch/case statements in a tree, and
+    post-analyse it.
+
+    the reason for the tree is because elaborate can only be called *after*
+    the constructor is called.  all quite messy.
     """
 
     def __init__(self, width, dec, name=None, col_subset=None, row_subset=None):
