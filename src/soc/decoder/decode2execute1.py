@@ -24,7 +24,14 @@ class Data(Record):
         return [self.data, self.ok]
 
 
-class Decode2ToOperand(RecordObject):
+class IssuerDecode2ToOperand(RecordObject):
+    """IssuerDecode2ToOperand
+
+    contains the subset of fields needed for Issuer to decode the instruction
+    and get register rdflags signals set up.  it also doubles up as the
+    "Trap" temporary store, because part of the Decoder's job is to
+    identify whether a trap / interrupt / exception should occur.
+    """
 
     def __init__(self, name=None):
 
@@ -38,13 +45,27 @@ class Decode2ToOperand(RecordObject):
         self.insn = Signal(32, reset_less=True) # original instruction
         self.insn_type = Signal(MicrOp, reset_less=True)
         self.fn_unit = Signal(Function, reset_less=True)
-        self.imm_data = Data(64, name="imm")
         self.lk = Signal(reset_less=True)
         self.rc = Data(1, "rc")
         self.oe = Data(1, "oe")
+        self.input_carry = Signal(CryIn, reset_less=True)
+        self.traptype  = Signal(TT.size, reset_less=True) # trap main_stage.py
+        self.trapaddr  = Signal(13, reset_less=True)
+        self.read_cr_whole = Data(8, "cr_rd") # CR full read mask
+        self.write_cr_whole = Data(8, "cr_wr") # CR full write mask
+        self.is_32bit = Signal(reset_less=True)
+
+
+class Decode2ToOperand(IssuerDecode2ToOperand):
+
+    def __init__(self, name=None):
+
+        IssuerDecode2ToOperand.__init__(self, name=name)
+
+        # instruction, type and decoded information
+        self.imm_data = Data(64, name="imm")
         self.invert_in = Signal(reset_less=True)
         self.zero_a = Signal(reset_less=True)
-        self.input_carry = Signal(CryIn, reset_less=True)
         self.output_carry = Signal(reset_less=True)
         self.input_cr = Signal(reset_less=True)  # instr. has a CR as input
         self.output_cr = Signal(reset_less=True) # instr. has a CR as output
@@ -55,10 +76,6 @@ class Decode2ToOperand(RecordObject):
         self.byte_reverse  = Signal(reset_less=True)
         self.sign_extend  = Signal(reset_less=True)# do we need this?
         self.ldst_mode  = Signal(LDSTMode, reset_less=True) # LD/ST mode
-        self.traptype  = Signal(TT.size, reset_less=True) # trap main_stage.py
-        self.trapaddr  = Signal(13, reset_less=True)
-        self.read_cr_whole = Data(8, "cr_rd") # CR full read mask
-        self.write_cr_whole = Data(8, "cr_wr") # CR full write mask
         self.write_cr0 = Signal(reset_less=True)
 
 
@@ -97,4 +114,5 @@ class Decode2ToExecute1Type(RecordObject):
 
         # decode operand data
         print ("decode2execute init", name, opkls)
+        #assert name is not None, str(opkls)
         self.do = opkls(name)

@@ -23,6 +23,7 @@ import sys
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.decode2execute1 import IssuerDecode2ToOperand
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
 from soc.regfile.regfiles import StateRegs, FastRegs
@@ -58,13 +59,14 @@ class TestIssuer(Elaboratable):
             self.simple_gpio = SimpleGPIO()
             self.gpio_o = self.simple_gpio.gpio_o
 
-        # main instruction core
+        # main instruction core25
         self.core = core = NonProductionCore(pspec)
 
-        # instruction decoder
+        # instruction decoder.  goes into Trap Record
         pdecode = create_pdecode()
         self.cur_state = CoreState("cur") # current state (MSR/PC/EINT)
-        self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state)
+        self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
+                                     opkls=IssuerDecode2ToOperand)
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu

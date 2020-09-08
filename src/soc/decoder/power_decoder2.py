@@ -602,14 +602,13 @@ class PowerDecodeSubset(Elaboratable):
                             final=False, state=None):
 
         self.final = final
+        self.opkls = opkls
         if dec is None:
-            self.opkls = opkls
             self.fn_name = fn_name
             self.dec = create_pdecode(name=fn_name, col_subset=col_subset,
                                       row_subset=self.rowsubsetfn)
         else:
             self.dec = dec
-            self.opkls = None
             self.fn_name = None
         self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
 

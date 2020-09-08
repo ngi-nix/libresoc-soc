@@ -32,6 +32,7 @@ from nmutil.util import treereduce
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
 from soc.decoder.decode2execute1 import Decode2ToExecute1Type
+from soc.decoder.decode2execute1 import IssuerDecode2ToOperand
 from soc.decoder.power_decoder2 import get_rdflags
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
@@ -79,8 +80,9 @@ class NonProductionCore(Elaboratable):
         # register files (yes plural)
         self.regs = RegFiles()
 
-        # instruction decoder
-        self.e = Decode2ToExecute1Type("core") # decoded instruction
+        # instruction decoder - needs a Trap-capable Record (captures EINT etc.)
+        self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand)
+
         self.state = CoreState("core")
         self.raw_insn_i = Signal(32) # raw instruction
         self.bigendian_i = Signal() # bigendian
