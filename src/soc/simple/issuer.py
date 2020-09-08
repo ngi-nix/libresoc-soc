@@ -63,7 +63,8 @@ class TestIssuer(Elaboratable):
 
         # instruction decoder
         pdecode = create_pdecode()
-        self.pdecode2 = PowerDecode2(pdecode)   # decoder
+        self.cur_state = CoreState("cur") # current state (MSR/PC/EINT)
+        self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state)
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
@@ -107,8 +108,7 @@ class TestIssuer(Elaboratable):
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
 
-        # current state (MSR/PC at the moment
-        cur_state = CoreState("cur")
+        cur_state = self.cur_state
 
         # XICS interrupt handler
         if self.xics:
@@ -203,7 +203,6 @@ class TestIssuer(Elaboratable):
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
         insn_type = core.e.do.insn_type
-        dec_state = pdecode2.state
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -255,7 +254,6 @@ class TestIssuer(Elaboratable):
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
                     comb += dec_opcode_i.eq(insn) # actual opcode
-                    comb += dec_state.eq(cur_state)
                     sync += core.e.eq(pdecode2.e)
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
