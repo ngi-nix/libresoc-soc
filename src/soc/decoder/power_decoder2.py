@@ -599,7 +599,7 @@ class PowerDecodeSubset(Elaboratable):
     """
 
     def __init__(self, dec, opkls=None, fn_name=None, col_subset=None,
-                            final=False):
+                            final=False, state=None):
 
         self.final = final
         if dec is None:
@@ -613,8 +613,11 @@ class PowerDecodeSubset(Elaboratable):
             self.fn_name = None
         self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
 
-        # state information needed by the Decoder (TODO: this as a Record)
-        self.state = CoreState("dec2")
+        # state information needed by the Decoder
+        if state is not None:
+            self.state = state
+        else:
+            self.state = CoreState("dec2")
 
     def rowsubsetfn(self, opcode, row):
         return row['unit'] == self.fn_name
@@ -653,8 +656,11 @@ class PowerDecodeSubset(Elaboratable):
         if self.final:
             e = self.e
         else:
-            self.e_tmp = e = Decode2ToExecute1Type(name=self.fn_name,
-                                                   opkls=self.opkls)
+            if self.fn_name is None:
+                name = "tmp"
+            else:
+                name = self.fn_name + "tmp"
+            self.e_tmp = e = Decode2ToExecute1Type(name=name, opkls=self.opkls)
         do = e.do
 
         # set up submodule decoders

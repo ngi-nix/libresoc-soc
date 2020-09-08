@@ -107,7 +107,8 @@ class NonProductionCore(Elaboratable):
                 self.trapunit = funame
                 continue
             self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
-                                                      final=True)
+                                                      final=True,
+                                                      state=self.state)
             self.ees[funame] = self.decoders[funame].e
 
     def elaborate(self, platform):
@@ -125,7 +126,6 @@ class NonProductionCore(Elaboratable):
             setattr(m.submodules, "dec_%s" % v.fn_name, v)
             comb += v.dec.raw_opcode_in.eq(self.raw_insn_i)
             comb += v.dec.bigendian.eq(self.bigendian_i)
-            comb += v.state.eq(self.state)
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.ees[self.trapunit] = self.e
