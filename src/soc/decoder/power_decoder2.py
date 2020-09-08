@@ -826,10 +826,18 @@ class PowerDecode2(PowerDecodeSubset):
             # everything including destroying read of RA and RB.
             comb += self.do_copy("trapaddr", 0x70) # strip first nibble
 
+        ####################
+        # ok so the instruction's been decoded, blah blah, however
+        # now we need to determine if it's actually going to go ahead...
+        # *or* if in fact it's a privileged operation, whether there's
+        # an external interrupt, etc. etc.  this is a simple priority
+        # if-elif-elif sequence.  decrement takes highest priority,
+        # EINT next highest, privileged operation third.
+
         # check if instruction is privileged
         is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)
 
-        # different trap conditions
+        # different IRQ conditions
         ext_irq_ok = Signal()
         dec_irq_ok = Signal()
         priv_ok = Signal()
@@ -840,13 +848,13 @@ class PowerDecode2(PowerDecodeSubset):
         comb += priv_ok.eq(is_priv_insn & msr[MSR.PR])
         comb += illeg_ok.eq(op.internal_op == MicrOp.OP_ILLEGAL)
 
-        # external interrupt? only if MSR.EE set
-        with m.If(ext_irq_ok):
-            self.trap(m, TT.EINT, 0x500)
-
         # decrement counter (v3.0B p1099): TODO 32-bit version (MSR.LPCR)
         with m.If(dec_irq_ok):
             self.trap(m, TT.DEC, 0x900)   # v3.0B 6.5 p1065
+
+        # external interrupt? only if MSR.EE set
+        with m.Elif(ext_irq_ok):
+            self.trap(m, TT.EINT, 0x500)
 
         # privileged instruction trap
         with m.Elif(priv_ok):
@@ -863,6 +871,9 @@ class PowerDecode2(PowerDecodeSubset):
         # no exception, just copy things to the output
         with m.Else():
             comb += e_out.eq(e)
+
+        ####################
+        # follow-up after trap/irq to set up SRR0/1
 
         # trap: (note e.insn_type so this includes OP_ILLEGAL) set up fast regs
         # Note: OP_SC could actually be modified to just be a trap
