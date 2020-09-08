@@ -817,8 +817,8 @@ class PowerDecode2(PowerDecodeSubset):
         # set the trapaddr to 0x700 for a td/tw/tdi/twi operation
         with m.If(op.internal_op == MicrOp.OP_TRAP):
             # *DO NOT* call self.trap here.  that would reset absolutely
-            # rverything including destroying read of RA and RB.
-            comb += self.do_copy("trapaddr", 0x70, True) # strip first nibble
+            # everything including destroying read of RA and RB.
+            comb += self.do_copy("trapaddr", 0x70) # strip first nibble
 
         # check if instruction is privileged
         is_priv_insn = instr_is_priv(m, op.internal_op, e.do.insn)
