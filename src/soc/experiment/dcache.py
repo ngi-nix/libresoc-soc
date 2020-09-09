@@ -334,15 +334,15 @@ class RegStage1(RecordObject):
         # TLB hit state
         self.tlb_hit          = Signal()
         self.tlb_hit_way      = Signal(TLB_NUM_WAYS)
-        self.tlb_hit_index    = Signal(TLB_SET_SIZE)
-        self.
+        self.tlb_hit_index    = Signal(TLB_WAY_BITS)
+
         # 2-stage data buffer for data forwarded from writes to reads
         self.forward_data1    = Signal(64)
         self.forward_data2    = Signal(64)
         self.forward_sel1     = Signal(8)
         self.forward_valid1   = Signal()
         self.forward_way1     = Signal(WAY_BITS)
-        self.forward_row1     = Signal(BRAM_ROWS)
+        self.forward_row1     = Signal(ROW_BITS)
         self.use_forward1     = Signal()
         self.forward_sel      = Signal(8)
 
@@ -355,9 +355,9 @@ class RegStage1(RecordObject):
         self.wb               = WishboneMasterOut()
         self.reload_tag       = Signal(TAG_BITS)
         self.store_way        = Signal(WAY_BITS)
-        self.store_row        = Signal(BRAM_ROWS)
-        self.store_index      = Signal(NUM_LINES)
-        self.end_row_ix       = Signal(ROW_LINE_BIT)
+        self.store_row        = Signal(ROW_BITS)
+        self.store_index      = Signal(INDEX_BITS)
+        self.end_row_ix       = Signal(log2_int(ROW_LINE_BITS))
         self.rows_valid       = RowPerLineValidArray()
         self.acks_pending     = Signal(3)
         self.inc_acks         = Signal()
@@ -427,7 +427,7 @@ class DCache(Elaboratable):
             sync += r.req.priv_mode.eq(1)
             sync += r.req.addr.eq(m_in.addr)
             sync += r.req.data.eq(m_in.pte)
-            sync += r.req.byte_sel.eq(-1) # Const -1 sets all to 0b111....
+            sync += r.req.byte_sel.eq(~0) # Const -1 sets all to 0b111....
             sync += r.tlbie.eq(m_in.tlbie)
             sync += r.doall.eq(m_in.doall)
             sync += r.tlbld.eq(m_in.tlbld)
@@ -1385,9 +1385,9 @@ class DCache(Elaboratable):
         # TODO attribute ram_style : string;
         # TODO attribute ram_style of cache_tags : signal is "distributed";
 
-"""note: these are passed to nmigen.hdl.Memory as "attributes".
-   don't know how, just that they are.
-"""
+        """note: these are passed to nmigen.hdl.Memory as "attributes".
+           don't know how, just that they are.
+        """
         dtlb_valid_bits = TLBValidBitsArray()
         dtlb_tags       = TLBTagsArray()
         dtlb_ptes       = TLBPtesArray()
@@ -1404,8 +1404,8 @@ class DCache(Elaboratable):
         reservation = Reservation()
 
         # Async signals on incoming request
-        req_index    = Signal(NUM_LINES)
-        req_row      = Signal(BRAM_ROWS)
+        req_index    = Signal(INDEX_BITS)
+        req_row      = Signal(ROW_BITS)
         req_hit_way  = Signal(WAY_BITS)
         req_tag      = Signal(TAG_BITS)
         req_op       = Op()
@@ -1413,7 +1413,7 @@ class DCache(Elaboratable):
         req_same_tag = Signal()
         req_go       = Signal()
 
-        early_req_row     = Signal(BRAM_ROWS)
+        early_req_row     = Signal(ROW_BITS)
 
         cancel_store      = Signal()
         set_rsrv          = Signal()
@@ -1437,9 +1437,9 @@ class DCache(Elaboratable):
         tlb_tag_way   = Signal(TLB_TAG_WAY_BITS)
         tlb_pte_way   = Signal(TLB_PTE_WAY_BITS)
         tlb_valid_way = Signal(TLB_NUM_WAYS)
-        tlb_req_index = Signal(TLB_SET_SIZE)
+        tlb_req_index = Signal(TLB_SET_BITS)
         tlb_hit       = Signal()
-        tlb_hit_way   = Signal(TLB_NUM_WAYS)
+        tlb_hit_way   = Signal(TLB_WAY_BITS)
         pte           = Signal(TLB_PTE_BITS)
         ra            = Signal(REAL_ADDR_BITS)
         valid_ra      = Signal()
