@@ -846,8 +846,14 @@ class ICache(Elaboratable):
 
 #     -- Cache hit detection, output to fetch2 and other misc logic
 #     icache_comb : process(all)
+    # Cache hit detection, output to fetch2 and other misc logic
+    def icache_comb(self, m):
 # 	variable is_hit  : std_ulogic;
 # 	variable hit_way : way_t;
+        comb = m.d.comb
+
+        is_hit  = Signal()
+        hit_way = Signal(NUM_WAYS)
 #     begin
 #         -- i_in.sequential means that i_in.nia this cycle is 4 more than
 #         -- last cycle.  If we read more than 32 bits at a time, had a
@@ -858,19 +864,38 @@ class ICache(Elaboratable):
 #         else
 #             use_previous <= '0';
 #         end if;
-#
+        # i_in.sequential means that i_in.nia this cycle is 4 more than
+        # last cycle.  If we read more than 32 bits at a time, had a
+        # cache hit last cycle, and we don't want the first 32-bit chunk
+        # then we can keep the data we read last cycle and just use that.
+        with m.If(i_in.nia[2:INSN_BITS+2] != 0):
+            comb += use_previous.eq(i_in.sequential & r.hit_valid)
+
+        with m.else():
+            comb += use_previous.eq(0)
+
 # 	-- Extract line, row and tag from request
 #         req_index <= get_index(i_in.nia);
 #         req_row <= get_row(i_in.nia);
 #         req_tag <= get_tag(real_addr);
-#
+        # Extract line, row and tag from request
+        comb += req_index.eq(get_index(i_in.nia))
+        comb += req_row.eq(get_row(i_in.nia))
+        comb += req_tag.eq(get_tag(real_addr))
+
 # 	-- Calculate address of beginning of cache row, will be
 # 	-- used for cache miss processing if needed
-# 	--
 # 	req_laddr <= (63 downto REAL_ADDR_BITS => '0') &
 #                      real_addr(REAL_ADDR_BITS - 1 downto ROW_OFF_BITS) &
 # 		     (ROW_OFF_BITS-1 downto 0 => '0');
-#
+        # Calculate address of beginning of cache row, will be
+        # used for cache miss processing if needed
+        comb += req_laddr.eq(Cat(
+                 Const(0b0, ROW_OFF_BITS),
+                 real_addr[ROW_OFF_BITS:REAL_ADDR_BITS],
+                 Const(0, REAL_ADDR_BITS)
+                ))
+
 # 	-- Test if pending request is a hit on any way
 # 	hit_way := 0;
 # 	is_hit := '0';
@@ -887,7 +912,18 @@ class ICache(Elaboratable):
 # 		end if;
 # 	    end if;
 # 	end loop;
-#
+        # Test if pending request is a hit on any way
+        for i in range(NUM_WAYS):
+            with m.If(i_in.req &
+                      (cache_valid_bits[req_index][i] |
+                       ((r.state == State.WAIT_ACK)
+                        & (req_index == r.store_index)
+                        & (i == r.store_way)
+                        & r.rows_valid[req_row % ROW_PER_LINE])):
+                with m.If(read_tag(i, cahce_tags[req_index]) == req_tag):
+                    comb += hit_way.eq(i)
+                    comb += is_hit.eq(1)
+
 # 	-- Generate the "hit" and "miss" signals for the synchronous blocks
 #       if i_in.req = '1' and access_ok = '1' and flush_in = '0'
 #        and rst = '0' then
@@ -898,14 +934,28 @@ class ICache(Elaboratable):
 #           req_is_miss <= '0';
 #       end if;
 # 	req_hit_way <= hit_way;
-#
+        # Generate the "hit" and "miss" signals for the synchronous blocks
+        with m.If(i_in.rq & access_ok & ~flush_in & '''TODO nmigen rst'''):
+            comb += req_is_hit.eq(is_hit)
+            comb += req_is_miss.eq(~is_hit)
+
+        with m.Else():
+            comb += req_is_hit.eq(0)
+            comb += req_is_miss.eq(0)
+
 #       -- The way to replace on a miss
 #       if r.state = CLR_TAG then
 #           replace_way <= to_integer(unsigned(plru_victim(r.store_index)));
 #       else
 #           replace_way <= r.store_way;
 #       end if;
-#
+        # The way to replace on a miss
+        with m.If(r.state == State.CLR_TAG):
+            comb += replace_way.eq(plru_victim[r.store_index])
+
+        with m.Else():
+            comb += replace_way.eq(r.store_way)
+
 # 	-- Output instruction from current cache row
 # 	--
 # 	-- Note: This is a mild violation of our design principle of
@@ -919,16 +969,40 @@ class ICache(Elaboratable):
 # 	i_out.nia <= r.hit_nia;
 # 	i_out.stop_mark <= r.hit_smark;
 #       i_out.fetch_failed <= r.fetch_failed;
-#
-# 	-- Stall fetch1 if we have a miss on cache or TLB or a protection fault
+        # Output instruction from current cache row
+        #
+        # Note: This is a mild violation of our design principle of
+        # having pipeline stages output from a clean latch. In this
+        # case we output the result of a mux. The alternative would
+        # be output an entire row which I prefer not to do just yet
+        # as it would force fetch2 to know about some of the cache
+        # geometry information.
+        comb += i_out.insn.eq(
+                 read_insn_word(r.hit_nia, cache_out[r.hit_way])
+                )
+        comb += i_out.valid.eq(r.hit_valid)
+        comb += i_out.nia.eq(r.hit_nia)
+        comb += i_out.stop_mark.eq(r.hit_smark)
+        comb += i_out.fetch_failed.eq(r.fetch_failed)
+
+# 	-- Stall fetch1 if we have a miss on cache or TLB
+#       -- or a protection fault
 # 	stall_out <= not (is_hit and access_ok);
-#
+        # Stall fetch1 if we have a miss on cache or TLB
+        # or a protection fault
+        comb += stall_out.eq(~(is_hit & access_ok))
+
 # 	-- Wishbone requests output (from the cache miss reload machine)
 # 	wishbone_out <= r.wb;
+        # Wishbone requests output (from the cache miss reload machine)
+        comb += wb_out.eq(r.wb)
 #     end process;
-#
+
 #     -- Cache hit synchronous machine
 #     icache_hit : process(clk)
+    # Cache hit synchronous machine
+    def icache_hit(self, m):
+        sync = m.d.sync
 #     begin
 #         if rising_edge(clk) then
 #             -- keep outputs to fetch2 unchanged on a stall
@@ -939,6 +1013,13 @@ class ICache(Elaboratable):
 #                 if rst = '1' or flush_in = '1' then
 #                     r.hit_valid <= '0';
 #             end if;
+        # keep outputs to fetch2 unchanged on a stall
+        # except that flush or reset sets valid to 0
+        # If use_previous, keep the same data as last
+        # cycle and use the second half
+        with m.If(stall_in | use_previous):
+            with m.If('''TODO rst nmigen''' | flush_in):
+                sync += r.hit_valid.eq(0)
 #             else
 #                 -- On a hit, latch the request for the next cycle,
 #                 -- when the BRAM data will be available on the
@@ -946,7 +1027,15 @@ class ICache(Elaboratable):
 #                 r.hit_valid <= req_is_hit;
 #                 if req_is_hit = '1' then
 #                     r.hit_way <= req_hit_way;
-#
+        with m.Else():
+            # On a hit, latch the request for the next cycle,
+            # when the BRAM data will be available on the
+            # cache_out output of the corresponding way
+            sync += r.hit_valid.eq(req_is_hit)
+
+            with m.If(req_is_hit):
+                sync += r.hit_way.eq(req_hit_way)
+
 #                     report "cache hit nia:" & to_hstring(i_in.nia) &
 #                         " IR:" & std_ulogic'image(i_in.virt_mode) &
 #                         " SM:" & std_ulogic'image(i_in.stop_mark) &
@@ -954,6 +1043,9 @@ class ICache(Elaboratable):
 #                         " tag:" & to_hstring(req_tag) &
 #                         " way:" & integer'image(req_hit_way) &
 #                         " RA:" & to_hstring(real_addr);
+                print(f"cache hit nia:{i_in.nia}, IR:{i_in.virt_mode}, " \
+                      f"SM:{i_in.stop_mark}, idx:{req_index}, " \
+                      f"tag:{req_tag}, way:{req_hit_way}, RA:{real_addr}")
 #                 end if;
 # 	    end if;
 #             if stall_in = '0' then
@@ -961,32 +1053,61 @@ class ICache(Elaboratable):
 #                 r.hit_smark <= i_in.stop_mark;
 #                 r.hit_nia <= i_in.nia;
 #             end if;
+        with m.If(~stall_in):
+            # Send stop marks and NIA down regardless of validity
+            sync += r.hit_smark.eq(i_in.stop_mark)
+            sync += r.hit_nia.eq(i_in.nia)
 # 	end if;
 #     end process;
-#
+
 #     -- Cache miss/reload synchronous machine
 #     icache_miss : process(clk)
+    # Cache miss/reload synchronous machine
+    def icache_miss(self, m):
+        comb = m.d.comb
+        sync = m.d.sync
+
 # 	variable tagset    : cache_tags_set_t;
 # 	variable stbs_done : boolean;
+
+        tagset    = Signal(TAG_RAM_WIDTH)
+        stbs_done = Signal()
+
 #     begin
 #         if rising_edge(clk) then
 # 	    -- On reset, clear all valid bits to force misses
 #             if rst = '1' then
+        # On reset, clear all valid bits to force misses
+        with m.If('''TODO rst nmigen'''):
 # 		for i in index_t loop
 # 		    cache_valids(i) <= (others => '0');
 # 		end loop;
+            for i in Signal(NUM_LINES):
+                sync += cache_valid_bits[i].eq(~1)
+
 #                 r.state <= IDLE;
 #                 r.wb.cyc <= '0';
 #                 r.wb.stb <= '0';
-#
+            sync += r.state.eq(State.IDLE)
+            sync += r.wb.cyc.eq(0)
+            sync += r.wb.stb.eq(0)
+
 # 		-- We only ever do reads on wishbone
 # 		r.wb.dat <= (others => '0');
 # 		r.wb.sel <= "11111111";
 # 		r.wb.we  <= '0';
-#
+            # We only ever do reads on wishbone
+            sync += r.wb.dat.eq(~1)
+            sync += r.wb.sel.eq(Const(0b11111111, 8))
+            sync += r.wb.we.eq(0)
+
 # 		-- Not useful normally but helps avoiding tons of sim warnings
 # 		r.wb.adr <= (others => '0');
+            # Not useful normally but helps avoiding tons of sim warnings
+            sync += r.wb.adr.eq(~1)
+
 #             else
+        with m.Else():
 #                 -- Process cache invalidations
 #                 if inval_in = '1' then
 #                     for i in index_t loop
@@ -994,15 +1115,28 @@ class ICache(Elaboratable):
 #                     end loop;
 #                     r.store_valid <= '0';
 #                 end if;
-#
+            # Process cache invalidations
+            with m.If(inval_in):
+                for i in range(NUM_LINES):
+                    sync += cache_valid_bits[i].eq(~1)
+
+                sync += r.store_valid.eq(0)
+
 # 		-- Main state machine
 # 		case r.state is
+                # Main state machine
+                with m.Switch(r.state):
+
 # 		when IDLE =>
+                    with m.Case(State.IDLE):
 #                     -- Reset per-row valid flags, only used in WAIT_ACK
 #                     for i in 0 to ROW_PER_LINE - 1 loop
 #                         r.rows_valid(i) <= '0';
 #                     end loop;
-#
+                        # Reset per-row valid flags, onlyy used in WAIT_ACK
+                        for i in range(ROW_PER_LINE):
+                            sync += r.rows_valid[i].eq(0)
+
 # 		    -- We need to read a cache line
 # 		    if req_is_miss = '1' then
 # 			report "cache miss nia:" & to_hstring(i_in.nia) &
@@ -1012,7 +1146,14 @@ class ICache(Elaboratable):
 # 			    " way:" & integer'image(replace_way) &
 # 			    " tag:" & to_hstring(req_tag) &
 #                             " RA:" & to_hstring(real_addr);
-#
+                        # We need to read a cache line
+                        with m.If(req_is_miss):
+                            print(f"cache miss nia:{i_in.nia} " \
+                                  f"IR:{i_in.virt_mode} " \
+                                  f"SM:{i_in.stop_mark} idx:{req_index} " \
+                                  f"way:{replace_way} tag:{req_tag} " \
+                                  f"RA:{real_addr}")
+
 # 			-- Keep track of our index and way for
 #                       -- subsequent stores
 # 			r.store_index <= req_index;
@@ -1021,26 +1162,52 @@ class ICache(Elaboratable):
 #                       r.store_valid <= '1';
 #                       r.end_row_ix <=
 #                        get_row_of_line(get_row(req_laddr)) - 1;
-#
+                            # Keep track of our index and way
+                            # for subsequent stores
+                            sync += r.store_index.eq(req_index)
+                            sync += r.store_row.eq(get_row(req_laddr))
+                            sync += r.store_tag.eq(req_tag)
+                            sync += r.store_valid.eq(1)
+                            sync += r.end_row_ix.eq(
+                                     get_row_of_line(get_row(req_laddr)) - 1
+                                    )
+
 # 			-- Prep for first wishbone read. We calculate the
 #                       -- address of the start of the cache line and
 #                       -- start the WB cycle.
 # 			r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
 # 			r.wb.cyc <= '1';
 # 			r.wb.stb <= '1';
-#
+                            # Prep for first wishbone read. We calculate the
+                            # address of the start of the cache line and
+                            # start the WB cycle.
+                            sync += r.wb.adr.eq(
+                                     req_laddr[:r.wb.adr'''left?''']
+                                    )
+
 # 			-- Track that we had one request sent
 # 			r.state <= CLR_TAG;
+                            # Track that we had one request sent
+                            sync += r.state.eq(State.CLR_TAG)
 # 		    end if;
-#
+
 # 		when CLR_TAG | WAIT_ACK =>
+                    with m.Case(State.CLR_TAG, State.WAIT_ACK):
 #                     if r.state = CLR_TAG then
+                        with m.If(r.state == State.CLR_TAG):
 #                         -- Get victim way from plru
 # 			r.store_way <= replace_way;
+                            # Get victim way from plru
+                            sync += r.store_way.eq(replace_way)
 #
 # 			-- Force misses on that way while reloading that line
 # 			cache_valids(req_index)(replace_way) <= '0';
-#
+                            # Force misses on that way while
+                            # realoading that line
+                            sync += cache_valid_bits[
+                                     req_index
+                                    ][replace_way].eq(0)
+
 # 			-- Store new tag in selected way
 # 			for i in 0 to NUM_WAYS-1 loop
 # 			    if i = replace_way then
@@ -1049,14 +1216,29 @@ class ICache(Elaboratable):
 # 				cache_tags(r.store_index) <= tagset;
 # 			    end if;
 # 			end loop;
-#
+                            for i in range(NUM_WAYS):
+                                with m.If(i == replace_way):
+                                    comb += tagset.eq(
+                                             cache_tags[r.store_index]
+                                            )
+                                    sync += write_tag(i, tagset, r.store_tag)
+                                    sync += cache_tags(r.store_index).eq(
+                                             tagset
+                                            )
+
 #                         r.state <= WAIT_ACK;
+                            sync += r.state.eq(State.WAIT_ACK)
 #                     end if;
+
 # 		    -- Requests are all sent if stb is 0
 # 		    stbs_done := r.wb.stb = '0';
-#
+                        # Requests are all sent if stb is 0
+                        comb += stbs_done.eq(r.wb.stb == 0)
+
 # 		    -- If we are still sending requests, was one accepted ?
 # 		    if wishbone_in.stall = '0' and not stbs_done then
+                        # If we are still sending requests, was one accepted?
+                        with m.If(~wb_in.stall & ~stbs_done):
 # 			-- That was the last word ? We are done sending.
 #                       -- Clear stb and set stbs_done so we can handle
 #                       -- an eventual last ack on the same cycle.
@@ -1064,30 +1246,60 @@ class ICache(Elaboratable):
 # 			    r.wb.stb <= '0';
 # 			    stbs_done := true;
 # 			end if;
-#
+                            # That was the last word ? We are done sending.
+                            # Clear stb and set stbs_done so we can handle
+                            # an eventual last ack on the same cycle.
+                            with m.If(is_last_row_addr(
+                                      r.wb.adr, r.end_row_ix)):
+                                sync += r.wb.stb.eq(0)
+                                stbs_done.eq(1)
+
 # 			-- Calculate the next row address
 # 			r.wb.adr <= next_row_addr(r.wb.adr);
+                            # Calculate the next row address
+                            sync += r.wb.adr.eq(next_row_addr(r.wb.adr))
 # 		    end if;
-#
+
 # 		    -- Incoming acks processing
 # 		    if wishbone_in.ack = '1' then
+                        # Incoming acks processing
+                        with m.If(wb_in.ack):
 #                         r.rows_valid(r.store_row mod ROW_PER_LINE) <= '1';
+                            sync += r.rows_valid[
+                                     r.store_row & ROW_PER_LINE
+                                    ].eq(1)
+
 # 			-- Check for completion
 # 			if stbs_done and
 #                        is_last_row(r.store_row, r.end_row_ix) then
+                            # Check for completion
+                            with m.If(stbs_done & is_last_row(
+                                      r.store_row, r.end_row_ix)):
 # 			    -- Complete wishbone cycle
 # 			    r.wb.cyc <= '0';
-#
+                                # Complete wishbone cycle
+                                sync += r.wb.cyc.eq(0)
+
 # 			    -- Cache line is now valid
 # 			    cache_valids(r.store_index)(replace_way) <=
 #                            r.store_valid and not inval_in;
-#
+                                # Cache line is now valid
+                                sync += cache_valid_bits[
+                                         r.store_index
+                                        ][relace_way].eq(
+                                         r.store_valid & ~inval_in
+                                        )
+
 # 			    -- We are done
 # 			    r.state <= IDLE;
+                                # We are done
+                                sync += r.state.eq(State.IDLE)
 # 			end if;
-#
+
 # 			-- Increment store row counter
 # 			r.store_row <= next_row(r.store_row);
+                            # Increment store row counter
+                            sync += store_row.eq(next_row(r.store_row))
 # 		    end if;
 # 		end case;
 # 	    end if;
@@ -1098,23 +1310,46 @@ class ICache(Elaboratable):
 #             elsif i_in.req = '1' and access_ok = '0' and stall_in = '0' then
 #                 r.fetch_failed <= '1';
 #             end if;
+            # TLB miss and protection fault processing
+            with m.If('''TODO nmigen rst''' | flush_in | m_in.tlbld):
+                sync += r.fetch_failed.eq(0)
+
+            with m.Elif(i_in.req & ~access_ok & ~stall_in):
+                sync += r.fetch_failed.eq(1)
 # 	end if;
 #     end process;
-#
+
 #     icache_log: if LOG_LENGTH > 0 generate
+    def icache_log(self, m, log_out):
+        comb = m.d.comb
+        sync = m.d.sync
+
 #         -- Output data to logger
 #         signal log_data    : std_ulogic_vector(53 downto 0);
 #     begin
 #         data_log: process(clk)
 #             variable lway: way_t;
 #             variable wstate: std_ulogic;
+        # Output data to logger
+        for i in range(LOG_LENGTH)
+            # Output data to logger
+            log_data = Signal(54)
+            lway     = Signal(NUM_WAYS)
+            wstate   = Signal()
+
 #         begin
 #             if rising_edge(clk) then
 #                 lway := req_hit_way;
 #                 wstate := '0';
+            comb += lway.eq(req_hit_way)
+            comb += wstate.eq(0)
+
 #                 if r.state /= IDLE then
 #                     wstate := '1';
 #                 end if;
+            with m.If(r.state != State.IDLE):
+                comb += wstate.eq(1)
+
 #                 log_data <= i_out.valid &
 #                             i_out.insn &
 #                             wishbone_in.ack &
@@ -1129,9 +1364,16 @@ class ICache(Elaboratable):
 #                             req_is_hit & req_is_miss &
 #                             access_ok &
 #                             ra_valid;
+            sync += log_data.eq(Cat(
+                     ra_valid, access_ok, req_is_miss, req_is_hit,
+                     lway '''truncate to 3 bits?''', wstate, r.hit_nia[2:6],
+                     r.fetch_failed, stall_out, wb_in.stall, r.wb.cyc,
+                     r.wb.stb, r.wb.adr[3:6], wb_in.ack, i_out.insn,
+                     i_out.valid
+                    ))
 #             end if;
 #         end process;
 #         log_out <= log_data;
+            comb += log_out.eq(log_data)
 #     end generate;
 # end;
-
