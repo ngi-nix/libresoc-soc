@@ -452,7 +452,7 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
-        index    = Signal(log2_int(TLB_SET_BITS), False)
+        index    = Signal(TLB_SET_BITS)
         addrbits = Signal(TLB_SET_BITS)
 
         amin = TLB_LG_PGSZ
@@ -481,6 +481,7 @@ class DCache(Elaboratable):
             for i in range(TLB_SET_SIZE):
                 # TLB PLRU interface
                 tlb_plru        = PLRU(TLB_WAY_BITS)
+                setattr(m.submodules, "maybe_plru_%d" % i, tlb_plru)
                 tlb_plru_acc    = Signal(TLB_WAY_BITS)
                 tlb_plru_acc_en = Signal()
                 tlb_plru_out    = Signal(TLB_WAY_BITS)
@@ -506,7 +507,7 @@ class DCache(Elaboratable):
 
         hitway = Signal(TLB_WAY_BITS)
         hit    = Signal()
-        eatag  = Signal(log2_int(TLB_EA_TAG_BITS, False))
+        eatag  = Signal(TLB_EA_TAG_BITS)
 
         TLB_LG_END = TLB_LG_PGSZ + TLB_SET_BITS
         comb += tlb_req_index.eq(r0.req.addr[TLB_LG_PGSZ : TLB_LG_END])
@@ -548,15 +549,6 @@ class DCache(Elaboratable):
 
         comb = m.d.comb
         sync = m.d.sync
-
-    #         variable tlbie : std_ulogic;
-    #         variable tlbwe : std_ulogic;
-    #         variable repl_way : tlb_way_t;
-    #         variable eatag : tlb_tag_t;
-    #         variable tagset : tlb_way_tags_t;
-    #         variable pteset : tlb_way_ptes_t;
-    #type tlb_tags_t is array(tlb_index_t) of tlb_way_tags_t;
-    # --> Array([Signal(log(way_tags length)) for i in range(number of tlbs)])
 
         tlbie    = Signal()
         tlbwe    = Signal()
@@ -600,9 +592,9 @@ class DCache(Elaboratable):
             # PLRU interface
             plru        = PLRU(TLB_WAY_BITS)
             setattr(m.submodules, "plru%d" % i, plru)
-            plru_acc    = Signal(TLB_WAY_BITS)
+            plru_acc    = Signal(WAY_BITS)
             plru_acc_en = Signal()
-            plru_out    = Signal(TLB_WAY_BITS)
+            plru_out    = Signal(WAY_BITS)
 
             comb += plru.acc.eq(plru_acc)
             comb += plru.acc_en.eq(plru_acc_en)
@@ -833,7 +825,6 @@ class DCache(Elaboratable):
 
         data_out = Signal(64)
         data_fwd = Signal(64)
-        j        = Signal()
 
         # Use the bypass if are reading the row that was
         # written 1 or 2 cycles ago, including for the
@@ -989,7 +980,7 @@ class DCache(Elaboratable):
     # Cache hit synchronous machine for the easy case.
     # This handles load hits.
     # It also handles error cases (TLB miss, cache paradox)
-    def dcache_fast_hit(self, m, req_op, r0_valid, r1, ):
+    def dcache_fast_hit(self, m, req_op, r0_valid, r1):
 
         comb = m.d.comb
         sync = m.d.sync
