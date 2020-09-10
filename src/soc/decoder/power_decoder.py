@@ -144,6 +144,7 @@ power_op_csvmap = {'function_unit': 'unit',
                    'cry_in' : 'cry in',
             }
 
+
 def get_pname(field, pname):
     if pname is None:
         return field
@@ -151,17 +152,10 @@ def get_pname(field, pname):
 
 
 class PowerOp:
-    """PowerOp: spec for execution.  op type (ADD etc.) reg specs etc.
-
-    this is an internal data structure, set up by reading CSV files
-    (which uses _eq to initialise each instance, not eq)
-
-    the "public" API (as far as actual usage as a useful decoder is concerned)
-    is Decode2ToExecute1Type
-
-    the "subset" allows for only certain columns to be decoded
+    """PowerOp - a dynamic class that stores (subsets of) CSV rows of data
+    about a PowerISA instruction.  this is a "micro-code" expanded format
+    which generates an awful lot of wires, hence the subsetting
     """
-
     def __init__(self, incl_asm=True, name=None, subset=None):
         self.subset = subset
         debug_report = set()
