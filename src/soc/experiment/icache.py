@@ -338,281 +338,6 @@ class ICache(Elaboratable):
                ^ addr[TLB_LG_PGSZ + 2 * TLB_BITS: TLB_LG_PGSZE + 3 * TLB_BITS]
         return hash
 
-    def elaborate(self, platform):
-# architecture rtl of icache is
-#     constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
-#     -- ROW_PER_LINE is the number of row (wishbone transactions) in a line
-#     constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
-#     -- BRAM_ROWS is the number of rows in BRAM needed to represent the full
-#     -- icache
-#     constant BRAM_ROWS     : natural := NUM_LINES * ROW_PER_LINE;
-#     -- INSN_PER_ROW is the number of 32bit instructions per BRAM row
-#     constant INSN_PER_ROW  : natural := ROW_SIZE_BITS / 32;
-#     -- Bit fields counts in the address
-#
-#     -- INSN_BITS is the number of bits to select an instruction in a row
-#     constant INSN_BITS     : natural := log2(INSN_PER_ROW);
-#     -- ROW_BITS is the number of bits to select a row
-#     constant ROW_BITS      : natural := log2(BRAM_ROWS);
-#     -- ROW_LINEBITS is the number of bits to select a row within a line
-#     constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
-#     -- LINE_OFF_BITS is the number of bits for the offset in a cache line
-#     constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
-#     -- ROW_OFF_BITS is the number of bits for the offset in a row
-#     constant ROW_OFF_BITS  : natural := log2(ROW_SIZE);
-#     -- INDEX_BITS is the number of bits to select a cache line
-#     constant INDEX_BITS    : natural := log2(NUM_LINES);
-#     -- SET_SIZE_BITS is the log base 2 of the set size
-#     constant SET_SIZE_BITS : natural := LINE_OFF_BITS + INDEX_BITS;
-#     -- TAG_BITS is the number of bits of the tag part of the address
-#     constant TAG_BITS      : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
-#     -- WAY_BITS is the number of bits to select a way
-#     constant WAY_BITS     : natural := log2(NUM_WAYS);
-
-        ROW_SIZE_BITS  = ROW_SIZE * 8
-        # ROW_PER_LINE is the number of row
-        # (wishbone) transactions in a line
-        ROW_PER_LINE   = LINE_SIZE / ROW_SIZE
-        # BRAM_ROWS is the number of rows in
-        # BRAM needed to represent the full icache
-        BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
-        # INSN_PER_ROW is the number of 32bit
-        # instructions per BRAM row
-        INSN_PER_ROW   = ROW_SIZE_BITS / 32
-
-        # Bit fields counts in the address
-        #
-        # INSN_BITS is the number of bits to
-        # select an instruction in a row
-        INSN_BITS      = log2_int(INSN_PER_ROW)
-        # ROW_BITS is the number of bits to
-        # select a row
-        ROW_BITS       = log2_int(BRAM_ROWS)
-        # ROW_LINEBITS is the number of bits to
-        # select a row within a line
-        ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
-        # LINE_OFF_BITS is the number of bits for
-        # the offset in a cache line
-        LINE_OFF_BITS  = log2_int(LINE_SIZE)
-        # ROW_OFF_BITS is the number of bits for
-        # the offset in a row
-        ROW_OFF_BITS   = log2_int(ROW_SIZE)
-        # INDEX_BITS is the number of bits to
-        # select a cache line
-        INDEX_BITS     = log2_int(NUM_LINES)
-        # SET_SIZE_BITS is the log base 2 of
-        # the set size
-        SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
-        # TAG_BITS is the number of bits of
-        # the tag part of the address
-        TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
-        # WAY_BITS is the number of bits to
-        # select a way
-        WAY_BITS       = log2_int(NUM_WAYS)
-        TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
-
-#     -- Example of layout for 32 lines of 64 bytes:
-#     --
-#     -- ..  tag    |index|  line  |
-#     -- ..         |   row   |    |
-#     -- ..         |     |   | |00| zero          (2)
-#     -- ..         |     |   |-|  | INSN_BITS     (1)
-#     -- ..         |     |---|    | ROW_LINEBITS  (3)
-#     -- ..         |     |--- - --| LINE_OFF_BITS (6)
-#     -- ..         |         |- --| ROW_OFF_BITS  (3)
-#     -- ..         |----- ---|    | ROW_BITS      (8)
-#     -- ..         |-----|        | INDEX_BITS    (5)
-#     -- .. --------|              | TAG_BITS      (53)
-        # Example of layout for 32 lines of 64 bytes:
-        #
-        # ..  tag    |index|  line  |
-        # ..         |   row   |    |
-        # ..         |     |   | |00| zero          (2)
-        # ..         |     |   |-|  | INSN_BITS     (1)
-        # ..         |     |---|    | ROW_LINEBITS  (3)
-        # ..         |     |--- - --| LINE_OFF_BITS (6)
-        # ..         |         |- --| ROW_OFF_BITS  (3)
-        # ..         |----- ---|    | ROW_BITS      (8)
-        # ..         |-----|        | INDEX_BITS    (5)
-        # .. --------|              | TAG_BITS      (53)
-
-#     subtype row_t is integer range 0 to BRAM_ROWS-1;
-#     subtype index_t is integer range 0 to NUM_LINES-1;
-#     subtype way_t is integer range 0 to NUM_WAYS-1;
-#     subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
-#
-#     -- The cache data BRAM organized as described above for each way
-#     subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
-#
-#     -- The cache tags LUTRAM has a row per set. Vivado is a pain and will
-#     -- not handle a clean (commented) definition of the cache tags as a 3d
-#     -- memory. For now, work around it by putting all the tags
-#     subtype cache_tag_t is std_logic_vector(TAG_BITS-1 downto 0);
-# --    type cache_tags_set_t is array(way_t) of cache_tag_t;
-# --    type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-#     constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
-#     subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
-#     type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-        def CacheTagArray():
-            return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
-
-#     -- The cache valid bits
-#     subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
-#     type cache_valids_t is array(index_t) of cache_way_valids_t;
-#     type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
-        def CacheValidBitsArray():
-            return Array(Signal() for x in ROW_PER_LINE)
-
-        def RowPerLineValidArray():
-            return Array(Signal() for x in range ROW_PER_LINE)
-
-#     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
-#     signal cache_tags   : cache_tags_array_t;
-#     signal cache_valids : cache_valids_t;
-        # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
-        cache_tags = CacheTagArray()
-        cache_valid_bits = CacheValidBitsArray()
-
-#     attribute ram_style : string;
-#     attribute ram_style of cache_tags : signal is "distributed";
-        # TODO to be passed to nigmen as ram attributes
-        # attribute ram_style : string;
-        # attribute ram_style of cache_tags : signal is "distributed";
-
-#     -- L1 ITLB.
-#     constant TLB_BITS : natural := log2(TLB_SIZE);
-#     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
-#     constant TLB_PTE_BITS : natural := 64;
-        TLB_BITS        = log2_int(TLB_SIZE)
-        TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
-        TLB_PTE_BITS    = 64
-
-#     subtype tlb_index_t is integer range 0 to TLB_SIZE - 1;
-#     type tlb_valids_t is array(tlb_index_t) of std_ulogic;
-#     subtype tlb_tag_t is std_ulogic_vector(TLB_EA_TAG_BITS - 1 downto 0);
-#     type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
-#     subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
-#     type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
-        def TLBValidBitsArray():
-            return Array(Signal() for x in range(TLB_SIZE))
-
-        def TLBTagArray():
-            return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
-
-        def TLBPTEArray():
-            return Array(Signal(LTB_PTE_BITS) for x in range(TLB_SIZE))
-
-#     signal itlb_valids : tlb_valids_t;
-#     signal itlb_tags : tlb_tags_t;
-#     signal itlb_ptes : tlb_ptes_t;
-#     attribute ram_style of itlb_tags : signal is "distributed";
-#     attribute ram_style of itlb_ptes : signal is "distributed";
-        itlb_valid_bits = TLBValidBitsArray()
-        itlb_tags       = TLBTagArray()
-        itlb_ptes       = TLBPTEArray()
-        # TODO to be passed to nmigen as ram attributes
-        # attribute ram_style of itlb_tags : signal is "distributed";
-        # attribute ram_style of itlb_ptes : signal is "distributed";
-
-#     -- Privilege bit from PTE EAA field
-#     signal eaa_priv  : std_ulogic;
-        # Privilege bit from PTE EAA field
-        eaa_priv        = Signal()
-
-
-#     signal r : reg_internal_t;
-        r = RegInternal()
-
-#     -- Async signals on incoming request
-#     signal req_index   : index_t;
-#     signal req_row     : row_t;
-#     signal req_hit_way : way_t;
-#     signal req_tag     : cache_tag_t;
-#     signal req_is_hit  : std_ulogic;
-#     signal req_is_miss : std_ulogic;
-#     signal req_laddr   : std_ulogic_vector(63 downto 0);
-        # Async signal on incoming request
-        req_index     = Signal(NUM_LINES)
-        req_row       = Signal(BRAM_ROWS)
-        req_hit_way   = Signal(NUM_WAYS)
-        req_tag       = Signal(TAG_BITS)
-        req_is_hit    = Signal()
-        req_is_miss   = Signal()
-        req_laddr     = Signal(64)
-
-#     signal tlb_req_index : tlb_index_t;
-#     signal real_addr     : std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0);
-#     signal ra_valid      : std_ulogic;
-#     signal priv_fault    : std_ulogic;
-#     signal access_ok     : std_ulogic;
-#     signal use_previous  : std_ulogic;
-        tlb_req_index = Signal(TLB_SIZE)
-        real_addr     = Signal(REAL_ADDR_BITS)
-        ra_valid      = Signal()
-        priv_fault    = Signal()
-        access_ok     = Signal()
-        use_previous  = Signal()
-
-#     -- Cache RAM interface
-#     type cache_ram_out_t is array(way_t) of cache_row_t;
-#     signal cache_out   : cache_ram_out_t;
-        # Cache RAM interface
-        def CacheRamOut():
-            return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
-
-        cache_out     = CacheRamOut()
-
-#     -- PLRU output interface
-#     type plru_out_t is array(index_t) of
-#      std_ulogic_vector(WAY_BITS-1 downto 0);
-#     signal plru_victim : plru_out_t;
-#     signal replace_way : way_t;
-        # PLRU output interface
-        def PLRUOut():
-            return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
-
-        plru_victim   = PLRUOut()
-        replace_way   = Signal(NUM_WAYS)
-
-# begin
-#
-#     assert LINE_SIZE mod ROW_SIZE = 0;
-#     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
-#      severity FAILURE;
-#     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
-#      severity FAILURE;
-#     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
-#      severity FAILURE;
-#     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
-#      severity FAILURE;
-#     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#
-#     sim_debug: if SIM generate
-#     debug: process
-#     begin
-# 	report "ROW_SIZE      = " & natural'image(ROW_SIZE);
-# 	report "ROW_PER_LINE  = " & natural'image(ROW_PER_LINE);
-# 	report "BRAM_ROWS     = " & natural'image(BRAM_ROWS);
-# 	report "INSN_PER_ROW  = " & natural'image(INSN_PER_ROW);
-# 	report "INSN_BITS     = " & natural'image(INSN_BITS);
-# 	report "ROW_BITS      = " & natural'image(ROW_BITS);
-# 	report "ROW_LINEBITS  = " & natural'image(ROW_LINEBITS);
-# 	report "LINE_OFF_BITS = " & natural'image(LINE_OFF_BITS);
-# 	report "ROW_OFF_BITS  = " & natural'image(ROW_OFF_BITS);
-# 	report "INDEX_BITS    = " & natural'image(INDEX_BITS);
-# 	report "TAG_BITS      = " & natural'image(TAG_BITS);
-# 	report "WAY_BITS      = " & natural'image(WAY_BITS);
-# 	wait;
-#     end process;
-#     end generate;
-
 #     -- Generate a cache RAM for each way
 #     rams: for i in 0 to NUM_WAYS-1 generate
 # 	signal do_read  : std_ulogic;
@@ -1377,3 +1102,279 @@ class ICache(Elaboratable):
             comb += log_out.eq(log_data)
 #     end generate;
 # end;
+
+    def elaborate(self, platform):
+# architecture rtl of icache is
+#     constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
+#     -- ROW_PER_LINE is the number of row (wishbone transactions) in a line
+#     constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
+#     -- BRAM_ROWS is the number of rows in BRAM needed to represent the full
+#     -- icache
+#     constant BRAM_ROWS     : natural := NUM_LINES * ROW_PER_LINE;
+#     -- INSN_PER_ROW is the number of 32bit instructions per BRAM row
+#     constant INSN_PER_ROW  : natural := ROW_SIZE_BITS / 32;
+#     -- Bit fields counts in the address
+#
+#     -- INSN_BITS is the number of bits to select an instruction in a row
+#     constant INSN_BITS     : natural := log2(INSN_PER_ROW);
+#     -- ROW_BITS is the number of bits to select a row
+#     constant ROW_BITS      : natural := log2(BRAM_ROWS);
+#     -- ROW_LINEBITS is the number of bits to select a row within a line
+#     constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
+#     -- LINE_OFF_BITS is the number of bits for the offset in a cache line
+#     constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
+#     -- ROW_OFF_BITS is the number of bits for the offset in a row
+#     constant ROW_OFF_BITS  : natural := log2(ROW_SIZE);
+#     -- INDEX_BITS is the number of bits to select a cache line
+#     constant INDEX_BITS    : natural := log2(NUM_LINES);
+#     -- SET_SIZE_BITS is the log base 2 of the set size
+#     constant SET_SIZE_BITS : natural := LINE_OFF_BITS + INDEX_BITS;
+#     -- TAG_BITS is the number of bits of the tag part of the address
+#     constant TAG_BITS      : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
+#     -- WAY_BITS is the number of bits to select a way
+#     constant WAY_BITS     : natural := log2(NUM_WAYS);
+
+        ROW_SIZE_BITS  = ROW_SIZE * 8
+        # ROW_PER_LINE is the number of row
+        # (wishbone) transactions in a line
+        ROW_PER_LINE   = LINE_SIZE / ROW_SIZE
+        # BRAM_ROWS is the number of rows in
+        # BRAM needed to represent the full icache
+        BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
+        # INSN_PER_ROW is the number of 32bit
+        # instructions per BRAM row
+        INSN_PER_ROW   = ROW_SIZE_BITS / 32
+
+        # Bit fields counts in the address
+        #
+        # INSN_BITS is the number of bits to
+        # select an instruction in a row
+        INSN_BITS      = log2_int(INSN_PER_ROW)
+        # ROW_BITS is the number of bits to
+        # select a row
+        ROW_BITS       = log2_int(BRAM_ROWS)
+        # ROW_LINEBITS is the number of bits to
+        # select a row within a line
+        ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
+        # LINE_OFF_BITS is the number of bits for
+        # the offset in a cache line
+        LINE_OFF_BITS  = log2_int(LINE_SIZE)
+        # ROW_OFF_BITS is the number of bits for
+        # the offset in a row
+        ROW_OFF_BITS   = log2_int(ROW_SIZE)
+        # INDEX_BITS is the number of bits to
+        # select a cache line
+        INDEX_BITS     = log2_int(NUM_LINES)
+        # SET_SIZE_BITS is the log base 2 of
+        # the set size
+        SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
+        # TAG_BITS is the number of bits of
+        # the tag part of the address
+        TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
+        # WAY_BITS is the number of bits to
+        # select a way
+        WAY_BITS       = log2_int(NUM_WAYS)
+        TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
+
+#     -- Example of layout for 32 lines of 64 bytes:
+#     --
+#     -- ..  tag    |index|  line  |
+#     -- ..         |   row   |    |
+#     -- ..         |     |   | |00| zero          (2)
+#     -- ..         |     |   |-|  | INSN_BITS     (1)
+#     -- ..         |     |---|    | ROW_LINEBITS  (3)
+#     -- ..         |     |--- - --| LINE_OFF_BITS (6)
+#     -- ..         |         |- --| ROW_OFF_BITS  (3)
+#     -- ..         |----- ---|    | ROW_BITS      (8)
+#     -- ..         |-----|        | INDEX_BITS    (5)
+#     -- .. --------|              | TAG_BITS      (53)
+        # Example of layout for 32 lines of 64 bytes:
+        #
+        # ..  tag    |index|  line  |
+        # ..         |   row   |    |
+        # ..         |     |   | |00| zero          (2)
+        # ..         |     |   |-|  | INSN_BITS     (1)
+        # ..         |     |---|    | ROW_LINEBITS  (3)
+        # ..         |     |--- - --| LINE_OFF_BITS (6)
+        # ..         |         |- --| ROW_OFF_BITS  (3)
+        # ..         |----- ---|    | ROW_BITS      (8)
+        # ..         |-----|        | INDEX_BITS    (5)
+        # .. --------|              | TAG_BITS      (53)
+
+#     subtype row_t is integer range 0 to BRAM_ROWS-1;
+#     subtype index_t is integer range 0 to NUM_LINES-1;
+#     subtype way_t is integer range 0 to NUM_WAYS-1;
+#     subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
+#
+#     -- The cache data BRAM organized as described above for each way
+#     subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
+#
+#     -- The cache tags LUTRAM has a row per set. Vivado is a pain and will
+#     -- not handle a clean (commented) definition of the cache tags as a 3d
+#     -- memory. For now, work around it by putting all the tags
+#     subtype cache_tag_t is std_logic_vector(TAG_BITS-1 downto 0);
+# --    type cache_tags_set_t is array(way_t) of cache_tag_t;
+# --    type cache_tags_array_t is array(index_t) of cache_tags_set_t;
+#     constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
+#     subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
+#     type cache_tags_array_t is array(index_t) of cache_tags_set_t;
+        def CacheTagArray():
+            return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
+
+#     -- The cache valid bits
+#     subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
+#     type cache_valids_t is array(index_t) of cache_way_valids_t;
+#     type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
+        def CacheValidBitsArray():
+            return Array(Signal() for x in ROW_PER_LINE)
+
+        def RowPerLineValidArray():
+            return Array(Signal() for x in range ROW_PER_LINE)
+
+#     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
+#     signal cache_tags   : cache_tags_array_t;
+#     signal cache_valids : cache_valids_t;
+        # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
+        cache_tags = CacheTagArray()
+        cache_valid_bits = CacheValidBitsArray()
+
+#     attribute ram_style : string;
+#     attribute ram_style of cache_tags : signal is "distributed";
+        # TODO to be passed to nigmen as ram attributes
+        # attribute ram_style : string;
+        # attribute ram_style of cache_tags : signal is "distributed";
+
+#     -- L1 ITLB.
+#     constant TLB_BITS : natural := log2(TLB_SIZE);
+#     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
+#     constant TLB_PTE_BITS : natural := 64;
+        TLB_BITS        = log2_int(TLB_SIZE)
+        TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
+        TLB_PTE_BITS    = 64
+
+#     subtype tlb_index_t is integer range 0 to TLB_SIZE - 1;
+#     type tlb_valids_t is array(tlb_index_t) of std_ulogic;
+#     subtype tlb_tag_t is std_ulogic_vector(TLB_EA_TAG_BITS - 1 downto 0);
+#     type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
+#     subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
+#     type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
+        def TLBValidBitsArray():
+            return Array(Signal() for x in range(TLB_SIZE))
+
+        def TLBTagArray():
+            return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
+
+        def TLBPTEArray():
+            return Array(Signal(LTB_PTE_BITS) for x in range(TLB_SIZE))
+
+#     signal itlb_valids : tlb_valids_t;
+#     signal itlb_tags : tlb_tags_t;
+#     signal itlb_ptes : tlb_ptes_t;
+#     attribute ram_style of itlb_tags : signal is "distributed";
+#     attribute ram_style of itlb_ptes : signal is "distributed";
+        itlb_valid_bits = TLBValidBitsArray()
+        itlb_tags       = TLBTagArray()
+        itlb_ptes       = TLBPTEArray()
+        # TODO to be passed to nmigen as ram attributes
+        # attribute ram_style of itlb_tags : signal is "distributed";
+        # attribute ram_style of itlb_ptes : signal is "distributed";
+
+#     -- Privilege bit from PTE EAA field
+#     signal eaa_priv  : std_ulogic;
+        # Privilege bit from PTE EAA field
+        eaa_priv        = Signal()
+
+
+#     signal r : reg_internal_t;
+        r = RegInternal()
+
+#     -- Async signals on incoming request
+#     signal req_index   : index_t;
+#     signal req_row     : row_t;
+#     signal req_hit_way : way_t;
+#     signal req_tag     : cache_tag_t;
+#     signal req_is_hit  : std_ulogic;
+#     signal req_is_miss : std_ulogic;
+#     signal req_laddr   : std_ulogic_vector(63 downto 0);
+        # Async signal on incoming request
+        req_index     = Signal(NUM_LINES)
+        req_row       = Signal(BRAM_ROWS)
+        req_hit_way   = Signal(NUM_WAYS)
+        req_tag       = Signal(TAG_BITS)
+        req_is_hit    = Signal()
+        req_is_miss   = Signal()
+        req_laddr     = Signal(64)
+
+#     signal tlb_req_index : tlb_index_t;
+#     signal real_addr     : std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0);
+#     signal ra_valid      : std_ulogic;
+#     signal priv_fault    : std_ulogic;
+#     signal access_ok     : std_ulogic;
+#     signal use_previous  : std_ulogic;
+        tlb_req_index = Signal(TLB_SIZE)
+        real_addr     = Signal(REAL_ADDR_BITS)
+        ra_valid      = Signal()
+        priv_fault    = Signal()
+        access_ok     = Signal()
+        use_previous  = Signal()
+
+#     -- Cache RAM interface
+#     type cache_ram_out_t is array(way_t) of cache_row_t;
+#     signal cache_out   : cache_ram_out_t;
+        # Cache RAM interface
+        def CacheRamOut():
+            return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
+
+        cache_out     = CacheRamOut()
+
+#     -- PLRU output interface
+#     type plru_out_t is array(index_t) of
+#      std_ulogic_vector(WAY_BITS-1 downto 0);
+#     signal plru_victim : plru_out_t;
+#     signal replace_way : way_t;
+        # PLRU output interface
+        def PLRUOut():
+            return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
+
+        plru_victim   = PLRUOut()
+        replace_way   = Signal(NUM_WAYS)
+
+# begin
+#
+#     assert LINE_SIZE mod ROW_SIZE = 0;
+#     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
+#      severity FAILURE;
+#     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
+#      severity FAILURE;
+#     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
+#      severity FAILURE;
+#     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
+#      severity FAILURE;
+#     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#
+#     sim_debug: if SIM generate
+#     debug: process
+#     begin
+# 	report "ROW_SIZE      = " & natural'image(ROW_SIZE);
+# 	report "ROW_PER_LINE  = " & natural'image(ROW_PER_LINE);
+# 	report "BRAM_ROWS     = " & natural'image(BRAM_ROWS);
+# 	report "INSN_PER_ROW  = " & natural'image(INSN_PER_ROW);
+# 	report "INSN_BITS     = " & natural'image(INSN_BITS);
+# 	report "ROW_BITS      = " & natural'image(ROW_BITS);
+# 	report "ROW_LINEBITS  = " & natural'image(ROW_LINEBITS);
+# 	report "LINE_OFF_BITS = " & natural'image(LINE_OFF_BITS);
+# 	report "ROW_OFF_BITS  = " & natural'image(ROW_OFF_BITS);
+# 	report "INDEX_BITS    = " & natural'image(INDEX_BITS);
+# 	report "TAG_BITS      = " & natural'image(TAG_BITS);
+# 	report "WAY_BITS      = " & natural'image(WAY_BITS);
+# 	wait;
+#     end process;
+#     end generate;
+
