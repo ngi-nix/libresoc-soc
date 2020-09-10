@@ -202,8 +202,7 @@ def read_tag(way, tagset):
 
 # Read a TLB tag from a TLB tag memory row
 def read_tlb_tag(way, tags):
-    j = way * TLB_EA_TAG_BITS
-    return tags.bit_select(j, TLB_EA_TAG_BITS)
+    return tags.word_select(way, TLB_EA_TAG_BITS)
 
 # Write a TLB tag to a TLB tag memory row
 def write_tlb_tag(way, tags, tag):
@@ -211,8 +210,7 @@ def write_tlb_tag(way, tags, tag):
 
 # Read a PTE from a TLB PTE memory row
 def read_tlb_pte(way, ptes):
-    j = way * TLB_PTE_BITS
-    return ptes.bit_select(j, TLB_PTE_BITS)
+    return ptes.word_select(way, TLB_PTE_BITS)
 
 def write_tlb_pte(way, ptes,newpte):
     return read_tlb_pte(way, ptes).eq(newpte)
@@ -1100,8 +1098,9 @@ class DCache(Elaboratable):
             # Store new tag in selected way
             for i in range(NUM_WAYS):
                 with m.If(i == replace_way):
-                    ct = cache_tag[r1.store_index].word_select(i, TAG_WIDTH)
-                    sync += ct.eq(r1.reload_tag)
+                    ct = Signal(TAG_RAM_WIDTH)
+                    sync += ct.eq(cache_tag[r1.store_index])
+                    sync += ct.word_select(i, TAG_WIDTH).eq(r1.reload_tag)
             sync += r1.store_way.eq(replace_way)
             sync += r1.write_tag.eq(0)
 
