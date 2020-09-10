@@ -174,9 +174,7 @@ def get_row(addr):
 
 # Return the index of a row within a line
 def get_row_of_line(row):
-    row_v = Signal(ROW_BITS)
-    row_v = Signal(row)
-    return row_v[0:ROW_LINE_BITS]
+    return row[:ROW_LINE_BITS]
 
 # Returns whether this is the last row of a line
 def is_last_row_addr(addr, last):
@@ -185,18 +183,6 @@ def is_last_row_addr(addr, last):
 # Returns whether this is the last row of a line
 def is_last_row(row, last):
     return get_row_of_line(row) == last
-
-# Return the address of the next row in the current cache line
-def next_row_addr(addr):
-    row_idx = Signal(ROW_LINE_BITS)
-    result  = WBAddrType()
-    # Is there no simpler way in VHDL to
-    # generate that 3 bits adder ?
-    row_idx = addr[ROW_OFF_BITS:LINE_OFF_BITS]
-    row_idx = Signal(row_idx + 1)
-    result = addr
-    result[ROW_OFF_BITS:LINE_OFF_BITS] = row_idx
-    return result
 
 # Return the next row in the current cache line. We use a
 # dedicated function in order to limit the size of the
@@ -217,12 +203,11 @@ def read_tag(way, tagset):
 # Read a TLB tag from a TLB tag memory row
 def read_tlb_tag(way, tags):
     j = way * TLB_EA_TAG_BITS
-    return tags[j:j + TLB_EA_TAG_BITS]
+    return tags.bit_select(j, TLB_EA_TAG_BITS)
 
 # Write a TLB tag to a TLB tag memory row
 def write_tlb_tag(way, tags, tag):
-    j = way * TLB_EA_TAG_BITS
-    tags[j:j + TLB_EA_TAG_BITS] = tag
+    return read_tlb_tag(way, tags).eq(tag)
 
 # Read a PTE from a TLB PTE memory row
 def read_tlb_pte(way, ptes):
@@ -230,8 +215,7 @@ def read_tlb_pte(way, ptes):
     return ptes.bit_select(j, TLB_PTE_BITS)
 
 def write_tlb_pte(way, ptes,newpte):
-    j = way * TLB_PTE_BITS
-    return ptes[j:j + TLB_PTE_BITS].eq(newpte)
+    return read_tlb_pte(way, ptes).eq(newpte)
 
 
 # Record for storing permission, attribute, etc. bits from a PTE
@@ -565,8 +549,11 @@ class DCache(Elaboratable):
         tagset   = Signal(TLB_TAG_WAY_BITS)
         pteset   = Signal(TLB_PTE_WAY_BITS)
 
+        vb = Signal(TLB_NUM_WAYS)
+
         comb += tlbie.eq(r0_valid & r0.tlbie)
         comb += tlbwe.eq(r0_valid & r0.tlbld)
+        sync += vb.eq(dtlb_valid_bits[tlb_req_index])
 
         with m.If(tlbie & r0.doall):
             # clear all valid bits at once
@@ -575,22 +562,22 @@ class DCache(Elaboratable):
 
         with m.Elif(tlbie):
             with m.If(tlb_hit):
-                sync += dtlb_valid_bits[tlb_req_index][tlb_hit_way].eq(0)
+                sync += vb.bit_select(tlb_hit_way, 1).eq(Const(0, 1))
         with m.Elif(tlbwe):
             with m.If(tlb_hit):
                 comb += repl_way.eq(tlb_hit_way)
             with m.Else():
                 comb += repl_way.eq(tlb_plru_victim[tlb_req_index])
             comb += eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
-            comb += tagset.eq(tlb_tag_way)
+            sync += tagset.eq(tlb_tag_way)
             sync += write_tlb_tag(repl_way, tagset, eatag)
             sync += dtlb_tags[tlb_req_index].eq(tagset)
-            comb += pteset.eq(tlb_pte_way)
+            sync += pteset.eq(tlb_pte_way)
             sync += write_tlb_pte(repl_way, pteset, r0.req.data)
             sync += dtlb_ptes[tlb_req_index].eq(pteset)
-            sync += dtlb_valid_bits[tlb_req_index][repl_way].eq(1)
+            sync += vb.bit_select(repl_way, 1).eq(1)
 
-    def maybe_plrus(self, r1):
+    def maybe_plrus(self, m, r1, plru_victim):
         """Generate PLRUs
         """
         comb = m.d.comb
@@ -606,7 +593,7 @@ class DCache(Elaboratable):
 
             comb += plru.acc.eq(plru_acc)
             comb += plru.acc_en.eq(plru_acc_en)
-            comb += plru.lru.eq(plru_out)
+            comb += plru_out.eq(plru.lru_o)
 
             with m.If(r1.hit_index == i):
                 comb += plru_acc_en.eq(r1.cache_hit)
@@ -635,8 +622,10 @@ class DCache(Elaboratable):
                        r0_valid, r1, cache_valid_bits, replace_way,
                        use_forward1_next, use_forward2_next,
                        req_hit_way, plru_victim, rc_ok, perm_attr,
-                       valid_ra, perm_ok, access_ok, req_op, req_ok,
-                       r0_stall, early_req_row):
+                       valid_ra, perm_ok, access_ok, req_op, req_go,
+                       tlb_pte_way,
+                       tlb_hit, tlb_hit_way, tlb_valid_way, cache_tag_set,
+                       cancel_store, req_same_tag, r0_stall, early_req_row):
         """Cache request parsing and hit detection
         """
 
@@ -690,9 +679,9 @@ class DCache(Elaboratable):
                 with m.If(s_tag == r1.reload_tag):
                     comb += rel_matches[j].eq(1)
             with m.If(tlb_hit):
-                comb += is_hit.eq(hit_set[tlb_hit_way])
+                comb += is_hit.eq(hit_set.bit_select(tlb_hit_way, 1))
                 comb += hit_way.eq(hit_way_set[tlb_hit_way])
-                comb += rel_match.eq(rel_matches[tlb_hit_way])
+                comb += rel_match.eq(rel_matches.bit_select(tlb_hit_way, 1))
         with m.Else():
             comb += s_tag.eq(get_tag(r0.req.addr))
             for i in range(NUM_WAYS):
@@ -745,7 +734,7 @@ class DCache(Elaboratable):
         comb += rc_ok.eq(perm_attr.reference
                          & (r0.req.load | perm_attr.changed)
                 )
-        comb += perm_ok.eq((r0.req.prive_mode | ~perm_attr.priv)
+        comb += perm_ok.eq((r0.req.priv_mode | ~perm_attr.priv)
                            & perm_attr.wr_perm
                            | (r0.req.load & perm_attr.rd_perm)
                           )
@@ -762,21 +751,21 @@ class DCache(Elaboratable):
             with m.Else():
                 comb += opsel.eq(Cat(is_hit, nc, r0.req.load))
                 with m.Switch(opsel):
-                    with m.Case(Const(0b101, 3)):
+                    with m.Case(0b101):
                         comb += op.eq(Op.OP_LOAD_HIT)
-                    with m.Case(Cosnt(0b100, 3)):
+                    with m.Case(0b100):
                         comb += op.eq(Op.OP_LOAD_MISS)
-                    with m.Case(Const(0b110, 3)):
+                    with m.Case(0b110):
                         comb += op.eq(Op.OP_LOAD_NC)
-                    with m.Case(Const(0b001, 3)):
+                    with m.Case(0b001):
                         comb += op.eq(Op.OP_STORE_HIT)
-                    with m.Case(Const(0b000, 3)):
+                    with m.Case(0b000):
                         comb += op.eq(Op.OP_STORE_MISS)
-                    with m.Case(Const(0b010, 3)):
+                    with m.Case(0b010):
                         comb += op.eq(Op.OP_STORE_MISS)
-                    with m.Case(Const(0b011, 3)):
+                    with m.Case(0b011):
                         comb += op.eq(Op.OP_BAD)
-                    with m.Case(Const(0b111, 3)):
+                    with m.Case(0b111):
                         comb += op.eq(Op.OP_BAD)
                     with m.Default():
                         comb += op.eq(Op.OP_NONE)
@@ -807,13 +796,13 @@ class DCache(Elaboratable):
             # XXX generate alignment interrupt if address
             # is not aligned XXX or if r0.req.nc = '1'
             with m.If(r0.req.load):
-                comb += set_rsrv(1) # load with reservation
+                comb += set_rsrv.eq(1) # load with reservation
             with m.Else():
                 comb += clear_rsrv.eq(1) # store conditional
                 with m.If(~reservation.valid | r0.req.addr[LINE_OFF_BITS:64]):
                     comb += cancel_store.eq(1)
 
-    def reservation_reg(self, m, r0_valid, access_ok, clear_rsrv,
+    def reservation_reg(self, m, r0_valid, access_ok, set_rsrv, clear_rsrv,
                         reservation, r0):
 
         comb = m.d.comb
@@ -882,7 +871,7 @@ class DCache(Elaboratable):
             assert ((r1.slow_valid | r1.stcx_fail) | r1.hit_load_valid) != 1, \
              "unexpected hit_load_delayed collision with slow_valid"
 
-        with m.If(~r1._mmu_req):
+        with m.If(~r1.mmu_req):
             # Request came from loadstore1...
             # Load hit case is the standard path
             with m.If(r1.hit_load_valid):
@@ -914,7 +903,7 @@ class DCache(Elaboratable):
                 #Display("completing MMU load miss, data={m_out.data}")
                 pass
 
-    def rams(self, m, r1):
+    def rams(self, m, r1, early_req_row, cache_out, replace_way):
         """rams
         Generate a cache RAM for each way. This handles the normal
         reads, writes from reloads and the special store-hit update
@@ -943,7 +932,7 @@ class DCache(Elaboratable):
 
             comb += way.rd_en.eq(do_read)
             comb += way.rd_addr.eq(rd_addr)
-            comb += _d_out.eq(way.rd_data)
+            comb += _d_out.eq(way.rd_data_o)
             comb += way.wr_sel.eq(wr_sel_m)
             comb += way.wr_addr.eq(wr_addr)
             comb += way.wr_data.eq(wr_data)
@@ -990,7 +979,9 @@ class DCache(Elaboratable):
     # Cache hit synchronous machine for the easy case.
     # This handles load hits.
     # It also handles error cases (TLB miss, cache paradox)
-    def dcache_fast_hit(self, m, req_op, r0_valid, r1):
+    def dcache_fast_hit(self, m, req_op, r0_valid, r0, r1,
+                        req_hit_way, req_index, access_ok,
+                        tlb_hit, tlb_hit_way, tlb_req_index):
 
         comb = m.d.comb
         sync = m.d.sync
@@ -1049,16 +1040,19 @@ class DCache(Elaboratable):
     #
     # All wishbone requests generation is done here.
     # This machine operates at stage 1.
-    def dcache_slow(self, m, r1, use_forward1_next, cache_valid_bits, r0,
+    def dcache_slow(self, m, r1, use_forward1_next, use_forward2_next,
+                    cache_valid_bits, r0, replace_way,
+                    req_hit_way, req_same_tag,
                     r0_valid, req_op, cache_tag, req_go, ra):
 
         comb = m.d.comb
         sync = m.d.sync
-        wb_in = self.wb_i
+        wb_in = self.wb_in
 
         req         = MemAccessRequest()
         acks        = Signal(3)
         adjust_acks = Signal(3)
+        stbs_done = Signal()
 
         sync += r1.use_forward1.eq(use_forward1_next)
         sync += r1.forward_sel.eq(0)
@@ -1076,7 +1070,7 @@ class DCache(Elaboratable):
             sync += r1.forward_row1.eq(get_row(r1.req.real_addr))
             sync += r1.forward_valid1.eq(1)
         with m.Else():
-            with m.If(r1.bcbz):
+            with m.If(r1.dcbz):
                 sync += r1.forward_data1.eq(0)
             with m.Else():
                 sync += r1.forward_data1.eq(wb_in.dat)
@@ -1106,9 +1100,8 @@ class DCache(Elaboratable):
             # Store new tag in selected way
             for i in range(NUM_WAYS):
                 with m.If(i == replace_way):
-                    idx = r1.store_index
-                    trange = range(i * TAG_WIDTH, (i+1) * TAG_WIDTH)
-                    sync += cache_tag[idx][trange].eq(r1.reload_tag)
+                    ct = cache_tag[r1.store_index].word_select(i, TAG_WIDTH)
+                    sync += ct.eq(r1.reload_tag)
             sync += r1.store_way.eq(replace_way)
             sync += r1.write_tag.eq(0)
 
@@ -1144,7 +1137,7 @@ class DCache(Elaboratable):
                       | (req_op == Op.OP_LOAD_NC)
                       | (req_op == Op.OP_STORE_MISS)
                       | (req_op == Op.OP_STORE_HIT)):
-                sync += r1.req(req)
+                sync += r1.req.eq(req)
                 sync += r1.full.eq(1)
 
         # Main state machine
@@ -1155,7 +1148,7 @@ class DCache(Elaboratable):
 #                     r1.wb.adr <= req.real_addr(
 #                                   r1.wb.adr'left downto 0
 #                                  );
-                sync += r1.wb.adr.eq(req.real_addr[0:r1.wb.adr])
+                sync += r1.wb.adr.eq(req.real_addr)
                 sync += r1.wb.sel.eq(req.byte_sel)
                 sync += r1.wb.dat.eq(req.data)
                 sync += r1.dcbz.eq(req.dcbz)
@@ -1206,7 +1199,7 @@ class DCache(Elaboratable):
                         sync += r1.state.eq(State.NC_LOAD_WAIT_ACK)
 
                     with m.Case(Op.OP_STORE_HIT, Op.OP_STORE_MISS):
-                        with m.If(~req.bcbz):
+                        with m.If(~req.dcbz):
                             sync += r1.state.eq(State.STORE_WAIT_ACK)
                             sync += r1.acks_pending.eq(1)
                             sync += r1.full.eq(0)
@@ -1220,7 +1213,7 @@ class DCache(Elaboratable):
                             with m.If(req.op == Op.OP_STORE_HIT):
                                 sync += r1.write_bram.eq(1)
                         with m.Else():
-                            sync += r1.state.eq(Op.RELOAD_WAIT_ACK)
+                            sync += r1.state.eq(State.RELOAD_WAIT_ACK)
 
                             with m.If(req.op == Op.OP_STORE_MISS):
                                 sync += r1.write_tag.eq(1)
@@ -1234,9 +1227,9 @@ class DCache(Elaboratable):
                     # handled above already
                     with m.Case(Op.OP_NONE):
                         pass
-                    with m.Case(OP_BAD):
+                    with m.Case(Op.OP_BAD):
                         pass
-                    with m.Case(OP_STCX_FAIL):
+                    with m.Case(Op.OP_STCX_FAIL):
                         pass
 
             with m.Case(State.RELOAD_WAIT_ACK):
@@ -1254,8 +1247,9 @@ class DCache(Elaboratable):
                         sync += r1.wb.stb.eq(0)
                         comb += stbs_done.eq(0)
 
-                    # Calculate the next row address
-                    sync += r1.wb.adr.eq(next_row_addr(r1.wb.adr))
+                    # Calculate the next row address in the current cache line
+                    rarange = r1.wb.adr[ROW_OFF_BITS : LINE_OFF_BITS]
+                    sync += rarange.eq(rarange + 1)
 
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
@@ -1288,8 +1282,9 @@ class DCache(Elaboratable):
                         sync += r1.wb.cyc.eq(0)
 
                         # Cache line is now valid
-                        cv = cache_valid_bits[r1.store_index]
-                        sync += cv[r1.store_way].eq(1)
+                        cv = Signal(INDEX_BITS)
+                        sync += cv.eq(cache_valid_bits[r1.store_index])
+                        sync += cv.bit_select(r1.store_way, 1).eq(1)
                         sync += r1.state.eq(State.IDLE)
 
                     # Increment store row counter
@@ -1320,8 +1315,8 @@ class DCache(Elaboratable):
                         sync += r1.wb.sel.eq(req.byte_sel)
 
                     with m.Elif((adjust_acks < 7) & req.same_tag &
-                                ((req.op == Op.Op_STORE_MISS)
-                                 | (req.op == Op.OP_SOTRE_HIT))):
+                                ((req.op == Op.OP_STORE_MISS)
+                                 | (req.op == Op.OP_STORE_HIT))):
                         sync += r1.wb.stb.eq(1)
                         comb += stbs_done.eq(0)
 
@@ -1479,24 +1474,32 @@ class DCache(Elaboratable):
         self.tlb_update(m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                         tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
                         dtlb_tags, tlb_pte_way, dtlb_ptes)
-        self.maybe_plrus(r1)
+        self.maybe_plrus(m, r1, plru_victim)
         self.cache_tag_read(m, r0_stall, req_index, cache_tag_set, cache_tags)
         self.dcache_request(m, r0, ra, req_index, req_row, req_tag,
                            r0_valid, r1, cache_valid_bits, replace_way,
                            use_forward1_next, use_forward2_next,
                            req_hit_way, plru_victim, rc_ok, perm_attr,
-                           valid_ra, perm_ok, access_ok, req_op, req_ok,
-                           r0_stall, early_req_row)
+                           valid_ra, perm_ok, access_ok, req_op, req_go,
+                           tlb_pte_way,
+                           tlb_hit, tlb_hit_way, tlb_valid_way, cache_tag_set,
+                           cancel_store, req_same_tag, r0_stall, early_req_row)
         self.reservation_comb(m, cancel_store, set_rsrv, clear_rsrv,
                            r0_valid, r0, reservation)
-        self.reservation_reg(m, r0_valid, access_ok, clear_rsrv,
+        self.reservation_reg(m, r0_valid, access_ok, set_rsrv, clear_rsrv,
                            reservation, r0)
         self.writeback_control(m, r1, cache_out)
-        self.rams(m, r1)
-        self.dcache_fast_hit(m, req_op, r0_valid, r1)
-        self.dcache_slow(m, r1, use_forward1_next, cache_valid_bits, r0,
-                         r0_valid, req_op, cache_tag, req_go, ra)
+        self.rams(m, r1, early_req_row, cache_out, replace_way)
+        self.dcache_fast_hit(m, req_op, r0_valid, r0, r1,
+                        req_hit_way, req_index, access_ok,
+                        tlb_hit, tlb_hit_way, tlb_req_index)
+        self.dcache_slow(m, r1, use_forward1_next, use_forward2_next,
+                    cache_valid_bits, r0, replace_way,
+                    req_hit_way, req_same_tag,
+                         r0_valid, req_op, cache_tags, req_go, ra)
         #self.dcache_log(m, r1, valid_ra, tlb_hit_way, stall_out)
+
+        return m
 
 
 # dcache_tb.vhdl
@@ -1703,7 +1706,7 @@ def test_dcache():
     with open("test_dcache.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, dcache_sim(), vcd_name='test_dcache.vcd')
+    #run_simulation(dut, dcache_sim(), vcd_name='test_dcache.vcd')
 
 if __name__ == '__main__':
     test_dcache()

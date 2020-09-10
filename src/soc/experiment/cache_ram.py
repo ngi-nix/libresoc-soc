@@ -17,6 +17,7 @@ class CacheRam(Elaboratable):
  
     def elaborate(self, platform):
         m = Module()
+        comb, sync = m.d.comb, m.d.sync
 
         ROW_BITS = self.ROW_BITS
         WIDTH = self.WIDTH
@@ -41,12 +42,12 @@ class CacheRam(Elaboratable):
             lbit = i * 8;
             mbit = lbit + 8;
             with m.If(self.wr_sel[i]):
-                sync += ram[self.wr_addr][lbit:mbit].eq(wr_data[lbit:mbit])
+                sync += ram[self.wr_addr][lbit:mbit].eq(self.wr_data[lbit:mbit])
         with m.If(self.rd_en):
             if ADD_BUF:
-                sync += self.rd_data_o.eq(ram[rd_addr])
+                sync += self.rd_data_o.eq(ram[self.rd_addr])
             else:
-                comb += self.rd_data_o.eq(ram[rd_addr])
+                comb += self.rd_data_o.eq(ram[self.rd_addr])
 
         if TRACE:
             # Display( "read a:" & to_hstring(rd_addr) &
