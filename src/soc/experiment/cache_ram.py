@@ -41,7 +41,7 @@ class CacheRam(Elaboratable):
             lbit = i * 8;
             mbit = lbit + 8;
             with m.If(self.wr_sel[i]):
-                sync += ram[self.wr_addr][lbit:mbit].eq(wr_data(lbit:mbit]))
+                sync += ram[self.wr_addr][lbit:mbit].eq(wr_data[lbit:mbit])
         with m.If(self.rd_en):
             if ADD_BUF:
                 sync += self.rd_data_o.eq(ram[rd_addr])

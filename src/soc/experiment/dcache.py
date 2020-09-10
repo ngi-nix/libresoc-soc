@@ -6,24 +6,27 @@ based on Anton Blanchard microwatt dcache.vhdl
 
 from enum import Enum, unique
 
-from nmigen import Module, Signal, Elaboratable,
-                   Cat, Repl
+from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
 from nmigen.cli import main
-from nmigen.iocontrol import RecordObject
-from nmigen.util import log2_int
+from nmutil.iocontrol import RecordObject
+from nmigen.utils import log2_int
+from nmigen.cli import rtlil
 
-from soc.experiment.mem_types import LoadStore1ToDCacheType,
-                                 DCacheToLoadStore1Type,
-                                 MMUToDCacheType,
-                                 DCacheToMMUType
 
-from soc.experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
+from soc.experiment.mem_types import (LoadStore1ToDCacheType,
+                                     DCacheToLoadStore1Type,
+                                     MMUToDCacheType,
+                                     DCacheToMMUType)
+
+from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBAddrType, WBDataType, WBSelType,
-                                WbMasterOut, WBSlaveOut,
+                                WBMasterOut, WBSlaveOut,
                                 WBMasterOutVector, WBSlaveOutVector,
-                                WBIOMasterOut, WBIOSlaveOut
+                                WBIOMasterOut, WBIOSlaveOut)
 
 from soc.experiment.cache_ram import CacheRam
+from soc.experiment.plru import PLRU
+
 
 # TODO: make these parameters of DCache at some point
 LINE_SIZE = 64    # Line size in bytes
@@ -35,7 +38,7 @@ TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
 LOG_LENGTH = 0    # Non-zero to enable log data collection
 
 # BRAM organisation: We never access more than
-#     -- wishbone_data_bits at a time so to save
+#     -- WB_DATA_BITS at a time so to save
 #     -- resources we make the array only that wide, and
 #     -- use consecutive indices for to make a cache "line"
 #     --
@@ -104,10 +107,10 @@ WAY_BITS = log2_int(NUM_WAYS)
 TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
 
 def CacheTagArray():
-    return Array(CacheTagSet() for x in range(NUM_LINES))
+    return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
 
 def CacheValidBitsArray():
-    return Array(CacheWayValidBits() for x in range(NUM_LINES))
+    return Array(Signal(INDEX_BITS) for x in range(NUM_LINES))
 
 def RowPerLineValidArray():
     return Array(Signal() for x in range(ROW_PER_LINE))
@@ -125,13 +128,13 @@ assert (LINE_SIZE % 2) == 0, "LINE_SIZE not power of 2"
 assert (NUM_LINES % 2) == 0, "NUM_LINES not power of 2"
 assert (ROW_PER_LINE % 2) == 0, "ROW_PER_LINE not power of 2"
 assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS), "geometry bits don't add up"
-assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS), \
+assert (LINE_OFF_BITS == ROW_OFF_BITS + ROW_LINE_BITS), \
         "geometry bits don't add up"
 assert REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS + LINE_OFF_BITS), \
         "geometry bits don't add up"
 assert REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS), \
          "geometry bits don't add up"
-assert 64 == wishbone_data_bits, "Can't yet handle wb width that isn't 64-bits"
+assert 64 == WB_DATA_BITS, "Can't yet handle wb width that isn't 64-bits"
 assert SET_SIZE_BITS <= TLB_LG_PGSZ, "Set indexed by virtual address"
 
 
@@ -153,7 +156,7 @@ def CacheRamOut():
 
 # PLRU output interface
 def PLRUOut():
-    return Array(Signal(WAY_BITS) for x in range(Index()))
+    return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
 
 # TLB PLRU output interface
 def TLBPLRUOut():
@@ -199,7 +202,7 @@ def next_row_addr(addr):
 # dedicated function in order to limit the size of the
 # generated adder to be only the bits within a cache line
 # (3 bits with default settings)
-def next_row(row)
+def next_row(row):
     row_v = row[0:ROW_LINE_BITS] + 1
     return Cat(row_v[:ROW_LINE_BITS], row[ROW_LINE_BITS:])
 
@@ -217,14 +220,14 @@ def read_tlb_tag(way, tags):
     return tags[j:j + TLB_EA_TAG_BITS]
 
 # Write a TLB tag to a TLB tag memory row
-def write_tlb_tag(way, tags), tag):
+def write_tlb_tag(way, tags, tag):
     j = way * TLB_EA_TAG_BITS
     tags[j:j + TLB_EA_TAG_BITS] = tag
 
 # Read a PTE from a TLB PTE memory row
 def read_tlb_pte(way, ptes):
     j = way * TLB_PTE_BITS
-    return ptes[j:j + TLB_PTE_BITS]
+    return ptes.bit_select(j, TLB_PTE_BITS)
 
 def write_tlb_pte(way, ptes,newpte):
     j = way * TLB_PTE_BITS
@@ -306,7 +309,7 @@ class RegStage0(RecordObject):
 class MemAccessRequest(RecordObject):
     def __init__(self):
         super().__init__()
-        self.op        = Op()
+        self.op        = Signal(Op)
         self.valid     = Signal()
         self.dcbz      = Signal()
         self.real_addr = Signal(REAL_ADDR_BITS)
@@ -349,17 +352,17 @@ class RegStage1(RecordObject):
         self.forward_sel      = Signal(8)
 
         # Cache miss state (reload state machine)
-        self.state            = State()
+        self.state            = Signal(State)
         self.dcbz             = Signal()
         self.write_bram       = Signal()
         self.write_tag        = Signal()
         self.slow_valid       = Signal()
-        self.wb               = WishboneMasterOut()
+        self.wb               = WBMasterOut()
         self.reload_tag       = Signal(TAG_BITS)
         self.store_way        = Signal(WAY_BITS)
         self.store_row        = Signal(ROW_BITS)
         self.store_index      = Signal(INDEX_BITS)
-        self.end_row_ix       = Signal(log2_int(ROW_LINE_BITS))
+        self.end_row_ix       = Signal(log2_int(ROW_LINE_BITS, False))
         self.rows_valid       = RowPerLineValidArray()
         self.acks_pending     = Signal(3)
         self.inc_acks         = Signal()
@@ -406,12 +409,12 @@ class DCache(Elaboratable):
 
         self.log_out   = Signal(20)
 
-    def stage_0(self, m):
+    def stage_0(self, m, r0, r1, r0_full):
         """Latch the request in r0.req as long as we're not stalling
         """
         comb = m.d.comb
         sync = m.d.sync
-        d_in, d_out = self.d_in, self.d_out
+        d_in, d_out, m_in = self.d_in, self.d_out, self.m_in
 
         r = RegStage0()
 
@@ -437,10 +440,10 @@ class DCache(Elaboratable):
             sync += r.mmu_req.eq(1)
         with m.Else():
             sync += r.req.eq(d_in)
-            sync += r.req.tlbie.eq(0)
-            sync += r.req.doall.eq(0)
-            sync += r.req.tlbd.eq(0)
-            sync += r.req.mmu_req.eq(0)
+            sync += r.tlbie.eq(0)
+            sync += r.doall.eq(0)
+            sync += r.tlbld.eq(0)
+            sync += r.mmu_req.eq(0)
             with m.If(~(r1.full & r0_full)):
                 sync += r0.eq(r)
                 sync += r0_full.eq(r.req.valid)
@@ -503,7 +506,8 @@ class DCache(Elaboratable):
 
                 comb += tlb_plru_victim[i].eq(tlb_plru.lru)
 
-    def tlb_search(self, m, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
+    def tlb_search(self, m, tlb_req_index, r0, r0_valid,
+                   tlb_valid_way, tlb_tag_way, tlb_hit_way,
                    tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra):
 
         comb = m.d.comb
@@ -518,7 +522,7 @@ class DCache(Elaboratable):
         comb += eatag.eq(r0.req.addr[TLB_LG_END : 64 ])
 
         for i in range(TLB_NUM_WAYS):
-            with m.If(tlb_valid_way(i)
+            with m.If(tlb_valid_way[i]
                       & read_tlb_tag(i, tlb_tag_way) == eatag):
                 comb += hitway.eq(i)
                 comb += hit.eq(1)
@@ -538,7 +542,7 @@ class DCache(Elaboratable):
             comb += perm_attr.eq(extract_perm_attr(pte))
         with m.Else():
             comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
-                              r0.rq.addr[ROW_OFF_BITS:REAL_ADDR_BITS]))
+                              r0.req.addr[ROW_OFF_BITS:REAL_ADDR_BITS]))
 
             comb += perm_attr.reference.eq(1)
             comb += perm_attr.changed.eq(1)
@@ -549,7 +553,7 @@ class DCache(Elaboratable):
 
     def tlb_update(self, m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                     tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
-                    dtlb_tags, tlb_pte_way, dtlb_ptes, dtlb_valid_bits):
+                    dtlb_tags, tlb_pte_way, dtlb_ptes):
 
         comb = m.d.comb
         sync = m.d.sync
@@ -558,11 +562,11 @@ class DCache(Elaboratable):
         tlbwe    = Signal()
         repl_way = Signal(TLB_WAY_BITS)
         eatag    = Signal(TLB_EA_TAG_BITS)
-        tagset   = TLBWayTags()
-        pteset   = TLBWayPtes()
+        tagset   = Signal(TLB_TAG_WAY_BITS)
+        pteset   = Signal(TLB_PTE_WAY_BITS)
 
         comb += tlbie.eq(r0_valid & r0.tlbie)
-        comb += tlbwe.eq(r0_valid & r0.tlbldoi)
+        comb += tlbwe.eq(r0_valid & r0.tlbld)
 
         with m.If(tlbie & r0.doall):
             # clear all valid bits at once
@@ -642,7 +646,7 @@ class DCache(Elaboratable):
 
         is_hit      = Signal()
         hit_way     = Signal(WAY_BITS)
-        op          = Op()
+        op          = Signal(Op)
         opsel       = Signal(3)
         go          = Signal()
         nc          = Signal()
@@ -712,8 +716,8 @@ class DCache(Elaboratable):
 
         # Whether to use forwarded data for a load or not
         comb += use_forward1_next.eq(0)
-        with m.If((get_row(r1.req.real_addr) == req_row)
-                  & (r1.req.hit_way == hit_way))
+        with m.If((get_row(r1.req.real_addr) == req_row) &
+                  (r1.req.hit_way == hit_way)):
             # Only need to consider r1.write_bram here, since if we
             # are writing refill data here, then we don't have a
             # cache hit this cycle on the line being refilled.
@@ -872,12 +876,11 @@ class DCache(Elaboratable):
         # Sanity: Only one of these must be set in any given cycle
 
         if False: # TODO: need Display to get this to work
-            assert (r1.slow_valid & r1.stcx_fail) != 1 "unexpected" \
-             "slow_valid collision with stcx_fail -!- severity FAILURE"
+            assert (r1.slow_valid & r1.stcx_fail) != 1, \
+            "unexpected slow_valid collision with stcx_fail"
 
-            assert ((r1.slow_valid | r1.stcx_fail) | r1.hit_load_valid) != 1
-             "unexpected hit_load_delayed collision with slow_valid -!-" \
-             "severity FAILURE"
+            assert ((r1.slow_valid | r1.stcx_fail) | r1.hit_load_valid) != 1, \
+             "unexpected hit_load_delayed collision with slow_valid"
 
         with m.If(~r1._mmu_req):
             # Request came from loadstore1...
@@ -1111,7 +1114,7 @@ class DCache(Elaboratable):
 
         # Take request from r1.req if there is one there,
         # else from req_op, ra, etc.
-        with m.If(r1.full)
+        with m.If(r1.full):
             comb += req.eq(r1.req)
         with m.Else():
             comb += req.op.eq(req_op)
@@ -1127,7 +1130,7 @@ class DCache(Elaboratable):
 
             # Select all bytes for dcbz
             # and for cacheable loads
-            with m.If(r0.req.dcbz | (r0.req.load & ~r0.req.nc):
+            with m.If(r0.req.dcbz | (r0.req.load & ~r0.req.nc)):
                 comb += req.byte_sel.eq(~0) # all 1s
             with m.Else():
                 comb += req.byte_sel.eq(r0.req.byte_sel)
@@ -1147,7 +1150,7 @@ class DCache(Elaboratable):
         # Main state machine
         with m.Switch(r1.state):
 
-            with m.Case(State.IDLE)
+            with m.Case(State.IDLE):
 # XXX check 'left downto.  probably means len(r1.wb.adr)
 #                     r1.wb.adr <= req.real_addr(
 #                                   r1.wb.adr'left downto 0
@@ -1271,10 +1274,10 @@ class DCache(Elaboratable):
                                 (r1.store_row == get_row(r1.req.real_addr))):
                         sync += r1.full.eq(0)
                         sync += r1.slow_valid.eq(1)
-                            with m.If(~r1.mmu_req):
-                                sync += r1.ls_valid.eq(1)
-                            with m.Else():
-                                sync += r1.mmu_done.eq(1)
+                        with m.If(~r1.mmu_req):
+                            sync += r1.ls_valid.eq(1)
+                        with m.Else():
+                            sync += r1.mmu_done.eq(1)
                         sync += r1.forward_sel.eq(~0) # all 1s
                         sync += r1.use_forward1.eq(1)
 
@@ -1337,7 +1340,7 @@ class DCache(Elaboratable):
 
                 # Got ack ? See if complete.
                 with m.If(wb_in.ack):
-                    with m.If(stbs_done & (adjust_acks == 1))
+                    with m.If(stbs_done & (adjust_acks == 1)):
                         sync += r1.state.eq(State.IDLE)
                         sync += r1.wb.cyc.eq(0)
                         sync += r1.wb.stb.eq(0)
@@ -1376,6 +1379,9 @@ class DCache(Elaboratable):
 
     def elaborate(self, platform):
 
+        m = Module()
+        comb = m.d.comb
+
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags       = CacheTagArray()
         cache_tag_set    = Signal(TAG_RAM_WIDTH)
@@ -1407,7 +1413,7 @@ class DCache(Elaboratable):
         req_row      = Signal(ROW_BITS)
         req_hit_way  = Signal(WAY_BITS)
         req_tag      = Signal(TAG_BITS)
-        req_op       = Op()
+        req_op       = Signal(Op)
         req_data     = Signal(64)
         req_same_tag = Signal()
         req_go       = Signal()
@@ -1451,27 +1457,28 @@ class DCache(Elaboratable):
 
         # we don't yet handle collisions between loadstore1 requests
         # and MMU requests
-        comb += m_out.stall.eq(0)
+        comb += self.m_out.stall.eq(0)
 
         # Hold off the request in r0 when r1 has an uncompleted request
         comb += r0_stall.eq(r0_full & r1.full)
         comb += r0_valid.eq(r0_full & ~r1.full)
-        comb += stall_out.eq(r0_stall)
+        comb += self.stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
         comb += self.wb_out.eq(r1.wb)
 
         # call sub-functions putting everything together, using shared
         # signals established above
-        self.stage_0(m)
+        self.stage_0(m, r0, r1, r0_full)
         self.tlb_read(m, r0_stall, tlb_valid_way,
                       tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
                       dtlb_tags, dtlb_ptes)
-        self.tlb_search(self, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
+        self.tlb_search(m, tlb_req_index, r0, r0_valid,
+                        tlb_valid_way, tlb_tag_way, tlb_hit_way,
                         tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra)
         self.tlb_update(m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                         tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
-                        dtlb_tags, tlb_pte_way, dtlb_ptes, dtlb_valid_bits)
+                        dtlb_tags, tlb_pte_way, dtlb_ptes)
         self.maybe_plrus(r1)
         self.cache_tag_read(m, r0_stall, req_index, cache_tag_set, cache_tags)
         self.dcache_request(m, r0, ra, req_index, req_row, req_tag,
@@ -1654,9 +1661,8 @@ def dcache_sim(dut):
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == Const(0x0000000100000000, 64) f"data @" \
-        f"{dut.d_in.addr}={dut.d_in.data} expected 0000000100000000" \
-        " -!- severity failure"
+    assert dut.d_out.data == 0x0000000100000000, \
+        f"data @ {dut.d_in.addr}={dut.d_in.data} expected 0000000100000000"
 
 
     # Cacheable read of address 30
@@ -1669,9 +1675,8 @@ def dcache_sim(dut):
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == Const(0x0000000D0000000C, 64) f"data @" \
-        f"{dut.d_in.addr}={dut.d_out.data} expected 0000000D0000000C" \
-        f"-!- severity failure"
+    assert dut.d_out.data == 0x0000000D0000000C, \
+        f"data @{dut.d_in.addr}={dut.d_out.data} expected 0000000D0000000C"
 
     # Non-cacheable read of address 100
     yield dut.d_in.load.eq(1)
@@ -1683,9 +1688,8 @@ def dcache_sim(dut):
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == Const(0x0000004100000040, 64) f"data @" \
-        f"{dut.d_in.addr}={dut.d_out.data} expected 0000004100000040" \
-        f"-!- severity failure"
+    assert dut.d_out.data == 0x0000004100000040, \
+        f"data @ {dut.d_in.addr}={dut.d_out.data} expected 0000004100000040"
 
     yield
     yield

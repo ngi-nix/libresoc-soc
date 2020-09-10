@@ -5,7 +5,7 @@ based on Anton Blanchard microwatt wishbone_types.vhdl
 """
 
 from nmigen import Signal
-from nmigen.iocontrol import RecordObject
+from nmutil.iocontrol import RecordObject
 
 
 # library ieee;
@@ -22,7 +22,7 @@ from nmigen.iocontrol import RecordObject
 # Main CPU bus. 32-bit address, 64-bit data
 WB_ADDR_BITS = 32
 WB_DATA_BITS = 64
-WB_SEL_BITS  = WB_DATA_BITS / 8
+WB_SEL_BITS  = WB_DATA_BITS // 8
 
 # subtype wishbone_addr_type is
 #  std_ulogic_vector(wishbone_addr_bits-1 downto 0);
