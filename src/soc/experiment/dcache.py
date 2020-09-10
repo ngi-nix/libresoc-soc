@@ -404,11 +404,12 @@ class DCache(Elaboratable):
 
         self.log_out   = Signal(20)
 
-    def stage_0(self, m, d_in, m_in):
+    def stage_0(self, m):
         """Latch the request in r0.req as long as we're not stalling
         """
         comb = m.d.comb
         sync = m.d.sync
+        d_in, d_out = self.d_in, self.d_out
 
         r = RegStage0()
 
@@ -442,7 +443,7 @@ class DCache(Elaboratable):
                 sync += r0.eq(r)
                 sync += r0_full.eq(r.req.valid)
 
-    def tlb_read(self, m, m_in, d_in, r0_stall, tlb_valid_way,
+    def tlb_read(self, m, r0_stall, tlb_valid_way,
                  tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
                  dtlb_tags, dtlb_ptes):
         """TLB
@@ -451,6 +452,7 @@ class DCache(Elaboratable):
         """
         comb = m.d.comb
         sync = m.d.sync
+        m_in, d_in = self.m_in, self.d_in
 
         index    = Signal(TLB_SET_BITS)
         addrbits = Signal(TLB_SET_BITS)
@@ -606,12 +608,12 @@ class DCache(Elaboratable):
             comb += plru_acc.eq(r1.hit_way)
             comb += plru_victim[i].eq(plru_out)
 
-    def cache_tag_read(self, m, r0_stall, req_index, m_in, d_in,
-                       cache_tag_set, cache_tags):
+    def cache_tag_read(self, m, r0_stall, req_index, cache_tag_set, cache_tags):
         """Cache tag RAM read port
         """
         comb = m.d.comb
         sync = m.d.sync
+        m_in, d_in = self.m_in, self.d_in
 
         index = Signal(INDEX_BITS)
 
@@ -628,12 +630,13 @@ class DCache(Elaboratable):
                        use_forward1_next, use_forward2_next,
                        req_hit_way, plru_victim, rc_ok, perm_attr,
                        valid_ra, perm_ok, access_ok, req_op, req_ok,
-                       r0_stall, m_in, early_req_row, d_in):
+                       r0_stall, early_req_row):
         """Cache request parsing and hit detection
         """
 
         comb = m.d.comb
         sync = m.d.sync
+        m_in, d_in = self.m_in, self.d_in
 
         is_hit      = Signal()
         hit_way     = Signal(WAY_BITS)
@@ -817,11 +820,12 @@ class DCache(Elaboratable):
                 sync += reservation.valid.eq(1)
                 sync += reservation.addr.eq(r0.req.addr[LINE_OFF_BITS:64])
 
-    def writeback_control(self, m, r1, cache_out, d_out, m_out):
+    def writeback_control(self, m, r1, cache_out):
         """Return data for loads & completion control logic
         """
         comb = m.d.comb
         sync = m.d.sync
+        d_out, m_out = self.d_out, self.m_out
 
         data_out = Signal(64)
         data_fwd = Signal(64)
@@ -905,7 +909,7 @@ class DCache(Elaboratable):
                 #Display("completing MMU load miss, data={m_out.data}")
                 pass
 
-    def rams(self, m):
+    def rams(self, m, r1):
         """rams
         Generate a cache RAM for each way. This handles the normal
         reads, writes from reloads and the special store-hit update
@@ -917,6 +921,7 @@ class DCache(Elaboratable):
         account by using 1-cycle delayed signals for load hits.
         """
         comb = m.d.comb
+        wb_in = self.wb_in
 
         for i in range(NUM_WAYS):
             do_read  = Signal()
@@ -964,12 +969,12 @@ class DCache(Elaboratable):
                 with m.If(r1.dcbz):
                     comb += wr_data.eq(0)
                 with m.Else():
-                    comb += wr_data.eq(wishbone_in.dat)
+                    comb += wr_data.eq(wb_in.dat)
                 comb += wr_addr.eq(r1.store_row)
                 comb += wr_sel.eq(~0) # all 1s
 
             with m.If((r1.state == State.RELOAD_WAIT_ACK)
-                      & wishbone_in.ack & (relpace_way == i)):
+                      & wb_in.ack & (replace_way == i)):
                 comb += do_write.eq(1)
 
                 # Mask write selects with do_write since BRAM
@@ -1040,10 +1045,11 @@ class DCache(Elaboratable):
     # All wishbone requests generation is done here.
     # This machine operates at stage 1.
     def dcache_slow(self, m, r1, use_forward1_next, cache_valid_bits, r0,
-                    r0_valid, req_op, cache_tag, req_go, ra, wb_in):
+                    r0_valid, req_op, cache_tag, req_go, ra):
 
         comb = m.d.comb
         sync = m.d.sync
+        wb_in = self.wb_i
 
         req         = MemAccessRequest()
         acks        = Signal(3)
@@ -1356,10 +1362,10 @@ class DCache(Elaboratable):
                     sync += r1.wb.cyc.eq(0)
                     sync += r1.wb.stb.eq(0)
 
-    def dcache_log(self, m, r1, valid_ra, tlb_hit_way, stall_out,
-                   d_out, wb_in, log_out):
+    def dcache_log(self, m, r1, valid_ra, tlb_hit_way, stall_out):
 
         sync = m.d.sync
+        d_out, wb_in, log_out = self.d_out, self.wb_in, self.log_out
 
         sync += log_out.eq(Cat(r1.state[:3], valid_ra, tlb_hit_way[:3],
                                stall_out, req_op[:3], d_out.valid, d_out.error,
@@ -1451,8 +1457,37 @@ class DCache(Elaboratable):
         comb += stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
-        comb += wishbone_out.eq(r1.wb)
+        comb += self.wb_out.eq(r1.wb)
 
+        # call sub-functions putting everything together, using shared
+        # signals established above
+        self.stage_0(m)
+        self.tlb_read(m, r0_stall, tlb_valid_way,
+                      tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
+                      dtlb_tags, dtlb_ptes)
+        self.tlb_search(self, tlb_req_index, r0, tlb_valid_way_ tlb_tag_way,
+                        tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra)
+        self.tlb_update(m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
+                        tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
+                        dtlb_tags, tlb_pte_way, dtlb_ptes, dtlb_valid_bits)
+        self.maybe_plrus(r1)
+        self.cache_tag_read(m, r0_stall, req_index, cache_tag_set, cache_tags)
+        self.dcache_request(m, r0, ra, req_index, req_row, req_tag,
+                           r0_valid, r1, cache_valid_bits, replace_way,
+                           use_forward1_next, use_forward2_next,
+                           req_hit_way, plru_victim, rc_ok, perm_attr,
+                           valid_ra, perm_ok, access_ok, req_op, req_ok,
+                           r0_stall, early_req_row)
+        self.reservation_comb(m, cancel_store, set_rsrv, clear_rsrv,
+                           r0_valid, r0, reservation)
+        self.reservation_reg(m, r0_valid, access_ok, clear_rsrv,
+                           reservation, r0)
+        self.writeback_control(m, r1, cache_out)
+        self.rams(m, r1)
+        self.dcache_fast_hit(m, req_op, r0_valid, r1)
+        self.dcache_slow(m, r1, use_forward1_next, cache_valid_bits, r0,
+                         r0_valid, req_op, cache_tag, req_go, ra)
+        #self.dcache_log(m, r1, valid_ra, tlb_hit_way, stall_out)
 
 
 # dcache_tb.vhdl
