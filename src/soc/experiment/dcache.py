@@ -12,16 +12,18 @@ from nmigen.cli import main
 from nmigen.iocontrol import RecordObject
 from nmigen.util import log2_int
 
-from experiment.mem_types import LoadStore1ToDCacheType,
+from soc.experiment.mem_types import LoadStore1ToDCacheType,
                                  DCacheToLoadStore1Type,
                                  MMUToDCacheType,
                                  DCacheToMMUType
 
-from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
+from soc.experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBAddrType, WBDataType, WBSelType,
                                 WbMasterOut, WBSlaveOut,
                                 WBMasterOutVector, WBSlaveOutVector,
                                 WBIOMasterOut, WBIOSlaveOut
+
+from soc.experiment.cache_ram import CacheRam
 
 # TODO: make these parameters of DCache at some point
 LINE_SIZE = 64    # Line size in bytes
