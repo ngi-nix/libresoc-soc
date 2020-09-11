@@ -427,6 +427,112 @@ class DTLBUpdate(Elaboratable):
 
         return m
 
+    def dcache_request(self, m, r0, ra, req_index, req_row, req_tag,
+                       r0_valid, r1, cache_valid_bits, replace_way,
+                       use_forward1_next, use_forward2_next,
+                       req_hit_way, plru_victim, rc_ok, perm_attr,
+                       valid_ra, perm_ok, access_ok, req_op, req_go,
+                       tlb_pte_way,
+                       tlb_hit, tlb_hit_way, tlb_valid_way, cache_tag_set,
+                       cancel_store, req_same_tag, r0_stall, early_req_row):
+        """Cache request parsing and hit detection
+        """
+
+class DCachePendingHit(Elaboratable):
+
+    def __init__(self, tlb_pte_way, tlb_valid_way, tlb_hit_way,
+                      cache_valid_bits, cache_tag_set,
+                    req_addr,
+                    hit_set):
+
+        self.go          = Signal()
+        self.virt_mode   = Signal()
+        self.is_hit      = Signal()
+        self.tlb_hit     = Signal()
+        self.hit_way     = Signal(WAY_BITS)
+        self.rel_match   = Signal()
+        self.req_index   = Signal(INDEX_BITS)
+        self.reload_tag  = Signal(TAG_BITS)
+
+        self.tlb_hit_way = tlb_hit_way
+        self.tlb_pte_way = tlb_pte_way
+        self.tlb_valid_way = tlb_valid_way
+        self.cache_valid_bits = cache_valid_bits
+        self.cache_tag_set = cache_tag_set
+        self.req_addr = req_addr
+        self.hit_set = hit_set
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
+
+        go = self.go
+        virt_mode = self.virt_mode
+        is_hit = self.is_hit
+        tlb_pte_way = self.tlb_pte_way
+        tlb_valid_way = self.tlb_valid_way
+        cache_valid_bits = self.cache_valid_bits
+        cache_tag_set = self.cache_tag_set
+        req_addr = self.req_addr
+        tlb_hit_way = self.tlb_hit_way
+        tlb_hit = self.tlb_hit
+        hit_set = self.hit_set
+        hit_way = self.hit_way
+        rel_match = self.rel_match
+        req_index = self.req_index
+        reload_tag = self.reload_tag
+
+        rel_matches = Array(Signal() for i in range(TLB_NUM_WAYS))
+        hit_way_set = HitWaySet()
+
+        # Test if pending request is a hit on any way
+        # In order to make timing in virtual mode,
+        # when we are using the TLB, we compare each
+        # way with each of the real addresses from each way of
+        # the TLB, and then decide later which match to use.
+
+        with m.If(virt_mode):
+            for j in range(TLB_NUM_WAYS):
+                s_tag       = Signal(TAG_BITS)
+                s_hit       = Signal()
+                s_pte       = Signal(TLB_PTE_BITS)
+                s_ra        = Signal(REAL_ADDR_BITS)
+                comb += s_pte.eq(read_tlb_pte(j, tlb_pte_way))
+                comb += s_ra.eq(Cat(req_addr[0:TLB_LG_PGSZ],
+                                    s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
+                comb += s_tag.eq(get_tag(s_ra))
+
+                for i in range(NUM_WAYS):
+                    is_tag_hit = Signal()
+                    comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
+                                  (read_tag(i, cache_tag_set) == s_tag)
+                                  & tlb_valid_way[j])
+                    with m.If(is_tag_hit):
+                        comb += hit_way_set[j].eq(i)
+                        comb += s_hit.eq(1)
+                comb += hit_set[j].eq(s_hit)
+                with m.If(s_tag == reload_tag):
+                    comb += rel_matches[j].eq(1)
+            with m.If(tlb_hit):
+                comb += is_hit.eq(hit_set[tlb_hit_way])
+                comb += hit_way.eq(hit_way_set[tlb_hit_way])
+                comb += rel_match.eq(rel_matches[tlb_hit_way])
+        with m.Else():
+            s_tag       = Signal(TAG_BITS)
+            comb += s_tag.eq(get_tag(req_addr))
+            for i in range(NUM_WAYS):
+                is_tag_hit = Signal()
+                comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
+                          read_tag(i, cache_tag_set) == s_tag)
+                with m.If(is_tag_hit):
+                    comb += hit_way.eq(i)
+                    comb += is_hit.eq(1)
+            with m.If(s_tag == reload_tag):
+                comb += rel_match.eq(1)
+
+        return m
+
 
 class DCache(Elaboratable):
     """Set associative dcache write-through
@@ -686,9 +792,6 @@ class DCache(Elaboratable):
         go          = Signal()
         nc          = Signal()
         hit_set     = Array(Signal() for i in range(TLB_NUM_WAYS))
-        hit_way_set = HitWaySet()
-        rel_matches = Array(Signal() for i in range(TLB_NUM_WAYS))
-        rel_match   = Signal()
 
         # Extract line, row and tag from request
         comb += req_index.eq(get_index(r0.req.addr))
@@ -697,56 +800,24 @@ class DCache(Elaboratable):
 
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
 
-        # Test if pending request is a hit on any way
-        # In order to make timing in virtual mode,
-        # when we are using the TLB, we compare each
-        # way with each of the real addresses from each way of
-        # the TLB, and then decide later which match to use.
+        m.submodules.dcache_pend = dc = DCachePendingHit(tlb_pte_way,
+                                tlb_valid_way, tlb_hit_way,
+                                cache_valid_bits, cache_tag_set,
+                                r0.req.addr,
+                                hit_set)
 
-        with m.If(r0.req.virt_mode):
-            for j in range(TLB_NUM_WAYS):
-                s_tag       = Signal(TAG_BITS)
-                s_hit       = Signal()
-                s_pte       = Signal(TLB_PTE_BITS)
-                s_ra        = Signal(REAL_ADDR_BITS)
-                comb += s_pte.eq(read_tlb_pte(j, tlb_pte_way))
-                comb += s_ra.eq(Cat(r0.req.addr[0:TLB_LG_PGSZ],
-                                    s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
-                comb += s_tag.eq(get_tag(s_ra))
-
-                for i in range(NUM_WAYS):
-                    is_tag_hit = Signal()
-                    comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
-                                  (read_tag(i, cache_tag_set) == s_tag)
-                                  & tlb_valid_way[j])
-                    with m.If(is_tag_hit):
-                        comb += hit_way_set[j].eq(i)
-                        comb += s_hit.eq(1)
-                comb += hit_set[j].eq(s_hit)
-                with m.If(s_tag == r1.reload_tag):
-                    comb += rel_matches[j].eq(1)
-            with m.If(tlb_hit):
-                comb += is_hit.eq(hit_set[tlb_hit_way])
-                comb += hit_way.eq(hit_way_set[tlb_hit_way])
-                comb += rel_match.eq(rel_matches[tlb_hit_way])
-        with m.Else():
-            s_tag       = Signal(TAG_BITS)
-            comb += s_tag.eq(get_tag(r0.req.addr))
-            for i in range(NUM_WAYS):
-                is_tag_hit = Signal()
-                comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
-                          read_tag(i, cache_tag_set) == s_tag)
-                with m.If(is_tag_hit):
-                    comb += hit_way.eq(i)
-                    comb += is_hit.eq(1)
-            with m.If(s_tag == r1.reload_tag):
-                comb += rel_match.eq(1)
-
-        comb += req_same_tag.eq(rel_match)
+        comb += dc.tlb_hit.eq(tlb_hit)
+        comb += dc.reload_tag.eq(r1.reload_tag)
+        comb += dc.virt_mode.eq(r0.req.virt_mode)
+        comb += dc.go.eq(go)
+        comb += dc.req_index.eq(req_index)
+        comb += is_hit.eq(dc.is_hit)
+        comb += hit_way.eq(dc.hit_way)
+        comb += req_same_tag.eq(dc.rel_match)
 
         # See if the request matches the line currently being reloaded
         with m.If((r1.state == State.RELOAD_WAIT_ACK) &
-                  (req_index == r1.store_index) & rel_match):
+                  (req_index == r1.store_index) & req_same_tag):
             # For a store, consider this a hit even if the row isn't
             # valid since it will be by the time we perform the store.
             # For a load, check the appropriate row valid bit.
