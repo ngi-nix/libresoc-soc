@@ -8,8 +8,8 @@ from nmigen import Signal
 
 
 class DCacheToLoadStore1Type(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.valid         = Signal()
         self.data          = Signal()
         self.store_done    = Signal()
@@ -45,8 +45,8 @@ class ICacheToDecode1Type(RecordObject):
         self.insn          = Signal(32)
 
 class LoadStore1ToDCacheType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.valid         = Signal()
         self.load          = Signal() # this is a load
         self.dcbz          = Signal()

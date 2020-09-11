@@ -9,9 +9,14 @@ from enum import Enum, unique
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
+from nmutil.util import wrap
 from nmigen.utils import log2_int
 from nmigen.cli import rtlil
 
+if True:
+    from nmigen.back.pysim import Simulator, Delay, Settle
+else:
+    from nmigen.sim.cxxsim import Simulator, Delay, Settle
 
 from soc.experiment.mem_types import (LoadStore1ToDCacheType,
                                      DCacheToLoadStore1Type,
@@ -546,8 +551,8 @@ class DCache(Elaboratable):
       while not idle...)
     """
     def __init__(self):
-        self.d_in      = LoadStore1ToDCacheType()
-        self.d_out     = DCacheToLoadStore1Type()
+        self.d_in      = LoadStore1ToDCacheType("d_in")
+        self.d_out     = DCacheToLoadStore1Type("d_out")
 
         self.m_in      = MMUToDCacheType()
         self.m_out     = DCacheToMMUType()
@@ -1771,7 +1776,7 @@ def dcache_sim(dut):
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.load.eq(0)
     yield dut.d_in.nc.eq(0)
-    yield dut.d_in.adrr.eq(0)
+    yield dut.d_in.addr.eq(0)
     yield dut.d_in.data.eq(0)
     yield dut.m_in.valid.eq(0)
     yield dut.m_in.addr.eq(0)
@@ -1781,22 +1786,21 @@ def dcache_sim(dut):
     yield
     yield
     yield
-    # wait_until rising_edge(clk)
-    yield
+
     # Cacheable read of address 4
     yield dut.d_in.load.eq(1)
     yield dut.d_in.nc.eq(0)
-    yield dut.d_in.addr.eq(Const(0x0000000000000004, 64))
+    yield dut.d_in.addr.eq(0x0000000000000004)
     yield dut.d_in.valid.eq(1)
-    # wait-until rising_edge(clk)
     yield
     yield dut.d_in.valid.eq(0)
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == 0x0000000100000000, \
-        f"data @ {dut.d_in.addr}={dut.d_in.data} expected 0000000100000000"
-
+    data = yield dut.d_out.data
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000100000000, \
+        f"data @%x=%x expected 0x0000000100000000" % (data, addr)
 
     # Cacheable read of address 30
     yield dut.d_in.load.eq(1)
@@ -1808,8 +1812,10 @@ def dcache_sim(dut):
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == 0x0000000D0000000C, \
-        f"data @{dut.d_in.addr}={dut.d_out.data} expected 0000000D0000000C"
+    data = yield dut.d_out.data
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000D0000000C, \
+        f"data @%x=%x expected 0000000D0000000C" % (data, addr)
 
     # Non-cacheable read of address 100
     yield dut.d_in.load.eq(1)
@@ -1821,8 +1827,10 @@ def dcache_sim(dut):
     yield
     while not (yield dut.d_out.valid):
         yield
-    assert dut.d_out.data == 0x0000004100000040, \
-        f"data @ {dut.d_in.addr}={dut.d_out.data} expected 0000004100000040"
+    data = yield dut.d_out.data
+    addr = yield dut.d_in.addr
+    assert data == 0x0000004100000040, \
+        f"data @%x=%x expected 0000004100000040" % (data, addr)
 
     yield
     yield
@@ -1836,7 +1844,16 @@ def test_dcache():
     with open("test_dcache.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, dcache_sim(), vcd_name='test_dcache.vcd')
+    m = Module()
+    m.submodules.dcache = dut
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(dcache_sim(dut)))
+    with sim.write_vcd('test_dcache.vcd'):
+        sim.run()
 
 if __name__ == '__main__':
     test_dcache()
