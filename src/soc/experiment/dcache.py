@@ -563,8 +563,10 @@ class DCache(Elaboratable):
         comb += eatag.eq(r0.req.addr[TLB_LG_END : 64 ])
 
         for i in range(TLB_NUM_WAYS):
-            with m.If(tlb_valid_way[i]
-                      & read_tlb_tag(i, tlb_tag_way) == eatag):
+            is_tag_hit = Signal()
+            comb += is_tag_hit.eq(tlb_valid_way[i]
+                                  & read_tlb_tag(i, tlb_tag_way) == eatag)
+            with m.If(is_tag_hit):
                 comb += hitway.eq(i)
                 comb += hit.eq(1)
 
@@ -683,13 +685,9 @@ class DCache(Elaboratable):
         opsel       = Signal(3)
         go          = Signal()
         nc          = Signal()
-        s_hit       = Signal()
-        s_tag       = Signal(TAG_BITS)
-        s_pte       = Signal(TLB_PTE_BITS)
-        s_ra        = Signal(REAL_ADDR_BITS)
-        hit_set     = Signal(TLB_NUM_WAYS)
+        hit_set     = Array(Signal() for i in range(TLB_NUM_WAYS))
         hit_way_set = HitWaySet()
-        rel_matches = Signal(TLB_NUM_WAYS)
+        rel_matches = Array(Signal() for i in range(TLB_NUM_WAYS))
         rel_match   = Signal()
 
         # Extract line, row and tag from request
@@ -706,35 +704,44 @@ class DCache(Elaboratable):
         # the TLB, and then decide later which match to use.
 
         with m.If(r0.req.virt_mode):
-            comb += rel_matches.eq(0)
             for j in range(TLB_NUM_WAYS):
+                s_tag       = Signal(TAG_BITS)
+                s_hit       = Signal()
+                s_pte       = Signal(TLB_PTE_BITS)
+                s_ra        = Signal(REAL_ADDR_BITS)
                 comb += s_pte.eq(read_tlb_pte(j, tlb_pte_way))
                 comb += s_ra.eq(Cat(r0.req.addr[0:TLB_LG_PGSZ],
                                     s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
                 comb += s_tag.eq(get_tag(s_ra))
 
                 for i in range(NUM_WAYS):
-                    with m.If(go & cache_valid_bits[req_index][i] &
-                              (read_tag(i, cache_tag_set) == s_tag)
-                              & tlb_valid_way[j]):
+                    is_tag_hit = Signal()
+                    comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
+                                  (read_tag(i, cache_tag_set) == s_tag)
+                                  & tlb_valid_way[j])
+                    with m.If(is_tag_hit):
                         comb += hit_way_set[j].eq(i)
                         comb += s_hit.eq(1)
                 comb += hit_set[j].eq(s_hit)
                 with m.If(s_tag == r1.reload_tag):
                     comb += rel_matches[j].eq(1)
             with m.If(tlb_hit):
-                comb += is_hit.eq(hit_set.bit_select(tlb_hit_way, 1))
+                comb += is_hit.eq(hit_set[tlb_hit_way])
                 comb += hit_way.eq(hit_way_set[tlb_hit_way])
-                comb += rel_match.eq(rel_matches.bit_select(tlb_hit_way, 1))
+                comb += rel_match.eq(rel_matches[tlb_hit_way])
         with m.Else():
+            s_tag       = Signal(TAG_BITS)
             comb += s_tag.eq(get_tag(r0.req.addr))
             for i in range(NUM_WAYS):
-                with m.If(go & cache_valid_bits[req_index][i] &
-                          read_tag(i, cache_tag_set) == s_tag):
+                is_tag_hit = Signal()
+                comb += is_tag_hit.eq(go & cache_valid_bits[req_index][i] &
+                          read_tag(i, cache_tag_set) == s_tag)
+                with m.If(is_tag_hit):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
             with m.If(s_tag == r1.reload_tag):
                 comb += rel_match.eq(1)
+
         comb += req_same_tag.eq(rel_match)
 
         # See if the request matches the line currently being reloaded
@@ -1145,8 +1152,9 @@ class DCache(Elaboratable):
             for i in range(NUM_WAYS):
                 with m.If(i == replace_way):
                     ct = Signal(TAG_RAM_WIDTH)
-                    sync += ct.eq(cache_tag[r1.store_index])
-                    sync += ct.word_select(i, TAG_WIDTH).eq(r1.reload_tag)
+                    comb += ct.eq(cache_tag[r1.store_index])
+                    comb += ct.word_select(i, TAG_WIDTH).eq(r1.reload_tag)
+                    sync += cache_tag[r1.store_index].eq(ct)
             sync += r1.store_way.eq(replace_way)
             sync += r1.write_tag.eq(0)
 
