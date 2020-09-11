@@ -30,11 +30,12 @@ class PLRU(Elaboratable):
                 comb += node2.eq(node << 1)
             else:
                 comb += node2.eq(node)
-            with m.If(tree[node]):
-                comb += node_next.eq(node2 + 2)
-            with m.Else():
-                comb += node_next.eq(node2 + 1)
-            node = node_next
+            if i != self.BITS-1:
+                with m.If(tree[node]):
+                    comb += node_next.eq(node2 + 2)
+                with m.Else():
+                    comb += node_next.eq(node2 + 1)
+                node = node_next
 
         with m.If(self.acc_en):
             node = Signal(self.BITS)
@@ -49,10 +50,11 @@ class PLRU(Elaboratable):
                     comb += node2.eq(node << 1)
                 else:
                     comb += node2.eq(node)
-                with m.If(abit):
-                    comb += node_next.eq(node2 + 2)
-                with m.Else():
-                    comb += node_next.eq(node2 + 1)
-                node = node_next
+                if i != self.BITS-1:
+                    with m.If(abit):
+                        comb += node_next.eq(node2 + 2)
+                    with m.Else():
+                        comb += node_next.eq(node2 + 1)
+                    node = node_next
 
         return m
