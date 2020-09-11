@@ -12,6 +12,7 @@ class PLRU(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        comb, sync = m.d.comb, m.d.sync
 
         tree = Array(Signal() for i in range(self.BITS))
 
@@ -25,7 +26,7 @@ class PLRU(Elaboratable):
             # report "GET: i:" & integer'image(i) & " node:" & 
             # integer'image(node) & " val:" & Signal()'image(tree(node))
             comb += self.lru_o[self.BITS-1-i].eq(tree[node])
-            if i != BITS-1:
+            if i != self.BITS-1:
                 comb += node2.eq(node << 1)
             else:
                 comb += node2.eq(node)
@@ -44,7 +45,7 @@ class PLRU(Elaboratable):
                 # integer'image(node) & " val:" & Signal()'image(tree(node))
                 abit = self.acc[self.BITS-1-i]
                 sync += tree[node].eq(~abit)
-                if i != BITS-1:
+                if i != self.BITS-1:
                     comb += node2.eq(node << 1)
                 else:
                     comb += node2.eq(node)
