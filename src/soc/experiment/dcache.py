@@ -7,6 +7,12 @@ based on Anton Blanchard microwatt dcache.vhdl
 from enum import Enum, unique
 
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
+try:
+    from nmigen.hdl.ast import Display
+except ImportError:
+    def Display(*args):
+        return []
+
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
 from nmutil.util import wrap
@@ -120,7 +126,7 @@ def CacheValidBitsArray():
     return Array(Signal(INDEX_BITS) for x in range(NUM_LINES))
 
 def RowPerLineValidArray():
-    return Array(Signal() for x in range(ROW_PER_LINE))
+    return Array(Signal(name="rows_valid%d" % x) for x in range(ROW_PER_LINE))
 
 # L1 TLB
 TLB_SET_BITS     = log2_int(TLB_SET_SIZE)
@@ -1183,7 +1189,7 @@ class DCache(Elaboratable):
         sync = m.d.sync
         wb_in = self.wb_in
 
-        req         = MemAccessRequest()
+        req         = MemAccessRequest("mreq_ds")
         acks        = Signal(3)
         adjust_acks = Signal(3)
         stbs_done = Signal()
@@ -1306,6 +1312,8 @@ class DCache(Elaboratable):
                 # ready for handling OP_LOAD_MISS
                 for i in range(ROW_PER_LINE):
                     sync += r1.rows_valid[i].eq(0)
+
+                sync += Display("cache op %d", req.op)
 
                 with m.Switch(req.op):
                     with m.Case(Op.OP_LOAD_HIT):
@@ -1655,6 +1663,21 @@ def dcache_sim(dut):
     yield
     yield
 
+    # Cacheable read of address 30
+    yield dut.d_in.load.eq(1)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.addr.eq(0x0000000000000030)
+    yield dut.d_in.valid.eq(1)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+    data = yield dut.d_out.data
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000D0000000C, \
+        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
+
     # Cacheable read of address 4
     yield dut.d_in.load.eq(1)
     yield dut.d_in.nc.eq(0)
@@ -1668,22 +1691,7 @@ def dcache_sim(dut):
     data = yield dut.d_out.data
     addr = yield dut.d_in.addr
     assert data == 0x0000000100000000, \
-        f"data @%x=%x expected 0x0000000100000000" % (data, addr)
-
-    # Cacheable read of address 30
-    yield dut.d_in.load.eq(1)
-    yield dut.d_in.nc.eq(0)
-    yield dut.d_in.addr.eq(Const(0x0000000000000030, 64))
-    yield dut.d_in.valid.eq(1)
-    yield
-    yield dut.d_in.valid.eq(0)
-    yield
-    while not (yield dut.d_out.valid):
-        yield
-    data = yield dut.d_out.data
-    addr = yield dut.d_in.addr
-    assert data == 0x0000000D0000000C, \
-        f"data @%x=%x expected 0000000D0000000C" % (data, addr)
+        f"data @%x=%x expected 0x0000000100000000" % (addr, data)
 
     # Non-cacheable read of address 100
     yield dut.d_in.load.eq(1)
@@ -1698,7 +1706,7 @@ def dcache_sim(dut):
     data = yield dut.d_out.data
     addr = yield dut.d_in.addr
     assert data == 0x0000004100000040, \
-        f"data @%x=%x expected 0000004100000040" % (data, addr)
+        f"data @%x=%x expected 0000004100000040" % (addr, data)
 
     yield
     yield
