@@ -318,7 +318,7 @@ class RegStage1(RecordObject):
         # Cache hit state
         self.hit_way          = Signal(WAY_BITS)
         self.hit_load_valid   = Signal()
-        self.hit_index        = Signal(NUM_LINES)
+        self.hit_index        = Signal(INDEX_BITS)
         self.cache_hit        = Signal()
 
         # TLB hit state
@@ -852,7 +852,7 @@ class DCache(Elaboratable):
 
         # The way to replace on a miss
         with m.If(r1.write_tag):
-            replace_way.eq(plru_victim[r1.store_index])
+            comb += replace_way.eq(plru_victim[r1.store_index])
         with m.Else():
             comb += replace_way.eq(r1.store_way)
 
