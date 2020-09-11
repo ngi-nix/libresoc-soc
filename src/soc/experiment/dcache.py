@@ -669,7 +669,7 @@ class DCache(Elaboratable):
 
                 for i in range(NUM_WAYS):
                     with m.If(go & cache_valid_bits[req_index][i] &
-                              read_tag(i, cache_tag_set) == s_tag
+                              (read_tag(i, cache_tag_set) == s_tag)
                               & tlb_valid_way[j]):
                         comb += hit_way_set[j].eq(i)
                         comb += s_hit.eq(1)
