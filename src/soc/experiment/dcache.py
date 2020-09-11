@@ -1190,7 +1190,6 @@ class DCache(Elaboratable):
         req         = MemAccessRequest("mreq_ds")
         acks        = Signal(3)
         adjust_acks = Signal(3)
-        stbs_done = Signal()
 
         sync += r1.use_forward1.eq(use_forward1_next)
         sync += r1.forward_sel.eq(0)
@@ -1284,10 +1283,10 @@ class DCache(Elaboratable):
         with m.Switch(r1.state):
 
             with m.Case(State.IDLE):
-# XXX check 'left downto.  probably means len(r1.wb.adr)
-#                     r1.wb.adr <= req.real_addr(
-#                                   r1.wb.adr'left downto 0
-#                                  );
+                # XXX check 'left downto.  probably means len(r1.wb.adr)
+                #                     r1.wb.adr <= req.real_addr(
+                #                                   r1.wb.adr'left downto 0
+                #                                  );
                 sync += r1.wb.adr.eq(req.real_addr)
                 sync += r1.wb.sel.eq(req.byte_sel)
                 sync += r1.wb.dat.eq(req.data)
@@ -1356,6 +1355,8 @@ class DCache(Elaboratable):
                             with m.If(req.op == Op.OP_STORE_HIT):
                                 sync += r1.write_bram.eq(1)
                         with m.Else():
+                            # dcbz is handled much like a load miss except
+                            # that we are writing to memory instead of reading
                             sync += r1.state.eq(State.RELOAD_WAIT_ACK)
 
                             with m.If(req.op == Op.OP_STORE_MISS):
@@ -1376,19 +1377,19 @@ class DCache(Elaboratable):
                         pass
 
             with m.Case(State.RELOAD_WAIT_ACK):
+                ld_stbs_done = Signal()
                 # Requests are all sent if stb is 0
-                comb += stbs_done.eq(~r1.wb.stb)
+                comb += ld_stbs_done.eq(~r1.wb.stb)
 
-                with m.If(~wb_in.stall & ~stbs_done):
+                with m.If((~wb_in.stall) & r1.wb.stb):
                     # That was the last word?
                     # We are done sending.
-                    # Clear stb and set stbs_done
+                    # Clear stb and set ld_stbs_done
                     # so we can handle an eventual
                     # last ack on the same cycle.
-                    with m.If(is_last_row_addr(
-                              r1.wb.adr, r1.end_row_ix)):
+                    with m.If(is_last_row_addr(r1.wb.adr, r1.end_row_ix)):
                         sync += r1.wb.stb.eq(0)
-                        comb += stbs_done.eq(0)
+                        comb += ld_stbs_done.eq(1)
 
                     # Calculate the next row address in the current cache line
                     rarange = r1.wb.adr[ROW_OFF_BITS : LINE_OFF_BITS]
@@ -1419,7 +1420,7 @@ class DCache(Elaboratable):
                         sync += r1.use_forward1.eq(1)
 
                     # Check for completion
-                    with m.If(stbs_done & is_last_row(r1.store_row,
+                    with m.If(ld_stbs_done & is_last_row(r1.store_row,
                                                       r1.end_row_ix)):
                         # Complete wishbone cycle
                         sync += r1.wb.cyc.eq(0)
@@ -1434,7 +1435,8 @@ class DCache(Elaboratable):
                     sync += r1.store_row.eq(next_row(r1.store_row))
 
             with m.Case(State.STORE_WAIT_ACK):
-                comb += stbs_done.eq(~r1.wb.stb)
+                st_stbs_done = Signal()
+                comb += st_stbs_done.eq(~r1.wb.stb)
                 comb += acks.eq(r1.acks_pending)
 
                 with m.If(r1.inc_acks != r1.dec_acks):
@@ -1461,7 +1463,7 @@ class DCache(Elaboratable):
                                 ((req.op == Op.OP_STORE_MISS)
                                  | (req.op == Op.OP_STORE_HIT))):
                         sync += r1.wb.stb.eq(1)
-                        comb += stbs_done.eq(0)
+                        comb += st_stbs_done.eq(0)
 
                         with m.If(req.op == Op.OP_STORE_HIT):
                             sync += r1.write_bram.eq(1)
@@ -1470,15 +1472,15 @@ class DCache(Elaboratable):
 
                         # Store requests never come from the MMU
                         sync += r1.ls_valid.eq(1)
-                        comb += stbs_done.eq(0)
+                        comb += st_stbs_done.eq(0)
                         sync += r1.inc_acks.eq(1)
                     with m.Else():
                         sync += r1.wb.stb.eq(0)
-                        comb += stbs_done.eq(1)
+                        comb += st_stbs_done.eq(1)
 
                 # Got ack ? See if complete.
                 with m.If(wb_in.ack):
-                    with m.If(stbs_done & (adjust_acks == 1)):
+                    with m.If(st_stbs_done & (adjust_acks == 1)):
                         sync += r1.state.eq(State.IDLE)
                         sync += r1.wb.cyc.eq(0)
                         sync += r1.wb.stb.eq(0)
@@ -1720,6 +1722,7 @@ def dcache_sim(dut):
     yield
     yield
     yield
+
     yield
     yield
     yield
