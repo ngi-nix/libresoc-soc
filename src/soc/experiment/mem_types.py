@@ -18,8 +18,8 @@ class DCacheToLoadStore1Type(RecordObject):
 
 
 class DCacheToMMUType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.stall         = Signal()
         self.done          = Signal()
         self.err           = Signal()
@@ -86,8 +86,8 @@ class MMUToLoadStore1Type(RecordObject):
         self.sprval        = Signal(64)
 
 class MMUToDCacheType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.valid         = Signal()
         self.tlbie         = Signal()
         self.doall         = Signal()

@@ -11,13 +11,6 @@ from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
 from nmutil.util import wrap
 from nmigen.utils import log2_int
-from nmigen.cli import rtlil
-
-if True:
-    from nmigen.back.pysim import Simulator, Delay, Settle
-else:
-    from nmigen.sim.cxxsim import Simulator, Delay, Settle
-
 from soc.experiment.mem_types import (LoadStore1ToDCacheType,
                                      DCacheToLoadStore1Type,
                                      MMUToDCacheType,
@@ -32,10 +25,19 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
 from soc.experiment.cache_ram import CacheRam
 from soc.experiment.plru import PLRU
 
+# for test
+from nmigen_soc.wishbone.sram import SRAM
+from nmigen import Memory
+from nmigen.cli import rtlil
+if True:
+    from nmigen.back.pysim import Simulator, Delay, Settle
+else:
+    from nmigen.sim.cxxsim import Simulator, Delay, Settle
+
 
 # TODO: make these parameters of DCache at some point
 LINE_SIZE = 64    # Line size in bytes
-NUM_LINES = 32    # Number of lines in a set
+NUM_LINES = 16    # Number of lines in a set
 NUM_WAYS = 4      # Number of ways
 TLB_SET_SIZE = 64 # L1 DTLB entries per set
 TLB_NUM_WAYS = 2  # L1 DTLB number of sets
@@ -156,7 +158,7 @@ def TLBPtesArray():
     return Array(Signal(TLB_PTE_WAY_BITS) for x in range(TLB_SET_SIZE))
 
 def HitWaySet():
-    return Array(Signal(NUM_WAYS) for x in range(TLB_NUM_WAYS))
+    return Array(Signal(WAY_BITS) for x in range(TLB_NUM_WAYS))
 
 # Cache RAM interface
 def CacheRamOut():
@@ -287,9 +289,9 @@ class State(Enum):
 # Stage 0 register, basically contains just the latched request
 
 class RegStage0(RecordObject):
-    def __init__(self):
-        super().__init__()
-        self.req     = LoadStore1ToDCacheType()
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.req     = LoadStore1ToDCacheType(name="lsmem")
         self.tlbie   = Signal()
         self.doall   = Signal()
         self.tlbld   = Signal()
@@ -297,8 +299,8 @@ class RegStage0(RecordObject):
 
 
 class MemAccessRequest(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.op        = Signal(Op)
         self.valid     = Signal()
         self.dcbz      = Signal()
@@ -313,12 +315,12 @@ class MemAccessRequest(RecordObject):
 # First stage register, contains state for stage 1 of load hits
 # and for the state machine used by all other operations
 class RegStage1(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         # Info about the request
         self.full             = Signal() # have uncompleted request
         self.mmu_req          = Signal() # request is from MMU
-        self.req              = MemAccessRequest()
+        self.req              = MemAccessRequest(name="reqmem")
 
         # Cache hit state
         self.hit_way          = Signal(WAY_BITS)
@@ -554,8 +556,8 @@ class DCache(Elaboratable):
         self.d_in      = LoadStore1ToDCacheType("d_in")
         self.d_out     = DCacheToLoadStore1Type("d_out")
 
-        self.m_in      = MMUToDCacheType()
-        self.m_out     = DCacheToMMUType()
+        self.m_in      = MMUToDCacheType("m_in")
+        self.m_out     = DCacheToMMUType("m_out")
 
         self.stall_out = Signal()
 
@@ -571,7 +573,7 @@ class DCache(Elaboratable):
         sync = m.d.sync
         d_in, d_out, m_in = self.d_in, self.d_out, self.m_in
 
-        r = RegStage0()
+        r = RegStage0("stage0")
 
         # TODO, this goes in unit tests and formal proofs
         with m.If(~(d_in.valid & m_in.valid)):
@@ -1530,10 +1532,10 @@ class DCache(Elaboratable):
         # TODO attribute ram_style of
         #  dtlb_ptes : signal is "distributed";
 
-        r0      = RegStage0()
+        r0      = RegStage0("r0")
         r0_full = Signal()
 
-        r1 = RegStage1()
+        r1 = RegStage1("r1")
 
         reservation = Reservation()
 
@@ -1637,140 +1639,6 @@ class DCache(Elaboratable):
         return m
 
 
-# dcache_tb.vhdl
-#
-# entity dcache_tb is
-# end dcache_tb;
-#
-# architecture behave of dcache_tb is
-#     signal clk          : std_ulogic;
-#     signal rst          : std_ulogic;
-#
-#     signal d_in         : Loadstore1ToDcacheType;
-#     signal d_out        : DcacheToLoadstore1Type;
-#
-#     signal m_in         : MmuToDcacheType;
-#     signal m_out        : DcacheToMmuType;
-#
-#     signal wb_bram_in   : wishbone_master_out;
-#     signal wb_bram_out  : wishbone_slave_out;
-#
-#     constant clk_period : time := 10 ns;
-# begin
-#     dcache0: entity work.dcache
-#         generic map(
-#
-#             LINE_SIZE => 64,
-#             NUM_LINES => 4
-#             )
-#         port map(
-#             clk => clk,
-#             rst => rst,
-#             d_in => d_in,
-#             d_out => d_out,
-#             m_in => m_in,
-#             m_out => m_out,
-#             wishbone_out => wb_bram_in,
-#             wishbone_in => wb_bram_out
-#             );
-#
-#     -- BRAM Memory slave
-#     bram0: entity work.wishbone_bram_wrapper
-#         generic map(
-#             MEMORY_SIZE   => 1024,
-#             RAM_INIT_FILE => "icache_test.bin"
-#             )
-#         port map(
-#             clk => clk,
-#             rst => rst,
-#             wishbone_in => wb_bram_in,
-#             wishbone_out => wb_bram_out
-#             );
-#
-#     clk_process: process
-#     begin
-#         clk <= '0';
-#         wait for clk_period/2;
-#         clk <= '1';
-#         wait for clk_period/2;
-#     end process;
-#
-#     rst_process: process
-#     begin
-#         rst <= '1';
-#         wait for 2*clk_period;
-#         rst <= '0';
-#         wait;
-#     end process;
-#
-#     stim: process
-#     begin
-#     -- Clear stuff
-#     d_in.valid <= '0';
-#     d_in.load <= '0';
-#     d_in.nc <= '0';
-#     d_in.addr <= (others => '0');
-#     d_in.data <= (others => '0');
-#         m_in.valid <= '0';
-#         m_in.addr <= (others => '0');
-#         m_in.pte <= (others => '0');
-#
-#         wait for 4*clk_period;
-#     wait until rising_edge(clk);
-#
-#     -- Cacheable read of address 4
-#     d_in.load <= '1';
-#     d_in.nc <= '0';
-#         d_in.addr <= x"0000000000000004";
-#         d_in.valid <= '1';
-#     wait until rising_edge(clk);
-#         d_in.valid <= '0';
-#
-#     wait until rising_edge(clk) and d_out.valid = '1';
-#         assert d_out.data = x"0000000100000000"
-#         report "data @" & to_hstring(d_in.addr) &
-#         "=" & to_hstring(d_out.data) &
-#         " expected 0000000100000000"
-#         severity failure;
-# --      wait for clk_period;
-#
-#     -- Cacheable read of address 30
-#     d_in.load <= '1';
-#     d_in.nc <= '0';
-#         d_in.addr <= x"0000000000000030";
-#         d_in.valid <= '1';
-#     wait until rising_edge(clk);
-#         d_in.valid <= '0';
-#
-#     wait until rising_edge(clk) and d_out.valid = '1';
-#         assert d_out.data = x"0000000D0000000C"
-#         report "data @" & to_hstring(d_in.addr) &
-#         "=" & to_hstring(d_out.data) &
-#         " expected 0000000D0000000C"
-#         severity failure;
-#
-#     -- Non-cacheable read of address 100
-#     d_in.load <= '1';
-#     d_in.nc <= '1';
-#         d_in.addr <= x"0000000000000100";
-#         d_in.valid <= '1';
-#     wait until rising_edge(clk);
-#     d_in.valid <= '0';
-#     wait until rising_edge(clk) and d_out.valid = '1';
-#         assert d_out.data = x"0000004100000040"
-#         report "data @" & to_hstring(d_in.addr) &
-#         "=" & to_hstring(d_out.data) &
-#         " expected 0000004100000040"
-#         severity failure;
-#
-#     wait until rising_edge(clk);
-#     wait until rising_edge(clk);
-#     wait until rising_edge(clk);
-#     wait until rising_edge(clk);
-#
-#     std.env.finish;
-#     end process;
-# end;
 def dcache_sim(dut):
     # clear stuff
     yield dut.d_in.valid.eq(0)
@@ -1844,8 +1712,22 @@ def test_dcache():
     with open("test_dcache.il", "w") as f:
         f.write(vl)
 
+    memory = Memory(width=64, depth=16*8, init=range(128))
+    sram = SRAM(memory=memory, granularity=8)
+
     m = Module()
     m.submodules.dcache = dut
+    m.submodules.sram = sram
+
+    m.d.comb += sram.bus.cyc.eq(dut.wb_out.cyc)
+    m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
+    m.d.comb += sram.bus.we.eq(dut.wb_out.we)
+    m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
+    m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
+    m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
+
+    m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
+    m.d.comb += dut.wb_in.dat.eq(sram.bus.dat_r)
 
     # nmigen Simulation
     sim = Simulator(m)
