@@ -11,7 +11,7 @@ class DCacheToLoadStore1Type(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
         self.valid         = Signal()
-        self.data          = Signal()
+        self.data          = Signal(64)
         self.store_done    = Signal()
         self.error         = Signal()
         self.cache_paradox = Signal()
@@ -25,6 +25,7 @@ class DCacheToMMUType(RecordObject):
         self.err           = Signal()
         self.data          = Signal(64)
 
+
 class Fetch1ToICacheType(RecordObject):
     def __init__(self):
         super().__init__()
@@ -35,6 +36,7 @@ class Fetch1ToICacheType(RecordObject):
         self.sequential    = Signal()
         self.nia           = Signal(64)
 
+
 class ICacheToDecode1Type(RecordObject):
     def __init__(self):
         super().__init__()
@@ -43,6 +45,7 @@ class ICacheToDecode1Type(RecordObject):
         self.fetch_failed  = Signal()
         self.nia           = Signal(64)
         self.insn          = Signal(32)
+
 
 class LoadStore1ToDCacheType(RecordObject):
     def __init__(self, name=None):
@@ -55,9 +58,9 @@ class LoadStore1ToDCacheType(RecordObject):
         self.reserve       = Signal()
         self.virt_mode     = Signal()
         self.priv_mode     = Signal()
-        self.addr          = Signal()
-        self.data          = Signal()
-        self.byte_sel      = Signal()
+        self.addr          = Signal(64)
+        self.data          = Signal(64)
+        self.byte_sel      = Signal(8)
 
 class LoadStore1ToMMUType(RecordObject):
     def __init__(self):
@@ -73,6 +76,7 @@ class LoadStore1ToMMUType(RecordObject):
         self.addr          = Signal(64)
         self.rs            = Signal(64)
 
+
 class MMUToLoadStore1Type(RecordObject):
     def __init__(self):
         super().__init__()
@@ -85,6 +89,7 @@ class MMUToLoadStore1Type(RecordObject):
         self.rc_error      = Signal()
         self.sprval        = Signal(64)
 
+
 class MMUToDCacheType(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
@@ -94,6 +99,7 @@ class MMUToDCacheType(RecordObject):
         self.tlbld         = Signal()
         self.addr          = Signal(64)
         self.pte           = Signal(64)
+
 
 class MMUToICacheType(RecordObject):
     def __init__(self):
