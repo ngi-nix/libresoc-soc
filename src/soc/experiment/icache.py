@@ -333,10 +333,10 @@ class ICache(Elaboratable):
 #     end;
     # Simple hash for direct-mapped TLB index
     def hash_ea(addr):
-        hash = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS]
+        hsh = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS]
                ^ addr[TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS]
-               ^ addr[TLB_LG_PGSZ + 2 * TLB_BITS: TLB_LG_PGSZE + 3 * TLB_BITS]
-        return hash
+               ^ addr[TLB_LG_PGSZ + 2 * TLB_BITS: TLB_LG_PGSZ + 3 * TLB_BITS]
+        return hsh
 
 #     -- Generate a cache RAM for each way
 #     rams: for i in 0 to NUM_WAYS-1 generate
@@ -393,12 +393,12 @@ class ICache(Elaboratable):
             comb += way.rd_data.eq(_d_out)
             comb += way.wr_sel.eq(wr_sel)
             comb += way.wr_add.eq(wr_addr)
-            comb += way.wr_data.eq('''TODO ?? wishbone_in.data ??''')
+            comb += way.wr_data.eq(wb_in.dat)
 
             comb += do_read.eq(~(stall_in | use_previous))
             comb += do_write.eq(0)
 
-            with m.If(wb_in.ack & replace_way == i):
+            with m.If(wb_in.ack & (replace_way == i)):
                 do_write.eq(1)
 
             comb += cache_out[i].eq(_d_out)
@@ -447,12 +447,11 @@ class ICache(Elaboratable):
         comb += m.d.comb
 
         with m.If(NUM_WAYS > 1):
-            plru_acc    = Signal(WAY_BITS)
-            plru_acc_en = Signal()
-            plru_out    = Signal(WAY_BITS)
-
             for i in range(NUM_LINES):
-                plru = PLRU(WAY_BITS)
+                plru_acc    = Signal(WAY_BITS)
+                plru_acc_en = Signal()
+                plru_out    = Signal(WAY_BITS)
+                plru        = PLRU(WAY_BITS)
                 comb += plru.acc.eq(plru_acc)
                 comb += plru.acc_en.eq(plru_acc_en)
                 comb += plru.lru.eq(plru_out)
@@ -907,7 +906,7 @@ class ICache(Elaboratable):
                             # address of the start of the cache line and
                             # start the WB cycle.
                             sync += r.wb.adr.eq(
-                                     req_laddr[:r.wb.adr'''left?''']
+                                     req_laddr[:r.wb.adr '''left?''']
                                     )
 
 # 			-- Track that we had one request sent
