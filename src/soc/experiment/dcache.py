@@ -373,15 +373,14 @@ class Reservation(RecordObject):
 
 
 class DTLBUpdate(Elaboratable):
-    def __init__(self, dtlb_valid_bits, dtlb_ptes):
+    def __init__(self):
         self.tlbie    = Signal()
         self.tlbwe    = Signal()
         self.doall    = Signal()
+        self.updated  = Signal()
+        self.v_updated  = Signal()
         self.tlb_hit    = Signal()
         self.tlb_req_index = Signal(TLB_SET_BITS)
-
-        self.dtlb_valid_bits = dtlb_valid_bits
-        self.dtlb_ptes       = dtlb_ptes
 
         self.tlb_hit_way     = Signal(TLB_WAY_BITS)
         self.tlb_tag_way     = Signal(TLB_TAG_WAY_BITS)
@@ -389,6 +388,12 @@ class DTLBUpdate(Elaboratable):
         self.repl_way        = Signal(TLB_WAY_BITS)
         self.eatag           = Signal(TLB_EA_TAG_BITS)
         self.pte_data        = Signal(TLB_PTE_BITS)
+
+        self.dv = Signal(TLB_PTE_WAY_BITS)
+
+        self.tb_out = Signal(TLB_TAG_WAY_BITS)
+        self.pb_out = Signal(TLB_NUM_WAYS)
+        self.db_out = Signal(TLB_PTE_WAY_BITS)
 
     def elaborate(self, platform):
         m = Module()
@@ -398,32 +403,30 @@ class DTLBUpdate(Elaboratable):
         tagset   = Signal(TLB_TAG_WAY_BITS)
         pteset   = Signal(TLB_PTE_WAY_BITS)
 
-        vb = Signal(TLB_NUM_WAYS)
-        db = Signal(TLB_PTE_WAY_BITS)
-
-        sync += vb.eq(self.dtlb_valid_bits[self.tlb_req_index])
-        sync += db.eq(self.dtlb_ptes[self.tlb_req_index])
+        tb_out, pb_out, db_out = self.tb_out, self.pb_out, self.db_out
 
         with m.If(self.tlbie & self.doall):
-            # clear all valid bits at once
-            for i in range(TLB_SET_SIZE):
-                sync += self.dtlb_valid_bits[i].eq(0)
-
+            pass # clear all back in parent
         with m.Elif(self.tlbie):
             with m.If(self.tlb_hit):
-                sync += vb.bit_select(self.tlb_hit_way, 1).eq(Const(0, 1))
+                comb += db_out.eq(self.dv)
+                comb += db_out.bit_select(self.tlb_hit_way, 1).eq(1)
+                comb += self.v_updated.eq(1)
 
         with m.Elif(self.tlbwe):
 
             comb += tagset.eq(self.tlb_tag_way)
             comb += write_tlb_tag(self.repl_way, tagset, self.eatag)
-            sync += db.eq(tagset)
+            comb += tb_out.eq(tagset)
 
             comb += pteset.eq(self.tlb_pte_way)
             comb += write_tlb_pte(self.repl_way, pteset, self.pte_data)
-            sync += db.eq(pteset)
+            comb += pb_out.eq(pteset)
 
-            sync += vb.bit_select(self.repl_way, 1).eq(1)
+            comb += db_out.bit_select(self.repl_way, 1).eq(1)
+
+            comb += self.updated.eq(1)
+            comb += self.v_updated.eq(1)
 
         return m
 
@@ -494,7 +497,7 @@ class DCachePendingHit(Elaboratable):
 
         with m.If(virt_mode):
             for j in range(TLB_NUM_WAYS):
-                s_tag       = Signal(TAG_BITS)
+                s_tag       = Signal(TAG_BITS, name="s_tag%d" % j)
                 s_hit       = Signal()
                 s_pte       = Signal(TLB_PTE_BITS)
                 s_ra        = Signal(REAL_ADDR_BITS)
@@ -705,6 +708,7 @@ class DCache(Elaboratable):
                     dtlb_tags, tlb_pte_way, dtlb_ptes):
 
         comb = m.d.comb
+        sync = m.d.sync
 
         tlbie    = Signal()
         tlbwe    = Signal()
@@ -712,7 +716,19 @@ class DCache(Elaboratable):
         comb += tlbie.eq(r0_valid & r0.tlbie)
         comb += tlbwe.eq(r0_valid & r0.tlbld)
 
-        m.submodules.tlb_update = d = DTLBUpdate(dtlb_valid_bits, dtlb_ptes)
+        m.submodules.tlb_update = d = DTLBUpdate()
+        with m.If(tlbie & r0.doall):
+            # clear all valid bits at once
+            for i in range(TLB_SET_SIZE):
+                sync += dtlb_valid_bits[i].eq(0)
+        with m.If(d.updated):
+            sync += dtlb_tags[tlb_req_index].eq(d.tb_out)
+            sync += dtlb_ptes[tlb_req_index].eq(d.pb_out)
+        with m.If(d.v_updated):
+            sync += dtlb_valid_bits[tlb_req_index].eq(d.db_out)
+
+        comb += d.dv.eq(dtlb_valid_bits[tlb_req_index])
+
         comb += d.tlbie.eq(tlbie)
         comb += d.tlbwe.eq(tlbwe)
         comb += d.doall.eq(r0.doall)
