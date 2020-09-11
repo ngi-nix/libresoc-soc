@@ -234,8 +234,8 @@ def write_tlb_pte(way, ptes, newpte):
 
 # Record for storing permission, attribute, etc. bits from a PTE
 class PermAttr(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.reference = Signal()
         self.changed   = Signal()
         self.nocache   = Signal()
@@ -360,7 +360,7 @@ class RegStage1(RecordObject):
         self.store_way        = Signal(WAY_BITS)
         self.store_row        = Signal(ROW_BITS)
         self.store_index      = Signal(INDEX_BITS)
-        self.end_row_ix       = Signal(log2_int(ROW_LINE_BITS, False))
+        self.end_row_ix       = Signal(ROW_LINE_BITS)
         self.rows_valid       = RowPerLineValidArray()
         self.acks_pending     = Signal(3)
         self.inc_acks         = Signal()
@@ -520,7 +520,7 @@ class DCachePendingHit(Elaboratable):
                 comb += s_tag.eq(get_tag(s_ra))
 
                 for i in range(NUM_WAYS):
-                    is_tag_hit = Signal()
+                    is_tag_hit = Signal(name="is_tag_hit_%d_%d" % (j, i))
                     comb += is_tag_hit.eq(go & cache_valid_idx[i] &
                                   (read_tag(i, cache_tag_set) == s_tag)
                                   & tlb_valid_way[j])
@@ -538,9 +538,9 @@ class DCachePendingHit(Elaboratable):
             s_tag       = Signal(TAG_BITS)
             comb += s_tag.eq(get_tag(req_addr))
             for i in range(NUM_WAYS):
-                is_tag_hit = Signal()
+                is_tag_hit = Signal(name="is_tag_hit_%d" % i)
                 comb += is_tag_hit.eq(go & cache_valid_idx[i] &
-                          read_tag(i, cache_tag_set) == s_tag)
+                          (read_tag(i, cache_tag_set) == s_tag))
                 with m.If(is_tag_hit):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
@@ -702,8 +702,8 @@ class DCache(Elaboratable):
 
             comb += perm_attr.reference.eq(1)
             comb += perm_attr.changed.eq(1)
-            comb += perm_attr.priv.eq(1)
             comb += perm_attr.nocache.eq(0)
+            comb += perm_attr.priv.eq(1)
             comb += perm_attr.rd_perm.eq(1)
             comb += perm_attr.wr_perm.eq(1)
 
@@ -874,10 +874,9 @@ class DCache(Elaboratable):
         comb += rc_ok.eq(perm_attr.reference
                          & (r0.req.load | perm_attr.changed)
                 )
-        comb += perm_ok.eq((r0.req.priv_mode | ~perm_attr.priv)
-                           & perm_attr.wr_perm
-                           | (r0.req.load & perm_attr.rd_perm)
-                          )
+        comb += perm_ok.eq((r0.req.priv_mode | ~perm_attr.priv) &
+                           (perm_attr.wr_perm |
+                              (r0.req.load & perm_attr.rd_perm)))
         comb += access_ok.eq(valid_ra & perm_ok & rc_ok)
         # Combine the request and cache hit status to decide what
         # operation needs to be done
@@ -1120,17 +1119,16 @@ class DCache(Elaboratable):
     # This handles load hits.
     # It also handles error cases (TLB miss, cache paradox)
     def dcache_fast_hit(self, m, req_op, r0_valid, r0, r1,
-                        req_hit_way, req_index, access_ok,
+                        req_hit_way, req_index, req_tag, access_ok,
                         tlb_hit, tlb_hit_way, tlb_req_index):
 
         comb = m.d.comb
         sync = m.d.sync
 
         with m.If(req_op != Op.OP_NONE):
-            #Display(f"op:{req_op} addr:{r0.req.addr} nc: {r0.req.nc}" \
-            #      f"idx:{req_index} tag:{req_tag} way: {req_hit_way}"
-            #     )
-            pass
+            sync += Display("op:%d addr:%x nc: %d idx: %x tag: %x way: %x",
+                    req_op, r0.req.addr, r0.req.nc,
+                    req_index, req_tag, req_hit_way)
 
         with m.If(r0_valid):
             sync += r1.mmu_req.eq(r0.mmu_req)
@@ -1313,7 +1311,8 @@ class DCache(Elaboratable):
                 for i in range(ROW_PER_LINE):
                     sync += r1.rows_valid[i].eq(0)
 
-                sync += Display("cache op %d", req.op)
+                with m.If(req_op != Op.OP_NONE):
+                    sync += Display("cache op %d", req.op)
 
                 with m.Switch(req.op):
                     with m.Case(Op.OP_LOAD_HIT):
@@ -1587,7 +1586,7 @@ class DCache(Elaboratable):
         pte           = Signal(TLB_PTE_BITS)
         ra            = Signal(REAL_ADDR_BITS)
         valid_ra      = Signal()
-        perm_attr     = PermAttr()
+        perm_attr     = PermAttr("dc_perms")
         rc_ok         = Signal()
         perm_ok       = Signal()
         access_ok     = Signal()
@@ -1636,7 +1635,7 @@ class DCache(Elaboratable):
         self.writeback_control(m, r1, cache_out)
         self.rams(m, r1, early_req_row, cache_out, replace_way)
         self.dcache_fast_hit(m, req_op, r0_valid, r0, r1,
-                        req_hit_way, req_index, access_ok,
+                        req_hit_way, req_index, req_tag, access_ok,
                         tlb_hit, tlb_hit_way, tlb_req_index)
         self.dcache_slow(m, r1, use_forward1_next, use_forward2_next,
                     cache_valid_bits, r0, replace_way,
@@ -1646,11 +1645,38 @@ class DCache(Elaboratable):
 
         return m
 
+def dcache_load(dut, addr, nc=0):
+    yield dut.d_in.load.eq(1)
+    yield dut.d_in.nc.eq(nc)
+    yield dut.d_in.addr.eq(addr)
+    yield dut.d_in.valid.eq(1)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+    data = yield dut.d_out.data
+    return data
+
+
+def dcache_store(dut, addr, data, nc=0):
+    yield dut.d_in.load.eq(0)
+    yield dut.d_in.nc.eq(nc)
+    yield dut.d_in.data.eq(data)
+    yield dut.d_in.addr.eq(addr)
+    yield dut.d_in.valid.eq(1)
+    yield
+    yield dut.d_in.valid.eq(0)
+    yield
+    while not (yield dut.d_out.valid):
+        yield
+
 
 def dcache_sim(dut):
     # clear stuff
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.load.eq(0)
+    yield dut.d_in.priv_mode.eq(1)
     yield dut.d_in.nc.eq(0)
     yield dut.d_in.addr.eq(0)
     yield dut.d_in.data.eq(0)
@@ -1663,50 +1689,47 @@ def dcache_sim(dut):
     yield
     yield
 
-    # Cacheable read of address 30
-    yield dut.d_in.load.eq(1)
-    yield dut.d_in.nc.eq(0)
-    yield dut.d_in.addr.eq(0x0000000000000030)
-    yield dut.d_in.valid.eq(1)
-    yield
-    yield dut.d_in.valid.eq(0)
-    yield
-    while not (yield dut.d_out.valid):
-        yield
-    data = yield dut.d_out.data
-    addr = yield dut.d_in.addr
-    assert data == 0x0000000D0000000C, \
-        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
-
     # Cacheable read of address 4
-    yield dut.d_in.load.eq(1)
-    yield dut.d_in.nc.eq(0)
-    yield dut.d_in.addr.eq(0x0000000000000004)
-    yield dut.d_in.valid.eq(1)
-    yield
-    yield dut.d_in.valid.eq(0)
-    yield
-    while not (yield dut.d_out.valid):
-        yield
-    data = yield dut.d_out.data
+    data = yield from dcache_load(dut, 0x4)
     addr = yield dut.d_in.addr
     assert data == 0x0000000100000000, \
         f"data @%x=%x expected 0x0000000100000000" % (addr, data)
 
+    # Cacheable read of address 30
+    data = yield from dcache_load(dut, 0x30)
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000D0000000C, \
+        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
+
+    # 2nd Cacheable read of address 30
+    data = yield from dcache_load(dut, 0x30)
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000D0000000C, \
+        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
+
     # Non-cacheable read of address 100
-    yield dut.d_in.load.eq(1)
-    yield dut.d_in.nc.eq(1)
-    yield dut.d_in.addr.eq(Const(0x0000000000000100, 64))
-    yield dut.d_in.valid.eq(1)
-    yield
-    yield dut.d_in.valid.eq(0)
-    yield
-    while not (yield dut.d_out.valid):
-        yield
-    data = yield dut.d_out.data
+    data = yield from dcache_load(dut, 0x100, nc=1)
     addr = yield dut.d_in.addr
     assert data == 0x0000004100000040, \
         f"data @%x=%x expected 0000004100000040" % (addr, data)
+
+    # Store at address 30
+    yield from dcache_store(dut, 0x30, 0x12345678)
+
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+    yield
+
+    # 3nd Cacheable read of address 30
+    data = yield from dcache_load(dut, 0x30)
+    addr = yield dut.d_in.addr
+    assert data == 0x12345678, \
+        f"data @%x=%x expected 0x12345678" % (addr, data)
 
     yield
     yield
@@ -1720,7 +1743,10 @@ def test_dcache():
     with open("test_dcache.il", "w") as f:
         f.write(vl)
 
-    memory = Memory(width=64, depth=16*8, init=range(128))
+    mem = []
+    for i in range(0,128):
+        mem.append((i*2)| ((i*2+1)<<32))
+    memory = Memory(width=64, depth=16*8, init=mem)
     sram = SRAM(memory=memory, granularity=8)
 
     m = Module()
@@ -1731,7 +1757,7 @@ def test_dcache():
     m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
     m.d.comb += sram.bus.we.eq(dut.wb_out.we)
     m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
-    m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
+    m.d.comb += sram.bus.adr.eq(dut.wb_out.adr[3:])
     m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
 
     m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
