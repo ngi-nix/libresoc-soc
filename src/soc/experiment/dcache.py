@@ -637,7 +637,7 @@ class DCache(Elaboratable):
         with m.If(TLB_NUM_WAYS > 1):
             for i in range(TLB_SET_SIZE):
                 # TLB PLRU interface
-                tlb_plru        = PLRU(TLB_WAY_BITS)
+                tlb_plru        = PLRU(WAY_BITS)
                 setattr(m.submodules, "maybe_plru_%d" % i, tlb_plru)
                 tlb_plru_acc    = Signal(TLB_WAY_BITS)
                 tlb_plru_acc_en = Signal()
@@ -753,7 +753,7 @@ class DCache(Elaboratable):
 
         for i in range(NUM_LINES):
             # PLRU interface
-            plru        = PLRU(TLB_WAY_BITS)
+            plru        = PLRU(WAY_BITS)
             setattr(m.submodules, "plru%d" % i, plru)
             plru_acc    = Signal(WAY_BITS)
             plru_acc_en = Signal()
