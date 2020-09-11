@@ -141,6 +141,9 @@ assert SET_SIZE_BITS <= TLB_LG_PGSZ, "Set indexed by virtual address"
 def TLBValidBitsArray():
     return Array(Signal(TLB_NUM_WAYS) for x in range(TLB_SET_SIZE))
 
+def TLBTagEAArray():
+    return Array(Signal(TLB_EA_TAG_BITS) for x in range (TLB_NUM_WAYS))
+
 def TLBTagsArray():
     return Array(Signal(TLB_TAG_WAY_BITS) for x in range (TLB_SET_SIZE))
 
@@ -198,7 +201,7 @@ def get_tag(addr):
 
 # Read a tag from a tag memory row
 def read_tag(way, tagset):
-    return tagset[way *TAG_WIDTH:way * TAG_WIDTH + TAG_BITS]
+    return tagset.word_select(way, TAG_WIDTH)[:TAG_BITS]
 
 # Read a TLB tag from a TLB tag memory row
 def read_tlb_tag(way, tags):
@@ -212,7 +215,7 @@ def write_tlb_tag(way, tags, tag):
 def read_tlb_pte(way, ptes):
     return ptes.word_select(way, TLB_PTE_BITS)
 
-def write_tlb_pte(way, ptes,newpte):
+def write_tlb_pte(way, ptes, newpte):
     return read_tlb_pte(way, ptes).eq(newpte)
 
 
@@ -367,6 +370,62 @@ class Reservation(RecordObject):
         super().__init__()
         self.valid = Signal()
         self.addr  = Signal(64-LINE_OFF_BITS)
+
+
+class DTLBUpdate(Elaboratable):
+    def __init__(self, dtlb_valid_bits, dtlb_ptes):
+        self.tlbie    = Signal()
+        self.tlbwe    = Signal()
+        self.doall    = Signal()
+        self.tlb_hit    = Signal()
+        self.tlb_req_index = Signal(TLB_SET_BITS)
+
+        self.dtlb_valid_bits = dtlb_valid_bits
+        self.dtlb_ptes       = dtlb_ptes
+
+        self.tlb_hit_way     = Signal(TLB_WAY_BITS)
+        self.tlb_tag_way     = Signal(TLB_TAG_WAY_BITS)
+        self.tlb_pte_way     = Signal(TLB_PTE_WAY_BITS)
+        self.repl_way        = Signal(TLB_WAY_BITS)
+        self.eatag           = Signal(TLB_EA_TAG_BITS)
+        self.pte_data        = Signal(TLB_PTE_BITS)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
+
+        tagset   = Signal(TLB_TAG_WAY_BITS)
+        pteset   = Signal(TLB_PTE_WAY_BITS)
+
+        vb = Signal(TLB_NUM_WAYS)
+        db = Signal(TLB_PTE_WAY_BITS)
+
+        sync += vb.eq(self.dtlb_valid_bits[self.tlb_req_index])
+        sync += db.eq(self.dtlb_ptes[self.tlb_req_index])
+
+        with m.If(self.tlbie & self.doall):
+            # clear all valid bits at once
+            for i in range(TLB_SET_SIZE):
+                sync += self.dtlb_valid_bits[i].eq(0)
+
+        with m.Elif(self.tlbie):
+            with m.If(self.tlb_hit):
+                sync += vb.bit_select(self.tlb_hit_way, 1).eq(Const(0, 1))
+
+        with m.Elif(self.tlbwe):
+
+            comb += tagset.eq(self.tlb_tag_way)
+            comb += write_tlb_tag(self.repl_way, tagset, self.eatag)
+            sync += db.eq(tagset)
+
+            comb += pteset.eq(self.tlb_pte_way)
+            comb += write_tlb_pte(self.repl_way, pteset, self.pte_data)
+            sync += db.eq(pteset)
+
+            sync += vb.bit_select(self.repl_way, 1).eq(1)
+
+        return m
 
 
 class DCache(Elaboratable):
@@ -538,42 +597,29 @@ class DCache(Elaboratable):
                     dtlb_tags, tlb_pte_way, dtlb_ptes):
 
         comb = m.d.comb
-        sync = m.d.sync
 
         tlbie    = Signal()
         tlbwe    = Signal()
-        repl_way = Signal(TLB_WAY_BITS)
-        eatag    = Signal(TLB_EA_TAG_BITS)
-        tagset   = Signal(TLB_TAG_WAY_BITS)
-        pteset   = Signal(TLB_PTE_WAY_BITS)
-
-        vb = Signal(TLB_NUM_WAYS)
 
         comb += tlbie.eq(r0_valid & r0.tlbie)
         comb += tlbwe.eq(r0_valid & r0.tlbld)
-        sync += vb.eq(dtlb_valid_bits[tlb_req_index])
 
-        with m.If(tlbie & r0.doall):
-            # clear all valid bits at once
-            for i in range(TLB_SET_SIZE):
-                sync += dtlb_valid_bits[i].eq(0)
+        m.submodules.tlb_update = d = DTLBUpdate(dtlb_valid_bits, dtlb_ptes)
+        comb += d.tlbie.eq(tlbie)
+        comb += d.tlbwe.eq(tlbwe)
+        comb += d.doall.eq(r0.doall)
+        comb += d.tlb_hit.eq(tlb_hit)
+        comb += d.tlb_hit_way.eq(tlb_hit_way)
+        comb += d.tlb_tag_way.eq(tlb_tag_way)
+        comb += d.tlb_pte_way.eq(tlb_pte_way)
+        comb += d.tlb_req_index.eq(tlb_req_index)
 
-        with m.Elif(tlbie):
-            with m.If(tlb_hit):
-                sync += vb.bit_select(tlb_hit_way, 1).eq(Const(0, 1))
-        with m.Elif(tlbwe):
-            with m.If(tlb_hit):
-                comb += repl_way.eq(tlb_hit_way)
-            with m.Else():
-                comb += repl_way.eq(tlb_plru_victim[tlb_req_index])
-            comb += eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
-            sync += tagset.eq(tlb_tag_way)
-            sync += write_tlb_tag(repl_way, tagset, eatag)
-            sync += dtlb_tags[tlb_req_index].eq(tagset)
-            sync += pteset.eq(tlb_pte_way)
-            sync += write_tlb_pte(repl_way, pteset, r0.req.data)
-            sync += dtlb_ptes[tlb_req_index].eq(pteset)
-            sync += vb.bit_select(repl_way, 1).eq(1)
+        with m.If(tlb_hit):
+            comb += d.repl_way.eq(tlb_hit_way)
+        with m.Else():
+            comb += d.repl_way.eq(tlb_plru_victim[tlb_req_index])
+        comb += d.eatag.eq(r0.req.addr[TLB_LG_PGSZ + TLB_SET_BITS:64])
+        comb += d.pte_data.eq(r0.req.data)
 
     def maybe_plrus(self, m, r1, plru_victim):
         """Generate PLRUs
