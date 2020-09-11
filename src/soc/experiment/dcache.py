@@ -628,33 +628,24 @@ class DCache(Elaboratable):
             sync += tlb_tag_way.eq(dtlb_tags[index])
             sync += tlb_pte_way.eq(dtlb_ptes[index])
 
-    def maybe_tlb_plrus(self, m, r1, tlb_plru_victim, acc, acc_en, lru):
+    def maybe_tlb_plrus(self, m, r1, tlb_plru_victim):
         """Generate TLB PLRUs
         """
         comb = m.d.comb
         sync = m.d.sync
 
-        with m.If(TLB_NUM_WAYS > 1):
-            for i in range(TLB_SET_SIZE):
-                # TLB PLRU interface
-                tlb_plru        = PLRU(WAY_BITS)
-                setattr(m.submodules, "maybe_plru_%d" % i, tlb_plru)
-                tlb_plru_acc    = Signal(TLB_WAY_BITS)
-                tlb_plru_acc_en = Signal()
-                tlb_plru_out    = Signal(TLB_WAY_BITS)
+        if TLB_NUM_WAYS == 0:
+            return
+        for i in range(TLB_SET_SIZE):
+            # TLB PLRU interface
+            tlb_plru        = PLRU(WAY_BITS)
+            setattr(m.submodules, "maybe_plru_%d" % i, tlb_plru)
+            tlb_plru_acc_en = Signal()
 
-                comb += tlb_plru.acc.eq(tlb_plru_acc)
-                comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
-                comb += tlb_plru.lru.eq(tlb_plru_out)
-
-                # PLRU interface
-                with m.If(r1.tlb_hit_index == i):
-                    comb += tlb_plru.acc_en.eq(r1.tlb_hit)
-                with m.Else():
-                    comb += tlb_plru.acc_en.eq(0)
-                comb += tlb_plru.acc.eq(r1.tlb_hit_way)
-
-                comb += tlb_plru_victim[i].eq(tlb_plru.lru)
+            comb += tlb_plru_acc_en.eq(r1.tlb_hit & (r1.tlb_hit_index == i))
+            comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
+            comb += tlb_plru.acc.eq(r1.tlb_hit_way)
+            comb += tlb_plru_victim[i].eq(tlb_plru.lru_o)
 
     def tlb_search(self, m, tlb_req_index, r0, r0_valid,
                    tlb_valid_way, tlb_tag_way, tlb_hit_way,
@@ -751,23 +742,19 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
 
+        if TLB_NUM_WAYS == 0:
+            return
+
         for i in range(NUM_LINES):
             # PLRU interface
             plru        = PLRU(WAY_BITS)
             setattr(m.submodules, "plru%d" % i, plru)
-            plru_acc    = Signal(WAY_BITS)
             plru_acc_en = Signal()
-            plru_out    = Signal(WAY_BITS)
 
-            comb += plru.acc.eq(plru_acc)
+            comb += plru_acc_en.eq(r1.cache_hit & (r1.hit_index == i))
             comb += plru.acc_en.eq(plru_acc_en)
-            comb += plru_out.eq(plru.lru_o)
-
-            with m.If(r1.hit_index == i):
-                comb += plru_acc_en.eq(r1.cache_hit)
-
-            comb += plru_acc.eq(r1.hit_way)
-            comb += plru_victim[i].eq(plru_out)
+            comb += plru.acc.eq(r1.hit_way)
+            comb += plru_victim[i].eq(plru.lru_o)
 
     def cache_tag_read(self, m, r0_stall, req_index, cache_tag_set, cache_tags):
         """Cache tag RAM read port
@@ -1617,6 +1604,7 @@ class DCache(Elaboratable):
                         tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
                         dtlb_tags, tlb_pte_way, dtlb_ptes)
         self.maybe_plrus(m, r1, plru_victim)
+        self.maybe_tlb_plrus(m, r1, tlb_plru_victim)
         self.cache_tag_read(m, r0_stall, req_index, cache_tag_set, cache_tags)
         self.dcache_request(m, r0, ra, req_index, req_row, req_tag,
                            r0_valid, r1, cache_valid_bits, replace_way,
