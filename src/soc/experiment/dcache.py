@@ -69,6 +69,9 @@ ROW_PER_LINE = LINE_SIZE // ROW_SIZE
 # to represent the full dcache
 BRAM_ROWS = NUM_LINES * ROW_PER_LINE
 
+print ("ROW_SIZE", ROW_SIZE)
+print ("ROW_PER_LINE", ROW_PER_LINE)
+print ("BRAM_ROWS", BRAM_ROWS)
 
 # Bit fields counts in the address
 
@@ -149,10 +152,13 @@ TLB_TAG_WAY_BITS = TLB_NUM_WAYS * TLB_EA_TAG_BITS
 TLB_PTE_BITS     = 64
 TLB_PTE_WAY_BITS = TLB_NUM_WAYS * TLB_PTE_BITS;
 
+def ispow2(x):
+    return (1<<log2_int(x, False)) == x
+
 assert (LINE_SIZE % ROW_SIZE) == 0, "LINE_SIZE not multiple of ROW_SIZE"
-assert (LINE_SIZE % 2) == 0, "LINE_SIZE not power of 2"
-assert (NUM_LINES % 2) == 0, "NUM_LINES not power of 2"
-assert (ROW_PER_LINE % 2) == 0, "ROW_PER_LINE not power of 2"
+assert ispow2(LINE_SIZE), "LINE_SIZE not power of 2"
+assert ispow2(NUM_LINES), "NUM_LINES not power of 2"
+assert ispow2(ROW_PER_LINE), "ROW_PER_LINE not power of 2"
 assert ROW_BITS == (INDEX_BITS + ROW_LINE_BITS), "geometry bits don't add up"
 assert (LINE_OFF_BITS == ROW_OFF_BITS + ROW_LINE_BITS), \
         "geometry bits don't add up"
@@ -458,16 +464,6 @@ class DTLBUpdate(Elaboratable):
 
         return m
 
-    def dcache_request(self, m, r0, ra, req_index, req_row, req_tag,
-                       r0_valid, r1, cache_valid_bits, replace_way,
-                       use_forward1_next, use_forward2_next,
-                       req_hit_way, plru_victim, rc_ok, perm_attr,
-                       valid_ra, perm_ok, access_ok, req_op, req_go,
-                       tlb_pte_way,
-                       tlb_hit, tlb_hit_way, tlb_valid_way, cache_tag_set,
-                       cancel_store, req_same_tag, r0_stall, early_req_row):
-        """Cache request parsing and hit detection
-        """
 
 class DCachePendingHit(Elaboratable):
 
@@ -831,6 +827,9 @@ class DCache(Elaboratable):
         comb += req_row.eq(get_row(r0.req.addr))
         comb += req_tag.eq(get_tag(ra))
 
+        comb += Display("dcache_req addr:%x ra: %x idx: %x tag: %x row: %x",
+                r0.req.addr, ra, req_index, req_tag, req_row)
+
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
         comb += cache_valid_idx.eq(cache_valid_bits[req_index])
 
@@ -855,7 +854,7 @@ class DCache(Elaboratable):
             # For a store, consider this a hit even if the row isn't
             # valid since it will be by the time we perform the store.
             # For a load, check the appropriate row valid bit.
-            valid = r1.rows_valid[req_row % ROW_PER_LINE]
+            valid = r1.rows_valid[req_row[:ROW_LINE_BITS]]
             comb += is_hit.eq(~r0.req.load | valid)
             comb += hit_way.eq(replace_way)
 
@@ -1399,7 +1398,7 @@ class DCache(Elaboratable):
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
                 with m.If(wb_in.ack):
-                    sync += r1.rows_valid[r1.store_row % ROW_PER_LINE].eq(1)
+                    sync += r1.rows_valid[r1.store_row[:ROW_LINE_BITS]].eq(1)
 
                     # If this is the data we were looking for,
                     # we can complete the request next cycle.
