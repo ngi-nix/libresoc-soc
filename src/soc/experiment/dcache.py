@@ -904,24 +904,14 @@ class DCache(Elaboratable):
             with m.Else():
                 comb += opsel.eq(Cat(is_hit, nc, r0.req.load))
                 with m.Switch(opsel):
-                    with m.Case(0b101):
-                        comb += op.eq(Op.OP_LOAD_HIT)
-                    with m.Case(0b100):
-                        comb += op.eq(Op.OP_LOAD_MISS)
-                    with m.Case(0b110):
-                        comb += op.eq(Op.OP_LOAD_NC)
-                    with m.Case(0b001):
-                        comb += op.eq(Op.OP_STORE_HIT)
-                    with m.Case(0b000):
-                        comb += op.eq(Op.OP_STORE_MISS)
-                    with m.Case(0b010):
-                        comb += op.eq(Op.OP_STORE_MISS)
-                    with m.Case(0b011):
-                        comb += op.eq(Op.OP_BAD)
-                    with m.Case(0b111):
-                        comb += op.eq(Op.OP_BAD)
-                    with m.Default():
-                        comb += op.eq(Op.OP_NONE)
+                    with m.Case(0b101): comb += op.eq(Op.OP_LOAD_HIT)
+                    with m.Case(0b100): comb += op.eq(Op.OP_LOAD_MISS)
+                    with m.Case(0b110): comb += op.eq(Op.OP_LOAD_NC)
+                    with m.Case(0b001): comb += op.eq(Op.OP_STORE_HIT)
+                    with m.Case(0b000): comb += op.eq(Op.OP_STORE_MISS)
+                    with m.Case(0b010): comb += op.eq(Op.OP_STORE_MISS)
+                    with m.Case(0b011): comb += op.eq(Op.OP_BAD)
+                    with m.Case(0b111): comb += op.eq(Op.OP_BAD)
         comb += req_op.eq(op)
         comb += req_go.eq(go)
 
@@ -1662,9 +1652,11 @@ def dcache_load(dut, addr, nc=0):
     yield dut.d_in.load.eq(1)
     yield dut.d_in.nc.eq(nc)
     yield dut.d_in.addr.eq(addr)
+    yield dut.d_in.byte_sel.eq(~0)
     yield dut.d_in.valid.eq(1)
     yield
     yield dut.d_in.valid.eq(0)
+    yield dut.d_in.byte_sel.eq(0)
     yield
     while not (yield dut.d_out.valid):
         yield
@@ -1756,16 +1748,6 @@ def dcache_sim(dut):
     addr = yield dut.d_in.addr
     assert data == 0x0000000100000000, \
         f"data @%x=%x expected 0x0000000100000000" % (addr, data)
-
-    yield
-    yield
-    yield
-    yield
-
-    yield
-    yield
-    yield
-    yield
 
     # Cacheable read of address 20
     data = yield from dcache_load(dut, 0x20)
