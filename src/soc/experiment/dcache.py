@@ -935,14 +935,14 @@ class DCache(Elaboratable):
         sync = m.d.sync
 
         with m.If(r0_valid & r0.req.reserve):
-
             # XXX generate alignment interrupt if address
             # is not aligned XXX or if r0.req.nc = '1'
             with m.If(r0.req.load):
                 comb += set_rsrv.eq(1) # load with reservation
             with m.Else():
                 comb += clear_rsrv.eq(1) # store conditional
-                with m.If(~reservation.valid | r0.req.addr[LINE_OFF_BITS:64]):
+                with m.If(~reservation.valid |
+                         (r0.req.addr[LINE_OFF_BITS:64] != reservation.addr)):
                     comb += cancel_store.eq(1)
 
     def reservation_reg(self, m, r0_valid, access_ok, set_rsrv, clear_rsrv,
