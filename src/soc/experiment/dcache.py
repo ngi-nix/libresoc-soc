@@ -1107,10 +1107,10 @@ class DCache(Elaboratable):
                       & wb_in.ack & (replace_way == i)):
                 comb += do_write.eq(1)
 
-                # Mask write selects with do_write since BRAM
-                # doesn't have a global write-enable
-                with m.If(do_write):
-                    comb += wr_sel_m.eq(wr_sel)
+            # Mask write selects with do_write since BRAM
+            # doesn't have a global write-enable
+            with m.If(do_write):
+                comb += wr_sel_m.eq(wr_sel)
 
     # Cache hit synchronous machine for the easy case.
     # This handles load hits.
