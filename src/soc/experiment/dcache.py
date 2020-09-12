@@ -1014,33 +1014,30 @@ class DCache(Elaboratable):
             # Request came from loadstore1...
             # Load hit case is the standard path
             with m.If(r1.hit_load_valid):
-                #Display(f"completing load hit data={data_out}")
-                pass
+                sync += Display("completing load hit data=%x", data_out)
 
             # error cases complete without stalling
             with m.If(r1.ls_error):
-                # Display("completing ld/st with error")
-                pass
+                sync += Display("completing ld/st with error")
 
             # Slow ops (load miss, NC, stores)
             with m.If(r1.slow_valid):
-                #Display(f"completing store or load miss data={data_out}")
-                pass
+                sync += Display("completing store or load miss data=%x",
+                                data_out)
 
         with m.Else():
             # Request came from MMU
             with m.If(r1.hit_load_valid):
-                # Display(f"completing load hit to MMU, data={m_out.data}")
-                pass
+                sync += Display("completing load hit to MMU, data=%x",
+                                m_out.data)
             # error cases complete without stalling
             with m.If(r1.mmu_error):
-                #Display("combpleting MMU ld with error")
-                pass
+                sync += Display("combpleting MMU ld with error")
 
             # Slow ops (i.e. load miss)
             with m.If(r1.slow_valid):
-                #Display("completing MMU load miss, data={m_out.data}")
-                pass
+                sync += Display("completing MMU load miss, data=%x",
+                                m_out.data)
 
     def rams(self, m, r1, early_req_row, cache_out, replace_way):
         """rams
