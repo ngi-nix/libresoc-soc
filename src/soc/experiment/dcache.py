@@ -109,15 +109,23 @@ TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
 WAY_BITS = log2_int(NUM_WAYS)
 
 # Example of layout for 32 lines of 64 bytes:
-#
-# ..  tag    |index|  line  |
-# ..         |   row   |    |
-# ..         |     |---|    | ROW_LINE_BITS  (3)
-# ..         |     |--- - --| LINE_OFF_BITS (6)
-# ..         |         |- --| ROW_OFF_BITS  (3)
-# ..         |----- ---|    | ROW_BITS      (8)
-# ..         |-----|        | INDEX_BITS    (5)
-# .. --------|              | TAG_BITS      (45)
+layout = """\
+  ..  tag    |index|  line  |
+  ..         |   row   |    |
+  ..         |     |---|    | ROW_LINE_BITS  (3)
+  ..         |     |--- - --| LINE_OFF_BITS (6)
+  ..         |         |- --| ROW_OFF_BITS  (3)
+  ..         |----- ---|    | ROW_BITS      (8)
+  ..         |-----|        | INDEX_BITS    (5)
+  .. --------|              | TAG_BITS      (45)
+"""
+print (layout)
+print ("Dcache TAG %d IDX %d ROW %d ROFF %d LOFF %d RLB %d" % \
+            (TAG_BITS, INDEX_BITS, ROW_BITS,
+             ROW_OFF_BITS, LINE_OFF_BITS, ROW_LINE_BITS))
+print ("index @: %d-%d" % (LINE_OFF_BITS, SET_SIZE_BITS))
+print ("row @: %d-%d" % (LINE_OFF_BITS, ROW_OFF_BITS))
+print ("tag @: %d-%d width %d" % (SET_SIZE_BITS, REAL_ADDR_BITS, TAG_WIDTH))
 
 TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
 
@@ -197,7 +205,7 @@ def get_row(addr):
 
 # Return the index of a row within a line
 def get_row_of_line(row):
-    return row[:ROW_LINE_BITS]
+    return row[:ROW_BITS][:ROW_LINE_BITS]
 
 # Returns whether this is the last row of a line
 def is_last_row_addr(addr, last):
@@ -362,7 +370,7 @@ class RegStage1(RecordObject):
         self.write_bram       = Signal()
         self.write_tag        = Signal()
         self.slow_valid       = Signal()
-        self.wb               = WBMasterOut()
+        self.wb               = WBMasterOut("wb")
         self.reload_tag       = Signal(TAG_BITS)
         self.store_way        = Signal(WAY_BITS)
         self.store_row        = Signal(ROW_BITS)
@@ -590,9 +598,8 @@ class DCache(Elaboratable):
         r = RegStage0("stage0")
 
         # TODO, this goes in unit tests and formal proofs
-        with m.If(~(d_in.valid & m_in.valid)):
-            #sync += Display("request collision loadstore vs MMU")
-            pass
+        with m.If(d_in.valid & m_in.valid):
+            sync += Display("request collision loadstore vs MMU")
 
         with m.If(m_in.valid):
             sync += r.req.valid.eq(1)
@@ -1195,6 +1202,13 @@ class DCache(Elaboratable):
         acks        = Signal(3)
         adjust_acks = Signal(3)
 
+        req_row = Signal(ROW_BITS)
+        req_idx = Signal(INDEX_BITS)
+        req_tag = Signal(TAG_BITS)
+        comb += req_idx.eq(get_index(req.real_addr))
+        comb += req_row.eq(get_row(req.real_addr))
+        comb += req_tag.eq(get_tag(req.real_addr))
+
         sync += r1.use_forward1.eq(use_forward1_next)
         sync += r1.forward_sel.eq(0)
 
@@ -1287,10 +1301,6 @@ class DCache(Elaboratable):
         with m.Switch(r1.state):
 
             with m.Case(State.IDLE):
-                # XXX check 'left downto.  probably means len(r1.wb.adr)
-                #                     r1.wb.adr <= req.real_addr(
-                #                                   r1.wb.adr'left downto 0
-                #                                  );
                 sync += r1.wb.adr.eq(req.real_addr)
                 sync += r1.wb.sel.eq(req.byte_sel)
                 sync += r1.wb.dat.eq(req.data)
@@ -1298,12 +1308,10 @@ class DCache(Elaboratable):
 
                 # Keep track of our index and way
                 # for subsequent stores.
-                sync += r1.store_index.eq(get_index(req.real_addr))
-                sync += r1.store_row.eq(get_row(req.real_addr))
-                sync += r1.end_row_ix.eq(
-                         get_row_of_line(get_row(req.real_addr))
-                        )
-                sync += r1.reload_tag.eq(get_tag(req.real_addr))
+                sync += r1.store_index.eq(req_idx)
+                sync += r1.store_row.eq(req_row)
+                sync += r1.end_row_ix.eq(get_row_of_line(req_row))
+                sync += r1.reload_tag.eq(req_tag)
                 sync += r1.req.same_tag.eq(1)
 
                 with m.If(req.op == Op.OP_STORE_HIT):
@@ -1323,11 +1331,9 @@ class DCache(Elaboratable):
                         pass
 
                     with m.Case(Op.OP_LOAD_MISS):
-                        #Display(f"cache miss real addr:" \
-                        #      f"{req_real_addr}" \
-                        #      f" idx:{get_index(req_real_addr)}" \
-                        #      f" tag:{get_tag(req.real_addr)}")
-                        pass
+                        sync += Display("cache miss real addr: %x " \
+                                "idx: %x tag: %x",
+                                req.real_addr, req_row, req_tag)
 
                         # Start the wishbone cycle
                         sync += r1.wb.we.eq(0)
@@ -1396,8 +1402,9 @@ class DCache(Elaboratable):
                         comb += ld_stbs_done.eq(1)
 
                     # Calculate the next row address in the current cache line
-                    rarange = r1.wb.adr[ROW_OFF_BITS : LINE_OFF_BITS]
-                    sync += rarange.eq(rarange + 1)
+                    rarange = Signal(LINE_OFF_BITS-ROW_OFF_BITS)
+                    comb += rarange.eq(r1.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]+1)
+                    sync += r1.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(rarange)
 
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
@@ -1750,6 +1757,22 @@ def dcache_sim(dut):
     assert data == 0x0000000100000000, \
         f"data @%x=%x expected 0x0000000100000000" % (addr, data)
 
+    yield
+    yield
+    yield
+    yield
+
+    yield
+    yield
+    yield
+    yield
+
+    # Cacheable read of address 20
+    data = yield from dcache_load(dut, 0x20)
+    addr = yield dut.d_in.addr
+    assert data == 0x0000000100000000, \
+        f"data @%x=%x expected 0x0000000100000000" % (addr, data)
+
     # Cacheable read of address 30
     data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
@@ -1776,6 +1799,12 @@ def dcache_sim(dut):
 
     # 3nd Cacheable read of address 530
     data = yield from dcache_load(dut, 0x530)
+    addr = yield dut.d_in.addr
+    assert data == 0x12345678, \
+        f"data @%x=%x expected 0x12345678" % (addr, data)
+
+    # 4th Cacheable read of address 30
+    data = yield from dcache_load(dut, 0x20)
     addr = yield dut.d_in.addr
     assert data == 0x12345678, \
         f"data @%x=%x expected 0x12345678" % (addr, data)
@@ -1811,7 +1840,7 @@ def test_dcache(mem, test_fn, test_name):
     sim.add_clock(1e-6)
 
     sim.add_sync_process(wrap(test_fn(dut)))
-    with sim.write_vcd('test_dcache_%s.vcd' % test_name):
+    with sim.write_vcd('test_dcache%s.vcd' % test_name):
         sim.run()
 
 if __name__ == '__main__':
@@ -1824,6 +1853,6 @@ if __name__ == '__main__':
     for i in range(0,512):
         mem.append((i*2)| ((i*2+1)<<32))
 
-    test_dcache(mem, dcache_sim, "quick")
-    test_dcache(None, dcache_random_sim, "random")
+    test_dcache(mem, dcache_sim, "")
+    #test_dcache(None, dcache_random_sim, "random")
 

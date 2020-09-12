@@ -32,13 +32,13 @@ WB_SEL_BITS  = WB_DATA_BITS // 8
 #  std_ulogic_vector(wishbone_sel_bits-1  downto 0);
 
 def WBAddrType():
-    return Signal(WB_ADDR_BITS)
+    return Signal(WB_ADDR_BITS, name="adr")
 
 def WBDataType():
-    return Signal(WB_DATA_BITS)
+    return Signal(WB_DATA_BITS, name="dat")
 
 def WBSelType():
-    return Signal(WB_SEL_BITS)
+    return Signal(WB_SEL_BITS, name="sel")
 
 # type wishbone_master_out is record
 #     adr : wishbone_addr_type;
@@ -49,8 +49,8 @@ def WBSelType():
 #     we  : std_ulogic;
 # end record;
 class WBMasterOut(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.adr = WBAddrType()
         self.dat = WBDataType()
         self.cyc = Signal()
