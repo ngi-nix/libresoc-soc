@@ -120,13 +120,16 @@ WAY_BITS = log2_int(NUM_WAYS)
 TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
 
 def CacheTagArray():
-    return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
+    return Array(Signal(TAG_RAM_WIDTH, name="cachetag_%d" % x) \
+                        for x in range(NUM_LINES))
 
 def CacheValidBitsArray():
-    return Array(Signal(INDEX_BITS) for x in range(NUM_LINES))
+    return Array(Signal(INDEX_BITS, name="cachevalid_%d" % x) \
+                        for x in range(NUM_LINES))
 
 def RowPerLineValidArray():
-    return Array(Signal(name="rows_valid%d" % x) for x in range(ROW_PER_LINE))
+    return Array(Signal(name="rows_valid%d" % x) \
+                        for x in range(ROW_PER_LINE))
 
 # L1 TLB
 TLB_SET_BITS     = log2_int(TLB_SET_SIZE)
@@ -164,11 +167,13 @@ def TLBPtesArray():
     return Array(Signal(TLB_PTE_WAY_BITS) for x in range(TLB_SET_SIZE))
 
 def HitWaySet():
-    return Array(Signal(WAY_BITS) for x in range(TLB_NUM_WAYS))
+    return Array(Signal(WAY_BITS, name="hitway_%d" % x) \
+                        for x in range(TLB_NUM_WAYS))
 
 # Cache RAM interface
 def CacheRamOut():
-    return Array(Signal(WB_DATA_BITS) for x in range(NUM_WAYS))
+    return Array(Signal(WB_DATA_BITS, name="cache_out%d" % x) \
+                 for x in range(NUM_WAYS))
 
 # PLRU output interface
 def PLRUOut():
@@ -499,7 +504,8 @@ class DCachePendingHit(Elaboratable):
         req_index = self.req_index
         reload_tag = self.reload_tag
 
-        rel_matches = Array(Signal() for i in range(TLB_NUM_WAYS))
+        rel_matches = Array(Signal(name="rel_matches_%d" % i) \
+                                    for i in range(TLB_NUM_WAYS))
         hit_way_set = HitWaySet()
 
         # Test if pending request is a hit on any way
@@ -807,7 +813,8 @@ class DCache(Elaboratable):
         opsel       = Signal(3)
         go          = Signal()
         nc          = Signal()
-        hit_set     = Array(Signal() for i in range(TLB_NUM_WAYS))
+        hit_set     = Array(Signal(name="hit_set_%d" % i) \
+                                  for i in range(TLB_NUM_WAYS))
         cache_valid_idx = Signal(INDEX_BITS)
 
         # Extract line, row and tag from request
@@ -1054,14 +1061,14 @@ class DCache(Elaboratable):
         wb_in = self.wb_in
 
         for i in range(NUM_WAYS):
-            do_read  = Signal()
+            do_read  = Signal(name="do_rd%d" % i)
             rd_addr  = Signal(ROW_BITS)
-            do_write = Signal()
+            do_write = Signal(name="do_wr%d" % i)
             wr_addr  = Signal(ROW_BITS)
             wr_data  = Signal(WB_DATA_BITS)
             wr_sel   = Signal(ROW_SIZE)
             wr_sel_m = Signal(ROW_SIZE)
-            _d_out   = Signal(WB_DATA_BITS)
+            _d_out   = Signal(WB_DATA_BITS, name="dout_%d" % i)
 
             way = CacheRam(ROW_BITS, WB_DATA_BITS, True)
             setattr(m.submodules, "cacheram_%d" % i, way)
@@ -1075,7 +1082,7 @@ class DCache(Elaboratable):
 
             # Cache hit reads
             comb += do_read.eq(1)
-            comb += rd_addr.eq(early_req_row)
+            comb += rd_addr.eq(early_req_row[:ROW_BITS])
             comb += cache_out[i].eq(_d_out)
 
             # Write mux:
@@ -1178,7 +1185,7 @@ class DCache(Elaboratable):
     def dcache_slow(self, m, r1, use_forward1_next, use_forward2_next,
                     cache_valid_bits, r0, replace_way,
                     req_hit_way, req_same_tag,
-                    r0_valid, req_op, cache_tag, req_go, ra):
+                    r0_valid, req_op, cache_tags, req_go, ra):
 
         comb = m.d.comb
         sync = m.d.sync
@@ -1235,9 +1242,9 @@ class DCache(Elaboratable):
             for i in range(NUM_WAYS):
                 with m.If(i == replace_way):
                     ct = Signal(TAG_RAM_WIDTH)
-                    comb += ct.eq(cache_tag[r1.store_index])
+                    comb += ct.eq(cache_tags[r1.store_index])
                     comb += ct.word_select(i, TAG_WIDTH).eq(r1.reload_tag)
-                    sync += cache_tag[r1.store_index].eq(ct)
+                    sync += cache_tags[r1.store_index].eq(ct)
             sync += r1.store_way.eq(replace_way)
             sync += r1.write_tag.eq(0)
 
@@ -1395,7 +1402,6 @@ class DCache(Elaboratable):
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
                 with m.If(wb_in.ack):
-                    # XXX needs an Array bit-accessor here
                     sync += r1.rows_valid[r1.store_row % ROW_PER_LINE].eq(1)
 
                     # If this is the data we were looking for,
@@ -1697,16 +1703,16 @@ def dcache_sim(dut):
         f"data @%x=%x expected 0x0000000100000000" % (addr, data)
 
     # Cacheable read of address 30
-    data = yield from dcache_load(dut, 0x30)
+    data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
-    assert data == 0x0000000D0000000C, \
-        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
+    assert data == 0x0000004D0000004C, \
+        f"data @%x=%x expected 0000004D0000004C" % (addr, data)
 
     # 2nd Cacheable read of address 30
-    data = yield from dcache_load(dut, 0x30)
+    data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
-    assert data == 0x0000000D0000000C, \
-        f"data @%x=%x expected 0000000D0000000C" % (addr, data)
+    assert data == 0x0000004D0000004C, \
+        f"data @%x=%x expected 0000004D0000004C" % (addr, data)
 
     # Non-cacheable read of address 100
     data = yield from dcache_load(dut, 0x100, nc=1)
@@ -1714,14 +1720,14 @@ def dcache_sim(dut):
     assert data == 0x0000004100000040, \
         f"data @%x=%x expected 0000004100000040" % (addr, data)
 
-    # Store at address 30
-    yield from dcache_store(dut, 0x30, 0x121)
+    # Store at address 530
+    yield from dcache_store(dut, 0x530, 0x121)
 
     # Store at address 30
-    yield from dcache_store(dut, 0x30, 0x12345678)
+    yield from dcache_store(dut, 0x530, 0x12345678)
 
-    # 3nd Cacheable read of address 30
-    data = yield from dcache_load(dut, 0x30)
+    # 3nd Cacheable read of address 530
+    data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
     assert data == 0x12345678, \
         f"data @%x=%x expected 0x12345678" % (addr, data)
