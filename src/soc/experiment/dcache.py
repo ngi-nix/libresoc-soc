@@ -851,7 +851,6 @@ class DCache(Elaboratable):
             comb += hit_way.eq(replace_way)
 
         # Whether to use forwarded data for a load or not
-        comb += use_forward1_next.eq(0)
         with m.If((get_row(r1.req.real_addr) == req_row) &
                   (r1.req.hit_way == hit_way)):
             # Only need to consider r1.write_bram here, since if we
@@ -863,7 +862,6 @@ class DCache(Elaboratable):
             # cycles after the refill starts before we see the updated
             # cache tag. In that case we don't use the bypass.)
             comb += use_forward1_next.eq(r1.write_bram)
-        comb += use_forward2_next.eq(0)
         with m.If((r1.forward_row1 == req_row) & (r1.forward_way1 == hit_way)):
             comb += use_forward2_next.eq(r1.forward_valid1)
 
@@ -1430,8 +1428,9 @@ class DCache(Elaboratable):
 
                         # Cache line is now valid
                         cv = Signal(INDEX_BITS)
-                        sync += cv.eq(cache_valid_bits[r1.store_index])
-                        sync += cv.bit_select(r1.store_way, 1).eq(1)
+                        comb += cv.eq(cache_valid_bits[r1.store_index])
+                        comb += cv.bit_select(r1.store_way, 1).eq(1)
+                        sync += cache_valid_bits[r1.store_index].eq(cv)
                         sync += r1.state.eq(State.IDLE)
 
                     # Increment store row counter
