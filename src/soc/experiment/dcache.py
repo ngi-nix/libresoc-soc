@@ -13,6 +13,8 @@ except ImportError:
     def Display(*args):
         return []
 
+from random import randint
+
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
 from nmutil.util import wrap
@@ -1678,6 +1680,53 @@ def dcache_store(dut, addr, data, nc=0):
         yield
 
 
+def dcache_random_sim(dut):
+
+    # start with stack of zeros
+    sim_mem = [0] * 512
+
+    # clear stuff
+    yield dut.d_in.valid.eq(0)
+    yield dut.d_in.load.eq(0)
+    yield dut.d_in.priv_mode.eq(1)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.addr.eq(0)
+    yield dut.d_in.data.eq(0)
+    yield dut.m_in.valid.eq(0)
+    yield dut.m_in.addr.eq(0)
+    yield dut.m_in.pte.eq(0)
+    # wait 4 * clk_period
+    yield
+    yield
+    yield
+    yield
+
+    print ()
+
+    for i in range(256):
+        addr = randint(0, 255)
+        data = randint(0, (1<<64)-1)
+        sim_mem[addr] = data
+        addr *= 8
+
+        print ("testing %x data %x" % (addr, data))
+
+        yield from dcache_load(dut, addr)
+        yield from dcache_store(dut, addr, data)
+
+        addr = randint(0, 255)
+        sim_data = sim_mem[addr]
+        addr *= 8
+
+        data = yield from dcache_load(dut, addr)
+        assert data == sim_data, \
+            "check %x data %x != %x" % (addr, data, sim_data)
+
+    for addr in range(8):
+        data = yield from dcache_load(dut, addr*8)
+        assert data == sim_mem[addr], \
+            "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
+
 def dcache_sim(dut):
     # clear stuff
     yield dut.d_in.valid.eq(0)
@@ -1704,14 +1753,14 @@ def dcache_sim(dut):
     # Cacheable read of address 30
     data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
-    assert data == 0x0000004D0000004C, \
-        f"data @%x=%x expected 0000004D0000004C" % (addr, data)
+    assert data == 0x0000014D0000014C, \
+        f"data @%x=%x expected 0000014D0000014C" % (addr, data)
 
     # 2nd Cacheable read of address 30
     data = yield from dcache_load(dut, 0x530)
     addr = yield dut.d_in.addr
-    assert data == 0x0000004D0000004C, \
-        f"data @%x=%x expected 0000004D0000004C" % (addr, data)
+    assert data == 0x0000014D0000014C, \
+        f"data @%x=%x expected 0000014D0000014C" % (addr, data)
 
     # Non-cacheable read of address 100
     data = yield from dcache_load(dut, 0x100, nc=1)
@@ -1737,16 +1786,10 @@ def dcache_sim(dut):
     yield
 
 
-def test_dcache():
+def test_dcache(mem, test_fn, test_name):
     dut = DCache()
-    vl = rtlil.convert(dut, ports=[])
-    with open("test_dcache.il", "w") as f:
-        f.write(vl)
 
-    mem = []
-    for i in range(0,128):
-        mem.append((i*2)| ((i*2+1)<<32))
-    memory = Memory(width=64, depth=16*8, init=mem)
+    memory = Memory(width=64, depth=16*64, init=mem)
     sram = SRAM(memory=memory, granularity=8)
 
     m = Module()
@@ -1767,10 +1810,20 @@ def test_dcache():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(dcache_sim(dut)))
-    with sim.write_vcd('test_dcache.vcd'):
+    sim.add_sync_process(wrap(test_fn(dut)))
+    with sim.write_vcd('test_dcache_%s.vcd' % test_name):
         sim.run()
 
 if __name__ == '__main__':
-    test_dcache()
+    dut = DCache()
+    vl = rtlil.convert(dut, ports=[])
+    with open("test_dcache.il", "w") as f:
+        f.write(vl)
+
+    mem = []
+    for i in range(0,512):
+        mem.append((i*2)| ((i*2+1)<<32))
+
+    test_dcache(mem, dcache_sim, "quick")
+    test_dcache(None, dcache_random_sim, "random")
 
