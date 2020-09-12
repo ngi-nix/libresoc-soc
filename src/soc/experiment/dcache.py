@@ -1665,10 +1665,12 @@ def dcache_store(dut, addr, data, nc=0):
     yield dut.d_in.load.eq(0)
     yield dut.d_in.nc.eq(nc)
     yield dut.d_in.data.eq(data)
+    yield dut.d_in.byte_sel.eq(~0)
     yield dut.d_in.addr.eq(addr)
     yield dut.d_in.valid.eq(1)
     yield
     yield dut.d_in.valid.eq(0)
+    yield dut.d_in.byte_sel.eq(0)
     yield
     while not (yield dut.d_out.valid):
         yield
@@ -1716,17 +1718,10 @@ def dcache_sim(dut):
         f"data @%x=%x expected 0000004100000040" % (addr, data)
 
     # Store at address 30
+    yield from dcache_store(dut, 0x30, 0x121)
+
+    # Store at address 30
     yield from dcache_store(dut, 0x30, 0x12345678)
-
-    yield
-    yield
-    yield
-    yield
-
-    yield
-    yield
-    yield
-    yield
 
     # 3nd Cacheable read of address 30
     data = yield from dcache_load(dut, 0x30)
