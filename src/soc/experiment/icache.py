@@ -252,6 +252,178 @@ def CacheRamOut():
 def PLRUOut():
     return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
 
+#     -- Return the cache line index (tag index) for an address
+#     function get_index(addr: std_ulogic_vector(63 downto 0))
+#      return index_t is
+#     begin
+#         return to_integer(unsigned(
+#          addr(SET_SIZE_BITS - 1 downto LINE_OFF_BITS)
+#         ));
+#     end;
+# Return the cache line index (tag index) for an address
+def get_index(addr):
+    return addr[LINE_OFF_BITS:SET_SIZE_BITS]
+
+#     -- Return the cache row index (data memory) for an address
+#     function get_row(addr: std_ulogic_vector(63 downto 0))
+#       return row_t is
+#     begin
+#         return to_integer(unsigned(
+#          addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS)
+#         ));
+#     end;
+# Return the cache row index (data memory) for an address
+def get_row(addr):
+    return addr[ROW_OFF_BITS:SET_SIZE_BITS]
+
+#     -- Return the index of a row within a line
+#     function get_row_of_line(row: row_t) return row_in_line_t is
+# 	variable row_v : unsigned(ROW_BITS-1 downto 0);
+#     begin
+# 	row_v := to_unsigned(row, ROW_BITS);
+#         return row_v(ROW_LINEBITS-1 downto 0);
+#     end;
+# Return the index of a row within a line
+def get_row_of_line(row):
+    row[:ROW_LINE_BITS]
+
+#     -- Returns whether this is the last row of a line
+#     function is_last_row_addr(addr: wishbone_addr_type;
+#      last: row_in_line_t
+#     )
+#      return boolean is
+#     begin
+# 	return unsigned(
+#        addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)
+#       ) = last;
+#     end;
+# Returns whether this is the last row of a line
+def is_last_row_addr(addr, last):
+    return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
+
+#     -- Returns whether this is the last row of a line
+#     function is_last_row(row: row_t;
+#      last: row_in_line_t) return boolean is
+#     begin
+# 	return get_row_of_line(row) = last;
+#     end;
+# Returns whether this is the last row of a line
+def is_last_row(row, last):
+    return get_row_of_line(row) == last
+
+#     -- Return the address of the next row in the current cache line
+#     function next_row_addr(addr: wishbone_addr_type)
+# 	return std_ulogic_vector is
+# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
+# 	variable result  : wishbone_addr_type;
+#     begin
+# 	-- Is there no simpler way in VHDL to generate that 3 bits adder ?
+# 	row_idx := addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS);
+# 	row_idx := std_ulogic_vector(unsigned(row_idx) + 1);
+# 	result := addr;
+# 	result(LINE_OFF_BITS-1 downto ROW_OFF_BITS) := row_idx;
+# 	return result;
+#     end;
+# Return the address of the next row in the current cache line
+def next_row_addr(addr):
+    # TODO no idea what's going on here, looks like double assignments
+    # overriding earlier assignments ??? Help please!
+    pass
+
+#     -- Return the next row in the current cache line. We use a dedicated
+#     -- function in order to limit the size of the generated adder to be
+#     -- only the bits within a cache line (3 bits with default settings)
+#     function next_row(row: row_t) return row_t is
+# 	variable row_v   : std_ulogic_vector(ROW_BITS-1 downto 0);
+# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
+# 	variable result  : std_ulogic_vector(ROW_BITS-1 downto 0);
+#     begin
+# 	row_v := std_ulogic_vector(to_unsigned(row, ROW_BITS));
+# 	row_idx := row_v(ROW_LINEBITS-1 downto 0);
+# 	row_v(ROW_LINEBITS-1 downto 0) :=
+#        std_ulogic_vector(unsigned(row_idx) + 1);
+# 	return to_integer(unsigned(row_v));
+#     end;
+# Return the next row in the current cache line. We use a dedicated
+# function in order to limit the size of the generated adder to be
+# only the bits within a cache line (3 bits with default settings)
+def next_row(row):
+    # TODO no idea what's going on here, looks like double assignments
+    # overriding earlier assignments ??? Help please!
+    pass
+
+#     -- Read the instruction word for the given address in the
+#     -- current cache row
+#     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
+# 			    data: cache_row_t) return std_ulogic_vector is
+# 	variable word: integer range 0 to INSN_PER_ROW-1;
+#     begin
+#         word := to_integer(unsigned(addr(INSN_BITS+2-1 downto 2)));
+# 	return data(31+word*32 downto word*32);
+#     end;
+# Read the instruction word for the given address
+# in the current cache row
+def read_insn_word(addr, data):
+    word = addr[2:INSN_BITS+3]
+    return data[word * 32:32 + word * 32]
+
+#     -- Get the tag value from the address
+#     function get_tag(
+#      addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0)
+#     )
+#      return cache_tag_t is
+#     begin
+#         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
+#     end;
+# Get the tag value from the address
+def get_tag(addr):
+    return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
+
+#     -- Read a tag from a tag memory row
+#     function read_tag(way: way_t; tagset: cache_tags_set_t)
+#      return cache_tag_t is
+#     begin
+# 	return tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS);
+#     end;
+# Read a tag from a tag memory row
+def read_tag(way, tagset):
+    return tagset[way * TAG_BITS:(way + 1) * TAG_BITS]
+
+#     -- Write a tag to tag memory row
+#     procedure write_tag(way: in way_t;
+#      tagset: inout cache_tags_set_t; tag: cache_tag_t) is
+#     begin
+# 	tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS) := tag;
+#     end;
+# Write a tag to tag memory row
+def write_tag(way, tagset, tag):
+    tagset[way * TAG_BITS:(way + 1) * TAG_BITS] = tag
+
+#     -- Simple hash for direct-mapped TLB index
+#     function hash_ea(addr: std_ulogic_vector(63 downto 0))
+#      return tlb_index_t is
+#         variable hash : std_ulogic_vector(TLB_BITS - 1 downto 0);
+#     begin
+#         hash := addr(TLB_LG_PGSZ + TLB_BITS - 1 downto TLB_LG_PGSZ)
+#                 xor addr(
+#                  TLB_LG_PGSZ + 2 * TLB_BITS - 1 downto
+#                  TLB_LG_PGSZ + TLB_BITS
+#                 )
+#                 xor addr(
+#                  TLB_LG_PGSZ + 3 * TLB_BITS - 1 downto
+#                  TLB_LG_PGSZ + 2 * TLB_BITS
+#                 );
+#         return to_integer(unsigned(hash));
+#     end;
+# Simple hash for direct-mapped TLB index
+def hash_ea(addr):
+    hsh = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS] ^ addr[
+           TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS
+          ] ^ addr[
+           TLB_LG_PGSZ + 2 * TLB_BITS:TLB_LG_PGSZ + 3 * TLB_BITS
+          ]
+    return hsh
+
 # begin
 #
 #     assert LINE_SIZE mod ROW_SIZE = 0;
@@ -410,177 +582,6 @@ class ICache(Elaboratable):
 
         self.log_out        = Signal(54)
 
-#     -- Return the cache line index (tag index) for an address
-#     function get_index(addr: std_ulogic_vector(63 downto 0))
-#      return index_t is
-#     begin
-#         return to_integer(unsigned(
-#          addr(SET_SIZE_BITS - 1 downto LINE_OFF_BITS)
-#         ));
-#     end;
-    # Return the cache line index (tag index) for an address
-    def get_index(addr):
-        return addr[LINE_OFF_BITS:SET_SIZE_BITS]
-
-#     -- Return the cache row index (data memory) for an address
-#     function get_row(addr: std_ulogic_vector(63 downto 0))
-#       return row_t is
-#     begin
-#         return to_integer(unsigned(
-#          addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS)
-#         ));
-#     end;
-    # Return the cache row index (data memory) for an address
-    def get_row(addr):
-        return addr[ROW_OFF_BITS:SET_SIZE_BITS]
-
-#     -- Return the index of a row within a line
-#     function get_row_of_line(row: row_t) return row_in_line_t is
-# 	variable row_v : unsigned(ROW_BITS-1 downto 0);
-#     begin
-# 	row_v := to_unsigned(row, ROW_BITS);
-#         return row_v(ROW_LINEBITS-1 downto 0);
-#     end;
-    # Return the index of a row within a line
-    def get_row_of_line(row):
-        row[:ROW_LINE_BITS]
-
-#     -- Returns whether this is the last row of a line
-#     function is_last_row_addr(addr: wishbone_addr_type;
-#      last: row_in_line_t
-#     )
-#      return boolean is
-#     begin
-# 	return unsigned(
-#        addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)
-#       ) = last;
-#     end;
-    # Returns whether this is the last row of a line
-    def is_last_row_addr(addr, last):
-        return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
-
-#     -- Returns whether this is the last row of a line
-#     function is_last_row(row: row_t;
-#      last: row_in_line_t) return boolean is
-#     begin
-# 	return get_row_of_line(row) = last;
-#     end;
-    # Returns whether this is the last row of a line
-    def is_last_row(row, last):
-        return get_row_of_line(row) == last
-
-#     -- Return the address of the next row in the current cache line
-#     function next_row_addr(addr: wishbone_addr_type)
-# 	return std_ulogic_vector is
-# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
-# 	variable result  : wishbone_addr_type;
-#     begin
-# 	-- Is there no simpler way in VHDL to generate that 3 bits adder ?
-# 	row_idx := addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS);
-# 	row_idx := std_ulogic_vector(unsigned(row_idx) + 1);
-# 	result := addr;
-# 	result(LINE_OFF_BITS-1 downto ROW_OFF_BITS) := row_idx;
-# 	return result;
-#     end;
-    # Return the address of the next row in the current cache line
-    def next_row_addr(addr):
-        # TODO no idea what's going on here, looks like double assignments
-        # overriding earlier assignments ??? Help please!
-        pass
-
-#     -- Return the next row in the current cache line. We use a dedicated
-#     -- function in order to limit the size of the generated adder to be
-#     -- only the bits within a cache line (3 bits with default settings)
-#     function next_row(row: row_t) return row_t is
-# 	variable row_v   : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
-# 	variable result  : std_ulogic_vector(ROW_BITS-1 downto 0);
-#     begin
-# 	row_v := std_ulogic_vector(to_unsigned(row, ROW_BITS));
-# 	row_idx := row_v(ROW_LINEBITS-1 downto 0);
-# 	row_v(ROW_LINEBITS-1 downto 0) :=
-#        std_ulogic_vector(unsigned(row_idx) + 1);
-# 	return to_integer(unsigned(row_v));
-#     end;
-    # Return the next row in the current cache line. We use a dedicated
-    # function in order to limit the size of the generated adder to be
-    # only the bits within a cache line (3 bits with default settings)
-    def next_row(row):
-        # TODO no idea what's going on here, looks like double assignments
-        # overriding earlier assignments ??? Help please!
-        pass
-
-#     -- Read the instruction word for the given address in the
-#     -- current cache row
-#     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
-# 			    data: cache_row_t) return std_ulogic_vector is
-# 	variable word: integer range 0 to INSN_PER_ROW-1;
-#     begin
-#         word := to_integer(unsigned(addr(INSN_BITS+2-1 downto 2)));
-# 	return data(31+word*32 downto word*32);
-#     end;
-    # Read the instruction word for the given address
-    # in the current cache row
-    def read_insn_word(addr, data):
-        word = addr[2:INSN_BITS+3]
-        return data[word * 32:32 + word * 32]
-
-#     -- Get the tag value from the address
-#     function get_tag(
-#      addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0)
-#     )
-#      return cache_tag_t is
-#     begin
-#         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
-#     end;
-    # Get the tag value from the address
-    def get_tag(addr):
-        return addr[SET_SIZE_BITS:REAL_ADDR_BITS]
-
-#     -- Read a tag from a tag memory row
-#     function read_tag(way: way_t; tagset: cache_tags_set_t)
-#      return cache_tag_t is
-#     begin
-# 	return tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS);
-#     end;
-    # Read a tag from a tag memory row
-    def read_tag(way, tagset):
-        return tagset[way * TAG_BITS:(way + 1) * TAG_BITS]
-
-#     -- Write a tag to tag memory row
-#     procedure write_tag(way: in way_t;
-#      tagset: inout cache_tags_set_t; tag: cache_tag_t) is
-#     begin
-# 	tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS) := tag;
-#     end;
-    # Write a tag to tag memory row
-    def write_tag(way, tagset, tag):
-        tagset[way * TAG_BITS:(way + 1) * TAG_BITS] = tag
-
-#     -- Simple hash for direct-mapped TLB index
-#     function hash_ea(addr: std_ulogic_vector(63 downto 0))
-#      return tlb_index_t is
-#         variable hash : std_ulogic_vector(TLB_BITS - 1 downto 0);
-#     begin
-#         hash := addr(TLB_LG_PGSZ + TLB_BITS - 1 downto TLB_LG_PGSZ)
-#                 xor addr(
-#                  TLB_LG_PGSZ + 2 * TLB_BITS - 1 downto
-#                  TLB_LG_PGSZ + TLB_BITS
-#                 )
-#                 xor addr(
-#                  TLB_LG_PGSZ + 3 * TLB_BITS - 1 downto
-#                  TLB_LG_PGSZ + 2 * TLB_BITS
-#                 );
-#         return to_integer(unsigned(hash));
-#     end;
-    # Simple hash for direct-mapped TLB index
-    def hash_ea(addr):
-        hsh = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS] ^ addr[
-               TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS
-              ] ^ addr[
-               TLB_LG_PGSZ + 2 * TLB_BITS:TLB_LG_PGSZ + 3 * TLB_BITS
-              ]
-        return hsh
 
 #     -- Generate a cache RAM for each way
 #     rams: for i in 0 to NUM_WAYS-1 generate
