@@ -253,24 +253,9 @@ class MMU(Elaboratable):
         with m.Else():
             comb += v.state.eq(State.RADIX_LOOKUP)
 
-    def elaborate(self, platform):
-        m = Module()
-
+    def mmu_0(self, m, r, rin, l_in, l_out, d_out, addrsh, mask):
         comb = m.d.comb
         sync = m.d.sync
-
-        addrsh = Signal(16)
-        mask = Signal(16)
-        finalmask = Signal(44)
-
-        r = RegStage("r")
-        rin = RegStage("r_in")
-
-        l_in  = self.l_in
-        l_out = self.l_out
-        d_out = self.d_out
-        d_in  = self.d_in
-        i_out = self.i_out
 
         # Multiplex internal SPR values back to loadstore1,
         # selected by l_in.sprn.
@@ -297,6 +282,27 @@ class MMU(Elaboratable):
             sync += Display(f"send load addr=%x addrsh=%d mask=%d",
                             d_out.addr, addrsh, mask)
         sync += r.eq(rin)
+
+    def elaborate(self, platform):
+        m = Module()
+
+        comb = m.d.comb
+        sync = m.d.sync
+
+        addrsh = Signal(16)
+        mask = Signal(16)
+        finalmask = Signal(44)
+
+        r = RegStage("r")
+        rin = RegStage("r_in")
+
+        l_in  = self.l_in
+        l_out = self.l_out
+        d_out = self.d_out
+        d_in  = self.d_in
+        i_out = self.i_out
+
+        self.mmu_0(m, r, rin, l_in, l_out, d_out, addrsh, mask)
 
         v = RegStage()
         dcreq = Signal()
@@ -334,7 +340,7 @@ class MMU(Elaboratable):
         # generate mask for extracting address fields for PTE addr generation
         m.submodules.pte_mask = pte_mask = Mask(16-5)
         comb += pte_mask.shift.eq(r.mask_size - 5)
-        comb += mask.eq(Cat(C(0x1f,5), pte_mask.mask))
+        comb += mask.eq(Cat(C(0x1f, 5), pte_mask.mask))
 
         # generate mask for extracting address bits to go in
         # TLB entry in order to support pages > 4kB
@@ -430,7 +436,7 @@ class MMU(Elaboratable):
                         ))
 
         # update registers
-        rin.eq(v)
+        comb += rin.eq(v)
 
         # drive outputs
         with m.If(tlbie_req):
