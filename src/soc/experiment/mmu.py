@@ -9,7 +9,7 @@ from nmigen.cli import main
 from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
-from nmutil.mask import Mask
+from nmutil.mask import Mask, masked
 from nmutil.util import Display
 
 if True:
@@ -311,8 +311,8 @@ class MMU(Elaboratable):
         tlbie_req = Signal()
         prtbl_rd = Signal()
         effpid = Signal(32)
-        prtable_addr = Signal(64)
-        pgtable_addr = Signal(64)
+        prtb_adr = Signal(64)
+        pgtb_addr = Signal(64)
         pte = Signal(64)
         tlb_data = Signal(64)
         addr = Signal(64)
@@ -414,26 +414,17 @@ class MMU(Elaboratable):
         with m.If(~r.addr[63]):
             comb += effpid.eq(r.pid)
 
-        comb += prtable_addr.eq(Cat(
-                                 C(0b0000, 4),
-                                 effpid[0:8],
-                                 (r.prtbl[12:36] & ~finalmask[0:24]) |
-                                 (effpid[8:32]   &  finalmask[0:24]),
-                                 r.prtbl[36:56]
-                                ))
+        pr24 = Signal(24, reset_less=True)
+        comb += pr24.eq(masked(r.prtbl[12:36], effpid[8:32], finalmask))
+        comb += prtb_adr.eq(Cat(C(0, 4), effpid[0:8], pr24, r.prtbl[36:56]))
 
-        comb += pgtable_addr.eq(Cat(
-                                 C(0b000, 3),
-                                 (r.pgbase[3:19] & ~mask) |
-                                 (addrsh         &  mask),
-                                 r.pgbase[19:56]
-                                ))
+        pg16 = Signal(16, reset_less=True)
+        comb += pg16.eq(masked(r.pgbase[3:19], addrsh, mask))
+        comb += pgtb_addr.eq(Cat(C(0, 3), pg16, r.pgbase[19:56]))
 
-        comb += pte.eq(Cat(
-                         r.pde[0:12],
-                          (r.pde[12:56]    & ~finalmask) |
-                          (r.addr[12:56] &  finalmask),
-                        ))
+        pd44 = Signal(44, reset_less=True)
+        comb += pd44.eq(masked(r.pde[12:56], r.addr[12:56], finalmask))
+        comb += pte.eq(Cat(r.pde[0:12], pd44))
 
         # update registers
         comb += rin.eq(v)
@@ -445,9 +436,9 @@ class MMU(Elaboratable):
             comb += addr.eq(Cat(C(0, 12), r.addr[12:64]))
             comb += tlb_data.eq(pte)
         with m.Elif(prtbl_rd):
-            comb += addr.eq(prtable_addr)
+            comb += addr.eq(prtb_adr)
         with m.Else():
-            comb += addr.eq(pgtable_addr)
+            comb += addr.eq(pgtb_addr)
 
         comb += l_out.done.eq(r.done)
         comb += l_out.err.eq(r.err)
