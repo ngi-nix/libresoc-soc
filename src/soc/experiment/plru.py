@@ -1,6 +1,8 @@
 # based on microwatt plru.vhdl
 
 from nmigen import Elaboratable, Signal, Array, Module
+from nmigen.cli import rtlil
+
 
 class PLRU(Elaboratable):
 
@@ -14,7 +16,7 @@ class PLRU(Elaboratable):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
-        tree = Array(Signal() for i in range(self.BITS))
+        tree = Array(Signal(name="tree%d" % i) for i in range(self.BITS))
 
         # XXX Check if we can turn that into a little ROM instead that
         # takes the tree bit vector and returns the LRU. See if it's better
@@ -52,3 +54,14 @@ class PLRU(Elaboratable):
                     node = node_next
 
         return m
+
+    def ports(self):
+        return [self.acc_en, self.lru_o, self.acc]
+
+if __name__ == '__main__':
+    dut = PLRU(3)
+    vl = rtlil.convert(dut, ports=dut.ports())
+    with open("test_plru.il", "w") as f:
+        f.write(vl)
+
+

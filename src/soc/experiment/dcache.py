@@ -1837,5 +1837,5 @@ if __name__ == '__main__':
         mem.append((i*2)| ((i*2+1)<<32))
 
     test_dcache(mem, dcache_sim, "")
-    #test_dcache(None, dcache_random_sim, "random")
+    test_dcache(None, dcache_random_sim, "random")
 
