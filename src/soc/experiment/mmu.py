@@ -362,6 +362,9 @@ class MMU(Elaboratable):
         comb += tlb_mask.shift.eq(r.shift)
         comb += finalmask.eq(tlb_mask.mask)
 
+        with m.If(r.state != State.IDLE):
+            sync += Display("MMU state %d", r.state)
+
         with m.Switch(r.state):
             with m.Case(State.IDLE):
                 self.radix_tree_idle(m, l_in, r, v)
@@ -483,7 +486,9 @@ def dcache_get(dut):
     """simulator process for getting memory load requests
     """
 
-    mem = {0x10000: 0x12345678}
+    mem = {0x10000:             # PARTITION_TABLE_2
+            0x800000000100000b, # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+          }
 
     while not stop:
         while True: # wait for dc_valid
@@ -494,17 +499,28 @@ def dcache_get(dut):
                 break
             yield
         addr = yield dut.d_out.addr
-        yield dut.d_in.data.eq(mem[addr])
+        data = mem[addr]
+        yield dut.d_in.data.eq(data)
+        print ("dcache get %x data %x" % (addr, data))
         yield dut.d_in.done.eq(1)
         yield
         yield dut.d_in.done.eq(0)
 
 
 def mmu_sim(dut):
+    yield dut.l_in.load.eq(1)
+    yield dut.l_in.addr.eq(0x10000)
+    yield dut.l_in.valid.eq(1)
+    while True: # wait for dc_valid
+        d_valid = yield (dut.d_out.valid)
+        if d_valid:
+            break
+        yield
+    addr = yield dut.d_out.addr
+    pte = yield dut.d_out.pte
+    print ("translated addr %x pte %x" % (addr, pte))
+
     global stop
-    yield
-    yield
-    yield
     stop = True
 
 def test_mmu():
