@@ -20,14 +20,14 @@ TODO (in no specific order):
 
 """
 from enum import Enum, unique
-from nmigen import (Module, Signal, Elaboratable, Cat, Signal)
+from nmigen import (Module, Signal, Elaboratable, Cat, Array, Const)
 from nmigen.cli import main
 from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
 from nmutil.mask import Mask
 from nmigen.utils import log2_int
-
+from nmutil.util import Display
 
 from soc.experiment.mem_types import (Fetch1ToICacheType,
                                       ICacheToDecode1Type,
@@ -39,6 +39,243 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS,
                                      WBMasterOutVector, WBSlaveOutVector,
                                      WBIOMasterOut, WBIOSlaveOut)
 
+
+SIM            = 0
+LINE_SIZE      = 64
+# BRAM organisation: We never access more than wishbone_data_bits
+# at a time so to save resources we make the array only that wide,
+# and use consecutive indices for to make a cache "line"
+#
+# ROW_SIZE is the width in bytes of the BRAM (based on WB, so 64-bits)
+ROW_SIZE       = WB_DATA_BITS // 8
+# Number of lines in a set
+NUM_LINES      = 32
+# Number of ways
+NUM_WAYS       = 4
+# L1 ITLB number of entries (direct mapped)
+TLB_SIZE       = 64
+# L1 ITLB log_2(page_size)
+TLB_LG_PGSZ    = 12
+# Number of real address bits that we store
+REAL_ADDR_BITS = 56
+# Non-zero to enable log data collection
+LOG_LENGTH     = 0
+
+ROW_SIZE_BITS  = ROW_SIZE * 8
+# ROW_PER_LINE is the number of row
+# (wishbone) transactions in a line
+ROW_PER_LINE   = LINE_SIZE // ROW_SIZE
+# BRAM_ROWS is the number of rows in
+# BRAM needed to represent the full icache
+BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
+# INSN_PER_ROW is the number of 32bit
+# instructions per BRAM row
+INSN_PER_ROW   = ROW_SIZE_BITS // 32
+
+# Bit fields counts in the address
+#
+# INSN_BITS is the number of bits to
+# select an instruction in a row
+INSN_BITS      = log2_int(INSN_PER_ROW)
+# ROW_BITS is the number of bits to
+# select a row
+ROW_BITS       = log2_int(BRAM_ROWS)
+# ROW_LINEBITS is the number of bits to
+# select a row within a line
+ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
+# LINE_OFF_BITS is the number of bits for
+# the offset in a cache line
+LINE_OFF_BITS  = log2_int(LINE_SIZE)
+# ROW_OFF_BITS is the number of bits for
+# the offset in a row
+ROW_OFF_BITS   = log2_int(ROW_SIZE)
+# INDEX_BITS is the number of bits to
+# select a cache line
+INDEX_BITS     = log2_int(NUM_LINES)
+# SET_SIZE_BITS is the log base 2 of
+# the set size
+SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
+# TAG_BITS is the number of bits of
+# the tag part of the address
+TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
+# WAY_BITS is the number of bits to
+# select a way
+WAY_BITS       = log2_int(NUM_WAYS)
+TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
+
+#     -- L1 ITLB.
+#     constant TLB_BITS : natural := log2(TLB_SIZE);
+#     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
+#     constant TLB_PTE_BITS : natural := 64;
+TLB_BITS        = log2_int(TLB_SIZE)
+TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
+TLB_PTE_BITS    = 64
+
+# architecture rtl of icache is
+#constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
+#-- ROW_PER_LINE is the number of row (wishbone
+#-- transactions) in a line
+#constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
+#-- BRAM_ROWS is the number of rows in BRAM
+#-- needed to represent the full
+#-- icache
+#constant BRAM_ROWS     : natural := NUM_LINES * ROW_PER_LINE;
+#-- INSN_PER_ROW is the number of 32bit instructions per BRAM row
+#constant INSN_PER_ROW  : natural := ROW_SIZE_BITS / 32;
+#-- Bit fields counts in the address
+#
+#-- INSN_BITS is the number of bits to select
+#-- an instruction in a row
+#constant INSN_BITS     : natural := log2(INSN_PER_ROW);
+#-- ROW_BITS is the number of bits to select a row
+#constant ROW_BITS      : natural := log2(BRAM_ROWS);
+#-- ROW_LINEBITS is the number of bits to
+#-- select a row within a line
+#constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
+#-- LINE_OFF_BITS is the number of bits for the offset
+#-- in a cache line
+#constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
+#-- ROW_OFF_BITS is the number of bits for the offset in a row
+#constant ROW_OFF_BITS  : natural := log2(ROW_SIZE);
+#-- INDEX_BITS is the number of bits to select a cache line
+#constant INDEX_BITS    : natural := log2(NUM_LINES);
+#-- SET_SIZE_BITS is the log base 2 of the set size
+#constant SET_SIZE_BITS : natural := LINE_OFF_BITS + INDEX_BITS;
+#-- TAG_BITS is the number of bits of the tag part of the address
+#constant TAG_BITS      : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
+#-- WAY_BITS is the number of bits to select a way
+#constant WAY_BITS     : natural := log2(NUM_WAYS);
+
+#-- Example of layout for 32 lines of 64 bytes:
+#--
+#-- ..  tag    |index|  line  |
+#-- ..         |   row   |    |
+#-- ..         |     |   | |00| zero          (2)
+#-- ..         |     |   |-|  | INSN_BITS     (1)
+#-- ..         |     |---|    | ROW_LINEBITS  (3)
+#-- ..         |     |--- - --| LINE_OFF_BITS (6)
+#-- ..         |         |- --| ROW_OFF_BITS  (3)
+#-- ..         |----- ---|    | ROW_BITS      (8)
+#-- ..         |-----|        | INDEX_BITS    (5)
+#-- .. --------|              | TAG_BITS      (53)
+   # Example of layout for 32 lines of 64 bytes:
+   #
+   # ..  tag    |index|  line  |
+   # ..         |   row   |    |
+   # ..         |     |   | |00| zero          (2)
+   # ..         |     |   |-|  | INSN_BITS     (1)
+   # ..         |     |---|    | ROW_LINEBITS  (3)
+   # ..         |     |--- - --| LINE_OFF_BITS (6)
+   # ..         |         |- --| ROW_OFF_BITS  (3)
+   # ..         |----- ---|    | ROW_BITS      (8)
+   # ..         |-----|        | INDEX_BITS    (5)
+   # .. --------|              | TAG_BITS      (53)
+
+#subtype row_t is integer range 0 to BRAM_ROWS-1;
+#subtype index_t is integer range 0 to NUM_LINES-1;
+#subtype way_t is integer range 0 to NUM_WAYS-1;
+#subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
+#
+#-- The cache data BRAM organized as described above for each way
+#subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
+#
+#-- The cache tags LUTRAM has a row per set. Vivado is a pain and will
+#-- not handle a clean (commented) definition of the cache tags as a 3d
+#-- memory. For now, work around it by putting all the tags
+#subtype cache_tag_t is std_logic_vector(TAG_BITS-1 downto 0);
+#  type cache_tags_set_t is array(way_t) of cache_tag_t;
+#  type cache_tags_array_t is array(index_t) of cache_tags_set_t;
+#constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
+#subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
+#type cache_tags_array_t is array(index_t) of cache_tags_set_t;
+def CacheTagArray():
+    return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
+
+#-- The cache valid bits
+#subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
+#type cache_valids_t is array(index_t) of cache_way_valids_t;
+#type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
+def CacheValidBitsArray():
+    return Array(Signal() for x in range(ROW_PER_LINE))
+
+def RowPerLineValidArray():
+    return Array(Signal() for x in range(ROW_PER_LINE))
+
+
+#attribute ram_style : string;
+#attribute ram_style of cache_tags : signal is "distributed";
+   # TODO to be passed to nigmen as ram attributes
+   # attribute ram_style : string;
+   # attribute ram_style of cache_tags : signal is "distributed";
+
+
+#subtype tlb_index_t is integer range 0 to TLB_SIZE - 1;
+#type tlb_valids_t is array(tlb_index_t) of std_ulogic;
+#subtype tlb_tag_t is std_ulogic_vector(TLB_EA_TAG_BITS - 1 downto 0);
+#type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
+#subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
+#type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
+def TLBValidBitsArray():
+    return Array(Signal() for x in range(TLB_SIZE))
+
+def TLBTagArray():
+    return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
+
+def TLBPTEArray():
+    return Array(Signal(TLB_PTE_BITS) for x in range(TLB_SIZE))
+
+
+#-- Cache RAM interface
+#type cache_ram_out_t is array(way_t) of cache_row_t;
+# Cache RAM interface
+def CacheRamOut():
+    return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
+
+#-- PLRU output interface
+#type plru_out_t is array(index_t) of
+# std_ulogic_vector(WAY_BITS-1 downto 0);
+# PLRU output interface
+def PLRUOut():
+    return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
+
+# begin
+#
+#     assert LINE_SIZE mod ROW_SIZE = 0;
+#     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
+#      severity FAILURE;
+#     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
+#      severity FAILURE;
+#     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
+#      severity FAILURE;
+#     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
+#      severity FAILURE;
+#     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
+# 	report "geometry bits don't add up" severity FAILURE;
+#
+#     sim_debug: if SIM generate
+#     debug: process
+#     begin
+# 	report "ROW_SIZE      = " & natural'image(ROW_SIZE);
+# 	report "ROW_PER_LINE  = " & natural'image(ROW_PER_LINE);
+# 	report "BRAM_ROWS     = " & natural'image(BRAM_ROWS);
+# 	report "INSN_PER_ROW  = " & natural'image(INSN_PER_ROW);
+# 	report "INSN_BITS     = " & natural'image(INSN_BITS);
+# 	report "ROW_BITS      = " & natural'image(ROW_BITS);
+# 	report "ROW_LINEBITS  = " & natural'image(ROW_LINEBITS);
+# 	report "LINE_OFF_BITS = " & natural'image(LINE_OFF_BITS);
+# 	report "ROW_OFF_BITS  = " & natural'image(ROW_OFF_BITS);
+# 	report "INDEX_BITS    = " & natural'image(INDEX_BITS);
+# 	report "TAG_BITS      = " & natural'image(TAG_BITS);
+# 	report "WAY_BITS      = " & natural'image(WAY_BITS);
+# 	wait;
+#     end process;
+#     end generate;
 
 # Cache reload state machine
 @unique
@@ -78,7 +315,7 @@ class RegInternal(RecordObject):
         self.hit_valid    = Signal()
 
         # Cache miss state (reload state machine)
-        self.state        = State()
+        self.state        = Signal(State)
         self.wb           = WBMasterOut()
         self.store_way    = Signal(NUM_WAYS)
         self.store_index  = Signal(NUM_LINES)
@@ -98,8 +335,10 @@ class RegInternal(RecordObject):
 #         SIM : boolean := false;
 #         -- Line size in bytes
 #         LINE_SIZE : positive := 64;
-#         -- BRAM organisation: We never access more than wishbone_data_bits
-#         -- at a time so to save resources we make the array only that wide,
+#         -- BRAM organisation: We never access more
+#         -- than wishbone_data_bits
+#         -- at a time so to save resources we make the
+#         -- array only that wide,
 #         -- and use consecutive indices for to make a cache "line"
 #         --
 #         -- ROW_SIZE is the width in bytes of the BRAM (based on WB,
@@ -142,27 +381,6 @@ class RegInternal(RecordObject):
 class ICache(Elaboratable):
     """64 bit direct mapped icache. All instructions are 4B aligned."""
     def __init__(self):
-        self.SIM            = 0
-        self.LINE_SIZE      = 64
-        # BRAM organisation: We never access more than wishbone_data_bits
-        # at a time so to save resources we make the array only that wide,
-        # and use consecutive indices for to make a cache "line"
-        #
-        # ROW_SIZE is the width in bytes of the BRAM (based on WB, so 64-bits)
-        self.ROW_SIZE       = WB_DATA_BITS / 8
-        # Number of lines in a set
-        self.NUM_LINES      = 32
-        # Number of ways
-        self.NUM_WAYS       = 4
-        # L1 ITLB number of entries (direct mapped)
-        self.TLB_SIZE       = 64
-        # L1 ITLB log_2(page_size)
-        self.TLB_LG_PGSZ    = 12
-        # Number of real address bits that we store
-        self.REAL_ADDR_BITS = 56
-        # Non-zero to enable log data collection
-        self.LOG_LENGTH     = 0
-
         self.i_in           = Fetch1ToICacheType()
         self.i_out          = ICacheToDecode1Type()
 
@@ -191,7 +409,8 @@ class ICache(Elaboratable):
         return addr[LINE_OFF_BITS:SET_SIZE_BITS]
 
 #     -- Return the cache row index (data memory) for an address
-#     function get_row(addr: std_ulogic_vector(63 downto 0)) return row_t is
+#     function get_row(addr: std_ulogic_vector(63 downto 0))
+#       return row_t is
 #     begin
 #         return to_integer(unsigned(
 #          addr(SET_SIZE_BITS - 1 downto ROW_OFF_BITS)
@@ -213,17 +432,22 @@ class ICache(Elaboratable):
         row[:ROW_LINE_BITS]
 
 #     -- Returns whether this is the last row of a line
-#     function is_last_row_addr(addr: wishbone_addr_type; last: row_in_line_t)
+#     function is_last_row_addr(addr: wishbone_addr_type;
+#      last: row_in_line_t
+#     )
 #      return boolean is
 #     begin
-# 	return unsigned(addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)) = last;
+# 	return unsigned(
+#        addr(LINE_OFF_BITS-1 downto ROW_OFF_BITS)
+#       ) = last;
 #     end;
     # Returns whether this is the last row of a line
     def is_last_row_addr(addr, last):
         return addr[ROW_OFF_BITS:LINE_OFF_BITS] == last
 
 #     -- Returns whether this is the last row of a line
-#     function is_last_row(row: row_t; last: row_in_line_t) return boolean is
+#     function is_last_row(row: row_t;
+#      last: row_in_line_t) return boolean is
 #     begin
 # 	return get_row_of_line(row) = last;
 #     end;
@@ -288,7 +512,9 @@ class ICache(Elaboratable):
         return data[word * 32:32 + word * 32]
 
 #     -- Get the tag value from the address
-#     function get_tag(addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0))
+#     function get_tag(
+#      addr: std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0)
+#     )
 #      return cache_tag_t is
 #     begin
 #         return addr(REAL_ADDR_BITS - 1 downto SET_SIZE_BITS);
@@ -308,8 +534,8 @@ class ICache(Elaboratable):
         return tagset[way * TAG_BITS:(way + 1) * TAG_BITS]
 
 #     -- Write a tag to tag memory row
-#     procedure write_tag(way: in way_t; tagset: inout cache_tags_set_t;
-# 			tag: cache_tag_t) is
+#     procedure write_tag(way: in way_t;
+#      tagset: inout cache_tags_set_t; tag: cache_tag_t) is
 #     begin
 # 	tagset((way+1) * TAG_BITS - 1 downto way * TAG_BITS) := tag;
 #     end;
@@ -373,8 +599,10 @@ class ICache(Elaboratable):
 # 		do_write <= '1';
 # 	    end if;
 # 	    cache_out(i) <= dout;
-# 	    rd_addr <= std_ulogic_vector(to_unsigned(req_row, ROW_BITS));
-# 	    wr_addr <= std_ulogic_vector(to_unsigned(r.store_row, ROW_BITS));
+# 	    rd_addr <=
+#            std_ulogic_vector(to_unsigned(req_row, ROW_BITS));
+# 	    wr_addr <=
+#            std_ulogic_vector(to_unsigned(r.store_row, ROW_BITS));
 #             for i in 0 to ROW_SIZE-1 loop
 #                 wr_sel(i) <= do_write;
 #             end loop;
@@ -532,7 +760,8 @@ class ICache(Elaboratable):
 #     begin
 #         if rising_edge(clk) then
 #             wr_index := hash_ea(m_in.addr);
-#             if rst = '1' or (m_in.tlbie = '1' and m_in.doall = '1') then
+#             if rst = '1' or
+#              (m_in.tlbie = '1' and m_in.doall = '1') then
 #                 -- clear all valid bits
 #                 for i in tlb_index_t loop
 #                     itlb_valids(i) <= '0';
@@ -541,9 +770,8 @@ class ICache(Elaboratable):
 #                 -- clear entry regardless of hit or miss
 #                 itlb_valids(wr_index) <= '0';
 #             elsif m_in.tlbld = '1' then
-#                 itlb_tags(wr_index) <= m_in.addr(
-#                                         63 downto TLB_LG_PGSZ + TLB_BITS
-#                                        );
+#                 itlb_tags(wr_index) <=
+#                  m_in.addr(63 downto TLB_LG_PGSZ + TLB_BITS);
 #                 itlb_ptes(wr_index) <= m_in.pte;
 #                 itlb_valids(wr_index) <= '1';
 #             end if;
@@ -583,10 +811,12 @@ class ICache(Elaboratable):
         is_hit  = Signal()
         hit_way = Signal(NUM_WAYS)
 #     begin
-#         -- i_in.sequential means that i_in.nia this cycle is 4 more than
-#         -- last cycle.  If we read more than 32 bits at a time, had a
-#         -- cache hit last cycle, and we don't want the first 32-bit chunk
-#         -- then we can keep the data we read last cycle and just use that.
+#         -- i_in.sequential means that i_in.nia this cycle
+#         -- is 4 more than last cycle.  If we read more
+#         -- than 32 bits at a time, had a cache hit last
+#         -- cycle, and we don't want the first 32-bit chunk
+#         -- then we can keep the data we read last cycle
+#         -- and just use that.
 #         if unsigned(i_in.nia(INSN_BITS+2-1 downto 2)) /= 0 then
 #             use_previous <= i_in.sequential and r.hit_valid;
 #         else
@@ -613,9 +843,10 @@ class ICache(Elaboratable):
 
 # 	-- Calculate address of beginning of cache row, will be
 # 	-- used for cache miss processing if needed
-# 	req_laddr <= (63 downto REAL_ADDR_BITS => '0') &
-#                      real_addr(REAL_ADDR_BITS - 1 downto ROW_OFF_BITS) &
-# 		     (ROW_OFF_BITS-1 downto 0 => '0');
+# 	req_laddr <=
+#        (63 downto REAL_ADDR_BITS => '0') &
+#        real_addr(REAL_ADDR_BITS - 1 downto ROW_OFF_BITS) &
+# 	 (ROW_OFF_BITS-1 downto 0 => '0');
         # Calculate address of beginning of cache row, will be
         # used for cache miss processing if needed
         comb += req_laddr.eq(Cat(
@@ -652,7 +883,8 @@ class ICache(Elaboratable):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
 
-# 	-- Generate the "hit" and "miss" signals for the synchronous blocks
+# 	-- Generate the "hit" and "miss" signals
+#       -- for the synchronous blocks
 #       if i_in.req = '1' and access_ok = '1' and flush_in = '0'
 #        and rst = '0' then
 #           req_is_hit  <= is_hit;
@@ -662,8 +894,9 @@ class ICache(Elaboratable):
 #           req_is_miss <= '0';
 #       end if;
 # 	req_hit_way <= hit_way;
-        # Generate the "hit" and "miss" signals for the synchronous blocks
-        with m.If(i_in.rq & access_ok & ~flush_in & '''TODO nmigen rst'''):
+        # Generate the "hit" and "miss" signals
+        # for the synchronous blocks
+        with m.If(i_in.rq & access_ok & ~flush_in):
             comb += req_is_hit.eq(is_hit)
             comb += req_is_miss.eq(~is_hit)
 
@@ -673,7 +906,8 @@ class ICache(Elaboratable):
 
 #       -- The way to replace on a miss
 #       if r.state = CLR_TAG then
-#           replace_way <= to_integer(unsigned(plru_victim(r.store_index)));
+#           replace_way <=
+#            to_integer(unsigned(plru_victim(r.store_index)));
 #       else
 #           replace_way <= r.store_way;
 #       end if;
@@ -771,9 +1005,11 @@ class ICache(Elaboratable):
 #                         " tag:" & to_hstring(req_tag) &
 #                         " way:" & integer'image(req_hit_way) &
 #                         " RA:" & to_hstring(real_addr);
-                print(f"cache hit nia:{i_in.nia}, IR:{i_in.virt_mode}, " \
+                print(f"cache hit nia:{i_in.nia}, " \
+                      f"IR:{i_in.virt_mode}, " \
                       f"SM:{i_in.stop_mark}, idx:{req_index}, " \
-                      f"tag:{req_tag}, way:{req_hit_way}, RA:{real_addr}")
+                      f"tag:{req_tag}, way:{req_hit_way}, " \
+                      f"RA:{real_addr}")
 #                 end if;
 # 	    end if;
 #             if stall_in = '0' then
@@ -829,7 +1065,8 @@ class ICache(Elaboratable):
             sync += r.wb.sel.eq(Const(0b11111111, 8))
             sync += r.wb.we.eq(0)
 
-# 		-- Not useful normally but helps avoiding tons of sim warnings
+# 		-- Not useful normally but helps avoiding
+#               -- tons of sim warnings
 # 		r.wb.adr <= (others => '0');
             # Not useful normally but helps avoiding tons of sim warnings
             sync += r.wb.adr.eq(~1)
@@ -857,11 +1094,13 @@ class ICache(Elaboratable):
 
 # 		when IDLE =>
                     with m.Case(State.IDLE):
-#                     -- Reset per-row valid flags, only used in WAIT_ACK
+#                     -- Reset per-row valid flags,
+#                     -- only used in WAIT_ACK
 #                     for i in 0 to ROW_PER_LINE - 1 loop
 #                         r.rows_valid(i) <= '0';
 #                     end loop;
-                        # Reset per-row valid flags, onlyy used in WAIT_ACK
+                        # Reset per-row valid flags,
+                        # only used in WAIT_ACK
                         for i in range(ROW_PER_LINE):
                             sync += r.rows_valid[i].eq(0)
 
@@ -878,7 +1117,8 @@ class ICache(Elaboratable):
                         with m.If(req_is_miss):
                             print(f"cache miss nia:{i_in.nia} " \
                                   f"IR:{i_in.virt_mode} " \
-                                  f"SM:{i_in.stop_mark} idx:{req_index} " \
+                                  f"SM:{i_in.stop_mark} " \
+                                  F"idx:{req_index} " \
                                   f"way:{replace_way} tag:{req_tag} " \
                                   f"RA:{real_addr}")
 
@@ -897,7 +1137,9 @@ class ICache(Elaboratable):
                             sync += r.store_tag.eq(req_tag)
                             sync += r.store_valid.eq(1)
                             sync += r.end_row_ix.eq(
-                                     get_row_of_line(get_row(req_laddr)) - 1
+                                     get_row_of_line(
+                                      get_row(req_laddr)
+                                     ) - 1
                                     )
 
 # 			-- Prep for first wishbone read. We calculate the
@@ -906,7 +1148,8 @@ class ICache(Elaboratable):
 # 			r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
 # 			r.wb.cyc <= '1';
 # 			r.wb.stb <= '1';
-                            # Prep for first wishbone read. We calculate the
+                            # Prep for first wishbone read.
+                            # We calculate the
                             # address of the start of the cache line and
                             # start the WB cycle.
                             sync += r.wb.adr.eq(
@@ -928,7 +1171,8 @@ class ICache(Elaboratable):
                             # Get victim way from plru
                             sync += r.store_way.eq(replace_way)
 #
-# 			-- Force misses on that way while reloading that line
+# 			-- Force misses on that way while
+#                       -- reloading that line
 # 			cache_valids(req_index)(replace_way) <= '0';
                             # Force misses on that way while
                             # realoading that line
@@ -949,7 +1193,9 @@ class ICache(Elaboratable):
                                     comb += tagset.eq(
                                              cache_tags[r.store_index]
                                             )
-                                    sync += write_tag(i, tagset, r.store_tag)
+                                    sync += write_tag(
+                                             i, tagset, r.store_tag
+                                            )
                                     sync += cache_tags(r.store_index).eq(
                                              tagset
                                             )
@@ -963,9 +1209,11 @@ class ICache(Elaboratable):
                         # Requests are all sent if stb is 0
                         comb += stbs_done.eq(r.wb.stb == 0)
 
-# 		    -- If we are still sending requests, was one accepted ?
+# 		    -- If we are still sending requests,
+#                   -- was one accepted ?
 # 		    if wishbone_in.stall = '0' and not stbs_done then
-                        # If we are still sending requests, was one accepted?
+                        # If we are still sending requests,
+                        # was one accepted?
                         with m.If(~wb_in.stall & ~stbs_done):
 # 			-- That was the last word ? We are done sending.
 #                       -- Clear stb and set stbs_done so we can handle
@@ -974,9 +1222,12 @@ class ICache(Elaboratable):
 # 			    r.wb.stb <= '0';
 # 			    stbs_done := true;
 # 			end if;
-                            # That was the last word ? We are done sending.
-                            # Clear stb and set stbs_done so we can handle
-                            # an eventual last ack on the same cycle.
+                            # That was the last word ?
+                            # We are done sending.
+                            # Clear stb and set stbs_done
+                            # so we can handle
+                            # an eventual last ack on
+                            # the same cycle.
                             with m.If(is_last_row_addr(
                                       r.wb.adr, r.end_row_ix)):
                                 sync += r.wb.stb.eq(0)
@@ -992,7 +1243,8 @@ class ICache(Elaboratable):
 # 		    if wishbone_in.ack = '1' then
                         # Incoming acks processing
                         with m.If(wb_in.ack):
-#                         r.rows_valid(r.store_row mod ROW_PER_LINE) <= '1';
+#                         r.rows_valid(r.store_row mod ROW_PER_LINE)
+#                          <= '1';
                             sync += r.rows_valid[
                                      r.store_row & ROW_PER_LINE
                                     ].eq(1)
@@ -1035,7 +1287,8 @@ class ICache(Elaboratable):
 #             -- TLB miss and protection fault processing
 #             if rst = '1' or flush_in = '1' or m_in.tlbld = '1' then
 #                 r.fetch_failed <= '0';
-#             elsif i_in.req = '1' and access_ok = '0' and stall_in = '0' then
+#             elsif i_in.req = '1' and access_ok = '0' and
+#              stall_in = '0' then
 #                 r.fetch_failed <= '1';
 #             end if;
             # TLB miss and protection fault processing
@@ -1107,132 +1360,10 @@ class ICache(Elaboratable):
 # end;
 
     def elaborate(self, platform):
-# architecture rtl of icache is
-#     constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
-#     -- ROW_PER_LINE is the number of row (wishbone transactions) in a line
-#     constant ROW_PER_LINE  : natural := LINE_SIZE / ROW_SIZE;
-#     -- BRAM_ROWS is the number of rows in BRAM needed to represent the full
-#     -- icache
-#     constant BRAM_ROWS     : natural := NUM_LINES * ROW_PER_LINE;
-#     -- INSN_PER_ROW is the number of 32bit instructions per BRAM row
-#     constant INSN_PER_ROW  : natural := ROW_SIZE_BITS / 32;
-#     -- Bit fields counts in the address
-#
-#     -- INSN_BITS is the number of bits to select an instruction in a row
-#     constant INSN_BITS     : natural := log2(INSN_PER_ROW);
-#     -- ROW_BITS is the number of bits to select a row
-#     constant ROW_BITS      : natural := log2(BRAM_ROWS);
-#     -- ROW_LINEBITS is the number of bits to select a row within a line
-#     constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
-#     -- LINE_OFF_BITS is the number of bits for the offset in a cache line
-#     constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
-#     -- ROW_OFF_BITS is the number of bits for the offset in a row
-#     constant ROW_OFF_BITS  : natural := log2(ROW_SIZE);
-#     -- INDEX_BITS is the number of bits to select a cache line
-#     constant INDEX_BITS    : natural := log2(NUM_LINES);
-#     -- SET_SIZE_BITS is the log base 2 of the set size
-#     constant SET_SIZE_BITS : natural := LINE_OFF_BITS + INDEX_BITS;
-#     -- TAG_BITS is the number of bits of the tag part of the address
-#     constant TAG_BITS      : natural := REAL_ADDR_BITS - SET_SIZE_BITS;
-#     -- WAY_BITS is the number of bits to select a way
-#     constant WAY_BITS     : natural := log2(NUM_WAYS);
+        m = Module()
 
-        ROW_SIZE_BITS  = ROW_SIZE * 8
-        # ROW_PER_LINE is the number of row
-        # (wishbone) transactions in a line
-        ROW_PER_LINE   = LINE_SIZE / ROW_SIZE
-        # BRAM_ROWS is the number of rows in
-        # BRAM needed to represent the full icache
-        BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
-        # INSN_PER_ROW is the number of 32bit
-        # instructions per BRAM row
-        INSN_PER_ROW   = ROW_SIZE_BITS / 32
-
-        # Bit fields counts in the address
-        #
-        # INSN_BITS is the number of bits to
-        # select an instruction in a row
-        INSN_BITS      = log2_int(INSN_PER_ROW)
-        # ROW_BITS is the number of bits to
-        # select a row
-        ROW_BITS       = log2_int(BRAM_ROWS)
-        # ROW_LINEBITS is the number of bits to
-        # select a row within a line
-        ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
-        # LINE_OFF_BITS is the number of bits for
-        # the offset in a cache line
-        LINE_OFF_BITS  = log2_int(LINE_SIZE)
-        # ROW_OFF_BITS is the number of bits for
-        # the offset in a row
-        ROW_OFF_BITS   = log2_int(ROW_SIZE)
-        # INDEX_BITS is the number of bits to
-        # select a cache line
-        INDEX_BITS     = log2_int(NUM_LINES)
-        # SET_SIZE_BITS is the log base 2 of
-        # the set size
-        SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
-        # TAG_BITS is the number of bits of
-        # the tag part of the address
-        TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
-        # WAY_BITS is the number of bits to
-        # select a way
-        WAY_BITS       = log2_int(NUM_WAYS)
-        TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
-
-#     -- Example of layout for 32 lines of 64 bytes:
-#     --
-#     -- ..  tag    |index|  line  |
-#     -- ..         |   row   |    |
-#     -- ..         |     |   | |00| zero          (2)
-#     -- ..         |     |   |-|  | INSN_BITS     (1)
-#     -- ..         |     |---|    | ROW_LINEBITS  (3)
-#     -- ..         |     |--- - --| LINE_OFF_BITS (6)
-#     -- ..         |         |- --| ROW_OFF_BITS  (3)
-#     -- ..         |----- ---|    | ROW_BITS      (8)
-#     -- ..         |-----|        | INDEX_BITS    (5)
-#     -- .. --------|              | TAG_BITS      (53)
-        # Example of layout for 32 lines of 64 bytes:
-        #
-        # ..  tag    |index|  line  |
-        # ..         |   row   |    |
-        # ..         |     |   | |00| zero          (2)
-        # ..         |     |   |-|  | INSN_BITS     (1)
-        # ..         |     |---|    | ROW_LINEBITS  (3)
-        # ..         |     |--- - --| LINE_OFF_BITS (6)
-        # ..         |         |- --| ROW_OFF_BITS  (3)
-        # ..         |----- ---|    | ROW_BITS      (8)
-        # ..         |-----|        | INDEX_BITS    (5)
-        # .. --------|              | TAG_BITS      (53)
-
-#     subtype row_t is integer range 0 to BRAM_ROWS-1;
-#     subtype index_t is integer range 0 to NUM_LINES-1;
-#     subtype way_t is integer range 0 to NUM_WAYS-1;
-#     subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
-#
-#     -- The cache data BRAM organized as described above for each way
-#     subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
-#
-#     -- The cache tags LUTRAM has a row per set. Vivado is a pain and will
-#     -- not handle a clean (commented) definition of the cache tags as a 3d
-#     -- memory. For now, work around it by putting all the tags
-#     subtype cache_tag_t is std_logic_vector(TAG_BITS-1 downto 0);
-# --    type cache_tags_set_t is array(way_t) of cache_tag_t;
-# --    type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-#     constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
-#     subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
-#     type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-        def CacheTagArray():
-            return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
-
-#     -- The cache valid bits
-#     subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
-#     type cache_valids_t is array(index_t) of cache_way_valids_t;
-#     type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
-        def CacheValidBitsArray():
-            return Array(Signal() for x in range(ROW_PER_LINE))
-
-        def RowPerLineValidArray():
-            return Array(Signal() for x in range(ROW_PER_LINE))
+        comb = m.d.comb
+        sync = m.d.sync
 
 #     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
 #     signal cache_tags   : cache_tags_array_t;
@@ -1240,35 +1371,6 @@ class ICache(Elaboratable):
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags = CacheTagArray()
         cache_valid_bits = CacheValidBitsArray()
-
-#     attribute ram_style : string;
-#     attribute ram_style of cache_tags : signal is "distributed";
-        # TODO to be passed to nigmen as ram attributes
-        # attribute ram_style : string;
-        # attribute ram_style of cache_tags : signal is "distributed";
-
-#     -- L1 ITLB.
-#     constant TLB_BITS : natural := log2(TLB_SIZE);
-#     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
-#     constant TLB_PTE_BITS : natural := 64;
-        TLB_BITS        = log2_int(TLB_SIZE)
-        TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
-        TLB_PTE_BITS    = 64
-
-#     subtype tlb_index_t is integer range 0 to TLB_SIZE - 1;
-#     type tlb_valids_t is array(tlb_index_t) of std_ulogic;
-#     subtype tlb_tag_t is std_ulogic_vector(TLB_EA_TAG_BITS - 1 downto 0);
-#     type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
-#     subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
-#     type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
-        def TLBValidBitsArray():
-            return Array(Signal() for x in range(TLB_SIZE))
-
-        def TLBTagArray():
-            return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
-
-        def TLBPTEArray():
-            return Array(Signal(LTB_PTE_BITS) for x in range(TLB_SIZE))
 
 #     signal itlb_valids : tlb_valids_t;
 #     signal itlb_tags : tlb_tags_t;
@@ -1286,7 +1388,6 @@ class ICache(Elaboratable):
 #     signal eaa_priv  : std_ulogic;
         # Privilege bit from PTE EAA field
         eaa_priv        = Signal()
-
 
 #     signal r : reg_internal_t;
         r = RegInternal()
@@ -1309,7 +1410,9 @@ class ICache(Elaboratable):
         req_laddr     = Signal(64)
 
 #     signal tlb_req_index : tlb_index_t;
-#     signal real_addr     : std_ulogic_vector(REAL_ADDR_BITS - 1 downto 0);
+#     signal real_addr     : std_ulogic_vector(
+#                             REAL_ADDR_BITS - 1 downto 0
+#                            );
 #     signal ra_valid      : std_ulogic;
 #     signal priv_fault    : std_ulogic;
 #     signal access_ok     : std_ulogic;
@@ -1321,65 +1424,14 @@ class ICache(Elaboratable):
         access_ok     = Signal()
         use_previous  = Signal()
 
-#     -- Cache RAM interface
-#     type cache_ram_out_t is array(way_t) of cache_row_t;
 #     signal cache_out   : cache_ram_out_t;
-        # Cache RAM interface
-        def CacheRamOut():
-            return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
-
         cache_out     = CacheRamOut()
 
-#     -- PLRU output interface
-#     type plru_out_t is array(index_t) of
-#      std_ulogic_vector(WAY_BITS-1 downto 0);
 #     signal plru_victim : plru_out_t;
 #     signal replace_way : way_t;
-        # PLRU output interface
-        def PLRUOut():
-            return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
-
         plru_victim   = PLRUOut()
         replace_way   = Signal(NUM_WAYS)
 
-# begin
-#
-#     assert LINE_SIZE mod ROW_SIZE = 0;
-#     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
-#      severity FAILURE;
-#     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
-#      severity FAILURE;
-#     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
-#      severity FAILURE;
-#     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
-#      severity FAILURE;
-#     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
-#
-#     sim_debug: if SIM generate
-#     debug: process
-#     begin
-# 	report "ROW_SIZE      = " & natural'image(ROW_SIZE);
-# 	report "ROW_PER_LINE  = " & natural'image(ROW_PER_LINE);
-# 	report "BRAM_ROWS     = " & natural'image(BRAM_ROWS);
-# 	report "INSN_PER_ROW  = " & natural'image(INSN_PER_ROW);
-# 	report "INSN_BITS     = " & natural'image(INSN_BITS);
-# 	report "ROW_BITS      = " & natural'image(ROW_BITS);
-# 	report "ROW_LINEBITS  = " & natural'image(ROW_LINEBITS);
-# 	report "LINE_OFF_BITS = " & natural'image(LINE_OFF_BITS);
-# 	report "ROW_OFF_BITS  = " & natural'image(ROW_OFF_BITS);
-# 	report "INDEX_BITS    = " & natural'image(INDEX_BITS);
-# 	report "TAG_BITS      = " & natural'image(TAG_BITS);
-# 	report "WAY_BITS      = " & natural'image(WAY_BITS);
-# 	wait;
-#     end process;
-#     end generate;
 
 
 # icache_tb.vhdl
