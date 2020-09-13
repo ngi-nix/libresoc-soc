@@ -10,7 +10,13 @@ from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
 from nmutil.mask import Mask
+from nmutil.util import Display
 
+if True:
+    from nmigen.back.pysim import Simulator, Delay, Settle
+else:
+    from nmigen.sim.cxxsim import Simulator, Delay, Settle
+from nmutil.util import wrap
 
 from soc.experiment.mem_types import (LoadStore1ToMMUType,
                                  MMUToLoadStore1Type,
@@ -274,28 +280,22 @@ class MMU(Elaboratable):
             comb += l_out.sprval.eq(r.pid)
 
         with m.If(rin.valid):
-            pass
-            #sync += Display(f"MMU got tlb miss for {rin.addr}")
+            sync += Display("MMU got tlb miss for %x", rin.addr)
 
         with m.If(l_out.done):
-            pass
-            # sync += Display("MMU completing op without error")
+            sync += Display("MMU completing op without error")
 
         with m.If(l_out.err):
-            pass
-            # sync += Display(f"MMU completing op with err invalid"
-            #                 "{l_out.invalid} badtree={l_out.badtree}")
+            sync += Display("MMU completing op with err invalid"
+                            "%d badtree=%d", l_out.invalid, l_out.badtree)
 
         with m.If(rin.state == State.RADIX_LOOKUP):
-            pass
-            # sync += Display (f"radix lookup shift={rin.shift}"
-            #          "msize={rin.mask_size}")
+            sync += Display ("radix lookup shift=%d msize=%d",
+                            rin.shift, rin.mask_size)
 
         with m.If(r.state == State.RADIX_LOOKUP):
-            pass
-            # sync += Display(f"send load addr={d_out.addr}"
-            #           "addrsh={addrsh} mask={mask}")
-
+            sync += Display(f"send load addr=%x addrsh=%d mask=%d",
+                            d_out.addr, addrsh, mask)
         sync += r.eq(rin)
 
         v = RegStage()
@@ -467,7 +467,7 @@ class MMU(Elaboratable):
         return m
 
 
-def mmu_sim():
+def mmu_sim(dut):
     yield wp.waddr.eq(1)
     yield wp.data_i.eq(2)
     yield wp.wen.eq(1)
@@ -501,13 +501,23 @@ def mmu_sim():
     data = yield rp.data_o
     print(data)
 
+
 def test_mmu():
     dut = MMU()
     vl = rtlil.convert(dut, ports=[])#dut.ports())
     with open("test_mmu.il", "w") as f:
         f.write(vl)
 
-    run_simulation(dut, mmu_sim(), vcd_name='test_mmu.vcd')
+    m = Module()
+    m.submodules.mmu = dut
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(mmu_sim(dut)))
+    with sim.write_vcd('test_mmu.vcd'):
+        sim.run()
 
 if __name__ == '__main__':
     test_mmu()

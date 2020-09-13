@@ -7,17 +7,12 @@ based on Anton Blanchard microwatt dcache.vhdl
 from enum import Enum, unique
 
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
-try:
-    from nmigen.hdl.ast import Display
-except ImportError:
-    def Display(*args):
-        return []
+from nmutil.util import Display
 
 from random import randint
 
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
-from nmutil.util import wrap
 from nmigen.utils import log2_int
 from soc.experiment.mem_types import (LoadStore1ToDCacheType,
                                      DCacheToLoadStore1Type,
@@ -41,6 +36,7 @@ if True:
     from nmigen.back.pysim import Simulator, Delay, Settle
 else:
     from nmigen.sim.cxxsim import Simulator, Delay, Settle
+from nmutil.util import wrap
 
 
 # TODO: make these parameters of DCache at some point
