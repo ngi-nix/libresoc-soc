@@ -23,8 +23,8 @@ class PLRU(Elaboratable):
     def __init__(self, BITS):
         self.BITS = BITS
         self.acc_en = Signal(BITS)
-        self.lru_o = Signal(BITS)
         self.acc_i = Signal()
+        self.lru_o = Signal(BITS)
 
     def elaborate(self, platform=None):
         m = Module()
@@ -49,7 +49,7 @@ class PLRU(Elaboratable):
         # endcase
 
         LOG_TLB = log2_int(self.BITS)
-        hit = Signal(self.BITS)
+        hit = Signal(self.BITS, reset_less=True)
         m.d.comb += hit.eq(Repl(self.acc_i, self.BITS) & self.acc_en)
 
         for i in range(self.BITS):
