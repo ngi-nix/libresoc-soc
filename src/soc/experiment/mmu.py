@@ -215,47 +215,64 @@ class MMU(Elaboratable):
 
     def radix_read_wait(self, m, v, r, d_in, data):
         comb = m.d.comb
-        comb += v.pde.eq(data)
 
         perm_ok = Signal()
         rc_ok = Signal()
         mbits = Signal(6)
-        vbit = Signal(2)
+        valid = Signal(1)
+        leaf = Signal(1)
+
+        with m.If(d_in.done & (r.state == State.RADIX_READ_WAIT)):
+            comb += Display("RADRDWAIT %016x done %d "
+                            "perm %d rc %d mbits %d rshift %d "
+                            "valid %d leaf %d",
+                            data, d_in.done, perm_ok, rc_ok,
+                            mbits, r.shift, valid, leaf)
+
+        # set pde
+        comb += v.pde.eq(data)
 
         # test valid bit
-        comb += vbit.eq(data[62:]) # leaf=data[62], valid=data[63]
+        comb += valid.eq(data[63]) # valid=data[63]
+        comb += leaf.eq(data[62]) # valid=data[63]
 
+        comb += v.pde.eq(data)
         # valid & leaf
-        with m.If(vbit == 0b11):
-            # check permissions and RC bits
-            with m.If(r.priv | ~data[3]):
-                with m.If(~r.iside):
-                    comb += perm_ok.eq(data[1:3].bool() & ~r.store)
+        with m.If(valid):
+            with m.If(leaf):
+                # check permissions and RC bits
+                with m.If(r.priv | ~data[3]):
+                    with m.If(~r.iside):
+                        comb += perm_ok.eq(data[1] | (data[2] & ~r.store))
+                    with m.Else():
+                        # no IAMR, so no KUEP support for now
+                        # deny execute permission if cache inhibited
+                        comb += perm_ok.eq(data[0] & ~data[5])
+
+                comb += rc_ok.eq(data[8] & (data[7] | ~r.store))
+                with m.If(perm_ok & rc_ok):
+                    comb += v.state.eq(State.RADIX_LOAD_TLB)
                 with m.Else():
-                    # no IAMR, so no KUEP support for now
-                    # deny execute permission if cache inhibited
-                    comb += perm_ok.eq(data[0] & ~data[5])
+                    comb += v.state.eq(State.RADIX_FINISH)
+                    comb += v.perm_err.eq(~perm_ok)
+                    # permission error takes precedence over RC error
+                    comb += v.rc_error.eq(perm_ok)
 
-            comb += rc_ok.eq(data[8] & (data[7] | (~r.store)))
-            with m.If(perm_ok & rc_ok):
-                comb += v.state.eq(State.RADIX_LOAD_TLB)
+            # valid & !leaf
             with m.Else():
-                comb += v.state.eq(State.RADIX_FINISH)
-                comb += v.perm_err.eq(~perm_ok)
-                # permission error takes precedence over RC error
-                comb += v.rc_error.eq(perm_ok)
-
-        # valid & !leaf
-        with m.Elif(vbit == 0b10):
-            comb += mbits.eq(data[0:5])
-            with m.If((mbits < 5) | (mbits > 16) | (mbits > r.shift)):
-                comb += v.state.eq(State.RADIX_FINISH)
-                comb += v.badtree.eq(1)
-            with m.Else():
-                comb += v.shift.eq(v.shift - mbits)
-                comb += v.mask_size.eq(mbits[0:5])
-                comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
-                comb += v.state.eq(State.RADIX_LOOKUP)
+                comb += mbits.eq(data[0:5])
+                with m.If((mbits < 5) | (mbits > 16) | (mbits > r.shift)):
+                    comb += v.state.eq(State.RADIX_FINISH)
+                    comb += v.badtree.eq(1)
+                with m.Else():
+                    comb += v.shift.eq(v.shift - mbits)
+                    comb += v.mask_size.eq(mbits[0:5])
+                    comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
+                    comb += v.state.eq(State.RADIX_LOOKUP)
+        with m.Else():
+            # non-present PTE, generate a DSI
+            comb += v.state.eq(State.RADIX_FINISH)
+            comb += v.invalid.eq(1)
 
     def segment_check(self, m, v, r, data, finalmask):
         comb = m.d.comb
@@ -410,10 +427,6 @@ class MMU(Elaboratable):
             with m.Case(State.RADIX_READ_WAIT):
                 with m.If(d_in.done):
                     self.radix_read_wait(m, v, r, d_in, data)
-                with m.Else():
-                    # non-present PTE, generate a DSI
-                    comb += v.state.eq(State.RADIX_FINISH)
-                    comb += v.invalid.eq(1)
 
                 with m.If(d_in.err):
                     comb += v.state.eq(State.RADIX_FINISH)
@@ -506,7 +519,7 @@ def dcache_get(dut):
            b(0x800000000100000b),
 
            0x30000:     # RADIX_ROOT_PTE
-                        # V = 1 L = 0 NLB = 0x400 NLS = 9  
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
            b(0x8000000000040009),
 
           0x1000000:   # PROCESS_TABLE_3
@@ -547,13 +560,19 @@ def mmu_sim(dut):
     while True: # wait for dc_valid / err
         l_done = yield (dut.l_out.done)
         l_err = yield (dut.l_out.err)
-        if l_done or l_err:
+        l_badtree = yield (dut.l_out.badtree)
+        l_permerr = yield (dut.l_out.perm_error)
+        l_rc_err = yield (dut.l_out.rc_error)
+        l_segerr = yield (dut.l_out.segerr)
+        l_invalid = yield (dut.l_out.invalid)
+        if (l_done or l_err or l_badtree or 
+            l_permerr or l_rc_err or l_segerr or l_invalid):
             break
         yield
     addr = yield dut.d_out.addr
     pte = yield dut.d_out.pte
-    print ("translated done %d err %d addr %x pte %x" % \
-               (l_done, l_err, addr, pte))
+    print ("translated done %d err %d badtree %d addr %x pte %x" % \
+               (l_done, l_err, l_badtree, addr, pte))
 
     global stop
     stop = True
