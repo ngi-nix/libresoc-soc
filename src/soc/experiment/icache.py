@@ -39,6 +39,20 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS,
                                      WBMasterOutVector, WBSlaveOutVector,
                                      WBIOMasterOut, WBIOSlaveOut)
 
+from soc.experiment.cache_ram import CacheRam
+from soc.experiment.plru import PLRU
+
+# for test
+from nmigen_soc.wishbone.sram import SRAM
+from nmigen import Memory
+from nmigen.cli import rtlil
+if True:
+    from nmigen.back.pysim import Simulator, Delay, Settle
+else:
+    from nmigen.sim.cxxsim import Simulator, Delay, Settle
+from nmutil.util import wrap
+
+
 
 SIM            = 0
 LINE_SIZE      = 64
@@ -1360,16 +1374,12 @@ class ICache(Elaboratable):
 # end;
 
     def elaborate(self, platform):
-        m = Module()
 
-        comb = m.d.comb
-        sync = m.d.sync
+        m                = Module()
+        comb             = m.d.comb
 
-#     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
-#     signal cache_tags   : cache_tags_array_t;
-#     signal cache_valids : cache_valids_t;
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
-        cache_tags = CacheTagArray()
+        cache_tags       = CacheTagArray()
         cache_valid_bits = CacheValidBitsArray()
 
 #     signal itlb_valids : tlb_valids_t;
@@ -1377,9 +1387,9 @@ class ICache(Elaboratable):
 #     signal itlb_ptes : tlb_ptes_t;
 #     attribute ram_style of itlb_tags : signal is "distributed";
 #     attribute ram_style of itlb_ptes : signal is "distributed";
-        itlb_valid_bits = TLBValidBitsArray()
-        itlb_tags       = TLBTagArray()
-        itlb_ptes       = TLBPTEArray()
+        itlb_valid_bits  = TLBValidBitsArray()
+        itlb_tags        = TLBTagArray()
+        itlb_ptes        = TLBPTEArray()
         # TODO to be passed to nmigen as ram attributes
         # attribute ram_style of itlb_tags : signal is "distributed";
         # attribute ram_style of itlb_ptes : signal is "distributed";
@@ -1387,10 +1397,10 @@ class ICache(Elaboratable):
 #     -- Privilege bit from PTE EAA field
 #     signal eaa_priv  : std_ulogic;
         # Privilege bit from PTE EAA field
-        eaa_priv        = Signal()
+        eaa_priv         = Signal()
 
 #     signal r : reg_internal_t;
-        r = RegInternal()
+        r                = RegInternal()
 
 #     -- Async signals on incoming request
 #     signal req_index   : index_t;
@@ -1401,13 +1411,13 @@ class ICache(Elaboratable):
 #     signal req_is_miss : std_ulogic;
 #     signal req_laddr   : std_ulogic_vector(63 downto 0);
         # Async signal on incoming request
-        req_index     = Signal(NUM_LINES)
-        req_row       = Signal(BRAM_ROWS)
-        req_hit_way   = Signal(NUM_WAYS)
-        req_tag       = Signal(TAG_BITS)
-        req_is_hit    = Signal()
-        req_is_miss   = Signal()
-        req_laddr     = Signal(64)
+        req_index        = Signal(NUM_LINES)
+        req_row          = Signal(BRAM_ROWS)
+        req_hit_way      = Signal(NUM_WAYS)
+        req_tag          = Signal(TAG_BITS)
+        req_is_hit       = Signal()
+        req_is_miss      = Signal()
+        req_laddr        = Signal(64)
 
 #     signal tlb_req_index : tlb_index_t;
 #     signal real_addr     : std_ulogic_vector(
@@ -1417,21 +1427,22 @@ class ICache(Elaboratable):
 #     signal priv_fault    : std_ulogic;
 #     signal access_ok     : std_ulogic;
 #     signal use_previous  : std_ulogic;
-        tlb_req_index = Signal(TLB_SIZE)
-        real_addr     = Signal(REAL_ADDR_BITS)
-        ra_valid      = Signal()
-        priv_fault    = Signal()
-        access_ok     = Signal()
-        use_previous  = Signal()
+        tlb_req_index    = Signal(TLB_SIZE)
+        real_addr        = Signal(REAL_ADDR_BITS)
+        ra_valid         = Signal()
+        priv_fault       = Signal()
+        access_ok        = Signal()
+        use_previous     = Signal()
 
 #     signal cache_out   : cache_ram_out_t;
-        cache_out     = CacheRamOut()
+        cache_out        = CacheRamOut()
 
 #     signal plru_victim : plru_out_t;
 #     signal replace_way : way_t;
-        plru_victim   = PLRUOut()
-        replace_way   = Signal(NUM_WAYS)
+        plru_victim      = PLRUOut()
+        replace_way      = Signal(NUM_WAYS)
 
+        return m
 
 
 # icache_tb.vhdl
@@ -1652,11 +1663,22 @@ def icache_sim(dut):
 
 def test_icache():
     dut = ICache()
+
+    m = Module()
+    m.submodules.icache = dut
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(icache_sim(dut)))
+    with sim.write_vcd('test_icache.vcd'):
+        sim.run()
+
+if __name__ == '__main__':
+    dut = ICache()
     vl = rtlil.convert(dut, ports=[])
     with open("test_icache.il", "w") as f:
         f.write(vl)
 
-    #run_simulation(dut, icache_sim(), vcd_name='test_icache.vcd')
-
-if __name__ == '__main__':
     test_icache()
