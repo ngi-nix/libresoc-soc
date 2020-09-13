@@ -799,7 +799,7 @@ class DCache(Elaboratable):
         sync += cache_tag_set.eq(cache_tags[index])
 
     def dcache_request(self, m, r0, ra, req_index, req_row, req_tag,
-                       r0_valid, r1, cache_valid_bits, replace_way,
+                       r0_valid, r1, cache_valids, replace_way,
                        use_forward1_next, use_forward2_next,
                        req_hit_way, plru_victim, rc_ok, perm_attr,
                        valid_ra, perm_ok, access_ok, req_op, req_go,
@@ -833,7 +833,7 @@ class DCache(Elaboratable):
                     r0.req.addr, ra, req_index, req_tag, req_row)
 
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
-        comb += cache_valid_idx.eq(cache_valid_bits[req_index])
+        comb += cache_valid_idx.eq(cache_valids[req_index])
 
         m.submodules.dcache_pend = dc = DCachePendingHit(tlb_pte_way,
                                 tlb_valid_way, tlb_hit_way,
@@ -1181,7 +1181,7 @@ class DCache(Elaboratable):
     # All wishbone requests generation is done here.
     # This machine operates at stage 1.
     def dcache_slow(self, m, r1, use_forward1_next, use_forward2_next,
-                    cache_valid_bits, r0, replace_way,
+                    cache_valids, r0, replace_way,
                     req_hit_way, req_same_tag,
                     r0_valid, req_op, cache_tags, req_go, ra):
 
@@ -1428,9 +1428,9 @@ class DCache(Elaboratable):
 
                         # Cache line is now valid
                         cv = Signal(INDEX_BITS)
-                        comb += cv.eq(cache_valid_bits[r1.store_index])
+                        comb += cv.eq(cache_valids[r1.store_index])
                         comb += cv.bit_select(r1.store_way, 1).eq(1)
-                        sync += cache_valid_bits[r1.store_index].eq(cv)
+                        sync += cache_valids[r1.store_index].eq(cv)
                         sync += r1.state.eq(State.IDLE)
 
                     # Increment store row counter
@@ -1527,7 +1527,7 @@ class DCache(Elaboratable):
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags       = CacheTagArray()
         cache_tag_set    = Signal(TAG_RAM_WIDTH)
-        cache_valid_bits = CacheValidBitsArray()
+        cache_valids = CacheValidBitsArray()
 
         # TODO attribute ram_style : string;
         # TODO attribute ram_style of cache_tags : signal is "distributed";
@@ -1625,7 +1625,7 @@ class DCache(Elaboratable):
         self.maybe_tlb_plrus(m, r1, tlb_plru_victim)
         self.cache_tag_read(m, r0_stall, req_index, cache_tag_set, cache_tags)
         self.dcache_request(m, r0, ra, req_index, req_row, req_tag,
-                           r0_valid, r1, cache_valid_bits, replace_way,
+                           r0_valid, r1, cache_valids, replace_way,
                            use_forward1_next, use_forward2_next,
                            req_hit_way, plru_victim, rc_ok, perm_attr,
                            valid_ra, perm_ok, access_ok, req_op, req_go,
@@ -1642,7 +1642,7 @@ class DCache(Elaboratable):
                         req_hit_way, req_index, req_tag, access_ok,
                         tlb_hit, tlb_hit_way, tlb_req_index)
         self.dcache_slow(m, r1, use_forward1_next, use_forward2_next,
-                    cache_valid_bits, r0, replace_way,
+                    cache_valids, r0, replace_way,
                     req_hit_way, req_same_tag,
                          r0_valid, req_op, cache_tags, req_go, ra)
         #self.dcache_log(m, r1, valid_ra, tlb_hit_way, stall_out)
