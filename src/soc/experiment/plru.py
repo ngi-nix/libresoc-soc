@@ -28,10 +28,7 @@ class PLRU(Elaboratable):
             comb += self.lru_o[self.BITS-1-i].eq(tree[node])
             if i != self.BITS-1:
                 comb += node2.eq(node << 1)
-            else:
-                comb += node2.eq(node)
-            if i != self.BITS-1:
-                with m.If(tree[node]):
+                with m.If(tree[node2]):
                     comb += node_next.eq(node2 + 2)
                 with m.Else():
                     comb += node_next.eq(node2 + 1)
@@ -48,9 +45,6 @@ class PLRU(Elaboratable):
                 sync += tree[node].eq(~abit)
                 if i != self.BITS-1:
                     comb += node2.eq(node << 1)
-                else:
-                    comb += node2.eq(node)
-                if i != self.BITS-1:
                     with m.If(abit):
                         comb += node_next.eq(node2 + 2)
                     with m.Else():
