@@ -1,0 +1,327 @@
+================ Radix Walk Example =================================
+SPRN_PTCR = 0x10004 : PATB = 0x10, PATS = 0x4
+=====================================================================
+			Memory Layout
+=====================================================================
+PARTITION_TABLE
+0x10000 : PARTITION_TABLE_1       |        PARTITION_TABLE_2
+	  0xc0000000000030ad      |        0x800000000100000b
+          HR=1                             PATB_GR=1
+	  RTS1=0x2                         PRTB=0x1000
+	  RPDB=0x300                       PRTS=0xb
+	  RTS2=0x5
+	  RPDS=0xd
+
+RADIX_ROOT
+0x30000 :  RADIX_ROOT_PTE         | RADIX_ROOT_KERNEL_PTE
+	   0x8000000000040009     | 0x8000000000040005
+           V = 1                  | V = 1
+	   L = 0                  | L = 0
+	   NLB = 0x400            | NLB = 0x400
+	   NLS = 9                | NLS = 5
+
+RADIX_SECOND_LEVEL
+0x40000 :  RADIX_SECOND_LEVEL_PTE | RADIX_SECOND_LEVEL_KERNEL_PTE
+           0xc000000000000187     | 0x8000000000050004
+	   V = 1                  | V = 1
+	   L = 1                  | L = 0
+	   SW = 0                 | NLB = 0x500
+	   RPN = 0                | NLS = 5
+	   R = 1
+	   C = 1
+	   ATT = 0
+	   EAA 0x7
+
+RADIX_THIRD_LEVEL
+0x50000:  RADIX_THIRD_LEVEL_KERNEL_PTE
+	  0xc000000000000187
+          V = 1
+	  L = 1
+	  SW = 0
+	  RPN = 0
+	  R = 1
+	  C = 1
+	  ATT = 0
+	  EAA = 0x7
+
+
+PROCESS_TABLE:
+0x1000000 : PROCESS_TABLE_1       |     PROCESS_TABLE_2 //Hypervisor Kernel
+	    0x40000000000300ac    |     0x0
+            RTS1 = 0x2
+	    RPDB = 0x300
+	    RTS2 = 0x5
+	    RPDS = 12
+
+	    PROCESS_TABLE_3       |     PROCESS_TABLE_3 //Hypervisor Userspace 
+	    0x40000000000300ad    |     0x0
+            RTS1 = 0x2
+	    RPDB = 0x300
+	    RTS2 = 0x5
+	    RPDS = 13
+
+================== Example 1 : Hypervisor Userspace =======================
+MSR[HV] = 1, MSR[PR] = 1
+vaddr = 0x1000 = 0x0000000000001000
+
+PTCR : PATB = 0x10 = Partition Table Base
+       PATS = 0x4  = Partition Table Size
+
+Getting the Partition Table Entry (PATE0 and PATE1)
+
+Partition table base address is obtained by left-shifting
+PATB by 12 bits. Because the Partition table base is always aligned
+to 4k which is also the minimum size of the partition table.
+
+patb_addr = PATB << 12 = 0x10000
+
+effLPID = 0 // HV=1
+
+pate1_offset = 0 * 16 + 8 = 8  // Partition Table second word is PATE1
+                               // for this effLPID
+
+pate1_addr = patb_addr + pate1_offset = 0x10008 = PARTITION_TABLE_2
+From PARTITION_TABLE_2
+PRTB = 0x1000
+
+Process Table Base address is obtained by left-shifting PRTB by 12
+bits. Because the Process table is size aligned and at least is 4k.
+prtb_addr = PRTB << 12 = 0x1000000
+
+effPID = SPRN_PIDR = 1 // HV=1, PR=1, QUADRANT_0b00
+
+prte0_offset = effPID * 16 = 16 //First double word in Process Table
+                                //Indexed by effPID
+prte0_addr = prtb_addr + prte0_offset = 0x1000010 = PROCESS_TABLE_3
+
+------------------ The Walk Begins Now --------------------
+From PROCESS_TABLE_3
+RPDB  = 0x300
+RPDS  = 13
+RTS = RTS1 << 3 | RTS2 = 0x2 << 3 | 5 = 1 << 4 + 5 = 21
+totalSize = RTS + 31 = 21 + 31 = 52 = virtual address space used
+                                      by software
+
+Root Level
+--------------
+nextLevelBase = RPDB << 8 = 0x30000
+nextLevelSize = RPDS = 13
+
+// Call the lower totalSize bits of vaddr as the useful bits.
+// The upper nextLevelSize bits of these useful bits
+// has the index into the Page Table Directory
+// Each entry is 8 bytes.
+shift = totalSize - nextLevelSize = 52 - 13 = 39
+mask = (1 << nextLeveSize) - 1 = 0xFFF
+index = (vaddr >> shift ) & mask = 0
+
+entry_addr = nextLevelBase + index * 8 = 0x30000 + 0 = 0x30000 = RADIX_ROOT_PTE
+
+From RADIX_ROOT_PTE
+V = 1
+L = 0.
+NLB = 0x400
+NLS = 9
+
+So this is a directory. Hence obtain NLB and NLS
+
+First Level
+----------------
+
+// We no longer need the upper nextLevelSize bits
+// of the useful bits. Discard them.
+// Call remaining bits of vaddr as useful bits.
+totalSize = totalSize - nextLevelSize = 52 - 13 = 39
+
+//Recompute the new Page Directory Base and the Size
+nextLevelBase = NLB >> 8 = 0x40000
+nextLevelSize = NLS = 9
+
+// The upper nextLevelSize bits of the useful bits of vaddr
+// has the index into the Page Table Directory
+// Each entry is 8 bytes.
+shift = totalSize - nextLevelSize = 39 - 9 = 30
+mask = (1 << nextLevelSize) - 1  = 0xFF
+index = (vaddr >> shift) & mask = 0
+
+entry_addr = nextlevelBase + index * 8 = 0x40000 = RADIX_SECOND_LEVEL
+V = 1
+L = 1
+RPN = 0
+This is a leaf node.
+
+Second Level
+----------------
+
+// We no longer need the upper nextLevelSize useful bits
+// in the vaddr. Discard them. Call remaining bits of vaddr as useful
+// bits. These bits will tell us precisely which location in the
+// real page should we fetch the data from.
+totalSize = totalSize - nextLevelSize = 39 - 9 = 30
+
+//Compute the real page number base.
+rpn_addr = (RPN << 12) = 0
+mask = (1ULL << totalSize) - 1 = 0x000000001fffffff
+rpn_mask = ~mask               = 0xffffffffe0000000
+
+phys_addr = (rpn_addr & rpn_mask) | (vaddr & mask)
+          = (0 & 0xffffffffe0000000) | (0x1000 & 0x1fffffff)
+	  = 0x1000
+
+
+Hence Virtual address = Physical Address.
+
+================== Example 2 : Hypervisor Kernel =======================
+Example 2:
+MSR[HV] = 1, MSR[PR] = 0
+vaddr = 0xc000010800003000
+
+PTCR : PATB = 0x10 = Partition Table Base (right shifted by 12)
+       PATS = 0x4  = Partition Table Size (add 12)
+
+Getting the Partition Table Entry (PATE0 and PATE1)
+
+Partition table base address is obtained by left-shifting
+PATB by 12 bits. Because the Partition table base is always aligned
+to 4k which is also the minimum size of the partition table.
+
+patb_addr = PATB << 12 = 0x10000
+
+effLPID = 0 // Hypervisor HV=1.
+
+pate1_offset = 0 * 16 + 8 = 8  // Partition Table second word is PATE1
+                               // for this effLPID
+
+pate1_addr = patb_addr + pate1_offset = 0x10008 = PARTITION_TABLE_2
+From PARTITION_TABLE_2
+PRTB = 0x1000
+prtb_addr = PRTB << 12 = 0x1000000
+
+effPID = SPRN_PIDR = 0 // HV=1,PR=0, Quadrant 0b11 = Hypervisor Kernel
+prte0_offset = effPID * 16 = 0 //First double word in Process Table
+                                // Indexed by effPID
+
+prte0_addr = prtb_addr + prte0_offset = 0x1000000 = PROCESS_TABLE_1
+
+------------------ The Walk Begins Now --------------------
+
+From PROCESS_TABLE_1
+RPDB  = 0x30
+RPDS  = 12
+RTS = RTS1 << 3 | RTS2 = 0x2 << 3 | 5 = 1 << 4 + 5 = 21
+totalSize = RTS + 31 = 21 + 31 = 52 = virtual address space used
+                                      by software
+
+Root Level
+----------------
+
+nextLevelBase = RPDB << 12 = 0x30000
+nextLevelSize = RPDS = 12
+
+// The lower totalSize bits of vaddr are the useful bits.
+// The upper nextLevelSize bits these useful bits
+// has the index into the Page Table Directory
+// Each entry is 8 bytes.
+shift = totalSize - nextLevelSize = 52 - 12 = 40
+mask = (1 << nextLeveSize) - 1 = 0x1FFF
+index = (vaddr >> shift ) & mask = (0xc000010800003000 >> 40) & 0xFFF
+                                 = (0b1100 0000 0000 0000 0000 0001) & 0xFFF
+				 = (0xc000001) & 0xFFF
+				 = 0x001
+
+entry_addr = nextLevelBase + index * 8
+           = 0x30000 + 1*8 = 0x30008
+           = RADIX_ROOT_KERNEL_PTE
+V = 1
+L = 0
+NLB = 0x400
+NLS = 5
+
+This a directory. Hence obtain NLB and NLS
+
+First Level
+----------------
+
+// We no longer need the upper nextLevelSize of the useful bits
+// in the vaddr. Discard them. Call remaining bits of vaddr as useful bits.
+totalSize = totalSize - nextLevelSize = 52 - 12 = 40
+
+//Recompute the new Page Directory Base and the Size
+nextLevelBase = NLB >> 8 = 0x40000
+nextLevelSize = NLS = 5
+
+
+// The upper nextLevelSize bits of the useful bits
+// has the index into the Page Table Directory
+// Each entry is 8 bytes.
+shift = totalSize - nextLevelSize = 40 - 5 = 35
+mask = (1 << nextLeveSize) - 1 = 0x1F
+index = (vaddr >> shift ) & mask = (0xc000010800003000 >> 35) & 0x1F
+                                 = (0b0001 1000 0000 0000 0000 0000 0010 0001) & 0x1F
+				 = (0x18000021) & 0x1F
+				 = 0x01
+
+entry_addr = nextLevelBase + index * 8
+           = 0x40000 + 1*8 = 0x40008
+           = RADIX_SECOND_LEVEL_KERNEL_PTE
+
+V = 1
+L = 0
+NLB = 0x500
+NLS = 5
+
+Again this is a directory. Hence using the NLB and NLS go to the next
+level
+
+Second Level
+----------------
+
+// We no longer need the upper nextLevelSize bits of the useful bits.
+//in the vaddr. Discard them. Call remaining bits of vaddr as useful bits.
+totalSize = totalSize - nextLevelSize = 40 - 5 = 35
+
+//Recompute the new Page Directory Base and the Size
+nextLevelBase = NLB >> 8 = 0x50000
+nextLevelSize = NLS = 5
+
+// The upper nextLevelSize bits of vaddr
+// has the index into the Page Table Directory
+// Each entry is 8 bytes.
+shift = totalSize - nextLevelSize = 35 - 5 = 30
+mask = (1 << nextLeveSize) - 1 = 0x1F
+
+index = (vaddr >> shift ) & mask = (0xc000010800003000 >> 30) & 0xF
+                                 = (0b0001 1000 0000 0000 0000 0000 0010 0001 0000) & 0xF
+				 = (0x18000210) & 0xF
+				 = 0x0
+
+entry_addr = nextLevelBase + index * 8
+           = 0x50000 + 0*8 = 0x50000
+           = RADIX_THIRD_LEVEL_KERNEL_PTE
+
+V=1
+L=1
+RPN=0
+
+This is the leaf level
+
+Third Level
+----------------
+
+// We no longer need the upper nextLevelSize useful bits.
+// in the vaddr. Discard them. Call remaining bits of vaddr as useful
+// bits. These bits will tell us precisely which location in the
+// real page should we fetch the data from.
+totalSize = totalSize - nextLevelSize = 35 - 5 = 30
+
+//Compute the real page number base.
+rpn_addr = (RPN << 12) = 0
+mask = (1ULL << totalSize) - 1 = 0x000000001fffffff
+rpn_mask = ~mask               = 0xffffffffe0000000
+
+phys_addr = (rpn_addr & rpn_mask) | (vaddr & mask)
+          = (0 & 0xffffffffe0000000) | (0xc000010800003000 & 0x1fffffff)
+	  = 0x3000
+
+Hence Virtual address 0xc000010800003000 is mapped to Physical Address
+0x3000.
