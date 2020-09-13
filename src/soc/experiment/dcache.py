@@ -137,7 +137,7 @@ def CacheTagArray():
                         for x in range(NUM_LINES))
 
 def CacheValidBitsArray():
-    return Array(Signal(INDEX_BITS, name="cachevalid_%d" % x) \
+    return Array(Signal(NUM_WAYS, name="cachevalid_%d" % x) \
                         for x in range(NUM_LINES))
 
 def RowPerLineValidArray():
@@ -1743,16 +1743,16 @@ def dcache_sim(dut):
     yield
 
     # Cacheable read of address 4
-    data = yield from dcache_load(dut, 0x4)
+    data = yield from dcache_load(dut, 0x58)
     addr = yield dut.d_in.addr
-    assert data == 0x0000000100000000, \
-        f"data @%x=%x expected 0x0000000100000000" % (addr, data)
+    assert data == 0x0000001700000016, \
+        f"data @%x=%x expected 0x0000001700000016" % (addr, data)
 
     # Cacheable read of address 20
     data = yield from dcache_load(dut, 0x20)
     addr = yield dut.d_in.addr
-    assert data == 0x0000000100000000, \
-        f"data @%x=%x expected 0x0000000100000000" % (addr, data)
+    assert data == 0x0000000900000008, \
+        f"data @%x=%x expected 0x0000000900000008" % (addr, data)
 
     # Cacheable read of address 30
     data = yield from dcache_load(dut, 0x530)
@@ -1784,11 +1784,11 @@ def dcache_sim(dut):
     assert data == 0x12345678, \
         f"data @%x=%x expected 0x12345678" % (addr, data)
 
-    # 4th Cacheable read of address 30
+    # 4th Cacheable read of address 20
     data = yield from dcache_load(dut, 0x20)
     addr = yield dut.d_in.addr
-    assert data == 0x12345678, \
-        f"data @%x=%x expected 0x12345678" % (addr, data)
+    assert data == 0x0000000900000008, \
+        f"data @%x=%x expected 0x0000000900000008" % (addr, data)
 
     yield
     yield
