@@ -1,3 +1,11 @@
+# MMU
+#
+# License for original copyright mmu.vhdl by microwatt authors: CC4
+# License for copyrighted modifications made in mmu.py: LGPLv3+
+#
+# This derivative work although includes CC4 licensed material is
+# covered by the LGPLv3+
+
 """MMU
 
 based on Anton Blanchard microwatt mmu.vhdl
@@ -89,6 +97,9 @@ class MMU(Elaboratable):
         comb = m.d.comb
         pt_valid = Signal()
         pgtbl = Signal(64)
+        rts = Signal(6)
+        mbits = Signal(6)
+
         with m.If(~l_in.addr[63]):
             comb += pgtbl.eq(r.pgtbl0)
             comb += pt_valid.eq(r.pt0_valid)
@@ -98,12 +109,10 @@ class MMU(Elaboratable):
 
         # rts == radix tree size, number of address bits
         # being translated
-        rts = Signal(6)
         comb += rts.eq(Cat(pgtbl[5:8], pgtbl[61:63]))
 
         # mbits == number of address bits to index top
         # level of tree
-        mbits = Signal(6)
         comb += mbits.eq(pgtbl[0:5])
 
         # set v.shift to rts so that we can use finalmask
@@ -175,69 +184,74 @@ class MMU(Elaboratable):
         with m.Else():
             comb += v.pgtbl0.eq(data)
             comb += v.pt0_valid.eq(1)
-        # rts == radix tree size, # address bits being translated
+
         rts = Signal(6)
+        mbits = Signal(6)
+
+        # rts == radix tree size, # address bits being translated
         comb += rts.eq(Cat(data[5:8], data[61:63]))
 
         # mbits == # address bits to index top level of tree
-        mbits = Signal(6)
         comb += mbits.eq(data[0:5])
-        # set v.shift to rts so that we can use
-        # finalmask for the segment check
+
+        # set v.shift to rts so that we can use finalmask for the segment check
         comb += v.shift.eq(rts)
         comb += v.mask_size.eq(mbits[0:5])
         comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
 
-        with m.If(~mbits):
+        with m.If(mbits):
+            comb += v.state.eq(State.SEGMENT_CHECK)
+        with m.Else():
             comb += v.state.eq(State.RADIX_FINISH)
             comb += v.invalid.eq(1)
-            comb += v.state.eq(State.SEGMENT_CHECK)
 
     def radix_read_wait(self, m, v, r, d_in, data):
         comb = m.d.comb
         comb += v.pde.eq(data)
-        # test valid bit
-        with m.If(data[63]):
-            with m.If(data[62]):
-                # check permissions and RC bits
-                perm_ok = Signal()
-                comb += perm_ok.eq(0)
-                with m.If(r.priv | ~data[3]):
-                    with m.If(~r.iside):
-                        comb += perm_ok.eq(
-                                 (data[1] | data[2])
-                                 & (~r.store)
-                                )
-                    with m.Else():
-                        # no IAMR, so no KUEP support
-                        # for now deny execute
-                        # permission if cache inhibited
-                        comb += perm_ok.eq(data[0] & ~data[5])
 
-                rc_ok = Signal()
-                comb += rc_ok.eq(data[8] & (data[7] | (~r.store)))
-                with m.If(perm_ok & rc_ok):
-                    comb += v.state.eq(State.RADIX_LOAD_TLB)
+        perm_ok = Signal()
+        rc_ok = Signal()
+        mbits = Signal(6)
+        vbit = Signal(2)
+
+        # test valid bit
+        comb += vbit.eq(data[62:]) # leaf=data[62], valid=data[63]
+
+        # valid & leaf
+        with m.If(vbit == 0b11):
+            # check permissions and RC bits
+            with m.If(r.priv | ~data[3]):
+                with m.If(~r.iside):
+                    comb += perm_ok.eq(data[1:3].bool() & ~r.store)
                 with m.Else():
-                    comb += v.state.eq(State.RADIX_FINISH)
-                    comb += v.perm_err.eq(~perm_ok)
-                    # permission error takes precedence
-                    # over RC error
-                    comb += v.rc_error.eq(perm_ok)
+                    # no IAMR, so no KUEP support for now
+                    # deny execute permission if cache inhibited
+                    comb += perm_ok.eq(data[0] & ~data[5])
+
+            comb += rc_ok.eq(data[8] & (data[7] | (~r.store)))
+            with m.If(perm_ok & rc_ok):
+                comb += v.state.eq(State.RADIX_LOAD_TLB)
             with m.Else():
-                mbits = Signal(6)
-                comb += mbits.eq(data[0:5])
-                with m.If((mbits < 5) | (mbits > 16) | (mbits > r.shift)):
-                    comb += v.state.eq(State.RADIX_FINISH)
-                    comb += v.badtree.eq(1)
-                with m.Else():
-                    comb += v.shift.eq(v.shift - mbits)
-                    comb += v.mask_size.eq(mbits[0:5])
-                    comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
-                    comb += v.state.eq(State.RADIX_LOOKUP)
+                comb += v.state.eq(State.RADIX_FINISH)
+                comb += v.perm_err.eq(~perm_ok)
+                # permission error takes precedence over RC error
+                comb += v.rc_error.eq(perm_ok)
+
+        # valid & !leaf
+        with m.Elif(vbit == 0b10):
+            comb += mbits.eq(data[0:5])
+            with m.If((mbits < 5) | (mbits > 16) | (mbits > r.shift)):
+                comb += v.state.eq(State.RADIX_FINISH)
+                comb += v.badtree.eq(1)
+            with m.Else():
+                comb += v.shift.eq(v.shift - mbits)
+                comb += v.mask_size.eq(mbits[0:5])
+                comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
+                comb += v.state.eq(State.RADIX_LOOKUP)
 
     def segment_check(self, m, v, r, data, finalmask):
         comb = m.d.comb
+
         mbits = Signal(6)
         nonzero = Signal()
         comb += mbits.eq(r.mask_size)
@@ -463,41 +477,35 @@ class MMU(Elaboratable):
 
         return m
 
+stop = False
+
+def dcache_get(dut):
+    """simulator process for getting memory load requests
+    """
+
+    mem = {0x10000: 0x12345678}
+
+    while not stop:
+        while True: # wait for dc_valid
+            if stop:
+                return
+            dc_valid = yield (dut.d_out.valid)
+            if dc_valid:
+                break
+            yield
+        addr = yield dut.d_out.addr
+        yield dut.d_in.data.eq(mem[addr])
+        yield dut.d_in.done.eq(1)
+        yield
+        yield dut.d_in.done.eq(0)
+
 
 def mmu_sim(dut):
-    yield wp.waddr.eq(1)
-    yield wp.data_i.eq(2)
-    yield wp.wen.eq(1)
+    global stop
     yield
-    yield wp.wen.eq(0)
-    yield rp.ren.eq(1)
-    yield rp.raddr.eq(1)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 2
     yield
-
-    yield wp.waddr.eq(5)
-    yield rp.raddr.eq(5)
-    yield rp.ren.eq(1)
-    yield wp.wen.eq(1)
-    yield wp.data_i.eq(6)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 6
     yield
-    yield wp.wen.eq(0)
-    yield rp.ren.eq(0)
-    yield Settle()
-    data = yield rp.data_o
-    print(data)
-    assert data == 0
-    yield
-    data = yield rp.data_o
-    print(data)
-
+    stop = True
 
 def test_mmu():
     dut = MMU()
@@ -513,6 +521,7 @@ def test_mmu():
     sim.add_clock(1e-6)
 
     sim.add_sync_process(wrap(mmu_sim(dut)))
+    sim.add_sync_process(wrap(dcache_get(dut)))
     with sim.write_vcd('test_mmu.vcd'):
         sim.run()
 
