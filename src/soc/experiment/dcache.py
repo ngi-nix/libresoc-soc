@@ -72,6 +72,7 @@ BRAM_ROWS = NUM_LINES * ROW_PER_LINE
 print ("ROW_SIZE", ROW_SIZE)
 print ("ROW_PER_LINE", ROW_PER_LINE)
 print ("BRAM_ROWS", BRAM_ROWS)
+print ("NUM_WAYS", NUM_WAYS)
 
 # Bit fields counts in the address
 
@@ -820,15 +821,16 @@ class DCache(Elaboratable):
         nc          = Signal()
         hit_set     = Array(Signal(name="hit_set_%d" % i) \
                                   for i in range(TLB_NUM_WAYS))
-        cache_valid_idx = Signal(INDEX_BITS)
+        cache_valid_idx = Signal(NUM_WAYS)
 
         # Extract line, row and tag from request
         comb += req_index.eq(get_index(r0.req.addr))
         comb += req_row.eq(get_row(r0.req.addr))
         comb += req_tag.eq(get_tag(ra))
 
-        comb += Display("dcache_req addr:%x ra: %x idx: %x tag: %x row: %x",
-                r0.req.addr, ra, req_index, req_tag, req_row)
+        if False: # display on comb is a bit... busy.
+            comb += Display("dcache_req addr:%x ra: %x idx: %x tag: %x row: %x",
+                    r0.req.addr, ra, req_index, req_tag, req_row)
 
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
         comb += cache_valid_idx.eq(cache_valid_bits[req_index])
@@ -1720,7 +1722,7 @@ def dcache_random_sim(dut):
         assert data == sim_data, \
             "check %x data %x != %x" % (addr, data, sim_data)
 
-    for addr in range(8):
+    for addr in range(256):
         data = yield from dcache_load(dut, addr*8)
         assert data == sim_mem[addr], \
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
