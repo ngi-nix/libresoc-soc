@@ -215,19 +215,21 @@ class MMU(Elaboratable):
 
     def radix_read_wait(self, m, v, r, d_in, data):
         comb = m.d.comb
+        sync = m.d.sync
 
         perm_ok = Signal()
         rc_ok = Signal()
         mbits = Signal(6)
-        valid = Signal(1)
-        leaf = Signal(1)
+        valid = Signal()
+        leaf = Signal()
+        badtree = Signal()
 
         with m.If(d_in.done & (r.state == State.RADIX_READ_WAIT)):
-            comb += Display("RADRDWAIT %016x done %d "
+            comb += Display("RDW %016x done %d "
                             "perm %d rc %d mbits %d rshift %d "
-                            "valid %d leaf %d",
+                            "valid %d leaf %d badtree %d",
                             data, d_in.done, perm_ok, rc_ok,
-                            mbits, r.shift, valid, leaf)
+                            mbits, r.shift, valid, leaf, badtree)
 
         # set pde
         comb += v.pde.eq(data)
@@ -261,7 +263,10 @@ class MMU(Elaboratable):
             # valid & !leaf
             with m.Else():
                 comb += mbits.eq(data[0:5])
-                with m.If((mbits < 5) | (mbits > 16) | (mbits > r.shift)):
+                comb += badtree.eq((mbits < 5) |
+                                   (mbits > 16) |
+                                   (mbits > r.shift))
+                with m.If(badtree):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
                 with m.Else():
@@ -269,6 +274,7 @@ class MMU(Elaboratable):
                     comb += v.mask_size.eq(mbits[0:5])
                     comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
                     comb += v.state.eq(State.RADIX_LOOKUP)
+
         with m.Else():
             # non-present PTE, generate a DSI
             comb += v.state.eq(State.RADIX_FINISH)
@@ -318,7 +324,7 @@ class MMU(Elaboratable):
                             rin.shift, rin.mask_size)
 
         with m.If(r.state == State.RADIX_LOOKUP):
-            sync += Display(f"send load addr=%x addrsh=%d mask=%d",
+            sync += Display(f"send load addr=%x addrsh=%d mask=%x",
                             d_out.addr, addrsh, mask)
         sync += r.eq(rin)
 
@@ -421,10 +427,12 @@ class MMU(Elaboratable):
                 self.segment_check(m, v, r, data, finalmask)
 
             with m.Case(State.RADIX_LOOKUP):
+                sync += Display("   RADIX_LOOKUP")
                 comb += dcreq.eq(1)
                 comb += v.state.eq(State.RADIX_READ_WAIT)
 
             with m.Case(State.RADIX_READ_WAIT):
+                sync += Display("   READ_WAIT")
                 with m.If(d_in.done):
                     self.radix_read_wait(m, v, r, d_in, data)
 
@@ -442,6 +450,7 @@ class MMU(Elaboratable):
                     comb += v.state.eq(State.IDLE)
 
             with m.Case(State.RADIX_FINISH):
+                sync += Display("   RADIX_FINISH")
                 comb += v.state.eq(State.IDLE)
 
         with m.If((v.state == State.RADIX_FINISH) |
@@ -544,6 +553,7 @@ def dcache_get(dut):
         data = mem[addr]
         yield dut.d_in.data.eq(data)
         print ("dcache get %x data %x" % (addr, data))
+        yield
         yield dut.d_in.done.eq(1)
         yield
         yield dut.d_in.done.eq(0)
@@ -565,7 +575,7 @@ def mmu_sim(dut):
         l_rc_err = yield (dut.l_out.rc_error)
         l_segerr = yield (dut.l_out.segerr)
         l_invalid = yield (dut.l_out.invalid)
-        if (l_done or l_err or l_badtree or 
+        if (l_done or l_err or l_badtree or
             l_permerr or l_rc_err or l_segerr or l_invalid):
             break
         yield
