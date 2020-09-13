@@ -26,26 +26,26 @@ from nmigen.cli import rtlil
 from nmutil.iocontrol import RecordObject
 from nmutil.byterev import byte_reverse
 from nmutil.mask import Mask
-from nmigen.util import log2_int
+from nmigen.utils import log2_int
 
 
-from soc.experiment.mem_types import Fetch1ToICacheType,
-                                     ICacheToDecode1Type,
-                                     MMUToICacheType
+from soc.experiment.mem_types import (Fetch1ToICacheType,
+                                      ICacheToDecode1Type,
+                                      MMUToICacheType)
 
-from experiment.wb_types import WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
-                                WBAddrType, WBDataType, WBSelType,
-                                WbMasterOut, WBSlaveOut,
-                                WBMasterOutVector, WBSlaveOutVector,
-                                WBIOMasterOut, WBIOSlaveOut
+from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS,
+                                     WB_SEL_BITS, WBAddrType, WBDataType,
+                                     WBSelType, WBMasterOut, WBSlaveOut,
+                                     WBMasterOutVector, WBSlaveOutVector,
+                                     WBIOMasterOut, WBIOSlaveOut)
 
 
 # Cache reload state machine
 @unique
 class State(Enum):
-    IDLE
-    CLR_TAG
-    WAIT_ACK
+    IDLE     = 0
+    CLR_TAG  = 1
+    WAIT_ACK = 2
 
 #     type reg_internal_t is record
 # 	-- Cache hit state (Latches for 1 cycle BRAM access)
@@ -248,6 +248,7 @@ class ICache(Elaboratable):
     def next_row_addr(addr):
         # TODO no idea what's going on here, looks like double assignments
         # overriding earlier assignments ??? Help please!
+        pass
 
 #     -- Return the next row in the current cache line. We use a dedicated
 #     -- function in order to limit the size of the generated adder to be
@@ -269,6 +270,7 @@ class ICache(Elaboratable):
     def next_row(row):
         # TODO no idea what's going on here, looks like double assignments
         # overriding earlier assignments ??? Help please!
+        pass
 
 #     -- Read the instruction word for the given address in the
 #     -- current cache row
@@ -333,9 +335,11 @@ class ICache(Elaboratable):
 #     end;
     # Simple hash for direct-mapped TLB index
     def hash_ea(addr):
-        hsh = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS]
-               ^ addr[TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS]
-               ^ addr[TLB_LG_PGSZ + 2 * TLB_BITS: TLB_LG_PGSZ + 3 * TLB_BITS]
+        hsh = addr[TLB_LG_PGSZ:TLB_LG_PGSZ + TLB_BITS] ^ addr[
+               TLB_LG_PGSZ + TLB_BITS:TLB_LG_PGSZ + 2 * TLB_BITS
+              ] ^ addr[
+               TLB_LG_PGSZ + 2 * TLB_BITS:TLB_LG_PGSZ + 3 * TLB_BITS
+              ]
         return hsh
 
 #     -- Generate a cache RAM for each way
@@ -386,7 +390,7 @@ class ICache(Elaboratable):
         _d_out   = Signal(ROW_SIZE_BITS)
         wr_sel   = Signal(ROW_SIZE)
 
-        for i in range(NUM_WAYS)
+        for i in range(NUM_WAYS):
             way = CacheRam(ROW_BITS, ROW_SIZE_BITS)
             comb += way.rd_en.eq(do_read)
             comb += way.rd_addr.eq(rd_addr)
@@ -595,7 +599,7 @@ class ICache(Elaboratable):
         with m.If(i_in.nia[2:INSN_BITS+2] != 0):
             comb += use_previous.eq(i_in.sequential & r.hit_valid)
 
-        with m.else():
+        with m.Else():
             comb += use_previous.eq(0)
 
 # 	-- Extract line, row and tag from request
@@ -643,7 +647,7 @@ class ICache(Elaboratable):
                        ((r.state == State.WAIT_ACK)
                         & (req_index == r.store_index)
                         & (i == r.store_way)
-                        & r.rows_valid[req_row % ROW_PER_LINE])):
+                        & r.rows_valid[req_row % ROW_PER_LINE]))):
                 with m.If(read_tag(i, cahce_tags[req_index]) == req_tag):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
@@ -906,7 +910,7 @@ class ICache(Elaboratable):
                             # address of the start of the cache line and
                             # start the WB cycle.
                             sync += r.wb.adr.eq(
-                                     req_laddr[:r.wb.adr '''left?''']
+                                     req_laddr[:r.wb.adr]
                                     )
 
 # 			-- Track that we had one request sent
@@ -1055,7 +1059,7 @@ class ICache(Elaboratable):
 #             variable lway: way_t;
 #             variable wstate: std_ulogic;
         # Output data to logger
-        for i in range(LOG_LENGTH)
+        for i in range(LOG_LENGTH):
             # Output data to logger
             log_data = Signal(54)
             lway     = Signal(NUM_WAYS)
@@ -1090,7 +1094,7 @@ class ICache(Elaboratable):
 #                             ra_valid;
             sync += log_data.eq(Cat(
                      ra_valid, access_ok, req_is_miss, req_is_hit,
-                     lway '''truncate to 3 bits?''', wstate, r.hit_nia[2:6],
+                     lway, wstate, r.hit_nia[2:6],
                      r.fetch_failed, stall_out, wb_in.stall, r.wb.cyc,
                      r.wb.stb, r.wb.adr[3:6], wb_in.ack, i_out.insn,
                      i_out.valid
@@ -1225,10 +1229,10 @@ class ICache(Elaboratable):
 #     type cache_valids_t is array(index_t) of cache_way_valids_t;
 #     type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
         def CacheValidBitsArray():
-            return Array(Signal() for x in ROW_PER_LINE)
+            return Array(Signal() for x in range(ROW_PER_LINE))
 
         def RowPerLineValidArray():
-            return Array(Signal() for x in range ROW_PER_LINE)
+            return Array(Signal() for x in range(ROW_PER_LINE))
 
 #     -- Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
 #     signal cache_tags   : cache_tags_array_t;
@@ -1554,8 +1558,8 @@ def icache_sim(dut):
         yield
     yield
     assert i_in.valid
-    assert i_in.insn == Const(0x00000001, 32) \
-        f"insn @{i_out.nia}={i_in.insn} expected 00000001"
+    assert i_in.insn == Const(0x00000001, 32), \
+        ("insn @%x=%x expected 00000001" % i_out.nia, i_in.insn)
     yield i_out.req.eq(0)
     yield
 
@@ -1565,8 +1569,8 @@ def icache_sim(dut):
     yield
     yield
     assert i_in.valid
-    assert i_in.insn == Const(0x00000002, 32) \
-        f"insn @{i_out.nia}={i_in.insn} expected 00000002"
+    assert i_in.insn == Const(0x00000002, 32), \
+        ("insn @%x=%x expected 00000002" % i_out.nia, i_in.insn)
     yield
 
     # another miss
@@ -1576,8 +1580,8 @@ def icache_sim(dut):
         yield
     yield
     assert i_in.valid
-    assert i_in.insn == Const(0x00000010, 32) \
-        f"insn @{i_out.nia}={i_in.insn} expected 00000010"
+    assert i_in.insn == Const(0x00000010, 32), \
+        ("insn @%x=%x expected 00000010" % i_out.nia, i_in.insn)
 
     # test something that aliases
     yield i_out.req.eq(1)
@@ -1589,8 +1593,8 @@ def icache_sim(dut):
         yield
     yield
     assert i_in.valid
-    assert i_in.insn == Const(0x00000040, 32) \
-         f"insn @{i_out.nia}={i_in.insn} expected 00000040"
+    assert i_in.insn == Const(0x00000040, 32), \
+         ("insn @%x=%x expected 00000040" % i_out.nia, i_in.insn)
     yield i_out.req.eq(0)
 
 
