@@ -373,6 +373,7 @@ class RegStage1(RecordObject):
         self.write_bram       = Signal()
         self.write_tag        = Signal()
         self.slow_valid       = Signal()
+        self.real_adr         = Signal(REAL_ADDR_BITS)
         self.wb               = WBMasterOut("wb")
         self.reload_tag       = Signal(TAG_BITS)
         self.store_way        = Signal(WAY_BITS)
@@ -852,7 +853,9 @@ class DCache(Elaboratable):
             # For a store, consider this a hit even if the row isn't
             # valid since it will be by the time we perform the store.
             # For a load, check the appropriate row valid bit.
-            valid = r1.rows_valid[req_row[:ROW_LINE_BITS]]
+            rrow = Signal(ROW_LINE_BITS)
+            comb += rrow.eq(req_row)
+            valid = r1.rows_valid[rrow]
             comb += is_hit.eq(~r0.req.load | valid)
             comb += hit_way.eq(replace_way)
 
@@ -1288,7 +1291,7 @@ class DCache(Elaboratable):
         with m.Switch(r1.state):
 
             with m.Case(State.IDLE):
-                sync += r1.wb.adr.eq(req.real_addr)
+                sync += r1.real_adr.eq(req.real_addr)
                 sync += r1.wb.sel.eq(req.byte_sel)
                 sync += r1.wb.dat.eq(req.data)
                 sync += r1.dcbz.eq(req.dcbz)
@@ -1384,19 +1387,21 @@ class DCache(Elaboratable):
                     # Clear stb and set ld_stbs_done
                     # so we can handle an eventual
                     # last ack on the same cycle.
-                    with m.If(is_last_row_addr(r1.wb.adr, r1.end_row_ix)):
+                    with m.If(is_last_row_addr(r1.real_adr, r1.end_row_ix)):
                         sync += r1.wb.stb.eq(0)
                         comb += ld_stbs_done.eq(1)
 
                     # Calculate the next row address in the current cache line
-                    rarange = Signal(LINE_OFF_BITS-ROW_OFF_BITS)
-                    comb += rarange.eq(r1.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]+1)
-                    sync += r1.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(rarange)
+                    row = Signal(LINE_OFF_BITS-ROW_OFF_BITS)
+                    comb += row.eq(r1.real_adr[ROW_OFF_BITS:])
+                    sync += r1.real_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(row+1)
 
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
                 with m.If(wb_in.ack):
-                    sync += r1.rows_valid[r1.store_row[:ROW_LINE_BITS]].eq(1)
+                    srow = Signal(ROW_LINE_BITS)
+                    comb += srow.eq(r1.store_row)
+                    sync += r1.rows_valid[srow].eq(1)
 
                     # If this is the data we were looking for,
                     # we can complete the request next cycle.
@@ -1453,7 +1458,7 @@ class DCache(Elaboratable):
                     # to be done which is in the same real page.
                     with m.If(req.valid):
                         ra = req.real_addr[0:SET_SIZE_BITS]
-                        sync += r1.wb.adr[0:SET_SIZE_BITS].eq(ra)
+                        sync += r1.real_adr[0:SET_SIZE_BITS].eq(ra)
                         sync += r1.wb.dat.eq(req.data)
                         sync += r1.wb.sel.eq(req.byte_sel)
 
@@ -1513,7 +1518,7 @@ class DCache(Elaboratable):
         sync += log_out.eq(Cat(r1.state[:3], valid_ra, tlb_hit_way[:3],
                                stall_out, req_op[:3], d_out.valid, d_out.error,
                                r1.wb.cyc, r1.wb.stb, wb_in.ack, wb_in.stall,
-                               r1.wb.adr[3:6]))
+                               r1.real_adr[3:6]))
 
     def elaborate(self, platform):
 
@@ -1603,6 +1608,7 @@ class DCache(Elaboratable):
         comb += self.stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
+        comb += r1.wb.adr.eq(r1.real_adr[ROW_OFF_BITS:]) # truncate LSBs
         comb += self.wb_out.eq(r1.wb)
 
         # call sub-functions putting everything together, using shared
@@ -1808,7 +1814,7 @@ def test_dcache(mem, test_fn, test_name):
     m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
     m.d.comb += sram.bus.we.eq(dut.wb_out.we)
     m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
-    m.d.comb += sram.bus.adr.eq(dut.wb_out.adr[3:])
+    m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
     m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
 
     m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
