@@ -95,6 +95,8 @@ class MMU(Elaboratable):
 
     def radix_tree_idle(self, m, l_in, r, v):
         comb = m.d.comb
+        sync = m.d.sync
+
         pt_valid = Signal()
         pgtbl = Signal(64)
         rts = Signal(6)
@@ -104,7 +106,7 @@ class MMU(Elaboratable):
             comb += pgtbl.eq(r.pgtbl0)
             comb += pt_valid.eq(r.pt0_valid)
         with m.Else():
-            comb += pgtbl.eq(r.pt3_valid)
+            comb += pgtbl.eq(r.pgtbl3)
             comb += pt_valid.eq(r.pt3_valid)
 
         # rts == radix tree size, number of address bits
@@ -125,6 +127,12 @@ class MMU(Elaboratable):
             comb += v.addr.eq(l_in.addr)
             comb += v.iside.eq(l_in.iside)
             comb += v.store.eq(~(l_in.load | l_in.iside))
+            comb += v.priv.eq(l_in.priv)
+
+            comb += Display("l_in.valid addr %x iside %d store %d "
+                            "rts %x mbits %x pt_valid %d",
+                            v.addr, v.iside, v.store,
+                            rts, mbits, pt_valid)
 
             with m.If(l_in.tlbie):
                 # Invalidate all iTLB/dTLB entries for
@@ -154,7 +162,7 @@ class MMU(Elaboratable):
                     comb += v.shift.eq(r.prtbl[0:5])
                     comb += v.state.eq(State.PROC_TBL_READ)
 
-                with m.If(~mbits):
+                with m.Elif(mbits == 0):
                     # Use RPDS = 0 to disable radix tree walks
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.invalid.eq(1)
@@ -307,8 +315,8 @@ class MMU(Elaboratable):
         mask = Signal(16)
         finalmask = Signal(44)
 
+        self.rin = rin = RegStage("r_in")
         r = RegStage("r")
-        rin = RegStage("r_in")
 
         l_in  = self.l_in
         l_out = self.l_out
@@ -326,7 +334,7 @@ class MMU(Elaboratable):
         prtbl_rd = Signal()
         effpid = Signal(32)
         prtb_adr = Signal(64)
-        pgtb_addr = Signal(64)
+        pgtb_adr = Signal(64)
         pte = Signal(64)
         tlb_data = Signal(64)
         addr = Signal(64)
@@ -363,7 +371,7 @@ class MMU(Elaboratable):
         comb += finalmask.eq(tlb_mask.mask)
 
         with m.If(r.state != State.IDLE):
-            sync += Display("MMU state %d", r.state)
+            sync += Display("MMU state %d %016x", r.state, data)
 
         with m.Switch(r.state):
             with m.Case(State.IDLE):
@@ -379,6 +387,7 @@ class MMU(Elaboratable):
                     comb += v.state.eq(State.RADIX_FINISH)
 
             with m.Case(State.PROC_TBL_READ):
+                sync += Display("   TBL_READ %016x", prtb_adr)
                 comb += dcreq.eq(1)
                 comb += prtbl_rd.eq(1)
                 comb += v.state.eq(State.PROC_TBL_WAIT)
@@ -437,7 +446,7 @@ class MMU(Elaboratable):
 
         pg16 = Signal(16, reset_less=True)
         comb += pg16.eq(masked(r.pgbase[3:19], addrsh, mask))
-        comb += pgtb_addr.eq(Cat(C(0, 3), pg16, r.pgbase[19:56]))
+        comb += pgtb_adr.eq(Cat(C(0, 3), pg16, r.pgbase[19:56]))
 
         pd44 = Signal(44, reset_less=True)
         comb += pd44.eq(masked(r.pde[12:56], r.addr[12:56], finalmask))
@@ -455,7 +464,7 @@ class MMU(Elaboratable):
         with m.Elif(prtbl_rd):
             comb += addr.eq(prtb_adr)
         with m.Else():
-            comb += addr.eq(pgtb_addr)
+            comb += addr.eq(pgtb_adr)
 
         comb += l_out.done.eq(r.done)
         comb += l_out.err.eq(r.err)
@@ -486,8 +495,23 @@ def dcache_get(dut):
     """simulator process for getting memory load requests
     """
 
-    mem = {0x10000:             # PARTITION_TABLE_2
-            0x800000000100000b, # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+    global stop
+
+    def b(x):
+        return int.from_bytes(x.to_bytes(8, byteorder='little'),
+                              byteorder='big', signed=False)
+
+    mem = {0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           b(0x800000000100000b),
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9  
+           b(0x8000000000040009),
+
+          0x1000000:   # PROCESS_TABLE_3
+                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           b(0x40000000000300ad),
           }
 
     while not stop:
@@ -499,6 +523,11 @@ def dcache_get(dut):
                 break
             yield
         addr = yield dut.d_out.addr
+        if addr not in mem:
+            print ("    DCACHE LOOKUP FAIL %x" % (addr))
+            stop = True
+            return
+
         data = mem[addr]
         yield dut.d_in.data.eq(data)
         print ("dcache get %x data %x" % (addr, data))
@@ -508,20 +537,27 @@ def dcache_get(dut):
 
 
 def mmu_sim(dut):
+    yield dut.rin.prtbl.eq(0x1000000) # set process table
+    yield
+
     yield dut.l_in.load.eq(1)
+    yield dut.l_in.priv.eq(1)
     yield dut.l_in.addr.eq(0x10000)
     yield dut.l_in.valid.eq(1)
-    while True: # wait for dc_valid
-        d_valid = yield (dut.d_out.valid)
-        if d_valid:
+    while True: # wait for dc_valid / err
+        l_done = yield (dut.l_out.done)
+        l_err = yield (dut.l_out.err)
+        if l_done or l_err:
             break
         yield
     addr = yield dut.d_out.addr
     pte = yield dut.d_out.pte
-    print ("translated addr %x pte %x" % (addr, pte))
+    print ("translated done %d err %d addr %x pte %x" % \
+               (l_done, l_err, addr, pte))
 
     global stop
     stop = True
+
 
 def test_mmu():
     dut = MMU()
