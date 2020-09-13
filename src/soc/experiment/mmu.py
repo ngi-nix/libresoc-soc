@@ -224,12 +224,11 @@ class MMU(Elaboratable):
         leaf = Signal()
         badtree = Signal()
 
-        with m.If(d_in.done & (r.state == State.RADIX_READ_WAIT)):
-            comb += Display("RDW %016x done %d "
-                            "perm %d rc %d mbits %d rshift %d "
-                            "valid %d leaf %d badtree %d",
-                            data, d_in.done, perm_ok, rc_ok,
-                            mbits, r.shift, valid, leaf, badtree)
+        comb += Display("RDW %016x done %d "
+                        "perm %d rc %d mbits %d shf %d "
+                        "valid %d leaf %d bad %d",
+                        data, d_in.done, perm_ok, rc_ok,
+                        mbits, r.shift, valid, leaf, badtree)
 
         # set pde
         comb += v.pde.eq(data)
@@ -270,7 +269,7 @@ class MMU(Elaboratable):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
                 with m.Else():
-                    comb += v.shift.eq(v.shift - mbits)
+                    comb += v.shift.eq(r.shift - mbits)
                     comb += v.mask_size.eq(mbits[0:5])
                     comb += v.pgbase.eq(Cat(C(0, 8), data[8:56]))
                     comb += v.state.eq(State.RADIX_LOOKUP)
@@ -435,7 +434,6 @@ class MMU(Elaboratable):
                 sync += Display("   READ_WAIT")
                 with m.If(d_in.done):
                     self.radix_read_wait(m, v, r, d_in, data)
-
                 with m.If(d_in.err):
                     comb += v.state.eq(State.RADIX_FINISH)
                     comb += v.badtree.eq(1)
@@ -550,16 +548,17 @@ def dcache_get(dut):
             stop = True
             return
 
+        yield
         data = mem[addr]
         yield dut.d_in.data.eq(data)
         print ("dcache get %x data %x" % (addr, data))
-        yield
         yield dut.d_in.done.eq(1)
         yield
         yield dut.d_in.done.eq(0)
 
 
 def mmu_sim(dut):
+    global stop
     yield dut.rin.prtbl.eq(0x1000000) # set process table
     yield
 
@@ -567,7 +566,7 @@ def mmu_sim(dut):
     yield dut.l_in.priv.eq(1)
     yield dut.l_in.addr.eq(0x10000)
     yield dut.l_in.valid.eq(1)
-    while True: # wait for dc_valid / err
+    while not stop: # wait for dc_valid / err
         l_done = yield (dut.l_out.done)
         l_err = yield (dut.l_out.err)
         l_badtree = yield (dut.l_out.badtree)
@@ -584,7 +583,6 @@ def mmu_sim(dut):
     print ("translated done %d err %d badtree %d addr %x pte %x" % \
                (l_done, l_err, l_badtree, addr, pte))
 
-    global stop
     stop = True
 
 
