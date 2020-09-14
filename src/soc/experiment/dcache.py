@@ -654,7 +654,7 @@ class DCache(Elaboratable):
             return
         for i in range(TLB_SET_SIZE):
             # TLB PLRU interface
-            tlb_plru        = PLRU(WAY_BITS)
+            tlb_plru        = PLRU(TLB_WAY_BITS)
             setattr(m.submodules, "maybe_plru_%d" % i, tlb_plru)
             tlb_plru_acc_en = Signal()
 
