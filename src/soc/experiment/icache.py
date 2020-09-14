@@ -623,8 +623,11 @@ class ICache(Elaboratable):
 #             end loop;
 # 	end process;
 #     end generate;
-    def rams(self, m):
+    def rams(self, m, cache_out, stall_in, use_previous, replace_way
+             req_row, store_row):
         comb = m.d.comb
+
+        wb_in = self.wb_in
 
         do_read  = Signal()
         do_write = Signal()
@@ -646,7 +649,7 @@ class ICache(Elaboratable):
             comb += do_write.eq(0)
 
             with m.If(wb_in.ack & (replace_way == i)):
-                do_write.eq(1)
+                comb += do_write.eq(1)
 
             comb += cache_out[i].eq(_d_out)
             comb += rd_addr.eq(Signal(req_row))
@@ -690,7 +693,7 @@ class ICache(Elaboratable):
 # 	    end process;
 # 	end generate;
 #     end generate;
-    def maybe_plrus(self, m):
+    def maybe_plrus(self, m, r, plru_victim):
         comb += m.d.comb
 
         with m.If(NUM_WAYS > 1):
@@ -741,8 +744,12 @@ class ICache(Elaboratable):
 #         access_ok <= ra_valid and not priv_fault;
 #     end process;
     # TLB hit detection and real address generation
-    def itlb_lookup(self, m):
+    def itlb_lookup(self, m, tlb_req_index, pte, itlb_ptes, ttag,
+                    itlb_tags, real_addr, itlb_valid_bits, ra_valid,
+                    eaa_priv, prive_fault, access_ok):
         comb = m.d.comb
+
+        i_in = self.i_in
 
         comb += tlb_req_index.eq(hash_ea(i_in.nia))
         comb += pte.eq(itlb_ptes[tlb_req_index])
@@ -793,16 +800,19 @@ class ICache(Elaboratable):
 #         end if;
 #     end process;
     # iTLB update
-    def itlb_update(self, m):
+    def itlb_update(self, m, itlb_valid_bits, itlb_tags, itlb_ptes):
+        comb = m.d.comb
         sync = m.d.sync
 
-        wr_index = Signal(TLB_SIZE)
-        sync += wr_index.eq(hash_ea(m_in.addr))
+        m_in = self.m_in
 
-        with m.If('''TODO rst in nmigen''' | (m_in.tlbie & m_in.doall)):
+        wr_index = Signal(TLB_SIZE)
+        comb += wr_index.eq(hash_ea(m_in.addr))
+
+        with m.If(m_in.tlbie & m_in.doall):
             # Clear all valid bits
             for i in range(TLB_SIZE):
-                sync += itlb_vlaids[i].eq(0)
+                sync += itlb_valid_bits[i].eq(0)
 
         with m.Elif(m_in.tlbie):
             # Clear entry regardless of hit or miss
@@ -818,10 +828,16 @@ class ICache(Elaboratable):
 #     -- Cache hit detection, output to fetch2 and other misc logic
 #     icache_comb : process(all)
     # Cache hit detection, output to fetch2 and other misc logic
-    def icache_comb(self, m):
+    def icache_comb(self, m, use_previous, r, req_index, req_row,
+                    req_tag, real_addr, req_laddr, cache_valid_bits,
+                    cache_tags, access_ok, flush_in, req_is_hit,
+                    req_is_miss, replace_way, plru_vicim, cache_out,
+                    stall_out):
 # 	variable is_hit  : std_ulogic;
 # 	variable hit_way : way_t;
         comb = m.d.comb
+
+        i_in, i_out, wb_out = self.i_in, self.i_out, self.wb_out
 
         is_hit  = Signal()
         hit_way = Signal(NUM_WAYS)
@@ -894,7 +910,7 @@ class ICache(Elaboratable):
                         & (req_index == r.store_index)
                         & (i == r.store_way)
                         & r.rows_valid[req_row % ROW_PER_LINE]))):
-                with m.If(read_tag(i, cahce_tags[req_index]) == req_tag):
+                with m.If(read_tag(i, cache_tags[req_index]) == req_tag):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
 
@@ -978,8 +994,13 @@ class ICache(Elaboratable):
 #     -- Cache hit synchronous machine
 #     icache_hit : process(clk)
     # Cache hit synchronous machine
-    def icache_hit(self, m):
+    def icache_hit(self, m, stall_in, use_previous, flush_in, r,
+                   req_is_hit, req_hit_way, req_index, req_tag,
+                   real_addr):
         sync = m.d.sync
+
+        i_in = self.i_in
+
 #     begin
 #         if rising_edge(clk) then
 #             -- keep outputs to fetch2 unchanged on a stall
@@ -995,7 +1016,7 @@ class ICache(Elaboratable):
         # If use_previous, keep the same data as last
         # cycle and use the second half
         with m.If(stall_in | use_previous):
-            with m.If('''TODO rst nmigen''' | flush_in):
+            with m.If(flush_in):
                 sync += r.hit_valid.eq(0)
 #             else
 #                 -- On a hit, latch the request for the next cycle,
@@ -1042,9 +1063,14 @@ class ICache(Elaboratable):
 #     -- Cache miss/reload synchronous machine
 #     icache_miss : process(clk)
     # Cache miss/reload synchronous machine
-    def icache_miss(self, m):
+    def icache_miss(self, m, cache_valid_bits, r, inval_in, req_is_miss,
+                    req_index, req_laddr, req_tag, replace_way,
+                    cache_tags, store_row, flush_in, stall_in,
+                    access_ok):
         comb = m.d.comb
         sync = m.d.sync
+
+        i_in, wb_in, m_in = self.i_in, self.wb_in, self.m_in
 
 # 	variable tagset    : cache_tags_set_t;
 # 	variable stbs_done : boolean;
@@ -1211,7 +1237,7 @@ class ICache(Elaboratable):
                                     sync += write_tag(
                                              i, tagset, r.store_tag
                                             )
-                                    sync += cache_tags(r.store_index).eq(
+                                    sync += cache_tags[r.store_index].eq(
                                              tagset
                                             )
 
@@ -1316,9 +1342,12 @@ class ICache(Elaboratable):
 #     end process;
 
 #     icache_log: if LOG_LENGTH > 0 generate
-    def icache_log(self, m, log_out):
+    def icache_log(self, m, log_out, req_hit_way, ra_valid, access_ok,
+                   req_is_miss, req_is_hit, lway, wstate, r, stall_out):
         comb = m.d.comb
         sync = m.d.sync
+
+        wb_in, i_out = self.wb_in, self.i_out
 
 #         -- Output data to logger
 #         signal log_data    : std_ulogic_vector(53 downto 0);
@@ -1344,7 +1373,7 @@ class ICache(Elaboratable):
 #                     wstate := '1';
 #                 end if;
             with m.If(r.state != State.IDLE):
-                comb += wstate.eq(1)
+                sync += wstate.eq(1)
 
 #                 log_data <= i_out.valid &
 #                             i_out.insn &
