@@ -365,7 +365,7 @@ def next_row(row):
 # in the current cache row
 def read_insn_word(addr, data):
     word = addr[2:INSN_BITS+3]
-    return data[word * 32:32 + word * 32]
+    return data.word_select(word, 32)
 
 #     -- Get the tag value from the address
 #     function get_tag(
