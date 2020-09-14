@@ -169,16 +169,20 @@ assert SET_SIZE_BITS <= TLB_LG_PGSZ, "Set indexed by virtual address"
 
 
 def TLBValidBitsArray():
-    return Array(Signal(TLB_NUM_WAYS) for x in range(TLB_SET_SIZE))
+    return Array(Signal(TLB_NUM_WAYS, name="tlbvalid%d" % x) \
+                for x in range(TLB_SET_SIZE))
 
 def TLBTagEAArray():
-    return Array(Signal(TLB_EA_TAG_BITS) for x in range (TLB_NUM_WAYS))
+    return Array(Signal(TLB_EA_TAG_BITS, name="tlbtagea%d" % x) \
+                for x in range (TLB_NUM_WAYS))
 
 def TLBTagsArray():
-    return Array(Signal(TLB_TAG_WAY_BITS) for x in range (TLB_SET_SIZE))
+    return Array(Signal(TLB_TAG_WAY_BITS, name="tlbtags%d" % x) \
+                for x in range (TLB_SET_SIZE))
 
 def TLBPtesArray():
-    return Array(Signal(TLB_PTE_WAY_BITS) for x in range(TLB_SET_SIZE))
+    return Array(Signal(TLB_PTE_WAY_BITS, name="tlbptes%d" % x) \
+                for x in range(TLB_SET_SIZE))
 
 def HitWaySet():
     return Array(Signal(WAY_BITS, name="hitway_%d" % x) \
@@ -191,11 +195,13 @@ def CacheRamOut():
 
 # PLRU output interface
 def PLRUOut():
-    return Array(Signal(WAY_BITS) for x in range(NUM_LINES))
+    return Array(Signal(WAY_BITS, name="plru_out%d" % x) \
+                for x in range(NUM_LINES))
 
 # TLB PLRU output interface
 def TLBPLRUOut():
-    return Array(Signal(TLB_WAY_BITS) for x in range(TLB_SET_SIZE))
+    return Array(Signal(TLB_WAY_BITS, name="tlbplru_out%d" % x) \
+                for x in range(TLB_SET_SIZE))
 
 # Helper functions to decode incoming requests
 #
