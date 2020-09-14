@@ -26,7 +26,8 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS, WB_SEL_BITS,
                                 WBIOMasterOut, WBIOSlaveOut)
 
 from soc.experiment.cache_ram import CacheRam
-from soc.experiment.plru import PLRU
+#from soc.experiment.plru import PLRU
+from nmutil.plru import PLRU
 
 # for test
 from nmigen_soc.wishbone.sram import SRAM
