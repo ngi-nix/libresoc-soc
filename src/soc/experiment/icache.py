@@ -1149,6 +1149,8 @@ class ICache(Elaboratable):
 #                             " RA:" & to_hstring(real_addr);
                     # We need to read a cache line
                     with m.If(req_is_miss):
+                        # XXX no, do not use "f".  use sync += Display
+                        # and use %d for integer, %x for hex.
                         print(f"cache miss nia:{i_in.nia} " \
                               f"IR:{i_in.virt_mode} " \
                               f"SM:{i_in.stop_mark} " \
