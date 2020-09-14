@@ -45,7 +45,7 @@ LINE_SIZE = 64    # Line size in bytes
 NUM_LINES = 16    # Number of lines in a set
 NUM_WAYS = 4      # Number of ways
 TLB_SET_SIZE = 64 # L1 DTLB entries per set
-TLB_NUM_WAYS = 2  # L1 DTLB number of sets
+TLB_NUM_WAYS = 4  # L1 DTLB number of sets
 TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
 LOG_LENGTH = 0    # Non-zero to enable log data collection
 
