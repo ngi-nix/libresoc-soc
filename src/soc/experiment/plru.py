@@ -8,7 +8,7 @@ class PLRU(Elaboratable):
 
     def __init__(self, BITS=2):
         self.BITS = BITS
-        self.acc = Signal(BITS)
+        self.acc_i = Signal(BITS)
         self.acc_en = Signal()
         self.lru_o = Signal(BITS)
 
@@ -43,7 +43,7 @@ class PLRU(Elaboratable):
                 node2 = Signal(self.BITS)
                 # report "GET: i:" & integer'image(i) & " node:" & 
                 # integer'image(node) & " val:" & Signal()'image(tree(node))
-                abit = self.acc[self.BITS-1-i]
+                abit = self.acc_i[self.BITS-1-i]
                 sync += tree[node].eq(~abit)
                 if i != self.BITS-1:
                     comb += node2.eq(node << 1)
@@ -56,7 +56,7 @@ class PLRU(Elaboratable):
         return m
 
     def ports(self):
-        return [self.acc_en, self.lru_o, self.acc]
+        return [self.acc_en, self.lru_o, self.acc_i]
 
 if __name__ == '__main__':
     dut = PLRU(3)

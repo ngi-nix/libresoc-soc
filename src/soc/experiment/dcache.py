@@ -660,7 +660,7 @@ class DCache(Elaboratable):
 
             comb += tlb_plru_acc_en.eq(r1.tlb_hit & (r1.tlb_hit_index == i))
             comb += tlb_plru.acc_en.eq(tlb_plru_acc_en)
-            comb += tlb_plru.acc.eq(r1.tlb_hit_way)
+            comb += tlb_plru.acc_i.eq(r1.tlb_hit_way)
             comb += tlb_plru_victim[i].eq(tlb_plru.lru_o)
 
     def tlb_search(self, m, tlb_req_index, r0, r0_valid,
@@ -774,7 +774,7 @@ class DCache(Elaboratable):
 
             comb += plru_acc_en.eq(r1.cache_hit & (r1.hit_index == i))
             comb += plru.acc_en.eq(plru_acc_en)
-            comb += plru.acc.eq(r1.hit_way)
+            comb += plru.acc_i.eq(r1.hit_way)
             comb += plru_victim[i].eq(plru.lru_o)
 
     def cache_tag_read(self, m, r0_stall, req_index, cache_tag_set, cache_tags):
