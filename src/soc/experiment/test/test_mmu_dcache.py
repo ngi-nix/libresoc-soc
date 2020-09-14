@@ -69,21 +69,19 @@ def wb_get(dc):
 
         yield
         data = mem[addr]
-        yield dc.wb_in.data.eq(data)
-        print ("dcache get %x data %x" % (addr, data))
+        yield dc.wb_in.dat.eq(data)
+        print ("    DCACHE get %x data %x" % (addr, data))
         yield dc.wb_in.ack.eq(1)
         yield
         yield dc.wb_in.ack.eq(0)
 
 
-def mmu_sim(mmu):
+def mmu_lookup(mmu, addr):
     global stop
-    yield mmu.rin.prtbl.eq(0x1000000) # set process table
-    yield
 
     yield mmu.l_in.load.eq(1)
     yield mmu.l_in.priv.eq(1)
-    yield mmu.l_in.addr.eq(0x10000)
+    yield mmu.l_in.addr.eq(addr)
     yield mmu.l_in.valid.eq(1)
     while not stop: # wait for dc_valid / err
         l_done = yield (mmu.l_out.done)
@@ -97,13 +95,27 @@ def mmu_sim(mmu):
             l_permerr or l_rc_err or l_segerr or l_invalid):
             break
         yield
-    addr = yield mmu.d_out.addr
+    phys_addr = yield mmu.d_out.addr
     pte = yield mmu.d_out.pte
     print ("translated done %d err %d badtree %d addr %x pte %x" % \
-               (l_done, l_err, l_badtree, addr, pte))
+               (l_done, l_err, l_badtree, phys_addr, pte))
+    yield
+    yield mmu.l_in.valid.eq(0)
+
+    return phys_addr
+
+def mmu_sim(mmu):
+    global stop
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
+    yield
+
+    phys_addr = yield from mmu_lookup(mmu, 0x10000)
+    assert phys_addr == 0x40000
+
+    phys_addr = yield from mmu_lookup(mmu, 0x10000)
+    assert phys_addr == 0x40000
 
     stop = True
-
 
 def test_mmu():
     mmu = MMU()
