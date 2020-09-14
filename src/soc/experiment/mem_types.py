@@ -54,7 +54,6 @@ class LoadStore1ToDCacheType(RecordObject):
         self.load          = Signal() # this is a load
         self.dcbz          = Signal()
         self.nc            = Signal()
-        self.nc            = Signal()
         self.reserve       = Signal()
         self.virt_mode     = Signal()
         self.priv_mode     = Signal()
