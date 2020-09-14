@@ -1086,37 +1086,26 @@ class ICache(Elaboratable):
 # 	    -- On reset, clear all valid bits to force misses
 #             if rst = '1' then
         # On reset, clear all valid bits to force misses
-        with m.If('''TODO rst nmigen'''):
 # 		for i in index_t loop
 # 		    cache_valids(i) <= (others => '0');
 # 		end loop;
-            for i in Signal(NUM_LINES):
-                sync += cache_valid_bits[i].eq(~1)
-
 #                 r.state <= IDLE;
 #                 r.wb.cyc <= '0';
 #                 r.wb.stb <= '0';
-            sync += r.state.eq(State.IDLE)
-            sync += r.wb.cyc.eq(0)
-            sync += r.wb.stb.eq(0)
-
 # 		-- We only ever do reads on wishbone
 # 		r.wb.dat <= (others => '0');
 # 		r.wb.sel <= "11111111";
 # 		r.wb.we  <= '0';
-            # We only ever do reads on wishbone
-            sync += r.wb.dat.eq(~1)
-            sync += r.wb.sel.eq(Const(0b11111111, 8))
-            sync += r.wb.we.eq(0)
+
+        # We only ever do reads on wishbone
+        comb += r.wb.sel.eq(~0) # set to all 1s
 
 # 		-- Not useful normally but helps avoiding
 #               -- tons of sim warnings
 # 		r.wb.adr <= (others => '0');
-            # Not useful normally but helps avoiding tons of sim warnings
-            sync += r.wb.adr.eq(~1)
 
 #             else
-        with m.Else():
+
 #                 -- Process cache invalidations
 #                 if inval_in = '1' then
 #                     for i in index_t loop
@@ -1124,29 +1113,30 @@ class ICache(Elaboratable):
 #                     end loop;
 #                     r.store_valid <= '0';
 #                 end if;
-            # Process cache invalidations
-            with m.If(inval_in):
-                for i in range(NUM_LINES):
-                    sync += cache_valid_bits[i].eq(~1)
+        # Process cache invalidations
+        with m.If(inval_in):
+            for i in range(NUM_LINES):
+                sync += cache_valid_bits[i].eq(~1) # NO just set to zero.
+                                                   # look again: others == 0
 
-                sync += r.store_valid.eq(0)
+            sync += r.store_valid.eq(0)
 
 # 		-- Main state machine
 # 		case r.state is
-                # Main state machine
-                with m.Switch(r.state):
+            # Main state machine
+            with m.Switch(r.state):
 
 # 		when IDLE =>
-                    with m.Case(State.IDLE):
+                with m.Case(State.IDLE):
 #                     -- Reset per-row valid flags,
 #                     -- only used in WAIT_ACK
 #                     for i in 0 to ROW_PER_LINE - 1 loop
 #                         r.rows_valid(i) <= '0';
 #                     end loop;
-                        # Reset per-row valid flags,
-                        # only used in WAIT_ACK
-                        for i in range(ROW_PER_LINE):
-                            sync += r.rows_valid[i].eq(0)
+                    # Reset per-row valid flags,
+                    # only used in WAIT_ACK
+                    for i in range(ROW_PER_LINE):
+                        sync += r.rows_valid[i].eq(0)
 
 # 		    -- We need to read a cache line
 # 		    if req_is_miss = '1' then
@@ -1157,14 +1147,14 @@ class ICache(Elaboratable):
 # 			    " way:" & integer'image(replace_way) &
 # 			    " tag:" & to_hstring(req_tag) &
 #                             " RA:" & to_hstring(real_addr);
-                        # We need to read a cache line
-                        with m.If(req_is_miss):
-                            print(f"cache miss nia:{i_in.nia} " \
-                                  f"IR:{i_in.virt_mode} " \
-                                  f"SM:{i_in.stop_mark} " \
-                                  F"idx:{req_index} " \
-                                  f"way:{replace_way} tag:{req_tag} " \
-                                  f"RA:{real_addr}")
+                    # We need to read a cache line
+                    with m.If(req_is_miss):
+                        print(f"cache miss nia:{i_in.nia} " \
+                              f"IR:{i_in.virt_mode} " \
+                              f"SM:{i_in.stop_mark} " \
+                              F"idx:{req_index} " \
+                              f"way:{replace_way} tag:{req_tag} " \
+                              f"RA:{real_addr}")
 
 # 			-- Keep track of our index and way for
 #                       -- subsequent stores
@@ -1174,17 +1164,17 @@ class ICache(Elaboratable):
 #                       r.store_valid <= '1';
 #                       r.end_row_ix <=
 #                        get_row_of_line(get_row(req_laddr)) - 1;
-                            # Keep track of our index and way
-                            # for subsequent stores
-                            sync += r.store_index.eq(req_index)
-                            sync += r.store_row.eq(get_row(req_laddr))
-                            sync += r.store_tag.eq(req_tag)
-                            sync += r.store_valid.eq(1)
-                            sync += r.end_row_ix.eq(
-                                     get_row_of_line(
-                                      get_row(req_laddr)
-                                     ) - 1
-                                    )
+                        # Keep track of our index and way
+                        # for subsequent stores
+                        sync += r.store_index.eq(req_index)
+                        sync += r.store_row.eq(get_row(req_laddr))
+                        sync += r.store_tag.eq(req_tag)
+                        sync += r.store_valid.eq(1)
+                        sync += r.end_row_ix.eq(
+                                 get_row_of_line(
+                                  get_row(req_laddr)
+                                 ) - 1
+                                )
 
 # 			-- Prep for first wishbone read. We calculate the
 #                       -- address of the start of the cache line and
@@ -1192,37 +1182,37 @@ class ICache(Elaboratable):
 # 			r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
 # 			r.wb.cyc <= '1';
 # 			r.wb.stb <= '1';
-                            # Prep for first wishbone read.
-                            # We calculate the
-                            # address of the start of the cache line and
-                            # start the WB cycle.
-                            sync += r.wb.adr.eq(
-                                     req_laddr[:r.wb.adr]
-                                    )
+                        # Prep for first wishbone read.
+                        # We calculate the
+                        # address of the start of the cache line and
+                        # start the WB cycle.
+                        sync += r.wb.adr.eq(
+                                 req_laddr[:r.wb.adr]
+                                )
 
 # 			-- Track that we had one request sent
 # 			r.state <= CLR_TAG;
-                            # Track that we had one request sent
-                            sync += r.state.eq(State.CLR_TAG)
+                        # Track that we had one request sent
+                        sync += r.state.eq(State.CLR_TAG)
 # 		    end if;
 
 # 		when CLR_TAG | WAIT_ACK =>
-                    with m.Case(State.CLR_TAG, State.WAIT_ACK):
+                with m.Case(State.CLR_TAG, State.WAIT_ACK):
 #                     if r.state = CLR_TAG then
-                        with m.If(r.state == State.CLR_TAG):
+                    with m.If(r.state == State.CLR_TAG):
 #                         -- Get victim way from plru
 # 			r.store_way <= replace_way;
-                            # Get victim way from plru
-                            sync += r.store_way.eq(replace_way)
+                        # Get victim way from plru
+                        sync += r.store_way.eq(replace_way)
 #
 # 			-- Force misses on that way while
 #                       -- reloading that line
 # 			cache_valids(req_index)(replace_way) <= '0';
-                            # Force misses on that way while
-                            # realoading that line
-                            sync += cache_valid_bits[
-                                     req_index
-                                    ][replace_way].eq(0)
+                        # Force misses on that way while
+                        # realoading that line
+                        sync += cache_valid_bits[
+                                 req_index
+                                ][replace_way].eq(0)
 
 # 			-- Store new tag in selected way
 # 			for i in 0 to NUM_WAYS-1 loop
@@ -1232,33 +1222,33 @@ class ICache(Elaboratable):
 # 				cache_tags(r.store_index) <= tagset;
 # 			    end if;
 # 			end loop;
-                            for i in range(NUM_WAYS):
-                                with m.If(i == replace_way):
-                                    comb += tagset.eq(
-                                             cache_tags[r.store_index]
-                                            )
-                                    sync += write_tag(
-                                             i, tagset, r.store_tag
-                                            )
-                                    sync += cache_tags[r.store_index].eq(
-                                             tagset
-                                            )
+                        for i in range(NUM_WAYS):
+                            with m.If(i == replace_way):
+                                comb += tagset.eq(
+                                         cache_tags[r.store_index]
+                                        )
+                                sync += write_tag(
+                                         i, tagset, r.store_tag
+                                        )
+                                sync += cache_tags[r.store_index].eq(
+                                         tagset
+                                        )
 
 #                         r.state <= WAIT_ACK;
-                            sync += r.state.eq(State.WAIT_ACK)
+                        sync += r.state.eq(State.WAIT_ACK)
 #                     end if;
 
 # 		    -- Requests are all sent if stb is 0
 # 		    stbs_done := r.wb.stb = '0';
-                        # Requests are all sent if stb is 0
-                        comb += stbs_done.eq(r.wb.stb == 0)
+                    # Requests are all sent if stb is 0
+                    comb += stbs_done.eq(r.wb.stb == 0)
 
 # 		    -- If we are still sending requests,
 #                   -- was one accepted ?
 # 		    if wishbone_in.stall = '0' and not stbs_done then
-                        # If we are still sending requests,
-                        # was one accepted?
-                        with m.If(~wb_in.stall & ~stbs_done):
+                    # If we are still sending requests,
+                    # was one accepted?
+                    with m.If(~wb_in.stall & ~stbs_done):
 # 			-- That was the last word ? We are done sending.
 #                       -- Clear stb and set stbs_done so we can handle
 #                       -- an eventual last ack on the same cycle.
@@ -1266,64 +1256,64 @@ class ICache(Elaboratable):
 # 			    r.wb.stb <= '0';
 # 			    stbs_done := true;
 # 			end if;
-                            # That was the last word ?
-                            # We are done sending.
-                            # Clear stb and set stbs_done
-                            # so we can handle
-                            # an eventual last ack on
-                            # the same cycle.
-                            with m.If(is_last_row_addr(
-                                      r.wb.adr, r.end_row_ix)):
-                                sync += r.wb.stb.eq(0)
-                                stbs_done.eq(1)
+                        # That was the last word ?
+                        # We are done sending.
+                        # Clear stb and set stbs_done
+                        # so we can handle
+                        # an eventual last ack on
+                        # the same cycle.
+                        with m.If(is_last_row_addr(
+                                  r.wb.adr, r.end_row_ix)):
+                            sync += r.wb.stb.eq(0)
+                            stbs_done.eq(1)
 
 # 			-- Calculate the next row address
 # 			r.wb.adr <= next_row_addr(r.wb.adr);
-                            # Calculate the next row address
-                            sync += r.wb.adr.eq(next_row_addr(r.wb.adr))
+                        # Calculate the next row address
+                        sync += r.wb.adr.eq(next_row_addr(r.wb.adr))
 # 		    end if;
 
 # 		    -- Incoming acks processing
 # 		    if wishbone_in.ack = '1' then
-                        # Incoming acks processing
-                        with m.If(wb_in.ack):
+                    # Incoming acks processing
+                    with m.If(wb_in.ack):
 #                         r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                          <= '1';
-                            sync += r.rows_valid[
-                                     r.store_row & ROW_PER_LINE
-                                    ].eq(1)
+                        sync += r.rows_valid[
+                                 r.store_row & ROW_PER_LINE
+                                ].eq(1)
 
 # 			-- Check for completion
 # 			if stbs_done and
 #                        is_last_row(r.store_row, r.end_row_ix) then
-                            # Check for completion
-                            with m.If(stbs_done & is_last_row(
-                                      r.store_row, r.end_row_ix)):
+                        # Check for completion
+                        with m.If(stbs_done & is_last_row(
+                                  r.store_row, r.end_row_ix)):
 # 			    -- Complete wishbone cycle
 # 			    r.wb.cyc <= '0';
-                                # Complete wishbone cycle
-                                sync += r.wb.cyc.eq(0)
+                            # Complete wishbone cycle
+                            sync += r.wb.cyc.eq(0)
 
 # 			    -- Cache line is now valid
 # 			    cache_valids(r.store_index)(replace_way) <=
 #                            r.store_valid and not inval_in;
-                                # Cache line is now valid
-                                sync += cache_valid_bits[
-                                         r.store_index
-                                        ][relace_way].eq(
-                                         r.store_valid & ~inval_in
-                                        )
+                            # Cache line is now valid
+                            sync += cache_valid_bits[
+                                     r.store_index
+                                    ][relace_way].eq(
+                                     r.store_valid & ~inval_in
+                                    )
 
 # 			    -- We are done
 # 			    r.state <= IDLE;
-                                # We are done
-                                sync += r.state.eq(State.IDLE)
+                            # We are done
+                            sync += r.state.eq(State.IDLE)
 # 			end if;
 
 # 			-- Increment store row counter
 # 			r.store_row <= next_row(r.store_row);
-                            # Increment store row counter
-                            sync += store_row.eq(next_row(r.store_row))
+                        # Increment store row counter
+                        sync += store_row.eq(next_row(r.store_row))
 # 		    end if;
 # 		end case;
 # 	    end if;
@@ -1335,12 +1325,12 @@ class ICache(Elaboratable):
 #              stall_in = '0' then
 #                 r.fetch_failed <= '1';
 #             end if;
-            # TLB miss and protection fault processing
-            with m.If('''TODO nmigen rst''' | flush_in | m_in.tlbld):
-                sync += r.fetch_failed.eq(0)
+        # TLB miss and protection fault processing
+        with m.If('''TODO nmigen rst''' | flush_in | m_in.tlbld):
+            sync += r.fetch_failed.eq(0)
 
-            with m.Elif(i_in.req & ~access_ok & ~stall_in):
-                sync += r.fetch_failed.eq(1)
+        with m.Elif(i_in.req & ~access_ok & ~stall_in):
+            sync += r.fetch_failed.eq(1)
 # 	end if;
 #     end process;
 
