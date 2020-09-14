@@ -264,12 +264,6 @@ class PermAttr(RecordObject):
 
 def extract_perm_attr(pte):
     pa = PermAttr()
-    pa.reference = pte[8]
-    pa.changed   = pte[7]
-    pa.nocache   = pte[5]
-    pa.priv      = pte[3]
-    pa.rd_perm   = pte[2]
-    pa.wr_perm   = pte[1]
     return pa;
 
 
@@ -601,7 +595,7 @@ class DCache(Elaboratable):
             sync += r.req.dcbz.eq(0)
             sync += r.req.nc.eq(0)
             sync += r.req.reserve.eq(0)
-            sync += r.req.virt_mode.eq(1)
+            sync += r.req.virt_mode.eq(0)
             sync += r.req.priv_mode.eq(1)
             sync += r.req.addr.eq(m_in.addr)
             sync += r.req.data.eq(m_in.pte)
@@ -687,7 +681,7 @@ class DCache(Elaboratable):
         for i in range(TLB_NUM_WAYS):
             is_tag_hit = Signal()
             comb += is_tag_hit.eq(tlb_valid_way[i]
-                                  & read_tlb_tag(i, tlb_tag_way) == eatag)
+                                  & (read_tlb_tag(i, tlb_tag_way) == eatag))
             with m.If(is_tag_hit):
                 comb += hitway.eq(i)
                 comb += hit.eq(1)
@@ -704,7 +698,12 @@ class DCache(Elaboratable):
             comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
                               r0.req.addr[ROW_OFF_BITS:TLB_LG_PGSZ],
                               pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
-            comb += perm_attr.eq(extract_perm_attr(pte))
+            comb += perm_attr.reference.eq(pte[8])
+            comb += perm_attr.changed.eq(pte[7])
+            comb += perm_attr.nocache.eq(pte[5])
+            comb += perm_attr.priv.eq(pte[3])
+            comb += perm_attr.rd_perm.eq(pte[2])
+            comb += perm_attr.wr_perm.eq(pte[1])
         with m.Else():
             comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
                               r0.req.addr[ROW_OFF_BITS:REAL_ADDR_BITS]))
