@@ -61,6 +61,7 @@ class LoadStore1ToDCacheType(RecordObject):
         self.data          = Signal(64)
         self.byte_sel      = Signal(8)
 
+
 class LoadStore1ToMMUType(RecordObject):
     def __init__(self):
         super().__init__()
