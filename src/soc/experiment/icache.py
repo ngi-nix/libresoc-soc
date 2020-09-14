@@ -285,7 +285,7 @@ def get_row(addr):
 #     end;
 # Return the index of a row within a line
 def get_row_of_line(row):
-    row[:ROW_LINE_BITS]
+    return row[:ROW_LINE_BITS]
 
 #     -- Returns whether this is the last row of a line
 #     function is_last_row_addr(addr: wishbone_addr_type;
@@ -326,9 +326,8 @@ def is_last_row(row, last):
 #     end;
 # Return the address of the next row in the current cache line
 def next_row_addr(addr):
-    # TODO no idea what's going on here, looks like double assignments
-    # overriding earlier assignments ??? Help please!
-    pass
+    row_idx = addr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+    return addr[ROW_OFF_BITS:LINE_OFF_BITS].eq(row_idx)
 
 #     -- Return the next row in the current cache line. We use a dedicated
 #     -- function in order to limit the size of the generated adder to be
@@ -348,9 +347,8 @@ def next_row_addr(addr):
 # function in order to limit the size of the generated adder to be
 # only the bits within a cache line (3 bits with default settings)
 def next_row(row):
-    # TODO no idea what's going on here, looks like double assignments
-    # overriding earlier assignments ??? Help please!
-    pass
+    row_idx = row[:ROW_LINE_BITS]
+    return row[:ROW_LINE_BITS].eq(row_idx + 1)
 
 #     -- Read the instruction word for the given address in the
 #     -- current cache row
@@ -697,11 +695,11 @@ class ICache(Elaboratable):
 
         with m.If(NUM_WAYS > 1):
             for i in range(NUM_LINES):
-                plru_acc    = Signal(WAY_BITS)
+                plru_acc_i  = Signal(WAY_BITS)
                 plru_acc_en = Signal()
                 plru_out    = Signal(WAY_BITS)
                 plru        = PLRU(WAY_BITS)
-                comb += plru.acc.eq(plru_acc)
+                comb += plru.acc_i.eq(plru_acc_i)
                 comb += plru.acc_en.eq(plru_acc_en)
                 comb += plru.lru_o.eq(plru_out)
 
@@ -712,7 +710,7 @@ class ICache(Elaboratable):
                 with m.Else():
                     comb += plru.acc_en.eq(0)
 
-                comb += plru.acc.eq(r.hit_way)
+                comb += plru.acc_i.eq(r.hit_way)
                 comb += plru_victim[i].eq(plru.lru_o)
 
 #     -- TLB hit detection and real address generation
@@ -1067,7 +1065,7 @@ class ICache(Elaboratable):
     # Cache miss/reload synchronous machine
     def icache_miss(self, m, cache_valid_bits, r, req_is_miss,
                     req_index, req_laddr, req_tag, replace_way,
-                    cache_tags, access_ok):
+                    cache_tags, access_ok, real_addr):
         comb = m.d.comb
         sync = m.d.sync
 
@@ -1191,6 +1189,8 @@ class ICache(Elaboratable):
                         sync += r.wb.adr.eq(
                                  req_laddr[:r.wb.adr]
                                 )
+                        sync += r.wb.cyc.eq(1)
+                        sync += r.wb.stb.eq(1)
 
 # 			-- Track that we had one request sent
 # 			r.state <= CLR_TAG;
@@ -1484,7 +1484,7 @@ class ICache(Elaboratable):
                         req_index, req_tag, real_addr)
         self.icache_miss(m, cache_valid_bits, r, req_is_miss, req_index,
                          req_laddr, req_tag, replace_way, cache_tags,
-                         access_ok)
+                         access_ok, real_addr)
         #self.icache_log(m, log_out, req_hit_way, ra_valid, access_ok,
         #                req_is_miss, req_is_hit, lway, wstate, r)
 
