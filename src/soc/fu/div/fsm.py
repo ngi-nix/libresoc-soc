@@ -156,9 +156,7 @@ class FSMDivCoreStage(ControlBase):
         m.submodules.div_state_next = self.div_state_next
         m.submodules.div_state_init = self.div_state_init
         data_i = self.p.data_i
-        core_i: FSMDivCoreInputData = data_i.core
         data_o = self.n.data_o
-        core_o: FSMDivCoreOutputData = data_o.core
         core_saved_i: FSMDivCoreInputData = self.saved_input_data.core
 
         # TODO: handle cancellation
