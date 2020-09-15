@@ -1,6 +1,7 @@
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
 from soc.fu.mmu.pipe_data import MMUInputData, MMUOutputData, MMUPipeSpec
 from nmutil.singlepipe import ControlBase
+from nmutil.util import rising_edge
 
 from soc.experiment.mmu import MMU
 from soc.experiment.dcache import DCache
@@ -63,6 +64,12 @@ class FSMMMUStage(ControlBase):
         spr = Signal(len(x_fields.SPR))
         comb += spr.eq(decode_spr_num(x_fields.SPR))
 
+        # ok so we have to "pulse" the MMU (or dcache) rather than
+        # hold the valid hi permanently.  guess what this does...
+        valid = Signal()
+        blip = Signal()
+        m.d.comb += blip.eq(rising_edge(m, valid))
+
         with m.If(~busy):
             with m.If(self.p.valid_i):
                 m.d.sync += busy.eq(1)
@@ -84,9 +91,10 @@ class FSMMMUStage(ControlBase):
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
-                        # kick the MMU and wait for it to complete
-                        comb += m_in.valid.eq(1)   # start
-                        comb += m_in.mtspr.eq(1)   # mtspr mode
+                        # blip the MMU and wait for it to complete
+                        comb += valid.eq(1)   # start "pulse"
+                        comb += m_in.valid.eq(blip)   # start
+                        comb += m_in.mtspr.eq(1)      # mtspr mode
                         comb += m_in.sprn.eq(spr)  # which SPR
                         comb += m_in.rs.eq(a_i)    # incoming operand (RS)
                         comb += done.eq(m_out.done) # zzzz
@@ -102,8 +110,9 @@ class FSMMMUStage(ControlBase):
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
-                        # kick the MMU and wait for it to complete
-                        comb += m_in.valid.eq(1)   # start
+                        # blip the MMU and wait for it to complete
+                        comb += valid.eq(1)   # start "pulse"
+                        comb += m_in.valid.eq(blip)   # start
                         comb += m_in.mtspr.eq(1)   # mtspr mode
                         comb += m_in.sprn.eq(spr)  # which SPR
                         comb += m_in.rs.eq(a_i)    # incoming operand (RS)
@@ -113,17 +122,19 @@ class FSMMMUStage(ControlBase):
 
                 with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
-                    comb += d_in.valid.eq(1)        # start
+                    comb += valid.eq(1)   # start "pulse"
+                    comb += d_in.valid.eq(blip)     # start
                     comb += d_in.dcbz.eq(1)         # dcbz mode
                     comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
-                    comb += done.eq(d_out.done)      # zzzz
+                    comb += done.eq(d_out.done)     # zzzz
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
                     # note that the spr is *not* an actual spr number, it's
                     # just that those bits happen to match with field bits
                     # RIC, PRS, R
-                    comb += m_in.valid.eq(1)   # start
+                    comb += valid.eq(1)   # start "pulse"
+                    comb += m_in.valid.eq(blip)   # start
                     comb += m_in.tlbie.eq(1)   # mtspr mode
                     comb += m_in.sprn.eq(spr)  # use sprn to send insn bits
                     comb += m_in.addr.eq(b_i)  # incoming operand (RB)
