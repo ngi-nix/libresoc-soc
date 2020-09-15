@@ -19,7 +19,6 @@ class MMUInputData(IntegerData):
     regspec = [('INT', 'ra', '0:63'),        # RA
                ('INT', 'rb', '0:63'),        # RB
                ('SPR', 'spr1', '0:63'),      # MMU (slow)
-               ('FAST', 'fast1', '0:63'),    # MMU (fast: LR, CTR etc)
                ]   
     def __init__(self, pspec):
         super().__init__(pspec, False)
@@ -31,7 +30,6 @@ class MMUInputData(IntegerData):
 class MMUOutputData(IntegerData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('SPR', 'spr1', '0:63'),     # MMU (slow)
-               ('FAST', 'fast1', '0:63'),   # MMU (fast: LR, CTR etc)
                ]
     def __init__(self, pspec):
         super().__init__(pspec, True)
