@@ -58,6 +58,7 @@ class Function(Enum):
     MUL = 1 << 8
     DIV = 1 << 9
     SPR = 1 << 10
+    MMU = 1 << 11
 
 
 @unique
