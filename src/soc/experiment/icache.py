@@ -202,17 +202,17 @@ TLB_PTE_BITS    = 64
 #constant TAG_RAM_WIDTH : natural := TAG_BITS * NUM_WAYS;
 #subtype cache_tags_set_t is std_logic_vector(TAG_RAM_WIDTH-1 downto 0);
 #type cache_tags_array_t is array(index_t) of cache_tags_set_t;
-def CacheTagArray():
+def CacheTagArray():  # XXX name
     return Array(Signal(TAG_RAM_WIDTH) for x in range(NUM_LINES))
 
 #-- The cache valid bits
 #subtype cache_way_valids_t is std_ulogic_vector(NUM_WAYS-1 downto 0);
 #type cache_valids_t is array(index_t) of cache_way_valids_t;
 #type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
-def CacheValidBitsArray():
+def CacheValidBitsArray():  # XXX name
     return Array(Signal(NUM_WAYS) for x in range(NUM_LINES))
 
-def RowPerLineValidArray():
+def RowPerLineValidArray():  # XXX name
     return Array(Signal() for x in range(ROW_PER_LINE))
 
 
@@ -229,20 +229,20 @@ def RowPerLineValidArray():
 #type tlb_tags_t is array(tlb_index_t) of tlb_tag_t;
 #subtype tlb_pte_t is std_ulogic_vector(TLB_PTE_BITS - 1 downto 0);
 #type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
-def TLBValidBitsArray():
+def TLBValidBitsArray():  # XXX name
     return Array(Signal() for x in range(TLB_SIZE))
 
-def TLBTagArray():
+def TLBTagArray():  # XXX name
     return Array(Signal(TLB_EA_TAG_BITS) for x in range(TLB_SIZE))
 
-def TLBPTEArray():
+def TLBPTEArray():  # XXX name
     return Array(Signal(TLB_PTE_BITS) for x in range(TLB_SIZE))
 
 
 #-- Cache RAM interface
 #type cache_ram_out_t is array(way_t) of cache_row_t;
 # Cache RAM interface
-def CacheRamOut():
+def CacheRamOut():  # XXX name
     return Array(Signal(ROW_SIZE_BITS) for x in range(NUM_WAYS))
 
 #-- PLRU output interface
@@ -500,14 +500,14 @@ class RegInternal(RecordObject):
 
         # Cache miss state (reload state machine)
         self.state        = Signal(State)
-        self.wb           = WBMasterOut()
+        self.wb           = WBMasterOut()  # XXX name
         self.store_way    = Signal(NUM_WAYS)
         self.store_index  = Signal(NUM_LINES)
         self.store_row    = Signal(BRAM_ROWS)
         self.store_tag    = Signal(TAG_BITS)
         self.store_valid  = Signal()
         self.end_row_ix   = Signal(ROW_LINE_BITS)
-        self.rows_valid   = RowPerLineValidArray()
+        self.rows_valid   = RowPerLineValidArray()  # XXX name
 
         # TLB miss state
         self.fetch_failed = Signal()
@@ -565,18 +565,18 @@ class RegInternal(RecordObject):
 class ICache(Elaboratable):
     """64 bit direct mapped icache. All instructions are 4B aligned."""
     def __init__(self):
-        self.i_in           = Fetch1ToICacheType()
-        self.i_out          = ICacheToDecode1Type()
+        self.i_in           = Fetch1ToICacheType()  # XXX name
+        self.i_out          = ICacheToDecode1Type()  # XXX name
 
-        self.m_in           = MMUToICacheType()
+        self.m_in           = MMUToICacheType()  # XXX name
 
         self.stall_in       = Signal()
         self.stall_out      = Signal()
         self.flush_in       = Signal()
         self.inval_in       = Signal()
 
-        self.wb_out         = WBMasterOut()
-        self.wb_in          = WBSlaveOut()
+        self.wb_out         = WBMasterOut()  # XXX name
+        self.wb_in          = WBSlaveOut()  # XXX name
 
         self.log_out        = Signal(54)
 
@@ -643,7 +643,6 @@ class ICache(Elaboratable):
             comb += way.wr_data.eq(wb_in.dat)
 
             comb += do_read.eq(~(stall_in | use_previous))
-            comb += do_write.eq(0)
 
             with m.If(wb_in.ack & (replace_way == i)):
                 comb += do_write.eq(1)
@@ -707,9 +706,6 @@ class ICache(Elaboratable):
                 with m.If(get_index(r.hit_nia) == i):
                     comb += plru.acc_en.eq(r.hit_valid)
 
-                with m.Else():
-                    comb += plru.acc_en.eq(0)
-
                 comb += plru.acc_i.eq(r.hit_way)
                 comb += plru_victim[i].eq(plru.lru_o)
 
@@ -763,9 +759,6 @@ class ICache(Elaboratable):
 
             with m.If(ttag == i_in.nia[TLB_LG_PGSZ + TLB_BITS:64]):
                 comb += ra_valid.eq(itlb_valid_bits[tlb_req_index])
-
-            with m.Else():
-                comb += ra_valid.eq(0)
 
         with m.Else():
             comb += real_addr.eq(i_in.nia[:REAL_ADDR_BITS])
@@ -860,9 +853,6 @@ class ICache(Elaboratable):
         with m.If(i_in.nia[2:INSN_BITS+2] != 0):
             comb += use_previous.eq(i_in.sequential & r.hit_valid)
 
-        with m.Else():
-            comb += use_previous.eq(0)
-
 # 	-- Extract line, row and tag from request
 #         req_index <= get_index(i_in.nia);
 #         req_row <= get_row(i_in.nia);
@@ -882,8 +872,7 @@ class ICache(Elaboratable):
         # used for cache miss processing if needed
         comb += req_laddr.eq(Cat(
                  Const(0b0, ROW_OFF_BITS),
-                 real_addr[ROW_OFF_BITS:REAL_ADDR_BITS],
-                 Const(0, REAL_ADDR_BITS)
+                 real_addr[ROW_OFF_BITS:REAL_ADDR_BITS]
                 ))
 
 # 	-- Test if pending request is a hit on any way
@@ -970,9 +959,7 @@ class ICache(Elaboratable):
         # be output an entire row which I prefer not to do just yet
         # as it would force fetch2 to know about some of the cache
         # geometry information.
-        comb += i_out.insn.eq(
-                 read_insn_word(r.hit_nia, cache_out[r.hit_way])
-                )
+        comb += i_out.insn.eq(read_insn_word(r.hit_nia, cache_out[r.hit_way]))
         comb += i_out.valid.eq(r.hit_valid)
         comb += i_out.nia.eq(r.hit_nia)
         comb += i_out.stop_mark.eq(r.hit_smark)
@@ -1041,6 +1028,7 @@ class ICache(Elaboratable):
 #                         " tag:" & to_hstring(req_tag) &
 #                         " way:" & integer'image(req_hit_way) &
 #                         " RA:" & to_hstring(real_addr);
+                # XXX NO do not use f"" use %d and %x.  see dcache.py Display
                 print(f"cache hit nia:{i_in.nia}, " \
                       f"IR:{i_in.virt_mode}, " \
                       f"SM:{i_in.stop_mark}, idx:{req_index}, " \
@@ -1114,7 +1102,7 @@ class ICache(Elaboratable):
         # Process cache invalidations
         with m.If(inval_in):
             for i in range(NUM_LINES):
-                sync += cache_valid_bits[i].eq(~1) # NO just set to zero.
+                sync += cache_valid_bits[i].eq(~1) # XXX NO just set to zero.
                                                    # look again: others == 0
 
             sync += r.store_valid.eq(0)
@@ -1186,9 +1174,7 @@ class ICache(Elaboratable):
                         # We calculate the
                         # address of the start of the cache line and
                         # start the WB cycle.
-                        sync += r.wb.adr.eq(
-                                 req_laddr[:r.wb.adr]
-                                )
+                        sync += r.wb.adr.eq(req_laddr)
                         sync += r.wb.cyc.eq(1)
                         sync += r.wb.stb.eq(1)
 
@@ -1212,9 +1198,8 @@ class ICache(Elaboratable):
 # 			cache_valids(req_index)(replace_way) <= '0';
                         # Force misses on that way while
                         # realoading that line
-                        sync += cache_valid_bits[
-                                 req_index
-                                ][replace_way].eq(0)
+                        # XXX see dcache.py
+                        sync += cache_valid_bits[req_index][replace_way].eq(0)
 
 # 			-- Store new tag in selected way
 # 			for i in 0 to NUM_WAYS-1 loop
@@ -1226,15 +1211,9 @@ class ICache(Elaboratable):
 # 			end loop;
                         for i in range(NUM_WAYS):
                             with m.If(i == replace_way):
-                                comb += tagset.eq(
-                                         cache_tags[r.store_index]
-                                        )
-                                sync += write_tag(
-                                         i, tagset, r.store_tag
-                                        )
-                                sync += cache_tags[r.store_index].eq(
-                                         tagset
-                                        )
+                                comb += tagset.eq(cache_tags[r.store_index])
+                                sync += write_tag(i, tagset, r.store_tag)
+                                sync += cache_tags[r.store_index].eq(tagset)
 
 #                         r.state <= WAIT_ACK;
                         sync += r.state.eq(State.WAIT_ACK)
@@ -1264,10 +1243,9 @@ class ICache(Elaboratable):
                         # so we can handle
                         # an eventual last ack on
                         # the same cycle.
-                        with m.If(is_last_row_addr(
-                                  r.wb.adr, r.end_row_ix)):
+                        with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
                             sync += r.wb.stb.eq(0)
-                            stbs_done.eq(1)
+                            comb += stbs_done.eq(1)
 
 # 			-- Calculate the next row address
 # 			r.wb.adr <= next_row_addr(r.wb.adr);
@@ -1281,16 +1259,14 @@ class ICache(Elaboratable):
                     with m.If(wb_in.ack):
 #                         r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                          <= '1';
-                        sync += r.rows_valid[
-                                 r.store_row & ROW_PER_LINE
-                                ].eq(1)
+                        sync += r.rows_valid[r.store_row & ROW_PER_LINE].eq(1)
 
 # 			-- Check for completion
 # 			if stbs_done and
 #                        is_last_row(r.store_row, r.end_row_ix) then
                         # Check for completion
-                        with m.If(stbs_done & is_last_row(
-                                  r.store_row, r.end_row_ix)):
+                        with m.If(stbs_done &
+                                  (is_last_row(r.store_row, r.end_row_ix)):
 # 			    -- Complete wishbone cycle
 # 			    r.wb.cyc <= '0';
                             # Complete wishbone cycle
@@ -1300,11 +1276,8 @@ class ICache(Elaboratable):
 # 			    cache_valids(r.store_index)(replace_way) <=
 #                            r.store_valid and not inval_in;
                             # Cache line is now valid
-                            sync += cache_valid_bits[
-                                     r.store_index
-                                    ][relace_way].eq(
-                                     r.store_valid & ~inval_in
-                                    )
+                            sync += cache_valid_bits[r.store_index]
+                                [relace_way].eq(r.store_valid & ~inval_in)
 
 # 			    -- We are done
 # 			    r.state <= IDLE;
@@ -1328,9 +1301,8 @@ class ICache(Elaboratable):
 #                 r.fetch_failed <= '1';
 #             end if;
         # TLB miss and protection fault processing
-        with m.If('''TODO nmigen rst''' | flush_in | m_in.tlbld):
+        with m.If(flush_in | m_in.tlbld):
             sync += r.fetch_failed.eq(0)
-
         with m.Elif(i_in.req & ~access_ok & ~stall_in):
             sync += r.fetch_failed.eq(1)
 # 	end if;
