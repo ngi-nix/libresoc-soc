@@ -138,7 +138,7 @@ class DivState:
 
 
 class FSMDivCoreStage(ControlBase):
-    def __init__(self, pspec: DivPipeSpec):
+    def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
         # override p and n
