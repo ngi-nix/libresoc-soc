@@ -47,6 +47,7 @@ from nmigen import Elaboratable, Module
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.decoder.power_enums import Function
+from soc.config.test.test_loadstore import TestMemPspec
 
 # pipeline / spec imports
 
@@ -74,6 +75,9 @@ from soc.fu.trap.pipe_data import TrapPipeSpec
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpecFSMDivCore
 from soc.fu.div.pipe_data import DivPipeSpecDivPipeCore
+
+from soc.fu.mmu.fsm import FSMMMUStage
+from soc.fu.mmu.pipe_data import MMUPipeSpec
 
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
@@ -167,6 +171,13 @@ class DivFSMFunctionUnit(FunctionUnitBaseSingle):
         super().__init__(DivPipeSpecFSMDivCore, DivBasePipe, idx)
 
 
+class MMUFSMFunctionUnit(FunctionUnitBaseSingle):
+    fnunit = Function.MMU
+
+    def __init__(self, idx):
+        super().__init__(MMUPipeSpec, FSMMMUStage, idx)
+
+
 class DivPipeFunctionUnit(FunctionUnitBaseSingle):
     fnunit = Function.DIV
 
@@ -236,6 +247,7 @@ class AllFunctionUnits(Elaboratable):
                      'spr': 1,
                      'logical': 1,
                      'mul': 1,
+                     'mmu': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
                 'cr': CRFunctionUnit,
@@ -243,6 +255,7 @@ class AllFunctionUnits(Elaboratable):
                 'trap': TrapFunctionUnit,
                 'spr': SPRFunctionUnit,
                 'mul': MulFunctionUnit,
+                'mmu': MMUFSMFunctionUnit,
                 'logical': LogicalFunctionUnit,
                 'shiftrot': ShiftRotFunctionUnit,
                 }
@@ -291,7 +304,12 @@ def tst_single_fus_il():
 
 
 def tst_all_fus():
-    dut = AllFunctionUnits()
+    pspec = TestMemPspec(ldst_ifacetype='testpi',
+                         imem_ifacetype='',
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64)
+    dut = AllFunctionUnits(pspec)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("all_fus.il", "w") as f:
         f.write(vl)

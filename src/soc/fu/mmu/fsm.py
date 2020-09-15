@@ -40,18 +40,23 @@ class FSMMMUStage(ControlBase):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
+        comb = m.d.comb
 
         # link mmu and dcache together
         m.submodules.dcache = dcache = self.dcache
         m.submodules.mmu = mmu = self.mmu
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
-        m_in, m_out = mmu.m_in, mmu.m_out
+        l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
         op = data_i.ctx.op
+
+        # TODO: link these SPRs somewhere
+        dsisr = Signal(64)
+        dar = Signal(64)
 
         # busy/done signals
         busy = Signal()
@@ -93,11 +98,11 @@ class FSMMMUStage(ControlBase):
                     with m.Else():
                         # blip the MMU and wait for it to complete
                         comb += valid.eq(1)   # start "pulse"
-                        comb += m_in.valid.eq(blip)   # start
-                        comb += m_in.mtspr.eq(1)      # mtspr mode
-                        comb += m_in.sprn.eq(spr)  # which SPR
-                        comb += m_in.rs.eq(a_i)    # incoming operand (RS)
-                        comb += done.eq(m_out.done) # zzzz
+                        comb += l_in.valid.eq(blip)   # start
+                        comb += l_in.mtspr.eq(1)      # mtspr mode
+                        comb += l_in.sprn.eq(spr)  # which SPR
+                        comb += l_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += done.eq(l_out.done) # zzzz
 
                 with m.Case(MicrOp.OP_MFSPR):
                     # subset SPR: first check a few bits
@@ -112,13 +117,13 @@ class FSMMMUStage(ControlBase):
                     with m.Else():
                         # blip the MMU and wait for it to complete
                         comb += valid.eq(1)   # start "pulse"
-                        comb += m_in.valid.eq(blip)   # start
-                        comb += m_in.mtspr.eq(1)   # mtspr mode
-                        comb += m_in.sprn.eq(spr)  # which SPR
-                        comb += m_in.rs.eq(a_i)    # incoming operand (RS)
-                        comb += o.data.eq(m_out.sprval) # SPR from MMU
-                        comb += o.ok.eq(m_out.done) # only when m_out valid
-                        comb += done.eq(m_out.done) # zzzz
+                        comb += l_in.valid.eq(blip)   # start
+                        comb += l_in.mtspr.eq(1)   # mtspr mode
+                        comb += l_in.sprn.eq(spr)  # which SPR
+                        comb += l_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += o.data.eq(l_out.sprval) # SPR from MMU
+                        comb += o.ok.eq(l_out.done) # only when l_out valid
+                        comb += done.eq(l_out.done) # zzzz
 
                 with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
@@ -126,7 +131,7 @@ class FSMMMUStage(ControlBase):
                     comb += d_in.valid.eq(blip)     # start
                     comb += d_in.dcbz.eq(1)         # dcbz mode
                     comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
-                    comb += done.eq(d_out.done)     # zzzz
+                    comb += done.eq(l_out.done)     # zzzz
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
@@ -134,11 +139,11 @@ class FSMMMUStage(ControlBase):
                     # just that those bits happen to match with field bits
                     # RIC, PRS, R
                     comb += valid.eq(1)   # start "pulse"
-                    comb += m_in.valid.eq(blip)   # start
-                    comb += m_in.tlbie.eq(1)   # mtspr mode
-                    comb += m_in.sprn.eq(spr)  # use sprn to send insn bits
-                    comb += m_in.addr.eq(b_i)  # incoming operand (RB)
-                    comb += done.eq(m_out.done) # zzzz
+                    comb += l_in.valid.eq(blip)   # start
+                    comb += l_in.tlbie.eq(1)   # mtspr mode
+                    comb += l_in.sprn.eq(spr)  # use sprn to send insn bits
+                    comb += l_in.addr.eq(b_i)  # incoming operand (RB)
+                    comb += done.eq(l_out.done) # zzzz
 
             with m.If(self.n.ready_i & self.n.valid_o):
                 m.d.sync += busy.eq(0)
