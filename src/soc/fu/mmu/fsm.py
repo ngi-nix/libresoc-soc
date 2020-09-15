@@ -5,11 +5,17 @@ from nmutil.singlepipe import ControlBase
 from soc.experiment.mmu import MMU
 from soc.experiment.dcache import DCache
 
+from soc.decoder.power_fields import DecodeFields
+from soc.decoder.power_fieldsn import SignalBitRange
+from soc.decoder.power_decoder2 import decode_spr_num
+from soc.decoder.power_enums import MicrOp, SPR, XER_bits
+
 
 class FSMMMUStage(ControlBase):
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
+
         # set up p/n data
         self.p.data_i = MMUInputData(pspec)
         self.n.data_o = MMUOutputData(pspec)
@@ -22,6 +28,14 @@ class FSMMMUStage(ControlBase):
         self.mmu = MMU()
         self.dcache = DCache()
 
+        # make life a bit easier in Core
+        self.pspec.mmu = self.mmu
+        self.pspec.dcache = self.dcache
+
+        # for SPR field number access
+        i = self.p.data_i
+        self.fields = DecodeFields(SignalBitRange, [i.ctx.op.insn])
+        self.fields.create_specs()
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
@@ -32,21 +46,45 @@ class FSMMMUStage(ControlBase):
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
 
-        data_i = self.p.data_i
-        data_o = self.n.data_o
+        data_i, data_o = self.p.data_i, self.n.data_o
+        op = data_i.ctx.op
 
-        m.d.comb += self.n.valid_o.eq(~self.empty & self.div_state_next.o.done)
-        m.d.comb += self.p.ready_o.eq(self.empty)
-        m.d.sync += self.saved_state.eq(self.div_state_next.o)
+        # busy/done signals
+        busy = Signal()
+        done = Signal()
+        m.d.comb += self.n.valid_o.eq(busy & done)
+        m.d.comb += self.p.ready_o.eq(~busy)
 
-        with m.If(self.empty):
+        # take copy of X-Form SPR field
+        x_fields = self.fields.FormXFX
+        spr = Signal(len(x_fields.SPR))
+        comb += spr.eq(decode_spr_num(x_fields.SPR))
+
+        with m.If(~busy):
             with m.If(self.p.valid_i):
-                m.d.sync += self.empty.eq(0)
-                m.d.sync += self.saved_input_data.eq(data_i)
+                m.d.sync += busy.eq(1)
         with m.Else():
-            m.d.comb += [
+            with m.Switch(op):
+
+                with m.Case(OP_MTSPR):
+                    # subset SPR: first check a few bits
+                    with m.If(~spr[9] & ~spr[5]):
+                        with m.If(spr[0]):
+                            comb += dsisr.eq(a_i[:32])
+                        with m.Else():
+                            comb += dar.eq(a_i)
+                        comb += done.eq(1)
+                    # pass it over to the MMU instead
+                    with m.Else():
+                        # kick the MMU and wait for it to complete
+                        comb += mmu.valid.eq(1)   # start
+                        comb += mmu.mtspr.eq(1)   # mtspr mode
+                        comb += mmu.sprn.eq(spr)  # which SPR
+                        comb += mmu.rs.eq(a_i)    # incoming operand (RS)
+                        comb += done.eq(mmu.done) # zzzz
+
             with m.If(self.n.ready_i & self.n.valid_o):
-                m.d.sync += self.empty.eq(1)
+                m.d.sync += busy.eq(0)
 
         return m
 
