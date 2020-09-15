@@ -129,9 +129,9 @@ class MMU(Elaboratable):
             comb += v.store.eq(~(l_in.load | l_in.iside))
             comb += v.priv.eq(l_in.priv)
 
-            comb += Display("l_in.valid addr %x iside %d store %d "
+            comb += Display("state %d l_in.valid addr %x iside %d store %d "
                             "rts %x mbits %x pt_valid %d",
-                            v.addr, v.iside, v.store,
+                            v.state, v.addr, v.iside, v.store,
                             rts, mbits, pt_valid)
 
             with m.If(l_in.tlbie):
@@ -521,7 +521,9 @@ def dcache_get(dut):
         return int.from_bytes(x.to_bytes(8, byteorder='little'),
                               byteorder='big', signed=False)
 
-    mem = {0x10000:    # PARTITION_TABLE_2
+    mem = {0x0: 0x000000, # to get mtspr prtbl working
+
+           0x10000:    # PARTITION_TABLE_2
                        # PATB_GR=1 PRTB=0x1000 PRTS=0xb
            b(0x800000000100000b),
 
@@ -556,21 +558,13 @@ def dcache_get(dut):
         yield
         data = mem[addr]
         yield dut.d_in.data.eq(data)
-        print ("dcache get %x data %x" % (addr, data))
+        print ("    DCACHE GET %x data %x" % (addr, data))
         yield dut.d_in.done.eq(1)
         yield
         yield dut.d_in.done.eq(0)
 
-
-def mmu_sim(dut):
+def mmu_wait(dut):
     global stop
-    yield dut.rin.prtbl.eq(0x1000000) # set process table
-    yield
-
-    yield dut.l_in.load.eq(1)
-    yield dut.l_in.priv.eq(1)
-    yield dut.l_in.addr.eq(0x10000)
-    yield dut.l_in.valid.eq(1)
     while not stop: # wait for dc_valid / err
         l_done = yield (dut.l_out.done)
         l_err = yield (dut.l_out.err)
@@ -583,10 +577,49 @@ def mmu_sim(dut):
             l_permerr or l_rc_err or l_segerr or l_invalid):
             break
         yield
+        yield dut.l_in.valid.eq(0)
+        yield dut.l_in.mtspr.eq(0)
+
+def mmu_sim(dut):
+    global stop
+
+    # MMU MTSPR set prtbl
+    yield dut.l_in.mtspr.eq(1)
+    yield dut.l_in.sprn[9].eq(1) # totally fake way to set SPR=prtbl
+    yield dut.l_in.rs.eq(0x1000000) # set process table
+    yield dut.l_in.valid.eq(1)
+    yield from mmu_wait(dut)
+    yield
+    yield dut.l_in.sprn.eq(0)
+    yield dut.l_in.rs.eq(0)
+    yield
+
+    prtbl = yield (dut.rin.prtbl)
+    print ("prtbl after MTSPR %x" % prtbl)
+    assert prtbl == 0x1000000
+
+    #yield dut.rin.prtbl.eq(0x1000000) # set process table
+    #yield
+
+
+    # MMU PTE request
+    yield dut.l_in.load.eq(1)
+    yield dut.l_in.priv.eq(1)
+    yield dut.l_in.addr.eq(0x10000)
+    yield dut.l_in.valid.eq(1)
+    yield from mmu_wait(dut)
+
     addr = yield dut.d_out.addr
     pte = yield dut.d_out.pte
+    l_done = yield (dut.l_out.done)
+    l_err = yield (dut.l_out.err)
+    l_badtree = yield (dut.l_out.badtree)
     print ("translated done %d err %d badtree %d addr %x pte %x" % \
                (l_done, l_err, l_badtree, addr, pte))
+    yield
+    yield dut.l_in.priv.eq(0)
+    yield dut.l_in.addr.eq(0)
+
 
     stop = True
 
