@@ -2,6 +2,9 @@ from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
 from soc.fu.mmu.pipe_data import MMUInputData, MMUOutputData, MMUPipeSpec
 from nmutil.singlepipe import ControlBase
 
+from soc.experiment.mmu import MMU
+from soc.experiment.dcache import DCache
+
 
 class FSMMMUStage(ControlBase):
     def __init__(self, pspec):
@@ -11,8 +14,24 @@ class FSMMMUStage(ControlBase):
         self.p.data_i = MMUInputData(pspec)
         self.n.data_o = MMUOutputData(pspec)
 
+        # this Function Unit is extremely unusual in that it actually stores a
+        # "thing" rather than "processes inputs and produces outputs".  hence
+        # why it has to be a FSM.  linking up LD/ST however is going to have
+        # to be done back in Issuer (or Core)
+
+        self.mmu = MMU()
+        self.dcache = DCache()
+
+
     def elaborate(self, platform):
         m = super().elaborate(platform)
+
+        # link mmu and dcache together
+        m.submodules.dcache = dcache = self.dcache
+        m.submodules.mmu = mmu = self.mmu
+        m.d.comb += dcache.m_in.eq(mmu.d_out)
+        m.d.comb += mmu.d_in.eq(dcache.m_out)
+
         data_i = self.p.data_i
         data_o = self.n.data_o
 
