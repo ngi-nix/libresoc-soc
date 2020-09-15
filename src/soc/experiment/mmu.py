@@ -577,8 +577,9 @@ def mmu_wait(dut):
             l_permerr or l_rc_err or l_segerr or l_invalid):
             break
         yield
-        yield dut.l_in.valid.eq(0)
-        yield dut.l_in.mtspr.eq(0)
+        yield dut.l_in.valid.eq(0) # data already in MMU by now
+        yield dut.l_in.mtspr.eq(0) # captured by RegStage(s)
+        yield dut.l_in.load.eq(0)  # can reset everything safely
 
 def mmu_sim(dut):
     global stop
@@ -598,7 +599,7 @@ def mmu_sim(dut):
     print ("prtbl after MTSPR %x" % prtbl)
     assert prtbl == 0x1000000
 
-    #yield dut.rin.prtbl.eq(0x1000000) # set process table
+    #yield dut.rin.prtbl.eq(0x1000000) # manually set process table
     #yield
 
 
