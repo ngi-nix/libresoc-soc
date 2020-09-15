@@ -53,8 +53,6 @@ class FSMDivCoreOutputData:
 
 
 class FSMDivCorePrevControl(PrevControl):
-    data_i: CoreInputData
-
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
@@ -62,8 +60,6 @@ class FSMDivCorePrevControl(PrevControl):
 
 
 class FSMDivCoreNextControl(NextControl):
-    data_o: CoreOutputData
-
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
