@@ -49,7 +49,7 @@ class FSMMMUStage(ControlBase):
         d_in, d_out = dcache.d_in, dcache.d_out
 
         data_i, data_o = self.p.data_i, self.n.data_o
-        a_i, b_i = data_i.ra, data_i.rb
+        a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
         op = data_i.ctx.op
 
         # busy/done signals
@@ -89,6 +89,26 @@ class FSMMMUStage(ControlBase):
                         comb += m_in.mtspr.eq(1)   # mtspr mode
                         comb += m_in.sprn.eq(spr)  # which SPR
                         comb += m_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += done.eq(m_out.done) # zzzz
+
+                with m.Case(MicrOp.OP_MFSPR):
+                    # subset SPR: first check a few bits
+                    with m.If(~spr[9] & ~spr[5]):
+                        with m.If(spr[0]):
+                            comb += o.data.eq(dsisr)
+                        with m.Else():
+                            comb += o.data.eq(dar)
+                        comb += o.ok.eq(1)
+                        comb += done.eq(1)
+                    # pass it over to the MMU instead
+                    with m.Else():
+                        # kick the MMU and wait for it to complete
+                        comb += m_in.valid.eq(1)   # start
+                        comb += m_in.mtspr.eq(1)   # mtspr mode
+                        comb += m_in.sprn.eq(spr)  # which SPR
+                        comb += m_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += o.data.eq(m_out.sprval) # SPR from MMU
+                        comb += o.ok.eq(m_out.done) # only when m_out valid
                         comb += done.eq(m_out.done) # zzzz
 
                 with m.Case(MicrOp.OP_DCBZ):
