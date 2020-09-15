@@ -47,6 +47,7 @@ class FSMMMUStage(ControlBase):
         m.d.comb += mmu.d_in.eq(dcache.m_out)
 
         data_i, data_o = self.p.data_i, self.n.data_o
+        a_i, b_i = data_i.ra, data_i.rb
         op = data_i.ctx.op
 
         # busy/done signals
@@ -77,11 +78,18 @@ class FSMMMUStage(ControlBase):
                     # pass it over to the MMU instead
                     with m.Else():
                         # kick the MMU and wait for it to complete
-                        comb += mmu.valid.eq(1)   # start
-                        comb += mmu.mtspr.eq(1)   # mtspr mode
-                        comb += mmu.sprn.eq(spr)  # which SPR
-                        comb += mmu.rs.eq(a_i)    # incoming operand (RS)
-                        comb += done.eq(mmu.done) # zzzz
+                        comb += mmu.m_in.valid.eq(1)   # start
+                        comb += mmu.m_in.mtspr.eq(1)   # mtspr mode
+                        comb += mmu.m_in.sprn.eq(spr)  # which SPR
+                        comb += mmu.m_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += done.eq(mmu.m_out.done) # zzzz
+
+                with m.Case(OP_DCBZ):
+                    # activate dcbz mode (spec: v3.0B p850)
+                    comb += dcache.d_in.valid.eq(1)        # start
+                    comb += dcache.d_in.dcbz.eq(1)         # dcbz mode
+                    comb += dcache.d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
+                    comb += done.eq(dcache.d_out.done)      # zzzz
 
             with m.If(self.n.ready_i & self.n.valid_o):
                 m.d.sync += busy.eq(0)

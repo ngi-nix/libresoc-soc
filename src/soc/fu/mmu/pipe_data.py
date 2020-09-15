@@ -3,7 +3,7 @@
 Covers MFMMU and MTMMU for MMU MMUs (dsisr, dar), and DCBZ and TLBIE.
 
 Interestingly none of the MMU instructions use RA, they all use RB.
-go with it...
+except dcbz which uses (RA|0)
 
 Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=491
@@ -16,13 +16,15 @@ from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
 class MMUInputData(IntegerData):
-    regspec = [('INT', 'rb', '0:63'),        # RB
+    regspec = [('INT', 'ra', '0:63'),        # RA
+               ('INT', 'rb', '0:63'),        # RB
                ('SPR', 'spr1', '0:63'),      # MMU (slow)
                ('FAST', 'fast1', '0:63'),    # MMU (fast: LR, CTR etc)
                ]   
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience
+        self.a = self.ra
         self.b = self.rb
 
 
