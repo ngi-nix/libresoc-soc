@@ -2,9 +2,8 @@
 
 Covers MFMMU and MTMMU for MMU MMUs (dsisr, dar), and DCBZ and TLBIE.
 
-Note: RB is *redirected* (in the decoder CSV files) to the field that
-happens, here, to be named "ra"!  yes wonderfully confusing.  similar
-thing goes on with shift_rot.
+Interestingly none of the MMU instructions use RA, they all use RB.
+go with it...
 
 Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=491
@@ -17,14 +16,14 @@ from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
 class MMUInputData(IntegerData):
-    regspec = [('INT', 'ra', '0:63'),        # RA
+    regspec = [('INT', 'rb', '0:63'),        # RB
                ('SPR', 'spr1', '0:63'),      # MMU (slow)
                ('FAST', 'fast1', '0:63'),    # MMU (fast: LR, CTR etc)
                ]   
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience
-        self.a = self.ra
+        self.b = self.rb
 
 
 class MMUOutputData(IntegerData):
