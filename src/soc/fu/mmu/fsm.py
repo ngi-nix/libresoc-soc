@@ -45,6 +45,8 @@ class FSMMMUStage(ControlBase):
         m.submodules.mmu = mmu = self.mmu
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
+        m_in, m_out = mmu.m_in, mmu.m_out
+        d_in, d_out = dcache.d_in, dcache.d_out
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i = data_i.ra, data_i.rb
@@ -83,29 +85,29 @@ class FSMMMUStage(ControlBase):
                     # pass it over to the MMU instead
                     with m.Else():
                         # kick the MMU and wait for it to complete
-                        comb += mmu.m_in.valid.eq(1)   # start
-                        comb += mmu.m_in.mtspr.eq(1)   # mtspr mode
-                        comb += mmu.m_in.sprn.eq(spr)  # which SPR
-                        comb += mmu.m_in.rs.eq(a_i)    # incoming operand (RS)
-                        comb += done.eq(mmu.m_out.done) # zzzz
+                        comb += m_in.valid.eq(1)   # start
+                        comb += m_in.mtspr.eq(1)   # mtspr mode
+                        comb += m_in.sprn.eq(spr)  # which SPR
+                        comb += m_in.rs.eq(a_i)    # incoming operand (RS)
+                        comb += done.eq(m_out.done) # zzzz
 
                 with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
-                    comb += dcache.d_in.valid.eq(1)        # start
-                    comb += dcache.d_in.dcbz.eq(1)         # dcbz mode
-                    comb += dcache.d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
-                    comb += done.eq(dcache.d_out.done)      # zzzz
+                    comb += d_in.valid.eq(1)        # start
+                    comb += d_in.dcbz.eq(1)         # dcbz mode
+                    comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
+                    comb += done.eq(d_out.done)      # zzzz
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
                     # note that the spr is *not* an actual spr number, it's
                     # just that those bits happen to match with field bits
                     # RIC, PRS, R
-                    comb += mmu.m_in.valid.eq(1)   # start
-                    comb += mmu.m_in.tlbie.eq(1)   # mtspr mode
-                    comb += mmu.m_in.sprn.eq(spr)  # use sprn to send insn bits
-                    comb += mmu.m_in.addr.eq(b_i)  # incoming operand (RB)
-                    comb += done.eq(mmu.m_out.done) # zzzz
+                    comb += m_in.valid.eq(1)   # start
+                    comb += m_in.tlbie.eq(1)   # mtspr mode
+                    comb += m_in.sprn.eq(spr)  # use sprn to send insn bits
+                    comb += m_in.addr.eq(b_i)  # incoming operand (RB)
+                    comb += done.eq(m_out.done) # zzzz
 
             with m.If(self.n.ready_i & self.n.valid_o):
                 m.d.sync += busy.eq(0)
