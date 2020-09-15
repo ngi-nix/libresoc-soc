@@ -116,13 +116,13 @@ _insns = [
     "nand", "neg", "nego", "nop", "nor", "or", "orc", "ori", "oris",
     "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
     "rldcr", "rldic", "rldicl", "rldicr", "rldimi", "rlwimi", "rlwinm",
-    "rlwnm", "setb", "sim_cfg", "sld", "slw", "srad", "sradi", "sraw",
+    "rlwnm", "setb", "sim_cfg", "slbia", "sld", "slw", "srad", "sradi", "sraw",
     "srawi", "srd", "srw", "stb", "stbcix", "stbcx", "stbu", "stbux", "stbx",
     "std", "stdbrx", "stdcx", "stdu", "stdux", "stdx", "sth", "sthbrx", "sthcx",
     "sthu", "sthux", "sthx", "stw", "stwbrx", "stwcx", "stwu", "stwux",
     "stwx", "subf", "subfc", "subfco", "subfe", "subfeo", "subfic",
     "subfme", "subfmeo", "subfo", "subfze", "subfzeo", "sync", "td",
-    "tdi", "tw", "twi", "xor", "xori", "xoris",
+    "tdi", "tlbie", "tlbiel", "tw", "twi", "xor", "xori", "xoris",
 ]
 
 # two-way lookup of instruction-to-index and vice-versa
@@ -207,6 +207,7 @@ class MicrOp(Enum):
     OP_MTMSRD = 72
     OP_SC = 73
     OP_MTMSR = 74
+    OP_TLBIE = 75
 
 
 @unique
