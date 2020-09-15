@@ -65,9 +65,14 @@ class FSMMMUStage(ControlBase):
             with m.If(self.p.valid_i):
                 m.d.sync += busy.eq(1)
         with m.Else():
+
+            # based on the Micro-Op, we work out which of MMU or DCache
+            # should "action" the operation.  one of MMU or DCache gets
+            # enabled ("valid") and we twiddle our thumbs until it
+            # responds ("done").
             with m.Switch(op):
 
-                with m.Case(OP_MTSPR):
+                with m.Case(MicrOp.OP_MTSPR):
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         with m.If(spr[0]):
@@ -84,12 +89,23 @@ class FSMMMUStage(ControlBase):
                         comb += mmu.m_in.rs.eq(a_i)    # incoming operand (RS)
                         comb += done.eq(mmu.m_out.done) # zzzz
 
-                with m.Case(OP_DCBZ):
+                with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
                     comb += dcache.d_in.valid.eq(1)        # start
                     comb += dcache.d_in.dcbz.eq(1)         # dcbz mode
                     comb += dcache.d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
                     comb += done.eq(dcache.d_out.done)      # zzzz
+
+                with m.Case(MicrOp.OP_TLBIE):
+                    # pass TLBIE request to MMU (spec: v3.0B p1034)
+                    # note that the spr is *not* an actual spr number, it's
+                    # just that those bits happen to match with field bits
+                    # RIC, PRS, R
+                    comb += mmu.m_in.valid.eq(1)   # start
+                    comb += mmu.m_in.tlbie.eq(1)   # mtspr mode
+                    comb += mmu.m_in.sprn.eq(spr)  # use sprn to send insn bits
+                    comb += mmu.m_in.addr.eq(b_i)  # incoming operand (RB)
+                    comb += done.eq(mmu.m_out.done) # zzzz
 
             with m.If(self.n.ready_i & self.n.valid_o):
                 m.d.sync += busy.eq(0)
