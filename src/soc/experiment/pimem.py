@@ -113,6 +113,12 @@ class PortInterface(RecordObject):
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
+        # additional "modes"
+        self.dcbz          = Signal()  # data cache block zero request
+        self.nc            = Signal()  # no cacheing
+        self.virt_mode     = Signal()  # virtual mode
+        self.priv_mode     = Signal()  # privileged mode
+
     def connect_port(self, inport):
         print("connect_port", self, inport)
         return [self.is_ld_i.eq(inport.is_ld_i),
