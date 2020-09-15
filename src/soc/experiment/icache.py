@@ -1266,7 +1266,7 @@ class ICache(Elaboratable):
 #                        is_last_row(r.store_row, r.end_row_ix) then
                         # Check for completion
                         with m.If(stbs_done &
-                                  (is_last_row(r.store_row, r.end_row_ix)):
+                                  is_last_row(r.store_row, r.end_row_ix)):
 # 			    -- Complete wishbone cycle
 # 			    r.wb.cyc <= '0';
                             # Complete wishbone cycle
@@ -1276,8 +1276,9 @@ class ICache(Elaboratable):
 # 			    cache_valids(r.store_index)(replace_way) <=
 #                            r.store_valid and not inval_in;
                             # Cache line is now valid
-                            sync += cache_valid_bits[r.store_index]
-                                [relace_way].eq(r.store_valid & ~inval_in)
+                            cv = cache_valid_bits[r.store_index]
+                            sync += cv[relace_way].eq(
+                                        r.store_valid & ~inval_in)
 
 # 			    -- We are done
 # 			    r.state <= IDLE;
