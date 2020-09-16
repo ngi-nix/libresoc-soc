@@ -4,31 +4,35 @@
 # Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from litex.build.generic_platform import *
-from litex.build.lattice import LatticePlatform
-from litex.build.lattice.programmer import UJProg
+from litex.build.generic_platform import GenericPlatform
+import os
 
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
-    ("clk25", 0, Pins("G2"), IOStandard("LVCMOS33")),
+    ("clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
     ("rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
-
-    ("user_led", 0, Pins("B2"), IOStandard("LVCMOS33")),
-    ("user_led", 1, Pins("C2"), IOStandard("LVCMOS33")),
-    ("user_led", 2, Pins("C1"), IOStandard("LVCMOS33")),
-    ("user_led", 3, Pins("D2"), IOStandard("LVCMOS33")),
-    ("user_led", 4, Pins("D1"), IOStandard("LVCMOS33")),
-    ("user_led", 5, Pins("E2"), IOStandard("LVCMOS33")),
-    ("user_led", 6, Pins("E1"), IOStandard("LVCMOS33")),
-    ("user_led", 7, Pins("H3"), IOStandard("LVCMOS33")),
 
     ("serial", 0,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
-    ("spisdcard", 0,
+    ("serial", 1,
+        Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
+        Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
+    ),
+
+    ("spi", 0,
+        Subsignal("clk",  Pins("J1")),
+        Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
+        Subsignal("miso", Pins("K2"), Misc("PULLMODE=UP")),
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("spi", 1,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
         Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
@@ -64,64 +68,51 @@ _io = [
         Misc("SLEWRATE=FAST"),
     ),
 
-    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
-
-    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
-    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
-
-    ("gpio", 0,
-        Subsignal("p", Pins("B11")),
-        Subsignal("n", Pins("C11")),
-        IOStandard("LVCMOS33")
-    ),
-    ("gpio", 1,
-        Subsignal("p", Pins("A10")),
-        Subsignal("n", Pins("A11")),
-        IOStandard("LVCMOS33")
-    ),
-    ("gpio", 2,
-        Subsignal("p", Pins("A9")),
-        Subsignal("n", Pins("B10")),
-        IOStandard("LVCMOS33")
-    ),
-    ("gpio", 3,
-        Subsignal("p", Pins("B9")),
-        Subsignal("n", Pins("C10")),
-        IOStandard("LVCMOS33")
-    ),
-
-    ("usb", 0,
-        Subsignal("d_p", Pins("D15")),
-        Subsignal("d_n", Pins("E15")),
-        Subsignal("pullup", Pins("B12 C12")),
-        IOStandard("LVCMOS33")
-    ),
-    ("oled_spi", 0,
-        Subsignal("clk",  Pins("P4")),
-        Subsignal("mosi", Pins("P3")),
-        IOStandard("LVCMOS33"),
-    ),
-    ("oled_ctl", 0,
-        Subsignal("dc",   Pins("P1")),
-        Subsignal("resn", Pins("P2")),
-        Subsignal("csn",  Pins("N2")),
-        IOStandard("LVCMOS33"),
-    ),
 ]
+
+for i in range(8):
+    _io.append(( ("gpio_in", i, Pins("X%d" % i), IOStandard("LVCMOS33")) )
+    _io.append(( ("gpio_out", i, Pins("Y%d" % i), IOStandard("LVCMOS33")) )
 
 # Platform -----------------------------------------------------------------------------------------
 
-class Platform(LatticePlatform):
-    default_clk_name   = "clk25"
-    default_clk_period = 1e9/25e6
+class Platform(GenericPlatform):
+    default_clk_name   = "clk"
+    default_clk_period = 1e9/50e6
 
-    def __init__(self, device="LFE5U-45F", **kwargs):
-        assert device in ["LFE5U-25F", "LFE5U-45F", "LFE5U-85F"]
-        LatticePlatform.__init__(self, device + "-6BG381C", _io, **kwargs)
+    def __init__(self, device="LS180", **kwargs):
+        assert device in ["LS180"]
+        GenericPlatform.__init__(self, device, _io, **kwargs)
 
-    def create_programmer(self):
-        return UJProg()
+    def build(self, platform, fragment,
+                    build_dir      = "build",
+                    build_name     = "top",
+                    run            = True,
+                    timingstrict   = True,
+                    **kwargs):
+
+        # Create build directory
+        os.makedirs(build_dir, exist_ok=True)
+        cwd = os.getcwd()
+        os.chdir(build_dir)
+
+        # Finalize design
+        if not isinstance(fragment, _Fragment):
+            fragment = fragment.get_fragment()
+        platform.finalize(fragment)
+
+        # Generate verilog
+        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        named_sc, named_pc = platform.resolve_signals(v_output.ns)
+        v_file = build_name + ".v"
+        v_output.write(v_file)
+        platform.add_source(v_file)
+
+        os.chdir(cwd)
+
+        return v_output.ns
 
     def do_finalize(self, fragment):
-        LatticePlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk25", loose=True), 1e9/25e6)
+        super().do_finalize(fragment)
+        self.add_period_constraint(self.lookup_request("clk", loose=True),
+                                   1e9/50e6)
