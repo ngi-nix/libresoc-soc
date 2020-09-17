@@ -139,10 +139,10 @@ class DivTestHelper(unittest.TestCase):
             while not vld:
                 yield
                 yield Delay(0.1e-6)
-                # XXX sim._state is an internal variable
+                # XXX sim._engine is an internal variable
                 # Waiting on https://github.com/nmigen/nmigen/issues/443
                 try:
-                    print(f"time: {sim._state.timeline.now * 1e6}us")
+                    print(f"time: {sim._engine.now * 1e6}us")
                 except AttributeError:
                     pass
                 vld = yield alu.n.valid_o
@@ -167,10 +167,10 @@ class DivTestHelper(unittest.TestCase):
                 print("")
 
             yield Delay(0.1e-6)
-            # XXX sim._state is an internal variable
+            # XXX sim._engine is an internal variable
             # Waiting on https://github.com/nmigen/nmigen/issues/443
             try:
-                print(f"check time: {sim._state.timeline.now * 1e6}us")
+                print(f"check time: {sim._engine.now * 1e6}us")
             except AttributeError:
                 pass
             msg = "%s: %s" % (div_pipe_kind.name, code)

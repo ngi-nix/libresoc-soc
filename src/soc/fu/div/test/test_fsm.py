@@ -235,8 +235,8 @@ class TestDivState(unittest.TestCase):
                 try:
                     # FIXME(programmerjake): replace with public API
                     # see https://github.com/nmigen/nmigen/issues/443
-                    now = sim._state.timeline.now
-                except KeyError:
+                    now = sim._engine.now
+                except AttributeError:
                     pass
                 if divisor != 0:
                     quotient = dividend // divisor
