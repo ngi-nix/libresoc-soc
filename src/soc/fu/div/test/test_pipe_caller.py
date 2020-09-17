@@ -11,6 +11,18 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 
 class DivTestCases(TestAccumulatorBase):
+    def case_divwe_regression(self):
+        # div FU and power-instruction-analyzer both correctly return 0
+        # hitting behavior undefined by Power v3.1 spec, need to adjust
+        # simulator API to tell tests that the simulator's output doesn't
+        # need to completely match
+        lst = [f"divwe 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 1
+        initial_regs[2] = 1
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_divw_regression(self):
         # simulator is wrong, FSM and power-instruction-analyzer both correct
         lst = [f"divw 0, 1, 2"]
