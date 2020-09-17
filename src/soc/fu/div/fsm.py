@@ -141,9 +141,8 @@ class FSMDivCoreStage(ControlBase):
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
-        # override p and n
-        self.p = FSMDivCorePrevControl(pspec)
-        self.n = FSMDivCoreNextControl(pspec)
+        self.p.data_i = CoreInputData(pspec)
+        self.n.data_o = CoreOutputData(pspec)
         self.saved_input_data = CoreInputData(pspec)
         self.empty = Signal(reset=1)
         self.saved_state = DivState(64, name="saved_state")
