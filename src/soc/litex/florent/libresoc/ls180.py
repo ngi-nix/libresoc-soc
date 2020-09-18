@@ -26,7 +26,7 @@ _io = [
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
-    ("spi", 0,
+    ("spi_master", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
         Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
@@ -73,9 +73,16 @@ _io = [
 
 ]
 
+pinsin = []
+pinsout = []
 for i in range(8):
-    _io.append( ("gpio_in", i, Pins("X%d" % i), IOStandard("LVCMOS33")) )
-    _io.append( ("gpio_out", i, Pins("Y%d" % i), IOStandard("LVCMOS33")) )
+    pinsin.append("X%d" % i)
+    pinsout.append("Y%d" % i)
+pinsin = ' '.join(pinsin)
+pinsout = ' '.join(pinsout)
+
+_io.append( ("gpio_in", 8, Pins(pinsin), IOStandard("LVCMOS33")) )
+_io.append( ("gpio_out", 8, Pins(pinsout), IOStandard("LVCMOS33")) )
 
 # Platform -----------------------------------------------------------------------------------------
 

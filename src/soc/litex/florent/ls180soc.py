@@ -20,10 +20,16 @@ from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
 from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
+from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut
+from litex.soc.cores.spi import SPIMaster
+
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
 from litex.tools.litex_sim import Platform
 from libresoc.ls180 import LS180Platform
+
+from migen import Module
+from litex.soc.interconnect.csr import AutoCSR
 
 from libresoc import LibreSoC
 from microwatt import Microwatt
@@ -31,6 +37,21 @@ from microwatt import Microwatt
 # HACK!
 from litex.soc.integration.soc import SoCCSRHandler
 SoCCSRHandler.supported_address_width.append(12)
+
+# LiteScope IO -------------------------------------------------
+
+class SoCGPIO(Module, AutoCSR):
+    def __init__(self, in_pads, out_pads):
+        self.input  = Signal(len(in_pads))
+        self.output = Signal(len(out_pads))
+
+        # # #
+
+        self.submodules.gpio = GPIOInOut(self.input, self.output)
+
+    def get_csrs(self):
+        return self.gpio.get_csrs()
+
 
 # LibreSoCSim -----------------------------------------------------------------
 
@@ -44,7 +65,7 @@ class LibreSoCSim(SoCCore):
             platform='sim',
             ):
         assert cpu in ["libresoc", "microwatt"]
-        sys_clk_freq = int(100e6)
+        sys_clk_freq = int(50e6)
 
         if platform == 'sim':
             platform     = Platform()
@@ -77,9 +98,9 @@ class LibreSoCSim(SoCCore):
         #            "hello_world/hello_world.bin"
 
         # reserve XICS ICP and XICS memory addresses.
-        self.mem_map['icp'] = 0xc0004000
-        self.mem_map['ics'] = 0xc0005000
-        self.mem_map['gpio'] = 0xc0007000
+        self.mem_map['icp']  = 0xc0010000
+        self.mem_map['ics']  = 0xc0011000
+        self.mem_map['gpio'] = 0xc0012000
         #self.csr_map["icp"] = 8  #  8 x 0x800 == 0x4000
         #self.csr_map["ics"] = 10 # 10 x 0x800 == 0x5000
 
@@ -106,7 +127,7 @@ class LibreSoCSim(SoCCore):
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
             #bus_data_width           = 64,
-            csr_address_width        = 12, # limit to 0x4000
+            csr_address_width        = 14, # limit to 0x8000
             cpu_variant              = variant,
             csr_data_width            = 8,
             l2_size             = 0,
@@ -185,6 +206,22 @@ class LibreSoCSim(SoCCore):
             self.add_constant("MEMTEST_BUS_DEBUG", 1)
             self.add_constant("MEMTEST_ADDR_DEBUG", 1)
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
+
+        # GPIOs
+        #platform.add_extension([("gpio_in", 0, Pins(8))])
+        self.submodules.gpio_in = GPIOIn(platform.request("gpio_in"))
+        self.add_csr("gpio_in")
+        self.submodules.gpio_out = GPIOIn(platform.request("gpio_out"))
+        self.add_csr("gpio_out")
+
+        # SPI Master
+        self.submodules.spi_master = SPIMaster(
+            pads         = platform.request("spi_master"),
+            data_width   = 8,
+            sys_clk_freq = sys_clk_freq,
+            spi_clk_freq = 8e6,
+        )
+        self.add_csr("spi_master")
 
 
         # Debug ---------------------------------------------------------------
@@ -474,7 +511,8 @@ def main():
     if args.platform == 'ls180':
         soc = LibreSoCSim(cpu=args.cpu, debug=args.debug,
                           platform=args.platform)
-        #soc.add_sdcard()
+        soc.add_sdcard()
+        soc.add_spi_sdcard()
         builder = Builder(soc, compile_gateware = True)
         builder.build(run         = True)
         os.chdir("../")
