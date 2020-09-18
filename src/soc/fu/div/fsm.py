@@ -52,20 +52,6 @@ class FSMDivCoreOutputData:
                 self.remainder.eq(rhs.remainder)]
 
 
-class FSMDivCorePrevControl(PrevControl):
-    def __init__(self, pspec):
-        super().__init__()
-        self.pspec = pspec
-        self.data_i = CoreInputData(pspec)
-
-
-class FSMDivCoreNextControl(NextControl):
-    def __init__(self, pspec):
-        super().__init__()
-        self.pspec = pspec
-        self.data_o = CoreOutputData(pspec)
-
-
 class DivStateNext(Elaboratable):
     def __init__(self, quotient_width):
         self.quotient_width = quotient_width
