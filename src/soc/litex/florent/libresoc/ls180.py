@@ -4,13 +4,16 @@
 # Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from litex.build.generic_platform import GenericPlatform
+from migen.fhdl.structure import _Fragment
+from litex.build.generic_platform import (GenericPlatform, Pins,
+                                        Subsignal, IOStandard, Misc,
+                                        )
 import os
 
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
-    ("clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
+    ("sys_clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
     ("rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
 
     ("serial", 0,
@@ -32,7 +35,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    ("spi", 1,
+    ("spisdcard", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
         Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
@@ -71,25 +74,27 @@ _io = [
 ]
 
 for i in range(8):
-    _io.append(( ("gpio_in", i, Pins("X%d" % i), IOStandard("LVCMOS33")) )
-    _io.append(( ("gpio_out", i, Pins("Y%d" % i), IOStandard("LVCMOS33")) )
+    _io.append( ("gpio_in", i, Pins("X%d" % i), IOStandard("LVCMOS33")) )
+    _io.append( ("gpio_out", i, Pins("Y%d" % i), IOStandard("LVCMOS33")) )
 
 # Platform -----------------------------------------------------------------------------------------
 
-class Platform(GenericPlatform):
-    default_clk_name   = "clk"
+class LS180Platform(GenericPlatform):
+    default_clk_name   = "sys_clk"
     default_clk_period = 1e9/50e6
 
     def __init__(self, device="LS180", **kwargs):
         assert device in ["LS180"]
         GenericPlatform.__init__(self, device, _io, **kwargs)
 
-    def build(self, platform, fragment,
+    def build(self, fragment,
                     build_dir      = "build",
                     build_name     = "top",
                     run            = True,
                     timingstrict   = True,
                     **kwargs):
+
+        platform = self
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -114,5 +119,6 @@ class Platform(GenericPlatform):
 
     def do_finalize(self, fragment):
         super().do_finalize(fragment)
+        return
         self.add_period_constraint(self.lookup_request("clk", loose=True),
                                    1e9/50e6)
