@@ -96,8 +96,9 @@ class LibreSoC(CPU):
             i_pc_i             = 0,
             i_pc_i_ok          = 0,
             i_core_bigendian_i = 0, # Signal(),
-            o_busy_o           = Signal(),
-            o_memerr_o         = Signal(),
+            o_busy_o           = Signal(),   # not connected
+            o_memerr_o         = Signal(),   # not connected
+            o_pc_o             = Signal(64), # not connected
 
             # interrupts
             i_int_level_i      = self.interrupt,
