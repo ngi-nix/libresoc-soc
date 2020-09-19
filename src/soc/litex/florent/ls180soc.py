@@ -20,7 +20,7 @@ from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
 from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
-from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut, GPIOTristate
+from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut#, GPIOTristate
 from litex.soc.cores.spi import SPIMaster
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
@@ -65,21 +65,6 @@ class LibreSoCSim(SoCCore):
 
         variant = "ls180"
 
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "hello_world/hello_world.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "tests/1.bin"
-        #ram_fname = "/tmp/test.bin"
-        ram_fname = None
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "micropython/firmware.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "tests/xics/xics.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "tests/decrementer/decrementer.bin"
-        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-        #            "hello_world/hello_world.bin"
-
         # reserve XICS ICP and XICS memory addresses.
         self.mem_map['icp']  = 0xc0010000
         self.mem_map['ics']  = 0xc0011000
@@ -87,14 +72,13 @@ class LibreSoCSim(SoCCore):
         #self.csr_map["ics"] = 10 # 10 x 0x800 == 0x5000
 
         ram_init = []
-        if ram_fname:
+        if False:
             #ram_init = get_mem_data({
             #    ram_fname:       "0x00000000",
             #    }, "little")
             ram_init = get_mem_data(ram_fname, "little")
 
             # remap the main RAM to reset-start-address
-            self.mem_map["main_ram"] = 0x00000000
 
             # without sram nothing works, therefore move it to higher up
             self.mem_map["sram"] = 0x90000000
@@ -102,6 +86,8 @@ class LibreSoCSim(SoCCore):
             # put UART at 0xc000200 (w00t!  this works!)
             self.csr_map["uart"] = 4
 
+        self.mem_map["main_ram"] = 0x90000000
+        self.mem_map["sram"] = 0x00000000
 
         # SoCCore -------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -117,8 +103,8 @@ class LibreSoCSim(SoCCore):
             with_sdram               = with_sdram,
             sdram_module          = sdram_module,
             sdram_data_width      = sdram_data_width,
-            integrated_rom_size      = 0 if ram_fname else 0x10000,
-            integrated_sram_size     = 0x2000,
+            integrated_rom_size      = 0, # if ram_fname else 0x10000,
+            integrated_sram_size     = 0x200,
             #integrated_main_ram_init  = ram_init,
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
