@@ -93,11 +93,11 @@ class LibreSoCSim(SoCCore):
             #    }, "little")
             ram_init = get_mem_data(ram_fname, "little")
 
-            # remap the main RAM to reset-start-address
-            self.mem_map["main_ram"] = 0x00000000
+            # remap the main RAM to higher up
+            self.mem_map["main_ram"] = 0x90000000
 
-            # without sram nothing works, therefore move it to higher up
-            self.mem_map["sram"] = 0x90000000
+            # sram starting at reset-start-address
+            self.mem_map["sram"] = 0x00000000
 
             # put UART at 0xc000200 (w00t!  this works!)
             self.csr_map["uart"] = 4
@@ -118,7 +118,7 @@ class LibreSoCSim(SoCCore):
             sdram_module          = sdram_module,
             sdram_data_width      = sdram_data_width,
             integrated_rom_size      = 0 if ram_fname else 0x10000,
-            integrated_sram_size     = 0x40000,
+            integrated_sram_size     = 0x2000,
             #integrated_main_ram_init  = ram_init,
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
