@@ -73,6 +73,17 @@ _io = [
 
 ]
 
+if False:
+    pinbank1 = []
+    pinbank2 = []
+    for i in range(8):
+        pinbank1.append("X%d" % i)
+        pinbank2.append("Y%d" % i)
+    pins = ' '.join(pinbank1 + pinbank2)
+
+    # 16 GPIOs
+    _io.append( ("gpio", 16, Pins(pins), IOStandard("LVCMOS33")) )
+
 pinsin = []
 pinsout = []
 for i in range(8):

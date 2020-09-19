@@ -20,7 +20,7 @@ from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
 from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
-from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut
+from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut, GPIOTristate
 from litex.soc.cores.spi import SPIMaster
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
@@ -188,6 +188,10 @@ class LibreSoCSim(SoCCore):
         self.add_csr("gpio_in")
         self.submodules.gpio_out = GPIOIn(platform.request("gpio_out"))
         self.add_csr("gpio_out")
+
+        if False:
+            self.submodules.gpio = GPIOTristate(platform.request("gpio"))
+            self.add_csr("gpio")
 
         # SPI Master
         self.submodules.spi_master = SPIMaster(
