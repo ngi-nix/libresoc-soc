@@ -81,8 +81,12 @@ for i in range(8):
 pinsin = ' '.join(pinsin)
 pinsout = ' '.join(pinsout)
 
+# 8 GPIO in, 8 GPIO out
 _io.append( ("gpio_in", 8, Pins(pinsin), IOStandard("LVCMOS33")) )
 _io.append( ("gpio_out", 8, Pins(pinsout), IOStandard("LVCMOS33")) )
+
+# 3 External INT wires
+_io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
 
 # Platform -----------------------------------------------------------------------------------------
 

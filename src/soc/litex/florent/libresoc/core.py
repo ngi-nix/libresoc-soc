@@ -2,7 +2,7 @@ import os
 
 from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import wishbone as wb
 from litex.soc.cores.cpu import CPU
 
 CPU_VARIANTS = ["standard", "standard32"]
@@ -51,19 +51,19 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(4)
+        self.interrupt    = Signal(16)
 
         if variant == "standard32":
             self.data_width           = 32
-            self.dbus = dbus = wishbone.Interface(data_width=32, adr_width=30)
+            self.dbus = dbus = wb.Interface(data_width=32, adr_width=30)
         else:
-            self.dbus = dbus = wishbone.Interface(data_width=64, adr_width=29)
+            self.dbus = dbus = wb.Interface(data_width=64, adr_width=29)
             self.data_width           = 64
-        self.ibus = ibus = wishbone.Interface(data_width=64, adr_width=29)
+        self.ibus = ibus = wb.Interface(data_width=64, adr_width=29)
 
-        self.xics_icp = icp = wishbone.Interface(data_width=32, adr_width=30)
-        self.xics_ics = ics = wishbone.Interface(data_width=32, adr_width=30)
-        self.simple_gpio = gpio = wishbone.Interface(data_width=32, adr_width=30)
+        self.xics_icp = icp = wb.Interface(data_width=32, adr_width=30)
+        self.xics_ics = ics = wb.Interface(data_width=32, adr_width=30)
+        self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
 
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []

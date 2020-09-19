@@ -38,20 +38,6 @@ from microwatt import Microwatt
 from litex.soc.integration.soc import SoCCSRHandler
 SoCCSRHandler.supported_address_width.append(12)
 
-# LiteScope IO -------------------------------------------------
-
-class SoCGPIO(Module, AutoCSR):
-    def __init__(self, in_pads, out_pads):
-        self.input  = Signal(len(in_pads))
-        self.output = Signal(len(out_pads))
-
-        # # #
-
-        self.submodules.gpio = GPIOInOut(self.input, self.output)
-
-    def get_csrs(self):
-        return self.gpio.get_csrs()
-
 
 # LibreSoCSim -----------------------------------------------------------------
 
@@ -223,6 +209,8 @@ class LibreSoCSim(SoCCore):
         )
         self.add_csr("spi_master")
 
+        # EINTs - very simple, wire up top 3 bits to ls180 "eint" pins
+        self.comb += self.cpu.interrupt[12:16].eq(platform.request("eint"))
 
         # Debug ---------------------------------------------------------------
         if not debug:
