@@ -70,13 +70,13 @@ class LibreSoCSim(SoCCore):
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "tests/1.bin"
         #ram_fname = "/tmp/test.bin"
-        #ram_fname = None
+        ram_fname = None
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "micropython/firmware.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "tests/xics/xics.bin"
-        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-                    "tests/decrementer/decrementer.bin"
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "tests/decrementer/decrementer.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
 
@@ -93,11 +93,11 @@ class LibreSoCSim(SoCCore):
             #    }, "little")
             ram_init = get_mem_data(ram_fname, "little")
 
-            # remap the main RAM to higher up
-            self.mem_map["main_ram"] = 0x90000000
+            # remap the main RAM to reset-start-address
+            self.mem_map["main_ram"] = 0x00000000
 
-            # sram starting at reset-start-address
-            self.mem_map["sram"] = 0x00000000
+            # without sram nothing works, therefore move it to higher up
+            self.mem_map["sram"] = 0x90000000
 
             # put UART at 0xc000200 (w00t!  this works!)
             self.csr_map["uart"] = 4
