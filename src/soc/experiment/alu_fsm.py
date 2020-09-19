@@ -217,47 +217,20 @@ def test_shifter():
     with open("test_shifter.il", "w") as f:
         f.write(il)
 
-    # Describe a GTKWave document
-
-    # Style for signals, classes and groups
     gtkwave_style = {
-        # Root selector. Gives default attributes for every signal.
-        '': {'base': 'dec'},
-        # color the traces, according to class
-        # class names are not hardcoded, they are just strings
         'in': {'color': 'orange'},
         'out': {'color': 'yellow'},
-        # signals in the debug group have a common color and module path
-        'debug': {'module': 'top', 'color': 'red'},
-        # display a different string replacing the signal name
-        'test_case': {'display': 'test case'},
     }
 
-    # DOM style description for the trace pane
     gtkwave_desc = [
-        # simple signal, without a class
-        # even so, it inherits the top-level root attributes
         'clk',
-        # comment
         {'comment': 'Shifter Demonstration'},
-        # collapsible signal group
         ('prev port', [
-            # attach a class style for each signal
             ('op__sdir', 'in'),
             ('p_data_i[7:0]', 'in'),
             ('p_shift_i[7:0]', 'in'),
             ('p_valid_i', 'in'),
             ('p_ready_o', 'out'),
-        ]),
-        # Signals in a signal group inherit the group attributes.
-        # In this case, a different module path and color.
-        ('debug', [
-            {'comment': 'Some debug statements'},
-            # inline attributes, instead of a class name
-            ('zero', {'display': 'zero delay shift'}),
-            'interesting',
-            'test_case',
-            'msg',
         ]),
         ('internal', [
             'fsm_state',
@@ -273,27 +246,10 @@ def test_shifter():
 
     write_gtkw("test_shifter.gtkw", "test_shifter.vcd",
                gtkwave_desc,  gtkwave_style,
-               module="top.shf", loc=__file__, marker=10500000)
+               module="top.shf", loc=__file__, base='dec')
 
     sim = Simulator(m)
     sim.add_clock(1e-6)
-
-    # demonstrates adding extra debug signal traces
-    # they end up in the top module
-    #
-    zero = Signal()  # mark an interesting place
-    #
-    # demonstrates string traces
-    #
-    # display a message when the signal is high
-    # the low level is just an horizontal line
-    interesting = Signal(decoder=lambda v: 'interesting!' if v else '')
-    # choose between alternate strings based on numerical value
-    test_cases = ['', '13>>2', '3<<4', '21<<0']
-    test_case = Signal(8, decoder=lambda v: test_cases[v])
-    # hack to display arbitrary strings, like debug statements
-    msg = Signal(decoder=lambda _: msg.str)
-    msg.str = ''
 
     def send(data, shift, direction):
         # present input data and assert valid_i
@@ -306,14 +262,8 @@ def test_shifter():
         while not (yield dut.p.ready_o):
             yield
         # show current operation operation
-        if direction:
-            msg.str = f'{data}>>{shift}'
-        else:
-            msg.str = f'{data}<<{shift}'
         # force dump of the above message by toggling the
         # underlying signal
-        yield msg.eq(0)
-        yield msg.eq(1)
         # clear input data and negate p.valid_i
         yield dut.p.valid_i.eq(0)
         yield dut.p.data_i.data.eq(0)
@@ -334,9 +284,6 @@ def test_shifter():
         # check result
         assert result == expected
         # finish displaying the current operation
-        msg.str = ''
-        yield msg.eq(0)
-        yield msg.eq(1)
 
     def producer():
         # 13 >> 2
@@ -346,35 +293,23 @@ def test_shifter():
         # 21 << 0
         # use a debug signal to mark an interesting operation
         # in this case, it is a shift by zero
-        yield interesting.eq(1)
         yield from send(21, 0, 0)
-        yield interesting.eq(0)
 
     def consumer():
         # the consumer is not in step with the producer, but the
         # order of the results are preserved
         # 13 >> 2 = 3
-        yield test_case.eq(1)
         yield from receive(3)
         # 3 << 4 = 48
-        yield test_case.eq(2)
         yield from receive(48)
         # 21 << 0 = 21
-        yield test_case.eq(3)
         # you can look for the rising edge of this signal to quickly
         # locate this point in the traces
-        yield zero.eq(1)
         yield from receive(21)
-        yield zero.eq(0)
-        yield test_case.eq(0)
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
-    sim_writer = sim.write_vcd(
-        "test_shifter.vcd",
-        # include additional signals in the trace dump
-        traces=[zero, interesting, test_case, msg],
-    )
+    sim_writer = sim.write_vcd("test_shifter.vcd")
     with sim_writer:
         sim.run()
 
