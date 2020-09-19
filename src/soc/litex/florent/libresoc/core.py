@@ -16,6 +16,14 @@ def make_wb_bus(prefix, obj):
         res['i_%s_%s' % (prefix, i)] = getattr(obj, i)
     return res
 
+def make_wb_slave(prefix, obj):
+    res = {}
+    for i in ['stb', 'cyc', 'cti', 'bte', 'we', 'adr', 'dat_w', 'sel']:
+        res['i_%s_%s' % (prefix, i)] = getattr(obj, i)
+    for o in ['ack', 'err', 'dat_r']:
+        res['o_%s_%s' % (prefix, o)] = getattr(obj, o)
+    return res
+
 
 class LibreSoC(CPU):
     name                 = "libre_soc"
@@ -106,10 +114,10 @@ class LibreSoC(CPU):
         # add wishbone buses to cpu params
         self.cpu_params.update(make_wb_bus("ibus_", ibus))
         self.cpu_params.update(make_wb_bus("dbus_", dbus))
-        self.cpu_params.update(make_wb_bus("ics_wb_", ics))
-        self.cpu_params.update(make_wb_bus("icp_wb_", icp))
+        self.cpu_params.update(make_wb_slave("ics_wb_", ics))
+        self.cpu_params.update(make_wb_slave("icp_wb_", icp))
         if variant != "ls180":
-            self.cpu_params.update(make_wb_bus("gpio_wb_", gpio))
+            self.cpu_params.update(make_wb_slave("gpio_wb_", gpio))
 
         # add verilog sources
         self.add_sources(platform)
