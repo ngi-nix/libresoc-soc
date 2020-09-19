@@ -63,10 +63,7 @@ class LibreSoCSim(SoCCore):
         #cpu_data_width = 32
         cpu_data_width = 64
 
-        if cpu_data_width == 32:
-            variant = "standard32"
-        else:
-            variant = "standard"
+        variant = "ls180"
 
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
@@ -86,7 +83,6 @@ class LibreSoCSim(SoCCore):
         # reserve XICS ICP and XICS memory addresses.
         self.mem_map['icp']  = 0xc0010000
         self.mem_map['ics']  = 0xc0011000
-        self.mem_map['gpio'] = 0xc0012000
         #self.csr_map["icp"] = 8  #  8 x 0x800 == 0x4000
         #self.csr_map["ics"] = 10 # 10 x 0x800 == 0x5000
 
@@ -127,7 +123,7 @@ class LibreSoCSim(SoCCore):
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
             )
-        self.platform.name = "sim"
+        self.platform.name = "ls180"
 
         # SDR SDRAM ----------------------------------------------
         if False: # not self.integrated_main_ram_size:
@@ -145,13 +141,6 @@ class LibreSoCSim(SoCCore):
             ics_wb = self.cpu.xics_ics
             ics_region = SoCRegion(origin=ics_addr, size=0x1000, cached=False)
             self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
-
-            # Simple GPIO peripheral
-            gpio_addr = self.mem_map['gpio']
-            gpio_wb = self.cpu.simple_gpio
-            gpio_region = SoCRegion(origin=gpio_addr, size=0x20, cached=False)
-            self.bus.add_slave(name='gpio', slave=gpio_wb, region=gpio_region)
-
 
         # CRG -----------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))

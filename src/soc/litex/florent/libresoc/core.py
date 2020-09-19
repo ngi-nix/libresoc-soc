@@ -5,7 +5,7 @@ from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 from litex.soc.interconnect import wishbone as wb
 from litex.soc.cores.cpu import CPU
 
-CPU_VARIANTS = ["standard", "standard32"]
+CPU_VARIANTS = ["standard", "standard32", "ls180"]
 
 
 def make_wb_bus(prefix, obj):
@@ -63,7 +63,9 @@ class LibreSoC(CPU):
 
         self.xics_icp = icp = wb.Interface(data_width=32, adr_width=30)
         self.xics_ics = ics = wb.Interface(data_width=32, adr_width=30)
-        self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
+
+        if variant != "ls180":
+            self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
 
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
@@ -106,7 +108,8 @@ class LibreSoC(CPU):
         self.cpu_params.update(make_wb_bus("dbus_", dbus))
         self.cpu_params.update(make_wb_bus("ics_wb_", ics))
         self.cpu_params.update(make_wb_bus("icp_wb_", icp))
-        self.cpu_params.update(make_wb_bus("gpio_wb_", gpio))
+        if variant != "ls180":
+            self.cpu_params.update(make_wb_bus("gpio_wb_", gpio))
 
         # add verilog sources
         self.add_sources(platform)
