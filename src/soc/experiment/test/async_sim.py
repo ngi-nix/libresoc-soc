@@ -74,7 +74,7 @@ def domain_sim(dut):
     for i in range(50):
         yield Tick("coresync")
         counter = (yield dut.core.counter)
-        print ("count", counter)
+        print ("count i", i, counter)
 
 
 # fires the manually-driven clock at 1/3 the rate
@@ -84,7 +84,11 @@ def async_sim_clk(dut):
         yield dut.core_clk.eq(1)
         yield Tick("sync")
         yield Tick("sync")
+        yield Tick("sync")
+        yield Tick("sync")
         yield dut.core_clk.eq(0)
+        yield Tick("sync")
+        yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
 
@@ -92,9 +96,14 @@ def async_sim_clk(dut):
     print ("async counter", counter)
 
 
-# runs at the coresync tick-rate, arbitrarily switching core_tick on and off
+# runs at the *sync* simulation rate but yields *coresync*-sized ticks,
+# arbitrarily switching core_tick on and off
 # this deliberately does not quite match up with when the *clock* ticks
 # (see async_sim_clk above)
+#
+# experimenting by deleting some of these coresyncs (both the on and off ones)
+# does in fact "miss" things.
+
 def async_sim(dut):
     for i in range(5):
         yield dut.core_tick.eq(1)
@@ -104,7 +113,12 @@ def async_sim(dut):
         yield Tick("coresync")
         yield Tick("coresync")
         yield Tick("coresync")
+
+        # switch off but must wait at least 3 coresync ticks because
+        # otherwise the coresync domain that the counter is in might
+        # miss it (actually AsyncFFSynchronizer would)
         yield dut.core_tick.eq(0)
+        yield Tick("coresync")
         yield Tick("coresync")
         yield Tick("coresync")
 
