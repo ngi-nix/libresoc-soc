@@ -44,6 +44,10 @@ class Driver(Elaboratable):
                 Assume(Stable(dut.p.data_i.shift)),
                 Assume(Stable(dut.p.valid_i)),
             ]
+        # force reading the output in a reasonable time,
+        # necessary to pass induction
+        with m.If(Past(dut.n.valid_o) & ~Past(dut.n.ready_i)):
+            comb += Assume(dut.n.ready_i)
         # capture transferred input data
         with m.If(dut.p.ready_o & dut.p.valid_i):
             sync += [
@@ -126,8 +130,16 @@ class ALUFSMTestCase(FHDLTestCase):
             module='top.dut',
             zoom=-6.3
         )
+        write_gtkw(
+            'test_formal_induct_alu_fsm.gtkw',
+            os.path.dirname(__file__) +
+            '/proof_alu_fsm_formal/engine_0/trace_induct.vcd',
+            traces,
+            module='top.dut',
+            zoom=-6.3
+        )
         module = Driver()
-        self.assertFormal(module, mode="bmc", depth=16)
+        self.assertFormal(module, mode="prove", depth=18)
         self.assertFormal(module, mode="cover", depth=32)
 
     @staticmethod
