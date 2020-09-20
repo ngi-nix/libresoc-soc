@@ -1,0 +1,121 @@
+import unittest
+import os
+
+from nmigen import Elaboratable, Signal, Module
+from nmigen.asserts import Assume, Cover, Past, Stable
+from nmigen.cli import rtlil
+
+from nmutil.formaltest import FHDLTestCase
+from nmutil.gtkw import write_gtkw
+
+from soc.experiment.alu_fsm import Shifter
+
+
+# This defines a module to drive the device under test and assert
+# properties about its outputs
+class Driver(Elaboratable):
+    def __init__(self):
+        # inputs and outputs
+        pass
+
+    @staticmethod
+    def elaborate(_):
+        m = Module()
+        comb = m.d.comb
+        sync = m.d.sync
+
+        m.submodules.dut = dut = Shifter(8)
+        # Coverage condition (one bit for each coverage case)
+        cov = Signal(8)
+        # input data to the shifter
+        data_i = Signal(8)
+        shift_i = Signal(8)
+        op_sdir = Signal()
+        # transaction count for each port
+        write_cnt = Signal(4)
+        read_cnt = Signal(4)
+        # keep data and valid stable, until accepted
+        with m.If(Past(dut.p.valid_i) & ~Past(dut.p.ready_o)):
+            comb += [
+                Assume(Stable(dut.op.sdir)),
+                Assume(Stable(dut.p.data_i.data)),
+                Assume(Stable(dut.p.data_i.shift)),
+                Assume(Stable(dut.p.valid_i)),
+            ]
+        # capture transferred input data
+        with m.If(dut.p.ready_o & dut.p.valid_i):
+            sync += [
+                data_i.eq(dut.p.data_i.data),
+                shift_i.eq(dut.p.data_i.shift),
+                op_sdir.eq(dut.op.sdir),
+                # increment write counter
+                write_cnt.eq(write_cnt + 1),
+            ]
+        # check coverage as output data is accepted
+        with m.If(dut.n.ready_i & dut.n.valid_o):
+            # increment read counter
+            sync += read_cnt.eq(read_cnt + 1)
+            # cover zero data, with zero and non-zero shift
+            # (any direction)
+            with m.If(data_i == 0):
+                with m.If(shift_i == 0):
+                    sync += cov[0].eq(1)
+                with m.If(shift_i[0:2].any() & ~shift_i[3]):
+                    sync += cov[1].eq(1)
+            # cover non-zero data, with zero and non-zero shift
+            # (both directions)
+            with m.If(data_i != 0):
+                with m.If(shift_i == 0):
+                    sync += cov[2].eq(1)
+                with m.If(shift_i[0:2].any() & ~shift_i[3]):
+                    with m.If(op_sdir):
+                        sync += cov[3].eq(1)
+                    with m.Else():
+                        sync += cov[4].eq(1)
+                # cover big shift
+                with m.If(shift_i[3] != 0):
+                    sync += cov[5].eq(1)
+            # cover non-zero shift giving non-zero result
+            with m.If(data_i.any() & shift_i.any() & dut.n.data_o.data.any()):
+                sync += cov[6].eq(1)
+            # dummy condition, to avoid optimizing-out the counters
+            with m.If((write_cnt != 0) | (read_cnt != 0)):
+                sync += cov[7].eq(1)
+        # check that each condition above occurred at least once
+        comb += Cover(cov.all())
+        return m
+
+
+class ALUFSMTestCase(FHDLTestCase):
+    def test_formal(self):
+        traces = [
+            'clk',
+            'p_data_i[7:0]', 'p_shift_i[7:0]', 'op__sdir',
+            'p_valid_i', 'p_ready_o',
+            'n_data_o[7:0]',
+            'n_valid_o', 'n_ready_i',
+            ('formal', {'module': 'top'}, [
+                'write_cnt[3:0]', 'read_cnt[3:0]', 'cov[7:0]'
+            ])
+        ]
+        write_gtkw(
+            'test_formal_alu_fsm.gtkw',
+            os.path.dirname(__file__) +
+            '/proof_alu_fsm_formal/engine_0/trace0.vcd',
+            traces,
+            module='top.dut',
+            zoom=-6.3
+        )
+        module = Driver()
+        self.assertFormal(module, mode="cover", depth=32)
+
+    @staticmethod
+    def test_rtlil():
+        dut = Driver()
+        vl = rtlil.convert(dut, ports=[])
+        with open("alu_fsm.il", "w") as f:
+            f.write(vl)
+
+
+if __name__ == '__main__':
+    unittest.main()
