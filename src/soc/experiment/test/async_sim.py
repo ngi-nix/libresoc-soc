@@ -12,7 +12,7 @@ class Domain1(Elaboratable):
     def __init__(self):
         self.tick = Signal()
         self.tick_clear_wait = Signal()
-        self.counter = Signal(8)
+        self.counter = Signal(64)
         self.rst = Signal()
 
     def elaborate(self, platform):
@@ -33,7 +33,7 @@ class Domain1(Elaboratable):
 # simple "counter" thing
 class Domain2(Elaboratable):
     def __init__(self):
-        self.counter = Signal(8)
+        self.counter = Signal(64)
         self.rst = Signal()
 
     def elaborate(self, platform):
@@ -64,7 +64,8 @@ class AsyncThing(Elaboratable):
         comb += core_sync.clk.eq(self.core_clk) # driven externally
         comb += core.rst.eq(ResetSignal())
 
-        m.submodules += AsyncFFSynchronizer(self.core_tick, core.tick)
+        m.submodules += AsyncFFSynchronizer(self.core_tick, core.tick,
+                                            domain="coresync")
 
         return m
 
@@ -86,7 +87,11 @@ def async_sim_clk(dut):
         yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
+        yield Tick("sync")
+        yield Tick("sync")
         yield dut.core_clk.eq(0)
+        yield Tick("sync")
+        yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
