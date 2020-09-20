@@ -2,7 +2,7 @@ import unittest
 import os
 
 from nmigen import Elaboratable, Signal, Module
-from nmigen.asserts import Assume, Cover, Past, Stable
+from nmigen.asserts import Assert, Assume, Cover, Past, Stable
 from nmigen.cli import rtlil
 
 from nmutil.formaltest import FHDLTestCase
@@ -31,6 +31,8 @@ class Driver(Elaboratable):
         data_i = Signal(8)
         shift_i = Signal(8)
         op_sdir = Signal()
+        # expected result
+        expected = Signal(8)
         # transaction count for each port
         write_cnt = Signal(4)
         read_cnt = Signal(4)
@@ -51,23 +53,33 @@ class Driver(Elaboratable):
                 # increment write counter
                 write_cnt.eq(write_cnt + 1),
             ]
+            # calculate the expected result
+            dut_data_i = dut.p.data_i.data
+            dut_shift_i = dut.p.data_i.shift[:4]
+            dut_sdir = dut.op.sdir
+            with m.If(dut_sdir):
+                sync += expected.eq(dut_data_i >> dut_shift_i)
+            with m.Else():
+                sync += expected.eq(dut_data_i << dut_shift_i)
         # check coverage as output data is accepted
         with m.If(dut.n.ready_i & dut.n.valid_o):
             # increment read counter
             sync += read_cnt.eq(read_cnt + 1)
+            # check result
+            comb += Assert(dut.n.data_o.data == expected)
             # cover zero data, with zero and non-zero shift
             # (any direction)
             with m.If(data_i == 0):
                 with m.If(shift_i == 0):
                     sync += cov[0].eq(1)
-                with m.If(shift_i[0:2].any() & ~shift_i[3]):
+                with m.If(shift_i[:3].any() & ~shift_i[3]):
                     sync += cov[1].eq(1)
             # cover non-zero data, with zero and non-zero shift
             # (both directions)
             with m.If(data_i != 0):
                 with m.If(shift_i == 0):
                     sync += cov[2].eq(1)
-                with m.If(shift_i[0:2].any() & ~shift_i[3]):
+                with m.If(shift_i[:3].any() & ~shift_i[3]):
                     with m.If(op_sdir):
                         sync += cov[3].eq(1)
                     with m.Else():
@@ -99,14 +111,23 @@ class ALUFSMTestCase(FHDLTestCase):
             ])
         ]
         write_gtkw(
-            'test_formal_alu_fsm.gtkw',
+            'test_formal_cover_alu_fsm.gtkw',
             os.path.dirname(__file__) +
             '/proof_alu_fsm_formal/engine_0/trace0.vcd',
             traces,
             module='top.dut',
             zoom=-6.3
         )
+        write_gtkw(
+            'test_formal_bmc_alu_fsm.gtkw',
+            os.path.dirname(__file__) +
+            '/proof_alu_fsm_formal/engine_0/trace.vcd',
+            traces,
+            module='top.dut',
+            zoom=-6.3
+        )
         module = Driver()
+        self.assertFormal(module, mode="bmc", depth=16)
         self.assertFormal(module, mode="cover", depth=32)
 
     @staticmethod
