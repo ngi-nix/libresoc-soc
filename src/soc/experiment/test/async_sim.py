@@ -78,7 +78,7 @@ def domain_sim(dut):
         print ("count i", i, counter)
 
 
-# fires the manually-driven clock at 1/3 the rate
+# fires the manually-driven clock at 1/3 the rate (actually about 1/4)
 def async_sim_clk(dut):
 
     for i in range(100):
@@ -89,16 +89,19 @@ def async_sim_clk(dut):
         yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
+        yield Tick("sync")
+        yield Tick("sync")
+        yield Tick("sync")
+
+        # deliberately "unbalance" the duty cycle
         yield dut.core_clk.eq(0)
-        yield Tick("sync")
-        yield Tick("sync")
-        yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
         yield Tick("sync")
 
     counter = yield dut.core2.counter
     print ("async counter", counter)
+    assert counter == 100 # same as number of loops
 
 
 # runs at the *sync* simulation rate but yields *coresync*-sized ticks,
@@ -115,14 +118,14 @@ def async_sim(dut):
         yield Tick("coresync")
         yield Tick("coresync")
         yield Tick("coresync")
-        yield Tick("coresync")
-        yield Tick("coresync")
-        yield Tick("coresync")
 
         # switch off but must wait at least 3 coresync ticks because
         # otherwise the coresync domain that the counter is in might
         # miss it (actually AsyncFFSynchronizer would)
         yield dut.core_tick.eq(0)
+        yield Tick("coresync")
+        yield Tick("coresync")
+        yield Tick("coresync")
         yield Tick("coresync")
         yield Tick("coresync")
         yield Tick("coresync")
@@ -135,7 +138,10 @@ if __name__ == '__main__':
 
     sim = Simulator(m)
     sim.add_clock(1e-6, domain="sync")      # standard clock
-    sim.add_clock(3e-6, domain="coresync")  # manually-driven. 1/3 rate
+
+    # nooo don't do this, it requests that the simulation start driving
+    # coresync_clk!  and it's to be *manually* driven by async_sim_clk
+    #sim.add_clock(3e-6, domain="coresync")  # manually-driven. 1/3 rate
 
     sim.add_sync_process(wrap(domain_sim(dut)))
     sim.add_sync_process(wrap(async_sim(dut)), domain="coresync")
