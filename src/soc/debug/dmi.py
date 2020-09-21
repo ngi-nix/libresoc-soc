@@ -52,11 +52,11 @@ class DBGStat:
 
 
 class DMIInterface(RecordObject):
-    def __init__(self, name):
+    def __init__(self, name=None):
         super().__init__(name=name)
         self.addr_i = Signal(4)   # DMI register address
-        self.din    = Signal(64)  # DMI data in (if we=1)
-        self.dout   = Signal(64)  # DMI data out (if we=0)
+        self.din    = Signal(64)  # DMI data write in (if we=1)
+        self.dout   = Signal(64)  # DMI data read out (if we=0)
         self.req_i  = Signal()    # DMI request valid (stb)
         self.we_i   = Signal()    # DMI write-enable
         self.ack_o  = Signal()    # DMI ack request
