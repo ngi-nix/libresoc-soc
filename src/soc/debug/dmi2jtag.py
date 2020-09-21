@@ -6,7 +6,7 @@ based on Staf Verhaegen (Chips4Makers) wishbone TAP
 from nmigen import (Module, Signal, Elaboratable, Const)
 from nmigen.cli import rtlil
 from c4m.nmigen.jtag.tap import TAP, IOType
-from soc.debug.dmi import  DMIInterface
+from soc.debug.dmi import  DMIInterface, DBGCore
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick
 from nmutil.util import wrap
@@ -88,7 +88,7 @@ class DMITAP(TAP):
             cd = m.d[domain]
             m.d.comb += sr_addr.i.eq(dmi.addr_i)
 
-            with m.FSM(domain=domain) as fsm:
+            with m.FSM(domain=domain) as ds:
 
                 # detect mode based on whether jtag addr or data read/written
                 with m.State("IDLE"):
@@ -100,7 +100,7 @@ class DMITAP(TAP):
                         cd += dmi.addr_i.eq(dmi.addr_i + 1)
                         m.next = "READ"
                     with m.Elif(sr_data.oe[1]): # DMIWRITE code
-                        cd += dmi.dout.eq(sr_data.o)
+                        cd += dmi.din.eq(sr_data.o)
                         m.next = "WRITE"
 
                 # req_i raises for 1 clock
@@ -109,9 +109,9 @@ class DMITAP(TAP):
 
                 # wait for read ack
                 with m.State("READACK"):
-                    with m.If(dmi.ack):
+                    with m.If(dmi.ack_o):
                         # Store read data in sr_data.i hold till next read
-                        cd += sr_data.i.eq(dmi.din)
+                        cd += sr_data.i.eq(dmi.dout)
                         m.next = "IDLE"
 
                 # req_i raises for 1 clock
@@ -120,14 +120,15 @@ class DMITAP(TAP):
 
                 # wait for write ack
                 with m.State("WRITEACK"):
-                    with m.If(dmi.ack):
+                    with m.If(dmi.ack_o):
                         cd += dmi.addr_i.eq(dmi.addr_i + 1)
+                        m.next = "IDLE"
                         #m.next = "READ" - for readwrite
 
                 # set DMI req and write-enable based on ongoing FSM states
                 m.d.comb += [
-                    dmi.req_i.eq(fsm.ongoing("READ") | fsm.ongoing("WRITE")),
-                    dmi.we_i.eq(fsm.ongoing("WRITE")),
+                    dmi.req_i.eq(ds.ongoing("READ") | ds.ongoing("WRITE")),
+                    dmi.we_i.eq(ds.ongoing("WRITE")),
                 ]
 
 
@@ -147,9 +148,9 @@ def tms_data_getset(dut, tms, d_len, d_in=0):
     for i in range(d_len):
         tdi = 1 if (d_in & (1<<i)) else 0
         yield dut.bus.tck.eq(1)
-        yield dut.bus.tdi.eq(tdi)
         res |= (1<<i) if (yield dut.bus.tdo) else 0
         yield
+        yield dut.bus.tdi.eq(tdi)
         yield dut.bus.tck.eq(0)
         yield
     yield dut.bus.tdi.eq(0)
@@ -177,7 +178,7 @@ def jtag_set_idle(dut):
 def jtag_read_write_reg(dut, addr, d_len, d_in=0):
     yield from jtag_set_run(dut)
     yield from jtag_set_shift_ir(dut)
-    yield from tms_data_getset(dut, 0, 3, addr)
+    yield from tms_data_getset(dut, 0, dut._ir_width, addr)
     yield from jtag_set_idle(dut)
 
     yield from jtag_set_shift_dr(dut)
@@ -186,19 +187,90 @@ def jtag_read_write_reg(dut, addr, d_len, d_in=0):
     return result
 
 
-def jtag_read_idcode(dut):
-    yield from jtag_set_reset(dut)
-    idcode = yield from jtag_read_write_reg(dut, 0b011, 32)
-    print ("idcode", hex(idcode))
+stop = False
 
-    #loopreg = yield from jtag_read_write_reg(dut, 0b100, 3, 0b111)
-    #print ("reg", hex(loopreg))
+def dmi_sim(dut):
+    global stop
+
+    ctrl_reg = 0b100 # terminated
+
+    dmi = dut.dmi
+    while not stop:
+        # wait for req
+        req = yield dmi.req_i
+        if req == 0:
+            yield
+            continue
+        print ("dmi req", req)
+
+        # check read/write and address
+        wen = yield dmi.we_i
+        addr = yield dmi.addr_i
+        print ("dmi wen, addr", wen, addr)
+        if addr == DBGCore.CTRL and wen == 0:
+            yield dmi.dout.eq(ctrl_reg)
+            yield dmi.ack_o.eq(1)
+            yield
+            yield dmi.ack_o.eq(0)
+        elif addr == DBGCore.CTRL and wen == 1:
+            ctrl_reg = (yield dmi.din)
+            print ("write ctrl reg", ctrl_reg)
+            yield dmi.ack_o.eq(1)
+            yield
+            yield dmi.ack_o.eq(0)
+        else:
+            # do nothing but just ack it
+            yield dmi.ack_o.eq(1)
+            yield
+            yield dmi.ack_o.eq(0)
+
+# JTAG-ircodes for accessing DMI
+DMI_ADDR = 5
+DMI_READ = 6
+DMI_WRITE = 7
+
+def jtag_sim(dut):
+
+    if True:
+        # read idcode
+        yield from jtag_set_reset(dut)
+        idcode = yield from jtag_read_write_reg(dut, 0b1, 32)
+        print ("idcode", hex(idcode))
+        assert idcode == 0x18ff
+
+    # write DMI address
+    yield from jtag_read_write_reg(dut, 0b101, 8, DBGCore.CTRL)
+
+    # read DMI CTRL register
+    status = yield from jtag_read_write_reg(dut, 0b110, 64)
+    print ("dmi ctrl status", hex(status))
+
+    # write DMI address
+    yield from jtag_read_write_reg(dut, 0b101, 8, 0)
+
+    # write DMI CTRL register
+    status = yield from jtag_read_write_reg(dut, 0b111, 64, 0b101)
+    print ("dmi ctrl status", hex(status))
+
+    # write DMI address
+    yield from jtag_read_write_reg(dut, 0b1010, 8, DBGCore.CTRL)
+
+    # read DMI CTRL register
+    status = yield from jtag_read_write_reg(dut, 0b110, 64)
+    print ("dmi ctrl status", hex(status))
+
+    for i in range(64):
+        yield
+
+    global stop
+    stop = True
 
 if __name__ == '__main__':
-    dut = DMITAP(ir_width=3)
+    dut = DMITAP(ir_width=4)
     iotypes = (IOType.In, IOType.Out, IOType.TriOut, IOType.InTriOut)
     ios = [dut.add_io(iotype=iotype) for iotype in iotypes]
     dut.sr = dut.add_shiftreg(ircode=4, length=3) # test loopback register
+    dut.dmi = dut.add_dmi(ircodes=[DMI_ADDR, DMI_READ, DMI_WRITE])
 
     m = Module()
     m.submodules.ast = dut
@@ -207,7 +279,8 @@ if __name__ == '__main__':
     sim = Simulator(m)
     sim.add_clock(1e-6, domain="sync")      # standard clock
 
-    sim.add_sync_process(wrap(jtag_read_idcode(dut)))
+    sim.add_sync_process(wrap(jtag_sim(dut)))
+    sim.add_sync_process(wrap(dmi_sim(dut)))
 
     with sim.write_vcd("dmi2jtag_test.vcd"):
         sim.run()
