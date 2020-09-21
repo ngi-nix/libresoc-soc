@@ -101,7 +101,7 @@ class DMITAP(TAP):
                         m.next = "READ"
                     with m.Elif(sr_data.oe[1]): # DMIWRITE code
                         cd += dmi.din.eq(sr_data.o)
-                        m.next = "WRITE"
+                        m.next = "WRRD"
 
                 # req_i raises for 1 clock
                 with m.State("READ"):
@@ -115,20 +115,19 @@ class DMITAP(TAP):
                         m.next = "IDLE"
 
                 # req_i raises for 1 clock
-                with m.State("WRITE"):
-                    m.next = "WRITEACK"
+                with m.State("WRRD"):
+                    m.next = "WRRDACK"
 
                 # wait for write ack
-                with m.State("WRITEACK"):
+                with m.State("WRRDACK"):
                     with m.If(dmi.ack_o):
                         cd += dmi.addr_i.eq(dmi.addr_i + 1)
-                        m.next = "IDLE"
-                        #m.next = "READ" - for readwrite
+                        m.next = "READ" # for readwrite
 
                 # set DMI req and write-enable based on ongoing FSM states
                 m.d.comb += [
-                    dmi.req_i.eq(ds.ongoing("READ") | ds.ongoing("WRITE")),
-                    dmi.we_i.eq(ds.ongoing("WRITE")),
+                    dmi.req_i.eq(ds.ongoing("READ") | ds.ongoing("WRRD")),
+                    dmi.we_i.eq(ds.ongoing("WRRD")),
                 ]
 
 
@@ -201,20 +200,26 @@ def dmi_sim(dut):
         if req == 0:
             yield
             continue
-        print ("dmi req", req)
 
         # check read/write and address
         wen = yield dmi.we_i
         addr = yield dmi.addr_i
-        print ("dmi wen, addr", wen, addr)
+        print ("        dmi wen, addr", wen, addr)
         if addr == DBGCore.CTRL and wen == 0:
+            print ("        read ctrl reg", ctrl_reg)
             yield dmi.dout.eq(ctrl_reg)
             yield dmi.ack_o.eq(1)
             yield
             yield dmi.ack_o.eq(0)
         elif addr == DBGCore.CTRL and wen == 1:
             ctrl_reg = (yield dmi.din)
-            print ("write ctrl reg", ctrl_reg)
+            print ("        write ctrl reg", ctrl_reg)
+            yield dmi.ack_o.eq(1)
+            yield
+            yield dmi.ack_o.eq(0)
+        elif addr == DBGCore.MSR and wen == 0:
+            print ("        read msr reg")
+            yield dmi.dout.eq(0xdeadbeef) # test MSR value
             yield dmi.ack_o.eq(1)
             yield
             yield dmi.ack_o.eq(0)
@@ -244,6 +249,7 @@ def jtag_sim(dut):
     # read DMI CTRL register
     status = yield from jtag_read_write_reg(dut, 0b110, 64)
     print ("dmi ctrl status", hex(status))
+    assert status == 4
 
     # write DMI address
     yield from jtag_read_write_reg(dut, 0b101, 8, 0)
@@ -251,16 +257,25 @@ def jtag_sim(dut):
     # write DMI CTRL register
     status = yield from jtag_read_write_reg(dut, 0b111, 64, 0b101)
     print ("dmi ctrl status", hex(status))
+    assert status == 4 # returned old value (nice! cool feature!)
 
     # write DMI address
-    yield from jtag_read_write_reg(dut, 0b1010, 8, DBGCore.CTRL)
+    yield from jtag_read_write_reg(dut, 0b101, 8, DBGCore.CTRL)
 
     # read DMI CTRL register
     status = yield from jtag_read_write_reg(dut, 0b110, 64)
     print ("dmi ctrl status", hex(status))
+    assert status == 5
 
-    for i in range(64):
-        yield
+    # write DMI MSR address
+    yield from jtag_read_write_reg(dut, 0b101, 8, DBGCore.MSR)
+
+    # read DMI MSR register
+    msr = yield from jtag_read_write_reg(dut, 0b110, 64)
+    print ("dmi msr", hex(msr))
+    assert msr == 0xdeadbeef
+
+    yield
 
     global stop
     stop = True
