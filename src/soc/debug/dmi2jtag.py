@@ -5,8 +5,11 @@ based on Staf Verhaegen (Chips4Makers) wishbone TAP
 
 from nmigen import (Module, Signal, Elaboratable, Const)
 from nmigen.cli import rtlil
-from c4m.nmigen.jtag.tap import TAP
+from c4m.nmigen.jtag.tap import TAP, IOType
 from soc.debug.dmi import  DMIInterface
+
+from nmigen.back.pysim import Simulator, Delay, Settle, Tick
+from nmutil.util import wrap
 
 
 # JTAG to DMI interface
@@ -126,4 +129,87 @@ class DMITAP(TAP):
                     dmi.req_i.eq(fsm.ongoing("READ") | fsm.ongoing("WRITE")),
                     dmi.we_i.eq(fsm.ongoing("WRITE")),
                 ]
+
+
+def tms_state_set(dut, bits):
+    for bit in bits:
+        yield dut.bus.tck.eq(1)
+        yield dut.bus.tms.eq(bit)
+        yield
+        yield dut.bus.tck.eq(0)
+        yield
+    yield dut.bus.tms.eq(0)
+
+
+def tms_data_getset(dut, tms, d_len, d_in=0):
+    res = 0
+    yield dut.bus.tms.eq(tms)
+    for i in range(d_len):
+        tdi = 1 if (d_in & (1<<i)) else 0
+        yield dut.bus.tck.eq(1)
+        yield dut.bus.tdi.eq(tdi)
+        res |= (1<<i) if (yield dut.bus.tdo) else 0
+        yield
+        yield dut.bus.tck.eq(0)
+        yield
+    yield dut.bus.tdi.eq(0)
+    yield dut.bus.tms.eq(0)
+
+    return res
+
+
+def jtag_set_reset(dut):
+    yield from tms_state_set(dut, [1, 1, 1, 1, 1])
+
+def jtag_set_shift_dr(dut):
+    yield from tms_state_set(dut, [1, 0, 0])
+
+def jtag_set_shift_ir(dut):
+    yield from tms_state_set(dut, [1, 1, 0])
+
+def jtag_set_run(dut):
+    yield from tms_state_set(dut, [0])
+
+def jtag_set_idle(dut):
+    yield from tms_state_set(dut, [1, 1, 0])
+
+
+def jtag_read_write_reg(dut, addr, d_len, d_in=0):
+    yield from jtag_set_run(dut)
+    yield from jtag_set_shift_ir(dut)
+    yield from tms_data_getset(dut, 0, 3, addr)
+    yield from jtag_set_idle(dut)
+
+    yield from jtag_set_shift_dr(dut)
+    result = yield from tms_data_getset(dut, 0, d_len, d_in)
+    yield from jtag_set_idle(dut)
+    return result
+
+
+def jtag_read_idcode(dut):
+    yield from jtag_set_reset(dut)
+    idcode = yield from jtag_read_write_reg(dut, 0b011, 32)
+    print ("idcode", hex(idcode))
+
+    #loopreg = yield from jtag_read_write_reg(dut, 0b100, 3, 0b111)
+    #print ("reg", hex(loopreg))
+
+if __name__ == '__main__':
+    dut = DMITAP(ir_width=3)
+    iotypes = (IOType.In, IOType.Out, IOType.TriOut, IOType.InTriOut)
+    ios = [dut.add_io(iotype=iotype) for iotype in iotypes]
+    dut.sr = dut.add_shiftreg(ircode=4, length=3) # test loopback register
+
+    m = Module()
+    m.submodules.ast = dut
+    m.d.comb += dut.sr.i.eq(dut.sr.o) # loopback
+
+    sim = Simulator(m)
+    sim.add_clock(1e-6, domain="sync")      # standard clock
+
+    sim.add_sync_process(wrap(jtag_read_idcode(dut)))
+
+    with sim.write_vcd("dmi2jtag_test.vcd"):
+        sim.run()
+
 
