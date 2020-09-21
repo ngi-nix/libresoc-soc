@@ -17,13 +17,11 @@ The basic rules are:
 """
 
 from nmigen import Elaboratable, Signal, Module, Cat
-cxxsim = False
-if cxxsim:
-    from nmigen.sim.cxxsim import Simulator, Settle
-else:
-    from nmigen.back.pysim import Simulator, Settle
+from nmigen.back.pysim import Simulator
 from nmigen.cli import rtlil
 from math import log2
+import os
+
 from nmutil.iocontrol import PrevControl, NextControl
 
 from soc.fu.base_input_record import CompOpSubsetBase
@@ -217,38 +215,72 @@ def test_shifter():
     with open("test_shifter.il", "w") as f:
         f.write(il)
 
+    engine = os.environ.get("NMIGEN_SIM_MODE")
+
     gtkwave_style = {
         'in': {'color': 'orange'},
         'out': {'color': 'yellow'},
     }
 
-    gtkwave_desc = [
-        'clk',
-        {'comment': 'Shifter Demonstration'},
-        ('prev port', [
-            ('op__sdir', 'in'),
-            ('p_data_i[7:0]', 'in'),
-            ('p_shift_i[7:0]', 'in'),
-            ('p_valid_i', 'in'),
-            ('p_ready_o', 'out'),
-        ]),
-        ('internal', [
-            'fsm_state',
-            'count[3:0]',
-            'shift_reg[7:0]',
-        ]),
-        ('next port', [
-            ('n_data_o[7:0]', 'out'),
-            ('n_valid_o', 'out'),
-            ('n_ready_i', 'in'),
-        ]),
-    ]
+    # Allow for differences in signal naming among the engines
+
+    if engine == "cxxsim":
+        module = "shf"
+        gtkwave_desc = [
+            'clk',
+            {'comment': 'Shifter Demonstration'},
+            ('prev port', [
+                ('op__sdir', 'in'),
+                ('p_data_i[7:0]', 'in'),
+                ('p_shift_i[7:0]', 'in'),
+                ('p_valid_i', 'in'),
+                ('p_p_ready_o', 'out'),
+            ]),
+            ('internal', [
+                'fsm_state[1:0]',
+                'count[3:0]',
+                'shift_reg[7:0]',
+            ]),
+            ('next port', [
+                ('n_data_o[7:0]', 'out'),
+                ('n_n_valid_o', 'out'),
+                ('n_ready_i', 'in'),
+            ]),
+        ]
+    else:
+        module = "top.shf"
+        gtkwave_desc = [
+            'clk',
+            {'comment': 'Shifter Demonstration'},
+            ('prev port', [
+                ('op__sdir', 'in'),
+                ('p_data_i[7:0]', 'in'),
+                ('p_shift_i[7:0]', 'in'),
+                ('p_valid_i', 'in'),
+                ('p_ready_o', 'out'),
+            ]),
+            ('internal', [
+                'fsm_state',
+                'count[3:0]',
+                'shift_reg[7:0]',
+            ]),
+            ('next port', [
+                ('n_data_o[7:0]', 'out'),
+                ('n_valid_o', 'out'),
+                ('n_ready_i', 'in'),
+            ]),
+        ]
 
     write_gtkw("test_shifter.gtkw", "test_shifter.vcd",
                gtkwave_desc,  gtkwave_style,
-               module="top.shf", loc=__file__, base='dec')
+               module=module, loc=__file__, base='dec')
 
-    sim = Simulator(m)
+    if engine:
+        sim = Simulator(m, engine=engine)
+    else:
+        # old developer versions do not have the engine parameter
+        sim = Simulator(m)
+
     sim.add_clock(1e-6)
 
     def send(data, shift, direction):
