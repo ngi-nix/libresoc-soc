@@ -115,7 +115,6 @@ class LibreSoCSim(SoCCore):
         if False: # not self.integrated_main_ram_size:
             self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
 
-
         if cpu == "libresoc":
             # XICS interrupt devices
             icp_addr = self.mem_map['icp']
@@ -191,6 +190,13 @@ class LibreSoCSim(SoCCore):
 
         # EINTs - very simple, wire up top 3 bits to ls180 "eint" pins
         self.comb += self.cpu.interrupt[12:16].eq(platform.request("eint"))
+
+        # JTAG
+        jtagpads = platform.request("jtag")
+        self.comb += self.cpu.jtag_tck.eq(jtagpads.tck)
+        self.comb += self.cpu.jtag_tms.eq(jtagpads.tms)
+        self.comb += self.cpu.jtag_tdi.eq(jtagpads.tdi)
+        self.comb += jtagpads.tdo.eq(self.cpu.jtag_tdo)
 
         # Debug ---------------------------------------------------------------
         if not debug:
