@@ -87,6 +87,8 @@ _io = [
         Misc("SLEWRATE=FAST"),
     ),
 
+    ("pwm", 0, Pins("P1"), IOStandard("LVCMOS33")),
+    ("pwm", 1, Pins("P2"), IOStandard("LVCMOS33")),
 ]
 
 if False:

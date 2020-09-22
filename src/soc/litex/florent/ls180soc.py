@@ -22,6 +22,7 @@ from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
 from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut#, GPIOTristate
 from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores.pwm import PWM
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
@@ -197,6 +198,13 @@ class LibreSoCSim(SoCCore):
         self.comb += self.cpu.jtag_tms.eq(jtagpads.tms)
         self.comb += self.cpu.jtag_tdi.eq(jtagpads.tdi)
         self.comb += jtagpads.tdo.eq(self.cpu.jtag_tdo)
+
+        # PWM
+        for i in range(2):
+            name = "pwm%d" % i
+            setattr(self.submodules, name, PWM(platform.request("pwm", i)))
+            self.add_csr(name)
+
 
         # Debug ---------------------------------------------------------------
         if not debug:
