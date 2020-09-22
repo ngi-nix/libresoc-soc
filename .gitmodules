@@ -4,4 +4,4 @@
 	branch = master
 [submodule "libreriscv"]
 	path = libreriscv
-	url = git://git.libre-riscv.org/libreriscv.git
+	url = https://git.libre-soc.org/git/libreriscv.git
