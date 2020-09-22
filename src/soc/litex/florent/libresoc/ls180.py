@@ -23,7 +23,14 @@ import os
 
 _io = [
     ("sys_clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
-    ("rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
+    ("sys_rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
+
+    ("jtag", 0,
+        Subsignal("tms", Pins("Z1"), IOStandard("LVCMOS33")),
+        Subsignal("tck", Pins("Z2"), IOStandard("LVCMOS33")),
+        Subsignal("tdi", Pins("Z3"), IOStandard("LVCMOS33")),
+        Subsignal("tdo", Pins("Z4"), IOStandard("LVCMOS33")),
+    ),
 
     ("serial", 0,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
