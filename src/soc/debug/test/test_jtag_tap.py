@@ -5,7 +5,8 @@ based on Staf Verhaegen (Chips4Makers) wishbone TAP
 
 from nmigen import (Module, Signal, Elaboratable, Const)
 from c4m.nmigen.jtag.tap import TAP, IOType
-from soc.debug.dmi import  DMIInterface, DBGCore
+from soc.debug.dmi import DMIInterface, DBGCore
+from soc.debug.test.dmi_sim import dmi_sim
 from soc.debug.dmi2jtag import DMITAP
 
 from nmigen_soc.wishbone.sram import SRAM
@@ -68,49 +69,6 @@ def jtag_read_write_reg(dut, addr, d_len, d_in=0):
     yield from jtag_set_idle(dut)
     return result
 
-
-stop = False
-
-def dmi_sim(dut):
-    global stop
-
-    ctrl_reg = 0b100 # terminated
-
-    dmi = dut.dmi
-    while not stop:
-        # wait for req
-        req = yield dmi.req_i
-        if req == 0:
-            yield
-            continue
-
-        # check read/write and address
-        wen = yield dmi.we_i
-        addr = yield dmi.addr_i
-        print ("        dmi wen, addr", wen, addr)
-        if addr == DBGCore.CTRL and wen == 0:
-            print ("        read ctrl reg", ctrl_reg)
-            yield dmi.dout.eq(ctrl_reg)
-            yield dmi.ack_o.eq(1)
-            yield
-            yield dmi.ack_o.eq(0)
-        elif addr == DBGCore.CTRL and wen == 1:
-            ctrl_reg = (yield dmi.din)
-            print ("        write ctrl reg", ctrl_reg)
-            yield dmi.ack_o.eq(1)
-            yield
-            yield dmi.ack_o.eq(0)
-        elif addr == DBGCore.MSR and wen == 0:
-            print ("        read msr reg")
-            yield dmi.dout.eq(0xdeadbeef) # test MSR value
-            yield dmi.ack_o.eq(1)
-            yield
-            yield dmi.ack_o.eq(0)
-        else:
-            # do nothing but just ack it
-            yield dmi.ack_o.eq(1)
-            yield
-            yield dmi.ack_o.eq(0)
 
 # JTAG-ircodes for accessing DMI
 DMI_ADDR = 5
@@ -185,12 +143,12 @@ def jtag_sim(dut):
 
     ####### done - tell dmi_sim to stop (otherwise it won't) ########
 
-    global stop
-    stop = True
+    dut.stop = True
 
 
 if __name__ == '__main__':
     dut = DMITAP(ir_width=4)
+    dut.stop = False
     iotypes = (IOType.In, IOType.Out, IOType.TriOut, IOType.InTriOut)
     ios = [dut.add_io(iotype=iotype) for iotype in iotypes]
     dut.sr = dut.add_shiftreg(ircode=4, length=3) # test loopback register

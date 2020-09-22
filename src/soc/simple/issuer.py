@@ -117,6 +117,8 @@ class TestIssuer(Elaboratable):
         m.submodules.dbg = dbg = self.dbg
         if self.jtag_en:
             m.submodules.jtag = jtag = self.jtag
+            # TODO: UART2GDB mux, here, from external pin
+            # see https://bugs.libre-soc.org/show_bug.cgi?id=499
             comb += dbg.dmi.connect_to(jtag.dmi)
 
         cur_state = self.cur_state
