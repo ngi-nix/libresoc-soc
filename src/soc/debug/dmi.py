@@ -61,6 +61,14 @@ class DMIInterface(RecordObject):
         self.we_i   = Signal()    # DMI write-enable
         self.ack_o  = Signal()    # DMI ack request
 
+    def connect_to(self, other):
+        return [self.addr_i.eq(other.addr_i),
+                self.req_i.eq(other.req_i),
+                self.we_i.eq(other.we_i),
+                self.din.eq(other.din),
+                other.ack_o.eq(self.ack_o),
+                other.dout.eq(self.dout),
+                ]
 
 class DbgReg(RecordObject):
     def __init__(self, name):

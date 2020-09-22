@@ -32,6 +32,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
+from soc.debug.jtag import JTAG
 from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
@@ -77,6 +78,11 @@ class TestIssuer(Elaboratable):
         # DMI interface
         self.dbg = CoreDebug()
 
+        # JTAG interface
+        self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
+        if self.jtag_en:
+            self.jtag = JTAG()
+
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
@@ -109,6 +115,9 @@ class TestIssuer(Elaboratable):
         m.submodules.core = core = DomainRenamer("coresync")(self.core)
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
+        if self.jtag_en:
+            m.submodules.jtag = jtag = self.jtag
+            comb += dbg.dmi.connect_to(jtag.dmi)
 
         cur_state = self.cur_state
 
@@ -400,7 +409,13 @@ class TestIssuer(Elaboratable):
         ports += [self.pc_o, self.memerr_o, self.core_bigendian_i, self.busy_o,
                   ClockSignal(), ResetSignal(),
                 ]
-        ports += list(self.dbg.dmi.ports())
+
+        if self.jtag_en:
+            ports += list(self.jtag.external_ports())
+        else:
+            # don't add DMI if JTAG is enabled
+            ports += list(self.dbg.dmi.ports())
+
         ports += list(self.imem.ibus.fields.values())
         ports += list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
 

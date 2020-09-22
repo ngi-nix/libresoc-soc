@@ -133,6 +133,9 @@ class DMITAP(TAP):
                     dmi.we_i.eq(ds.ongoing("WRRD")),
                 ]
 
+    def external_ports(self):
+        return [self.bus.tdo, self.bus.tdi, self.bus.tms, self.bus.tck]
+
 
 if __name__ == '__main__':
     dut = DMITAP(ir_width=4)

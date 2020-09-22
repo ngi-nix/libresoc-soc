@@ -19,13 +19,19 @@ class JTAG(DMITAP):
 
         # create and connect wishbone 
         self.wb = self.add_wishbone(ircodes=[5, 6, 7],
-                                   address_width=29, data_width=64)
+                                   address_width=29, data_width=64,
+                                   name="jtag_wb")
 
         # create DMI2JTAG (goes through to dmi_sim())
         self.dmi = self.add_dmi(ircodes=[8, 9, 10])
 
     def elaborate(self, platform):
         return super().elaborate(platform)
+
+    def external_ports(self):
+        ports = super().external_ports()
+        ports += list(self.wb.fields.values())
+        return ports
 
 
 if __name__ == '__main__':

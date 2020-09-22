@@ -29,6 +29,7 @@ if __name__ == '__main__':
                          #wb_data_wid=32,
                          xics=True,
                          gpio=False, # for test purposes
+                         debug="jtag", # set to jtag or dmi
                          units=units)
 
     dut = TestIssuer(pspec)
