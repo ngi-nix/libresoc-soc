@@ -28,7 +28,7 @@ if __name__ == '__main__':
                          # set to 32 to make data wishbone bus 32-bit
                          #wb_data_wid=32,
                          xics=True,
-                         gpio=False, # for test purposes
+                         gpio=True, # for test purposes
                          debug="jtag", # set to jtag or dmi
                          units=units)
 

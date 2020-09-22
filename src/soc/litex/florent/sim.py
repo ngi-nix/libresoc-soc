@@ -49,22 +49,22 @@ class LibreSoCSim(SoCSDRAM):
         if cpu_data_width == 32:
             variant = "standard32"
         else:
-            variant = "standard"
+            variant = "standardjtag"
 
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "tests/1.bin"
         #ram_fname = "/tmp/test.bin"
-        #ram_fname = None
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "micropython/firmware.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "tests/xics/xics.bin"
-        ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
-                    "tests/decrementer/decrementer.bin"
+        #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
+        #            "tests/decrementer/decrementer.bin"
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
+        ram_fname = None
 
         # reserve XICS ICP and XICS memory addresses.
         self.mem_map['icp'] = 0xc0004000
@@ -446,6 +446,7 @@ def main():
 
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
+    sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
     for i in range(2):
         soc = LibreSoCSim(cpu=args.cpu, debug=args.debug)
