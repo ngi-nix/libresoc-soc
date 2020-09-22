@@ -164,6 +164,23 @@ class LibreSoCSim(SoCSDRAM):
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
 
+        # add JTAG platform pins
+        platform.add_extension([
+            ("jtag", 0,
+                Subsignal("tck",  Pins(1)),
+                Subsignal("tms", Pins(1)),
+                Subsignal("tdi", Pins(1)),
+                Subsignal("tdo", Pins(1)),
+            )
+        ])
+
+        jtagpads = platform.request("jtag")
+        self.comb += self.cpu.jtag_tck.eq(jtagpads.tck)
+        self.comb += self.cpu.jtag_tms.eq(jtagpads.tms)
+        self.comb += self.cpu.jtag_tdi.eq(jtagpads.tdi)
+        self.comb += jtagpads.tdo.eq(self.cpu.jtag_tdo)
+
+
         # Debug ---------------------------------------------------------------
         if not debug:
             return
