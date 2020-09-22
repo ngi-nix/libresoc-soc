@@ -76,20 +76,12 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
     overflow = None
-    if 'xer_so' not in inp:
-        return
-    so = inp['xer_so']
-
-    # XXX doesn't work because it's not being properly kept up-to-date
-    # and we're 2 days before a code-freeze.
-    # https://bugs.libre-soc.org/show_bug.cgi?id=497
-    return None
-
-    overflow = pia.OverflowFlags(so=bool(so),
-                                 ov=False,
-                                 ov32=False)
-    return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"], rc=0,
-                                overflow=overflow)
+    if 'xer_so' in inp:
+        so = inp['xer_so']
+        overflow = pia.OverflowFlags(so=bool(so),
+                                     ov=False,
+                                     ov32=False)
+    return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"], overflow=overflow)
 
 
 class DivTestHelper(unittest.TestCase):
@@ -135,12 +127,10 @@ class DivTestHelper(unittest.TestCase):
 
             opname = code.split(' ')[0]
             fnname = opname.replace(".", "_")
-            pia_res = None
-            if pia_inputs:
-                print(f"{fnname}({pia_inputs})")
-                pia_res = getattr(
-                    pia, opname.replace(".", "_"))(pia_inputs)
-                print(f"-> {pia_res}")
+            print(f"{fnname}({pia_inputs})")
+            pia_res = getattr(
+                pia, opname.replace(".", "_"))(pia_inputs)
+            print(f"-> {pia_res}")
 
             yield from isa_sim.call(opname)
             index = isa_sim.pc.CIA.value//4
