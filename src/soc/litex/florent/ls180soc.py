@@ -129,7 +129,8 @@ class LibreSoCSim(SoCCore):
             self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
 
         # CRG -----------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        self.submodules.crg = CRG(platform.request("sys_clk"),
+                                  platform.request("sys_rst"))
 
         #ram_init = []
 
