@@ -74,6 +74,11 @@ class NonProductionCore(Elaboratable):
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]
 
+        if False:
+            # MMU / DCache
+            self.mmu = MMU()
+            self.dcache = DCache()
+
         # function units (only one each)
         self.fus = AllFunctionUnits(pspec, pilist=[pi])
 

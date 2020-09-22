@@ -247,7 +247,7 @@ class AllFunctionUnits(Elaboratable):
                      'spr': 1,
                      'logical': 1,
                      'mul': 1,
-                     'mmu': 1,
+                     #'mmu': 1,
                      'div': 1, 'shiftrot': 1}
         alus = {'alu': ALUFunctionUnit,
                 'cr': CRFunctionUnit,
