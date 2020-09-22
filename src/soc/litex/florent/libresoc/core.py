@@ -74,16 +74,25 @@ class LibreSoC(CPU):
 
         if variant != "ls180":
             self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
+        else:
+            self.jtag_wb = jtag_wb = wb.Interface(data_width=64, adr_width=29)
 
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
-        self.dmi_addr = Signal(4)
-        self.dmi_din = Signal(64)
-        self.dmi_dout = Signal(64)
-        self.dmi_wr = Signal(1)
-        self.dmi_ack = Signal(1)
-        self.dmi_req = Signal(1)
+        if variant == "ls180":
+            self.periph_buses.append(jtag_wb)
+            self.jtag_tck = Signal(1)
+            self.jtag_tms = Signal(1)
+            self.jtag_tdi = Signal(1)
+            self.jtag_tdo = Signal(1)
+        else:
+            self.dmi_addr = Signal(4)
+            self.dmi_din = Signal(64)
+            self.dmi_dout = Signal(64)
+            self.dmi_wr = Signal(1)
+            self.dmi_ack = Signal(1)
+            self.dmi_req = Signal(1)
 
         # # #
 
@@ -103,14 +112,26 @@ class LibreSoC(CPU):
             # interrupts
             i_int_level_i      = self.interrupt,
 
-            # Debug bus
-            i_dmi_addr_i          = self.dmi_addr,
-            i_dmi_din             = self.dmi_din,
-            o_dmi_dout            = self.dmi_dout,
-            i_dmi_req_i           = self.dmi_req,
-            i_dmi_we_i            = self.dmi_wr,
-            o_dmi_ack_o           = self.dmi_ack,
         )
+
+        if variant != "ls180":
+            self.cpu_params.update(dict(
+                # DMI Debug bus
+                i_dmi_addr_i          = self.dmi_addr,
+                i_dmi_din             = self.dmi_din,
+                o_dmi_dout            = self.dmi_dout,
+                i_dmi_req_i           = self.dmi_req,
+                i_dmi_we_i            = self.dmi_wr,
+                o_dmi_ack_o           = self.dmi_ack,
+            ))
+        else:
+            self.cpu_params.update(dict(
+                # JTAG Debug bus
+                o_TAP_bus__tdo = self.jtag_tdo,
+                i_TAP_bus__tdi = self.jtag_tdi,
+                i_TAP_bus__tms = self.jtag_tms,
+                i_TAP_bus__tck = self.jtag_tck,
+            ))
 
         # add wishbone buses to cpu params
         self.cpu_params.update(make_wb_bus("ibus_", ibus))
@@ -119,6 +140,8 @@ class LibreSoC(CPU):
         self.cpu_params.update(make_wb_slave("icp_wb_", icp))
         if variant != "ls180":
             self.cpu_params.update(make_wb_slave("gpio_wb_", gpio))
+        else:
+            self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb))
 
         # add verilog sources
         self.add_sources(platform)
