@@ -89,7 +89,7 @@ _io = [
     ("sdram", 0,
         Subsignal("a",     Pins(
             "M20 M19 L20 L19 K20 K19 K18 J20",
-            "J19 H20 N19 G20 G19")),
+            "J19 H20 N19 G20 G19 E14 E15 E16")),
         Subsignal("dq",    Pins(
             "J16 L18 M18 N18 P18 T18 T17 U20",
             "E19 D20 D19 C20 E18 F18 J18 J17")),
@@ -110,13 +110,22 @@ _io = [
 ]
 
 pins = []
-n_gpio = 12
+n_gpio = 16
 for i in range(n_gpio):
     pins.append("X%d" % i)
 pins = ' '.join(pins)
 
-# 12 GPIOs
-_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
+# 16 GPIOs
+#_io.append( ("gpio", 0,
+#            Subsignal("target", Pins(pins), Misc("PULLMODE=UP")),
+#            IOStandard("LVCMOS33")) )
+#_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
+_io.append( ("gpio", 0,
+             Subsignal("i", Pins(pins), Misc("PULLMODE=UP")),
+             Subsignal("o", Pins(pins), Misc("PULLMODE=UP")),
+             Subsignal("oe", Pins(pins), Misc("PULLMODE=UP")),
+            IOStandard("LVCMOS33")) )
+#_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
 
 # EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )

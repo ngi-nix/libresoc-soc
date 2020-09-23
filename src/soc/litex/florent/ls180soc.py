@@ -3,7 +3,8 @@
 import os
 import argparse
 
-from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState)
+from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState,
+                   Record)
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -20,7 +21,6 @@ from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
 from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
-from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.bitbang import I2CMaster
@@ -39,6 +39,34 @@ from microwatt import Microwatt
 # HACK!
 from litex.soc.integration.soc import SoCCSRHandler
 SoCCSRHandler.supported_address_width.append(12)
+
+# GPIO Tristate -------------------------------------------------------
+# doesn't work properly.
+#from litex.soc.cores.gpio import GPIOTristate
+from litex.soc.interconnect.csr import CSRStorage, CSRStatus
+from migen.genlib.cdc import MultiReg
+
+
+class GPIOTristateASIC(Module, AutoCSR):
+    def __init__(self, pads):
+        nbits     = len(pads.oe) # hack
+        self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
+        self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
+        self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
+
+        # # #
+
+        _pads = Record( (("i",  nbits),
+                         ("o",  nbits),
+                         ("oe", nbits)))
+        self.comb += _pads.i.eq(pads.i)
+        self.comb += pads.o.eq(_pads.o)
+        self.comb += pads.oe.eq(_pads.oe)
+
+        self.comb += _pads.oe.eq(self._oe.storage)
+        self.comb += _pads.o.eq(self._out.storage)
+        for i in range(nbits):
+            self.specials += MultiReg(_pads.i[i], self._in.status[i])
 
 
 # LibreSoCSim -----------------------------------------------------------------
@@ -171,12 +199,8 @@ class LibreSoCSim(SoCCore):
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
         # GPIOs (bi-directional)
-        self.submodules.gpio = GPIOTristate(platform.request("gpio"))
+        self.submodules.gpio = GPIOTristateASIC(platform.request("gpio"))
         self.add_csr("gpio")
-
-        if False:
-            self.submodules.gpio = GPIOTristate(platform.request("gpio"))
-            self.add_csr("gpio")
 
         # SPI Master
         self.submodules.spi_master = SPIMaster(
