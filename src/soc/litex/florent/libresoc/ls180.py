@@ -94,13 +94,19 @@ _io = [
         Subsignal("a",     Pins(
             "M20 M19 L20 L19 K20 K19 K18 J20",
             "J19 H20 N19 G20 G19 E14 E15 E16")),
-        Subsignal("dq",    Pins(
+        Subsignal("dq_i",    Pins(
+            "J16 L18 M18 N18 P18 T18 T17 U20",
+            "E19 D20 D19 C20 E18 F18 J18 J17")),
+        Subsignal("dq_o",    Pins(
+            "J16 L18 M18 N18 P18 T18 T17 U20",
+            "E19 D20 D19 C20 E18 F18 J18 J17")),
+        Subsignal("dq_oe",    Pins(
             "J16 L18 M18 N18 P18 T18 T17 U20",
             "E19 D20 D19 C20 E18 F18 J18 J17")),
         Subsignal("we_n",  Pins("T20")),
         Subsignal("ras_n", Pins("R20")),
         Subsignal("cas_n", Pins("T19")),
-        Subsignal("cs_n",  Pins("P20")),
+        Subsignal("cs_n",  Pins("P20 P30 P31 P32")),
         Subsignal("cke",   Pins("F20")),
         Subsignal("ba",    Pins("P19 N20")),
         Subsignal("dm",    Pins("U19 E20")),

@@ -8,8 +8,8 @@ N6  | JTAG0 tdi
 N7  | JTAG0 tdo
 N8  | UART0 tx
 N9  | UART0 rx
-N10 | GPIOOUT0 gpio0
-N11 | GPIOIN0 gpio0
+N10 | GPIO0 gpio0
+N11 | GPIO0 gpio1
 N12 | VDD
 N13 | SPI0 clk
 N14 | SPI0 mosi
@@ -23,11 +23,11 @@ N21 | SDCARD0 data1
 N22 | SDCARD0 data2
 N23 | SDCARD0 data3
 N24 | VDD
-N25 | nc
-N26 | nc
-N27 | VDD
-N28 | nc
-N29 | nc
+N25 | SDRAM0 cs0_n
+N26 | SDRAM0 cs1_n
+N27 | SDRAM0 cs2_n
+N28 | SDRAM0 cs3_n
+N29 | VDD
 N30 | nc
 N31 | VSS
 
@@ -55,16 +55,16 @@ E20 | VSS
 E21 | SDRAM0 we_n
 E22 | SDRAM0 ras_n
 E23 | SDRAM0 cas_n 
-E24 | SDRAM0 cs_n 
-E25 | SDRAM0 cke
-E26 | VDD
-E27 | SDRAM0 ba0
-E28 | SDRAM0 ba1
-E29 | SDRAM0 dm0
-E30 | SDRAM0 dm1
-E31 | VSS
+E24 | SDRAM0 cke
+E25 | VDD
+E26 | SDRAM0 ba0
+E27 | SDRAM0 ba1
+E28 | SDRAM0 dm0
+E29 | SDRAM0 dm1
+E30 | VSS
+E31 | SDRAM0 sdram_clock
 
-S0  | SDRAM0 sdram_clock
+S0  | nc
 S1  | VDD
 S2  | SDRAM0 dq0
 S3  | SDRAM0 dq1
@@ -88,8 +88,8 @@ S20 | PWM0 pwm0
 S21 | PWM1 pwm1
 S22 | VSS
 S23 | EINT0 eint0
-S24 | GPIOOUT0 gpio1
-S25 | GPIOIN0 gpio1
+S24 | GPIO0 gpio14
+S25 | GPIO0 gpio15
 S26 | nc
 S27 | nc
 S28 | nc
@@ -105,18 +105,18 @@ W4  | SPI1 miso
 W5  | VDD
 W6  | UART1 tx
 W7  | UART1 rx
-W8  | GPIOOUT0 gpio2
-W9  | GPIOOUT0 gpio3
-W10 | GPIOOUT0 gpio4
-W11 | GPIOOUT0 gpio5
-W12 | GPIOOUT0 gpio6
-W13 | GPIOOUT0 gpio7
-W14 | GPIOIN0 gpio2
-W15 | GPIOIN0 gpio3
-W16 | GPIOIN0 gpio4
-W17 | GPIOIN0 gpio5
-W18 | GPIOIN0 gpio6
-W19 | GPIOIN0 gpio7
+W8  | GPIO0 gpio2
+W9  | GPIO0 gpio3
+W10 | GPIO0 gpio4
+W11 | GPIO0 gpio5
+W12 | GPIO0 gpio6
+W13 | GPIO0 gpio7
+W14 | GPIO0 gpio8
+W15 | GPIO0 gpio9
+W16 | GPIO0 gpio10
+W17 | GPIO0 gpio11
+W18 | GPIO0 gpio12
+W19 | GPIO0 gpio13
 W20 | VSS
 W21 | EINT0 eint1
 W22 | EINT0 eint2

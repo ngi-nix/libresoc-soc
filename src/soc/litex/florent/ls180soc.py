@@ -6,7 +6,7 @@ from functools import reduce
 from operator import or_
 
 from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState,
-                   Record, ClockSignal, wrap)
+                   Cat, Record, ClockSignal, wrap)
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -21,8 +21,9 @@ from litex.soc.integration.common import get_mem_data
 
 from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
-from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
-
+#from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
+from litedram.common import PHYPadsCombiner, PhySettings
+from litedram.phy.dfi import Interface as DFIInterface
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.bitbang import I2CMaster
@@ -83,15 +84,15 @@ class GPIOTristateASIC(Module, AutoCSR):
 # SDCard PHY IO -------------------------------------------------------
 
 class SDRPad(Module):
-    def __init__(self, pad, name, sdpad):
+    def __init__(self, pad, name, o, oe, i):
         clk = ClockSignal()
         _o = getattr(pad, "%s_o" % name)
         _oe = getattr(pad, "%s_oe" % name)
         _i = getattr(pad, "%s_i" % name)
         for j in range(len(_o)):
-            self.specials += SDROutput(clk=clk, i=sdpad.o[j], o=_o[j])
-            self.specials += SDROutput(clk=clk, i=sdpad.oe, o=_oe[j])
-            self.specials += SDRInput(clk=clk, i=_i[j], o=sdpad.i[j])
+            self.specials += SDROutput(clk=clk, i=o[j], o=_o[j])
+            self.specials += SDROutput(clk=clk, i=oe, o=_oe[j])
+            self.specials += SDRInput(clk=clk, i=_i[j], o=i[j])
 
 
 class SDPHYIOGen(Module):
@@ -108,10 +109,12 @@ class SDPHYIOGen(Module):
         )
 
         # Cmd
-        self.submodules.sd_cmd = SDRPad(pads, "cmd", sdpads.cmd)
+        c = sdpads.cmd
+        self.submodules.sd_cmd = SDRPad(pads, "cmd", c.o, c.oe, c.i)
 
         # Data
-        self.submodules.sd_data = SDRPad(pads, "data", sdpads.data)
+        d = sdpads.data
+        self.submodules.sd_data = SDRPad(pads, "data", d.o, d.oe, d.i)
 
 
 class SDPHY(Module, AutoCSR):
@@ -155,11 +158,77 @@ class SDPHY(Module, AutoCSR):
             self.comb += m.pads_in.cmd.i.eq(sdpads.cmd.i)
             self.comb += m.pads_in.data.i.eq(sdpads.data.i)
 
-
         # Speed Throttling -------------------------------------------
         self.comb += clocker.stop.eq(dataw.stop | datar.stop)
 
-# LibreSoCSim -----------------------------------------------------------
+
+# Generic SDR PHY ---------------------------------------------------------
+
+class GENSDRPHY(Module):
+    def __init__(self, pads, cl=2, cmd_latency=1):
+        pads        = PHYPadsCombiner(pads)
+        addressbits = len(pads.a)
+        bankbits    = len(pads.ba)
+        nranks      = 1 if not hasattr(pads, "cs_n") else len(pads.cs_n)
+        databits    = len(pads.dq_i)
+        assert cl in [2, 3]
+        assert databits%8 == 0
+
+        # PHY settings ----------------------------------------------------
+        self.settings = PhySettings(
+            phytype       = "GENSDRPHY",
+            memtype       = "SDR",
+            databits      = databits,
+            dfi_databits  = databits,
+            nranks        = nranks,
+            nphases       = 1,
+            rdphase       = 0,
+            wrphase       = 0,
+            rdcmdphase    = 0,
+            wrcmdphase    = 0,
+            cl            = cl,
+            read_latency  = cl + cmd_latency,
+            write_latency = 0
+        )
+
+        # DFI Interface ---------------------------------------------------
+        self.dfi = dfi = DFIInterface(addressbits, bankbits, nranks, databits)
+
+        # # #
+
+        # Iterate on pads groups ------------------------------------------
+        for pads_group in range(len(pads.groups)):
+            pads.sel_group(pads_group)
+
+            # Addresses and Commands --------------------------------------
+            self.specials += [SDROutput(i=dfi.p0.address[i], o=pads.a[i])
+                                    for i in range(len(pads.a))]
+            self.specials += [SDROutput(i=dfi.p0.bank[i], o=pads.ba[i])
+                                    for i in range(len(pads.ba))]
+            self.specials += SDROutput(i=dfi.p0.cas_n, o=pads.cas_n)
+            self.specials += SDROutput(i=dfi.p0.ras_n, o=pads.ras_n)
+            self.specials += SDROutput(i=dfi.p0.we_n, o=pads.we_n)
+            if hasattr(pads, "cke"):
+                self.specials += SDROutput(i=dfi.p0.cke, o=pads.cke)
+            if hasattr(pads, "cs_n"):
+                self.specials += SDROutput(i=dfi.p0.cs_n, o=pads.cs_n)
+
+        # DQ/DM Data Path -------------------------------------------------
+
+        d = dfi.p0
+        self.submodules.dq = SDRPad(pads, "dq", d.wrdata, d.wrdata_en, d.rddata)
+
+        if hasattr(pads, "dm"):
+            for i in range(len(pads.dm)):
+                self.comb += pads.dm[i].eq(0) # FIXME
+
+        # DQ/DM Control Path ----------------------------------------------
+        rddata_en = Signal(cl + cmd_latency)
+        self.sync += rddata_en.eq(Cat(dfi.p0.rddata_en, rddata_en))
+        self.sync += dfi.p0.rddata_valid.eq(rddata_en[-1])
+
+
+# LibreSoC 180nm ASIC -------------------------------------------------------
 
 class LibreSoCSim(SoCCore):
     def __init__(self, cpu="libresoc", debug=False, with_sdram=True,
@@ -275,7 +344,7 @@ class LibreSoCSim(SoCCore):
                 phy                     = self.sdrphy,
                 module                  = sdram_module,
                 origin                  = self.mem_map["main_ram"],
-                size                    = 0x40000000,
+                size                    = 0x80000000,
                 l2_cache_size           = 0, # 8192
                 l2_cache_min_data_width = 128,
                 l2_cache_reverse        = True
