@@ -20,7 +20,7 @@ from litedram import modules as litedram_modules
 from litedram.phy.model import SDRAMPHYModel
 from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 
-from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut#, GPIOTristate
+from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.bitbang import I2CMaster
@@ -170,12 +170,9 @@ class LibreSoCSim(SoCCore):
             self.add_constant("MEMTEST_ADDR_DEBUG", 1)
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
-        # GPIOs
-        #platform.add_extension([("gpio_in", 0, Pins(8))])
-        self.submodules.gpio_in = GPIOIn(platform.request("gpio_in"))
-        self.add_csr("gpio_in")
-        self.submodules.gpio_out = GPIOIn(platform.request("gpio_out"))
-        self.add_csr("gpio_out")
+        # GPIOs (bi-directional)
+        self.submodules.gpio = GPIOTristate(platform.request("gpio"))
+        self.add_csr("gpio")
 
         if False:
             self.submodules.gpio = GPIOTristate(platform.request("gpio"))

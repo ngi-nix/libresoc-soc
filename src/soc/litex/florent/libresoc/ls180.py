@@ -109,29 +109,14 @@ _io = [
     ("pwm", 1, Pins("P2"), IOStandard("LVCMOS33")),
 ]
 
-if False:
-    pinbank1 = []
-    pinbank2 = []
-    for i in range(8):
-        pinbank1.append("X%d" % i)
-        pinbank2.append("Y%d" % i)
-    pins = ' '.join(pinbank1 + pinbank2)
+pins = []
+n_gpio = 12
+for i in range(n_gpio):
+    pins.append("X%d" % i)
+pins = ' '.join(pins)
 
-    # 16 GPIOs
-    _io.append( ("gpio", 16, Pins(pins), IOStandard("LVCMOS33")) )
-
-pinsin = []
-pinsout = []
-for i in range(8):
-    pinsin.append("X%d" % i)
-    pinsout.append("Y%d" % i)
-pinsin = ' '.join(pinsin)
-pinsout = ' '.join(pinsout)
-
-# GPIO in: 8 pins
-_io.append( ("gpio_in", 8, Pins(pinsin), IOStandard("LVCMOS33")) )
-# GPIO out: 8 pins
-_io.append( ("gpio_out", 8, Pins(pinsout), IOStandard("LVCMOS33")) )
+# 12 GPIOs
+_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
 
 # EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
