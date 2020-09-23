@@ -78,8 +78,12 @@ _io = [
     # SDCARD0: 6 pins
     ("sdcard", 0,
         Subsignal("clk",  Pins("J1")),
-        Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
-        Subsignal("data", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        Subsignal("cmd_i",  Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("cmd_o",  Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("cmd_oe",  Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("data_i", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        Subsignal("data_o", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        Subsignal("data_oe", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
         Misc("SLEWRATE=FAST"),
         IOStandard("LVCMOS33"),
     ),
@@ -116,16 +120,11 @@ for i in range(n_gpio):
 pins = ' '.join(pins)
 
 # 16 GPIOs
-#_io.append( ("gpio", 0,
-#            Subsignal("target", Pins(pins), Misc("PULLMODE=UP")),
-#            IOStandard("LVCMOS33")) )
-#_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
 _io.append( ("gpio", 0,
              Subsignal("i", Pins(pins), Misc("PULLMODE=UP")),
              Subsignal("o", Pins(pins), Misc("PULLMODE=UP")),
              Subsignal("oe", Pins(pins), Misc("PULLMODE=UP")),
             IOStandard("LVCMOS33")) )
-#_io.append( ("gpio", n_gpio, Pins(pins), IOStandard("LVCMOS33")) )
 
 # EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )

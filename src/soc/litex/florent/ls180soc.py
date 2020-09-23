@@ -2,9 +2,11 @@
 
 import os
 import argparse
+from functools import reduce
+from operator import or_
 
 from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState,
-                   Record)
+                   Record, ClockSignal, wrap)
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -46,6 +48,16 @@ SoCCSRHandler.supported_address_width.append(12)
 from litex.soc.interconnect.csr import CSRStorage, CSRStatus
 from migen.genlib.cdc import MultiReg
 
+# Imports
+from litex.soc.interconnect import wishbone
+from litesdcard.phy import (SDPHY, SDPHYClocker,
+                            SDPHYInit, SDPHYCMDW, SDPHYCMDR,
+                            SDPHYDATAW, SDPHYDATAR,
+                            _sdpads_layout)
+from litesdcard.core import SDCore
+from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
+from litex.build.io import SDROutput, SDRInput
+
 
 class GPIOTristateASIC(Module, AutoCSR):
     def __init__(self, pads):
@@ -68,8 +80,86 @@ class GPIOTristateASIC(Module, AutoCSR):
         for i in range(nbits):
             self.specials += MultiReg(_pads.i[i], self._in.status[i])
 
+# SDCard PHY IO -------------------------------------------------------
 
-# LibreSoCSim -----------------------------------------------------------------
+class SDRPad(Module):
+    def __init__(self, pad, name, sdpad):
+        clk = ClockSignal()
+        _o = getattr(pad, "%s_o" % name)
+        _oe = getattr(pad, "%s_oe" % name)
+        _i = getattr(pad, "%s_i" % name)
+        for j in range(len(_o)):
+            self.specials += SDROutput(clk=clk, i=sdpad.o[j], o=_o[j])
+            self.specials += SDROutput(clk=clk, i=sdpad.oe, o=_oe[j])
+            self.specials += SDRInput(clk=clk, i=_i[j], o=sdpad.i[j])
+
+
+class SDPHYIOGen(Module):
+    def __init__(self, clocker, sdpads, pads):
+        # Rst
+        if hasattr(pads, "rst"):
+            self.comb += pads.rst.eq(0)
+
+        # Clk
+        self.specials += SDROutput(
+            clk = ClockSignal(),
+            i   = ~clocker.clk & sdpads.clk,
+            o   = pads.clk
+        )
+
+        # Cmd
+        self.submodules.sd_cmd = SDRPad(pads, "cmd", sdpads.cmd)
+
+        # Data
+        self.submodules.sd_data = SDRPad(pads, "data", sdpads.data)
+
+
+class SDPHY(Module, AutoCSR):
+    def __init__(self, pads, device, sys_clk_freq,
+                 cmd_timeout=10e-3, data_timeout=10e-3):
+        self.card_detect = CSRStatus() # Assume SDCard is present if no cd pin.
+        self.comb += self.card_detect.status.eq(getattr(pads, "cd", 0))
+
+        self.submodules.clocker = clocker = SDPHYClocker()
+        self.submodules.init    = init    = SDPHYInit()
+        self.submodules.cmdw    = cmdw    = SDPHYCMDW()
+        self.submodules.cmdr    = cmdr    = SDPHYCMDR(sys_clk_freq,
+                                                      cmd_timeout, cmdw)
+        self.submodules.dataw   = dataw   = SDPHYDATAW()
+        self.submodules.datar   = datar   = SDPHYDATAR(sys_clk_freq,
+                                                      data_timeout)
+
+        # # #
+
+        self.sdpads = sdpads = Record(_sdpads_layout)
+
+        # IOs
+        sdphy_cls = SDPHYIOGen
+        self.submodules.io = sdphy_cls(clocker, sdpads, pads)
+
+        # Connect pads_out of submodules to physical pads --------------
+        pl = [init, cmdw, cmdr, dataw, datar]
+        self.comb += [
+            sdpads.clk.eq(    reduce(or_, [m.pads_out.clk     for m in pl])),
+            sdpads.cmd.oe.eq( reduce(or_, [m.pads_out.cmd.oe  for m in pl])),
+            sdpads.cmd.o.eq(  reduce(or_, [m.pads_out.cmd.o   for m in pl])),
+            sdpads.data.oe.eq(reduce(or_, [m.pads_out.data.oe for m in pl])),
+            sdpads.data.o.eq( reduce(or_, [m.pads_out.data.o  for m in pl])),
+        ]
+        for m in pl:
+            self.comb += m.pads_out.ready.eq(self.clocker.ce)
+
+        # Connect physical pads to pads_in of submodules ---------------
+        for m in pl:
+            self.comb += m.pads_in.valid.eq(self.clocker.ce)
+            self.comb += m.pads_in.cmd.i.eq(sdpads.cmd.i)
+            self.comb += m.pads_in.data.i.eq(sdpads.data.i)
+
+
+        # Speed Throttling -------------------------------------------
+        self.comb += clocker.stop.eq(dataw.stop | datar.stop)
+
+# LibreSoCSim -----------------------------------------------------------
 
 class LibreSoCSim(SoCCore):
     def __init__(self, cpu="libresoc", debug=False, with_sdram=True,
@@ -174,7 +264,7 @@ class LibreSoCSim(SoCCore):
                             memtype    = sdram_module.memtype,
                             data_width = sdram_data_width,
                             clk_freq   = sdram_clk_freq)
-            #sdrphy_cls = HalfRateGENSDRPHY 
+            #sdrphy_cls = HalfRateGENSDRPHY
             sdrphy_cls = GENSDRPHY
             self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
             #self.submodules.sdrphy = sdrphy_cls(sdram_module,
@@ -230,6 +320,38 @@ class LibreSoCSim(SoCCore):
         # I2C Master
         self.submodules.i2c = I2CMaster(platform.request("i2c"))
         self.add_csr("i2c")
+
+        # SDCard -----------------------------------------------------
+
+        # Emulator / Pads
+        sdcard_pads = self.platform.request("sdcard")
+
+        # Core
+        self.submodules.sdphy  = SDPHY(sdcard_pads,
+                                       self.platform.device, self.clk_freq)
+        self.submodules.sdcore = SDCore(self.sdphy)
+        self.add_csr("sdphy")
+        self.add_csr("sdcore")
+
+        # Block2Mem DMA
+        bus = wishbone.Interface(data_width=self.bus.data_width,
+                                 adr_width=self.bus.address_width)
+        self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus,
+                                    endianness=self.cpu.endianness)
+        self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
+        dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
+        dma_bus.add_master("sdblock2mem", master=bus)
+        self.add_csr("sdblock2mem")
+
+        # Mem2Block DMA
+        bus = wishbone.Interface(data_width=self.bus.data_width,
+                                 adr_width=self.bus.address_width)
+        self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus,
+                                            endianness=self.cpu.endianness)
+        self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
+        dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
+        dma_bus.add_master("sdmem2block", master=bus)
+        self.add_csr("sdmem2block")
 
         # Debug ---------------------------------------------------------------
         if not debug:
@@ -518,7 +640,6 @@ def main():
     if args.platform == 'ls180':
         soc = LibreSoCSim(cpu=args.cpu, debug=args.debug,
                           platform=args.platform)
-        soc.add_sdcard()
         soc.add_spi_sdcard()
         builder = Builder(soc, compile_gateware = True)
         builder.build(run         = True)
