@@ -23,6 +23,7 @@ from litedram.phy.gensdrphy import GENSDRPHY, HalfRateGENSDRPHY
 from litex.soc.cores.gpio import GPIOInOut, GPIOIn, GPIOOut#, GPIOTristate
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
+from litex.soc.cores.bitbang import I2CMaster
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
@@ -205,6 +206,9 @@ class LibreSoCSim(SoCCore):
             setattr(self.submodules, name, PWM(platform.request("pwm", i)))
             self.add_csr(name)
 
+        # I2C Master
+        self.submodules.i2c = I2CMaster(platform.request("i2c"))
+        self.add_csr("i2c")
 
         # Debug ---------------------------------------------------------------
         if not debug:

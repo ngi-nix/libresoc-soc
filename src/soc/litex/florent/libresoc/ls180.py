@@ -11,6 +11,9 @@ conceptually similar to the following:
 * https://github.com/enjoy-digital/liteeth/blob/master/liteeth/gen.py
 * https://github.com/enjoy-digital/litepcie/blob/master/litepcie/gen.py
 
+Total I/O pins: 84.
+Fits in a JEDEC QFP-100
+
 """
 
 from migen.fhdl.structure import _Fragment
@@ -22,9 +25,11 @@ import os
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # CLK/RST: 2 pins
     ("sys_clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
     ("sys_rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
 
+    # JTAG0: 4 pins
     ("jtag", 0,
         Subsignal("tms", Pins("Z1"), IOStandard("LVCMOS33")),
         Subsignal("tck", Pins("Z2"), IOStandard("LVCMOS33")),
@@ -32,16 +37,25 @@ _io = [
         Subsignal("tdo", Pins("Z4"), IOStandard("LVCMOS33")),
     ),
 
+    # I2C0: 2 pins
+    ("i2c", 0,
+        Subsignal("scl", Pins("L4"), IOStandard("LVCMOS33")),
+        Subsignal("sda", Pins("M1"), IOStandard("LVCMOS33"))
+    ),
+
+    # UART0: 2 pins
     ("serial", 0,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
+    # UART1: 2 pins
     ("serial", 1,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
+    # SPI0: 4 pins
     ("spi_master", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
@@ -51,6 +65,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # SPICARD0: 4 pins
     ("spisdcard", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
@@ -60,6 +75,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # SDCARD0: 6 pins
     ("sdcard", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
@@ -68,6 +84,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # SDRAM: 39 pins
     ("sdram_clock", 0, Pins("F19"), IOStandard("LVCMOS33")),
     ("sdram", 0,
         Subsignal("a",     Pins(
@@ -87,6 +104,7 @@ _io = [
         Misc("SLEWRATE=FAST"),
     ),
 
+    # PWM: 2 pins
     ("pwm", 0, Pins("P1"), IOStandard("LVCMOS33")),
     ("pwm", 1, Pins("P2"), IOStandard("LVCMOS33")),
 ]
@@ -110,11 +128,12 @@ for i in range(8):
 pinsin = ' '.join(pinsin)
 pinsout = ' '.join(pinsout)
 
-# 8 GPIO in, 8 GPIO out
+# GPIO in: 8 pins
 _io.append( ("gpio_in", 8, Pins(pinsin), IOStandard("LVCMOS33")) )
+# GPIO out: 8 pins
 _io.append( ("gpio_out", 8, Pins(pinsout), IOStandard("LVCMOS33")) )
 
-# 3 External INT wires
+# EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
 
 # Platform -----------------------------------------------------------------------------------------
