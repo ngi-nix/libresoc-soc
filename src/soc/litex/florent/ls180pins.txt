@@ -1,0 +1,131 @@
+N0  | VSS
+N1  | sys_clk
+N2  | VSS
+N3  | sys_rst
+N4  | JTAG0 tck
+N5  | JTAG0 tms
+N6  | JTAG0 tdi
+N7  | JTAG0 tdo
+N8  | UART0 tx
+N9  | UART0 rx
+N10 | GPIOOUT0 gpio0
+N11 | GPIOIN0 gpio0
+N12 | VDD
+N13 | SPI0 clk
+N14 | SPI0 mosi
+N15 | SPI0 cs_n
+N16 | SPI0 miso
+N17 | VSS
+N18 | SDCARD0 clk
+N19 | SDCARD0 cmd
+N20 | SDCARD0 data0
+N21 | SDCARD0 data1
+N22 | SDCARD0 data2
+N23 | SDCARD0 data3
+N24 | VDD
+N25 | nc
+N26 | nc
+N27 | VDD
+N28 | nc
+N29 | nc
+N30 | nc
+N31 | VSS
+
+E0  | VDD
+E1  | SDRAM0 a0
+E2  | SDRAM0 a1
+E3  | SDRAM0 a2
+E4  | SDRAM0 a3
+E5  | SDRAM0 a4
+E6  | SDRAM0 a5
+E7  | SDRAM0 a6
+E8  | SDRAM0 a7
+E9  | VSS
+E10 | SDRAM0 a8
+E11 | SDRAM0 a9 
+E12 | SDRAM0 a10
+E13 | SDRAM0 a11
+E14 | SDRAM0 a12
+E15 | SDRAM0 a13 
+E16 | SDRAM0 a14 
+E17 | SDRAM0 a15 
+E18 | VDD
+E19 | nc
+E20 | VSS
+E21 | SDRAM0 we_n
+E22 | SDRAM0 ras_n
+E23 | SDRAM0 cas_n 
+E24 | SDRAM0 cs_n 
+E25 | SDRAM0 cke
+E26 | VDD
+E27 | SDRAM0 ba0
+E28 | SDRAM0 ba1
+E29 | SDRAM0 dm0
+E30 | SDRAM0 dm1
+E31 | VSS
+
+S0  | SDRAM0 sdram_clock
+S1  | VDD
+S2  | SDRAM0 dq0
+S3  | SDRAM0 dq1
+S4  | SDRAM0 dq2
+S5  | SDRAM0 dq3
+S6  | SDRAM0 dq4
+S7  | SDRAM0 dq5
+S8  | SDRAM0 dq6
+S9  | SDRAM0 dq7
+S10 | VSS
+S11 | SDRAM0 dq8
+S12 | SDRAM0 dq9
+S13 | SDRAM0 dq10
+S14 | SDRAM0 dq11
+S15 | SDRAM0 dq12
+S16 | SDRAM0 dq13
+S17 | SDRAM0 dq14
+S18 | SDRAM0 dq15
+S19 | VDD
+S20 | PWM0 pwm0
+S21 | PWM1 pwm1
+S22 | VSS
+S23 | EINT0 eint0
+S24 | GPIOOUT0 gpio1
+S25 | GPIOIN0 gpio1
+S26 | nc
+S27 | nc
+S28 | nc
+S29 | nc
+S30 | nc
+S31 | VDD
+
+W0  | VSS
+W1  | SPI1 clk
+W2  | SPI1 mosi
+W3  | SPI1 cs_n
+W4  | SPI1 miso
+W5  | VDD
+W6  | UART1 tx
+W7  | UART1 rx
+W8  | GPIOOUT0 gpio2
+W9  | GPIOOUT0 gpio3
+W10 | GPIOOUT0 gpio4
+W11 | GPIOOUT0 gpio5
+W12 | GPIOOUT0 gpio6
+W13 | GPIOOUT0 gpio7
+W14 | GPIOIN0 gpio2
+W15 | GPIOIN0 gpio3
+W16 | GPIOIN0 gpio4
+W17 | GPIOIN0 gpio5
+W18 | GPIOIN0 gpio6
+W19 | GPIOIN0 gpio7
+W20 | VSS
+W21 | EINT0 eint1
+W22 | EINT0 eint2
+W23 | I2C0 sda
+W24 | I2C0 scl
+W25 | nc
+W26 | nc
+W27 | nc
+W28 | nc
+W29 | nc
+W30 | nc
+W31 | VDD
