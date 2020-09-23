@@ -201,17 +201,20 @@ class GENSDRPHY(Module):
             pads.sel_group(pads_group)
 
             # Addresses and Commands --------------------------------------
-            self.specials += [SDROutput(i=dfi.p0.address[i], o=pads.a[i])
+            p0 = dfi.p0
+            self.specials += [SDROutput(i=p0.address[i], o=pads.a[i])
                                     for i in range(len(pads.a))]
-            self.specials += [SDROutput(i=dfi.p0.bank[i], o=pads.ba[i])
+            self.specials += [SDROutput(i=p0.bank[i], o=pads.ba[i])
                                     for i in range(len(pads.ba))]
-            self.specials += SDROutput(i=dfi.p0.cas_n, o=pads.cas_n)
-            self.specials += SDROutput(i=dfi.p0.ras_n, o=pads.ras_n)
-            self.specials += SDROutput(i=dfi.p0.we_n, o=pads.we_n)
+            self.specials += SDROutput(i=p0.cas_n, o=pads.cas_n)
+            self.specials += SDROutput(i=p0.ras_n, o=pads.ras_n)
+            self.specials += SDROutput(i=p0.we_n, o=pads.we_n)
             if hasattr(pads, "cke"):
-                self.specials += SDROutput(i=dfi.p0.cke, o=pads.cke)
+                for i in range(len(pads.cke)):
+                        self.specials += SDROutput(i=p0.cke[i], o=pads.cke[i])
             if hasattr(pads, "cs_n"):
-                self.specials += SDROutput(i=dfi.p0.cs_n, o=pads.cs_n)
+                for i in range(len(pads.cs_n)):
+                    self.specials += SDROutput(i=p0.cs_n[i], o=pads.cs_n[i])
 
         # DQ/DM Data Path -------------------------------------------------
 
