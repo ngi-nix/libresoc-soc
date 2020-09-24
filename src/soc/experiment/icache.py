@@ -21,13 +21,14 @@ TODO (in no specific order):
 """
 from enum import Enum, unique
 from nmigen import (Module, Signal, Elaboratable, Cat, Array, Const)
-from nmigen.cli import main
-from nmigen.cli import rtlil
+from nmigen.cli import main, rtlil
 from nmutil.iocontrol import RecordObject
-from nmutil.byterev import byte_reverse
-from nmutil.mask import Mask
 from nmigen.utils import log2_int
 from nmutil.util import Display
+
+#from nmutil.plru import PLRU
+from soc.experiment.cache_ram import CacheRam
+from soc.experiment.plru import PLRU
 
 from soc.experiment.mem_types import (Fetch1ToICacheType,
                                       ICacheToDecode1Type,
@@ -39,19 +40,15 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS,
                                      WBMasterOutVector, WBSlaveOutVector,
                                      WBIOMasterOut, WBIOSlaveOut)
 
-from soc.experiment.cache_ram import CacheRam
-from soc.experiment.plru import PLRU
-
 # for test
 from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory
-from nmigen.cli import rtlil
+from nmutil.util import wrap
+from nmigen.cli import main, rtlil
 if True:
     from nmigen.back.pysim import Simulator, Delay, Settle
 else:
     from nmigen.sim.cxxsim import Simulator, Delay, Settle
-from nmutil.util import wrap
-
 
 
 SIM            = 0
@@ -1073,7 +1070,10 @@ class ICache(Elaboratable):
 # 		r.wb.we  <= '0';
 
         # We only ever do reads on wishbone
-        comb += r.wb.sel.eq(~0) # set to all 1s
+        sync += r.wb.dat.eq(~1)
+        sync += r.wb.sel.eq(~0) # set to all 1s
+        sync += r.wb.we.eq(0)
+
 
 # 		-- Not useful normally but helps avoiding
 #               -- tons of sim warnings
@@ -1092,198 +1092,198 @@ class ICache(Elaboratable):
         with m.If(inval_in):
             for i in range(NUM_LINES):
                 sync += cache_valid_bits[i].eq(0)
-                sync += r.store_valid.eq(0)
+            sync += r.store_valid.eq(0)
 
 # 		-- Main state machine
 # 		case r.state is
-            # Main state machine
-            with m.Switch(r.state):
+        # Main state machine
+        with m.Switch(r.state):
 
-# 		when IDLE =>
-                with m.Case(State.IDLE):
-#                     -- Reset per-row valid flags,
-#                     -- only used in WAIT_ACK
-#                     for i in 0 to ROW_PER_LINE - 1 loop
-#                         r.rows_valid(i) <= '0';
-#                     end loop;
-                    # Reset per-row valid flags,
-                    # only used in WAIT_ACK
-                    for i in range(ROW_PER_LINE):
-                        sync += r.rows_valid[i].eq(0)
+# 	    when IDLE =>
+            with m.Case(State.IDLE):
+#                 -- Reset per-row valid flags,
+#                 -- only used in WAIT_ACK
+#                 for i in 0 to ROW_PER_LINE - 1 loop
+#                     r.rows_valid(i) <= '0';
+#                 end loop;
+                # Reset per-row valid flags,
+                # only used in WAIT_ACK
+                for i in range(ROW_PER_LINE):
+                    sync += r.rows_valid[i].eq(0)
 
-# 		    -- We need to read a cache line
-# 		    if req_is_miss = '1' then
-# 			report "cache miss nia:" & to_hstring(i_in.nia) &
-#                             " IR:" & std_ulogic'image(i_in.virt_mode) &
-# 			    " SM:" & std_ulogic'image(i_in.stop_mark) &
-# 			    " idx:" & integer'image(req_index) &
-# 			    " way:" & integer'image(replace_way) &
-# 			    " tag:" & to_hstring(req_tag) &
-#                             " RA:" & to_hstring(real_addr);
-                    # We need to read a cache line
-                    with m.If(req_is_miss):
-                        # XXX no, do not use "f".  use sync += Display
-                        # and use %d for integer, %x for hex.
-                        print(f"cache miss nia:{i_in.nia} " \
-                              f"IR:{i_in.virt_mode} " \
-                              f"SM:{i_in.stop_mark} " \
-                              F"idx:{req_index} " \
-                              f"way:{replace_way} tag:{req_tag} " \
-                              f"RA:{real_addr}")
+# 	        -- We need to read a cache line
+# 	        if req_is_miss = '1' then
+# 	    	report "cache miss nia:" & to_hstring(i_in.nia) &
+#                         " IR:" & std_ulogic'image(i_in.virt_mode) &
+# 	    	    " SM:" & std_ulogic'image(i_in.stop_mark) &
+# 	    	    " idx:" & integer'image(req_index) &
+# 	    	    " way:" & integer'image(replace_way) &
+# 	    	    " tag:" & to_hstring(req_tag) &
+#                         " RA:" & to_hstring(real_addr);
+                # We need to read a cache line
+                with m.If(req_is_miss):
+                    # XXX no, do not use "f".  use sync += Display
+                    # and use %d for integer, %x for hex.
+                    print(f"cache miss nia:{i_in.nia} " \
+                          f"IR:{i_in.virt_mode} " \
+                          f"SM:{i_in.stop_mark} " \
+                          F"idx:{req_index} " \
+                          f"way:{replace_way} tag:{req_tag} " \
+                          f"RA:{real_addr}")
 
-# 			-- Keep track of our index and way for
-#                       -- subsequent stores
-# 			r.store_index <= req_index;
-# 			r.store_row <= get_row(req_laddr);
-#                       r.store_tag <= req_tag;
-#                       r.store_valid <= '1';
-#                       r.end_row_ix <=
-#                        get_row_of_line(get_row(req_laddr)) - 1;
-                        # Keep track of our index and way
-                        # for subsequent stores
-                        sync += r.store_index.eq(req_index)
-                        sync += r.store_row.eq(get_row(req_laddr))
-                        sync += r.store_tag.eq(req_tag)
-                        sync += r.store_valid.eq(1)
-                        sync += r.end_row_ix.eq(
-                                 get_row_of_line(
-                                  get_row(req_laddr)
-                                 ) - 1
-                                )
+# 	    	-- Keep track of our index and way for
+#                   -- subsequent stores
+# 	    	r.store_index <= req_index;
+# 	    	r.store_row <= get_row(req_laddr);
+#                   r.store_tag <= req_tag;
+#                   r.store_valid <= '1';
+#                   r.end_row_ix <=
+#                    get_row_of_line(get_row(req_laddr)) - 1;
+                    # Keep track of our index and way
+                    # for subsequent stores
+                    sync += r.store_index.eq(req_index)
+                    sync += r.store_row.eq(get_row(req_laddr))
+                    sync += r.store_tag.eq(req_tag)
+                    sync += r.store_valid.eq(1)
+                    sync += r.end_row_ix.eq(
+                             get_row_of_line(
+                              get_row(req_laddr)
+                             ) - 1
+                            )
 
-# 			-- Prep for first wishbone read. We calculate the
-#                       -- address of the start of the cache line and
-#                       -- start the WB cycle.
-# 			r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
-# 			r.wb.cyc <= '1';
-# 			r.wb.stb <= '1';
-                        # Prep for first wishbone read.
-                        # We calculate the
-                        # address of the start of the cache line and
-                        # start the WB cycle.
-                        sync += r.wb.adr.eq(req_laddr)
-                        sync += r.wb.cyc.eq(1)
-                        sync += r.wb.stb.eq(1)
+# 	    	-- Prep for first wishbone read. We calculate the
+#                   -- address of the start of the cache line and
+#                   -- start the WB cycle.
+# 	    	r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
+# 	    	r.wb.cyc <= '1';
+# 	    	r.wb.stb <= '1';
+                    # Prep for first wishbone read.
+                    # We calculate the
+                    # address of the start of the cache line and
+                    # start the WB cycle.
+                    sync += r.wb.adr.eq(req_laddr)
+                    sync += r.wb.cyc.eq(1)
+                    sync += r.wb.stb.eq(1)
 
-# 			-- Track that we had one request sent
-# 			r.state <= CLR_TAG;
-                        # Track that we had one request sent
-                        sync += r.state.eq(State.CLR_TAG)
-# 		    end if;
+# 	    	-- Track that we had one request sent
+# 	    	r.state <= CLR_TAG;
+                    # Track that we had one request sent
+                    sync += r.state.eq(State.CLR_TAG)
+# 	        end if;
 
-# 		when CLR_TAG | WAIT_ACK =>
-                with m.Case(State.CLR_TAG, State.WAIT_ACK):
-#                     if r.state = CLR_TAG then
-                    with m.If(r.state == State.CLR_TAG):
-#                         -- Get victim way from plru
-# 			r.store_way <= replace_way;
-                        # Get victim way from plru
-                        sync += r.store_way.eq(replace_way)
+# 	    when CLR_TAG | WAIT_ACK =>
+            with m.Case(State.CLR_TAG, State.WAIT_ACK):
+#                 if r.state = CLR_TAG then
+                with m.If(r.state == State.CLR_TAG):
+#                     -- Get victim way from plru
+# 	    	r.store_way <= replace_way;
+                    # Get victim way from plru
+                    sync += r.store_way.eq(replace_way)
 #
-# 			-- Force misses on that way while
-#                       -- reloading that line
-# 			cache_valids(req_index)(replace_way) <= '0';
-                        # Force misses on that way while
-                        # realoading that line
+# 	    	-- Force misses on that way while
+#                   -- reloading that line
+# 	    	cache_valids(req_index)(replace_way) <= '0';
+                    # Force misses on that way while
+                    # realoading that line
+                    cv = Signal(INDEX_BITS)
+                    comb += cv.eq(cache_valid_bits[req_index])
+                    comb += cv.bit_select(replace_way, 1).eq(0)
+                    sync += cache_valid_bits[req_index].eq(cv)
+
+# 	    	-- Store new tag in selected way
+# 	    	for i in 0 to NUM_WAYS-1 loop
+# 	    	    if i = replace_way then
+# 	    		tagset := cache_tags(r.store_index);
+# 	    		write_tag(i, tagset, r.store_tag);
+# 	    		cache_tags(r.store_index) <= tagset;
+# 	    	    end if;
+# 	    	end loop;
+                    for i in range(NUM_WAYS):
+                        with m.If(i == replace_way):
+                            sync += tagset.eq(cache_tags[r.store_index])
+                            sync += write_tag(i, tagset, r.store_tag)
+                            sync += cache_tags[r.store_index].eq(tagset)
+
+#                     r.state <= WAIT_ACK;
+                    sync += r.state.eq(State.WAIT_ACK)
+#                 end if;
+
+# 	        -- Requests are all sent if stb is 0
+# 	        stbs_done := r.wb.stb = '0';
+                # Requests are all sent if stb is 0
+                comb += stbs_done.eq(r.wb.stb == 0)
+
+# 	        -- If we are still sending requests,
+#               -- was one accepted ?
+# 	        if wishbone_in.stall = '0' and not stbs_done then
+                # If we are still sending requests,
+                # was one accepted?
+                with m.If(~wb_in.stall & ~stbs_done):
+# 	    	-- That was the last word ? We are done sending.
+#                   -- Clear stb and set stbs_done so we can handle
+#                   -- an eventual last ack on the same cycle.
+# 	    	if is_last_row_addr(r.wb.adr, r.end_row_ix) then
+# 	    	    r.wb.stb <= '0';
+# 	    	    stbs_done := true;
+# 	    	end if;
+                    # That was the last word ?
+                    # We are done sending.
+                    # Clear stb and set stbs_done
+                    # so we can handle
+                    # an eventual last ack on
+                    # the same cycle.
+                    with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
+                        sync += r.wb.stb.eq(0)
+                        comb += stbs_done.eq(1)
+
+# 	    	-- Calculate the next row address
+# 	    	r.wb.adr <= next_row_addr(r.wb.adr);
+                    # Calculate the next row address
+                    rarange = r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]
+                    sync += rarange.eq(rarange + 1)
+# 	        end if;
+
+# 	        -- Incoming acks processing
+# 	        if wishbone_in.ack = '1' then
+                # Incoming acks processing
+                with m.If(wb_in.ack):
+#                     r.rows_valid(r.store_row mod ROW_PER_LINE)
+#                      <= '1';
+                    sync += r.rows_valid[r.store_row & ROW_PER_LINE].eq(1)
+
+# 	    	-- Check for completion
+# 	    	if stbs_done and
+#                    is_last_row(r.store_row, r.end_row_ix) then
+                    # Check for completion
+                    with m.If(stbs_done &
+                              is_last_row(r.store_row, r.end_row_ix)):
+# 	    	    -- Complete wishbone cycle
+# 	    	    r.wb.cyc <= '0';
+                        # Complete wishbone cycle
+                        sync += r.wb.cyc.eq(0)
+
+# 	    	    -- Cache line is now valid
+# 	    	    cache_valids(r.store_index)(replace_way) <=
+#                        r.store_valid and not inval_in;
+                        # Cache line is now valid
                         cv = Signal(INDEX_BITS)
-                        comb += cv.eq(cache_valid_bits[req_index])
-                        comb += cv.bit_select(replace_way, 1).eq(0)
-                        sync += cache_valid_bits[req_index].eq(cv)
+                        sync += cv.eq(cache_valid_bits[r.store_index])
+                        sync += cv.bit_select(replace_way, 1).eq(
+                                    r.store_valid & ~inval_in)
 
-# 			-- Store new tag in selected way
-# 			for i in 0 to NUM_WAYS-1 loop
-# 			    if i = replace_way then
-# 				tagset := cache_tags(r.store_index);
-# 				write_tag(i, tagset, r.store_tag);
-# 				cache_tags(r.store_index) <= tagset;
-# 			    end if;
-# 			end loop;
-                        for i in range(NUM_WAYS):
-                            with m.If(i == replace_way):
-                                sync += tagset.eq(cache_tags[r.store_index])
-                                sync += write_tag(i, tagset, r.store_tag)
-                                sync += cache_tags[r.store_index].eq(tagset)
+# 	    	    -- We are done
+# 	    	    r.state <= IDLE;
+                        # We are done
+                        sync += r.state.eq(State.IDLE)
+# 	    	end if;
 
-#                         r.state <= WAIT_ACK;
-                        sync += r.state.eq(State.WAIT_ACK)
-#                     end if;
-
-# 		    -- Requests are all sent if stb is 0
-# 		    stbs_done := r.wb.stb = '0';
-                    # Requests are all sent if stb is 0
-                    comb += stbs_done.eq(r.wb.stb == 0)
-
-# 		    -- If we are still sending requests,
-#                   -- was one accepted ?
-# 		    if wishbone_in.stall = '0' and not stbs_done then
-                    # If we are still sending requests,
-                    # was one accepted?
-                    with m.If(~wb_in.stall & ~stbs_done):
-# 			-- That was the last word ? We are done sending.
-#                       -- Clear stb and set stbs_done so we can handle
-#                       -- an eventual last ack on the same cycle.
-# 			if is_last_row_addr(r.wb.adr, r.end_row_ix) then
-# 			    r.wb.stb <= '0';
-# 			    stbs_done := true;
-# 			end if;
-                        # That was the last word ?
-                        # We are done sending.
-                        # Clear stb and set stbs_done
-                        # so we can handle
-                        # an eventual last ack on
-                        # the same cycle.
-                        with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
-                            sync += r.wb.stb.eq(0)
-                            comb += stbs_done.eq(1)
-
-# 			-- Calculate the next row address
-# 			r.wb.adr <= next_row_addr(r.wb.adr);
-                        # Calculate the next row address
-                        rarange = r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]
-                        sync += rarange.eq(rarange + 1)
-# 		    end if;
-
-# 		    -- Incoming acks processing
-# 		    if wishbone_in.ack = '1' then
-                    # Incoming acks processing
-                    with m.If(wb_in.ack):
-#                         r.rows_valid(r.store_row mod ROW_PER_LINE)
-#                          <= '1';
-                        sync += r.rows_valid[r.store_row & ROW_PER_LINE].eq(1)
-
-# 			-- Check for completion
-# 			if stbs_done and
-#                        is_last_row(r.store_row, r.end_row_ix) then
-                        # Check for completion
-                        with m.If(stbs_done &
-                                  is_last_row(r.store_row, r.end_row_ix)):
-# 			    -- Complete wishbone cycle
-# 			    r.wb.cyc <= '0';
-                            # Complete wishbone cycle
-                            sync += r.wb.cyc.eq(0)
-
-# 			    -- Cache line is now valid
-# 			    cache_valids(r.store_index)(replace_way) <=
-#                            r.store_valid and not inval_in;
-                            # Cache line is now valid
-                            cv = Signal(INDEX_BITS)
-                            sync += cv.eq(cache_valid_bits[r.store_index])
-                            sync += cv.bit_select(replace_way, 1).eq(
-                                        r.store_valid & ~inval_in)
-
-# 			    -- We are done
-# 			    r.state <= IDLE;
-                            # We are done
-                            sync += r.state.eq(State.IDLE)
-# 			end if;
-
-# 			-- Increment store row counter
-# 			r.store_row <= next_row(r.store_row);
-                        # Increment store row counter
-                        sync += r.store_row.eq(next_row(r.store_row))
-# 		    end if;
-# 		end case;
-# 	    end if;
+# 	    	-- Increment store row counter
+# 	    	r.store_row <= next_row(r.store_row);
+                    # Increment store row counter
+                    sync += r.store_row.eq(next_row(r.store_row))
+# 	        end if;
+# 	    end case;
+# 	end if;
 #
 #             -- TLB miss and protection fault processing
 #             if rst = '1' or flush_in = '1' or m_in.tlbld = '1' then
@@ -1617,13 +1617,14 @@ def icache_sim(dut):
     m_out = dut.m_in
 
     yield i_in.valid.eq(0)
+    yield i_out.priv_mode.eq(1)
     yield i_out.req.eq(0)
-    yield i_out.nia.eq(~1)
+    yield i_out.nia.eq(0)
     yield i_out.stop_mark.eq(0)
     yield m_out.tlbld.eq(0)
     yield m_out.tlbie.eq(0)
-    yield m_out.addr.eq(~1)
-    yield m_out.pte.eq(~1)
+    yield m_out.addr.eq(0)
+    yield m_out.pte.eq(0)
     yield
     yield
     yield
@@ -1642,60 +1643,75 @@ def icache_sim(dut):
     yield i_out.req.eq(0)
     yield
 
-    # hit
-    yield i_out.req.eq(1)
-    yield i_out.nia.eq(Const(0x0000000000000008, 64))
-    yield
-    yield
-    valid = yield i_in.valid
-    insn  = yield i_in.insn
-    #assert valid
-    #assert insn == 0x00000002, \
-        #("insn @%x=%x expected 00000002" % i_out.nia, i_in.insn)
-    yield
+#    # hit
+#    yield i_out.req.eq(1)
+#    yield i_out.nia.eq(Const(0x0000000000000008, 64))
+#    yield
+#    yield
+#    valid = yield i_in.valid
+#    insn  = yield i_in.insn
+#    #assert valid
+#    #assert insn == 0x00000002, \
+#        #("insn @%x=%x expected 00000002" % i_out.nia, i_in.insn)
+#    yield
+#
+#    # another miss
+#    yield i_out.req.eq(1)
+#    yield i_out.nia.eq(Const(0x0000000000000040, 64))
+#    for i in range(30):
+#        yield
+#    yield
+#    valid = yield i_in.valid
+#    insn  = yield i_in.insn
+#    #assert valid
+#    #assert insn == 0x00000010, \
+#        #("insn @%x=%x expected 00000010" % i_out.nia, i_in.insn)
+#
+#    # test something that aliases
+#    yield i_out.req.eq(1)
+#    yield i_out.nia.eq(Const(0x0000000000000100, 64))
+#    yield
+#    yield
+#    #assert i_in.valid == Const(1, 1)
+#    for i in range(30):
+#        yield
+#    yield
+#    valid = yield i_in.valid
+#    insn  = yield i_in.insn
+#    #assert valid
+#    #assert insn == 0x00000040, \
+#         #("insn @%x=%x expected 00000040" % i_out.nia, i_in.insn)
+#    yield i_out.req.eq(0)
 
-    # another miss
-    yield i_out.req.eq(1)
-    yield i_out.nia.eq(Const(0x0000000000000040, 64))
-    for i in range(30):
-        yield
-    yield
-    valid = yield i_in.valid
-    insn  = yield i_in.insn
-    #assert valid
-    #assert insn == 0x00000010, \
-        #("insn @%x=%x expected 00000010" % i_out.nia, i_in.insn)
 
-    # test something that aliases
-    yield i_out.req.eq(1)
-    yield i_out.nia.eq(Const(0x0000000000000100, 64))
-    yield
-    yield
-    #assert i_in.valid == Const(1, 1)
-    for i in range(30):
-        yield
-    yield
-    valid = yield i_in.valid
-    insn  = yield i_in.insn
-    #assert valid
-    #assert insn == 0x00000040, \
-         #("insn @%x=%x expected 00000040" % i_out.nia, i_in.insn)
-    yield i_out.req.eq(0)
+def test_icache(mem):
+     dut    = ICache()
 
+     memory = Memory(width=64, depth=16*64, init=mem)
+     sram   = SRAM(memory=memory, granularity=8)
 
-def test_icache():
-    dut = ICache()
+     m      = Module()
 
-    m = Module()
-    m.submodules.icache = dut
+     m.submodules.icache = dut
+     m.submodules.sram   = sram
 
-    # nmigen Simulation
-    sim = Simulator(m)
-    sim.add_clock(1e-6)
+     m.d.comb += sram.bus.cyc.eq(dut.wb_out.cyc)
+     m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
+     m.d.comb += sram.bus.we.eq(dut.wb_out.we)
+     m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
+     m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
+     m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
 
-    sim.add_sync_process(wrap(icache_sim(dut)))
-    with sim.write_vcd('test_icache.vcd'):
-        sim.run()
+     m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
+     m.d.comb += dut.wb_in.dat.eq(sram.bus.dat_r)
+
+     # nmigen Simulation
+     sim = Simulator(m)
+     sim.add_clock(1e-6)
+
+     sim.add_sync_process(wrap(icache_sim(dut)))
+     with sim.write_vcd('test_icache.vcd'):
+         sim.run()
 
 if __name__ == '__main__':
     dut = ICache()
@@ -1703,4 +1719,9 @@ if __name__ == '__main__':
     with open("test_icache.il", "w") as f:
         f.write(vl)
 
-    test_icache()
+    mem = []
+    for i in range(0,512):
+        mem.append((i*2)| ((i*2+1)<<32))
+
+    test_icache(mem)
+
