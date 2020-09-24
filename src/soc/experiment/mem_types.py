@@ -27,8 +27,8 @@ class DCacheToMMUType(RecordObject):
 
 
 class Fetch1ToICacheType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.req           = Signal()
         self.virt_mode     = Signal()
         self.priv_mode     = Signal()
@@ -38,8 +38,8 @@ class Fetch1ToICacheType(RecordObject):
 
 
 class ICacheToDecode1Type(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.valid         = Signal()
         self.stop_mark     = Signal()
         self.fetch_failed  = Signal()
@@ -63,8 +63,8 @@ class LoadStore1ToDCacheType(RecordObject):
 
 
 class LoadStore1ToMMUType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.valid         = Signal()
         self.tlbie         = Signal()
         self.slbia         = Signal()
@@ -78,8 +78,8 @@ class LoadStore1ToMMUType(RecordObject):
 
 
 class MMUToLoadStore1Type(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.done          = Signal()
         self.err           = Signal()
         self.invalid       = Signal()
@@ -102,8 +102,8 @@ class MMUToDCacheType(RecordObject):
 
 
 class MMUToICacheType(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.tlbld         = Signal()
         self.tlbie         = Signal()
         self.doall         = Signal()

@@ -71,8 +71,8 @@ def WBMasterOutInit():
 #     stall : std_ulogic;
 # end record;
 class WBSlaveOut(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.dat   = WBDataType()
         self.ack   = Signal()
         self.stall = Signal()
@@ -104,8 +104,8 @@ def WBSlaveOutVector():
 # end record;
 # IO Bus to a device, 30-bit address, 32-bits data
 class WBIOMasterOut(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.adr = Signal(30)
         self.dat = Signal(32)
         self.sel = Signal(4)
@@ -119,8 +119,8 @@ class WBIOMasterOut(RecordObject):
 #     stall : std_ulogic;
 # end record;
 class WBIOSlaveOut(RecordObject):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name=None):
+        super().__init__(name=name)
         self.data  = Signal(32)
         self.ack   = Signal()
         self.stall = Signal()
