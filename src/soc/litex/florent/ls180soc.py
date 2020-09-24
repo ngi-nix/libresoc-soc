@@ -251,7 +251,7 @@ class LibreSoCSim(SoCCore):
             uart_name = "sim"
         elif platform == 'ls180':
             platform     = LS180Platform()
-            uart_name = "uart_litex"
+            uart_name = "uart"
 
         #cpu_data_width = 32
         cpu_data_width = 64
@@ -386,7 +386,7 @@ class LibreSoCSim(SoCCore):
         self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
         self.add_csr("gpio")
 
-        gpio_pads = platform.request("gpio_litex")
+        gpio_pads = platform.request("gpio")
         gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
         self.comb += gpio_pads.i.eq(gpio_io_pads.i)
         self.comb += gpio_io_pads.o.eq(gpio_pads.o)

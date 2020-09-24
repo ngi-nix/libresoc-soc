@@ -112,15 +112,15 @@ _io = [
 n_gpio = 16
 
 # 16 GPIOs
-_io.append( make_gpio("gpio_litex", 0, n_gpio) )
+_io.append( make_gpio("gpio", 0, n_gpio) )
 
 # EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
 
 # UART0: 2 pins
-_io.append(make_uart("uart_litex", 0))
+_io.append(make_uart("uart", 0))
 # UART1: 2 pins
-_io.append(make_uart("uart_litex", 1))
+_io.append(make_uart("uart", 1))
 
 
 # Platform -----------------------------------------------------------------------------------------
