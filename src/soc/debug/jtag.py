@@ -9,12 +9,33 @@ from c4m.nmigen.jtag.tap import IOType
 from soc.debug.dmi import  DMIInterface, DBGCore
 from soc.debug.dmi2jtag import DMITAP
 
+# map from pinmux to c4m jtag iotypes
+iotypes = {'-': IOType.In,
+           '+': IOType.Out,
+           '*': IOType.InTriOut}
+
 
 class JTAG(DMITAP):
-    iotypes = (IOType.In, IOType.Out, IOType.TriOut, IOType.InTriOut)
     def __init__(self):
         super().__init__(ir_width=4)
-        self.ios = [self.add_io(iotype=iotype) for iotype in self.iotypes]
+
+        # sigh this needs to come from pinmux.
+        gpios = []
+        for i in range(16):
+            gpios.append("gpio%d*" % i)
+        self.io_names = {'serial': ['tx+', 'rx-'], 'gpio': gpios}
+
+        # start parsing io_names and create IOConn Records
+        self.ios = []
+        for fn, pins in self.io_names.items():
+            for pin in pins:
+                # decode the pin name and determine the c4m jtag io type
+                name, pin_type = pin[:-1], pin[-1]
+                iotype = iotypes[pin_type]
+                pin_name = "%s_%s" % (fn, name)
+                self.ios.append(self.add_io(iotype=iotype, name=pin_name))
+
+        # this is redundant.  or maybe part of testing, i don't know.
         self.sr = self.add_shiftreg(ircode=4, length=3)
 
         # create and connect wishbone 
@@ -26,11 +47,16 @@ class JTAG(DMITAP):
         self.dmi = self.add_dmi(ircodes=[8, 9, 10])
 
     def elaborate(self, platform):
-        return super().elaborate(platform)
+        m = super().elaborate(platform)
+        m.d.comb += self.sr.i.eq(self.sr.o) # loopback as part of test?
+        return m
 
     def external_ports(self):
         ports = super().external_ports()
         ports += list(self.wb.fields.values())
+        for io in self.ios:
+            ports += list(io.core.fields.values())
+            ports += list(io.pad.fields.values())
         return ports
 
 
