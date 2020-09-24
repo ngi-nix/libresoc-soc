@@ -19,16 +19,14 @@ The basic rules are:
 from nmigen import Elaboratable, Signal, Module, Cat
 from nmigen.cli import rtlil
 from math import log2
-import os
 
 from nmutil.iocontrol import PrevControl, NextControl
 
 from soc.fu.base_input_record import CompOpSubsetBase
-from soc.decoder.power_enums import (MicrOp, Function)
 
 from nmutil.gtkw import write_gtkw
 from nmutil.sim_tmp_alternative import (Simulator, is_engine_pysim,
-                                         nmigen_sim_top_module)
+                                        nmigen_sim_top_module)
 
 
 class CompFSMOpSubset(CompOpSubsetBase):
@@ -37,7 +35,6 @@ class CompFSMOpSubset(CompOpSubsetBase):
                   )
 
         super().__init__(layout, name=name)
-
 
 
 class Dummy:
@@ -65,7 +62,7 @@ class Shifter(Elaboratable):
         def __init__(self, width):
             self.data = Signal(width, name="p_data_i")
             self.shift = Signal(width, name="p_shift_i")
-            self.ctx = Dummy() # comply with CompALU API
+            self.ctx = Dummy()  # comply with CompALU API
 
         def _get_data(self):
             return [self.data, self.shift]
