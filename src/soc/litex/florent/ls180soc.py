@@ -6,7 +6,7 @@ from functools import reduce
 from operator import or_
 
 from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState,
-                   Cat, Record, ClockSignal, wrap)
+                   Cat, Record, ClockSignal, wrap, ResetInserter)
 
 from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
@@ -27,6 +27,7 @@ from litedram.phy.dfi import Interface as DFIInterface
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.bitbang import I2CMaster
+from litex.soc.cores import uart
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
@@ -250,7 +251,7 @@ class LibreSoCSim(SoCCore):
             uart_name = "sim"
         elif platform == 'ls180':
             platform     = LS180Platform()
-            uart_name = "serial"
+            uart_name = "uart_litex"
 
         #cpu_data_width = 32
         cpu_data_width = 64
@@ -291,7 +292,8 @@ class LibreSoCSim(SoCCore):
             cpu_variant              = variant,
             csr_data_width            = 8,
             l2_size             = 0,
-            uart_name                = uart_name,
+            with_uart                = False,
+            uart_name                = None,
             with_sdram               = with_sdram,
             sdram_module          = sdram_module,
             sdram_data_width      = sdram_data_width,
@@ -360,9 +362,36 @@ class LibreSoCSim(SoCCore):
             self.add_constant("MEMTEST_ADDR_DEBUG", 1)
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
+        # UART
+        uart_core_pads = self.cpu.cpupads['serial']
+        self.submodules.uart_phy = uart.UARTPHY(
+                pads     = uart_core_pads,
+                clk_freq = self.sys_clk_freq,
+                baudrate = 115200)
+        self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+                tx_fifo_depth = 16,
+                rx_fifo_depth = 16))
+        # "real" pads connect to C4M JTAG iopad
+        uart_pads     = platform.request(uart_name) # "real" (actual) pin
+        uart_io_pads = self.cpu.iopads['serial'] # C4M JTAG pads
+        self.comb += uart_pads.tx.eq(uart_io_pads.tx)
+        self.comb += uart_io_pads.rx.eq(uart_pads.rx)
+
+        self.csr.add("uart_phy", use_loc_if_exists=True)
+        self.csr.add("uart", use_loc_if_exists=True)
+        self.irq.add("uart", use_loc_if_exists=True)
+
         # GPIOs (bi-directional)
-        self.submodules.gpio = GPIOTristateASIC(platform.request("gpio"))
-        self.add_csr("gpio")
+        if False:
+            gpio_core_pads = self.cpu.cpupads['gpio']
+            self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
+            self.add_csr("gpio")
+
+            gpio_pads = platform.request("gpio_litex")
+            gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
+            self.comb += gpio_pads.i.eq(gpio_io_pads.i)
+            self.comb += gpio_io_pads.o.eq(gpio_pads.o)
+            self.comb += gpio_io_pads.oe.eq(gpio_pads.oe)
 
         # SPI Master
         self.submodules.spi_master = SPIMaster(

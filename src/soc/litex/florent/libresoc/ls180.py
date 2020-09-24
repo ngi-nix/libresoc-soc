@@ -20,7 +20,9 @@ from migen.fhdl.structure import _Fragment
 from litex.build.generic_platform import (GenericPlatform, Pins,
                                         Subsignal, IOStandard, Misc,
                                         )
+from libresoc.ls180io import make_uart, make_gpio
 import os
+
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -41,18 +43,6 @@ _io = [
     ("i2c", 0,
         Subsignal("scl", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("sda", Pins("M1"), IOStandard("LVCMOS33"))
-    ),
-
-    # UART0: 2 pins
-    ("serial", 0,
-        Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
-        Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
-    ),
-
-    # UART1: 2 pins
-    ("serial", 1,
-        Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
-        Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
     # SPI0: 4 pins
@@ -119,21 +109,19 @@ _io = [
     ("pwm", 1, Pins("P2"), IOStandard("LVCMOS33")),
 ]
 
-pins = []
 n_gpio = 16
-for i in range(n_gpio):
-    pins.append("X%d" % i)
-pins = ' '.join(pins)
 
 # 16 GPIOs
-_io.append( ("gpio", 0,
-             Subsignal("i", Pins(pins), Misc("PULLMODE=UP")),
-             Subsignal("o", Pins(pins), Misc("PULLMODE=UP")),
-             Subsignal("oe", Pins(pins), Misc("PULLMODE=UP")),
-            IOStandard("LVCMOS33")) )
+_io.append( make_gpio("gpio_litex", 0, n_gpio) )
 
 # EINT: 3 pins
 _io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
+
+# UART0: 2 pins
+_io.append(make_uart("uart_litex", 0))
+# UART1: 2 pins
+_io.append(make_uart("uart_litex", 1))
+
 
 # Platform -----------------------------------------------------------------------------------------
 
