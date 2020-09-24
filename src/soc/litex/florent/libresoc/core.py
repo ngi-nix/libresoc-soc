@@ -34,6 +34,11 @@ def make_wb_slave(prefix, obj):
         res['o_%s__%s' % (prefix, o)] = getattr(obj, o)
     return res
 
+def make_pad(res, dirn, name, suffix, cpup, iop):
+    cpud, iod = ('i', 'o') if dirn else ('o', 'i')
+    res['%s_%s__%s' % (cpud, name, suffix)] = cpup
+    res['%s_%s__%s' % (iod, name, suffix)] = iop
+
 
 def make_jtag_ioconn(res, pin, cpupads, iopads):
     (fn, pin, iotype, pin_name) = pin
@@ -45,17 +50,31 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     io = iopads[fn]
     sigs = []
 
+    name = "%s_%s" % (fn, pin)
+
+    if iotype in (IOType.In, IOType.Out):
+        cpup = getattr(cpu, pin)
+        iop = getattr(io, pin)
+
     if iotype == IOType.Out:
         # output from the pad is routed through C4M JTAG and so
         # is an *INPUT* into core.  ls180soc connects this to "real" peripheral
-        res['i_%s_%s_core__o' % (fn, pin)] = getattr(cpu, pin)
-        res['o_%s_%s_pad__o' % (fn, pin)] = getattr(io, pin)
+        make_pad(res, True, name, "o", cpup, iop)
 
     elif iotype == IOType.In:
         # input to the pad is routed through C4M JTAG and so
         # is an *OUTPUT* into core.  ls180soc connects this to "real" peripheral
-        res['o_%s_%s_core__i' % (fn, pin)] = getattr(cpu, pin)
-        res['i_%s_%s_pad__i' % (fn, pin)] = getattr(io, pin)
+        make_pad(res, False, name, "i", cpup, iop)
+
+    elif iotype == IOType.InTriOut:
+        if fn == 'gpio': # sigh decode GPIO special-case
+            idx = int(pin[4:])
+        cpup, iop = cpu.i[idx], io.i[idx]
+        make_pad(res, False, name, "i", cpup, iop)
+        cpup, iop = cpu.o[idx], io.o[idx]
+        make_pad(res, True, name, "o", cpup, iop)
+        cpup, iop = cpu.oe[idx], io.oe[idx]
+        make_pad(res, True, name, "oe", cpup, iop)
 
     if iotype in (IOType.In, IOType.InTriOut):
         sigs.append(("i", 1))
@@ -63,6 +82,7 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
         sigs.append(("o", 1))
     if iotype in (IOType.TriOut, IOType.InTriOut):
         sigs.append(("oe", 1))
+
 
 class LibreSoC(CPU):
     name                 = "libre_soc"

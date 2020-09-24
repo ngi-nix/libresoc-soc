@@ -382,16 +382,15 @@ class LibreSoCSim(SoCCore):
         self.irq.add("uart", use_loc_if_exists=True)
 
         # GPIOs (bi-directional)
-        if False:
-            gpio_core_pads = self.cpu.cpupads['gpio']
-            self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
-            self.add_csr("gpio")
+        gpio_core_pads = self.cpu.cpupads['gpio']
+        self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
+        self.add_csr("gpio")
 
-            gpio_pads = platform.request("gpio_litex")
-            gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
-            self.comb += gpio_pads.i.eq(gpio_io_pads.i)
-            self.comb += gpio_io_pads.o.eq(gpio_pads.o)
-            self.comb += gpio_io_pads.oe.eq(gpio_pads.oe)
+        gpio_pads = platform.request("gpio_litex")
+        gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
+        self.comb += gpio_pads.i.eq(gpio_io_pads.i)
+        self.comb += gpio_io_pads.o.eq(gpio_pads.o)
+        self.comb += gpio_io_pads.oe.eq(gpio_pads.oe)
 
         # SPI Master
         self.submodules.spi_master = SPIMaster(
