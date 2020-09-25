@@ -38,7 +38,7 @@ def WBDataType():
     return Signal(WB_DATA_BITS, name="dat")
 
 def WBSelType():
-    return Signal(WB_SEL_BITS, name="sel")
+    return Signal(WB_SEL_BITS, name="sel", reset=0b11111111)
 
 # type wishbone_master_out is record
 #     adr : wishbone_addr_type;
