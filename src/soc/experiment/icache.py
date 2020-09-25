@@ -83,6 +83,12 @@ BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
 # instructions per BRAM row
 INSN_PER_ROW   = ROW_SIZE_BITS // 32
 
+print("ROW_SIZE", ROW_SIZE)
+print("ROW_SIZE_BITS", ROW_SIZE_BITS)
+print("ROW_PER_LINE", ROW_PER_LINE)
+print("BRAM_ROWS", BRAM_ROWS)
+print("INSN_PER_ROW", INSN_PER_ROW)
+
 # Bit fields counts in the address
 #
 # INSN_BITS is the number of bits to
@@ -121,6 +127,24 @@ TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
 TLB_BITS        = log2_int(TLB_SIZE)
 TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
 TLB_PTE_BITS    = 64
+
+
+print("INSN_BITS", INSN_BITS)
+print("ROW_BITS", ROW_BITS)
+print("ROW_LINE_BITS", ROW_LINE_BITS)
+print("LINE_OFF_BITS", LINE_OFF_BITS)
+print("ROW_OFF_BITS", ROW_OFF_BITS)
+print("INDEX_BITS", INDEX_BITS)
+print("SET_SIZE_BITS", SET_SIZE_BITS)
+print("TAG_BITS", TAG_BITS)
+print("WAY_BITS", WAY_BITS)
+print("TAG_RAM_WIDTH", TAG_RAM_WIDTH)
+print("TLB_BITS", TLB_BITS)
+print("TLB_EA_TAG_BITS", TLB_EA_TAG_BITS)
+print("TLB_PTE_BITS", TLB_PTE_BITS)
+
+
+
 
 # architecture rtl of icache is
 #constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
@@ -485,7 +509,7 @@ class RegInternal(RecordObject):
         self.hit_valid    = Signal()
 
         # Cache miss state (reload state machine)
-        self.state        = Signal(State)
+        self.state        = Signal(State, reset=State.IDLE)
         self.wb           = WBMasterOut("wb")
         self.store_way    = Signal(NUM_WAYS)
         self.store_index  = Signal(NUM_LINES)
@@ -746,6 +770,8 @@ class ICache(Elaboratable):
             with m.If(ttag == i_in.nia[TLB_LG_PGSZ + TLB_BITS:64]):
                 comb += ra_valid.eq(itlb_valid_bits[tlb_req_index])
 
+            comb += eaa_priv.eq(pte[3])
+
         with m.Else():
             comb += real_addr.eq(i_in.nia[:REAL_ADDR_BITS])
             comb += ra_valid.eq(1)
@@ -786,7 +812,7 @@ class ICache(Elaboratable):
         m_in = self.m_in
 
         wr_index = Signal(TLB_SIZE)
-        comb += wr_index.eq(hash_ea(m_in.addr))
+        sync += wr_index.eq(hash_ea(m_in.addr))
 
         with m.If(m_in.tlbie & m_in.doall):
             # Clear all valid bits
@@ -858,7 +884,8 @@ class ICache(Elaboratable):
         # used for cache miss processing if needed
         comb += req_laddr.eq(Cat(
                  Const(0b0, ROW_OFF_BITS),
-                 real_addr[ROW_OFF_BITS:REAL_ADDR_BITS]
+                 real_addr[ROW_OFF_BITS:REAL_ADDR_BITS],
+                 Const(0b0, 8)
                 ))
 
 # 	-- Test if pending request is a hit on any way
@@ -1069,12 +1096,6 @@ class ICache(Elaboratable):
 # 		r.wb.sel <= "11111111";
 # 		r.wb.we  <= '0';
 
-        # We only ever do reads on wishbone
-        sync += r.wb.dat.eq(~1)
-        sync += r.wb.sel.eq(~0) # set to all 1s
-        sync += r.wb.we.eq(0)
-
-
 # 		-- Not useful normally but helps avoiding
 #               -- tons of sim warnings
 # 		r.wb.adr <= (others => '0');
@@ -1091,7 +1112,7 @@ class ICache(Elaboratable):
         # Process cache invalidations
         with m.If(inval_in):
             for i in range(NUM_LINES):
-                sync += cache_valid_bits[i].eq(0)
+                sync += cache_valid_bits[i].eq(~1)
             sync += r.store_valid.eq(0)
 
 # 		-- Main state machine
@@ -1211,7 +1232,7 @@ class ICache(Elaboratable):
 # 	        -- Requests are all sent if stb is 0
 # 	        stbs_done := r.wb.stb = '0';
                 # Requests are all sent if stb is 0
-                comb += stbs_done.eq(r.wb.stb == 0)
+                sync += stbs_done.eq(r.wb.stb == 0)
 
 # 	        -- If we are still sending requests,
 #               -- was one accepted ?
@@ -1234,13 +1255,13 @@ class ICache(Elaboratable):
                     # the same cycle.
                     with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
                         sync += r.wb.stb.eq(0)
-                        comb += stbs_done.eq(1)
+                        sync += stbs_done.eq(1)
 
 # 	    	-- Calculate the next row address
 # 	    	r.wb.adr <= next_row_addr(r.wb.adr);
                     # Calculate the next row address
                     rarange = r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]
-                    sync += rarange.eq(rarange + 1)
+                    sync += r.wb.adr.eq(rarange + 1)
 # 	        end if;
 
 # 	        -- Incoming acks processing
@@ -1249,7 +1270,7 @@ class ICache(Elaboratable):
                 with m.If(wb_in.ack):
 #                     r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                      <= '1';
-                    sync += r.rows_valid[r.store_row & ROW_PER_LINE].eq(1)
+                    sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
 
 # 	    	-- Check for completion
 # 	    	if stbs_done and
@@ -1267,9 +1288,11 @@ class ICache(Elaboratable):
 #                        r.store_valid and not inval_in;
                         # Cache line is now valid
                         cv = Signal(INDEX_BITS)
-                        sync += cv.eq(cache_valid_bits[r.store_index])
-                        sync += cv.bit_select(replace_way, 1).eq(
-                                    r.store_valid & ~inval_in)
+                        comb += cv.eq(cache_valid_bits[r.store_index])
+                        comb += cv.bit_select(replace_way, 1).eq(
+                                 r.store_valid & ~inval_in
+                                )
+                        sync += cache_valid_bits[r.store_index].eq(cv)
 
 # 	    	    -- We are done
 # 	    	    r.state <= IDLE;
@@ -1295,6 +1318,7 @@ class ICache(Elaboratable):
         # TLB miss and protection fault processing
         with m.If(flush_in | m_in.tlbld):
             sync += r.fetch_failed.eq(0)
+
         with m.Elif(i_in.req & ~access_ok & ~stall_in):
             sync += r.fetch_failed.eq(1)
 # 	end if;
@@ -1326,8 +1350,8 @@ class ICache(Elaboratable):
 #             if rising_edge(clk) then
 #                 lway := req_hit_way;
 #                 wstate := '0';
-            comb += lway.eq(req_hit_way)
-            comb += wstate.eq(0)
+            sync += lway.eq(req_hit_way)
+            sync += wstate.eq(0)
 
 #                 if r.state /= IDLE then
 #                     wstate := '1';
@@ -1635,11 +1659,12 @@ def icache_sim(dut):
         yield
     yield
     valid = yield i_in.valid
+    nia   = yield i_out.nia
     insn  = yield i_in.insn
     print(f"valid? {valid}")
-    #assert valid
-    #assert insn == 0x00000001, \
-        #("insn @%x=%x expected 00000001" % i_out.nia, i_in.insn)
+    assert valid
+    assert insn == 0x00000001, \
+        "insn @%x=%x expected 00000001" % (nia, insn)
     yield i_out.req.eq(0)
     yield
 
