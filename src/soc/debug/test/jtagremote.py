@@ -33,8 +33,8 @@ class JTAGServer:
         if self.conn:
             self.conn.close()
 
-    def get_connection(self):
-        r, w, e = select.select( [self.s], [], [], 0)
+    def get_connection(self, timeout=0):
+        r, w, e = select.select( [self.s], [], [], timeout)
         for sock in r:
             #incoming message from remote server
             if sock == self.s:

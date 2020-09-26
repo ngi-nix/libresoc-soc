@@ -3,6 +3,7 @@
 based on Staf Verhaegen (Chips4Makers) wishbone TAP
 """
 
+import sys
 from nmigen import (Module, Signal, Elaboratable, Const)
 from c4m.nmigen.jtag.tap import TAP, IOType
 from c4m.nmigen.jtag.bus import Interface as JTAGInterface
@@ -193,8 +194,11 @@ if __name__ == '__main__':
 
     # set up client-server on port 44843-something
     dut.s = JTAGServer()
-    dut.c = JTAGClient()
-    dut.s.get_connection()
+    if len(sys.argv) != 2 and sys.argv[1] != 'server':
+        dut.c = JTAGClient()
+        dut.s.get_connection()
+    else:
+        dut.s.get_connection(None) # block waiting for connection
 
     # rather than the client access the JTAG bus directly
     # create an alternative that the client sets
@@ -222,7 +226,10 @@ if __name__ == '__main__':
     sim.add_clock(1e-6, domain="sync")      # standard clock
 
     sim.add_sync_process(wrap(jtag_srv(dut))) # jtag server
-    sim.add_sync_process(wrap(jtag_sim(dut))) # actual jtag tester
+    if len(sys.argv) != 2 and sys.argv[1] != 'server':
+        sim.add_sync_process(wrap(jtag_sim(dut))) # actual jtag tester
+    else:
+        print ("running server only as requested, use openocd remote to test")
     sim.add_sync_process(wrap(dmi_sim(dut)))  # handles (pretends to be) DMI
 
     with sim.write_vcd("dmi2jtag_test_srv.vcd"):
