@@ -369,10 +369,11 @@ class DecodeOut2(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        # update mode LD/ST uses read-reg A also as an output
-        with m.If(self.dec.op.upd == LDSTMode.update):
-            comb += self.reg_out.eq(self.dec.RA)
-            comb += self.reg_out.ok.eq(1)
+        if hasattr(self.dec.op, "upd"):
+            # update mode LD/ST uses read-reg A also as an output
+            with m.If(self.dec.op.upd == LDSTMode.update):
+                comb += self.reg_out.eq(self.dec.RA)
+                comb += self.reg_out.ok.eq(1)
 
         # B, BC or BCREG: potential implicit register (LR) output
         # these give bl, bcl, bclrl, etc.
