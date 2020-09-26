@@ -96,14 +96,14 @@ def jtag_read_write_reg(dut, addr, d_len, d_in=0):
 
 
 # JTAG-ircodes for accessing DMI
-DMI_ADDR = 5
-DMI_READ = 6
-DMI_WRRD = 7
+DMI_ADDR = 8
+DMI_READ = 9
+DMI_WRRD = 10
 
 # JTAG-ircodes for accessing Wishbone
-WB_ADDR = 8
-WB_READ = 9
-WB_WRRD = 10
+WB_ADDR = 5
+WB_READ = 6
+WB_WRRD = 7
 
 
 def jtag_srv(dut):
