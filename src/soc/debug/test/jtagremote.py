@@ -16,7 +16,8 @@ def get_data(s, length=1024, timeout=None):
     return None
 
 class JTAGServer:
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
         HOST = ''
         PORT = 44853
         s = socket.socket(AF_INET, SOCK_STREAM)
@@ -38,7 +39,8 @@ class JTAGServer:
             #incoming message from remote server
             if sock == self.s:
                 conn, addr = self.s.accept() #accepts the connection
-                print("Connected by: ", addr) #prints the connection
+                if self.debug:
+                    print("Connected by: ", addr) #prints the connection
                 conn.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
                 self.conn = conn
                 return conn
@@ -55,7 +57,8 @@ class JTAGServer:
         if data is None:
             return None # no data read
         data = bytes.decode(data)
-        print ("jtagremote_server_recv", data)
+        if self.debug:
+            print ("jtagremote_server_recv", data)
         # request to read TDO
         if data == 'R':
             self.send(str.encode(chr(ord('0') + tdo)))
@@ -65,14 +68,15 @@ class JTAGServer:
         # encode tck, tms and tdi as number from 0-7
         tdi = 1 if (data & 1) else 0
         tms = 1 if (data & 2) else 0
-        tck = 1 if (data & 3) else 0
+        tck = 1 if (data & 4) else 0
 
         return (tck, tms, tdi)
 
 
 
 class JTAGClient:
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
         HOST = 'localhost'
         PORT = 44853
         s = socket.socket(AF_INET, SOCK_STREAM)
@@ -98,14 +102,18 @@ class JTAGClient:
         if tck: data |= 4
         data = chr(ord('0') + data)
         self.send(str.encode(data))
-        print ("jtagremote_client_send", data)
+        if self.debug:
+            print ("jtagremote_client_send", data)
         # now read tdo
         self.send(str.encode('R'))
 
 
-    def jtagremote_client_recv(self):
-        data = self.get_data(1) # read 1 byte, blocking
-        print ("client recv", data)
+    def jtagremote_client_recv(self, timeout=None):
+        data = self.get_data(1, timeout) # read 1 byte, blocking
+        if data is None:
+            return None
+        if self.debug:
+            print ("client recv", data)
         data = bytes.decode(data)
         return ord(data) - ord('0') # subtract ASCII for "0" to give 0 or 1
 
