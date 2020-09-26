@@ -1,0 +1,20 @@
+STATE RESET IDLE;
+TIR 0 ;
+HIR 5 TDI (1f) SMASK (1f) ;
+//HDR 1 TDI (00) SMASK (01) ;
+TDR 0 ;
+//Loading device with 'idcode' instruction.
+SIR 4 TDI (1) SMASK (1) ;
+//SDR 32 TDI (00000000) SMASK (ffffffff) TDO (00000c7f) SMASK (ffffffff) ;
+SDR 32 TDI (00000000) SMASK (ffffffff) TDO (000018ff) MASK (ffffffff) ;
+//
+// set to DMI "address"
+SIR 4 TDI (8) SMASK (f) ;
+// set DMI "ctrl" address (0)
+SDR 8 TDI (2) SMASK (ff) ;
+// set to DMI "data read"
+SIR 4 TDI (9) SMASK (f) ;
+// read 64 bit
+//SDR 32 TDI (00000000) SMASK (ffffffff) TDO (000018ff) MASK (ffffffff) ;
+//SDR 32 TDI (00000000) SMASK (00000000) TDO (00000000) MASK (ffffffff) ;
+SDR 64 TDI (0000000000000000) SMASK (0000000000000000) TDO (0000000000000000) MASK (ffffffffffffffff) ;
