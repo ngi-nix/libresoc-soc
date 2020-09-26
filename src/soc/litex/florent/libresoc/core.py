@@ -204,23 +204,24 @@ class LibreSoC(CPU):
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
 
-        # urr yuk.  have to expose iopads / pins from core to litex
-        # then back again.  cut _some_ of that out by connecting
-        self.cpuresources = (make_uart('serial', 0),
-                             make_gpio('gpio', 0, 16))
-        self.padresources = (make_uart('serial', 0),
-                             make_gpio('gpio', 0, 16))
-        self.cpu_cm = ConstraintManager(self.cpuresources, [])
-        self.pad_cm = ConstraintManager(self.cpuresources, [])
-        self.cpupads = {'serial': self.cpu_cm.request('serial', 0),
-                        'gpio': self.cpu_cm.request('gpio', 0)}
-        self.iopads = {'serial': self.pad_cm.request('serial', 0),
-                        'gpio': self.pad_cm.request('gpio', 0)}
+        if variant == 'ls180':
+            # urr yuk.  have to expose iopads / pins from core to litex
+            # then back again.  cut _some_ of that out by connecting
+            self.cpuresources = (make_uart('serial', 0),
+                                 make_gpio('gpio', 0, 16))
+            self.padresources = (make_uart('serial', 0),
+                                 make_gpio('gpio', 0, 16))
+            self.cpu_cm = ConstraintManager(self.cpuresources, [])
+            self.pad_cm = ConstraintManager(self.cpuresources, [])
+            self.cpupads = {'serial': self.cpu_cm.request('serial', 0),
+                            'gpio': self.cpu_cm.request('gpio', 0)}
+            self.iopads = {'serial': self.pad_cm.request('serial', 0),
+                            'gpio': self.pad_cm.request('gpio', 0)}
 
-        p = Pins()
-        for pin in list(p):
-            make_jtag_ioconn(self.cpu_params, pin, self.cpupads,
-                                                   self.iopads)
+            p = Pins()
+            for pin in list(p):
+                make_jtag_ioconn(self.cpu_params, pin, self.cpupads,
+                                                       self.iopads)
 
         # add verilog sources
         self.add_sources(platform)
