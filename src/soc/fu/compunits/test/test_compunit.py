@@ -1,5 +1,9 @@
 from nmigen import Module, Signal, ResetSignal
-from nmigen.back.pysim import Simulator, Delay, Settle
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
+
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest

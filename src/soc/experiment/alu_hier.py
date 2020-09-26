@@ -14,7 +14,10 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
-from nmigen.back.pysim import Simulator, Settle
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator
 
 from soc.decoder.power_enums import MicrOp, Function, CryIn
 

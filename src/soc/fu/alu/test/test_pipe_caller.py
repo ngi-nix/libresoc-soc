@@ -14,19 +14,10 @@ import unittest
 from nmigen.cli import rtlil
 from nmutil.formaltest import FHDLTestCase
 from nmigen import Module, Signal
-from nmigen.back.pysim import Delay, Settle
-# NOTE: to use this (set to True), at present it is necessary to check
-# out the cxxsim nmigen branch
-cxxsim = False
-if cxxsim:
-    try:
-        from nmigen.sim.cxxsim import Simulator
-    except ImportError:
-        print("nope, sorry, have to use nmigen cxxsim branch for now")
-        cxxsim = False
-        from nmigen.back.pysim import Simulator
-else:
-    from nmigen.back.pysim import Simulator
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
 
 
 def get_cu_inputs(dec2, sim):

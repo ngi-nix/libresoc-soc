@@ -2,7 +2,11 @@ import random
 import unittest
 import power_instruction_analyzer as pia
 from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Delay
+
 from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.decoder.power_enums import XER_bits, Function
