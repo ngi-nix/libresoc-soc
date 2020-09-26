@@ -15,5 +15,14 @@ SDR 8 TDI (2) SMASK (ff) ;
 // set to DMI "data read"
 SIR 4 TDI (9) SMASK (f) ;
 // read 64 bit
+SDR 64 TDI (0000000000000000) SMASK (0000000000000000) TDO (00000000deadbeef) MASK (0000000000000000) ;
+
+// set to DMI "address"
+SIR 4 TDI (8) SMASK (f) ;
+// set DMI "CR" address (8)
+SDR 8 TDI (8) SMASK (ff) ;
+// set to DMI "data read"
+SIR 4 TDI (9) SMASK (f) ;
+// read 64 bit
 SDR 64 TDI (0000000000000000) SMASK (0000000000000000) TDO (00000000deadbeef) MASK (ffffffffffffffff) ;
 
