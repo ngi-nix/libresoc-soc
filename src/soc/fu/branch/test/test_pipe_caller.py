@@ -151,6 +151,11 @@ class TestRunner(unittest.TestCase):
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
         pdecode = pdecode2.dec
 
+        # copy of the decoder for simulator
+        simdec = create_pdecode()
+        simdec2 = PowerDecode2(simdec)
+        m.submodules.simdec2 = simdec2  # pain in the neck
+
         pspec = BranchPipeSpec(id_wid=2)
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
@@ -167,7 +172,7 @@ class TestRunner(unittest.TestCase):
                 print(test.name)
                 program = test.program
                 with self.subTest(test.name):
-                    simulator = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                    simulator = ISA(simdec2, test.regs, test.sprs, test.cr,
                                     test.mem, test.msr,
                                     bigendian=bigendian)
                     initial_cia = 0x2000
@@ -214,7 +219,8 @@ class TestRunner(unittest.TestCase):
                         index = (pc - initial_cia)//4
 
                         yield from self.assert_outputs(branch, pdecode2,
-                                                       simulator, prev_nia, code)
+                                                       simulator, prev_nia,
+                                                       code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("branch_simulator.vcd"):
