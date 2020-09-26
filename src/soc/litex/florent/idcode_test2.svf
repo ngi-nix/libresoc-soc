@@ -7,14 +7,13 @@ TDR 0 ;
 SIR 4 TDI (1) SMASK (f) ;
 //SDR 32 TDI (00000000) SMASK (ffffffff) TDO (00000c7f) SMASK (ffffffff) ;
 SDR 32 TDI (00000000) SMASK (ffffffff) TDO (000018ff) MASK (ffffffff) ;
-//
+
 // set to DMI "address"
 SIR 4 TDI (8) SMASK (f) ;
-// set DMI "ctrl" address (0)
-SDR 8 TDI (0) SMASK (ff) ;
+// set DMI "PC" address (2)
+SDR 8 TDI (2) SMASK (ff) ;
 // set to DMI "data read"
 SIR 4 TDI (9) SMASK (f) ;
 // read 64 bit
-//SDR 32 TDI (00000000) SMASK (ffffffff) TDO (000018ff) MASK (ffffffff) ;
-//SDR 32 TDI (00000000) SMASK (00000000) TDO (00000000) MASK (ffffffff) ;
-SDR 64 TDI (0000000000000000) SMASK (0000000000000000) TDO (0000000000000004) MASK (ffffffffffffffff) ;
+SDR 64 TDI (0000000000000000) SMASK (0000000000000000) TDO (00000000deadbeef) MASK (ffffffffffffffff) ;
+
