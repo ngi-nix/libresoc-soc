@@ -617,6 +617,7 @@ record_names = {'insn_type': 'internal_op',
                 'ldst_mode': 'upd',
                 }
 
+
 class PowerDecodeSubset(Elaboratable):
     """PowerDecodeSubset: dynamic subset decoder
 
@@ -787,6 +788,7 @@ class PowerDecode2(PowerDecodeSubset):
     def get_col_subset(self, opkls):
         subset = super().get_col_subset(opkls)
         subset.add("in1_sel")
+        subset.add("asmcode")
         subset.add("in2_sel")
         subset.add("in3_sel")
         subset.add("out_sel")
@@ -935,6 +937,10 @@ class PowerDecode2(PowerDecodeSubset):
             # TRAP read fast2 = SRR1
             comb += e_out.read_fast2.data.eq(FastRegs.SRR1)  # constant: SRR1
             comb += e_out.read_fast2.ok.eq(1)
+
+        # annoying simulator bug
+        if hasattr(e_out, "asmcode") and hasattr(self.dec.op, "asmcode"):
+            comb += e_out.asmcode.eq(self.dec.op.asmcode)
 
         return m
 

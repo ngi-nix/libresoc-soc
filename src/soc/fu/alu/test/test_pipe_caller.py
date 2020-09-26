@@ -352,6 +352,9 @@ class TestRunner(unittest.TestCase):
             yield instruction.eq(ins)          # raw binary instr.
             yield Settle()
             fn_unit = yield pdecode2.e.do.fn_unit
+            asmcode = yield pdecode2.e.asmcode
+            dec_asmcode = yield pdecode2.dec.op.asmcode
+            print ("asmcode", asmcode, dec_asmcode)
             self.assertEqual(fn_unit, Function.ALU.value)
             yield from set_alu_inputs(alu, pdecode2, sim)
 
@@ -382,7 +385,8 @@ class TestRunner(unittest.TestCase):
         fn_name = "ALU"
         opkls = ALUPipeSpec.opsubsetkls
 
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
+        pdecode = create_pdecode()
+        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode, opkls, fn_name)
         pdecode = pdecode2.dec
 
         pspec = ALUPipeSpec(id_wid=2)
