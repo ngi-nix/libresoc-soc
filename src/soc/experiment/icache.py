@@ -372,7 +372,7 @@ def next_row(row):
 # Read the instruction word for the given address
 # in the current cache row
 def read_insn_word(addr, data):
-    word = addr[2:INSN_BITS+3]
+    word = addr[2:INSN_BITS+2]
     return data.word_select(word, 32)
 
 #     -- Get the tag value from the address
