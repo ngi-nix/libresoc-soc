@@ -2,7 +2,7 @@
 
 * PLL @ 300mhz input generates a div-6 "test" output
 * clock select sets the source
-  - 0b000 - SYS_CLK (direct)
+  - 0b000 - CLK_24 (direct)
   - 0b001 - PLL / 6
   - 0b010 - PLL / 4
   - 0b011 - PLL / 3
@@ -11,13 +11,13 @@
   - 0b110 - ZERO (direct driving in combination with ONE)
   - 0b111 - ONE
 * this is all assumed to be driven by the "PLL CLK".
-  the SYS_CLK is the default in case PLL is unstable
+  the CLK_24 is the default in case PLL is unstable
 """
 
 from nmigen import (Module, Array, Signal, Mux, Elaboratable, ClockSignal)
 from nmigen.cli import rtlil
 
-SYS_CLK = 0b000
+CLK_24 = 0b000
 PLL6 = 0b001
 PLL4 = 0b010
 PLL3 = 0b011
@@ -30,7 +30,7 @@ ONE  = 0b111
 class ClockSelect(Elaboratable):
     def __init__(self):
 
-        self.sys_clk_i = Signal() # 24 mhz PLL incoming
+        self.clk_24_i = Signal() # 24 mhz external incoming
         self.pll_48_o = Signal()  # 6-divide (test signal) from PLL
         self.clk_sel_i = Signal(3) # clock source selection
         self.core_clk_o = Signal() # main core clock (selectable)
@@ -44,7 +44,7 @@ class ClockSelect(Elaboratable):
         counter3 = Signal(2) # for divide-by-3
 
         # set up system, zero and one clocks
-        comb += clkgen[SYS_CLK].eq(self.sys_clk_i) # 1st is external 24mhz
+        comb += clkgen[SYS_CLK].eq(self.clk_24_i) # 1st is external 24mhz
         comb += clkgen[ZERO].eq(0) # LOW (use with ONE for direct driving)
         comb += clkgen[ONE].eq(1) # HI
 
@@ -69,7 +69,7 @@ class ClockSelect(Elaboratable):
         return m
 
     def ports(self):
-        return [self.sys_clk_i, self.pll_48_o, self.clk_sel_i, self.core_clk_o]
+        return [self.clk_24_i, self.pll_48_o, self.clk_sel_i, self.core_clk_o]
 
 
 if __name__ == '__main__':
