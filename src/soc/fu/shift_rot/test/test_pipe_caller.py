@@ -14,19 +14,10 @@ from soc.decoder.isa.caller import ISACaller, special_sprs
 import unittest
 from nmigen.cli import rtlil
 from nmigen import Module, Signal
-from nmigen.back.pysim import Delay, Settle
-# NOTE: to use this (set to True), at present it is necessary to check
-# out the cxxsim nmigen branch
-cxxsim = False
-if cxxsim:
-    try:
-        from nmigen.sim.cxxsim import Simulator
-    except ImportError:
-        print("nope, sorry, have to use nmigen cxxsim branch for now")
-        cxxsim = False
-        from nmigen.back.pysim import Simulator
-else:
-    from nmigen.back.pysim import Simulator
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
 
 
 def get_cu_inputs(dec2, sim):
@@ -314,12 +305,8 @@ class TestRunner(unittest.TestCase):
                     yield from self.execute(alu, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
-        print(dir(sim))
-        if cxxsim:
+        with sim.write_vcd("shift_rot_simulator.vcd"):
             sim.run()
-        else:
-            with sim.write_vcd("shift_rot_simulator.vcd"):
-                sim.run()
 
     def check_alu_outputs(self, alu, dec2, sim, code):
 

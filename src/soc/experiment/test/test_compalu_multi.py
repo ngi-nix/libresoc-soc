@@ -17,11 +17,10 @@ from soc.experiment.compalu_multi import MultiCompUnit
 from soc.decoder.power_enums import MicrOp
 from nmigen import Module
 from nmigen.cli import rtlil
-cxxsim = False
-if cxxsim:
-    from nmigen.sim.cxxsim import Simulator, Settle
-else:
-    from nmigen.back.pysim import Simulator, Settle
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
 
 
 def wrap(process):
