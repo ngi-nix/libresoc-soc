@@ -232,7 +232,7 @@ def CacheTagArray():
 #type cache_valids_t is array(index_t) of cache_way_valids_t;
 #type row_per_line_valid_t is array(0 to ROW_PER_LINE - 1) of std_ulogic;
 def CacheValidBitsArray():
-    return Array(Signal(NUM_WAYS, name="cahcevalid_%d" %x) \
+    return Array(Signal(NUM_WAYS, name="cachevalid_%d" %x) \
                  for x in range(NUM_LINES))
 
 def RowPerLineValidArray():
@@ -636,18 +636,21 @@ class ICache(Elaboratable):
 
         wb_in, stall_in = self.wb_in, self.stall_in
 
-        do_read  = Signal()
-        do_write = Signal()
-        rd_addr  = Signal(ROW_BITS)
-        wr_addr  = Signal(ROW_BITS)
-        _d_out   = Signal(ROW_SIZE_BITS)
-        wr_sel   = Signal(ROW_SIZE)
 
         for i in range(NUM_WAYS):
-            way = CacheRam(ROW_BITS, ROW_SIZE_BITS)
+            do_read  = Signal(name="do_rd_%d" % i)
+            do_write = Signal(name="do_wr_%d" % i)
+            rd_addr  = Signal(ROW_BITS)
+            wr_addr  = Signal(ROW_BITS)
+            d_out    = Signal(ROW_SIZE_BITS, name="d_out_%d" % i)
+            wr_sel   = Signal(ROW_SIZE)
+
+            way = CacheRam(ROW_BITS, ROW_SIZE_BITS, True)
+            setattr(m.submodules, "cacheram_%d" % i, way)
+
             comb += way.rd_en.eq(do_read)
             comb += way.rd_addr.eq(rd_addr)
-            comb += way.rd_data_o.eq(_d_out)
+            comb += d_out.eq(way.rd_data_o)
             comb += way.wr_sel.eq(wr_sel)
             comb += way.wr_addr.eq(wr_addr)
             comb += way.wr_data.eq(wb_in.dat)
@@ -657,7 +660,7 @@ class ICache(Elaboratable):
             with m.If(wb_in.ack & (replace_way == i)):
                 comb += do_write.eq(1)
 
-            comb += cache_out[i].eq(_d_out)
+            comb += cache_out[i].eq(d_out)
             comb += rd_addr.eq(req_row)
             comb += wr_addr.eq(r.store_row)
             for j in range(ROW_SIZE):
@@ -841,6 +844,13 @@ class ICache(Elaboratable):
 # 	variable hit_way : way_t;
         comb = m.d.comb
 
+        #comb += Display("ENTER icache_comb - use_previous:%x req_index:%x " \
+        #                "req_row:%x req_tag:%x real_addr:%x req_laddr:%x " \
+        #                "access_ok:%x req_is_hit:%x req_is_miss:%x " \
+        #                "replace_way:%x", use_previous, req_index, req_row, \
+        #                req_tag, real_addr, req_laddr, access_ok, \
+        #                req_is_hit, req_is_miss, replace_way)
+
         i_in, i_out, wb_out = self.i_in, self.i_out, self.wb_out
         flush_in, stall_out = self.flush_in, self.stall_out
 
@@ -972,6 +982,9 @@ class ICache(Elaboratable):
         # be output an entire row which I prefer not to do just yet
         # as it would force fetch2 to know about some of the cache
         # geometry information.
+        #comb += Display("BEFORE read_insn_word - r.hit_nia:%x " \
+        #                "r.hit_way:%x, cache_out[r.hit_way]:%x", r.hit_nia, \
+        #                r.hit_way, cache_out[r.hit_way])
         comb += i_out.insn.eq(read_insn_word(r.hit_nia, cache_out[r.hit_way]))
         comb += i_out.valid.eq(r.hit_valid)
         comb += i_out.nia.eq(r.hit_nia)
@@ -1041,12 +1054,13 @@ class ICache(Elaboratable):
 #                         " tag:" & to_hstring(req_tag) &
 #                         " way:" & integer'image(req_hit_way) &
 #                         " RA:" & to_hstring(real_addr);
-                # XXX NO do not use f"" use %d and %x.  see dcache.py Display
-                print(f"cache hit nia:{i_in.nia}, " \
-                      f"IR:{i_in.virt_mode}, " \
-                      f"SM:{i_in.stop_mark}, idx:{req_index}, " \
-                      f"tag:{req_tag}, way:{req_hit_way}, " \
-                      f"RA:{real_addr}")
+                sync += Display("cache hit nia:%x, IR:%x, SM:%x, idx:%x, " \
+                                "tag:%x, way:%x, RA:%x", i_in.nia, \
+                                i_in.virt_mode, i_in.stop_mark, req_index, \
+                                req_tag, req_hit_way, real_addr)
+
+
+
 #                 end if;
 # 	    end if;
 #             if stall_in = '0' then
@@ -1143,14 +1157,11 @@ class ICache(Elaboratable):
 #                         " RA:" & to_hstring(real_addr);
                 # We need to read a cache line
                 with m.If(req_is_miss):
-                    # XXX no, do not use "f".  use sync += Display
-                    # and use %d for integer, %x for hex.
-                    print(f"cache miss nia:{i_in.nia} " \
-                          f"IR:{i_in.virt_mode} " \
-                          f"SM:{i_in.stop_mark} " \
-                          F"idx:{req_index} " \
-                          f"way:{replace_way} tag:{req_tag} " \
-                          f"RA:{real_addr}")
+                    sync += Display(
+                             "cache miss nia:%x IR:%x SM:%x idx:%x way:%x " \
+                             "tag:%x RA:%x", i_in.nia, i_in.virt_mode, \
+                             i_in.stop_mark, req_index, replace_way, \
+                             req_tag, real_addr)
 
 # 	    	-- Keep track of our index and way for
 #                   -- subsequent stores
