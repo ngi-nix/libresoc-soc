@@ -69,6 +69,7 @@ def sort_fuspecs(fuspecs):
 
 class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
+        self.pspec = pspec
 
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
