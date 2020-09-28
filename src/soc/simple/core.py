@@ -120,6 +120,9 @@ class NonProductionCore(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        # for testing purposes, to cut down on build time in coriolis2
+        if hasattr(self.pspec, "nocore") and self.pspec.nocore == True:
+            return m
         comb = m.d.comb
 
         m.submodules.fus = self.fus
