@@ -13,6 +13,7 @@ from nmigen import Memory, Signal, Module
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick
 from nmutil.util import wrap
+from nmigen_soc.wishbone import Interface as WishboneInterface
 
 
 # JTAG to DMI interface
@@ -42,6 +43,55 @@ class DMITAP(TAP):
         m = super().elaborate(platform)
         self._elaborate_dmis(m)
         return m
+
+    # XXX have to over-ride add_wishbone here due to unneeded features
+    # being added
+    def add_wishbone(self, *, ircodes, address_width, data_width,
+                      granularity=None, domain="sync",
+                     name=None, src_loc_at=0):
+        """Add a wishbone interface
+
+        In order to allow high JTAG clock speed, data will be cached. This
+        means that if data is output the value of the next address will
+        be read automatically.
+
+        Parameters:
+        -----------
+        ircodes: sequence of three integer for the JTAG IR codes;
+          they represent resp. WBADDR, WBREAD and WBREADWRITE. First code
+          has a shift register of length 'address_width', the two other codes
+          share a shift register of length data_width.
+        address_width: width of the address
+        data_width: width of the data
+
+        Returns:
+        wb: nmigen_soc.wishbone.bus.Interface
+            The Wishbone interface, is pipelined and has stall field.
+        """
+        if len(ircodes) != 3:
+            raise ValueError("3 IR Codes have to be provided")
+
+        if name is None:
+            name = "wb" + str(len(self._wbs))
+        sr_addr = self.add_shiftreg(
+            ircode=ircodes[0], length=address_width, domain=domain,
+            name=name+"_addrsr"
+        )
+        sr_data = self.add_shiftreg(
+            ircode=ircodes[1:], length=data_width, domain=domain,
+            name=name+"_datasr"
+        )
+
+        wb = WishboneInterface(data_width=data_width, addr_width=address_width,
+                               granularity=granularity,
+                               #features={"stall", "lock", "err", "rty"},
+                               features={"err"},
+                               name=name, src_loc_at=src_loc_at+1)
+
+        self._wbs.append((sr_addr, sr_data, wb, domain))
+
+        return wb
+
 
     def add_dmi(self, *, ircodes, address_width=8, data_width=64,
                      domain="sync", name=None):
@@ -131,6 +181,54 @@ class DMITAP(TAP):
                 m.d.comb += [
                     dmi.req_i.eq(ds.ongoing("READ") | ds.ongoing("WRRD")),
                     dmi.we_i.eq(ds.ongoing("WRRD")),
+                ]
+
+    def _elaborate_wishbones(self, m):
+        for sr_addr, sr_data, wb, domain in self._wbs:
+            m.d.comb += sr_addr.i.eq(wb.adr)
+
+            if hasattr(wb, "sel"):
+                # Always selected
+                m.d.comb += [s.eq(1) for s in wb.sel]
+
+            with m.FSM(domain=domain) as fsm:
+                with m.State("IDLE"):
+                    with m.If(sr_addr.oe): # WBADDR code
+                        m.d[domain] += wb.adr.eq(sr_addr.o)
+                        m.next = "READ"
+                    with m.Elif(sr_data.oe[0]): # WBREAD code
+                        # If data is
+                        m.d[domain] += wb.adr.eq(wb.adr + 1)
+                        m.next = "READ"
+                    with m.Elif(sr_data.oe[1]): # WBWRITE code
+                        m.d[domain] += wb.dat_w.eq(sr_data.o)
+                        m.next = "WRITEREAD"
+                with m.State("READ"):
+                    if not hasattr(wb, "stall"):
+                        m.next = "READACK"
+                    else:
+                        with m.If(~wb.stall):
+                            m.next = "READACK"
+                with m.State("READACK"):
+                    with m.If(wb.ack):
+                        # Store read data in sr_data.i and keep it there til next read
+                        m.d[domain] += sr_data.i.eq(wb.dat_r)
+                        m.next = "IDLE"
+                with m.State("WRITEREAD"):
+                    if not hasattr(wb, "stall"):
+                        m.next = "WRITEREADACK"
+                    else:
+                        with m.If(~wb.stall):
+                            m.next = "WRITEREADACK"
+                with m.State("WRITEREADACK"):
+                    with m.If(wb.ack):
+                        m.d[domain] += wb.adr.eq(wb.adr + 1)
+                        m.next = "READ"
+
+                m.d.comb += [
+                    wb.cyc.eq(~fsm.ongoing("IDLE")),
+                    wb.stb.eq(fsm.ongoing("READ") | fsm.ongoing("WRITEREAD")),
+                    wb.we.eq(fsm.ongoing("WRITEREAD")),
                 ]
 
     def external_ports(self):
