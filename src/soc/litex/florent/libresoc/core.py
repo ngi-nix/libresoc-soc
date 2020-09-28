@@ -36,8 +36,8 @@ def make_wb_slave(prefix, obj):
 
 def make_pad(res, dirn, name, suffix, cpup, iop):
     cpud, iod = ('i', 'o') if dirn else ('o', 'i')
-    res['%s_%s__%s' % (cpud, name, suffix)] = cpup
-    res['%s_%s__%s' % (iod, name, suffix)] = iop
+    res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
+    res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
 
 
 def make_jtag_ioconn(res, pin, cpupads, iopads):
@@ -207,15 +207,15 @@ class LibreSoC(CPU):
         if variant == 'ls180':
             # urr yuk.  have to expose iopads / pins from core to litex
             # then back again.  cut _some_ of that out by connecting
-            self.cpuresources = (make_uart('serial', 0),
+            self.cpuresources = (make_uart('uart', 0),
                                  make_gpio('gpio', 0, 16))
-            self.padresources = (make_uart('serial', 0),
+            self.padresources = (make_uart('uart', 0),
                                  make_gpio('gpio', 0, 16))
             self.cpu_cm = ConstraintManager(self.cpuresources, [])
             self.pad_cm = ConstraintManager(self.cpuresources, [])
-            self.cpupads = {'serial': self.cpu_cm.request('serial', 0),
+            self.cpupads = {'uart': self.cpu_cm.request('uart', 0),
                             'gpio': self.cpu_cm.request('gpio', 0)}
-            self.iopads = {'serial': self.pad_cm.request('serial', 0),
+            self.iopads = {'uart': self.pad_cm.request('uart', 0),
                             'gpio': self.pad_cm.request('gpio', 0)}
 
             p = Pins()

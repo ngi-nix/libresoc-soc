@@ -24,7 +24,7 @@ class Pins:
         gpios = []
         for i in range(16):
             gpios.append("gpio%d*" % i)
-        self.io_names = {'serial': ['tx+', 'rx-'], 'gpio': gpios}
+        self.io_names = {'uart': ['tx+', 'rx-'], 'gpio': gpios}
 
     def __iter__(self):
         # start parsing io_names and enumerate them to return pin specs
@@ -45,7 +45,8 @@ class JTAG(DMITAP, Pins):
         # enumerate pin specs and create IOConn Records.
         self.ios = [] # these are enumerated in external_ports
         for fn, pin, iotype, pin_name in list(self):
-            self.ios.append(self.add_io(iotype=iotype, name=pin_name))
+            io = self.add_io(iotype=iotype, name=pin_name)
+            self.ios.append(io)
 
         # this is redundant.  or maybe part of testing, i don't know.
         self.sr = self.add_shiftreg(ircode=4, length=3)

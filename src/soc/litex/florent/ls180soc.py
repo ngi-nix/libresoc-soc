@@ -90,9 +90,9 @@ class SDRPad(Module):
         _o = getattr(pad, "%s_o" % name)
         _oe = getattr(pad, "%s_oe" % name)
         _i = getattr(pad, "%s_i" % name)
+        self.specials += SDROutput(clk=clk, i=oe, o=_oe)
         for j in range(len(_o)):
             self.specials += SDROutput(clk=clk, i=o[j], o=_o[j])
-            self.specials += SDROutput(clk=clk, i=oe, o=_oe[j])
             self.specials += SDRInput(clk=clk, i=_i[j], o=i[j])
 
 
@@ -220,11 +220,15 @@ class GENSDRPHY(Module):
         # DQ/DM Data Path -------------------------------------------------
 
         d = dfi.p0
+        wren = []
         self.submodules.dq = SDRPad(pads, "dq", d.wrdata, d.wrdata_en, d.rddata)
 
         if hasattr(pads, "dm"):
+            # optimisation by yosys, fudge it... sigh
+            dm = Signal(len(pads.dm))
             for i in range(len(pads.dm)):
-                self.comb += pads.dm[i].eq(0) # FIXME
+                self.comb += dm[i].eq(1)
+                self.sync += pads.dm[i].eq(dm[i]) # FIXME
 
         # DQ/DM Control Path ----------------------------------------------
         rddata_en = Signal(cl + cmd_latency)
@@ -362,8 +366,14 @@ class LibreSoCSim(SoCCore):
             self.add_constant("MEMTEST_ADDR_DEBUG", 1)
             self.add_constant("MEMTEST_DATA_DEBUG", 1)
 
+            # SDRAM clock
+            sys_clk = ClockSignal()
+            sdr_clk = platform.request("sdram_clock")
+            #self.specials += DDROutput(1, 0, , sdram_clk)
+            self.specials += SDROutput(clk=sys_clk, i=sys_clk, o=sdr_clk)
+
         # UART
-        uart_core_pads = self.cpu.cpupads['serial']
+        uart_core_pads = self.cpu.cpupads['uart']
         self.submodules.uart_phy = uart.UARTPHY(
                 pads     = uart_core_pads,
                 clk_freq = self.sys_clk_freq,
@@ -373,7 +383,7 @@ class LibreSoCSim(SoCCore):
                 rx_fifo_depth = 16))
         # "real" pads connect to C4M JTAG iopad
         uart_pads     = platform.request(uart_name) # "real" (actual) pin
-        uart_io_pads = self.cpu.iopads['serial'] # C4M JTAG pads
+        uart_io_pads = self.cpu.iopads['uart'] # C4M JTAG pads
         self.comb += uart_pads.tx.eq(uart_io_pads.tx)
         self.comb += uart_io_pads.rx.eq(uart_pads.rx)
 
@@ -386,11 +396,11 @@ class LibreSoCSim(SoCCore):
         self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
         self.add_csr("gpio")
 
-        gpio_pads = platform.request("gpio")
+        gpio_pads = platform.request("gpio") # "real" (actual) pins
         gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
-        self.comb += gpio_pads.i.eq(gpio_io_pads.i)
-        self.comb += gpio_io_pads.o.eq(gpio_pads.o)
-        self.comb += gpio_io_pads.oe.eq(gpio_pads.oe)
+        self.comb += gpio_io_pads.i.eq(gpio_pads.i)
+        self.comb += gpio_pads.o.eq(gpio_io_pads.o)
+        self.comb += gpio_pads.oe.eq(gpio_io_pads.oe)
 
         # SPI Master
         self.submodules.spi_master = SPIMaster(
@@ -411,15 +421,26 @@ class LibreSoCSim(SoCCore):
         self.comb += self.cpu.jtag_tdi.eq(jtagpads.tdi)
         self.comb += jtagpads.tdo.eq(self.cpu.jtag_tdo)
 
+        # NC - allows some iopads to be connected up
+        # sigh, just do something, anything, to stop yosys optimising these out
+        nc_pads = platform.request("nc")
+        num_nc = len(nc_pads)
+        self.nc = Signal(num_nc)
+        self.comb += self.nc.eq(nc_pads)
+        self.dummy = Signal(num_nc)
+        for i in range(num_nc):
+            self.sync += self.dummy[i].eq(self.nc[i] | self.cpu.interrupt[0])
+
         # PWM
         for i in range(2):
             name = "pwm%d" % i
             setattr(self.submodules, name, PWM(platform.request("pwm", i)))
             self.add_csr(name)
 
-        # I2C Master
-        self.submodules.i2c = I2CMaster(platform.request("i2c"))
-        self.add_csr("i2c")
+        if False: # TODO: convert to _i _o _oe
+            # I2C Master
+            self.submodules.i2c = I2CMaster(platform.request("i2c"))
+            self.add_csr("i2c")
 
         # SDCard -----------------------------------------------------
 

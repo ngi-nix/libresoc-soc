@@ -73,7 +73,7 @@ _io = [
         Subsignal("cmd_oe",  Pins("J3"), Misc("PULLMODE=UP")),
         Subsignal("data_i", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
         Subsignal("data_o", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
-        Subsignal("data_oe", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        Subsignal("data_oe", Pins("K2"), Misc("PULLMODE=UP")),
         Misc("SLEWRATE=FAST"),
         IOStandard("LVCMOS33"),
     ),
@@ -90,9 +90,7 @@ _io = [
         Subsignal("dq_o",    Pins(
             "J16 L18 M18 N18 P18 T18 T17 U20",
             "E19 D20 D19 C20 E18 F18 J18 J17")),
-        Subsignal("dq_oe",    Pins(
-            "J16 L18 M18 N18 P18 T18 T17 U20",
-            "E19 D20 D19 C20 E18 F18 J18 J17")),
+        Subsignal("dq_oe",    Pins("J17")),
         Subsignal("we_n",  Pins("T20")),
         Subsignal("ras_n", Pins("R20")),
         Subsignal("cas_n", Pins("T19")),
@@ -115,13 +113,17 @@ n_gpio = 16
 _io.append( make_gpio("gpio", 0, n_gpio) )
 
 # EINT: 3 pins
-_io.append( ("eint", 3, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
+_io.append( ("eint", 0, Pins("E0 E1 E2"), IOStandard("LVCMOS33")) )
 
 # UART0: 2 pins
 _io.append(make_uart("uart", 0))
 # UART1: 2 pins
 _io.append(make_uart("uart", 1))
 
+# not connected - eurgh have to adjust this to match the total pincount.
+num_nc = 43
+nc = ' '.join("NC%d" % i for i in range(num_nc))
+_io.append(("nc", 0, Pins(nc), IOStandard("LVCMOS33")))
 
 # Platform -----------------------------------------------------------------------------------------
 
