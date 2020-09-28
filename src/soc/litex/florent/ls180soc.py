@@ -224,11 +224,8 @@ class GENSDRPHY(Module):
         self.submodules.dq = SDRPad(pads, "dq", d.wrdata, d.wrdata_en, d.rddata)
 
         if hasattr(pads, "dm"):
-            # optimisation by yosys, fudge it... sigh
-            dm = Signal(len(pads.dm))
             for i in range(len(pads.dm)):
-                self.comb += dm[i].eq(1)
-                self.sync += pads.dm[i].eq(dm[i]) # FIXME
+                self.specials += SDROutput(i=d.wrdata_mask[i], o=pads.dm[i])
 
         # DQ/DM Control Path ----------------------------------------------
         rddata_en = Signal(cl + cmd_latency)
