@@ -115,6 +115,9 @@ SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
 # TAG_BITS is the number of bits of
 # the tag part of the address
 TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
+# TAG_WIDTH is the width in bits of each way of the tag RAM
+TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
+
 # WAY_BITS is the number of bits to
 # select a way
 WAY_BITS       = log2_int(NUM_WAYS)
@@ -395,7 +398,7 @@ def get_tag(addr):
 #     end;
 # Read a tag from a tag memory row
 def read_tag(way, tagset):
-    return tagset[way * TAG_BITS:(way + 1) * TAG_BITS]
+    return tagset.word_select(way, TAG_WIDTH)[:TAG_BITS]
 
 #     -- Write a tag to tag memory row
 #     procedure write_tag(way: in way_t;
@@ -1126,7 +1129,7 @@ class ICache(Elaboratable):
         # Process cache invalidations
         with m.If(inval_in):
             for i in range(NUM_LINES):
-                sync += cache_valid_bits[i].eq(~1)
+                sync += cache_valid_bits[i].eq(0)
             sync += r.store_valid.eq(0)
 
 # 		-- Main state machine
@@ -1232,8 +1235,8 @@ class ICache(Elaboratable):
 # 	    	end loop;
                     for i in range(NUM_WAYS):
                         with m.If(i == replace_way):
-                            sync += tagset.eq(cache_tags[r.store_index])
-                            sync += write_tag(i, tagset, r.store_tag)
+                            comb += tagset.eq(cache_tags[r.store_index])
+                            comb += write_tag(i, tagset, r.store_tag)
                             sync += cache_tags[r.store_index].eq(tagset)
 
 #                     r.state <= WAIT_ACK;
@@ -1243,14 +1246,16 @@ class ICache(Elaboratable):
 # 	        -- Requests are all sent if stb is 0
 # 	        stbs_done := r.wb.stb = '0';
                 # Requests are all sent if stb is 0
-                sync += stbs_done.eq(r.wb.stb == 0)
+                comb += stbs_done.eq(r.wb.stb == 0)
+                stbs_zero = Signal()
+                comb += stbs_zero.eq(stbs_done == 0)
 
 # 	        -- If we are still sending requests,
 #               -- was one accepted ?
 # 	        if wishbone_in.stall = '0' and not stbs_done then
                 # If we are still sending requests,
                 # was one accepted?
-                with m.If(~wb_in.stall & ~stbs_done):
+                with m.If(~wb_in.stall & stbs_zero):
 # 	    	-- That was the last word ? We are done sending.
 #                   -- Clear stb and set stbs_done so we can handle
 #                   -- an eventual last ack on the same cycle.
@@ -1266,7 +1271,7 @@ class ICache(Elaboratable):
                     # the same cycle.
                     with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
                         sync += r.wb.stb.eq(0)
-                        sync += stbs_done.eq(1)
+                        comb += stbs_done.eq(1)
 
 # 	    	-- Calculate the next row address
 # 	    	r.wb.adr <= next_row_addr(r.wb.adr);
@@ -1679,45 +1684,50 @@ def icache_sim(dut):
     yield i_out.req.eq(0)
     yield
 
-#    # hit
-#    yield i_out.req.eq(1)
-#    yield i_out.nia.eq(Const(0x0000000000000008, 64))
-#    yield
-#    yield
-#    valid = yield i_in.valid
-#    insn  = yield i_in.insn
-#    #assert valid
-#    #assert insn == 0x00000002, \
-#        #("insn @%x=%x expected 00000002" % i_out.nia, i_in.insn)
-#    yield
-#
-#    # another miss
-#    yield i_out.req.eq(1)
-#    yield i_out.nia.eq(Const(0x0000000000000040, 64))
-#    for i in range(30):
-#        yield
-#    yield
-#    valid = yield i_in.valid
-#    insn  = yield i_in.insn
-#    #assert valid
-#    #assert insn == 0x00000010, \
-#        #("insn @%x=%x expected 00000010" % i_out.nia, i_in.insn)
-#
-#    # test something that aliases
-#    yield i_out.req.eq(1)
-#    yield i_out.nia.eq(Const(0x0000000000000100, 64))
-#    yield
-#    yield
-#    #assert i_in.valid == Const(1, 1)
-#    for i in range(30):
-#        yield
-#    yield
-#    valid = yield i_in.valid
-#    insn  = yield i_in.insn
-#    #assert valid
-#    #assert insn == 0x00000040, \
-#         #("insn @%x=%x expected 00000040" % i_out.nia, i_in.insn)
-#    yield i_out.req.eq(0)
+    # hit
+    yield i_out.req.eq(1)
+    yield i_out.nia.eq(Const(0x0000000000000008, 64))
+    yield
+    yield
+    valid = yield i_in.valid
+    nia   = yield i_in.nia
+    insn  = yield i_in.insn
+    assert valid
+    assert insn == 0x00000002, \
+        "insn @%x=%x expected 00000002" % (nia, insn)
+    yield
+
+    # another miss
+    yield i_out.req.eq(1)
+    yield i_out.nia.eq(Const(0x0000000000000040, 64))
+    for i in range(30):
+        yield
+    yield
+    valid = yield i_in.valid
+    nia   = yield i_out.nia
+    insn  = yield i_in.insn
+    assert valid
+    assert insn == 0x00000010, \
+        "insn @%x=%x expected 00000010" % (nia, insn)
+
+    # test something that aliases
+    yield i_out.req.eq(1)
+    yield i_out.nia.eq(Const(0x0000000000000100, 64))
+    yield
+    yield
+    valid = yield i_in.valid
+    assert ~valid
+    for i in range(30):
+        yield
+    yield
+    insn  = yield i_in.insn
+    valid = yield i_in.valid
+    insn  = yield i_in.insn
+    assert valid
+    assert insn == 0x00000040, \
+         "insn @%x=%x expected 00000040" % (nia, insn)
+    yield i_out.req.eq(0)
+
 
 
 def test_icache(mem):
@@ -1735,7 +1745,7 @@ def test_icache(mem):
      m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
      m.d.comb += sram.bus.we.eq(dut.wb_out.we)
      m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
-     m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
+     m.d.comb += sram.bus.adr.eq(dut.wb_out.adr[3:])
      m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
 
      m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
