@@ -1246,9 +1246,9 @@ class ICache(Elaboratable):
 # 	        -- Requests are all sent if stb is 0
 # 	        stbs_done := r.wb.stb = '0';
                 # Requests are all sent if stb is 0
-                comb += stbs_done.eq(r.wb.stb == 0)
                 stbs_zero = Signal()
-                comb += stbs_zero.eq(stbs_done == 0)
+                comb += stbs_zero.eq(r.wb.stb == 0)
+                comb += stbs_done.eq(stbs_zero)
 
 # 	        -- If we are still sending requests,
 #               -- was one accepted ?
@@ -1276,8 +1276,12 @@ class ICache(Elaboratable):
 # 	    	-- Calculate the next row address
 # 	    	r.wb.adr <= next_row_addr(r.wb.adr);
                     # Calculate the next row address
-                    rarange = r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS]
-                    sync += r.wb.adr.eq(rarange + 1)
+                    rarange = Signal(64)
+                    comb += rarange.eq(
+                             r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                            )
+                    sync += r.wb.adr.eq(rarange)
+                    sync += Display("r.wb.adr:%x", rarange)
 # 	        end if;
 
 # 	        -- Incoming acks processing
@@ -1766,7 +1770,7 @@ if __name__ == '__main__':
         f.write(vl)
 
     mem = []
-    for i in range(0,512):
+    for i in range(512):
         mem.append((i*2)| ((i*2+1)<<32))
 
     test_icache(mem)
