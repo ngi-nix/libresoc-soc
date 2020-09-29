@@ -1255,7 +1255,7 @@ class ICache(Elaboratable):
 # 	        if wishbone_in.stall = '0' and not stbs_done then
                 # If we are still sending requests,
                 # was one accepted?
-                with m.If(~wb_in.stall & stbs_zero):
+                with m.If(~wb_in.stall & stbs_done):
 # 	    	-- That was the last word ? We are done sending.
 #                   -- Clear stb and set stbs_done so we can handle
 #                   -- an eventual last ack on the same cycle.
