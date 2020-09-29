@@ -1259,7 +1259,7 @@ class ICache(Elaboratable):
 # 	        if wishbone_in.stall = '0' and not stbs_done then
                 # If we are still sending requests,
                 # was one accepted?
-                with m.If(~wb_in.stall & ~stbs_done):
+                with m.If(~wb_in.stall & ~stbs_zero):
 # 	    	-- That was the last word ? We are done sending.
 #                   -- Clear stb and set stbs_done so we can handle
 #                   -- an eventual last ack on the same cycle.
@@ -1274,8 +1274,8 @@ class ICache(Elaboratable):
                     # an eventual last ack on
                     # the same cycle.
                     with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
-                        sync += Display("IS_LAST_ROW_ADDR \
-                                        r.wb.addr:%x r.end_row_ix:%x " \
+                        sync += Display("IS_LAST_ROW_ADDR " \
+                                        "r.wb.addr:%x r.end_row_ix:%x " \
                                         "r.wb.stb:%x stbs_zero:%x " \
                                         "stbs_done:%x", r.wb.adr, \
                                         r.end_row_ix, r.wb.stb, \
