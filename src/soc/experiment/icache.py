@@ -514,6 +514,7 @@ class RegInternal(RecordObject):
         # Cache miss state (reload state machine)
         self.state        = Signal(State, reset=State.IDLE)
         self.wb           = WBMasterOut("wb")
+        self.req_adr      = Signal(64)
         self.store_way    = Signal(NUM_WAYS)
         self.store_index  = Signal(NUM_LINES)
         self.store_row    = Signal(BRAM_ROWS)
@@ -1126,6 +1127,9 @@ class ICache(Elaboratable):
 #                     end loop;
 #                     r.store_valid <= '0';
 #                 end if;
+        comb += r.wb.sel.eq(-1)
+        comb += r.wb.adr.eq(r.req_adr[3:])
+
         # Process cache invalidations
         with m.If(inval_in):
             for i in range(NUM_LINES):
@@ -1196,7 +1200,7 @@ class ICache(Elaboratable):
                     # We calculate the
                     # address of the start of the cache line and
                     # start the WB cycle.
-                    sync += r.wb.adr.eq(req_laddr)
+                    sync += r.req_adr.eq(req_laddr)
                     sync += r.wb.cyc.eq(1)
                     sync += r.wb.stb.eq(1)
 
@@ -1255,7 +1259,7 @@ class ICache(Elaboratable):
 # 	        if wishbone_in.stall = '0' and not stbs_done then
                 # If we are still sending requests,
                 # was one accepted?
-                with m.If(~wb_in.stall & stbs_done):
+                with m.If(~wb_in.stall & ~stbs_done):
 # 	    	-- That was the last word ? We are done sending.
 #                   -- Clear stb and set stbs_done so we can handle
 #                   -- an eventual last ack on the same cycle.
@@ -1269,7 +1273,12 @@ class ICache(Elaboratable):
                     # so we can handle
                     # an eventual last ack on
                     # the same cycle.
-                    with m.If(is_last_row_addr(r.wb.adr, r.end_row_ix)):
+                    with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
+                        sync += Display("r.wb.addr:%x r.end_row_ix:%x " \
+                                        "r.wb.stb:%x stbs_zero:%x " \
+                                        "stbs_done:%x", r.wb.adr, \
+                                        r.end_row_ix, r.wb.stb, \
+                                        stbs_zero, stbs_done)
                         sync += r.wb.stb.eq(0)
                         comb += stbs_done.eq(1)
 
@@ -1278,10 +1287,12 @@ class ICache(Elaboratable):
                     # Calculate the next row address
                     rarange = Signal(64)
                     comb += rarange.eq(
-                             r.wb.adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
                             )
-                    sync += r.wb.adr.eq(rarange)
-                    sync += Display("r.wb.adr:%x", rarange)
+                    sync += r.req_adr.eq(rarange)
+                    sync += Display("r.wb.adr:%x stbs_zero:%x " \
+                                    "stbs_done:%x", rarange, stbs_zero, \
+                                    stbs_done)
 # 	        end if;
 
 # 	        -- Incoming acks processing
@@ -1290,6 +1301,10 @@ class ICache(Elaboratable):
                 with m.If(wb_in.ack):
 #                     r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                      <= '1';
+                    sync += Display("wb_in.ack TEST stbs_zero:%x " \
+                                    "stbs_done:%x", \
+                                    stbs_zero, stbs_done)
+
                     sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
 
 # 	    	-- Check for completion
@@ -1749,7 +1764,7 @@ def test_icache(mem):
      m.d.comb += sram.bus.stb.eq(dut.wb_out.stb)
      m.d.comb += sram.bus.we.eq(dut.wb_out.we)
      m.d.comb += sram.bus.sel.eq(dut.wb_out.sel)
-     m.d.comb += sram.bus.adr.eq(dut.wb_out.adr[3:])
+     m.d.comb += sram.bus.adr.eq(dut.wb_out.adr)
      m.d.comb += sram.bus.dat_w.eq(dut.wb_out.dat)
 
      m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
