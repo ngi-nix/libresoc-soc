@@ -1058,8 +1058,8 @@ class ICache(Elaboratable):
 #                         " tag:" & to_hstring(req_tag) &
 #                         " way:" & integer'image(req_hit_way) &
 #                         " RA:" & to_hstring(real_addr);
-                sync += Display("cache hit nia:%x, IR:%x, SM:%x, idx:%x, " \
-                                "tag:%x, way:%x, RA:%x", i_in.nia, \
+                sync += Display("cache hit nia:%x IR:%x SM:%x idx:%x " \
+                                "tag:%x way:%x RA:%x", i_in.nia, \
                                 i_in.virt_mode, i_in.stop_mark, req_index, \
                                 req_tag, req_hit_way, real_addr)
 
@@ -1165,10 +1165,10 @@ class ICache(Elaboratable):
                 # We need to read a cache line
                 with m.If(req_is_miss):
                     sync += Display(
-                             "cache miss nia:%x IR:%x SM:%x idx:%x way:%x " \
-                             "tag:%x RA:%x", i_in.nia, i_in.virt_mode, \
-                             i_in.stop_mark, req_index, replace_way, \
-                             req_tag, real_addr)
+                             "cache miss nia:%x IR:%x SM:%x idx:%x " \
+                             " way:%x tag:%x RA:%x", i_in.nia, \
+                             i_in.virt_mode, i_in.stop_mark, req_index, \
+                             replace_way, req_tag, real_addr)
 
 # 	    	-- Keep track of our index and way for
 #                   -- subsequent stores
@@ -1274,7 +1274,8 @@ class ICache(Elaboratable):
                     # an eventual last ack on
                     # the same cycle.
                     with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
-                        sync += Display("r.wb.addr:%x r.end_row_ix:%x " \
+                        sync += Display("IS_LAST_ROW_ADDR \
+                                        r.wb.addr:%x r.end_row_ix:%x " \
                                         "r.wb.stb:%x stbs_zero:%x " \
                                         "stbs_done:%x", r.wb.adr, \
                                         r.end_row_ix, r.wb.stb, \
@@ -1285,12 +1286,14 @@ class ICache(Elaboratable):
 # 	    	-- Calculate the next row address
 # 	    	r.wb.adr <= next_row_addr(r.wb.adr);
                     # Calculate the next row address
-                    rarange = Signal(64)
+                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
                     comb += rarange.eq(
                              r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
                             )
-                    sync += r.req_adr.eq(rarange)
-                    sync += Display("r.wb.adr:%x stbs_zero:%x " \
+                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
+                             rarange
+                            )
+                    sync += Display("RARANGE r.wb.adr:%x stbs_zero:%x " \
                                     "stbs_done:%x", rarange, stbs_zero, \
                                     stbs_done)
 # 	        end if;
@@ -1301,7 +1304,7 @@ class ICache(Elaboratable):
                 with m.If(wb_in.ack):
 #                     r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                      <= '1';
-                    sync += Display("wb_in.ack TEST stbs_zero:%x " \
+                    sync += Display("WB_IN_ACK stbs_zero:%x " \
                                     "stbs_done:%x", \
                                     stbs_zero, stbs_done)
 
