@@ -47,7 +47,7 @@ SoCCSRHandler.supported_address_width.append(12)
 # GPIO Tristate -------------------------------------------------------
 # doesn't work properly.
 #from litex.soc.cores.gpio import GPIOTristate
-from litex.soc.interconnect.csr import CSRStorage, CSRStatus
+from litex.soc.interconnect.csr import CSRStorage, CSRStatus, CSRField
 from migen.genlib.cdc import MultiReg
 
 # Imports
@@ -471,10 +471,9 @@ class LibreSoCSim(SoCCore):
             setattr(self.submodules, name, PWM(platform.request("pwm", i)))
             self.add_csr(name)
 
-        if False: # TODO: convert to _i _o _oe
-            # I2C Master
-            self.submodules.i2c = I2CMaster(platform.request("i2c"))
-            self.add_csr("i2c")
+        # I2C Master
+        self.submodules.i2c = I2CMaster(platform.request("i2c"))
+        self.add_csr("i2c")
 
         # SDCard -----------------------------------------------------
 
