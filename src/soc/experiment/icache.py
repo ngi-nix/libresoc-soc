@@ -921,13 +921,15 @@ class ICache(Elaboratable):
 # 	end loop;
         # Test if pending request is a hit on any way
         for i in range(NUM_WAYS):
+            tagi = Signal(TAG_BITS, name="ti%d" % i)
+            comb += tagi.eq(read_tag(i, cache_tags[req_index]))
             with m.If(i_in.req &
                       (cache_valid_bits[req_index][i] |
                        ((r.state == State.WAIT_ACK)
                         & (req_index == r.store_index)
                         & (i == r.store_way)
                         & r.rows_valid[req_row % ROW_PER_LINE]))):
-                with m.If(read_tag(i, cache_tags[req_index]) == req_tag):
+                with m.If(tagi == req_tag):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
 
