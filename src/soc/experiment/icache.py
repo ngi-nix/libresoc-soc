@@ -635,7 +635,7 @@ class ICache(Elaboratable):
 #             end loop;
 # 	end process;
 #     end generate;
-    def rams(self, m, r, cache_out, use_previous, replace_way, req_row):
+    def rams(self, m, r, cache_out_row, use_previous, replace_way, req_row):
         comb = m.d.comb
 
         wb_in, stall_in = self.wb_in, self.stall_in
@@ -664,7 +664,8 @@ class ICache(Elaboratable):
             with m.If(wb_in.ack & (replace_way == i)):
                 comb += do_write.eq(1)
 
-            comb += cache_out[i].eq(d_out)
+            with m.If(r.hit_way == i):
+                comb += cache_out_row.eq(d_out)
             comb += rd_addr.eq(req_row)
             comb += wr_addr.eq(r.store_row)
             for j in range(ROW_SIZE):
@@ -843,7 +844,7 @@ class ICache(Elaboratable):
     def icache_comb(self, m, use_previous, r, req_index, req_row,
                     req_tag, real_addr, req_laddr, cache_valid_bits,
                     cache_tags, access_ok, req_is_hit,
-                    req_is_miss, replace_way, plru_victim, cache_out):
+                    req_is_miss, replace_way, plru_victim, cache_out_row):
 # 	variable is_hit  : std_ulogic;
 # 	variable hit_way : way_t;
         comb = m.d.comb
@@ -989,7 +990,7 @@ class ICache(Elaboratable):
         #comb += Display("BEFORE read_insn_word - r.hit_nia:%x " \
         #                "r.hit_way:%x, cache_out[r.hit_way]:%x", r.hit_nia, \
         #                r.hit_way, cache_out[r.hit_way])
-        comb += i_out.insn.eq(read_insn_word(r.hit_nia, cache_out[r.hit_way]))
+        comb += i_out.insn.eq(read_insn_word(r.hit_nia, cache_out_row))
         comb += i_out.valid.eq(r.hit_valid)
         comb += i_out.nia.eq(r.hit_nia)
         comb += i_out.stop_mark.eq(r.hit_smark)
@@ -1487,7 +1488,7 @@ class ICache(Elaboratable):
         use_previous     = Signal()
 
 #     signal cache_out   : cache_ram_out_t;
-        cache_out        = CacheRamOut()
+        cache_out_row    = Signal(ROW_SIZE_BITS)
 
 #     signal plru_victim : plru_out_t;
 #     signal replace_way : way_t;
@@ -1496,7 +1497,7 @@ class ICache(Elaboratable):
 
         # call sub-functions putting everything together, using shared
         # signals established above
-        self.rams(m, r, cache_out, use_previous, replace_way, req_row)
+        self.rams(m, r, cache_out_row, use_previous, replace_way, req_row)
         self.maybe_plrus(m, r, plru_victim)
         self.itlb_lookup(m, tlb_req_index, itlb_ptes, itlb_tags,
                          real_addr, itlb_valid_bits, ra_valid, eaa_priv,
@@ -1505,7 +1506,7 @@ class ICache(Elaboratable):
         self.icache_comb(m, use_previous, r, req_index, req_row,
                          req_tag, real_addr, req_laddr, cache_valid_bits,
                          cache_tags, access_ok, req_is_hit, req_is_miss,
-                         replace_way, plru_victim, cache_out)
+                         replace_way, plru_victim, cache_out_row)
         self.icache_hit(m, use_previous, r, req_is_hit, req_hit_way,
                         req_index, req_tag, real_addr)
         self.icache_miss(m, cache_valid_bits, r, req_is_miss, req_index,
