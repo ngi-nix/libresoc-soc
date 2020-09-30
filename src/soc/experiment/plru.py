@@ -1,6 +1,6 @@
 # based on microwatt plru.vhdl
 
-from nmigen import Elaboratable, Signal, Array, Module, Mux
+from nmigen import Elaboratable, Signal, Array, Module, Mux, Const
 from nmigen.cli import rtlil
 
 
@@ -21,9 +21,9 @@ class PLRU(Elaboratable):
         # XXX Check if we can turn that into a little ROM instead that
         # takes the tree bit vector and returns the LRU. See if it's better
         # in term of FPGA resouces usage...
-        node = Const(0, self.bits)
+        node = Const(0, self.BITS)
         for i in range(self.BITS):
-            # report "GET: i:" & integer'image(i) & " node:" & 
+            # report "GET: i:" & integer'image(i) & " node:" &
             # integer'image(node) & " val:" & Signal()'image(tree(node))
             comb += self.lru_o[self.BITS-1-i].eq(tree[node])
             if i != self.BITS-1:
@@ -34,9 +34,9 @@ class PLRU(Elaboratable):
                 node = node_next
 
         with m.If(self.acc_en):
-            node = Const(0, self.bits)
+            node = Const(0, self.BITS)
             for i in range(self.BITS):
-                # report "GET: i:" & integer'image(i) & " node:" & 
+                # report "GET: i:" & integer'image(i) & " node:" &
                 # integer'image(node) & " val:" & Signal()'image(tree(node))
                 abit = self.acc_i[self.BITS-1-i]
                 sync += tree[node].eq(~abit)

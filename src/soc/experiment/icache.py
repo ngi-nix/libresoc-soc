@@ -713,11 +713,11 @@ class ICache(Elaboratable):
             for i in range(NUM_LINES):
                 plru_acc_i  = Signal(WAY_BITS)
                 plru_acc_en = Signal()
-                plru_out    = Signal(WAY_BITS)
                 plru        = PLRU(WAY_BITS)
+                setattr(m.submodules, "plru_%d" % i, plru)
+
                 comb += plru.acc_i.eq(plru_acc_i)
                 comb += plru.acc_en.eq(plru_acc_en)
-                comb += plru.lru_o.eq(plru_out)
 
                 # PLRU interface
                 with m.If(get_index(r.hit_nia) == i):
