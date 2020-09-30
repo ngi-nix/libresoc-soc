@@ -445,9 +445,9 @@ def hash_ea(addr):
 #     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
 #     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
 #     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" 
+# 	report "geometry bits don't add up"
 #     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" 
+# 	report "geometry bits don't add up"
 #     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
 # 	report "geometry bits don't add up"
 #     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
@@ -602,7 +602,7 @@ class ICache(Elaboratable):
             comb += do_write.eq(wb_in.ack & (replace_way == i))
 
             with m.If(do_write):
-                sync += Display("cache write adr: %x data: %x",
+                sync += Display("cache write adr: %x data: %lx",
                                 wr_addr, way.wr_data)
 
             with m.If(r.hit_way == i):
@@ -926,22 +926,10 @@ class ICache(Elaboratable):
                         sync += r.wb.stb.eq(0)
                         comb += stbs_done.eq(1)
 
-                    # Calculate the next row address
-                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
-                    comb += rarange.eq(
-                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
-                            )
-                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
-                             rarange
-                            )
-                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
-                                    "stbs_zero:%x stbs_done:%x", 
-                                    r.req_adr, rarange, stbs_zero, stbs_done)
-
                 # Incoming acks processing
                 with m.If(wb_in.ack):
-                    sync += Display("WB_IN_ACK data:%x stbs_zero:%x " 
-                                    "stbs_done:%x", 
+                    sync += Display("WB_IN_ACK data:%x stbs_zero:%x "
+                                    "stbs_done:%x",
                                     wb_in.dat, stbs_zero, stbs_done)
 
                     sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
@@ -964,6 +952,19 @@ class ICache(Elaboratable):
 
                     # Increment store row counter
                     sync += r.store_row.eq(next_row(r.store_row))
+
+                    # Calculate the next row address
+                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
+                    comb += rarange.eq(
+                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                            )
+                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
+                             rarange
+                            )
+                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
+                                    "stbs_zero:%x stbs_done:%x",
+                                    r.req_adr, rarange, stbs_zero, stbs_done)
+
 
         # TLB miss and protection fault processing
         with m.If(flush_in | m_in.tlbld):
@@ -1316,6 +1317,8 @@ def icache_sim(dut):
     yield
 
     # hit
+    yield
+    yield
     yield i_out.req.eq(1)
     yield i_out.nia.eq(Const(0x0000000000000008, 64))
     yield
@@ -1364,7 +1367,7 @@ def icache_sim(dut):
 def test_icache(mem):
      dut    = ICache()
 
-     memory = Memory(width=64, depth=16*64, init=mem)
+     memory = Memory(width=64, depth=512, init=mem)
      sram   = SRAM(memory=memory, granularity=8)
 
      m      = Module()
