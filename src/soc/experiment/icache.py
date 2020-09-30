@@ -398,7 +398,7 @@ def get_tag(addr):
 #     end;
 # Read a tag from a tag memory row
 def read_tag(way, tagset):
-    return tagset.word_select(way, TAG_WIDTH)[:TAG_BITS]
+    return tagset.word_select(way, TAG_BITS)
 
 #     -- Write a tag to tag memory row
 #     procedure write_tag(way: in way_t;
@@ -408,7 +408,7 @@ def read_tag(way, tagset):
 #     end;
 # Write a tag to tag memory row
 def write_tag(way, tagset, tag):
-    return tagset[way * TAG_BITS:(way + 1) * TAG_BITS].eq(tag)
+    return read_tag(way, tagset).eq(tag)
 
 #     -- Simple hash for direct-mapped TLB index
 #     function hash_ea(addr: std_ulogic_vector(63 downto 0))
