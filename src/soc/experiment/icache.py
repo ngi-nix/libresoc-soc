@@ -99,7 +99,7 @@ INSN_BITS      = log2_int(INSN_PER_ROW)
 ROW_BITS       = log2_int(BRAM_ROWS)
 # ROW_LINEBITS is the number of bits to
 # select a row within a line
-ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
+ROW_LINEBITS   = log2_int(ROW_PER_LINE)
 # LINE_OFF_BITS is the number of bits for
 # the offset in a cache line
 LINE_OFF_BITS  = log2_int(LINE_SIZE)
@@ -134,7 +134,7 @@ TLB_PTE_BITS    = 64
 
 print("INSN_BITS", INSN_BITS)
 print("ROW_BITS", ROW_BITS)
-print("ROW_LINE_BITS", ROW_LINE_BITS)
+print("ROW_LINEBITS", ROW_LINEBITS)
 print("LINE_OFF_BITS", LINE_OFF_BITS)
 print("ROW_OFF_BITS", ROW_OFF_BITS)
 print("INDEX_BITS", INDEX_BITS)
@@ -317,7 +317,7 @@ def get_row(addr):
 #     end;
 # Return the index of a row within a line
 def get_row_of_line(row):
-    return row[:ROW_LINE_BITS]
+    return row[:ROW_LINEBITS]
 
 #     -- Returns whether this is the last row of a line
 #     function is_last_row_addr(addr: wishbone_addr_type;
@@ -361,8 +361,8 @@ def is_last_row(row, last):
 # function in order to limit the size of the generated adder to be
 # only the bits within a cache line (3 bits with default settings)
 def next_row(row):
-    row_v = row[0:ROW_LINE_BITS] + 1
-    return Cat(row_v[:ROW_LINE_BITS], row[ROW_LINE_BITS:])
+    row_v = row[0:ROW_LINEBITS] + 1
+    return Cat(row_v[:ROW_LINEBITS], row[ROW_LINEBITS:])
 #     -- Read the instruction word for the given address in the
 #     -- current cache row
 #     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
@@ -518,7 +518,7 @@ class RegInternal(RecordObject):
         self.store_row    = Signal(BRAM_ROWS)
         self.store_tag    = Signal(TAG_BITS)
         self.store_valid  = Signal()
-        self.end_row_ix   = Signal(ROW_LINE_BITS)
+        self.end_row_ix   = Signal(ROW_LINEBITS)
         self.rows_valid   = RowPerLineValidArray()
 
         # TLB miss state
