@@ -576,9 +576,9 @@ class ICache(Elaboratable):
     # Generate a cache RAM for each way
     def rams(self, m, r, cache_out_row, use_previous, replace_way, req_row):
         comb = m.d.comb
+        sync = m.d.sync
 
         wb_in, stall_in = self.wb_in, self.stall_in
-
 
         for i in range(NUM_WAYS):
             do_read  = Signal(name="do_rd_%d" % i)
@@ -601,8 +601,16 @@ class ICache(Elaboratable):
             comb += do_read.eq(~(stall_in | use_previous))
             comb += do_write.eq(wb_in.ack & (replace_way == i))
 
+            with m.If(do_write):
+                sync += Display("cache write adr: %x data: %x",
+                                wr_addr, way.wr_data)
+
             with m.If(r.hit_way == i):
                 comb += cache_out_row.eq(d_out)
+                with m.If(do_read):
+                    sync += Display("cache read adr: %x data: %x",
+                                     req_row, d_out)
+
             comb += rd_addr.eq(req_row)
             comb += wr_addr.eq(r.store_row)
             comb += wr_sel.eq(Repl(do_write, ROW_SIZE))
