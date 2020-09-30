@@ -20,7 +20,7 @@ TODO (in no specific order):
 
 """
 from enum import Enum, unique
-from nmigen import (Module, Signal, Elaboratable, Cat, Array, Const)
+from nmigen import (Module, Signal, Elaboratable, Cat, Array, Const, Repl)
 from nmigen.cli import main, rtlil
 from nmutil.iocontrol import RecordObject
 from nmigen.utils import log2_int
@@ -660,16 +660,13 @@ class ICache(Elaboratable):
             comb += way.wr_data.eq(wb_in.dat)
 
             comb += do_read.eq(~(stall_in | use_previous))
-
-            with m.If(wb_in.ack & (replace_way == i)):
-                comb += do_write.eq(1)
+            comb += do_write.eq(wb_in.ack & (replace_way == i))
 
             with m.If(r.hit_way == i):
                 comb += cache_out_row.eq(d_out)
             comb += rd_addr.eq(req_row)
             comb += wr_addr.eq(r.store_row)
-            for j in range(ROW_SIZE):
-                comb += wr_sel[j].eq(do_write)
+            comb += wr_sel.eq(Repl(do_write, ROW_SIZE))
 
 #     -- Generate PLRUs
 #     maybe_plrus: if NUM_WAYS > 1 generate
