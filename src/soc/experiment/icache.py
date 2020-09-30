@@ -671,7 +671,7 @@ class ICache(Elaboratable):
         m_in = self.m_in
 
         wr_index = Signal(TLB_SIZE)
-        sync += wr_index.eq(hash_ea(m_in.addr))
+        comb += wr_index.eq(hash_ea(m_in.addr))
 
         with m.If(m_in.tlbie & m_in.doall):
             # Clear all valid bits
