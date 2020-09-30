@@ -437,23 +437,21 @@ def hash_ea(addr):
 
 # begin
 #
+# XXX put these assert statements in - as python asserts
+#
 #     assert LINE_SIZE mod ROW_SIZE = 0;
 #     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
-#      severity FAILURE;
 #     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
-#      severity FAILURE;
 #     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
-#      severity FAILURE;
 #     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
-#      severity FAILURE;
 #     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
+# 	report "geometry bits don't add up" 
 #     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up" severity FAILURE;
+# 	report "geometry bits don't add up" 
 #     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
+# 	report "geometry bits don't add up"
 #     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
-# 	report "geometry bits don't add up" severity FAILURE;
+# 	report "geometry bits don't add up"
 #
 #     sim_debug: if SIM generate
 #     debug: process
