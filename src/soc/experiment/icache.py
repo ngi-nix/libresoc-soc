@@ -689,22 +689,18 @@ class ICache(Elaboratable):
             sync += itlb_ptes[wr_index].eq(m_in.pte)
             sync += itlb_valid_bits[wr_index].eq(1)
 
-#     -- Cache hit detection, output to fetch2 and other misc logic
-#     icache_comb : process(all)
     # Cache hit detection, output to fetch2 and other misc logic
     def icache_comb(self, m, use_previous, r, req_index, req_row,
                     req_tag, real_addr, req_laddr, cache_valid_bits,
                     cache_tags, access_ok, req_is_hit,
                     req_is_miss, replace_way, plru_victim, cache_out_row):
-# 	variable is_hit  : std_ulogic;
-# 	variable hit_way : way_t;
         comb = m.d.comb
 
-        #comb += Display("ENTER icache_comb - use_previous:%x req_index:%x " \
-        #                "req_row:%x req_tag:%x real_addr:%x req_laddr:%x " \
-        #                "access_ok:%x req_is_hit:%x req_is_miss:%x " \
-        #                "replace_way:%x", use_previous, req_index, req_row, \
-        #                req_tag, real_addr, req_laddr, access_ok, \
+        #comb += Display("ENTER icache_comb - use_previous:%x req_index:%x "
+        #                "req_row:%x req_tag:%x real_addr:%x req_laddr:%x "
+        #                "access_ok:%x req_is_hit:%x req_is_miss:%x "
+        #                "replace_way:%x", use_previous, req_index, req_row,
+        #                req_tag, real_addr, req_laddr, access_ok,
         #                req_is_hit, req_is_miss, replace_way)
 
         i_in, i_out, wb_out = self.i_in, self.i_out, self.wb_out
@@ -712,18 +708,7 @@ class ICache(Elaboratable):
 
         is_hit  = Signal()
         hit_way = Signal(NUM_WAYS)
-#     begin
-#         -- i_in.sequential means that i_in.nia this cycle
-#         -- is 4 more than last cycle.  If we read more
-#         -- than 32 bits at a time, had a cache hit last
-#         -- cycle, and we don't want the first 32-bit chunk
-#         -- then we can keep the data we read last cycle
-#         -- and just use that.
-#         if unsigned(i_in.nia(INSN_BITS+2-1 downto 2)) /= 0 then
-#             use_previous <= i_in.sequential and r.hit_valid;
-#         else
-#             use_previous <= '0';
-#         end if;
+
         # i_in.sequential means that i_in.nia this cycle is 4 more than
         # last cycle.  If we read more than 32 bits at a time, had a
         # cache hit last cycle, and we don't want the first 32-bit chunk
@@ -731,45 +716,18 @@ class ICache(Elaboratable):
         with m.If(i_in.nia[2:INSN_BITS+2] != 0):
             comb += use_previous.eq(i_in.sequential & r.hit_valid)
 
-# 	-- Extract line, row and tag from request
-#         req_index <= get_index(i_in.nia);
-#         req_row <= get_row(i_in.nia);
-#         req_tag <= get_tag(real_addr);
         # Extract line, row and tag from request
         comb += req_index.eq(get_index(i_in.nia))
         comb += req_row.eq(get_row(i_in.nia))
         comb += req_tag.eq(get_tag(real_addr))
 
-# 	-- Calculate address of beginning of cache row, will be
-# 	-- used for cache miss processing if needed
-# 	req_laddr <=
-#        (63 downto REAL_ADDR_BITS => '0') &
-#        real_addr(REAL_ADDR_BITS - 1 downto ROW_OFF_BITS) &
-# 	 (ROW_OFF_BITS-1 downto 0 => '0');
         # Calculate address of beginning of cache row, will be
         # used for cache miss processing if needed
         comb += req_laddr.eq(Cat(
-                 Const(0b0, ROW_OFF_BITS),
+                 Const(0, ROW_OFF_BITS),
                  real_addr[ROW_OFF_BITS:REAL_ADDR_BITS],
-                 Const(0b0, 8)
                 ))
 
-# 	-- Test if pending request is a hit on any way
-# 	hit_way := 0;
-# 	is_hit := '0';
-# 	for i in way_t loop
-# 	    if i_in.req = '1' and
-#                 (cache_valids(req_index)(i) = '1' or
-#                  (r.state = WAIT_ACK and
-#                   req_index = r.store_index and
-#                   i = r.store_way and
-#                   r.rows_valid(req_row mod ROW_PER_LINE) = '1')) then
-# 		if read_tag(i, cache_tags(req_index)) = req_tag then
-# 		    hit_way := i;
-# 		    is_hit := '1';
-# 		end if;
-# 	    end if;
-# 	end loop;
         # Test if pending request is a hit on any way
         hitcond = Signal()
         comb += hitcond.eq((r.state == State.WAIT_ACK)
@@ -789,54 +747,18 @@ class ICache(Elaboratable):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
 
-# 	-- Generate the "hit" and "miss" signals
-#       -- for the synchronous blocks
-#       if i_in.req = '1' and access_ok = '1' and flush_in = '0'
-#        and rst = '0' then
-#           req_is_hit  <= is_hit;
-#           req_is_miss <= not is_hit;
-#       else
-#           req_is_hit  <= '0';
-#           req_is_miss <= '0';
-#       end if;
-# 	req_hit_way <= hit_way;
         # Generate the "hit" and "miss" signals
         # for the synchronous blocks
         with m.If(i_in.req & access_ok & ~flush_in):
             comb += req_is_hit.eq(is_hit)
             comb += req_is_miss.eq(~is_hit)
 
-        with m.Else():
-            comb += req_is_hit.eq(0)
-            comb += req_is_miss.eq(0)
-
-#       -- The way to replace on a miss
-#       if r.state = CLR_TAG then
-#           replace_way <=
-#            to_integer(unsigned(plru_victim(r.store_index)));
-#       else
-#           replace_way <= r.store_way;
-#       end if;
         # The way to replace on a miss
         with m.If(r.state == State.CLR_TAG):
             comb += replace_way.eq(plru_victim[r.store_index])
-
         with m.Else():
             comb += replace_way.eq(r.store_way)
 
-# 	-- Output instruction from current cache row
-# 	--
-# 	-- Note: This is a mild violation of our design principle of
-#       -- having pipeline stages output from a clean latch. In this
-#       -- case we output the result of a mux. The alternative would
-#       -- be output an entire row which I prefer not to do just yet
-#       -- as it would force fetch2 to know about some of the cache
-#       -- geometry information.
-#       i_out.insn <= read_insn_word(r.hit_nia, cache_out(r.hit_way));
-# 	i_out.valid <= r.hit_valid;
-# 	i_out.nia <= r.hit_nia;
-# 	i_out.stop_mark <= r.hit_smark;
-#       i_out.fetch_failed <= r.fetch_failed;
         # Output instruction from current cache row
         #
         # Note: This is a mild violation of our design principle of
@@ -854,21 +776,13 @@ class ICache(Elaboratable):
         comb += i_out.stop_mark.eq(r.hit_smark)
         comb += i_out.fetch_failed.eq(r.fetch_failed)
 
-# 	-- Stall fetch1 if we have a miss on cache or TLB
-#       -- or a protection fault
-# 	stall_out <= not (is_hit and access_ok);
         # Stall fetch1 if we have a miss on cache or TLB
         # or a protection fault
         comb += stall_out.eq(~(is_hit & access_ok))
 
-# 	-- Wishbone requests output (from the cache miss reload machine)
-# 	wishbone_out <= r.wb;
         # Wishbone requests output (from the cache miss reload machine)
         comb += wb_out.eq(r.wb)
-#     end process;
 
-#     -- Cache hit synchronous machine
-#     icache_hit : process(clk)
     # Cache hit synchronous machine
     def icache_hit(self, m, use_previous, r, req_is_hit, req_hit_way,
                    req_index, req_tag, real_addr):
@@ -877,16 +791,6 @@ class ICache(Elaboratable):
         i_in, stall_in = self.i_in, self.stall_in
         flush_in       = self.flush_in
 
-#     begin
-#         if rising_edge(clk) then
-#             -- keep outputs to fetch2 unchanged on a stall
-#             -- except that flush or reset sets valid to 0
-#             -- If use_previous, keep the same data as last
-#             -- cycle and use the second half
-#             if stall_in = '1' or use_previous = '1' then
-#                 if rst = '1' or flush_in = '1' then
-#                     r.hit_valid <= '0';
-#             end if;
         # keep outputs to fetch2 unchanged on a stall
         # except that flush or reset sets valid to 0
         # If use_previous, keep the same data as last
@@ -894,13 +798,6 @@ class ICache(Elaboratable):
         with m.If(stall_in | use_previous):
             with m.If(flush_in):
                 sync += r.hit_valid.eq(0)
-#             else
-#                 -- On a hit, latch the request for the next cycle,
-#                 -- when the BRAM data will be available on the
-#                 -- cache_out output of the corresponding way
-#                 r.hit_valid <= req_is_hit;
-#                 if req_is_hit = '1' then
-#                     r.hit_way <= req_hit_way;
         with m.Else():
             # On a hit, latch the request for the next cycle,
             # when the BRAM data will be available on the
@@ -909,14 +806,6 @@ class ICache(Elaboratable):
 
             with m.If(req_is_hit):
                 sync += r.hit_way.eq(req_hit_way)
-
-#                     report "cache hit nia:" & to_hstring(i_in.nia) &
-#                         " IR:" & std_ulogic'image(i_in.virt_mode) &
-#                         " SM:" & std_ulogic'image(i_in.stop_mark) &
-#                         " idx:" & integer'image(req_index) &
-#                         " tag:" & to_hstring(req_tag) &
-#                         " way:" & integer'image(req_hit_way) &
-#                         " RA:" & to_hstring(real_addr);
                 sync += Display("cache hit nia:%x IR:%x SM:%x idx:%x " \
                                 "tag:%x way:%x RA:%x", i_in.nia, \
                                 i_in.virt_mode, i_in.stop_mark, req_index, \
@@ -924,22 +813,11 @@ class ICache(Elaboratable):
 
 
 
-#                 end if;
-# 	    end if;
-#             if stall_in = '0' then
-#                 -- Send stop marks and NIA down regardless of validity
-#                 r.hit_smark <= i_in.stop_mark;
-#                 r.hit_nia <= i_in.nia;
-#             end if;
         with m.If(~stall_in):
             # Send stop marks and NIA down regardless of validity
             sync += r.hit_smark.eq(i_in.stop_mark)
             sync += r.hit_nia.eq(i_in.nia)
-# 	end if;
-#     end process;
 
-#     -- Cache miss/reload synchronous machine
-#     icache_miss : process(clk)
     # Cache miss/reload synchronous machine
     def icache_miss(self, m, cache_valid_bits, r, req_is_miss,
                     req_index, req_laddr, req_tag, replace_way,
@@ -957,35 +835,6 @@ class ICache(Elaboratable):
         tagset    = Signal(TAG_RAM_WIDTH)
         stbs_done = Signal()
 
-#     begin
-#         if rising_edge(clk) then
-# 	    -- On reset, clear all valid bits to force misses
-#             if rst = '1' then
-        # On reset, clear all valid bits to force misses
-# 		for i in index_t loop
-# 		    cache_valids(i) <= (others => '0');
-# 		end loop;
-#                 r.state <= IDLE;
-#                 r.wb.cyc <= '0';
-#                 r.wb.stb <= '0';
-# 		-- We only ever do reads on wishbone
-# 		r.wb.dat <= (others => '0');
-# 		r.wb.sel <= "11111111";
-# 		r.wb.we  <= '0';
-
-# 		-- Not useful normally but helps avoiding
-#               -- tons of sim warnings
-# 		r.wb.adr <= (others => '0');
-
-#             else
-
-#                 -- Process cache invalidations
-#                 if inval_in = '1' then
-#                     for i in index_t loop
-#                         cache_valids(i) <= (others => '0');
-#                     end loop;
-#                     r.store_valid <= '0';
-#                 end if;
         comb += r.wb.sel.eq(-1)
         comb += r.wb.adr.eq(r.req_adr[3:])
 
@@ -995,48 +844,22 @@ class ICache(Elaboratable):
                 sync += cache_valid_bits[i].eq(0)
             sync += r.store_valid.eq(0)
 
-# 		-- Main state machine
-# 		case r.state is
         # Main state machine
         with m.Switch(r.state):
 
-# 	    when IDLE =>
             with m.Case(State.IDLE):
-#                 -- Reset per-row valid flags,
-#                 -- only used in WAIT_ACK
-#                 for i in 0 to ROW_PER_LINE - 1 loop
-#                     r.rows_valid(i) <= '0';
-#                 end loop;
                 # Reset per-row valid flags,
                 # only used in WAIT_ACK
                 for i in range(ROW_PER_LINE):
                     sync += r.rows_valid[i].eq(0)
 
-# 	        -- We need to read a cache line
-# 	        if req_is_miss = '1' then
-# 	    	report "cache miss nia:" & to_hstring(i_in.nia) &
-#                         " IR:" & std_ulogic'image(i_in.virt_mode) &
-# 	    	    " SM:" & std_ulogic'image(i_in.stop_mark) &
-# 	    	    " idx:" & integer'image(req_index) &
-# 	    	    " way:" & integer'image(replace_way) &
-# 	    	    " tag:" & to_hstring(req_tag) &
-#                         " RA:" & to_hstring(real_addr);
                 # We need to read a cache line
                 with m.If(req_is_miss):
-                    sync += Display(
-                             "cache miss nia:%x IR:%x SM:%x idx:%x " \
-                             " way:%x tag:%x RA:%x", i_in.nia, \
-                             i_in.virt_mode, i_in.stop_mark, req_index, \
-                             replace_way, req_tag, real_addr)
+                    sync += Display("cache miss nia:%x IR:%x SM:%x idx:%x "
+                                     " way:%x tag:%x RA:%x", i_in.nia,
+                                     i_in.virt_mode, i_in.stop_mark, req_index,
+                                     replace_way, req_tag, real_addr)
 
-# 	    	-- Keep track of our index and way for
-#                   -- subsequent stores
-# 	    	r.store_index <= req_index;
-# 	    	r.store_row <= get_row(req_laddr);
-#                   r.store_tag <= req_tag;
-#                   r.store_valid <= '1';
-#                   r.end_row_ix <=
-#                    get_row_of_line(get_row(req_laddr)) - 1;
                     # Keep track of our index and way
                     # for subsequent stores
                     sync += r.store_index.eq(req_index)
@@ -1152,9 +975,9 @@ class ICache(Elaboratable):
                     sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
                              rarange
                             )
-                    sync += Display("RARANGE r.wb.adr:%x stbs_zero:%x " \
-                                    "stbs_done:%x", rarange, stbs_zero, \
-                                    stbs_done)
+                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
+                                    "stbs_zero:%x stbs_done:%x", 
+                                    r.req_adr, rarange, stbs_zero, stbs_done)
 # 	        end if;
 
 # 	        -- Incoming acks processing
@@ -1163,9 +986,9 @@ class ICache(Elaboratable):
                 with m.If(wb_in.ack):
 #                     r.rows_valid(r.store_row mod ROW_PER_LINE)
 #                      <= '1';
-                    sync += Display("WB_IN_ACK stbs_zero:%x " \
-                                    "stbs_done:%x", \
-                                    stbs_zero, stbs_done)
+                    sync += Display("WB_IN_ACK data:%x stbs_zero:%x " 
+                                    "stbs_done:%x", 
+                                    wb_in.dat, stbs_zero, stbs_done)
 
                     sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
 
