@@ -920,6 +920,10 @@ class ICache(Elaboratable):
 # 	    end if;
 # 	end loop;
         # Test if pending request is a hit on any way
+        hitcond = Signal()
+        comb += hitcond.eq((r.state == State.WAIT_ACK)
+                    & (req_index == r.store_index)
+                    & r.rows_valid[req_row % ROW_PER_LINE])
         with m.If(i_in.req):
             cvb = Signal(NUM_WAYS)
             ctag = Signal(TAG_RAM_WIDTH)
@@ -928,14 +932,11 @@ class ICache(Elaboratable):
             for i in range(NUM_WAYS):
                 tagi = Signal(TAG_BITS, name="ti%d" % i)
                 comb += tagi.eq(read_tag(i, ctag))
-                with m.If(cvb[i] |
-                           ((r.state == State.WAIT_ACK)
-                            & (req_index == r.store_index)
-                            & (i == r.store_way)
-                            & r.rows_valid[req_row % ROW_PER_LINE])):
-                    with m.If(tagi == req_tag):
-                        comb += hit_way.eq(i)
-                        comb += is_hit.eq(1)
+                hit_test = Signal(name="hit_test%d" % i)
+                comb += hit_test.eq(i == r.store_way)
+                with m.If((cvb[i] | (hitcond & hit_test)) & (tagi == req_tag)):
+                    comb += hit_way.eq(i)
+                    comb += is_hit.eq(1)
 
 # 	-- Generate the "hit" and "miss" signals
 #       -- for the synchronous blocks
