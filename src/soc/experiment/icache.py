@@ -479,27 +479,7 @@ class State(Enum):
     CLR_TAG  = 1
     WAIT_ACK = 2
 
-#     type reg_internal_t is record
-# 	-- Cache hit state (Latches for 1 cycle BRAM access)
-# 	hit_way   : way_t;
-# 	hit_nia   : std_ulogic_vector(63 downto 0);
-# 	hit_smark : std_ulogic;
-# 	hit_valid : std_ulogic;
-#
-# 	-- Cache miss state (reload state machine)
-#         state            : state_t;
-#         wb               : wishbone_master_out;
-# 	store_way        : way_t;
-#         store_index      : index_t;
-# 	store_row        : row_t;
-#         store_tag        : cache_tag_t;
-#         store_valid      : std_ulogic;
-#         end_row_ix       : row_in_line_t;
-#         rows_valid       : row_per_line_valid_t;
-#
-#         -- TLB miss state
-#         fetch_failed     : std_ulogic;
-#     end record;
+
 class RegInternal(RecordObject):
     def __init__(self):
         super().__init__()
@@ -593,46 +573,7 @@ class ICache(Elaboratable):
         self.log_out        = Signal(54)
 
 
-#     -- Generate a cache RAM for each way
-#     rams: for i in 0 to NUM_WAYS-1 generate
-# 	signal do_read  : std_ulogic;
-# 	signal do_write : std_ulogic;
-# 	signal rd_addr  : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	signal wr_addr  : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	signal dout     : cache_row_t;
-# 	signal wr_sel   : std_ulogic_vector(ROW_SIZE-1 downto 0);
-#     begin
-# 	way: entity work.cache_ram
-# 	    generic map (
-# 		ROW_BITS => ROW_BITS,
-# 		WIDTH => ROW_SIZE_BITS
-# 		)
-# 	    port map (
-# 		clk     => clk,
-# 		rd_en   => do_read,
-# 		rd_addr => rd_addr,
-# 		rd_data => dout,
-# 		wr_sel  => wr_sel,
-# 		wr_addr => wr_addr,
-# 		wr_data => wishbone_in.dat
-# 		);
-# 	process(all)
-# 	begin
-# 	    do_read <= not (stall_in or use_previous);
-# 	    do_write <= '0';
-# 	    if wishbone_in.ack = '1' and replace_way = i then
-# 		do_write <= '1';
-# 	    end if;
-# 	    cache_out(i) <= dout;
-# 	    rd_addr <=
-#            std_ulogic_vector(to_unsigned(req_row, ROW_BITS));
-# 	    wr_addr <=
-#            std_ulogic_vector(to_unsigned(r.store_row, ROW_BITS));
-#             for i in 0 to ROW_SIZE-1 loop
-#                 wr_sel(i) <= do_write;
-#             end loop;
-# 	end process;
-#     end generate;
+    # Generate a cache RAM for each way
     def rams(self, m, r, cache_out_row, use_previous, replace_way, req_row):
         comb = m.d.comb
 
@@ -666,42 +607,7 @@ class ICache(Elaboratable):
             comb += wr_addr.eq(r.store_row)
             comb += wr_sel.eq(Repl(do_write, ROW_SIZE))
 
-#     -- Generate PLRUs
-#     maybe_plrus: if NUM_WAYS > 1 generate
-#     begin
-# 	plrus: for i in 0 to NUM_LINES-1 generate
-# 	    -- PLRU interface
-# 	    signal plru_acc    : std_ulogic_vector(WAY_BITS-1 downto 0);
-# 	    signal plru_acc_en : std_ulogic;
-# 	    signal plru_out    : std_ulogic_vector(WAY_BITS-1 downto 0);
-#
-# 	begin
-# 	    plru : entity work.plru
-# 		generic map (
-# 		    BITS => WAY_BITS
-# 		    )
-# 		port map (
-# 		    clk => clk,
-# 		    rst => rst,
-# 		    acc => plru_acc,
-# 		    acc_en => plru_acc_en,
-# 		    lru => plru_out
-# 		    );
-#
-# 	    process(all)
-# 	    begin
-# 		-- PLRU interface
-# 		if get_index(r.hit_nia) = i then
-# 		    plru_acc_en <= r.hit_valid;
-# 		else
-# 		    plru_acc_en <= '0';
-# 		end if;
-# 		plru_acc <=
-#                std_ulogic_vector(to_unsigned(r.hit_way, WAY_BITS));
-# 		plru_victim(i) <= plru_out;
-# 	    end process;
-# 	end generate;
-#     end generate;
+    #     -- Generate PLRUs
     def maybe_plrus(self, m, r, plru_victim):
         comb = m.d.comb
 
@@ -722,33 +628,6 @@ class ICache(Elaboratable):
                 comb += plru.acc_i.eq(r.hit_way)
                 comb += plru_victim[i].eq(plru.lru_o)
 
-#     -- TLB hit detection and real address generation
-#     itlb_lookup : process(all)
-#         variable pte : tlb_pte_t;
-#         variable ttag : tlb_tag_t;
-#     begin
-#         tlb_req_index <= hash_ea(i_in.nia);
-#         pte := itlb_ptes(tlb_req_index);
-#         ttag := itlb_tags(tlb_req_index);
-#         if i_in.virt_mode = '1' then
-#             real_addr <= pte(REAL_ADDR_BITS - 1 downto TLB_LG_PGSZ) &
-#                          i_in.nia(TLB_LG_PGSZ - 1 downto 0);
-#             if ttag = i_in.nia(63 downto TLB_LG_PGSZ + TLB_BITS) then
-#                 ra_valid <= itlb_valids(tlb_req_index);
-#             else
-#                 ra_valid <= '0';
-#             end if;
-#             eaa_priv <= pte(3);
-#         else
-#             real_addr <= i_in.nia(REAL_ADDR_BITS - 1 downto 0);
-#             ra_valid <= '1';
-#             eaa_priv <= '1';
-#         end if;
-#
-#         -- no IAMR, so no KUEP support for now
-#         priv_fault <= eaa_priv and not i_in.priv_mode;
-#         access_ok <= ra_valid and not priv_fault;
-#     end process;
     # TLB hit detection and real address generation
     def itlb_lookup(self, m, tlb_req_index, itlb_ptes, itlb_tags,
                     real_addr, itlb_valid_bits, ra_valid, eaa_priv,
@@ -784,29 +663,6 @@ class ICache(Elaboratable):
         comb += priv_fault.eq(eaa_priv & ~i_in.priv_mode)
         comb += access_ok.eq(ra_valid & ~priv_fault)
 
-#     -- iTLB update
-#     itlb_update: process(clk)
-#         variable wr_index : tlb_index_t;
-#     begin
-#         if rising_edge(clk) then
-#             wr_index := hash_ea(m_in.addr);
-#             if rst = '1' or
-#              (m_in.tlbie = '1' and m_in.doall = '1') then
-#                 -- clear all valid bits
-#                 for i in tlb_index_t loop
-#                     itlb_valids(i) <= '0';
-#                 end loop;
-#             elsif m_in.tlbie = '1' then
-#                 -- clear entry regardless of hit or miss
-#                 itlb_valids(wr_index) <= '0';
-#             elsif m_in.tlbld = '1' then
-#                 itlb_tags(wr_index) <=
-#                  m_in.addr(63 downto TLB_LG_PGSZ + TLB_BITS);
-#                 itlb_ptes(wr_index) <= m_in.pte;
-#                 itlb_valids(wr_index) <= '1';
-#             end if;
-#         end if;
-#     end process;
     # iTLB update
     def itlb_update(self, m, itlb_valid_bits, itlb_tags, itlb_ptes):
         comb = m.d.comb
