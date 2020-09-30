@@ -42,7 +42,9 @@ _io = [
     # I2C0: 2 pins
     ("i2c", 0,
         Subsignal("scl", Pins("L4"), IOStandard("LVCMOS33")),
-        Subsignal("sda", Pins("M1"), IOStandard("LVCMOS33"))
+        Subsignal("sda_i", Pins("M1"), IOStandard("LVCMOS33")),
+        Subsignal("sda_o", Pins("M1"), IOStandard("LVCMOS33")),
+        Subsignal("sda_oe", Pins("M1"), IOStandard("LVCMOS33")),
     ),
 
     # SPI0: 4 pins

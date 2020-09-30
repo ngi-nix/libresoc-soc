@@ -26,7 +26,7 @@ from litedram.common import PHYPadsCombiner, PhySettings
 from litedram.phy.dfi import Interface as DFIInterface
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.pwm import PWM
-from litex.soc.cores.bitbang import I2CMaster
+#from litex.soc.cores.bitbang import I2CMaster
 from litex.soc.cores import uart
 
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
@@ -59,6 +59,43 @@ from litesdcard.phy import (SDPHY, SDPHYClocker,
 from litesdcard.core import SDCore
 from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
 from litex.build.io import SDROutput, SDRInput
+
+
+# I2C Master Bit-Banging --------------------------------------------------
+
+class I2CMaster(Module, AutoCSR):
+    """I2C Master Bit-Banging
+
+    Provides the minimal hardware to do software I2C Master bit banging.
+
+    On the same write CSRStorage (_w), software can control SCL (I2C_SCL),
+    SDA direction and value (I2C_OE, I2C_W). Software get back SDA value
+    with the read CSRStatus (_r).
+    """
+    pads_layout = [("scl", 1), ("sda", 1)]
+    def __init__(self, pads):
+        self.pads = pads
+        self._w = CSRStorage(fields=[
+            CSRField("scl", size=1, offset=0),
+            CSRField("oe",  size=1, offset=1),
+            CSRField("sda", size=1, offset=2)],
+            name="w")
+        self._r = CSRStatus(fields=[
+            CSRField("sda", size=1, offset=0)],
+            name="r")
+
+        self.connect(pads)
+
+    def connect(self, pads):
+        _sda_w  = Signal()
+        _sda_oe = Signal()
+        _sda_r  = Signal()
+        self.comb += [
+            pads.scl.eq(self._w.fields.scl),
+            pads.sda_oe.eq( self._w.fields.oe),
+            pads.sda_o.eq(  self._w.fields.sda),
+            self._r.fields.sda.eq(pads.sda_i),
+        ]
 
 
 class GPIOTristateASIC(Module, AutoCSR):
