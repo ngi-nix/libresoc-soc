@@ -862,99 +862,52 @@ class ICache(Elaboratable):
 
                     # Keep track of our index and way
                     # for subsequent stores
+                    st_row = Signal(BRAM_ROWS)
+                    comb += st_row.eq(get_row(req_laddr))
                     sync += r.store_index.eq(req_index)
-                    sync += r.store_row.eq(get_row(req_laddr))
+                    sync += r.store_row.eq(st_row)
                     sync += r.store_tag.eq(req_tag)
                     sync += r.store_valid.eq(1)
-                    sync += r.end_row_ix.eq(
-                             get_row_of_line(
-                              get_row(req_laddr)
-                             ) - 1
-                            )
+                    sync += r.end_row_ix.eq(get_row_of_line(st_row) - 1)
 
-# 	    	-- Prep for first wishbone read. We calculate the
-#                   -- address of the start of the cache line and
-#                   -- start the WB cycle.
-# 	    	r.wb.adr <= req_laddr(r.wb.adr'left downto 0);
-# 	    	r.wb.cyc <= '1';
-# 	    	r.wb.stb <= '1';
-                    # Prep for first wishbone read.
-                    # We calculate the
+                    # Prep for first wishbone read.  We calculate the
                     # address of the start of the cache line and
                     # start the WB cycle.
                     sync += r.req_adr.eq(req_laddr)
                     sync += r.wb.cyc.eq(1)
                     sync += r.wb.stb.eq(1)
 
-# 	    	-- Track that we had one request sent
-# 	    	r.state <= CLR_TAG;
                     # Track that we had one request sent
                     sync += r.state.eq(State.CLR_TAG)
-# 	        end if;
 
-# 	    when CLR_TAG | WAIT_ACK =>
             with m.Case(State.CLR_TAG, State.WAIT_ACK):
-#                 if r.state = CLR_TAG then
                 with m.If(r.state == State.CLR_TAG):
-#                     -- Get victim way from plru
-# 	    	r.store_way <= replace_way;
                     # Get victim way from plru
                     sync += r.store_way.eq(replace_way)
-#
-# 	    	-- Force misses on that way while
-#                   -- reloading that line
-# 	    	cache_valids(req_index)(replace_way) <= '0';
-                    # Force misses on that way while
-                    # realoading that line
+                    # Force misses on that way while reloading that line
                     cv = Signal(INDEX_BITS)
                     comb += cv.eq(cache_valid_bits[req_index])
                     comb += cv.bit_select(replace_way, 1).eq(0)
                     sync += cache_valid_bits[req_index].eq(cv)
 
-# 	    	-- Store new tag in selected way
-# 	    	for i in 0 to NUM_WAYS-1 loop
-# 	    	    if i = replace_way then
-# 	    		tagset := cache_tags(r.store_index);
-# 	    		write_tag(i, tagset, r.store_tag);
-# 	    		cache_tags(r.store_index) <= tagset;
-# 	    	    end if;
-# 	    	end loop;
                     for i in range(NUM_WAYS):
                         with m.If(i == replace_way):
                             comb += tagset.eq(cache_tags[r.store_index])
                             comb += write_tag(i, tagset, r.store_tag)
                             sync += cache_tags[r.store_index].eq(tagset)
 
-#                     r.state <= WAIT_ACK;
                     sync += r.state.eq(State.WAIT_ACK)
-#                 end if;
 
-# 	        -- Requests are all sent if stb is 0
-# 	        stbs_done := r.wb.stb = '0';
                 # Requests are all sent if stb is 0
                 stbs_zero = Signal()
                 comb += stbs_zero.eq(r.wb.stb == 0)
                 comb += stbs_done.eq(stbs_zero)
 
-# 	        -- If we are still sending requests,
-#               -- was one accepted ?
-# 	        if wishbone_in.stall = '0' and not stbs_done then
-                # If we are still sending requests,
-                # was one accepted?
+                # If we are still sending requests, was one accepted?
                 with m.If(~wb_in.stall & ~stbs_zero):
-# 	    	-- That was the last word ? We are done sending.
-#                   -- Clear stb and set stbs_done so we can handle
-#                   -- an eventual last ack on the same cycle.
-# 	    	if is_last_row_addr(r.wb.adr, r.end_row_ix) then
-# 	    	    r.wb.stb <= '0';
-# 	    	    stbs_done := true;
-# 	    	end if;
-                    # That was the last word ?
-                    # We are done sending.
-                    # Clear stb and set stbs_done
-                    # so we can handle
-                    # an eventual last ack on
-                    # the same cycle.
+                    # That was the last word ?  # We are done sending.
+                    # Clear stb and set stbs_done # so we can handle
+                    # an eventual last ack on # the same cycle.
                     with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
                         sync += Display("IS_LAST_ROW_ADDR " \
                                         "r.wb.addr:%x r.end_row_ix:%x " \
@@ -965,8 +918,6 @@ class ICache(Elaboratable):
                         sync += r.wb.stb.eq(0)
                         comb += stbs_done.eq(1)
 
-# 	    	-- Calculate the next row address
-# 	    	r.wb.adr <= next_row_addr(r.wb.adr);
                     # Calculate the next row address
                     rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
                     comb += rarange.eq(
@@ -978,34 +929,21 @@ class ICache(Elaboratable):
                     sync += Display("RARANGE r.req_adr:%x rarange:%x "
                                     "stbs_zero:%x stbs_done:%x", 
                                     r.req_adr, rarange, stbs_zero, stbs_done)
-# 	        end if;
 
-# 	        -- Incoming acks processing
-# 	        if wishbone_in.ack = '1' then
                 # Incoming acks processing
                 with m.If(wb_in.ack):
-#                     r.rows_valid(r.store_row mod ROW_PER_LINE)
-#                      <= '1';
                     sync += Display("WB_IN_ACK data:%x stbs_zero:%x " 
                                     "stbs_done:%x", 
                                     wb_in.dat, stbs_zero, stbs_done)
 
                     sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
 
-# 	    	-- Check for completion
-# 	    	if stbs_done and
-#                    is_last_row(r.store_row, r.end_row_ix) then
                     # Check for completion
                     with m.If(stbs_done &
                               is_last_row(r.store_row, r.end_row_ix)):
-# 	    	    -- Complete wishbone cycle
-# 	    	    r.wb.cyc <= '0';
                         # Complete wishbone cycle
                         sync += r.wb.cyc.eq(0)
 
-# 	    	    -- Cache line is now valid
-# 	    	    cache_valids(r.store_index)(replace_way) <=
-#                        r.store_valid and not inval_in;
                         # Cache line is now valid
                         cv = Signal(INDEX_BITS)
                         comb += cv.eq(cache_valid_bits[r.store_index])
@@ -1014,37 +952,18 @@ class ICache(Elaboratable):
                                 )
                         sync += cache_valid_bits[r.store_index].eq(cv)
 
-# 	    	    -- We are done
-# 	    	    r.state <= IDLE;
-                        # We are done
                         sync += r.state.eq(State.IDLE)
-# 	    	end if;
 
-# 	    	-- Increment store row counter
-# 	    	r.store_row <= next_row(r.store_row);
                     # Increment store row counter
                     sync += r.store_row.eq(next_row(r.store_row))
-# 	        end if;
-# 	    end case;
-# 	end if;
-#
-#             -- TLB miss and protection fault processing
-#             if rst = '1' or flush_in = '1' or m_in.tlbld = '1' then
-#                 r.fetch_failed <= '0';
-#             elsif i_in.req = '1' and access_ok = '0' and
-#              stall_in = '0' then
-#                 r.fetch_failed <= '1';
-#             end if;
+
         # TLB miss and protection fault processing
         with m.If(flush_in | m_in.tlbld):
             sync += r.fetch_failed.eq(0)
-
         with m.Elif(i_in.req & ~access_ok & ~stall_in):
             sync += r.fetch_failed.eq(1)
-# 	end if;
-#     end process;
 
-#     icache_log: if LOG_LENGTH > 0 generate
+    #  icache_log: if LOG_LENGTH > 0 generate
     def icache_log(self, m, req_hit_way, ra_valid, access_ok,
                    req_is_miss, req_is_hit, lway, wstate, r):
         comb = m.d.comb
