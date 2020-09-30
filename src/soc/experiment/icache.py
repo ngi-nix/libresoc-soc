@@ -939,6 +939,7 @@ class ICache(Elaboratable):
                               is_last_row(r.store_row, r.end_row_ix)):
                         # Complete wishbone cycle
                         sync += r.wb.cyc.eq(0)
+                        sync += r.req_adr.eq(0) # be nice, clear addr
 
                         # Cache line is now valid
                         cv = Signal(INDEX_BITS)
@@ -950,20 +951,23 @@ class ICache(Elaboratable):
 
                         sync += r.state.eq(State.IDLE)
 
-                    # Increment store row counter
-                    sync += r.store_row.eq(next_row(r.store_row))
+                    # not completed, move on to next request in row
+                    with m.Else():
+                        # Increment store row counter
+                        sync += r.store_row.eq(next_row(r.store_row))
 
-                    # Calculate the next row address
-                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
-                    comb += rarange.eq(
-                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
-                            )
-                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
-                             rarange
-                            )
-                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
-                                    "stbs_zero:%x stbs_done:%x",
-                                    r.req_adr, rarange, stbs_zero, stbs_done)
+                        # Calculate the next row address
+                        rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
+                        comb += rarange.eq(
+                                 r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                                )
+                        sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
+                                 rarange
+                                )
+                        sync += Display("RARANGE r.req_adr:%x rarange:%x "
+                                        "stbs_zero:%x stbs_done:%x",
+                                        r.req_adr, rarange,
+                                        stbs_zero, stbs_done)
 
 
         # TLB miss and protection fault processing
