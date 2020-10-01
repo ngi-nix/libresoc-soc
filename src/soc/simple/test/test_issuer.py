@@ -21,7 +21,7 @@ from soc.config.endian import bigendian
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 
-from soc.simple.issuer import TestIssuer
+from soc.simple.issuer import TestIssuerInternal
 from soc.experiment.compalu_multi import find_ok  # hack
 
 from soc.config.test.test_loadstore import TestMemPspec
@@ -148,7 +148,7 @@ class TestRunner(FHDLTestCase):
                              imem_reg_wid=64,
                              #wb_data_width=32,
                              reg_wid=64)
-        m.submodules.issuer = issuer = TestIssuer(pspec)
+        m.submodules.issuer = issuer = TestIssuerInternal(pspec)
         imem = issuer.imem._get_memory()
         core = issuer.core
         dmi = issuer.dbg.dmi

@@ -14,10 +14,11 @@
   the CLK_24 is the default in case PLL is unstable
 """
 
-from nmigen import (Module, Array, Signal, Mux, Elaboratable, ClockSignal)
+from nmigen import (Module, Array, Signal, Mux, Elaboratable, ClockSignal,
+                    ResetSignal)
 from nmigen.cli import rtlil
 
-CLK_24 = 0b000
+CLK_24 = 0b000 # this is the default (clk_sel_i = 0 on reset)
 PLL6 = 0b001
 PLL4 = 0b010
 PLL3 = 0b011
@@ -34,17 +35,19 @@ class ClockSelect(Elaboratable):
         self.pll_48_o = Signal()  # 6-divide (test signal) from PLL
         self.clk_sel_i = Signal(3) # clock source selection
         self.core_clk_o = Signal() # main core clock (selectable)
+        self.rst        = Signal() # reset
 
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
+        m.d.comb += ResetSignal().eq(self.rst)
 
         # array of clocks (selectable by clk_sel_i)
         clkgen = Array([Signal(name="clk%d" % i) for i in range(8)])
         counter3 = Signal(2) # for divide-by-3
 
         # set up system, zero and one clocks
-        comb += clkgen[SYS_CLK].eq(self.clk_24_i) # 1st is external 24mhz
+        comb += clkgen[CLK_24].eq(self.clk_24_i) # 1st is external 24mhz
         comb += clkgen[ZERO].eq(0) # LOW (use with ONE for direct driving)
         comb += clkgen[ONE].eq(1) # HI
 
@@ -70,6 +73,20 @@ class ClockSelect(Elaboratable):
 
     def ports(self):
         return [self.clk_24_i, self.pll_48_o, self.clk_sel_i, self.core_clk_o]
+
+
+class DummyPLL(Elaboratable):
+    def __init__(self):
+        self.clk_24_i = Signal() # 24 mhz external incoming
+        self.clk_pll_o = Signal()  # output fake PLL clock
+        self.rst = Signal() # reset
+
+    def elaborate(self, platform):
+        m = Module()
+        m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
+        m.d.comb += ResetSignal().eq(self.rst)
+
+        return m
 
 
 if __name__ == '__main__':
