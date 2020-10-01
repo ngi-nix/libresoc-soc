@@ -1073,7 +1073,7 @@ class DCache(Elaboratable):
             wr_sel_m = Signal(ROW_SIZE)
             _d_out   = Signal(WB_DATA_BITS, name="dout_%d" % i)
 
-            way = CacheRam(ROW_BITS, WB_DATA_BITS, True)
+            way = CacheRam(ROW_BITS, WB_DATA_BITS, ADD_BUF=True)
             setattr(m.submodules, "cacheram_%d" % i, way)
 
             comb += way.rd_en.eq(do_read)
