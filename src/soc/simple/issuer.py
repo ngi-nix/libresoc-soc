@@ -468,6 +468,7 @@ class TestIssuer(Elaboratable):
         comb += cd_pll.clk.eq(pll.clk_pll_o)
 
         # wire up external 24mhz to PLL and clksel
+        comb += clksel.clk_24_i.eq(ClockSignal())
         comb += pll.clk_24_i.eq(clksel.clk_24_i)
 
         # now wire up ResetSignals.  don't mind them all being in this domain

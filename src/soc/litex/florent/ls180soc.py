@@ -363,6 +363,13 @@ class LibreSoCSim(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"),
                                   platform.request("sys_rst"))
 
+        # PLL/Clock Select
+        clksel_i = platform.request("sys_clksel_i")
+        pll48_o = platform.request("sys_pll_48_o")
+
+        self.comb += self.cpu.clk_sel.eq(clksel_i) # allow clock src select
+        self.comb += pll48_o.eq(self.cpu.pll_48_o) # "test feed" from the PLL
+
         #ram_init = []
 
         # SDRAM ----------------------------------------------------
