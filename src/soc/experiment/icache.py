@@ -926,6 +926,18 @@ class ICache(Elaboratable):
                         sync += r.wb.stb.eq(0)
                         comb += stbs_done.eq(1)
 
+                    # Calculate the next row address
+                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
+                    comb += rarange.eq(
+                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                            )
+                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
+                             rarange
+                            )
+                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
+                                    "stbs_zero:%x stbs_done:%x",
+                                    r.req_adr, rarange, stbs_zero, stbs_done)
+
                 # Incoming acks processing
                 with m.If(wb_in.ack):
                     sync += Display("WB_IN_ACK data:%x stbs_zero:%x "
@@ -955,20 +967,6 @@ class ICache(Elaboratable):
                     with m.Else():
                         # Increment store row counter
                         sync += r.store_row.eq(next_row(r.store_row))
-
-                        # Calculate the next row address
-                        rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
-                        comb += rarange.eq(
-                                 r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
-                                )
-                        sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
-                                 rarange
-                                )
-                        sync += Display("RARANGE r.req_adr:%x rarange:%x "
-                                        "stbs_zero:%x stbs_done:%x",
-                                        r.req_adr, rarange,
-                                        stbs_zero, stbs_done)
-
 
         # TLB miss and protection fault processing
         with m.If(flush_in | m_in.tlbld):
