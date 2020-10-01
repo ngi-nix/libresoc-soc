@@ -964,7 +964,7 @@ class DCache(Elaboratable):
                 sync += reservation.valid.eq(1)
                 sync += reservation.addr.eq(r0.req.addr[LINE_OFF_BITS:64])
 
-    def writeback_control(self, m, r1, cache_out):
+    def writeback_control(self, m, r1, cache_out_row):
         """Return data for loads & completion control logic
         """
         comb = m.d.comb
@@ -983,7 +983,7 @@ class DCache(Elaboratable):
         with m.Else():
             comb += data_fwd.eq(r1.forward_data2)
 
-        comb += data_out.eq(cache_out[r1.hit_way])
+        comb += data_out.eq(cache_out_row)
 
         for i in range(8):
             with m.If(r1.forward_sel[i]):
@@ -1049,7 +1049,7 @@ class DCache(Elaboratable):
                 sync += Display("completing MMU load miss, data=%x",
                                 m_out.data)
 
-    def rams(self, m, r1, early_req_row, cache_out, replace_way):
+    def rams(self, m, r1, early_req_row, cache_out_row, replace_way):
         """rams
         Generate a cache RAM for each way. This handles the normal
         reads, writes from reloads and the special store-hit update
@@ -1086,7 +1086,8 @@ class DCache(Elaboratable):
             # Cache hit reads
             comb += do_read.eq(1)
             comb += rd_addr.eq(early_req_row[:ROW_BITS])
-            comb += cache_out[i].eq(_d_out)
+            with m.If(r1.hit_way == i):
+                comb += cache_out_row.eq(_d_out)
 
             # Write mux:
             #
@@ -1579,7 +1580,7 @@ class DCache(Elaboratable):
         use_forward1_next = Signal()
         use_forward2_next = Signal()
 
-        cache_out         = CacheRamOut()
+        cache_out_row     = Signal(WB_DATA_BITS)
 
         plru_victim       = PLRUOut()
         replace_way       = Signal(WAY_BITS)
@@ -1644,8 +1645,8 @@ class DCache(Elaboratable):
                            r0_valid, r0, reservation)
         self.reservation_reg(m, r0_valid, access_ok, set_rsrv, clear_rsrv,
                            reservation, r0)
-        self.writeback_control(m, r1, cache_out)
-        self.rams(m, r1, early_req_row, cache_out, replace_way)
+        self.writeback_control(m, r1, cache_out_row)
+        self.rams(m, r1, early_req_row, cache_out_row, replace_way)
         self.dcache_fast_hit(m, req_op, r0_valid, r0, r1,
                         req_hit_way, req_index, req_tag, access_ok,
                         tlb_hit, tlb_hit_way, tlb_req_index)
