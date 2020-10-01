@@ -15,12 +15,13 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.experiment.alu_hier import ALU, DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.decoder.power_enums import MicrOp
+from nmutil.gtkw import write_gtkw
 from nmigen import Module
 from nmigen.cli import rtlil
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
-from nmutil.sim_tmp_alternative import Simulator, Settle
+from nmutil.sim_tmp_alternative import Simulator, Settle, is_engine_pysim
 
 
 def wrap(process):
@@ -176,7 +177,24 @@ def scoreboard_sim(dut):
 
 
 def test_compunit_fsm():
+    top = "top.cu" if is_engine_pysim() else "cu"
+    traces = [
+        'clk', 'src1_i[7:0]', 'src2_i[7:0]', 'oper_i_None__sdir', 'cu_issue_i',
+        'cu_busy_o', 'cu_rd__rel_o[1:0]', 'cu_rd__go_i[1:0]',
+        'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[7:0]',
+        ('alu', {'module': top+'.alu'}, [
+            'p_data_i[7:0]', 'p_shift_i[7:0]', 'op__sdir',
+            'p_valid_i', 'p_ready_o', 'n_valid_o', 'n_ready_i',
+            'n_data_o[7:0]'
+        ])
 
+    ]
+    write_gtkw(
+        "test_compunit_fsm1.gtkw",
+        "test_compunit_fsm1.vcd",
+        traces,
+        module=top
+    )
     m = Module()
     alu = Shifter(8)
     dut = MultiCompUnit(8, alu, CompFSMOpSubset)
