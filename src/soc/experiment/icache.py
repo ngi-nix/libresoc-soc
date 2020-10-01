@@ -761,6 +761,12 @@ class ICache(Elaboratable):
             comb += req_is_hit.eq(is_hit)
             comb += req_is_miss.eq(~is_hit)
 
+        with m.Else():
+            comb += req_is_hit.eq(0)
+            comb += req_is_miss.eq(0)
+
+        comb += req_hit_way.eq(hit_way)
+
         # The way to replace on a miss
         with m.If(r.state == State.CLR_TAG):
             comb += replace_way.eq(plru_victim[r.store_index])
