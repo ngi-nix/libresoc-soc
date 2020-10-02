@@ -4,9 +4,16 @@ PYTHON3 ?= "python3"
 
 gitupdate:
 	git submodule init
-	git submodule update --recursive
+	git submodule update --init --recursive --remote
 
-install:
+mkpinmux:
+	./mkpinmux.sh
+	cp pinmux/ls180/ls180_pins.py src/soc/debug
+	cp pinmux/ls180/ls180_pins.py src/soc/litex/florent/libresoc
+
+install: develop mkpinmux
+
+develop:
 	python3 setup.py develop # yes, develop, not install
 	python3 src/soc/decoder/pseudo/pywriter.py
 
