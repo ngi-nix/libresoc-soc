@@ -3,5 +3,8 @@
 	url = https://salsa.debian.org/Kazan-team/nmigen-type-annotations.git
 	branch = master
 [submodule "libreriscv"]
+	path = pinmux
+	url = https://git.libre-soc.org/git/pinmux.git
+[submodule "libreriscv"]
 	path = libreriscv
 	url = https://git.libre-soc.org/git/libreriscv.git
