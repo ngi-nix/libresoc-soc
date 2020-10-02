@@ -698,7 +698,7 @@ class ICache(Elaboratable):
             sync += itlb_valid_bits[wr_index].eq(1)
 
     # Cache hit detection, output to fetch2 and other misc logic
-    def icache_comb(self, m, use_previous, r, req_index, req_row,
+    def icache_comb(self, m, use_previous, r, req_index, req_row, req_hit_way,
                     req_tag, real_addr, req_laddr, cache_valid_bits,
                     cache_tags, access_ok, req_is_hit,
                     req_is_miss, replace_way, plru_victim, cache_out_row):
@@ -1120,7 +1120,7 @@ class ICache(Elaboratable):
                          real_addr, itlb_valid_bits, ra_valid, eaa_priv,
                          priv_fault, access_ok)
         self.itlb_update(m, itlb_valid_bits, itlb_tags, itlb_ptes)
-        self.icache_comb(m, use_previous, r, req_index, req_row,
+        self.icache_comb(m, use_previous, r, req_index, req_row, req_hit_way,
                          req_tag, real_addr, req_laddr, cache_valid_bits,
                          cache_tags, access_ok, req_is_hit, req_is_miss,
                          replace_way, plru_victim, cache_out_row)
