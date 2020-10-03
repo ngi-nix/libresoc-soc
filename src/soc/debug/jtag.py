@@ -26,7 +26,9 @@ def dummy_pinset():
     gpios = []
     for i in range(16):
         gpios.append("gpio%d*" % i)
-    return {'uart': ['tx+', 'rx-'], 'gpio': gpios}
+    return {'uart': ['tx+', 'rx-'],
+             'gpio': gpios,
+             'i2c': ['sda*', 'scl+']}
 
 # TODO: move to suitable location
 class Pins:

@@ -8,6 +8,7 @@ from litex.soc.cores.cpu import CPU
 from soc.debug.jtag import Pins, dummy_pinset # TODO move to suitable location
 from c4m.nmigen.jtag.tap import IOType
 
+from libresoc.ls180 import io
 from libresoc.ls180io import make_uart, make_gpio
 from litex.build.generic_platform import ConstraintManager
 
@@ -39,6 +40,12 @@ def make_pad(res, dirn, name, suffix, cpup, iop):
     res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
     res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
 
+def get_field(rec, name):
+    for f in rec.layout:
+        f = f[0]
+        if f.endswith(name):
+            return getattr(rec, f)
+
 
 def make_jtag_ioconn(res, pin, cpupads, iopads):
     (fn, pin, iotype, pin_name, scan_idx) = pin
@@ -48,6 +55,8 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     print ("pin", fn, pin, iotype, pin_name)
     cpu = cpupads[fn]
     io = iopads[fn]
+    print ("cpu fn", cpu)
+    print ("io fn", io)
     sigs = []
 
     name = "%s_%s" % (fn, pin)
@@ -69,11 +78,13 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     elif iotype == IOType.InTriOut:
         if fn == 'gpio': # sigh decode GPIO special-case
             idx = int(pin[4:])
-        cpup, iop = cpu.i[idx], io.i[idx]
+        else:
+            idx = 0
+        cpup, iop = get_field(cpu, "i")[idx], get_field(io, "i")[idx]
         make_pad(res, False, name, "i", cpup, iop)
-        cpup, iop = cpu.o[idx], io.o[idx]
+        cpup, iop = get_field(cpu, "o")[idx], get_field(io, "o")[idx]
         make_pad(res, True, name, "o", cpup, iop)
-        cpup, iop = cpu.oe[idx], io.oe[idx]
+        cpup, iop = get_field(cpu, "oe")[idx], get_field(io, "oe")[idx]
         make_pad(res, True, name, "oe", cpup, iop)
 
     if iotype in (IOType.In, IOType.InTriOut):
@@ -214,13 +225,13 @@ class LibreSoC(CPU):
         if variant == 'ls180':
             # urr yuk.  have to expose iopads / pins from core to litex
             # then back again.  cut _some_ of that out by connecting
-            self.padresources = (make_uart('uart', 0),
-                                 make_gpio('gpio', 0, 16))
+            self.padresources = io()
             self.pad_cm = ConstraintManager(self.padresources, [])
-            self.cpupads = {'uart': platform.request('uart', 0),
-                            'gpio': platform.request('gpio', 0)}
-            iopads = {'uart': self.pad_cm.request('uart', 0),
-                            'gpio': self.pad_cm.request('gpio', 0)}
+            self.cpupads = {}
+            iopads = {}
+            for (periph, num) in [('uart', 0), ('gpio', 0), ('i2c', 0)]:
+                self.cpupads[periph] = platform.request(periph, num)
+                iopads[periph] = self.pad_cm.request(periph, num)
 
             p = Pins(dummy_pinset())
             for pin in list(p):

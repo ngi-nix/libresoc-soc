@@ -468,7 +468,8 @@ class LibreSoCSim(SoCCore):
             self.add_csr(name)
 
         # I2C Master
-        self.submodules.i2c = I2CMaster(platform.request("i2c"))
+        i2c_core_pads = self.cpu.cpupads['i2c']
+        self.submodules.i2c = I2CMaster(i2c_core_pads)
         self.add_csr("i2c")
 
         # SDCard -----------------------------------------------------
