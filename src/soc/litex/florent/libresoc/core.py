@@ -5,8 +5,6 @@ from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 from litex.soc.interconnect import wishbone as wb
 from litex.soc.cores.cpu import CPU
 
-from soc.debug.jtag import Pins # TODO move to suitable location
-from c4m.nmigen.jtag.tap import IOType
 
 from libresoc.ls180io import make_uart, make_gpio
 from litex.build.generic_platform import ConstraintManager
@@ -33,56 +31,6 @@ def make_wb_slave(prefix, obj):
     for o in ['ack', 'err', 'dat_r']:
         res['o_%s__%s' % (prefix, o)] = getattr(obj, o)
     return res
-
-def make_pad(res, dirn, name, suffix, cpup, iop):
-    cpud, iod = ('i', 'o') if dirn else ('o', 'i')
-    res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
-    res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
-
-
-def make_jtag_ioconn(res, pin, cpupads, iopads):
-    (fn, pin, iotype, pin_name) = pin
-    #serial_tx__core__o, serial_rx__pad__i,
-    print ("cpupads", cpupads)
-    print ("iopads", iopads)
-    print ("pin", fn, pin, iotype, pin_name)
-    cpu = cpupads[fn]
-    io = iopads[fn]
-    sigs = []
-
-    name = "%s_%s" % (fn, pin)
-
-    if iotype in (IOType.In, IOType.Out):
-        cpup = getattr(cpu, pin)
-        iop = getattr(io, pin)
-
-    if iotype == IOType.Out:
-        # output from the pad is routed through C4M JTAG and so
-        # is an *INPUT* into core.  ls180soc connects this to "real" peripheral
-        make_pad(res, True, name, "o", cpup, iop)
-
-    elif iotype == IOType.In:
-        # input to the pad is routed through C4M JTAG and so
-        # is an *OUTPUT* into core.  ls180soc connects this to "real" peripheral
-        make_pad(res, False, name, "i", cpup, iop)
-
-    elif iotype == IOType.InTriOut:
-        if fn == 'gpio': # sigh decode GPIO special-case
-            idx = int(pin[4:])
-        cpup, iop = cpu.i[idx], io.i[idx]
-        make_pad(res, False, name, "i", cpup, iop)
-        cpup, iop = cpu.o[idx], io.o[idx]
-        make_pad(res, True, name, "o", cpup, iop)
-        cpup, iop = cpu.oe[idx], io.oe[idx]
-        make_pad(res, True, name, "oe", cpup, iop)
-
-    if iotype in (IOType.In, IOType.InTriOut):
-        sigs.append(("i", 1))
-    if iotype in (IOType.Out, IOType.TriOut, IOType.InTriOut):
-        sigs.append(("o", 1))
-    if iotype in (IOType.TriOut, IOType.InTriOut):
-        sigs.append(("oe", 1))
-
 
 class LibreSoC(CPU):
     name                 = "libre_soc"
@@ -210,25 +158,6 @@ class LibreSoC(CPU):
             self.cpu_params.update(make_wb_slave("gpio_wb", gpio))
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
-
-        if variant == 'ls180':
-            # urr yuk.  have to expose iopads / pins from core to litex
-            # then back again.  cut _some_ of that out by connecting
-            self.cpuresources = (make_uart('uart', 0),
-                                 make_gpio('gpio', 0, 16))
-            self.padresources = (make_uart('uart', 0),
-                                 make_gpio('gpio', 0, 16))
-            self.cpu_cm = ConstraintManager(self.cpuresources, [])
-            self.pad_cm = ConstraintManager(self.cpuresources, [])
-            self.cpupads = {'uart': self.cpu_cm.request('uart', 0),
-                            'gpio': self.cpu_cm.request('gpio', 0)}
-            self.iopads = {'uart': self.pad_cm.request('uart', 0),
-                            'gpio': self.pad_cm.request('gpio', 0)}
-
-            p = Pins()
-            for pin in list(p):
-                make_jtag_ioconn(self.cpu_params, pin, self.cpupads,
-                                                       self.iopads)
 
         # add verilog sources
         self.add_sources(platform)

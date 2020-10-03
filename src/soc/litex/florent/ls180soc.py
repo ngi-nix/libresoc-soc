@@ -8,7 +8,6 @@ from operator import or_
 from migen import (Signal, FSM, If, Display, Finish, NextValue, NextState,
                    Cat, Record, ClockSignal, wrap, ResetInserter)
 
-from litex.build.generic_platform import Pins, Subsignal
 from litex.build.sim import SimPlatform
 from litex.build.io import CRG
 from litex.build.sim.config import SimConfig
@@ -32,7 +31,7 @@ from litex.soc.cores import uart
 from litex.tools.litex_sim import sdram_module_nphases, get_sdram_phy_settings
 
 from litex.tools.litex_sim import Platform
-from libresoc.ls180 import LS180Platform
+from libresoc.ls180 import LS180Platform, io
 
 from migen import Module
 from litex.soc.interconnect.csr import AutoCSR
@@ -59,6 +58,60 @@ from litesdcard.phy import (SDPHY, SDPHYClocker,
 from litesdcard.core import SDCore
 from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
 from litex.build.io import SDROutput, SDRInput
+
+from soc.debug.jtag import Pins, dummy_pinset # TODO move to suitable location
+from c4m.nmigen.jtag.tap import IOType
+from litex.build.generic_platform import ConstraintManager
+
+
+def make_pad(res, dirn, name, suffix, cpup, iop):
+    cpud, iod = ('i', 'o') if dirn else ('o', 'i')
+    res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
+    res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
+
+
+def make_jtag_ioconn(res, pin, cpupads, iopads):
+    (fn, pin, iotype, pin_name, scan_idx) = pin
+    #serial_tx__core__o, serial_rx__pad__i,
+    print ("cpupads", cpupads)
+    print ("iopads", iopads)
+    print ("pin", fn, pin, iotype, pin_name)
+    cpu = cpupads[fn]
+    io = iopads[fn]
+    sigs = []
+
+    name = "%s_%s" % (fn, pin)
+
+    if iotype in (IOType.In, IOType.Out):
+        cpup = getattr(cpu, pin)
+        iop = getattr(io, pin)
+
+    if iotype == IOType.Out:
+        # output from the pad is routed through C4M JTAG and so
+        # is an *INPUT* into core.  ls180soc connects this to "real" peripheral
+        make_pad(res, True, name, "o", cpup, iop)
+
+    elif iotype == IOType.In:
+        # input to the pad is routed through C4M JTAG and so
+        # is an *OUTPUT* into core.  ls180soc connects this to "real" peripheral
+        make_pad(res, False, name, "i", cpup, iop)
+
+    elif iotype == IOType.InTriOut:
+        if fn == 'gpio': # sigh decode GPIO special-case
+            idx = int(pin[4:])
+        cpup, iop = cpu.i[idx], io.i[idx]
+        make_pad(res, False, name, "i", cpup, iop)
+        cpup, iop = cpu.o[idx], io.o[idx]
+        make_pad(res, True, name, "o", cpup, iop)
+        cpup, iop = cpu.oe[idx], io.oe[idx]
+        make_pad(res, True, name, "oe", cpup, iop)
+
+    if iotype in (IOType.In, IOType.InTriOut):
+        sigs.append(("i", 1))
+    if iotype in (IOType.Out, IOType.TriOut, IOType.InTriOut):
+        sigs.append(("o", 1))
+    if iotype in (IOType.TriOut, IOType.InTriOut):
+        sigs.append(("oe", 1))
 
 
 # I2C Master Bit-Banging --------------------------------------------------
@@ -343,6 +396,24 @@ class LibreSoCSim(SoCCore):
             )
         self.platform.name = "ls180"
 
+        # Create link pads --------------------------------------------------
+
+        # urr yuk.  have to expose iopads / pins from core to litex
+        # then back again.  cut _some_ of that out by connecting
+        self.cpuresources = io()
+        self.padresources = io()
+        self.cpu_cm = ConstraintManager(self.cpuresources, [])
+        self.pad_cm = ConstraintManager(self.cpuresources, [])
+        self.cpupads = {'uart': self.cpu_cm.request('uart', 0),
+                        'gpio': self.cpu_cm.request('gpio', 0)}
+        self.iopads = {'uart': self.pad_cm.request('uart', 0),
+                        'gpio': self.pad_cm.request('gpio', 0)}
+
+        p = Pins(dummy_pinset())
+        for pin in list(p):
+            make_jtag_ioconn(self.cpu.cpu_params, pin, self.cpupads,
+                                                       self.iopads)
+
         # SDR SDRAM ----------------------------------------------
         if False: # not self.integrated_main_ram_size:
             self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
@@ -414,7 +485,7 @@ class LibreSoCSim(SoCCore):
             self.specials += SDROutput(clk=sys_clk, i=sys_clk, o=sdr_clk)
 
         # UART
-        uart_core_pads = self.cpu.cpupads['uart']
+        uart_core_pads = self.cpupads['uart']
         self.submodules.uart_phy = uart.UARTPHY(
                 pads     = uart_core_pads,
                 clk_freq = self.sys_clk_freq,
@@ -424,7 +495,7 @@ class LibreSoCSim(SoCCore):
                 rx_fifo_depth = 16))
         # "real" pads connect to C4M JTAG iopad
         uart_pads     = platform.request(uart_name) # "real" (actual) pin
-        uart_io_pads = self.cpu.iopads['uart'] # C4M JTAG pads
+        uart_io_pads = self.iopads['uart'] # C4M JTAG pads
         self.comb += uart_pads.tx.eq(uart_io_pads.tx)
         self.comb += uart_io_pads.rx.eq(uart_pads.rx)
 
@@ -433,12 +504,12 @@ class LibreSoCSim(SoCCore):
         self.irq.add("uart", use_loc_if_exists=True)
 
         # GPIOs (bi-directional)
-        gpio_core_pads = self.cpu.cpupads['gpio']
+        gpio_core_pads = self.cpupads['gpio']
         self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
         self.add_csr("gpio")
 
         gpio_pads = platform.request("gpio") # "real" (actual) pins
-        gpio_io_pads = self.cpu.iopads['gpio'] # C4M JTAG pads
+        gpio_io_pads = self.iopads['gpio'] # C4M JTAG pads
         self.comb += gpio_io_pads.i.eq(gpio_pads.i)
         self.comb += gpio_pads.o.eq(gpio_io_pads.o)
         self.comb += gpio_pads.oe.eq(gpio_io_pads.oe)
