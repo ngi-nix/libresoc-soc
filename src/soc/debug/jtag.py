@@ -3,6 +3,7 @@
 using Staf Verhaegen (Chips4Makers) wishbone TAP
 """
 
+from collections import OrderedDict
 from nmigen import (Module, Signal, Elaboratable)
 from nmigen.cli import rtlil
 from c4m.nmigen.jtag.tap import IOType
@@ -12,40 +13,61 @@ from soc.debug.dmi2jtag import DMITAP
 # map from pinmux to c4m jtag iotypes
 iotypes = {'-': IOType.In,
            '+': IOType.Out,
-           '*': IOType.InTriOut}
+           '*': IOType.InTriOut,
+        }
 
+scanlens = {IOType.In: 1,
+           IOType.Out: 1,
+           IOType.InTriOut: 3,
+            }
+
+def dummy_pinset():
+    # sigh this needs to come from pinmux.
+    gpios = []
+    for i in range(16):
+        gpios.append("gpio%d*" % i)
+    return {'uart': ['tx+', 'rx-'], 'gpio': gpios}
 
 # TODO: move to suitable location
 class Pins:
     """declare a list of pins, including name and direction.  grouped by fn
+    the pin dictionary needs to be in a reliable order so that the JTAG
+    Boundary Scan is also in a reliable order
     """
-    def __init__(self):
-        # sigh this needs to come from pinmux.
-        gpios = []
-        for i in range(16):
-            gpios.append("gpio%d*" % i)
-        self.io_names = {'uart': ['tx+', 'rx-'], 'gpio': gpios}
+    def __init__(self, pindict):
+        self.io_names = OrderedDict()
+        if isinstance(pindict, OrderedDict):
+            self.io_names.update(pindict)
+        else:
+            keys = list(pindict.keys())
+            keys.sort()
+            for k in keys:
+                self.io_names[k] = pindict[k]
 
     def __iter__(self):
         # start parsing io_names and enumerate them to return pin specs
+        scan_idx = 0
         for fn, pins in self.io_names.items():
             for pin in pins:
                 # decode the pin name and determine the c4m jtag io type
                 name, pin_type = pin[:-1], pin[-1]
                 iotype = iotypes[pin_type]
                 pin_name = "%s_%s" % (fn, name)
-                yield (fn, name, iotype, pin_name)
+                yield (fn, name, iotype, pin_name, scan_idx)
+                scan_idx += scanlens[iotype] # inc boundary reg scan offset
 
 
 class JTAG(DMITAP, Pins):
-    def __init__(self):
+    def __init__(self, pinset):
         DMITAP.__init__(self, ir_width=4)
-        Pins.__init__(self)
+        Pins.__init__(self, pinset)
 
         # enumerate pin specs and create IOConn Records.
+        # we store the boundary scan register offset in the IOConn record
         self.ios = [] # these are enumerated in external_ports
-        for fn, pin, iotype, pin_name in list(self):
+        for fn, pin, iotype, pin_name, scan_idx in list(self):
             io = self.add_io(iotype=iotype, name=pin_name)
+            io._scan_idx = scan_idx # hmm shouldn't really do this
             self.ios.append(io)
 
         # this is redundant.  or maybe part of testing, i don't know.
@@ -76,7 +98,8 @@ class JTAG(DMITAP, Pins):
 
 
 if __name__ == '__main__':
-    dut = JTAG()
+    pinset = dummy_pinset()
+    dut = JTAG(pinset)
 
     vl = rtlil.convert(dut)
     with open("test_jtag.il", "w") as f:
