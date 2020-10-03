@@ -23,6 +23,12 @@ class DivTestCases(TestAccumulatorBase):
         with Program(lst, bigendian) as prog:
             self.add_case(prog, initial_regs)
 
+    def case_divwe__regression(self):
+        lst = ["divwe. 3, 1, 2"]
+        initial_regs = [0] * 32
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_divw_regression(self):
         # simulator is wrong, FSM and power-instruction-analyzer both correct
         lst = [f"divw 0, 1, 2"]
