@@ -106,7 +106,14 @@ class DivState:
 
     @property
     def done(self):
-        return self.q_bits_known == self.quotient_width
+        return self.will_be_done_after(steps=0)
+
+    def will_be_done_after(self, steps):
+        """ Returns 1 if this state will be done after
+            another `steps` passes through DivStateNext."""
+        assert isinstance(steps, int), "steps must be an integer"
+        assert steps >= 0
+        return self.q_bits_known >= max(0, self.quotient_width - steps)
 
     @property
     def quotient(self):
@@ -160,7 +167,8 @@ class FSMDivCoreStage(ControlBase):
         rem_start = remainder_fract_width - dividend_fract_width
         m.d.comb += core_o.remainder.eq(self.div_state_next.o.remainder
                                         << rem_start)
-        m.d.comb += self.n.valid_o.eq(~self.empty & self.div_state_next.o.done)
+        m.d.comb += self.n.valid_o.eq(
+            ~self.empty & self.saved_state.will_be_done_after(1))
         m.d.comb += self.p.ready_o.eq(self.empty)
         m.d.sync += self.saved_state.eq(self.div_state_next.o)
 
