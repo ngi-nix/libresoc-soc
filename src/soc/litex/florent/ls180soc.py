@@ -433,16 +433,27 @@ class LibreSoCSim(SoCCore):
         self.add_csr("gpio")
 
         # SPI Master
-        self.submodules.spi_master = SPIMaster(
-            pads         = platform.request("spi_master"),
+        print ("cpupadkeys", self.cpu.cpupads.keys())
+        self.submodules.spimaster = SPIMaster(
+            pads         = self.cpu.cpupads['mspi1'],
             data_width   = 8,
             sys_clk_freq = sys_clk_freq,
             spi_clk_freq = 8e6,
         )
-        self.add_csr("spi_master")
+        self.add_csr("spimaster")
+
+        # SPI SDCard (1 wide)
+        spi_clk_freq = 400e3
+        pads = self.cpu.cpupads['mspi0']
+        spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
+        spisdcard.add_clk_divider()
+        setattr(self.submodules, 'spisdcard', spisdcard)
+        self.add_csr('spisdcard')
 
         # EINTs - very simple, wire up top 3 bits to ls180 "eint" pins
-        self.comb += self.cpu.interrupt[12:16].eq(platform.request("eint"))
+        eintpads = self.cpu.cpupads['eint']
+        print ("eintpads", eintpads)
+        self.comb += self.cpu.interrupt[12:16].eq(eintpads)
 
         # JTAG
         jtagpads = platform.request("jtag")
@@ -462,20 +473,21 @@ class LibreSoCSim(SoCCore):
             self.sync += self.dummy[i].eq(self.nc[i] | self.cpu.interrupt[0])
 
         # PWM
+        pwmpads = self.cpu.cpupads['pwm']
         for i in range(2):
             name = "pwm%d" % i
-            setattr(self.submodules, name, PWM(platform.request("pwm", i)))
+            setattr(self.submodules, name, PWM(pwmpads[i]))
             self.add_csr(name)
 
         # I2C Master
-        i2c_core_pads = self.cpu.cpupads['i2c']
+        i2c_core_pads = self.cpu.cpupads['mtwi']
         self.submodules.i2c = I2CMaster(i2c_core_pads)
         self.add_csr("i2c")
 
         # SDCard -----------------------------------------------------
 
         # Emulator / Pads
-        sdcard_pads = self.platform.request("sdcard")
+        sdcard_pads = self.cpu.cpupads['sd0']
 
         # Core
         self.submodules.sdphy  = SDPHY(sdcard_pads,
@@ -791,7 +803,6 @@ def main():
     if args.platform == 'ls180':
         soc = LibreSoCSim(cpu=args.cpu, debug=args.debug,
                           platform=args.platform)
-        soc.add_spi_sdcard()
         builder = Builder(soc, compile_gateware = True)
         builder.build(run         = True)
         os.chdir("../")

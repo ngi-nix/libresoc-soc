@@ -25,7 +25,7 @@ def dummy_pinset():
     # sigh this needs to come from pinmux.
     gpios = []
     for i in range(16):
-        gpios.append("gpio%d*" % i)
+        gpios.append("%d*" % i)
     return {'uart': ['tx+', 'rx-'],
              'gpio': gpios,
              'i2c': ['sda*', 'scl+']}

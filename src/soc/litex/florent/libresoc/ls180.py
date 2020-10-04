@@ -69,7 +69,7 @@ def io():
         ),
 
         # SPI0: 4 pins
-        ("spi_master", 0,
+        ("spimaster", 0,
             Subsignal("clk",  Pins("J1")),
             Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
             Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
@@ -126,8 +126,7 @@ def io():
         ),
 
         # PWM: 2 pins
-        ("pwm", 0, Pins("P1"), IOStandard("LVCMOS33")),
-        ("pwm", 1, Pins("P2"), IOStandard("LVCMOS33")),
+        ("pwm", 0, Pins("P1 P2"), IOStandard("LVCMOS33")),
     ]
 
     n_gpio = 16

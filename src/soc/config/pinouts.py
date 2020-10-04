@@ -22,6 +22,28 @@ def _byteify(data, ignore_dicts = False):
     # if it's anything else, return it in its original form
     return data
 
+
+def get_pinspecs(chipname=None, subset=None):
+    chip = load_pinouts(chipname)
+    pinmap = chip['pins.map']
+    specs = {}
+    for k, bus in chip['pins.specs'].items():
+        k, num = k.lower().split(":")
+        name = '%s%s' % (k, num)
+        if subset is None or name in subset:
+            pins = []
+            for pin in bus:
+                pin = pin.lower()
+                pname = '%s_%s' % (name, pin[:-1])
+                if pname in pinmap:
+                    newpin = pinmap[pname][2:]
+                    newpin = '_'.join(newpin.split("_")[1:])
+                    pin = newpin + pin[-1]
+                pins.append(pin)
+            specs['%s%s' % (k, num)] = pins
+    return specs
+
+
 def load_pinouts(chipname=None):
     """load_pinouts - loads the JSON-formatted dictionary of a chip spec
 

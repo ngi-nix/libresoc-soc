@@ -5,7 +5,8 @@ from migen import ClockSignal, ResetSignal, Signal, Instance, Cat
 from litex.soc.interconnect import wishbone as wb
 from litex.soc.cores.cpu import CPU
 
-from soc.debug.jtag import Pins, dummy_pinset # TODO move to suitable location
+from soc.config.pinouts import get_pinspecs
+from soc.debug.jtag import Pins
 from c4m.nmigen.jtag.tap import IOType
 
 from libresoc.ls180 import io
@@ -61,8 +62,13 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     name = "%s_%s" % (fn, pin)
 
     if iotype in (IOType.In, IOType.Out):
-        cpup = getattr(cpu, pin)
-        iop = getattr(io, pin)
+        if pin.isdigit():
+            idx = int(pin)
+            cpup = cpu[idx]
+            iop = io[idx]
+        else:
+            cpup = getattr(cpu, pin)
+            iop = getattr(io, pin)
 
     if iotype == IOType.Out:
         # output from the pad is routed through C4M JTAG and so
@@ -76,7 +82,7 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
 
     elif iotype == IOType.InTriOut:
         if fn == 'gpio': # sigh decode GPIO special-case
-            idx = int(pin[4:])
+            idx = int(pin[1:])
         else:
             idx = 0
         cpup, iop = get_field(cpu, "i")[idx], get_field(io, "i")[idx]
@@ -228,11 +234,30 @@ class LibreSoC(CPU):
             self.pad_cm = ConstraintManager(self.padresources, [])
             self.cpupads = {}
             iopads = {}
-            for (periph, num) in [('uart', 0), ('gpio', 0), ('i2c', 0)]:
-                self.cpupads[periph] = platform.request(periph, num)
-                iopads[periph] = self.pad_cm.request(periph, num)
+            litexmap = {}
+            subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
+                      'pwm', 'sd0'}#, 'sdr'}
+            for periph in subset:
+                origperiph = periph
+                num = None
+                if periph[-1].isdigit():
+                    periph, num = periph[:-1], int(periph[-1])
+                print ("periph request", periph, num)
+                if periph == 'mspi':
+                    if num == 0:
+                        periph, num = 'spimaster', None
+                    else:
+                        periph, num = 'spisdcard', None
+                elif periph == 'mtwi':
+                    periph = 'i2c'
+                elif periph == 'sd':
+                    periph, num = 'sdcard', None
+                litexmap[origperiph] = (periph, num)
+                self.cpupads[origperiph] = platform.request(periph, num)
+                iopads[origperiph] = self.pad_cm.request(periph, num)
 
-            p = Pins(dummy_pinset())
+            pinset = get_pinspecs(subset=subset)
+            p = Pins(pinset)
             for pin in list(p):
                 make_jtag_ioconn(self.cpu_params, pin, self.cpupads, iopads)
 

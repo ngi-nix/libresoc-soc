@@ -32,7 +32,8 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import MicrOp
 from soc.debug.dmi import CoreDebug, DMIInterface
-from soc.debug.jtag import JTAG, dummy_pinset # TODO, full pinset
+from soc.debug.jtag import JTAG
+from soc.config.pinouts import get_pinspecs
 from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
@@ -83,7 +84,9 @@ class TestIssuerInternal(Elaboratable):
         # JTAG interface
         self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
         if self.jtag_en:
-            self.jtag = JTAG(dummy_pinset())
+            subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
+                      'pwm', 'sd0'}#, 'sdr'}
+            self.jtag = JTAG(get_pinspecs(subset=subset))
 
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
