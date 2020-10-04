@@ -20,7 +20,6 @@ from migen.fhdl.structure import _Fragment
 from litex.build.generic_platform import (GenericPlatform, Pins,
                                         Subsignal, IOStandard, Misc,
                                         )
-from libresoc.ls180io import make_uart, make_gpio
 import os
 
 

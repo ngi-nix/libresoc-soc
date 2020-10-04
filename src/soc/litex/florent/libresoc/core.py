@@ -9,7 +9,6 @@ from soc.debug.jtag import Pins, dummy_pinset # TODO move to suitable location
 from c4m.nmigen.jtag.tap import IOType
 
 from libresoc.ls180 import io
-from libresoc.ls180io import make_uart, make_gpio
 from litex.build.generic_platform import ConstraintManager
 
 
