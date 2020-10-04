@@ -24,6 +24,25 @@ from libresoc.ls180io import make_uart, make_gpio
 import os
 
 
+def make_uart(name, num):
+    return (name, num,
+        Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
+        Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
+    )
+
+def make_gpio(name, num, n_gpio):
+    pins = []
+    for i in range(n_gpio):
+        pins.append("X%d" % i)
+    pins = ' '.join(pins)
+    return (name, 0,
+             Subsignal("i", Pins(pins), Misc("PULLMODE=UP")),
+             Subsignal("o", Pins(pins), Misc("PULLMODE=UP")),
+             Subsignal("oe", Pins(pins), Misc("PULLMODE=UP")),
+            IOStandard("LVCMOS33"))
+
+
+
 # IOs ---------------------------------------------------------------------
 
 def io():
