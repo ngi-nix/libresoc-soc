@@ -896,6 +896,75 @@ class ICache(Elaboratable):
 
         sync += r.state.eq(State.WAIT_ACK)
 
+    def icache_miss_wait_ack(self, m, r, replace_way, inval_in,
+                             stbs_done, cache_valid_bits):
+        comb = m.d.comb
+        sync = m.d.sync
+
+        wb_in = self.wb_in
+
+        # Requests are all sent if stb is 0
+        stbs_zero = Signal()
+        comb += stbs_zero.eq(r.wb.stb == 0)
+        comb += stbs_done.eq(stbs_zero)
+
+        # If we are still sending requests, was one accepted?
+        with m.If(~wb_in.stall & ~stbs_zero):
+            # That was the last word ?  # We are done sending.
+            # Clear stb and set stbs_done # so we can handle
+            # an eventual last ack on # the same cycle.
+            with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
+                sync += Display("IS_LAST_ROW_ADDR " \
+                                "r.wb.addr:%x r.end_row_ix:%x " \
+                                "r.wb.stb:%x stbs_zero:%x " \
+                                "stbs_done:%x", r.wb.adr, \
+                                r.end_row_ix, r.wb.stb, \
+                                stbs_zero, stbs_done)
+                sync += r.wb.stb.eq(0)
+                comb += stbs_done.eq(1)
+
+            # Calculate the next row address
+            rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
+            comb += rarange.eq(
+                     r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
+                    )
+            sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
+                     rarange
+                    )
+            sync += Display("RARANGE r.req_adr:%x rarange:%x "
+                            "stbs_zero:%x stbs_done:%x",
+                            r.req_adr, rarange, stbs_zero, stbs_done)
+
+        # Incoming acks processing
+        with m.If(wb_in.ack):
+            sync += Display("WB_IN_ACK data:%x stbs_zero:%x "
+                            "stbs_done:%x",
+                            wb_in.dat, stbs_zero, stbs_done)
+
+            sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
+
+            # Check for completion
+            with m.If(stbs_done &
+                      is_last_row(r.store_row, r.end_row_ix)):
+                # Complete wishbone cycle
+                sync += r.wb.cyc.eq(0)
+                sync += r.req_adr.eq(0) # be nice, clear addr
+
+                # Cache line is now valid
+                cv = Signal(INDEX_BITS)
+                comb += cv.eq(cache_valid_bits[r.store_index])
+                comb += cv.bit_select(replace_way, 1).eq(
+                         r.store_valid & ~inval_in
+                        )
+                sync += cache_valid_bits[r.store_index].eq(cv)
+
+                sync += r.state.eq(State.IDLE)
+
+            # not completed, move on to next request in row
+            with m.Else():
+                # Increment store row counter
+                sync += r.store_row.eq(next_row(r.store_row))
+
 
     # Cache miss/reload synchronous machine
     def icache_miss(self, m, cache_valid_bits, r, req_is_miss,
@@ -941,67 +1010,10 @@ class ICache(Elaboratable):
                         tagset, cache_tags
                     )
 
-                # Requests are all sent if stb is 0
-                stbs_zero = Signal()
-                comb += stbs_zero.eq(r.wb.stb == 0)
-                comb += stbs_done.eq(stbs_zero)
-
-                # If we are still sending requests, was one accepted?
-                with m.If(~wb_in.stall & ~stbs_zero):
-                    # That was the last word ?  # We are done sending.
-                    # Clear stb and set stbs_done # so we can handle
-                    # an eventual last ack on # the same cycle.
-                    with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
-                        sync += Display("IS_LAST_ROW_ADDR " \
-                                        "r.wb.addr:%x r.end_row_ix:%x " \
-                                        "r.wb.stb:%x stbs_zero:%x " \
-                                        "stbs_done:%x", r.wb.adr, \
-                                        r.end_row_ix, r.wb.stb, \
-                                        stbs_zero, stbs_done)
-                        sync += r.wb.stb.eq(0)
-                        comb += stbs_done.eq(1)
-
-                    # Calculate the next row address
-                    rarange = Signal(LINE_OFF_BITS - ROW_OFF_BITS)
-                    comb += rarange.eq(
-                             r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS] + 1
-                            )
-                    sync += r.req_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(
-                             rarange
-                            )
-                    sync += Display("RARANGE r.req_adr:%x rarange:%x "
-                                    "stbs_zero:%x stbs_done:%x",
-                                    r.req_adr, rarange, stbs_zero, stbs_done)
-
-                # Incoming acks processing
-                with m.If(wb_in.ack):
-                    sync += Display("WB_IN_ACK data:%x stbs_zero:%x "
-                                    "stbs_done:%x",
-                                    wb_in.dat, stbs_zero, stbs_done)
-
-                    sync += r.rows_valid[r.store_row % ROW_PER_LINE].eq(1)
-
-                    # Check for completion
-                    with m.If(stbs_done &
-                              is_last_row(r.store_row, r.end_row_ix)):
-                        # Complete wishbone cycle
-                        sync += r.wb.cyc.eq(0)
-                        sync += r.req_adr.eq(0) # be nice, clear addr
-
-                        # Cache line is now valid
-                        cv = Signal(INDEX_BITS)
-                        comb += cv.eq(cache_valid_bits[r.store_index])
-                        comb += cv.bit_select(replace_way, 1).eq(
-                                 r.store_valid & ~inval_in
-                                )
-                        sync += cache_valid_bits[r.store_index].eq(cv)
-
-                        sync += r.state.eq(State.IDLE)
-
-                    # not completed, move on to next request in row
-                    with m.Else():
-                        # Increment store row counter
-                        sync += r.store_row.eq(next_row(r.store_row))
+                self.icache_miss_wait_ack(
+                    m, r, replace_way, inval_in,
+                    stbs_done, cache_valid_bits
+                )
 
         # TLB miss and protection fault processing
         with m.If(flush_in | m_in.tlbld):
