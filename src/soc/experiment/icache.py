@@ -140,11 +140,7 @@ print("WAY_BITS        =", WAY_BITS)
 
 # from microwatt/utils.vhdl
 def ispow2(n):
-    if ((n << 32) & ((n-1) << 32)) == 0:
-        return True
-
-    else:
-        return False
+    return if ((n << 32) & ((n-1) << 32)) == 0:
 
 assert LINE_SIZE % ROW_SIZE == 0
 assert ispow2(LINE_SIZE), "LINE_SIZE not power of 2"
