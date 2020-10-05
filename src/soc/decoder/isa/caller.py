@@ -41,14 +41,34 @@ def swap_order(x, nbytes):
     return x
 
 
+REG_SORT_ORDER = {
+    # TODO (lkcl): adjust other registers that should be in a particular order
+    # probably CA, CA32, and CR
+    "RT": 0,
+    "RA": 0,
+    "RB": 0,
+    "RS": 0,
+    "CR": 0,
+    "LR": 0,
+    "CTR": 0,
+    "TAR": 0,
+    "CA": 0,
+    "CA32": 0,
+    "MSR": 0,
+
+    "overflow": 1,
+}
+
+
 def create_args(reglist, extra=None):
-    args = OrderedSet()
-    for reg in reglist:
-        args.add(reg)
-    args = list(args)
-    if extra:
-        args = [extra] + args
-    return args
+    regset = OrderedSet(reglist)
+    retval = []
+    for reg in regset:
+        retval.append(reg)
+    retval.sort(key=lambda reg: REG_SORT_ORDER[reg])
+    if extra is not None:
+        return [extra] + retval
+    return retval
 
 
 class Mem:
