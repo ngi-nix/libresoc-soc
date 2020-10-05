@@ -11,6 +11,7 @@
 from pprint import pprint
 from ply import lex, yacc
 import astor
+from copy import deepcopy
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.pseudo.lexer import IndentLexer
@@ -865,10 +866,24 @@ class GardenSnakeParser(PowerParser):
 
 #from compiler import misc, syntax, pycodegen
 
+_CACHED_PARSERS = {}
+_CACHE_PARSERS = True
+
+
 class GardenSnakeCompiler(object):
     def __init__(self, debug=False, form=None, incl_carry=False):
-        self.parser = GardenSnakeParser(debug=debug, form=form,
-                                        incl_carry=incl_carry)
+        if _CACHE_PARSERS:
+            try:
+                parser = _CACHED_PARSERS[debug, form, incl_carry]
+            except KeyError:
+                parser = GardenSnakeParser(debug=debug, form=form,
+                                           incl_carry=incl_carry)
+                _CACHED_PARSERS[debug, form, incl_carry] = parser
+
+            self.parser = deepcopy(parser)
+        else:
+            self.parser = GardenSnakeParser(debug=debug, form=form,
+                                            incl_carry=incl_carry)
 
     def compile(self, code, mode="exec", filename="<string>"):
         tree = self.parser.parse(code)

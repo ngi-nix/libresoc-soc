@@ -451,7 +451,7 @@ class TopPowerDecoder(PowerDecoder):
             setattr(self, fname, sig)
 
         # create signals for all field forms
-        self.form_names = forms = self.fields.instrs.keys()
+        forms = self.form_names
         self.sigforms = {}
         for form in forms:
             fields = self.fields.instrs[form]
@@ -467,6 +467,10 @@ class TopPowerDecoder(PowerDecoder):
             self.sigforms[form] = instr
 
         self.tree_analyse()
+
+    @property
+    def form_names(self):
+        return self.fields.instrs.keys()
 
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)

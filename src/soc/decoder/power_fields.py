@@ -118,9 +118,13 @@ class DecodeFields:
             name_on_wiki = "fields.text"
         self.fname = find_wiki_file(name_on_wiki)
 
+    @property
+    def form_names(self):
+        return self.instrs.keys()
+
     def create_specs(self):
         self.forms, self.instrs = self.decode_fields()
-        self.form_names = forms = self.instrs.keys()
+        forms = self.form_names
         #print ("specs", self.forms, forms)
         for form in forms:
             fields = self.instrs[form]

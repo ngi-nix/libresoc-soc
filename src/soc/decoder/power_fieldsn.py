@@ -2,12 +2,22 @@ from collections import OrderedDict
 from soc.decoder.power_fields import DecodeFields, BitRange
 from nmigen import Module, Elaboratable, Signal, Cat
 from nmigen.cli import rtlil
+from copy import deepcopy
 
 
 class SignalBitRange(BitRange):
     def __init__(self, signal):
         BitRange.__init__(self)
         self.signal = signal
+
+    def __deepcopy__(self, memo):
+        signal = deepcopy(self.signal, memo)
+        retval = SignalBitRange(signal=signal)
+        for k, v in self.items():
+            k = deepcopy(k, memo)
+            v = deepcopy(v, memo)
+            retval[k] = v
+        return retval
 
     def _rev(self, k):
         width = self.signal.width
