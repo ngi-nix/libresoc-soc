@@ -83,12 +83,6 @@ BRAM_ROWS      = NUM_LINES * ROW_PER_LINE
 # instructions per BRAM row
 INSN_PER_ROW   = ROW_SIZE_BITS // 32
 
-print("ROW_SIZE", ROW_SIZE)
-print("ROW_SIZE_BITS", ROW_SIZE_BITS)
-print("ROW_PER_LINE", ROW_PER_LINE)
-print("BRAM_ROWS", BRAM_ROWS)
-print("INSN_PER_ROW", INSN_PER_ROW)
-
 # Bit fields counts in the address
 #
 # INSN_BITS is the number of bits to
@@ -97,9 +91,9 @@ INSN_BITS      = log2_int(INSN_PER_ROW)
 # ROW_BITS is the number of bits to
 # select a row
 ROW_BITS       = log2_int(BRAM_ROWS)
-# ROW_LINEBITS is the number of bits to
+# ROW_LINE_BITS is the number of bits to
 # select a row within a line
-ROW_LINEBITS   = log2_int(ROW_PER_LINE)
+ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
 # LINE_OFF_BITS is the number of bits for
 # the offset in a cache line
 LINE_OFF_BITS  = log2_int(LINE_SIZE)
@@ -131,23 +125,55 @@ TLB_BITS        = log2_int(TLB_SIZE)
 TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
 TLB_PTE_BITS    = 64
 
+print("BRAM_ROWS       =", BRAM_ROWS)
+print("INDEX_BITS      =", INDEX_BITS)
+print("INSN_BITS       =", INSN_BITS)
+print("INSN_PER_ROW    =", INSN_PER_ROW)
+print("LINE_SIZE       =", LINE_SIZE)
+print("LINE_OFF_BITS   =", LINE_OFF_BITS)
+print("LOG_LENGTH      =", LOG_LENGTH)
+print("NUM_LINES       =", NUM_LINES)
+print("NUM_WAYS        =", NUM_WAYS)
+print("REAL_ADDR_BITS  =", REAL_ADDR_BITS)
+print("ROW_BITS        =", ROW_BITS)
+print("ROW_OFF_BITS    =", ROW_OFF_BITS)
+print("ROW_LINE_BITS   =", ROW_LINE_BITS)
+print("ROW_PER_LINE    =", ROW_PER_LINE)
+print("ROW_SIZE        =", ROW_SIZE)
+print("ROW_SIZE_BITS   =", ROW_SIZE_BITS)
+print("SET_SIZE_BITS   =", SET_SIZE_BITS)
+print("SIM             =", SIM)
+print("TAG_BITS        =", TAG_BITS)
+print("TAG_RAM_WIDTH   =", TAG_RAM_WIDTH)
+print("TAG_BITS        =", TAG_BITS)
+print("TLB_BITS        =", TLB_BITS)
+print("TLB_EA_TAG_BITS =", TLB_EA_TAG_BITS)
+print("TLB_LG_PGSZ     =", TLB_LG_PGSZ)
+print("TLB_PTE_BITS    =", TLB_PTE_BITS)
+print("TLB_SIZE        =", TLB_SIZE)
+print("WAY_BITS        =", WAY_BITS)
 
-print("INSN_BITS", INSN_BITS)
-print("ROW_BITS", ROW_BITS)
-print("ROW_LINEBITS", ROW_LINEBITS)
-print("LINE_OFF_BITS", LINE_OFF_BITS)
-print("ROW_OFF_BITS", ROW_OFF_BITS)
-print("INDEX_BITS", INDEX_BITS)
-print("SET_SIZE_BITS", SET_SIZE_BITS)
-print("TAG_BITS", TAG_BITS)
-print("WAY_BITS", WAY_BITS)
-print("TAG_RAM_WIDTH", TAG_RAM_WIDTH)
-print("TLB_BITS", TLB_BITS)
-print("TLB_EA_TAG_BITS", TLB_EA_TAG_BITS)
-print("TLB_PTE_BITS", TLB_PTE_BITS)
+# from microwatt/utils.vhdl
+def ispow2(n):
+    if ((n << 32) & ((n-1) << 32)) == 0:
+        return True
 
+    else:
+        return False
 
-
+assert LINE_SIZE % ROW_SIZE == 0
+assert ispow2(LINE_SIZE), "LINE_SIZE not power of 2"
+assert ispow2(NUM_LINES), "NUM_LINES not power of 2"
+assert ispow2(ROW_PER_LINE), "ROW_PER_LINE not power of 2"
+assert ispow2(INSN_PER_ROW), "INSN_PER_ROW not power of 2"
+assert (ROW_BITS == (INDEX_BITS + ROW_LINE_BITS)), \
+    "geometry bits don't add up"
+assert (LINE_OFF_BITS == (ROW_OFF_BITS + ROW_LINE_BITS)), \
+   "geometry bits don't add up"
+assert (REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS + LINE_OFF_BITS)), \
+    "geometry bits don't add up"
+assert (REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS)), \
+    "geometry bits don't add up"
 
 # architecture rtl of icache is
 #constant ROW_SIZE_BITS : natural := ROW_SIZE*8;
@@ -167,9 +193,9 @@ print("TLB_PTE_BITS", TLB_PTE_BITS)
 #constant INSN_BITS     : natural := log2(INSN_PER_ROW);
 #-- ROW_BITS is the number of bits to select a row
 #constant ROW_BITS      : natural := log2(BRAM_ROWS);
-#-- ROW_LINEBITS is the number of bits to
+#-- ROW_LINE_BITS is the number of bits to
 #-- select a row within a line
-#constant ROW_LINEBITS  : natural := log2(ROW_PER_LINE);
+#constant ROW_LINE_BITS  : natural := log2(ROW_PER_LINE);
 #-- LINE_OFF_BITS is the number of bits for the offset
 #-- in a cache line
 #constant LINE_OFF_BITS : natural := log2(LINE_SIZE);
@@ -190,7 +216,7 @@ print("TLB_PTE_BITS", TLB_PTE_BITS)
 #-- ..         |   row   |    |
 #-- ..         |     |   | |00| zero          (2)
 #-- ..         |     |   |-|  | INSN_BITS     (1)
-#-- ..         |     |---|    | ROW_LINEBITS  (3)
+#-- ..         |     |---|    | ROW_LINE_BITS  (3)
 #-- ..         |     |--- - --| LINE_OFF_BITS (6)
 #-- ..         |         |- --| ROW_OFF_BITS  (3)
 #-- ..         |----- ---|    | ROW_BITS      (8)
@@ -202,7 +228,7 @@ print("TLB_PTE_BITS", TLB_PTE_BITS)
    # ..         |   row   |    |
    # ..         |     |   | |00| zero          (2)
    # ..         |     |   |-|  | INSN_BITS     (1)
-   # ..         |     |---|    | ROW_LINEBITS  (3)
+   # ..         |     |---|    | ROW_LINE_BITS  (3)
    # ..         |     |--- - --| LINE_OFF_BITS (6)
    # ..         |         |- --| ROW_OFF_BITS  (3)
    # ..         |----- ---|    | ROW_BITS      (8)
@@ -212,7 +238,7 @@ print("TLB_PTE_BITS", TLB_PTE_BITS)
 #subtype row_t is integer range 0 to BRAM_ROWS-1;
 #subtype index_t is integer range 0 to NUM_LINES-1;
 #subtype way_t is integer range 0 to NUM_WAYS-1;
-#subtype row_in_line_t is unsigned(ROW_LINEBITS-1 downto 0);
+#subtype row_in_line_t is unsigned(ROW_LINE_BITS-1 downto 0);
 #
 #-- The cache data BRAM organized as described above for each way
 #subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
@@ -313,11 +339,11 @@ def get_row(addr):
 # 	variable row_v : unsigned(ROW_BITS-1 downto 0);
 #     begin
 # 	row_v := to_unsigned(row, ROW_BITS);
-#         return row_v(ROW_LINEBITS-1 downto 0);
+#         return row_v(ROW_LINE_BITS-1 downto 0);
 #     end;
 # Return the index of a row within a line
 def get_row_of_line(row):
-    return row[:ROW_LINEBITS]
+    return row[:ROW_LINE_BITS]
 
 #     -- Returns whether this is the last row of a line
 #     function is_last_row_addr(addr: wishbone_addr_type;
@@ -348,12 +374,12 @@ def is_last_row(row, last):
 #     -- only the bits within a cache line (3 bits with default settings)
 #     function next_row(row: row_t) return row_t is
 # 	variable row_v   : std_ulogic_vector(ROW_BITS-1 downto 0);
-# 	variable row_idx : std_ulogic_vector(ROW_LINEBITS-1 downto 0);
+# 	variable row_idx : std_ulogic_vector(ROW_LINE_BITS-1 downto 0);
 # 	variable result  : std_ulogic_vector(ROW_BITS-1 downto 0);
 #     begin
 # 	row_v := std_ulogic_vector(to_unsigned(row, ROW_BITS));
-# 	row_idx := row_v(ROW_LINEBITS-1 downto 0);
-# 	row_v(ROW_LINEBITS-1 downto 0) :=
+# 	row_idx := row_v(ROW_LINE_BITS-1 downto 0);
+# 	row_v(ROW_LINE_BITS-1 downto 0) :=
 #        std_ulogic_vector(unsigned(row_idx) + 1);
 # 	return to_integer(unsigned(row_v));
 #     end;
@@ -361,8 +387,8 @@ def is_last_row(row, last):
 # function in order to limit the size of the generated adder to be
 # only the bits within a cache line (3 bits with default settings)
 def next_row(row):
-    row_v = row[0:ROW_LINEBITS] + 1
-    return Cat(row_v[:ROW_LINEBITS], row[ROW_LINEBITS:])
+    row_v = row[0:ROW_LINE_BITS] + 1
+    return Cat(row_v[:ROW_LINE_BITS], row[ROW_LINE_BITS:])
 #     -- Read the instruction word for the given address in the
 #     -- current cache row
 #     function read_insn_word(addr: std_ulogic_vector(63 downto 0);
@@ -435,42 +461,6 @@ def hash_ea(addr):
           ]
     return hsh
 
-# begin
-#
-# XXX put these assert statements in - as python asserts
-#
-#     assert LINE_SIZE mod ROW_SIZE = 0;
-#     assert ispow2(LINE_SIZE) report "LINE_SIZE not power of 2"
-#     assert ispow2(NUM_LINES) report "NUM_LINES not power of 2"
-#     assert ispow2(ROW_PER_LINE) report "ROW_PER_LINE not power of 2"
-#     assert ispow2(INSN_PER_ROW) report "INSN_PER_ROW not power of 2"
-#     assert (ROW_BITS = INDEX_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up"
-#     assert (LINE_OFF_BITS = ROW_OFF_BITS + ROW_LINEBITS)
-# 	report "geometry bits don't add up"
-#     assert (REAL_ADDR_BITS = TAG_BITS + INDEX_BITS + LINE_OFF_BITS)
-# 	report "geometry bits don't add up"
-#     assert (REAL_ADDR_BITS = TAG_BITS + ROW_BITS + ROW_OFF_BITS)
-# 	report "geometry bits don't add up"
-#
-#     sim_debug: if SIM generate
-#     debug: process
-#     begin
-# 	report "ROW_SIZE      = " & natural'image(ROW_SIZE);
-# 	report "ROW_PER_LINE  = " & natural'image(ROW_PER_LINE);
-# 	report "BRAM_ROWS     = " & natural'image(BRAM_ROWS);
-# 	report "INSN_PER_ROW  = " & natural'image(INSN_PER_ROW);
-# 	report "INSN_BITS     = " & natural'image(INSN_BITS);
-# 	report "ROW_BITS      = " & natural'image(ROW_BITS);
-# 	report "ROW_LINEBITS  = " & natural'image(ROW_LINEBITS);
-# 	report "LINE_OFF_BITS = " & natural'image(LINE_OFF_BITS);
-# 	report "ROW_OFF_BITS  = " & natural'image(ROW_OFF_BITS);
-# 	report "INDEX_BITS    = " & natural'image(INDEX_BITS);
-# 	report "TAG_BITS      = " & natural'image(TAG_BITS);
-# 	report "WAY_BITS      = " & natural'image(WAY_BITS);
-# 	wait;
-#     end process;
-#     end generate;
 
 # Cache reload state machine
 @unique
@@ -498,7 +488,7 @@ class RegInternal(RecordObject):
         self.store_row    = Signal(BRAM_ROWS)
         self.store_tag    = Signal(TAG_BITS)
         self.store_valid  = Signal()
-        self.end_row_ix   = Signal(ROW_LINEBITS)
+        self.end_row_ix   = Signal(ROW_LINE_BITS)
         self.rows_valid   = RowPerLineValidArray()
 
         # TLB miss state
