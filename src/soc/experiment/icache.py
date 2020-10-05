@@ -873,6 +873,30 @@ class ICache(Elaboratable):
             # Track that we had one request sent
             sync += r.state.eq(State.CLR_TAG)
 
+    def icache_miss_clr_tag(self, m, r, replace_way,
+                            cache_valid_bits, req_index,
+                            tagset, cache_tags):
+
+        comb = m.d.comb
+        sync = m.d.sync
+
+        # Get victim way from plru
+        sync += r.store_way.eq(replace_way)
+        # Force misses on that way while reloading that line
+        cv = Signal(INDEX_BITS)
+        comb += cv.eq(cache_valid_bits[req_index])
+        comb += cv.bit_select(replace_way, 1).eq(0)
+        sync += cache_valid_bits[req_index].eq(cv)
+
+        for i in range(NUM_WAYS):
+            with m.If(i == replace_way):
+                comb += tagset.eq(cache_tags[r.store_index])
+                comb += write_tag(i, tagset, r.store_tag)
+                sync += cache_tags[r.store_index].eq(tagset)
+
+        sync += r.state.eq(State.WAIT_ACK)
+
+
     # Cache miss/reload synchronous machine
     def icache_miss(self, m, cache_valid_bits, r, req_is_miss,
                     req_index, req_laddr, req_tag, replace_way,
@@ -903,27 +927,19 @@ class ICache(Elaboratable):
         with m.Switch(r.state):
 
             with m.Case(State.IDLE):
-                self.icache_miss_idle(m, r, req_is_miss, req_laddr,
-                                      req_index, req_tag, replace_way,
-                                      real_addr)
+                self.icache_miss_idle(
+                    m, r, req_is_miss, req_laddr,
+                    req_index, req_tag, replace_way,
+                    real_addr
+                )
 
             with m.Case(State.CLR_TAG, State.WAIT_ACK):
                 with m.If(r.state == State.CLR_TAG):
-                    # Get victim way from plru
-                    sync += r.store_way.eq(replace_way)
-                    # Force misses on that way while reloading that line
-                    cv = Signal(INDEX_BITS)
-                    comb += cv.eq(cache_valid_bits[req_index])
-                    comb += cv.bit_select(replace_way, 1).eq(0)
-                    sync += cache_valid_bits[req_index].eq(cv)
-
-                    for i in range(NUM_WAYS):
-                        with m.If(i == replace_way):
-                            comb += tagset.eq(cache_tags[r.store_index])
-                            comb += write_tag(i, tagset, r.store_tag)
-                            sync += cache_tags[r.store_index].eq(tagset)
-
-                    sync += r.state.eq(State.WAIT_ACK)
+                    self.icache_miss_clr_tag(
+                        m, r, replace_way,
+                        cache_valid_bits, req_index,
+                        tagset, cache_tags
+                    )
 
                 # Requests are all sent if stb is 0
                 stbs_zero = Signal()
