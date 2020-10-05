@@ -216,9 +216,9 @@ class SPR(dict):
         if isinstance(key, int):
             key = spr_dict[key].SPR
         key = special_sprs.get(key, key)
-        if key == 'HSRR0': # HACK!
+        if key == 'HSRR0':  # HACK!
             key = 'SRR0'
-        if key == 'HSRR1': # HACK!
+        if key == 'HSRR1':  # HACK!
             key = 'SRR1'
         if key in self:
             res = dict.__getitem__(self, key)
@@ -239,9 +239,9 @@ class SPR(dict):
             key = spr_dict[key].SPR
             print("spr key", key)
         key = special_sprs.get(key, key)
-        if key == 'HSRR0': # HACK!
+        if key == 'HSRR0':  # HACK!
             self.__setitem__('SRR0', value)
-        if key == 'HSRR1': # HACK!
+        if key == 'HSRR1':  # HACK!
             self.__setitem__('SRR1', value)
         print("setting spr", key, value)
         dict.__setitem__(self, key, value)
@@ -431,7 +431,7 @@ class ISACaller:
             gts.append(gt)
         print(gts)
         cy = 1 if any(gts) else 0
-        print ("CA", cy, gts)
+        print("CA", cy, gts)
         if not (1 & already_done):
             self.spr['XER'][XER_bits['CA']] = cy
 
@@ -440,14 +440,14 @@ class ISACaller:
         # ARGH... different for OP_ADD... *sigh*...
         op = yield self.dec2.e.do.insn_type
         if op == MicrOp.OP_ADD.value:
-            res32 = (output.value & (1<<32)) != 0
-            a32 = (inputs[0].value & (1<<32)) != 0
+            res32 = (output.value & (1 << 32)) != 0
+            a32 = (inputs[0].value & (1 << 32)) != 0
             if len(inputs) >= 2:
-                b32 = (inputs[1].value & (1<<32)) != 0
+                b32 = (inputs[1].value & (1 << 32)) != 0
             else:
                 b32 = False
             cy32 = res32 ^ a32 ^ b32
-            print ("CA32 ADD", cy32)
+            print("CA32 ADD", cy32)
         else:
             gts = []
             for x in inputs:
@@ -457,7 +457,7 @@ class ISACaller:
                 gt = (gtu(x[32:64], output[32:64])) == SelectableInt(1, 1)
                 gts.append(gt)
             cy32 = 1 if any(gts) else 0
-            print ("CA32", cy32, gts)
+            print("CA32", cy32, gts)
         if not (2 & already_done):
             self.spr['XER'][XER_bits['CA32']] = cy32
 
@@ -505,7 +505,7 @@ class ISACaller:
     def handle_comparison(self, outputs):
         out = outputs[0]
         assert isinstance(out, SelectableInt), \
-                          "out zero not a SelectableInt %s" % repr(outputs)
+            "out zero not a SelectableInt %s" % repr(outputs)
         print("handle_comparison", out.bits, hex(out.value))
         # TODO - XXX *processor* in 32-bit mode
         # https://bugs.libre-soc.org/show_bug.cgi?id=424
@@ -581,14 +581,14 @@ class ISACaller:
             rc_en = False
             rc_ok = False
         # grrrr have to special-case MUL op (see DecodeOE)
-        print("ov %d en %d rc %d en %d op %d" % \
-                        (ov_ok, ov_en, rc_ok, rc_en, int_op))
+        print("ov %d en %d rc %d en %d op %d" %
+              (ov_ok, ov_en, rc_ok, rc_en, int_op))
         if int_op in [MicrOp.OP_MUL_H64.value, MicrOp.OP_MUL_H32.value]:
             print("mul op")
             if rc_en & rc_ok:
                 asmop += "."
         else:
-            if not asmop.endswith("."): # don't add "." to "andis."
+            if not asmop.endswith("."):  # don't add "." to "andis."
                 if rc_en & rc_ok:
                     asmop += "."
         if hasattr(self.dec2.e.do, "lk"):
@@ -667,7 +667,7 @@ class ISACaller:
             illegal = name != asmop
 
         if illegal:
-            print ("illegal", name, asmop)
+            print("illegal", name, asmop)
             self.TRAP(0x700, PIb.ILLEG)
             self.namespace['NIA'] = self.trap_nia
             self.pc.update(self.namespace)
