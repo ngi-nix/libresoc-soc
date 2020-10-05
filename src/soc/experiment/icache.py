@@ -1077,11 +1077,6 @@ class ICache(Elaboratable):
         cache_tags       = CacheTagArray()
         cache_valid_bits = CacheValidBitsArray()
 
-#     signal itlb_valids : tlb_valids_t;
-#     signal itlb_tags : tlb_tags_t;
-#     signal itlb_ptes : tlb_ptes_t;
-#     attribute ram_style of itlb_tags : signal is "distributed";
-#     attribute ram_style of itlb_ptes : signal is "distributed";
         itlb_valid_bits  = TLBValidBitsArray()
         itlb_tags        = TLBTagArray()
         itlb_ptes        = TLBPtesArray()
@@ -1089,22 +1084,11 @@ class ICache(Elaboratable):
         # attribute ram_style of itlb_tags : signal is "distributed";
         # attribute ram_style of itlb_ptes : signal is "distributed";
 
-#     -- Privilege bit from PTE EAA field
-#     signal eaa_priv  : std_ulogic;
         # Privilege bit from PTE EAA field
         eaa_priv         = Signal()
 
-#     signal r : reg_internal_t;
         r                = RegInternal()
 
-#     -- Async signals on incoming request
-#     signal req_index   : index_t;
-#     signal req_row     : row_t;
-#     signal req_hit_way : way_t;
-#     signal req_tag     : cache_tag_t;
-#     signal req_is_hit  : std_ulogic;
-#     signal req_is_miss : std_ulogic;
-#     signal req_laddr   : std_ulogic_vector(63 downto 0);
         # Async signal on incoming request
         req_index        = Signal(NUM_LINES)
         req_row          = Signal(BRAM_ROWS)
@@ -1114,14 +1098,6 @@ class ICache(Elaboratable):
         req_is_miss      = Signal()
         req_laddr        = Signal(64)
 
-#     signal tlb_req_index : tlb_index_t;
-#     signal real_addr     : std_ulogic_vector(
-#                             REAL_ADDR_BITS - 1 downto 0
-#                            );
-#     signal ra_valid      : std_ulogic;
-#     signal priv_fault    : std_ulogic;
-#     signal access_ok     : std_ulogic;
-#     signal use_previous  : std_ulogic;
         tlb_req_index    = Signal(TLB_SIZE)
         real_addr        = Signal(REAL_ADDR_BITS)
         ra_valid         = Signal()
@@ -1129,43 +1105,30 @@ class ICache(Elaboratable):
         access_ok        = Signal()
         use_previous     = Signal()
 
-#     signal cache_out   : cache_ram_out_t;
         cache_out_row    = Signal(ROW_SIZE_BITS)
 
-#     signal plru_victim : plru_out_t;
-#     signal replace_way : way_t;
         plru_victim      = PLRUOut()
         replace_way      = Signal(NUM_WAYS)
 
         # call sub-functions putting everything together,
         # using shared signals established above
-        self.rams(
-            m, r, cache_out_row, use_previous, replace_way, req_row
-        )
+        self.rams(m, r, cache_out_row, use_previous, replace_way, req_row)
         self.maybe_plrus(m, r, plru_victim)
-        self.itlb_lookup(
-            m, tlb_req_index, itlb_ptes, itlb_tags, real_addr,
-            itlb_valid_bits, ra_valid, eaa_priv, priv_fault, access_ok
-        )
+        self.itlb_lookup(m, tlb_req_index, itlb_ptes, itlb_tags, real_addr,
+                         itlb_valid_bits, ra_valid, eaa_priv, priv_fault,
+                         access_ok)
         self.itlb_update(m, itlb_valid_bits, itlb_tags, itlb_ptes)
-        self.icache_comb(
-            m, use_previous, r, req_index, req_row, req_hit_way,
-            req_tag, real_addr, req_laddr, cache_valid_bits,
-            cache_tags, access_ok, req_is_hit, req_is_miss,
-            replace_way, plru_victim, cache_out_row
-        )
-        self.icache_hit(
-            m, use_previous, r, req_is_hit, req_hit_way, req_index,
-            req_tag, real_addr
-        )
-        self.icache_miss(
-            m, cache_valid_bits, r, req_is_miss, req_index, req_laddr,
-            req_tag, replace_way, cache_tags, access_ok, real_addr
-        )
-        #self.icache_log(
-        #    m, log_out, req_hit_way, ra_valid, access_ok,
-        #    req_is_miss, req_is_hit, lway, wstate, r
-        #)
+        self.icache_comb(m, use_previous, r, req_index, req_row, req_hit_way,
+                         req_tag, real_addr, req_laddr, cache_valid_bits,
+                         cache_tags, access_ok, req_is_hit, req_is_miss,
+                         replace_way, plru_victim, cache_out_row)
+        self.icache_hit(m, use_previous, r, req_is_hit, req_hit_way,
+                        req_index, req_tag, real_addr)
+        self.icache_miss(m, cache_valid_bits, r, req_is_miss, req_index,
+                         req_laddr, req_tag, replace_way, cache_tags,
+                         access_ok, real_addr)
+        #self.icache_log(m, log_out, req_hit_way, ra_valid, access_ok,
+        #                req_is_miss, req_is_hit, lway, wstate, r)
 
         return m
 
