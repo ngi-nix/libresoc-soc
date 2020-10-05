@@ -123,10 +123,10 @@ TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
 WAY_BITS       = log2_int(NUM_WAYS)
 TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
 
-#     -- L1 ITLB.
-#     constant TLB_BITS : natural := log2(TLB_SIZE);
-#     constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
-#     constant TLB_PTE_BITS : natural := 64;
+#-- L1 ITLB.
+#constant TLB_BITS : natural := log2(TLB_SIZE);
+#constant TLB_EA_TAG_BITS : natural := 64 - (TLB_LG_PGSZ + TLB_BITS);
+#constant TLB_PTE_BITS : natural := 64;
 TLB_BITS        = log2_int(TLB_SIZE)
 TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
 TLB_PTE_BITS    = 64
@@ -574,7 +574,9 @@ class ICache(Elaboratable):
 
 
     # Generate a cache RAM for each way
-    def rams(self, m, r, cache_out_row, use_previous, replace_way, req_row):
+    def rams(self, m, r, cache_out_row, use_previous,
+             replace_way, req_row):
+
         comb = m.d.comb
         sync = m.d.sync
 
@@ -615,7 +617,7 @@ class ICache(Elaboratable):
             comb += wr_addr.eq(r.store_row)
             comb += wr_sel.eq(Repl(do_write, ROW_SIZE))
 
-    #     -- Generate PLRUs
+    # Generate PLRUs
     def maybe_plrus(self, m, r, plru_victim):
         comb = m.d.comb
 
@@ -640,6 +642,7 @@ class ICache(Elaboratable):
     def itlb_lookup(self, m, tlb_req_index, itlb_ptes, itlb_tags,
                     real_addr, itlb_valid_bits, ra_valid, eaa_priv,
                     priv_fault, access_ok):
+
         comb = m.d.comb
 
         i_in = self.i_in
@@ -698,18 +701,13 @@ class ICache(Elaboratable):
             sync += itlb_valid_bits[wr_index].eq(1)
 
     # Cache hit detection, output to fetch2 and other misc logic
-    def icache_comb(self, m, use_previous, r, req_index, req_row, req_hit_way,
-                    req_tag, real_addr, req_laddr, cache_valid_bits,
-                    cache_tags, access_ok, req_is_hit,
-                    req_is_miss, replace_way, plru_victim, cache_out_row):
-        comb = m.d.comb
+    def icache_comb(self, m, use_previous, r, req_index, req_row,
+                    req_hit_way, req_tag, real_addr, req_laddr,
+                    cache_valid_bits, cache_tags, access_ok,
+                    req_is_hit, req_is_miss, replace_way,
+                    plru_victim, cache_out_row):
 
-        #comb += Display("ENTER icache_comb - use_previous:%x req_index:%x "
-        #                "req_row:%x req_tag:%x real_addr:%x req_laddr:%x "
-        #                "access_ok:%x req_is_hit:%x req_is_miss:%x "
-        #                "replace_way:%x", use_previous, req_index, req_row,
-        #                req_tag, real_addr, req_laddr, access_ok,
-        #                req_is_hit, req_is_miss, replace_way)
+        comb = m.d.comb
 
         i_in, i_out, wb_out = self.i_in, self.i_out, self.wb_out
         flush_in, stall_out = self.flush_in, self.stall_out
@@ -747,11 +745,12 @@ class ICache(Elaboratable):
             comb += ctag.eq(cache_tags[req_index])
             comb += cvb.eq(cache_valid_bits[req_index])
             for i in range(NUM_WAYS):
-                tagi = Signal(TAG_BITS, name="ti%d" % i)
+                tagi = Signal(TAG_BITS, name="tag_i%d" % i)
                 comb += tagi.eq(read_tag(i, ctag))
                 hit_test = Signal(name="hit_test%d" % i)
                 comb += hit_test.eq(i == r.store_way)
-                with m.If((cvb[i] | (hitcond & hit_test)) & (tagi == req_tag)):
+                with m.If((cvb[i] | (hitcond & hit_test))
+                          & (tagi == req_tag)):
                     comb += hit_way.eq(i)
                     comb += is_hit.eq(1)
 
@@ -781,9 +780,6 @@ class ICache(Elaboratable):
         # be output an entire row which I prefer not to do just yet
         # as it would force fetch2 to know about some of the cache
         # geometry information.
-        #comb += Display("BEFORE read_insn_word - r.hit_nia:%x " \
-        #                "r.hit_way:%x, cache_out[r.hit_way]:%x", r.hit_nia, \
-        #                r.hit_way, cache_out[r.hit_way])
         comb += i_out.insn.eq(read_insn_word(r.hit_nia, cache_out_row))
         comb += i_out.valid.eq(r.hit_valid)
         comb += i_out.nia.eq(r.hit_nia)
@@ -820,10 +816,12 @@ class ICache(Elaboratable):
 
             with m.If(req_is_hit):
                 sync += r.hit_way.eq(req_hit_way)
-                sync += Display("cache hit nia:%x IR:%x SM:%x idx:%x " \
-                                "tag:%x way:%x RA:%x", i_in.nia, \
-                                i_in.virt_mode, i_in.stop_mark, req_index, \
-                                req_tag, req_hit_way, real_addr)
+                sync += Display(
+                         "cache hit nia:%x IR:%x SM:%x idx:%x tag:%x " \
+                         "way:%x RA:%x", i_in.nia, i_in.virt_mode, \
+                         i_in.stop_mark, req_index, req_tag, \
+                         req_hit_way, real_addr
+                        )
 
 
 
@@ -839,8 +837,7 @@ class ICache(Elaboratable):
 
         i_in = self.i_in
 
-        # Reset per-row valid flags,
-        # only used in WAIT_ACK
+        # Reset per-row valid flags, only used in WAIT_ACK
         for i in range(ROW_PER_LINE):
             sync += r.rows_valid[i].eq(0)
 
@@ -853,8 +850,7 @@ class ICache(Elaboratable):
                      replace_way, req_tag, real_addr
                     )
 
-            # Keep track of our index and way
-            # for subsequent stores
+            # Keep track of our index and way for subsequent stores
             st_row = Signal(BRAM_ROWS)
             comb += st_row.eq(get_row(req_laddr))
             sync += r.store_index.eq(req_index)
@@ -863,9 +859,8 @@ class ICache(Elaboratable):
             sync += r.store_valid.eq(1)
             sync += r.end_row_ix.eq(get_row_of_line(st_row) - 1)
 
-            # Prep for first wishbone read.  We calculate the
-            # address of the start of the cache line and
-            # start the WB cycle.
+            # Prep for first wishbone read.  We calculate the address
+            # of the start of the cache line and start the WB cycle.
             sync += r.req_adr.eq(req_laddr)
             sync += r.wb.cyc.eq(1)
             sync += r.wb.stb.eq(1)
@@ -914,12 +909,12 @@ class ICache(Elaboratable):
             # Clear stb and set stbs_done # so we can handle
             # an eventual last ack on # the same cycle.
             with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
-                sync += Display("IS_LAST_ROW_ADDR " \
-                                "r.wb.addr:%x r.end_row_ix:%x " \
-                                "r.wb.stb:%x stbs_zero:%x " \
-                                "stbs_done:%x", r.wb.adr, \
-                                r.end_row_ix, r.wb.stb, \
-                                stbs_zero, stbs_done)
+                sync += Display(
+                         "IS_LAST_ROW_ADDR r.wb.addr:%x " \
+                         "r.end_row_ix:%x r.wb.stb:%x stbs_zero:%x " \
+                         "stbs_done:%x", r.wb.adr, r.end_row_ix,
+                         r.wb.stb, stbs_zero, stbs_done
+                        )
                 sync += r.wb.stb.eq(0)
                 comb += stbs_done.eq(1)
 
@@ -1072,10 +1067,9 @@ class ICache(Elaboratable):
 #                             ra_valid;
             sync += log_data.eq(Cat(
                      ra_valid, access_ok, req_is_miss, req_is_hit,
-                     lway, wstate, r.hit_nia[2:6],
-                     r.fetch_failed, stall_out, wb_in.stall, r.wb.cyc,
-                     r.wb.stb, r.wb.adr[3:6], wb_in.ack, i_out.insn,
-                     i_out.valid
+                     lway, wstate, r.hit_nia[2:6], r.fetch_failed,
+                     stall_out, wb_in.stall, r.wb.cyc, r.wb.stb,
+                     r.wb.adr[3:6], wb_in.ack, i_out.insn, i_out.valid
                     ))
 #             end if;
 #         end process;
@@ -1153,25 +1147,35 @@ class ICache(Elaboratable):
         plru_victim      = PLRUOut()
         replace_way      = Signal(NUM_WAYS)
 
-        # call sub-functions putting everything together, using shared
-        # signals established above
-        self.rams(m, r, cache_out_row, use_previous, replace_way, req_row)
+        # call sub-functions putting everything together,
+        # using shared signals established above
+        self.rams(
+            m, r, cache_out_row, use_previous, replace_way, req_row
+        )
         self.maybe_plrus(m, r, plru_victim)
-        self.itlb_lookup(m, tlb_req_index, itlb_ptes, itlb_tags,
-                         real_addr, itlb_valid_bits, ra_valid, eaa_priv,
-                         priv_fault, access_ok)
+        self.itlb_lookup(
+            m, tlb_req_index, itlb_ptes, itlb_tags, real_addr,
+            itlb_valid_bits, ra_valid, eaa_priv, priv_fault, access_ok
+        )
         self.itlb_update(m, itlb_valid_bits, itlb_tags, itlb_ptes)
-        self.icache_comb(m, use_previous, r, req_index, req_row, req_hit_way,
-                         req_tag, real_addr, req_laddr, cache_valid_bits,
-                         cache_tags, access_ok, req_is_hit, req_is_miss,
-                         replace_way, plru_victim, cache_out_row)
-        self.icache_hit(m, use_previous, r, req_is_hit, req_hit_way,
-                        req_index, req_tag, real_addr)
-        self.icache_miss(m, cache_valid_bits, r, req_is_miss, req_index,
-                         req_laddr, req_tag, replace_way, cache_tags,
-                         access_ok, real_addr)
-        #self.icache_log(m, log_out, req_hit_way, ra_valid, access_ok,
-        #                req_is_miss, req_is_hit, lway, wstate, r)
+        self.icache_comb(
+            m, use_previous, r, req_index, req_row, req_hit_way,
+            req_tag, real_addr, req_laddr, cache_valid_bits,
+            cache_tags, access_ok, req_is_hit, req_is_miss,
+            replace_way, plru_victim, cache_out_row
+        )
+        self.icache_hit(
+            m, use_previous, r, req_is_hit, req_hit_way, req_index,
+            req_tag, real_addr
+        )
+        self.icache_miss(
+            m, cache_valid_bits, r, req_is_miss, req_index, req_laddr,
+            req_tag, replace_way, cache_tags, access_ok, real_addr
+        )
+        #self.icache_log(
+        #    m, log_out, req_hit_way, ra_valid, access_ok,
+        #    req_is_miss, req_is_hit, lway, wstate, r
+        #)
 
         return m
 
