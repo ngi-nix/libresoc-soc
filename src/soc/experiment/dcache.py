@@ -121,7 +121,7 @@ layout = """\
   .. --------|              | TAG_BITS      (45)
 """
 print (layout)
-print ("Dcache TAG %d IDX %d ROW %d ROFF %d LOFF %d RLB %d" % \
+print ("Dcache TAG %d IDX %d ROW_BITS %d ROFF %d LOFF %d RLB %d" % \
             (TAG_BITS, INDEX_BITS, ROW_BITS,
              ROW_OFF_BITS, LINE_OFF_BITS, ROW_LINE_BITS))
 print ("index @: %d-%d" % (LINE_OFF_BITS, SET_SIZE_BITS))
@@ -129,6 +129,8 @@ print ("row @: %d-%d" % (LINE_OFF_BITS, ROW_OFF_BITS))
 print ("tag @: %d-%d width %d" % (SET_SIZE_BITS, REAL_ADDR_BITS, TAG_WIDTH))
 
 TAG_RAM_WIDTH = TAG_WIDTH * NUM_WAYS
+
+print ("TAG_RAM_WIDTH", TAG_RAM_WIDTH)
 
 def CacheTagArray():
     return Array(Signal(TAG_RAM_WIDTH, name="cachetag_%d" % x) \
