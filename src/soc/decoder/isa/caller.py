@@ -61,10 +61,7 @@ REG_SORT_ORDER = {
 
 
 def create_args(reglist, extra=None):
-    regset = OrderedSet(reglist)
-    retval = []
-    for reg in regset:
-        retval.append(reg)
+    retval = list(OrderedSet(reglist))
     retval.sort(key=lambda reg: REG_SORT_ORDER[reg])
     if extra is not None:
         return [extra] + retval
