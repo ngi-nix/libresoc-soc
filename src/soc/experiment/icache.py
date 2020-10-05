@@ -832,6 +832,47 @@ class ICache(Elaboratable):
             sync += r.hit_smark.eq(i_in.stop_mark)
             sync += r.hit_nia.eq(i_in.nia)
 
+    def icache_miss_idle(self, m, r, req_is_miss, req_laddr,
+                         req_index, req_tag, replace_way, real_addr):
+        comb = m.d.comb
+        sync = m.d.sync
+
+        i_in = self.i_in
+
+        # Reset per-row valid flags,
+        # only used in WAIT_ACK
+        for i in range(ROW_PER_LINE):
+            sync += r.rows_valid[i].eq(0)
+
+        # We need to read a cache line
+        with m.If(req_is_miss):
+            sync += Display(
+                     "cache miss nia:%x IR:%x SM:%x idx:%x "
+                     " way:%x tag:%x RA:%x", i_in.nia,
+                     i_in.virt_mode, i_in.stop_mark, req_index,
+                     replace_way, req_tag, real_addr
+                    )
+
+            # Keep track of our index and way
+            # for subsequent stores
+            st_row = Signal(BRAM_ROWS)
+            comb += st_row.eq(get_row(req_laddr))
+            sync += r.store_index.eq(req_index)
+            sync += r.store_row.eq(st_row)
+            sync += r.store_tag.eq(req_tag)
+            sync += r.store_valid.eq(1)
+            sync += r.end_row_ix.eq(get_row_of_line(st_row) - 1)
+
+            # Prep for first wishbone read.  We calculate the
+            # address of the start of the cache line and
+            # start the WB cycle.
+            sync += r.req_adr.eq(req_laddr)
+            sync += r.wb.cyc.eq(1)
+            sync += r.wb.stb.eq(1)
+
+            # Track that we had one request sent
+            sync += r.state.eq(State.CLR_TAG)
+
     # Cache miss/reload synchronous machine
     def icache_miss(self, m, cache_valid_bits, r, req_is_miss,
                     req_index, req_laddr, req_tag, replace_way,
@@ -862,37 +903,9 @@ class ICache(Elaboratable):
         with m.Switch(r.state):
 
             with m.Case(State.IDLE):
-                # Reset per-row valid flags,
-                # only used in WAIT_ACK
-                for i in range(ROW_PER_LINE):
-                    sync += r.rows_valid[i].eq(0)
-
-                # We need to read a cache line
-                with m.If(req_is_miss):
-                    sync += Display("cache miss nia:%x IR:%x SM:%x idx:%x "
-                                     " way:%x tag:%x RA:%x", i_in.nia,
-                                     i_in.virt_mode, i_in.stop_mark, req_index,
-                                     replace_way, req_tag, real_addr)
-
-                    # Keep track of our index and way
-                    # for subsequent stores
-                    st_row = Signal(BRAM_ROWS)
-                    comb += st_row.eq(get_row(req_laddr))
-                    sync += r.store_index.eq(req_index)
-                    sync += r.store_row.eq(st_row)
-                    sync += r.store_tag.eq(req_tag)
-                    sync += r.store_valid.eq(1)
-                    sync += r.end_row_ix.eq(get_row_of_line(st_row) - 1)
-
-                    # Prep for first wishbone read.  We calculate the
-                    # address of the start of the cache line and
-                    # start the WB cycle.
-                    sync += r.req_adr.eq(req_laddr)
-                    sync += r.wb.cyc.eq(1)
-                    sync += r.wb.stb.eq(1)
-
-                    # Track that we had one request sent
-                    sync += r.state.eq(State.CLR_TAG)
+                self.icache_miss_idle(m, r, req_is_miss, req_laddr,
+                                      req_index, req_tag, replace_way,
+                                      real_addr)
 
             with m.Case(State.CLR_TAG, State.WAIT_ACK):
                 with m.If(r.state == State.CLR_TAG):
