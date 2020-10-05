@@ -102,7 +102,8 @@ from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
 
 # key data structure in which the POWER decoder is specified,
 # in a hierarchical fashion
-Subdecoder = namedtuple("Subdecoder",
+Subdecoder = namedtuple(  # fix autoformatter
+    "Subdecoder",
     ["pattern",    # the major pattern to search for (e.g. major opcode)
      "opcodes",    # a dictionary of minor patterns to find
      "opint",      # true => the pattern must not be in "10----11" format
@@ -130,19 +131,19 @@ power_op_types = {'function_unit': Function,
                   }
 
 power_op_csvmap = {'function_unit': 'unit',
-                   'form' : 'form',
-                   'internal_op' : 'internal op',
-                   'in1_sel' : 'in1',
-                   'in2_sel' : 'in2',
-                   'in3_sel' : 'in3',
-                   'out_sel' : 'out',
-                   'cr_in' : 'CR in',
-                   'cr_out' : 'CR out',
-                   'ldst_len' : 'ldst len',
-                   'upd' : 'upd',
-                   'rc_sel' : 'rc',
-                   'cry_in' : 'cry in',
-            }
+                   'form': 'form',
+                   'internal_op': 'internal op',
+                   'in1_sel': 'in1',
+                   'in2_sel': 'in2',
+                   'in3_sel': 'in3',
+                   'out_sel': 'out',
+                   'cr_in': 'CR in',
+                   'cr_out': 'CR out',
+                   'ldst_len': 'ldst len',
+                   'upd': 'upd',
+                   'rc_sel': 'rc',
+                   'cry_in': 'cry in',
+                   }
 
 
 def get_pname(field, pname):
@@ -156,6 +157,7 @@ class PowerOp:
     about a PowerISA instruction.  this is a "micro-code" expanded format
     which generates an awful lot of wires, hence the subsetting
     """
+
     def __init__(self, incl_asm=True, name=None, subset=None):
         self.subset = subset
         debug_report = set()
@@ -175,8 +177,8 @@ class PowerOp:
             debug_report.add(field)
             fname = get_pname(field, name)
             setattr(self, field, Signal(reset_less=True, name=fname))
-        print ("PowerOp debug", name, debug_report)
-        print ("        fields", fields)
+        print("PowerOp debug", name, debug_report)
+        print("        fields", fields)
 
     def _eq(self, row=None):
         if row is None:
@@ -205,7 +207,7 @@ class PowerOp:
                 continue
             csvname = power_op_csvmap[field]
             val = row[csvname]
-            if csvname == 'upd' and isinstance(val, int): # LDSTMode different
+            if csvname == 'upd' and isinstance(val, int):  # LDSTMode different
                 val = ptype(val)
             else:
                 val = ptype[val]
@@ -320,7 +322,8 @@ class PowerDecoder(Elaboratable):
                                    reset_less=True)
             eq = []
             case_does_something = False
-            eq.append(opcode_switch.eq(self.opcode_in[d.bitsel[0]:d.bitsel[1]]))
+            eq.append(opcode_switch.eq(
+                self.opcode_in[d.bitsel[0]:d.bitsel[1]]))
             if d.suffix:
                 opcodes = self.divide_opcodes(d)
                 opc_in = Signal(d.suffix, reset_less=True)
@@ -377,9 +380,9 @@ class PowerDecoder(Elaboratable):
                 decs.append(cases)
             if case_does_something:
                 eqs += eq
-                print ("submodule eqs", self.pname, eq)
+                print("submodule eqs", self.pname, eq)
 
-        print ("submodules", self.pname, submodules)
+        print("submodules", self.pname, submodules)
 
         gc.collect()
         return self.actually_does_something
@@ -389,13 +392,13 @@ class PowerDecoder(Elaboratable):
         for dec in d.subdecoders:
             if isinstance(dec, list):  # XXX HACK: take first pattern
                 dec = dec[0]
-            print ("subdec", dec.pattern, self.pname)
+            print("subdec", dec.pattern, self.pname)
             mname = get_pname("dec%d" % dec.pattern, self.pname)
             subdecoder = PowerDecoder(self.width, dec,
-                                     name=mname,
-                                     col_subset=self.col_subset,
-                                     row_subset=self.row_subsetfn)
-            if not subdecoder.tree_analyse(): # doesn't do anything
+                                      name=mname,
+                                      col_subset=self.col_subset,
+                                      row_subset=self.row_subsetfn)
+            if not subdecoder.tree_analyse():  # doesn't do anything
                 del subdecoder
                 continue                      # skip
             submodules[mname] = subdecoder
@@ -406,7 +409,7 @@ class PowerDecoder(Elaboratable):
         return eqs
 
     def elaborate(self, platform):
-        print ("decoder elaborate", self.pname, self.submodules)
+        print("decoder elaborate", self.pname, self.submodules)
         m = Module()
         comb = m.d.comb
 
@@ -538,7 +541,7 @@ def create_pdecode(name=None, col_subset=None, row_subset=None):
                           bitsel=(0, 32), suffix=None, subdecoders=[]))
 
     return TopPowerDecoder(32, dec, name=name, col_subset=col_subset,
-                                               row_subset=row_subset)
+                           row_subset=row_subset)
 
 
 if __name__ == '__main__':
@@ -547,7 +550,7 @@ if __name__ == '__main__':
         # row subset
 
         def rowsubsetfn(opcode, row):
-            print ("row_subset", opcode, row)
+            print("row_subset", opcode, row)
             return row['unit'] == 'ALU'
 
         pdecode = create_pdecode(name="rowsub",
@@ -570,4 +573,3 @@ if __name__ == '__main__':
     vl = rtlil.convert(pdecode, ports=pdecode.ports())
     with open("decoder.il", "w") as f:
         f.write(vl)
-

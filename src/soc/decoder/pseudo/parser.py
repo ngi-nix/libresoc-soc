@@ -205,8 +205,8 @@ def apply_trailer(atom, trailer):
             idx = subs[0]
         else:
             idx = ast.Slice(subs[0], subs[1], None)
-        #if isinstance(atom, ast.Name) and atom.id == 'CR':
-            #atom.id = 'CR' # bad hack
+        # if isinstance(atom, ast.Name) and atom.id == 'CR':
+            # atom.id = 'CR' # bad hack
             #print ("apply_trailer Subscript", atom.id, idx)
         return ast.Subscript(atom, idx, ast.Load())
 
@@ -453,7 +453,7 @@ class PowerParser:
         """
         start = p[4]
         end = p[6]
-        if start.value > end.value: # start greater than end, must go -ve
+        if start.value > end.value:  # start greater than end, must go -ve
             # auto-subtract-one (sigh) due to python range
             end = ast.BinOp(p[6], ast.Add(), ast.Constant(-1))
             arange = [start, end, ast.Constant(-1)]
