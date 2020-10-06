@@ -7,6 +7,7 @@ from nmigen import Signal, Record
 from nmutil.iocontrol import RecordObject
 from soc.decoder.power_enums import MicrOp, CryIn, Function, SPR, LDSTMode
 from soc.consts import TT
+from soc.experiment.mem_types import LDSTException
 
 
 class Data(Record):
@@ -50,6 +51,7 @@ class IssuerDecode2ToOperand(RecordObject):
         self.oe = Data(1, "oe")
         self.input_carry = Signal(CryIn, reset_less=True)
         self.traptype  = Signal(TT.size, reset_less=True) # trap main_stage.py
+        self.ldst_exc  = LDSTException("exc")
         self.trapaddr  = Signal(13, reset_less=True)
         self.read_cr_whole = Data(8, "cr_rd") # CR full read mask
         self.write_cr_whole = Data(8, "cr_wr") # CR full write mask

@@ -921,7 +921,7 @@ class PowerDecode2(PowerDecodeSubset):
                     #srr1(63 - 35) <= exc.perm_error; -- noexec fault
                     #srr1(63 - 44) <= exc.badtree;
                     #srr1(63 - 45) <= exc.rc_error;
-                    self.trap(m, TT.MEMEXC, 0x400)
+                    self.trap(m, TT.MEMEXC, 0x400, exc)
             with m.Else():
                 with m.If(exc.segment_fault):
                     self.trap(m, TT.MEMEXC, 0x380)
@@ -981,7 +981,7 @@ class PowerDecode2(PowerDecodeSubset):
 
         return m
 
-    def trap(self, m, traptype, trapaddr):
+    def trap(self, m, traptype, trapaddr, exc=None):
         """trap: this basically "rewrites" the decoded instruction as a trap
         """
         comb = m.d.comb
@@ -994,6 +994,7 @@ class PowerDecode2(PowerDecodeSubset):
         comb += self.do_copy("fn_unit", Function.TRAP, True)
         comb += self.do_copy("trapaddr", trapaddr >> 4, True) # bottom 4 bits
         comb += self.do_copy("traptype", traptype, True)  # request type
+        comb += self.do_copy("ldst_exc", exc, True)  # request type
         comb += self.do_copy("msr", self.state.msr, True) # copy of MSR "state"
         comb += self.do_copy("cia", self.state.pc, True)  # copy of PC "state"
 
