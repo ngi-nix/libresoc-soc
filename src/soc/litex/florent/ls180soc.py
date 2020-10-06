@@ -385,7 +385,8 @@ class LibreSoCSim(SoCCore):
                             clk_freq   = sdram_clk_freq)
             #sdrphy_cls = HalfRateGENSDRPHY
             sdrphy_cls = GENSDRPHY
-            self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
+            sdram_pads = self.cpu.cpupads['sdr']
+            self.submodules.sdrphy = sdrphy_cls(sdram_pads)
             #self.submodules.sdrphy = sdrphy_cls(sdram_module,
             #                                       phy_settings,
             #                                       init=ram_init
@@ -409,7 +410,7 @@ class LibreSoCSim(SoCCore):
 
             # SDRAM clock
             sys_clk = ClockSignal()
-            sdr_clk = platform.request("sdram_clock")
+            sdr_clk = self.cpu.cpupads['sdram_clock']
             #self.specials += DDROutput(1, 0, , sdram_clk)
             self.specials += SDROutput(clk=sys_clk, i=sys_clk, o=sdr_clk)
 

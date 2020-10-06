@@ -85,7 +85,7 @@ class TestIssuerInternal(Elaboratable):
         self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
         if self.jtag_en:
             subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
-                      'pwm', 'sd0'}#, 'sdr'}
+                      'pwm', 'sd0', 'sdr'}
             self.jtag = JTAG(get_pinspecs(subset=subset))
 
         # instruction go/monitor
