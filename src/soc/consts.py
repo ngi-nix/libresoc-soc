@@ -143,6 +143,7 @@ class TT:
     ADDR = 1<<3
     EINT = 1<<4  # external interrupt
     DEC = 1<<5   # decrement counter
-    ILLEG = 1<<6 # currently the max, therefore traptype must be 5 bits
+    MEMEXC = 1<<6 # LD/ST exception
+    ILLEG = 1<<7 # currently the max
     # TODO: support for TM_BAD_THING (not included yet in trap main_stage.py)
-    size = 7 # MUST update this to contain the full number of Trap Types
+    size = 8 # MUST update this to contain the full number of Trap Types

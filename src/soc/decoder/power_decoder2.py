@@ -14,6 +14,8 @@ from nmutil.picker import PriorityPicker
 from nmutil.iocontrol import RecordObject
 from nmutil.extend import exts
 
+from soc.experiment.mem_types import LDSTException
+
 from soc.decoder.power_regspec_map import regspec_decode_read
 from soc.decoder.power_regspec_map import regspec_decode_write
 from soc.decoder.power_decoder import create_pdecode
@@ -620,11 +622,8 @@ record_names = {'insn_type': 'internal_op',
 
 class PowerDecodeSubset(Elaboratable):
     """PowerDecodeSubset: dynamic subset decoder
-
     """
-
-    def __init__(self, dec, opkls=None, fn_name=None,
-                            final=False, state=None):
+    def __init__(self, dec, opkls=None, fn_name=None, final=False, state=None):
 
         self.final = final
         self.opkls = opkls
@@ -632,6 +631,7 @@ class PowerDecodeSubset(Elaboratable):
         self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
         col_subset = self.get_col_subset(self.e.do)
 
+        # create decoder if one not already given
         if dec is None:
             dec = create_pdecode(name=fn_name, col_subset=col_subset,
                                       row_subset=self.rowsubsetfn)
@@ -783,7 +783,22 @@ class PowerDecode2(PowerDecodeSubset):
     instructions are illegal (or privileged) or not, and instead of
     just leaving at that, *replacing* the instruction to execute with
     a suitable alternative (trap).
+
+    LDSTExceptions are done the cycle _after_ they're detected (after
+    they come out of LDSTCompUnit).  basically despite the instruction
+    being decoded, the results of the decode are completely ignored
+    and "exception.happened" used to set the "actual" instruction to
+    "OP_TRAP".  the LDSTException data structure gets filled in,
+    in the CompTrapOpSubset and that's what it fills in SRR.
+
+    to make this work, TestIssuer must notice "exception.happened"
+    after the (failed) LD/ST and copies the LDSTException info from
+    the output, into here (PowerDecoder2).  without incrementing PC.
     """
+
+    def __init__(self, dec, opkls=None, fn_name=None, final=False, state=None):
+        super().__init__(dec, opkls, fn_name, final, state)
+        self.exc = LDSTException("dec2_exc")
 
     def get_col_subset(self, opkls):
         subset = super().get_col_subset(opkls)
@@ -885,14 +900,36 @@ class PowerDecode2(PowerDecodeSubset):
         dec_irq_ok = Signal()
         priv_ok = Signal()
         illeg_ok = Signal()
+        exc = self.exc
 
         comb += ext_irq_ok.eq(ext_irq & msr[MSR.EE]) # v3.0B p944 (MSR.EE)
-        comb += dec_irq_ok.eq(dec_spr[63] & msr[MSR.EE]) # v3.0B 6.5.11 p1076
+        comb += dec_irq_ok.eq(dec_spr[63] & msr[MSR.EE]) # 6.5.11 p1076
         comb += priv_ok.eq(is_priv_insn & msr[MSR.PR])
         comb += illeg_ok.eq(op.internal_op == MicrOp.OP_ILLEGAL)
 
+        # LD/ST exceptions.  TestIssuer copies the exception info at us
+        # after a failed LD/ST.
+        with m.If(exc.happened):
+            with m.If(exc.alignment):
+                self.trap(m, TT.MEMEXC, 0x600)
+            with m.Elif(exc.instr_fault):
+                with m.If(exc.segment_fault):
+                    self.trap(m, TT.MEMEXC, 0x480)
+                with m.Else():
+                    # TODO
+                    #srr1(63 - 33) <= exc.invalid;
+                    #srr1(63 - 35) <= exc.perm_error; -- noexec fault
+                    #srr1(63 - 44) <= exc.badtree;
+                    #srr1(63 - 45) <= exc.rc_error;
+                    self.trap(m, TT.MEMEXC, 0x400)
+            with m.Else():
+                with m.If(exc.segment_fault):
+                    self.trap(m, TT.MEMEXC, 0x380)
+                with m.Else():
+                    self.trap(m, TT.MEMEXC, 0x300)
+
         # decrement counter (v3.0B p1099): TODO 32-bit version (MSR.LPCR)
-        with m.If(dec_irq_ok):
+        with m.Elif(dec_irq_ok):
             self.trap(m, TT.DEC, 0x900)   # v3.0B 6.5 p1065
 
         # external interrupt? only if MSR.EE set
