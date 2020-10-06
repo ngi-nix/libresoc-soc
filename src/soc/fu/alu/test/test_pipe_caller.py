@@ -392,7 +392,7 @@ class TestRunner(unittest.TestCase):
         pspec = ALUPipeSpec(id_wid=2)
         m.submodules.alu = alu = ALUBasePipe(pspec)
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
+        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)

@@ -158,7 +158,7 @@ class TestRunner(unittest.TestCase):
         pspec = BranchPipeSpec(id_wid=2)
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
-        comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
+        comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
         comb += branch.p.valid_i.eq(1)
         comb += branch.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
