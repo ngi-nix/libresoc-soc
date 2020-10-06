@@ -119,6 +119,25 @@ class PortInterface(RecordObject):
         self.virt_mode     = Signal()  # virtual mode
         self.priv_mode     = Signal()  # privileged mode
 
+        # mmu
+        self.mmu_done          = Signal()
+        self.mmu_err           = Signal()
+        self.mmu_invalid       = Signal()
+        # radix tree is invalid
+        self.mmu_badtree       = Signal()
+        # segment_check fails
+        self.mmu_segerr        = Signal()
+        # permission error takes precedence over RC error
+        self.mmu_perm_error    = Signal()
+        self.mmu_rc_error      = Signal()
+        # r.prtbl or r.pid
+        self.mmu_sprval        = Signal(64)
+
+        # dcache
+        self.ldst_error        = Signal()
+        ## Signalling ld/st error - NC cache hit, TLB miss, prot/RC failure
+        self.cache_paradox     = Signal()
+
     def connect_port(self, inport):
         print("connect_port", self, inport)
         return [self.is_ld_i.eq(inport.is_ld_i),
