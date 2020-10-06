@@ -35,7 +35,7 @@ class CompOpSubsetBase(Record):
     def eq_from_execute1(self, other):
         """ use this to copy in from Decode2Execute1Type
         """
-        return self.eq_from(other.do)
+        return self.eq_from(other)
 
     def ports(self):
         res = []

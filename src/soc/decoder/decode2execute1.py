@@ -83,9 +83,9 @@ class Decode2ToOperand(IssuerDecode2ToOperand):
 
 class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self, name=None, asmcode=True, opkls=None):
+    def __init__(self, name=None, asmcode=True, opkls=None, do=None):
 
-        if opkls is None:
+        if do is None and opkls is None:
             opkls = Decode2ToOperand
 
         RecordObject.__init__(self, name=name)
@@ -115,6 +115,9 @@ class Decode2ToExecute1Type(RecordObject):
         self.write_cr = Data(3, name="cr_out")
 
         # decode operand data
-        print ("decode2execute init", name, opkls)
+        print ("decode2execute init", name, opkls, do)
         #assert name is not None, str(opkls)
-        self.do = opkls(name)
+        if do is not None:
+            self.do = do
+        else:
+            self.do = opkls(name)

@@ -105,7 +105,7 @@ class NonProductionCore(Elaboratable):
 
         # create per-FU instruction decoders (subsetted)
         self.decoders = {}
-        self.ees = {}
+        self.des = {}
 
         for funame, fu in self.fus.fus.items():
             f_name = fu.fnunit.name
@@ -117,7 +117,7 @@ class NonProductionCore(Elaboratable):
             self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
                                                       final=True,
                                                       state=self.state)
-            self.ees[funame] = self.decoders[funame].e
+            self.des[funame] = self.decoders[funame].do
 
     def elaborate(self, platform):
         m = Module()
@@ -139,7 +139,7 @@ class NonProductionCore(Elaboratable):
             comb += v.dec.bigendian.eq(self.bigendian_i)
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
-        self.ees[self.trapunit] = self.e
+        self.des[self.trapunit] = self.e.do
 
         # connect up Function Units, then read/write ports
         fu_bitdict = self.connect_instruction(m)
@@ -200,14 +200,14 @@ class NonProductionCore(Elaboratable):
                 with m.Default():
                     # connect up instructions.  only one enabled at a time
                     for funame, fu in fus.items():
-                        e = self.ees[funame]
+                        do = self.des[funame]
                         enable = fu_bitdict[funame]
 
                         # run this FunctionUnit if enabled
                         # route op, issue, busy, read flags and mask to FU
                         with m.If(enable):
                             # operand comes from the *local*  decoder
-                            comb += fu.oper_i.eq_from(e.do)
+                            comb += fu.oper_i.eq_from(do)
                             #comb += fu.oper_i.eq_from_execute1(e)
                             comb += fu.issue_i.eq(self.issue_i)
                             comb += self.busy_o.eq(fu.busy_o)

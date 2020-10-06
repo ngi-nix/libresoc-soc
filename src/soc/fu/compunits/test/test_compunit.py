@@ -75,7 +75,7 @@ def set_cu_inputs(cu, inp):
 
 
 def set_operand(cu, dec2, sim):
-    yield from cu.oper_i.eq_from_execute1(dec2.e)
+    yield from cu.oper_i.eq_from_execute1(dec2.do)
     yield cu.issue_i.eq(1)
     yield
     yield cu.issue_i.eq(0)

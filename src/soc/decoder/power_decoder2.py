@@ -23,7 +23,8 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      CRInSel, CROutSel,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
                                      OutSel, SPR, RC, LDSTMode)
-from soc.decoder.decode2execute1 import Decode2ToExecute1Type, Data
+from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
+                                         Decode2ToOperand)
 from soc.consts import MSR
 
 from soc.regfile.regfiles import FastRegs
@@ -628,8 +629,12 @@ class PowerDecodeSubset(Elaboratable):
         self.final = final
         self.opkls = opkls
         self.fn_name = fn_name
-        self.e = Decode2ToExecute1Type(name=self.fn_name, opkls=self.opkls)
-        col_subset = self.get_col_subset(self.e.do)
+        if opkls is None:
+            opkls = Decode2ToOperand
+        self.do = opkls(fn_name)
+        if not self.final:
+            self.e = Decode2ToExecute1Type(name=self.fn_name, do=self.do)
+        col_subset = self.get_col_subset(self.do)
 
         # create decoder if one not already given
         if dec is None:
@@ -658,14 +663,14 @@ class PowerDecodeSubset(Elaboratable):
 
     def needs_field(self, field, op_field):
         if self.final:
-            do = self.e.do
+            do = self.do
         else:
             do = self.e_tmp.do
         return hasattr(do, field) and self.op_get(op_field) is not None
 
     def do_copy(self, field, val, final=False):
         if final or self.final:
-            do = self.e.do
+            do = self.do
         else:
             do = self.e_tmp.do
         if hasattr(do, field) and val is not None:
@@ -679,20 +684,17 @@ class PowerDecodeSubset(Elaboratable):
         m = Module()
         comb = m.d.comb
         state = self.state
-        e_out, op, do_out = self.e, self.dec.op, self.e.do
+        op, do = self.dec.op, self.do
         msr, cia = state.msr, state.pc
 
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
-        if self.final:
-            e = self.e
-        else:
+        if not self.final:
             if self.fn_name is None:
                 name = "tmp"
             else:
                 name = self.fn_name + "tmp"
-            self.e_tmp = e = Decode2ToExecute1Type(name=name, opkls=self.opkls)
-        do = e.do
+            self.e_tmp = Decode2ToExecute1Type(name=name, opkls=self.opkls)
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -916,7 +918,7 @@ class PowerDecode2(PowerDecodeSubset):
                 with m.If(exc.segment_fault):
                     self.trap(m, TT.PRIV, 0x480)
                 with m.Else():
-                    #spass exception info to trap to create SRR1
+                    # pass exception info to trap to create SRR1
                     self.trap(m, TT.MEMEXC, 0x400, exc)
             with m.Else():
                 with m.If(exc.segment_fault):
