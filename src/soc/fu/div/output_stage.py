@@ -4,7 +4,7 @@
 * https://bugs.libre-soc.org/show_bug.cgi?id=424
 """
 
-from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
+from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array, signed)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.div.pipe_data import DivMulOutputData
@@ -93,6 +93,12 @@ class DivOutputStage(PipeModBase):
         comb += self.o.o.ok.eq(1)
         o = self.o.o.data
 
+        # work around https://github.com/nmigen/nmigen/issues/502
+        remainder_s32 = Signal(signed(32))
+        comb += remainder_s32.eq(remainder_64[0:32])
+        remainder_s32_as_s64 = Signal(signed(64))
+        comb += remainder_s32_as_s64.eq(remainder_s32)
+
         with m.If(~ov):  # result is valid (no overflow)
             with m.Switch(op.insn_type):
                 with m.Case(MicrOp.OP_DIVE):
@@ -117,7 +123,7 @@ class DivOutputStage(PipeModBase):
                     with m.If(op.is_32bit):
                         with m.If(op.is_signed):
                             # matches POWER9's modsw behavior
-                            comb += o.eq(remainder_64[0:32].as_signed())
+                            comb += o.eq(remainder_s32_as_s64)
                         with m.Else():
                             comb += o.eq(remainder_64[0:32].as_unsigned())
                     with m.Else():
