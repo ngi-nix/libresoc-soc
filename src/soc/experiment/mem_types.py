@@ -8,16 +8,13 @@ from nmigen import Signal
 
 # https://bugs.libre-soc.org/show_bug.cgi?id=465
 class LDSTException(RecordObject):
+    _exc_types = ['alignment', 'instr_fault', 'invalid', 'badtree',
+                 'perm_error', 'rc_error', 'segment_fault',]
     def __init__(self, name=None):
         RecordObject.__init__(self, name=name)
         self.happened = Signal()
-        self.alignment = Signal()
-        self.instr_fault = Signal()
-        self.invalid = Signal()
-        self.badtree = Signal()
-        self.perm_error = Signal()
-        self.rc_error = Signal()
-        self.segment_fault = Signal()
+        for f in self._exc_types:
+            setattr(self, f, Signal())
 
 
 class DCacheToLoadStore1Type(RecordObject):
