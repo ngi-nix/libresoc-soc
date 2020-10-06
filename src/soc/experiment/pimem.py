@@ -121,18 +121,7 @@ class PortInterface(RecordObject):
 
         # mmu
         self.mmu_done          = Signal() # keep for now
-        self.mmu_err           = Signal() # XXX remove: already in LDSTException
-        self.mmu_invalid       = Signal() # XXX remove: already in LDSTException
-        # radix tree is invalid
-        self.mmu_badtree       = Signal() # XXX remove: already in LDSTException
-        # segment_check fails
-        self.mmu_segerr        = Signal() # XXX remove: already in LDSTException
-        # permission error takes precedence over RC error
-        self.mmu_perm_error    = Signal() # XXX remove: already in LDSTException
-        self.mmu_rc_error      = Signal() # XXX remove: already in LDSTException
-        # r.prtbl or r.pid
-        self.mmu_sprval        = Signal(64) # XXX remove: not needed
-
+       
         # dcache
         self.ldst_error        = Signal()
         ## Signalling ld/st error - NC cache hit, TLB miss, prot/RC failure
