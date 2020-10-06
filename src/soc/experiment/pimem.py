@@ -25,25 +25,13 @@ from nmutil.latch import SRLatch, latchregister
 from nmutil.util import rising_edge
 from soc.decoder.power_decoder2 import Data
 from soc.scoreboard.addr_match import LenExpand
+from soc.experiment.mem_types import LDSTException
 
 # for testing purposes
 from soc.experiment.testmem import TestMemory
 #from soc.scoreboard.addr_split import LDSTSplitter
 
-
 import unittest
-
-class LDSTException(RecordObject):
-    def __init__(self, name=None):
-        RecordObject.__init__(self, name=name)
-        self.happened = Signal()
-        self.alignment = Signal()
-        self.instr_fault = Signal()
-        self.invalid = Signal()
-        self.badtree = Signal()
-        self.perm_error = Signal()
-        self.rc_error = Signal()
-        self.segment_fault = Signal()
 
 
 class PortInterface(RecordObject):

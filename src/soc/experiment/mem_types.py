@@ -6,6 +6,19 @@ based on Anton Blanchard microwatt common.vhdl
 from nmutil.iocontrol import RecordObject
 from nmigen import Signal
 
+# https://bugs.libre-soc.org/show_bug.cgi?id=465
+class LDSTException(RecordObject):
+    def __init__(self, name=None):
+        RecordObject.__init__(self, name=name)
+        self.happened = Signal()
+        self.alignment = Signal()
+        self.instr_fault = Signal()
+        self.invalid = Signal()
+        self.badtree = Signal()
+        self.perm_error = Signal()
+        self.rc_error = Signal()
+        self.segment_fault = Signal()
+
 
 class DCacheToLoadStore1Type(RecordObject):
     def __init__(self, name=None):
