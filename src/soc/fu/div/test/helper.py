@@ -178,8 +178,7 @@ class DivTestHelper(unittest.TestCase):
             except AttributeError:
                 pass
             msg = "%s: %s" % (div_pipe_kind.name, code)
-            msg += " %s" % (repr(prog.assembly))
-            msg += " %s" % (repr(test.regs))
+            msg += f" {prog.assembly!r} {list(map(hex, test.regs))!r}"
             yield from self.check_alu_outputs(alu, pdecode2,
                                               isa_sim, msg,
                                               pia_res)
