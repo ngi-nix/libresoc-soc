@@ -88,6 +88,9 @@ class DummyPLL(Elaboratable):
 
         return m
 
+    def ports(self):
+        return [self.clk_24_i, self.clk_pll_o]
+
 
 if __name__ == '__main__':
     dut = ClockSelect()
