@@ -632,9 +632,11 @@ class PowerDecodeSubset(Elaboratable):
         if opkls is None:
             opkls = Decode2ToOperand
         self.do = opkls(fn_name)
+        col_subset = self.get_col_subset(self.do)
+
+        # only needed for "main" PowerDecode2
         if not self.final:
             self.e = Decode2ToExecute1Type(name=self.fn_name, do=self.do)
-        col_subset = self.get_col_subset(self.do)
 
         # create decoder if one not already given
         if dec is None:
