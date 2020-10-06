@@ -89,6 +89,7 @@ from nmutil.extend import exts
 
 from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
+from soc.experiment.pimem import LDSTException
 from soc.fu.regspec import RegSpecAPI
 
 from soc.decoder.power_enums import MicrOp, Function, LDSTMode
@@ -104,7 +105,7 @@ class LDSTCompUnitRecord(CompUnitRecord):
         self.ad = go_record(1, name="cu_ad")  # address go in, req out
         self.st = go_record(1, name="cu_st")  # store go in, req out
 
-        self.addr_exc_o = Signal(reset_less=True)   # address exception
+        self.exception_o = LDSTException("exc")
 
         self.ld_o = Signal(reset_less=True)  # operation is a LD
         self.st_o = Signal(reset_less=True)  # operation is a ST
@@ -132,9 +133,9 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
     --------------
     * :data_o:     Dest out (LD)          - managed by wr[0] go/req
     * :addr_o:     Address out (LD or ST) - managed by wr[1] go/req
-    * :addr_exc_o: Address/Data Exception occurred.  LD/ST must terminate
+    * :exception_o: Address/Data Exception occurred.  LD/ST must terminate
 
-    TODO: make addr_exc_o a data-type rather than a single-bit signal
+    TODO: make exception_o a data-type rather than a single-bit signal
           (see bug #302)
 
     Control Signals (In)
@@ -227,7 +228,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         self.data_o = Data(self.data_wid, name="o")  # Dest1 out: RT
         self.addr_o = Data(self.data_wid, name="ea")  # Addr out: Update => RA
-        self.addr_exc_o = cu.addr_exc_o
+        self.exception_o = cu.exception_o
         self.done_o = cu.done_o
         self.busy_o = cu.busy_o
 
@@ -491,7 +492,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # address: use sync to avoid long latency
         sync += pi.addr.data.eq(addr_r)           # EA from adder
         sync += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
-        comb += self.addr_exc_o.eq(pi.addr_exc_o)  # exception occurred
+        comb += self.exception_o.eq(pi.exception_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
         # byte-reverse on LD

@@ -33,6 +33,18 @@ from soc.experiment.testmem import TestMemory
 
 import unittest
 
+class LDSTException(RecordObject):
+    def __init__(self, name=None):
+        RecordObject.__init__(self, name=name)
+        self.happened = Signal()
+        self.alignment = Signal()
+        self.instr_fault = Signal()
+        self.invalid = Signal()
+        self.badtree = Signal()
+        self.perm_error = Signal()
+        self.rc_error = Signal()
+        self.segment_fault = Signal()
+
 
 class PortInterface(RecordObject):
     """PortInterface
@@ -59,13 +71,13 @@ class PortInterface(RecordObject):
       for the L0 Cache/Buffer to have an additional address latch
       (because the LDSTCompUnit already has it)
 
-    * addr_ok_o (or addr_exc_o) must be waited for.  these will
+    * addr_ok_o (or exception.happened) must be waited for.  these will
       be asserted *only* for one cycle and one cycle only.
 
-    * addr_exc_o will be asserted if there is no chance that the
+    * exception.happened will be asserted if there is no chance that the
       memory request may be fulfilled.
 
-      busy_o is deasserted on the same cycle as addr_exc_o is asserted.
+      busy_o is deasserted on the same cycle as exception.happened is asserted.
 
     * conversely: addr_ok_o must *ONLY* be asserted if there is a
       HUNDRED PERCENT guarantee that the memory request will be
@@ -107,7 +119,7 @@ class PortInterface(RecordObject):
         self.addr = Data(addrwid, "addr_i")            # addr/addr-ok
         # addr is valid (TLB, L1 etc.)
         self.addr_ok_o = Signal(reset_less=True)
-        self.addr_exc_o = Signal(reset_less=True)  # TODO, "type" of exception
+        self.exception_o = LDSTException("exc")
 
         # LD/ST
         self.ld = Data(regwid, "ld_data_o")  # ok to be set by L0 Cache/Buf
@@ -131,7 +143,7 @@ class PortInterface(RecordObject):
                 inport.ld.eq(self.ld),
                 inport.busy_o.eq(self.busy_o),
                 inport.addr_ok_o.eq(self.addr_ok_o),
-                inport.addr_exc_o.eq(self.addr_exc_o),
+                inport.exception_o.eq(self.exception_o),
                 ]
 
 
@@ -280,7 +292,7 @@ class PortInterfaceBase(Elaboratable):
             comb += st_done.r.eq(1)     # store done reset
 
         # monitor for an exception or the completion of LD.
-        with m.If(self.pi.addr_exc_o):
+        with m.If(self.pi.exception_o.happened):
             comb += busy_l.r.eq(1)
 
         # however ST needs one cycle before busy is reset
