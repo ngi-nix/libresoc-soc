@@ -916,11 +916,7 @@ class PowerDecode2(PowerDecodeSubset):
                 with m.If(exc.segment_fault):
                     self.trap(m, TT.PRIV, 0x480)
                 with m.Else():
-                    # TODO
-                    #srr1(63 - 33) <= exc.invalid;
-                    #srr1(63 - 35) <= exc.perm_error; -- noexec fault
-                    #srr1(63 - 44) <= exc.badtree;
-                    #srr1(63 - 45) <= exc.rc_error;
+                    #spass exception info to trap to create SRR1
                     self.trap(m, TT.MEMEXC, 0x400, exc)
             with m.Else():
                 with m.If(exc.segment_fault):
