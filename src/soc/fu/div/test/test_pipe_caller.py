@@ -11,6 +11,14 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 
 class DivTestCases(TestAccumulatorBase):
+    def case_modsw_regression(self):
+        lst = ["modsw 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xffffffffffffffff
+        initial_regs[2] = 0x2
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_divweu_regression(self):
         # simulator is wrong, FSM and power-instruction-analyzer both correct
         lst = ["divweu 3, 1, 2"]
