@@ -15,6 +15,7 @@ from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
 from soc.fu.branch.main_stage import br_ext
 from soc.decoder.power_enums import MicrOp
+from soc.experiment.mem_types import LDSTException
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -195,6 +196,14 @@ class TrapMainStage(PipeModBase):
                         comb += srr1_o.data[PI.FP].eq(1)
                     with m.If(traptype & TT.ADDR):
                         comb += srr1_o.data[PI.ADR].eq(1)
+                    with m.If(traptype & TT.MEMEXC):
+                        # decode exception bits, store in SRR1
+                        exc = LDSTException("trapexc")
+                        comb += exc.eq(op.ldst_exc)
+                        comb += srr1_o.data[PI.INVALID].eq(exc.invalid)
+                        comb += srr1_o.data[PI.PERMERR].eq(exc.perm_error)
+                        comb += srr1_o.data[PI.ILLEG].eq(exc.badtree)
+                        comb += srr1_o.data[PI.PRIV].eq(exc.rc_error)
                     with m.If(traptype & TT.EINT):
                         # do nothing unusual? see 3.0B Book III 6.5.7 p1073
                         pass

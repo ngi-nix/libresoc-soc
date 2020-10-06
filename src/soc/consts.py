@@ -119,6 +119,8 @@ botchify(MSRb, MSR)
 
 # use this in the simulator
 class PIb:
+    INVALID      = 33    # 1 for an invalid mem err
+    PERMERR      = 35    # 1 for an permanent mem err
     TM_BAD_THING = 42    # 1 for a TM Bad Thing type interrupt
     FP           = 43    # 1 if FP exception
     ILLEG        = 44    # 1 if illegal instruction (not doing hypervisor)
