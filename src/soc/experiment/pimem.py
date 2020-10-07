@@ -140,6 +140,9 @@ class PortInterface(RecordObject):
                 inport.busy_o.eq(self.busy_o),
                 inport.addr_ok_o.eq(self.addr_ok_o),
                 inport.exception_o.eq(self.exception_o),
+                inport.mmu_done.eq(self.mmu_done),
+                inport.ldst_error.eq(self.ldst_error),
+                inport.cache_paradox.eq(self.cache_paradox)
                 ]
 
 
