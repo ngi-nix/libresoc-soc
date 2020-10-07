@@ -18,6 +18,7 @@ class CompSROpSubset(CompOpSubsetBase):
                   ('rc', Layout((("rc", 1), ("ok", 1)))),
                   ('oe', Layout((("oe", 1), ("ok", 1)))),
                   ('write_cr0', 1),
+                  ('invert_in', 1),
                   ('input_carry', CryIn),
                   ('output_carry', 1),
                   ('input_cr', 1),

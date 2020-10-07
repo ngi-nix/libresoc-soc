@@ -70,7 +70,7 @@ def set_alu_inputs(alu, dec2, sim):
 
 class ShiftRotTestCase(TestAccumulatorBase):
 
-    def cse_0_proof_regression_rlwnm(self):
+    def case_0_proof_regression_rlwnm(self):
         lst = ["rlwnm 3, 1, 2, 16, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x7ffdbffb91b906b9
@@ -78,7 +78,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         print(initial_regs[1], initial_regs[2])
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_regression_rldicr_0(self):
+    def case_regression_rldicr_0(self):
         lst = ["rldicr. 29, 19, 1, 21"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3f
@@ -89,7 +89,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                                 initial_sprs=initial_sprs)
 
-    def cse_regression_rldicr_1(self):
+    def case_regression_rldicr_1(self):
         lst = ["rldicr. 29, 19, 1, 21"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3f
@@ -97,7 +97,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_shift(self):
+    def case_shift(self):
         insns = ["slw", "sld", "srw", "srd", "sraw", "srad"]
         for i in range(20):
             choice = random.choice(insns)
@@ -108,7 +108,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
             print(initial_regs[1], initial_regs[2])
             self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_shift_arith(self):
+    def case_shift_arith(self):
         lst = ["sraw 3, 1, 2"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
@@ -116,7 +116,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         print(initial_regs[1], initial_regs[2])
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_sld_rb_too_big(self):
+    def case_sld_rb_too_big(self):
         lst = ["sld 3, 1, 4",
                ]
         initial_regs = [0] * 32
@@ -132,7 +132,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         initial_regs[4] = 0 # no shift; output should equal input
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_shift_once(self):
+    def case_shift_once(self):
         lst = ["slw 3, 1, 4",
                "slw 3, 1, 2"]
         initial_regs = [0] * 32
@@ -141,7 +141,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         initial_regs[4] = 0x00
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rlwinm(self):
+    def case_rlwinm(self):
         for i in range(10):
             mb = random.randint(0, 31)
             me = random.randint(0, 31)
@@ -153,45 +153,45 @@ class ShiftRotTestCase(TestAccumulatorBase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rlwimi(self):
+    def case_rlwimi(self):
         lst = ["rlwimi 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeef
         initial_regs[3] = 0x12345678
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rlwnm(self):
+    def case_rlwnm(self):
         lst = ["rlwnm 3, 1, 2, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
         initial_regs[2] = random.randint(0, 63)
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rldicl(self):
+    def case_rldicl(self):
         lst = ["rldicl 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rldicr(self):
+    def case_rldicr(self):
         lst = ["rldicr 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = random.randint(0, (1 << 64)-1)
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_regression_extswsli(self):
+    def case_regression_extswsli(self):
         lst = [f"extswsli 3, 1, 34"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x5678
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_regression_extswsli_2(self):
+    def case_regression_extswsli_2(self):
         lst = [f"extswsli 3, 1, 7"]
         initial_regs = [0] * 32
         initial_regs[1] = 0x3ffffd7377f19fdd
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_regression_extswsli_3(self):
+    def case_regression_extswsli_3(self):
         lst = [f"extswsli 3, 1, 0"]
         initial_regs = [0] * 32
         #initial_regs[1] = 0x80000000fb4013e2
@@ -201,7 +201,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
         #initial_regs[1] = 0x3ffffd73f7f19fdd
         self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_extswsli(self):
+    def case_extswsli(self):
         for i in range(40):
             sh = random.randint(0, 63)
             lst = [f"extswsli 3, 1, {sh}"]
@@ -209,7 +209,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_rlc(self):
+    def case_rlc(self):
         insns = ["rldic", "rldicl", "rldicr"]
         for i in range(20):
             choice = random.choice(insns)
@@ -220,7 +220,7 @@ class ShiftRotTestCase(TestAccumulatorBase):
             initial_regs[1] = random.randint(0, (1 << 64)-1)
             self.add_case(Program(lst, bigendian), initial_regs)
 
-    def cse_ilang(self):
+    def case_ilang(self):
         pspec = ShiftRotPipeSpec(id_wid=2)
         alu = ShiftRotBasePipe(pspec)
         vl = rtlil.convert(alu, ports=alu.ports())
