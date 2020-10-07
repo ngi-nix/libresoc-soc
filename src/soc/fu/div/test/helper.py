@@ -196,7 +196,7 @@ class DivTestHelper(unittest.TestCase):
         pspec = DivPipeSpec(id_wid=2, div_pipe_kind=div_pipe_kind)
         m.submodules.alu = alu = DivBasePipe(pspec)
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.e)
+        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
