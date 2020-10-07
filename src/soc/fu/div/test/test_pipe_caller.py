@@ -11,6 +11,38 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 
 class DivTestCases(TestAccumulatorBase):
+    def case_divdeu_regression(self):
+        lst = ["divdeu 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1
+        initial_regs[2] = 0x2
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
+    def case_divde_regression3(self):
+        lst = ["divde 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x8000000000000000
+        initial_regs[2] = 0xFFFFFFFFFFFFFFFF
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
+    def case_divwe_regression2(self):
+        lst = ["divwe 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x80000000
+        initial_regs[2] = 0xFFFFFFFF
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
+    def case_divde_regression2(self):
+        lst = ["divde 3, 1, 2"]
+        initial_regs = [0] * 32
+        initial_regs[1] = 0x1
+        initial_regs[2] = 0xfffffffffffffffe
+        with Program(lst, bigendian) as prog:
+            self.add_case(prog, initial_regs)
+
     def case_divde_regression(self):
         lst = ["divde 3, 1, 2"]
         initial_regs = [0] * 32

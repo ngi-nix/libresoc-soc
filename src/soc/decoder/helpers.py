@@ -36,6 +36,13 @@ def EXTS64(value):
     return SelectableInt(exts(value.value, value.bits) & ((1 << 64)-1), 64)
 
 
+def EXTS128(value):
+    """ extends sign bit out from current MSB to 128 bits
+    """
+    assert isinstance(value, SelectableInt)
+    return SelectableInt(exts(value.value, value.bits) & ((1 << 128)-1), 128)
+
+
 # signed version of MUL
 def MULS(a, b):
     if isinstance(b, int):
