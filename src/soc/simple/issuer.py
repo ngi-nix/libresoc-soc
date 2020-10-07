@@ -157,13 +157,17 @@ class TestIssuerInternal(Elaboratable):
         core_sync = ClockDomain("coresync")
         m.domains += cd_por, cd_sync, core_sync
 
+        ti_rst = Signal(reset_less=True)
         delay = Signal(range(4), reset=3)
         with m.If(delay != 0):
             m.d.por += delay.eq(delay - 1)
         comb += cd_por.clk.eq(ClockSignal())
         comb += core_sync.clk.eq(ClockSignal())
+
         # power-on reset delay 
-        comb += core.core_reset_i.eq(delay != 0 | dbg.core_rst_o)
+        core_rst = ResetSignal("coresync")
+        comb += ti_rst.eq(delay != 0 | dbg.core_rst_o | ResetSignal())
+        comb += core_rst.eq(ti_rst)
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
@@ -235,7 +239,7 @@ class TestIssuerInternal(Elaboratable):
                 sync += core.e.eq(0)
                 sync += core.raw_insn_i.eq(0)
                 sync += core.bigendian_i.eq(0)
-                with m.If(~dbg.core_stop_o & ~core.core_reset_i):
+                with m.If(~dbg.core_stop_o & ~core_rst):
                     # instruction allowed to go: start by reading the PC
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
@@ -475,8 +479,10 @@ class TestIssuer(Elaboratable):
         comb += pll.clk_24_i.eq(clksel.clk_24_i)
 
         # now wire up ResetSignals.  don't mind them all being in this domain
-        comb += pll.rst.eq(ResetSignal())
-        comb += clksel.rst.eq(ResetSignal())
+        int_rst = ResetSignal("intclk")
+        pll_rst = ResetSignal("pllclk")
+        comb += int_rst.eq(ResetSignal())
+        comb += pll_rst.eq(ResetSignal())
 
         return m
 
@@ -487,8 +493,8 @@ class TestIssuer(Elaboratable):
 
     def external_ports(self):
         ports = self.ti.external_ports()
-        #ports.append(ClockSignal())
-        #ports.append(ResetSignal())
+        ports.append(ClockSignal())
+        ports.append(ResetSignal())
         ports.append(self.clksel.clk_sel_i)
         ports.append(self.clksel.pll_48_o)
         return ports

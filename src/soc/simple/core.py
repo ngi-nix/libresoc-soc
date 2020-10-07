@@ -100,7 +100,6 @@ class NonProductionCore(Elaboratable):
 
         # start/stop and terminated signalling
         self.core_stopped_i = Signal(reset_less=True)
-        self.core_reset_i = Signal()
         self.core_terminate_o = Signal(reset=0)  # indicates stopped
 
         # create per-FU instruction decoders (subsetted)
@@ -145,9 +144,6 @@ class NonProductionCore(Elaboratable):
         fu_bitdict = self.connect_instruction(m)
         self.connect_rdports(m, fu_bitdict)
         self.connect_wrports(m, fu_bitdict)
-
-        # connect up reset
-        m.d.comb += ResetSignal().eq(self.core_reset_i)
 
         return m
 

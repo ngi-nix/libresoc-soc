@@ -35,12 +35,10 @@ class ClockSelect(Elaboratable):
         self.pll_48_o = Signal()  # 6-divide (test signal) from PLL
         self.clk_sel_i = Signal(3) # clock source selection
         self.core_clk_o = Signal() # main core clock (selectable)
-        self.rst        = Signal() # reset
 
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
-        m.d.comb += ResetSignal().eq(self.rst)
 
         # array of clocks (selectable by clk_sel_i)
         clkgen = Array([Signal(name="clk%d" % i) for i in range(8)])
@@ -79,12 +77,10 @@ class DummyPLL(Elaboratable):
     def __init__(self):
         self.clk_24_i = Signal() # 24 mhz external incoming
         self.clk_pll_o = Signal()  # output fake PLL clock
-        self.rst = Signal() # reset
 
     def elaborate(self, platform):
         m = Module()
         m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
-        m.d.comb += ResetSignal().eq(self.rst)
 
         return m
 
