@@ -69,6 +69,7 @@ def jtag_sim(dut, srv_dut):
     yield srv_dut.ios[3].pad.i.eq(0)
     yield srv_dut.ios[3].core.o.eq(0)
     yield srv_dut.ios[3].core.oe.eq(1)
+    yield
 
     bs = yield from jtag_read_write_reg(dut, BS_SAMPLE, bslen, bs_actual)
     print ("bs scan", bin(bs))
@@ -84,6 +85,7 @@ def jtag_sim(dut, srv_dut):
     # extest
     ir_actual = yield from jtag_set_ir(dut, BS_EXTEST)
     print ("ir extest", bin(ir_actual))
+    yield
 
     print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
     print ("io1 core.o", (yield srv_dut.ios[1].core.o))
@@ -102,9 +104,11 @@ def jtag_sim(dut, srv_dut):
     yield srv_dut.ios[3].pad.i.eq(1)
     yield srv_dut.ios[3].core.o.eq(1)
     yield srv_dut.ios[3].core.oe.eq(0)
+    yield
 
     bs = yield from jtag_set_get_dr(dut, bslen, bs_actual)
     print ("bs scan", bin(bs))
+    yield
 
     print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
     print ("io1 core.o", (yield srv_dut.ios[1].core.o))
@@ -117,6 +121,7 @@ def jtag_sim(dut, srv_dut):
     # reset
     yield from jtag_set_reset(dut)
     print ("bs reset")
+    yield
 
     print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
     print ("io1 core.o", (yield srv_dut.ios[1].core.o))
