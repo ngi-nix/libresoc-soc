@@ -73,6 +73,7 @@ def jtag_sim(dut, srv_dut):
 
     bs = yield from jtag_read_write_reg(dut, BS_SAMPLE, bslen, bs_actual)
     print ("bs scan", bin(bs))
+    yield
 
     print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
     print ("io1 core.o", (yield srv_dut.ios[1].core.o))
