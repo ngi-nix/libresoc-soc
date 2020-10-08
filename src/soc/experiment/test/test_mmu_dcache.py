@@ -22,6 +22,7 @@ from soc.experiment.mmu import MMU
 from soc.experiment.dcache import DCache
 from soc.experiment.icache import ICache
 
+from random import randint
 
 stop = False
 
@@ -80,65 +81,66 @@ def wb_get(c, mem, name):
         yield c.wb_in.ack.eq(0)
 
 
-def icache_mmu_lookup(mmu, addr):
-    global stop
+def icache_sim(dut, mem):
+    i_out = dut.i_in
+    i_in  = dut.i_out
+    m_out = dut.m_in
 
-    yield mmu.l_in.load.eq(1)
-    yield mmu.l_in.priv.eq(1)
-    yield mmu.l_in.addr.eq(addr)
-    yield mmu.l_in.valid.eq(1)
-    while not stop: # wait for dc_valid / err
-        l_done = yield (mmu.l_out.done)
-        l_err = yield (mmu.l_out.err)
-        l_badtree = yield (mmu.l_out.badtree)
-        l_permerr = yield (mmu.l_out.perm_error)
-        l_rc_err = yield (mmu.l_out.rc_error)
-        l_segerr = yield (mmu.l_out.segerr)
-        l_invalid = yield (mmu.l_out.invalid)
-        if (l_done or l_err or l_badtree or
-            l_permerr or l_rc_err or l_segerr or l_invalid):
-            break
+    for k,v in mem.items():
+        yield i_in.valid.eq(0)
+        yield i_out.priv_mode.eq(1)
+        yield i_out.req.eq(0)
+        yield i_out.nia.eq(0)
+        yield i_out.stop_mark.eq(0)
+        yield m_out.tlbld.eq(0)
+        yield m_out.tlbie.eq(0)
+        yield m_out.addr.eq(0)
+        yield m_out.pte.eq(0)
         yield
-    phys_addr = yield mmu.i_out.addr
-    pte = yield mmu.i_out.pte
-    print ("translated done %d err %d badtree %d addr %x pte %x" % \
-               (l_done, l_err, l_badtree, phys_addr, pte))
-    yield
-    yield mmu.l_in.valid.eq(0)
+        yield
+        yield
+        yield
+        yield i_out.req.eq(1)
+        yield i_out.nia.eq(C(k, 64))
+        for i in range(30):
+            yield
+        yield
+        valid = yield i_in.valid
+        nia   = yield i_out.nia
+        insn  = yield i_in.insn
+        print(f"valid? {valid}")
+        assert valid
+        assert insn == v, \
+            "insn @%x=%x expected %x" % (nia, insn, v)
+        yield i_out.req.eq(0)
+        yield
 
-    return phys_addr
-
-def icache_mmu_sim(mmu):
-    global stop
-    yield mmu.rin.prtbl.eq(0x1000000) # set process table
-    yield
-
-    phys_addr = yield from icache_mmu_lookup(mmu, 0x10000)
-    assert phys_addr == 0x40000
-
-    phys_addr = yield from icache_mmu_lookup(mmu, 0x10000)
-    assert phys_addr == 0x40000
-
-    stop = True
 
 def test_icache():
-    mmu    = MMU()
+    dut    = ICache()
+    vl     = rtlil.convert(dut, ports=[])
+    with open("test_icache.il", "w") as f:
+        f.write(vl)
+
     icache = ICache()
+
+    mem    = {}
+
+    for i in range(100):
+        mem[randint(0,1<<64)] = b(randint(0,1<<64))
+
     m      = Module()
 
-    m.submodules.mmu    = mmu
     m.submodules.icache = icache
 
-    # link mmu and icache together
-    m.d.comb += icache.m_in.eq(mmu.i_out)
 
     # nmigen Simulation
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(icache_mmu_sim(mmu)))
-    sim.add_sync_process(wrap(wb_get(icache, "ICACHE")))
-    with sim.write_vcd('test_mmu.vcd'):
+    sim.add_sync_process(wrap(icache_sim(icache, mem)))
+    sim.add_sync_process(wrap(wb_get(icache, mem, "ICACHE")))
+    with sim.write_vcd('test_icache.vcd'):
         sim.run()
 
 def mmu_lookup(mmu, addr):
