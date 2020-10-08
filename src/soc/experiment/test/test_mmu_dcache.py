@@ -47,7 +47,7 @@ default_mem = { 0x10000:    # PARTITION_TABLE_2
             }
 
 
-def wb_get(c, mem=default_mem, name="DCACHE"):
+def wb_get(c, mem, name):
     """simulator process for getting memory load requests
     """
 
@@ -198,7 +198,7 @@ def test_mmu():
     sim.add_clock(1e-6)
 
     sim.add_sync_process(wrap(mmu_sim(mmu)))
-    sim.add_sync_process(wrap(wb_get(dcache)))
+    sim.add_sync_process(wrap(wb_get(dcache, default_mem, "DCACHE")))
     with sim.write_vcd('test_mmu.vcd'):
         sim.run()
 
