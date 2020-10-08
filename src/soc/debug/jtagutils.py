@@ -41,7 +41,7 @@ def tms_data_getset(dut, tms, d_len, d_in=0):
         tdi = 1 if (d_in & (1<<i)) else 0
         yield dut.cbus.tck.eq(1)
         yield from client_sync(dut)
-        res |= (1<<i) if (yield dut.bus.tdo) else 0
+        res |= (1<<i) if (yield dut.cbus.tdo) else 0
         yield
         yield from client_sync(dut)
         yield dut.cbus.tdi.eq(tdi)
@@ -98,7 +98,7 @@ def jtag_srv(dut):
         yield dut.bus.tms.eq(tms)
         yield dut.bus.tdi.eq(tdi)
         yield
-
+    print ("jtag srv stopping")
 
 
 def get_data(s, length=1024, timeout=None):

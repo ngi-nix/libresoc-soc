@@ -9,7 +9,7 @@ from c4m.nmigen.jtag.tap import TAP, IOType
 from c4m.nmigen.jtag.bus import Interface as JTAGInterface
 from soc.debug.dmi import DMIInterface, DBGCore
 from soc.debug.test.dmi_sim import dmi_sim
-from soc.debug.dmi2jtag import DMITAP
+from soc.debug.jtag import JTAG, dummy_pinset
 from soc.debug.test.jtagremote import JTAGServer, JTAGClient
 
 from nmigen_soc.wishbone.sram import SRAM
@@ -31,7 +31,7 @@ WB_READ = 6
 WB_WRRD = 7
 
 
-def jtag_sim(dut):
+def jtag_sim(dut, srv_dut):
 
     ####### JTAGy stuff (IDCODE) ######
 
@@ -78,64 +78,57 @@ def jtag_sim(dut):
     ####### JTAG to Wishbone ######
 
     # write Wishbone address
-    yield from jtag_read_write_reg(dut, WB_ADDR, 16, 0x18)
+    yield from jtag_read_write_reg(dut, WB_ADDR, 64, 0x18)
 
     # write/read wishbone data
-    data = yield from jtag_read_write_reg(dut, WB_WRRD, 16, 0xfeef)
+    data = yield from jtag_read_write_reg(dut, WB_WRRD, 64, 0xfeef)
     print ("wb write", hex(data))
 
     # write Wishbone address
-    yield from jtag_read_write_reg(dut, WB_ADDR, 16, 0x18)
+    yield from jtag_read_write_reg(dut, WB_ADDR, 64, 0x18)
 
     # write/read wishbone data
-    data = yield from jtag_read_write_reg(dut, WB_READ, 16, 0)
+    data = yield from jtag_read_write_reg(dut, WB_READ, 64, 0)
     print ("wb read", hex(data))
 
     ####### done - tell dmi_sim to stop (otherwise it won't) ########
 
-    dut.stop = True
+    srv_dut.stop = True
+    print ("jtag sim stopping")
 
 
 if __name__ == '__main__':
-    dut = DMITAP(ir_width=4)
+    dut = JTAG(dummy_pinset(), wb_data_wid=64)
     dut.stop = False
+
+    # rather than the client access the JTAG bus directly
+    # create an alternative that the client sets
+    class Dummy: pass
+    cdut = Dummy()
+    cdut.cbus = JTAGInterface()
+    cdut._ir_width = 4
 
     # set up client-server on port 44843-something
     dut.s = JTAGServer()
     if len(sys.argv) != 2 or sys.argv[1] != 'server':
-        dut.c = JTAGClient()
+        cdut.c = JTAGClient()
         dut.s.get_connection()
     else:
         dut.s.get_connection(None) # block waiting for connection
 
-    # rather than the client access the JTAG bus directly
-    # create an alternative that the client sets
-    dut.cbus = JTAGInterface()
-
-    iotypes = (IOType.In, IOType.Out, IOType.TriOut, IOType.InTriOut)
-    ios = [dut.add_io(iotype=iotype) for iotype in iotypes]
-    dut.sr = dut.add_shiftreg(ircode=4, length=3) # test loopback register
-
-    # create and connect wishbone SRAM (a quick way to do WB test)
-    dut.wb = dut.add_wishbone(ircodes=[WB_ADDR, WB_READ, WB_WRRD],
-                               address_width=16, data_width=16)
-    memory = Memory(width=16, depth=16)
+    memory = Memory(width=64, depth=16)
     sram = SRAM(memory=memory, bus=dut.wb)
-
-    # create DMI2JTAG (goes through to dmi_sim())
-    dut.dmi = dut.add_dmi(ircodes=[DMI_ADDR, DMI_READ, DMI_WRRD])
 
     m = Module()
     m.submodules.ast = dut
     m.submodules.sram = sram
-    m.d.comb += dut.sr.i.eq(dut.sr.o) # loopback
 
     sim = Simulator(m)
     sim.add_clock(1e-6, domain="sync")      # standard clock
 
     sim.add_sync_process(wrap(jtag_srv(dut))) # jtag server
     if len(sys.argv) != 2 or sys.argv[1] != 'server':
-        sim.add_sync_process(wrap(jtag_sim(dut))) # actual jtag tester
+        sim.add_sync_process(wrap(jtag_sim(cdut, dut))) # actual jtag tester
     else:
         print ("running server only as requested, use openocd remote to test")
     sim.add_sync_process(wrap(dmi_sim(dut)))  # handles (pretends to be) DMI

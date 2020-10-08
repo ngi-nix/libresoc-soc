@@ -60,7 +60,7 @@ class Pins:
 
 
 class JTAG(DMITAP, Pins):
-    def __init__(self, pinset):
+    def __init__(self, pinset, wb_data_wid=64):
         DMITAP.__init__(self, ir_width=4)
         Pins.__init__(self, pinset)
 
@@ -77,7 +77,7 @@ class JTAG(DMITAP, Pins):
 
         # create and connect wishbone 
         self.wb = self.add_wishbone(ircodes=[5, 6, 7],
-                                   address_width=29, data_width=64,
+                                   address_width=29, data_width=wb_data_wid,
                                    name="jtag_wb")
 
         # create DMI2JTAG (goes through to dmi_sim())

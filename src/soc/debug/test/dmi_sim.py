@@ -43,3 +43,4 @@ def dmi_sim(dut):
             yield
             yield dmi.ack_o.eq(0)
 
+    print ("dmi sim stopping")
