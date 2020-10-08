@@ -102,46 +102,48 @@ def icache_sim(dut, mem):
         yield
         yield i_out.req.eq(1)
         yield i_out.nia.eq(C(k, 64))
-        for i in range(30):
+        while True:
             yield
-        yield
-        valid = yield i_in.valid
+            valid = yield i_in.valid
+            if valid:
+                break
         nia   = yield i_out.nia
         insn  = yield i_in.insn
-        print(f"valid? {valid}")
-        assert valid
+        yield
         assert insn == v, \
             "insn @%x=%x expected %x" % (nia, insn, v)
         yield i_out.req.eq(0)
         yield
 
 
-def test_icache():
-    dut    = ICache()
-    vl     = rtlil.convert(dut, ports=[])
+def test_icache_il():
+    dut = ICache()
+    vl = rtlil.convert(dut, ports=[])
     with open("test_icache.il", "w") as f:
         f.write(vl)
 
-    icache = ICache()
 
-    mem    = {}
-
+def test_icache():
+    # create a random set of addresses and "instructions" at those addresses
+    mem = {}
     for i in range(100):
-        mem[randint(0,1<<64)] = b(randint(0,1<<64))
+        mem[randint(0, 1<<10)] = b(randint(0,1<<32))
 
-    m      = Module()
-
+    # set up module for simulation
+    m = Module()
+    icache = ICache()
     m.submodules.icache = icache
-
 
     # nmigen Simulation
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
+    # read from "memory" process and corresponding wishbone "read" process
     sim.add_sync_process(wrap(icache_sim(icache, mem)))
     sim.add_sync_process(wrap(wb_get(icache, mem, "ICACHE")))
     with sim.write_vcd('test_icache.vcd'):
         sim.run()
+
 
 def mmu_lookup(mmu, addr):
     global stop
@@ -171,6 +173,7 @@ def mmu_lookup(mmu, addr):
 
     return phys_addr
 
+
 def mmu_sim(mmu):
     global stop
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
@@ -183,6 +186,7 @@ def mmu_sim(mmu):
     assert phys_addr == 0x40000
 
     stop = True
+
 
 def test_mmu():
     mmu = MMU()
@@ -204,6 +208,8 @@ def test_mmu():
     with sim.write_vcd('test_mmu.vcd'):
         sim.run()
 
+
 if __name__ == '__main__':
     test_mmu()
-#    test_icache()
+    test_icache_il()
+    #test_icache()
