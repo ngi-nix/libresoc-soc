@@ -23,45 +23,47 @@ from soc.experiment.dcache import DCache
 
 stop = False
 
+def b(x):
+    return int.from_bytes(x.to_bytes(8, byteorder='little'),
+                          byteorder='big', signed=False)
+default_mem = { 0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+                b(0x800000000100000b),
 
-def wb_get(dc):
+                0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+                b(0x8000000000040009),
+
+                0x40000:     # RADIX_SECOND_LEVEL
+                        # 	   V = 1 L = 1 SW = 0 RPN = 0
+	                    # R = 1 C = 1 ATT = 0 EAA 0x7
+                b(0xc000000000000187),
+
+                0x1000000:   # PROCESS_TABLE_3
+                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+                b(0x40000000000300ad),
+            }
+
+
+def wb_get(c, mem=default_mem):
     """simulator process for getting memory load requests
     """
 
     global stop
 
-    def b(x):
-        return int.from_bytes(x.to_bytes(8, byteorder='little'),
-                              byteorder='big', signed=False)
 
-    mem = {0x10000:    # PARTITION_TABLE_2
-                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
-           b(0x800000000100000b),
-
-           0x30000:     # RADIX_ROOT_PTE
-                        # V = 1 L = 0 NLB = 0x400 NLS = 9
-           b(0x8000000000040009),
-
-           0x40000:     # RADIX_SECOND_LEVEL
-                        # 	   V = 1 L = 1 SW = 0 RPN = 0
-	                    # R = 1 C = 1 ATT = 0 EAA 0x7
-           b(0xc000000000000187),
-
-          0x1000000:   # PROCESS_TABLE_3
-                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
-           b(0x40000000000300ad),
-          }
+    mem = mem
 
     while not stop:
         while True: # wait for dc_valid
             if stop:
                 return
-            cyc = yield (dc.wb_out.cyc)
-            stb = yield (dc.wb_out.stb)
+            cyc = yield (c.wb_out.cyc)
+            stb = yield (c.wb_out.stb)
             if cyc and stb:
                 break
             yield
-        addr = (yield dc.wb_out.adr) << 3
+        addr = (yield c.wb_out.adr) << 3
         if addr not in mem:
             print ("    DCACHE LOOKUP FAIL %x" % (addr))
             stop = True
@@ -69,11 +71,14 @@ def wb_get(dc):
 
         yield
         data = mem[addr]
-        yield dc.wb_in.dat.eq(data)
+        yield c.wb_in.dat.eq(data)
         print ("    DCACHE get %x data %x" % (addr, data))
-        yield dc.wb_in.ack.eq(1)
+        yield c.wb_in.ack.eq(1)
         yield
-        yield dc.wb_in.ack.eq(0)
+        yield c.wb_in.ack.eq(0)
+
+def test_icache():
+    pass
 
 
 def mmu_lookup(mmu, addr):
@@ -139,3 +144,4 @@ def test_mmu():
 
 if __name__ == '__main__':
     test_mmu()
+#    test_icache()
