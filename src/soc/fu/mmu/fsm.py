@@ -11,6 +11,7 @@ from soc.decoder.power_fieldsn import SignalBitRange
 from soc.decoder.power_decoder2 import decode_spr_num
 from soc.decoder.power_enums import MicrOp, SPR, XER_bits
 
+from soc.experiment.pimem import PortInterface
 
 class FSMMMUStage(ControlBase):
     def __init__(self, pspec):
@@ -20,6 +21,9 @@ class FSMMMUStage(ControlBase):
         # set up p/n data
         self.p.data_i = MMUInputData(pspec)
         self.n.data_o = MMUOutputData(pspec)
+
+        # incoming PortInterface
+        self.pi = PortInterface("mmupi")
 
         # this Function Unit is extremely unusual in that it actually stores a
         # "thing" rather than "processes inputs and produces outputs".  hence
