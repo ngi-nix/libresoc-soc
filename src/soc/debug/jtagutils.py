@@ -71,16 +71,23 @@ def jtag_set_idle(dut):
     yield from tms_state_set(dut, [1, 1, 0])
 
 
-def jtag_read_write_reg(dut, addr, d_len, d_in=0):
+def jtag_set_ir(dut, addr):
     yield from jtag_set_run(dut)
     yield from jtag_set_shift_ir(dut)
-    yield from tms_data_getset(dut, 0, dut._ir_width, addr)
+    result = yield from tms_data_getset(dut, 0, dut._ir_width, addr)
     yield from jtag_set_idle(dut)
+    return result
 
+
+def jtag_set_get_dr(dut, d_len, d_in=0):
     yield from jtag_set_shift_dr(dut)
     result = yield from tms_data_getset(dut, 0, d_len, d_in)
     yield from jtag_set_idle(dut)
     return result
+
+def jtag_read_write_reg(dut, addr, d_len, d_in=0):
+    yield from jtag_set_ir(dut, addr)
+    return (yield from jtag_set_get_dr(dut, d_len, d_in))
 
 
 def jtag_srv(dut):

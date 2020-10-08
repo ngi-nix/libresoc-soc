@@ -13,11 +13,13 @@ from soc.debug.dmi2jtag import DMITAP
 # map from pinmux to c4m jtag iotypes
 iotypes = {'-': IOType.In,
            '+': IOType.Out,
+           '>': IOType.TriOut,
            '*': IOType.InTriOut,
         }
 
 scanlens = {IOType.In: 1,
            IOType.Out: 1,
+           IOType.TriOut: 2,
            IOType.InTriOut: 3,
             }
 
@@ -67,15 +69,17 @@ class JTAG(DMITAP, Pins):
         # enumerate pin specs and create IOConn Records.
         # we store the boundary scan register offset in the IOConn record
         self.ios = [] # these are enumerated in external_ports
+        self.scan_len = 0
         for fn, pin, iotype, pin_name, scan_idx in list(self):
             io = self.add_io(iotype=iotype, name=pin_name)
             io._scan_idx = scan_idx # hmm shouldn't really do this
+            self.scan_len += scan_idx # record full length of boundary scan
             self.ios.append(io)
 
         # this is redundant.  or maybe part of testing, i don't know.
         self.sr = self.add_shiftreg(ircode=4, length=3)
 
-        # create and connect wishbone 
+        # create and connect wishbone
         self.wb = self.add_wishbone(ircodes=[5, 6, 7],
                                    address_width=29, data_width=wb_data_wid,
                                    name="jtag_wb")

@@ -9,7 +9,7 @@ from c4m.nmigen.jtag.tap import TAP, IOType
 from c4m.nmigen.jtag.bus import Interface as JTAGInterface
 from soc.debug.dmi import DMIInterface, DBGCore
 from soc.debug.test.dmi_sim import dmi_sim
-from soc.debug.jtag import JTAG, dummy_pinset
+from soc.debug.jtag import JTAG
 from soc.debug.test.jtagremote import JTAGServer, JTAGClient
 
 from nmigen_soc.wishbone.sram import SRAM
@@ -18,7 +18,15 @@ from nmigen import Memory, Signal, Module
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick
 from nmutil.util import wrap
 from soc.debug.jtagutils import (jtag_read_write_reg,
-                                 jtag_srv, jtag_set_reset)
+                                 jtag_srv, jtag_set_reset,
+                                 jtag_set_ir, jtag_set_get_dr)
+
+def test_pinset():
+    return {
+            # in, out, tri-out, tri-inout
+            'test': ['io0-', 'io1+', 'io2>', 'io3*'],
+           }
+
 
 # JTAG-ircodes for accessing DMI
 DMI_ADDR = 8
@@ -30,6 +38,12 @@ WB_ADDR = 5
 WB_READ = 6
 WB_WRRD = 7
 
+# JTAG boundary scan reg addresses
+BS_EXTEST = 0
+BS_INTEST = 0
+BS_SAMPLE = 2
+BS_PRELOAD = 2
+
 
 def jtag_sim(dut, srv_dut):
 
@@ -40,6 +54,77 @@ def jtag_sim(dut, srv_dut):
     idcode = yield from jtag_read_write_reg(dut, 0b1, 32)
     print ("idcode", hex(idcode))
     assert idcode == 0x18ff
+
+    ####### JTAG Boundary scan ######
+
+    bslen = dut.scan_len
+    print ("scan len", bslen)
+
+    # sample test
+    bs_actual = 0b100110
+    yield srv_dut.ios[0].pad.i.eq(1)
+    yield srv_dut.ios[1].core.o.eq(0)
+    yield srv_dut.ios[2].core.o.eq(1)
+    yield srv_dut.ios[2].core.oe.eq(1)
+    yield srv_dut.ios[3].pad.i.eq(0)
+    yield srv_dut.ios[3].core.o.eq(0)
+    yield srv_dut.ios[3].core.oe.eq(1)
+
+    bs = yield from jtag_read_write_reg(dut, BS_SAMPLE, bslen, bs_actual)
+    print ("bs scan", bin(bs))
+
+    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io3 core.i", (yield srv_dut.ios[3].core.i))
+    print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
+    print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    # extest
+    ir_actual = yield from jtag_set_ir(dut, BS_EXTEST)
+    print ("ir extest", bin(ir_actual))
+
+    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io3 core.i", (yield srv_dut.ios[3].core.i))
+    print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
+    print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    # set pins
+    bs_actual = 0b1011001
+    yield srv_dut.ios[0].pad.i.eq(0)
+    yield srv_dut.ios[1].core.o.eq(1)
+    yield srv_dut.ios[2].core.o.eq(0)
+    yield srv_dut.ios[2].core.oe.eq(0)
+    yield srv_dut.ios[3].pad.i.eq(1)
+    yield srv_dut.ios[3].core.o.eq(1)
+    yield srv_dut.ios[3].core.oe.eq(0)
+
+    bs = yield from jtag_set_get_dr(dut, bslen, bs_actual)
+    print ("bs scan", bin(bs))
+
+    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io3 core.i", (yield srv_dut.ios[3].core.i))
+    print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
+    print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    # reset
+    yield from jtag_set_reset(dut)
+    print ("bs reset")
+
+    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io3 core.i", (yield srv_dut.ios[3].core.i))
+    print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
+    print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
 
     ####### JTAG to DMI ######
 
@@ -98,7 +183,7 @@ def jtag_sim(dut, srv_dut):
 
 
 if __name__ == '__main__':
-    dut = JTAG(dummy_pinset(), wb_data_wid=64)
+    dut = JTAG(test_pinset(), wb_data_wid=64)
     dut.stop = False
 
     # rather than the client access the JTAG bus directly
@@ -106,7 +191,6 @@ if __name__ == '__main__':
     class Dummy: pass
     cdut = Dummy()
     cdut.cbus = JTAGInterface()
-    cdut._ir_width = 4
 
     # set up client-server on port 44843-something
     dut.s = JTAGServer()
@@ -115,6 +199,10 @@ if __name__ == '__main__':
         dut.s.get_connection()
     else:
         dut.s.get_connection(None) # block waiting for connection
+
+    # take copy of ir_width and scan_len
+    cdut._ir_width = dut._ir_width
+    cdut.scan_len = dut.scan_len
 
     memory = Memory(width=64, depth=16)
     sram = SRAM(memory=memory, bus=dut.wb)
