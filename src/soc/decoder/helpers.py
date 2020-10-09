@@ -130,10 +130,13 @@ def length(a):
     return len(a)
 
 
-def undef(v):
+def undefined(v):
     """ function that, for Power spec purposes, returns undefined bits of
-        the same shape as the input bits, however, for purposes of matching
-        POWER9's behavior returns the input bits unchanged."""
+        the same shape as the input bits.  however, for purposes of matching
+        POWER9's behavior returns the input bits unchanged.  this effectively
+        "marks" (tags) locations in the v3.0B spec that need to be submitted
+        for clarification.
+    """
     return v
 
 # For these tests I tried to find power instructions that would let me
