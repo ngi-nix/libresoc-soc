@@ -129,6 +129,13 @@ def le(a, b):
 def length(a):
     return len(a)
 
+
+def undef(v):
+    """ function that, for Power spec purposes, returns undefined bits of
+        the same shape as the input bits, however, for purposes of matching
+        POWER9's behavior returns the input bits unchanged."""
+    return v
+
 # For these tests I tried to find power instructions that would let me
 # isolate each of these helper operations. So for instance, when I was
 # testing the MASK() function, I chose rlwinm and rldicl because if I
