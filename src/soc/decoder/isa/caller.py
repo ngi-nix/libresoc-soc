@@ -16,7 +16,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp)
-from soc.decoder.helpers import exts, gtu, ltu
+from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 
 from collections import namedtuple
@@ -336,7 +336,7 @@ class ISACaller:
         #self.cr = FieldSelectableInt(self._cr, list(range(32, 64)))
 
         # "undefined", just set to variable-bit-width int (use exts "max")
-        self.undefined = SelectableInt(0, 256)  # TODO, not hard-code 256!
+        #self.undefined = SelectableInt(0, 256)  # TODO, not hard-code 256!
 
         self.namespace = {}
         self.namespace.update(self.spr)
@@ -348,7 +348,7 @@ class ISACaller:
                                'CIA': self.pc.CIA,
                                'CR': self.cr,
                                'MSR': self.msr,
-                               'undefined': self.undefined,
+                               'undefined': undefined,
                                'mode_is_64bit': True,
                                'SO': XER_bits['SO']
                                })
