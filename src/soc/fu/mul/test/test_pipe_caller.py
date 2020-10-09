@@ -171,16 +171,9 @@ class MulTestCase(TestAccumulatorBase):
         initial_regs[2] = 0x0000000000000002
         self.add_case(Program(lst, bigendian), initial_regs)
 
-# TODO add test case for these 3 operand cases (madd
-# needs to be implemented)
-# "maddhd","maddhdu","maddld"
-
-    def case_ilang(self):
-        pspec = MulPipeSpec(id_wid=2)
-        alu = MulBasePipe(pspec)
-        vl = rtlil.convert(alu, ports=alu.ports())
-        with open("mul_pipeline.il", "w") as f:
-            f.write(vl)
+    # TODO add test case for these 3 operand cases (madd
+    # needs to be implemented)
+    # "maddhd","maddhdu","maddld"
 
 
 class TestRunner(unittest.TestCase):
