@@ -1,24 +1,8 @@
-from nmigen import Module, Signal
-
-# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
-# Also, check out the cxxsim nmigen branch, and latest yosys from git
-from nmutil.sim_tmp_alternative import Simulator, Delay, Settle
-
-from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from soc.decoder.selectable_int import SelectableInt
-from soc.simulator.program import Program
-from soc.decoder.isa.all import ISA
-from soc.config.endian import bigendian
-
-from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
-from soc.fu.mul.pipeline import MulBasePipe
-from soc.fu.mul.pipe_data import MulPipeSpec
 from soc.fu.mul.test.helper import MulTestHelper
+from soc.simulator.program import Program
+from soc.config.endian import bigendian
+from soc.fu.test.common import (TestAccumulatorBase)
 import random
 
 

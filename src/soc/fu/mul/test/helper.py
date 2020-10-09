@@ -24,15 +24,14 @@ from soc.fu.mul.pipe_data import MulPipeSpec
 import random
 
 
-def get_cu_inputs(dec2, sim, has_third_input):
+def get_cu_inputs(dec2, sim):
     """naming (res) must conform to MulFunctionUnit input regspec
     """
     res = {}
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
-    if has_third_input:
-        yield from ALUHelpers.get_sim_int_rc(res, sim, dec2)  # RC
+    yield from ALUHelpers.get_sim_int_rc(res, sim, dec2)  # RC
     yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
 
     print("alu get_cu_inputs", res)
@@ -45,7 +44,7 @@ def set_alu_inputs(alu, dec2, sim, has_third_input):
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
 
-    inp = yield from get_cu_inputs(dec2, sim, has_third_input)
+    inp = yield from get_cu_inputs(dec2, sim)
     print("set alu inputs", inp)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
@@ -60,8 +59,8 @@ def set_alu_inputs(alu, dec2, sim, has_third_input):
         overflow = pia.OverflowFlags(so=bool(so),
                                      ov=False,
                                      ov32=False)
-    rc = inp["rb"] if has_third_input else None
-    return pia.InstructionInput(ra=inp["ra"], rb=inp["rb"],
+    rc = inp["rc"] if has_third_input else None
+    return pia.InstructionInput(ra=inp.get("ra"), rb=inp.get("rb"),
                                 rc=rc, overflow=overflow)
 
 
@@ -104,7 +103,15 @@ class MulTestHelper(unittest.TestCase):
             opname = code.split(' ')[0]
             fnname = opname.replace(".", "_")
             print(f"{fnname}({pia_inputs})")
-            pia_res = getattr(pia, opname.replace(".", "_"))(pia_inputs)
+            pia_res = None
+            try:
+                pia_res = getattr(pia, fnname)(pia_inputs)
+            except AttributeError:
+                EXPECTED_FAILURES = ["mulli"]
+                if fnname not in EXPECTED_FAILURES:
+                    raise
+                else:
+                    print("not implemented, as expected.")
             print(f"-> {pia_res}")
 
             yield from isa_sim.call(opname)
