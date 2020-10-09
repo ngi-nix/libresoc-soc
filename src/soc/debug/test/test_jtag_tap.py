@@ -155,6 +155,7 @@ if __name__ == '__main__':
 
     # create and connect wishbone SRAM (a quick way to do WB test)
     dut.wb = dut.add_wishbone(ircodes=[WB_ADDR, WB_READ, WB_WRRD],
+                               features={'err'},
                                address_width=16, data_width=16)
     memory = Memory(width=16, depth=16)
     sram = SRAM(memory=memory, bus=dut.wb)

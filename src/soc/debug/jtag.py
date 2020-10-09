@@ -80,7 +80,7 @@ class JTAG(DMITAP, Pins):
         self.sr = self.add_shiftreg(ircode=4, length=3)
 
         # create and connect wishbone
-        self.wb = self.add_wishbone(ircodes=[5, 6, 7],
+        self.wb = self.add_wishbone(ircodes=[5, 6, 7], features={'err'},
                                    address_width=29, data_width=wb_data_wid,
                                    name="jtag_wb")
 
