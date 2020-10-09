@@ -30,4 +30,14 @@ def pia_res_to_output(pia_res):
     else:
         retval["xer_ov"] = 0
         retval["xer_so"] = 0
+    if pia_res.carry is not None:
+        carry = pia_res.carry
+        v = 0
+        if carry.ca:
+            v |= 1
+        if carry.ca32:
+            v |= 2
+        retval["xer_ca"] = v
+    else:
+        retval["xer_ca"] = 0
     return retval
