@@ -14,6 +14,7 @@ from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import ALUHelpers
+from soc.fu.test.pia import pia_res_to_output
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpec
 
@@ -35,37 +36,6 @@ def get_cu_inputs(dec2, sim):
     print("alu get_cu_inputs", res)
 
     return res
-
-
-def pia_res_to_output(pia_res):
-    retval = {}
-    if pia_res.rt is not None:
-        retval["o"] = pia_res.rt
-    if pia_res.cr0 is not None:
-        cr0 = pia_res.cr0
-        v = 0
-        if cr0.lt:
-            v |= 8
-        if cr0.gt:
-            v |= 4
-        if cr0.eq:
-            v |= 2
-        if cr0.so:
-            v |= 1
-        retval["cr_a"] = v
-    if pia_res.overflow is not None:
-        overflow = pia_res.overflow
-        v = 0
-        if overflow.ov:
-            v |= 1
-        if overflow.ov32:
-            v |= 2
-        retval["xer_ov"] = v
-        retval["xer_so"] = overflow.so
-    else:
-        retval["xer_ov"] = 0
-        retval["xer_so"] = 0
-    return retval
 
 
 def set_alu_inputs(alu, dec2, sim):
