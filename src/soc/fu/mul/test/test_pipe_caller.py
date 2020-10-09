@@ -18,57 +18,11 @@ from soc.config.endian import bigendian
 from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
+from soc.fu.mul.test.helper import MulTestHelper
 import random
 
 
-def get_cu_inputs(dec2, sim):
-    """naming (res) must conform to MulFunctionUnit input regspec
-    """
-    res = {}
-
-    yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
-    yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
-    yield from ALUHelpers.get_sim_xer_so(res, sim, dec2)  # XER.so
-
-    print("alu get_cu_inputs", res)
-
-    return res
-
-
-def set_alu_inputs(alu, dec2, sim):
-    # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
-    # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
-    # and place it into data_i.b
-
-    inp = yield from get_cu_inputs(dec2, sim)
-    print("set alu inputs", inp)
-    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
-    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
-
-    yield from ALUHelpers.set_xer_so(alu, dec2, inp)
-
-
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in MulTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
-class MulTestCase(TestAccumulatorBase):
-
+class MulTestCases2Arg(TestAccumulatorBase):
     def case_0_mullw(self):
         lst = [f"mullw 3, 1, 2"]
         initial_regs = [0] * 32
@@ -171,135 +125,29 @@ class MulTestCase(TestAccumulatorBase):
         initial_regs[2] = 0x0000000000000002
         self.add_case(Program(lst, bigendian), initial_regs)
 
+
+class MulTestCases3Arg(TestAccumulatorBase):
     # TODO add test case for these 3 operand cases (madd
     # needs to be implemented)
     # "maddhd","maddhdu","maddld"
+    def case_maddld(self):
+        lst = ["maddld 1, 2, 3, 4"]
+        initial_regs = [0] * 32
+        initial_regs[2] = 0x3
+        initial_regs[3] = 0x4
+        initial_regs[4] = 0x5
+        self.add_case(Program(lst, bigendian), initial_regs)
 
 
-class TestRunner(unittest.TestCase):
-    def __init__(self, test_data):
-        super().__init__("run_all")
-        self.test_data = test_data
+class TestPipe(MulTestHelper):
+    def test_mul_pipe_2_arg(self):
+        self.run_all(MulTestCases2Arg().test_data, "mul_pipe_caller_2_arg",
+                     has_third_input=False)
 
-    def run_all(self):
-        m = Module()
-        comb = m.d.comb
-        instruction = Signal(32)
-
-        fn_name = "MUL"
-        opkls = MulPipeSpec.opsubsetkls
-
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(None, opkls, fn_name)
-        pdecode = pdecode2.dec
-
-        pspec = MulPipeSpec(id_wid=2)
-        m.submodules.alu = alu = MulBasePipe(pspec)
-
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.n.ready_i.eq(1)
-        comb += pdecode2.dec.raw_opcode_in.eq(instruction)
-        sim = Simulator(m)
-
-        sim.add_clock(1e-6)
-
-        def process():
-            for test in self.test_data:
-                print(test.name)
-                program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                          test.mem, test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
-                yield Settle()
-
-                index = sim.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-                    if 'XER' in sim.spr:
-                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print("before: so/ov/32", so, ov, ov32)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.MUL.value)
-                    yield from set_alu_inputs(alu, pdecode2, sim)
-
-                    # set valid for one cycle, propagate through pipeline...
-                    yield alu.p.valid_i.eq(1)
-                    yield
-                    yield alu.p.valid_i.eq(0)
-
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
-                    index = sim.pc.CIA.value//4
-
-                    # ...wait for valid to pop out the end
-                    vld = yield alu.n.valid_o
-                    while not vld:
-                        yield
-                        vld = yield alu.n.valid_o
-                    yield
-
-                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
-                    yield Settle()
-
-        sim.add_sync_process(process)
-        with sim.write_vcd("mul_simulator.vcd", "mul_simulator.gtkw",
-                           traces=[]):
-            sim.run()
-
-    def check_alu_outputs(self, alu, dec2, sim, code):
-
-        rc = yield dec2.e.do.rc.rc
-        cridx_ok = yield dec2.e.write_cr.ok
-        cridx = yield dec2.e.write_cr.data
-
-        print("check extra output", repr(code), cridx_ok, cridx)
-        if rc:
-            self.assertEqual(cridx, 0, code)
-
-        oe = yield dec2.e.do.oe.oe
-        oe_ok = yield dec2.e.do.oe.ok
-        if not oe or not oe_ok:
-            # if OE not enabled, XER SO and OV must correspondingly be false
-            so_ok = yield alu.n.data_o.xer_so.ok
-            ov_ok = yield alu.n.data_o.xer_ov.ok
-            self.assertEqual(so_ok, False, code)
-            self.assertEqual(ov_ok, False, code)
-
-        sim_o = {}
-        res = {}
-
-        yield from ALUHelpers.get_cr_a(res, alu, dec2)
-        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
-        yield from ALUHelpers.get_int_o(res, alu, dec2)
-        yield from ALUHelpers.get_xer_so(res, alu, dec2)
-
-        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
-        yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
-
-        ALUHelpers.check_int_o(self, res, sim_o, code)
-        ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
-        ALUHelpers.check_cr_a(self, res, sim_o, "CR%d %s" % (cridx, code))
+    def test_mul_pipe_3_arg(self):
+        self.run_all(MulTestCases3Arg().test_data, "mul_pipe_caller_3_arg",
+                     has_third_input=True)
 
 
 if __name__ == "__main__":
-    unittest.main(exit=False)
-    suite = unittest.TestSuite()
-    suite.addTest(TestRunner(MulTestCase().test_data))
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    unittest.main()
