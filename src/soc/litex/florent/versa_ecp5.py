@@ -3,14 +3,13 @@
 import os
 import argparse
 
-from migen import *
-
 from litex_boards.platforms import versa_ecp5
 from litex_boards.targets.versa_ecp5 import _CRG, BaseSoC
 
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc_sdram import *
-from litex.soc.integration.builder import *
+from litex.soc.integration.soc_sdram import (soc_sdram_args,
+                                             soc_sdram_argdict)
+from litex.soc.integration.builder import (Builder, builder_args,
+                                           builder_argdict)
 
 from libresoc import LibreSoC
 #from microwatt import Microwatt
