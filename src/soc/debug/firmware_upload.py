@@ -40,14 +40,14 @@ WB_READ = 6
 WB_WRRD = 7
 
 
-def read_dmi_addr(dmi_addr):
+def read_dmi_addr(dut, dmi_addr):
     # write DMI address
     yield from jtag_read_write_reg(dut, DMI_ADDR, 8, dmi_addr)
 
     # read DMI register
     return (yield from jtag_read_write_reg(dut, DMI_READ, 64))
 
-def writeread_dmi_addr(dmi_addr, data):
+def writeread_dmi_addr(dut, dmi_addr, data):
     # write DMI address
     yield from jtag_read_write_reg(dut, DMI_ADDR, 8, dmi_addr)
 
@@ -76,13 +76,13 @@ def jtag_sim(dut, firmware):
 
     ####### JTAG to DMI Setup (stop, reset) ######
 
-    yield from read_dmi_addr(dut, DMI_ADDR, 8, DBGCore.CTRL)
+    yield from read_dmi_addr(dut, DBGCore.CTRL)
     # read DMI CTRL reg
     status = yield from read_dmi_addr(dut, DBGCore.CTRL)
     print ("dmi ctrl status", bin(status))
 
     # write DMI CTRL register - STOP and RESET
-    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, 0b011)
+    status = yield from writeread_dmi_addr(dut, DBGCore.CTRL, 0b011)
     print ("dmi ctrl status", hex(status))
     assert status == 4 # returned old value (nice! cool feature!)
 
@@ -90,7 +90,7 @@ def jtag_sim(dut, firmware):
     while True:
         status = yield from read_dmi_addr(dut, DBGCore.STAT)
         print ("dmi ctrl status", bin(status))
-        if status & DBGStat.STOPPED:
+        if (status & (1<<DBGStat.STOPPED)) or (status & (1<<DBGStat.TERM)):
             break
 
     ####### JTAG to Wishbone ######
@@ -114,17 +114,19 @@ def jtag_sim(dut, firmware):
     ####### JTAG to DMI Setup (IC-Reset, start) ######
 
     # write DMI CTRL register - ICRESET
-    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, DBGCtrl.ICRESET)
+    status = yield from writeread_dmi_addr(dut, DBGCore.CTRL,
+                                           1<<DBGCtrl.ICRESET)
     print ("dmi ctrl status", hex(status))
 
     # write DMI CTRL register - START
-    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, DBGCtrl.START)
+    status = yield from writeread_dmi_addr(dut, DBGCore.CTRL,
+                                           1<<DBGCtrl.START)
     print ("dmi ctrl status", hex(status))
 
     # read STAT just for info
     for i in range(4):
         status = yield from read_dmi_addr(dut, DBGCore.STAT)
-        print ("dmi ctrl status", bin(status))
+        print ("dmi stat status", bin(status))
 
     ####### done - tell dmi_sim to stop (otherwise it won't) ########
 

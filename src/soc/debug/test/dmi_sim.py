@@ -1,7 +1,7 @@
 """DMI "simulator" process for nmigen tests
 """
 
-from soc.debug.dmi import  DBGCore
+from soc.debug.dmi import  DBGCore, DBGCtrl, DBGStat
 
 def dmi_sim(dut):
 
@@ -19,18 +19,29 @@ def dmi_sim(dut):
         wen = yield dmi.we_i
         addr = yield dmi.addr_i
         print ("        dmi wen, addr", wen, addr)
+
+        # Control read
         if addr == DBGCore.CTRL and wen == 0:
             print ("        read ctrl reg", ctrl_reg)
             yield dmi.dout.eq(ctrl_reg)
             yield dmi.ack_o.eq(1)
             yield
             yield dmi.ack_o.eq(0)
+
+        # Control write
         elif addr == DBGCore.CTRL and wen == 1:
-            ctrl_reg = (yield dmi.din)
-            print ("        write ctrl reg", ctrl_reg)
+            stat = (yield dmi.din)
+            if (stat & (1<<DBGCtrl.STOP)):
+                ctrl_reg |= (1<<DBGStat.STOPPED)
+                ctrl_reg &= ~(1<<DBGStat.STOPPING)
+            if (stat & (1<<DBGCtrl.START)):
+                ctrl_reg = 0
+            print ("        write ctrl reg", stat, ctrl_reg)
             yield dmi.ack_o.eq(1)
             yield
             yield dmi.ack_o.eq(0)
+
+        # allow MSR write
         elif addr == DBGCore.MSR and wen == 0:
             print ("        read msr reg")
             yield dmi.dout.eq(0xdeadbeef) # test MSR value

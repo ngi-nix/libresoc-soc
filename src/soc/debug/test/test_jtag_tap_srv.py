@@ -156,7 +156,7 @@ def jtag_sim(dut, srv_dut):
     # read DMI CTRL register
     status = yield from jtag_read_write_reg(dut, DMI_READ, 64)
     print ("dmi ctrl status", hex(status))
-    assert status == 5
+    assert status == 0
 
     # write DMI MSR address
     yield from jtag_read_write_reg(dut, DMI_ADDR, 8, DBGCore.MSR)
