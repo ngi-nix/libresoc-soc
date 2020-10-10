@@ -8,7 +8,7 @@ import sys
 from nmigen import (Module, Signal, Elaboratable, Const)
 from c4m.nmigen.jtag.tap import TAP, IOType
 from c4m.nmigen.jtag.bus import Interface as JTAGInterface
-from soc.debug.dmi import DMIInterface, DBGCore
+from soc.debug.dmi import DMIInterface, DBGCore, DBGStat, DBGCtrl
 from soc.debug.test.dmi_sim import dmi_sim
 from soc.debug.jtag import JTAG
 from soc.debug.test.jtagremote import JTAGServer, JTAGClient
@@ -39,14 +39,32 @@ WB_ADDR = 5
 WB_READ = 6
 WB_WRRD = 7
 
-# JTAG boundary scan reg addresses
-BS_EXTEST = 0
-BS_INTEST = 0
-BS_SAMPLE = 2
-BS_PRELOAD = 2
+
+def read_dmi_addr(dmi_addr):
+    # write DMI address
+    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, dmi_addr)
+
+    # read DMI register
+    return (yield from jtag_read_write_reg(dut, DMI_READ, 64))
+
+def writeread_dmi_addr(dmi_addr, data):
+    # write DMI address
+    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, dmi_addr)
+
+    # write and read DMI register
+    return (yield from jtag_read_write_reg(dut, DMI_WRRD, 64, data))
 
 
 def jtag_sim(dut, firmware):
+    """uploads firmware with the following commands:
+    * read IDcode (to check)
+    * set "stopped" and reset
+    * repeat until confirmed "stopped"
+    * upload data over wishbone
+    * read data back and check it
+    * issue cache flush command
+    * issue "start" command
+    """
 
     ####### JTAGy stuff (IDCODE) ######
 
@@ -56,39 +74,24 @@ def jtag_sim(dut, firmware):
     print ("idcode", hex(idcode))
     assert idcode == 0x18ff
 
-    ####### JTAG to DMI ######
+    ####### JTAG to DMI Setup (stop, reset) ######
 
-    # write DMI address
-    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, DBGCore.CTRL)
+    yield from read_dmi_addr(dut, DMI_ADDR, 8, DBGCore.CTRL)
+    # read DMI CTRL reg
+    status = yield from read_dmi_addr(dut, DBGCore.CTRL)
+    print ("dmi ctrl status", bin(status))
 
-    # read DMI CTRL register
-    status = yield from jtag_read_write_reg(dut, DMI_READ, 64)
-    print ("dmi ctrl status", hex(status))
-    assert status == 4
-
-    # write DMI address
-    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, 0)
-
-    # write DMI CTRL register
-    status = yield from jtag_read_write_reg(dut, DMI_WRRD, 64, 0b101)
+    # write DMI CTRL register - STOP and RESET
+    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, 0b011)
     print ("dmi ctrl status", hex(status))
     assert status == 4 # returned old value (nice! cool feature!)
 
-    # write DMI address
-    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, DBGCore.CTRL)
-
-    # read DMI CTRL register
-    status = yield from jtag_read_write_reg(dut, DMI_READ, 64)
-    print ("dmi ctrl status", hex(status))
-    assert status == 5
-
-    # write DMI MSR address
-    yield from jtag_read_write_reg(dut, DMI_ADDR, 8, DBGCore.MSR)
-
-    # read DMI MSR register
-    msr = yield from jtag_read_write_reg(dut, DMI_READ, 64)
-    print ("dmi msr", hex(msr))
-    assert msr == 0xdeadbeef
+    # read STAT and wait for "STOPPED"
+    while True:
+        status = yield from read_dmi_addr(dut, DBGCore.STAT)
+        print ("dmi ctrl status", bin(status))
+        if status & DBGStat.STOPPED:
+            break
 
     ####### JTAG to Wishbone ######
 
@@ -107,6 +110,21 @@ def jtag_sim(dut, firmware):
     for val in firmware:
         data = yield from jtag_read_write_reg(dut, WB_READ, 64, 0)
         print ("wb read", hex(data))
+
+    ####### JTAG to DMI Setup (IC-Reset, start) ######
+
+    # write DMI CTRL register - ICRESET
+    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, DBGCtrl.ICRESET)
+    print ("dmi ctrl status", hex(status))
+
+    # write DMI CTRL register - START
+    status = yield from writeread_dmi_addr(dut, DBCCore.CTRL, DBGCtrl.START)
+    print ("dmi ctrl status", hex(status))
+
+    # read STAT just for info
+    for i in range(4):
+        status = yield from read_dmi_addr(dut, DBGCore.STAT)
+        print ("dmi ctrl status", bin(status))
 
     ####### done - tell dmi_sim to stop (otherwise it won't) ########
 
