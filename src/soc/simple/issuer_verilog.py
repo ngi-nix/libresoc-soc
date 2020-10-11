@@ -29,6 +29,7 @@ if __name__ == '__main__':
                          #wb_data_wid=32,
                          xics=True,
                          #nocore=True, # to help test coriolis2 ioring
+                         use_pll=False, # bypass PLL
                          gpio=True, # for test purposes
                          debug="jtag", # set to jtag or dmi
                          units=units)

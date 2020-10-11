@@ -447,15 +447,23 @@ class TestIssuerInternal(Elaboratable):
 class TestIssuer(Elaboratable):
     def __init__(self, pspec):
         self.ti = TestIssuerInternal(pspec)
+
         self.pll = DummyPLL()
         self.clksel = ClockSelect()
+
+        # PLL direct clock or not
+        self.pll_en = hasattr(pspec, "use_pll") and pspec.pll_en
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
 
-        # TestIssuer runs at internal clock rate
-        m.submodules.ti = ti = DomainRenamer("intclk")(self.ti)
+        if self.pll_en:
+            # TestIssuer runs at internal clock rate
+            m.submodules.ti = ti = DomainRenamer("intclk")(self.ti)
+        else:
+            # TestIssuer runs at direct clock
+            m.submodules.ti = ti = self.ti
         # ClockSelect runs at PLL output internal clock rate
         m.submodules.clksel = clksel = DomainRenamer("pllclk")(self.clksel)
         m.submodules.pll = pll = self.pll
