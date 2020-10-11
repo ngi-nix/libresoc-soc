@@ -117,7 +117,7 @@ class TestIssuerInternal(Elaboratable):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
-        m.submodules.core = core = DomainRenamer("coresync")(self.core)
+        m.submodules.core = core = self.core
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
         if self.jtag_en:
@@ -154,15 +154,13 @@ class TestIssuerInternal(Elaboratable):
         # clock delay power-on reset
         cd_por  = ClockDomain(reset_less=True)
         cd_sync = ClockDomain()
-        core_sync = ClockDomain("coresync")
-        m.domains += cd_por, cd_sync, core_sync
+        m.domains += cd_por, cd_sync
 
         ti_rst = Signal(reset_less=True)
         delay = Signal(range(4), reset=3)
         with m.If(delay != 0):
             m.d.por += delay.eq(delay - 1)
         comb += cd_por.clk.eq(ClockSignal())
-        comb += core_sync.clk.eq(ClockSignal())
 
         # power-on reset delay 
         core_rst = ResetSignal("coresync")
@@ -463,16 +461,17 @@ class TestIssuer(Elaboratable):
         # add 2 clock domains established above...
         cd_int = ClockDomain("intclk")
         cd_pll = ClockDomain("pllclk")
-        # probably don't have to add cd_int because of DomainRenamer("coresync")
         m.domains += cd_pll
 
         # internal clock is set to selector clock-out.  has the side-effect of
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
-        comb += cd_int.clk.eq(clksel.core_clk_o)
+        intclk = ClockSignal("intclk")
+        comb += intclk.eq(clksel.core_clk_o)
 
         # PLL clock established.  has the side-effect of running clklsel
         # at the PLL's speed (see DomainRenamer("pllclk") above)
-        comb += cd_pll.clk.eq(pll.clk_pll_o)
+        pllclk = ClockSignal("pllclk")
+        comb += pllclk.eq(pll.clk_pll_o)
 
         # wire up external 24mhz to PLL and clksel
         comb += clksel.clk_24_i.eq(ClockSignal())
