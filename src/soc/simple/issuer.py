@@ -140,8 +140,10 @@ class TestIssuerInternal(Elaboratable):
             m.submodules.simple_gpio = simple_gpio = self.simple_gpio
 
         # connect one GPIO output to ICS bit 15 (like in microwatt soc.vhdl)
-        if self.gpio and self.xics:
-            comb += self.int_level_i[15].eq(simple_gpio.gpio_o[0])
+        # XXX causes litex ECP5 test to get wrong idea about input and output
+        # (but works with verilator sim *sigh*)
+        #if self.gpio and self.xics:
+        #   comb += self.int_level_i[15].eq(simple_gpio.gpio_o[0])
 
         # instruction decoder
         pdecode = create_pdecode()
