@@ -521,6 +521,8 @@ class LibreSoCSim(SoCCore):
         if not debug:
             return
 
+        jtag_en = ('jtag' in variant) or variant == 'ls180'
+
         # setup running of DMI FSM
         dmi_addr = Signal(4)
         dmi_din = Signal(64)

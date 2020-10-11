@@ -26,6 +26,7 @@ class TestSoC(BaseSoC):
         BaseSoC.__init__(self, sys_clk_freq,
             cpu_type = "external",
             cpu_cls  = LibreSoC,
+            cpu_variant = "standardjtag",
             #cpu_cls  = Microwatt,
             device        = "LFE5UM",
             **kwargs)
