@@ -15,14 +15,13 @@ install_requires = [
     'pygdbmi',
     'nmigen-soc',  # install manually from git.libre-soc.org
     'ply',  # needs to be installed manually
-    'astor',
-
-    # install from https://salsa.debian.org/Kazan-team/power-instruction-analyzer
-    'power-instruction-analyzer',
+    'astor'
 ]
 
 test_requires = [
     'nose',
+    # install from https://salsa.debian.org/Kazan-team/power-instruction-analyzer
+    'power-instruction-analyzer'
 ]
 
 setup(
