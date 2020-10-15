@@ -122,6 +122,8 @@ class NonProductionCore(Elaboratable):
         m = Module()
         # for testing purposes, to cut down on build time in coriolis2
         if hasattr(self.pspec, "nocore") and self.pspec.nocore == True:
+            x = Signal() # dummy signal
+            m.d.sync += x.eq(~x)
             return m
         comb = m.d.comb
 

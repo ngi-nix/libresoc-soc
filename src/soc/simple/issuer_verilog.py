@@ -13,7 +13,10 @@ if __name__ == '__main__':
                                      "verilog generator")
     parser.add_argument("output_filename")
     parser.add_argument("--enable-xics", action="store_true",
-                        help="Disable interrupts",
+                        help="Enable interrupts",
+                        default=True)
+    parser.add_argument("--enable-core", action="store_true",
+                        help="Enable main core",
                         default=True)
     parser.add_argument("--use-pll", action="store_true", help="Enable pll",
                         default=False)
@@ -46,7 +49,7 @@ if __name__ == '__main__':
                          # set to 32 to make data wishbone bus 32-bit
                          #wb_data_wid=32,
                          xics=args.enable_xics, # XICS interrupt controller
-                         #nocore=True,          # to help test coriolis2 ioring
+                         nocore=not args.enable_core, # test coriolis2 ioring
                          use_pll=args.use_pll,  # bypass PLL
                          gpio=args.enable_testgpio, # for test purposes
                          debug=args.debug,      # set to jtag or dmi

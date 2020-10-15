@@ -117,7 +117,7 @@ class TestIssuerInternal(Elaboratable):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
 
-        m.submodules.core = core = self.core
+        m.submodules.core = core = DomainRenamer("coresync")(self.core)
         m.submodules.imem = imem = self.imem
         m.submodules.dbg = dbg = self.dbg
         if self.jtag_en:
@@ -156,7 +156,8 @@ class TestIssuerInternal(Elaboratable):
         # clock delay power-on reset
         cd_por  = ClockDomain(reset_less=True)
         cd_sync = ClockDomain()
-        m.domains += cd_por, cd_sync
+        core_sync = ClockDomain("coresync")
+        m.domains += cd_por, cd_sync, core_sync
 
         ti_rst = Signal(reset_less=True)
         delay = Signal(range(4), reset=3)
@@ -458,25 +459,25 @@ class TestIssuer(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        if self.pll_en:
-            # TestIssuer runs at internal clock rate
-            m.submodules.ti = ti = DomainRenamer("intclk")(self.ti)
-        else:
-            # TestIssuer runs at direct clock
-            m.submodules.ti = ti = self.ti
+        # TestIssuer runs at direct clock
+        m.submodules.ti = ti = self.ti
+        cd_int = ClockDomain("coresync")
+
         # ClockSelect runs at PLL output internal clock rate
         m.submodules.clksel = clksel = DomainRenamer("pllclk")(self.clksel)
         m.submodules.pll = pll = self.pll
 
         # add 2 clock domains established above...
-        cd_int = ClockDomain("intclk")
         cd_pll = ClockDomain("pllclk")
         m.domains += cd_pll
 
         # internal clock is set to selector clock-out.  has the side-effect of
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
-        intclk = ClockSignal("intclk")
-        comb += intclk.eq(clksel.core_clk_o)
+        intclk = ClockSignal("coresync")
+        if self.pll_en:
+            comb += intclk.eq(clksel.core_clk_o)
+        else:
+            comb += intclk.eq(ClockSignal())
 
         # PLL clock established.  has the side-effect of running clklsel
         # at the PLL's speed (see DomainRenamer("pllclk") above)
@@ -488,9 +489,9 @@ class TestIssuer(Elaboratable):
         comb += pll.clk_24_i.eq(clksel.clk_24_i)
 
         # now wire up ResetSignals.  don't mind them all being in this domain
-        int_rst = ResetSignal("intclk")
+        #int_rst = ResetSignal("coresync")
         pll_rst = ResetSignal("pllclk")
-        comb += int_rst.eq(ResetSignal())
+        #comb += int_rst.eq(ResetSignal())
         comb += pll_rst.eq(ResetSignal())
 
         return m
