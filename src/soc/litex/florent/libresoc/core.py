@@ -13,7 +13,8 @@ from libresoc.ls180 import io
 from litex.build.generic_platform import ConstraintManager
 
 
-CPU_VARIANTS = ["standard", "standard32", "standardjtag", "ls180"]
+CPU_VARIANTS = ["standard", "standard32", "standardjtag", "ls180",
+                "standardjtagnoirq"]
 
 
 def make_wb_bus(prefix, obj, simple=False):
