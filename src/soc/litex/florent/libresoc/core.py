@@ -148,7 +148,10 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(16)
+        irq_en = "noirq" not in variant
+
+        if irq_en:
+            self.interrupt    = Signal(16)
 
         if variant == "standard32":
             self.data_width           = 32
@@ -200,10 +203,11 @@ class LibreSoC(CPU):
             o_memerr_o         = Signal(),   # not connected
             o_pc_o             = Signal(64), # not connected
 
-            # interrupts
-            i_int_level_i      = self.interrupt,
-
         )
+
+        if irq_en:
+            # interrupts
+            self.cpu_params['i_int_level_i'] = self.interrupt
 
         if jtag_en:
             self.cpu_params.update(dict(
