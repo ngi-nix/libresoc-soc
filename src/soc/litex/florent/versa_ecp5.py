@@ -34,6 +34,21 @@ class VersaECP5TestSoC(versa_ecp5.BaseSoC):
             device       = "LFE5UM",
             **kwargs)
 
+        if False: # well that didn't work.  connectors are different
+                  # from platform IO.
+            # get 4 arbitrarily-selected pins from the X3 connector
+            jtag_tck = self.platform.request("X3", "B19")
+            jtag_tms = self.platform.request("X3", "B12")
+            jtag_tdi = self.platform.request("X3", "B9")
+            jtag_tdo = self.platform.request("X3", "E6")
+
+            # wire the pins up to CPU JTAG
+            self.comb += self.cpu.jtag_tck.eq(jtag_tck)
+            self.comb += self.cpu.jtag_tms.eq(jtag_tms)
+            self.comb += self.cpu.jtag_tdi.eq(jtag_tdi)
+            self.comb += jtag_tdo.eq(self.cpu.jtag_tdo)
+
+
         #self.add_constant("MEMTEST_BUS_SIZE",  256//16)
         #self.add_constant("MEMTEST_DATA_SIZE", 256//16)
         #self.add_constant("MEMTEST_ADDR_SIZE", 256//16)
