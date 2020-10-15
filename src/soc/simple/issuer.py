@@ -453,7 +453,7 @@ class TestIssuer(Elaboratable):
         self.clksel = ClockSelect()
 
         # PLL direct clock or not
-        self.pll_en = hasattr(pspec, "use_pll") and pspec.pll_en
+        self.pll_en = hasattr(pspec, "use_pll") and pspec.use_pll
 
     def elaborate(self, platform):
         m = Module()
