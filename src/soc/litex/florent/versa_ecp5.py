@@ -29,7 +29,6 @@ class VersaECP5TestSoC(versa_ecp5.BaseSoC):
             sys_clk_freq = sys_clk_freq,
             cpu_type     = "external",
             cpu_cls      = LibreSoC,
-            cpu_variant  = "standardjtag",
             cpu_variant = "standardjtagnoirq",
             #cpu_cls      = Microwatt,
             device       = "LFE5UM",
