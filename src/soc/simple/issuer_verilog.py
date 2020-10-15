@@ -12,11 +12,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Simple core issuer " \
                                      "verilog generator")
     parser.add_argument("output_filename")
-    parser.add_argument("--disable-xics", action="store_true",
-                        help="Disable interrupts")
-    parser.add_argument("--use-pll", action="store_true", help="Enable pll")
-    parser.add_argument("--disable-gpio", action="store_true",
-                        help="Disable gpio pins")
+    parser.add_argument("--enable-xics", action="store_true",
+                        help="Disable interrupts",
+                        default=True)
+    parser.add_argument("--use-pll", action="store_true", help="Enable pll",
+                        default=False)
+    parser.add_argument("--enable-testgpio", action="store_true",
+                        help="Disable gpio pins",
+                        default=False)
     parser.add_argument("--debug", default="jtag", help="Select debug " \
                         "interface [jtag | dmi] [default jtag]")
 
@@ -42,15 +45,11 @@ if __name__ == '__main__':
                          imem_reg_wid=64,
                          # set to 32 to make data wishbone bus 32-bit
                          #wb_data_wid=32,
-                         xics=False if args.disable_xics else True,
-                         # to help test coriolis2 ioring
-                         #nocore=True,
-                         # bypass PLL
-                         use_pll=True if args.use_pll else False,
-                         # for test purposes
-                         gpio=False if args.disable_gpio else True,
-                         # set to jtag or dmi
-                         debug=args.debug,
+                         xics=args.enable_xics, # XICS interrupt controller
+                         #nocore=True,          # to help test coriolis2 ioring
+                         use_pll=args.use_pll,  # bypass PLL
+                         gpio=args.enable_testgpio, # for test purposes
+                         debug=args.debug,      # set to jtag or dmi
                          units=units)
 
     dut = TestIssuer(pspec)
