@@ -166,7 +166,7 @@ class LibreSoC(CPU):
 
         jtag_en = ('jtag' in variant) or variant == 'ls180'
 
-        if variant != "ls180":
+        if "gpiotest" in variant:
             self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
         if jtag_en:
             self.jtag_wb = jtag_wb = wb.Interface(data_width=64, adr_width=29)
@@ -240,7 +240,7 @@ class LibreSoC(CPU):
         self.cpu_params.update(make_wb_bus("dbus", dbus))
         self.cpu_params.update(make_wb_slave("ics_wb", ics))
         self.cpu_params.update(make_wb_slave("icp_wb", icp))
-        if variant != "ls180":
+        if "gpiotest" in variant:
             self.cpu_params.update(make_wb_slave("gpio_wb", gpio))
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
