@@ -4,7 +4,11 @@
 # however should not gate the carry or overflow, that's up to the
 # output stage
 
+# License: LGPLv3+
+# Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
+# (michael: note that there are multiple copyright holders)
+
 from nmigen import (Module, Signal, Cat, Repl, Mux, Const)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts, extz
