@@ -4,7 +4,7 @@ related bugs:
 
  * https://bugs.libre-soc.org/show_bug.cgi?id=363
 """
-from nmigen import Module, Signal, Cat
+from nmigen import Module, Signal, Cat, ClockSignal
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
@@ -163,6 +163,10 @@ class TestRunner(FHDLTestCase):
         simdec = create_pdecode()
         simdec2 = PowerDecode2(simdec)
         m.submodules.simdec2 = simdec2  # pain in the neck
+
+        # run core clock at same rate as test clock
+        intclk = ClockSignal("coresync")
+        comb += intclk.eq(ClockSignal())
 
         comb += issuer.pc_i.data.eq(pc_i)
 
