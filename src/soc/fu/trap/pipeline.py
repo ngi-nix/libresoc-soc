@@ -1,15 +1,15 @@
 from nmutil.singlepipe import ControlBase
 from nmutil.pipemodbase import PipeModBaseChain
 from soc.fu.trap.main_stage import TrapMainStage
-from soc.fu.trap.pipe_data import TrapOutputData
+from soc.fu.trap.pipe_data import TrapInputData
 from nmutil.pipemodbase import PipeModBase
 from nmigen import Module
 
 # gives a 1-clock delay to stop combinatorial link between in and out
 class DummyTrapStage(PipeModBase):
     def __init__(self, pspec): super().__init__(pspec, "dummy")
-    def ispec(self): return TrapOutputData(self.pspec)
-    def ospec(self): return TrapOutputData(self.pspec)
+    def ispec(self): return TrapInputData(self.pspec)
+    def ospec(self): return TrapInputData(self.pspec)
 
     def elaborate(self, platform):
         m = Module()
@@ -33,8 +33,8 @@ class TrapBasePipe(ControlBase):
     def __init__(self, pspec):
         ControlBase.__init__(self)
         self.pspec = pspec
-        self.pipe1 = TrapStages(pspec)
-        self.pipe2 = TrapDummyStages(pspec)
+        self.pipe1 = TrapDummyStages(pspec)
+        self.pipe2 = TrapStages(pspec)
         self._eqs = self.connect([self.pipe1, self.pipe2])
 
     def elaborate(self, platform):
