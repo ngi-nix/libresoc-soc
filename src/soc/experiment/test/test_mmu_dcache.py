@@ -22,7 +22,7 @@ from soc.experiment.mmu import MMU
 from soc.experiment.dcache import DCache
 from soc.experiment.icache import ICache
 
-from random import randint
+import random
 
 stop = False
 
@@ -126,8 +126,12 @@ def test_icache_il():
 def test_icache():
     # create a random set of addresses and "instructions" at those addresses
     mem = {}
-    for i in range(100):
-        mem[randint(0, 1<<10)] = b(randint(0,1<<32))
+    # fail 'AssertionError: insn @1d8=0 expected 61928a6100000000'
+    #random.seed(41)
+    # fail infinite loop 'cache read adr: 24 data: 0'
+    random.seed(43)
+    for i in range(3):
+        mem[random.randint(0, 1<<10)] = b(random.randint(0,1<<32))
 
     # set up module for simulation
     m = Module()
@@ -211,5 +215,5 @@ def test_mmu():
 
 if __name__ == '__main__':
     test_mmu()
-    test_icache_il()
+    #test_icache_il()
     #test_icache()
