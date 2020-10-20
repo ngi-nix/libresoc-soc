@@ -19,8 +19,10 @@ from soc.consts import MSR
 
 from soc.fu.test.common import (
     TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
-from soc.fu.spr.pipeline import SPRBasePipe
-from soc.fu.spr.pipe_data import SPRPipeSpec
+#from soc.fu.spr.pipeline import SPRBasePipe
+#from soc.fu.spr.pipe_data import SPRPipeSpec
+from soc.fu.mmu.fsm import FSMMMUStage
+from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
 
@@ -39,12 +41,12 @@ class MMUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
 
-    def case_ilang(self):
-        pspec = SPRPipeSpec(id_wid=2)
-        alu = SPRBasePipe(pspec)
-        vl = rtlil.convert(alu, ports=alu.ports())
-        with open("trap_pipeline.il", "w") as f:
-            f.write(vl)
+    #def case_ilang(self):
+    #    pspec = SPRPipeSpec(id_wid=2)
+    #    alu = SPRBasePipe(pspec)
+    #    vl = rtlil.convert(alu, ports=alu.ports())
+    #    with open("trap_pipeline.il", "w") as f:
+    #        f.write(vl)
 
 
 class TestRunner(unittest.TestCase):
@@ -92,6 +94,7 @@ class TestRunner(unittest.TestCase):
 
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.SPR.value)
+            #TODO
             alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
             yield
             opname = code.split(' ')[0]
@@ -118,8 +121,10 @@ class TestRunner(unittest.TestCase):
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = SPRPipeSpec(id_wid=2)
-        m.submodules.alu = alu = SPRBasePipe(pspec)
+        pspec = MMUPipeSpec(id_wid=2)
+        m.submodules.fsm = fsm = FSMMMUStage(pspec)
+
+        #FIXME connect fsm inputs
 
         comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
         comb += alu.p.valid_i.eq(1)
@@ -184,7 +189,7 @@ class TestRunner(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(SPRTestCase().test_data))
+    suite.addTest(TestRunner(MMUTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
