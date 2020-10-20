@@ -25,8 +25,14 @@ from soc.fu.mmu.fsm import FSMMMUStage
 from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
+def set_fsm_inputs(fsm, dec2, sim):
+    print("TODO set_fsm_inputs")
+    print(fsm)
+    print(dec2)
+    print(sim)
+    return None
 
-#incomplete test - not working yet
+#incomplete test - TODO connect ....
 class MMUTestCase(TestAccumulatorBase): 
 
     def case_1_mmu(self):
@@ -54,7 +60,7 @@ class TestRunner(unittest.TestCase):
         super().__init__("run_all")
         self.test_data = test_data
 
-    def execute(self, alu, instruction, pdecode2, test):
+    def execute(self, fsm, instruction, pdecode2, test):
         program = test.program
         sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                   test.mem, test.msr,
@@ -94,8 +100,8 @@ class TestRunner(unittest.TestCase):
 
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.SPR.value)
-            #TODO
-            alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
+            fsm_o = yield from set_fsm_inputs(fsm, pdecode2, sim)
+            # alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
             yield
             opname = code.split(' ')[0]
             yield from sim.call(opname)
@@ -126,9 +132,9 @@ class TestRunner(unittest.TestCase):
 
         #FIXME connect fsm inputs
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.p.valid_i.eq(1)
-        comb += alu.n.ready_i.eq(1)
+        comb += fsm.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
+        comb += fsm.p.valid_i.eq(1)
+        comb += fsm.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
@@ -140,7 +146,7 @@ class TestRunner(unittest.TestCase):
                 print("sprs", test.sprs)
                 program = test.program
                 with self.subTest(test.name):
-                    yield from self.execute(alu, instruction, pdecode2, test)
+                    yield from self.execute(fsm, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
