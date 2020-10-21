@@ -18,8 +18,14 @@ develop:
 	python3 src/soc/decoder/pseudo/pywriter.py
 
 run_sim: install
-	python3 src/soc/simple/issuer_verilog.py src/soc/litex/florent/libresoc/libresoc.v
+	python3 src/soc/simple/issuer_verilog.py src/soc/litex/florent/\
+	libresoc/libresoc.v
 	python3 src/soc/litex/florent/sim.py --cpu=libresoc
+
+testgpio_run_sim:
+	python3 src/soc/simple/issuer_verilog.py src/soc/litex/florent/libresoc/\
+	libresoc.v --enable-testgpio
+	python3 src/soc/litex/florent/sim.py --cpu=libresoc --variant=standardjtagtestgpio
 
 test: install
 	python3 setup.py test # could just run nosetest3...

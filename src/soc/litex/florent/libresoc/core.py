@@ -13,7 +13,8 @@ from libresoc.ls180 import io
 from litex.build.generic_platform import ConstraintManager
 
 
-CPU_VARIANTS = ["standard", "standard32", "standardjtag", "ls180",
+CPU_VARIANTS = ["standard", "standard32", "standardjtag",
+                "standardjtagtestgpio", "ls180",
                 "standardjtagnoirq"]
 
 
@@ -167,7 +168,7 @@ class LibreSoC(CPU):
 
         jtag_en = ('jtag' in variant) or variant == 'ls180'
 
-        if "gpiotest" in variant:
+        if "testgpio" in variant:
             self.simple_gpio = gpio = wb.Interface(data_width=32, adr_width=30)
         if jtag_en:
             self.jtag_wb = jtag_wb = wb.Interface(data_width=64, adr_width=29)
@@ -235,13 +236,13 @@ class LibreSoC(CPU):
             self.clk_sel = Signal(3)
             self.cpu_params['i_clk_sel_i'] = self.clk_sel
             self.cpu_params['o_pll_48_o'] = self.pll_48_o
-    
+
         # add wishbone buses to cpu params
         self.cpu_params.update(make_wb_bus("ibus", ibus))
         self.cpu_params.update(make_wb_bus("dbus", dbus))
         self.cpu_params.update(make_wb_slave("ics_wb", ics))
         self.cpu_params.update(make_wb_slave("icp_wb", icp))
-        if "gpiotest" in variant:
+        if "testgpio" in variant:
             self.cpu_params.update(make_wb_slave("gpio_wb", gpio))
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))

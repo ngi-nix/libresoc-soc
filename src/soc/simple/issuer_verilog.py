@@ -38,6 +38,7 @@ if __name__ == '__main__':
              'mul': 1,
              'shiftrot': 1
             }
+
     pspec = TestMemPspec(ldst_ifacetype='bare_wb',
                          imem_ifacetype='bare_wb',
                          addr_wid=48,
@@ -54,6 +55,12 @@ if __name__ == '__main__':
                          gpio=args.enable_testgpio, # for test purposes
                          debug=args.debug,      # set to jtag or dmi
                          units=units)
+
+    print("nocore", pspec.__dict__["nocore"])
+    print("gpio", pspec.__dict__["gpio"])
+    print("xics", pspec.__dict__["xics"])
+    print("use_pll", pspec.__dict__["use_pll"])
+    print("debug", pspec.__dict__["debug"])
 
     dut = TestIssuer(pspec)
 

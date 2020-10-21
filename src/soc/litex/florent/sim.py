@@ -32,7 +32,8 @@ SoCCSRHandler.supported_address_width.append(12)
 # LibreSoCSim -----------------------------------------------------------------
 
 class LibreSoCSim(SoCSDRAM):
-    def __init__(self, cpu="libresoc", debug=False, with_sdram=True,
+    def __init__(self, cpu="libresoc", variant="standardjtag", debug=False,
+            with_sdram=True,
             sdram_module          = "AS4C16M16",
             #sdram_data_width      = 16,
             #sdram_module          = "MT48LC16M16",
@@ -42,14 +43,6 @@ class LibreSoCSim(SoCSDRAM):
         assert cpu in ["libresoc", "microwatt"]
         platform     = Platform()
         sys_clk_freq = int(100e6)
-
-        #cpu_data_width = 32
-        cpu_data_width = 64
-
-        if cpu_data_width == 32:
-            variant = "standard32"
-        else:
-            variant = "standardjtag"
 
         #ram_fname = "/home/lkcl/src/libresoc/microwatt/" \
         #            "hello_world/hello_world.bin"
@@ -124,6 +117,7 @@ class LibreSoCSim(SoCSDRAM):
             ics_region = SoCRegion(origin=ics_addr, size=0x1000, cached=False)
             self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
 
+        if "gpio" in variant:
             # Simple GPIO peripheral
             gpio_addr = self.mem_map['gpio']
             gpio_wb = self.cpu.simple_gpio
@@ -451,6 +445,8 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX LibreSoC CPU Sim")
     parser.add_argument("--cpu",          default="libresoc",
                         help="CPU to use: libresoc (default) or microwatt")
+    parser.add_argument("--variant",      default="standardjtag",
+                        help="Specify variant with different features")
     parser.add_argument("--debug",        action="store_true",
                         help="Enable debug traces")
     parser.add_argument("--trace",        action="store_true",
@@ -466,7 +462,7 @@ def main():
     sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
     for i in range(2):
-        soc = LibreSoCSim(cpu=args.cpu, debug=args.debug)
+        soc = LibreSoCSim(cpu=args.cpu, debug=args.debug, variant=args.variant)
         builder = Builder(soc,compile_gateware = i!=0)
         builder.build(sim_config=sim_config,
             run         = i!=0,
