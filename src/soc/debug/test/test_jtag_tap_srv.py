@@ -75,26 +75,42 @@ def jtag_sim(dut, srv_dut):
     print ("bs scan", bin(bs))
     yield
 
-    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
-    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
-    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
-    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io0 pad.i", (yield srv_dut.ios[0].core.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].pad.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].pad.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].pad.oe))
     print ("io3 core.i", (yield srv_dut.ios[3].core.i))
     print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
     print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    assert (yield srv_dut.ios[0].core.i) == 1
+    assert (yield srv_dut.ios[1].pad.o) == 0
+    assert (yield srv_dut.ios[2].pad.o) == 1
+    assert (yield srv_dut.ios[2].pad.oe) == 1
+    assert (yield srv_dut.ios[3].core.i) == 0
+    assert (yield srv_dut.ios[3].pad.o) == 0
+    assert (yield srv_dut.ios[3].pad.oe) == 1
 
     # extest
     ir_actual = yield from jtag_set_ir(dut, BS_EXTEST)
     print ("ir extest", bin(ir_actual))
     yield
 
-    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
-    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
-    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
-    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io0 pad.i", (yield srv_dut.ios[0].core.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].pad.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].pad.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].pad.oe))
     print ("io3 core.i", (yield srv_dut.ios[3].core.i))
     print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
     print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    assert (yield srv_dut.ios[0].core.i) == 0
+    assert (yield srv_dut.ios[1].pad.o) == 1
+    assert (yield srv_dut.ios[2].pad.o) == 0
+    assert (yield srv_dut.ios[2].pad.oe) == 0
+    assert (yield srv_dut.ios[3].core.i) == 1
+    assert (yield srv_dut.ios[3].pad.o) == 1
+    assert (yield srv_dut.ios[3].pad.oe) == 0
 
     # set pins
     bs_actual = 0b1011001
@@ -111,13 +127,21 @@ def jtag_sim(dut, srv_dut):
     print ("bs scan", bin(bs))
     yield
 
-    print ("io0 pad.i", (yield srv_dut.ios[0].pad.i))
-    print ("io1 core.o", (yield srv_dut.ios[1].core.o))
-    print ("io2 core.o", (yield srv_dut.ios[2].core.o))
-    print ("io2 core.oe", (yield srv_dut.ios[2].core.oe))
+    print ("io0 pad.i", (yield srv_dut.ios[0].core.i))
+    print ("io1 core.o", (yield srv_dut.ios[1].pad.o))
+    print ("io2 core.o", (yield srv_dut.ios[2].pad.o))
+    print ("io2 core.oe", (yield srv_dut.ios[2].pad.oe))
     print ("io3 core.i", (yield srv_dut.ios[3].core.i))
     print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
     print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    assert (yield srv_dut.ios[0].core.i) == 1
+    assert (yield srv_dut.ios[1].pad.o) == 0
+    assert (yield srv_dut.ios[2].pad.o) == 1
+    assert (yield srv_dut.ios[2].pad.oe) == 1
+    assert (yield srv_dut.ios[3].core.i) == 0
+    assert (yield srv_dut.ios[3].pad.o) == 0
+    assert (yield srv_dut.ios[3].pad.oe) == 1
 
     # reset
     yield from jtag_set_reset(dut)
@@ -131,6 +155,14 @@ def jtag_sim(dut, srv_dut):
     print ("io3 core.i", (yield srv_dut.ios[3].core.i))
     print ("io3 pad.o", (yield srv_dut.ios[3].pad.o))
     print ("io3 pad.oe", (yield srv_dut.ios[3].pad.oe))
+
+    assert (yield srv_dut.ios[0].core.i) == 0
+    assert (yield srv_dut.ios[1].pad.o) == 1
+    assert (yield srv_dut.ios[2].pad.o) == 0
+    assert (yield srv_dut.ios[2].pad.oe) == 0
+    assert (yield srv_dut.ios[3].core.i) == 1
+    assert (yield srv_dut.ios[3].pad.o) == 1
+    assert (yield srv_dut.ios[3].pad.oe) == 0
 
     ####### JTAG to DMI ######
 
