@@ -34,6 +34,14 @@ class FetchUnitInterface:
         self.f_fetch_err_o = Signal()
         self.f_badaddr_o = Signal(bad_wid)
 
+        # detect whether the wishbone bus is enabled / disabled
+        if (hasattr(pspec, "wb_icache_en") and
+                     isinstance(pspec.wb_icache_en, Signal)):
+            self.jtag_en = pspec.wb_icache_en
+        else:
+            self.jtag_en = Const(1, 1) # permanently on
+
+
     def __iter__(self):
         yield self.a_pc_i
         yield self.a_stall_i
@@ -56,40 +64,42 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        ibus_rdata = Signal.like(self.ibus.dat_r)
-        with m.If(self.ibus.cyc):
-            with m.If(self.ibus.ack | self.ibus.err | ~self.f_valid_i):
+        with m.If(self.jtag_en): # for safety, JTAG can completely disable WB
+
+            ibus_rdata = Signal.like(self.ibus.dat_r)
+            with m.If(self.ibus.cyc):
+                with m.If(self.ibus.ack | self.ibus.err | ~self.f_valid_i):
+                    m.d.sync += [
+                        self.ibus.cyc.eq(0),
+                        self.ibus.stb.eq(0),
+                        self.ibus.sel.eq(0),
+                        ibus_rdata.eq(self.ibus.dat_r)
+                    ]
+            with m.Elif(self.a_valid_i & ~self.a_stall_i):
                 m.d.sync += [
-                    self.ibus.cyc.eq(0),
-                    self.ibus.stb.eq(0),
-                    self.ibus.sel.eq(0),
-                    ibus_rdata.eq(self.ibus.dat_r)
+                    self.ibus.adr.eq(self.a_pc_i[self.adr_lsbs:]),
+                    self.ibus.cyc.eq(1),
+                    self.ibus.stb.eq(1),
+                    self.ibus.sel.eq((1<<(1<<self.adr_lsbs))-1),
                 ]
-        with m.Elif(self.a_valid_i & ~self.a_stall_i):
-            m.d.sync += [
-                self.ibus.adr.eq(self.a_pc_i[self.adr_lsbs:]),
-                self.ibus.cyc.eq(1),
-                self.ibus.stb.eq(1),
-                self.ibus.sel.eq((1<<(1<<self.adr_lsbs))-1),
-            ]
 
-        with m.If(self.ibus.cyc & self.ibus.err):
-            m.d.sync += [
-                self.f_fetch_err_o.eq(1),
-                self.f_badaddr_o.eq(self.ibus.adr)
-            ]
-        with m.Elif(~self.f_stall_i):
-            m.d.sync += self.f_fetch_err_o.eq(0)
+            with m.If(self.ibus.cyc & self.ibus.err):
+                m.d.sync += [
+                    self.f_fetch_err_o.eq(1),
+                    self.f_badaddr_o.eq(self.ibus.adr)
+                ]
+            with m.Elif(~self.f_stall_i):
+                m.d.sync += self.f_fetch_err_o.eq(0)
 
-        m.d.comb += self.a_busy_o.eq(self.ibus.cyc)
+            m.d.comb += self.a_busy_o.eq(self.ibus.cyc)
 
-        with m.If(self.f_fetch_err_o):
-            m.d.comb += self.f_busy_o.eq(0)
-        with m.Else():
-            m.d.comb += [
-                self.f_busy_o.eq(self.ibus.cyc),
-                self.f_instr_o.eq(ibus_rdata)
-            ]
+            with m.If(self.f_fetch_err_o):
+                m.d.comb += self.f_busy_o.eq(0)
+            with m.Else():
+                m.d.comb += [
+                    self.f_busy_o.eq(self.ibus.cyc),
+                    self.f_instr_o.eq(ibus_rdata)
+                ]
 
         return m
 
