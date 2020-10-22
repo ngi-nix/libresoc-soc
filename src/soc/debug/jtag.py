@@ -4,7 +4,7 @@ using Staf Verhaegen (Chips4Makers) wishbone TAP
 """
 
 from collections import OrderedDict
-from nmigen import (Module, Signal, Elaboratable)
+from nmigen import (Module, Signal, Elaboratable, Cat)
 from nmigen.cli import rtlil
 from c4m.nmigen.jtag.tap import IOType
 from soc.debug.dmi import  DMIInterface, DBGCore
@@ -87,9 +87,24 @@ class JTAG(DMITAP, Pins):
         # create DMI2JTAG (goes through to dmi_sim())
         self.dmi = self.add_dmi(ircodes=[8, 9, 10])
 
+        # use this for enable/disable of parts of the ASIC
+        self.sr_en = self.add_shiftreg(ircode=11, length=2)
+        self.wb_icache_en = Signal(reset=1)
+        self.wb_dcache_en = Signal(reset=1)
+
     def elaborate(self, platform):
         m = super().elaborate(platform)
         m.d.comb += self.sr.i.eq(self.sr.o) # loopback as part of test?
+
+        # provide way to enable/disable wishbone caches just in case of issues
+        # see https://bugs.libre-soc.org/show_bug.cgi?id=520
+        en_sigs = Cat(self.wb_icache_en, self.wb_dcache_en)
+        with m.If(self.sr_en.oe):
+            m.d.sync += en_sigs.eq(self.sr_en.o)
+        # also make it possible to read the enable/disable current state
+        with m.If(self.sr_en.ie):
+            m.d.comb += self.sr_en.i.eq(en_sigs)
+
         return m
 
     def external_ports(self):
