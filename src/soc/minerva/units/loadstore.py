@@ -31,6 +31,13 @@ class LoadStoreUnitInterface:
             self.needs_cvt = False
             self.dbus = self.slavebus = Record(make_wb_layout(pspec))
 
+        # detect whether the wishbone bus is enabled / disabled
+        if (hasattr(pspec, "wb_dcache_en") and
+                     isinstance(pspec.wb_dcache_en, Signal)):
+            self.jtag_en = pspec.wb_dcache_en
+        else:
+            self.jtag_en = Const(1, 1) # permanently on
+
         print(self.dbus.sel.shape())
         self.mask_wid = mask_wid = pspec.mask_wid
         self.addr_wid = addr_wid = pspec.addr_wid
@@ -101,51 +108,53 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             self.cvt = WishboneDownConvert(self.dbus, self.slavebus)
             m.submodules.cvt = self.cvt
 
-        with m.If(self.dbus.cyc):
-            with m.If(self.dbus.ack | self.dbus.err | ~self.m_valid_i):
+        with m.If(self.jtag_en): # for safety, JTAG can completely disable WB
+
+            with m.If(self.dbus.cyc):
+                with m.If(self.dbus.ack | self.dbus.err | ~self.m_valid_i):
+                    m.d.sync += [
+                        self.dbus.cyc.eq(0),
+                        self.dbus.stb.eq(0),
+                        self.dbus.sel.eq(0),
+                        self.m_ld_data_o.eq(self.dbus.dat_r)
+                    ]
+            with m.Elif((self.x_ld_i | self.x_st_i) &
+                        self.x_valid_i & ~self.x_stall_i):
                 m.d.sync += [
-                    self.dbus.cyc.eq(0),
-                    self.dbus.stb.eq(0),
-                    self.dbus.sel.eq(0),
-                    self.m_ld_data_o.eq(self.dbus.dat_r)
+                    self.dbus.cyc.eq(1),
+                    self.dbus.stb.eq(1),
+                    self.dbus.adr.eq(self.x_addr_i[self.adr_lsbs:]),
+                    self.dbus.sel.eq(self.x_mask_i),
+                    self.dbus.we.eq(self.x_st_i),
+                    self.dbus.dat_w.eq(self.x_st_data_i)
                 ]
-        with m.Elif((self.x_ld_i | self.x_st_i) &
-                    self.x_valid_i & ~self.x_stall_i):
-            m.d.sync += [
-                self.dbus.cyc.eq(1),
-                self.dbus.stb.eq(1),
-                self.dbus.adr.eq(self.x_addr_i[self.adr_lsbs:]),
-                self.dbus.sel.eq(self.x_mask_i),
-                self.dbus.we.eq(self.x_st_i),
-                self.dbus.dat_w.eq(self.x_st_data_i)
-            ]
-        with m.Else():
-            m.d.sync += [
-                self.dbus.adr.eq(0),
-                self.dbus.sel.eq(0),
-                self.dbus.we.eq(0),
-                self.dbus.sel.eq(0),
-                self.dbus.dat_w.eq(0),
-            ]
+            with m.Else():
+                m.d.sync += [
+                    self.dbus.adr.eq(0),
+                    self.dbus.sel.eq(0),
+                    self.dbus.we.eq(0),
+                    self.dbus.sel.eq(0),
+                    self.dbus.dat_w.eq(0),
+                ]
 
-        with m.If(self.dbus.cyc & self.dbus.err):
-            m.d.sync += [
-                self.m_load_err_o.eq(~self.dbus.we),
-                self.m_store_err_o.eq(self.dbus.we),
-                self.m_badaddr_o.eq(self.dbus.adr)
-            ]
-        with m.Elif(~self.m_stall_i):
-            m.d.sync += [
-                self.m_load_err_o.eq(0),
-                self.m_store_err_o.eq(0)
-            ]
+            with m.If(self.dbus.cyc & self.dbus.err):
+                m.d.sync += [
+                    self.m_load_err_o.eq(~self.dbus.we),
+                    self.m_store_err_o.eq(self.dbus.we),
+                    self.m_badaddr_o.eq(self.dbus.adr)
+                ]
+            with m.Elif(~self.m_stall_i):
+                m.d.sync += [
+                    self.m_load_err_o.eq(0),
+                    self.m_store_err_o.eq(0)
+                ]
 
-        m.d.comb += self.x_busy_o.eq(self.dbus.cyc)
+            m.d.comb += self.x_busy_o.eq(self.dbus.cyc)
 
-        with m.If(self.m_load_err_o | self.m_store_err_o):
-            m.d.comb += self.m_busy_o.eq(0)
-        with m.Else():
-            m.d.comb += self.m_busy_o.eq(self.dbus.cyc)
+            with m.If(self.m_load_err_o | self.m_store_err_o):
+                m.d.comb += self.m_busy_o.eq(0)
+            with m.Else():
+                m.d.comb += self.m_busy_o.eq(self.dbus.cyc)
 
         return m
 
