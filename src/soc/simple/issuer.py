@@ -50,6 +50,19 @@ class TestIssuerInternal(Elaboratable):
     """
     def __init__(self, pspec):
 
+        # JTAG interface.  add this right at the start because if it's
+        # added it *modifies* the pspec, by adding enable/disable signals
+        # for parts of the rest of the core
+        self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
+        if self.jtag_en:
+            subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
+                      'pwm', 'sd0', 'sdr'}
+            self.jtag = JTAG(get_pinspecs(subset=subset))
+            # add signals to pspec to enable/disable icache and dcache
+            # (or data and intstruction wishbone if icache/dcache not included)
+            pspec.wb_icache_en = self.jtag.wb_icache_en
+            pspec.wb_dcache_en = self.jtag.wb_dcache_en
+
         # add interrupt controller?
         self.xics = hasattr(pspec, "xics") and pspec.xics == True
         if self.xics:
@@ -80,13 +93,6 @@ class TestIssuerInternal(Elaboratable):
 
         # DMI interface
         self.dbg = CoreDebug()
-
-        # JTAG interface
-        self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
-        if self.jtag_en:
-            subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
-                      'pwm', 'sd0', 'sdr'}
-            self.jtag = JTAG(get_pinspecs(subset=subset))
 
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
