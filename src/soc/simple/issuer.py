@@ -60,6 +60,9 @@ class TestIssuerInternal(Elaboratable):
             self.jtag = JTAG(get_pinspecs(subset=subset))
             # add signals to pspec to enable/disable icache and dcache
             # (or data and intstruction wishbone if icache/dcache not included)
+            # https://bugs.libre-soc.org/show_bug.cgi?id=520
+            # TODO: do we actually care if these are not domain-synchronised?
+            # honestly probably not.
             pspec.wb_icache_en = self.jtag.wb_icache_en
             pspec.wb_dcache_en = self.jtag.wb_dcache_en
 
