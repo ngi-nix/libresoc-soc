@@ -14,10 +14,12 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
+from nmutil.gtkw import write_gtkw
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
-from nmutil.sim_tmp_alternative import Simulator
+from nmutil.sim_tmp_alternative import (Simulator, nmigen_sim_top_module,
+                                        is_engine_pysim)
 
 from soc.decoder.power_enums import MicrOp, Function, CryIn
 
@@ -446,6 +448,7 @@ def alu_sim(dut):
 
 def test_alu():
     alu = ALU(width=16)
+    write_alu_gtkw("test_alusim.gtkw", clk_period=10e-9)
     run_simulation(alu, {"sync": alu_sim(alu)}, vcd_name='test_alusim.vcd')
 
     vl = rtlil.convert(alu, ports=alu.ports())
@@ -457,6 +460,9 @@ def test_alu_parallel():
     # Compare with the sequential test implementation, above.
     m = Module()
     m.submodules.alu = dut = ALU(width=16)
+    write_alu_gtkw("test_alu_parallel.gtkw", sub_module='alu',
+                   pysim=is_engine_pysim())
+
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
@@ -546,13 +552,33 @@ def test_alu_parallel():
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
-    sim_writer = sim.write_vcd(
-        "test_alu_parallel.vcd",
-        "test_alu_parallel.gtkw",
-        traces=dut.ports()
-    )
+    sim_writer = sim.write_vcd("test_alu_parallel.vcd")
     with sim_writer:
         sim.run()
+
+
+def write_alu_gtkw(gtkw_name, clk_period=1e-6, sub_module=None,
+                   pysim=True):
+    """Common function to write the GTKWave documents for this module"""
+    gtkwave_desc = [
+        'clk',
+        'i1[15:0]',
+        'i2[15:0]',
+        'op__insn_type' if pysim else 'op__insn_type[6:0]',
+        'op__invert_in',
+        'valid_i',
+        'ready_o',
+        'valid_o',
+        'ready_i',
+        'alu_o[15:0]',
+    ]
+    # determine the module name of the DUT
+    module = 'top'
+    if sub_module is not None:
+        module = nmigen_sim_top_module + sub_module
+    vcd_name = gtkw_name.replace('.gtkw', '.vcd')
+    write_gtkw(gtkw_name, vcd_name, gtkwave_desc, module=module,
+               loc=__file__, clk_period=clk_period, base='signed')
 
 
 if __name__ == "__main__":
