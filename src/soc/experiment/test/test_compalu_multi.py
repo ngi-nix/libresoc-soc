@@ -16,12 +16,13 @@ from soc.experiment.alu_hier import ALU, DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.decoder.power_enums import MicrOp
 from nmutil.gtkw import write_gtkw
-from nmigen import Module
+from nmigen import Module, Signal
 from nmigen.cli import rtlil
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
-from nmutil.sim_tmp_alternative import Simulator, Settle, is_engine_pysim
+from nmutil.sim_tmp_alternative import (Simulator, Settle, is_engine_pysim,
+                                        Passive)
 
 
 def wrap(process):
@@ -30,26 +31,84 @@ def wrap(process):
     return wrapper
 
 
-def op_sim_fsm(dut, a, b, direction):
+class OperandProducer:
+    """
+    Produces an operand when requested by the Computation Unit
+    (`dut` parameter), using the `rel_o` / `go_i` handshake.
+
+    Attaches itself to the `dut` operand indexed by `op_index`.
+
+    Has a programmable delay between the assertion of `rel_o` and the
+    `go_i` pulse.
+
+    Data is presented only during the cycle in which `go_i` is active.
+
+    It adds itself as a passive process to the simulation (`sim` parameter).
+    Since it is passive, it will not hang the simulation, and does not need a
+    flag to terminate itself.
+    """
+    def __init__(self, sim, dut, op_index):
+        # data and handshake signals from the DUT
+        self.port = dut.src_i[op_index]
+        self.go_i = dut.rd.go_i[op_index]
+        self.rel_o = dut.rd.rel_o[op_index]
+        # transaction parameters, passed via signals
+        self.delay = Signal(8)
+        self.data = Signal.like(self.port)
+        # add ourselves to the simulation process list
+        sim.add_sync_process(self._process)
+
+    def _process(self):
+        yield Passive()
+        while True:
+            # Settle() is needed to give a quick response to
+            # the zero delay case
+            yield Settle()
+            # wait for rel_o to become active
+            while not (yield self.rel_o):
+                yield
+                yield Settle()
+            # read the transaction parameters
+            delay = (yield self.delay)
+            data = (yield self.data)
+            # wait for `delay` cycles
+            for _ in range(delay):
+                yield
+            # activate go_i and present data, for one cycle
+            yield self.go_i.eq(1)
+            yield self.port.eq(data)
+            yield
+            yield self.go_i.eq(0)
+            yield self.port.eq(0)
+
+    def send(self, data, delay):
+        """
+        Schedules the module to send some `data`, counting `delay` cycles after
+        `rel_i` becomes active.
+
+        To be called from the main test-bench process,
+        it returns in the same cycle.
+
+        Communication with the worker process is done by means of
+        combinatorial simulation-only signals.
+
+        """
+        yield self.data.eq(data)
+        yield self.delay.eq(delay)
+
+
+def op_sim_fsm(dut, a, b, direction, producers, delays):
     print("op_sim_fsm", a, b, direction)
     yield dut.issue_i.eq(0)
     yield
-    yield dut.src_i[0].eq(a)
-    yield dut.src_i[1].eq(b)
+    # forward data and delays to the producers
+    yield from producers[0].send(a, delays[0])
+    yield from producers[1].send(b, delays[1])
     yield dut.oper_i.sdir.eq(direction)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
     yield
-
-    yield dut.rd.go_i.eq(0b11)
-    while True:
-        yield
-        rd_rel_o = yield dut.rd.rel_o
-        print("rd_rel", rd_rel_o)
-        if rd_rel_o:
-            break
-    yield dut.rd.go_i.eq(0)
 
     req_rel_o = yield dut.wr.rel_o
     result = yield dut.data_o
@@ -129,14 +188,14 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     return result
 
 
-def scoreboard_sim_fsm(dut):
-    result = yield from op_sim_fsm(dut, 13, 2, 1)
+def scoreboard_sim_fsm(dut, producers):
+    result = yield from op_sim_fsm(dut, 13, 2, 1, producers, [0, 2])
     assert result == 3, result
 
-    result = yield from op_sim_fsm(dut, 3, 4, 0)
+    result = yield from op_sim_fsm(dut, 3, 4, 0, producers, [2, 0])
     assert result == 48, result
 
-    result = yield from op_sim_fsm(dut, 21, 0, 0)
+    result = yield from op_sim_fsm(dut, 21, 0, 0, producers, [1, 1])
     assert result == 21, result
 
 
@@ -207,7 +266,10 @@ def test_compunit_fsm():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut)))
+    # create one operand producer for each input port
+    prod_a = OperandProducer(sim, dut, 0)
+    prod_b = OperandProducer(sim, dut, 1)
+    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut, [prod_a, prod_b])))
     sim_writer = sim.write_vcd('test_compunit_fsm1.vcd')
     with sim_writer:
         sim.run()
