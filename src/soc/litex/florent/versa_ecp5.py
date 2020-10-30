@@ -85,6 +85,23 @@ class ULX3S85FTestSoC(ulx3s.BaseSoC):
             device       = "LFE5U-85F",
             **kwargs)
 
+        # get 4 arbitrarily assinged logical pins, each gpio has
+        # 2 distinct physical single non-differential pins p and n
+        gpio0    = self.platform.request("gpio", 0)
+        gpio1    = self.platform.request("gpio", 1)
+
+        # assign p, n litex 'subsignals' of each gpio to jtag pins
+        jtag_tdi = gpio0.n
+        jtag_tms = gpio0.p
+        jtag_tck = gpio1.n
+        jtag_tdo = gpio1.p
+
+        # wire the pins up to CPU JTAG
+        self.comb += self.cpu.jtag_tdi.eq(jtag_tdi)
+        self.comb += self.cpu.jtag_tms.eq(jtag_tms)
+        self.comb += self.cpu.jtag_tdi.eq(jtag_tdi)
+        self.comb += jtag_tdo.eq(self.cpu.jtag_tdo)
+
 # Build
 # ----------------------------------------------------------------------------
 
