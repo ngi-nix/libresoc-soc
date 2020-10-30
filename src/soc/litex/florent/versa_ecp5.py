@@ -17,6 +17,8 @@ from libresoc import LibreSoC
 # TestSoC
 # ----------------------------------------------------------------------------
 
+from litex.build.generic_platform import Subsignal, Pins, IOStandard
+
 class VersaECP5TestSoC(versa_ecp5.BaseSoC):
     def __init__(self, sys_clk_freq=int(16e6), **kwargs):
         kwargs["integrated_rom_size"] = 0x10000
@@ -34,19 +36,27 @@ class VersaECP5TestSoC(versa_ecp5.BaseSoC):
             device       = "LFE5UM",
             **kwargs)
 
-        if False: # well that didn't work.  connectors are different
-                  # from platform IO.
-            # get 4 arbitrarily-selected pins from the X3 connector
-            jtag_tck = self.platform.request("X3", "B19")
-            jtag_tms = self.platform.request("X3", "B12")
-            jtag_tdi = self.platform.request("X3", "B9")
-            jtag_tdo = self.platform.request("X3", "E6")
+        # (thanks to daveshah for this tip)
+        # use platform.add_extension to first define the pins
+        # https://github.com/daveshah1/linux-on-litex-vexriscv/commit/dc97bac3aeb04cfbf5116a6c7e324ce849391770#diff-2353956cb1116676bd6b96769c8ebf7b4b86c16c47511eb2888d0dd2a979e09eR117-R134
 
-            # wire the pins up to CPU JTAG
-            self.comb += self.cpu.jtag_tck.eq(jtag_tck)
-            self.comb += self.cpu.jtag_tms.eq(jtag_tms)
-            self.comb += self.cpu.jtag_tdi.eq(jtag_tdi)
-            self.comb += jtag_tdo.eq(self.cpu.jtag_tdo)
+        # define the pins, add as an extension, *then* request it
+        jtag_ios = [
+            ("jtag", 0,
+                Subsignal("tck", Pins("B19"), IOStandard("LVCMOS33")),
+                Subsignal("tms", Pins("B12"), IOStandard("LVCMOS33")),
+                Subsignal("tdi", Pins("B9"), IOStandard("LVCMOS33")),
+                Subsignal("tdo", Pins("E6"), IOStandard("LVCMOS33")),
+            )
+        ]
+        self.platform.add_extension(jtag_ios)
+        jtag = self.platform.request("jtag")
+
+        # wire the pins up to CPU JTAG
+        self.comb += self.cpu.jtag_tck.eq(jtag.tck)
+        self.comb += self.cpu.jtag_tms.eq(jtag.tms)
+        self.comb += self.cpu.jtag_tdi.eq(jtag.tdi)
+        self.comb += jtag.tdo.eq(self.cpu.jtag_tdo)
 
 
         #self.add_constant("MEMTEST_BUS_SIZE",  256//16)
@@ -56,6 +66,7 @@ class VersaECP5TestSoC(versa_ecp5.BaseSoC):
         #self.add_constant("MEMTEST_BUS_DEBUG", 1)
         #self.add_constant("MEMTEST_ADDR_DEBUG", 1)
         #self.add_constant("MEMTEST_DATA_DEBUG", 1)
+
 
 class ULX3S85FTestSoC(ulx3s.BaseSoC):
     def __init__(self, sys_clk_freq=int(16e6), **kwargs):
