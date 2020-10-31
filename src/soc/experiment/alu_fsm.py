@@ -280,7 +280,6 @@ def test_shifter():
         yield dut.n.ready_i.eq(0)
         # check result
         assert result == expected
-        # finish displaying the current operation
 
     def producer():
         # 13 >> 2
