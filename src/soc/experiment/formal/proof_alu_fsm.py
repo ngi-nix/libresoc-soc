@@ -65,6 +65,11 @@ class Driver(Elaboratable):
                 sync += expected.eq(dut_data_i >> dut_shift_i)
             with m.Else():
                 sync += expected.eq(dut_data_i << dut_shift_i)
+        # Check for dropped inputs, by ensuring that there are no more than
+        # one work item ever in flight at any given time.
+        # Whenever the unit is busy (not ready) the read and write counters
+        # will differ by exactly one unit.
+        m.d.comb += Assert((read_cnt + ~dut.p.ready_o) & 0xF == write_cnt)
         # check coverage as output data is accepted
         with m.If(dut.n.ready_i & dut.n.valid_o):
             # increment read counter
