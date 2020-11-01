@@ -36,6 +36,8 @@ class Driver(Elaboratable):
         # transaction count for each port
         write_cnt = Signal(4)
         read_cnt = Signal(4)
+        # liveness counter
+        live_cnt = Signal(5)
         # keep data and valid stable, until accepted
         with m.If(Past(dut.p.valid_i) & ~Past(dut.p.ready_o)):
             comb += [
@@ -70,6 +72,15 @@ class Driver(Elaboratable):
         # Whenever the unit is busy (not ready) the read and write counters
         # will differ by exactly one unit.
         m.d.comb += Assert((read_cnt + ~dut.p.ready_o) & 0xF == write_cnt)
+        # Check for liveness. It will ensure that the FSM is not stuck, and
+        # will eventually produce some result.
+        # In this case, the delay between ready_o being negated and valid_o
+        # being asserted has to be less than 16 cycles.
+        with m.If(~dut.p.ready_o & ~dut.n.valid_o):
+            m.d.sync += live_cnt.eq(live_cnt + 1)
+        with m.Else():
+            m.d.sync += live_cnt.eq(0)
+        m.d.comb += Assert(live_cnt < 16)
         # check coverage as output data is accepted
         with m.If(dut.n.ready_i & dut.n.valid_o):
             # increment read counter
