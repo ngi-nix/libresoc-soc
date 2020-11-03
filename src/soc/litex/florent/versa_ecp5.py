@@ -43,9 +43,9 @@ class VersaECP5TestSoC(versa_ecp5.BaseSoC):
         # define the pins, add as an extension, *then* request it
         jtag_ios = [
             ("jtag", 0,
-                Subsignal("tck", Pins("B19"), IOStandard("LVCMOS25")),
+                Subsignal("tdi", Pins("B19"), IOStandard("LVCMOS25")),
                 Subsignal("tms", Pins("B12"), IOStandard("LVCMOS25")),
-                Subsignal("tdi", Pins("B9"), IOStandard("LVCMOS25")),
+                Subsignal("tck", Pins("B9"), IOStandard("LVCMOS25")),
                 Subsignal("tdo", Pins("E6"), IOStandard("LVCMOS25")),
             )
         ]
