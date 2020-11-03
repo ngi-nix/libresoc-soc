@@ -25,19 +25,34 @@ from soc.fu.mmu.fsm import FSMMMUStage
 from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
-def set_fsm_inputs(fsm, dec2, sim):
-    print("TODO set_fsm_inputs")
-    print(fsm)
-    print(dec2)
-    print(sim)
-    return None
+from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
+                                    set_alu_inputs, DivTestHelper)
 
-#incomplete test - TODO connect ....
+def set_fsm_inputs(alu, dec2, sim):
+    # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
+    # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
+    # and place it into data_i.b
+
+    print("Error here")
+    inp = yield from get_cu_inputs(dec2, sim)
+    # set int registers a and b
+    yield from ALUHelpers.set_int_ra(alu, dec2, inp)
+    yield from ALUHelpers.set_int_rb(alu, dec2, inp)
+    # TODO set spr register
+    # yield from ALUHelpers.set_spr_spr1(alu, dec2, inp)
+
+
+def check_fsm_outputs(fsm, pdecode2, sim, code):
+    # check that MMUOutputData is correct
+    return None #TODO
+
+#incomplete test - connect fsm inputs first
 class MMUTestCase(TestAccumulatorBase): 
 
     def case_1_mmu(self):
         # test case for MTSPR, MFSPR, DCBZ and TLBIE.
-        lst = ["mfspr 1, 26",  # SRR0
+        lst = [#"dcbz 1, 1",
+               "mfspr 1, 26",  # SRR0
                "mfspr 2, 27",  # SRR1
                "mfspr 3, 8",  # LR
                "mfspr 4, 1", ]  # XER
@@ -100,8 +115,7 @@ class TestRunner(unittest.TestCase):
 
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.SPR.value)
-            fsm_o = yield from set_fsm_inputs(fsm, pdecode2, sim)
-            # alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
+            fsm_o_unused = yield from set_fsm_inputs(fsm, pdecode2, sim)
             yield
             opname = code.split(' ')[0]
             yield from sim.call(opname)
@@ -110,13 +124,14 @@ class TestRunner(unittest.TestCase):
             index = pc//4
             print("pc after %08x" % (pc))
 
-            vld = yield alu.n.valid_o
+            vld = yield fsm.n.valid_o #fsm
             while not vld:
                 yield
-                vld = yield alu.n.valid_o
+                print("not valid -- hang")
+                vld = yield fsm.n.valid_o
             yield
 
-            yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+            #yield from self.check_fsm_outputs(fsm, pdecode2, sim, code)
 
     def run_all(self):
         m = Module()
@@ -152,45 +167,6 @@ class TestRunner(unittest.TestCase):
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
                            traces=[]):
             sim.run()
-
-    def check_alu_outputs(self, alu, dec2, sim, code):
-
-        rc = yield dec2.e.do.rc.data
-        cridx_ok = yield dec2.e.write_cr.ok
-        cridx = yield dec2.e.write_cr.data
-
-        print("check extra output", repr(code), cridx_ok, cridx)
-        if rc:
-            self.assertEqual(cridx, 0, code)
-
-        sim_o = {}
-        res = {}
-
-        yield from ALUHelpers.get_int_o(res, alu, dec2)
-        yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
-        yield from ALUHelpers.get_slow_spr1(res, alu, dec2)
-        yield from ALUHelpers.get_xer_ov(res, alu, dec2)
-        yield from ALUHelpers.get_xer_ca(res, alu, dec2)
-        yield from ALUHelpers.get_xer_so(res, alu, dec2)
-
-        print("output", res)
-
-        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_sim_xer_so(sim_o, sim, alu, dec2)
-        yield from ALUHelpers.get_wr_sim_xer_ov(sim_o, sim, alu, dec2)
-        yield from ALUHelpers.get_wr_sim_xer_ca(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
-        yield from ALUHelpers.get_wr_slow_spr1(sim_o, sim, dec2)
-
-        print("sim output", sim_o)
-
-        ALUHelpers.check_xer_ov(self, res, sim_o, code)
-        ALUHelpers.check_xer_ca(self, res, sim_o, code)
-        ALUHelpers.check_xer_so(self, res, sim_o, code)
-        ALUHelpers.check_int_o(self, res, sim_o, code)
-        ALUHelpers.check_fast_spr1(self, res, sim_o, code)
-        ALUHelpers.check_slow_spr1(self, res, sim_o, code)
-
 
 if __name__ == "__main__":
     unittest.main(exit=False)
