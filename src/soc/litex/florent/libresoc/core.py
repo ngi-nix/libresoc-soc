@@ -38,6 +38,7 @@ def make_wb_slave(prefix, obj):
     return res
 
 def make_pad(res, dirn, name, suffix, cpup, iop):
+    print ("make pad", dirn, name, suffix, cpup, iop)
     cpud, iod = ('i', 'o') if dirn else ('o', 'i')
     res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
     res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
@@ -99,13 +100,19 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     elif iotype == IOType.InTriOut:
         if fn == 'gpio': # sigh decode GPIO special-case
             idx = int(pin[1:])
+            oe_idx = idx
+        elif fn == 'sdr': # sigh
+            idx = int(pin.split('_')[-1])
+            oe_idx = 0
         else:
             idx = 0
+            oe_idx = 0
+        print ("gpio tri", fn, pin, iotype, pin_name, scan_idx, idx)
         cpup, iop = get_field(cpu, "i")[idx], get_field(io, "i")[idx]
         make_pad(res, False, name, "i", cpup, iop)
         cpup, iop = get_field(cpu, "o")[idx], get_field(io, "o")[idx]
         make_pad(res, True, name, "o", cpup, iop)
-        cpup, iop = get_field(cpu, "oe")[idx], get_field(io, "oe")[idx]
+        cpup, iop = get_field(cpu, "oe")[oe_idx], get_field(io, "oe")[oe_idx]
         make_pad(res, True, name, "oe", cpup, iop)
 
     if iotype in (IOType.In, IOType.InTriOut):
@@ -150,6 +157,11 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
+        # used by coriolis2 to connect up IO VSS/VDD to niolib GPIO cell lib
+        if False:
+            self.io_in        = Signal()
+            self.io_out        = Signal()
+
         irq_en = "noirq" not in variant
 
         if irq_en:
@@ -205,6 +217,8 @@ class LibreSoC(CPU):
             o_memerr_o         = Signal(),   # not connected
             o_pc_o             = Signal(64), # not connected
 
+            #o_io_in            = 0, # set io_in signal to False (for niolib)
+            #o_io_out           = 1, # set io_in signal to True (for niolib)
         )
 
         if irq_en:

@@ -372,6 +372,14 @@ class LibreSoCSim(SoCCore):
 
         #ram_init = []
 
+        if False:
+            # for niolib temporary hack
+            io_in = Signal()
+            io_out = Signal()
+
+            self.comb += io_in.eq(self.cpu.io_in)
+            self.comb += io_out.eq(self.cpu.io_out)
+
         # SDRAM ----------------------------------------------------
         if with_sdram:
             sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
