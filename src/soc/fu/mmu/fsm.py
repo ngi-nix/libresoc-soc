@@ -37,6 +37,12 @@ class FSMMMUStage(ControlBase):
         self.pspec.mmu = self.mmu
         self.pspec.dcache = self.dcache
 
+        # debugging output for gtkw
+        self.debug0 = Signal(64)
+        self.debug1 = Signal(64)
+        self.debug2 = Signal(64)
+        self.debug3 = Signal(64)
+
         # for SPR field number access
         i = self.p.data_i
         self.fields = DecodeFields(SignalBitRange, [i.ctx.op.insn])
@@ -88,9 +94,12 @@ class FSMMMUStage(ControlBase):
             # should "action" the operation.  one of MMU or DCache gets
             # enabled ("valid") and we twiddle our thumbs until it
             # responds ("done").
-            with m.Switch(op):
-
+            with m.Switch(op.insn_type):
                 with m.Case(MicrOp.OP_MTSPR):
+                    comb += self.debug0.eq(0xFF)
+                    comb += self.debug1.eq(spr)
+                    comb += self.debug2.eq(a_i)
+                    comb += self.debug3.eq(a_i[:32])
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         with m.If(spr[0]):
