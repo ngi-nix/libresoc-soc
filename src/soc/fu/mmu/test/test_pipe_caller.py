@@ -30,7 +30,7 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 import power_instruction_analyzer as pia
 
-debughang = 0
+debughang = 1
 
 def set_fsm_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
@@ -73,8 +73,16 @@ class MMUTestCase(TestAccumulatorBase):
 
     def case_1_mmu(self):
         # test case for MTSPR, MFSPR, DCBZ and TLBIE.
-        lst = ["dcbz 2,3"]
+        #lst = ["dcbz 2,3"] not yet implemented
+        lst = ["mtspr 18, 1", # DSISR
+               "mtspr 19, 2", # DAR
+               "mtspr 26, 3", # SRR0
+               "mtspr 27, 4", # SRR1
+               ]
+
         initial_regs = [0] * 32
+        initial_regs[1] = 0xBADCAB1E
+        initial_regs[2] = 0xDEADC0DE
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0xe00c0000}
         self.add_case(Program(lst, bigendian),
@@ -134,9 +142,6 @@ class TestRunner(unittest.TestCase):
             fn_unit = yield pdecode2.e.do.fn_unit
             #FIXME this fails -- self.assertEqual(fn_unit, Function.SPR.value)
             fsm_o_unused = yield from set_fsm_inputs(fsm, pdecode2, sim)
-            print("set_fsm_inputs")
-            print(fsm_o_unused)
-            print("cut here ---------------------------------------------")
             yield
             opname = code.split(' ')[0]
             yield from sim.call(opname)
@@ -150,9 +155,10 @@ class TestRunner(unittest.TestCase):
                 yield
                 if debughang:  print("not valid -- hang")
                 vld = yield fsm.n.valid_o
+                if debughang==2: vld=1
             yield
 
-            #yield from self.check_fsm_outputs(fsm, pdecode2, sim, code)
+            #TODO: yield from self.check_fsm_outputs(fsm, pdecode2, sim, code)
 
     def run_all(self):
         m = Module()
