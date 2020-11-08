@@ -101,6 +101,63 @@ class TestRunner(unittest.TestCase):
         super().__init__("run_all")
         self.test_data = test_data
 
+    def check_fsm_outputs(self, alu, dec2, sim, code, pia_res):
+
+        rc = yield dec2.e.do.rc.data
+        cridx_ok = yield dec2.e.write_cr.ok
+        cridx = yield dec2.e.write_cr.data
+
+        print("check extra output", repr(code), cridx_ok, cridx)
+        if rc:
+            self.assertEqual(cridx, 0, code)
+
+        sim_o = {}
+        res = {}
+
+        #MMUOutputData does not have xer
+
+        yield from ALUHelpers.get_cr_a(res, alu, dec2)
+        #yield from ALUHelpers.get_xer_ov(res, alu, dec2)
+        yield from ALUHelpers.get_int_o(res, alu, dec2)
+        #yield from ALUHelpers.get_xer_so(res, alu, dec2)
+
+
+        print("res output", res)
+
+        yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_sim_cr_a(sim_o, sim, dec2)
+        #yield from ALUHelpers.get_sim_xer_ov(sim_o, sim, dec2)
+        #yield from ALUHelpers.get_sim_xer_so(sim_o, sim, dec2)
+
+        print("sim output", sim_o)
+
+        print("power-instruction-analyzer result:")
+        print(pia_res)
+        #if pia_res is not None:
+        #    with self.subTest(check="pia", sim_o=sim_o, pia_res=str(pia_res)):
+        #        pia_o = pia_res_to_output(pia_res)
+        #        ALUHelpers.check_int_o(self, res, pia_o, code)
+        #        ALUHelpers.check_cr_a(self, res, pia_o, code)
+        #        #ALUHelpers.check_xer_ov(self, res, pia_o, code)
+        #        #ALUHelpers.check_xer_so(self, res, pia_o, code)
+
+        with self.subTest(check="sim", sim_o=sim_o, pia_res=str(pia_res)):
+            ALUHelpers.check_int_o(self, res, sim_o, code)
+            ALUHelpers.check_cr_a(self, res, sim_o, code)
+            #ALUHelpers.check_xer_ov(self, res, sim_o, code)
+            #ALUHelpers.check_xer_so(self, res, sim_o, code)
+
+        #oe = yield dec2.e.do.oe.oe
+        #oe_ok = yield dec2.e.do.oe.ok
+        #print("oe, oe_ok", oe, oe_ok)
+        #if not oe or not oe_ok:
+        #    # if OE not enabled, XER SO and OV must not be activated
+        #    so_ok = yield alu.n.data_o.xer_so.ok
+        #    ov_ok = yield alu.n.data_o.xer_ov.ok
+        #    print("so, ov", so_ok, ov_ok)
+        #    self.assertEqual(ov_ok, False, code)
+        #    self.assertEqual(so_ok, False, code)
+
     def execute(self, fsm, instruction, pdecode2, test):
         program = test.program
         sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
@@ -141,7 +198,7 @@ class TestRunner(unittest.TestCase):
 
             fn_unit = yield pdecode2.e.do.fn_unit
             #FIXME this fails -- self.assertEqual(fn_unit, Function.SPR.value)
-            fsm_o_unused = yield from set_fsm_inputs(fsm, pdecode2, sim)
+            pia_res = yield from set_fsm_inputs(fsm, pdecode2, sim)
             yield
             opname = code.split(' ')[0]
             yield from sim.call(opname)
@@ -158,7 +215,7 @@ class TestRunner(unittest.TestCase):
                 if debughang==2: vld=1
             yield
 
-            #TODO: yield from self.check_fsm_outputs(fsm, pdecode2, sim, code)
+            yield from self.check_fsm_outputs(fsm, pdecode2, sim, code, pia_res)
 
     def run_all(self):
         m = Module()
