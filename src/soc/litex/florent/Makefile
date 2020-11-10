@@ -10,3 +10,9 @@ ls180:
 	yosys -p 'read_ilang ls180_cvt.il' \
           -p 'read_ilang libresoc_cvt.il' \
           -p 'write_ilang ls180.il'
+
+versaecp5:
+	 ./versa_ecp5.py --sys-clk-freq=55e6 --build
+
+versaecp5load:
+	./versa_ecp5.py --sys-clk-freq=55e6 --load
