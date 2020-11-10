@@ -37,7 +37,8 @@ from soc.config.pinouts import get_pinspecs
 from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
-from soc.clock.select import ClockSelect, DummyPLL
+from soc.clock.select import ClockSelect
+from soc.clock.dummypll import DummyPLL
 
 
 from nmutil.util import rising_edge
@@ -174,7 +175,7 @@ class TestIssuerInternal(Elaboratable):
             m.d.por += delay.eq(delay - 1)
         comb += cd_por.clk.eq(ClockSignal())
 
-        # power-on reset delay 
+        # power-on reset delay
         core_rst = ResetSignal("coresync")
         comb += ti_rst.eq(delay != 0 | dbg.core_rst_o | ResetSignal())
         comb += core_rst.eq(ti_rst)
@@ -459,7 +460,6 @@ class TestIssuer(Elaboratable):
         self.ti = TestIssuerInternal(pspec)
 
         self.pll = DummyPLL()
-        self.clksel = ClockSelect()
 
         # PLL direct clock or not
         self.pll_en = hasattr(pspec, "use_pll") and pspec.use_pll
@@ -472,50 +472,48 @@ class TestIssuer(Elaboratable):
         m.submodules.ti = ti = self.ti
         cd_int = ClockDomain("coresync")
 
-        # ClockSelect runs at PLL output internal clock rate
-        m.submodules.clksel = clksel = DomainRenamer("pllclk")(self.clksel)
-        m.submodules.pll = pll = self.pll
+        if self.pll_en:
+            # ClockSelect runs at PLL output internal clock rate
+            m.submodules.pll = pll = self.pll
 
-        # add 2 clock domains established above...
-        cd_pll = ClockDomain("pllclk")
-        m.domains += cd_pll
+            # add clock domains from PLL
+            cd_pll = ClockDomain("pllclk")
+            m.domains += cd_pll
+
+            # PLL clock established.  has the side-effect of running clklsel
+            # at the PLL's speed (see DomainRenamer("pllclk") above)
+            pllclk = ClockSignal("pllclk")
+            comb += pllclk.eq(pll.clk_pll_o)
+
+            # wire up external 24mhz to PLL
+            comb += pll.clk_24_i.eq(ClockSignal())
+
+            # now wire up ResetSignals.  don't mind them being in this domain
+            pll_rst = ResetSignal("pllclk")
+            comb += pll_rst.eq(ResetSignal())
 
         # internal clock is set to selector clock-out.  has the side-effect of
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
         intclk = ClockSignal("coresync")
         if self.pll_en:
-            comb += intclk.eq(clksel.core_clk_o)
+            comb += intclk.eq(pll.clk_pll_o)
         else:
             comb += intclk.eq(ClockSignal())
-
-        # PLL clock established.  has the side-effect of running clklsel
-        # at the PLL's speed (see DomainRenamer("pllclk") above)
-        pllclk = ClockSignal("pllclk")
-        comb += pllclk.eq(pll.clk_pll_o)
-
-        # wire up external 24mhz to PLL and clksel
-        comb += clksel.clk_24_i.eq(ClockSignal())
-        comb += pll.clk_24_i.eq(clksel.clk_24_i)
-
-        # now wire up ResetSignals.  don't mind them all being in this domain
-        #int_rst = ResetSignal("coresync")
-        pll_rst = ResetSignal("pllclk")
-        #comb += int_rst.eq(ResetSignal())
-        comb += pll_rst.eq(ResetSignal())
 
         return m
 
     def ports(self):
         return list(self.ti.ports()) + list(self.pll.ports()) + \
-               [ClockSignal(), ResetSignal()] + \
-               list(self.clksel.ports())
+               [ClockSignal(), ResetSignal()]
 
     def external_ports(self):
         ports = self.ti.external_ports()
         ports.append(ClockSignal())
         ports.append(ResetSignal())
-        ports.append(self.clksel.clk_sel_i)
-        ports.append(self.clksel.pll_48_o)
+        if self.pll_en:
+            ports.append(self.pll.clk_sel_i)
+            ports.append(self.pll.pll_18_o)
+            ports.append(self.pll.clk_lck_o)
         return ports
 
 
