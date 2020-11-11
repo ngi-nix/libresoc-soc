@@ -85,8 +85,8 @@ class MMUTestCase(TestAccumulatorBase):
                #"mfspr 27, 4", # SRR1
 
                #next two need to be added to the simulator
-               #"dcbz 5,6" # Data Cache Block set to Zero - RA,RB
-               #"tlbie 1,1,1,1,1"
+               #"dcbz 5,6" # Data Cache Block set to Zero - RA,RB (hangs)
+               "tlbie 1,1,1,1,1" #does not hang -- not verified yet
                ]
 
         initial_regs = [0] * 32
