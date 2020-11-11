@@ -78,6 +78,15 @@ class MMUTestCase(TestAccumulatorBase):
                "mtspr 19, 2", # DAR
                "mtspr 26, 3", # SRR0
                "mtspr 27, 4", # SRR1
+
+               "mfspr 18, 1", # DSISR
+               #"mfspr 19, 2", # DAR
+               "mfspr 26, 3", # SRR0
+               #"mfspr 27, 4", # SRR1
+
+               #next two need to be added to the simulator
+               #"dcbz 5,6" # Data Cache Block set to Zero - RA,RB
+               #"tlbie 1,1,1,1,1"
                ]
 
         initial_regs = [0] * 32
@@ -142,7 +151,7 @@ class TestRunner(unittest.TestCase):
         #        #ALUHelpers.check_xer_so(self, res, pia_o, code)
 
         with self.subTest(check="sim", sim_o=sim_o, pia_res=str(pia_res)):
-            ALUHelpers.check_int_o(self, res, sim_o, code)
+            #ALUHelpers.check_int_o(self, res, sim_o, code) # mmu is not an alu
             ALUHelpers.check_cr_a(self, res, sim_o, code)
             #ALUHelpers.check_xer_ov(self, res, sim_o, code)
             #ALUHelpers.check_xer_so(self, res, sim_o, code)
