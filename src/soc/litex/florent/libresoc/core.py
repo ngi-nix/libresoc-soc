@@ -239,10 +239,10 @@ class LibreSoC(CPU):
 
         # add clock select, pll output
         if variant == "ls180":
-            self.pll_48_o = Signal()
+            self.pll_18_o = Signal()
             self.clk_sel = Signal(3)
             self.cpu_params['i_clk_sel_i'] = self.clk_sel
-            self.cpu_params['o_pll_48_o'] = self.pll_48_o
+            self.cpu_params['o_pll_18_o'] = self.pll_18_o
 
         # add wishbone buses to cpu params
         self.cpu_params.update(make_wb_bus("ibus", ibus))
