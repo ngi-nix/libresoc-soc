@@ -12,13 +12,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Simple core issuer " \
                                      "verilog generator")
     parser.add_argument("output_filename")
-    parser.add_argument("--enable-xics", action="store_true",
+    parser.add_argument("--enable-xics", dest='xics', action="store_true",
                         help="Enable interrupts",
                         default=True)
-    parser.add_argument("--enable-core", action="store_true",
+    parser.add_argument("--disable-xics", dest='xics', action="store_false",
+                        help="Disable interrupts",
+                        default=False)
+    parser.add_argument("--enable-core", dest='core', action="store_true",
                         help="Enable main core",
                         default=True)
-    parser.add_argument("--use-pll", action="store_true", help="Enable pll",
+    parser.add_argument("--disable-core", dest='core', action="store_false",
+                        help="disable main core",
+                        default=False)
+    parser.add_argument("--enable-pll", dest='pll', action="store_true",
+                        help="Enable pll",
+                        default=False)
+    parser.add_argument("--disable-pll", dest='pll', action="store_false",
+                        help="Disable pll",
                         default=False)
     parser.add_argument("--enable-testgpio", action="store_true",
                         help="Disable gpio pins",
@@ -49,9 +59,9 @@ if __name__ == '__main__':
                          imem_reg_wid=64,
                          # set to 32 to make data wishbone bus 32-bit
                          #wb_data_wid=32,
-                         xics=args.enable_xics, # XICS interrupt controller
-                         nocore=not args.enable_core, # test coriolis2 ioring
-                         use_pll=args.use_pll,  # bypass PLL
+                         xics=args.xics, # XICS interrupt controller
+                         nocore=not args.core, # test coriolis2 ioring
+                         use_pll=args.pll,  # bypass PLL
                          gpio=args.enable_testgpio, # for test purposes
                          debug=args.debug,      # set to jtag or dmi
                          units=units)
