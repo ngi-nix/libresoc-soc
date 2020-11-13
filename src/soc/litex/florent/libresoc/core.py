@@ -157,10 +157,6 @@ class LibreSoC(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        # used by coriolis2 to connect up IO VSS/VDD to niolib GPIO cell lib
-        if False:
-            self.io_in        = Signal()
-            self.io_out        = Signal()
 
         irq_en = "noirq" not in variant
 
@@ -216,9 +212,6 @@ class LibreSoC(CPU):
             o_busy_o           = Signal(),   # not connected
             o_memerr_o         = Signal(),   # not connected
             o_pc_o             = Signal(64), # not connected
-
-            #o_io_in            = 0, # set io_in signal to False (for niolib)
-            #o_io_out           = 1, # set io_in signal to True (for niolib)
         )
 
         if irq_en:
