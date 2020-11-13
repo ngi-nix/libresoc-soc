@@ -16,9 +16,9 @@ class DummyPLL(Elaboratable):
         m = Module()
         m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
         # just get something, stops yosys destroying (optimising) these out
-        m.d.comb += self.pll_18_o.eq(self.clk_24_i)
         with m.If(self.clk_sel_i == Const(0, 2)):
             m.d.comb += self.pll_lck_o.eq(self.clk_24_i)
+            m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
 
         return m
 

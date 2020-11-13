@@ -240,7 +240,7 @@ class LibreSoC(CPU):
         # add clock select, pll output
         if variant == "ls180":
             self.pll_18_o = Signal()
-            self.clk_sel = Signal(3)
+            self.clk_sel = Signal(2)
             self.pll_lck_o = Signal()
             self.cpu_params['i_clk_sel_i'] = self.clk_sel
             self.cpu_params['o_pll_18_o'] = self.pll_18_o

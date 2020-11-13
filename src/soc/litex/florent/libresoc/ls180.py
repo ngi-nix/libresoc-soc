@@ -49,7 +49,7 @@ def io():
         # CLK/RST: 2 pins
         ("sys_clk", 0, Pins("G2"), IOStandard("LVCMOS33")),
         ("sys_rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
-        ("sys_clksel_i",   0, Pins("R1 R2 R3"), IOStandard("LVCMOS33")),
+        ("sys_clksel_i",   0, Pins("R1 R2"), IOStandard("LVCMOS33")),
         ("sys_pll_18_o",   0, Pins("R1"), IOStandard("LVCMOS33")),
         ("sys_pll_lck_o",   0, Pins("R1"), IOStandard("LVCMOS33")),
 
