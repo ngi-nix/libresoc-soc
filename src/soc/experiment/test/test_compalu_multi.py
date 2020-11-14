@@ -507,10 +507,10 @@ class CompUnitParallelTest:
 
 def test_compunit_regspec2_fsm():
 
-    inspec = [('INT', 'a', '0:15'),
-              ('INT', 'b', '0:15'),
+    inspec = [('INT', 'data', '0:15'),
+              ('INT', 'shift', '0:15'),
               ]
-    outspec = [('INT', 'o', '0:15'),
+    outspec = [('INT', 'data', '0:15'),
                ]
 
     regspec = (inspec, outspec)
@@ -523,7 +523,10 @@ def test_compunit_regspec2_fsm():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut)))
+    # create one operand producer for each input port
+    prod_a = OperandProducer(sim, dut, 0)
+    prod_b = OperandProducer(sim, dut, 1)
+    sim.add_sync_process(wrap(scoreboard_sim_fsm(dut, [prod_a, prod_b])))
     sim_writer = sim.write_vcd('test_compunit_regspec2_fsm.vcd')
     with sim_writer:
         sim.run()
@@ -587,4 +590,5 @@ if __name__ == '__main__':
     test_compunit()
     test_compunit_fsm()
     test_compunit_regspec1()
+    test_compunit_regspec2_fsm()
     test_compunit_regspec3()
