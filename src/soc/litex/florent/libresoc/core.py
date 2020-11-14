@@ -29,9 +29,12 @@ def make_wb_bus(prefix, obj, simple=False):
         res['i_%s__%s' % (prefix, i)] = getattr(obj, i)
     return res
 
-def make_wb_slave(prefix, obj):
+def make_wb_slave(prefix, obj, simple=False):
     res = {}
-    for i in ['stb', 'cyc', 'cti', 'bte', 'we', 'adr', 'dat_w', 'sel']:
+    inpins = ['stb', 'cyc', 'we', 'adr', 'dat_w', 'sel']
+    if not simple:
+        inpins += ['cti', 'bte']
+    for i in inpins:
         res['i_%s__%s' % (prefix, i)] = getattr(obj, i)
     for o in ['ack', 'err', 'dat_r']:
         res['o_%s__%s' % (prefix, o)] = getattr(obj, o)
@@ -250,14 +253,19 @@ class LibreSoC(CPU):
             self.cpu_params['o_pll_lck_o'] = self.pll_lck_o
 
         # add wishbone buses to cpu params
-        self.cpu_params.update(make_wb_bus("ibus", ibus))
-        self.cpu_params.update(make_wb_bus("dbus", dbus))
-        self.cpu_params.update(make_wb_slave("ics_wb", ics))
-        self.cpu_params.update(make_wb_slave("icp_wb", icp))
+        self.cpu_params.update(make_wb_bus("ibus", ibus, True))
+        self.cpu_params.update(make_wb_bus("dbus", dbus, True))
+        self.cpu_params.update(make_wb_slave("ics_wb", ics, True))
+        self.cpu_params.update(make_wb_slave("icp_wb", icp, True))
         if "testgpio" in variant:
             self.cpu_params.update(make_wb_slave("gpio_wb", gpio))
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
+        # and set ibus advanced tags to zero (disable)
+        self.cpu_params['i_ibus__cti'] = 0
+        self.cpu_params['i_ibus__bte'] = 0
+        self.cpu_params['i_dbus__cti'] = 0
+        self.cpu_params['i_dbus__bte'] = 0
 
         if variant == 'ls180':
             # urr yuk.  have to expose iopads / pins from core to litex

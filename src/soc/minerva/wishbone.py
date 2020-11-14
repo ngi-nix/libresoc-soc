@@ -14,12 +14,12 @@ class Cycle:
     END       = 7
 
 
-def make_wb_layout(spec):
+def make_wb_layout(spec, cti=True):
     addr_wid, mask_wid, data_wid = spec.addr_wid, spec.mask_wid, spec.reg_wid
     adr_lsbs = log2_int(mask_wid) # LSBs of addr covered by mask
     badwid = spec.addr_wid-adr_lsbs    # MSBs (not covered by mask)
 
-    return [
+    res = [
     ("adr",   badwid  , DIR_FANOUT),
     ("dat_w", data_wid, DIR_FANOUT),
     ("dat_r", data_wid, DIR_FANIN),
@@ -28,9 +28,13 @@ def make_wb_layout(spec):
     ("stb",           1, DIR_FANOUT),
     ("ack",           1, DIR_FANIN),
     ("we",            1, DIR_FANOUT),
-    ("cti",           3, DIR_FANOUT),
-    ("bte",           2, DIR_FANOUT),
     ("err",           1, DIR_FANIN)
+    ]
+    if not cti:
+        return res
+    return res + [
+        ("cti",           3, DIR_FANOUT),
+        ("bte",           2, DIR_FANOUT),
     ]
 
 

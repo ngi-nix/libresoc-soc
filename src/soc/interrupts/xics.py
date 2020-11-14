@@ -78,7 +78,7 @@ class XICS_ICP(Elaboratable):
         spec.addr_wid = 30
         spec.mask_wid = 4
         spec.reg_wid = 32
-        self.bus = Record(make_wb_layout(spec), name="icp_wb")
+        self.bus = Record(make_wb_layout(spec, cti=False), name="icp_wb")
         self.ics_i = ICS2ICP("ics_i")
         self.core_irq_o = Signal()
 
@@ -232,7 +232,7 @@ class XICS_ICS(Elaboratable):
         spec.addr_wid = 30
         spec.mask_wid = 4
         spec.reg_wid = 32
-        self.bus = Record(make_wb_layout(spec), name="ics_wb")
+        self.bus = Record(make_wb_layout(spec, cti=False), name="ics_wb")
 
         self.int_level_i = Signal(SRC_NUM)
         self.icp_o = ICS2ICP("icp_o")
