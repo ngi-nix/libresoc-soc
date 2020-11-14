@@ -38,10 +38,11 @@ def make_wb_slave(prefix, obj):
     return res
 
 def make_pad(res, dirn, name, suffix, cpup, iop):
-    print ("make pad", dirn, name, suffix, cpup, iop)
     cpud, iod = ('i', 'o') if dirn else ('o', 'i')
-    res['%s_%s__core__%s' % (cpud, name, suffix)] = cpup
-    res['%s_%s__pad__%s' % (iod, name, suffix)] = iop
+    cname = '%s_%s__core__%s' % (cpud, name, suffix)
+    pname = '%s_%s__pad__%s' % (iod, name, suffix)
+    print ("make pad", name, dirn, cpud, iod, cname, pname, suffix, cpup, iop)
+    res[cname], res[pname] = cpup, iop
 
 def get_field(rec, name):
     for f in rec.layout:
@@ -77,10 +78,12 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
         elif len(ps) == 2 and ps[-1].isdigit():
             pin, idx = ps
             idx = int(idx)
+            print ("ps split", pin, idx)
             cpup = getattr(cpu, pin)[idx]
             iop = getattr(io, pin)[idx]
         elif pin.isdigit():
             idx = int(pin)
+            print ("digit", idx)
             cpup = cpu[idx]
             iop = io[idx]
         else:
@@ -95,7 +98,7 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
     elif iotype == IOType.In:
         # input to the pad is routed through C4M JTAG and so
         # is an *OUTPUT* into core.  ls180soc connects this to "real" peripheral
-        make_pad(res, False, name, "i", cpup, iop)
+        make_pad(res, True, name, "i", cpup, iop)
 
     elif iotype == IOType.InTriOut:
         if fn == 'gpio': # sigh decode GPIO special-case
@@ -109,7 +112,7 @@ def make_jtag_ioconn(res, pin, cpupads, iopads):
             oe_idx = 0
         print ("gpio tri", fn, pin, iotype, pin_name, scan_idx, idx)
         cpup, iop = get_field(cpu, "i")[idx], get_field(io, "i")[idx]
-        make_pad(res, False, name, "i", cpup, iop)
+        make_pad(res, True, name, "i", cpup, iop)
         cpup, iop = get_field(cpu, "o")[idx], get_field(io, "o")[idx]
         make_pad(res, True, name, "o", cpup, iop)
         cpup, iop = get_field(cpu, "oe")[oe_idx], get_field(io, "oe")[oe_idx]
