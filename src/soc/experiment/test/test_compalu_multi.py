@@ -97,39 +97,6 @@ class OperandProducer:
         yield self.delay.eq(delay)
 
 
-def op_sim_fsm(dut, a, b, direction, producers, delays):
-    print("op_sim_fsm", a, b, direction)
-    yield dut.issue_i.eq(0)
-    yield
-    # forward data and delays to the producers
-    yield from producers[0].send(a, delays[0])
-    yield from producers[1].send(b, delays[1])
-    yield dut.oper_i.sdir.eq(direction)
-    yield dut.issue_i.eq(1)
-    yield
-    yield dut.issue_i.eq(0)
-    yield
-
-    req_rel_o = yield dut.wr.rel_o
-    result = yield dut.data_o
-    print("req_rel", req_rel_o, result)
-    while True:
-        req_rel_o = yield dut.wr.rel_o
-        result = yield dut.data_o
-        print("req_rel", req_rel_o, result)
-        if req_rel_o:
-            break
-        yield
-    yield dut.wr.go_i[0].eq(1)
-    yield Settle()
-    result = yield dut.data_o
-    yield
-    print("result", result)
-    yield dut.wr.go_i[0].eq(0)
-    yield
-    return result
-
-
 def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
     yield dut.issue_i.eq(0)
     yield
@@ -189,13 +156,46 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
 
 
 def scoreboard_sim_fsm(dut, producers):
-    result = yield from op_sim_fsm(dut, 13, 2, 1, producers, [0, 2])
+
+    def op_sim_fsm(a, b, direction, delays):
+        print("op_sim_fsm", a, b, direction)
+        yield dut.issue_i.eq(0)
+        yield
+        # forward data and delays to the producers
+        yield from producers[0].send(a, delays[0])
+        yield from producers[1].send(b, delays[1])
+        yield dut.oper_i.sdir.eq(direction)
+        yield dut.issue_i.eq(1)
+        yield
+        yield dut.issue_i.eq(0)
+        yield
+
+        req_rel_o = yield dut.wr.rel_o
+        res = yield dut.data_o
+        print("req_rel", req_rel_o, res)
+        while True:
+            req_rel_o = yield dut.wr.rel_o
+            res = yield dut.data_o
+            print("req_rel", req_rel_o, res)
+            if req_rel_o:
+                break
+            yield
+        yield dut.wr.go_i[0].eq(1)
+        yield Settle()
+        res = yield dut.data_o
+        yield
+        print("result", res)
+        yield dut.wr.go_i[0].eq(0)
+        yield
+        return res
+
+    result = yield from op_sim_fsm(13, 2, 1, [0, 2])
     assert result == 3, result
 
-    result = yield from op_sim_fsm(dut, 3, 4, 0, producers, [2, 0])
+    result = yield from op_sim_fsm(3, 4, 0, [2, 0])
     assert result == 48, result
 
-    result = yield from op_sim_fsm(dut, 21, 0, 0, producers, [1, 1])
+    result = yield from op_sim_fsm(21, 0, 0, [1, 1])
     assert result == 21, result
 
 
