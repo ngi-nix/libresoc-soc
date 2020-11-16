@@ -1,4 +1,5 @@
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
+from nmigen import Const
 from soc.fu.mmu.pipe_data import MMUInputData, MMUOutputData, MMUPipeSpec
 from nmutil.singlepipe import ControlBase
 from nmutil.util import rising_edge
@@ -12,6 +13,52 @@ from soc.decoder.power_decoder2 import decode_spr_num
 from soc.decoder.power_enums import MicrOp, SPR, XER_bits
 
 from soc.experiment.pimem import PortInterface
+from soc.experiment.pimem import PortInterfaceBase
+
+from soc.experiment.mem_types import LoadStore1ToDCacheType, LoadStore1ToMMUType
+from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
+
+# glue logic for microwatt mmu and dcache
+class LoadStore1(PortInterfaceBase):
+    def __init__(self, regwid=64, addrwid=4):
+        super().__init__(regwid, addrwid)
+        self.d_in  = LoadStore1ToDCacheType()
+        self.d_out = DCacheToLoadStore1Type()
+        self.l_in  = LoadStore1ToMMUType()
+        self.l_out = MMUToLoadStore1Type()
+
+    def set_wr_addr(self, m, addr, mask):
+        m.d.comb += self.d_in.addr.eq(addr)
+        m.d.comb += self.l_in.addr.eq(addr)
+        # TODO set mask
+        return None
+
+    def set_rd_addr(self, m, addr, mask):
+        m.d.comb += self.d_in.addr.eq(addr)
+        m.d.comb += self.l_in.addr.eq(addr)
+        # TODO set mask
+        return None
+
+    def set_wr_data(self, m, data, wen):
+        m.d.comb += self.d_in.data.eq(data)
+        # TODO set wen
+        st_ok = Const(1, 1)
+        return st_ok
+
+    def get_rd_data(self, m):
+        ld_ok = Const(1, 1)
+        data = self.d_out.data
+        return data, ld_ok
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+        #TODO
+
+        return m
+
+    def ports(self):
+        yield from super().ports()
+        # TODO: memory ports
 
 class FSMMMUStage(ControlBase):
     def __init__(self, pspec):
@@ -23,7 +70,8 @@ class FSMMMUStage(ControlBase):
         self.n.data_o = MMUOutputData(pspec)
 
         # incoming PortInterface
-        self.pi = PortInterface("mmupi")
+        self.ldst = LoadStore1()
+        self.pi = self.ldst.pi
 
         # this Function Unit is extremely unusual in that it actually stores a
         # "thing" rather than "processes inputs and produces outputs".  hence
@@ -55,10 +103,16 @@ class FSMMMUStage(ControlBase):
         # link mmu and dcache together
         m.submodules.dcache = dcache = self.dcache
         m.submodules.mmu = mmu = self.mmu
+        m.submodules.ldst = ldst = self.ldst
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
         l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
+
+        comb += l_in.eq(self.ldst.l_in)
+        comb += self.ldst.l_out.eq(l_out)
+        comb += d_in.eq(self.ldst.d_in)
+        comb += self.ldst.d_out.eq(self.dcache.d_out)
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
@@ -144,7 +198,7 @@ class FSMMMUStage(ControlBase):
                     comb += d_in.valid.eq(blip)     # start
                     comb += d_in.dcbz.eq(1)         # dcbz mode
                     comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
-                    comb += done.eq(l_out.done)     # zzzz
+                    comb += done.eq(d_out.store_done)     # TODO
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
