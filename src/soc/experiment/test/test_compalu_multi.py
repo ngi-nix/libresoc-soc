@@ -48,6 +48,8 @@ class OperandProducer:
     flag to terminate itself.
     """
     def __init__(self, sim, dut, op_index):
+        self.count = Signal(8, name=f"src{op_index + 1}_count")
+        """ transaction counter"""
         # data and handshake signals from the DUT
         self.port = dut.src_i[op_index]
         self.go_i = dut.rd.go_i[op_index]
@@ -77,6 +79,7 @@ class OperandProducer:
             # activate go_i and present data, for one cycle
             yield self.go_i.eq(1)
             yield self.port.eq(data)
+            yield self.count.eq(self.count + 1)
             yield
             yield self.go_i.eq(0)
             yield self.port.eq(0)
@@ -114,6 +117,8 @@ class ResultConsumer:
     flag to terminate itself.
     """
     def __init__(self, sim, dut, op_index):
+        self.count = Signal(8, name=f"dest{op_index + 1}_count")
+        """ transaction counter"""
         # data and handshake signals from the DUT
         self.port = dut.dest[op_index]
         self.go_i = dut.wr.go_i[op_index]
@@ -142,6 +147,7 @@ class ResultConsumer:
                 yield
             # activate go_i for one cycle
             yield self.go_i.eq(1)
+            yield self.count.eq(self.count + 1)
             yield
             # check received data against the expected value
             result = (yield self.port)
@@ -226,6 +232,9 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
 
 def scoreboard_sim_fsm(dut, producers, consumers):
 
+    # stores the operation count
+    op_count = 0
+
     def op_sim_fsm(a, b, direction, expected, delays):
         print("op_sim_fsm", a, b, direction, expected)
         yield dut.issue_i.eq(0)
@@ -244,6 +253,14 @@ def scoreboard_sim_fsm(dut, producers, consumers):
         while (yield dut.busy_o):
             yield
             yield Settle()
+        # update the operation count
+        nonlocal op_count
+        op_count = (op_count + 1) & 255
+        # check that producers and consumers have the same count
+        # this assures that no data was left unused or was lost
+        assert (yield producers[0].count) == op_count
+        assert (yield producers[1].count) == op_count
+        assert (yield consumers[0].count) == op_count
 
     yield from op_sim_fsm(13, 2, 1, 3, [0, 2, 0])
     yield from op_sim_fsm(3, 4, 0, 48, [2, 0, 2])
@@ -296,7 +313,9 @@ def test_compunit_fsm():
             'p_data_i[7:0]', 'p_shift_i[7:0]', 'op__sdir',
             'p_valid_i', 'p_ready_o', 'n_valid_o', 'n_ready_i',
             'n_data_o[7:0]'
-        ])
+        ]),
+        ('debug', {'module': 'top'},
+         ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])
 
     ]
     write_gtkw(
@@ -325,7 +344,10 @@ def test_compunit_fsm():
     sim.add_sync_process(wrap(scoreboard_sim_fsm(dut,
                                                  [prod_a, prod_b],
                                                  [cons])))
-    sim_writer = sim.write_vcd('test_compunit_fsm1.vcd')
+    sim_writer = sim.write_vcd('test_compunit_fsm1.vcd',
+                               traces=[prod_a.count,
+                                       prod_b.count,
+                                       cons.count])
     with sim_writer:
         sim.run()
 
@@ -586,7 +608,10 @@ def test_compunit_regspec2_fsm():
     sim.add_sync_process(wrap(scoreboard_sim_fsm(dut,
                                                  [prod_a, prod_b],
                                                  [cons])))
-    sim_writer = sim.write_vcd('test_compunit_regspec2_fsm.vcd')
+    sim_writer = sim.write_vcd('test_compunit_regspec2_fsm.vcd',
+                               traces=[prod_a.count,
+                                       prod_b.count,
+                                       cons.count])
     with sim_writer:
         sim.run()
 
