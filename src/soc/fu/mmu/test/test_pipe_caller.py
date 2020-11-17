@@ -74,24 +74,27 @@ class MMUTestCase(TestAccumulatorBase):
     def case_1_mmu(self):
         # test case for MTSPR, MFSPR, DCBZ and TLBIE.
         #lst = ["dcbz 2,3"] not yet implemented
-        lst = ["mtspr 18, 1", # DSISR
-               "mtspr 19, 2", # DAR
-               "mtspr 26, 3", # SRR0
-               "mtspr 27, 4", # SRR1
+        lst = [#"mtspr 18, 1", # DSISR
+               #"mtspr 19, 2", # DAR
+               #"mtspr 26, 3", # SRR0
+               #"mtspr 27, 4", # SRR1
 
-               "mfspr 18, 1", # DSISR
+               #"mfspr 18, 1", # DSISR
                #"mfspr 19, 2", # DAR
-               "mfspr 26, 3", # SRR0
+               #"mfspr 26, 3", # SRR0
                #"mfspr 27, 4", # SRR1
 
                #next two need to be added to the simulator
-               #"dcbz 5,6" # Data Cache Block set to Zero - RA,RB (hangs)
-               "tlbie 1,1,1,1,1" #does not hang -- not verified yet
+               "dcbz 5,6" # Data Cache Block set to Zero - RA,RB (hangs)
+               #"tlbie 1,1,1,1,1" #does not hang -- not verified yet
                ]
 
         initial_regs = [0] * 32
         initial_regs[1] = 0xBADCAB1E
         initial_regs[2] = 0xDEADC0DE
+        initial_regs[5] = 0x100
+        initial_regs[6] = 0x100
+
         initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
                         'XER': 0xe00c0000}
         self.add_case(Program(lst, bigendian),
