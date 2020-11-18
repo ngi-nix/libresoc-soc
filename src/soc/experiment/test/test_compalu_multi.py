@@ -306,9 +306,20 @@ def scoreboard_sim(dut):
 def test_compunit_fsm():
     top = "top.cu" if is_engine_pysim() else "cu"
     traces = [
-        'clk', 'src1_i[7:0]', 'src2_i[7:0]', 'oper_i_None__sdir', 'cu_issue_i',
-        'cu_busy_o', 'cu_rd__rel_o[1:0]', 'cu_rd__go_i[1:0]',
-        'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[7:0]',
+        'clk',
+        ('operation port', {'color': 'red'}, [
+            'oper_i_None__sdir', 'cu_issue_i',
+            'cu_busy_o']),
+        ('operand 1 port', {'color': 'yellow'}, [
+            ('cu_rd__rel_o[1:0]', {'bit': 1}),
+            ('cu_rd__go_i[1:0]', {'bit': 1}),
+            'src1_i[7:0]']),
+        ('operand 2 port', {'color': 'yellow'}, [
+            ('cu_rd__rel_o[1:0]', {'bit': 0}),
+            ('cu_rd__go_i[1:0]', {'bit': 0}),
+            'src2_i[7:0]']),
+        ('result port', {'color': 'orange'}, [
+            'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[7:0]']),
         ('alu', {'module': top+'.alu'}, [
             'p_data_i[7:0]', 'p_shift_i[7:0]', 'op__sdir',
             'p_valid_i', 'p_ready_o', 'n_valid_o', 'n_ready_i',
