@@ -262,8 +262,19 @@ def scoreboard_sim_fsm(dut, producers, consumers):
         assert (yield producers[1].count) == op_count
         assert (yield consumers[0].count) == op_count
 
+    # 13 >> 2 = 3
+    # operand 1 arrives immediately
+    # operand 2 arrives after operand 1
+    # write data is accepted immediately
     yield from op_sim_fsm(13, 2, 1, 3, [0, 2, 0])
+    # 3 << 4 = 48
+    # operand 2 arrives immediately
+    # operand 1 arrives after operand 2
+    # write data is accepted after some delay
     yield from op_sim_fsm(3, 4, 0, 48, [2, 0, 2])
+    # 21 << 0 = 21
+    # operands 1 and 2 arrive at the same time
+    # write data is accepted after some delay
     yield from op_sim_fsm(21, 0, 0, 21, [1, 1, 1])
 
 
