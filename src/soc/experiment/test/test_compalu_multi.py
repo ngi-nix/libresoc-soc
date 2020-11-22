@@ -288,16 +288,25 @@ def scoreboard_sim_dummy(dut):
     assert result == 9, result
 
 
-def scoreboard_sim(dut, producers, consumers):
+class OpSim:
+    """ALU Operation issuer
 
-    # stores the operation count
-    op_count = 0
-    zero_a_count = 0
-    imm_ok_count = 0
+    Issues operations to the DUT"""
+    def __init__(self, dut, producers, consumers):
+        self.op_count = 0
+        self.zero_a_count = 0
+        self.imm_ok_count = 0
+        self.dut = dut
+        self.producers = producers
+        self.consumers = consumers
 
-    def op_sim_alu(a, b, op, expected, delays,
-                   inv_a=0, imm=0, imm_ok=0, zero_a=0):
-        print("op_sim", a, b, op, expected)
+    def issue(self, a, b, op, expected, delays,
+              inv_a=0, imm=0, imm_ok=0, zero_a=0):
+        """Executes the issue operation"""
+        dut = self.dut
+        producers = self.producers
+        consumers = self.consumers
+        print("issue", a, b, op, expected)
         yield dut.issue_i.eq(0)
         yield
         # forward data and delays to the producers and consumers
@@ -321,49 +330,46 @@ def scoreboard_sim(dut, producers, consumers):
             yield
             yield Settle()
         # update the operation count
-        nonlocal op_count, zero_a_count, imm_ok_count
-        op_count = (op_count + 1) & 255
+        self.op_count = (self.op_count + 1) & 255
         # On zero_a and imm_ok executions, the producer counters will fall
         # behind. But, by summing the following counts, the invariant is
         # preserved.
         if zero_a:
-            zero_a_count = zero_a_count + 1
+            self.zero_a_count = self.zero_a_count + 1
         if imm_ok:
-            imm_ok_count = imm_ok_count + 1
+            self.imm_ok_count = self.imm_ok_count + 1
         # check that producers and consumers have the same count
         # this assures that no data was left unused or was lost
-        assert (yield producers[0].count) + zero_a_count == op_count
-        assert (yield producers[1].count) + imm_ok_count == op_count
-        assert (yield consumers[0].count) == op_count
+        assert (yield producers[0].count) + self.zero_a_count == self.op_count
+        assert (yield producers[1].count) + self.imm_ok_count == self.op_count
+        assert (yield consumers[0].count) == self.op_count
 
+
+def scoreboard_sim(op):
     # zero (no) input operands test
     # 0 + 8 = 8
-    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
-                          zero_a=1, imm=8, imm_ok=1,
-                          expected=8, delays=[0, 2, 0])
-
+    yield from op.issue(5, 2, MicrOp.OP_ADD,
+                        zero_a=1, imm=8, imm_ok=1,
+                        expected=8, delays=[0, 2, 0])
     # 5 + 8 = 13
-    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
-                          inv_a=0, imm=8, imm_ok=1,
-                          expected=13, delays=[2, 0, 2])
-
+    yield from op.issue(5, 2, MicrOp.OP_ADD,
+                        inv_a=0, imm=8, imm_ok=1,
+                        expected=13, delays=[2, 0, 2])
     # 5 + 2 = 7
-    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
-                          expected=7, delays=[1, 1, 1])
-
+    yield from op.issue(5, 2, MicrOp.OP_ADD,
+                        expected=7, delays=[1, 1, 1])
     # (-6) + 2 = (-4)
-    yield from op_sim_alu(5, 2, MicrOp.OP_ADD, inv_a=1,
-                          expected=65532, delays=[1, 2, 0])
-
+    yield from op.issue(5, 2, MicrOp.OP_ADD, inv_a=1,
+                        expected=65532, delays=[1, 2, 0])
     # 0 + 2 = 2
-    yield from op_sim_alu(5, 2, MicrOp.OP_ADD, zero_a=1,
-                          expected=2, delays=[2, 0, 1])
+    yield from op.issue(5, 2, MicrOp.OP_ADD, zero_a=1,
+                        expected=2, delays=[2, 0, 1])
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL or SHR
     # is zero-delay, and do a subtraction.
-    yield from op_sim_alu(5, 2, MicrOp.OP_NOP,
-                          expected=3, delays=[0, 1, 2])
+    yield from op.issue(5, 2, MicrOp.OP_NOP,
+                        expected=3, delays=[0, 1, 2])
 
 
 def test_compunit_fsm():
@@ -452,9 +458,9 @@ def test_compunit():
     prod_b = OperandProducer(sim, dut, 1)
     # create an result consumer for the output port
     cons = ResultConsumer(sim, dut, 0)
-    sim.add_sync_process(wrap(scoreboard_sim(dut,
-                                             [prod_a, prod_b],
-                                             [cons])))
+    # create an operation issuer
+    op = OpSim(dut, [prod_a, prod_b], [cons])
+    sim.add_sync_process(wrap(scoreboard_sim(op)))
     sim_writer = sim.write_vcd('test_compunit1.vcd')
     with sim_writer:
         sim.run()
@@ -793,9 +799,9 @@ def test_compunit_regspec1():
     prod_b = OperandProducer(sim, dut, 1)
     # create an result consumer for the output port
     cons = ResultConsumer(sim, dut, 0)
-    sim.add_sync_process(wrap(scoreboard_sim(dut,
-                                             [prod_a, prod_b],
-                                             [cons])))
+    # create an operation issuer
+    op = OpSim(dut, [prod_a, prod_b], [cons])
+    sim.add_sync_process(wrap(scoreboard_sim(op)))
     sim_writer = sim.write_vcd('test_compunit_regspec1.vcd',
                                traces=[prod_a.count,
                                        prod_b.count,
