@@ -288,30 +288,82 @@ def scoreboard_sim_dummy(dut):
     assert result == 9, result
 
 
-def scoreboard_sim(dut):
+def scoreboard_sim(dut, producers, consumers):
+
+    # stores the operation count
+    op_count = 0
+    zero_a_count = 0
+    imm_ok_count = 0
+
+    def op_sim_alu(a, b, op, expected, delays,
+                   inv_a=0, imm=0, imm_ok=0, zero_a=0):
+        print("op_sim", a, b, op, expected)
+        yield dut.issue_i.eq(0)
+        yield
+        # forward data and delays to the producers and consumers
+        if not zero_a:
+            yield from producers[0].send(a, delays[0])
+        if not imm_ok:
+            yield from producers[1].send(b, delays[1])
+        yield from consumers[0].receive(expected, delays[2])
+        # submit operation, and assert issue_i for one cycle
+        yield dut.oper_i.insn_type.eq(op)
+        yield dut.oper_i.invert_in.eq(inv_a)
+        yield dut.oper_i.imm_data.data.eq(imm)
+        yield dut.oper_i.imm_data.ok.eq(imm_ok)
+        yield dut.oper_i.zero_a.eq(zero_a)
+        yield dut.issue_i.eq(1)
+        yield
+        yield dut.issue_i.eq(0)
+        # wait for busy to be negated
+        yield Settle()
+        while (yield dut.busy_o):
+            yield
+            yield Settle()
+        # update the operation count
+        nonlocal op_count, zero_a_count, imm_ok_count
+        op_count = (op_count + 1) & 255
+        # On zero_a and imm_ok executions, the producer counters will fall
+        # behind. But, by summing the following counts, the invariant is
+        # preserved.
+        if zero_a:
+            zero_a_count = zero_a_count + 1
+        if imm_ok:
+            imm_ok_count = imm_ok_count + 1
+        # check that producers and consumers have the same count
+        # this assures that no data was left unused or was lost
+        assert (yield producers[0].count) + zero_a_count == op_count
+        assert (yield producers[1].count) + imm_ok_count == op_count
+        assert (yield consumers[0].count) == op_count
+
     # zero (no) input operands test
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1,
-                               imm=8, imm_ok=1)
-    assert result == 8
+    # 0 + 8 = 8
+    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
+                          zero_a=1, imm=8, imm_ok=1,
+                          expected=8, delays=[0, 2, 0])
 
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=0,
-                               imm=8, imm_ok=1)
-    assert result == 13
+    # 5 + 8 = 13
+    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
+                          inv_a=0, imm=8, imm_ok=1,
+                          expected=13, delays=[2, 0, 2])
 
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD)
-    assert result == 7
+    # 5 + 2 = 7
+    yield from op_sim_alu(5, 2, MicrOp.OP_ADD,
+                          expected=7, delays=[1, 1, 1])
 
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, inv_a=1)
-    assert result == 65532
+    # (-6) + 2 = (-4)
+    yield from op_sim_alu(5, 2, MicrOp.OP_ADD, inv_a=1,
+                          expected=65532, delays=[1, 2, 0])
 
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_ADD, zero_a=1)
-    assert result == 2
+    # 0 + 2 = 2
+    yield from op_sim_alu(5, 2, MicrOp.OP_ADD, zero_a=1,
+                          expected=2, delays=[2, 0, 1])
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL or SHR
     # is zero-delay, and do a subtraction.
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP)
-    assert result == 3
+    yield from op_sim_alu(5, 2, MicrOp.OP_NOP,
+                          expected=3, delays=[0, 1, 2])
 
 
 def test_compunit_fsm():
@@ -395,7 +447,14 @@ def test_compunit():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(scoreboard_sim(dut)))
+    # create one operand producer for each input port
+    prod_a = OperandProducer(sim, dut, 0)
+    prod_b = OperandProducer(sim, dut, 1)
+    # create an result consumer for the output port
+    cons = ResultConsumer(sim, dut, 0)
+    sim.add_sync_process(wrap(scoreboard_sim(dut,
+                                             [prod_a, prod_b],
+                                             [cons])))
     sim_writer = sim.write_vcd('test_compunit1.vcd')
     with sim_writer:
         sim.run()
@@ -700,7 +759,10 @@ def test_compunit_regspec1():
                 'op__insn_type', 'op__invert_i', 'a[15:0]', 'b[15:0]',
                 'valid_i', 'ready_o']),
             ('next port', 'out', [
-                'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+                'alu_o[15:0]', 'valid_o', 'ready_i'])]),
+        ('debug', {'module': 'top'},
+            ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]
+
     write_gtkw("test_compunit_regspec1.gtkw",
                "test_compunit_regspec1.vcd",
                traces, style,
@@ -726,8 +788,18 @@ def test_compunit_regspec1():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(scoreboard_sim(dut)))
-    sim_writer = sim.write_vcd('test_compunit_regspec1.vcd')
+    # create one operand producer for each input port
+    prod_a = OperandProducer(sim, dut, 0)
+    prod_b = OperandProducer(sim, dut, 1)
+    # create an result consumer for the output port
+    cons = ResultConsumer(sim, dut, 0)
+    sim.add_sync_process(wrap(scoreboard_sim(dut,
+                                             [prod_a, prod_b],
+                                             [cons])))
+    sim_writer = sim.write_vcd('test_compunit_regspec1.vcd',
+                               traces=[prod_a.count,
+                                       prod_b.count,
+                                       cons.count])
     with sim_writer:
         sim.run()
 
