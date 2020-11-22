@@ -671,6 +671,42 @@ def test_compunit_regspec3():
 
 def test_compunit_regspec1():
 
+    style = {
+        'in': {'color': 'orange'},
+        'out': {'color': 'yellow'},
+    }
+    traces = [
+        'clk',
+        ('operation port', {'color': 'red'}, [
+            'cu_issue_i', 'cu_busy_o',
+            {'comment': 'operation'},
+            ('oper_i_None__insn_type', {'display': 'insn_type'}),
+            ('oper_i_None__invert_in', {'display': 'invert_in'}),
+            ('oper_i_None__imm_data__data[63:0]', {'display': 'data[63:0]'}),
+            ('oper_i_None__imm_data__imm_ok', {'display': 'imm_ok'}),
+            ('oper_i_None__zero_a', {'display': 'zero_a'})]),
+        ('operand 1 port', 'in', [
+            ('cu_rd__rel_o[1:0]', {'bit': 1}),
+            ('cu_rd__go_i[1:0]', {'bit': 1}),
+            'src1_i[15:0]']),
+        ('operand 2 port', 'in', [
+            ('cu_rd__rel_o[1:0]', {'bit': 0}),
+            ('cu_rd__go_i[1:0]', {'bit': 0}),
+            'src2_i[15:0]']),
+        ('result port', 'out', [
+            'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+        ('alu', {'module': 'top.cu.alu'}, [
+            ('prev port', 'in', [
+                'op__insn_type', 'op__invert_i', 'a[15:0]', 'b[15:0]',
+                'valid_i', 'ready_o']),
+            ('next port', 'out', [
+                'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+    write_gtkw("test_compunit_regspec1.gtkw",
+               "test_compunit_regspec1.vcd",
+               traces, style,
+               clk_period=1e-6,
+               module='top.cu')
+
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15')]
     outspec = [('INT', 'o', '0:15'),
