@@ -292,29 +292,38 @@ class OpSim:
     """ALU Operation issuer
 
     Issues operations to the DUT"""
-    def __init__(self, dut, producers, consumers):
+    def __init__(self, dut, sim):
         self.op_count = 0
         self.zero_a_count = 0
         self.imm_ok_count = 0
         self.dut = dut
-        self.producers = producers
-        self.consumers = consumers
-
-    def issue(self, a, b, op, expected, delays,
+        # create one operand producer for each input port
+        self.producers = list()
+        for i in range(len(dut.src_i)):
+            self.producers.append(OperandProducer(sim, dut, i))
+        # create one result consumer for each output port
+        self.consumers = list()
+        for i in range(len(dut.dest)):
+            self.consumers.append(ResultConsumer(sim, dut, i))
+    def issue(self, src_i, op, expected, src_delays, dest_delays,
               inv_a=0, imm=0, imm_ok=0, zero_a=0):
         """Executes the issue operation"""
         dut = self.dut
         producers = self.producers
         consumers = self.consumers
-        print("issue", a, b, op, expected)
         yield dut.issue_i.eq(0)
         yield
         # forward data and delays to the producers and consumers
+        # first, send special cases (with zero_a and/or imm_ok)
         if not zero_a:
-            yield from producers[0].send(a, delays[0])
+            yield from producers[0].send(src_i[0], src_delays[0])
         if not imm_ok:
-            yield from producers[1].send(b, delays[1])
-        yield from consumers[0].receive(expected, delays[2])
+            yield from producers[1].send(src_i[1], src_delays[1])
+        # then, send the rest (if any)
+        for i in range(2, len(producers)):
+            yield from producers[i].send(src_i[i], src_delays[i])
+        for i in range(len(consumers)):
+            yield from consumers[i].receive(expected, dest_delays[i])
         # submit operation, and assert issue_i for one cycle
         yield dut.oper_i.insn_type.eq(op)
         yield dut.oper_i.invert_in.eq(inv_a)
@@ -340,36 +349,47 @@ class OpSim:
             self.imm_ok_count = self.imm_ok_count + 1
         # check that producers and consumers have the same count
         # this assures that no data was left unused or was lost
+        # first, check special cases (zero_a and imm_ok)
         assert (yield producers[0].count) + self.zero_a_count == self.op_count
         assert (yield producers[1].count) + self.imm_ok_count == self.op_count
-        assert (yield consumers[0].count) == self.op_count
+        # then, check the rest (if any)
+        for i in range(2, len(producers)):
+            assert (yield producers[i].count) == self.op_count
+        for i in range(len(consumers)):
+            assert (yield consumers[i].count) == self.op_count
 
 
 def scoreboard_sim(op):
     # zero (no) input operands test
     # 0 + 8 = 8
-    yield from op.issue(5, 2, MicrOp.OP_ADD,
+    yield from op.issue([5, 2], MicrOp.OP_ADD,
                         zero_a=1, imm=8, imm_ok=1,
-                        expected=8, delays=[0, 2, 0])
+                        expected=8,
+                        src_delays=[0, 2], dest_delays=[0])
     # 5 + 8 = 13
-    yield from op.issue(5, 2, MicrOp.OP_ADD,
+    yield from op.issue([5, 2], MicrOp.OP_ADD,
                         inv_a=0, imm=8, imm_ok=1,
-                        expected=13, delays=[2, 0, 2])
+                        expected=13,
+                        src_delays=[2, 0], dest_delays=[2])
     # 5 + 2 = 7
-    yield from op.issue(5, 2, MicrOp.OP_ADD,
-                        expected=7, delays=[1, 1, 1])
+    yield from op.issue([5, 2], MicrOp.OP_ADD,
+                        expected=7,
+                        src_delays=[1, 1], dest_delays=[1])
     # (-6) + 2 = (-4)
-    yield from op.issue(5, 2, MicrOp.OP_ADD, inv_a=1,
-                        expected=65532, delays=[1, 2, 0])
+    yield from op.issue([5, 2], MicrOp.OP_ADD, inv_a=1,
+                        expected=65532,
+                        src_delays=[1, 2], dest_delays=[0])
     # 0 + 2 = 2
-    yield from op.issue(5, 2, MicrOp.OP_ADD, zero_a=1,
-                        expected=2, delays=[2, 0, 1])
+    yield from op.issue([5, 2], MicrOp.OP_ADD, zero_a=1,
+                        expected=2,
+                        src_delays=[2, 0], dest_delays=[1])
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL or SHR
     # is zero-delay, and do a subtraction.
-    yield from op.issue(5, 2, MicrOp.OP_NOP,
-                        expected=3, delays=[0, 1, 2])
+    yield from op.issue([5, 2], MicrOp.OP_NOP,
+                        expected=3,
+                        src_delays=[0, 1], dest_delays=[2])
 
 
 def test_compunit_fsm():
@@ -453,13 +473,8 @@ def test_compunit():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    # create one operand producer for each input port
-    prod_a = OperandProducer(sim, dut, 0)
-    prod_b = OperandProducer(sim, dut, 1)
-    # create an result consumer for the output port
-    cons = ResultConsumer(sim, dut, 0)
     # create an operation issuer
-    op = OpSim(dut, [prod_a, prod_b], [cons])
+    op = OpSim(dut, sim)
     sim.add_sync_process(wrap(scoreboard_sim(op)))
     sim_writer = sim.write_vcd('test_compunit1.vcd')
     with sim_writer:
@@ -794,18 +809,13 @@ def test_compunit_regspec1():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    # create one operand producer for each input port
-    prod_a = OperandProducer(sim, dut, 0)
-    prod_b = OperandProducer(sim, dut, 1)
-    # create an result consumer for the output port
-    cons = ResultConsumer(sim, dut, 0)
     # create an operation issuer
-    op = OpSim(dut, [prod_a, prod_b], [cons])
+    op = OpSim(dut, sim)
     sim.add_sync_process(wrap(scoreboard_sim(op)))
     sim_writer = sim.write_vcd('test_compunit_regspec1.vcd',
-                               traces=[prod_a.count,
-                                       prod_b.count,
-                                       cons.count])
+                               traces=[op.producers[0].count,
+                                       op.producers[1].count,
+                                       op.consumers[0].count])
     with sim_writer:
         sim.run()
 
