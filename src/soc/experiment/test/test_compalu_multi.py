@@ -323,7 +323,7 @@ class OpSim:
         for i in range(2, len(producers)):
             yield from producers[i].send(src_i[i], src_delays[i])
         for i in range(len(consumers)):
-            yield from consumers[i].receive(expected, dest_delays[i])
+            yield from consumers[i].receive(expected[i], dest_delays[i])
         # submit operation, and assert issue_i for one cycle
         yield dut.oper_i.insn_type.eq(op)
         yield dut.oper_i.invert_in.eq(inv_a)
@@ -362,33 +362,30 @@ class OpSim:
 def scoreboard_sim(op):
     # zero (no) input operands test
     # 0 + 8 = 8
-    yield from op.issue([5, 2], MicrOp.OP_ADD,
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [8],
                         zero_a=1, imm=8, imm_ok=1,
-                        expected=8,
                         src_delays=[0, 2], dest_delays=[0])
     # 5 + 8 = 13
-    yield from op.issue([5, 2], MicrOp.OP_ADD,
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [13],
                         inv_a=0, imm=8, imm_ok=1,
-                        expected=13,
                         src_delays=[2, 0], dest_delays=[2])
     # 5 + 2 = 7
-    yield from op.issue([5, 2], MicrOp.OP_ADD,
-                        expected=7,
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [7],
                         src_delays=[1, 1], dest_delays=[1])
     # (-6) + 2 = (-4)
-    yield from op.issue([5, 2], MicrOp.OP_ADD, inv_a=1,
-                        expected=65532,
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [65532],
+                        inv_a=1,
                         src_delays=[1, 2], dest_delays=[0])
     # 0 + 2 = 2
-    yield from op.issue([5, 2], MicrOp.OP_ADD, zero_a=1,
-                        expected=2,
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [2],
+                        zero_a=1,
                         src_delays=[2, 0], dest_delays=[1])
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL or SHR
     # is zero-delay, and do a subtraction.
-    yield from op.issue([5, 2], MicrOp.OP_NOP,
-                        expected=3,
+    # 5 - 2 = 3
+    yield from op.issue([5, 2], MicrOp.OP_NOP, [3],
                         src_delays=[0, 1], dest_delays=[2])
 
 
