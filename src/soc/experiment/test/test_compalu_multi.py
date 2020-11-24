@@ -12,6 +12,7 @@ Documented at http://libre-soc.org/3d_gpu/architecture/compunit
 
 from soc.experiment.alu_fsm import Shifter, CompFSMOpSubset
 from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.cr.cr_input_record import CompCROpSubset
 from soc.experiment.alu_hier import ALU, DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.decoder.power_enums import MicrOp
@@ -278,14 +279,11 @@ def scoreboard_sim_fsm(dut, producers, consumers):
     yield from op_sim_fsm(21, 0, 0, 21, [1, 1, 1])
 
 
-def scoreboard_sim_dummy(dut):
-    result = yield from op_sim(dut, 5, 2, MicrOp.OP_NOP, inv_a=0,
-                               imm=8, imm_ok=1)
-    assert result == 5, result
-
-    result = yield from op_sim(dut, 9, 2, MicrOp.OP_NOP, inv_a=0,
-                               imm=8, imm_ok=1)
-    assert result == 9, result
+def scoreboard_sim_dummy(op):
+    yield from op.issue([5, 2, 0], MicrOp.OP_NOP, [5],
+                        src_delays=[0, 2, 1], dest_delays=[0])
+    yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [9],
+                        src_delays=[2, 1, 0], dest_delays=[2])
 
 
 class OpSim:
@@ -326,10 +324,13 @@ class OpSim:
             yield from consumers[i].receive(expected[i], dest_delays[i])
         # submit operation, and assert issue_i for one cycle
         yield dut.oper_i.insn_type.eq(op)
-        yield dut.oper_i.invert_in.eq(inv_a)
-        yield dut.oper_i.imm_data.data.eq(imm)
-        yield dut.oper_i.imm_data.ok.eq(imm_ok)
-        yield dut.oper_i.zero_a.eq(zero_a)
+        if hasattr(dut.oper_i, "invert_in"):
+            yield dut.oper_i.invert_in.eq(inv_a)
+        if hasattr(dut.oper_i, "imm_data"):
+            yield dut.oper_i.imm_data.data.eq(imm)
+            yield dut.oper_i.imm_data.ok.eq(imm_ok)
+        if hasattr(dut.oper_i, "zero_a"):
+            yield dut.oper_i.zero_a.eq(zero_a)
         yield dut.issue_i.eq(1)
         yield
         yield dut.issue_i.eq(0)
@@ -724,6 +725,43 @@ def test_compunit_regspec2_fsm():
 
 def test_compunit_regspec3():
 
+    style = {
+        'in': {'color': 'orange'},
+        'out': {'color': 'yellow'},
+    }
+    traces = [
+        'clk',
+        ('operation port', {'color': 'red'}, [
+            'cu_issue_i', 'cu_busy_o',
+            {'comment': 'operation'},
+            ('oper_i_None__insn_type', {'display': 'insn_type'})]),
+        ('operand 1 port', 'in', [
+            ('cu_rd__rel_o[2:0]', {'bit': 2}),
+            ('cu_rd__go_i[2:0]', {'bit': 2}),
+            'src1_i[15:0]']),
+        ('operand 2 port', 'in', [
+            ('cu_rd__rel_o[2:0]', {'bit': 1}),
+            ('cu_rd__go_i[2:0]', {'bit': 1}),
+            'src2_i[15:0]']),
+        ('operand 3 port', 'in', [
+            ('cu_rd__rel_o[2:0]', {'bit': 0}),
+            ('cu_rd__go_i[2:0]', {'bit': 0}),
+            'src1_i[15:0]']),
+        ('result port', 'out', [
+            'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+        ('alu', {'module': 'top.cu.alu'}, [
+            ('prev port', 'in', [
+                'oper_i_None__insn_type', 'i1[15:0]',
+                'valid_i', 'ready_o']),
+            ('next port', 'out', [
+                'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+
+    write_gtkw("test_compunit_regspec3.gtkw",
+               "test_compunit_regspec3.vcd",
+               traces, style,
+               clk_period=1e-6,
+               module='top.cu')
+
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15'),
               ('INT', 'c', '0:15')]
@@ -734,13 +772,15 @@ def test_compunit_regspec3():
 
     m = Module()
     alu = DummyALU(16)
-    dut = MultiCompUnit(regspec, alu, CompALUOpSubset)
+    dut = MultiCompUnit(regspec, alu, CompCROpSubset)
     m.submodules.cu = dut
 
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(scoreboard_sim_dummy(dut)))
+    # create an operation issuer
+    op = OpSim(dut, sim)
+    sim.add_sync_process(wrap(scoreboard_sim_dummy(op)))
     sim_writer = sim.write_vcd('test_compunit_regspec3.vcd')
     with sim_writer:
         sim.run()
