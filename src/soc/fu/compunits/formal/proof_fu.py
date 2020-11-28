@@ -32,11 +32,11 @@ class Driver(Elaboratable):
         issue = dut.issue_i
         busy = dut.busy_o
 
-        go_rd = dut.rd.go
-        rd_rel = dut.rd.rel
+        go_rd = dut.rd.go_i
+        rd_rel = dut.rd.rel_o
 
-        go_wr = dut.wr.go
-        wr_rel = dut.wr.rel
+        go_wr = dut.wr.go_i
+        wr_rel = dut.wr.rel_o
 
         go_die = dut.go_die_i
         shadow_n = dut.shadown_i
