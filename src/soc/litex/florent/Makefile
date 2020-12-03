@@ -2,6 +2,9 @@ ls180:
 	./ls180soc.py --build --platform=ls180
 	cp build/ls180/gateware/ls180.v .
 	cp build/ls180/gateware/mem.init .
+	cp build/ls180/gateware/mem_1.init .
+	cp build/ls180/gateware/mem_2.init .
+	cp build/ls180/gateware/mem_3.init .
 	cp libresoc/libresoc.v .
 	yosys -p 'read_verilog libresoc.v' \
           -p 'write_ilang libresoc_cvt.il'
