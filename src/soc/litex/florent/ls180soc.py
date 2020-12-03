@@ -328,7 +328,7 @@ class LibreSoCSim(SoCCore):
             cpu_type                 = "microwatt",
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
-            bus_data_width           = 64,
+            #bus_data_width           = 64,
             csr_address_width        = 14, # limit to 0x8000
             cpu_variant              = variant,
             csr_data_width            = 8,
@@ -348,9 +348,9 @@ class LibreSoCSim(SoCCore):
         self.platform.name = "ls180"
 
         # add 3 more 4k integrated SRAMs
-        self.add_ram("sram1", self.mem_map["sram1"], 0x1000)
-        self.add_ram("sram2", self.mem_map["sram2"], 0x1000)
-        self.add_ram("sram3", self.mem_map["sram3"], 0x1000)
+        self.add_ram("sram1", self.mem_map["sram1"], 0x200)
+        self.add_ram("sram2", self.mem_map["sram2"], 0x200)
+        self.add_ram("sram3", self.mem_map["sram3"], 0x200)
 
         # SDR SDRAM ----------------------------------------------
         if False: # not self.integrated_main_ram_size:
