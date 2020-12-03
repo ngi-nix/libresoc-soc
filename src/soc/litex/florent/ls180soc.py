@@ -339,7 +339,8 @@ class LibreSoCSim(SoCCore):
             sdram_module          = sdram_module,
             sdram_data_width      = sdram_data_width,
             integrated_rom_size      = 0, # if ram_fname else 0x10000,
-            integrated_sram_size     = 0x1000,
+            #integrated_sram_size     = 0x1000, - problem with yosys ABC
+            integrated_sram_size     = 0x200,
             #integrated_main_ram_init  = ram_init,
             integrated_main_ram_size = 0x00000000 if with_sdram \
                                         else 0x10000000 , # 256MB
