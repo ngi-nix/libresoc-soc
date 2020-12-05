@@ -9,8 +9,10 @@ from nmigen import (Module, Signal, Elaboratable, Mux, Cat, Repl,
 from nmigen.asserts import (Assert, AnyConst, Assume, Cover, Initial,
                             Rose, Fell, Stable, Past)
 from nmutil.formaltest import FHDLTestCase
+from nmutil.gtkw import write_gtkw
 from nmigen.cli import rtlil
 import unittest
+import os
 
 from soc.fu.compunits.compunits import FunctionUnitBaseSingle
 from soc.experiment.alu_hier import DummyALU
@@ -188,6 +190,45 @@ class Driver(Elaboratable):
 
 class FUTestCase(FHDLTestCase):
     def test_formal(self):
+        style = {
+            'in': {'color': 'orange'},
+            'out': {'color': 'yellow'},
+        }
+        traces = [
+            'clk',
+            ('operation port', {'color': 'red'}, [
+                'cu_issue_i', 'cu_busy_o',
+                {'comment': 'shadow / go_die'},
+                'cu_shadown_i','cu_go_die_i']),
+            ('operand 1 port', 'in', [
+                ('cu_rd__rel_o[2:0]', {'bit': 2}),
+                ('cu_rd__go_i[2:0]', {'bit': 2}),
+                'src1_i[15:0]']),
+            ('operand 2 port', 'in', [
+                ('cu_rd__rel_o[2:0]', {'bit': 1}),
+                ('cu_rd__go_i[2:0]', {'bit': 1}),
+                'src2_i[15:0]']),
+            ('operand 3 port', 'in', [
+                ('cu_rd__rel_o[2:0]', {'bit': 0}),
+                ('cu_rd__go_i[2:0]', {'bit': 0}),
+                'src1_i[15:0]']),
+            ('result port', 'out', [
+                'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+            ('alu', {'module': 'top.dut.alu'}, [
+                ('prev port', 'in', [
+                    'oper_i_None__insn_type', 'i1[15:0]',
+                    'valid_i', 'ready_o']),
+                ('next port', 'out', [
+                    'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+
+        write_gtkw('test_fu_formal_bmc.gtkw',
+                   os.path.dirname(__file__) +
+                   '/proof_fu_formal/engine_0/trace.vcd',
+                   traces, style,
+                   clk_period=10e-9,
+                   time_resolution_unit="ns",
+                   module='top.dut')
+
         module = Driver()
         self.assertFormal(module, mode="bmc", depth=10)
         self.assertFormal(module, mode="cover", depth=10)
