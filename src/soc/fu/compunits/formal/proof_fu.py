@@ -15,7 +15,7 @@ import unittest
 from soc.fu.compunits.compunits import FunctionUnitBaseSingle
 from soc.experiment.alu_hier import DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
-from soc.fu.alu.alu_input_record import CompALUOpSubset
+from soc.fu.cr.cr_input_record import CompCROpSubset
 
 
 class Driver(Elaboratable):
@@ -26,8 +26,14 @@ class Driver(Elaboratable):
         m = Module()
         comb = m.d.comb
         sync = m.d.sync
+        inspec = [('INT', 'a', '0:15'),
+                  ('INT', 'b', '0:15'),
+                  ('INT', 'c', '0:15')]
+        outspec = [('INT', 'o', '0:15')]
+
+        regspec = (inspec, outspec)
         alu = DummyALU(16)
-        m.submodules.dut = dut = MultiCompUnit(16, alu, CompALUOpSubset)
+        m.submodules.dut = dut = MultiCompUnit(regspec, alu, CompCROpSubset)
 
         issue = dut.issue_i
         busy = dut.busy_o
@@ -186,7 +192,13 @@ class FUTestCase(FHDLTestCase):
         self.assertFormal(module, mode="bmc", depth=10)
         self.assertFormal(module, mode="cover", depth=10)
     def test_ilang(self):
-        dut = MultiCompUnit(16, DummyALU(16), CompALUOpSubset)
+        inspec = [('INT', 'a', '0:15'),
+                  ('INT', 'b', '0:15'),
+                  ('INT', 'c', '0:15')]
+        outspec = [('INT', 'o', '0:15')]
+
+        regspec = (inspec, outspec)
+        dut = MultiCompUnit(regspec, DummyALU(16), CompCROpSubset)
         vl = rtlil.convert(dut, ports=dut.ports())
         with open("multicompunit.il", "w") as f:
             f.write(vl)
