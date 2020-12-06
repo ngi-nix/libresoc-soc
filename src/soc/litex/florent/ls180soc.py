@@ -99,7 +99,7 @@ class I2CMaster(Module, AutoCSR):
 
 
 class GPIOTristateASIC(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, prange=None):
         nbits     = len(pads.oe) # hack
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
@@ -116,7 +116,9 @@ class GPIOTristateASIC(Module, AutoCSR):
 
         self.comb += _pads.oe.eq(self._oe.storage)
         self.comb += _pads.o.eq(self._out.storage)
-        for i in range(nbits):
+        if prange is None:
+            prange = range(nbits)
+        for i in prange:
             self.specials += MultiReg(_pads.i[i], self._in.status[i])
 
 # SDCard PHY IO -------------------------------------------------------
@@ -328,7 +330,7 @@ class LibreSoCSim(SoCCore):
             cpu_type                 = "microwatt",
             cpu_cls                  = LibreSoC   if cpu == "libresoc" \
                                        else Microwatt,
-            #bus_data_width           = 64,
+            bus_data_width           = 64,
             csr_address_width        = 14, # limit to 0x8000
             cpu_variant              = variant,
             csr_data_width            = 8,
@@ -441,8 +443,11 @@ class LibreSoCSim(SoCCore):
 
         # GPIOs (bi-directional)
         gpio_core_pads = self.cpu.cpupads['gpio']
-        self.submodules.gpio = GPIOTristateASIC(gpio_core_pads)
+        self.submodules.gpio = GPIOTristateASIC(gpio_core_pads, range(8))
         self.add_csr("gpio")
+
+        self.submodules.gpio = GPIOTristateASIC(gpio_core_pads, range(8,16))
+        self.add_csr("gpio1")
 
         # SPI Master
         print ("cpupadkeys", self.cpu.cpupads.keys())
