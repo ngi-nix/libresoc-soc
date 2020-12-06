@@ -214,7 +214,7 @@ class FUTestCase(FHDLTestCase):
                 'src1_i[15:0]']),
             ('result port', 'out', [
                 'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
-            ('alu', {'module': 'top.dut.alu'}, [
+            ('alu', {'submodule': 'alu'}, [
                 ('prev port', 'in', [
                     'oper_i_None__insn_type', 'i1[15:0]',
                     'valid_i', 'ready_o']),

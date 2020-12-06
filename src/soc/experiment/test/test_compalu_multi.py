@@ -391,7 +391,6 @@ def scoreboard_sim(op):
 
 
 def test_compunit_fsm():
-    top = "top.cu" if is_engine_pysim() else "cu"
     style = {
         'in': {'color': 'orange'},
         'out': {'color': 'yellow'},
@@ -412,13 +411,15 @@ def test_compunit_fsm():
             'src2_i[7:0]']),
         ('result port', 'out', [
             'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[7:0]']),
-        ('alu', {'module': top+'.alu'}, [
+        ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__sdir', 'p_data_i[7:0]', 'p_shift_i[7:0]',
-                'p_valid_i', 'p_ready_o']),
+                ({'submodule': 'p'},
+                    ['p_valid_i', 'p_ready_o'])]),
             ('next port', 'out', [
-                'n_data_o[7:0]', 'n_valid_o', 'n_ready_i']),
-        ]),
+                'n_data_o[7:0]',
+                ({'submodule': 'n'},
+                    ['n_valid_o', 'n_ready_i'])])]),
         ('debug', {'module': 'top'},
             ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]
 
@@ -426,7 +427,7 @@ def test_compunit_fsm():
         "test_compunit_fsm1.gtkw",
         "test_compunit_fsm1.vcd",
         traces, style,
-        module=top
+        module='top.cu'
     )
     m = Module()
     alu = Shifter(8)
@@ -746,7 +747,7 @@ def test_compunit_regspec3():
             'src1_i[15:0]']),
         ('result port', 'out', [
             'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
-        ('alu', {'module': 'top.cu.alu'}, [
+        ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'oper_i_None__insn_type', 'i1[15:0]',
                 'valid_i', 'ready_o']),
@@ -808,7 +809,7 @@ def test_compunit_regspec1():
             'src2_i[15:0]']),
         ('result port', 'out', [
             'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
-        ('alu', {'module': 'top.cu.alu'}, [
+        ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
                 'valid_i', 'ready_o']),

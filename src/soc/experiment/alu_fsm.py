@@ -25,8 +25,7 @@ from nmutil.iocontrol import PrevControl, NextControl
 from soc.fu.base_input_record import CompOpSubsetBase
 
 from nmutil.gtkw import write_gtkw
-from nmutil.sim_tmp_alternative import (Simulator, is_engine_pysim,
-                                        nmigen_sim_top_module)
+from nmutil.sim_tmp_alternative import (Simulator, is_engine_pysim)
 
 
 class CompFSMOpSubset(CompOpSubsetBase):
@@ -225,25 +224,22 @@ def test_shifter():
             ('op__sdir', 'in'),
             ('p_data_i[7:0]', 'in'),
             ('p_shift_i[7:0]', 'in'),
-            ('p_valid_i', 'in'),
-            ('p_ready_o' if is_engine_pysim() else 'p_p_ready_o', 'out'),
-        ]),
+            ({'submodule': 'p'}, [
+                ('p_valid_i', 'in'),
+                ('p_ready_o', 'out')])]),
         ('internal', [
             'fsm_state' if is_engine_pysim() else 'fsm_state[1:0]',
             'count[3:0]',
-            'shift_reg[7:0]',
-        ]),
+            'shift_reg[7:0]']),
         ('next port', [
             ('n_data_o[7:0]', 'out'),
-            ('n_valid_o' if is_engine_pysim() else 'n_n_valid_o', 'out'),
-            ('n_ready_i', 'in'),
-        ]),
-    ]
+            ({'submodule': 'n'}, [
+                ('n_valid_o', 'out'),
+                ('n_ready_i', 'in')])])]
 
-    module = nmigen_sim_top_module + "shf"
     write_gtkw("test_shifter.gtkw", "test_shifter.vcd",
                gtkwave_desc,  gtkwave_style,
-               module=module, loc=__file__, base='dec')
+               module='top.shf', loc=__file__, base='dec')
 
     sim = Simulator(m)
     sim.add_clock(1e-6)
