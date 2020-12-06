@@ -60,6 +60,7 @@ class Driver(Elaboratable):
             comb += Assume(issue == 0)
             comb += Assume(go_rd == 0)
             comb += Assume(rst == 1)
+
         with m.Else():
             comb += Assume(rst == 0)
 
@@ -78,7 +79,6 @@ class Driver(Elaboratable):
             # Property 2: Issue will only be raised for one
             # cycle. Read requests may go out immediately after issue
             # goes low
-
 
             # The read_request should not happen while the unit is not busy
             with m.If(~busy):
@@ -139,7 +139,6 @@ class Driver(Elaboratable):
             with m.If(wr_rel == 0):
                 comb += Assume(go_wr == 0)
 
-
             # Property 8: When go_write is asserted, two things
             # happen. 1 - the data in the temp register is placed
             # combinatorially onto the output. And 2 - the req_l latch
@@ -150,13 +149,13 @@ class Driver(Elaboratable):
             # then the alu data should be output
             with m.If(Past(wr_rel) & Past(go_wr)):
                 # the alu data is output
-                comb += Assert((dut.data_o == alu_temp) | (dut.data_o == dut.alu.o))
+                comb += Assert((dut.data_o == alu_temp)
+                               | (dut.data_o == dut.alu.o))
                 # wr_rel is dropped
                 comb += Assert(wr_rel == 0)
                 # busy is dropped.
                 with m.If(~Past(go_die)):
                     comb += Assert(busy == 0)
-
 
         # It is REQUIRED that issue be held valid only for one cycle
         with m.If(Past(issue)):
@@ -199,7 +198,7 @@ class FUTestCase(FHDLTestCase):
             ('operation port', {'color': 'red'}, [
                 'cu_issue_i', 'cu_busy_o',
                 {'comment': 'shadow / go_die'},
-                'cu_shadown_i','cu_go_die_i']),
+                'cu_shadown_i', 'cu_go_die_i']),
             ('operand 1 port', 'in', [
                 ('cu_rd__rel_o[2:0]', {'bit': 2}),
                 ('cu_rd__go_i[2:0]', {'bit': 2}),
@@ -232,6 +231,7 @@ class FUTestCase(FHDLTestCase):
         module = Driver()
         self.assertFormal(module, mode="bmc", depth=10)
         self.assertFormal(module, mode="cover", depth=10)
+
     def test_ilang(self):
         inspec = [('INT', 'a', '0:15'),
                   ('INT', 'b', '0:15'),
