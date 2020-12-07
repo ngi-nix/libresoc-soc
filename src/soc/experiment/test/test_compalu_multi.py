@@ -732,7 +732,9 @@ def test_compunit_regspec3():
         ('operation port', {'color': 'red'}, [
             'cu_issue_i', 'cu_busy_o',
             {'comment': 'operation'},
-            ('oper_i_None__insn_type', {'display': 'insn_type'})]),
+            ('oper_i_None__insn_type'
+             + ('' if is_engine_pysim() else '[6:0]'),
+             {'display': 'insn_type'})]),
         ('operand 1 port', 'in', [
             ('cu_rd__rel_o[2:0]', {'bit': 2}),
             ('cu_rd__go_i[2:0]', {'bit': 2}),
@@ -794,7 +796,9 @@ def test_compunit_regspec1():
         ('operation port', {'color': 'red'}, [
             'cu_issue_i', 'cu_busy_o',
             {'comment': 'operation'},
-            ('oper_i_None__insn_type', {'display': 'insn_type'}),
+            ('oper_i_None__insn_type'
+             + ('' if is_engine_pysim() else '[6:0]'),
+             {'display': 'insn_type'}),
             ('oper_i_None__invert_in', {'display': 'invert_in'}),
             ('oper_i_None__imm_data__data[63:0]', {'display': 'data[63:0]'}),
             ('oper_i_None__imm_data__ok', {'display': 'imm_ok'}),
