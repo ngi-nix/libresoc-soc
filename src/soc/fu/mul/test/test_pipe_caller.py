@@ -2,7 +2,8 @@ import unittest
 from soc.fu.mul.test.helper import MulTestHelper
 from soc.simulator.program import Program
 from soc.config.endian import bigendian
-from soc.fu.test.common import (TestAccumulatorBase)
+from soc.fu.test.common import TestAccumulatorBase, skip_case
+
 import random
 
 
@@ -114,6 +115,7 @@ class MulTestCases3Arg(TestAccumulatorBase):
     # TODO add test case for these 3 operand cases (madd
     # needs to be implemented)
     # "maddhd","maddhdu","maddld"
+    @skip_case("madd not implemented")
     def case_maddld(self):
         lst = ["maddld 1, 2, 3, 4"]
         initial_regs = [0] * 32
