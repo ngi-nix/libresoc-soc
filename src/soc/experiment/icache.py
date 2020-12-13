@@ -45,10 +45,10 @@ from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory
 from nmutil.util import wrap
 from nmigen.cli import main, rtlil
-if True:
-    from nmigen.back.pysim import Simulator, Delay, Settle
-else:
-    from nmigen.sim.cxxsim import Simulator, Delay, Settle
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
 
 
 SIM            = 0

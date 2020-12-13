@@ -1,5 +1,9 @@
 from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Delay
+
 from nmutil.formaltest import FHDLTestCase
 import unittest
 from soc.decoder.power_decoder import (create_pdecode)

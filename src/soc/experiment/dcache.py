@@ -33,10 +33,11 @@ from nmutil.plru import PLRU
 from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory
 from nmigen.cli import rtlil
-if True:
-    from nmigen.back.pysim import Simulator, Delay, Settle
-else:
-    from nmigen.sim.cxxsim import Simulator, Delay, Settle
+
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator
+
 from nmutil.util import wrap
 
 
