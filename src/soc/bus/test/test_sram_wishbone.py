@@ -5,6 +5,10 @@ Bugs:
 from nmigen_soc.wishbone.sram import SRAM
 from nmigen import Memory, Signal, Module
 
+# NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
+# Also, check out the cxxsim nmigen branch, and latest yosys from git
+from nmutil.sim_tmp_alternative import Simulator, Settle
+
 memory = Memory(width=64, depth=16)
 sram = SRAM(memory=memory, granularity=16)
 
@@ -19,7 +23,6 @@ sram = SRAM(memory=memory, granularity=16)
 # sram.bus.ack
 
 # setup simulation
-from nmigen.back.pysim import Simulator, Delay, Settle
 m = Module()
 m.submodules.sram = sram
 sim = Simulator(m)
