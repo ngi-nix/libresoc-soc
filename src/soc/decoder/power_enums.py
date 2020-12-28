@@ -294,6 +294,7 @@ class CRInSel(Enum):
     BA_BB = 4
     BC = 5
     WHOLE_REG = 6
+    CR1 = 7
 
 
 @unique
@@ -303,6 +304,7 @@ class CROutSel(Enum):
     BF = 2
     BT = 3
     WHOLE_REG = 4
+    CR1 = 5
 
 
 # SPRs - Special-Purpose Registers.  See V3.0B Figure 18 p971 and
