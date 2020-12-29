@@ -254,9 +254,6 @@ def test_shifter():
         # wait for p.ready_o to be asserted
         while not (yield dut.p.ready_o):
             yield
-        # show current operation operation
-        # force dump of the above message by toggling the
-        # underlying signal
         # clear input data and negate p.valid_i
         yield dut.p.valid_i.eq(0)
         yield dut.p.data_i.data.eq(0)
@@ -283,8 +280,6 @@ def test_shifter():
         # 3 << 4
         yield from send(3, 4, 0)
         # 21 << 0
-        # use a debug signal to mark an interesting operation
-        # in this case, it is a shift by zero
         yield from send(21, 0, 0)
 
     def consumer():
@@ -295,8 +290,6 @@ def test_shifter():
         # 3 << 4 = 48
         yield from receive(48)
         # 21 << 0 = 21
-        # you can look for the rising edge of this signal to quickly
-        # locate this point in the traces
         yield from receive(21)
 
     sim.add_sync_process(producer)
