@@ -284,6 +284,25 @@ def scoreboard_sim_dummy(op):
                         src_delays=[0, 2, 1], dest_delays=[0])
     yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [9],
                         src_delays=[2, 1, 0], dest_delays=[2])
+    # test all combinations of masked input ports
+    yield from op.issue([5, 2, 0], MicrOp.OP_NOP, [0],
+                        rdmaskn=[1, 0, 0],
+                        src_delays=[0, 2, 1], dest_delays=[0])
+    yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [9],
+                        rdmaskn=[0, 1, 0],
+                        src_delays=[2, 1, 0], dest_delays=[2])
+    yield from op.issue([5, 2, 0], MicrOp.OP_NOP, [5],
+                        rdmaskn=[0, 0, 1],
+                        src_delays=[2, 1, 0], dest_delays=[2])
+    yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [9],
+                        rdmaskn=[0, 1, 1],
+                        src_delays=[2, 1, 0], dest_delays=[2])
+    yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [0],
+                        rdmaskn=[1, 1, 0],
+                        src_delays=[2, 1, 0], dest_delays=[2])
+    yield from op.issue([9, 2, 0], MicrOp.OP_NOP, [0],
+                        rdmaskn=[1, 1, 1],
+                        src_delays=[2, 1, 0], dest_delays=[2])
 
 
 class OpSim:
@@ -294,6 +313,7 @@ class OpSim:
         self.op_count = 0
         self.zero_a_count = 0
         self.imm_ok_count = 0
+        self.rdmaskn_count = [0] * len(dut.src_i)
         self.dut = dut
         # create one operand producer for each input port
         self.producers = list()
@@ -304,11 +324,13 @@ class OpSim:
         for i in range(len(dut.dest)):
             self.consumers.append(ResultConsumer(sim, dut, i))
     def issue(self, src_i, op, expected, src_delays, dest_delays,
-              inv_a=0, imm=0, imm_ok=0, zero_a=0):
+              inv_a=0, imm=0, imm_ok=0, zero_a=0, rdmaskn=None):
         """Executes the issue operation"""
         dut = self.dut
         producers = self.producers
         consumers = self.consumers
+        if rdmaskn is None:
+            rdmaskn = [0] * len(src_i)
         yield dut.issue_i.eq(0)
         yield
         # forward data and delays to the producers and consumers
@@ -331,6 +353,11 @@ class OpSim:
             yield dut.oper_i.imm_data.ok.eq(imm_ok)
         if hasattr(dut.oper_i, "zero_a"):
             yield dut.oper_i.zero_a.eq(zero_a)
+        if hasattr(dut, "rdmaskn"):
+            rdmaskn_bits = 0
+            for i in range(len(rdmaskn)):
+                rdmaskn_bits |= rdmaskn[i] << i
+            yield dut.rdmaskn.eq(rdmaskn_bits)
         yield dut.issue_i.eq(1)
         yield
         yield dut.issue_i.eq(0)
@@ -341,21 +368,34 @@ class OpSim:
             yield Settle()
         # update the operation count
         self.op_count = (self.op_count + 1) & 255
-        # On zero_a and imm_ok executions, the producer counters will fall
-        # behind. But, by summing the following counts, the invariant is
+        # On zero_a, imm_ok and rdmaskn executions, the producer counters will
+        # fall behind. But, by summing the following counts, the invariant is
         # preserved.
-        if zero_a:
+        if zero_a and not rdmaskn[0]:
             self.zero_a_count = self.zero_a_count + 1
-        if imm_ok:
+        if imm_ok and not rdmaskn[1]:
             self.imm_ok_count = self.imm_ok_count + 1
+        for i in range(len(rdmaskn)):
+            if rdmaskn[i]:
+                self.rdmaskn_count[i] = self.rdmaskn_count[i] + 1
         # check that producers and consumers have the same count
         # this assures that no data was left unused or was lost
         # first, check special cases (zero_a and imm_ok)
-        assert (yield producers[0].count) + self.zero_a_count == self.op_count
-        assert (yield producers[1].count) + self.imm_ok_count == self.op_count
+        port_a_cnt = \
+            (yield producers[0].count) \
+            + self.zero_a_count \
+            + self.rdmaskn_count[0]
+        port_b_cnt = \
+            (yield producers[1].count) \
+            + self.imm_ok_count \
+            + self.rdmaskn_count[1]
+        assert port_a_cnt == self.op_count
+        assert port_b_cnt == self.op_count
         # then, check the rest (if any)
         for i in range(2, len(producers)):
-            assert (yield producers[i].count) == self.op_count
+            port_cnt = (yield producers[i].count) + self.rdmaskn_count[i]
+            assert port_cnt == self.op_count
+        # check write counter
         for i in range(len(consumers)):
             assert (yield consumers[i].count) == self.op_count
 
@@ -388,6 +428,19 @@ def scoreboard_sim(op):
     # 5 - 2 = 3
     yield from op.issue([5, 2], MicrOp.OP_NOP, [3],
                         src_delays=[0, 1], dest_delays=[2])
+    # test all combinations of masked input ports
+    # 5 + 0 (masked) = 5
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [5],
+                        rdmaskn=[0, 1],
+                        src_delays=[2, 1], dest_delays=[0])
+    # 0 (masked) + 2 = 2
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [2],
+                        rdmaskn=[1, 0],
+                        src_delays=[1, 2], dest_delays=[1])
+    # 0 (masked) + 0 (masked) = 0
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [0],
+                        rdmaskn=[1, 1],
+                        src_delays=[1, 2], dest_delays=[1])
 
 
 def test_compunit_fsm():
