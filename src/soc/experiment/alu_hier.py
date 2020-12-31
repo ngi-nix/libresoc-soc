@@ -14,6 +14,7 @@ from nmigen.hdl.rec import Record, Layout
 from nmigen.cli import main
 from nmigen.cli import verilog, rtlil
 from nmigen.compat.sim import run_simulation
+from nmutil.extend import exts
 from nmutil.gtkw import write_gtkw
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
@@ -81,6 +82,18 @@ class Shifter(Elaboratable):
         btrunc = Signal(self.width)
         m.d.comb += btrunc.eq(self.b & Const((1 << self.width)-1))
         m.d.comb += self.o.eq(self.a >> btrunc)
+        return m
+
+
+class SignExtend(Elaboratable):
+    def __init__(self, width):
+        self.width = width
+        self.a = Signal(width)
+        self.o = Signal(width, name="exts_o")
+
+    def elaborate(self, platform):
+        m = Module()
+        m.d.comb += self.o.eq(exts(self.a, 8, self.width))
         return m
 
 
@@ -197,11 +210,13 @@ class ALU(Elaboratable):
         mul = Multiplier(self.width)
         shf = Shifter(self.width)
         sub = Subtractor(self.width)
+        ext_sign = SignExtend(self.width)
 
         m.submodules.add = add
         m.submodules.mul = mul
         m.submodules.shf = shf
         m.submodules.sub = sub
+        m.submodules.ext_sign = ext_sign
 
         # really should not activate absolutely all ALU inputs like this
         for mod in [add, mul, shf, sub]:
@@ -209,6 +224,7 @@ class ALU(Elaboratable):
                 mod.a.eq(self.a),
                 mod.b.eq(self.b),
             ]
+        m.d.comb += ext_sign.a.eq(self.a)
 
         # pass invert (and carry later)
         m.d.comb += add.invert_in.eq(self.op.invert_in)
@@ -249,6 +265,8 @@ class ALU(Elaboratable):
                     m.d.sync += alu_r.eq(mul.o)
                 with m.Elif(self.op.insn_type == MicrOp.OP_SHR):
                     m.d.sync += alu_r.eq(shf.o)
+                with m.Elif(self.op.insn_type == MicrOp.OP_EXTS):
+                    m.d.sync += alu_r.eq(ext_sign.o)
                 # SUB is zero-delay, no need to register
 
                 # NOTE: all of these are fake, just something to test
@@ -262,6 +280,9 @@ class ALU(Elaboratable):
                 # ADD/SUB to take 3
                 with m.Elif(self.op.insn_type == MicrOp.OP_ADD):
                     m.d.sync += self.counter.eq(3)
+                # EXTS to take 1
+                with m.Elif(self.op.insn_type == MicrOp.OP_EXTS):
+                    m.d.sync += self.counter.eq(1)
                 # others to take no delay
                 with m.Else():
                     m.d.comb += go_now.eq(1)
@@ -521,6 +542,10 @@ def test_alu_parallel():
         yield
         # 13 >> 2
         yield from send(13, 2, MicrOp.OP_SHR)
+        # sign extent 13
+        yield from send(13, 2, MicrOp.OP_EXTS)
+        # sign extend -128 (8 bits)
+        yield from send(0x80, 2, MicrOp.OP_EXTS)
 
     def consumer():
         # receive and check results, interspersed with wait states
@@ -549,6 +574,12 @@ def test_alu_parallel():
         # 13 >> 2 = 3
         result = yield from receive()
         assert (result == 3)
+        # sign extent 13 = 13
+        result = yield from receive()
+        assert (result == 13)
+        # sign extend -128 (8 bits) = -128 (16 bits)
+        result = yield from receive()
+        assert (result == 0xFF80)
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
