@@ -365,8 +365,7 @@ class OpSim:
         # were latched at the correct cycle
         # note: rdmaskn is not latched, and must be held as long as
         # busy_o is active
-        # todo: is the above restriction on rdmaskn intentional?
-        # todo: shouldn't it be latched by issue_i, like the others?
+        # See: https://bugs.libre-soc.org/show_bug.cgi?id=336#c44
         yield self.dut.oper_i.insn_type.eq(0)
         if hasattr(dut.oper_i, "invert_in"):
             yield self.dut.oper_i.invert_in.eq(0)
