@@ -393,15 +393,15 @@ class OpSim:
         # fall behind. But, by summing the following counts, the invariant is
         # preserved.
         if zero_a and not rdmaskn[0]:
-            self.zero_a_count = self.zero_a_count + 1
+            self.zero_a_count += 1
         if imm_ok and not rdmaskn[1]:
-            self.imm_ok_count = self.imm_ok_count + 1
+            self.imm_ok_count += 1
         for i in range(len(rdmaskn)):
             if rdmaskn[i]:
-                self.rdmaskn_count[i] = self.rdmaskn_count[i] + 1
+                self.rdmaskn_count[i] += 1
         for i in range(len(wrmask)):
             if wrmask[i]:
-                self.wrmask_count[i] = self.wrmask_count[i] + 1
+                self.wrmask_count[i] += 1
         # check that producers and consumers have the same count
         # this assures that no data was left unused or was lost
         # first, check special cases (zero_a and imm_ok)
