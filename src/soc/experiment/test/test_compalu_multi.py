@@ -448,14 +448,14 @@ def scoreboard_sim(op):
                         src_delays=[2, 0], dest_delays=[1])
 
     # test combinatorial zero-delay operation
-    # In the test ALU, any operation other than ADD, MUL or SHR
+    # In the test ALU, any operation other than ADD, MUL, EXTS or SHR
     # is zero-delay, and do a subtraction.
     # 5 - 2 = 3
     yield from op.issue([5, 2], MicrOp.OP_NOP, [3],
                         src_delays=[0, 1], dest_delays=[2])
     # test all combinations of masked input ports
-    # 5 + 0 (masked) = 5
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [5],
+    # sign_extend(0x80) = 0xFF80
+    yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80],
                         rdmaskn=[0, 1],
                         src_delays=[2, 1], dest_delays=[0])
     # 0 (masked) + 2 = 2
