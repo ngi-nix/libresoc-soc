@@ -451,7 +451,7 @@ def scoreboard_sim(op):
     # In the test ALU, any operation other than ADD, MUL, EXTS or SHR
     # is zero-delay, and do a subtraction.
     # 5 - 2 = 3
-    yield from op.issue([5, 2], MicrOp.OP_NOP, [3],
+    yield from op.issue([5, 2], MicrOp.OP_CMP, [3],
                         src_delays=[0, 1], dest_delays=[2])
     # test all combinations of masked input ports
     # sign_extend(0x80) = 0xFF80

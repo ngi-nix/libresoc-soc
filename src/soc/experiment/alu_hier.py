@@ -468,7 +468,7 @@ def alu_sim(dut):
 
     # test zero-delay ALU
     # don't have OP_SUB, so use any other
-    result = yield from run_op(dut, 5, 3, MicrOp.OP_NOP)
+    result = yield from run_op(dut, 5, 3, MicrOp.OP_CMP)
     print("alu_sim sub", result)
     assert (result == 2)
 
