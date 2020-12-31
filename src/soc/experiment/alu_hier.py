@@ -22,6 +22,7 @@ from nmutil.gtkw import write_gtkw
 from nmutil.sim_tmp_alternative import (Simulator, nmigen_sim_top_module,
                                         is_engine_pysim)
 
+from soc.decoder.decode2execute1 import Data
 from soc.decoder.power_enums import MicrOp, Function, CryIn
 
 from soc.fu.alu.alu_input_record import CompALUOpSubset
@@ -195,7 +196,7 @@ class ALU(Elaboratable):
         i.append(Signal(width, name="i2"))
         self.i = Array(i)
         self.a, self.b = i[0], i[1]
-        self.out = Array([Signal(width, name="alu_o")])
+        self.out = Array([Data(width, name="alu_o")])
         self.o = self.out[0]
         self.width = width
         # more "look like nmutil pipeline API"
@@ -260,6 +261,9 @@ class ALU(Elaboratable):
         # hold the ALU result until ready_o is asserted
         alu_r = Signal(self.width)
 
+        # NOP doesn't output anything
+        with m.If(self.op.insn_type != MicrOp.OP_NOP):
+            m.d.comb += self.o.ok.eq(1)
         with m.If(alu_idle):
             with m.If(self.p.valid_i):
 
@@ -303,10 +307,10 @@ class ALU(Elaboratable):
 
         # choose between zero-delay output, or registered
         with m.If(go_now):
-            m.d.comb += self.o.eq(sub.o)
+            m.d.comb += self.o.data.eq(sub.o)
         # only present the result at the last computation cycle
         with m.Elif(alu_done):
-            m.d.comb += self.o.eq(alu_r)
+            m.d.comb += self.o.data.eq(alu_r)
 
         return m
 
@@ -314,7 +318,7 @@ class ALU(Elaboratable):
         yield from self.op.ports()
         yield self.a
         yield self.b
-        yield self.o
+        yield from self.o.ports()
         yield self.p.valid_i
         yield self.p.ready_o
         yield self.n.valid_o
@@ -447,7 +451,7 @@ def run_op(dut, a, b, op, inv_a=0):
         yield
 
     # latch the result and lower read_i
-    result = yield dut.o
+    result = yield dut.o.data
     yield dut.n.ready_i.eq(0)
 
     return result
@@ -525,7 +529,7 @@ def test_alu_parallel():
         while not (yield dut.n.valid_o):
             yield
         # read result
-        result = yield dut.o
+        result = yield dut.o.data
         # negate ready_i
         # if receive is called again immediately afterwards, there will be no
         # visible transition (it will not be negated, after all)

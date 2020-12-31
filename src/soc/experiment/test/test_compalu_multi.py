@@ -462,11 +462,10 @@ def scoreboard_sim(op):
     yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80],
                         rdmaskn=[1, 0],
                         src_delays=[1, 2], dest_delays=[1])
-    # 0 (masked) + 0 (masked) = 0
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [0],
-                        rdmaskn=[1, 1],
+    # NOP does not make any request nor response
+    yield from op.issue([5, 2], MicrOp.OP_NOP, [0],
+                        rdmaskn=[1, 1], wrmask=[1],
                         src_delays=[1, 2], dest_delays=[1])
-    # note: the current test ALU down not have any masked write operations
 
 
 def test_compunit_fsm():
