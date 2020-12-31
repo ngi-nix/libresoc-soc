@@ -314,6 +314,7 @@ class OpSim:
         self.zero_a_count = 0
         self.imm_ok_count = 0
         self.rdmaskn_count = [0] * len(dut.src_i)
+        self.wrmask_count = [0] * len(dut.dest)
         self.dut = dut
         # create one operand producer for each input port
         self.producers = list()
@@ -323,14 +324,18 @@ class OpSim:
         self.consumers = list()
         for i in range(len(dut.dest)):
             self.consumers.append(ResultConsumer(sim, dut, i))
+
     def issue(self, src_i, op, expected, src_delays, dest_delays,
-              inv_a=0, imm=0, imm_ok=0, zero_a=0, rdmaskn=None):
+              inv_a=0, imm=0, imm_ok=0, zero_a=0,
+              rdmaskn=None, wrmask=None):
         """Executes the issue operation"""
         dut = self.dut
         producers = self.producers
         consumers = self.consumers
         if rdmaskn is None:
             rdmaskn = [0] * len(src_i)
+        if wrmask is None:
+            wrmask = [0] * len(expected)
         yield dut.issue_i.eq(0)
         yield
         # forward data and delays to the producers and consumers
@@ -394,6 +399,9 @@ class OpSim:
         for i in range(len(rdmaskn)):
             if rdmaskn[i]:
                 self.rdmaskn_count[i] = self.rdmaskn_count[i] + 1
+        for i in range(len(wrmask)):
+            if wrmask[i]:
+                self.wrmask_count[i] = self.wrmask_count[i] + 1
         # check that producers and consumers have the same count
         # this assures that no data was left unused or was lost
         # first, check special cases (zero_a and imm_ok)
@@ -413,7 +421,8 @@ class OpSim:
             assert port_cnt == self.op_count
         # check write counter
         for i in range(len(consumers)):
-            assert (yield consumers[i].count) == self.op_count
+            port_cnt = (yield consumers[i].count) + self.wrmask_count[i]
+            assert port_cnt == self.op_count
 
 
 def scoreboard_sim(op):
@@ -457,6 +466,7 @@ def scoreboard_sim(op):
     yield from op.issue([5, 2], MicrOp.OP_ADD, [0],
                         rdmaskn=[1, 1],
                         src_delays=[1, 2], dest_delays=[1])
+    # note: the current test ALU down not have any masked write operations
 
 
 def test_compunit_fsm():
