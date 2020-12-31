@@ -458,8 +458,8 @@ def scoreboard_sim(op):
     yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80],
                         rdmaskn=[0, 1],
                         src_delays=[2, 1], dest_delays=[0])
-    # 0 (masked) + 2 = 2
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [2],
+    # sign_extend(0x80) = 0xFF80
+    yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80],
                         rdmaskn=[1, 0],
                         src_delays=[1, 2], dest_delays=[1])
     # 0 (masked) + 0 (masked) = 0
