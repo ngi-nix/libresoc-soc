@@ -605,19 +605,22 @@ def test_compunit_regspec3():
              + ('' if is_engine_pysim() else '[6:0]'),
              {'display': 'insn_type'})]),
         ('operand 1 port', 'in', [
+            ('cu_rdmaskn_i[2:0]', {'bit': 2}),
             ('cu_rd__rel_o[2:0]', {'bit': 2}),
             ('cu_rd__go_i[2:0]', {'bit': 2}),
             'src1_i[15:0]']),
         ('operand 2 port', 'in', [
+            ('cu_rdmaskn_i[2:0]', {'bit': 1}),
             ('cu_rd__rel_o[2:0]', {'bit': 1}),
             ('cu_rd__go_i[2:0]', {'bit': 1}),
             'src2_i[15:0]']),
         ('operand 3 port', 'in', [
+            ('cu_rdmaskn_i[2:0]', {'bit': 0}),
             ('cu_rd__rel_o[2:0]', {'bit': 0}),
             ('cu_rd__go_i[2:0]', {'bit': 0}),
             'src1_i[15:0]']),
         ('result port', 'out', [
-            'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+            'cu_wrmask_o', 'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'oper_i_None__insn_type', 'i1[15:0]',
@@ -673,15 +676,17 @@ def test_compunit_regspec1():
             ('oper_i_None__imm_data__ok', {'display': 'imm_ok'}),
             ('oper_i_None__zero_a', {'display': 'zero_a'})]),
         ('operand 1 port', 'in', [
+            ('cu_rdmaskn_i[1:0]', {'bit': 1}),
             ('cu_rd__rel_o[1:0]', {'bit': 1}),
             ('cu_rd__go_i[1:0]', {'bit': 1}),
             'src1_i[15:0]']),
         ('operand 2 port', 'in', [
+            ('cu_rdmaskn_i[1:0]', {'bit': 0}),
             ('cu_rd__rel_o[1:0]', {'bit': 0}),
             ('cu_rd__go_i[1:0]', {'bit': 0}),
             'src2_i[15:0]']),
         ('result port', 'out', [
-            'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+            'cu_wrmask_o', 'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
