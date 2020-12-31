@@ -224,7 +224,12 @@ class ALU(Elaboratable):
                 mod.a.eq(self.a),
                 mod.b.eq(self.b),
             ]
-        m.d.comb += ext_sign.a.eq(self.a)
+        # EXTS sign extends the first input
+        with m.If(self.op.insn_type == MicrOp.OP_EXTS):
+            m.d.comb += ext_sign.a.eq(self.a)
+        # EXTSWSLI sign extends the second input
+        with m.Elif(self.op.insn_type == MicrOp.OP_EXTSWSLI):
+            m.d.comb += ext_sign.a.eq(self.b)
 
         # pass invert (and carry later)
         m.d.comb += add.invert_in.eq(self.op.invert_in)
@@ -267,6 +272,8 @@ class ALU(Elaboratable):
                     m.d.sync += alu_r.eq(shf.o)
                 with m.Elif(self.op.insn_type == MicrOp.OP_EXTS):
                     m.d.sync += alu_r.eq(ext_sign.o)
+                with m.Elif(self.op.insn_type == MicrOp.OP_EXTSWSLI):
+                    m.d.sync += alu_r.eq(ext_sign.o)
                 # SUB is zero-delay, no need to register
 
                 # NOTE: all of these are fake, just something to test
@@ -282,6 +289,9 @@ class ALU(Elaboratable):
                     m.d.sync += self.counter.eq(3)
                 # EXTS to take 1
                 with m.Elif(self.op.insn_type == MicrOp.OP_EXTS):
+                    m.d.sync += self.counter.eq(1)
+                # EXTSWSLI to take 1
+                with m.Elif(self.op.insn_type == MicrOp.OP_EXTSWSLI):
                     m.d.sync += self.counter.eq(1)
                 # others to take no delay
                 with m.Else():
@@ -546,6 +556,8 @@ def test_alu_parallel():
         yield from send(13, 2, MicrOp.OP_EXTS)
         # sign extend -128 (8 bits)
         yield from send(0x80, 2, MicrOp.OP_EXTS)
+        # sign extend -128 (8 bits)
+        yield from send(2, 0x80, MicrOp.OP_EXTSWSLI)
 
     def consumer():
         # receive and check results, interspersed with wait states
@@ -577,6 +589,9 @@ def test_alu_parallel():
         # sign extent 13 = 13
         result = yield from receive()
         assert (result == 13)
+        # sign extend -128 (8 bits) = -128 (16 bits)
+        result = yield from receive()
+        assert (result == 0xFF80)
         # sign extend -128 (8 bits) = -128 (16 bits)
         result = yield from receive()
         assert (result == 0xFF80)
