@@ -361,11 +361,28 @@ class OpSim:
         yield dut.issue_i.eq(1)
         yield
         yield dut.issue_i.eq(0)
+        # deactivate decoder inputs along with issue_i, so we can be sure they
+        # were latched at the correct cycle
+        # note: rdmaskn is not latched, and must be held as long as
+        # busy_o is active
+        # todo: is the above restriction on rdmaskn intentional?
+        # todo: shouldn't it be latched by issue_i, like the others?
+        yield self.dut.oper_i.insn_type.eq(0)
+        if hasattr(dut.oper_i, "invert_in"):
+            yield self.dut.oper_i.invert_in.eq(0)
+        if hasattr(dut.oper_i, "imm_data"):
+            yield self.dut.oper_i.imm_data.data.eq(0)
+            yield self.dut.oper_i.imm_data.ok.eq(0)
+        if hasattr(dut.oper_i, "zero_a"):
+            yield self.dut.oper_i.zero_a.eq(0)
         # wait for busy to be negated
         yield Settle()
         while (yield dut.busy_o):
             yield
             yield Settle()
+        # now, deactivate rdmaskn
+        if hasattr(dut, "rdmaskn"):
+            yield dut.rdmaskn.eq(0)
         # update the operation count
         self.op_count = (self.op_count + 1) & 255
         # On zero_a, imm_ok and rdmaskn executions, the producer counters will
