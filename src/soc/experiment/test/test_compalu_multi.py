@@ -454,6 +454,10 @@ def scoreboard_sim(op):
     yield from op.issue([5, 2], MicrOp.OP_CMP, [3],
                         src_delays=[0, 1], dest_delays=[2])
     # test all combinations of masked input ports
+    # NOP does not make any request nor response
+    yield from op.issue([5, 2], MicrOp.OP_NOP, [0],
+                        rdmaskn=[1, 1], wrmask=[1],
+                        src_delays=[1, 2], dest_delays=[1])
     # sign_extend(0x80) = 0xFF80
     yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80],
                         rdmaskn=[0, 1],
@@ -461,10 +465,6 @@ def scoreboard_sim(op):
     # sign_extend(0x80) = 0xFF80
     yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80],
                         rdmaskn=[1, 0],
-                        src_delays=[1, 2], dest_delays=[1])
-    # NOP does not make any request nor response
-    yield from op.issue([5, 2], MicrOp.OP_NOP, [0],
-                        rdmaskn=[1, 1], wrmask=[1],
                         src_delays=[1, 2], dest_delays=[1])
 
 
@@ -691,7 +691,7 @@ def test_compunit_regspec1():
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
                 'valid_i', 'ready_o']),
             ('next port', 'out', [
-                'alu_o[15:0]', 'valid_o', 'ready_i'])]),
+                'alu_o[15:0]', 'valid_o', 'ready_i',  'alu_o_ok'])]),
         ('debug', {'module': 'top'},
             ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]
 
