@@ -430,6 +430,7 @@ class OpSim:
 
 
 def scoreboard_sim(op):
+    # the following tests cases have rc=0, so no CR output is expected
     # zero (no) input operands test
     # 0 + 8 = 8
     yield from op.issue([5, 2], MicrOp.OP_ADD, [8, 0],
@@ -476,6 +477,22 @@ def scoreboard_sim(op):
     yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80, 0],
                         rdmaskn=[1, 0], wrmask=[0, 1],
                         src_delays=[1, 2], dest_delays=[1, 0])
+    # test with rc=1, so expect results on the CR output port
+    # 5 + 2 = 7
+    # 7 > 0 => CR = 0b100
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [7, 0b100],
+                        rc=1,
+                        src_delays=[1, 1], dest_delays=[1, 0])
+    # sign_extend(0x80) = 0xFF80
+    # -128 < 0 => CR = 0b010
+    yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80, 0b010],
+                        rc=1, rdmaskn=[0, 1],
+                        src_delays=[2, 1], dest_delays=[0, 2])
+    # 5 - 5 = 0
+    # 0 == 0 => CR = 0b000
+    yield from op.issue([5, 2], MicrOp.OP_CMP, [0, 0b001],
+                        imm=5, imm_ok=1, rc=1,
+                        src_delays=[0, 1], dest_delays=[2, 1])
 
 
 def test_compunit_fsm():
@@ -704,7 +721,7 @@ def test_compunit_regspec1():
             ('cu_wrmask_o[1:0]', {'bit': 0}),
             ('cu_wr__rel_o[1:0]', {'bit': 0}),
             ('cu_wr__go_i[1:0]', {'bit': 0}),
-            'dest2_o[2:0]']),
+            'dest2_o[15:0]']),
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
