@@ -198,7 +198,7 @@ class ALU(Elaboratable):
         self.a, self.b = i[0], i[1]
         out = []
         out.append(Data(width, name="alu_o"))
-        out.append(Data(3, name="alu_cr"))
+        out.append(Data(width, name="alu_cr"))
         self.out = Array(out)
         self.o = self.out[0]
         self.cr = self.out[1]

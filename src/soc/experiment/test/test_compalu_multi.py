@@ -724,7 +724,7 @@ def test_compunit_regspec1():
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15')]
     outspec = [('INT', 'o', '0:15'),
-               ('INT', 'cr', '0:2')]
+               ('INT', 'cr', '0:15')]
 
     regspec = (inspec, outspec)
 
