@@ -196,8 +196,12 @@ class ALU(Elaboratable):
         i.append(Signal(width, name="i2"))
         self.i = Array(i)
         self.a, self.b = i[0], i[1]
-        self.out = Array([Data(width, name="alu_o")])
+        out = []
+        out.append(Data(width, name="alu_o"))
+        out.append(Data(3, name="alu_cr"))
+        self.out = Array(out)
         self.o = self.out[0]
+        self.cr = self.out[1]
         self.width = width
         # more "look like nmutil pipeline API"
         self.p.data_i.ctx.op = self.op
@@ -261,6 +265,9 @@ class ALU(Elaboratable):
         # hold the ALU result until ready_o is asserted
         alu_r = Signal(self.width)
 
+        # condition register output enable
+        cr_ok_r = Signal()
+
         # NOP doesn't output anything
         with m.If(self.op.insn_type != MicrOp.OP_NOP):
             m.d.comb += self.o.ok.eq(1)
@@ -301,6 +308,9 @@ class ALU(Elaboratable):
                 with m.Else():
                     m.d.comb += go_now.eq(1)
 
+                # store rc bit, to enable cr output later
+                m.d.sync += cr_ok_r.eq(self.op.rc.rc)
+
         with m.Elif(~alu_done | self.n.ready_i):
             # decrement the counter while the ALU is neither idle nor finished
             m.d.sync += self.counter.eq(self.counter - 1)
@@ -308,9 +318,20 @@ class ALU(Elaboratable):
         # choose between zero-delay output, or registered
         with m.If(go_now):
             m.d.comb += self.o.data.eq(sub.o)
+            m.d.comb += self.cr.ok.eq(self.op.rc.rc)
         # only present the result at the last computation cycle
         with m.Elif(alu_done):
             m.d.comb += self.o.data.eq(alu_r)
+            m.d.comb += self.cr.ok.eq(cr_ok_r)
+
+        # determine condition register bits based on the data output value
+        with m.If(self.cr.ok):
+            with m.If(~self.o.data.any()):
+                m.d.comb += self.cr.data.eq(0b001)
+            with m.Elif(self.o.data[-1]):
+                m.d.comb += self.cr.data.eq(0b010)
+            with m.Else():
+                m.d.comb += self.cr.data.eq(0b100)
 
         return m
 
@@ -501,12 +522,13 @@ def test_alu_parallel():
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    def send(a, b, op, inv_a=0):
+    def send(a, b, op, inv_a=0, rc=0):
         # present input data and assert valid_i
         yield dut.a.eq(a)
         yield dut.b.eq(b)
         yield dut.op.insn_type.eq(op)
         yield dut.op.invert_in.eq(inv_a)
+        yield dut.op.rc.rc.eq(rc)
         yield dut.p.valid_i.eq(1)
         yield
         # wait for ready_o to be asserted
@@ -520,6 +542,7 @@ def test_alu_parallel():
         yield dut.b.eq(0)
         yield dut.op.insn_type.eq(0)
         yield dut.op.invert_in.eq(0)
+        yield dut.op.rc.rc.eq(0)
 
     def receive():
         # signal readiness to receive data
@@ -528,13 +551,14 @@ def test_alu_parallel():
         # wait for valid_o to be asserted
         while not (yield dut.n.valid_o):
             yield
-        # read result
+        # read results
         result = yield dut.o.data
+        cr = yield dut.cr.data
         # negate ready_i
         # if receive is called again immediately afterwards, there will be no
         # visible transition (it will not be negated, after all)
         yield dut.n.ready_i.eq(0)
-        return result
+        return result, cr
 
     def producer():
         # send a few test cases, interspersed with wait states
@@ -545,21 +569,23 @@ def test_alu_parallel():
         yield
         yield
         # 2 * 3
-        yield from send(2, 3, MicrOp.OP_MUL_L64)
-        # (-5) + 3
-        yield from send(5, 3, MicrOp.OP_ADD, inv_a=1)
+        yield from send(2, 3, MicrOp.OP_MUL_L64, rc=1)
+        # (-6) + 3
+        yield from send(5, 3, MicrOp.OP_ADD, inv_a=1, rc=1)
         yield
         # 5 - 3
         # note that this is a zero-delay operation
+        yield from send(5, 3, MicrOp.OP_CMP)
+        yield
+        yield
+        # NOP
         yield from send(5, 3, MicrOp.OP_NOP)
-        yield
-        yield
         # 13 >> 2
         yield from send(13, 2, MicrOp.OP_SHR)
         # sign extent 13
         yield from send(13, 2, MicrOp.OP_EXTS)
         # sign extend -128 (8 bits)
-        yield from send(0x80, 2, MicrOp.OP_EXTS)
+        yield from send(0x80, 2, MicrOp.OP_EXTS, rc=1)
         # sign extend -128 (8 bits)
         yield from send(2, 0x80, MicrOp.OP_EXTSWSLI)
 
@@ -570,35 +596,37 @@ def test_alu_parallel():
         yield
         # 5 + 3 = 8
         result = yield from receive()
-        assert (result == 8)
+        assert result[0] == 8
         # 2 * 3 = 6
         result = yield from receive()
-        assert (result == 6)
+        assert result == (6, 0b100)
         yield
         yield
-        # (-5) + 3 = -2
+        # (-6) + 3 = -3
         result = yield from receive()
-        assert (result == 65533)  # unsigned equivalent to -2
+        assert result == (65533, 0b010)  # unsigned equivalent to -2
         # 5 - 3 = 2
         # note that this is a zero-delay operation
         # this, and the previous result, will be received back-to-back
         # (check the output waveform to see this)
         result = yield from receive()
-        assert (result == 2)
+        assert result[0] == 2
         yield
         yield
+        # NOP
+        yield from receive()
         # 13 >> 2 = 3
         result = yield from receive()
-        assert (result == 3)
+        assert result[0] == 3
         # sign extent 13 = 13
         result = yield from receive()
-        assert (result == 13)
+        assert result[0] == 13
         # sign extend -128 (8 bits) = -128 (16 bits)
         result = yield from receive()
-        assert (result == 0xFF80)
+        assert result == (0xFF80, 0b010)
         # sign extend -128 (8 bits) = -128 (16 bits)
         result = yield from receive()
-        assert (result == 0xFF80)
+        assert result[0] == 0xFF80
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
@@ -621,6 +649,9 @@ def write_alu_gtkw(gtkw_name, clk_period=1e-6, sub_module=None,
         'valid_o',
         'ready_i',
         'alu_o[15:0]',
+        'alu_o_ok',
+        'alu_cr[2:0]',
+        'alu_cr_ok'
     ]
     # determine the module name of the DUT
     module = 'top'
