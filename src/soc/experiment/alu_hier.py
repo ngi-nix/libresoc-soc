@@ -208,6 +208,7 @@ class ALU(Elaboratable):
         self.p.data_i.a = self.a
         self.p.data_i.b = self.b
         self.n.data_o.o = self.o
+        self.n.data_o.cr = self.cr
 
     def elaborate(self, platform):
         m = Module()
