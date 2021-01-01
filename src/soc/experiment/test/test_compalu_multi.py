@@ -326,7 +326,7 @@ class OpSim:
             self.consumers.append(ResultConsumer(sim, dut, i))
 
     def issue(self, src_i, op, expected, src_delays, dest_delays,
-              inv_a=0, imm=0, imm_ok=0, zero_a=0,
+              inv_a=0, imm=0, imm_ok=0, zero_a=0, rc=0,
               rdmaskn=None, wrmask=None):
         """Executes the issue operation"""
         dut = self.dut
@@ -358,6 +358,8 @@ class OpSim:
             yield dut.oper_i.imm_data.ok.eq(imm_ok)
         if hasattr(dut.oper_i, "zero_a"):
             yield dut.oper_i.zero_a.eq(zero_a)
+        if hasattr(dut.oper_i, "rc"):
+            yield dut.oper_i.rc.rc.eq(rc)
         if hasattr(dut, "rdmaskn"):
             rdmaskn_bits = 0
             for i in range(len(rdmaskn)):
@@ -379,6 +381,8 @@ class OpSim:
             yield self.dut.oper_i.imm_data.ok.eq(0)
         if hasattr(dut.oper_i, "zero_a"):
             yield self.dut.oper_i.zero_a.eq(0)
+        if hasattr(dut.oper_i, "rc"):
+            yield dut.oper_i.rc.rc.eq(0)
         # wait for busy to be negated
         yield Settle()
         while (yield dut.busy_o):
@@ -428,44 +432,50 @@ class OpSim:
 def scoreboard_sim(op):
     # zero (no) input operands test
     # 0 + 8 = 8
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [8],
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [8, 0],
                         zero_a=1, imm=8, imm_ok=1,
-                        src_delays=[0, 2], dest_delays=[0])
+                        wrmask=[0, 1],
+                        src_delays=[0, 2], dest_delays=[0, 0])
     # 5 + 8 = 13
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [13],
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [13, 0],
                         inv_a=0, imm=8, imm_ok=1,
-                        src_delays=[2, 0], dest_delays=[2])
+                        wrmask=[0, 1],
+                        src_delays=[2, 0], dest_delays=[2, 0])
     # 5 + 2 = 7
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [7],
-                        src_delays=[1, 1], dest_delays=[1])
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [7, 0],
+                        wrmask=[0, 1],
+                        src_delays=[1, 1], dest_delays=[1, 0])
     # (-6) + 2 = (-4)
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [65532],
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [65532, 0],
                         inv_a=1,
-                        src_delays=[1, 2], dest_delays=[0])
+                        wrmask=[0, 1],
+                        src_delays=[1, 2], dest_delays=[0, 0])
     # 0 + 2 = 2
-    yield from op.issue([5, 2], MicrOp.OP_ADD, [2],
+    yield from op.issue([5, 2], MicrOp.OP_ADD, [2, 0],
                         zero_a=1,
-                        src_delays=[2, 0], dest_delays=[1])
+                        wrmask=[0, 1],
+                        src_delays=[2, 0], dest_delays=[1, 0])
 
     # test combinatorial zero-delay operation
     # In the test ALU, any operation other than ADD, MUL, EXTS or SHR
     # is zero-delay, and do a subtraction.
     # 5 - 2 = 3
-    yield from op.issue([5, 2], MicrOp.OP_CMP, [3],
-                        src_delays=[0, 1], dest_delays=[2])
+    yield from op.issue([5, 2], MicrOp.OP_CMP, [3, 0],
+                        wrmask=[0, 1],
+                        src_delays=[0, 1], dest_delays=[2, 0])
     # test all combinations of masked input ports
     # NOP does not make any request nor response
-    yield from op.issue([5, 2], MicrOp.OP_NOP, [0],
-                        rdmaskn=[1, 1], wrmask=[1],
-                        src_delays=[1, 2], dest_delays=[1])
+    yield from op.issue([5, 2], MicrOp.OP_NOP, [0, 0],
+                        rdmaskn=[1, 1], wrmask=[1, 1],
+                        src_delays=[1, 2], dest_delays=[1, 0])
     # sign_extend(0x80) = 0xFF80
-    yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80],
-                        rdmaskn=[0, 1],
-                        src_delays=[2, 1], dest_delays=[0])
+    yield from op.issue([0x80, 2], MicrOp.OP_EXTS, [0xFF80, 0],
+                        rdmaskn=[0, 1], wrmask=[0, 1],
+                        src_delays=[2, 1], dest_delays=[0, 0])
     # sign_extend(0x80) = 0xFF80
-    yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80],
-                        rdmaskn=[1, 0],
-                        src_delays=[1, 2], dest_delays=[1])
+    yield from op.issue([2, 0x80], MicrOp.OP_EXTSWSLI, [0xFF80, 0],
+                        rdmaskn=[1, 0], wrmask=[0, 1],
+                        src_delays=[1, 2], dest_delays=[1, 0])
 
 
 def test_compunit_fsm():
@@ -539,7 +549,7 @@ def test_compunit():
 
     m = Module()
     alu = ALU(16)
-    dut = MultiCompUnit(16, alu, CompALUOpSubset)
+    dut = MultiCompUnit(16, alu, CompALUOpSubset, n_dst=2)
     m.submodules.cu = dut
 
     vl = rtlil.convert(dut, ports=dut.ports())
@@ -673,7 +683,8 @@ def test_compunit_regspec1():
             ('oper_i_None__invert_in', {'display': 'invert_in'}),
             ('oper_i_None__imm_data__data[63:0]', {'display': 'data[63:0]'}),
             ('oper_i_None__imm_data__ok', {'display': 'imm_ok'}),
-            ('oper_i_None__zero_a', {'display': 'zero_a'})]),
+            ('oper_i_None__zero_a', {'display': 'zero_a'}),
+            ('oper_i_None__rc__rc', {'display': 'rc'})]),
         ('operand 1 port', 'in', [
             ('cu_rdmaskn_i[1:0]', {'bit': 1}),
             ('cu_rd__rel_o[1:0]', {'bit': 1}),
@@ -685,13 +696,22 @@ def test_compunit_regspec1():
             ('cu_rd__go_i[1:0]', {'bit': 0}),
             'src2_i[15:0]']),
         ('result port', 'out', [
-            'cu_wrmask_o', 'cu_wr__rel_o', 'cu_wr__go_i', 'dest1_o[15:0]']),
+            ('cu_wrmask_o[1:0]', {'bit': 1}),
+            ('cu_wr__rel_o[1:0]', {'bit': 1}),
+            ('cu_wr__go_i[1:0]', {'bit': 1}),
+            'dest1_o[15:0]']),
+        ('cr port', 'out', [
+            ('cu_wrmask_o[1:0]', {'bit': 0}),
+            ('cu_wr__rel_o[1:0]', {'bit': 0}),
+            ('cu_wr__go_i[1:0]', {'bit': 0}),
+            'dest2_o[2:0]']),
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
                 'valid_i', 'ready_o']),
             ('next port', 'out', [
-                'alu_o[15:0]', 'valid_o', 'ready_i',  'alu_o_ok'])]),
+                'alu_o[15:0]', 'valid_o', 'ready_i',
+                'alu_o_ok', 'alu_cr_ok'])]),
         ('debug', {'module': 'top'},
             ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]
 
@@ -703,7 +723,8 @@ def test_compunit_regspec1():
 
     inspec = [('INT', 'a', '0:15'),
               ('INT', 'b', '0:15')]
-    outspec = [('INT', 'o', '0:15')]
+    outspec = [('INT', 'o', '0:15'),
+               ('INT', 'cr', '0:2')]
 
     regspec = (inspec, outspec)
 
