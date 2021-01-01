@@ -317,11 +317,13 @@ class ALU(Elaboratable):
 
         # choose between zero-delay output, or registered
         with m.If(go_now):
-            m.d.comb += self.o.data.eq(sub.o)
+            with m.If(self.o.ok):
+                m.d.comb += self.o.data.eq(sub.o)
             m.d.comb += self.cr.ok.eq(self.op.rc.rc)
         # only present the result at the last computation cycle
         with m.Elif(alu_done):
-            m.d.comb += self.o.data.eq(alu_r)
+            with m.If(self.o.ok):
+                m.d.comb += self.o.data.eq(alu_r)
             m.d.comb += self.cr.ok.eq(cr_ok_r)
 
         # determine condition register bits based on the data output value
