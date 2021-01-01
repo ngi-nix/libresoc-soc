@@ -585,6 +585,8 @@ def test_alu_parallel():
         yield from send(0x80, 2, MicrOp.OP_EXTS, rc=1)
         # sign extend -128 (8 bits)
         yield from send(2, 0x80, MicrOp.OP_EXTSWSLI)
+        # 5 - 5
+        yield from send(5, 5, MicrOp.OP_CMP, rc=1)
 
     def consumer():
         # receive and check results, interspersed with wait states
@@ -595,11 +597,13 @@ def test_alu_parallel():
         result = yield from receive()
         assert result[0] == 8
         # 2 * 3 = 6
+        # 6 > 0 => CR = 0b100
         result = yield from receive()
         assert result == (6, 0b100)
         yield
         yield
         # (-6) + 3 = -3
+        # -3 < 0 => CR = 0b010
         result = yield from receive()
         assert result == (65533, 0b010)  # unsigned equivalent to -2
         # 5 - 3 = 2
@@ -619,11 +623,16 @@ def test_alu_parallel():
         result = yield from receive()
         assert result[0] == 13
         # sign extend -128 (8 bits) = -128 (16 bits)
+        # -128 < 0 => CR = 0b010
         result = yield from receive()
         assert result == (0xFF80, 0b010)
         # sign extend -128 (8 bits) = -128 (16 bits)
         result = yield from receive()
         assert result[0] == 0xFF80
+        # 5 - 5 = 0
+        # 0 == 0 => CR = 0b001
+        result = yield from receive()
+        assert result == (0, 0b001)
 
     sim.add_sync_process(producer)
     sim.add_sync_process(consumer)
@@ -647,7 +656,7 @@ def write_alu_gtkw(gtkw_name, clk_period=1e-6, sub_module=None,
         'ready_i',
         'alu_o[15:0]',
         'alu_o_ok',
-        'alu_cr[2:0]',
+        'alu_cr[15:0]',
         'alu_cr_ok'
     ]
     # determine the module name of the DUT

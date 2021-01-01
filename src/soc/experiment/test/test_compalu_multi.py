@@ -489,7 +489,7 @@ def scoreboard_sim(op):
                         rc=1, rdmaskn=[0, 1],
                         src_delays=[2, 1], dest_delays=[0, 2])
     # 5 - 5 = 0
-    # 0 == 0 => CR = 0b000
+    # 0 == 0 => CR = 0b001
     yield from op.issue([5, 2], MicrOp.OP_CMP, [0, 0b001],
                         imm=5, imm_ok=1, rc=1,
                         src_delays=[0, 1], dest_delays=[2, 1])
