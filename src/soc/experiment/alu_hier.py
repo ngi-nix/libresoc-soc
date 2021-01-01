@@ -265,12 +265,14 @@ class ALU(Elaboratable):
         # hold the ALU result until ready_o is asserted
         alu_r = Signal(self.width)
 
-        # condition register output enable
-        cr_ok_r = Signal()
-
-        # NOP doesn't output anything
-        with m.If(self.op.insn_type != MicrOp.OP_NOP):
+        # output masks
+        # NOP and ILLEGAL don't output anything
+        with m.If((self.op.insn_type != MicrOp.OP_NOP) &
+                  (self.op.insn_type != MicrOp.OP_ILLEGAL)):
             m.d.comb += self.o.ok.eq(1)
+        # CR is output when rc bit is active
+        m.d.comb += self.cr.ok.eq(self.op.rc.rc)
+
         with m.If(alu_idle):
             with m.If(self.p.valid_i):
 
@@ -308,32 +310,24 @@ class ALU(Elaboratable):
                 with m.Else():
                     m.d.comb += go_now.eq(1)
 
-                # store rc bit, to enable cr output later
-                m.d.sync += cr_ok_r.eq(self.op.rc.rc)
-
         with m.Elif(~alu_done | self.n.ready_i):
             # decrement the counter while the ALU is neither idle nor finished
             m.d.sync += self.counter.eq(self.counter - 1)
 
         # choose between zero-delay output, or registered
         with m.If(go_now):
-            with m.If(self.o.ok):
-                m.d.comb += self.o.data.eq(sub.o)
-            m.d.comb += self.cr.ok.eq(self.op.rc.rc)
+            m.d.comb += self.o.data.eq(sub.o)
         # only present the result at the last computation cycle
         with m.Elif(alu_done):
-            with m.If(self.o.ok):
-                m.d.comb += self.o.data.eq(alu_r)
-            m.d.comb += self.cr.ok.eq(cr_ok_r)
+            m.d.comb += self.o.data.eq(alu_r)
 
         # determine condition register bits based on the data output value
-        with m.If(self.cr.ok):
-            with m.If(~self.o.data.any()):
-                m.d.comb += self.cr.data.eq(0b001)
-            with m.Elif(self.o.data[-1]):
-                m.d.comb += self.cr.data.eq(0b010)
-            with m.Else():
-                m.d.comb += self.cr.data.eq(0b100)
+        with m.If(~self.o.data.any()):
+            m.d.comb += self.cr.data.eq(0b001)
+        with m.Elif(self.o.data[-1]):
+            m.d.comb += self.cr.data.eq(0b010)
+        with m.Else():
+            m.d.comb += self.cr.data.eq(0b100)
 
         return m
 
