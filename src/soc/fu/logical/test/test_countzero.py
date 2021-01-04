@@ -87,7 +87,7 @@ class ZeroCounterTestCase(FHDLTestCase):
         sim.add_process(process)  # or sim.add_sync_process(process), see below
 
         # run test and write vcd
-        fn = "genullnau"
+        fn = "countzero"
         with sim.write_vcd(fn+".vcd", fn+".gtkw", traces=dut.ports()):
             sim.run()
 
