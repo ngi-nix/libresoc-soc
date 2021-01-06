@@ -70,24 +70,14 @@ def check_fsm_outputs(fsm, pdecode2, sim, code):
 
 #incomplete test - connect fsm inputs first
 class MMUTestCase(TestAccumulatorBase):
-
-    def case_1_mmu(self):
-        # test case for MTSPR, MFSPR, DCBZ and TLBIE.
-        #lst = ["dcbz 2,3"] not yet implemented
-        lst = [#"mtspr 18, 1", # DSISR
-               #"mtspr 19, 2", # DAR
-               #"mtspr 26, 3", # SRR0
-               #"mtspr 27, 4", # SRR1
-
-               #"mfspr 18, 1", # DSISR
-               #"mfspr 19, 2", # DAR
-               #"mfspr 26, 3", # SRR0
-               #"mfspr 27, 4", # SRR1
-
-               #next two need to be added to the simulator
-               "dcbz 5,6" # Data Cache Block set to Zero - RA,RB (hangs)
-               #"tlbie 1,1,1,1,1" #does not hang -- not verified yet
-               ]
+    # MMU handles MTSPR, MFSPR, DCBZ and TLBIE.
+    # other instructions here -> must be load/store
+    def case_mfspr_after_invalid_load(self):
+        lst = [ "lhz 3, 0(1)" , # case 1 load -- test infrastructure needed
+                "mfspr 18, 1", # DSISR to reg 1 -- KeyError: 2 in simulator
+                "mfspr 19, 2", # DAR to reg 2   -- with key = spr_dict[key].SPR
+                # TODO -- verify returned sprvals
+              ]
 
         initial_regs = [0] * 32
         initial_regs[1] = 0xBADCAB1E
