@@ -185,7 +185,7 @@ class FSMMMUStage(ControlBase):
                         # blip the MMU and wait for it to complete
                         comb += valid.eq(1)   # start "pulse"
                         comb += l_in.valid.eq(blip)   # start
-                        comb += l_in.mtspr.eq(1)   # mtspr mode
+                        comb += l_in.mtspr.eq(0)   # mfspr!=mtspr
                         comb += l_in.sprn.eq(spr)  # which SPR
                         comb += l_in.rs.eq(a_i)    # incoming operand (RS)
                         comb += o.data.eq(l_out.sprval) # SPR from MMU
