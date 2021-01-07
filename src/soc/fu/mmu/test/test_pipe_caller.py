@@ -77,15 +77,14 @@ class MMUTestCase(TestAccumulatorBase):
 
     def case_mfspr_after_invalid_load(self):
         lst = [ # TODO -- set SPR on both sinulator and port interface
-                "mfspr 1, 18", # DSISR to reg 1 -- KeyError: 2 in simulator
-                "mfspr 2, 19", # DAR to reg 2   -- with key = spr_dict[key].SPR
+                "mfspr 1, 18", # DSISR to reg 1
+                "mfspr 2, 19", # DAR to reg 2
                 # TODO -- verify returned sprvals
               ]
 
         initial_regs = [0] * 32
 
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
-                        'XER': 0xe00c0000}
+        initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
 
