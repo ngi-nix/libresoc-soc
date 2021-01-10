@@ -1,0 +1,16 @@
+* MMU
+| MMUToLoadStore1Type (l_out) | LoadStore1ToMMUType (l_in) |
+| MMUToDCacheType     (d_out) | DCacheToMMUType     (d_in) |
+| MMUToICacheType NC  (i_out) | None                       |
+
+* DCache
+| DCacheToLoadStore1Type (d_out) | LoadStore1ToDCacheType (d_in) |
+| DCacheToMMUType (m_out)        | MMUToDCacheType (m_in)        |
+| WBMasterOut (wb_out)           | WBSlaveOut (wb_in)            |
+| stall_out                      | None                          |
+
+* Loadstore1 -- microwatt only
+| Loadstore1ToMmuType (m_out)       | MmuToLoadstore1Type (m_in)          |
+| Loadstore1ToDcacheType (d_out)    | DcacheToLoadstore1Type (d_in)       |
+| Loadstore1ToWritebackType (l_out) | Execute1ToLoadstore1Type (l_in)     |
+| Loadstore1ToExecute1Type (e_out)  | None                                |

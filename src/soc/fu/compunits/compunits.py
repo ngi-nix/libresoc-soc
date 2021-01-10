@@ -225,7 +225,6 @@ class LDSTFunctionUnit(LDSTCompUnit):
 
 # TODO: ReservationStations-based.
 
-
 # simple one-only function unit class, for test purposes
 class AllFunctionUnits(Elaboratable):
     """AllFunctionUnits
@@ -239,7 +238,7 @@ class AllFunctionUnits(Elaboratable):
 
     """
 
-    def __init__(self, pspec, pilist=None, div_fsm=True):
+    def __init__(self, pspec, pilist=None, div_fsm=True,microwatt_mmu = True):
         addrwid = pspec.addr_wid
         units = pspec.units
         if not isinstance(units, dict):
@@ -247,8 +246,9 @@ class AllFunctionUnits(Elaboratable):
                      'spr': 1,
                      'logical': 1,
                      'mul': 1,
-                     #'mmu': 1,
                      'div': 1, 'shiftrot': 1}
+            if microwatt_mmu:
+                units['mmu'] = 1
         alus = {'alu': ALUFunctionUnit,
                 'cr': CRFunctionUnit,
                 'branch': BranchFunctionUnit,
@@ -269,6 +269,13 @@ class AllFunctionUnits(Elaboratable):
             kls = alus[name]
             for i in range(qty):
                 self.fus["%s%d" % (name, i)] = kls(i)
+        if microwatt_mmu:
+            print("cut here ==============================")
+            alu = self.fus["mmu0"].alu
+            print("alu",alu)
+            pi = alu.pi
+            print("pi",pi)
+            pilist = [pi]
         if pilist is None:
             return
         for i, pi in enumerate(pilist):
