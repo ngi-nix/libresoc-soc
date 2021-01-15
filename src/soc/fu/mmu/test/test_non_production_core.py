@@ -36,7 +36,7 @@ from soc.simple.test.test_core import (setup_regs, check_regs,
 
 import power_instruction_analyzer as pia
 
-debughang = 1
+debughang = 2
 
 def set_fsm_inputs_do_not_use(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
@@ -84,7 +84,8 @@ class MMUTestCase(TestAccumulatorBase):
 
         initial_regs = [0] * 32
 
-        initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
+        #initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
+        initial_sprs = {}
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
 
@@ -209,6 +210,8 @@ class TestRunner(unittest.TestCase):
             index = pc//4
             print("pc after %08x" % (pc))
 
+            fsm = core.fus.fus["mmu0"].alu
+
             vld = yield fsm.n.valid_o #fsm
             while not vld:
                 yield
@@ -231,17 +234,8 @@ class TestRunner(unittest.TestCase):
                              addr_wid=48,
                              mask_wid=8,
                              reg_wid=64)
-        
-        m.submodules.core = core = NonProductionCore(pspec)
 
-        # TODO connect pdecode2 to core
-
-        # TODO connect outputs of power decoder
-        #comb += fsm.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
-        #comb += fsm.p.valid_i.eq(1)
-        #comb += fsm.n.ready_i.eq(1)
-
-        #use this instead# yield from setup_regs(pdecode2, core, test)
+        m.submodules.core = core = NonProductionCore(pspec,microwatt_mmu=True)
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
@@ -257,7 +251,7 @@ class TestRunner(unittest.TestCase):
                     yield from self.execute(core, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
-        with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
+        with sim.write_vcd("mmu_ldst_simulator.vcd", "mmu_ldst_simulator.gtkw",
                            traces=[]):
             sim.run()
 
