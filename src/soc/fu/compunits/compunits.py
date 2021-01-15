@@ -238,7 +238,7 @@ class AllFunctionUnits(Elaboratable):
 
     """
 
-    def __init__(self, pspec, pilist=None, div_fsm=True,microwatt_mmu = True):
+    def __init__(self, pspec, pilist=None, div_fsm=True,microwatt_mmu = False):
         addrwid = pspec.addr_wid
         units = pspec.units
         if not isinstance(units, dict):
