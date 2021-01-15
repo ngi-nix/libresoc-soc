@@ -21,8 +21,8 @@ from soc.fu.test.common import (
     TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
 #from soc.fu.spr.pipeline import SPRBasePipe
 #from soc.fu.spr.pipe_data import SPRPipeSpec
-from soc.fu.mmu.fsm import FSMMMUStage
-from soc.fu.mmu.pipe_data import MMUPipeSpec
+#from soc.fu.mmu.fsm import FSMMMUStage
+#from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
 from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
@@ -30,12 +30,15 @@ from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
 
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
+from soc.simple.test.test_core import (setup_regs, check_regs,
+                                       wait_for_busy_clear,
+                                       wait_for_busy_hi)
 
 import power_instruction_analyzer as pia
 
 debughang = 1
 
-def set_fsm_inputs(alu, dec2, sim):
+def set_fsm_inputs_do_not_use(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
     # and place it into data_i.b
@@ -64,17 +67,8 @@ def set_fsm_inputs(alu, dec2, sim):
     if 'rb' in inp:
         b = inp['rb']
     print(inp)
-    return pia.InstructionInput(ra=a, rb=b, overflow=overflow)
+    return pia.InstructionInput(ra=a, rb=b, overflow=overflow) 
 
-
-def check_fsm_outputs(fsm, pdecode2, sim, code):
-    # check that MMUOutputData is correct
-    return None #TODO
-
-
-# TODO use AllFunctionUnits or NonProductionCore instead of 
-
-#incomplete test - connect fsm inputs first
 class MMUTestCase(TestAccumulatorBase):
     # MMU handles MTSPR, MFSPR, DCBZ and TLBIE.
     # other instructions here -> must be load/store
@@ -107,7 +101,7 @@ class TestRunner(unittest.TestCase):
         super().__init__("run_all")
         self.test_data = test_data
 
-    def check_fsm_outputs(self, alu, dec2, sim, code, pia_res):
+    def check_fsm_outputs_delete_me(self, alu, dec2, sim, code, pia_res):
 
         rc = yield dec2.e.do.rc.data
         cridx_ok = yield dec2.e.write_cr.ok
@@ -164,7 +158,7 @@ class TestRunner(unittest.TestCase):
         #    self.assertEqual(ov_ok, False, code)
         #    self.assertEqual(so_ok, False, code)
 
-    def execute(self, fsm, instruction, pdecode2, test):
+    def execute(self, core, instruction, pdecode2, test):
         program = test.program
         sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
                   test.mem, test.msr,
@@ -194,18 +188,20 @@ class TestRunner(unittest.TestCase):
             yield instruction.eq(ins)          # raw binary instr.
             yield Settle()
 
-            fast_in = yield pdecode2.e.read_fast1.data
-            spr_in = yield pdecode2.e.read_spr1.data
-            print("dec2 spr/fast in", fast_in, spr_in)
+            #
+            yield from setup_regs(pdecode2, core, test)
 
-            fast_out = yield pdecode2.e.write_fast1.data
-            spr_out = yield pdecode2.e.write_spr.data
-            print("dec2 spr/fast in", fast_out, spr_out)
+            ##fast_in = yield pdecode2.e.read_fast1.data
+            ##spr_in = yield pdecode2.e.read_spr1.data
+            ##print("dec2 spr/fast in", fast_in, spr_in)
 
-            fn_unit = yield pdecode2.e.do.fn_unit
-            #FIXME this fails -- self.assertEqual(fn_unit, Function.SPR.value)
-            pia_res = yield from set_fsm_inputs(fsm, pdecode2, sim)
-            yield
+            ##fast_out = yield pdecode2.e.write_fast1.data
+            ##spr_out = yield pdecode2.e.write_spr.data
+            ##print("dec2 spr/fast in", fast_out, spr_out)
+
+            ##fn_unit = yield pdecode2.e.do.fn_unit
+            ##pia_res = yield from set_fsm_inputs(fsm, pdecode2, sim)
+            ##yield
             opname = code.split(' ')[0]
             yield from sim.call(opname)
             pc = sim.pc.CIA.value
@@ -220,8 +216,6 @@ class TestRunner(unittest.TestCase):
                 vld = yield fsm.n.valid_o
                 if debughang==2: vld=1
             yield
-
-            yield from self.check_fsm_outputs(fsm, pdecode2, sim, code, pia_res)
 
     def run_all(self):
         m = Module()
@@ -238,12 +232,17 @@ class TestRunner(unittest.TestCase):
                              mask_wid=8,
                              reg_wid=64)
         
-        m.submodules.core = NonProductionCore(pspec)
+        m.submodules.core = core = NonProductionCore(pspec)
+
+        # TODO connect pdecode2 to core
 
         # TODO connect outputs of power decoder
         #comb += fsm.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
         #comb += fsm.p.valid_i.eq(1)
         #comb += fsm.n.ready_i.eq(1)
+
+        #use this instead# yield from setup_regs(pdecode2, core, test)
+
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
@@ -255,7 +254,7 @@ class TestRunner(unittest.TestCase):
                 print("sprs", test.sprs)
                 program = test.program
                 with self.subTest(test.name):
-                    yield from self.execute(fsm, instruction, pdecode2, test)
+                    yield from self.execute(core, instruction, pdecode2, test)
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
