@@ -9,12 +9,14 @@ from soc.fu.test.common import (
 
 # this test case takes about half a minute to run on my Talos II
 class MMUDataPathTestCase(TestAccumulatorBase):
-    # MMU handles MTSPR, MFSPR, DCBZ and TLBIE.
+    # MMU on microwatt handles MTSPR, MFSPR, DCBZ and TLBIE.
+    # libre-soc has own SPR unit
     # other instructions here -> must be load/store
 
     def case_mfspr_after_invalid_load(self):
         lst = [ 
-                "tlbie 0,0,0,0,0"    # RB,RS,RIC,PRS,R
+                "tlbie 0,0,0,0,0",    # RB,RS,RIC,PRS,R
+                "dcbz 1,2"
               ]
 
         initial_regs = [0] * 32
