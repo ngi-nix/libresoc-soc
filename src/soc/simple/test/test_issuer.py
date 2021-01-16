@@ -132,9 +132,10 @@ def get_dmi(dmi, addr):
 
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, tst_data):
+    def __init__(self, tst_data, microwatt_mmu=False):
         super().__init__("run_all")
         self.test_data = tst_data
+        self.microwatt_mmu = microwatt_mmu
 
     def run_all(self):
         m = Module()
@@ -151,6 +152,7 @@ class TestRunner(FHDLTestCase):
                              nocore=False,
                              xics=False,
                              gpio=False,
+                             mmu=self.microwatt_mmu,
                              reg_wid=64)
         m.submodules.issuer = issuer = TestIssuerInternal(pspec)
         imem = issuer.imem._get_memory()
@@ -306,7 +308,7 @@ class TestRunner(FHDLTestCase):
                                 (test.name, int_reg, value))
 
         sim.add_sync_process(process)
-        with sim.write_vcd("issuer_simulator.vcd",
+        with sim.write_vcd("issuer_simulator.vcd","issuer_simulator.gtkw",
                            traces=[]):
             sim.run()
 

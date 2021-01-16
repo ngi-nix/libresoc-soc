@@ -28,7 +28,7 @@ class MMUDataPathTestCase(TestAccumulatorBase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(MMUDataPathTestCase().test_data))
+    suite.addTest(TestRunner(MMUDataPathTestCase().test_data,microwatt_mmu=True))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

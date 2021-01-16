@@ -68,7 +68,7 @@ def sort_fuspecs(fuspecs):
 
 
 class NonProductionCore(Elaboratable):
-    def __init__(self, pspec, microwatt_mmu = False):
+    def __init__(self, pspec):
         self.pspec = pspec
 
         # single LD/ST funnel for memory access
@@ -76,8 +76,8 @@ class NonProductionCore(Elaboratable):
         pi = self.l0.l0.dports[0]
 
         # function units (only one each)
-        self.microwatt_mmu = microwatt_mmu
-        self.fus = AllFunctionUnits(pspec, pilist=[pi], microwatt_mmu = self.microwatt_mmu)
+        # only include mmu if enabled in pspec
+        self.fus = AllFunctionUnits(pspec, pilist=[pi])
 
         # register files (yes plural)
         self.regs = RegFiles()

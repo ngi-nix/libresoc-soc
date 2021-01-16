@@ -238,9 +238,11 @@ class AllFunctionUnits(Elaboratable):
 
     """
 
-    def __init__(self, pspec, pilist=None, div_fsm=True,microwatt_mmu = False):
+    def __init__(self, pspec, pilist=None, div_fsm=True):
         addrwid = pspec.addr_wid
         units = pspec.units
+        microwatt_mmu = hasattr(pspec, "mmu") and pspec.mmu == True
+        print("AllFunctionUnits.microwatt_mmu="+str(microwatt_mmu))
         if not isinstance(units, dict):
             units = {'alu': 1, 'cr': 1, 'branch': 1, 'trap': 1,
                      'spr': 1,
