@@ -18,6 +18,9 @@ from soc.experiment.pimem import PortInterfaceBase
 from soc.experiment.mem_types import LoadStore1ToDCacheType, LoadStore1ToMMUType
 from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
 
+# for testing purposes
+from soc.experiment.testmem import TestMemory
+
 # glue logic for microwatt mmu and dcache
 class LoadStore1(PortInterfaceBase):
     def __init__(self, regwid=64, addrwid=4):
@@ -26,6 +29,9 @@ class LoadStore1(PortInterfaceBase):
         self.d_out = DCacheToLoadStore1Type()
         self.l_in  = LoadStore1ToMMUType()
         self.l_out = MMUToLoadStore1Type()
+        # for debugging with gtkwave only
+        self.debug1 = Signal()
+        self.debug2 = Signal()
 
     def set_wr_addr(self, m, addr, mask):
         m.d.comb += self.d_in.addr.eq(addr)
@@ -36,6 +42,7 @@ class LoadStore1(PortInterfaceBase):
     def set_rd_addr(self, m, addr, mask):
         m.d.comb += self.d_in.addr.eq(addr)
         m.d.comb += self.l_in.addr.eq(addr)
+        m.d.comb += self.debug1.eq(1)
         # TODO set mask
         return None
 
@@ -47,6 +54,7 @@ class LoadStore1(PortInterfaceBase):
 
     def get_rd_data(self, m):
         ld_ok = Const(1, 1)
+        m.d.comb += self.debug2.eq(1)           #const high
         data = self.d_out.data
         return data, ld_ok
 
@@ -70,7 +78,7 @@ class FSMMMUStage(ControlBase):
         self.n.data_o = MMUOutputData(pspec)
 
         # incoming PortInterface
-        self.ldst = LoadStore1()
+        self.ldst = LoadStore1()       # TODO make this depend on pspec
         self.pi = self.ldst.pi
 
         # this Function Unit is extremely unusual in that it actually stores a
@@ -80,6 +88,11 @@ class FSMMMUStage(ControlBase):
 
         self.mmu = MMU()
         self.dcache = DCache()
+        regwid=64
+        aw = 5
+        # for verification of DCache
+        # XXX -- read testmem.py
+        self.testmem = TestMemory(regwid, aw, granularity=regwid//8, init=False)
 
         # make life a bit easier in Core
         self.pspec.mmu = self.mmu
@@ -87,6 +100,9 @@ class FSMMMUStage(ControlBase):
 
         # debugging output for gtkw
         self.debug0 = Signal(4)
+        self.debug_wb_cyc = Signal()
+        self.debug_wb_stb = Signal()
+        self.debug_wb_we = Signal()
         #self.debug1 = Signal(64)
         #self.debug2 = Signal(64)
         #self.debug3 = Signal(64)
@@ -104,15 +120,24 @@ class FSMMMUStage(ControlBase):
         m.submodules.dcache = dcache = self.dcache
         m.submodules.mmu = mmu = self.mmu
         m.submodules.ldst = ldst = self.ldst
+        m.submodules.testmem = testmem = self.testmem
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
         l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
 
+        # link ldst and dcache together
         comb += l_in.eq(self.ldst.l_in)
         comb += self.ldst.l_out.eq(l_out)
         comb += d_in.eq(self.ldst.d_in)
         comb += self.ldst.d_out.eq(self.dcache.d_out)
+
+        # [TODO] connect DCache wishbone (wb_out,wb_in) to testmemory
+
+        # connect DCache wishbone master to debugger
+        comb += self.debug_wb_cyc.eq(dcache.wb_out.cyc)
+        comb += self.debug_wb_stb.eq(dcache.wb_out.stb)
+        comb += self.debug_wb_we.eq(dcache.wb_out.we)
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
@@ -148,7 +173,11 @@ class FSMMMUStage(ControlBase):
             # should "action" the operation.  one of MMU or DCache gets
             # enabled ("valid") and we twiddle our thumbs until it
             # responds ("done").
+
+            # FIXME: properly implement MicrOp.OP_MTSPR and MicrOp.OP_MFSPR
+
             with m.Switch(op.insn_type):
+                comb += self.debug0.eq(3)
                 with m.Case(MicrOp.OP_MTSPR):
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
@@ -168,6 +197,7 @@ class FSMMMUStage(ControlBase):
                         comb += done.eq(l_out.done) # zzzz
 
                 with m.Case(MicrOp.OP_MFSPR):
+                    comb += self.debug0.eq(3)
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         with m.If(spr[0]):
@@ -196,7 +226,6 @@ class FSMMMUStage(ControlBase):
                     comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
                     comb += done.eq(d_out.store_done)     # TODO
                     comb += self.debug0.eq(1)
-                    
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
