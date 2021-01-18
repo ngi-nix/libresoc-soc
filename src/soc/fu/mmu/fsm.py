@@ -34,17 +34,26 @@ class LoadStore1(PortInterfaceBase):
         self.debug2 = Signal()
 
     def set_wr_addr(self, m, addr, mask):
+        #m.d.comb += self.d_in.valid.eq(1)
+        #m.d.comb += self.l_in.valid.eq(1)
+        #m.d.comb += self.d_in.load.eq(0)
+        #m.d.comb += self.l_in.load.eq(0)
         m.d.comb += self.d_in.addr.eq(addr)
         m.d.comb += self.l_in.addr.eq(addr)
         # TODO set mask
         return None
 
     def set_rd_addr(self, m, addr, mask):
+        m.d.comb += self.d_in.valid.eq(1)
+        m.d.comb += self.l_in.valid.eq(1)
+        m.d.comb += self.d_in.load.eq(1)
+        m.d.comb += self.l_in.load.eq(1)
         m.d.comb += self.d_in.addr.eq(addr)
         m.d.comb += self.l_in.addr.eq(addr)
         m.d.comb += self.debug1.eq(1)
-        # TODO set mask
-        return None
+        # m.d.comb += self.debug2.eq(1)
+        # connect testmem first
+        return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
         m.d.comb += self.d_in.data.eq(data)
@@ -54,7 +63,6 @@ class LoadStore1(PortInterfaceBase):
 
     def get_rd_data(self, m):
         ld_ok = Const(1, 1)
-        m.d.comb += self.debug2.eq(1)           #const high
         data = self.d_out.data
         return data, ld_ok
 
