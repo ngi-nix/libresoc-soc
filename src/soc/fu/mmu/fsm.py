@@ -133,6 +133,7 @@ class FSMMMUStage(ControlBase):
         m.d.comb += mmu.d_in.eq(dcache.m_out)
         l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
+        wb_out, wb_in = dcache.wb_out, dcache.wb_in
 
         # link ldst and dcache together
         comb += l_in.eq(self.ldst.l_in)
@@ -140,12 +141,26 @@ class FSMMMUStage(ControlBase):
         comb += d_in.eq(self.ldst.d_in)
         comb += self.ldst.d_out.eq(self.dcache.d_out)
 
-        # [TODO] connect DCache wishbone (wb_out,wb_in) to testmemory
+        #connect read port
+        rdport = self.testmem.rdport
+        comb += rdport.addr.eq(wb_out.adr)
+        comb += wb_in.dat.eq(rdport.data)
+
+        #connect write port
+        wrport = self.testmem.wrport
+        comb += wrport.addr.eq(wb_out.adr)
+        comb += wrport.data.eq(wb_out.dat) # write st to mem
+        comb += wrport.en.eq(wb_out.cyc & wb_out.we) # enable writes
 
         # connect DCache wishbone master to debugger
-        comb += self.debug_wb_cyc.eq(dcache.wb_out.cyc)
-        comb += self.debug_wb_stb.eq(dcache.wb_out.stb)
-        comb += self.debug_wb_we.eq(dcache.wb_out.we)
+        comb += self.debug_wb_cyc.eq(wb_out.cyc)
+        comb += self.debug_wb_stb.eq(wb_out.stb)
+        comb += self.debug_wb_we.eq(wb_out.we)
+
+        comb += wb_in.stall.eq(0)
+        # testmem only takes on cycle
+        with m.If( wb_out.cyc ):
+            m.d.sync += wb_in.ack.eq( wb_out.stb )
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
