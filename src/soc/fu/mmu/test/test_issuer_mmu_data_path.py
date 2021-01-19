@@ -13,19 +13,20 @@ class MMUTestCase(TestAccumulatorBase):
     # libre-soc has own SPR unit
     # other instructions here -> must be load/store
 
-    def case_mfspr_after_invalid_load(self):
+    def case_mmu_ldst(self):
         lst = [
                 "dcbz 1,2",
                 "tlbie 0,0,0,0,0", # RB,RS,RIC,PRS,R
                 #"mfspr 1, 18",     # DSISR to reg 1
                 #"mfspr 2, 19",     # DAR to reg 2
-                #"mtspr 18, 1",
-                #"mtspr 19, 2",
-                #test ldst instructions
-                "lhz 3, 0(1)" # lhz RT,D(RA) -> this should go through the mmu
+                #"mtspr 18, 1",     # TODO
+                #"mtspr 19, 2",     # TODO
+                #"std 1, 0(2)"
+                "lhz 3, 0(1)"       # load some data
               ]
 
         initial_regs = [0] * 32
+        #initial_regs[1] = 0xDEADBEEF
 
         #FIXME initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
         initial_sprs = {}
