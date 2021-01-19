@@ -68,7 +68,29 @@ class LoadStore1(PortInterfaceBase):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
-        #TODO
+
+        d_out = self.d_out
+        l_out = self.l_out
+
+        exc = self.pi.exception_o
+
+        #happened, alignment, instr_fault, invalid,
+        m.d.comb += exc.happened.eq(d_out.error | l_out.err)
+        m.d.comb += exc.invalid.eq(l_out.invalid)
+
+        #badtree, perm_error, rc_error, segment_fault
+        m.d.comb += exc.badtree.eq(l_out.badtree)
+        m.d.comb += exc.perm_error.eq(l_out.perm_error)
+        m.d.comb += exc.rc_error.eq(l_out.rc_error)
+        m.d.comb += exc.segment_fault.eq(l_out.segerr)
+
+        # TODO connect those signals somewhere
+        #print(d_out.valid)         -> no error
+        #print(d_out.store_done)    -> no error
+        #print(d_out.cache_paradox) -> ?
+        #print(l_out.done)          -> no error
+
+        # TODO some exceptions set SPRs
 
         return m
 
@@ -99,7 +121,7 @@ class FSMMMUStage(ControlBase):
         regwid=64
         aw = 5
         # for verification of DCache
-        # XXX -- read testmem.py
+        # TODO: create connection to real memory, backend memory interface
         self.testmem = TestMemory(regwid, aw, granularity=regwid//8, init=False)
 
         # make life a bit easier in Core
