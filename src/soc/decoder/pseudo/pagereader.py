@@ -284,3 +284,5 @@ class ISA:
 if __name__ == '__main__':
     isa = ISA()
     isa.pprint_ops()
+    # example on how to access cmp regs:
+    print ("cmp regs:", isa.instr["cmp"].regs)
