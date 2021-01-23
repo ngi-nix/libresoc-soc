@@ -64,6 +64,15 @@ def  get_extra_cr_3bit(etype, regmode, field):
         field = field >> 4
     return sv_extra, field
 
+
+# decodes SUBVL
+def decode_subvl(encoding):
+    pmap = {'2': 0b01, '3': 0b10, '4': 0b11}
+    assert encoding in pmap, \
+        "encoding %s for SUBVL not recognised" % encoding
+    return pmap[encoding]
+
+
 # decodes predicate register encoding
 def decode_predicate(encoding):
     pmap = { # integer
@@ -345,9 +354,12 @@ class SVP64:
                 # predicate mask (src, twin-pred)
                 if encmode.startswith("sm="):
                     sme = encmode
-                    smmode, smask = decode_predicate(encmode[2:])
+                    smmode, smask = decode_predicate(encmode[3:])
                     mmode = smmode
                     has_smask = True
+                # vec2/3/4
+                if encmode.startswith("vec"):
+                    subvl = decode_subvl(encmode[3:])
 
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
@@ -366,6 +378,9 @@ class SVP64:
             svp64_rm |= (mmode)           # mask mode: bit 0
             svp64_rm |= (pmask << 1)      # 1-pred: bits 1-3
 
+            # and subvl
+            svp64_rm += (subvl << 8)      # subvl: bits 8-9
+
             print ("svp64_rm", hex(svp64_rm), bin(svp64_rm))
             print ()
 
@@ -378,6 +393,7 @@ if __name__ == '__main__':
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
                  'sv.isel 64.v, 3, 2, 65.v',
-                 'sv.setb.m=r3 5, 31',
+                 'sv.setb.m=r3.sm=1<<r3 5, 31',
+                 'sv.setb.vec2 5, 31',
                 ])
     csvs = SVP64RM()
