@@ -39,6 +39,31 @@ def get_regtype(regname):
     if is_GPR(regname):
         return "GPR"
 
+# decode GPR into sv extra
+def  get_extra_gpr(etype, regmode, field):
+    if regmode == 'scalar':
+        # cut into 2-bits 5-bits SS FFFFF
+        sv_extra = field >> 5
+        field = field & 0b11111
+    else:
+        # cut into 5-bits 2-bits FFFFF SS
+        sv_extra = field & 0b11
+        field = field >> 2
+    return sv_extra, field
+
+
+# decode 3-bit CR into sv extra
+def  get_extra_cr_3bit(etype, regmode, field):
+    if regmode == 'scalar':
+        # cut into 2-bits 3-bits SS FFF
+        sv_extra = field >> 3
+        field = field & 0b111
+    else:
+        # cut into 3-bits 4-bits FFF SSSS but will cut 2 zeros off later
+        sv_extra = field & 0b1111
+        field = field >> 4
+    return sv_extra, field
+
 
 # gets SVP64 ReMap information
 class SVP64RM:
@@ -146,31 +171,121 @@ class SVP64:
                     elif field[1] == 'v':
                         regmode = 'vector'
                 field = int(field[0]) # actual register number
-                print ("    ", regmode, field)
+                print ("    ", regmode, field, end=" ")
+
+                # XXX TODO: the following is a bit of a laborious repeated
+                # mess, which could (and should) easily be parameterised.
+
+                # encode SV-GPR field into extra, v3.0field
                 if regtype == 'GPR':
-                    if regmode == 'scalar':
-                        # cut into 2-bits 5-bits SS FFFFF
-                        sv_extra = field >> 5
-                        field = field & 0b11111
-                    else:
-                        # cut into 5-bits 2-bits FFFFF SS
-                        sv_extra = field & 0b11
-                        field = field >> 2
+                    sv_extra, field = get_extra_gpr(etype, regmode, field)
                     # now sanity-check. EXTRA3 is ok, EXTRA2 has limits
+                    # (and shrink to a single bit if ok)
                     if etype == 'EXTRA2':
                         if regmode == 'scalar':
-                            assert sv_extra & 0b10 == 0, \
-                                "scalar field %s cannot fit into EXTRA2 %s" % \
+                            # range is r0-r63 in increments of 1
+                            assert (sv_extra >> 1) == 0, \
+                                "scalar GPR %s cannot fit into EXTRA2 %s" % \
                                     (regname, str(extras[extra_idx]))
+                            # all good: encode as scalar
+                            sv_extra = sv_extra & 0b01
                         else:
+                            # range is r0-r127 in increments of 4
                             assert sv_extra & 0b01 == 0, \
                                 "vector field %s cannot fit into EXTRA2 %s" % \
                                     (regname, str(extras[extra_idx]))
+                            # all good: encode as vector (bit 2 set)
+                            sv_extra = 0b10 | (sv_extra >> 1)
+                    elif regmode == 'vector':
+                        # EXTRA3 vector bit needs marking
+                        sv_extra |= 0b100
+
+                # encode SV-CR 3-bit field into extra, v3.0field
+                elif regtype == 'CR_3bit':
+                    sv_extra, field = get_extra_cr_3bit(etype, regmode, field)
+                    # now sanity-check (and shrink afterwards)
+                    if etype == 'EXTRA2':
+                        if regmode == 'scalar':
+                            # range is CR0-CR15 in increments of 1
+                            assert (sv_extra >> 1) == 0, \
+                                "scalar CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as scalar
+                            sv_extra = sv_extra & 0b01
+                        else:
+                            # range is CR0-CR127 in increments of 16
+                            assert sv_extra & 0b111 == 0, \
+                                "vector CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as vector (bit 2 set)
+                            sv_extra = 0b10 | (sv_extra >> 3)
+                    else:
+                        if regmode == 'scalar':
+                            # range is CR0-CR31 in increments of 1
+                            assert (sv_extra >> 2) == 0, \
+                                "scalar CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as scalar
+                            sv_extra = sv_extra & 0b11
+                        else:
+                            # range is CR0-CR127 in increments of 8
+                            assert sv_extra & 0b11 == 0, \
+                                "vector CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as vector (bit 3 set)
+                            sv_extra = 0b100 | (sv_extra >> 2)
+
+                # encode SV-CR 5-bit field into extra, v3.0field
+                # *sigh* this is the same as 3-bit except the 2 LSBs are
+                # passed through
+                elif regtype == 'CR_5bit':
+                    cr_subfield = field & 0b11
+                    field = field >> 2 # strip bottom 2 bits
+                    sv_extra, field = get_extra_cr_3bit(etype, regmode, field)
+                    # now sanity-check (and shrink afterwards)
+                    if etype == 'EXTRA2':
+                        if regmode == 'scalar':
+                            # range is CR0-CR15 in increments of 1
+                            assert (sv_extra >> 1) == 0, \
+                                "scalar CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as scalar
+                            sv_extra = sv_extra & 0b01
+                        else:
+                            # range is CR0-CR127 in increments of 16
+                            assert sv_extra & 0b111 == 0, \
+                                "vector CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as vector (bit 2 set)
+                            sv_extra = 0b10 | (sv_extra >> 3)
+                    else:
+                        if regmode == 'scalar':
+                            # range is CR0-CR31 in increments of 1
+                            assert (sv_extra >> 2) == 0, \
+                                "scalar CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as scalar
+                            sv_extra = sv_extra & 0b11
+                        else:
+                            # range is CR0-CR127 in increments of 8
+                            assert sv_extra & 0b11 == 0, \
+                                "vector CR %s cannot fit into EXTRA2 %s" % \
+                                    (regname, str(extras[extra_idx]))
+                            # all good: encode as vector (bit 3 set)
+                            sv_extra = 0b100 | (sv_extra >> 2)
+
+                    # reconstruct the actual 5-bit CR field
+                    field = (field << 2) | cr_subfield
+
+                # capture the extra field info
+                print ("=>", "%5s" % bin(sv_extra), field)
+                extras[extra_idx] = sv_extra
 
                 # append altered field value to v3.0b
                 v30b_newfields.append(str(field))
 
             print ("new v3.0B fields", v30b_op, v30b_newfields)
+            print ("extras", extras)
             print ()
 
         return res
@@ -180,7 +295,7 @@ if __name__ == '__main__':
                  'extsw 5, 3',
                  'sv.extsw 5, 3',
                  'sv.cmpi 5, 1, 3, 2',
-                 'sv.setb 5, 3',
-                 'sv.isel 64.v, 3, 2, 0'
+                 'sv.setb 5, 31',
+                 'sv.isel 64.v, 3, 2, 65.v'
                 ])
     csvs = SVP64RM()
