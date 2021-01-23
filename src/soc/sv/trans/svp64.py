@@ -485,6 +485,7 @@ class SVP64:
             # "normal" mode
             if sv_mode is None:
                 mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
+                sv_mode = 0b00
 
             # "mapreduce" modes
             elif sv_mode == 0b00:
@@ -503,7 +504,6 @@ class SVP64:
             # "failfirst" modes
             elif sv_mode == 0b01:
                 assert dst_zero == 0, "dest-zero not allowed in failfirst mode"
-                mode |= 0b01 # sets failfirst
                 if failfirst == 'RC1':
                     mode |= (0b1<<4) # sets RC1 mode
                     mode |= (src_zero << 3) # predicate src-zeroing
@@ -520,14 +520,12 @@ class SVP64:
 
             # "saturation" modes
             elif sv_mode == 0b10:
-                mode |= 0b10 # sets saturation mode
                 mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
                 mode |= (saturation<<2) # sets signed/unsigned saturation
 
             # "predicate-result" modes.  err... code-duplication from ffirst
             elif sv_mode == 0b11:
                 assert dst_zero == 0, "dest-zero not allowed in predresult mode"
-                mode |= 0b11 # sets predicate-result
                 if predresult == 'RC1':
                     mode |= (0b1<<4) # sets RC1 mode
                     mode |= (src_zero << 3) # predicate src-zeroing
@@ -543,6 +541,7 @@ class SVP64:
                     mode |= (predresult << 2) # set BO
 
             # whewww.... modes all done... :)
+            mode |= sv_mode
 
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
