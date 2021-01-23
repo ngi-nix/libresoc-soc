@@ -73,6 +73,14 @@ def decode_subvl(encoding):
     return pmap[encoding]
 
 
+# decodes elwidth
+def decode_elwidth(encoding):
+    pmap = {'8': 0b11, '16': 0b10, '32': 0b01}
+    assert encoding in pmap, \
+        "encoding %s for elwidth not recognised" % encoding
+    return pmap[encoding]
+
+
 # decodes predicate register encoding
 def decode_predicate(encoding):
     pmap = { # integer
@@ -160,6 +168,9 @@ class SVP64:
 
             # first turn the svp64 rm into a "by name" dict, recording
             # which position in the RM EXTRA it goes into
+            # also: record if the src or dest was a CR, for sanity-checking
+            # (elwidth overrides on CRs are banned)
+            dest_reg_cr, src_reg_cr = False, False
             svp64_reg_byname = {}
             for i in range(4):
                 rfield = rm[str(i)]
@@ -168,8 +179,17 @@ class SVP64:
                 print ("EXTRA field", i, rfield)
                 rfield = rfield.split(";") # s:RA;d:CR1 etc.
                 for r in rfield:
+                    rtype = r[0]
                     r = r[2:] # ignore s: and d:
                     svp64_reg_byname[r] = i # this reg in EXTRA position 0-3
+                    # check the regtype (if CR, record that)
+                    regtype = get_regtype(r)
+                    if regtype in ['CR_3bit', 'CR_5bit']:
+                        if rtype == 'd':
+                            dest_reg_cr = True
+                        if rtype == 'd':
+                            src_reg_cr = True
+
             print ("EXTRA field index, by regname", svp64_reg_byname)
 
             # okaaay now we identify the field value (opcode N,N,N) with
@@ -352,14 +372,19 @@ class SVP64:
                     mmode = pmmode
                     has_pmask = True
                 # predicate mask (src, twin-pred)
-                if encmode.startswith("sm="):
+                elif encmode.startswith("sm="):
                     sme = encmode
                     smmode, smask = decode_predicate(encmode[3:])
                     mmode = smmode
                     has_smask = True
                 # vec2/3/4
-                if encmode.startswith("vec"):
+                elif encmode.startswith("vec"):
                     subvl = decode_subvl(encmode[3:])
+                # elwidth
+                elif encmode.startswith("ew="):
+                    destwid = decode_elwidth(encmode[3:])
+                elif encmode.startswith("sw="):
+                    srcwid = decode_elwidth(encmode[3:])
 
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
@@ -381,7 +406,25 @@ class SVP64:
             # and subvl
             svp64_rm += (subvl << 8)      # subvl: bits 8-9
 
+            # put in elwidths
+            svp64_rm += (srcwid << 6)      # srcwid: bits 6-7
+            svp64_rm += (destwid << 4)     # destwid: bits 4-5
+
             print ("svp64_rm", hex(svp64_rm), bin(svp64_rm))
+            print ("    mmode  0    :", bin(mmode))
+            print ("    pmask  1-3  :", bin(pmask))
+            print ("    dstwid 4-5  :", bin(destwid))
+            print ("    srcwid 6-7  :", bin(srcwid))
+            print ("    subvl  8-9  :", bin(subvl))
+            offs = 2 if etype == 'EXTRA2' else 3 # 2 or 3 bits
+            for idx, sv_extra in extras.items():
+                if idx is None: continue
+                start = (10+idx*offs)
+                end = start + offs-1
+                print ("    extra%d %2d-%2d:" % (idx, start, end),
+                        bin(sv_extra))
+            if ptype == '2P':
+                print ("    smask  16-17:", bin(smask))
             print ()
 
         return res
@@ -395,5 +438,6 @@ if __name__ == '__main__':
                  'sv.isel 64.v, 3, 2, 65.v',
                  'sv.setb.m=r3.sm=1<<r3 5, 31',
                  'sv.setb.vec2 5, 31',
+                 'sv.setb.sw=8.ew=16 5, 31',
                 ])
     csvs = SVP64RM()
