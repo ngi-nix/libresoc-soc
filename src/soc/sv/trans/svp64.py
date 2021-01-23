@@ -476,7 +476,7 @@ class SVP64:
 
             # "normal" mode
             if sv_mode is None:
-                mode |= (src_zero << 3) | (dst_zero << 4)
+                mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
 
             # "mapreduce" modes
             elif sv_mode == 0b00:
@@ -507,7 +507,14 @@ class SVP64:
                     assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
                 else:
                     assert src_zero == 0, "src-zero not allowed in ffirst BO"
+                    assert rc_mode, "ffirst BO only possible when Rc=1"
                     mode |= (failfirst << 2) # set BO
+
+            # "saturation" modes
+            elif sv_mode == 0b10:
+                mode |= 0b10 # sets saturation mode
+                mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
+                mode |= (saturation<<2) # sets signed/unsigned saturation
 
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
@@ -566,5 +573,6 @@ if __name__ == '__main__':
                  'sv.setb/vec2 5, 31',
                  'sv.setb/sw=8.ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
+                 'sv.extsw./satu.sz.dz 5, 31',
                 ])
     csvs = SVP64RM()
