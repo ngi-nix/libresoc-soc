@@ -410,6 +410,8 @@ class SVP64:
             svp64_rm += (srcwid << 6)      # srcwid: bits 6-7
             svp64_rm += (destwid << 4)     # destwid: bits 4-5
 
+            # nice debug printout. (and now for something completely different)
+            # https://youtu.be/u0WOIwlXE9g?t=146
             print ("svp64_rm", hex(svp64_rm), bin(svp64_rm))
             print ("    mmode  0    :", bin(mmode))
             print ("    pmask  1-3  :", bin(pmask))
