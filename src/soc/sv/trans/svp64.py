@@ -229,6 +229,9 @@ class SVP64:
 
             # okaaay now we identify the field value (opcode N,N,N) with
             # the pseudo-code info (opcode RT, RA, RB)
+            assert len(fields) == len(v30b_regs), \
+                "length of fields %s must match insn `%s`" % \
+                        (str(v30b_regs), insn)
             opregfields = zip(fields, v30b_regs) # err that was easy
 
             # now for each of those find its place in the EXTRA encoding
@@ -516,6 +519,26 @@ class SVP64:
                 mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
                 mode |= (saturation<<2) # sets signed/unsigned saturation
 
+            # "predicate-result" modes.  err... code-duplication from ffirst
+            elif sv_mode == 0b11:
+                assert dst_zero == 0, "dest-zero not allowed in predresult mode"
+                mode |= 0b11 # sets predicate-result
+                if predresult == 'RC1':
+                    mode |= (0b1<<4) # sets RC1 mode
+                    mode |= (src_zero << 3) # predicate src-zeroing
+                    assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
+                elif predresult == '~RC1':
+                    mode |= (0b1<<4) # sets RC1 mode...
+                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (0b1<<2) # ... with inversion
+                    assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
+                else:
+                    assert src_zero == 0, "src-zero not allowed in pr-mode BO"
+                    assert rc_mode, "pr-mode BO only possible when Rc=1"
+                    mode |= (predresult << 2) # set BO
+
+            # whewww.... modes all done... :)
+
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
                 assert smmode == pmmode, \
@@ -574,5 +597,6 @@ if __name__ == '__main__':
                  'sv.setb/sw=8.ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
                  'sv.extsw./satu.sz.dz 5, 31',
+                 'sv.extsw./pr=eq 5.v, 31',
                 ])
     csvs = SVP64RM()
