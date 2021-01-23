@@ -106,6 +106,29 @@ def decode_predicate(encoding):
     return pmap[encoding]
 
 
+# decodes "Mode" in similar way to BO field (supposed to, anyway)
+def decode_bo(encoding):
+    pmap = { # TODO: double-check that these are the same as Branch BO
+            'lt'    : 0b000,
+            'nl'    : 0b001, 'ge'    : 0b001, # same value
+            'gt'    : 0b010,
+            'ng'    : 0b011, 'le'    : 0b011, # same value
+            'eq'    : 0b100,
+            'ne'    : 0b101,
+            'so'    : 0b110, 'un'    : 0b110, # same value
+            'ns'    : 0b111, 'nu'    : 0b111, # same value
+           }
+    assert encoding in pmap, \
+        "encoding %s for BO Mode not recognised" % encoding
+    return pmap[encoding]
+
+# partial-decode fail-first mode
+def decode_ffirst(encoding):
+    if encoding in ['RC1', '~RC1']:
+        return encoding
+    return decode_bo(encoding)
+
+
 # gets SVP64 ReMap information
 class SVP64RM:
     def __init__(self):
@@ -144,10 +167,21 @@ class SVP64:
             if not opcode.startswith('sv.'):
                 res.append(insn) # unaltered
                 continue
+            opcode = opcode[3:] # strip leading "sv."
 
-            # start working on decoding the svp64 op: sv.baseop.vec2.mode
-            opmodes = opcode.split(".")[1:] # strip leading "sv."
-            v30b_op = opmodes.pop(0)        # first is the v3.0B
+            # start working on decoding the svp64 op: sv.baseop/vec2.mode
+            opcode = opcode.split("/") # split at "/"
+            v30b_op = opcode[0]       # first is the v3.0B
+            if len(opcode) == 1:
+                opmodes = [] # no sv modes
+            else:
+                opmodes = opcode[1].split(".") # second splits by dots
+
+            # check instruction ends with dot
+            rc_mode = v30b_op.endswith('.')
+            if rc_mode:
+                v30b_op = v30b_op[:-1]
+
             if v30b_op not in isa.instr:
                 raise Exception("opcode %s of '%s' not supported" % \
                                 (v30b_op, insn))
@@ -157,6 +191,7 @@ class SVP64:
             isa.instr[v30b_op].regs[0]
             v30b_regs = isa.instr[v30b_op].regs[0]
             rm = svp64.instrs[v30b_op]
+            print ("v3.0B op", v30b_op, "Rc=1" if rc_mode else '')
             print ("v3.0B regs", opcode, v30b_regs)
             print (rm)
 
@@ -363,6 +398,18 @@ class SVP64:
             has_pmask = False
             has_smask = False
 
+            saturation = None
+            src_zero = 0
+            dst_zero = 0
+            sv_mode = None
+
+            mapreduce = False
+            mapreduce_crm = False
+            mapreduce_svm = False
+
+            predresult = False
+            failfirst = False
+
             # ok let's start identifying opcode augmentation fields
             for encmode in opmodes:
                 # predicate mask (dest)
@@ -385,6 +432,82 @@ class SVP64:
                     destwid = decode_elwidth(encmode[3:])
                 elif encmode.startswith("sw="):
                     srcwid = decode_elwidth(encmode[3:])
+                # saturation
+                elif encmode == 'sats':
+                    assert sv_mode is None
+                    saturation = 1
+                    sv_mode = 0b10
+                elif encmode == 'satu':
+                    assert sv_mode is None
+                    sv_mode = 0b10
+                    saturation = 0
+                # predicate zeroing
+                elif encmode == 'sz':
+                    src_zero = 1
+                elif encmode == 'dz':
+                    dst_zero = 1
+                # failfirst
+                elif encmode.startswith("ff="):
+                    assert sv_mode is None
+                    sv_mode = 0b01
+                    failfirst = decode_ffirst(encmode[3:])
+                # predicate-result, interestingly same as fail-first
+                elif encmode.startswith("pr="):
+                    assert sv_mode is None
+                    sv_mode = 0b11
+                    predresult = decode_ffirst(encmode[3:])
+                # map-reduce mode
+                elif encmode == 'mr':
+                    assert sv_mode is None
+                    sv_mode = 0b00
+                    mapreduce = True
+                elif encmode == 'crm': # CR on map-reduce
+                    assert sv_mode is None
+                    sv_mode = 0b00
+                    mapreduce_crm = True
+                elif encmode == 'svm': # sub-vector mode
+                    mapreduce_svm = True
+
+            # construct the mode field, doing sanity-checking along the way
+
+            if mapreduce_svm:
+                assert sv_mode == 0b00, "sub-vector mode in mapreduce only"
+                assert subvl != 0, "sub-vector mode not possible on SUBVL=1"
+
+            # "normal" mode
+            if sv_mode is None:
+                mode |= (src_zero << 3) | (dst_zero << 4)
+
+            # "mapreduce" modes
+            elif sv_mode == 0b00:
+                mode |= (0b1<<2) # sets mapreduce
+                assert dst_zero == 0, "dest-zero not allowed in mapreduce mode"
+                if mapreduce_crm:
+                    mode |= (0b1<<4) # sets CRM mode
+                    assert rc_mode, "CRM only allowed when Rc=1"
+                # bit of weird encoding to jam zero-pred or SVM mode in.
+                # SVM mode can be enabled only when SUBVL=2/3/4 (vec2/3/4)
+                if subvl == 0:
+                    mode |= (src_zero << 3) # predicate src-zeroing
+                elif mapreduce_svm:
+                    mode |= (1 << 3) # SVM mode
+
+            # "failfirst" modes
+            elif sv_mode == 0b01:
+                assert dst_zero == 0, "dest-zero not allowed in failfirst mode"
+                mode |= 0b01 # sets failfirst
+                if failfirst == 'RC1':
+                    mode |= (0b1<<4) # sets RC1 mode
+                    mode |= (src_zero << 3) # predicate src-zeroing
+                    assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
+                elif failfirst == '~RC1':
+                    mode |= (0b1<<4) # sets RC1 mode...
+                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (0b1<<2) # ... with inversion
+                    assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
+                else:
+                    assert src_zero == 0, "src-zero not allowed in ffirst BO"
+                    mode |= (failfirst << 2) # set BO
 
             # sanity-check that 2Pred mask is same mode
             if has_pmask and has_smask:
@@ -418,6 +541,7 @@ class SVP64:
             print ("    dstwid 4-5  :", bin(destwid))
             print ("    srcwid 6-7  :", bin(srcwid))
             print ("    subvl  8-9  :", bin(subvl))
+            print ("    mode   19-23:", bin(mode))
             offs = 2 if etype == 'EXTRA2' else 3 # 2 or 3 bits
             for idx, sv_extra in extras.items():
                 if idx is None: continue
@@ -438,8 +562,9 @@ if __name__ == '__main__':
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
                  'sv.isel 64.v, 3, 2, 65.v',
-                 'sv.setb.m=r3.sm=1<<r3 5, 31',
-                 'sv.setb.vec2 5, 31',
-                 'sv.setb.sw=8.ew=16 5, 31',
+                 'sv.setb/m=r3.sm=1<<r3 5, 31',
+                 'sv.setb/vec2 5, 31',
+                 'sv.setb/sw=8.ew=16 5, 31',
+                 'sv.extsw./ff=eq 5, 31',
                 ])
     csvs = SVP64RM()
