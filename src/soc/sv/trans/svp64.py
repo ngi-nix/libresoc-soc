@@ -471,6 +471,17 @@ class SVP64:
                 elif encmode == 'svm': # sub-vector mode
                     mapreduce_svm = True
 
+            # sanity-check that 2Pred mask is same mode
+            if has_pmask and has_smask:
+                assert smmode == pmmode, \
+                    "predicate masks %s and %s must be same reg type" % \
+                        (pme, sme)
+
+            # sanity-check that twin-predication mask only specified in 2P mode
+            if ptype == '1P':
+                assert has_smask == False, \
+                    "source-mask can only be specified on Twin-predicate ops"
+
             # construct the mode field, doing sanity-checking along the way
 
             if mapreduce_svm:
@@ -540,19 +551,10 @@ class SVP64:
                     assert rc_mode, "pr-mode BO only possible when Rc=1"
                     mode |= (predresult << 2) # set BO
 
-            # whewww.... modes all done... :)
+            # whewww.... modes all done :)
+            # now put into svp64_rm
             mode |= sv_mode
-
-            # sanity-check that 2Pred mask is same mode
-            if has_pmask and has_smask:
-                assert smmode == pmmode, \
-                    "predicate masks %s and %s must be same reg type" % \
-                        (pme, sme)
-
-            # sanity-check that twin-predication mask only specified in 2P mode
-            if ptype == '1P':
-                assert has_smask == False, \
-                    "source-mask can only be specified on Twin-predicate ops"
+            svp64_rm |= (mode << 19) # mode: bits 19-23
 
             # put in predicate masks into svp64_rm
             if ptype == '2P':
