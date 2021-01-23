@@ -5,6 +5,13 @@ from os.path import dirname, join
 from collections import namedtuple
 
 
+def find_wiki_dir():
+    filedir = os.path.dirname(os.path.abspath(__file__))
+    basedir = dirname(dirname(dirname(filedir)))
+    tabledir = join(basedir, 'libreriscv')
+    tabledir = join(tabledir, 'openpower')
+    return join(tabledir, 'isatables')
+
 def find_wiki_file(name):
     filedir = os.path.dirname(os.path.abspath(__file__))
     basedir = dirname(dirname(dirname(filedir)))
@@ -12,8 +19,7 @@ def find_wiki_file(name):
     tabledir = join(tabledir, 'openpower')
     tabledir = join(tabledir, 'isatables')
 
-    file_path = join(tabledir, name)
-    return file_path
+    return join(find_wiki_dir(), name)
 
 
 def get_csv(name):

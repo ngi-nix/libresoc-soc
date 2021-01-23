@@ -6,10 +6,14 @@
 
 This class takes raw svp64 assembly mnemonics (aliases excluded) and
 creates an EXT001-encoded "svp64 prefix" followed by a v3.0B opcode.
-It is very simple
+
+It is very simple and straightforward, the only weirdness being the
+extraction of the register information and conversion to v3.0B numbering.
 """
+import os, sys
 
 from soc.decoder.pseudo.pagereader import ISA
+from soc.decoder.power_enums import get_csv, find_wiki_dir
 
 
 def is_CR_3bit(regname):
@@ -20,6 +24,18 @@ def is_CR_5bit(regname):
 
 def is_GPR(regname):
     return regname in ['RA', 'RB', 'RC', 'RS', 'RT']
+ 
+
+class SVP64RM:
+    def __init__(self):
+        self.instrs = {}
+        pth = find_wiki_dir()
+        print (pth)
+        for fname in os.listdir(pth):
+            print (fname)
+            if fname.startswith("RM"):
+                entries = get_csv(fname)
+                print (entries)
 
 
 class SVP64:
@@ -59,5 +75,6 @@ class SVP64:
 
 if __name__ == '__main__':
     isa = SVP64(['slw 3, 1, 4',
-                 'extsw 5, 3'])
-
+                 'extsw 5, 3',
+                 'sv.extsw 5, 3'])
+    csvs = SVP64RM()
