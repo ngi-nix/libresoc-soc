@@ -64,6 +64,30 @@ def  get_extra_cr_3bit(etype, regmode, field):
         field = field >> 4
     return sv_extra, field
 
+# decodes predicate register encoding
+def decode_predicate(encoding):
+    pmap = { # integer
+            '1<<r3': (0, 0b001),
+            'r3'   : (0, 0b010),
+            '~r3'   : (0, 0b011),
+            'r10'   : (0, 0b100),
+            '~r10'  : (0, 0b101),
+            'r30'   : (0, 0b110),
+            '~r30'  : (0, 0b111),
+            # CR
+            'lt'    : (1, 0b000),
+            'nl'    : (1, 0b001), 'ge'    : (1, 0b001), # same value
+            'gt'    : (1, 0b010),
+            'ng'    : (1, 0b011), 'le'    : (1, 0b011), # same value
+            'eq'    : (1, 0b100),
+            'ne'    : (1, 0b101),
+            'so'    : (1, 0b110), 'un'    : (1, 0b110), # same value
+            'ns'    : (1, 0b111), 'nu'    : (1, 0b111), # same value
+           }
+    assert encoding in pmap, \
+        "encoding %s for predicate not recognised" % encoding
+    return pmap[encoding]
+
 
 # gets SVP64 ReMap information
 class SVP64RM:
@@ -97,7 +121,7 @@ class SVP64:
             # now find opcode fields
             fields = ''.join(ls[1:]).split(',')
             fields = list(map(str.strip, fields))
-            print (opcode, fields)
+            print ("opcode, fields", ls, opcode, fields)
 
             # identify if is a svp64 mnemonic
             if not opcode.startswith('sv.'):
@@ -154,6 +178,7 @@ class SVP64:
             # great! got the extra fields in their associated positions:
             # also we know the register type. now to create the EXTRA encodings
             etype = rm['Etype'] # Extra type: EXTRA3/EXTRA2
+            ptype = rm['Ptype'] # Predication type: Twin / Single
             extra_bits = 0
             v30b_newfields = []
             for extra_idx, (idx, field, regname, regtype) in extras.items():
@@ -286,6 +311,62 @@ class SVP64:
 
             print ("new v3.0B fields", v30b_op, v30b_newfields)
             print ("extras", extras)
+
+            # rright.  now we have all the info. start creating SVP64 RM
+            svp64_rm = 0b0
+
+            # begin with EXTRA fields
+            for idx, sv_extra in extras.items():
+                if idx is None: continue
+                # start at bit 10, work up 2/3 times EXTRA idx
+                offs = 2 if etype == 'EXTRA2' else 3 # 2 or 3 bits
+                svp64_rm |= sv_extra << (10+idx*offs)
+
+            # parts of svp64_rm
+            mmode = 0  # bit 0
+            pmask = 0  # bits 1-3
+            destwid = 0 # bits 4-5
+            srcwid = 0 # bits 6-7
+            subvl = 0   # bits 8-9
+            smask = 0 # bits 16-18 but only for twin-predication
+            mode = 0 # bits 19-23
+
+            has_pmask = False
+            has_smask = False
+
+            # ok let's start identifying opcode augmentation fields
+            for encmode in opmodes:
+                # predicate mask (dest)
+                if encmode.startswith("m="):
+                    pme = encmode
+                    pmmode, pmask = decode_predicate(encmode[2:])
+                    mmode = pmmode
+                    has_pmask = True
+                # predicate mask (src, twin-pred)
+                if encmode.startswith("sm="):
+                    sme = encmode
+                    smmode, smask = decode_predicate(encmode[2:])
+                    mmode = smmode
+                    has_smask = True
+
+            # sanity-check that 2Pred mask is same mode
+            if has_pmask and has_smask:
+                assert smmode == pmmode, \
+                    "predicate masks %s and %s must be same reg type" % \
+                        (pme, sme)
+
+            # sanity-check that twin-predication mask only specified in 2P mode
+            if ptype == '1P':
+                assert has_smask == False, \
+                    "source-mask can only be specified on Twin-predicate ops"
+
+            # put in predicate masks into svp64_rm
+            if ptype == '2P':
+                svp64_rm |= (smask << 16) # source pred: bits 16-18
+            svp64_rm |= (mmode)           # mask mode: bit 0
+            svp64_rm |= (pmask << 1)      # 1-pred: bits 1-3
+
+            print ("svp64_rm", hex(svp64_rm), bin(svp64_rm))
             print ()
 
         return res
@@ -296,6 +377,7 @@ if __name__ == '__main__':
                  'sv.extsw 5, 3',
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
-                 'sv.isel 64.v, 3, 2, 65.v'
+                 'sv.isel 64.v, 3, 2, 65.v',
+                 'sv.setb.m=r3 5, 31',
                 ])
     csvs = SVP64RM()
