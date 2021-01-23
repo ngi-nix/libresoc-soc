@@ -477,6 +477,11 @@ class SVP64:
                 assert sv_mode == 0b00, "sub-vector mode in mapreduce only"
                 assert subvl != 0, "sub-vector mode not possible on SUBVL=1"
 
+            if src_zero:
+                assert has_smask, "src zeroing requires a source predicate"
+            if dst_zero:
+                assert has_pmask, "dest zeroing requires a dest predicate"
+
             # "normal" mode
             if sv_mode is None:
                 mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
@@ -596,7 +601,7 @@ if __name__ == '__main__':
                  'sv.setb/vec2 5, 31',
                  'sv.setb/sw=8.ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
-                 'sv.extsw./satu.sz.dz 5, 31',
+                 'sv.extsw./satu.sz.dz.sm=r3.m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                 ])
     csvs = SVP64RM()
