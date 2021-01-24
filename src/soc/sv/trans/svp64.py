@@ -169,14 +169,9 @@ class SVP64:
                 continue
             opcode = opcode[3:] # strip leading "sv."
 
-            # start working on decoding the svp64 op: sv.baseop/vec2.mode
-            opcode = opcode.split("/") # split at "/"
-            v30b_op = opcode[0]       # first is the v3.0B
-            if len(opcode) == 1:
-                opmodes = [] # no sv modes
-            else:
-                opmodes = opcode[1].split(".") # second splits by dots
-
+            # start working on decoding the svp64 op: sv.basev30Bop/vec2/mode
+            opmodes = opcode.split("/") # split at "/"
+            v30b_op = opmodes.pop(0)    # first is the v3.0B
             # check instruction ends with dot
             rc_mode = v30b_op.endswith('.')
             if rc_mode:
@@ -598,11 +593,11 @@ if __name__ == '__main__':
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
                  'sv.isel 64.v, 3, 2, 65.v',
-                 'sv.setb/m=r3.sm=1<<r3 5, 31',
+                 'sv.setb/m=r3/sm=1<<r3 5, 31',
                  'sv.setb/vec2 5, 31',
-                 'sv.setb/sw=8.ew=16 5, 31',
+                 'sv.setb/sw=8/ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
-                 'sv.extsw./satu.sz.dz.sm=r3.m=r3 5, 31',
+                 'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                 ])
     csvs = SVP64RM()
