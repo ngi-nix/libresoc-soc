@@ -183,9 +183,8 @@ class SVP64:
             if v30b_op not in svp64.instrs:
                 raise Exception("opcode %s of '%s' not an svp64 instruction" % \
                                 (v30b_op, insn))
-            isa.instr[v30b_op].regs[0]
-            v30b_regs = isa.instr[v30b_op].regs[0]
-            rm = svp64.instrs[v30b_op]
+            v30b_regs = isa.instr[v30b_op].regs[0] # get regs info "RT, RA, RB"
+            rm = svp64.instrs[v30b_op]             # one row of the svp64 RM CSV
             print ("v3.0B op", v30b_op, "Rc=1" if rc_mode else '')
             print ("v3.0B regs", opcode, v30b_regs)
             print (rm)
@@ -210,6 +209,8 @@ class SVP64:
                 rfield = rfield.split(";") # s:RA;d:CR1 etc.
                 for r in rfield:
                     rtype = r[0]
+                    # TODO: ignoring s/d makes it impossible to do
+                    # LD/ST-with-update.
                     r = r[2:] # ignore s: and d:
                     svp64_reg_byname[r] = i # this reg in EXTRA position 0-3
                     # check the regtype (if CR, record that)
