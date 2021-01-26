@@ -725,7 +725,25 @@ class PowerDecodeSubset(Elaboratable):
         # set up instruction, pick fn unit
         # no op: defaults to OP_ILLEGAL
         comb += self.do_copy("insn_type", self.op_get("internal_op"))
-        comb += self.do_copy("fn_unit", self.op_get("function_unit"))
+
+        #function unit for decoded instruction
+        fn = self.op_get("function_unit")
+        spr = Signal(10, reset_less=True)
+        comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
+
+        # for first test only forward SPR 18 to mmu
+        with m.If(self.dec.op.internal_op == MicrOp.OP_MTSPR):
+            with m.If((spr == 18) | (spr == 19)):
+                comb += self.do_copy("fn_unit",Function.MMU)
+            with m.Else():
+                comb += self.do_copy("fn_unit",fn)
+        with m.If(self.dec.op.internal_op == MicrOp.OP_MFSPR):
+            with m.If((spr == 18) | (spr == 19)):
+                comb += self.do_copy("fn_unit",Function.MMU)
+            with m.Else():
+                comb += self.do_copy("fn_unit",fn)
+        with m.Else():
+            comb += self.do_copy("fn_unit",fn)
 
         # immediates
         if self.needs_field("zero_a", "in1_sel"):
