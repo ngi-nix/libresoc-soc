@@ -731,7 +731,7 @@ class PowerDecodeSubset(Elaboratable):
         spr = Signal(10, reset_less=True)
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
-        # for first test only forward SPR 18 to mmu
+        # for first test only forward SPRs 18 and 19 to MMU
         with m.If(self.dec.op.internal_op == MicrOp.OP_MTSPR):
             with m.If((spr == 18) | (spr == 19)):
                 comb += self.do_copy("fn_unit",Function.MMU)
