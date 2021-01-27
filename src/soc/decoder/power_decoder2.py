@@ -623,6 +623,8 @@ record_names = {'insn_type': 'internal_op',
 
 class PowerDecodeSubset(Elaboratable):
     """PowerDecodeSubset: dynamic subset decoder
+
+    only fields actually requested are copied over. hence, "subset" (duh).
     """
     def __init__(self, dec, opkls=None, fn_name=None, final=False, state=None):
 
@@ -722,26 +724,22 @@ class PowerDecodeSubset(Elaboratable):
         comb += self.do_copy("msr", msr)
         comb += self.do_copy("cia", cia)
 
-        # set up instruction, pick fn unit
+        # set up instruction type
         # no op: defaults to OP_ILLEGAL
         comb += self.do_copy("insn_type", self.op_get("internal_op"))
 
-        #function unit for decoded instruction
+        # function unit for decoded instruction: requires minor redirect
+        # for SPR set/get
         fn = self.op_get("function_unit")
         spr = Signal(10, reset_less=True)
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
-        # for first test only forward SPRs 18 and 19 to MMU
-        with m.If(self.dec.op.internal_op == MicrOp.OP_MTSPR):
-            with m.If((spr == 18) | (spr == 19)):
-                comb += self.do_copy("fn_unit",Function.MMU)
-            with m.Else():
-                comb += self.do_copy("fn_unit",fn)
-        with m.If(self.dec.op.internal_op == MicrOp.OP_MFSPR):
-            with m.If((spr == 18) | (spr == 19)):
-                comb += self.do_copy("fn_unit",Function.MMU)
-            with m.Else():
-                comb += self.do_copy("fn_unit",fn)
+        # for first test only forward SPRs 18 and 19 to MMU, when
+        # operation is MTSPR or MFSPR.  TODO: use SPR.xxxx not 18/19.
+        with m.If(((self.dec.op.internal_op == MicrOp.OP_MTSPR) |
+                   (self.dec.op.internal_op == MicrOp.OP_MFSPR)) &
+                  ((spr == 18) | (spr == 19))):
+            comb += self.do_copy("fn_unit", Function.MMU)
         with m.Else():
             comb += self.do_copy("fn_unit",fn)
 
