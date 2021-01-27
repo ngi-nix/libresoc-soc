@@ -135,7 +135,7 @@ class SVP64RM:
         self.instrs = {}
         pth = find_wiki_dir()
         for fname in os.listdir(pth):
-            if fname.startswith("RM"):
+            if fname.startswith("RM") or fname.startswith("LDSTRM"):
                 for entry in get_csv(fname):
                     self.instrs[entry['insn']] = entry
 
