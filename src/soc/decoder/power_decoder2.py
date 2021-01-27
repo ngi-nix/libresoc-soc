@@ -735,10 +735,10 @@ class PowerDecodeSubset(Elaboratable):
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
         # for first test only forward SPRs 18 and 19 to MMU, when
-        # operation is MTSPR or MFSPR.  TODO: use SPR.xxxx not 18/19.
+        # operation is MTSPR or MFSPR.  TODO: add other MMU SPRs
         with m.If(((self.dec.op.internal_op == MicrOp.OP_MTSPR) |
                    (self.dec.op.internal_op == MicrOp.OP_MFSPR)) &
-                  ((spr == 18) | (spr == 19))):
+                  ((spr == SPR.DSISR) | (spr == SPR.DAR))):
             comb += self.do_copy("fn_unit", Function.MMU)
         with m.Else():
             comb += self.do_copy("fn_unit",fn)
