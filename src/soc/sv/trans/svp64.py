@@ -18,26 +18,8 @@ import os, sys
 from collections import OrderedDict
 
 from soc.decoder.pseudo.pagereader import ISA
-from soc.decoder.power_svp64 import SVP64RM
+from soc.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
 
-
-# identifies register by type
-def is_CR_3bit(regname):
-    return regname in ['BF', 'BFA']
-
-def is_CR_5bit(regname):
-    return regname in ['BA', 'BB', 'BC', 'BI', 'BT']
-
-def is_GPR(regname):
-    return regname in ['RA', 'RB', 'RC', 'RS', 'RT']
-
-def get_regtype(regname):
-    if is_CR_3bit(regname):
-        return "CR_3bit"
-    if is_CR_5bit(regname):
-        return "CR_5bit"
-    if is_GPR(regname):
-        return "GPR"
 
 # decode GPR into sv extra
 def  get_extra_gpr(etype, regmode, field):
@@ -129,7 +111,6 @@ def decode_ffirst(encoding):
     return decode_bo(encoding)
 
 
-
 # decodes svp64 assembly listings and creates EXT001 svp64 prefixes
 class SVP64:
     def __init__(self, lst):
@@ -189,27 +170,11 @@ class SVP64:
             # which position in the RM EXTRA it goes into
             # also: record if the src or dest was a CR, for sanity-checking
             # (elwidth overrides on CRs are banned)
-            dest_reg_cr, src_reg_cr = False, False
+            decode = decode_extra(rm)
+            dest_reg_cr, src_reg_cr, svp64_src, svp64_dest = decode
             svp64_reg_byname = {}
-            for i in range(4):
-                rfield = rm[str(i)]
-                if not rfield or rfield == '0':
-                    continue
-                print ("EXTRA field", i, rfield)
-                rfield = rfield.split(";") # s:RA;d:CR1 etc.
-                for r in rfield:
-                    rtype = r[0]
-                    # TODO: ignoring s/d makes it impossible to do
-                    # LD/ST-with-update.
-                    r = r[2:] # ignore s: and d:
-                    svp64_reg_byname[r] = i # this reg in EXTRA position 0-3
-                    # check the regtype (if CR, record that)
-                    regtype = get_regtype(r)
-                    if regtype in ['CR_3bit', 'CR_5bit']:
-                        if rtype == 'd':
-                            dest_reg_cr = True
-                        if rtype == 'd':
-                            src_reg_cr = True
+            svp64_reg_byname.update(svp64_src)
+            svp64_reg_byname.update(svp64_dest)
 
             print ("EXTRA field index, by regname", svp64_reg_byname)
 
