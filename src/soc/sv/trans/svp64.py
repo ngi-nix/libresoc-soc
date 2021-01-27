@@ -18,7 +18,7 @@ import os, sys
 from collections import OrderedDict
 
 from soc.decoder.pseudo.pagereader import ISA
-from soc.decoder.power_enums import get_csv, find_wiki_dir
+from soc.decoder.power_svp64 import SVP64RM
 
 
 # identifies register by type
@@ -128,16 +128,6 @@ def decode_ffirst(encoding):
         return encoding
     return decode_bo(encoding)
 
-
-# gets SVP64 ReMap information
-class SVP64RM:
-    def __init__(self):
-        self.instrs = {}
-        pth = find_wiki_dir()
-        for fname in os.listdir(pth):
-            if fname.startswith("RM") or fname.startswith("LDSTRM"):
-                for entry in get_csv(fname):
-                    self.instrs[entry['insn']] = entry
 
 
 # decodes svp64 assembly listings and creates EXT001 svp64 prefixes
