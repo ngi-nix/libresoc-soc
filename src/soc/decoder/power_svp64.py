@@ -97,7 +97,7 @@ class SVP64RM:
             # of the in1/2/3 and CR in/out with the EXTRA0-3 fields
             decode = decode_extra(entry, "EXTRA")
             dest_reg_cr, src_reg_cr, svp64_src, svp64_dest = decode
-            
+
             # now examine in1/2/3/out, create sv_in1/2/3/out
             for fname in ['in1', 'in2', 'in3', 'out']:
                 regfield = entry[fname]
@@ -113,6 +113,21 @@ class SVP64RM:
                 # ta-daa, we know in1/2/3/out's bit-offset
                 entry['sv_%s' % fname] = extra_index
 
+            # TODO: CRs a little tricky, the power_enums.CRInSel is a bit odd.
+            # ignore WHOLE_REG for now
+            cr_in = entry['CR in']
+            extra_index = None
+            if cr_in in svp64_src:
+                entry['sv_cr_in'] = svp64_src[cr_in]
+            elif cr_in == 'BA_BB':
+                index1 = svp64_src.get('BA', None)
+                index2 = svp64_src.get('BB', None)
+                entry['sv_cr_in'] = (index1, index2)
+
+            # CRout a lot easier.  ignore WHOLE_REG for now
+            cr_out = entry['CR out']
+            entry['sv_cr_out'] = svp64_dest.get(cr_out, None)
+
         return v30b
 
 if __name__ == '__main__':
@@ -120,3 +135,7 @@ if __name__ == '__main__':
     minor_30 = isa.get_svp64_csv("minor_30.csv")
     for entry in minor_30:
         print (entry)
+    minor_19 = isa.get_svp64_csv("minor_19.csv")
+    for entry in minor_19:
+        if entry['comment'].startswith('cr'):
+            print (entry)
