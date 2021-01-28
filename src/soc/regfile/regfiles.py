@@ -19,6 +19,7 @@ Links:
 * https://bugs.libre-soc.org/show_bug.cgi?id=351
 * https://libre-soc.org/3d_gpu/architecture/regfile/
 * https://libre-soc.org/openpower/isatables/sprs.csv
+* https://libre-soc.org/openpower/sv/sprs/ (SVSTATE)
 """
 
 # TODO
@@ -32,10 +33,10 @@ from soc.decoder.power_enums import SPR
 class StateRegs(RegFileArray):
     """StateRegs
 
-    State regfile  - PC, MSR, DEC, TB and later SimpleV VL
+    State regfile  - PC, MSR, SVSTATE (for SimpleV)
 
-    * QTY 4of 64-bit registers
-    * 3R2W
+    * QTY 3of 64-bit registers
+    * 4R3W
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
 
@@ -46,13 +47,16 @@ class StateRegs(RegFileArray):
     """
     PC = 0
     MSR = 1
+    SVSTATE = 2
     def __init__(self):
-        super().__init__(64, 4)
+        super().__init__(64, 3)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
+                        'sv': self.write_port("sv"), # writing SVSTATE (issuer)
                         'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
         self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)
                         'msr': self.read_port("msr"), # reading MSR (issuer)
+                        'sv': self.read_port("sv"), # reading SV (issuer)
                         }
 
 
