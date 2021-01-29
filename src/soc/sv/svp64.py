@@ -20,10 +20,14 @@ from nmigen import Record
 
 class SVP64Rec(Record):
     def __init__(self, name=None):
-        Record.__init__([("mmode"   : 1),
-                         ("mask"    : 3),
-                         ("elwidth" : 2),
-                         ("ewsrc"   : 2),
-                         ("extra"   : 9),
-                         ("mode"    : 5), name=name)
+        Record.__init__(self, layout=[("mmode"   , 1),
+                                      ("mask"    , 3),
+                                      ("elwidth" , 2),
+                                      ("ewsrc"   , 2),
+                                      ("extra"   , 9),
+                                      ("mode"    , 5)], name=name)
+
+    def ports(self):
+        return [self.mmode, self.mask, self.elwidth, self.ewsrc,
+                self.extra, self.mode]
 

@@ -25,6 +25,7 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      OutSel, SPR, RC, LDSTMode)
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
+from soc.sv.svp64 import SVP64Rec
 from soc.consts import MSR
 
 from soc.regfile.regfiles import FastRegs
@@ -85,9 +86,10 @@ class DecodeA(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In1Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Data(5, name="reg_a")
+        self.reg_out = Data(7, name="reg_a")
         self.spr_out = Data(SPR, "spr_a")
         self.fast_out = Data(3, "fast_a")
 
@@ -175,6 +177,7 @@ class DecodeB(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In2Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_b")
@@ -279,6 +282,7 @@ class DecodeC(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In3Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_c")
@@ -308,6 +312,7 @@ class DecodeOut(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
@@ -362,6 +367,7 @@ class DecodeOut2(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(OutSel, reset_less=True)
         self.lk = Signal(reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
@@ -485,6 +491,7 @@ class DecodeCRIn(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(CRInSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
@@ -549,6 +556,7 @@ class DecodeCROut(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
+        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.rc_in = Signal(reset_less=True)
         self.sel_in = Signal(CROutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
@@ -628,6 +636,7 @@ class PowerDecodeSubset(Elaboratable):
     """
     def __init__(self, dec, opkls=None, fn_name=None, final=False, state=None):
 
+        self.sv_rm = SVP64Rec(name="dec_svp64") # SVP64 RM field
         self.final = final
         self.opkls = opkls
         self.fn_name = fn_name
@@ -663,7 +672,7 @@ class PowerDecodeSubset(Elaboratable):
         return row['unit'] == self.fn_name
 
     def ports(self):
-        return self.dec.ports() + self.e.ports()
+        return self.dec.ports() + self.e.ports() + self.sv_rm.ports()
 
     def needs_field(self, field, op_field):
         if self.final:
@@ -717,6 +726,8 @@ class PowerDecodeSubset(Elaboratable):
         comb += dec_rc.sel_in.eq(op.rc_sel)
         comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
         comb += self.dec_cr_in.sel_in.eq(op.cr_in)
+        comb += self.dec_cr_in.sv_rm.eq(self.sv_rm)
+        comb += self.dec_cr_out.sv_rm.eq(self.sv_rm)
         comb += self.dec_cr_out.sel_in.eq(op.cr_out)
         comb += self.dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
 
@@ -855,6 +866,11 @@ class PowerDecode2(PowerDecodeSubset):
         for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
             comb += i.eq(self.dec.opcode_in)
+
+        # ... and svp64 rm
+        for i in [dec_a.insn_in, dec_b.insn_in,
+                  dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
+            comb += i.eq(self.sv_rm)
 
         # ...and subdecoders' input fields
         comb += dec_a.sel_in.eq(op.in1_sel)

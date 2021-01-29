@@ -25,4 +25,7 @@ class SVSTATERec(Record):
                                       ("dststep"   : 7),
                                       ("subvl"     : 2),
                                       ("svstep"    : 2)], name=name)
+    def ports(self):
+        return [self.maxvl, self.vl, self.srcstep, self.dststep, self.subvl,
+                self.svstep]
 
