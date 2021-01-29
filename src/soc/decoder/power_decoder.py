@@ -92,6 +92,7 @@ from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, MicrOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
+                                     SVEtype, SVPtype, # Simple-V
                                      RC, LdstLen, LDSTMode, CryIn,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
@@ -118,6 +119,8 @@ power_op_types = {'function_unit': Function,
                   'internal_op': MicrOp,
                   'form': Form,
                   'asmcode': 8,
+                  'SV_Etype': SVEtype,
+                  'SV_Ptype': SVPtype,
                   'in1_sel': In1Sel,
                   'in2_sel': In2Sel,
                   'in3_sel': In3Sel,
