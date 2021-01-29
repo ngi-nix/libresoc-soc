@@ -92,13 +92,13 @@ from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, MicrOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
-                                     RC, LdstLen, LDSTMode, CryIn, get_csv,
+                                     RC, LdstLen, LDSTMode, CryIn,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
                                      default_values, insns, asmidx)
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SigDecode, SignalBitRange
-
+from soc.decoder.power_svp64 import SVP64RM
 
 # key data structure in which the POWER decoder is specified,
 # in a hierarchical fashion
@@ -512,6 +512,11 @@ def create_pdecode(name=None, col_subset=None, row_subset=None):
 
     subsetting of the PowerOp decoding is possible by setting col_subset
     """
+
+    # some alteration to the CSV files is required for SV so we use
+    # a class to do it
+    isa = SVP64RM()
+    get_csv = isa.get_svp64_csv
 
     # minor 19 has extra patterns
     m19 = []
