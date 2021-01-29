@@ -866,11 +866,14 @@ class PowerDecode2(PowerDecodeSubset):
             comb += dec_o2.lk.eq(do.lk)
 
         # registers a, b, c and out and out2 (LD/ST EA)
-        comb += e.read_reg1.eq(dec_a.reg_out)
-        comb += e.read_reg2.eq(dec_b.reg_out)
-        comb += e.read_reg3.eq(dec_c.reg_out)
-        comb += e.write_reg.eq(dec_o.reg_out)
-        comb += e.write_ea.eq(dec_o2.reg_out)
+        for to_reg, fromreg in (
+            (e.read_reg1, dec_a.reg_out),
+            (e.read_reg2, dec_b.reg_out),
+            (e.read_reg3, dec_c.reg_out),
+            (e.write_reg, dec_o.reg_out),
+            (e.write_ea, dec_o2.reg_out)):
+            comb += to_reg.data.eq(fromreg.data)
+            comb += to_reg.ok.eq(fromreg.ok)
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)
