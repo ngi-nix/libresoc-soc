@@ -92,11 +92,11 @@ class Decode2ToExecute1Type(RecordObject):
 
         if asmcode:
             self.asmcode = Signal(8, reset_less=True) # only for simulator
-        self.write_reg = Data(5, name="rego")
-        self.write_ea = Data(5, name="ea") # for LD/ST in update mode
-        self.read_reg1 = Data(5, name="reg1")
-        self.read_reg2 = Data(5, name="reg2")
-        self.read_reg3 = Data(5, name="reg3")
+        self.write_reg = Data(7, name="rego")
+        self.write_ea = Data(7, name="ea") # for LD/ST in update mode
+        self.read_reg1 = Data(7, name="reg1")
+        self.read_reg2 = Data(7, name="reg2")
+        self.read_reg3 = Data(7, name="reg3")
         self.write_spr = Data(SPR, name="spro")
         self.read_spr1 = Data(SPR, name="spr1")
         #self.read_spr2 = Data(SPR, name="spr2") # only one needed
