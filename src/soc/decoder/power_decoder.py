@@ -92,7 +92,7 @@ from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, MicrOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
-                                     SVEtype, SVPtype, # Simple-V
+                                     SVEXTRA, SVEtype, SVPtype, # Simple-V
                                      RC, LdstLen, LDSTMode, CryIn,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
@@ -127,6 +127,12 @@ power_op_types = {'function_unit': Function,
                   'out_sel': OutSel,
                   'cr_in': CRInSel,
                   'cr_out': CROutSel,
+                  'sv_in1': SVEXTRA,
+                  'sv_in2': SVEXTRA,
+                  'sv_in3': SVEXTRA,
+                  'sv_out': SVEXTRA,
+                  'sv_cr_in': SVEXTRA,
+                  'sv_cr_out': SVEXTRA,
                   'ldst_len': LdstLen,
                   'upd': LDSTMode,
                   'rc_sel': RC,
@@ -140,6 +146,12 @@ power_op_csvmap = {'function_unit': 'unit',
                    'in2_sel': 'in2',
                    'in3_sel': 'in3',
                    'out_sel': 'out',
+                   'sv_in1': 'sv_in1',
+                   'sv_in2': 'sv_in2',
+                   'sv_in3': 'sv_in3',
+                   'sv_out': 'sv_out',
+                   'sv_cr_in': 'sv_cr_in',
+                   'sv_cr_out': 'sv_cr_out',
                    'cr_in': 'CR in',
                    'cr_out': 'CR out',
                    'ldst_len': 'ldst len',
@@ -209,6 +221,7 @@ class PowerOp:
             if field not in power_op_csvmap:
                 continue
             csvname = power_op_csvmap[field]
+            print (field, ptype, csvname, row)
             val = row[csvname]
             if csvname == 'upd' and isinstance(val, int):  # LDSTMode different
                 val = ptype(val)

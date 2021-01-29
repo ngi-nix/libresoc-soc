@@ -118,6 +118,15 @@ class SVEtype(Enum):
     EXTRA2 = 1
     EXTRA3 = 2
 
+@unique
+class SVEXTRA(Enum):
+    NONE = 0
+    Idx0 = 1
+    Idx1 = 2
+    Idx2 = 3
+    Idx3 = 4
+    Idx_1_2 = 5 # due to weird BA/BB for crops
+
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
 _insns = [

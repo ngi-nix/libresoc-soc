@@ -79,7 +79,10 @@ class SVP64RM:
             # dummy (blank) fields, first
             entry.update({'EXTRA0': '0', 'EXTRA1': '0', 'EXTRA2': '0',
                           'EXTRA3': '0',
-                          'SV_Ptype': 'NONE', 'SV_Etype': 'NONE'})
+                          'SV_Ptype': 'NONE', 'SV_Etype': 'NONE',
+                          'sv_cr_in': 'NONE', 'sv_cr_out': 'NONE'})
+            for fname in ['in1', 'in2', 'in3', 'out']:
+                entry['sv_%s' % fname] = 'NONE'
 
             # is this SVP64-augmented?
             asmcode = entry['comment']
@@ -111,22 +114,25 @@ class SVP64RM:
                 if (fname != 'out' and regfield in svp64_src):
                     extra_index = svp64_src[regfield]
                 # ta-daa, we know in1/2/3/out's bit-offset
-                entry['sv_%s' % fname] = extra_index
+                if extra_index is not None:
+                    entry['sv_%s' % fname] = "Idx"+str(extra_index)
 
             # TODO: CRs a little tricky, the power_enums.CRInSel is a bit odd.
             # ignore WHOLE_REG for now
             cr_in = entry['CR in']
-            extra_index = None
+            extra_index = 'NONE'
             if cr_in in svp64_src:
-                entry['sv_cr_in'] = svp64_src[cr_in]
+                entry['sv_cr_in'] = "Idx"+str(svp64_src[cr_in])
             elif cr_in == 'BA_BB':
                 index1 = svp64_src.get('BA', None)
                 index2 = svp64_src.get('BB', None)
-                entry['sv_cr_in'] = (index1, index2)
+                entry['sv_cr_in'] = "Idx_%d_%d" % (index1, index2)
 
             # CRout a lot easier.  ignore WHOLE_REG for now
             cr_out = entry['CR out']
-            entry['sv_cr_out'] = svp64_dest.get(cr_out, None)
+            extra_index = svp64_dest.get(cr_out, None)
+            if extra_index is not None:
+                entry['sv_cr_out'] = 'Idx%d' % extra_index
 
             # more enum-friendly Ptype names.  should have done this in
             # sv_analysis.py, oh well
