@@ -1,6 +1,6 @@
 """Cascading Power ISA Decoder
 
-License: LGPLv3
+License: LGPLv3+
 
 # Copyright (C) 2020 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
 # Copyright (C) 2020 Michael Nolan <mtnolan2640@gmail.com>
