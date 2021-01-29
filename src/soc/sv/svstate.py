@@ -19,10 +19,10 @@ from nmigen import Record
 
 class SVSTATERec(Record):
     def __init__(self, name=None):
-        Record.__init__([("maxvl"     : 8),
-                         ("vl"        : 7),
-                         ("srcstep"   : 7),
-                         ("dststep"   : 7),
-                         ("subvl"     : 2),
-                         ("svstep"    : 2), name=name)
+        Record.__init__(self, layout=[("maxvl"     : 7),
+                                      ("vl"        : 7),
+                                      ("srcstep"   : 7),
+                                      ("dststep"   : 7),
+                                      ("subvl"     : 2),
+                                      ("svstep"    : 2)], name=name)
 
