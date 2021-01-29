@@ -1,3 +1,7 @@
+# SPDX-License: LGPLv3+
+# Copyright (C) 2020, 2021 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+# Copyright (C) 2020, Michael Nolan
+
 from enum import Enum, unique
 import csv
 import os
@@ -65,6 +69,7 @@ class Function(Enum):
     DIV = 1 << 9
     SPR = 1 << 10
     MMU = 1 << 11
+    SV = 1 << 12 # Simple-V https://libre-soc.org/openpower/sv
 
 
 @unique
@@ -99,6 +104,19 @@ class Form(Enum):
     Z22 = 27
     Z23 = 28
 
+# Simple-V svp64 fields https://libre-soc.org/openpower/sv/svp64/
+
+@unique
+class SVPtype(Enum):
+    NONE = 0
+    P1 = 1
+    P2 = 2
+
+@unique
+class SVEtype(Enum):
+    NONE = 0
+    EXTRA2 = 1
+    EXTRA3 = 2
 
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
@@ -123,7 +141,9 @@ _insns = [
     "nand", "neg", "nego", "nop", "nor", "or", "orc", "ori", "oris",
     "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
     "rldcr", "rldic", "rldicl", "rldicr", "rldimi", "rlwimi", "rlwinm",
-    "rlwnm", "setb", "sim_cfg", "slbia", "sld", "slw", "srad", "sradi", "sraw",
+    "rlwnm", "setb",
+    "setvl", # https://libre-soc.org/openpower/sv/setvl
+    "sim_cfg", "slbia", "sld", "slw", "srad", "sradi", "sraw",
     "srawi", "srd", "srw", "stb", "stbcix", "stbcx", "stbu", "stbux", "stbx",
     "std", "stdbrx", "stdcx", "stdu", "stdux", "stdx", "sth", "sthbrx", "sthcx",
     "sthu", "sthux", "sthx", "stw", "stwbrx", "stwcx", "stwu", "stwux",

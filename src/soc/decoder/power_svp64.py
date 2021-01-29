@@ -128,6 +128,13 @@ class SVP64RM:
             cr_out = entry['CR out']
             entry['sv_cr_out'] = svp64_dest.get(cr_out, None)
 
+            # more enum-friendly Ptype names.  should have done this in
+            # sv_analysis.py, oh well
+            if entry['SV_Ptype'] == '1P':
+                if entry['SV_Ptype'] = 'P1'
+            if entry['SV_Ptype'] == '2P':
+                if entry['SV_Ptype'] = 'P2'
+
         return v30b
 
 if __name__ == '__main__':
