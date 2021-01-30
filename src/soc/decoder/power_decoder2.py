@@ -274,7 +274,7 @@ class DecodeB(Elaboratable):
         self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In2Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Data(5, "reg_b")
+        self.reg_out = Data(7, "reg_b")
         self.reg_isvec = Signal(1, name="reg_b_isvec") # TODO: in reg_out
         self.fast_out = Data(3, "fast_b")
 
@@ -396,7 +396,7 @@ class DecodeC(Elaboratable):
         self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In3Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Data(5, "reg_c")
+        self.reg_out = Data(7, "reg_c")
         self.reg_isvec = Signal(1, name="reg_c_isvec") # TODO: in reg_out
 
     def elaborate(self, platform):
@@ -444,8 +444,8 @@ class DecodeOut(Elaboratable):
         self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Data(5, "reg_o")
-        self.reg_isvec = Signal(1, name="reg_c_isvec") # TODO: in reg_out
+        self.reg_out = Data(7, "reg_o")
+        self.reg_isvec = Signal(1, name="reg_o_isvec") # TODO: in reg_out
         self.spr_out = Data(SPR, "spr_o")
         self.fast_out = Data(3, "fast_o")
 
@@ -509,7 +509,8 @@ class DecodeOut(Elaboratable):
 class DecodeOut2(Elaboratable):
     """DecodeOut2 from instruction
 
-    decodes output registers.
+    decodes output registers (2nd one).  note that RA is *implicit* below,
+    which now causes problems with SVP64
 
     TODO: SVP64 is a little more complex, here.  svp64 allows extending
     by one more destination by having one more EXTRA field.  RA-as-src
@@ -525,22 +526,27 @@ class DecodeOut2(Elaboratable):
         self.sel_in = Signal(OutSel, reset_less=True)
         self.lk = Signal(reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
-        self.reg_out = Data(5, "reg_o")
-        self.fast_out = Data(3, "fast_o")
+        self.reg_out = Data(7, "reg_o2")
+        #self.reg_isvec = Signal(1, name="reg_o2_isvec") # TODO: in reg_out
+        self.fast_out = Data(3, "fast_o2")
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
+        #m.submodules.svdec = svdec = SVP64RegExtra()
+
+        # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
+        #reg = Signal(5, reset_less=True)
 
         if hasattr(self.dec.op, "upd"):
             # update mode LD/ST uses read-reg A also as an output
             with m.If(self.dec.op.upd == LDSTMode.update):
-                comb += self.reg_out.eq(self.dec.RA)
+                comb += self.reg_out.data.eq(self.dec.RA)
                 comb += self.reg_out.ok.eq(1)
 
         # B, BC or BCREG: potential implicit register (LR) output
         # these give bl, bcl, bclrl, etc.
-        op = self.dec.op
         with m.Switch(op.internal_op):
 
             # BC* implicit register (LR)
