@@ -109,10 +109,10 @@ class Decode2ToExecute1Type(RecordObject):
         self.write_fast1 = Data(3, name="fasto1")
         self.write_fast2 = Data(3, name="fasto2")
 
-        self.read_cr1 = Data(3, name="cr_in1")
-        self.read_cr2 = Data(3, name="cr_in2")
-        self.read_cr3 = Data(3, name="cr_in2")
-        self.write_cr = Data(3, name="cr_out")
+        self.read_cr1 = Data(7, name="cr_in1")
+        self.read_cr2 = Data(7, name="cr_in2")
+        self.read_cr3 = Data(7, name="cr_in2")
+        self.write_cr = Data(7, name="cr_out")
 
         # decode operand data
         print ("decode2execute init", name, opkls, do)
