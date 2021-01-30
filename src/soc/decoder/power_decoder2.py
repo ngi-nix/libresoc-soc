@@ -145,7 +145,7 @@ class SVP64RegExtra(SVP64ExtraSpec):
         self.isvec   = Signal(1) # reg is marked as vector if true
 
     def elaborate(self, platform):
-        m = super().elaborate(platform)
+        m = super().elaborate(platform) # select required EXTRA2/3
         comb = m.d.comb
 
         # first get the spec.  if not changed it's "scalar identity behaviour"
@@ -165,6 +165,50 @@ class SVP64RegExtra(SVP64ExtraSpec):
         with m.Else():
             # Scalar: not shifted up, extra in MSBs RA | (spec[0:1] << 5)
             comb += self.reg_out.eq(Cat(self.reg_in, spec[:2]))
+
+        return m
+
+
+class SVP64CRExtra(SVP64ExtraSpec):
+    """SVP64CRExtra - decodes SVP64 Extra fields to determine CR extension
+
+    incoming 3-bit CR is turned into a 7-bit and marked as scalar/vector
+    depending on info in one of the positions in the EXTRA field.
+
+    yes, really, 128 CRs.  INT is 128, FP is 128, therefore CRs are 128.
+
+    designed so that "no change" to the 3-bit CR register number occurs if
+    SV either does not apply or the relevant EXTRA2/3 field bits are zero.
+
+    see https://libre-soc.org/openpower/sv/svp64/appendix
+    """
+    def __init__(self):
+        SVP64ExtraSpec.__init__(self)
+        self.cr_in  = Signal(3) # incoming CR number (3 bits, BA[2:5], BFA)
+        self.cr_out = Signal(7) # extra-augmented CR output (7 bits)
+        self.isvec  = Signal(1) # reg is marked as vector if true
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform) # select required EXTRA2/3
+        comb = m.d.comb
+
+        # first get the spec.  if not changed it's "scalar identity behaviour"
+        # which is zero which is ok.
+        spec = self.spec
+
+        # now decode it. bit 2 is "scalar/vector".  note that spec could be zero
+        #  from above, which (by design) has the effect of "no change", below.
+
+        # simple: isvec is top bit of spec
+        comb += self.isvec.eq(spec[2])
+
+        # decode vector differently from scalar, insert bits 0 and 1 accordingly
+        with m.If(self.isvec):
+            # Vector: shifted up, extra in LSBs (CR << 4) | (spec[0:1] << 2)
+            comb += self.cr_out.eq(Cat(Const(0, 2), spec[:2], self.cr_in))
+        with m.Else():
+            # Scalar: not shifted up, extra in MSBs CR | (spec[0:1] << 3)
+            comb += self.cr_out.eq(Cat(self.cr_in, spec[:2]))
 
         return m
 
