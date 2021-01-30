@@ -275,24 +275,41 @@ class DecodeB(Elaboratable):
         self.sel_in = Signal(In2Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_b")
+        self.reg_isvec = Signal(1, name="reg_b_isvec") # TODO: in reg_out
         self.fast_out = Data(3, "fast_b")
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
+        m.submodules.svdec = svdec = SVP64RegExtra()
+
+        # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
+        reg = Signal(5, reset_less=True)
 
         # select Register B field
         with m.Switch(self.sel_in):
             with m.Case(In2Sel.RB):
-                comb += self.reg_out.data.eq(self.dec.RB)
+                comb += reg.eq(self.dec.RB)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In2Sel.RS):
                 # for M-Form shiftrot
-                comb += self.reg_out.data.eq(self.dec.RS)
+                comb += reg.eq(self.dec.RS)
                 comb += self.reg_out.ok.eq(1)
 
+        # now do the SVP64 munging.  different from DecodeA only by sv_in2
+
+        extra = self.sv_rm.extra            # SVP64 extra bits 10:18
+        comb += svdec.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec.idx.eq(op.sv_in2)     # SVP64 reg #2 (matches in2_sel)
+        comb += svdec.reg_in.eq(reg)        # 5-bit (RA, RS)
+
+        # outputs: 7-bit reg number and whether it's vectorised
+        comb += self.reg_out.data.eq(svdec.reg_out)
+        comb += self.reg_isvec.eq(svdec.isvec)
+
         # decode SPR2 based on instruction type
-        op = self.dec.op
         # BCREG implicitly uses LR or TAR for 2nd reg
         # CTR however is already in fast_spr1 *not* 2.
         with m.If(op.internal_op == MicrOp.OP_BCREG):
@@ -380,20 +397,38 @@ class DecodeC(Elaboratable):
         self.sel_in = Signal(In3Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_c")
+        self.reg_isvec = Signal(1, name="reg_c_isvec") # TODO: in reg_out
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        op = self.dec.op
+        m.submodules.svdec = svdec = SVP64RegExtra()
+
+        # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
+        reg = Signal(5, reset_less=True)
 
         # select Register C field
         with m.Switch(self.sel_in):
             with m.Case(In3Sel.RB):
                 # for M-Form shiftrot
-                comb += self.reg_out.data.eq(self.dec.RB)
+                comb += reg.eq(self.dec.RB)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(In3Sel.RS):
-                comb += self.reg_out.data.eq(self.dec.RS)
+                comb += reg.eq(self.dec.RS)
                 comb += self.reg_out.ok.eq(1)
+
+        # now do the SVP64 munging.  different from DecodeA only by sv_in3
+
+        extra = self.sv_rm.extra            # SVP64 extra bits 10:18
+        comb += svdec.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec.idx.eq(op.sv_in3)     # SVP64 reg #3 (matches in3_sel)
+        comb += svdec.reg_in.eq(reg)        # 5-bit (RA, RS)
+
+        # outputs: 7-bit reg number and whether it's vectorised
+        comb += self.reg_out.data.eq(svdec.reg_out)
+        comb += self.reg_isvec.eq(svdec.isvec)
 
         return m
 
@@ -410,6 +445,7 @@ class DecodeOut(Elaboratable):
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
+        self.reg_isvec = Signal(1, name="reg_c_isvec") # TODO: in reg_out
         self.spr_out = Data(SPR, "spr_o")
         self.fast_out = Data(3, "fast_o")
 
@@ -418,14 +454,18 @@ class DecodeOut(Elaboratable):
         comb = m.d.comb
         m.submodules.sprmap = sprmap = SPRMap()
         op = self.dec.op
+        m.submodules.svdec = svdec = SVP64RegExtra()
+
+        # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
+        reg = Signal(5, reset_less=True)
 
         # select Register out field
         with m.Switch(self.sel_in):
             with m.Case(OutSel.RT):
-                comb += self.reg_out.data.eq(self.dec.RT)
+                comb += reg.eq(self.dec.RT)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.RA):
-                comb += self.reg_out.data.eq(self.dec.RA)
+                comb += reg.eq(self.dec.RA)
                 comb += self.reg_out.ok.eq(1)
             with m.Case(OutSel.SPR):
                 spr = Signal(10, reset_less=True)
@@ -436,6 +476,19 @@ class DecodeOut(Elaboratable):
                     comb += self.spr_out.eq(sprmap.spr_o)
                     comb += self.fast_out.eq(sprmap.fast_o)
 
+        # now do the SVP64 munging.  different from DecodeA only by sv_out
+
+        extra = self.sv_rm.extra            # SVP64 extra bits 10:18
+        comb += svdec.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec.idx.eq(op.sv_out)     # SVP64 reg out1 (matches out_sel)
+        comb += svdec.reg_in.eq(reg)        # 5-bit (RA, RS)
+
+        # outputs: 7-bit reg number and whether it's vectorised
+        comb += self.reg_out.data.eq(svdec.reg_out)
+        comb += self.reg_isvec.eq(svdec.isvec)
+
+        # determine Fast Reg
         with m.Switch(op.internal_op):
 
             # BC or BCREG: implicit register (CTR) NOTE: same in DecodeA
@@ -456,7 +509,14 @@ class DecodeOut(Elaboratable):
 class DecodeOut2(Elaboratable):
     """DecodeOut2 from instruction
 
-    decodes output registers
+    decodes output registers.
+
+    TODO: SVP64 is a little more complex, here.  svp64 allows extending
+    by one more destination by having one more EXTRA field.  RA-as-src
+    is not the same as RA-as-dest.  limited in that it's the same first
+    5 bits (from the v3.0B opcode), but still kinda cool.  mostly used
+    for operations that have src-as-dest: mostly this is LD/ST-with-update
+    but there are others.
     """
 
     def __init__(self, dec):
