@@ -720,45 +720,67 @@ class DecodeCRIn(Elaboratable):
         self.cr_bitfield = Data(3, "cr_bitfield")
         self.cr_bitfield_b = Data(3, "cr_bitfield_b")
         self.cr_bitfield_o = Data(3, "cr_bitfield_o")
+        self.cr_isvec = Signal(1, name="cr_isvec")
+        self.cr_b_isvec = Signal(1, name="cr_b_isvec")
+        self.cr_o_isvec = Signal(1, name="cr_o_isvec")
         self.whole_reg = Data(8,  "cr_fxm")
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.ppick = ppick = PriorityPicker(8, reverse_i=True,
-                                                       reverse_o=True)
-
         comb = m.d.comb
         op = self.dec.op
         m.submodules.svdec = svdec = SVP64CRExtra()
         m.submodules.svdec_b = svdec_b = SVP64CRExtra()
         m.submodules.svdec_o = svdec_o = SVP64CRExtra()
+        m.submodules.ppick = ppick = PriorityPicker(8, reverse_i=True,
+                                                       reverse_o=True)
 
+
+        # get the 3-bit reg data before svp64-munging it into 7-bit plus isvec
+        cr_bf = Signal(3, reset_less=True)
+        cr_bf_b = Signal(3, reset_less=True)
+        cr_bf_o = Signal(3, reset_less=True)
+
+        # index selection slightly different due to shared CR field sigh
+        cr_a_idx = Signal(SVEXTRA)
+        cr_b_idx = Signal(SVEXTRA)
+
+        # zero-initialisation
         comb += self.cr_bitfield.ok.eq(0)
         comb += self.cr_bitfield_b.ok.eq(0)
         comb += self.cr_bitfield_o.ok.eq(0)
         comb += self.whole_reg.ok.eq(0)
 
+        # these change slighly, when decoding BA/BB.  really should have
+        # their own separate CSV column: sv_cr_in1 and sv_cr_in2, but hey
+        comb += cr_a_idx.eq(op.sv_cr_in)
+        comb += cr_b_idx.eq(SVEXTRA.NONE)
+        with m.If(op.sv_cr_in == SVEXTRA.Idx_1_2.value):
+            comb += cr_a_idx.eq(SVEXTRA.Idx1)
+            comb += cr_b_idx.eq(SVEXTRA.Idx2)
+
+        # select the relevant CR bitfields
         with m.Switch(self.sel_in):
             with m.Case(CRInSel.NONE):
                 pass  # No bitfield activated
             with m.Case(CRInSel.CR0):
-                comb += self.cr_bitfield.data.eq(0) # CR0 (MSB0 numbering)
+                comb += cr_bf.eq(0) # CR0 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BI):
-                comb += self.cr_bitfield.data.eq(self.dec.BI[2:5])
+                comb += cr_bf.eq(self.dec.BI[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BFA):
-                comb += self.cr_bitfield.data.eq(self.dec.FormX.BFA)
+                comb += cr_bf.eq(self.dec.FormX.BFA)
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BA_BB):
-                comb += self.cr_bitfield.data.eq(self.dec.BA[2:5])
+                comb += cr_bf.eq(self.dec.BA[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
-                comb += self.cr_bitfield_b.data.eq(self.dec.BB[2:5])
+                comb += cr_bf_b.eq(self.dec.BB[2:5])
                 comb += self.cr_bitfield_b.ok.eq(1)
-                comb += self.cr_bitfield_o.data.eq(self.dec.BT[2:5])
+                comb += cr_bf_o.eq(self.dec.BT[2:5])
                 comb += self.cr_bitfield_o.ok.eq(1)
             with m.Case(CRInSel.BC):
-                comb += self.cr_bitfield.data.eq(self.dec.BC[2:5])
+                comb += cr_bf.eq(self.dec.BC[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.WHOLE_REG):
                 comb += self.whole_reg.ok.eq(1)
@@ -771,6 +793,34 @@ class DecodeCRIn(Elaboratable):
                 with m.Else():
                     # otherwise use all of it
                     comb += self.whole_reg.data.eq(0xff)
+
+        # now do the SVP64 munging.
+        extra = self.sv_rm.extra            # SVP64 extra bits 10:18
+
+        comb += svdec.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec.cr_in.eq(cr_bf)        # 3-bit (BFA)
+
+        comb += svdec_b.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec_b.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec_b.cr_in.eq(cr_bf_b)    # 3-bit (BB[2:5])
+
+        comb += svdec_o.extra.eq(extra)       # EXTRA field of SVP64 RM
+        comb += svdec_o.etype.eq(op.SV_Etype) # EXTRA2/3 for this insn
+        comb += svdec_o.cr_in.eq(cr_bf_o)    # 3-bit (BT[2:5])
+
+        # indices are slightly different, BA/BB mess sorted above
+        comb += svdec.idx.eq(cr_a_idx)       # SVP64 CR in A
+        comb += svdec_b.idx.eq(cr_b_idx)     # SVP64 CR in B
+        comb += svdec_o.idx.eq(op.sv_cr_out) # SVP64 CR out
+
+        # outputs: 7-bit reg number and whether it's vectorised
+        comb += self.cr_bitfield.data.eq(svdec.cr_out)
+        comb += self.cr_isvec.eq(svdec.isvec)
+        comb += self.cr_bitfield_b.data.eq(svdec_b.cr_out)
+        comb += self.cr_b_isvec.eq(svdec_b.isvec)
+        comb += self.cr_bitfield_o.data.eq(svdec_o.cr_out)
+        comb += self.cr_o_isvec.eq(svdec_o.isvec)
 
         return m
 
@@ -889,7 +939,8 @@ class PowerDecodeSubset(Elaboratable):
         self.state = state
 
     def get_col_subset(self, do):
-        subset = {'cr_in', 'cr_out', 'rc_sel'} # needed, non-optional
+        subset = {'sv_cr_in', 'sv_cr_out', 'SV_Etype',
+                  'cr_in', 'cr_out', 'rc_sel'} # needed, non-optional
         for k, v in record_names.items():
             if hasattr(do, k):
                 subset.add(v)
@@ -1070,6 +1121,8 @@ class PowerDecode2(PowerDecodeSubset):
         subset.add("sv_in2")
         subset.add("sv_in3")
         subset.add("sv_out")
+        subset.add("sv_cr_in")
+        subset.add("sv_cr_out")
         subset.add("SV_Etype")
         subset.add("SV_Ptype")
         subset.add("lk")

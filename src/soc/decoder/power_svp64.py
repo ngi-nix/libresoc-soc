@@ -152,3 +152,6 @@ if __name__ == '__main__':
     for entry in minor_19:
         if entry['comment'].startswith('cr'):
             print (entry)
+    minor_31 = isa.get_svp64_csv("minor_31.csv")
+    for entry in minor_31:
+        print (entry)
