@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: LGPLv3+
+# Copyright (C) 2020, 2021 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+# Copyright (C) 2020 Michael Nolan
+# Funded by NLnet http://nlnet.nl
 """core of the python-based POWER9 simulator
 
 this is part of a cycle-accurate POWER9 simulator.  its primary purpose is

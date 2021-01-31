@@ -421,7 +421,6 @@ class DecodeC(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
-        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(In3Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_c")
@@ -453,7 +452,6 @@ class DecodeOut(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
-        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.reg_out = Data(5, "reg_o")
@@ -518,7 +516,6 @@ class DecodeOut2(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
-        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(OutSel, reset_less=True)
         self.lk = Signal(reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
@@ -646,7 +643,6 @@ class DecodeCRIn(Elaboratable):
 
     def __init__(self, dec):
         self.dec = dec
-        self.sv_rm = SVP64Rec() # SVP64 RM field
         self.sel_in = Signal(CRInSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
@@ -1054,11 +1050,6 @@ class PowerDecode2(PowerDecodeSubset):
         for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
             comb += i.eq(self.dec.opcode_in)
-
-        # ... and svp64 rm
-        for i in [dec_a.insn_in, dec_b.insn_in,
-                  dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
-            comb += i.eq(self.sv_rm)
 
         # now do the SVP64 munging.  op.SV_Etype and op.sv_in1 comes from
         # PowerDecoder which in turn comes from LDST-RM*.csv and RM-*.csv
