@@ -114,6 +114,13 @@ class FieldSelectableInt:
     def __repr__(self):
         return "FieldSelectableInt(si=%s, br=%s)" % (self.si, self.br)
 
+    def asint(self, msb0=False):
+        res = 0
+        brlen = len(self.br)
+        for i, key in enumerate(self.br):
+            res |= self.si[key].value << ((brlen-i-1) if msb0 else i)
+        return res
+
 
 class FieldSelectableIntTestCase(unittest.TestCase):
     def test_arith(self):

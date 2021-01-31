@@ -242,14 +242,14 @@ class SVP64RMFields:
 
 
 # SVP64 Prefix fields: see https://libre-soc.org/openpower/sv/svp64/
-class SPP64PrefixFields:
+class SVP64PrefixFields:
     def __init__(self):
         self.insn = SelectableInt(0, 32)
         # 6 bit major opcode EXT001, 2 bits "identifying" (7, 9), 24 SV ReMap
         self.major = FieldSelectableInt(self.insn, tuple(range(0,6)))
         self.pid = FieldSelectableInt(self.insn, (7, 9)) # must be 0b11
         rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
-        self.rm = FieldSelectableInt(self.spr, rmfields)
+        self.rm = FieldSelectableInt(self.insn, rmfields)
 
 
 class SPR(dict):
@@ -611,6 +611,10 @@ class ISACaller:
         # SVP64.  first, check if the opcode is EXT001
         yield Settle()
         opcode = yield self.dec2.dec.opcode_in
+        pfx = SVP64PrefixFields()
+        pfx.insn.value = opcode
+        major = pfx.major.asint(msb0=True) # MSB0 inversion
+        print ("prefix test: opcode:", major, bin(major))
 
     def execute_one(self):
         """execute one instruction
