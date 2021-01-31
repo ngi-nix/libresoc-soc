@@ -414,21 +414,21 @@ class GeneralTestCases(FHDLTestCase):
             program.assembly = '\n'.join(disassembly) + '\n' # XXX HACK!
             self.run_tst_program(program, [1, 3])
 
-    @unittest.skip("disable")
     def test_loop(self):
-        """in godbolt.org:
-        register unsigned long i asm ("r12");
+        """
+        in godbolt.org:
+        register unsigned long i asm ("r9");
         void square(void) {
-            i = 5;
+            i = 16;
             do {
                 i = i - 1;
-            } while (i != 0);
+            } while (i != 12);
         }
         """
         lst = ["addi 9, 0, 0x10",  # i = 16
                "addi 9,9,-1",    # i = i - 1
-               "cmpi 0,1,9,12",     # compare 9 to value 0, store in CR2
-               "bc 2,0,-8"         # branch if CR2 "test was != 0"
+               "cmpi 2,1,9,12",     # compare 9 to value 12, store in CR2
+               "bc 4,10,-8"         # branch if CR2 "test was != 12"
                ]
         with Program(lst, bigendian) as program:
             self.run_tst_program(program, [9], initial_mem={})
