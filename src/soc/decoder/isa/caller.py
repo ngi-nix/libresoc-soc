@@ -213,11 +213,24 @@ class PC:
 
 
 # Simple-V: see https://libre-soc.org/openpower/sv
-# also soc.sv.svp64 SVP64Rec
-class SVSTATE:
+# also soc.sv.svstate SVSTATEREC
+class SVP64State:
     def __init__(self, init=0):
         self.spr = SelectableInt(init, 32)
         # fields of SVSTATE, see https://libre-soc.org/openpower/sv/sprs/
+        self.maxvl = FieldSelectableInt(self.spr, tuple(range(0,7))
+        self.vl = FieldSelectableInt(self.spr, tuple(range(7,14)))
+        self.srcstep = FieldSelectableInt(self.spr, tuple(range(14,21)))
+        self.dststep = FieldSelectableInt(self.spr, tuple(range(21,28)))
+        self.subvl = FieldSelectableInt(self.spr, tuple(range(28,30)))
+        self.svstep = FieldSelectableInt(self.spr, tuple(range(30,32)))
+
+
+# SVP64 ReMap field
+class SVP64RMFields:
+    def __init__(self, init=0):
+        self.spr = SelectableInt(init, 24)
+        # SVP64 RM fields: see https://libre-soc.org/openpower/sv/svp64/
         self.mmode = FieldSelectableInt(self.spr, [0])
         self.mask = FieldSelectableInt(self.spr, tuple(range(1,4)))
         self.elwidth = FieldSelectableInt(self.spr, tuple(range(4,6)))
@@ -225,6 +238,17 @@ class SVSTATE:
         self.subvl = FieldSelectableInt(self.spr, tuple(range(8,10)))
         self.extra = FieldSelectableInt(self.spr, tuple(range(10,19)))
         self.mode = FieldSelectableInt(self.spr, tuple(range(19,24)))
+
+
+# SVP64 Prefix fields: see https://libre-soc.org/openpower/sv/svp64/
+class SPP64PrefixFields:
+    def __init__(self):
+        self.insn = SelectableInt(0, 32)
+        # 6 bit major opcode EXT001, 2 bits "identifying" (7, 9), 24 SV ReMap
+        self.major = FieldSelectableInt(self.insn, tuple(range(0,6)))
+        self.pid = FieldSelectableInt(self.insn, (7, 9) # must be 0b11
+        rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
+        self.rm = FieldSelectableInt(self.spr, rmfields)
 
 
 class SPR(dict):
