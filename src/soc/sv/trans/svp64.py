@@ -112,7 +112,7 @@ def decode_ffirst(encoding):
 
 
 # decodes svp64 assembly listings and creates EXT001 svp64 prefixes
-class SVP64:
+class SVP64Asm:
     def __init__(self, lst):
         self.lst = lst
         self.trans = self.translate(lst)
@@ -543,7 +543,7 @@ class SVP64:
         return res
 
 if __name__ == '__main__':
-    isa = SVP64(['slw 3, 1, 4',
+    isa = SVP64Asm(['slw 3, 1, 4',
                  'extsw 5, 3',
                  'sv.extsw 5, 3',
                  'sv.cmpi 5, 1, 3, 2',
@@ -556,4 +556,5 @@ if __name__ == '__main__':
                  'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                 ])
+    print ("list", list(isa))
     csvs = SVP64RM()

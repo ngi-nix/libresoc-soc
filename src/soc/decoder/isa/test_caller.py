@@ -16,59 +16,59 @@ class Register:
     def __init__(self, num):
         self.num = num
 
+def run_tst(generator, initial_regs, initial_sprs={}):
+    m = Module()
+    comb = m.d.comb
+    instruction = Signal(32)
 
-class DecoderTestCase(FHDLTestCase):
+    pdecode = create_pdecode()
 
-    def run_tst(self, generator, initial_regs, initial_sprs={}):
-        m = Module()
-        comb = m.d.comb
-        instruction = Signal(32)
+    gen = list(generator.generate_instructions())
+    insncode = generator.assembly.splitlines()
+    instructions = list(zip(gen, insncode))
 
-        pdecode = create_pdecode()
-
-        gen = list(generator.generate_instructions())
-        insncode = generator.assembly.splitlines()
-        instructions = list(zip(gen, insncode))
-
-        m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        simulator = ISA(pdecode2, initial_regs, initial_sprs, 0,
-                        initial_insns=gen, respect_pc=True,
-                        disassembly=insncode,
-                        bigendian=0)
-        comb += pdecode2.dec.raw_opcode_in.eq(instruction)
-        sim = Simulator(m)
+    m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
+    simulator = ISA(pdecode2, initial_regs, initial_sprs, 0,
+                    initial_insns=gen, respect_pc=True,
+                    disassembly=insncode,
+                    bigendian=0)
+    comb += pdecode2.dec.raw_opcode_in.eq(instruction)
+    sim = Simulator(m)
 
 
-        def process():
+    def process():
 
+        pc = simulator.pc.CIA.value
+        index = pc//4
+        while index < len(instructions):
+            print("instr pc", pc)
+            try:
+                yield from simulator.setup_one()
+            except KeyError:  # indicates instruction not in imem: stop
+                break
+            yield Settle()
+
+            ins, code = instructions[index]
+            print("0x{:X}".format(ins & 0xffffffff))
+            print(code)
+
+            # ask the decoder to decode this binary data (endian'd)
+            yield pdecode2.dec.bigendian.eq(0)  # little / big?
+            yield instruction.eq(ins)          # raw binary instr.
+            yield Delay(1e-6)
+            opname = code.split(' ')[0]
+            yield from simulator.call(opname)
             pc = simulator.pc.CIA.value
             index = pc//4
-            while index < len(instructions):
-                print("instr pc", pc)
-                try:
-                    yield from simulator.setup_one()
-                except KeyError:  # indicates instruction not in imem: stop
-                    break
-                yield Settle()
 
-                ins, code = instructions[index]
-                print("0x{:X}".format(ins & 0xffffffff))
-                print(code)
+    sim.add_process(process)
+    with sim.write_vcd("simulator.vcd", "simulator.gtkw",
+                       traces=[]):
+        sim.run()
+    return simulator
 
-                # ask the decoder to decode this binary data (endian'd)
-                yield pdecode2.dec.bigendian.eq(0)  # little / big?
-                yield instruction.eq(ins)          # raw binary instr.
-                yield Delay(1e-6)
-                opname = code.split(' ')[0]
-                yield from simulator.call(opname)
-                pc = simulator.pc.CIA.value
-                index = pc//4
 
-        sim.add_process(process)
-        with sim.write_vcd("simulator.vcd", "simulator.gtkw",
-                           traces=[]):
-            sim.run()
-        return simulator
+class DecoderTestCase(FHDLTestCase):
 
     def test_add(self):
         lst = ["add 1, 3, 2"]
@@ -316,7 +316,7 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.cr, SelectableInt(expected << ((7-i)*4), 32))
 
     def run_tst_program(self, prog, initial_regs=[0] * 32):
-        simulator = self.run_tst(prog, initial_regs)
+        simulator = run_tst(prog, initial_regs)
         simulator.gpr.dump()
         return simulator
 
