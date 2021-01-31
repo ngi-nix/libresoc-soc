@@ -208,6 +208,21 @@ class PC:
         namespace['NIA'] = self.NIA
 
 
+# Simple-V: see https://libre-soc.org/openpower/sv
+# also soc.sv.svp64 SVP64Rec
+class SVSTATE:
+    def __init__(self, init=0):
+        self.spr = SelectableInt(init, 32)
+        # fields of SVSTATE, see https://libre-soc.org/openpower/sv/sprs/
+        self.mmode = FieldSelectableInt(self.spr, [0])
+        self.mask = FieldSelectableInt(self.spr, tuple(range(1,4)))
+        self.elwidth = FieldSelectableInt(self.spr, tuple(range(4,6)))
+        self.ewsrc = FieldSelectableInt(self.spr, tuple(range(6,8)))
+        self.subvl = FieldSelectableInt(self.spr, tuple(range(8,10)))
+        self.extra = FieldSelectableInt(self.spr, tuple(range(10,19)))
+        self.mode = FieldSelectableInt(self.spr, tuple(range(19,24)))
+
+
 class SPR(dict):
     def __init__(self, dec2, initial_sprs={}):
         self.sd = dec2
@@ -274,6 +289,7 @@ class ISACaller:
     # respect_pc - tracks the program counter.  requires initial_insns
     def __init__(self, decoder2, regfile, initial_sprs=None, initial_cr=0,
                  initial_mem=None, initial_msr=0,
+                 initial_svstate=0,
                  initial_insns=None, respect_pc=False,
                  disassembly=None,
                  initial_pc=0,
@@ -314,6 +330,7 @@ class ISACaller:
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
+        self.svstate = SVSTATE(initial_svstate)
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 

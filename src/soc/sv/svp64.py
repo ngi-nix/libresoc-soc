@@ -24,6 +24,7 @@ class SVP64Rec(Record):
                                       ("mask"    , 3),
                                       ("elwidth" , 2),
                                       ("ewsrc"   , 2),
+                                      ("subvl"   , 2),
                                       ("extra"   , 9),
                                       ("mode"    , 5)], name=name)
 
