@@ -218,7 +218,7 @@ class SVP64State:
     def __init__(self, init=0):
         self.spr = SelectableInt(init, 32)
         # fields of SVSTATE, see https://libre-soc.org/openpower/sv/sprs/
-        self.maxvl = FieldSelectableInt(self.spr, tuple(range(0,7))
+        self.maxvl = FieldSelectableInt(self.spr, tuple(range(0,7)))
         self.vl = FieldSelectableInt(self.spr, tuple(range(7,14)))
         self.srcstep = FieldSelectableInt(self.spr, tuple(range(14,21)))
         self.dststep = FieldSelectableInt(self.spr, tuple(range(21,28)))
@@ -246,7 +246,7 @@ class SPP64PrefixFields:
         self.insn = SelectableInt(0, 32)
         # 6 bit major opcode EXT001, 2 bits "identifying" (7, 9), 24 SV ReMap
         self.major = FieldSelectableInt(self.insn, tuple(range(0,6)))
-        self.pid = FieldSelectableInt(self.insn, (7, 9) # must be 0b11
+        self.pid = FieldSelectableInt(self.insn, (7, 9)) # must be 0b11
         rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
         self.rm = FieldSelectableInt(self.spr, rmfields)
 
