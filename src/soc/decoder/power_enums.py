@@ -2,6 +2,14 @@
 # Copyright (C) 2020, 2021 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
 # Copyright (C) 2020, Michael Nolan
 
+"""Enums used in OpenPOWER ISA decoding
+
+Note: for SV, from v3.1B p12:
+
+    The designated SPR sandbox consists of non-privileged SPRs 704-719 and
+    privileged SPRs 720-735.
+"""
+
 from enum import Enum, unique
 import csv
 import os
