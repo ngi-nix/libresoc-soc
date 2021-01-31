@@ -13,6 +13,7 @@ related bugs:
 * https://bugs.libre-soc.org/show_bug.cgi?id=424
 """
 
+from nmigen.back.pysim import Settle
 from functools import wraps
 from copy import copy
 from soc.decoder.orderedset import OrderedSet
@@ -358,7 +359,7 @@ class ISACaller:
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
-        self.svstate = SVSTATE(initial_svstate)
+        self.svstate = SVP64State(initial_svstate)
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
@@ -606,6 +607,10 @@ class ISACaller:
         yield self.dec2.dec.bigendian.eq(self.bigendian)
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
+
+        # SVP64.  first, check if the opcode is EXT001
+        yield Settle()
+        opcode = yield self.dec2.dec.opcode_in
 
     def execute_one(self):
         """execute one instruction

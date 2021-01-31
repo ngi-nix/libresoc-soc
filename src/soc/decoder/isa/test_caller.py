@@ -1,5 +1,5 @@
 from nmigen import Module, Signal
-from nmigen.back.pysim import Simulator, Delay
+from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 import unittest
 from soc.decoder.isa.caller import ISACaller
@@ -26,19 +26,32 @@ class DecoderTestCase(FHDLTestCase):
 
         pdecode = create_pdecode()
 
+        gen = list(generator.generate_instructions())
+        insncode = generator.assembly.splitlines()
+        instructions = list(zip(gen, insncode))
+
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
-        simulator = ISA(pdecode2, initial_regs, initial_sprs, 0)
+        simulator = ISA(pdecode2, initial_regs, initial_sprs, 0,
+                        initial_insns=gen, respect_pc=True,
+                        disassembly=insncode,
+                        bigendian=0)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
-        gen = generator.generate_instructions()
+
 
         def process():
-            instructions = list(zip(gen, generator.assembly.splitlines()))
 
-            index = simulator.pc.CIA.value//4
+            pc = simulator.pc.CIA.value
+            index = pc//4
             while index < len(instructions):
-                ins, code = instructions[index]
+                print("instr pc", pc)
+                try:
+                    yield from simulator.setup_one()
+                except KeyError:  # indicates instruction not in imem: stop
+                    break
+                yield Settle()
 
+                ins, code = instructions[index]
                 print("0x{:X}".format(ins & 0xffffffff))
                 print(code)
 
@@ -48,7 +61,8 @@ class DecoderTestCase(FHDLTestCase):
                 yield Delay(1e-6)
                 opname = code.split(' ')[0]
                 yield from simulator.call(opname)
-                index = simulator.pc.CIA.value//4
+                pc = simulator.pc.CIA.value
+                index = pc//4
 
         sim.add_process(process)
         with sim.write_vcd("simulator.vcd", "simulator.gtkw",
@@ -295,11 +309,11 @@ class DecoderTestCase(FHDLTestCase):
                 sim = self.run_tst_program(program)
             print("cr", sim.cr)
             expected = (7-i)
-            # check CR itself
-            self.assertEqual(sim.cr, SelectableInt(expected << ((7-i)*4), 32))
             # check CR[0]/1/2/3 as well
             print("cr%d", sim.crl[i])
             self.assertTrue(SelectableInt(expected, 4) == sim.crl[i])
+            # check CR itself
+            self.assertEqual(sim.cr, SelectableInt(expected << ((7-i)*4), 32))
 
     def run_tst_program(self, prog, initial_regs=[0] * 32):
         simulator = self.run_tst(prog, initial_regs)

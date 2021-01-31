@@ -9,7 +9,7 @@ from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.isa.caller import ISACaller, special_sprs
+from soc.decoder.isa.caller import special_sprs
 import unittest
 from nmigen.cli import rtlil
 from nmutil.formaltest import FHDLTestCase
