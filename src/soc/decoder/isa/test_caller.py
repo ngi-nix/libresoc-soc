@@ -61,7 +61,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[3] = 0x1234
         initial_regs[2] = 0x4321
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
 
@@ -69,7 +69,7 @@ class DecoderTestCase(FHDLTestCase):
         lst = ["addi 3, 0, 0x1234",
                "addi 2, 0, 0x4321",
                "add  1, 3, 2"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
@@ -79,7 +79,7 @@ class DecoderTestCase(FHDLTestCase):
                "addi 2, 0, 0x1234",
                "stw 2, 0(1)",
                "lwz 3, 0(1)"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
@@ -89,7 +89,7 @@ class DecoderTestCase(FHDLTestCase):
         lst = ["addpcis 1, 0x1",
                "addpcis 2, 0x1",
                "addpcis 3, 0x1"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             self.assertEqual(sim.gpr(1), SelectableInt(0x10004, 64))
             self.assertEqual(sim.gpr(2), SelectableInt(0x10008, 64))
@@ -101,7 +101,7 @@ class DecoderTestCase(FHDLTestCase):
                "ba 0x1000",          # exit the program
                "addi 2, 0, 0x1234",  # line 4
                "ba 0x8"]             # branch to line 3
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             self.assertEqual(sim.pc.CIA, SelectableInt(0x1000, 64))
             self.assertEqual(sim.gpr(1), SelectableInt(0x0, 64))
@@ -113,7 +113,7 @@ class DecoderTestCase(FHDLTestCase):
                "ba 0x1000",
                "addi 1, 0, 0x1234",
                "bclr 20, 0, 0"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             self.assertEqual(sim.spr['LR'], SelectableInt(0x4, 64))
 
@@ -123,7 +123,7 @@ class DecoderTestCase(FHDLTestCase):
                "bcctr 20, 0, 0",     # bctr
                "addi 2, 0, 0x1",     # should never execute
                "addi 1, 0, 0x1234"]  # target of ctr
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             self.assertEqual(sim.spr['CTR'], SelectableInt(0x10, 64))
             self.assertEqual(sim.gpr(1), SelectableInt(0x1234, 64))
@@ -137,7 +137,7 @@ class DecoderTestCase(FHDLTestCase):
                                        # branch if r1 equals 10 to the nop below
                 "addi 2, 0, 0x1234",   # if r1 == 10 this shouldn't execute
                 "or 0, 0, 0"]          # branch target
-            with Program(lst) as program:
+            with Program(lst, bigendian=False) as program:
                 sim = self.run_tst_program(program)
                 if i == 10:
                     self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
@@ -151,7 +151,7 @@ class DecoderTestCase(FHDLTestCase):
                "add  2, 2, 1",
                "cmpi cr0, 1, 1, 10",
                "bc 12, 0, -0xc"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             # Verified with qemu
             self.assertEqual(sim.gpr(2), SelectableInt(0x37, 64))
@@ -162,7 +162,7 @@ class DecoderTestCase(FHDLTestCase):
                "mtspr 9, 2",    # set ctr to 7
                "addi 1, 1, 5",
                "bc 16, 0, -0x4"]  # bdnz to the addi above
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             # Verified with qemu
             self.assertEqual(sim.gpr(1), SelectableInt(0x23, 64))
@@ -174,7 +174,7 @@ class DecoderTestCase(FHDLTestCase):
                "addis 2, 0, 0xffff",
                "add. 1, 1, 2",
                "mfcr 3"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             # Verified with QEMU
             self.assertEqual(sim.gpr(3), SelectableInt(0x80000000, 64))
@@ -184,7 +184,7 @@ class DecoderTestCase(FHDLTestCase):
                "addis 2, 0, 0xffff",
                "cmp cr2, 0, 1, 2",
                "mfcr 3"]
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program)
             self.assertEqual(sim.gpr(3), SelectableInt(0x200000, 64))
 
@@ -193,7 +193,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[3] = 0xdeadbeefcafebabe
         initial_regs[2] = 5
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(1), SelectableInt(0x5fd757c0, 64))
 
@@ -202,7 +202,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[3] = 0xdeadbeefcafebabe
         initial_regs[2] = 5
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(1), SelectableInt(0x657f5d5, 64))
 
@@ -210,7 +210,7 @@ class DecoderTestCase(FHDLTestCase):
         lst = ["rlwinm 3, 1, 5, 20, 6"]
         initial_regs = [0] * 32
         initial_regs[1] = -1
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(3), SelectableInt(0xfffffffffe000fff, 64))
 
@@ -219,7 +219,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = 0xffffffffdeadbeef
         initial_regs[3] = 0x12345678
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(3), SelectableInt(0xd5b7ddfbd4345dfb, 64))
 
@@ -227,7 +227,7 @@ class DecoderTestCase(FHDLTestCase):
         lst = ["rldic 3, 1, 5, 20"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeefcafec0de
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(3), SelectableInt(0xdf95fd81bc0, 64))
 
@@ -235,7 +235,7 @@ class DecoderTestCase(FHDLTestCase):
         lst = ["prtyw 2, 1"]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeeecaffc0de
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(2), SelectableInt(0x100000001, 64))
 
@@ -246,7 +246,7 @@ class DecoderTestCase(FHDLTestCase):
         ]
         initial_regs = [0] * 32
         initial_regs[1] = 0xdeadbeefcafec0de
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(2),
                              SelectableInt(0x605060704070206, 64))
@@ -261,7 +261,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs = [0] * 32
         initial_regs[1] = 0x0000beeecaffc0de
         initial_regs[3] = 0x0000000000ffc0de
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.gpr(2), SelectableInt(16, 64))
             self.assertEqual(sim.gpr(4), SelectableInt(8, 64))
@@ -273,7 +273,7 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[1] = 0x0102030405060708
         initial_regs[2] = 0x04
         initial_regs[3] = 0x10
-        with Program(lst) as program:
+        with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs)
             self.assertEqual(sim.crl[0].get_range().value,
                              SelectableInt(4, 4))
@@ -291,7 +291,7 @@ class DecoderTestCase(FHDLTestCase):
             lst = ["addis 1, 0, 0x7654",
                    "mtcrf %d, 1" % (1 << (7-i)),
                    ]
-            with Program(lst) as program:
+            with Program(lst, bigendian=False) as program:
                 sim = self.run_tst_program(program)
             print("cr", sim.cr)
             expected = (7-i)
