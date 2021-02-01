@@ -327,6 +327,13 @@ class TestRunner(FHDLTestCase):
             'core.int.rp_src1.memory(4)[63:0]',
             'core.int.rp_src1.memory(9)[63:0]',
         ]
+
+        if(self.microwatt_mmu):
+            traces += [
+                {'comment': 'microwatt_mmu'},
+                'core.fus.mmu0.alu_mmu0.illegal'
+            ]
+
         write_gtkw("issuer_simulator.gtkw",
                    "issuer_simulator.vcd",
                    traces, module='top.issuer')
