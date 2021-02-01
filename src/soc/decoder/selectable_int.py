@@ -117,8 +117,10 @@ class FieldSelectableInt:
     def asint(self, msb0=False):
         res = 0
         brlen = len(self.br)
-        for i, key in enumerate(self.br):
-            res |= self.si[key].value << ((brlen-i-1) if msb0 else i)
+        for i, key in self.br.items():
+            bit = self.si[key].value
+            #print("asint", i, key, bit)
+            res |= bit << ((brlen-i-1) if msb0 else i)
         return res
 
 
@@ -277,7 +279,6 @@ class SelectableInt:
     def __getitem__(self, key):
         if isinstance(key, SelectableInt):
             key = key.value
-        print("getitem", key, self.bits, hex(self.value))
         if isinstance(key, int):
             assert key < self.bits, "key %d accessing %d" % (key, self.bits)
             assert key >= 0
@@ -286,6 +287,7 @@ class SelectableInt:
             key = self.bits - (key + 1)
 
             value = (self.value >> key) & 1
+            print("getitem", key, self.bits, hex(self.value), value)
             return SelectableInt(value, 1)
         elif isinstance(key, slice):
             assert key.step is None or key.step == 1
@@ -300,6 +302,7 @@ class SelectableInt:
             #print ("__getitem__ slice num bits", start, stop, bits)
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
+            print("getitem", key, self.bits, hex(self.value), value)
             return SelectableInt(value, bits)
 
     def __setitem__(self, key, value):

@@ -214,7 +214,6 @@ class PC:
 
 
 # Simple-V: see https://libre-soc.org/openpower/sv
-# also soc.sv.svstate SVSTATEREC
 class SVP64State:
     def __init__(self, init=0):
         self.spr = SelectableInt(init, 32)
@@ -614,7 +613,9 @@ class ISACaller:
         pfx = SVP64PrefixFields()
         pfx.insn.value = opcode
         major = pfx.major.asint(msb0=True) # MSB0 inversion
-        print ("prefix test: opcode:", major, bin(major))
+        print ("prefix test: opcode:", major, bin(major),
+                pfx.insn[7] == 0b1, pfx.insn[9] == 0b1,
+                bin(pfx.rm.asint(msb0=True)))
 
     def execute_one(self):
         """execute one instruction
