@@ -11,6 +11,7 @@ from nmigen import Module, Signal, Cat, ClockSignal
 from nmutil.sim_tmp_alternative import Simulator, Settle
 
 from nmutil.formaltest import FHDLTestCase
+from nmutil.gtkw import write_gtkw
 from nmigen.cli import rtlil
 import unittest
 from soc.decoder.isa.caller import special_sprs
@@ -307,9 +308,31 @@ class TestRunner(FHDLTestCase):
                     print ("after test %s reg %2d value %x" % \
                                 (test.name, int_reg, value))
 
+        traces = [
+            'clk',  'fsm_state',
+            {'comment': 'fetch and decode'},
+            'cia[63:0]', 'nia[63:0]', 'pc[63:0]', 'raw_insn_i[31:0]',
+            'raw_opcode_in[31:0]', 'insn_type',
+            {'comment': 'issue and execute'},
+            'core.core_core_insn_type', 'issue_i', 'busy_o',
+            {'comment': 'dmi'},
+            'dbg.dmi_req_i', 'dbg.dmi_ack_o',
+            {'comment': 'instruction memory'},
+            'imem.sram.rdport.memory(0)[63:0]',
+            {'comment': 'registers'},
+            'core.int.rp_src1.memory(0)[63:0]',
+            'core.int.rp_src1.memory(1)[63:0]',
+            'core.int.rp_src1.memory(2)[63:0]',
+            'core.int.rp_src1.memory(3)[63:0]',
+            'core.int.rp_src1.memory(4)[63:0]',
+            'core.int.rp_src1.memory(9)[63:0]',
+        ]
+        write_gtkw("issuer_simulator.gtkw",
+                   "issuer_simulator.vcd",
+                   traces, module='top.issuer')
+
         sim.add_sync_process(process)
-        with sim.write_vcd("issuer_simulator.vcd","issuer_simulator.gtkw",
-                           traces=[]):
+        with sim.write_vcd("issuer_simulator.vcd"):
             sim.run()
 
 
