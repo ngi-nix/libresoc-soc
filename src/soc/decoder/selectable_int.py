@@ -302,7 +302,7 @@ class SelectableInt:
             #print ("__getitem__ slice num bits", start, stop, bits)
             mask = (1 << bits) - 1
             value = (self.value >> start) & mask
-            print("getitem", key, self.bits, hex(self.value), value)
+            print("getitem", stop, start, self.bits, hex(self.value), value)
             return SelectableInt(value, bits)
 
     def __setitem__(self, key, value):

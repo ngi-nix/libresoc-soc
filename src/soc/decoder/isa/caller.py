@@ -325,6 +325,7 @@ class ISACaller:
 
         self.bigendian = bigendian
         self.halted = False
+        self.is_svp64_mode = False
         self.respect_pc = respect_pc
         if initial_sprs is None:
             initial_sprs = {}
@@ -607,22 +608,37 @@ class ISACaller:
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
 
-        # SVP64.  first, check if the opcode is EXT001
+        # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
         yield Settle()
         opcode = yield self.dec2.dec.opcode_in
         pfx = SVP64PrefixFields()
         pfx.insn.value = opcode
         major = pfx.major.asint(msb0=True) # MSB0 inversion
         print ("prefix test: opcode:", major, bin(major),
-                pfx.insn[7] == 0b1, pfx.insn[9] == 0b1,
-                bin(pfx.rm.asint(msb0=True)))
+                pfx.insn[7] == 0b1, pfx.insn[9] == 0b1)
+        self.is_svp64_mode = ((major == 0b000001) and
+                              pfx.insn[7].value == 0b1 and
+                              pfx.insn[9].value == 0b1)
+        if not self.is_svp64_mode:
+            return
+
+        # in SVP64 mode.  decode/print out svp64 prefix, get v3.0B instruction
+        print ("svp64.rm", bin(pfx.rm.asint(msb0=True)))
+        ins = self.imem.ld(pc+4, 4, False, True)
+        print("     svsetup: 0x%x 0x%x %s" % (pc+4, ins & 0xffffffff, bin(ins)))
+        yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
+        yield Settle()
 
     def execute_one(self):
         """execute one instruction
         """
         # get the disassembly code for this instruction
-        code = self.disassembly[self._pc]
-        print("sim-execute", hex(self._pc), code)
+        if self.is_svp64_mode:
+            code = self.disassembly[self._pc+4]
+            print("    svp64 sim-execute", hex(self._pc), code)
+        else:
+            code = self.disassembly[self._pc]
+            print("sim-execute", hex(self._pc), code)
         opname = code.split(' ')[0]
         yield from self.call(opname)
 
