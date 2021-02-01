@@ -540,6 +540,19 @@ class SVP64Asm:
                 print ("    smask  16-17:", bin(smask))
             print ()
 
+            # first construct the prefix: EXT001, bits 7/9=1, in MSB0 order
+            svp64_prefix = 0x1 << (31-5) # EXT001
+            svp64_prefix |= 0x1 << (31-7) # SVP64 marker 1
+            svp64_prefix |= 0x1 << (31-9) # SVP64 marker 2
+            rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
+            for i, x in enumerate(rmfields):
+                svp64_prefix |= ((svp64_rm>>i)&0b1) << (31-x)
+
+            # fiinally yield the svp64 prefix and the thingy.  v3.0b opcode
+            yield ".long 0x%x" % svp64_prefix
+            yield "%s %s" % (v30b_op, ", ".join(v30b_newfields))
+            print ("new v3.0B fields", v30b_op, v30b_newfields)
+
         return res
 
 if __name__ == '__main__':
