@@ -1307,8 +1307,7 @@ class SVP64PowerDecoder(Elaboratable):
         l = []
         for idx in rmfields:
             l.append(self.opcode_in[32-idx])
-        with m.If(self.is_svp64_mode):
-            comb += self.svp64_rm.eq(Cat(*l))
+        comb += self.svp64_rm.eq(Cat(*l))
 
         return m
 
