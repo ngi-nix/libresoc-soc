@@ -493,6 +493,7 @@ class TopPowerDecoder(PowerDecoder):
     def elaborate(self, platform):
         m = PowerDecoder.elaborate(self, platform)
         comb = m.d.comb
+        # sigh duplicated in SVP64PowerDecoder
         # raw opcode in assumed to be in LE order: byte-reverse it to get BE
         raw_le = self.raw_opcode_in
         l = []
