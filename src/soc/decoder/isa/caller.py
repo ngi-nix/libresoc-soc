@@ -247,7 +247,7 @@ class SVP64PrefixFields:
         # 6 bit major opcode EXT001, 2 bits "identifying" (7, 9), 24 SV ReMap
         self.major = FieldSelectableInt(self.insn, tuple(range(0,6)))
         self.pid = FieldSelectableInt(self.insn, (7, 9)) # must be 0b11
-        rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
+        rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM (ReMap)
         self.rm = FieldSelectableInt(self.insn, rmfields)
 
 
