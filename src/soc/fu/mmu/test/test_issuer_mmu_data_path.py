@@ -17,12 +17,11 @@ class MMUTestCase(TestAccumulatorBase):
         lst = [
                 "dcbz 1,2",
                 "tlbie 0,0,0,0,0", # RB,RS,RIC,PRS,R
-                #"mfspr 1, 18",     # DSISR to reg 1
-                #"mfspr 2, 19",     # DAR to reg 2
-                #"mtspr 18, 1",     # TODO
-                #"mtspr 19, 2",     # TODO
-                #"std 1, 0(2)"
-                "lhz 3, 0(1)"       # load some data
+                "mtspr 18, 1",     # reg 1 to DSISR
+                "mtspr 19, 2",     # reg 2 to DAR
+                "mfspr 1, 18",     # DSISR to reg 1
+                "mfspr 2, 19",     # DAR to reg 2
+                "lhz 3, 0(1)"      # load some data
               ]
 
         initial_regs = [0] * 32
