@@ -331,7 +331,8 @@ class TestRunner(FHDLTestCase):
         if(self.microwatt_mmu):
             traces += [
                 {'comment': 'microwatt_mmu'},
-                'core.fus.mmu0.alu_mmu0.illegal'
+                'core.fus.mmu0.alu_mmu0.illegal',
+                'core.fus.mmu0.alu_mmu0.debug0[3:0]'
             ]
 
         write_gtkw("issuer_simulator.gtkw",

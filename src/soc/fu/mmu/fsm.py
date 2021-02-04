@@ -136,6 +136,7 @@ class FSMMMUStage(ControlBase):
         #self.debug1 = Signal(64)
         #self.debug2 = Signal(64)
         #self.debug3 = Signal(64)
+        self.illegal = Signal()
 
         # for SPR field number access
         i = self.p.data_i
@@ -222,10 +223,13 @@ class FSMMMUStage(ControlBase):
             # FIXME: properly implement MicrOp.OP_MTSPR and MicrOp.OP_MFSPR
 
             with m.Switch(op.insn_type):
-                comb += self.debug0.eq(3)
                 with m.Case(MicrOp.OP_MTSPR):
+                    comb += done.eq(1)
+                    comb += self.debug0.eq(3)
+                    """
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
+                        comb += self.debug0.eq(3)
                         with m.If(spr[0]):
                             comb += dsisr.eq(a_i[:32])
                         with m.Else():
@@ -233,18 +237,23 @@ class FSMMMUStage(ControlBase):
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
+                        comb += self.debug0.eq(4)
                         # blip the MMU and wait for it to complete
                         comb += valid.eq(1)   # start "pulse"
                         comb += l_in.valid.eq(blip)   # start
                         comb += l_in.mtspr.eq(1)      # mtspr mode
                         comb += l_in.sprn.eq(spr)  # which SPR
                         comb += l_in.rs.eq(a_i)    # incoming operand (RS)
-                        comb += done.eq(l_out.done) # zzzz
+                        comb += done.eq(1) # FIXME l_out.done
+                       """
 
                 with m.Case(MicrOp.OP_MFSPR):
-                    comb += self.debug0.eq(3)
+                    comb += done.eq(1)
+                    comb += self.debug0.eq(4)
+                    """
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
+                        comb += self.debug0.eq(5)
                         with m.If(spr[0]):
                             comb += o.data.eq(dsisr)
                         with m.Else():
@@ -253,6 +262,7 @@ class FSMMMUStage(ControlBase):
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
+                        comb += self.debug0.eq(6)
                         # blip the MMU and wait for it to complete
                         comb += valid.eq(1)   # start "pulse"
                         comb += l_in.valid.eq(blip)   # start
@@ -261,7 +271,8 @@ class FSMMMUStage(ControlBase):
                         comb += l_in.rs.eq(a_i)    # incoming operand (RS)
                         comb += o.data.eq(l_out.sprval) # SPR from MMU
                         comb += o.ok.eq(l_out.done) # only when l_out valid
-                        comb += done.eq(l_out.done) # zzzz
+                        comb += done.eq(1) # FIXME l_out.done
+                    """
 
                 with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
@@ -284,6 +295,8 @@ class FSMMMUStage(ControlBase):
                     comb += l_in.addr.eq(b_i)  # incoming operand (RB)
                     comb += done.eq(l_out.done) # zzzz
                     comb += self.debug0.eq(2)
+                with m.Case(MicrOp.OP_ILLEGAL):
+                    comb += self.illegal.eq(1)
 
             with m.If(self.n.ready_i & self.n.valid_o):
                 m.d.sync += busy.eq(0)
