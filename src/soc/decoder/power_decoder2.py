@@ -889,7 +889,16 @@ class PowerDecodeSubset(Elaboratable):
 
         # set up instruction type
         # no op: defaults to OP_ILLEGAL
-        comb += self.do_copy("insn_type", self.op_get("internal_op"))
+        if self.fn_name=="MMU":
+            # mmu is special case: needs SPR opcode as well
+            mmu0 = self.mmu0_spr_dec
+            with m.If(((mmu0.dec.op.internal_op == MicrOp.OP_MTSPR) |
+                       (mmu0.dec.op.internal_op == MicrOp.OP_MFSPR))):
+                comb += self.do_copy("insn_type", mmu0.op_get("internal_op"))
+            with m.Else():
+                comb += self.do_copy("insn_type", self.op_get("internal_op"))
+        else:
+            comb += self.do_copy("insn_type", self.op_get("internal_op"))
 
         # function unit for decoded instruction: requires minor redirect
         # for SPR set/get

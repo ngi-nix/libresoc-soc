@@ -114,6 +114,9 @@ class NonProductionCore(Elaboratable):
                                                       state=self.state)
             self.des[funame] = self.decoders[funame].do
 
+        if "mmu0" in self.decoders:
+            self.decoders["mmu0"].mmu0_spr_dec = self.decoders["spr0"]
+
     def elaborate(self, platform):
         m = Module()
         # for testing purposes, to cut down on build time in coriolis2
