@@ -133,7 +133,7 @@ class FSMMMUStage(ControlBase):
         self.debug_wb_cyc = Signal()
         self.debug_wb_stb = Signal()
         self.debug_wb_we = Signal()
-        #self.debug1 = Signal(64)
+        self.debug1 = Signal()
         #self.debug2 = Signal(64)
         #self.debug3 = Signal(64)
         self.illegal = Signal()
@@ -224,9 +224,6 @@ class FSMMMUStage(ControlBase):
 
             with m.Switch(op.insn_type):
                 with m.Case(MicrOp.OP_MTSPR):
-                    comb += done.eq(1)
-                    comb += self.debug0.eq(3)
-                    """
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(3)
@@ -245,12 +242,8 @@ class FSMMMUStage(ControlBase):
                         comb += l_in.sprn.eq(spr)  # which SPR
                         comb += l_in.rs.eq(a_i)    # incoming operand (RS)
                         comb += done.eq(1) # FIXME l_out.done
-                       """
 
                 with m.Case(MicrOp.OP_MFSPR):
-                    comb += done.eq(1)
-                    comb += self.debug0.eq(4)
-                    """
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(5)
@@ -258,7 +251,7 @@ class FSMMMUStage(ControlBase):
                             comb += o.data.eq(dsisr)
                         with m.Else():
                             comb += o.data.eq(dar)
-                        comb += o.ok.eq(1)
+                        #FIXME comb += o.ok.eq(1)
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
@@ -272,7 +265,6 @@ class FSMMMUStage(ControlBase):
                         comb += o.data.eq(l_out.sprval) # SPR from MMU
                         comb += o.ok.eq(l_out.done) # only when l_out valid
                         comb += done.eq(1) # FIXME l_out.done
-                    """
 
                 with m.Case(MicrOp.OP_DCBZ):
                     # activate dcbz mode (spec: v3.0B p850)
