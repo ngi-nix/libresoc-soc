@@ -39,11 +39,11 @@ from soc.fu.div.test.test_pipe_caller import DivTestCases
 from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
-#from soc.fu.branch.test.test_pipe_caller import BranchTestCase
-#from soc.fu.spr.test.test_pipe_caller import SPRTestCase
+# from soc.fu.branch.test.test_pipe_caller import BranchTestCase
+# from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
-#from soc.simulator.test_helloworld_sim import HelloTestCases
+# from soc.simulator.test_helloworld_sim import HelloTestCases
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -123,8 +123,8 @@ def get_dmi(dmi, addr):
         if ack:
             break
         yield
-    yield # wait one
-    data = yield dmi.dout # get data after ack valid for 1 cycle
+    yield  # wait one
+    data = yield dmi.dout  # get data after ack valid for 1 cycle
     yield dmi.req_i.eq(0)
     yield dmi.addr_i.eq(0)
     yield dmi.we_i.eq(0)
@@ -148,7 +148,7 @@ class TestRunner(FHDLTestCase):
                              addr_wid=48,
                              mask_wid=8,
                              imem_reg_wid=64,
-                             #wb_data_width=32,
+                             # wb_data_width=32,
                              use_pll=False,
                              nocore=False,
                              xics=False,
@@ -187,7 +187,7 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
 
                 # pull a reset
-                #yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                # yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
 
                 # set up bigendian (TODO: don't do this, use MSR)
                 yield issuer.core_bigendian_i.eq(bigendian)
@@ -217,7 +217,7 @@ class TestRunner(FHDLTestCase):
                           bigendian=bigendian)
 
                 pc = 0  # start address
-                counter = 0 # test to pause/start
+                counter = 0  # test to pause/start
 
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
@@ -294,19 +294,19 @@ class TestRunner(FHDLTestCase):
 
                 # get CR
                 cr = yield from get_dmi(dmi, DBGCore.CR)
-                print ("after test %s cr value %x" % (test.name, cr))
+                print("after test %s cr value %x" % (test.name, cr))
 
                 # get XER
                 xer = yield from get_dmi(dmi, DBGCore.XER)
-                print ("after test %s XER value %x" % (test.name, xer))
+                print("after test %s XER value %x" % (test.name, xer))
 
                 # test of dmi reg get
                 for int_reg in range(32):
-                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg) 
+                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
                     value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
 
-                    print ("after test %s reg %2d value %x" % \
-                                (test.name, int_reg, value))
+                    print("after test %s reg %2d value %x" %
+                          (test.name, int_reg, value))
 
         traces = [
             'clk',
@@ -331,7 +331,7 @@ class TestRunner(FHDLTestCase):
             'core.int.rp_src1.memory(9)[63:0]',
         ]
 
-        if(self.microwatt_mmu):
+        if self.microwatt_mmu:
             traces += [
                 {'comment': 'microwatt_mmu'},
                 'core.fus.mmu0.alu_mmu0.illegal',
