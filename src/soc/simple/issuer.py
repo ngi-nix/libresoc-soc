@@ -237,34 +237,41 @@ class TestIssuerInternal(Elaboratable):
 
         insn_type = core.e.do.insn_type
 
+        # handshake signals between fetch and decode/execute
+        # fetch FSM can run as soon as the PC is valid
+        fetch_pc_valid_i = Signal()
+        fetch_pc_ready_o = Signal()
+        # when done, deliver the instruction to the next FSM
+        fetch_insn_o = Signal(32, reset_less=True)
+        fetch_insn_valid_o = Signal()
+        fetch_insn_ready_i = Signal()
+
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
         # then "holds" information, combinatorially, for the core
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
-        with m.FSM() as fsm:
+        with m.FSM(name='fetch_fsm'):
 
             # waiting (zzz)
             with m.State("IDLE"):
-                sync += pc_changed.eq(0)
-                sync += core.e.eq(0)
-                sync += core.raw_insn_i.eq(0)
-                sync += core.bigendian_i.eq(0)
                 with m.If(~dbg.core_stop_o & ~core_rst):
-                    # instruction allowed to go: start by reading the PC
-                    # capture the PC and also drop it into Insn Memory
-                    # we have joined a pair of combinatorial memory
-                    # lookups together.  this is Generally Bad.
-                    comb += self.imem.a_pc_i.eq(pc)
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
-                    sync += cur_state.pc.eq(pc)
+                    comb += fetch_pc_ready_o.eq(1)
+                    with m.If(fetch_pc_valid_i):
+                        # instruction allowed to go: start by reading the PC
+                        # capture the PC and also drop it into Insn Memory
+                        # we have joined a pair of combinatorial memory
+                        # lookups together.  this is Generally Bad.
+                        comb += self.imem.a_pc_i.eq(pc)
+                        comb += self.imem.a_valid_i.eq(1)
+                        comb += self.imem.f_valid_i.eq(1)
+                        sync += cur_state.pc.eq(pc)
 
-                    # initiate read of MSR.  arrives one clock later
-                    comb += self.state_r_msr.ren.eq(1<<StateRegs.MSR)
-                    sync += msr_read.eq(0)
+                        # initiate read of MSR.  arrives one clock later
+                        comb += self.state_r_msr.ren.eq(1 << StateRegs.MSR)
+                        sync += msr_read.eq(0)
 
-                    m.next = "INSN_READ" # move to "wait for bus" phase
+                        m.next = "INSN_READ"  # move to "wait for bus" phase
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
@@ -286,7 +293,33 @@ class TestIssuerInternal(Elaboratable):
                         insn = f_instr_o
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
-                    comb += dec_opcode_i.eq(insn) # actual opcode
+                    # capture and hold the instruction from memory
+                    sync += fetch_insn_o.eq(insn)
+                    m.next = "INSN_READY"
+
+            with m.State("INSN_READY"):
+                # hand over the instruction, to be decoded
+                comb += fetch_insn_valid_o.eq(1)
+                with m.If(fetch_insn_ready_i):
+                    m.next = "IDLE"
+
+        # decode / issue / execute FSM
+        with m.FSM():
+
+            # go fetch the instruction at the current PC
+            # at this point, there is no instruction running, that
+            # could inadvertently update the PC.
+            with m.State("INSN_FETCH"):
+                comb += fetch_pc_valid_i.eq(1)
+                with m.If(fetch_pc_ready_o):
+                    m.next = "INSN_WAIT"
+
+            # decode the instruction when it arrives
+            with m.State("INSN_WAIT"):
+                comb += fetch_insn_ready_i.eq(1)
+                with m.If(fetch_insn_valid_o):
+                    # decode the instruction
+                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
                     sync += core.e.eq(pdecode2.e)
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
@@ -299,6 +332,7 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INSN_START"):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
+                sync += pc_changed.eq(0)
 
                 m.next = "INSN_ACTIVE" # move to "wait completion"
 
@@ -318,7 +352,7 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.e.eq(0)
                     sync += core.raw_insn_i.eq(0)
                     sync += core.bigendian_i.eq(0)
-                    m.next = "IDLE" # back to idle
+                    m.next = "INSN_FETCH"  # back to fetch
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI

@@ -309,7 +309,10 @@ class TestRunner(FHDLTestCase):
                                 (test.name, int_reg, value))
 
         traces = [
-            'clk',  'fsm_state',
+            'clk',
+            {'comment': 'state machines'},
+            'fetch_pc_valid_i', 'fetch_pc_ready_o', 'fetch_fsm_state',
+            'fetch_insn_valid_o', 'fetch_insn_ready_i', 'fsm_state',
             {'comment': 'fetch and decode'},
             'cia[63:0]', 'nia[63:0]', 'pc[63:0]', 'raw_insn_i[31:0]',
             'raw_opcode_in[31:0]', 'insn_type',
