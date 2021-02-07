@@ -17,9 +17,9 @@ TODO (in no specific order):
   write TAG_BITS width which may not match full ram blocks and might
   cause muxes to be inferred for "partial writes".
 * Check if making the read size of PLRU a ROM helps utilization
-
 """
-from enum import Enum, unique
+
+from enum import (Enum, unique)
 from nmigen import (Module, Signal, Elaboratable, Cat, Array, Const, Repl)
 from nmigen.cli import main, rtlil
 from nmutil.iocontrol import RecordObject
@@ -87,7 +87,7 @@ INSN_BITS      = log2_int(INSN_PER_ROW)
 # ROW_BITS is the number of bits to select a row
 ROW_BITS       = log2_int(BRAM_ROWS)
 # ROW_LINE_BITS is the number of bits to select a row within a line
-ROW_LINE_BITS   = log2_int(ROW_PER_LINE)
+ROW_LINE_BITS  = log2_int(ROW_PER_LINE)
 # LINE_OFF_BITS is the number of bits for the offset in a cache line
 LINE_OFF_BITS  = log2_int(LINE_SIZE)
 # ROW_OFF_BITS is the number of bits for the offset in a row
@@ -99,13 +99,13 @@ SET_SIZE_BITS  = LINE_OFF_BITS + INDEX_BITS
 # TAG_BITS is the number of bits of the tag part of the address
 TAG_BITS       = REAL_ADDR_BITS - SET_SIZE_BITS
 # TAG_WIDTH is the width in bits of each way of the tag RAM
-TAG_WIDTH = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
+TAG_WIDTH      = TAG_BITS + 7 - ((TAG_BITS + 7) % 8)
 
 # WAY_BITS is the number of bits to select a way
 WAY_BITS       = log2_int(NUM_WAYS)
 TAG_RAM_WIDTH  = TAG_BITS * NUM_WAYS
 
-#-- L1 ITLB.
+# L1 ITLB
 TLB_BITS        = log2_int(TLB_SIZE)
 TLB_EA_TAG_BITS = 64 - (TLB_LG_PGSZ + TLB_BITS)
 TLB_PTE_BITS    = 64
@@ -156,44 +156,30 @@ assert (REAL_ADDR_BITS == (TAG_BITS + INDEX_BITS + LINE_OFF_BITS)), \
 assert (REAL_ADDR_BITS == (TAG_BITS + ROW_BITS + ROW_OFF_BITS)), \
     "geometry bits don't add up"
 
+# Example of layout for 32 lines of 64 bytes:
+#
+# ..  tag    |index|  line  |
+# ..         |   row   |    |
+# ..         |     |   | |00| zero          (2)
+# ..         |     |   |-|  | INSN_BITS     (1)
+# ..         |     |---|    | ROW_LINE_BITS  (3)
+# ..         |     |--- - --| LINE_OFF_BITS (6)
+# ..         |         |- --| ROW_OFF_BITS  (3)
+# ..         |----- ---|    | ROW_BITS      (8)
+# ..         |-----|        | INDEX_BITS    (5)
+# .. --------|              | TAG_BITS      (53)
 
-#-- Example of layout for 32 lines of 64 bytes:
-#--
-#-- ..  tag    |index|  line  |
-#-- ..         |   row   |    |
-#-- ..         |     |   | |00| zero          (2)
-#-- ..         |     |   |-|  | INSN_BITS     (1)
-#-- ..         |     |---|    | ROW_LINE_BITS  (3)
-#-- ..         |     |--- - --| LINE_OFF_BITS (6)
-#-- ..         |         |- --| ROW_OFF_BITS  (3)
-#-- ..         |----- ---|    | ROW_BITS      (8)
-#-- ..         |-----|        | INDEX_BITS    (5)
-#-- .. --------|              | TAG_BITS      (53)
-   # Example of layout for 32 lines of 64 bytes:
-   #
-   # ..  tag    |index|  line  |
-   # ..         |   row   |    |
-   # ..         |     |   | |00| zero          (2)
-   # ..         |     |   |-|  | INSN_BITS     (1)
-   # ..         |     |---|    | ROW_LINE_BITS  (3)
-   # ..         |     |--- - --| LINE_OFF_BITS (6)
-   # ..         |         |- --| ROW_OFF_BITS  (3)
-   # ..         |----- ---|    | ROW_BITS      (8)
-   # ..         |-----|        | INDEX_BITS    (5)
-   # .. --------|              | TAG_BITS      (53)
-
-#-- The cache data BRAM organized as described above for each way
+# The cache data BRAM organized as described above for each way
 #subtype cache_row_t is std_ulogic_vector(ROW_SIZE_BITS-1 downto 0);
 #
-#-- The cache tags LUTRAM has a row per set. Vivado is a pain and will
-#-- not handle a clean (commented) definition of the cache tags as a 3d
-#-- memory. For now, work around it by putting all the tags
-
+# The cache tags LUTRAM has a row per set. Vivado is a pain and will
+# not handle a clean (commented) definition of the cache tags as a 3d
+# memory. For now, work around it by putting all the tags
 def CacheTagArray():
     return Array(Signal(TAG_RAM_WIDTH, name="cachetag_%d" %x) \
                  for x in range(NUM_LINES))
 
-#-- The cache valid bits
+# The cache valid bits
 def CacheValidBitsArray():
     return Array(Signal(NUM_WAYS, name="cachevalid_%d" %x) \
                  for x in range(NUM_LINES))
@@ -203,12 +189,11 @@ def RowPerLineValidArray():
                  for x in range(ROW_PER_LINE))
 
 
-   # TODO to be passed to nigmen as ram attributes
-   # attribute ram_style : string;
-   # attribute ram_style of cache_tags : signal is "distributed";
+# TODO to be passed to nigmen as ram attributes
+# attribute ram_style : string;
+# attribute ram_style of cache_tags : signal is "distributed";
 
 
-#type tlb_ptes_t is array(tlb_index_t) of tlb_pte_t;
 def TLBValidBitsArray():
     return Array(Signal(name="tlbvalid_%d" %x) \
                  for x in range(TLB_SIZE))
@@ -220,7 +205,6 @@ def TLBTagArray():
 def TLBPtesArray():
     return Array(Signal(TLB_PTE_BITS, name="tlbptes_%d" %x) \
                  for x in range(TLB_SIZE))
-
 
 # Cache RAM interface
 def CacheRamOut():
@@ -503,8 +487,9 @@ class ICache(Elaboratable):
         # Test if pending request is a hit on any way
         hitcond = Signal()
         comb += hitcond.eq((r.state == State.WAIT_ACK)
-                    & (req_index == r.store_index)
-                    & r.rows_valid[req_row % ROW_PER_LINE])
+                 & (req_index == r.store_index)
+                 & r.rows_valid[req_row % ROW_PER_LINE]
+                )
         with m.If(i_in.req):
             cvb = Signal(NUM_WAYS)
             ctag = Signal(TAG_RAM_WIDTH)
@@ -671,9 +656,9 @@ class ICache(Elaboratable):
 
         # If we are still sending requests, was one accepted?
         with m.If(~wb_in.stall & ~stbs_zero):
-            # That was the last word ?  # We are done sending.
-            # Clear stb and set stbs_done # so we can handle
-            # an eventual last ack on # the same cycle.
+            # That was the last word? We are done sending.
+            # Clear stb and set stbs_done so we can handle
+            # an eventual last ack on the same cycle.
             with m.If(is_last_row_addr(r.req_adr, r.end_row_ix)):
                 sync += Display(
                          "IS_LAST_ROW_ADDR r.wb.addr:%x " \
@@ -709,7 +694,8 @@ class ICache(Elaboratable):
                       is_last_row(r.store_row, r.end_row_ix)):
                 # Complete wishbone cycle
                 sync += r.wb.cyc.eq(0)
-                sync += r.req_adr.eq(0) # be nice, clear addr
+                # be nice, clear addr
+                sync += r.req_adr.eq(0)
 
                 # Cache line is now valid
                 cv = Signal(INDEX_BITS)
@@ -779,7 +765,7 @@ class ICache(Elaboratable):
         with m.Elif(i_in.req & ~access_ok & ~stall_in):
             sync += r.fetch_failed.eq(1)
 
-    #  icache_log: if LOG_LENGTH > 0 generate
+    # icache_log: if LOG_LENGTH > 0 generate
     def icache_log(self, m, req_hit_way, ra_valid, access_ok,
                    req_is_miss, req_is_hit, lway, wstate, r):
         comb = m.d.comb
@@ -790,7 +776,6 @@ class ICache(Elaboratable):
 
         # Output data to logger
         for i in range(LOG_LENGTH):
-            # Output data to logger
             log_data = Signal(54)
             lway     = Signal(NUM_WAYS)
             wstate   = Signal()
@@ -992,7 +977,7 @@ if __name__ == '__main__':
 
     mem = []
     for i in range(512):
-        mem.append((i*2)| ((i*2+1)<<32))
+        mem.append((i*2) | ((i*2+1)<<32))
 
     test_icache(mem)
 
