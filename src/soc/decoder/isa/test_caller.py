@@ -38,6 +38,7 @@ def run_tst(generator, initial_regs, initial_sprs={}):
 
     def process():
 
+        yield pdecode2.dec.bigendian.eq(0)  # little / big?
         pc = simulator.pc.CIA.value
         index = pc//4
         while index < len(instructions):
@@ -50,14 +51,11 @@ def run_tst(generator, initial_regs, initial_sprs={}):
 
             ins, code = instructions[index]
             print("0x{:X}".format(ins & 0xffffffff))
-            print(code)
+            opname = code.split(' ')[0]
+            print(code, opname)
 
             # ask the decoder to decode this binary data (endian'd)
-            yield pdecode2.dec.bigendian.eq(0)  # little / big?
-            yield instruction.eq(ins)          # raw binary instr.
-            yield Delay(1e-6)
-            opname = code.split(' ')[0]
-            yield from simulator.call(opname)
+            yield from simulator.execute_one()
             pc = simulator.pc.CIA.value
             index = pc//4
 

@@ -20,9 +20,11 @@ from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
-                                     insns, MicrOp)
+                                     insns, MicrOp, In1Sel, In2Sel, In3Sel,
+                                     OutSel)
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
+from soc.decoder.power_svp64 import SVP64RM, decode_extra
 
 from collections import namedtuple
 import math
@@ -163,9 +165,11 @@ class Mem:
 
 
 class GPR(dict):
-    def __init__(self, decoder, regfile):
+    def __init__(self, decoder, isacaller, svstate, regfile):
         dict.__init__(self)
         self.sd = decoder
+        self.isacaller = isacaller
+        self.svstate = svstate
         for i in range(32):
             self[i] = SelectableInt(regfile[i], 64)
 
@@ -188,8 +192,11 @@ class GPR(dict):
         return rnum
 
     def ___getitem__(self, attr):
-        print("GPR getitem", attr)
+        """ XXX currently not used
+        """
         rnum = self._get_regnum(attr)
+        offs = self.svstate.srcstep
+        print("GPR getitem", attr, rnum, "srcoffs", offs)
         return self.regfile[rnum]
 
     def dump(self):
@@ -309,6 +316,67 @@ class SPR(dict):
     def __call__(self, ridx):
         return self[ridx]
 
+def get_pdecode_idx_in(dec2, name):
+    op = dec2.dec.op
+    in1_sel = yield op.in1_sel
+    in2_sel = yield op.in2_sel
+    in3_sel = yield op.in3_sel
+    # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
+    in1 = yield dec2.e.read_reg1.data
+    in2 = yield dec2.e.read_reg2.data
+    in3 = yield dec2.e.read_reg3.data
+    in1_isvec = yield dec2.in1_isvec
+    in2_isvec = yield dec2.in2_isvec
+    in3_isvec = yield dec2.in3_isvec
+    print ("get_pdecode_idx", in1_sel, In1Sel.RA.value, in1, in1_isvec)
+    # identify which regnames map to in1/2/3
+    if name == 'RA':
+        if (in1_sel == In1Sel.RA.value or
+            (in1_sel == In1Sel.RA_OR_ZERO.value and in1 != 0)):
+            return in1, in1_isvec
+        if in1_sel == In1Sel.RA_OR_ZERO.value:
+            return in1, in1_isvec
+    elif name == 'RB':
+        if in2_sel == In2Sel.RB.value:
+            return in2, in2_isvec
+        if in3_sel == In3Sel.RB.value:
+            return in3, in3_isvec
+    # XXX TODO, RC doesn't exist yet!
+    elif name == 'RC':
+        assert False, "RC does not exist yet"
+    elif name == 'RS':
+        if in1_sel == In1Sel.RS.value:
+            return in1, in1_isvec
+        if in2_sel == In2Sel.RS.value:
+            return in2, in2_isvec
+        if in3_sel == In3Sel.RS.value:
+            return in3, in3_isvec
+    return None, False
+
+
+def get_pdecode_idx_out(dec2, name):
+    op = dec2.dec.op
+    out_sel = yield op.out_sel
+    # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
+    out = yield dec2.e.write_reg.data
+    o_isvec = yield dec2.o_isvec
+    print ("get_pdecode_idx_out", out_sel, OutSel.RA.value, out, o_isvec)
+    # identify which regnames map to out / o2
+    if name == 'RA':
+        if out_sel == OutSel.RA.value:
+            return out, o_isvec
+    elif name == 'RT':
+        if out_sel == OutSel.RT.value:
+            return out, o_isvec
+    return None, False
+
+
+# XXX TODO
+def get_pdecode_idx_out2(dec2, name):
+    op = dec2.dec.op
+    print ("TODO: get_pdecode_idx_out2", name)
+    return None, False
+
 
 class ISACaller:
     # decoder2 - an instance of power_decoder2
@@ -355,11 +423,12 @@ class ISACaller:
                 self.disassembly[i*4 + disasm_start] = code
 
         # set up registers, instruction memory, data memory, PC, SPRs, MSR
-        self.gpr = GPR(decoder2, regfile)
+        self.svp64rm = SVP64RM()
+        self.svstate = SVP64State(initial_svstate)
+        self.gpr = GPR(decoder2, self, self.svstate, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
-        self.svstate = SVP64State(initial_svstate)
         self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
@@ -603,6 +672,7 @@ class ISACaller:
         print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
         print("CIA NIA", self.respect_pc, self.pc.CIA.value, self.pc.NIA.value)
 
+        yield self.dec2.sv_rm.eq(0)
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
         yield self.dec2.dec.bigendian.eq(self.bigendian)
         yield self.dec2.state.msr.eq(self.msr.value)
@@ -624,9 +694,11 @@ class ISACaller:
 
         # in SVP64 mode.  decode/print out svp64 prefix, get v3.0B instruction
         print ("svp64.rm", bin(pfx.rm.asint(msb0=True)))
+        sv_rm = pfx.rm.asint()
         ins = self.imem.ld(pc+4, 4, False, True)
         print("     svsetup: 0x%x 0x%x %s" % (pc+4, ins & 0xffffffff, bin(ins)))
-        yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff)
+        yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff) # v3.0B suffix
+        yield self.dec2.sv_rm.eq(sv_rm)                        # svp64 prefix
         yield Settle()
 
     def execute_one(self):
@@ -709,6 +781,8 @@ class ISACaller:
         return dec_insn & (1 << 20) != 0  # sigh - XFF.spr[-1]?
 
     def call(self, name):
+        """call(opcode) - the primary execution point for instructions
+        """
         name = name.strip()  # remove spaces if not already done so
         if self.halted:
             print("halted - not executing", name)
@@ -771,14 +845,28 @@ class ISACaller:
                                   list(info.uninit_regs))
         print(input_names)
 
-        # main registers (RT, RA ...)
+        # get SVP64 entry for the current instruction
+        sv_rm = self.svp64rm.instrs.get(name)
+        if sv_rm is not None:
+            dest_cr, src_cr, src_byname, dest_byname = decode_extra(sv_rm)
+        else:
+            dest_cr, src_cr, src_byname, dest_byname = False, False, {}, {}
+        print ("sv rm", sv_rm, dest_cr, src_cr, src_byname, dest_byname)
+
+        # main input registers (RT, RA ...)
         inputs = []
         for name in input_names:
-            regnum = yield getattr(self.decoder, name)
+            # using PowerDecoder2, first, find the decoder index.
+            # (mapping name RA RB RC RS to in1, in2, in3)
+            regnum, is_vec = yield from get_pdecode_idx_in(self.dec2, name)
+            if regnum is None:
+                regnum, is_vec = yield from get_pdecode_idx_out(self.dec2, name)
+            #regnum = yield getattr(self.decoder, name)
             regname = "_" + name
             self.namespace[regname] = regnum
-            print('reading reg %d' % regnum)
-            inputs.append(self.gpr(regnum))
+            print('reading reg %s %d' % (name, regnum), is_vec)
+            reg_val = self.gpr(regnum)
+            inputs.append(reg_val)
 
         # "special" registers
         for special in info.special_regs:
