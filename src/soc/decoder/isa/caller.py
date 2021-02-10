@@ -368,6 +368,7 @@ def get_pdecode_idx_out(dec2, name):
     elif name == 'RT':
         if out_sel == OutSel.RT.value:
             return out, o_isvec
+    print ("get_pdecode_idx_out not found", name)
     return None, False
 
 
@@ -860,8 +861,10 @@ class ISACaller:
             # (mapping name RA RB RC RS to in1, in2, in3)
             regnum, is_vec = yield from get_pdecode_idx_in(self.dec2, name)
             if regnum is None:
+                # doing this is not part of svp64, it's because output
+                # registers, to be modified, need to be in the namespace.
                 regnum, is_vec = yield from get_pdecode_idx_out(self.dec2, name)
-            #regnum = yield getattr(self.decoder, name)
+            # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
             self.namespace[regname] = regnum
             print('reading reg %s %d' % (name, regnum), is_vec)
@@ -953,8 +956,13 @@ class ISACaller:
                     if name == 'MSR':
                         print('msr written', hex(self.msr.value))
                 else:
-                    regnum = yield getattr(self.decoder, name)
-                    print('writing reg %d %s' % (regnum, str(output)))
+                    regnum, is_vec = yield from get_pdecode_idx_out(self.dec2,
+                                                name)
+                    if regnum is None:
+                        # temporary hack for not having 2nd output
+                        regnum = yield getattr(self.decoder, name)
+                        is_vec = False
+                    print('writing reg %d %s' % (regnum, str(output)), is_vec)
                     if output.bits > 64:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
