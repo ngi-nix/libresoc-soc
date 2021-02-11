@@ -1281,7 +1281,7 @@ class PowerDecode2(PowerDecodeSubset):
 # SVP64 Prefix fields: see https://libre-soc.org/openpower/sv/svp64/
 # identifies if an instruction is a SVP64-encoded prefix, and extracts
 # the 24-bit SVP64 context (RM) if it is
-class SVP64PowerDecoder(Elaboratable):
+class SVP64PrefixDecoder(Elaboratable):
 
     def __init__(self):
         self.opcode_in = Signal(32, reset_less=True)

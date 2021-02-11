@@ -22,7 +22,7 @@ from nmigen.cli import main
 import sys
 
 from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2
+from soc.decoder.power_decoder2 import PowerDecode2, SVP64PrefixDecoder
 from soc.decoder.decode2execute1 import IssuerDecode2ToOperand
 from soc.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
@@ -88,6 +88,7 @@ class TestIssuerInternal(Elaboratable):
         self.cur_state = CoreState("cur") # current state (MSR/PC/EINT)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand)
+        self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
@@ -319,6 +320,10 @@ class TestIssuerInternal(Elaboratable):
                 comb += fetch_insn_ready_i.eq(1)
                 with m.If(fetch_insn_valid_o):
                     # decode the instruction
+                    # TODO, before issuing new instruction first
+                    # check if it's SVP64. (svp64.is_svp64_mode set)
+                    # if yes, record the svp64_rm, put that into
+                    # pdecode2.sv_rm, then read another 32 bits (INSN_FETCH2?)
                     comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
                     sync += core.e.eq(pdecode2.e)
                     sync += core.state.eq(cur_state)
