@@ -687,7 +687,7 @@ class ISACaller:
         # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
         yield Settle()
         opcode = yield self.dec2.dec.opcode_in
-        pfx = SVP64PrefixFields()
+        pfx = SVP64PrefixFields() # TODO should probably use SVP64PrefixDecoder
         pfx.insn.value = opcode
         major = pfx.major.asint(msb0=True) # MSB0 inversion
         print ("prefix test: opcode:", major, bin(major),
