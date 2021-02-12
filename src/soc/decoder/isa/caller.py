@@ -869,6 +869,14 @@ class ISACaller:
 
         # get SVSTATE srcstep.  TODO: dststep (twin predication)
         srcstep = self.svstate.srcstep.asint(msb0=True)
+        vl = self.svstate.vl.asint(msb0=True)
+        mvl = self.svstate.maxvl.asint(msb0=True)
+
+        # VL=0 in SVP64 mode means "do nothing: skip instruction"
+        if self.is_svp64_mode and vl == 0:
+            self.pc.update(self.namespace, self.is_svp64_mode)
+            print("end of call", self.namespace['CIA'], self.namespace['NIA'])
+            return
 
         # main input registers (RT, RA ...)
         inputs = []
