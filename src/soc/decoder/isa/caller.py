@@ -697,6 +697,8 @@ class ISACaller:
 
         # in SVP64 mode.  decode/print out svp64 prefix, get v3.0B instruction
         print ("svp64.rm", bin(pfx.rm.asint(msb0=True)))
+        print ("    svstate.vl", self.svstate.vl.asint(msb0=True))
+        print ("    svstate.mvl", self.svstate.maxvl.asint(msb0=True))
         sv_rm = pfx.rm.asint()
         ins = self.imem.ld(pc+4, 4, False, True)
         print("     svsetup: 0x%x 0x%x %s" % (pc+4, ins & 0xffffffff, bin(ins)))

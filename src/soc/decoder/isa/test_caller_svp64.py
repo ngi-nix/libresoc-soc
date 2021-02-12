@@ -26,8 +26,8 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[3] = 0x1234
         initial_regs[2] = 0x4321
         svstate = SVP64State()
-        svstate.vl[0:-1] = 2 # VL
-        svstate.maxvl[0:-1] = 2 # MAXVL
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
