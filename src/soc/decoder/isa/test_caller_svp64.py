@@ -17,14 +17,16 @@ from soc.sv.trans.svp64 import SVP64Asm
 class DecoderTestCase(FHDLTestCase):
 
     def test_sv_add(self):
-        isa = SVP64Asm(['sv.add 1, 2, 3'
+        isa = SVP64Asm(['sv.add 1, 5, 9'
                        ])
 
         lst = list(isa)
         print ("listing", lst)
         initial_regs = [0] * 32
-        initial_regs[3] = 0x1234
-        initial_regs[2] = 0x4321
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
         svstate = SVP64State()
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL

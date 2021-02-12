@@ -977,6 +977,25 @@ class ISACaller:
                     self.gpr[regnum] = output
 
         print("end of call", self.namespace['CIA'], self.namespace['NIA'])
+
+        # check if it is the SVSTATE.src/dest step that needs incrementing
+        # this is our Sub-Program-Counter loop from 0 to VL-1
+        if self.is_svp64_mode:
+            # XXX twin predication TODO
+            vl = self.svstate.vl.asint(msb0=True)
+            mvl = self.svstate.maxvl.asint(msb0=True)
+            srcstep = self.svstate.srcstep.asint(msb0=True)
+            print ("    svstate.vl", vl)
+            print ("    svstate.mvl", mvl)
+            print ("    svstate.srcstep", srcstep)
+            # check if srcstep needs incrementing by one
+            if srcstep != vl-1:
+                self.svstate.srcstep += SelectableInt(1, 7)
+                return # DO NOT allow PC to update whilst Sub-PC loop running
+            # reset to zero
+            self.svstate.srcstep[0:7] = 0
+            print ("    svstate.srcstep loop end (PC to update)")
+
         # UPDATE program counter
         self.pc.update(self.namespace, self.is_svp64_mode)
 
