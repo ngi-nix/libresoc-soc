@@ -425,7 +425,9 @@ class ISACaller:
 
         # set up registers, instruction memory, data memory, PC, SPRs, MSR
         self.svp64rm = SVP64RM()
-        self.svstate = SVP64State(initial_svstate)
+        if isinstance(initial_svstate, int):
+            initial_svstate = SVP64State(initial_svstate)
+        self.svstate = initial_svstate
         self.gpr = GPR(decoder2, self, self.svstate, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)

@@ -16,7 +16,9 @@ class Register:
     def __init__(self, num):
         self.num = num
 
-def run_tst(generator, initial_regs, initial_sprs={}):
+def run_tst(generator, initial_regs, initial_sprs=None, svstate=0):
+    if initial_sprs is None:
+        initial_sprs = {}
     m = Module()
     comb = m.d.comb
     instruction = Signal(32)
@@ -30,6 +32,7 @@ def run_tst(generator, initial_regs, initial_sprs={}):
     m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
     simulator = ISA(pdecode2, initial_regs, initial_sprs, 0,
                     initial_insns=gen, respect_pc=True,
+                    initial_svstate=svstate,
                     disassembly=insncode,
                     bigendian=0)
     comb += pdecode2.dec.raw_opcode_in.eq(instruction)
