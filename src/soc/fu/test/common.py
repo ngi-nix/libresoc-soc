@@ -100,13 +100,15 @@ class TestAccumulatorBase:
 
     def add_case(self, prog, initial_regs=None, initial_sprs=None,
                  initial_cr=0, initial_msr=0,
-                 initial_mem=None):
+                 initial_mem=None,
+                 initial_svstate=0):
 
         test_name = inspect.stack()[1][3]  # name of caller of this function
         tc = TestCase(prog, test_name,
                       regs=initial_regs, sprs=initial_sprs, cr=initial_cr,
                       msr=initial_msr,
-                      mem=initial_mem)
+                      mem=initial_mem,
+                      svstate=initial_svstate)
 
         self.test_data.append(tc)
 
@@ -115,7 +117,8 @@ class TestCase:
     def __init__(self, program, name, regs=None, sprs=None, cr=0, mem=None,
                  msr=0,
                  do_sim=True,
-                 extra_break_addr=None):
+                 extra_break_addr=None,
+                 svstate=0):
 
         self.program = program
         self.name = name
@@ -133,6 +136,7 @@ class TestCase:
         self.msr = msr
         self.do_sim = do_sim
         self.extra_break_addr = extra_break_addr
+        self.svstate = svstate
 
 
 class ALUHelpers:

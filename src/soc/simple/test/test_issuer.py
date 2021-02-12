@@ -214,7 +214,8 @@ class TestRunner(FHDLTestCase):
                           test.msr,
                           initial_insns=gen, respect_pc=True,
                           disassembly=insncode,
-                          bigendian=bigendian)
+                          bigendian=bigendian,
+                          initial_svstate=test.svstate)
 
                 pc = 0  # start address
                 counter = 0  # test to pause/start
