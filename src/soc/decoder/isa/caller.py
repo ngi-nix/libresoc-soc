@@ -211,14 +211,17 @@ class GPR(dict):
 class PC:
     def __init__(self, pc_init=0):
         self.CIA = SelectableInt(pc_init, 64)
-        self.NIA = self.CIA + SelectableInt(4, 64)
+        self.NIA = self.CIA + SelectableInt(4, 64) # only true for v3.0B!
+
+    def update_nia(self, is_svp64):
+        increment = 8 if is_svp64 else 4
+        self.NIA = self.CIA + SelectableInt(increment, 64)
 
     def update(self, namespace, is_svp64):
         """updates the program counter (PC) by 4 if v3.0B mode or 8 if SVP64
         """
-        increment = 8 if is_svp64 else 4
         self.CIA = namespace['NIA'].narrow(64)
-        self.NIA = self.CIA + SelectableInt(increment, 64)
+        self.update_nia(is_svp64)
         namespace['CIA'] = self.CIA
         namespace['NIA'] = self.NIA
 
@@ -695,6 +698,7 @@ class ISACaller:
         self.is_svp64_mode = ((major == 0b000001) and
                               pfx.insn[7].value == 0b1 and
                               pfx.insn[9].value == 0b1)
+        self.pc.update_nia(self.is_svp64_mode)
         if not self.is_svp64_mode:
             return
 
@@ -863,6 +867,9 @@ class ISACaller:
             dest_cr, src_cr, src_byname, dest_byname = False, False, {}, {}
         print ("sv rm", sv_rm, dest_cr, src_cr, src_byname, dest_byname)
 
+        # get SVSTATE srcstep.  TODO: dststep (twin predication)
+        srcstep = self.svstate.srcstep.asint(msb0=True)
+
         # main input registers (RT, RA ...)
         inputs = []
         for name in input_names:
@@ -873,6 +880,10 @@ class ISACaller:
                 # doing this is not part of svp64, it's because output
                 # registers, to be modified, need to be in the namespace.
                 regnum, is_vec = yield from get_pdecode_idx_out(self.dec2, name)
+            # here's where we go "vector".  TODO: zero-testing (RA_IS_ZERO)
+            if is_vec:
+                regnum += srcstep # TODO, elwidth overrides
+
             # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
             self.namespace[regname] = regnum
@@ -943,6 +954,9 @@ class ISACaller:
         if rc_en:
             self.handle_comparison(results)
 
+        # svp64 loop can end early if the dest is scalar
+        svp64_dest_vector = False
+
         # any modified return results?
         if info.write_regs:
             for name, output in zip(output_names, results):
@@ -971,12 +985,14 @@ class ISACaller:
                         # temporary hack for not having 2nd output
                         regnum = yield getattr(self.decoder, name)
                         is_vec = False
+                    # here's where we go "vector".
+                    if is_vec:
+                        regnum += srcstep # TODO, elwidth overrides
+                        svp64_dest_vector = True
                     print('writing reg %d %s' % (regnum, str(output)), is_vec)
                     if output.bits > 64:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
-
-        print("end of call", self.namespace['CIA'], self.namespace['NIA'])
 
         # check if it is the SVSTATE.src/dest step that needs incrementing
         # this is our Sub-Program-Counter loop from 0 to VL-1
@@ -988,16 +1004,23 @@ class ISACaller:
             print ("    svstate.vl", vl)
             print ("    svstate.mvl", mvl)
             print ("    svstate.srcstep", srcstep)
-            # check if srcstep needs incrementing by one
-            if srcstep != vl-1:
+            # check if srcstep needs incrementing by one, stop PC advancing
+            if svp64_dest_vector and srcstep != vl-1:
                 self.svstate.srcstep += SelectableInt(1, 7)
+                self.pc.NIA.value = self.pc.CIA.value
+                self.namespace['NIA'] = self.pc.NIA
+                print("end of sub-pc call", self.namespace['CIA'],
+                                     self.namespace['NIA'])
                 return # DO NOT allow PC to update whilst Sub-PC loop running
             # reset to zero
             self.svstate.srcstep[0:7] = 0
             print ("    svstate.srcstep loop end (PC to update)")
+            self.pc.update_nia(self.is_svp64_mode)
+            self.namespace['NIA'] = self.pc.NIA
 
         # UPDATE program counter
         self.pc.update(self.namespace, self.is_svp64_mode)
+        print("end of call", self.namespace['CIA'], self.namespace['NIA'])
 
 
 def inject():

@@ -17,7 +17,10 @@ from soc.sv.trans.svp64 import SVP64Asm
 class DecoderTestCase(FHDLTestCase):
 
     def test_sv_add(self):
-        isa = SVP64Asm(['sv.add 1, 5, 9'
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
+        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
+        isa = SVP64Asm(['sv.add 1.v, 5.v, 9.v'
                        ])
 
         lst = list(isa)
@@ -34,6 +37,53 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
             self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0x3334, 64))
+
+    def test_sv_add_2(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
+        #       r1 is scalar so ENDS EARLY
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
+                       ])
+
+        lst = list(isa)
+        print ("listing", lst)
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
+        print ("SVSTATE", bin(svstate.spr.asint()))
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
+
+    def test_sv_add_3(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
+        #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
+        isa = SVP64Asm(['sv.add 1.v, 5, 9.v'
+                       ])
+
+        lst = list(isa)
+        print ("listing", lst)
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
+        print ("SVSTATE", bin(svstate.spr.asint()))
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
+            self.assertEqual(sim.gpr(2), SelectableInt(0x5432, 64))
 
     def run_tst_program(self, prog, initial_regs=[0] * 32,
                               svstate=None):
