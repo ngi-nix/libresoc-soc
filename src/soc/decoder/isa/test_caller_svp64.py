@@ -12,9 +12,13 @@ from soc.decoder.orderedset import OrderedSet
 from soc.decoder.isa.all import ISA
 from soc.decoder.isa.test_caller import Register, run_tst
 from soc.sv.trans.svp64 import SVP64Asm
-
+from copy import deepcopy
 
 class DecoderTestCase(FHDLTestCase):
+
+    def _check_regs(self, sim, expected):
+        for i in range(32):
+            self.assertEqual(sim.gpr(i), SelectableInt(expected[i], 64))
 
     def test_sv_add(self):
         # adds:
@@ -34,10 +38,14 @@ class DecoderTestCase(FHDLTestCase):
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[1] = 0x5555
+        expected_regs[2] = 0x3334
+
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
-            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
-            self.assertEqual(sim.gpr(2), SelectableInt(0x3334, 64))
+            self._check_regs(sim, expected_regs)
 
     def test_sv_add_2(self):
         # adds:
@@ -57,10 +65,13 @@ class DecoderTestCase(FHDLTestCase):
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[1] = 0x5555
+
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
-            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
-            self.assertEqual(sim.gpr(2), SelectableInt(0, 64))
+            self._check_regs(sim, expected_regs)
 
     def test_sv_add_3(self):
         # adds:
@@ -80,10 +91,14 @@ class DecoderTestCase(FHDLTestCase):
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[1] = 0x5555
+        expected_regs[2] = 0x5432
+
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
-            self.assertEqual(sim.gpr(1), SelectableInt(0x5555, 64))
-            self.assertEqual(sim.gpr(2), SelectableInt(0x5432, 64))
+            self._check_regs(sim, expected_regs)
 
     def run_tst_program(self, prog, initial_regs=[0] * 32,
                               svstate=None):
