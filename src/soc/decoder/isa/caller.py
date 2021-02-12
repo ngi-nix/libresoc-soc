@@ -213,9 +213,12 @@ class PC:
         self.CIA = SelectableInt(pc_init, 64)
         self.NIA = self.CIA + SelectableInt(4, 64)
 
-    def update(self, namespace):
+    def update(self, namespace, is_svp64):
+        """updates the program counter (PC) by 4 if v3.0B mode or 8 if SVP64
+        """
+        increment = 8 if is_svp64 else 4
         self.CIA = namespace['NIA'].narrow(64)
-        self.NIA = self.CIA + SelectableInt(4, 64)
+        self.NIA = self.CIA + SelectableInt(increment, 64)
         namespace['CIA'] = self.CIA
         namespace['NIA'] = self.NIA
 
@@ -659,7 +662,7 @@ class ISACaller:
 
     def set_pc(self, pc_val):
         self.namespace['NIA'] = SelectableInt(pc_val, 64)
-        self.pc.update(self.namespace)
+        self.pc.update(self.namespace, self.is_svp64_mode)
 
     def setup_one(self):
         """set up one instruction
@@ -719,8 +722,10 @@ class ISACaller:
         opname = code.split(' ')[0]
         yield from self.call(opname)
 
+        # don't use this except in special circumstances
         if not self.respect_pc:
             self.fake_pc += 4
+
         print("execute one, CIA NIA", self.pc.CIA.value, self.pc.NIA.value)
 
     def get_assembly_name(self):
@@ -820,7 +825,7 @@ class ISACaller:
         if instr_is_privileged and self.msr[MSRb.PR] == 1:
             self.TRAP(0x700, PIb.PRIV)
             self.namespace['NIA'] = self.trap_nia
-            self.pc.update(self.namespace)
+            self.pc.update(self.namespace, self.is_svp64_mode)
             return
 
         # check halted condition
@@ -837,7 +842,7 @@ class ISACaller:
             print("illegal", name, asmop)
             self.TRAP(0x700, PIb.ILLEG)
             self.namespace['NIA'] = self.trap_nia
-            self.pc.update(self.namespace)
+            self.pc.update(self.namespace, self.is_svp64_mode)
             print("name %s != %s - calling ILLEGAL trap, PC: %x" %
                   (name, asmop, self.pc.CIA.value))
             return
@@ -973,7 +978,7 @@ class ISACaller:
 
         print("end of call", self.namespace['CIA'], self.namespace['NIA'])
         # UPDATE program counter
-        self.pc.update(self.namespace)
+        self.pc.update(self.namespace, self.is_svp64_mode)
 
 
 def inject():
