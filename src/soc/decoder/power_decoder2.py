@@ -906,11 +906,13 @@ class PowerDecodeSubset(Elaboratable):
         spr = Signal(10, reset_less=True)
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
-        # for first test only forward SPRs 18 and 19 to MMU, when
-        # operation is MTSPR or MFSPR.  TODO: add other MMU SPRs
+        SPR_PID   = 48  # TODO read docs for POWER9
+        # Microwatt doesn't implement the partition table
+        # instead has PRTBL register (SPR) to point to process table
+        SPR_PRTBL = 720 # see common.vhdl in microwatt, not in POWER9
         with m.If(((self.dec.op.internal_op == MicrOp.OP_MTSPR) |
                    (self.dec.op.internal_op == MicrOp.OP_MFSPR)) &
-                  ((spr == SPR.DSISR) | (spr == SPR.DAR))):
+                  ((spr == SPR.DSISR) | (spr == SPR.DAR) | (spr==SPR_PRTBL) | (spr==SPR_PID))):
             comb += self.do_copy("fn_unit", Function.MMU)
         with m.Else():
             comb += self.do_copy("fn_unit",fn)
