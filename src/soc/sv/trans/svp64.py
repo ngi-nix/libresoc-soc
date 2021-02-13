@@ -118,13 +118,11 @@ class SVP64Asm:
         self.trans = self.translate(lst)
 
     def __iter__(self):
-        for insn in self.trans:
-            yield insn
+        yield from self.trans
 
     def translate(self, lst):
         isa = ISA() # reads the v3.0B pseudo-code markdown files
         svp64 = SVP64RM() # reads the svp64 Remap entries for registers
-        res = []
         for insn in lst:
             # find first space, to get opcode
             ls = insn.split(' ')
@@ -136,7 +134,7 @@ class SVP64Asm:
 
             # identify if is a svp64 mnemonic
             if not opcode.startswith('sv.'):
-                res.append(insn) # unaltered
+                yield insn  # unaltered
                 continue
             opcode = opcode[3:] # strip leading "sv."
 
@@ -552,8 +550,6 @@ class SVP64Asm:
             yield ".long 0x%x" % svp64_prefix
             yield "%s %s" % (v30b_op, ", ".join(v30b_newfields))
             print ("new v3.0B fields", v30b_op, v30b_newfields)
-
-        return res
 
 if __name__ == '__main__':
     isa = SVP64Asm(['slw 3, 1, 4',
