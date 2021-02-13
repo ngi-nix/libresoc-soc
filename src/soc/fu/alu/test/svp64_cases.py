@@ -6,7 +6,7 @@ from soc.decoder.isa.caller import special_sprs
 from soc.sv.trans.svp64 import SVP64Asm
 
 
-class ALUTestCase(TestAccumulatorBase):
+class SVP64ALUTestCase(TestAccumulatorBase):
 
     def case_1_sv_add(self):
         # adds:
