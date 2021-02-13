@@ -912,7 +912,8 @@ class PowerDecodeSubset(Elaboratable):
         SPR_PRTBL = 720 # see common.vhdl in microwatt, not in POWER9
         with m.If(((self.dec.op.internal_op == MicrOp.OP_MTSPR) |
                    (self.dec.op.internal_op == MicrOp.OP_MFSPR)) &
-                  ((spr == SPR.DSISR) | (spr == SPR.DAR) | (spr==SPR_PRTBL) | (spr==SPR_PID))):
+                  ((spr == SPR.DSISR) | (spr == SPR.DAR)
+                   | (spr==SPR_PRTBL) | (spr==SPR_PID))):
             comb += self.do_copy("fn_unit", Function.MMU)
         with m.Else():
             comb += self.do_copy("fn_unit",fn)
