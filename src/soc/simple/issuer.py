@@ -16,7 +16,7 @@ improved.
 """
 
 from nmigen import (Elaboratable, Module, Signal, ClockSignal, ResetSignal,
-                    ClockDomain, DomainRenamer)
+                    ClockDomain, DomainRenamer, Mux)
 from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
@@ -159,6 +159,7 @@ class TestIssuerInternal(Elaboratable):
         # instruction decoder
         pdecode = create_pdecode()
         m.submodules.dec2 = pdecode2 = self.pdecode2
+        m.submodules.svp64 = svp64 = self.svp64
 
         # convenience
         dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
@@ -197,9 +198,9 @@ class TestIssuerInternal(Elaboratable):
         comb += self.pc_o.eq(cur_state.pc)
         ilatch = Signal(32)
 
-        # next instruction (+4 on current)
+        # address of the next instruction, in the absence of a branch
+        # depends on the instruction size
         nia = Signal(64, reset_less=True)
-        comb += nia.eq(cur_state.pc + 4)
 
         # read the PC
         pc = Signal(64, reset_less=True)
@@ -294,7 +295,38 @@ class TestIssuerInternal(Elaboratable):
                         insn = f_instr_o
                     else:
                         insn = f_instr_o.word_select(cur_state.pc[2], 32)
-                    # capture and hold the instruction from memory
+                    # decode the SVP64 prefix, if any
+                    comb += svp64.raw_opcode_in.eq(insn)
+                    comb += svp64.bigendian.eq(self.core_bigendian_i)
+                    # pass the decoded prefix (if any) to PowerDecoder2
+                    sync += pdecode2.sv_rm.eq(svp64.svp64_rm)
+                    # calculate the address of the following instruction
+                    insn_size = Mux(svp64.is_svp64_mode, 8, 4)
+                    sync += nia.eq(cur_state.pc + insn_size)
+                    with m.If(~svp64.is_svp64_mode):
+                        # with no prefix, store the instruction
+                        # and hand it directly to the next FSM
+                        sync += fetch_insn_o.eq(insn)
+                        m.next = "INSN_READY"
+                    with m.Else():
+                        # fetch the rest of the instruction from memory
+                        comb += self.imem.a_pc_i.eq(cur_state.pc + 4)
+                        comb += self.imem.a_valid_i.eq(1)
+                        comb += self.imem.f_valid_i.eq(1)
+                        m.next = "INSN_READ2"
+
+            with m.State("INSN_READ2"):
+                with m.If(self.imem.f_busy_o):  # zzz...
+                    # busy: stay in wait-read
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
+                with m.Else():
+                    # not busy: instruction fetched
+                    f_instr_o = self.imem.f_instr_o
+                    if f_instr_o.width == 32:
+                        insn = f_instr_o
+                    else:
+                        insn = f_instr_o.word_select((cur_state.pc+4)[2], 32)
                     sync += fetch_insn_o.eq(insn)
                     m.next = "INSN_READY"
 
