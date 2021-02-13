@@ -48,8 +48,7 @@ def instr_is_priv(m, op, insn):
         with m.Case(MicrOp.OP_ATTN, MicrOp.OP_MFMSR, MicrOp.OP_MTMSRD,
                     MicrOp.OP_MTMSR, MicrOp.OP_RFID):
             comb += is_priv_insn.eq(1)
-        # XXX TODO
-        #with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
+        with m.Case(MicrOp.OP_TLBIE) : comb += is_priv_insn.eq(1)
         with m.Case(MicrOp.OP_MFSPR, MicrOp.OP_MTSPR):
             with m.If(insn[20]):  # field XFX.spr[-1] i think
                 comb += is_priv_insn.eq(1)
