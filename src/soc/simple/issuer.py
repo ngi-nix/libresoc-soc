@@ -43,6 +43,13 @@ from soc.clock.dummypll import DummyPLL
 
 from nmutil.util import rising_edge
 
+def get_insn(f_instr_o, pc):
+    if f_instr_o.width == 32:
+        return f_instr_o
+    else:
+        # 64-bit: bit 2 of pc decides which word to select
+        return f_instr_o.word_select(pc[2], 32)
+
 
 class TestIssuerInternal(Elaboratable):
     """TestIssuer - reads instructions from TestMemory and issues them
@@ -290,11 +297,7 @@ class TestIssuerInternal(Elaboratable):
                     comb += self.imem.f_valid_i.eq(1)
                 with m.Else():
                     # not busy: instruction fetched
-                    f_instr_o = self.imem.f_instr_o
-                    if f_instr_o.width == 32:
-                        insn = f_instr_o
-                    else:
-                        insn = f_instr_o.word_select(cur_state.pc[2], 32)
+                    insn = get_insn(self.imem.f_instr_o, cur_state.pc)
                     # decode the SVP64 prefix, if any
                     comb += svp64.raw_opcode_in.eq(insn)
                     comb += svp64.bigendian.eq(self.core_bigendian_i)
@@ -322,11 +325,7 @@ class TestIssuerInternal(Elaboratable):
                     comb += self.imem.f_valid_i.eq(1)
                 with m.Else():
                     # not busy: instruction fetched
-                    f_instr_o = self.imem.f_instr_o
-                    if f_instr_o.width == 32:
-                        insn = f_instr_o
-                    else:
-                        insn = f_instr_o.word_select((cur_state.pc+4)[2], 32)
+                    insn = get_insn(self.imem.f_instr_o, cur_state.pc+4)
                     sync += fetch_insn_o.eq(insn)
                     m.next = "INSN_READY"
 
