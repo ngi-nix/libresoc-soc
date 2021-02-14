@@ -372,10 +372,6 @@ class TestIssuerInternal(Elaboratable):
                 comb += fetch_insn_ready_i.eq(1)
                 with m.If(fetch_insn_valid_o):
                     # decode the instruction
-                    # TODO, before issuing new instruction first
-                    # check if it's SVP64. (svp64.is_svp64_mode set)
-                    # if yes, record the svp64_rm, put that into
-                    # pdecode2.sv_rm, then read another 32 bits (INSN_FETCH2?)
                     comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
                     sync += core.e.eq(pdecode2.e)
                     sync += core.state.eq(cur_state)
