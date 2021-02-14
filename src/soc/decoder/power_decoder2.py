@@ -87,7 +87,7 @@ class SVP64ExtraSpec(Elaboratable):
     see https://libre-soc.org/openpower/sv/svp64/
     """
     def __init__(self):
-        self.extra   = Signal(10, reset_less=True)
+        self.extra   = Signal(9, reset_less=True)
         self.etype   = Signal(SVEtype, reset_less=True) # 2 or 3 bits
         self.idx     = Signal(SVEXTRA, reset_less=True) # which part of extra
         self.spec  = Signal(3) # EXTRA spec for the register
