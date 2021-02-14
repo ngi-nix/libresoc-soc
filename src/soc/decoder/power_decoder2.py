@@ -1103,6 +1103,10 @@ class PowerDecode2(PowerDecodeSubset):
         if hasattr(do, "lk"):
             comb += dec_o2.lk.eq(do.lk)
 
+        # get SVSTATE srcstep (TODO: elwidth, dststep etc.) needed below
+        srcstep = Signal.like(self.state.svstate.srcstep)
+        comb += srcstep.eq(self.state.svstate.srcstep)
+
         # registers a, b, c and out and out2 (LD/ST EA)
         for to_reg, fromreg, svdec in (
             (e.read_reg1, dec_a.reg_out, in1_svdec),
@@ -1113,8 +1117,13 @@ class PowerDecode2(PowerDecodeSubset):
             comb += svdec.extra.eq(extra)        # EXTRA field of SVP64 RM
             comb += svdec.etype.eq(op.SV_Etype)  # EXTRA2/3 for this insn
             comb += svdec.reg_in.eq(fromreg.data) # 3-bit (CR0/BC/BFA)
-            comb += to_reg.data.eq(svdec.reg_out) # 7-bit output
             comb += to_reg.ok.eq(fromreg.ok)
+            # detect if Vectorised: add srcstep if yes.  TODO: a LOT.
+            # this trick only holds when elwidth=default and in single-pred
+            with m.If(svdec.isvec):
+                comb += to_reg.data.eq(srcstep+svdec.reg_out) # 7-bit output
+            with m.Else():
+                comb += to_reg.data.eq(svdec.reg_out) # 7-bit output
 
         comb += in1_svdec.idx.eq(op.sv_in1)  # SVP64 reg #1 (matches in1_sel)
         comb += in2_svdec.idx.eq(op.sv_in2)  # SVP64 reg #2 (matches in2_sel)
