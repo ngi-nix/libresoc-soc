@@ -113,7 +113,7 @@ class TestIssuerInternal(Elaboratable):
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
-        # FAST regfile read /write ports for PC, MSR, DEC/TB, SVSTATE
+        # STATE regfile read /write ports for PC, MSR, SVSTATE
         staterf = self.core.regs.rf['state']
         self.state_r_pc = staterf.r_ports['cia'] # PC rd
         self.state_w_pc = staterf.w_ports['d_wr1'] # PC wr
@@ -247,17 +247,20 @@ class TestIssuerInternal(Elaboratable):
         core_ivalid_i = core.ivalid_i             # instruction is valid
         core_issue_i = core.issue_i               # instruction is issued
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+        insn_type = core.e.do.insn_type           # instruction MicroOp type
 
-        insn_type = core.e.do.insn_type
+        # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
+        # these are the handshake signals between fetch and decode/execute
 
-        # handshake signals between fetch and decode/execute
         # fetch FSM can run as soon as the PC is valid
         fetch_pc_valid_i = Signal()
         fetch_pc_ready_o = Signal()
         # when done, deliver the instruction to the next FSM
-        fetch_insn_o = Signal(32, reset_less=True)
         fetch_insn_valid_o = Signal()
         fetch_insn_ready_i = Signal()
+
+        # latches copy of raw fetched instruction
+        fetch_insn_o = Signal(32, reset_less=True)
 
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
@@ -445,7 +448,8 @@ class TestIssuerInternal(Elaboratable):
             comb += d_xer.data.eq(self.xer_r.data_o)
             comb += d_xer.ack.eq(1)
 
-        # DEC and TB inc/dec FSM
+        # DEC and TB inc/dec FSM.  copy of DEC is put into CoreState,
+        # (which uses that in PowerDecoder2 to raise 0x900 exception)
         self.tb_dec_fsm(m, cur_state.dec)
 
         return m
