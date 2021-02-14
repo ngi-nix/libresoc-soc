@@ -312,7 +312,9 @@ class TestRunner(FHDLTestCase):
             'cia[63:0]', 'nia[63:0]', 'pc[63:0]', 'raw_insn_i[31:0]',
             'raw_opcode_in[31:0]', 'insn_type',
             {'comment': 'issue and execute'},
-            'core.core_core_insn_type', 'issue_i', 'busy_o',
+            'core.core_core_insn_type',
+            'core_reg1[6:0]', 'core_reg2[6:0]', 'core_rego[6:0]',
+            'issue_i', 'busy_o',
             {'comment': 'dmi'},
             'dbg.dmi_req_i', 'dbg.dmi_ack_o',
             {'comment': 'instruction memory'},
@@ -340,4 +342,3 @@ class TestRunner(FHDLTestCase):
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd"):
             sim.run()
-
