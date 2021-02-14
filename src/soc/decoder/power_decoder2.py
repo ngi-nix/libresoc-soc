@@ -1326,7 +1326,7 @@ class SVP64PrefixDecoder(Elaboratable):
         rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
         l = []
         for idx in rmfields:
-            l.append(self.opcode_in[32-idx])
+            l.append(self.opcode_in[31-idx])
         with m.If(self.is_svp64_mode):
             comb += self.svp64_rm.eq(Cat(*l))
 
