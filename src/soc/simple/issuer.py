@@ -260,6 +260,11 @@ class TestIssuerInternal(Elaboratable):
         # then "holds" information, combinatorially, for the core
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
+
+        # this FSM performs fetch of raw instruction data, partial-decodes
+        # it 32-bit at a time to detect SVP64 prefixes, and will optionally
+        # read a 2nd 32-bit quantity if that occurs.
+
         with m.FSM(name='fetch_fsm'):
 
             # waiting (zzz)
@@ -335,7 +340,11 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
-        # decode / issue / execute FSM
+        # decode / issue / execute FSM.  this interacts with the "fetch" FSM
+        # through fetch_pc_ready/valid (incoming) and fetch_insn_ready/valid
+        # (outgoing).  SVP64 RM prefixes have already been set up by the
+        # "fetch" phase, so execute is fairly straightforward.
+
         with m.FSM():
 
             # go fetch the instruction at the current PC
