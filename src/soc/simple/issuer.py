@@ -92,7 +92,7 @@ class TestIssuerInternal(Elaboratable):
 
         # instruction decoder.  goes into Trap Record
         pdecode = create_pdecode()
-        self.cur_state = CoreState("cur") # current state (MSR/PC/EINT)
+        self.cur_state = CoreState("cur") # current state (MSR/PC/EINT/SVSTATE)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand)
         self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
@@ -113,11 +113,13 @@ class TestIssuerInternal(Elaboratable):
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
-        # FAST regfile read /write ports for PC, MSR, DEC/TB
+        # FAST regfile read /write ports for PC, MSR, DEC/TB, SVSTATE
         staterf = self.core.regs.rf['state']
         self.state_r_pc = staterf.r_ports['cia'] # PC rd
         self.state_w_pc = staterf.w_ports['d_wr1'] # PC wr
         self.state_r_msr = staterf.r_ports['msr'] # MSR rd
+        self.state_r_sv = staterf.r_ports['sv'] # SVSTATE rd
+        self.state_w_sv = staterf.w_ports['sv'] # SVSTATE wr
 
         # DMI interface access
         intrf = self.core.regs.rf['int']
@@ -227,9 +229,11 @@ class TestIssuerInternal(Elaboratable):
         comb += self.state_w_pc.wen.eq(0)
         comb += self.state_w_pc.data_i.eq(0)
 
-        # don't read msr every cycle
+        # don't read msr or svstate every cycle
+        comb += self.state_r_sv.ren.eq(0)
         comb += self.state_r_msr.ren.eq(0)
         msr_read = Signal(reset=1)
+        sv_read = Signal(reset=1)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -281,9 +285,11 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.imem.f_valid_i.eq(1)
                         sync += cur_state.pc.eq(pc)
 
-                        # initiate read of MSR.  arrives one clock later
+                        # initiate read of MSR/SVSTATE. arrives one clock later
                         comb += self.state_r_msr.ren.eq(1 << StateRegs.MSR)
+                        comb += self.state_r_sv.ren.eq(1 << StateRegs.SVSTATE)
                         sync += msr_read.eq(0)
+                        sync += sv_read.eq(0)
 
                         m.next = "INSN_READ"  # move to "wait for bus" phase
                 with m.Else():
@@ -292,10 +298,13 @@ class TestIssuerInternal(Elaboratable):
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
-                # one cycle later, msr read arrives.  valid only once.
+                # one cycle later, msr/sv read arrives.  valid only once.
                 with m.If(~msr_read):
                     sync += msr_read.eq(1) # yeah don't read it again
                     sync += cur_state.msr.eq(self.state_r_msr.data_o)
+                with m.If(~sv_read):
+                    sync += sv_read.eq(1) # yeah don't read it again
+                    sync += cur_state.svstate.eq(self.state_r_sv.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
