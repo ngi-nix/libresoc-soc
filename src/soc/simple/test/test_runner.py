@@ -169,6 +169,8 @@ class TestRunner(FHDLTestCase):
             yield
             yield
 
+            # get each test, completely reset the core, and run it
+
             for test in self.test_data:
 
                 # pull a reset
@@ -195,6 +197,8 @@ class TestRunner(FHDLTestCase):
                 gen = list(program.generate_instructions())
                 insncode = program.assembly.splitlines()
                 instructions = list(zip(gen, insncode))
+
+                # set up the Simulator (which must track TestIssuer exactly)
                 sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
                           test.msr,
                           initial_insns=gen, respect_pc=True,
@@ -202,12 +206,16 @@ class TestRunner(FHDLTestCase):
                           bigendian=bigendian,
                           initial_svstate=test.svstate)
 
+                # establish the TestIssuer context (mem, regs etc)
+
                 pc = 0  # start address
                 counter = 0  # test to pause/start
 
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
                 yield from setup_regs(pdecode2, core, test)
+                # TODO, setup svstate here in core.regs.state regfile
+                # https://bugs.libre-soc.org/show_bug.cgi?id=583#c35
 
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
@@ -215,6 +223,7 @@ class TestRunner(FHDLTestCase):
 
                 print("instructions", instructions)
 
+                # run the loop of the instructions on the current test
                 index = sim.pc.CIA.value//4
                 while index < len(instructions):
                     ins, code = instructions[index]
