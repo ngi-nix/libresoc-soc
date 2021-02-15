@@ -15,17 +15,17 @@ https://libre-soc.org/openpower/sv/sprs/
 | 30:31 | svstep   | for svstep = 0..SUBVL-1  |
 """
 
-from nmigen import Record
+from nmutil.iocontrol import RecordObject
+from nmigen import Signal
 
-class SVSTATERec(Record):
+
+class SVSTATERec(RecordObject):
     def __init__(self, name=None):
-        Record.__init__(self, layout=[("maxvl"     : 7),
-                                      ("vl"        : 7),
-                                      ("srcstep"   : 7),
-                                      ("dststep"   : 7),
-                                      ("subvl"     : 2),
-                                      ("svstep"    : 2)], name=name)
-    def ports(self):
-        return [self.maxvl, self.vl, self.srcstep, self.dststep, self.subvl,
-                self.svstep]
+        super().__init__(name=name)
+        self.maxvl = Signal(7)
+        self.vl = Signal(7)
+        self.srcstep = Signal(7)
+        self.dststep = Signal(7)
+        self.subvl = Signal(2)
+        self.svstep = Signal(2)
 

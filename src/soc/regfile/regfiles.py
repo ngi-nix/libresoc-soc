@@ -178,6 +178,7 @@ class SPRRegs(RegFileMem):
 class RegFiles:
     def __init__(self):
         self.rf = {}
+        # create regfiles here, Factory style
         for (name, kls) in [('int', IntRegs),
                             ('cr', CRRegs),
                             ('xer', XERRegs),
@@ -185,6 +186,7 @@ class RegFiles:
                             ('state', StateRegs),
                             ('spr', SPRRegs),]:
             rf = self.rf[name] = kls()
+            # also add these as instances, self.state, self.fast, self.cr etc.
             setattr(self, name, rf)
 
     def elaborate_into(self, m, platform):

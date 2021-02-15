@@ -26,14 +26,16 @@ class DecoderTestCase(FHDLTestCase):
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
         isa = SVP64Asm(['sv.add 1.v, 5.v, 9.v'
                        ])
-
         lst = list(isa)
         print ("listing", lst)
+
+        # initial values in GPR regfile
         initial_regs = [0] * 32
         initial_regs[9] = 0x1234
         initial_regs[10] = 0x1111
         initial_regs[5] = 0x4321
         initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
@@ -53,14 +55,16 @@ class DecoderTestCase(FHDLTestCase):
         #       r1 is scalar so ENDS EARLY
         isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
                        ])
-
         lst = list(isa)
         print ("listing", lst)
+
+        # initial values in GPR regfile
         initial_regs = [0] * 32
         initial_regs[9] = 0x1234
         initial_regs[10] = 0x1111
         initial_regs[5] = 0x4321
         initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
@@ -79,14 +83,16 @@ class DecoderTestCase(FHDLTestCase):
         #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
         isa = SVP64Asm(['sv.add 1.v, 5, 9.v'
                        ])
-
         lst = list(isa)
         print ("listing", lst)
+
+        # initial values in GPR regfile
         initial_regs = [0] * 32
         initial_regs[9] = 0x1234
         initial_regs[10] = 0x1111
         initial_regs[5] = 0x4321
         initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
         svstate.vl[0:7] = 2 # VL
         svstate.maxvl[0:7] = 2 # MAXVL
