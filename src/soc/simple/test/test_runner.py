@@ -332,7 +332,10 @@ class TestRunner(FHDLTestCase):
             traces += [
                 {'comment': 'microwatt_mmu'},
                 'core.fus.mmu0.alu_mmu0.illegal',
-                'core.fus.mmu0.alu_mmu0.debug0[3:0]'
+                'core.fus.mmu0.alu_mmu0.debug0[3:0]',
+                'core.fus.mmu0.alu_mmu0.mmu.state',
+                'core.fus.mmu0.alu_mmu0.mmu.pid[31:0]',
+                'core.fus.mmu0.alu_mmu0.mmu.prtbl[63:0]'
             ]
 
         write_gtkw("issuer_simulator.gtkw",

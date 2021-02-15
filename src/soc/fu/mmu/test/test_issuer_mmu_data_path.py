@@ -21,10 +21,14 @@ class MMUTestCase(TestAccumulatorBase):
                 "mtspr 19, 2",     # reg 2 to DAR
                 "mfspr 1, 18",     # DSISR to reg 1
                 "mfspr 2, 19",     # DAR to reg 2
+                "mtspr 48, 3",    # set MMU PID
+                "mtspr 720, 4",    # set MMU PRTBL
                 "lhz 3, 0(1)"      # load some data
               ]
 
         initial_regs = [0] * 32
+        initial_regs[3] = 1
+        initial_regs[4] = 0xDEADBEEF
         #initial_regs[1] = 0xDEADBEEF
 
         #FIXME initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
