@@ -173,7 +173,7 @@ def check_regs(dut, sim, core, test, code):
     dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
     # Check the PC as well
-    state = core.regs.rf['state']
+    state = core.regs.state
     pc = yield state.r_ports['cia'].data_o
     e_pc = sim.pc.CIA.value
     dut.assertEqual(e_pc, pc)
