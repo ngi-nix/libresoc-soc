@@ -32,6 +32,9 @@ class LoadStore1(PortInterfaceBase):
         # for debugging with gtkwave only
         self.debug1 = Signal()
         self.debug2 = Signal()
+        # TODO microwatt
+        self.mmureq = Signal()
+        self.derror = Signal()
 
     def set_wr_addr(self, m, addr, mask):
         #m.d.comb += self.d_in.valid.eq(1)
@@ -92,6 +95,21 @@ class LoadStore1(PortInterfaceBase):
 
         d_out = self.d_out
         l_out = self.l_out
+
+        with m.If(d_out.error):
+            with m.If(d_out.cache_paradox):
+                m.d.comb += self.derror.eq(1)
+                #  dsisr(63 - 38) := not r2.req.load;
+                #    -- XXX there is no architected bit for this
+                #    -- (probably should be a machine check in fact)
+                #    dsisr(63 - 35) := d_in.cache_paradox;
+            with m.Else():
+                # Look up the translation for TLB miss
+                # and also for permission error and RC error
+                # in case the PTE has been updated.
+                m.d.comb += self.mmureq.eq(1)
+                # v.state := MMU_LOOKUP;
+                # v.stage1_en := '0';
 
         exc = self.pi.exception_o
 
