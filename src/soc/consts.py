@@ -1,9 +1,9 @@
 # sigh create little-ended versions of bitfield flags
-def botchify(bekls, lekls):
+def botchify(bekls, lekls, msb=63):
     for attr in dir(bekls):
         if attr[0] == '_':
             continue
-        setattr(lekls, attr, 63-getattr(bekls, attr))
+        setattr(lekls, attr, msb-getattr(bekls, attr))
 
 
 # Can't think of a better place to put these functions.
