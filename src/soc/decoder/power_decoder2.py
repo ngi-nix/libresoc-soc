@@ -104,23 +104,23 @@ class SVP64ExtraSpec(Elaboratable):
             # 2-bit index selection mode
             with m.Case(SVEtype.EXTRA2):
                 with m.Switch(self.idx):
-                    with m.Case(SVEXTRA.Idx0): # 1st 2 bits
-                        comb += spec[1:3].eq(self.extra[0:2])
-                    with m.Case(SVEXTRA.Idx1): # 2nd 2 bits
-                        comb += spec[1:3].eq(self.extra[2:4])
-                    with m.Case(SVEXTRA.Idx2): # 3rd 2 bits
-                        comb += spec[1:3].eq(self.extra[4:6])
-                    with m.Case(SVEXTRA.Idx3): # 4th 2 bits
-                        comb += spec[1:3].eq(self.extra[6:8])
+                    with m.Case(SVEXTRA.Idx0):  # 1st 2 bits [0:1]
+                        comb += spec[1:3].eq(self.extra[8-1:9])
+                    with m.Case(SVEXTRA.Idx1):  # 2nd 2 bits [2:3]
+                        comb += spec[1:3].eq(self.extra[8-3:8-1])
+                    with m.Case(SVEXTRA.Idx2):  # 3rd 2 bits [4:5]
+                        comb += spec[1:3].eq(self.extra[8-5:8-3])
+                    with m.Case(SVEXTRA.Idx3):  # 4th 2 bits [6:7]
+                        comb += spec[1:3].eq(self.extra[8-7:8-5])
             # 3-bit index selection mode
             with m.Case(SVEtype.EXTRA3):
                 with m.Switch(self.idx):
-                    with m.Case(SVEXTRA.Idx0): # 1st 3 bits
-                        comb += spec.eq(self.extra[0:3])
-                    with m.Case(SVEXTRA.Idx1): # 2nd 3 bits
-                        comb += spec.eq(self.extra[3:6])
-                    with m.Case(SVEXTRA.Idx2): # 3rd 3 bits
-                        comb += spec.eq(self.extra[6:9])
+                    with m.Case(SVEXTRA.Idx0):  # 1st 3 bits [0:2]
+                        comb += spec.eq(self.extra[8-2:9])
+                    with m.Case(SVEXTRA.Idx1):  # 2nd 3 bits [3:5]
+                        comb += spec.eq(self.extra[8-5:8-2])
+                    with m.Case(SVEXTRA.Idx2):  # 3rd 3 bits [6:8]
+                        comb += spec.eq(self.extra[8-8:8-5])
                     # cannot fit more than 9 bits so there is no 4th thing
 
         return m
@@ -1331,6 +1331,8 @@ class SVP64PrefixDecoder(Elaboratable):
         l = []
         for idx in rmfields:
             l.append(self.opcode_in[31-idx])
+        # in nMigen, Cat begins at the LSB and proceeds upwards
+        l.reverse()  # put the LSB at the start of the list
         with m.If(self.is_svp64_mode):
             comb += self.svp64_rm.eq(Cat(*l))
 

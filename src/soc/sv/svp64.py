@@ -18,15 +18,17 @@ https://libre-soc.org/openpower/sv/svp64/
 
 from nmigen import Record
 
+
+# in nMigen, Record begins at the LSB and fills upwards
 class SVP64Rec(Record):
     def __init__(self, name=None):
-        Record.__init__(self, layout=[("mmode"   , 1),
-                                      ("mask"    , 3),
-                                      ("elwidth" , 2),
-                                      ("ewsrc"   , 2),
-                                      ("subvl"   , 2),
+        Record.__init__(self, layout=[("mode"    , 5),
                                       ("extra"   , 9),
-                                      ("mode"    , 5)], name=name)
+                                      ("subvl"   , 2),
+                                      ("ewsrc"   , 2),
+                                      ("elwidth" , 2),
+                                      ("mask"    , 3),
+                                      ("mmode"   , 1)], name=name)
 
     def ports(self):
         return [self.mmode, self.mask, self.elwidth, self.ewsrc,

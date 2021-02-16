@@ -336,7 +336,7 @@ class SVP64Asm:
                 if idx is None: continue
                 # start at bit 10, work up 2/3 times EXTRA idx
                 offs = 2 if etype == 'EXTRA2' else 3 # 2 or 3 bits
-                svp64_rm |= sv_extra << (10+idx*offs)
+                svp64_rm |= sv_extra << (24-offs-(10+idx*offs))
 
             # parts of svp64_rm
             mmode = 0  # bit 0
@@ -503,20 +503,20 @@ class SVP64Asm:
             # whewww.... modes all done :)
             # now put into svp64_rm
             mode |= sv_mode
-            svp64_rm |= (mode << 19) # mode: bits 19-23
+            svp64_rm |= (mode << 23-23)       # mode: bits 19-23
 
             # put in predicate masks into svp64_rm
             if ptype == '2P':
-                svp64_rm |= (smask << 16) # source pred: bits 16-18
-            svp64_rm |= (mmode)           # mask mode: bit 0
-            svp64_rm |= (pmask << 1)      # 1-pred: bits 1-3
+                svp64_rm |= (smask << 23-18)  # source pred: bits 16-18
+            svp64_rm |= (mmode << 23-0)       # mask mode: bit 0
+            svp64_rm |= (pmask << 23-3)       # 1-pred: bits 1-3
 
             # and subvl
-            svp64_rm += (subvl << 8)      # subvl: bits 8-9
+            svp64_rm += (subvl << 23-9)       # subvl: bits 8-9
 
             # put in elwidths
-            svp64_rm += (srcwid << 6)      # srcwid: bits 6-7
-            svp64_rm += (destwid << 4)     # destwid: bits 4-5
+            svp64_rm += (srcwid << 23-7)      # srcwid: bits 6-7
+            svp64_rm += (destwid << 23-5)     # destwid: bits 4-5
 
             # nice debug printout. (and now for something completely different)
             # https://youtu.be/u0WOIwlXE9g?t=146
@@ -544,7 +544,7 @@ class SVP64Asm:
             svp64_prefix |= 0x1 << (31-9) # SVP64 marker 2
             rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
             for i, x in enumerate(rmfields):
-                svp64_prefix |= ((svp64_rm>>i)&0b1) << (31-x)
+                svp64_prefix |= ((svp64_rm>>(23-i))&0b1) << (31-x)
 
             # fiinally yield the svp64 prefix and the thingy.  v3.0b opcode
             yield ".long 0x%x" % svp64_prefix

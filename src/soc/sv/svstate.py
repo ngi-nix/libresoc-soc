@@ -19,13 +19,13 @@ from nmutil.iocontrol import RecordObject
 from nmigen import Signal
 
 
+# In nMigen, Record order is from LSB to MSB
 class SVSTATERec(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
-        self.maxvl = Signal(7)
-        self.vl = Signal(7)
-        self.srcstep = Signal(7)
-        self.dststep = Signal(7)
-        self.subvl = Signal(2)
         self.svstep = Signal(2)
-
+        self.subvl = Signal(2)
+        self.dststep = Signal(7)
+        self.srcstep = Signal(7)
+        self.vl = Signal(7)
+        self.maxvl = Signal(7)
