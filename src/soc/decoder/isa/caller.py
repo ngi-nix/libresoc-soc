@@ -686,6 +686,8 @@ class ISACaller:
         yield self.dec2.dec.bigendian.eq(self.bigendian)
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
+        # sigh TODO
+        #yield self.dec2.state.svstate.eq(self.svstate.spr.value)
 
         # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
         yield Settle()
