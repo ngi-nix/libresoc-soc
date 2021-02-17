@@ -687,7 +687,7 @@ class ISACaller:
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
         # sigh TODO
-        #yield self.dec2.state.svstate.eq(self.svstate.spr.value)
+        yield self.dec2.state.svstate.eq(self.svstate.spr.value)
 
         # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
         yield Settle()
@@ -891,8 +891,9 @@ class ISACaller:
                 # registers, to be modified, need to be in the namespace.
                 regnum, is_vec = yield from get_pdecode_idx_out(self.dec2, name)
             # here's where we go "vector".  TODO: zero-testing (RA_IS_ZERO)
-            if is_vec:
-                regnum += srcstep # TODO, elwidth overrides
+            # XXX already done by PowerDecoder2, now
+            #if is_vec:
+            #   regnum += srcstep # TODO, elwidth overrides
 
             # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
@@ -997,7 +998,8 @@ class ISACaller:
                         is_vec = False
                     # here's where we go "vector".
                     if is_vec:
-                        regnum += srcstep # TODO, elwidth overrides
+                        # XXX already done by PowerDecoder2
+                        # regnum += srcstep # TODO, elwidth overrides
                         svp64_dest_vector = True
                     print('writing reg %d %s' % (regnum, str(output)), is_vec)
                     if output.bits > 64:
