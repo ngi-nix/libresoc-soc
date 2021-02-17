@@ -305,6 +305,11 @@ class TestRunner(FHDLTestCase):
                     print("after test %s reg %2d value %x" %
                           (test.name, int_reg, value))
 
+        styles = {
+            'dec': {'base': 'dec'},
+            'bin': {'base': 'bin'}
+        }
+
         traces = [
             'clk',
             {'comment': 'state machines'},
@@ -313,9 +318,33 @@ class TestRunner(FHDLTestCase):
             {'comment': 'fetch and decode'},
             'cia[63:0]', 'nia[63:0]', 'pc[63:0]', 'raw_insn_i[31:0]',
             'raw_opcode_in[31:0]', 'insn_type',
+            {'comment': 'svp64 decoding'},
+            'svp64_rm[23:0]',
+            ('dec2.extra[8:0]', 'bin'),
+            ('register augmentation', 'dec', [
+                {'comment': 'v3.0b registers'},
+                'dec2.dec_o.RT[4:0]',
+                'dec2.dec_a.RA[4:0]',
+                'dec2.dec_b.RB[4:0]',
+                ('Rdest', [
+                    'dec2.o_svdec.reg_in[4:0]',
+                    ('dec2.o_svdec.spec[2:0]', 'bin'),
+                    'dec2.o_svdec.reg_out[6:0]']),
+                ('Rsrc1', [
+                    'dec2.in1_svdec.reg_in[4:0]',
+                    ('dec2.in1_svdec.spec[2:0]', 'bin'),
+                    'dec2.in1_svdec.reg_out[6:0]']),
+                ('Rsrc1', [
+                    'dec2.in2_svdec.reg_in[4:0]',
+                    ('dec2.in2_svdec.spec[2:0]', 'bin'),
+                    'dec2.in2_svdec.reg_out[6:0]']),
+                {'comment': 'SVP64 registers'},
+                'dec2.rego[6:0]', 'dec2.reg1[6:0]', 'dec2.reg2[6:0]'
+            ]),
             {'comment': 'issue and execute'},
             'core.core_core_insn_type',
-            'core_reg1[6:0]', 'core_reg2[6:0]', 'core_rego[6:0]',
+            (None, 'dec', [
+                'core_rego[6:0]', 'core_reg1[6:0]', 'core_reg2[6:0]']),
             'issue_i', 'busy_o',
             {'comment': 'dmi'},
             'dbg.dmi_req_i', 'dbg.dmi_ack_o',
@@ -327,7 +356,12 @@ class TestRunner(FHDLTestCase):
             'core.int.rp_src1.memory(2)[63:0]',
             'core.int.rp_src1.memory(3)[63:0]',
             'core.int.rp_src1.memory(4)[63:0]',
+            'core.int.rp_src1.memory(5)[63:0]',
+            'core.int.rp_src1.memory(6)[63:0]',
+            'core.int.rp_src1.memory(7)[63:0]',
             'core.int.rp_src1.memory(9)[63:0]',
+            'core.int.rp_src1.memory(10)[63:0]',
+            'core.int.rp_src1.memory(13)[63:0]',
         ]
 
         if self.microwatt_mmu:
@@ -342,7 +376,7 @@ class TestRunner(FHDLTestCase):
 
         write_gtkw("issuer_simulator.gtkw",
                    "issuer_simulator.vcd",
-                   traces, module='top.issuer')
+                   traces, styles, module='top.issuer')
 
         sim.add_sync_process(process)
         with sim.write_vcd("issuer_simulator.vcd"):
