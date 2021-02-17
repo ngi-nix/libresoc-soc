@@ -13,12 +13,13 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmutil.gtkw import write_gtkw
 from nmigen.cli import rtlil
-from soc.decoder.isa.caller import special_sprs
+from soc.decoder.isa.caller import special_sprs, SVP64State
 from soc.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
+from soc.regfile.regfiles import StateRegs
 
 from soc.simple.issuer import TestIssuerInternal
 
@@ -216,6 +217,12 @@ class TestRunner(FHDLTestCase):
                 yield from setup_regs(pdecode2, core, test)
                 # TODO, setup svstate here in core.regs.state regfile
                 # https://bugs.libre-soc.org/show_bug.cgi?id=583#c35
+                # setup of SVSTATE
+                initial_svstate = test.svstate
+                if isinstance(initial_svstate, int):
+                    initial_svstate = SVP64State(initial_svstate)
+                svstate_reg = core.regs.state.regs[StateRegs.SVSTATE].reg
+                yield svstate_reg.eq(initial_svstate.spr.value)
 
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
