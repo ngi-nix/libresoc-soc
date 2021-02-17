@@ -218,3 +218,12 @@ class EXTRA3:
 
 
 EXTRA3_SIZE = 9
+
+
+class SVP64P:
+    OPC = range(0, 6)
+    SVP64_7_9 = [7, 9]
+    RM = [6, 8] + list(range(10, 32))
+
+
+SVP64P_SIZE = 24

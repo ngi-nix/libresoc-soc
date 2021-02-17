@@ -27,7 +27,7 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
 from soc.sv.svp64 import SVP64Rec
-from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3)
+from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3, SVP64P)
 
 from soc.regfile.regfiles import FastRegs
 from soc.consts import TT
@@ -1312,6 +1312,7 @@ class SVP64PrefixDecoder(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
+        opcode_in = self.opcode_in
         comb = m.d.comb
         # sigh copied this from TopPowerDecoder
         # raw opcode in assumed to be in LE order: byte-reverse it to get BE
@@ -1321,25 +1322,23 @@ class SVP64PrefixDecoder(Elaboratable):
             l.append(raw_le[i:i+8])
         l.reverse()
         raw_be = Cat(*l)
-        comb += self.opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
+        comb += opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # start identifying if the incoming opcode is SVP64 prefix)
         major = Signal(6, reset_less=True)
+        ident = Signal(2, reset_less=True)
 
-        comb += major.eq(self.opcode_in[26:32])
-        comb += self.is_svp64_mode.eq((major == Const(1, 6)) & # EXT01
-                                      self.opcode_in[31-7] & # identifier
-                                      self.opcode_in[31-9])  # bits
+        comb += major.eq(sel(opcode_in, SVP64P.OPC))
+        comb += ident.eq(sel(opcode_in, SVP64P.SVP64_7_9))
 
-        # now grab the 24-bit ReMap context bits,
-        rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
-        l = []
-        for idx in rmfields:
-            l.append(self.opcode_in[31-idx])
-        # in nMigen, Cat begins at the LSB and proceeds upwards
-        l.reverse()  # put the LSB at the start of the list
+        comb += self.is_svp64_mode.eq(
+            (major == Const(1, 6)) &   # EXT01
+            (ident == Const(0b11, 2))  # identifier bits
+        )
+
         with m.If(self.is_svp64_mode):
-            comb += self.svp64_rm.eq(Cat(*l))
+            # now grab the 24-bit ReMap context bits,
+            comb += self.svp64_rm.eq(sel(opcode_in, SVP64P.RM))
 
         return m
 
