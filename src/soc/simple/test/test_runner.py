@@ -19,7 +19,6 @@ from soc.config.endian import bigendian
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
-from soc.regfile.regfiles import StateRegs
 
 from soc.simple.issuer import TestIssuerInternal
 
@@ -215,9 +214,8 @@ class TestRunner(FHDLTestCase):
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
                 yield from setup_regs(pdecode2, core, test)
-                # setup of SVSTATE
-                svstate_reg = core.regs.state.regs[StateRegs.SVSTATE].reg
-                yield svstate_reg.eq(test.svstate.spr.value)
+                # TODO, setup svstate here in core.regs.state regfile
+                # https://bugs.libre-soc.org/show_bug.cgi?id=583#c35
 
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
