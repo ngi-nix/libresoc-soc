@@ -1,4 +1,7 @@
 # sigh create little-ended versions of bitfield flags
+from nmigen import Cat
+
+
 def botchify(bekls, lekls, msb=63):
     for attr in dir(bekls):
         if attr[0] == '_':
@@ -75,6 +78,32 @@ def field(r, msb0_start, msb0_end=None, field_width=64):
         return r[(field_width - 1) - msb0_start]
     else:
         return r[field_slice(msb0_start, msb0_end)]
+
+
+def sel(r, sel_bits, field_width=None):
+    """Forms a subfield from a selection of bits of the signal `r`
+    ("register").
+
+    :param r: signal containing the field from which to select the subfield
+    :param sel_bits: bit indices of the subfield, in "MSB 0" convention,
+                     from most significant to least significant. Note that
+                     the indices are allowed to be non-contiguous and
+                     out-of-order.
+    :param field_width: field width. If absent, use the signal `r` own width.
+    """
+    # find the MSB index in LSB0 numbering
+    if field_width is None:
+        msb = len(r) - 1
+    else:
+        msb = field_width - 1
+    # extract the selected bits
+    sig_list = []
+    for idx in sel_bits:
+        sig_list.append(r[msb - idx])
+    # place the LSB at the front of the list,
+    # since, in nMigen, Cat starts from the LSB
+    sig_list.reverse()
+    return Cat(*sig_list)
 
 
 # Listed in V3.0B Book III Chap 4.2.1
