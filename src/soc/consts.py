@@ -178,3 +178,43 @@ class TT:
     ILLEG = 1<<7 # currently the max
     # TODO: support for TM_BAD_THING (not included yet in trap main_stage.py)
     size = 8 # MUST update this to contain the full number of Trap Types
+
+
+# EXTRA3 3-bit subfield (spec)
+class SPECb:
+    VEC = 0  # 1 for vector, 0 for scalar
+    MSB = 1  # augmented register number, MSB
+    LSB = 2  # augmented register number, LSB
+
+
+SPEC_SIZE = 3
+SPEC = SPECb
+botchify(SPECb, SPEC, SPEC_SIZE-1)
+
+
+# EXTRA field, with EXTRA2 subfield encoding
+class EXTRA2b:
+    IDX0_VEC = 0
+    IDX0_MSB = 1
+    IDX1_VEC = 2
+    IDX1_MSB = 3
+    IDX2_VEC = 4
+    IDX2_MSB = 5
+    IDX3_VEC = 6
+    IDX3_MSB = 7
+    RESERVED = 8
+
+
+EXTRA2_SIZE = 9
+EXTRA2 = EXTRA2b
+botchify(EXTRA2b, EXTRA2, EXTRA2_SIZE-1)
+
+
+# EXTRA field, with EXTRA3 subfield encoding
+class EXTRA3:
+    IDX0 = [0, 1, 2]
+    IDX1 = [3, 4, 5]
+    IDX2 = [6, 7, 8]
+
+
+EXTRA3_SIZE = 9
