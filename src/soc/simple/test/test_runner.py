@@ -376,7 +376,13 @@ class TestRunner(FHDLTestCase):
                 'core.fus.mmu0.alu_mmu0.debug0[3:0]',
                 'core.fus.mmu0.alu_mmu0.mmu.state',
                 'core.fus.mmu0.alu_mmu0.mmu.pid[31:0]',
-                'core.fus.mmu0.alu_mmu0.mmu.prtbl[63:0]'
+                'core.fus.mmu0.alu_mmu0.mmu.prtbl[63:0]',
+                {'comment': 'wishbone_memory'},
+                'core.fus.mmu0.alu_mmu0.dcache.stb',
+                'core.fus.mmu0.alu_mmu0.dcache.cyc',
+                'core.fus.mmu0.alu_mmu0.dcache.we',
+                'core.fus.mmu0.alu_mmu0.dcache.ack',
+                'core.fus.mmu0.alu_mmu0.dcache.stall,'
             ]
 
         write_gtkw("issuer_simulator.gtkw",
