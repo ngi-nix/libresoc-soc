@@ -50,3 +50,28 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    # This case helps checking the encoding of the Extra field
+    # It was built so the v3.0b registers are: 3, 2, 1
+    # and the Extra field is: 101.110.111
+    # The expected SVP64 register numbers are: 13, 10, 7
+    # Any mistake in decoding will probably give a different answer
+    def case_3_sv_check_extra(self):
+        # adds:
+        #       13 = 10 + 7   => 0x4242 = 0x1230 + 0x3012
+        isa = SVP64Asm(['sv.add 13.v, 10.v, 7.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[7] = 0x3012
+        initial_regs[10] = 0x1230
+        svstate = SVP64State()
+        # SVSTATE (in this case, VL=1, so everything works as in v3.0B)
+        svstate.vl[0:7] = 1  # VL
+        svstate.maxvl[0:7] = 1  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
