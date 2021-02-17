@@ -188,7 +188,8 @@ class SPECb:
 
 
 SPEC_SIZE = 3
-SPEC = SPECb
+class SPEC:
+    pass
 botchify(SPECb, SPEC, SPEC_SIZE-1)
 
 
@@ -206,7 +207,8 @@ class EXTRA2b:
 
 
 EXTRA2_SIZE = 9
-EXTRA2 = EXTRA2b
+class EXTRA2:
+    pass
 botchify(EXTRA2b, EXTRA2, EXTRA2_SIZE-1)
 
 
