@@ -346,6 +346,9 @@ class TestRunner(FHDLTestCase):
                 {'comment': 'SVP64 registers'},
                 'dec2.rego[6:0]', 'dec2.reg1[6:0]', 'dec2.reg2[6:0]'
             ]),
+            {'comment': 'svp64 context'},
+            'core_core_vl[6:0]', 'core_core_maxvl[6:0]',
+            'core_core_srcstep[6:0]', 'core_core_dststep[6:0]',
             {'comment': 'issue and execute'},
             'core.core_core_insn_type',
             (None, 'dec', [
