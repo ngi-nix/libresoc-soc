@@ -18,8 +18,6 @@ from soc.experiment.pimem import PortInterfaceBase
 from soc.experiment.mem_types import LoadStore1ToDCacheType, LoadStore1ToMMUType
 from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
 
-# for testing purposes
-from soc.experiment.testmem import TestMemory
 
 # glue logic for microwatt mmu and dcache
 class LoadStore1(PortInterfaceBase):
@@ -56,7 +54,6 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.l_in.addr.eq(addr)
         m.d.comb += self.debug1.eq(1)
         # m.d.comb += self.debug2.eq(1)
-        # connect testmem first
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
@@ -157,11 +154,6 @@ class FSMMMUStage(ControlBase):
 
         self.mmu = MMU()
         self.dcache = DCache()
-        regwid=64
-        aw = 5
-        # for verification of DCache
-        # TODO: create connection to real memory, backend memory interface
-        self.testmem = TestMemory(regwid, aw, granularity=regwid//8, init=False)
 
         # make life a bit easier in Core
         self.pspec.mmu = self.mmu
@@ -169,9 +161,6 @@ class FSMMMUStage(ControlBase):
 
         # debugging output for gtkw
         self.debug0 = Signal(4)
-        self.debug_wb_cyc = Signal()
-        self.debug_wb_stb = Signal()
-        self.debug_wb_we = Signal()
         self.debug1 = Signal()
         #self.debug2 = Signal(64)
         #self.debug3 = Signal(64)
@@ -190,7 +179,6 @@ class FSMMMUStage(ControlBase):
         m.submodules.dcache = dcache = self.dcache
         m.submodules.mmu = mmu = self.mmu
         m.submodules.ldst = ldst = self.ldst
-        m.submodules.testmem = testmem = self.testmem
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
         l_in, l_out = mmu.l_in, mmu.l_out
@@ -202,27 +190,6 @@ class FSMMMUStage(ControlBase):
         comb += self.ldst.l_out.eq(l_out)
         comb += d_in.eq(self.ldst.d_in)
         comb += self.ldst.d_out.eq(self.dcache.d_out)
-
-        #connect read port
-        rdport = self.testmem.rdport
-        comb += rdport.addr.eq(wb_out.adr)
-        comb += wb_in.dat.eq(rdport.data)
-
-        #connect write port
-        wrport = self.testmem.wrport
-        comb += wrport.addr.eq(wb_out.adr)
-        comb += wrport.data.eq(wb_out.dat) # write st to mem
-        comb += wrport.en.eq(wb_out.cyc & wb_out.we) # enable writes
-
-        # connect DCache wishbone master to debugger
-        comb += self.debug_wb_cyc.eq(wb_out.cyc)
-        comb += self.debug_wb_stb.eq(wb_out.stb)
-        comb += self.debug_wb_we.eq(wb_out.we)
-
-        comb += wb_in.stall.eq(0)
-        # testmem only takes on cycle
-        with m.If( wb_out.cyc ):
-            m.d.sync += wb_in.ack.eq( wb_out.stb )
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
