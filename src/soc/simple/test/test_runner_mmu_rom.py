@@ -31,7 +31,37 @@ from soc.fu.compunits.test.test_compunit import (setup_test_memory,
                                                  check_sim_memory)
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 from nmutil.util import wrap
-from soc.experiment.test.test_mmu_dcache import wb_get
+
+stop = False
+
+def wb_get(c, mem, name):
+    """simulator process for getting memory load requests
+    """
+    global stop
+    # mem = mem
+
+    while not stop:
+        while True: # wait for dc_valid
+            if stop:
+                return
+            cyc = yield (c.wb_out.cyc)
+            stb = yield (c.wb_out.stb)
+            if cyc and stb:
+                break
+            yield
+        addr = (yield c.wb_out.adr) << 3
+        if addr not in mem.rom:
+            mem.debug.write("%s LOOKUP FAIL %x\n" % (name, addr))
+            stop = True
+            return
+
+        yield
+        data = mem.rom[addr]
+        yield c.wb_in.dat.eq(data)
+        mem.debug.write("%s get %x data %x\n" % (name, addr, data))
+        yield c.wb_in.ack.eq(1)
+        yield
+        yield c.wb_in.ack.eq(0)
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -166,6 +196,7 @@ class TestRunner(FHDLTestCase):
         sim.add_clock(1e-6)
 
         def process():
+            global stop
 
             # start in stopped
             yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
@@ -311,6 +342,7 @@ class TestRunner(FHDLTestCase):
 
                     print("after test %s reg %2d value %x" %
                           (test.name, int_reg, value))
+        stop = True
 
         styles = {
             'dec': {'base': 'dec'},
