@@ -119,10 +119,11 @@ def get_dmi(dmi, addr):
 
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, tst_data, microwatt_mmu=False):
+    def __init__(self, tst_data, microwatt_mmu=False, rom=None):
         super().__init__("run_all")
         self.test_data = tst_data
         self.microwatt_mmu = microwatt_mmu
+        self.rom = None
 
     def run_all(self):
         m = Module()
@@ -392,6 +393,15 @@ class TestRunner(FHDLTestCase):
                    "issuer_simulator.vcd",
                    traces, styles, module='top.issuer')
 
+        # add run of instructions
         sim.add_sync_process(process)
+
+        # optionally, if a wishbone-based ROM is passed in, run that as an
+        # extra emulated process
+        if self.rom is not None:
+            dcache = core.fus.fus["mmu0"].alu.dcache
+            default_mem = self.rom
+            sim.add_sync_process(wrap(wb_get(dcache, default_mem, "DCACHE")))
+
         with sim.write_vcd("issuer_simulator.vcd"):
             sim.run()

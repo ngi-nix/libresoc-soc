@@ -26,6 +26,11 @@ import random
 
 stop = False
 
+def set_stop(newval):
+    global stop
+    stop = newval
+
+
 def b(x):
     return int.from_bytes(x.to_bytes(8, byteorder='little'),
                           byteorder='big', signed=False)
