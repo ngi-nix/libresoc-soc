@@ -33,6 +33,9 @@ if __name__ == '__main__':
     parser.add_argument("--enable-testgpio", action="store_true",
                         help="Disable gpio pins",
                         default=False)
+    parser.add_argument("--enable-sram4x4kblock", action="store_true",
+                        help="Disable sram 4x4k block",
+                        default=False)
     parser.add_argument("--debug", default="jtag", help="Select debug " \
                         "interface [jtag | dmi] [default jtag]")
 
@@ -63,11 +66,13 @@ if __name__ == '__main__':
                          nocore=not args.core, # test coriolis2 ioring
                          use_pll=args.pll,  # bypass PLL
                          gpio=args.enable_testgpio, # for test purposes
+                         sram4x4kblock=args.enable_sram4x4kblock, # add SRAMs
                          debug=args.debug,      # set to jtag or dmi
                          units=units)
 
     print("nocore", pspec.__dict__["nocore"])
     print("gpio", pspec.__dict__["gpio"])
+    print("sram4x4kblock", pspec.__dict__["sram4x4kblock"])
     print("xics", pspec.__dict__["xics"])
     print("use_pll", pspec.__dict__["use_pll"])
     print("debug", pspec.__dict__["debug"])
