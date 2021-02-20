@@ -41,13 +41,22 @@ class SPBlock512W64B8W(Elaboratable):
         q = Signal(64) # output
         d = Signal(64) # input
 
+        # create Chips4Makers 4k SRAM cell here, mark it as "black box"
+        # for coriolis2 to pick up
         sram = Instance("SPBlock_512W64B8W", i_a=a, o_q=q, i_d=d,
                                              i_we=we, i_clk=ClockSignal())
         m.submodules += sram
+        sram.attrs['blackbox'] = 1
 
+        # wishbone is active if cyc and stb set
         wb_active = Signal()
         m.d.comb += wb_active.eq(self.bus.cyc & self.bus.stb)
+
+        # generate ack (no "pipeline" mode here)
+        m.d.sync += self.bus.ack.eq(wb_active)
+
         with m.If(wb_active):
+
             # address
             m.d.comb += a.eq(self.bus.adr)
 
@@ -58,11 +67,6 @@ class SPBlock512W64B8W(Elaboratable):
             m.d.comb += d.eq(self.bus.dat_w)
             with m.If(self.bus.we):
                 m.d.comb += we.eq(self.bus.sel)
-
-        # generate ack (no "pipeline" mode here)
-        m.d.sync += self.bus.ack.eq(0)
-        with m.If(self.bus.cyc & self.bus.stb):
-            m.d.sync += self.bus.ack.eq(1)
 
         return m
 
