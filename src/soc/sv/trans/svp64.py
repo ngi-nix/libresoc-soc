@@ -547,8 +547,9 @@ class SVP64Asm:
                 svp64_prefix |= ((svp64_rm>>(23-i))&0b1) << (31-x)
 
             # fiinally yield the svp64 prefix and the thingy.  v3.0b opcode
+            rc = '.' if rc_mode else ''
             yield ".long 0x%x" % svp64_prefix
-            yield "%s %s" % (v30b_op, ", ".join(v30b_newfields))
+            yield "%s %s" % (v30b_op+rc, ", ".join(v30b_newfields))
             print ("new v3.0B fields", v30b_op, v30b_newfields)
 
 if __name__ == '__main__':
@@ -564,6 +565,7 @@ if __name__ == '__main__':
                  'sv.extsw./ff=eq 5, 31',
                  'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
+                 'sv.add. 5.v, 2.v, 1.v',
                 ])
     print ("list", list(isa))
     csvs = SVP64RM()
