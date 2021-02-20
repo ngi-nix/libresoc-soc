@@ -1071,6 +1071,9 @@ class PowerDecode2(PowerDecodeSubset):
         m.submodules.o_svdec = o_svdec = SVP64RegExtra()
         m.submodules.o2_svdec = o2_svdec = SVP64RegExtra()
 
+        # debug access to crout_svdec (used in get_pdecode_cr_out)
+        self.crout_svdec = crout_svdec
+
         # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
         reg = Signal(5, reset_less=True)
 
