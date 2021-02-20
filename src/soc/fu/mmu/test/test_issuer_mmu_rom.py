@@ -4,12 +4,14 @@ from soc.simulator.program import Program
 from soc.config.endian import bigendian
 import unittest
 
-from soc.fu.test.common import (
-    TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
+from soc.fu.test.common import (TestAccumulatorBase, skip_case, TestCase,
+                                ALUHelpers)
 
 def b(x):
     return int.from_bytes(x.to_bytes(8, byteorder='little'),
                           byteorder='big', signed=False)
+
+
 default_mem = { 0x10000:    # PARTITION_TABLE_2
                        # PATB_GR=1 PRTB=0x1000 PRTS=0xb
                 b(0x800000000100000b),
@@ -49,6 +51,8 @@ class MMUTestCase(TestAccumulatorBase):
         initial_sprs = {}
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
+
+
 class RomDBG():
     def __init__(self):
         self.rom = default_mem
