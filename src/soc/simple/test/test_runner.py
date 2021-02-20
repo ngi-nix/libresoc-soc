@@ -123,7 +123,7 @@ class TestRunner(FHDLTestCase):
         super().__init__("run_all")
         self.test_data = tst_data
         self.microwatt_mmu = microwatt_mmu
-        self.rom = None
+        self.rom = rom
 
     def run_all(self):
         m = Module()
