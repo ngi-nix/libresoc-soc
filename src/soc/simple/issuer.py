@@ -39,6 +39,7 @@ from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
 from soc.clock.select import ClockSelect
 from soc.clock.dummypll import DummyPLL
+from soc.sv.svstate import SVSTATERec
 
 
 from nmutil.util import rising_edge
@@ -406,6 +407,14 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.raw_insn_i.eq(0)
                     sync += core.bigendian_i.eq(0)
                     m.next = "INSN_FETCH"  # back to fetch
+
+        # for updating svstate (things like srcstep etc.)
+        update_svstate = Signal() # TODO: move this somewhere above
+        new_svstate = SVSSTATERec("new_svstate") # and move this as well
+        # check if svstate needs updating: if so, write it to State Regfile
+        with m.If(update_svstate):
+            comb += self.state_w_sv.wen.eq(1<<StateRegs.SVSTATE)
+            comb += self.state_w_sv.data_i.eq(new_svstate)
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
