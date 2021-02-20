@@ -250,6 +250,16 @@ class SVP64RMFields:
         self.ewsrc = FieldSelectableInt(self.spr, tuple(range(6,8)))
         self.subvl = FieldSelectableInt(self.spr, tuple(range(8,10)))
         self.extra = FieldSelectableInt(self.spr, tuple(range(10,19)))
+        self.extra2 = list(range(4))
+        self.extra2[0] = FieldSelectableInt(self.spr, tuple(range(10,12)))
+        self.extra2[1] = FieldSelectableInt(self.spr, tuple(range(12,14)))
+        self.extra2[2] = FieldSelectableInt(self.spr, tuple(range(14,16)))
+        self.extra2[3] = FieldSelectableInt(self.spr, tuple(range(16,18)))
+        self.smask = FieldSelectableInt(self.spr, tuple(range(16,19)))
+        self.extra3 = list(range(3))
+        self.extra3[0] = FieldSelectableInt(self.spr, tuple(range(10,13)))
+        self.extra3[1] = FieldSelectableInt(self.spr, tuple(range(13,16)))
+        self.extra3[2] = FieldSelectableInt(self.spr, tuple(range(16,19)))
         self.mode = FieldSelectableInt(self.spr, tuple(range(19,24)))
 
 
