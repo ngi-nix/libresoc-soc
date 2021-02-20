@@ -123,8 +123,8 @@ class DecoderTestCase(FHDLTestCase):
         initial_regs[6] = 0x2223
         # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
-        svstate.vl[0:7] = 1 # VL
-        svstate.maxvl[0:7] = 1 # MAXVL
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
         # copy before running
         expected_regs = deepcopy(initial_regs)
@@ -133,12 +133,14 @@ class DecoderTestCase(FHDLTestCase):
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
-            print ("CR0", sim.crl[0].get_range().value)
-            print ("CR1", sim.crl[1].get_range().value)
+            # XXX TODO, these need to move to higher range (offset)
+            CR0 = sim.crl[0].get_range().value
+            CR1 = sim.crl[1].get_range().value
+            print ("CR0", CR0)
+            print ("CR1", CR1)
             self._check_regs(sim, expected_regs)
-            self.assertEqual(sim.crl[0].get_range().value,
-                             SelectableInt(4, 4))
-
+            self.assertEqual(CR0, SelectableInt(2, 4))
+            self.assertEqual(CR1, SelectableInt(4, 4))
 
     def run_tst_program(self, prog, initial_regs=[0] * 32,
                               svstate=None):

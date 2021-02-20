@@ -660,6 +660,7 @@ class DecodeCRIn(Elaboratable):
         self.cr_bitfield_b = Data(3, "cr_bitfield_b")
         self.cr_bitfield_o = Data(3, "cr_bitfield_o")
         self.whole_reg = Data(8,  "cr_fxm")
+        self.sv_override = Signal(2, reset_less=True) # do not do EXTRA spec
 
     def elaborate(self, platform):
         m = Module()
@@ -673,6 +674,7 @@ class DecodeCRIn(Elaboratable):
         comb += self.cr_bitfield_b.ok.eq(0)
         comb += self.cr_bitfield_o.ok.eq(0)
         comb += self.whole_reg.ok.eq(0)
+        comb += self.sv_override.eq(0)
 
         # select the relevant CR bitfields
         with m.Switch(self.sel_in):
@@ -681,9 +683,11 @@ class DecodeCRIn(Elaboratable):
             with m.Case(CRInSel.CR0):
                 comb += self.cr_bitfield.data.eq(0) # CR0 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(1)
+                comb += self.sv_override.eq(1)
             with m.Case(CRInSel.CR1):
                 comb += self.cr_bitfield.data.eq(1) # CR1 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(1)
+                comb += self.sv_override.eq(2)
             with m.Case(CRInSel.BI):
                 comb += self.cr_bitfield.data.eq(self.dec.BI[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
@@ -729,6 +733,7 @@ class DecodeCROut(Elaboratable):
         self.insn_in = Signal(32, reset_less=True)
         self.cr_bitfield = Data(3, "cr_bitfield")
         self.whole_reg = Data(8,  "cr_fxm")
+        self.sv_override = Signal(2, reset_less=True) # do not do EXTRA spec
 
     def elaborate(self, platform):
         m = Module()
@@ -739,6 +744,7 @@ class DecodeCROut(Elaboratable):
 
         comb += self.cr_bitfield.ok.eq(0)
         comb += self.whole_reg.ok.eq(0)
+        comb += self.sv_override.eq(0)
 
         with m.Switch(self.sel_in):
             with m.Case(CROutSel.NONE):
@@ -746,9 +752,11 @@ class DecodeCROut(Elaboratable):
             with m.Case(CROutSel.CR0):
                 comb += self.cr_bitfield.data.eq(0) # CR0 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(self.rc_in)  # only when RC=1
+                comb += self.sv_override.eq(1)
             with m.Case(CROutSel.CR1):
                 comb += self.cr_bitfield.data.eq(1) # CR1 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(self.rc_in)  # only when RC=1
+                comb += self.sv_override.eq(2)
             with m.Case(CROutSel.BF):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BF)
                 comb += self.cr_bitfield.ok.eq(1)
@@ -1180,16 +1188,24 @@ class PowerDecode2(PowerDecodeSubset):
         comb += e.write_fast2.eq(dec_o2.fast_out)
 
         # condition registers (CR)
-        for to_reg, fromreg, svdec in (
-            (e.read_cr1, self.dec_cr_in.cr_bitfield, crin_svdec),
-            (e.read_cr2, self.dec_cr_in.cr_bitfield_b, crin_svdec_b),
-            (e.read_cr3, self.dec_cr_in.cr_bitfield_o, crin_svdec_o),
-            (e.write_cr, self.dec_cr_out.cr_bitfield, crout_svdec)):
+        for to_reg, cr, name, svdec in (
+            (e.read_cr1, self.dec_cr_in, "cr_bitfield", crin_svdec),
+            (e.read_cr2, self.dec_cr_in, "cr_bitfield_b", crin_svdec_b),
+            (e.read_cr3, self.dec_cr_in, "cr_bitfield_o", crin_svdec_o),
+            (e.write_cr, self.dec_cr_out, "cr_bitfield", crout_svdec)):
+            fromreg = getattr(cr, name)
             comb += svdec.extra.eq(extra)        # EXTRA field of SVP64 RM
             comb += svdec.etype.eq(op.SV_Etype)  # EXTRA2/3 for this insn
             comb += svdec.cr_in.eq(fromreg.data) # 3-bit (CR0/BC/BFA)
             with m.If(svdec.isvec):
-                comb += to_reg.data.eq(srcstep+svdec.cr_out) # 7-bit output
+                # check if this is CR0 or CR1: treated differently
+                # (does not "listen" to EXTRA2/3 spec
+                with m.If(cr.sv_override == 1): # CR0
+                    comb += to_reg.data.eq(srcstep+0) # XXX TODO CR0 offset
+                with m.Elif(cr.sv_override == 2): # CR1
+                    comb += to_reg.data.eq(srcstep+1) # XXX TODO CR1 offset
+                with m.Else():
+                    comb += to_reg.data.eq(srcstep+svdec.cr_out) # 7-bit output
             with m.Else():
                 comb += to_reg.data.eq(svdec.cr_out) # 7-bit output
             comb += to_reg.ok.eq(fromreg.ok)

@@ -371,6 +371,7 @@ def get_pdecode_cr_out(dec2, name):
     out_bitfield = yield dec2.dec_cr_out.cr_bitfield.data
     sv_cr_out = yield op.sv_cr_out
     spec = yield dec2.crout_svdec.spec
+    sv_override = yield dec2.dec_cr_out.sv_override
     # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
     out = yield dec2.e.write_cr.data
     o_isvec = yield dec2.o_isvec
@@ -378,6 +379,7 @@ def get_pdecode_cr_out(dec2, name):
     print ("    sv_cr_out", sv_cr_out)
     print ("    cr_bf", out_bitfield)
     print ("    spec", spec)
+    print ("    override", sv_override)
     # identify which regnames map to out / o2
     if name == 'CR0':
         if out_sel == CROutSel.CR0.value:
@@ -989,7 +991,6 @@ class ISACaller:
             rc_en = False
         if rc_en:
             regnum, is_vec = yield from get_pdecode_cr_out(self.dec2, "CR0")
-            regnum = 0 # TODO fix
             self.handle_comparison(results, regnum)
 
         # svp64 loop can end early if the dest is scalar
