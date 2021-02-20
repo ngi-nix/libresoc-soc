@@ -17,8 +17,11 @@ Bugtracker: https://bugs.libre-soc.org/show_bug.cgi?id=578
 import os, sys
 from collections import OrderedDict
 
+from soc.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
+                                    SV64P_PID_SIZE, SV64P_RM_SIZE)
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
+from soc.decoder.selectable_int import SelectableInt
 
 
 # decode GPR into sv extra
@@ -538,17 +541,15 @@ class SVP64Asm:
                 print ("    smask  16-17:", bin(smask))
             print ()
 
-            # first construct the prefix: EXT001, bits 7/9=1, in MSB0 order
-            svp64_prefix = 0x1 << (31-5) # EXT001
-            svp64_prefix |= 0x1 << (31-7) # SVP64 marker 1
-            svp64_prefix |= 0x1 << (31-9) # SVP64 marker 2
-            rmfields = [6, 8] + list(range(10,32)) # SVP64 24-bit RM
-            for i, x in enumerate(rmfields):
-                svp64_prefix |= ((svp64_rm>>(23-i))&0b1) << (31-x)
+            # first, construct the prefix from its subfields
+            svp64_prefix = SVP64PrefixFields()
+            svp64_prefix.major.eq(SelectableInt(0x1, SV64P_MAJOR_SIZE))
+            svp64_prefix.pid.eq(SelectableInt(0b11, SV64P_PID_SIZE))
+            svp64_prefix.rm.eq(SelectableInt(svp64_rm, SV64P_RM_SIZE))
 
             # fiinally yield the svp64 prefix and the thingy.  v3.0b opcode
             rc = '.' if rc_mode else ''
-            yield ".long 0x%x" % svp64_prefix
+            yield ".long 0x%x" % svp64_prefix.insn.value
             yield "%s %s" % (v30b_op+rc, ", ".join(v30b_newfields))
             print ("new v3.0B fields", v30b_op, v30b_newfields)
 

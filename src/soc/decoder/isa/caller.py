@@ -264,6 +264,11 @@ class SVP64PrefixFields:
         self.rm = FieldSelectableInt(self.insn, rmfields)
 
 
+SV64P_MAJOR_SIZE = len(SVP64PrefixFields().major.br)
+SV64P_PID_SIZE = len(SVP64PrefixFields().pid.br)
+SV64P_RM_SIZE = len(SVP64PrefixFields().rm.br)
+
+
 class SPR(dict):
     def __init__(self, dec2, initial_sprs={}):
         self.sd = dec2
