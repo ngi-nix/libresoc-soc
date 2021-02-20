@@ -21,7 +21,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp, In1Sel, In2Sel, In3Sel,
-                                     OutSel)
+                                     OutSel, CROutSel)
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 from soc.decoder.power_svp64 import SVP64RM, decode_extra
@@ -360,6 +360,21 @@ def get_pdecode_idx_in(dec2, name):
     return None, False
 
 
+def get_pdecode_cr_out(dec2, name):
+    op = dec2.dec.op
+    out_sel = yield op.cr_out
+    # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
+    out = yield dec2.e.write_cr.data
+    o_isvec = yield dec2.o_isvec
+    print ("get_pdecode_cr_out", out_sel, CROutSel.CR0.value, out, o_isvec)
+    # identify which regnames map to out / o2
+    if name == 'CR0':
+        if out_sel == CROutSel.CR0.value:
+            return out, o_isvec
+    print ("get_pdecode_idx_out not found", name)
+    return None, False
+
+
 def get_pdecode_idx_out(dec2, name):
     op = dec2.dec.op
     out_sel = yield op.out_sel
@@ -643,7 +658,7 @@ class ISACaller:
         so = so | ov
         self.spr['XER'][XER_bits['SO']] = so
 
-    def handle_comparison(self, outputs):
+    def handle_comparison(self, outputs, cr_idx=0):
         out = outputs[0]
         assert isinstance(out, SelectableInt), \
             "out zero not a SelectableInt %s" % repr(outputs)
@@ -661,7 +676,7 @@ class ISACaller:
         SO = self.spr['XER'][XER_bits['SO']]
         print("handle_comparison SO", SO)
         cr_field = selectconcat(negative, positive, zero, SO)
-        self.crl[0].eq(cr_field)
+        self.crl[cr_idx].eq(cr_field)
 
     def set_pc(self, pc_val):
         self.namespace['NIA'] = SelectableInt(pc_val, 64)
@@ -686,7 +701,6 @@ class ISACaller:
         yield self.dec2.dec.bigendian.eq(self.bigendian)
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
-        # sigh TODO
         yield self.dec2.state.svstate.eq(self.svstate.spr.value)
 
         # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
@@ -963,7 +977,9 @@ class ISACaller:
         else:
             rc_en = False
         if rc_en:
-            self.handle_comparison(results)
+            regnum, is_vec = yield from get_pdecode_cr_out(self.dec2, "CR0")
+            regnum = 0 # TODO fix
+            self.handle_comparison(results, regnum)
 
         # svp64 loop can end early if the dest is scalar
         svp64_dest_vector = False
