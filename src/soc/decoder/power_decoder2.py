@@ -27,7 +27,8 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
 from soc.sv.svp64 import SVP64Rec
-from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3, SVP64P)
+from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3, SVP64P, field,
+                        SPEC_SIZE, SPECb, SPEC_AUG_SIZE)
 
 from soc.regfile.regfiles import FastRegs
 from soc.consts import TT
@@ -160,15 +161,18 @@ class SVP64RegExtra(SVP64ExtraSpec):
         #  from above, which (by design) has the effect of "no change", below.
 
         # simple: isvec is top bit of spec
-        comb += self.isvec.eq(spec[2])
+        comb += self.isvec.eq(spec[SPEC.VEC])
+        # extra bits for register number augmentation
+        spec_aug = Signal(SPEC_AUG_SIZE)
+        comb += spec_aug.eq(field(spec, SPECb.MSB, SPECb.LSB, SPEC_SIZE))
 
         # decode vector differently from scalar
         with m.If(self.isvec):
             # Vector: shifted up, extra in LSBs (RA << 2) | spec[0:1]
-            comb += self.reg_out.eq(Cat(spec[:2], self.reg_in))
+            comb += self.reg_out.eq(Cat(spec_aug, self.reg_in))
         with m.Else():
             # Scalar: not shifted up, extra in MSBs RA | (spec[0:1] << 5)
-            comb += self.reg_out.eq(Cat(self.reg_in, spec[:2]))
+            comb += self.reg_out.eq(Cat(self.reg_in, spec_aug))
 
         return m
 
@@ -204,15 +208,18 @@ class SVP64CRExtra(SVP64ExtraSpec):
         #  from above, which (by design) has the effect of "no change", below.
 
         # simple: isvec is top bit of spec
-        comb += self.isvec.eq(spec[2])
+        comb += self.isvec.eq(spec[SPEC.VEC])
+        # extra bits for register number augmentation
+        spec_aug = Signal(SPEC_AUG_SIZE)
+        comb += spec_aug.eq(field(spec, SPECb.MSB, SPECb.LSB, SPEC_SIZE))
 
         # decode vector differently from scalar, insert bits 0 and 1 accordingly
         with m.If(self.isvec):
             # Vector: shifted up, extra in LSBs (CR << 4) | (spec[0:1] << 2)
-            comb += self.cr_out.eq(Cat(Const(0, 2), spec[:2], self.cr_in))
+            comb += self.cr_out.eq(Cat(Const(0, 2), spec_aug, self.cr_in))
         with m.Else():
             # Scalar: not shifted up, extra in MSBs CR | (spec[0:1] << 3)
-            comb += self.cr_out.eq(Cat(self.cr_in, spec[:2]))
+            comb += self.cr_out.eq(Cat(self.cr_in, spec_aug))
 
         return m
 

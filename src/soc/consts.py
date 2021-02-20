@@ -188,6 +188,7 @@ class SPECb:
 
 
 SPEC_SIZE = 3
+SPEC_AUG_SIZE = 2  # augmented subfield size (MSB+LSB above)
 class SPEC:
     pass
 botchify(SPECb, SPEC, SPEC_SIZE-1)
