@@ -681,6 +681,9 @@ class DecodeCRIn(Elaboratable):
             with m.Case(CRInSel.CR0):
                 comb += self.cr_bitfield.data.eq(0) # CR0 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(1)
+            with m.Case(CRInSel.CR1):
+                comb += self.cr_bitfield.data.eq(1) # CR1 (MSB0 numbering)
+                comb += self.cr_bitfield.ok.eq(1)
             with m.Case(CRInSel.BI):
                 comb += self.cr_bitfield.data.eq(self.dec.BI[2:5])
                 comb += self.cr_bitfield.ok.eq(1)
@@ -742,6 +745,9 @@ class DecodeCROut(Elaboratable):
                 pass  # No bitfield activated
             with m.Case(CROutSel.CR0):
                 comb += self.cr_bitfield.data.eq(0) # CR0 (MSB0 numbering)
+                comb += self.cr_bitfield.ok.eq(self.rc_in)  # only when RC=1
+            with m.Case(CROutSel.CR1):
+                comb += self.cr_bitfield.data.eq(1) # CR1 (MSB0 numbering)
                 comb += self.cr_bitfield.ok.eq(self.rc_in)  # only when RC=1
             with m.Case(CROutSel.BF):
                 comb += self.cr_bitfield.data.eq(self.dec.FormX.BF)
