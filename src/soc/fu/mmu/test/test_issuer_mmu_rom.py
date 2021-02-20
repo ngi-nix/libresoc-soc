@@ -65,6 +65,7 @@ rom_dbg = RomDBG()
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    suite.addTest(TestRunner(MMUTestCase().test_data,rom_dbg))
+    suite.addTest(TestRunner(MMUTestCase().test_data, microwatt_mmu=True,
+                             rom=rom_dbg))
     runner = unittest.TextTestRunner()
     runner.run(suite)
