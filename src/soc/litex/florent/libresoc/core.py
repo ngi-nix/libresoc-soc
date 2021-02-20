@@ -187,6 +187,11 @@ class LibreSoC(CPU):
         if jtag_en:
             self.jtag_wb = jtag_wb = wb.Interface(data_width=64, adr_width=29)
 
+        if "sram4k" in variant or variant == 'ls180':
+            self.srams = srams = []
+            for i in range(4):
+                srams.append(wb.Interface(data_width=64, adr_width=29))
+
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
 
@@ -261,6 +266,10 @@ class LibreSoC(CPU):
             self.cpu_params.update(make_wb_slave("gpio_wb", gpio))
         if jtag_en:
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
+        if "sram4k" in variant or variant == 'ls180':
+            for i, sram in enumerate(srams):
+                self.cpu_params.update(make_wb_slave("sram4k_%d_wb" % i, sram))
+
         # and set ibus advanced tags to zero (disable)
         self.cpu_params['i_ibus__cti'] = 0
         self.cpu_params['i_ibus__bte'] = 0

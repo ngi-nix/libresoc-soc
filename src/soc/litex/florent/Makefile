@@ -5,6 +5,7 @@ ls180:
 	cp build/ls180/gateware/mem_1.init .
 	cp build/ls180/gateware/mem_2.init .
 	cp build/ls180/gateware/mem_3.init .
+	cp build/ls180/gateware/mem_4.init .
 	cp libresoc/libresoc.v .
 	yosys -p 'read_verilog libresoc.v' \
           -p 'write_ilang libresoc_cvt.il'

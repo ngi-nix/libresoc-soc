@@ -321,9 +321,14 @@ class LibreSoCSim(SoCCore):
 
         self.mem_map["main_ram"] = 0x90000000
         self.mem_map["sram"] = 0x00000000
-        self.mem_map["sram1"] = 0x00001000
-        self.mem_map["sram2"] = 0x00002000
-        self.mem_map["sram3"] = 0x00003000
+        self.mem_map["sram1"] = 0x00000200
+        self.mem_map["sram2"] = 0x00000400
+        self.mem_map["sram3"] = 0x00000600
+        self.mem_map["sram4"] = 0x00000800
+        self.mem_map["sram4k_0"] = 0x00001000
+        self.mem_map["sram4k_1"] = 0x00002000
+        self.mem_map["sram4k_2"] = 0x00003000
+        self.mem_map["sram4k_3"] = 0x00004000
 
         # SoCCore -------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -349,10 +354,11 @@ class LibreSoCSim(SoCCore):
             )
         self.platform.name = "ls180"
 
-        # add 3 more 4k integrated SRAMs
+        # add 4 more 4k integrated SRAMs
         self.add_ram("sram1", self.mem_map["sram1"], 0x200)
         self.add_ram("sram2", self.mem_map["sram2"], 0x200)
         self.add_ram("sram3", self.mem_map["sram3"], 0x200)
+        self.add_ram("sram4", self.mem_map["sram4"], 0x200)
 
         # SDR SDRAM ----------------------------------------------
         if False: # not self.integrated_main_ram_size:
@@ -369,6 +375,13 @@ class LibreSoCSim(SoCCore):
             ics_wb = self.cpu.xics_ics
             ics_region = SoCRegion(origin=ics_addr, size=0x1000, cached=False)
             self.bus.add_slave(name='ics', slave=ics_wb, region=ics_region)
+
+            # add 4x 4k SRAMs
+            for i, sram_wb in enumerate(self.cpu.srams):
+                name = 'sram4k_%d' % i
+                sram_adr = self.mem_map[name]
+                ics_region = SoCRegion(origin=sram_adr, size=0x1000)
+                self.bus.add_slave(name=name, slave=sram_wb, region=ics_region)
 
         # CRG -----------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"),

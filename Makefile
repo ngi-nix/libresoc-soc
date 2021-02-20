@@ -29,6 +29,12 @@ testgpio_run_sim:
 	python3 src/soc/litex/florent/sim.py --cpu=libresoc \
 			--variant=standardjtagtestgpio
 
+ls180_verilog:
+	python3 src/soc/simple/issuer_verilog.py \
+	        --debug=jtag --enable-core --enable-pll \
+	        --enable-xics --enable-sram4x4kblock
+			src/soc/litex/florent/libresoc/libresoc.v
+
 test: install
 	python3 setup.py test # could just run nosetest3...
 
