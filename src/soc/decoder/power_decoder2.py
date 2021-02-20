@@ -157,7 +157,7 @@ class SVP64RegExtra(SVP64ExtraSpec):
         # which is zero which is ok.
         spec = self.spec
 
-        # now decode it. bit 2 is "scalar/vector".  note that spec could be zero
+        # now decode it. bit 0 is "scalar/vector".  note that spec could be zero
         #  from above, which (by design) has the effect of "no change", below.
 
         # simple: isvec is top bit of spec
@@ -168,10 +168,10 @@ class SVP64RegExtra(SVP64ExtraSpec):
 
         # decode vector differently from scalar
         with m.If(self.isvec):
-            # Vector: shifted up, extra in LSBs (RA << 2) | spec[0:1]
+            # Vector: shifted up, extra in LSBs (RA << 2) | spec[1:2]
             comb += self.reg_out.eq(Cat(spec_aug, self.reg_in))
         with m.Else():
-            # Scalar: not shifted up, extra in MSBs RA | (spec[0:1] << 5)
+            # Scalar: not shifted up, extra in MSBs RA | (spec[1:2] << 5)
             comb += self.reg_out.eq(Cat(self.reg_in, spec_aug))
 
         return m
@@ -192,7 +192,7 @@ class SVP64CRExtra(SVP64ExtraSpec):
     """
     def __init__(self):
         SVP64ExtraSpec.__init__(self)
-        self.cr_in  = Signal(3) # incoming CR number (3 bits, BA[2:5], BFA)
+        self.cr_in  = Signal(3) # incoming CR number (3 bits, BA[0:2], BFA)
         self.cr_out = Signal(7) # extra-augmented CR output (7 bits)
         self.isvec  = Signal(1) # reg is marked as vector if true
 
@@ -204,7 +204,7 @@ class SVP64CRExtra(SVP64ExtraSpec):
         # which is zero which is ok.
         spec = self.spec
 
-        # now decode it. bit 2 is "scalar/vector".  note that spec could be zero
+        # now decode it. bit 0 is "scalar/vector".  note that spec could be zero
         #  from above, which (by design) has the effect of "no change", below.
 
         # simple: isvec is top bit of spec
@@ -213,12 +213,12 @@ class SVP64CRExtra(SVP64ExtraSpec):
         spec_aug = Signal(SPEC_AUG_SIZE)
         comb += spec_aug.eq(field(spec, SPECb.MSB, SPECb.LSB, SPEC_SIZE))
 
-        # decode vector differently from scalar, insert bits 0 and 1 accordingly
+        # decode vector differently from scalar, insert bits 1 and 2 accordingly
         with m.If(self.isvec):
-            # Vector: shifted up, extra in LSBs (CR << 4) | (spec[0:1] << 2)
+            # Vector: shifted up, extra in LSBs (CR << 4) | (spec[1:2] << 2)
             comb += self.cr_out.eq(Cat(Const(0, 2), spec_aug, self.cr_in))
         with m.Else():
-            # Scalar: not shifted up, extra in MSBs CR | (spec[0:1] << 3)
+            # Scalar: not shifted up, extra in MSBs CR | (spec[1:2] << 3)
             comb += self.cr_out.eq(Cat(self.cr_in, spec_aug))
 
         return m
