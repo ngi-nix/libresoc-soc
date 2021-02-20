@@ -77,7 +77,7 @@ def field(r, msb0_start, msb0_end=None, field_width=64):
     if msb0_end is None:
         return r[(field_width - 1) - msb0_start]
     else:
-        return r[field_slice(msb0_start, msb0_end)]
+        return r[field_slice(msb0_start, msb0_end, field_width)]
 
 
 def sel(r, sel_bits, field_width=None):
