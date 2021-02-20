@@ -107,9 +107,9 @@ class DecoderTestCase(FHDLTestCase):
             self._check_regs(sim, expected_regs)
 
     def test_sv_add_cr(self):
-        # adds:
-        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
-        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
+        # adds when Rc=1:                               TODO CRs higher up
+        #       1 = 5 + 9   => 0 = -1+1                 CR0=0b100
+        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111   CR1=0b010
         isa = SVP64Asm(['sv.add. 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
