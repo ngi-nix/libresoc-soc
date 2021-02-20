@@ -410,7 +410,7 @@ class TestIssuerInternal(Elaboratable):
 
         # for updating svstate (things like srcstep etc.)
         update_svstate = Signal() # TODO: move this somewhere above
-        new_svstate = SVSSTATERec("new_svstate") # and move this as well
+        new_svstate = SVSTATERec("new_svstate") # and move this as well
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):
             comb += self.state_w_sv.wen.eq(1<<StateRegs.SVSTATE)
