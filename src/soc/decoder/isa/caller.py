@@ -368,10 +368,14 @@ def get_pdecode_idx_in(dec2, name):
 def get_pdecode_cr_out(dec2, name):
     op = dec2.dec.op
     out_sel = yield op.cr_out
+    out_bitfield = yield dec2.dec_cr_out.cr_bitfield.data
+    sv_cr_out = yield op.sv_cr_out
     # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
     out = yield dec2.e.write_cr.data
     o_isvec = yield dec2.o_isvec
     print ("get_pdecode_cr_out", out_sel, CROutSel.CR0.value, out, o_isvec)
+    print ("    sv_cr_out", sv_cr_out)
+    print ("    cr_bf", out_bitfield)
     # identify which regnames map to out / o2
     if name == 'CR0':
         if out_sel == CROutSel.CR0.value:
