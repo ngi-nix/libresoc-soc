@@ -917,6 +917,10 @@ class PowerDecodeSubset(Elaboratable):
         spr = Signal(10, reset_less=True)
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
+        # XXX BUG - don't use hardcoded magic constants.
+        # also use ".value" otherwise the test fails.  bit of a pain
+        # https://bugs.libre-soc.org/show_bug.cgi?id=603
+
         SPR_PID   = 48  # TODO read docs for POWER9
         # Microwatt doesn't implement the partition table
         # instead has PRTBL register (SPR) to point to process table
