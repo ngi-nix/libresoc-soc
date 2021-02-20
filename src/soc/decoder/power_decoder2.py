@@ -1168,7 +1168,10 @@ class PowerDecode2(PowerDecodeSubset):
             comb += svdec.extra.eq(extra)        # EXTRA field of SVP64 RM
             comb += svdec.etype.eq(op.SV_Etype)  # EXTRA2/3 for this insn
             comb += svdec.cr_in.eq(fromreg.data) # 3-bit (CR0/BC/BFA)
-            comb += to_reg.data.eq(svdec.cr_out) # 7-bit output
+            with m.If(svdec.isvec):
+                comb += to_reg.data.eq(srcstep+svdec.cr_out) # 7-bit output
+            with m.Else():
+                comb += to_reg.data.eq(svdec.cr_out) # 7-bit output
             comb += to_reg.ok.eq(fromreg.ok)
 
         # sigh this is exactly the sort of thing for which the
