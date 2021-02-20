@@ -36,10 +36,15 @@ class MMUTestCase(TestAccumulatorBase):
 
     def case_mmu_ldst(self):
         lst = [
+                "mtspr 720, 1",
                 "lhz 3, 0(1)"      # load some data
               ]
 
         initial_regs = [0] * 32
+        
+        prtbl = 0x1000000
+        initial_regs[1] = prtbl
+        
 
         initial_sprs = {}
         self.add_case(Program(lst, bigendian),
@@ -48,6 +53,8 @@ class RomDBG():
     def __init__(self):
         self.rom = default_mem
         self.debug = open("/tmp/rom.log","w")
+        
+        # yield mmu.rin.prtbl.eq(0x1000000) # set process table -- SPR_PRTBL = 720
 
 rom_dbg = RomDBG()
 
