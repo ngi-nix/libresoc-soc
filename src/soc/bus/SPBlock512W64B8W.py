@@ -12,7 +12,7 @@ class SPBlock512W64B8W(Elaboratable):
     Instance SPBlock512W64B8W).  512 rows, 64-bit, QTY 8 write-enable lines
     """
 
-    def __init__(self, bus=None, features=None):
+    def __init__(self, bus=None, features=None, name=None):
         if features is None:
             features = frozenset()
         if bus is None:
@@ -21,7 +21,7 @@ class SPBlock512W64B8W(Elaboratable):
                             granularity=8, # at 8-bit granularity
                             features=features,
                             alignment=0,
-                            name=None)
+                            name=name)
         self.bus = bus
         self.granularity = bus.granularity
 

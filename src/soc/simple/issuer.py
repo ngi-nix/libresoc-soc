@@ -37,6 +37,7 @@ from soc.config.pinouts import get_pinspecs
 from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
+from soc.bus.SPBlock512W64B8W import SPBlock512W64B8W
 from soc.clock.select import ClockSelect
 from soc.clock.dummypll import DummyPLL
 from soc.sv.svstate import SVSTATERec
@@ -74,6 +75,14 @@ class TestIssuerInternal(Elaboratable):
             # honestly probably not.
             pspec.wb_icache_en = self.jtag.wb_icache_en
             pspec.wb_dcache_en = self.jtag.wb_dcache_en
+
+        # add 4k sram blocks?
+        self.sram4x4k = (hasattr(pspec, "sram4x4kblock") and 
+                         pspec.sram4x4kblock == True)
+        if self.sram4x4k:
+            self.sram4k = []
+            for i in range(4):
+                self.sram4k.append(SPBlock512W64B8W(name="sram4k_%d" % i))
 
         # add interrupt controller?
         self.xics = hasattr(pspec, "xics") and pspec.xics == True
@@ -148,6 +157,11 @@ class TestIssuerInternal(Elaboratable):
             sync += dbg.dmi.connect_to(jtag.dmi)
 
         cur_state = self.cur_state
+
+        # 4x 4k SRAM blocks.  these simply "exist", they get routed in litex
+        if self.sram4x4k:
+            for i, sram in enumerate(self.sram4k):
+                m.submodules["sram4k_%d" % i] = sram
 
         # XICS interrupt handler
         if self.xics:
@@ -536,6 +550,10 @@ class TestIssuerInternal(Elaboratable):
 
         ports += list(self.imem.ibus.fields.values())
         ports += list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
+
+        if self.sram4x4k:
+            for sram in self.sram4k:
+                ports += list(sram.bus.fields.values())
 
         if self.xics:
             ports += list(self.xics_icp.bus.fields.values())
