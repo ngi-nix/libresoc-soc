@@ -124,14 +124,14 @@ class SVP64ExtraSpec(Elaboratable):
             with m.Case(SVEtype.EXTRA3):
                 with m.Switch(self.idx):
                     with m.Case(SVEXTRA.Idx0):  # 1st 3 bits [0:2]
-                        idx0 = sel(m, extra, EXTRA3.IDX0, name="idx0")
-                        comb += spec.eq(idx0)
+                        extra3_idx0 = sel(m, extra, EXTRA3.IDX0)
+                        comb += spec.eq(extra3_idx0)
                     with m.Case(SVEXTRA.Idx1):  # 2nd 3 bits [3:5]
-                        idx1 = sel(m, extra, EXTRA3.IDX1, name="idx1")
-                        comb += spec.eq(idx1)
+                        extra3_idx1 = sel(m, extra, EXTRA3.IDX1)
+                        comb += spec.eq(extra3_idx1)
                     with m.Case(SVEXTRA.Idx2):  # 3rd 3 bits [6:8]
-                        idx2 = sel(m, extra, EXTRA3.IDX2, name="idx2")
-                        comb += spec.eq(idx2)
+                        extra3_idx2 = sel(m, extra, EXTRA3.IDX2)
+                        comb += spec.eq(extra3_idx2)
                     # cannot fit more than 9 bits so there is no 4th thing
 
         return m
@@ -1372,8 +1372,8 @@ class SVP64PrefixDecoder(Elaboratable):
         comb += opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # start identifying if the incoming opcode is SVP64 prefix)
-        major = sel(m, opcode_in, SVP64P.OPC, name="major")
-        ident = sel(m, opcode_in, SVP64P.SVP64_7_9, name="ident")
+        major = sel(m, opcode_in, SVP64P.OPC)
+        ident = sel(m, opcode_in, SVP64P.SVP64_7_9)
 
         comb += self.is_svp64_mode.eq(
             (major == Const(1, 6)) &   # EXT01
@@ -1382,7 +1382,7 @@ class SVP64PrefixDecoder(Elaboratable):
 
         with m.If(self.is_svp64_mode):
             # now grab the 24-bit ReMap context bits,
-            rm = sel(m, opcode_in, SVP64P.RM, name="rm")
+            rm = sel(m, opcode_in, SVP64P.RM)
             comb += self.svp64_rm.eq(rm)
 
         return m
