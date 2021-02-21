@@ -8,6 +8,8 @@ over-riding the internal opcode when an exception is needed.
 
 from nmigen import Module, Elaboratable, Signal, Mux, Const, Cat, Repl, Record
 from nmigen.cli import rtlil
+from nmutil.util import sel
+
 from soc.regfile.regfiles import XERRegs
 
 from nmutil.picker import PriorityPicker
@@ -27,7 +29,7 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
 from soc.sv.svp64 import SVP64Rec
-from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3, SVP64P, field,
+from soc.consts import (MSR, SPEC, EXTRA2, EXTRA3, SVP64P, field,
                         SPEC_SIZE, SPECb, SPEC_AUG_SIZE, SVP64CROffs)
 
 from soc.regfile.regfiles import FastRegs
@@ -122,11 +124,14 @@ class SVP64ExtraSpec(Elaboratable):
             with m.Case(SVEtype.EXTRA3):
                 with m.Switch(self.idx):
                     with m.Case(SVEXTRA.Idx0):  # 1st 3 bits [0:2]
-                        comb += spec.eq(sel(extra, EXTRA3.IDX0))
+                        idx0 = sel(m, extra, EXTRA3.IDX0, name="idx0")
+                        comb += spec.eq(idx0)
                     with m.Case(SVEXTRA.Idx1):  # 2nd 3 bits [3:5]
-                        comb += spec.eq(sel(extra, EXTRA3.IDX1))
+                        idx1 = sel(m, extra, EXTRA3.IDX1, name="idx1")
+                        comb += spec.eq(idx1)
                     with m.Case(SVEXTRA.Idx2):  # 3rd 3 bits [6:8]
-                        comb += spec.eq(sel(extra, EXTRA3.IDX2))
+                        idx2 = sel(m, extra, EXTRA3.IDX2, name="idx2")
+                        comb += spec.eq(idx2)
                     # cannot fit more than 9 bits so there is no 4th thing
 
         return m
@@ -1367,11 +1372,8 @@ class SVP64PrefixDecoder(Elaboratable):
         comb += opcode_in.eq(Mux(self.bigendian, raw_be, raw_le))
 
         # start identifying if the incoming opcode is SVP64 prefix)
-        major = Signal(6, reset_less=True)
-        ident = Signal(2, reset_less=True)
-
-        comb += major.eq(sel(opcode_in, SVP64P.OPC))
-        comb += ident.eq(sel(opcode_in, SVP64P.SVP64_7_9))
+        major = sel(m, opcode_in, SVP64P.OPC, name="major")
+        ident = sel(m, opcode_in, SVP64P.SVP64_7_9, name="ident")
 
         comb += self.is_svp64_mode.eq(
             (major == Const(1, 6)) &   # EXT01
@@ -1380,7 +1382,8 @@ class SVP64PrefixDecoder(Elaboratable):
 
         with m.If(self.is_svp64_mode):
             # now grab the 24-bit ReMap context bits,
-            comb += self.svp64_rm.eq(sel(opcode_in, SVP64P.RM))
+            rm = sel(m, opcode_in, SVP64P.RM, name="rm")
+            comb += self.svp64_rm.eq(rm)
 
         return m
 
