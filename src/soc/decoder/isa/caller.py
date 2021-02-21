@@ -263,6 +263,17 @@ class SVP64RMFields:
         self.mode = FieldSelectableInt(self.spr, tuple(range(19,24)))
 
 
+SVP64RM_MMODE_SIZE = len(SVP64RMFields().mmode.br)
+SVP64RM_MASK_SIZE = len(SVP64RMFields().mask.br)
+SVP64RM_ELWIDTH_SIZE = len(SVP64RMFields().elwidth.br)
+SVP64RM_EWSRC_SIZE = len(SVP64RMFields().ewsrc.br)
+SVP64RM_SUBVL_SIZE = len(SVP64RMFields().subvl.br)
+SVP64RM_EXTRA2_SPEC_SIZE = len(SVP64RMFields().extra2[0].br)
+SVP64RM_EXTRA3_SPEC_SIZE = len(SVP64RMFields().extra3[0].br)
+SVP64RM_SMASK_SIZE = len(SVP64RMFields().smask.br)
+SVP64RM_MODE_SIZE = len(SVP64RMFields().mode.br)
+
+
 # SVP64 Prefix fields: see https://libre-soc.org/openpower/sv/svp64/
 class SVP64PrefixFields:
     def __init__(self):

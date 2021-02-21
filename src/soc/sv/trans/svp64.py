@@ -18,8 +18,13 @@ import os, sys
 from collections import OrderedDict
 
 from soc.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
-                                    SV64P_PID_SIZE, SV64P_RM_SIZE,
-                                    SVP64RMFields)
+                                    SV64P_PID_SIZE, SVP64RMFields,
+                                    SVP64RM_EXTRA2_SPEC_SIZE,
+                                    SVP64RM_EXTRA3_SPEC_SIZE,
+                                    SVP64RM_MODE_SIZE, SVP64RM_SMASK_SIZE,
+                                    SVP64RM_MMODE_SIZE, SVP64RM_MASK_SIZE,
+                                    SVP64RM_SUBVL_SIZE, SVP64RM_EWSRC_SIZE,
+                                    SVP64RM_ELWIDTH_SIZE)
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
 from soc.decoder.selectable_int import SelectableInt
@@ -339,9 +344,11 @@ class SVP64Asm:
             for idx, sv_extra in extras.items():
                 if idx is None: continue
                 if etype == 'EXTRA2':
-                    svp64_rm.extra2[idx].eq(SelectableInt(sv_extra, 2))
+                    svp64_rm.extra2[idx].eq(
+                        SelectableInt(sv_extra, SVP64RM_EXTRA2_SPEC_SIZE))
                 else:
-                    svp64_rm.extra3[idx].eq(SelectableInt(sv_extra, 3))
+                    svp64_rm.extra3[idx].eq(
+                        SelectableInt(sv_extra, SVP64RM_EXTRA3_SPEC_SIZE))
 
             # parts of svp64_rm
             mmode = 0  # bit 0
@@ -509,25 +516,25 @@ class SVP64Asm:
             # now put into svp64_rm
             mode |= sv_mode
             # mode: bits 19-23
-            svp64_rm.mode.eq(SelectableInt(mode, 5))
+            svp64_rm.mode.eq(SelectableInt(mode, SVP64RM_MODE_SIZE))
 
             # put in predicate masks into svp64_rm
             if ptype == '2P':
                 # source pred: bits 16-18
-                svp64_rm.smask.eq(SelectableInt(smask, 3))
+                svp64_rm.smask.eq(SelectableInt(smask, SVP64RM_SMASK_SIZE))
             # mask mode: bit 0
-            svp64_rm.mmode.eq(SelectableInt(mmode, 1))
+            svp64_rm.mmode.eq(SelectableInt(mmode, SVP64RM_MMODE_SIZE))
             # 1-pred: bits 1-3
-            svp64_rm.mask.eq(SelectableInt(pmask, 3))
+            svp64_rm.mask.eq(SelectableInt(pmask, SVP64RM_MASK_SIZE))
 
             # and subvl: bits 8-9
-            svp64_rm.subvl.eq(SelectableInt(subvl, 2))
+            svp64_rm.subvl.eq(SelectableInt(subvl, SVP64RM_SUBVL_SIZE))
 
             # put in elwidths
             # srcwid: bits 6-7
-            svp64_rm.ewsrc.eq(SelectableInt(srcwid, 2))
+            svp64_rm.ewsrc.eq(SelectableInt(srcwid, SVP64RM_EWSRC_SIZE))
             # destwid: bits 4-5
-            svp64_rm.elwidth.eq(SelectableInt(destwid, 2))
+            svp64_rm.elwidth.eq(SelectableInt(destwid, SVP64RM_ELWIDTH_SIZE))
 
             # nice debug printout. (and now for something completely different)
             # https://youtu.be/u0WOIwlXE9g?t=146
