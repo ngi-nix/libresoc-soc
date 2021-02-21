@@ -146,150 +146,21 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def elaborate(self, platform):
-        m = Module()
-        comb, sync = m.d.comb, m.d.sync
-
-        m.submodules.core = core = DomainRenamer("coresync")(self.core)
-        m.submodules.imem = imem = self.imem
-        m.submodules.dbg = dbg = self.dbg
-        if self.jtag_en:
-            m.submodules.jtag = jtag = self.jtag
-            # TODO: UART2GDB mux, here, from external pin
-            # see https://bugs.libre-soc.org/show_bug.cgi?id=499
-            sync += dbg.dmi.connect_to(jtag.dmi)
-
-        cur_state = self.cur_state
-
-        # 4x 4k SRAM blocks.  these simply "exist", they get routed in litex
-        if self.sram4x4k:
-            for i, sram in enumerate(self.sram4k):
-                m.submodules["sram4k_%d" % i] = sram
-                comb += sram.enable.eq(self.wb_sram_en)
-
-        # XICS interrupt handler
-        if self.xics:
-            m.submodules.xics_icp = icp = self.xics_icp
-            m.submodules.xics_ics = ics = self.xics_ics
-            comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
-            sync += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
-
-        # GPIO test peripheral
-        if self.gpio:
-            m.submodules.simple_gpio = simple_gpio = self.simple_gpio
-
-        # connect one GPIO output to ICS bit 15 (like in microwatt soc.vhdl)
-        # XXX causes litex ECP5 test to get wrong idea about input and output
-        # (but works with verilator sim *sigh*)
-        #if self.gpio and self.xics:
-        #   comb += self.int_level_i[15].eq(simple_gpio.gpio_o[0])
-
-        # instruction decoder
-        pdecode = create_pdecode()
-        m.submodules.dec2 = pdecode2 = self.pdecode2
-        m.submodules.svp64 = svp64 = self.svp64
-
-        # convenience
-        dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
-        intrf = self.core.regs.rf['int']
-
-        # clock delay power-on reset
-        cd_por  = ClockDomain(reset_less=True)
-        cd_sync = ClockDomain()
-        core_sync = ClockDomain("coresync")
-        m.domains += cd_por, cd_sync, core_sync
-
-        ti_rst = Signal(reset_less=True)
-        delay = Signal(range(4), reset=3)
-        with m.If(delay != 0):
-            m.d.por += delay.eq(delay - 1)
-        comb += cd_por.clk.eq(ClockSignal())
-
-        # power-on reset delay
-        core_rst = ResetSignal("coresync")
-        comb += ti_rst.eq(delay != 0 | dbg.core_rst_o | ResetSignal())
-        comb += core_rst.eq(ti_rst)
-
-        # busy/halted signals from core
-        comb += self.busy_o.eq(core.busy_o)
-        comb += pdecode2.dec.bigendian.eq(self.core_bigendian_i)
-
-        # temporary hack: says "go" immediately for both address gen and ST
-        l0 = core.l0
-        ldst = core.fus.fus['ldst0']
-        st_go_edge = rising_edge(m, ldst.st.rel_o)
-        m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
-        m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
-
-        # PC and instruction from I-Memory
-        pc_changed = Signal() # note write to PC
-        comb += self.pc_o.eq(cur_state.pc)
-        ilatch = Signal(32)
-
-        # address of the next instruction, in the absence of a branch
-        # depends on the instruction size
-        nia = Signal(64, reset_less=True)
-
-        # read the PC
-        pc = Signal(64, reset_less=True)
-        pc_ok_delay = Signal()
-        sync += pc_ok_delay.eq(~self.pc_i.ok)
-        with m.If(self.pc_i.ok):
-            # incoming override (start from pc_i)
-            comb += pc.eq(self.pc_i.data)
-        with m.Else():
-            # otherwise read StateRegs regfile for PC...
-            comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
-        # ... but on a 1-clock delay
-        with m.If(pc_ok_delay):
-            comb += pc.eq(self.state_r_pc.data_o)
-
-        # don't write pc every cycle
-        comb += self.state_w_pc.wen.eq(0)
-        comb += self.state_w_pc.data_i.eq(0)
-
-        # don't read msr or svstate every cycle
-        comb += self.state_r_sv.ren.eq(0)
-        comb += self.state_r_msr.ren.eq(0)
-        msr_read = Signal(reset=1)
-        sv_read = Signal(reset=1)
-
-        # connect up debug signals
-        # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
-        comb += dbg.terminate_i.eq(core.core_terminate_o)
-        comb += dbg.state.pc.eq(pc)
-        #comb += dbg.state.pc.eq(cur_state.pc)
-        comb += dbg.state.msr.eq(cur_state.msr)
-
-        # temporaries
-        core_busy_o = core.busy_o                 # core is busy
-        core_ivalid_i = core.ivalid_i             # instruction is valid
-        core_issue_i = core.issue_i               # instruction is issued
-        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
-        insn_type = core.e.do.insn_type           # instruction MicroOp type
-
-        # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
-        # these are the handshake signals between fetch and decode/execute
-
-        # fetch FSM can run as soon as the PC is valid
-        fetch_pc_valid_i = Signal()
-        fetch_pc_ready_o = Signal()
-        # when done, deliver the instruction to the next FSM
-        fetch_insn_valid_o = Signal()
-        fetch_insn_ready_i = Signal()
-
-        # latches copy of raw fetched instruction
-        fetch_insn_o = Signal(32, reset_less=True)
-
-        # actually use a nmigen FSM for the first time (w00t)
-        # this FSM is perhaps unusual in that it detects conditions
-        # then "holds" information, combinatorially, for the core
-        # (as opposed to using sync - which would be on a clock's delay)
-        # this includes the actual opcode, valid flags and so on.
-
-        # this FSM performs fetch of raw instruction data, partial-decodes
-        # it 32-bit at a time to detect SVP64 prefixes, and will optionally
-        # read a 2nd 32-bit quantity if that occurs.
+    def fetch_fsm(self, m, core, dbg, pc, nia,
+                        core_rst, cur_state,
+                        fetch_pc_ready_o, fetch_pc_valid_i,
+                        fetch_insn_valid_o, fetch_insn_ready_i,
+                        msr_read, sv_read,
+                        fetch_insn_o):
+        """fetch FSM
+        this FSM performs fetch of raw instruction data, partial-decodes
+        it 32-bit at a time to detect SVP64 prefixes, and will optionally
+        read a 2nd 32-bit quantity if that occurs.
+        """
+        comb = m.d.comb
+        sync = m.d.sync
+        pdecode2 = self.pdecode2
+        svp64 = self.svp64
 
         with m.FSM(name='fetch_fsm'):
 
@@ -371,6 +242,153 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
+    def elaborate(self, platform):
+        m = Module()
+        comb, sync = m.d.comb, m.d.sync
+
+        m.submodules.core = core = DomainRenamer("coresync")(self.core)
+        m.submodules.imem = imem = self.imem
+        m.submodules.dbg = dbg = self.dbg
+        if self.jtag_en:
+            m.submodules.jtag = jtag = self.jtag
+            # TODO: UART2GDB mux, here, from external pin
+            # see https://bugs.libre-soc.org/show_bug.cgi?id=499
+            sync += dbg.dmi.connect_to(jtag.dmi)
+
+        cur_state = self.cur_state
+
+        # 4x 4k SRAM blocks.  these simply "exist", they get routed in litex
+        if self.sram4x4k:
+            for i, sram in enumerate(self.sram4k):
+                m.submodules["sram4k_%d" % i] = sram
+                comb += sram.enable.eq(self.wb_sram_en)
+
+        # XICS interrupt handler
+        if self.xics:
+            m.submodules.xics_icp = icp = self.xics_icp
+            m.submodules.xics_ics = ics = self.xics_ics
+            comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
+            sync += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
+
+        # GPIO test peripheral
+        if self.gpio:
+            m.submodules.simple_gpio = simple_gpio = self.simple_gpio
+
+        # connect one GPIO output to ICS bit 15 (like in microwatt soc.vhdl)
+        # XXX causes litex ECP5 test to get wrong idea about input and output
+        # (but works with verilator sim *sigh*)
+        #if self.gpio and self.xics:
+        #   comb += self.int_level_i[15].eq(simple_gpio.gpio_o[0])
+
+        # instruction decoder
+        pdecode = create_pdecode()
+        m.submodules.dec2 = pdecode2 = self.pdecode2
+        m.submodules.svp64 = svp64 = self.svp64
+
+        # convenience
+        dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
+        intrf = self.core.regs.rf['int']
+
+        # clock delay power-on reset
+        cd_por  = ClockDomain(reset_less=True)
+        cd_sync = ClockDomain()
+        core_sync = ClockDomain("coresync")
+        m.domains += cd_por, cd_sync, core_sync
+
+        ti_rst = Signal(reset_less=True)
+        delay = Signal(range(4), reset=3)
+        with m.If(delay != 0):
+            m.d.por += delay.eq(delay - 1)
+        comb += cd_por.clk.eq(ClockSignal())
+
+        # power-on reset delay
+        core_rst = ResetSignal("coresync")
+        comb += ti_rst.eq(delay != 0 | dbg.core_rst_o | ResetSignal())
+        comb += core_rst.eq(ti_rst)
+
+        # busy/halted signals from core
+        comb += self.busy_o.eq(core.busy_o)
+        comb += pdecode2.dec.bigendian.eq(self.core_bigendian_i)
+
+        # temporary hack: says "go" immediately for both address gen and ST
+        l0 = core.l0
+        ldst = core.fus.fus['ldst0']
+        st_go_edge = rising_edge(m, ldst.st.rel_o)
+        m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
+        m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
+
+        # PC and instruction from I-Memory
+        pc_changed = Signal() # note write to PC
+        comb += self.pc_o.eq(cur_state.pc)
+
+        # address of the next instruction, in the absence of a branch
+        # depends on the instruction size
+        nia = Signal(64, reset_less=True)
+
+        # read the PC
+        pc = Signal(64, reset_less=True)
+        pc_ok_delay = Signal()
+        sync += pc_ok_delay.eq(~self.pc_i.ok)
+        with m.If(self.pc_i.ok):
+            # incoming override (start from pc_i)
+            comb += pc.eq(self.pc_i.data)
+        with m.Else():
+            # otherwise read StateRegs regfile for PC...
+            comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
+        # ... but on a 1-clock delay
+        with m.If(pc_ok_delay):
+            comb += pc.eq(self.state_r_pc.data_o)
+
+        # don't write pc every cycle
+        comb += self.state_w_pc.wen.eq(0)
+        comb += self.state_w_pc.data_i.eq(0)
+
+        # don't read msr or svstate every cycle
+        comb += self.state_r_sv.ren.eq(0)
+        comb += self.state_r_msr.ren.eq(0)
+        msr_read = Signal(reset=1)
+        sv_read = Signal(reset=1)
+
+        # connect up debug signals
+        # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
+        comb += dbg.terminate_i.eq(core.core_terminate_o)
+        comb += dbg.state.pc.eq(pc)
+        #comb += dbg.state.pc.eq(cur_state.pc)
+        comb += dbg.state.msr.eq(cur_state.msr)
+
+        # temporaries
+        core_busy_o = core.busy_o                 # core is busy
+        core_ivalid_i = core.ivalid_i             # instruction is valid
+        core_issue_i = core.issue_i               # instruction is issued
+        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+        insn_type = core.e.do.insn_type           # instruction MicroOp type
+
+        # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
+        # these are the handshake signals between fetch and decode/execute
+
+        # fetch FSM can run as soon as the PC is valid
+        fetch_pc_valid_i = Signal()
+        fetch_pc_ready_o = Signal()
+        # when done, deliver the instruction to the next FSM
+        fetch_insn_valid_o = Signal()
+        fetch_insn_ready_i = Signal()
+
+        # latches copy of raw fetched instruction
+        fetch_insn_o = Signal(32, reset_less=True)
+
+        # actually use a nmigen FSM for the first time (w00t)
+        # this FSM is perhaps unusual in that it detects conditions
+        # then "holds" information, combinatorially, for the core
+        # (as opposed to using sync - which would be on a clock's delay)
+        # this includes the actual opcode, valid flags and so on.
+
+        self.fetch_fsm(m, core, dbg, pc, nia,
+                       core_rst, cur_state,
+                       fetch_pc_ready_o, fetch_pc_valid_i,
+                       fetch_insn_valid_o, fetch_insn_ready_i,
+                       msr_read, sv_read,
+                       fetch_insn_o)
+
         # decode / issue / execute FSM.  this interacts with the "fetch" FSM
         # through fetch_pc_ready/valid (incoming) and fetch_insn_ready/valid
         # (outgoing).  SVP64 RM prefixes have already been set up by the
@@ -396,7 +414,6 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    sync += ilatch.eq(insn) # latch current insn
                     # also drop PC and MSR into decode "state"
                     m.next = "INSN_START" # move to "start"
 
