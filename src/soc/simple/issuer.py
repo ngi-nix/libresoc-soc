@@ -16,7 +16,7 @@ improved.
 """
 
 from nmigen import (Elaboratable, Module, Signal, ClockSignal, ResetSignal,
-                    ClockDomain, DomainRenamer, Mux)
+                    ClockDomain, DomainRenamer, Mux, Const)
 from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
@@ -75,9 +75,12 @@ class TestIssuerInternal(Elaboratable):
             # honestly probably not.
             pspec.wb_icache_en = self.jtag.wb_icache_en
             pspec.wb_dcache_en = self.jtag.wb_dcache_en
+            self.wb_sram_en = self.jtag.wb_sram_en
+        else:
+            self.wb_sram_en = Const(1)
 
         # add 4k sram blocks?
-        self.sram4x4k = (hasattr(pspec, "sram4x4kblock") and 
+        self.sram4x4k = (hasattr(pspec, "sram4x4kblock") and
                          pspec.sram4x4kblock == True)
         if self.sram4x4k:
             self.sram4k = []
@@ -162,6 +165,7 @@ class TestIssuerInternal(Elaboratable):
         if self.sram4x4k:
             for i, sram in enumerate(self.sram4k):
                 m.submodules["sram4k_%d" % i] = sram
+                comb += sram.enable.eq(self.wb_sram_en)
 
         # XICS interrupt handler
         if self.xics:

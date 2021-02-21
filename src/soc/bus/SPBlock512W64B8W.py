@@ -13,6 +13,7 @@ class SPBlock512W64B8W(Elaboratable):
     """
 
     def __init__(self, bus=None, features=None, name=None):
+        self.enable = Signal(reset=1) # enable signal, defaults to 1
         if features is None:
             features = frozenset()
         if bus is None:
@@ -48,25 +49,26 @@ class SPBlock512W64B8W(Elaboratable):
         m.submodules += sram
         sram.attrs['blackbox'] = 1
 
-        # wishbone is active if cyc and stb set
-        wb_active = Signal()
-        m.d.comb += wb_active.eq(self.bus.cyc & self.bus.stb)
+        with m.If(self.enable): # in case of layout problems
+            # wishbone is active if cyc and stb set
+            wb_active = Signal()
+            m.d.comb += wb_active.eq(self.bus.cyc & self.bus.stb)
 
-        # generate ack (no "pipeline" mode here)
-        m.d.sync += self.bus.ack.eq(wb_active)
+            # generate ack (no "pipeline" mode here)
+            m.d.sync += self.bus.ack.eq(wb_active)
 
-        with m.If(wb_active):
+            with m.If(wb_active):
 
-            # address
-            m.d.comb += a.eq(self.bus.adr)
+                # address
+                m.d.comb += a.eq(self.bus.adr)
 
-            # read 
-            m.d.comb += self.bus.dat_r.eq(q)
+                # read
+                m.d.comb += self.bus.dat_r.eq(q)
 
-            # write
-            m.d.comb += d.eq(self.bus.dat_w)
-            with m.If(self.bus.we):
-                m.d.comb += we.eq(self.bus.sel)
+                # write
+                m.d.comb += d.eq(self.bus.dat_w)
+                with m.If(self.bus.we):
+                    m.d.comb += we.eq(self.bus.sel)
 
         return m
 
