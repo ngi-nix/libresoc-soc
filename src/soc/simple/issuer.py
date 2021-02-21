@@ -455,6 +455,10 @@ class TestIssuerInternal(Elaboratable):
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        fetch_insn_o)
 
+        # TODO: an SVSTATE-based for-loop FSM that goes in between
+        # fetch pc/insn ready/valid and advances SVSTATE.srcstep
+        # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
+
         self.execute_fsm(m, core, nia,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
