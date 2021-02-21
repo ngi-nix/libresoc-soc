@@ -223,8 +223,11 @@ class SVP64Asm:
                 field = int(field[0]) # actual register number
                 print ("    ", regmode, field, end=" ")
 
+                # see Mode field https://libre-soc.org/openpower/sv/svp64/
                 # XXX TODO: the following is a bit of a laborious repeated
                 # mess, which could (and should) easily be parameterised.
+                # XXX also TODO: the LD/ST modes which are different
+                # https://libre-soc.org/openpower/sv/ldst/
 
                 # encode SV-GPR field into extra, v3.0field
                 if regtype == 'GPR':
