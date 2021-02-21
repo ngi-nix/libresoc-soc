@@ -313,7 +313,8 @@ class TestRunner(FHDLTestCase):
 
         styles = {
             'dec': {'base': 'dec'},
-            'bin': {'base': 'bin'}
+            'bin': {'base': 'bin'},
+            'closed': {'closed': True}
         }
 
         traces = [
@@ -327,7 +328,7 @@ class TestRunner(FHDLTestCase):
             {'comment': 'svp64 decoding'},
             'svp64_rm[23:0]',
             ('dec2.extra[8:0]', 'bin'),
-            ('register augmentation', 'dec', [
+            ('register augmentation', 'dec', 'closed', [
                 {'comment': 'v3.0b registers'},
                 'dec2.dec_o.RT[4:0]',
                 'dec2.dec_a.RA[4:0]',
