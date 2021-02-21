@@ -150,7 +150,6 @@ class TestIssuerInternal(Elaboratable):
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i,
-                        msr_read, sv_read,
                         fetch_insn_o):
         """fetch FSM
         this FSM performs fetch of raw instruction data, partial-decodes
@@ -161,6 +160,9 @@ class TestIssuerInternal(Elaboratable):
         sync = m.d.sync
         pdecode2 = self.pdecode2
         svp64 = self.svp64
+
+        msr_read = Signal(reset=1)
+        sv_read = Signal(reset=1)
 
         with m.FSM(name='fetch_fsm'):
 
@@ -242,6 +244,81 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
+    def execute_fsm(self, m, core, nia,
+                        cur_state, fetch_insn_o,
+                        fetch_pc_ready_o, fetch_pc_valid_i,
+                        fetch_insn_valid_o, fetch_insn_ready_i):
+        """execute FSM
+
+        decode / issue / execute FSM.  this interacts with the "fetch" FSM
+        through fetch_pc_ready/valid (incoming) and fetch_insn_ready/valid
+        (outgoing).  SVP64 RM prefixes have already been set up by the
+        "fetch" phase, so execute is fairly straightforward.
+        """
+
+        comb = m.d.comb
+        sync = m.d.sync
+        pdecode2 = self.pdecode2
+        svp64 = self.svp64
+
+        # temporaries
+        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+        core_busy_o = core.busy_o                 # core is busy
+        core_ivalid_i = core.ivalid_i             # instruction is valid
+        core_issue_i = core.issue_i               # instruction is issued
+        insn_type = core.e.do.insn_type           # instruction MicroOp type
+
+        pc_changed = Signal() # note write to PC
+
+        with m.FSM():
+
+            # go fetch the instruction at the current PC
+            # at this point, there is no instruction running, that
+            # could inadvertently update the PC.
+            with m.State("INSN_FETCH"):
+                comb += fetch_pc_valid_i.eq(1)
+                with m.If(fetch_pc_ready_o):
+                    m.next = "INSN_WAIT"
+
+            # decode the instruction when it arrives
+            with m.State("INSN_WAIT"):
+                comb += fetch_insn_ready_i.eq(1)
+                with m.If(fetch_insn_valid_o):
+                    # decode the instruction
+                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
+                    sync += core.e.eq(pdecode2.e)
+                    sync += core.state.eq(cur_state)
+                    sync += core.raw_insn_i.eq(dec_opcode_i)
+                    sync += core.bigendian_i.eq(self.core_bigendian_i)
+                    # also drop PC and MSR into decode "state"
+                    m.next = "INSN_START" # move to "start"
+
+            # waiting for instruction bus (stays there until not busy)
+            with m.State("INSN_START"):
+                comb += core_ivalid_i.eq(1) # instruction is valid
+                comb += core_issue_i.eq(1)  # and issued
+                sync += pc_changed.eq(0)
+
+                m.next = "INSN_ACTIVE" # move to "wait completion"
+
+            # instruction started: must wait till it finishes
+            with m.State("INSN_ACTIVE"):
+                with m.If(insn_type != MicrOp.OP_NOP):
+                    comb += core_ivalid_i.eq(1) # instruction is valid
+                with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
+                    sync += pc_changed.eq(1)
+                with m.If(~core_busy_o): # instruction done!
+                    # ok here we are not reading the branch unit.  TODO
+                    # this just blithely overwrites whatever pipeline
+                    # updated the PC
+                    with m.If(~pc_changed):
+                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(nia)
+                    sync += core.e.eq(0)
+                    sync += core.raw_insn_i.eq(0)
+                    sync += core.bigendian_i.eq(0)
+                    m.next = "INSN_FETCH"  # back to fetch
+
     def elaborate(self, platform):
         m = Module()
         comb, sync = m.d.comb, m.d.sync
@@ -318,7 +395,6 @@ class TestIssuerInternal(Elaboratable):
         m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
 
         # PC and instruction from I-Memory
-        pc_changed = Signal() # note write to PC
         comb += self.pc_o.eq(cur_state.pc)
 
         # address of the next instruction, in the absence of a branch
@@ -346,8 +422,6 @@ class TestIssuerInternal(Elaboratable):
         # don't read msr or svstate every cycle
         comb += self.state_r_sv.ren.eq(0)
         comb += self.state_r_msr.ren.eq(0)
-        msr_read = Signal(reset=1)
-        sv_read = Signal(reset=1)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -355,13 +429,6 @@ class TestIssuerInternal(Elaboratable):
         comb += dbg.state.pc.eq(pc)
         #comb += dbg.state.pc.eq(cur_state.pc)
         comb += dbg.state.msr.eq(cur_state.msr)
-
-        # temporaries
-        core_busy_o = core.busy_o                 # core is busy
-        core_ivalid_i = core.ivalid_i             # instruction is valid
-        core_issue_i = core.issue_i               # instruction is issued
-        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
-        insn_type = core.e.do.insn_type           # instruction MicroOp type
 
         # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
         # these are the handshake signals between fetch and decode/execute
@@ -386,62 +453,12 @@ class TestIssuerInternal(Elaboratable):
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
-                       msr_read, sv_read,
                        fetch_insn_o)
 
-        # decode / issue / execute FSM.  this interacts with the "fetch" FSM
-        # through fetch_pc_ready/valid (incoming) and fetch_insn_ready/valid
-        # (outgoing).  SVP64 RM prefixes have already been set up by the
-        # "fetch" phase, so execute is fairly straightforward.
-
-        with m.FSM():
-
-            # go fetch the instruction at the current PC
-            # at this point, there is no instruction running, that
-            # could inadvertently update the PC.
-            with m.State("INSN_FETCH"):
-                comb += fetch_pc_valid_i.eq(1)
-                with m.If(fetch_pc_ready_o):
-                    m.next = "INSN_WAIT"
-
-            # decode the instruction when it arrives
-            with m.State("INSN_WAIT"):
-                comb += fetch_insn_ready_i.eq(1)
-                with m.If(fetch_insn_valid_o):
-                    # decode the instruction
-                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
-                    sync += core.e.eq(pdecode2.e)
-                    sync += core.state.eq(cur_state)
-                    sync += core.raw_insn_i.eq(dec_opcode_i)
-                    sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    # also drop PC and MSR into decode "state"
-                    m.next = "INSN_START" # move to "start"
-
-            # waiting for instruction bus (stays there until not busy)
-            with m.State("INSN_START"):
-                comb += core_ivalid_i.eq(1) # instruction is valid
-                comb += core_issue_i.eq(1)  # and issued
-                sync += pc_changed.eq(0)
-
-                m.next = "INSN_ACTIVE" # move to "wait completion"
-
-            # instruction started: must wait till it finishes
-            with m.State("INSN_ACTIVE"):
-                with m.If(insn_type != MicrOp.OP_NOP):
-                    comb += core_ivalid_i.eq(1) # instruction is valid
-                with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
-                    sync += pc_changed.eq(1)
-                with m.If(~core_busy_o): # instruction done!
-                    # ok here we are not reading the branch unit.  TODO
-                    # this just blithely overwrites whatever pipeline
-                    # updated the PC
-                    with m.If(~pc_changed):
-                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(nia)
-                    sync += core.e.eq(0)
-                    sync += core.raw_insn_i.eq(0)
-                    sync += core.bigendian_i.eq(0)
-                    m.next = "INSN_FETCH"  # back to fetch
+        self.execute_fsm(m, core, nia,
+                        cur_state, fetch_insn_o,
+                        fetch_pc_ready_o, fetch_pc_valid_i,
+                        fetch_insn_valid_o, fetch_insn_ready_i)
 
         # for updating svstate (things like srcstep etc.)
         update_svstate = Signal() # TODO: move this somewhere above
