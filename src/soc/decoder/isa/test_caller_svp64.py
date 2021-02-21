@@ -12,6 +12,7 @@ from soc.decoder.orderedset import OrderedSet
 from soc.decoder.isa.all import ISA
 from soc.decoder.isa.test_caller import Register, run_tst
 from soc.sv.trans.svp64 import SVP64Asm
+from soc.consts import SVP64CROffs
 from copy import deepcopy
 
 class DecoderTestCase(FHDLTestCase):
@@ -134,8 +135,10 @@ class DecoderTestCase(FHDLTestCase):
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
             # XXX TODO, these need to move to higher range (offset)
-            CR0 = sim.crl[0].get_range().value
-            CR1 = sim.crl[1].get_range().value
+            cr0_idx = SVP64CROffs.CR0
+            cr1_idx = SVP64CROffs.CR1
+            CR0 = sim.crl[cr0_idx].get_range().value
+            CR1 = sim.crl[cr1_idx].get_range().value
             print ("CR0", CR0)
             print ("CR1", CR1)
             self._check_regs(sim, expected_regs)

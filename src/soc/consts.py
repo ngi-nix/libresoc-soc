@@ -223,10 +223,18 @@ class EXTRA3:
 EXTRA3_SIZE = 9
 
 
+# SVP64 ReMapped Field (from v3.1 EXT001 Prefix)
 class SVP64P:
     OPC = range(0, 6)
     SVP64_7_9 = [7, 9]
     RM = [6, 8] + list(range(10, 32))
 
-
+# 24 bits in RM
 SVP64P_SIZE = 24
+
+
+# CR SVP64 offsets
+class SVP64CROffs:
+    CR0 = 0    # TODO: increase when CRs are expanded to 128
+    CR1 = 1    # TODO: increase when CRs are expanded to 128
+

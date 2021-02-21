@@ -28,7 +28,7 @@ from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
 from soc.sv.svp64 import SVP64Rec
 from soc.consts import (MSR, sel, SPEC, EXTRA2, EXTRA3, SVP64P, field,
-                        SPEC_SIZE, SPECb, SPEC_AUG_SIZE)
+                        SPEC_SIZE, SPECb, SPEC_AUG_SIZE, SVP64CROffs)
 
 from soc.regfile.regfiles import FastRegs
 from soc.consts import TT
@@ -1199,11 +1199,14 @@ class PowerDecode2(PowerDecodeSubset):
             comb += svdec.cr_in.eq(fromreg.data) # 3-bit (CR0/BC/BFA)
             with m.If(svdec.isvec):
                 # check if this is CR0 or CR1: treated differently
-                # (does not "listen" to EXTRA2/3 spec
+                # (does not "listen" to EXTRA2/3 spec for a start)
+                # also: the CRs start from completely different locations
                 with m.If(cr.sv_override == 1): # CR0
-                    comb += to_reg.data.eq(srcstep+0) # XXX TODO CR0 offset
+                    offs = SVP64CROffs.CR0
+                    comb += to_reg.data.eq(srcstep+offs)
                 with m.Elif(cr.sv_override == 2): # CR1
-                    comb += to_reg.data.eq(srcstep+1) # XXX TODO CR1 offset
+                    offs = SVP64CROffs.CR1
+                    comb += to_reg.data.eq(srcstep+1)
                 with m.Else():
                     comb += to_reg.data.eq(srcstep+svdec.cr_out) # 7-bit output
             with m.Else():
