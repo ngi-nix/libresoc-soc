@@ -434,11 +434,16 @@ class TestIssuerInternal(Elaboratable):
         # these are the handshake signals between fetch and decode/execute
 
         # fetch FSM can run as soon as the PC is valid
-        fetch_pc_valid_i = Signal()
-        fetch_pc_ready_o = Signal()
+        fetch_pc_valid_i = Signal() # Execute tells Fetch "start next read"
+        fetch_pc_ready_o = Signal() # Fetch Tells SVSTATE "proceed"
+
+        # SVSTATE FSM TODO.
+        svloop_ready_i = Signal()
+        svloop_valid_o = Signal()
+
         # when done, deliver the instruction to the next FSM
-        fetch_insn_valid_o = Signal()
-        fetch_insn_ready_i = Signal()
+        fetch_insn_valid_o = Signal() 
+        fetch_insn_ready_i = Signal() # Execute acknowledges SVSTATE
 
         # latches copy of raw fetched instruction
         fetch_insn_o = Signal(32, reset_less=True)
