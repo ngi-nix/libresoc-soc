@@ -149,7 +149,7 @@ class TestIssuerInternal(Elaboratable):
     def fetch_fsm(self, m, core, dbg, pc, nia,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
-                        fetch_insn_valid_o, fetch_insn_ready_i,
+                        exec_insn_valid_o, exec_insn_ready_i,
                         fetch_insn_o):
         """fetch FSM
         this FSM performs fetch of raw instruction data, partial-decodes
@@ -240,18 +240,18 @@ class TestIssuerInternal(Elaboratable):
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
-                comb += fetch_insn_valid_o.eq(1)
-                with m.If(fetch_insn_ready_i):
+                comb += exec_insn_valid_o.eq(1)
+                with m.If(exec_insn_ready_i):
                     m.next = "IDLE"
 
     def execute_fsm(self, m, core, nia,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
-                        fetch_insn_valid_o, fetch_insn_ready_i):
+                        exec_insn_valid_o, exec_insn_ready_i):
         """execute FSM
 
         decode / issue / execute FSM.  this interacts with the "fetch" FSM
-        through fetch_pc_ready/valid (incoming) and fetch_insn_ready/valid
+        through fetch_pc_ready/valid (incoming) and exec_insn_ready/valid
         (outgoing).  SVP64 RM prefixes have already been set up by the
         "fetch" phase, so execute is fairly straightforward.
         """
@@ -282,8 +282,8 @@ class TestIssuerInternal(Elaboratable):
 
             # decode the instruction when it arrives
             with m.State("INSN_WAIT"):
-                comb += fetch_insn_ready_i.eq(1)
-                with m.If(fetch_insn_valid_o):
+                comb += exec_insn_ready_i.eq(1)
+                with m.If(exec_insn_valid_o):
                     # decode the instruction
                     comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
                     sync += core.e.eq(pdecode2.e)
@@ -438,12 +438,15 @@ class TestIssuerInternal(Elaboratable):
         fetch_pc_ready_o = Signal() # Fetch Tells SVSTATE "proceed"
 
         # SVSTATE FSM TODO.
-        svloop_ready_i = Signal()
-        svloop_valid_o = Signal()
+        fetch_to_sv_ready_i = Signal()
+        fetch_to_sv_valid_o = Signal()
+
+        sv_to_exec_ready_i = Signal()
+        sv_to_exec_valid_o = Signal()
 
         # when done, deliver the instruction to the next FSM
-        fetch_insn_valid_o = Signal() 
-        fetch_insn_ready_i = Signal() # Execute acknowledges SVSTATE
+        exec_insn_valid_o = Signal()
+        exec_insn_ready_i = Signal() # Execute acknowledges SVSTATE
 
         # latches copy of raw fetched instruction
         fetch_insn_o = Signal(32, reset_less=True)
@@ -457,7 +460,7 @@ class TestIssuerInternal(Elaboratable):
         self.fetch_fsm(m, core, dbg, pc, nia,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
-                       fetch_insn_valid_o, fetch_insn_ready_i,
+                       exec_insn_valid_o, exec_insn_ready_i,
                        fetch_insn_o)
 
         # TODO: an SVSTATE-based for-loop FSM that goes in between
@@ -467,7 +470,7 @@ class TestIssuerInternal(Elaboratable):
         self.execute_fsm(m, core, nia,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
-                        fetch_insn_valid_o, fetch_insn_ready_i)
+                        exec_insn_valid_o, exec_insn_ready_i)
 
         # for updating svstate (things like srcstep etc.)
         update_svstate = Signal() # TODO: move this somewhere above
