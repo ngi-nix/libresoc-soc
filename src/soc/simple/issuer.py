@@ -146,7 +146,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, dbg, pc, nia,
+    def fetch_fsm(self, m, core, dbg, pc, pc_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i,
@@ -163,6 +163,10 @@ class TestIssuerInternal(Elaboratable):
 
         msr_read = Signal(reset=1)
         sv_read = Signal(reset=1)
+
+        # address of the next instruction, in the absence of a branch
+        # depends on the instruction size
+        nia = Signal(64, reset_less=True)
 
         with m.FSM(name='fetch_fsm'):
 
@@ -243,6 +247,17 @@ class TestIssuerInternal(Elaboratable):
                 comb += exec_insn_valid_o.eq(1)
                 with m.If(exec_insn_ready_i):
                     m.next = "IDLE"
+
+        # code-morph: moving the actual PC-setting out of "execute"
+        # so that it's easier to move this into an "issue" FSM.
+
+        # ok here we are not reading the branch unit.  TODO
+        # this just blithely overwrites whatever pipeline
+        # updated the PC
+        core_busy_o = core.busy_o                 # core is busy
+        with m.If(insn_done & (~pc_changed) & (~core_busy_o)):
+            comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+            comb += self.state_w_pc.data_i.eq(nia)
 
     def execute_fsm(self, m, core, insn_done, pc_changed,
                         cur_state, fetch_insn_o,
@@ -389,10 +404,8 @@ class TestIssuerInternal(Elaboratable):
 
         # PC and instruction from I-Memory
         comb += self.pc_o.eq(cur_state.pc)
-
-        # address of the next instruction, in the absence of a branch
-        # depends on the instruction size
-        nia = Signal(64, reset_less=True)
+        pc_changed = Signal() # note write to PC
+        insn_done = Signal()  # fires just once
 
         # read the PC
         pc = Signal(64, reset_less=True)
@@ -450,7 +463,7 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, dbg, pc, nia,
+        self.fetch_fsm(m, core, dbg, pc, pc_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        exec_insn_valid_o, exec_insn_ready_i,
@@ -459,19 +472,6 @@ class TestIssuerInternal(Elaboratable):
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
-
-        # code-morph: moving the actual PC-setting out of "execute"
-        # so that it's easier to move this into an "issue" FSM.
-
-        # ok here we are not reading the branch unit.  TODO
-        # this just blithely overwrites whatever pipeline
-        # updated the PC
-        pc_changed = Signal() # note write to PC
-        insn_done = Signal()  # fires just once
-        core_busy_o = core.busy_o                 # core is busy
-        with m.If(insn_done & (~pc_changed) & (~core_busy_o)):
-            comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-            comb += self.state_w_pc.data_i.eq(nia)
 
         self.execute_fsm(m, core, insn_done, pc_changed,
                         cur_state, fetch_insn_o,
