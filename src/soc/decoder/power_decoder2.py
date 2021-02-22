@@ -1181,7 +1181,7 @@ class PowerDecode2(PowerDecodeSubset):
         comb += self.o2_isvec.eq(o2_svdec.isvec)
         # TODO: include SPRs and CRs here!  must be True when *all* are scalar
         comb += self.no_out_vec.eq((~o2_svdec.isvec) & (~o_svdec.isvec) &
-                                   (crout_svdec.isvec))
+                                   (~crout_svdec.isvec))
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)
