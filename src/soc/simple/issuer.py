@@ -244,7 +244,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(exec_insn_ready_i):
                     m.next = "IDLE"
 
-    def execute_fsm(self, m, core, nia,
+    def execute_fsm(self, m, core, insn_done, pc_changed,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i):
@@ -267,8 +267,6 @@ class TestIssuerInternal(Elaboratable):
         core_ivalid_i = core.ivalid_i             # instruction is valid
         core_issue_i = core.issue_i               # instruction is issued
         insn_type = core.e.do.insn_type           # instruction MicroOp type
-
-        pc_changed = Signal() # note write to PC
 
         with m.FSM():
 
@@ -297,7 +295,6 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INSN_START"):
                 comb += core_ivalid_i.eq(1) # instruction is valid
                 comb += core_issue_i.eq(1)  # and issued
-                sync += pc_changed.eq(0)
 
                 m.next = "INSN_ACTIVE" # move to "wait completion"
 
@@ -308,15 +305,11 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
-                    # ok here we are not reading the branch unit.  TODO
-                    # this just blithely overwrites whatever pipeline
-                    # updated the PC
-                    with m.If(~pc_changed):
-                        comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(nia)
+                    comb += insn_done.eq(1)
                     sync += core.e.eq(0)
                     sync += core.raw_insn_i.eq(0)
                     sync += core.bigendian_i.eq(0)
+                    sync += pc_changed.eq(0)
                     m.next = "INSN_FETCH"  # back to fetch
 
     def elaborate(self, platform):
@@ -437,7 +430,7 @@ class TestIssuerInternal(Elaboratable):
         fetch_pc_valid_i = Signal() # Execute tells Fetch "start next read"
         fetch_pc_ready_o = Signal() # Fetch Tells SVSTATE "proceed"
 
-        # SVSTATE FSM TODO.
+        # SVSTATE FSM TODO. actually, an "Issue" FSM that happens to do SVSTATE
         fetch_to_sv_ready_i = Signal()
         fetch_to_sv_valid_o = Signal()
 
@@ -467,7 +460,20 @@ class TestIssuerInternal(Elaboratable):
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
 
-        self.execute_fsm(m, core, nia,
+        # code-morph: moving the actual PC-setting out of "execute"
+        # so that it's easier to move this into an "issue" FSM.
+
+        # ok here we are not reading the branch unit.  TODO
+        # this just blithely overwrites whatever pipeline
+        # updated the PC
+        pc_changed = Signal() # note write to PC
+        insn_done = Signal()  # fires just once
+        core_busy_o = core.busy_o                 # core is busy
+        with m.If(insn_done & (~pc_changed) & (~core_busy_o)):
+            comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
+            comb += self.state_w_pc.data_i.eq(nia)
+
+        self.execute_fsm(m, core, insn_done, pc_changed,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i)
