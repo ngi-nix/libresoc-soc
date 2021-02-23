@@ -146,7 +146,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, dbg, pc, pc_changed, insn_done,
+    def fetch_fsm(self, m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i,
@@ -259,7 +259,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
             comb += self.state_w_pc.data_i.eq(nia)
 
-    def execute_fsm(self, m, core, insn_done, pc_changed,
+    def execute_fsm(self, m, core, insn_done, pc_changed, sv_changed,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i):
@@ -317,6 +317,9 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
                     comb += core_ivalid_i.eq(1) # instruction is valid
+                # note changes to PC and SVSTATE
+                with m.If(self.state_nia.wen & (1<<StateRegs.SVSTATE)):
+                    sync += sv_changed.eq(1)
                 with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
@@ -324,6 +327,7 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.e.eq(0)
                     sync += core.raw_insn_i.eq(0)
                     sync += core.bigendian_i.eq(0)
+                    sync += sv_changed.eq(0)
                     sync += pc_changed.eq(0)
                     m.next = "INSN_FETCH"  # back to fetch
 
@@ -405,6 +409,7 @@ class TestIssuerInternal(Elaboratable):
         # PC and instruction from I-Memory
         comb += self.pc_o.eq(cur_state.pc)
         pc_changed = Signal() # note write to PC
+        sv_changed = Signal() # note write to SVSTATE
         insn_done = Signal()  # fires just once
 
         # read the PC
@@ -463,7 +468,7 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, dbg, pc, pc_changed, insn_done,
+        self.fetch_fsm(m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        exec_insn_valid_o, exec_insn_ready_i,
@@ -473,7 +478,7 @@ class TestIssuerInternal(Elaboratable):
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
 
-        self.execute_fsm(m, core, insn_done, pc_changed,
+        self.execute_fsm(m, core, insn_done, pc_changed, sv_changed,
                         cur_state, fetch_insn_o,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         exec_insn_valid_o, exec_insn_ready_i)
