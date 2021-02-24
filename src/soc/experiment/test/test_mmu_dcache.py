@@ -57,14 +57,17 @@ def wb_get(c, mem, name):
     """simulator process for getting memory load requests
     """
 
+    logfile = open("/tmp/wb_get.log","w")
+
+    def log(msg):
+        logfile.write(msg+"\n")
+        print(msg)
+
     global stop
-
-
-    mem = mem
-
     while not stop:
         while True: # wait for dc_valid
             if stop:
+                log("stop")
                 return
             cyc = yield (c.wb_out.cyc)
             stb = yield (c.wb_out.stb)
@@ -73,14 +76,14 @@ def wb_get(c, mem, name):
             yield
         addr = (yield c.wb_out.adr) << 3
         if addr not in mem:
-            print ("    %s LOOKUP FAIL %x" % (name, addr))
+            log("%s LOOKUP FAIL %x" % (name, addr))
             stop = True
             return
 
         yield
         data = mem[addr]
         yield c.wb_in.dat.eq(data)
-        print ("    %s get %x data %x" % (name, addr, data))
+        log("%s get %x data %x" % (name, addr, data))
         yield c.wb_in.ack.eq(1)
         yield
         yield c.wb_in.ack.eq(0)
