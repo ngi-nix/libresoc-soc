@@ -30,6 +30,8 @@ from soc.simple.test.test_core import (setup_regs, check_regs,
 from soc.fu.compunits.test.test_compunit import (setup_test_memory,
                                                  check_sim_memory)
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
+from nmutil.util import wrap
+from soc.experiment.test.test_mmu_dcache import wb_get
 
 
 def setup_i_memory(imem, startaddr, instructions):
