@@ -1,5 +1,5 @@
 from nmigen import Module, Signal
-from soc.simple.test.test_runner_mmu_rom import TestRunner
+from soc.simple.test.test_runner import TestRunner
 from soc.simulator.program import Program
 from soc.config.endian import bigendian
 import unittest
@@ -44,8 +44,10 @@ class MMUTestCase(TestAccumulatorBase):
 
         initial_regs = [0] * 32
         
+        # set process table
         prtbl = 0x1000000
         initial_regs[1] = prtbl
+        
         
 
         initial_sprs = {}
@@ -53,19 +55,14 @@ class MMUTestCase(TestAccumulatorBase):
                       initial_regs, initial_sprs)
 
 
-class RomDBG():
-    def __init__(self):
-        self.rom = default_mem
-        self.debug = open("/tmp/rom.log","w")
-        
-        # yield mmu.rin.prtbl.eq(0x1000000) # set process table -- SPR_PRTBL = 720
 
-rom_dbg = RomDBG()
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(MMUTestCase().test_data, microwatt_mmu=True,
-                             rom=rom_dbg))
+                             rom=default_mem))
     runner = unittest.TextTestRunner()
     runner.run(suite)
+
+#  soc/simple/test/test_runner.py
