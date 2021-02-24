@@ -894,24 +894,16 @@ class PowerDecodeSubset(Elaboratable):
 
         # set up submodule decoders
         m.submodules.dec = self.dec
-        m.submodules.dec_rc = dec_rc = DecodeRC(self.dec)
+        m.submodules.dec_rc = self.dec_rc = dec_rc = DecodeRC(self.dec)
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
-        m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
-        m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
-        rc_out = dec_rc.rc_out.data
 
         # copy instruction through...
-        for i in [do.insn,
-                  dec_rc.insn_in, dec_oe.insn_in,
-                  self.dec_cr_in.insn_in, self.dec_cr_out.insn_in]:
+        for i in [do.insn, dec_rc.insn_in, dec_oe.insn_in, ]:
             comb += i.eq(self.dec.opcode_in)
 
         # ...and subdecoders' input fields
         comb += dec_rc.sel_in.eq(op.rc_sel)
         comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
-        comb += self.dec_cr_in.sel_in.eq(op.cr_in)
-        comb += self.dec_cr_out.sel_in.eq(op.cr_out)
-        comb += self.dec_cr_out.rc_in.eq(rc_out)
 
         # copy "state" over
         comb += self.do_copy("msr", msr)
@@ -967,8 +959,7 @@ class PowerDecodeSubset(Elaboratable):
         comb += self.do_copy("oe", dec_oe.oe_out)
 
         # CR in/out
-        comb += self.do_copy("read_cr_whole", self.dec_cr_in.whole_reg)
-        comb += self.do_copy("write_cr_whole", self.dec_cr_out.whole_reg)
+        rc_out = self.dec_rc.rc_out.data
         with m.Switch(op.cr_out):
             with m.Case(CROutSel.CR0, CROutSel.CR1):
                 comb += self.do_copy("write_cr0", rc_out) # only when RC=1
@@ -1070,6 +1061,7 @@ class PowerDecode2(PowerDecodeSubset):
         state = self.state
         e_out, op, do_out = self.e, self.dec.op, self.e.do
         dec_spr, msr, cia, ext_irq = state.dec, state.msr, state.pc, state.eint
+        rc_out = self.dec_rc.rc_out.data
         e = self.e_tmp
         do = e.do
 
@@ -1082,6 +1074,8 @@ class PowerDecode2(PowerDecodeSubset):
         m.submodules.dec_c = dec_c = DecodeC(self.dec)
         m.submodules.dec_o = dec_o = DecodeOut(self.dec)
         m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
+        m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
+        m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
 
         # and SVP64 Extra decoders
         m.submodules.crout_svdec = crout_svdec = SVP64CRExtra()
@@ -1102,8 +1096,18 @@ class PowerDecode2(PowerDecodeSubset):
 
         # copy instruction through...
         for i in [do.insn, dec_a.insn_in, dec_b.insn_in,
+                  self.dec_cr_in.insn_in, self.dec_cr_out.insn_in,
                   dec_c.insn_in, dec_o.insn_in, dec_o2.insn_in]:
             comb += i.eq(self.dec.opcode_in)
+
+        # CR setup
+        comb += self.dec_cr_in.sel_in.eq(op.cr_in)
+        comb += self.dec_cr_out.sel_in.eq(op.cr_out)
+        comb += self.dec_cr_out.rc_in.eq(rc_out)
+
+        # CR register info
+        comb += self.do_copy("read_cr_whole", self.dec_cr_in.whole_reg)
+        comb += self.do_copy("write_cr_whole", self.dec_cr_out.whole_reg)
 
         # now do the SVP64 munging.  op.SV_Etype and op.sv_in1 comes from
         # PowerDecoder which in turn comes from LDST-RM*.csv and RM-*.csv
