@@ -883,7 +883,6 @@ class PowerDecodeSubset(Elaboratable):
         state = self.state
         op, do = self.dec.op, self.do
         msr, cia = state.msr, state.pc
-
         # fill in for a normal instruction (not an exception)
         # copy over if non-exception, non-privileged etc. is detected
         if not self.final:
@@ -899,6 +898,7 @@ class PowerDecodeSubset(Elaboratable):
         m.submodules.dec_oe = dec_oe = DecodeOE(self.dec)
         m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
         m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
+        rc_out = dec_rc.rc_out.data
 
         # copy instruction through...
         for i in [do.insn,
@@ -911,7 +911,7 @@ class PowerDecodeSubset(Elaboratable):
         comb += dec_oe.sel_in.eq(op.rc_sel)  # XXX should be OE sel
         comb += self.dec_cr_in.sel_in.eq(op.cr_in)
         comb += self.dec_cr_out.sel_in.eq(op.cr_out)
-        comb += self.dec_cr_out.rc_in.eq(dec_rc.rc_out.data)
+        comb += self.dec_cr_out.rc_in.eq(rc_out)
 
         # copy "state" over
         comb += self.do_copy("msr", msr)
@@ -969,7 +969,11 @@ class PowerDecodeSubset(Elaboratable):
         # CR in/out
         comb += self.do_copy("read_cr_whole", self.dec_cr_in.whole_reg)
         comb += self.do_copy("write_cr_whole", self.dec_cr_out.whole_reg)
-        comb += self.do_copy("write_cr0", self.dec_cr_out.cr_bitfield.ok)
+        with m.Switch(op.cr_out):
+            with m.Case(CROutSel.CR0, CROutSel.CR1):
+                comb += self.do_copy("write_cr0", rc_out) # only when RC=1
+            with m.Case(CROutSel.BF, CROutSel.BT):
+                comb += self.do_copy("write_cr0", 1)
 
         comb += self.do_copy("input_cr", self.op_get("cr_in"))   # CR in
         comb += self.do_copy("output_cr", self.op_get("cr_out"))  # CR out
