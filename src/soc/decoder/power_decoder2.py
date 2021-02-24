@@ -751,6 +751,12 @@ class DecodeCROut(Elaboratable):
         comb += self.whole_reg.ok.eq(0)
         comb += self.sv_override.eq(0)
 
+        # please note these MUST match (setting of cr_bitfield.ok) exactly
+        # with write_cr0 below in PowerDecoder2.  the reason it's separated
+        # is to avoid having duplicate copies of DecodeCROut in multiple
+        # PowerDecoderSubsets.  register decoding should be a one-off in
+        # PowerDecoder2.  see https://bugs.libre-soc.org/show_bug.cgi?id=606
+
         with m.Switch(self.sel_in):
             with m.Case(CROutSel.NONE):
                 pass  # No bitfield activated
@@ -958,7 +964,8 @@ class PowerDecodeSubset(Elaboratable):
         comb += self.do_copy("rc", dec_rc.rc_out)
         comb += self.do_copy("oe", dec_oe.oe_out)
 
-        # CR in/out
+        # CR in/out - note: these MUST match with what happens in
+        # DecodeCROut!
         rc_out = self.dec_rc.rc_out.data
         with m.Switch(op.cr_out):
             with m.Case(CROutSel.CR0, CROutSel.CR1):
