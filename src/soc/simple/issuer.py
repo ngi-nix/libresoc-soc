@@ -146,7 +146,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, dbg, pc, pc_changed, sv_changed, insn_done,
+    def fetch_fsm(self, m, core, dbg, pc, pc_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
@@ -263,7 +263,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
             comb += self.state_w_pc.data_i.eq(nia)
 
-    def issue_fsm(self, m, core, cur_state,
+    def issue_fsm(self, m, core, cur_state, pc_changed, sv_changed,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
@@ -325,7 +325,9 @@ class TestIssuerInternal(Elaboratable):
                 comb += exec_pc_ready_i.eq(1)
                 with m.If(exec_pc_valid_o):
                     # TODO: update SRCSTEP here (in new_svstate)
-                    #       and set update_svstate to True.
+                    #       and set update_svstate to True *as long as*
+                    #       PC / SVSTATE was not modified.  that's an
+                    #       exception (or setvl was called)
                     # TODO: loop into INSN_EXECUTE if it's a vector instruction
                     #       and SRCSTEP != VL-1 and PowerDecoder.no_out_vec
                     #       is True
@@ -526,7 +528,7 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, dbg, pc, pc_changed, sv_changed, insn_done,
+        self.fetch_fsm(m, core, dbg, pc, pc_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
@@ -534,7 +536,7 @@ class TestIssuerInternal(Elaboratable):
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
-        self.issue_fsm(m, core, cur_state,
+        self.issue_fsm(m, core, cur_state, pc_changed, sv_changed,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
