@@ -149,7 +149,7 @@ class TestIssuerInternal(Elaboratable):
     def fetch_fsm(self, m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
-                        exec_insn_valid_o, exec_insn_ready_i,
+                        fetch_insn_valid_o, fetch_insn_ready_i,
                         fetch_insn_o):
         """fetch FSM
         this FSM performs fetch of raw instruction data, partial-decodes
@@ -244,8 +244,8 @@ class TestIssuerInternal(Elaboratable):
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
-                comb += exec_insn_valid_o.eq(1)
-                with m.If(exec_insn_ready_i):
+                comb += fetch_insn_valid_o.eq(1)
+                with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
         # code-morph: moving the actual PC-setting out of "execute"
@@ -259,16 +259,78 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
             comb += self.state_w_pc.data_i.eq(nia)
 
+    def issue_fsm(self, m, core, cur_state, fetch_insn_o,
+                  fetch_pc_ready_o, fetch_pc_valid_i,
+                  fetch_insn_valid_o, fetch_insn_ready_i,
+                  exec_insn_valid_i, exec_insn_ready_o,
+                  exec_pc_valid_o, exec_pc_ready_i):
+        """issue FSM
+
+        decode / issue FSM.  this interacts with the "fetch" FSM
+        through fetch_insn_ready/valid (incoming) and fetch_pc_ready/valid
+        (outgoing). also interacts with the "execute" FSM
+        through exec_insn_ready/valid (outgoing) and exec_pc_ready/valid
+        (incoming).
+        SVP64 RM prefixes have already been set up by the
+        "fetch" phase, so execute is fairly straightforward.
+        """
+
+        comb = m.d.comb
+        sync = m.d.sync
+        pdecode2 = self.pdecode2
+
+        # temporaries
+        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+
+        with m.FSM(name="issue_fsm"):
+
+            # go fetch the instruction at the current PC
+            # at this point, there is no instruction running, that
+            # could inadvertently update the PC.
+            with m.State("INSN_FETCH"):
+                # TODO: update PC here, before fetch
+                comb += fetch_pc_valid_i.eq(1)
+                with m.If(fetch_pc_ready_o):
+                    m.next = "INSN_WAIT"
+
+            # decode the instruction when it arrives
+            with m.State("INSN_WAIT"):
+                comb += fetch_insn_ready_i.eq(1)
+                with m.If(fetch_insn_valid_o):
+                    # decode the instruction
+                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
+                    sync += core.e.eq(pdecode2.e)
+                    sync += core.state.eq(cur_state)
+                    sync += core.raw_insn_i.eq(dec_opcode_i)
+                    sync += core.bigendian_i.eq(self.core_bigendian_i)
+                    # TODO: loop into INSN_FETCH if it's a vector instruction
+                    #       and VL == 0
+                    m.next = "INSN_EXECUTE"  # move to "execute"
+
+            with m.State("INSN_EXECUTE"):
+                comb += exec_insn_valid_i.eq(1)
+                with m.If(exec_insn_ready_o):
+                    m.next = "EXECUTE_WAIT"
+
+            with m.State("EXECUTE_WAIT"):
+                comb += exec_pc_ready_i.eq(1)
+                with m.If(exec_pc_valid_o):
+                    # TODO: update SRCSTEP here
+                    # TODO: loop into INSN_EXECUTE if it's a vector instruction
+                    #       and SRCSTEP != VL-1
+                    #       unless PC / SVSTATE was modified, in that case do
+                    #       go back to INSN_FETCH.
+                    m.next = "INSN_FETCH"
+
     def execute_fsm(self, m, core, insn_done, pc_changed, sv_changed,
-                        cur_state, fetch_insn_o,
-                        fetch_pc_ready_o, fetch_pc_valid_i,
-                        exec_insn_valid_o, exec_insn_ready_i):
+                    exec_insn_valid_i, exec_insn_ready_o,
+                    exec_pc_valid_o, exec_pc_ready_i):
         """execute FSM
 
-        decode / issue / execute FSM.  this interacts with the "fetch" FSM
-        through fetch_pc_ready/valid (incoming) and exec_insn_ready/valid
-        (outgoing).  SVP64 RM prefixes have already been set up by the
-        "fetch" phase, so execute is fairly straightforward.
+        execute FSM. this interacts with the "issue" FSM
+        through exec_insn_ready/valid (incoming) and exec_pc_ready/valid
+        (outgoing). SVP64 RM prefixes have already been set up by the
+        "issue" phase, so execute is fairly straightforward.
         """
 
         comb = m.d.comb
@@ -277,41 +339,20 @@ class TestIssuerInternal(Elaboratable):
         svp64 = self.svp64
 
         # temporaries
-        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
         core_busy_o = core.busy_o                 # core is busy
         core_ivalid_i = core.ivalid_i             # instruction is valid
         core_issue_i = core.issue_i               # instruction is issued
         insn_type = core.e.do.insn_type           # instruction MicroOp type
 
-        with m.FSM():
-
-            # go fetch the instruction at the current PC
-            # at this point, there is no instruction running, that
-            # could inadvertently update the PC.
-            with m.State("INSN_FETCH"):
-                comb += fetch_pc_valid_i.eq(1)
-                with m.If(fetch_pc_ready_o):
-                    m.next = "INSN_WAIT"
-
-            # decode the instruction when it arrives
-            with m.State("INSN_WAIT"):
-                comb += exec_insn_ready_i.eq(1)
-                with m.If(exec_insn_valid_o):
-                    # decode the instruction
-                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
-                    sync += core.e.eq(pdecode2.e)
-                    sync += core.state.eq(cur_state)
-                    sync += core.raw_insn_i.eq(dec_opcode_i)
-                    sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    # also drop PC and MSR into decode "state"
-                    m.next = "INSN_START" # move to "start"
+        with m.FSM(name="exec_fsm"):
 
             # waiting for instruction bus (stays there until not busy)
             with m.State("INSN_START"):
-                comb += core_ivalid_i.eq(1) # instruction is valid
-                comb += core_issue_i.eq(1)  # and issued
-
-                m.next = "INSN_ACTIVE" # move to "wait completion"
+                comb += exec_insn_ready_o.eq(1)
+                with m.If(exec_insn_valid_i):
+                    comb += core_ivalid_i.eq(1)  # instruction is valid
+                    comb += core_issue_i.eq(1)  # and issued
+                    m.next = "INSN_ACTIVE"  # move to "wait completion"
 
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
@@ -329,7 +370,9 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.bigendian_i.eq(0)
                     sync += sv_changed.eq(0)
                     sync += pc_changed.eq(0)
-                    m.next = "INSN_FETCH"  # back to fetch
+                    comb += exec_pc_valid_o.eq(1)
+                    with m.If(exec_pc_ready_i):
+                        m.next = "INSN_START"  # back to fetch
 
     def elaborate(self, platform):
         m = Module()
@@ -448,16 +491,17 @@ class TestIssuerInternal(Elaboratable):
         fetch_pc_valid_i = Signal() # Execute tells Fetch "start next read"
         fetch_pc_ready_o = Signal() # Fetch Tells SVSTATE "proceed"
 
-        # SVSTATE FSM TODO. actually, an "Issue" FSM that happens to do SVSTATE
-        fetch_to_sv_ready_i = Signal()
-        fetch_to_sv_valid_o = Signal()
+        # fetch FSM hands over the instruction to be decoded / issued
+        fetch_insn_valid_o = Signal()
+        fetch_insn_ready_i = Signal()
 
-        sv_to_exec_ready_i = Signal()
-        sv_to_exec_valid_o = Signal()
+        # issue FSM delivers the instruction to the be executed
+        exec_insn_valid_i = Signal()
+        exec_insn_ready_o = Signal()
 
-        # when done, deliver the instruction to the next FSM
-        exec_insn_valid_o = Signal()
-        exec_insn_ready_i = Signal() # Execute acknowledges SVSTATE
+        # execute FSM, hands over the PC/SVSTATE back to the issue FSM
+        exec_pc_valid_o = Signal()
+        exec_pc_ready_i = Signal()
 
         # latches copy of raw fetched instruction
         fetch_insn_o = Signal(32, reset_less=True)
@@ -471,17 +515,21 @@ class TestIssuerInternal(Elaboratable):
         self.fetch_fsm(m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
-                       exec_insn_valid_o, exec_insn_ready_i,
+                       fetch_insn_valid_o, fetch_insn_ready_i,
                        fetch_insn_o)
 
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
+        self.issue_fsm(m, core, cur_state, fetch_insn_o,
+                       fetch_pc_ready_o, fetch_pc_valid_i,
+                       fetch_insn_valid_o, fetch_insn_ready_i,
+                       exec_insn_valid_i, exec_insn_ready_o,
+                       exec_pc_ready_i, exec_pc_valid_o)
 
         self.execute_fsm(m, core, insn_done, pc_changed, sv_changed,
-                        cur_state, fetch_insn_o,
-                        fetch_pc_ready_o, fetch_pc_valid_i,
-                        exec_insn_valid_o, exec_insn_ready_i)
+                         exec_insn_valid_i, exec_insn_ready_o,
+                         exec_pc_ready_i, exec_pc_valid_o)
 
         # for updating svstate (things like srcstep etc.)
         update_svstate = Signal() # TODO: move this somewhere above
