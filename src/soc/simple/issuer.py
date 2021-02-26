@@ -286,6 +286,11 @@ class TestIssuerInternal(Elaboratable):
         # temporaries
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
+        # for updating svstate (things like srcstep etc.)
+        update_svstate = Signal() # set this (below) if updating
+        new_svstate = SVSTATERec("new_svstate")
+        comb += new_svstate.eq(cur_state.svstate)
+
         with m.FSM(name="issue_fsm"):
 
             # go fetch the instruction at the current PC
@@ -319,13 +324,20 @@ class TestIssuerInternal(Elaboratable):
             with m.State("EXECUTE_WAIT"):
                 comb += exec_pc_ready_i.eq(1)
                 with m.If(exec_pc_valid_o):
-                    # TODO: update SRCSTEP here
+                    # TODO: update SRCSTEP here (in new_svstate)
+                    #       and set update_svstate to True.
                     # TODO: loop into INSN_EXECUTE if it's a vector instruction
                     #       and SRCSTEP != VL-1 and PowerDecoder.no_out_vec
                     #       is True
                     #       unless PC / SVSTATE was modified, in that case do
                     #       go back to INSN_FETCH.
                     m.next = "INSN_FETCH"
+
+        # check if svstate needs updating: if so, write it to State Regfile
+        with m.If(update_svstate):
+            comb += self.state_w_sv.wen.eq(1<<StateRegs.SVSTATE)
+            comb += self.state_w_sv.data_i.eq(new_svstate)
+            sync += cur_state.svstate.eq(new_svstate) # for next clock
 
     def execute_fsm(self, m, core, insn_done, pc_changed, sv_changed,
                     exec_insn_valid_i, exec_insn_ready_o,
@@ -531,14 +543,6 @@ class TestIssuerInternal(Elaboratable):
         self.execute_fsm(m, core, insn_done, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
                          exec_pc_ready_i, exec_pc_valid_o)
-
-        # for updating svstate (things like srcstep etc.)
-        update_svstate = Signal() # TODO: move this somewhere above
-        new_svstate = SVSTATERec("new_svstate") # and move this as well
-        # check if svstate needs updating: if so, write it to State Regfile
-        with m.If(update_svstate):
-            comb += self.state_w_sv.wen.eq(1<<StateRegs.SVSTATE)
-            comb += self.state_w_sv.data_i.eq(new_svstate)
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
