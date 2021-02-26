@@ -149,8 +149,7 @@ class TestIssuerInternal(Elaboratable):
     def fetch_fsm(self, m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
-                        fetch_insn_valid_o, fetch_insn_ready_i,
-                        fetch_insn_o):
+                        fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
         this FSM performs fetch of raw instruction data, partial-decodes
         it 32-bit at a time to detect SVP64 prefixes, and will optionally
@@ -160,6 +159,11 @@ class TestIssuerInternal(Elaboratable):
         sync = m.d.sync
         pdecode2 = self.pdecode2
         svp64 = self.svp64
+
+        # latches copy of raw fetched instruction
+        fetch_insn_o = Signal(32, reset_less=True)
+        dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
+        sync += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
 
         msr_read = Signal(reset=1)
         sv_read = Signal(reset=1)
@@ -222,7 +226,7 @@ class TestIssuerInternal(Elaboratable):
                     with m.If(~svp64.is_svp64_mode):
                         # with no prefix, store the instruction
                         # and hand it directly to the next FSM
-                        sync += fetch_insn_o.eq(insn)
+                        comb += fetch_insn_o.eq(insn)
                         m.next = "INSN_READY"
                     with m.Else():
                         # fetch the rest of the instruction from memory
@@ -239,7 +243,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.Else():
                     # not busy: instruction fetched
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc+4)
-                    sync += fetch_insn_o.eq(insn)
+                    comb += fetch_insn_o.eq(insn)
                     m.next = "INSN_READY"
 
             with m.State("INSN_READY"):
@@ -259,7 +263,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
             comb += self.state_w_pc.data_i.eq(nia)
 
-    def issue_fsm(self, m, core, cur_state, fetch_insn_o,
+    def issue_fsm(self, m, core, cur_state,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
@@ -298,7 +302,6 @@ class TestIssuerInternal(Elaboratable):
                 comb += fetch_insn_ready_i.eq(1)
                 with m.If(fetch_insn_valid_o):
                     # decode the instruction
-                    comb += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
                     sync += core.e.eq(pdecode2.e)
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
@@ -505,9 +508,6 @@ class TestIssuerInternal(Elaboratable):
         exec_pc_valid_o = Signal()
         exec_pc_ready_i = Signal()
 
-        # latches copy of raw fetched instruction
-        fetch_insn_o = Signal(32, reset_less=True)
-
         # actually use a nmigen FSM for the first time (w00t)
         # this FSM is perhaps unusual in that it detects conditions
         # then "holds" information, combinatorially, for the core
@@ -517,13 +517,12 @@ class TestIssuerInternal(Elaboratable):
         self.fetch_fsm(m, core, dbg, pc, pc_changed, sv_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
-                       fetch_insn_valid_o, fetch_insn_ready_i,
-                       fetch_insn_o)
+                       fetch_insn_valid_o, fetch_insn_ready_i)
 
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
-        self.issue_fsm(m, core, cur_state, fetch_insn_o,
+        self.issue_fsm(m, core, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
