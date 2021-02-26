@@ -304,7 +304,8 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.raw_insn_i.eq(dec_opcode_i)
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
                     # TODO: loop into INSN_FETCH if it's a vector instruction
-                    #       and VL == 0
+                    #       and VL == 0.  this because VL==0 is a for-loop
+                    #       from 0 to 0 i.e. always, always a NOP.
                     m.next = "INSN_EXECUTE"  # move to "execute"
 
             with m.State("INSN_EXECUTE"):
@@ -317,7 +318,8 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(exec_pc_valid_o):
                     # TODO: update SRCSTEP here
                     # TODO: loop into INSN_EXECUTE if it's a vector instruction
-                    #       and SRCSTEP != VL-1
+                    #       and SRCSTEP != VL-1 and PowerDecoder.no_out_vec
+                    #       is True
                     #       unless PC / SVSTATE was modified, in that case do
                     #       go back to INSN_FETCH.
                     m.next = "INSN_FETCH"
