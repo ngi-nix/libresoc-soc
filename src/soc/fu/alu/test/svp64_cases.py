@@ -75,3 +75,29 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    @skip_case("VL hardware loop is not yet implemented")
+    def case_4_sv_check_vl_0(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
+        isa = SVP64Asm([
+            'sv.add 13.v, 10.v, 7.v',  # skipped, because VL == 0
+            'add 1, 5, 9'
+        ])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[5] = 0x4321
+        initial_regs[7] = 0x3012
+        initial_regs[10] = 0x1230
+        svstate = SVP64State()
+        # SVSTATE (in this case, VL=0, so vector instructions are skipped)
+        svstate.vl[0:7] = 0  # VL
+        svstate.maxvl[0:7] = 0  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
