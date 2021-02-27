@@ -1016,9 +1016,6 @@ class ISACaller:
             regnum, is_vec = yield from get_pdecode_cr_out(self.dec2, "CR0")
             self.handle_comparison(results, regnum)
 
-        # svp64 loop can end early if the dest is scalar
-        svp64_dest_vector = False
-
         # any modified return results?
         if info.write_regs:
             for name, output in zip(output_names, results):
@@ -1047,11 +1044,6 @@ class ISACaller:
                         # temporary hack for not having 2nd output
                         regnum = yield getattr(self.decoder, name)
                         is_vec = False
-                    # here's where we go "vector".
-                    if is_vec:
-                        # XXX already done by PowerDecoder2
-                        # regnum += srcstep # TODO, elwidth overrides
-                        svp64_dest_vector = True
                     print('writing reg %d %s' % (regnum, str(output)), is_vec)
                     if output.bits > 64:
                         output = SelectableInt(output.value, 64)
@@ -1068,6 +1060,8 @@ class ISACaller:
             print ("    svstate.mvl", mvl)
             print ("    svstate.srcstep", srcstep)
             # check if srcstep needs incrementing by one, stop PC advancing
+            # svp64 loop can end early if the dest is scalar
+            svp64_dest_vector = not (yield self.dec2.no_out_vec)
             if svp64_dest_vector and srcstep != vl-1:
                 self.svstate.srcstep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
