@@ -107,6 +107,32 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
+    def test_sv_add_vl_0(self):
+        # adds:
+        #       none because VL is zer0
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
+                       ])
+        lst = list(isa)
+        print ("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=0)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 0 # VL
+        svstate.maxvl[0:7] = 0 # MAXVL
+        print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self._check_regs(sim, expected_regs)
+
     def test_sv_add_cr(self):
         # adds when Rc=1:                               TODO CRs higher up
         #       1 = 5 + 9   => 0 = -1+1                 CR0=0b100
