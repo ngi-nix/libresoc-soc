@@ -17,7 +17,9 @@ https://libre-soc.org/openpower/sv/svp64/
 """
 
 from nmigen import Record, Elaboratable, Module, Signal
-from soc.decoder.power_enums import SVP64RMMode
+from soc.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
+                                    SVP64PredMode, SVP64sat)
+from soc.consts import EXTRA3
 
 # in nMigen, Record begins at the LSB and fills upwards
 class SVP64Rec(Record):
@@ -56,4 +58,57 @@ Arithmetic:
 """
 
 class SVP64RMMode(Elaboratable):
-    pass
+    def __init__(self, name=None):
+        self.rm_in = SVP64Rec(name=name)
+        self.fn_in = Signal(Function) # LD/ST is different
+        self.ptype_in = Signal(SVPtype)
+        self.mode = Signal(SVP64RMMode)
+        self.predmode = Signal(SVP64PredMode)
+        self.srcpred = Signal(3)
+        self.dstpred = Signal(3)
+        self.saturate = Signal(SVP64sat)
+
+    def elaborate(self, platform):
+        m = Module()
+        comb = m.d.comb
+
+        # decode pieces of mode
+        is_ldst = Signal()
+        mode2 = Signal(2)
+        comb += is_ldst.eq(self.fn_in == Function.LDST)
+        comb += mode2.eq(mode[0:2])
+        with m.Switch(mode2):
+            with m.Case(0): # needs further decoding (LDST no mapreduce)
+                with m.If(is_ldst):
+                    comb += self.mode.eq(SVP64RMMode.NORMAL)
+                with m.Elif(mode[3] == 1):
+                    comb += self.mode.eq(SVP64RMMode.MAPREDUCE)
+                with m.Else():
+                    comb += self.mode.eq(SVP64RMMode.NORMAL)
+            with m.Case(1):
+                comb += self.mode.eq(SVP64RMMode.FFIRST) # fail-first
+            with m.Case(2):
+                comb += self.mode.eq(SVP64RMMode.SATURATE) # saturate
+            with m.Case(3):
+                comb += self.mode.eq(SVP64RMMode.PREDRES) # predicate result
+
+        # identify predicate mode
+        with m.If(self.rm_in.mmode == 1):
+            comb += self.predmode.eq(SVP64PredMode.CR) # CR Predicate
+        with m.Elif(self.srcpred == 0):
+            comb += self.predmode.eq(SVP64PredMode.ALWAYS) # No predicate
+        with m.Else():
+            comb += self.predmode.eq(SVP64PredMode.INT) # non-zero src: INT
+
+        # extract src/dest predicate.  use EXTRA3.MASK because EXTRA2.MASK
+        # is in exactly the same bits
+        srcmask = sel(m, self.rm_in.extra, EXTRA3.MASK)
+        dstmask = self.rm_in.mask
+        with m.If(self.ptype_in == SVPtype.P2):
+            comb += self.srcpred.eq(srcmask)
+        comb += self.dstpred.eq(dstmask)
+
+        # TODO: detect zeroing mode, a few more.
+
+        return m
+

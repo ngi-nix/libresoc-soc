@@ -192,6 +192,7 @@ class EXTRA3:
     IDX0 = [0, 1, 2]
     IDX1 = [3, 4, 5]
     IDX2 = [6, 7, 8]
+    MASK = [6, 7, 8]
 
 
 EXTRA3_SIZE = 9

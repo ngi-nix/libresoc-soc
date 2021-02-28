@@ -111,6 +111,7 @@ class Form(Enum):
     EVS = 26
     Z22 = 27
     Z23 = 28
+    SVL = 29 # Simple-V for setvl instruction
 
 # Simple-V svp64 fields https://libre-soc.org/openpower/sv/svp64/
 
@@ -134,6 +135,12 @@ class SVEXTRA(Enum):
     Idx2 = 3
     Idx3 = 4
     Idx_1_2 = 5 # due to weird BA/BB for crops
+
+@unique
+class SVP64PredMode(Enum):
+    ALWAYS = 0
+    INT = 1
+    CR = 2
 
 @unique
 class SVP64PredInt(Enum):
@@ -178,6 +185,13 @@ class SVP64subvl(Enum):
     VEC2 = 1
     VEC3 = 2
     VEC4 = 3
+
+@unique
+class SVP64sat(Enum):
+    NONE = 0
+    SIGNED = 1
+    UNSIGNED = 2
+
 
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
