@@ -63,6 +63,7 @@ def decode_extra(rm, prefix=''):
 class SVP64RM:
     def __init__(self):
         self.instrs = {}
+        self.svp64_instrs = {}
         pth = find_wiki_dir()
         for fname in os.listdir(pth):
             if fname.startswith("RM") or fname.startswith("LDSTRM"):
@@ -140,6 +141,7 @@ class SVP64RM:
                 entry['SV_Ptype'] = 'P1'
             if entry['SV_Ptype'] == '2P':
                 entry['SV_Ptype'] = 'P2'
+            self.svp64_instrs[asmcode] = entry
 
         return v30b
 
