@@ -135,6 +135,37 @@ class SVEXTRA(Enum):
     Idx3 = 4
     Idx_1_2 = 5 # due to weird BA/BB for crops
 
+@unique
+class SVP64PredInt(Enum):
+    ALWAYS = 0
+    R3_UNARY = 1
+    R3 = 2
+    R3_N = 3
+    R10 = 4
+    R10_N = 5
+    R30 = 6
+    R30_N = 7
+
+@unique
+class SVP64PredCR(Enum):
+    LT = 0
+    GE = 1
+    GT = 2
+    LE = 3
+    EQ = 4
+    NE = 5
+    SO = 6
+    NS = 7
+
+@unique
+class SVP64RMMode(Enum):
+    NORMAL = 0
+    MAPREDUCE = 1
+    FFIRST = 2
+    SATURATE = 3
+    PREDRES = 4
+
+
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else
 _insns = [
