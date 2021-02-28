@@ -1184,7 +1184,7 @@ class PowerDecode2(PowerDecodeSubset):
         comb += self.o2_isvec.eq(o2_svdec.isvec)
         # TODO add SPRs here.  must be True when *all* are scalar
         l = map(lambda svdec: svdec.isvec, [in1_svdec, in2_svdec, in3_svdec,
-                                    crin_svdec, crin_svdec_b, crin_svdec_o]:
+                                    crin_svdec, crin_svdec_b, crin_svdec_o])
         comb += self.no_in_vec.eq(~Cat(*l).bool()) # all input scalar
         l = map(lambda svdec: svdec.isvec, [o2_svdec, o_svdec, crout_svdec])
         comb += self.no_out_vec.eq(~Cat(*l).bool()) # all output scalar
