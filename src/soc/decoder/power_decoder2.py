@@ -1026,6 +1026,7 @@ class PowerDecode2(PowerDecodeSubset):
         self.in3_isvec = Signal(1, name="reg_c_isvec")
         self.o_isvec = Signal(1, name="reg_o_isvec")
         self.o2_isvec = Signal(1, name="reg_o2_isvec")
+        self.no_in_vec = Signal(1, name="no_in_vec") # no inputs are vectors
         self.no_out_vec = Signal(1, name="no_out_vec") # no outputs are vectors
 
     def get_col_subset(self, opkls):
@@ -1174,15 +1175,18 @@ class PowerDecode2(PowerDecodeSubset):
         # "update mode" rather than specified cleanly as its own CSV column
         #comb += o2_svdec.idx.eq(op.sv_out)    # SVP64 output (implicit)
 
-        # output reg-is-vectorised (and when no output is vectorised)
+        # output reg-is-vectorised (and when no input or output is vectorised)
         comb += self.in1_isvec.eq(in1_svdec.isvec)
         comb += self.in2_isvec.eq(in2_svdec.isvec)
         comb += self.in3_isvec.eq(in3_svdec.isvec)
         comb += self.o_isvec.eq(o_svdec.isvec)
         comb += self.o2_isvec.eq(o2_svdec.isvec)
-        # TODO: include SPRs and CRs here!  must be True when *all* are scalar
-        comb += self.no_out_vec.eq((~o2_svdec.isvec) & (~o_svdec.isvec) &
-                                   (~crout_svdec.isvec))
+        # TODO add SPRs here.  must be True when *all* are scalar
+        l = map(lambda svdec: svdec.isvec, [in1_svdec, in2_svdec, in3_svdec,
+                                    crin_svdec, crin_svdec_b, crin_svdec_o]:
+        comb += self.no_in_vec.eq(~Cat(*l).bool()) # all input scalar
+        l = map(lambda svdec: svdec.isvec, [o2_svdec, o_svdec, crout_svdec])
+        comb += self.no_out_vec.eq(~Cat(*l).bool()) # all output scalar
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)
