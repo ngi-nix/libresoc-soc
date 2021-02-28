@@ -38,13 +38,22 @@ class SVP64Rec(Record):
 
 """RM Mode
 
-LD/ST:
+LD/ST immed:
 00	str	sz dz	normal mode
 01	inv	CR-bit	Rc=1: ffirst CR sel
 01	inv	els RC1	Rc=0: ffirst z/nonz
 10	N	sz els	sat mode: N=0/1 u/s
 11	inv	CR-bit	Rc=1: pred-result CR sel
 11	inv	els RC1	Rc=0: pred-result z/nonz
+
+LD/ST indexed:
+00	0	sz dz	normal mode
+00	rsv	rsvd	reserved
+01	inv	CR-bit	Rc=1: ffirst CR sel
+01	inv	sz RC1	Rc=0: ffirst z/nonz
+10	N	sz dz	sat mode: N=0/1 u/s
+11	inv	CR-bit	Rc=1: pred-result CR sel
+11	inv	sz RC1	Rc=0: pred-result z/nonz
 
 Arithmetic:
 00	0	sz dz	normal mode
@@ -62,11 +71,24 @@ class SVP64RMMode(Elaboratable):
         self.rm_in = SVP64Rec(name=name)
         self.fn_in = Signal(Function) # LD/ST is different
         self.ptype_in = Signal(SVPtype)
+        self.rc_in = Signal()
+
+        # main mode (normal, reduce, saturate, ffirst, pred-result)
         self.mode = Signal(SVP64RMMode)
+
+        # predication
         self.predmode = Signal(SVP64PredMode)
-        self.srcpred = Signal(3)
-        self.dstpred = Signal(3)
+        self.srcpred = Signal(3) # source predicate
+        self.dstpred = Signal(3) # destination predicate
+        self.pred_sz = Signal(1) # predicate source zeroing
+        self.pred_dz = Signal(1) # predicate dest zeroing
+        
         self.saturate = Signal(SVP64sat)
+        self.RC1 = Signal()
+        self.cr_sel = Signal(2)
+        self.inv = Signal(1)
+        self.map_evm = Signal(1)
+        self.map_crm = Signal(1)
 
     def elaborate(self, platform):
         m = Module()
@@ -108,7 +130,7 @@ class SVP64RMMode(Elaboratable):
             comb += self.srcpred.eq(srcmask)
         comb += self.dstpred.eq(dstmask)
 
-        # TODO: detect zeroing mode, a few more.
+        # TODO: detect zeroing mode, saturation mode, a few more.
 
         return m
 
