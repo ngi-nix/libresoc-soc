@@ -165,6 +165,19 @@ class SVP64RMMode(Enum):
     SATURATE = 3
     PREDRES = 4
 
+@unique
+class SVP64width(Enum):
+    DEFAULT = 0
+    EW_32 = 1
+    EW_16 = 2
+    EW_8 = 3
+
+@unique
+class SVP64subvl(Enum):
+    VEC1 = 0
+    VEC2 = 1
+    VEC3 = 2
+    VEC4 = 3
 
 # supported instructions: make sure to keep up-to-date with CSV files
 # just like everything else

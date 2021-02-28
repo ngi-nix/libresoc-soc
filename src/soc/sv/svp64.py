@@ -16,8 +16,8 @@ https://libre-soc.org/openpower/sv/svp64/
 | MODE        | `19:23`    | changes Vector behaviour               |
 """
 
-from nmigen import Record
-
+from nmigen import Record, Elaboratable, Module, Signal
+from soc.decoder.power_enums import SVP64RMMode
 
 # in nMigen, Record begins at the LSB and fills upwards
 class SVP64Rec(Record):
@@ -54,3 +54,6 @@ Arithmetic:
 11	inv	CR-bit	Rc=1: pred-result CR sel
 11	inv	sz RC1	Rc=0: pred-result z/nonz
 """
+
+class SVP64RMMode(Elaboratable):
+    pass
