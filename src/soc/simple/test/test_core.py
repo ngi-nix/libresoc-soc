@@ -100,9 +100,9 @@ def setup_regs(pdecode2, core, test):
             # match behaviour of SPRMap in power_decoder2.py
             for i, x in enumerate(SPR):
                 if sprname == x.name:
-                    yield sregs[i].reg.eq(val)
                     print("setting slow SPR %d (%s) to %x" %
                           (i, sprname, val))
+                    yield sregs.memory._array[i].eq(val)
         else:
             yield fregs.regs[fast].reg.eq(val)
             print("setting fast reg %d (%s) to %x" %

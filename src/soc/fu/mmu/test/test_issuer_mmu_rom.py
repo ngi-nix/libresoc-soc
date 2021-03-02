@@ -48,9 +48,8 @@ class MMUTestCase(TestAccumulatorBase):
         prtbl = 0x1000000
         initial_regs[1] = prtbl
         
-        
-
-        initial_sprs = {}
+        initial_sprs = {'DSISR': 0, 'DAR': 0,
+                         720: 0}
         self.add_case(Program(lst, bigendian),
                       initial_regs, initial_sprs)
 
