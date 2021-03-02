@@ -257,7 +257,7 @@ class FSMMMUStage(ControlBase):
                             comb += o.data.eq(dsisr)
                         with m.Else():
                             comb += o.data.eq(dar)
-                        #FIXME comb += o.ok.eq(1)
+                        comb += o.ok.eq(1)
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
