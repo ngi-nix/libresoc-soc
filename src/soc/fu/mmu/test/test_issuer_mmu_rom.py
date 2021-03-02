@@ -34,11 +34,13 @@ default_mem = { 0x10000:    # PARTITION_TABLE_2
 class MMUTestCase(TestAccumulatorBase):
     # MMU on microwatt handles MTSPR, MFSPR, DCBZ and TLBIE.
     # libre-soc has own SPR unit
+    # libre-soc MMU supports MTSPR and MFSPR but **ONLY** for the subset
+    # of SPRs it actually does.
     # other instructions here -> must be load/store
 
     def case_mmu_ldst(self):
         lst = [
-                "mtspr 720, 1",
+                #"mtspr 720, 1", # XXX do not execute unsupported instructions
                 "lhz 3, 0(1)"      # load some data
               ]
 
