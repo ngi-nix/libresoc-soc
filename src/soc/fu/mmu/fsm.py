@@ -192,7 +192,7 @@ class FSMMMUStage(ControlBase):
         comb += self.ldst.d_out.eq(self.dcache.d_out)
 
         data_i, data_o = self.p.data_i, self.n.data_o
-        a_i, b_i, o = data_i.ra, data_i.rb, data_o.o
+        a_i, b_i, o, spr1_o = data_i.ra, data_i.rb, data_o.o, data_o.spr1
         op = data_i.ctx.op
 
         # TODO: link these SPRs somewhere
@@ -230,6 +230,13 @@ class FSMMMUStage(ControlBase):
 
             with m.Switch(op.insn_type):
                 with m.Case(MicrOp.OP_MTSPR):
+                    # despite redirection this FU **MUST** behave exactly
+                    # like the SPR FU.  this **INCLUDES** updating the SPR
+                    # regfile because the CSV file entry for OP_MTSPR
+                    # categorically defines and requires the expectation
+                    # that the CompUnit **WILL** write to the regfile.
+                    comb += spr1_o.data.eq(spr)
+                    comb += spr1_o.ok.eq(1)
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(3)

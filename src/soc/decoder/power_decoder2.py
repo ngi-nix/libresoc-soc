@@ -713,7 +713,23 @@ class PowerDecodeSubset(Elaboratable):
         return subset
 
     def rowsubsetfn(self, opcode, row):
-        return row['unit'] == self.fn_name
+        """select per-Function-Unit subset of opcodes to be processed
+
+        normally this just looks at the "unit" column.  MMU is different
+        in that it processes specific SPR set/get operations that the SPR
+        pipeline should not.
+        """
+        return (row['unit'] == self.fn_name or
+                # sigh a dreadful hack: MTSPR and MFSPR need to be processed
+                # by the MMU pipeline so we direct those opcodes to MMU **AND**
+                # SPR pipelines, then selectively weed out the SPRs that should
+                # or should not not go to each pipeline, further down.
+                # really this should be done by modifying the CSV syntax
+                # to support multiple tasks (unit column multiple entries)
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=310
+               (self.fn_name == 'MMU' and row['unit'] == 'SPR' and
+                row['internal op'] in ['OP_MTSPR', 'OP_MFSPR'])
+                )
 
     def ports(self):
         return self.dec.ports() + self.e.ports() + self.sv_rm.ports()
@@ -771,16 +787,8 @@ class PowerDecodeSubset(Elaboratable):
 
         # set up instruction type
         # no op: defaults to OP_ILLEGAL
-        if self.fn_name=="MMU":
-            # mmu is special case: needs SPR opcode as well
-            mmu0 = self.mmu0_spr_dec
-            with m.If(((mmu0.dec.op.internal_op == MicrOp.OP_MTSPR) |
-                       (mmu0.dec.op.internal_op == MicrOp.OP_MFSPR))):
-                comb += self.do_copy("insn_type", mmu0.op_get("internal_op"))
-            with m.Else():
-                comb += self.do_copy("insn_type", self.op_get("internal_op"))
-        else:
-            comb += self.do_copy("insn_type", self.op_get("internal_op"))
+        internal_op = self.op_get("internal_op")
+        comb += self.do_copy("insn_type", internal_op)
 
         # function unit for decoded instruction: requires minor redirect
         # for SPR set/get
@@ -790,13 +798,25 @@ class PowerDecodeSubset(Elaboratable):
 
         # Microwatt doesn't implement the partition table
         # instead has PRTBL(SVSRR0) register (SPR) to point to process table
-        with m.If(((self.dec.op.internal_op == MicrOp.OP_MTSPR) |
-                   (self.dec.op.internal_op == MicrOp.OP_MFSPR)) &
-                   ((spr == SPR.DSISR.value) | (spr == SPR.DAR.value) |
-                     (spr==SPR.SVSRR0.value) | (spr==SPR.PIDR.value))):
-            comb += self.do_copy("fn_unit", Function.MMU)
+        is_spr_mv = Signal()
+        is_mmu_spr = Signal()
+        comb += is_spr_mv.eq((internal_op == MicrOp.OP_MTSPR) |
+                             (internal_op == MicrOp.OP_MFSPR))
+        comb += is_mmu_spr.eq((spr == SPR.DSISR.value) |
+                              (spr == SPR.DAR.value) |
+                              (spr == SPR.SVSRR0.value) |
+                              (spr == SPR.PIDR.value))
+        # MMU must receive MMU SPRs
+        with m.If(is_spr_mv & (fn == Function.SPR) & is_mmu_spr):
+            comb += self.do_copy("fn_unit", Function.NONE)
+            comb += self.do_copy("insn_type", MicrOp.OP_ILLEGAL)
+        # SPR pipe must *not* receive MMU SPRs
+        with m.Elif(is_spr_mv & (fn == Function.MMU) & ~is_mmu_spr):
+            comb += self.do_copy("fn_unit", Function.NONE)
+            comb += self.do_copy("insn_type", MicrOp.OP_ILLEGAL)
+        # all others ok
         with m.Else():
-            comb += self.do_copy("fn_unit",fn)
+            comb += self.do_copy("fn_unit", fn)
 
         # immediates
         if self.needs_field("zero_a", "in1_sel"):
