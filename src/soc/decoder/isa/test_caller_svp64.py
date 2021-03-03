@@ -171,8 +171,10 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(CR0, SelectableInt(2, 4))
             self.assertEqual(CR1, SelectableInt(4, 4))
 
-    def run_tst_program(self, prog, initial_regs=[0] * 32,
+    def run_tst_program(self, prog, initial_regs=None,
                               svstate=None):
+        if initial_regs is None:
+            initial_regs = [0] * 32
         simulator = run_tst(prog, initial_regs, svstate=svstate)
         simulator.gpr.dump()
         return simulator
