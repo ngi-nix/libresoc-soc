@@ -218,6 +218,12 @@ class TestRunner(FHDLTestCase):
                 yield from setup_i_memory(imem, pc, instructions)
                 yield from setup_test_memory(l0, sim)
                 yield from setup_regs(pdecode2, core, test)
+
+                # set PC first (before SVSTATE)
+                yield pc_i.eq(pc)
+                yield issuer.pc_i.ok.eq(1)
+                yield
+
                 # TODO, setup svstate here in core.regs.state regfile
                 # https://bugs.libre-soc.org/show_bug.cgi?id=583#c35
                 # setup of SVSTATE
@@ -226,9 +232,6 @@ class TestRunner(FHDLTestCase):
                     initial_svstate = SVP64State(initial_svstate)
                 svstate_reg = core.regs.state.regs[StateRegs.SVSTATE].reg
                 yield svstate_reg.eq(initial_svstate.spr.value)
-
-                yield pc_i.eq(pc)
-                yield issuer.pc_i.ok.eq(1)
                 yield
 
                 print("instructions", instructions)

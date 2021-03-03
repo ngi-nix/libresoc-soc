@@ -122,6 +122,7 @@ class TestIssuerInternal(Elaboratable):
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
+        self.svstate_i = Data(32, "svstate_i") # ditto
         self.core_bigendian_i = Signal()
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
@@ -146,7 +147,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, dbg, pc, pc_changed, insn_done,
+    def fetch_fsm(self, m, core, dbg, pc, svstate, pc_changed, insn_done,
                         core_rst, cur_state,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
@@ -166,7 +167,6 @@ class TestIssuerInternal(Elaboratable):
         sync += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
 
         msr_read = Signal(reset=1)
-        sv_read = Signal(reset=1)
 
         # address of the next instruction, in the absence of a branch
         # depends on the instruction size
@@ -187,12 +187,11 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.imem.a_valid_i.eq(1)
                         comb += self.imem.f_valid_i.eq(1)
                         sync += cur_state.pc.eq(pc)
+                        sync += cur_state.svstate.eq(svstate) # and svstate
 
-                        # initiate read of MSR/SVSTATE. arrives one clock later
+                        # initiate read of MSR. arrives one clock later
                         comb += self.state_r_msr.ren.eq(1 << StateRegs.MSR)
-                        comb += self.state_r_sv.ren.eq(1 << StateRegs.SVSTATE)
                         sync += msr_read.eq(0)
-                        sync += sv_read.eq(0)
 
                         m.next = "INSN_READ"  # move to "wait for bus" phase
                 with m.Else():
@@ -205,9 +204,6 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~msr_read):
                     sync += msr_read.eq(1) # yeah don't read it again
                     sync += cur_state.msr.eq(self.state_r_msr.data_o)
-                with m.If(~sv_read):
-                    sync += sv_read.eq(1) # yeah don't read it again
-                    sync += cur_state.svstate.eq(self.state_r_sv.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_valid_i.eq(1)
@@ -488,19 +484,32 @@ class TestIssuerInternal(Elaboratable):
         with m.If(pc_ok_delay):
             comb += pc.eq(self.state_r_pc.data_o)
 
+        # read svstate
+        svstate = Signal(64, reset_less=True)
+        svstate_ok_delay = Signal()
+        sync += svstate_ok_delay.eq(~self.svstate_i.ok)
+        with m.If(self.svstate_i.ok):
+            # incoming override (start from svstate__i)
+            comb += svstate.eq(self.svstate_i.data)
+        with m.Else():
+            # otherwise read StateRegs regfile for SVSTATE...
+            comb += self.state_r_sv.ren.eq(1 << StateRegs.SVSTATE)
+        # ... but on a 1-clock delay
+        with m.If(svstate_ok_delay):
+            comb += svstate.eq(self.state_r_sv.data_o)
+
         # don't write pc every cycle
         comb += self.state_w_pc.wen.eq(0)
         comb += self.state_w_pc.data_i.eq(0)
 
-        # don't read msr or svstate every cycle
-        comb += self.state_r_sv.ren.eq(0)
+        # don't read msr every cycle
         comb += self.state_r_msr.ren.eq(0)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
         comb += dbg.state.pc.eq(pc)
-        #comb += dbg.state.pc.eq(cur_state.pc)
+        comb += dbg.state.svstate.eq(svstate)
         comb += dbg.state.msr.eq(cur_state.msr)
 
         # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
@@ -528,7 +537,7 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, dbg, pc, pc_changed, insn_done,
+        self.fetch_fsm(m, core, dbg, pc, svstate, pc_changed, insn_done,
                        core_rst, cur_state,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
