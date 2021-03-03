@@ -131,6 +131,7 @@ class TestRunner(FHDLTestCase):
         m = Module()
         comb = m.d.comb
         pc_i = Signal(32)
+        svstate_i = Signal(32)
 
         pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
                              imem_ifacetype='test_bare_wb',
@@ -161,6 +162,7 @@ class TestRunner(FHDLTestCase):
         comb += intclk.eq(ClockSignal())
 
         comb += issuer.pc_i.data.eq(pc_i)
+        comb += issuer.svstate_i.data.eq(svstate_i)
 
         # nmigen Simulation
         sim = Simulator(m)
@@ -219,19 +221,15 @@ class TestRunner(FHDLTestCase):
                 yield from setup_test_memory(l0, sim)
                 yield from setup_regs(pdecode2, core, test)
 
-                # set PC first (before SVSTATE)
+                # set PC and SVSTATE
                 yield pc_i.eq(pc)
                 yield issuer.pc_i.ok.eq(1)
-                yield
 
-                # TODO, setup svstate here in core.regs.state regfile
-                # https://bugs.libre-soc.org/show_bug.cgi?id=583#c35
-                # setup of SVSTATE
                 initial_svstate = test.svstate
                 if isinstance(initial_svstate, int):
                     initial_svstate = SVP64State(initial_svstate)
-                svstate_reg = core.regs.state.regs[StateRegs.SVSTATE].reg
-                yield svstate_reg.eq(initial_svstate.spr.value)
+                yield svstate_i.eq(initial_svstate.spr.value)
+                yield issuer.svstate_i.ok.eq(1)
                 yield
 
                 print("instructions", instructions)
@@ -249,6 +247,7 @@ class TestRunner(FHDLTestCase):
                         yield
                         yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.START)
                         yield issuer.pc_i.ok.eq(0)  # no change PC after this
+                        yield issuer.svstate_i.ok.eq(0) # ditto
                         yield
                         yield
 
