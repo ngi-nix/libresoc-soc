@@ -75,6 +75,36 @@ def create_args(reglist, extra=None):
     return retval
 
 
+
+# see qemu/target/ppc/mmu-radix64.c for reference
+class RADIX:
+    def __init__(self, mem, caller):
+        self.mem = mem
+        self.caller = caller
+
+    def ld(self, address, width=8, swap=True, check_in_mem=False):
+        print("RADIX: ld from addr 0x{:x} width {:d}".format(address, width))
+
+        pte = self._walk_tree()
+        # use pte to caclculate phys address
+        #mem.ld(address,width,swap,check_in_mem)
+
+    # TODO implement
+    # def st(self, addr, v, width=8, swap=True):
+    # def memassign(self, addr, sz, val):
+    def _next_level(self):
+        return True
+        ## DSISR_R_BADCONFIG
+        ## read_entry
+        ## DSISR_NOPTE
+        ## Prepare for next iteration
+
+    def _walk_tree(self):
+        # walk tree starts on prtbl
+        while True:
+            ret = self._next_level()
+            if ret: return ret
+
 class Mem:
 
     def __init__(self, row_bytes=8, initial_mem=None):
