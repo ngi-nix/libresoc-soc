@@ -148,7 +148,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia.wen.name = 'state_nia_wen'
 
     def fetch_fsm(self, m, core, dbg, pc, svstate, pc_changed, insn_done,
-                        core_rst, cur_state,
+                        core_rst,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
@@ -160,6 +160,7 @@ class TestIssuerInternal(Elaboratable):
         sync = m.d.sync
         pdecode2 = self.pdecode2
         svp64 = self.svp64
+        cur_state = self.cur_state
 
         # latches copy of raw fetched instruction
         fetch_insn_o = Signal(32, reset_less=True)
@@ -259,7 +260,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
             comb += self.state_w_pc.data_i.eq(nia)
 
-    def issue_fsm(self, m, core, cur_state, pc_changed, sv_changed,
+    def issue_fsm(self, m, core, pc_changed, sv_changed,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
@@ -278,6 +279,7 @@ class TestIssuerInternal(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
         pdecode2 = self.pdecode2
+        cur_state = self.cur_state
 
         # temporaries
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
@@ -538,14 +540,14 @@ class TestIssuerInternal(Elaboratable):
         # this includes the actual opcode, valid flags and so on.
 
         self.fetch_fsm(m, core, dbg, pc, svstate, pc_changed, insn_done,
-                       core_rst, cur_state,
+                       core_rst,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
 
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
-        self.issue_fsm(m, core, cur_state, pc_changed, sv_changed,
+        self.issue_fsm(m, core, pc_changed, sv_changed,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
