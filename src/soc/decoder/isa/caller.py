@@ -962,9 +962,9 @@ class ISACaller:
         # clear trap (trap) NIA
         self.trap_nia = None
 
-        print(inputs)
+        print("inputs", inputs)
         results = info.func(self, *inputs)
-        print(results)
+        print("results", results)
 
         # "inject" decorator takes namespace from function locals: we need to
         # overwrite NIA being overwritten (sigh)
