@@ -13,6 +13,9 @@ mkpinmux:
 
 install: develop mkpinmux
 
+pywriter:
+	python3 src/soc/decoder/pseudo/pywriter.py
+
 develop:
 	python3 setup.py develop --user # yes, develop, not install
 	python3 src/soc/decoder/pseudo/pywriter.py
