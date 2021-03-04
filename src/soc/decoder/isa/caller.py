@@ -75,6 +75,138 @@ def create_args(reglist, extra=None):
     return retval
 
 
+"""
+    Get Root Page
+
+    //Accessing 2nd double word of partition table (pate1)
+    //Ref: Power ISA Manual v3.0B, Book-III, section 5.7.6.1
+    //           PTCR Layout
+    // ====================================================
+    // -----------------------------------------------
+    // | /// |     PATB                | /// | PATS  |
+    // -----------------------------------------------
+    // 0     4                       51 52 58 59    63
+    // PATB[4:51] holds the base address of the Partition Table,
+    // right shifted by 12 bits.
+    // This is because the address of the Partition base is
+    // 4k aligned. Hence, the lower 12bits, which are always
+    // 0 are ommitted from the PTCR.
+    //
+    // Thus, The Partition Table Base is obtained by (PATB << 12)
+    //
+    // PATS represents the partition table size right-shifted by 12 bits.
+    // The minimal size of the partition table is 4k.
+    // Thus partition table size = (1 << PATS + 12).
+    //
+    //        Partition Table
+    //  ====================================================
+    //  0    PATE0            63  PATE1             127
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      | <-- effLPID
+    //  |----------------------|----------------------|
+    //           .
+    //           .
+    //           .
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //
+    // The effective LPID  forms the index into the Partition Table.
+    //
+    // Each entry in the partition table contains 2 double words, PATE0, PATE1,
+    // corresponding to that partition.
+    //
+    // In case of Radix, The structure of PATE0 and PATE1 is as follows.
+    //
+    //     PATE0 Layout
+    // -----------------------------------------------
+    // |1|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+    // -----------------------------------------------
+    //  0 1  2 3 4                55 56  58 59      63
+    //
+    // HR[0] : For Radix Page table, first bit should be 1.
+    // RTS1[1:2] : Gives one fragment of the Radix treesize
+    // RTS2[56:58] : Gives the second fragment of the Radix Tree size.
+    // RTS = (RTS1 << 3 + RTS2) + 31.
+    //
+    // RPDB[4:55] = Root Page Directory Base.
+    // RPDS = Logarithm of Root Page Directory Size right shifted by 3.
+    //        Thus, Root page directory size = 1 << (RPDS + 3).
+    //        Note: RPDS >= 5.
+    //
+    //   PATE1 Layout
+    // -----------------------------------------------
+    // |///|       PRTB             |  //  |  PRTS   |
+    // -----------------------------------------------
+    // 0  3 4                     51 52  58 59     63
+    //
+    // PRTB[4:51]   = Process Table Base. This is aligned to size.
+    // PRTS[59: 63] = Process Table Size right shifted by 12.
+    //                Minimal size of the process table is 4k.
+    //                Process Table Size = (1 << PRTS + 12).
+    //                Note: PRTS <= 24.
+    //
+    //                Computing the size aligned Process Table Base:
+    //                   table_base = (PRTB  & ~((1 << PRTS) - 1)) << 12
+    //                Thus, the lower 12+PRTS bits of table_base will
+    //                be zero.
+
+
+    //Ref: Power ISA Manual v3.0B, Book-III, section 5.7.6.2
+    //
+    //        Process Table
+    // ==========================
+    //  0    PRTE0            63  PRTE1             127
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      | <-- effPID
+    //  |----------------------|----------------------|
+    //           .
+    //           .
+    //           .
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //
+    // The effective Process id (PID) forms the index into the Process Table.
+    //
+    // Each entry in the partition table contains 2 double words, PRTE0, PRTE1,
+    // corresponding to that process
+    //
+    // In case of Radix, The structure of PRTE0 and PRTE1 is as follows.
+    //
+    //     PRTE0 Layout
+    // -----------------------------------------------
+    // |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+    // -----------------------------------------------
+    //  0 1  2 3 4                55 56  58 59      63
+    //
+    // RTS1[1:2] : Gives one fragment of the Radix treesize
+    // RTS2[56:58] : Gives the second fragment of the Radix Tree size.
+    // RTS = (RTS1 << 3 + RTS2) << 31,
+    //        since minimal Radix Tree size is 4G.
+    //
+    // RPDB = Root Page Directory Base.
+    // RPDS = Root Page Directory Size right shifted by 3.
+    //        Thus, Root page directory size = RPDS << 3.
+    //        Note: RPDS >= 5.
+    //
+    //   PRTE1 Layout
+    // -----------------------------------------------
+    // |                      ///                    |
+    // -----------------------------------------------
+    // 0                                            63
+    // All bits are reserved.
+
+
+"""
 
 # see qemu/target/ppc/mmu-radix64.c for reference
 class RADIX:
@@ -106,6 +238,72 @@ class RADIX:
         ## Prepare for next iteration
 
     def _walk_tree(self):
+        """walk tree
+
+        // vaddr                    64 Bit
+        // vaddr |-----------------------------------------------------|
+        //       | Unused    |  Used                                   |
+        //       |-----------|-----------------------------------------|
+        //       | 0000000   | usefulBits = X bits (typically 52)      |
+        //       |-----------|-----------------------------------------|
+        //       |           |<--Cursize---->|                         |
+        //       |           |    Index      |                         |
+        //       |           |    into Page  |                         |
+        //       |           |    Directory  |                         |
+        //       |-----------------------------------------------------|
+        //                        |                       |
+        //                        V                       |
+        // PDE  |---------------------------|             |
+        //      |V|L|//|  NLB       |///|NLS|             |
+        //      |---------------------------|             |
+        // PDE = Page Directory Entry                     |
+        // [0] = V = Valid Bit                            |
+        // [1] = L = Leaf bit. If 0, then                 |
+        // [4:55] = NLB = Next Level Base                 |
+        //                right shifted by 8              |
+        // [59:63] = NLS = Next Level Size                |
+        //            |    NLS >= 5                       |
+        //            |                                   V
+        //            |                     |--------------------------|
+        //            |                     |   usfulBits = X-Cursize  |
+        //            |                     |--------------------------|
+        //            |---------------------><--NLS-->|                |
+        //                                  | Index   |                |
+        //                                  | into    |                |
+        //                                  | PDE     |                |
+        //                                  |--------------------------|
+        //                                                    |
+        // If the next PDE obtained by                        |
+        // (NLB << 8 + 8 * index) is a                        |
+        // nonleaf, then repeat the above.                    |
+        //                                                    |
+        // If the next PDE is a leaf,                         |
+        // then Leaf PDE structure is as                      |
+        // follows                                            |
+        //                                                    |
+        //                                                    |
+        // Leaf PDE                                           |
+        // |------------------------------|           |----------------|
+        // |V|L|sw|//|RPN|sw|R|C|/|ATT|EAA|           | usefulBits     |
+        // |------------------------------|           |----------------|
+        // [0] = V = Valid Bit                                 |
+        // [1] = L = Leaf Bit = 1 if leaf                      |
+        //                      PDE                            |
+        // [2] = Sw = Sw bit 0.                                |
+        // [7:51] = RPN = Real Page Number,                    V
+        //          real_page = RPN << 12 ------------->  Logical OR
+        // [52:54] = Sw Bits 1:3                               |
+        // [55] = R = Reference                                |
+        // [56] = C = Change                                   V
+        // [58:59] = Att =                                Physical Address
+        //           0b00 = Normal Memory
+        //           0b01 = SAO
+        //           0b10 = Non Idenmpotent
+        //           0b11 = Tolerant I/O
+        // [60:63] = Encoded Access
+        //           Authority
+        //
+        """
         # walk tree starts on prtbl
         while True:
             ret = self._next_level()
