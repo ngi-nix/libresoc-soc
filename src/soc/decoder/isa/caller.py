@@ -105,6 +105,48 @@ class RADIX:
             ret = self._next_level()
             if ret: return ret
 
+    def _segment_check(self):
+        """checks segment valid
+                    mbits := '0' & r.mask_size;
+            v.shift := r.shift + (31 - 12) - mbits;
+            nonzero := or(r.addr(61 downto 31) and not finalmask(30 downto 0));
+            if r.addr(63) /= r.addr(62) or nonzero = '1' then
+                v.state := RADIX_FINISH;
+                v.segerror := '1';
+            elsif mbits < 5 or mbits > 16 or mbits > (r.shift + (31 - 12)) then
+                v.state := RADIX_FINISH;
+                v.badtree := '1';
+            else
+                v.state := RADIX_LOOKUP;
+        """
+
+    def _check_perms(self):
+        """check page permissions
+                    -- test leaf bit
+                    if data(62) = '1' then
+                        -- check permissions and RC bits
+                        perm_ok := '0';
+                        if r.priv = '1' or data(3) = '0' then
+                            if r.iside = '0' then
+                                perm_ok := data(1) or (data(2) and not r.store);
+                            else
+                                -- no IAMR, so no KUEP support for now
+                                -- deny execute permission if cache inhibited
+                                perm_ok := data(0) and not data(5);
+                            end if;
+                        end if;
+                        rc_ok := data(8) and (data(7) or not r.store);
+                        if perm_ok = '1' and rc_ok = '1' then
+                            v.state := RADIX_LOAD_TLB;
+                        else
+                            v.state := RADIX_FINISH;
+                            v.perm_err := not perm_ok;
+                            -- permission error takes precedence over RC error
+                            v.rc_error := perm_ok;
+                        end if;
+        """
+
+
 class Mem:
 
     def __init__(self, row_bytes=8, initial_mem=None):
