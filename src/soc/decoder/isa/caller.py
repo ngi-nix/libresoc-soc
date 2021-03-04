@@ -82,6 +82,12 @@ class RADIX:
         self.mem = mem
         self.caller = caller
 
+        # cached page table stuff
+        self.pgtbl0 = 0
+        self.pt0_valid = False
+        self.pgtbl3 = 0
+        self.pt3_valid = False
+
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x{:x} width {:d}".format(address, width))
 
