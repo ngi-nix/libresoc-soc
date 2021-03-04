@@ -797,14 +797,14 @@ class PowerDecodeSubset(Elaboratable):
         comb += spr.eq(decode_spr_num(self.dec.SPR)) # from XFX
 
         # Microwatt doesn't implement the partition table
-        # instead has PRTBL(SVSRR0) register (SPR) to point to process table
+        # instead has PRTBL register (SPR) to point to process table
         is_spr_mv = Signal()
         is_mmu_spr = Signal()
         comb += is_spr_mv.eq((internal_op == MicrOp.OP_MTSPR) |
                              (internal_op == MicrOp.OP_MFSPR))
         comb += is_mmu_spr.eq((spr == SPR.DSISR.value) |
                               (spr == SPR.DAR.value) |
-                              (spr == SPR.SVSRR0.value) |
+                              (spr == SPR.PRTBL.value) |
                               (spr == SPR.PIDR.value))
         # MMU must receive MMU SPRs
         with m.If(is_spr_mv & (fn == Function.SPR) & is_mmu_spr):
