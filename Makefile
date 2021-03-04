@@ -17,7 +17,7 @@ pywriter:
 	python3 src/soc/decoder/pseudo/pywriter.py
 
 develop:
-	python3 setup.py develop --user # yes, develop, not install
+	python3 setup.py develop # yes, develop, not install
 	python3 src/soc/decoder/pseudo/pywriter.py
 
 run_sim: install
