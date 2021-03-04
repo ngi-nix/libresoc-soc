@@ -765,7 +765,7 @@ class ISACaller:
         self.gpr = GPR(decoder2, self, self.svstate, regfile)
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         if mmu:
-            self.mem = RADIX(self.mem,self)
+            self.mem = RADIX(self.mem, self)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
         self.spr = SPR(decoder2, initial_sprs)
