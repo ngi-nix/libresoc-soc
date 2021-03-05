@@ -85,7 +85,8 @@ class TestIssuerInternal(Elaboratable):
         if self.sram4x4k:
             self.sram4k = []
             for i in range(4):
-                self.sram4k.append(SPBlock512W64B8W(name="sram4k_%d" % i))
+                self.sram4k.append(SPBlock512W64B8W(name="sram4k_%d" % i,
+                                                    features={'err'}))
 
         # add interrupt controller?
         self.xics = hasattr(pspec, "xics") and pspec.xics == True
