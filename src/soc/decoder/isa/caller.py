@@ -221,7 +221,7 @@ class RADIX:
         self.pt3_valid = False
 
     def ld(self, address, width=8, swap=True, check_in_mem=False):
-        print("RADIX: ld from addr 0x{:x} width {:d}".format(address, width))
+        print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
         pte = self._walk_tree()
         # use pte to caclculate phys address
@@ -229,6 +229,7 @@ class RADIX:
 
     # TODO implement
     def st(self, addr, v, width=8, swap=True):
+        print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr, v, width, swap)
 
@@ -311,6 +312,23 @@ class RADIX:
         while True:
             ret = self._next_level()
             if ret: return ret
+
+    def _decode_prte(self, data):
+        """PRTE0 Layout
+           -----------------------------------------------
+           |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+           -----------------------------------------------
+            0 1  2 3 4                55 56  58 59      63
+        """
+        zero = SelectableInt(0, 1)
+        rts = selectconcat(data[5:8],      # [56-58] - RTS2
+                           data[61:63],    # [1-2]   - RTS1
+                           zero)
+        masksize = data[0:5]               # [59-63] - RPDS
+        mbits = selectconcat(masksize, zero)
+        pgbase = selectconcat(SelectableInt(0, 16),
+                              data[8:56])  # [8-55] - part of RPDB
+        return (rts, mbits, pgbase)
 
     def _segment_check(self):
         """checks segment valid
