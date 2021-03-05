@@ -147,7 +147,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, pc, svstate, pc_changed, insn_done,
+    def fetch_fsm(self, m, core, pc, svstate, nia,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
@@ -167,10 +167,6 @@ class TestIssuerInternal(Elaboratable):
         sync += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
 
         msr_read = Signal(reset=1)
-
-        # address of the next instruction, in the absence of a branch
-        # depends on the instruction size
-        nia = Signal(64, reset_less=True)
 
         with m.FSM(name='fetch_fsm'):
 
@@ -244,18 +240,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
-        # code-morph: moving the actual PC-setting out of "execute"
-        # so that it's easier to move this into an "issue" FSM.
-
-        # ok here we are not reading the branch unit.  TODO
-        # this just blithely overwrites whatever pipeline
-        # updated the PC
-        core_busy_o = core.busy_o                 # core is busy
-        with m.If(insn_done & (~pc_changed) & (~core_busy_o)):
-            comb += self.state_w_pc.wen.eq(1<<StateRegs.PC)
-            comb += self.state_w_pc.data_i.eq(nia)
-
-    def issue_fsm(self, m, core, pc_changed, sv_changed,
+    def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
                   dbg, core_rst,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
@@ -337,6 +322,15 @@ class TestIssuerInternal(Elaboratable):
                         #       PowerDecoder.no_out_vec is True
                         #       unless PC / SVSTATE was modified, in that
                         #       case do go back to INSN_FETCH.
+
+                        # before fetch, update the PC state register with
+                        # the NIA, unless PC was modified in execute
+                        with m.If(~pc_changed):
+                            # ok here we are not reading the branch unit.
+                            # TODO: this just blithely overwrites whatever
+                            #       pipeline updated the PC
+                            comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
+                            comb += self.state_w_pc.data_i.eq(nia)
                         m.next = "INSN_FETCH"
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
@@ -516,6 +510,10 @@ class TestIssuerInternal(Elaboratable):
         # don't read msr every cycle
         comb += self.state_r_msr.ren.eq(0)
 
+        # address of the next instruction, in the absence of a branch
+        # depends on the instruction size
+        nia = Signal(64, reset_less=True)
+
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
         comb += dbg.terminate_i.eq(core.core_terminate_o)
@@ -548,14 +546,14 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, pc, svstate, pc_changed, insn_done,
+        self.fetch_fsm(m, core, pc, svstate, nia,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
 
         # TODO: an SVSTATE-based for-loop FSM that goes in between
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
-        self.issue_fsm(m, core, pc_changed, sv_changed,
+        self.issue_fsm(m, core, pc_changed, sv_changed, nia,
                        dbg, core_rst,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
