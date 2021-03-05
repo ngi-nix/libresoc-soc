@@ -225,10 +225,13 @@ class RADIX:
 
         pte = self._walk_tree()
         # use pte to caclculate phys address
-        #mem.ld(address,width,swap,check_in_mem)
+        return self.mem.ld(address, width, swap, check_in_mem)
 
     # TODO implement
-    # def st(self, addr, v, width=8, swap=True):
+    def st(self, addr, v, width=8, swap=True):
+        # use pte to caclculate phys address (addr)
+        return self.mem.st(addr, v, width, swap)
+
     # def memassign(self, addr, sz, val):
     def _next_level(self):
         return True
