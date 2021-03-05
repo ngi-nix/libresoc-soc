@@ -16,7 +16,7 @@ class Register:
     def __init__(self, num):
         self.num = num
 
-def run_tst(generator, initial_regs, initial_sprs=None, svstate=0):
+def run_tst(generator, initial_regs, initial_sprs=None, svstate=0, mmu=False):
     if initial_sprs is None:
         initial_sprs = {}
     m = Module()
@@ -34,7 +34,8 @@ def run_tst(generator, initial_regs, initial_sprs=None, svstate=0):
                     initial_insns=gen, respect_pc=True,
                     initial_svstate=svstate,
                     disassembly=insncode,
-                    bigendian=0)
+                    bigendian=0,
+                    mmu=mmu)
     comb += pdecode2.dec.raw_opcode_in.eq(instruction)
     sim = Simulator(m)
 
