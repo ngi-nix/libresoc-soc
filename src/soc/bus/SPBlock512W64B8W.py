@@ -22,7 +22,7 @@ class SPBlock512W64B8W(Elaboratable):
                             granularity=8, # at 8-bit granularity
                             features=features,
                             alignment=0,
-                            name=name)
+                            name=name+"_wb")
         self.bus = bus
         self.granularity = bus.granularity
 
