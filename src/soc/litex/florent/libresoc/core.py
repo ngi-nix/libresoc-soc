@@ -268,7 +268,8 @@ class LibreSoC(CPU):
             self.cpu_params.update(make_wb_bus("jtag_wb", jtag_wb, simple=True))
         if "sram4k" in variant or variant == 'ls180':
             for i, sram in enumerate(srams):
-                self.cpu_params.update(make_wb_slave("sram4k_%d_wb" % i, sram))
+                self.cpu_params.update(make_wb_slave("sram4k_%d_wb" % i,
+                                                     sram, simple=True))
 
         # and set ibus advanced tags to zero (disable)
         self.cpu_params['i_ibus__cti'] = 0
