@@ -147,8 +147,7 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
-    def fetch_fsm(self, m, core, dbg, pc, svstate, pc_changed, insn_done,
-                        core_rst,
+    def fetch_fsm(self, m, core, pc, svstate, pc_changed, insn_done,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
@@ -177,27 +176,23 @@ class TestIssuerInternal(Elaboratable):
 
             # waiting (zzz)
             with m.State("IDLE"):
-                with m.If(~dbg.core_stop_o & ~core_rst):
-                    comb += fetch_pc_ready_o.eq(1)
-                    with m.If(fetch_pc_valid_i):
-                        # instruction allowed to go: start by reading the PC
-                        # capture the PC and also drop it into Insn Memory
-                        # we have joined a pair of combinatorial memory
-                        # lookups together.  this is Generally Bad.
-                        comb += self.imem.a_pc_i.eq(pc)
-                        comb += self.imem.a_valid_i.eq(1)
-                        comb += self.imem.f_valid_i.eq(1)
-                        sync += cur_state.pc.eq(pc)
-                        sync += cur_state.svstate.eq(svstate) # and svstate
+                comb += fetch_pc_ready_o.eq(1)
+                with m.If(fetch_pc_valid_i):
+                    # instruction allowed to go: start by reading the PC
+                    # capture the PC and also drop it into Insn Memory
+                    # we have joined a pair of combinatorial memory
+                    # lookups together.  this is Generally Bad.
+                    comb += self.imem.a_pc_i.eq(pc)
+                    comb += self.imem.a_valid_i.eq(1)
+                    comb += self.imem.f_valid_i.eq(1)
+                    sync += cur_state.pc.eq(pc)
+                    sync += cur_state.svstate.eq(svstate) # and svstate
 
-                        # initiate read of MSR. arrives one clock later
-                        comb += self.state_r_msr.ren.eq(1 << StateRegs.MSR)
-                        sync += msr_read.eq(0)
+                    # initiate read of MSR. arrives one clock later
+                    comb += self.state_r_msr.ren.eq(1 << StateRegs.MSR)
+                    sync += msr_read.eq(0)
 
-                        m.next = "INSN_READ"  # move to "wait for bus" phase
-                with m.Else():
-                    comb += core.core_stopped_i.eq(1)
-                    comb += dbg.core_stopped_i.eq(1)
+                    m.next = "INSN_READ"  # move to "wait for bus" phase
 
             # dummy pause to find out why simulation is not keeping up
             with m.State("INSN_READ"):
@@ -261,6 +256,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_pc.data_i.eq(nia)
 
     def issue_fsm(self, m, core, pc_changed, sv_changed,
+                  dbg, core_rst,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
@@ -291,6 +287,14 @@ class TestIssuerInternal(Elaboratable):
 
         with m.FSM(name="issue_fsm"):
 
+            # Wait on "core stop" release, at reset
+            with m.State("WAIT_RESET"):
+                with m.If(~dbg.core_stop_o & ~core_rst):
+                    m.next = "INSN_FETCH"
+                with m.Else():
+                    comb += core.core_stopped_i.eq(1)
+                    comb += dbg.core_stopped_i.eq(1)
+
             # go fetch the instruction at the current PC
             # at this point, there is no instruction running, that
             # could inadvertently update the PC.
@@ -320,18 +324,23 @@ class TestIssuerInternal(Elaboratable):
                     m.next = "EXECUTE_WAIT"
 
             with m.State("EXECUTE_WAIT"):
-                comb += exec_pc_ready_i.eq(1)
-                with m.If(exec_pc_valid_o):
-                    # TODO: update SRCSTEP here (in new_svstate)
-                    #       and set update_svstate to True *as long as*
-                    #       PC / SVSTATE was not modified.  that's an
-                    #       exception (or setvl was called)
-                    # TODO: loop into INSN_EXECUTE if it's a vector instruction
-                    #       and SRCSTEP != VL-1 and PowerDecoder.no_out_vec
-                    #       is True
-                    #       unless PC / SVSTATE was modified, in that case do
-                    #       go back to INSN_FETCH.
-                    m.next = "INSN_FETCH"
+                # wait on "core stop" release, at instruction end
+                with m.If(~dbg.core_stop_o & ~core_rst):
+                    comb += exec_pc_ready_i.eq(1)
+                    with m.If(exec_pc_valid_o):
+                        # TODO: update SRCSTEP here (in new_svstate)
+                        #       and set update_svstate to True *as long as*
+                        #       PC / SVSTATE was not modified.  that's an
+                        #       exception (or setvl was called)
+                        # TODO: loop into INSN_EXECUTE if it's a vector
+                        #       instruction and SRCSTEP != VL-1 and
+                        #       PowerDecoder.no_out_vec is True
+                        #       unless PC / SVSTATE was modified, in that
+                        #       case do go back to INSN_FETCH.
+                        m.next = "INSN_FETCH"
+                with m.Else():
+                    comb += core.core_stopped_i.eq(1)
+                    comb += dbg.core_stopped_i.eq(1)
 
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):
@@ -539,8 +548,7 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        self.fetch_fsm(m, core, dbg, pc, svstate, pc_changed, insn_done,
-                       core_rst,
+        self.fetch_fsm(m, core, pc, svstate, pc_changed, insn_done,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
 
@@ -548,6 +556,7 @@ class TestIssuerInternal(Elaboratable):
         # fetch pc/insn ready/valid and advances SVSTATE.srcstep
         # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
         self.issue_fsm(m, core, pc_changed, sv_changed,
+                       dbg, core_rst,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
