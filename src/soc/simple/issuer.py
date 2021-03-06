@@ -369,6 +369,8 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(exec_insn_valid_i):
                     comb += core_ivalid_i.eq(1)  # instruction is valid
                     comb += core_issue_i.eq(1)  # and issued
+                    sync += sv_changed.eq(0)
+                    sync += pc_changed.eq(0)
                     m.next = "INSN_ACTIVE"  # move to "wait completion"
 
             # instruction started: must wait till it finishes
@@ -385,8 +387,6 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.e.eq(0)
                     sync += core.raw_insn_i.eq(0)
                     sync += core.bigendian_i.eq(0)
-                    sync += sv_changed.eq(0)
-                    sync += pc_changed.eq(0)
                     comb += exec_pc_valid_o.eq(1)
                     with m.If(exec_pc_ready_i):
                         m.next = "INSN_START"  # back to fetch
