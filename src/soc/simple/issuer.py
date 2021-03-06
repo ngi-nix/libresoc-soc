@@ -310,28 +310,56 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_ready_i.eq(1)
                     with m.If(exec_pc_valid_o):
-                        # TODO: update SRCSTEP here (in new_svstate)
-                        #       and set update_svstate to True *as long as*
-                        #       PC / SVSTATE was not modified.  that's an
-                        #       exception (or setvl was called)
-                        # TODO: loop into INSN_EXECUTE if it's a vector
-                        #       instruction and SRCSTEP != VL-1 and
-                        #       PowerDecoder.no_out_vec is True
-                        #       unless PC / SVSTATE was modified, in that
-                        #       case do go back to INSN_FETCH.
+                        # precalculate srcstep+1
+                        next_srcstep = Signal.like(cur_state.svstate.srcstep)
+                        comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
+                        # was this the last loop iteration?
+                        is_last = Signal()
+                        cur_vl = cur_state.svstate.vl
+                        comb += is_last.eq(next_srcstep == cur_vl)
 
-                        # before fetch, update the PC state register with
-                        # the NIA, unless PC was modified in execute
-                        with m.If(~pc_changed):
+                        # if either PC or SVSTATE were changed by the previous
+                        # instruction, go directly back to Fetch, without
+                        # updating either PC or SVSTATE
+                        with m.If(pc_changed | sv_changed):
+                            m.next = "INSN_FETCH"
+
+                        # also return to Fetch, when no output was a vector
+                        # (regardless of SRCSTEP and VL), or when the last
+                        # instruction was really the last one of the VL loop
+                        with m.Elif(pdecode2.no_out_vec | is_last):
+                            # before going back to fetch, update the PC state
+                            # register with the NIA.
                             # ok here we are not reading the branch unit.
                             # TODO: this just blithely overwrites whatever
                             #       pipeline updated the PC
                             comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
                             comb += self.state_w_pc.data_i.eq(nia)
-                        m.next = "INSN_FETCH"
+                            # reset SRCSTEP before returning to Fetch
+                            with m.If(~pdecode2.no_out_vec):
+                                comb += new_svstate.srcstep.eq(0)
+                                comb += update_svstate.eq(1)
+                            m.next = "INSN_FETCH"
+
+                        # returning to Execute? then, first update SRCSTEP
+                        with m.Else():
+                            comb += new_svstate.srcstep.eq(next_srcstep)
+                            comb += update_svstate.eq(1)
+                            m.next = "DECODE_SV"
+
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
+
+            # need to decode the instruction again, after updating SRCSTEP
+            # in the previous state.
+            # mostly a copy of INSN_WAIT, but without the actual wait
+            with m.State("DECODE_SV"):
+                # decode the instruction
+                sync += core.e.eq(pdecode2.e)
+                sync += core.state.eq(cur_state)
+                sync += core.bigendian_i.eq(self.core_bigendian_i)
+                m.next = "INSN_EXECUTE"  # move to "execute"
 
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):
@@ -384,9 +412,6 @@ class TestIssuerInternal(Elaboratable):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
                     comb += insn_done.eq(1)
-                    sync += core.e.eq(0)
-                    sync += core.raw_insn_i.eq(0)
-                    sync += core.bigendian_i.eq(0)
                     comb += exec_pc_valid_o.eq(1)
                     with m.If(exec_pc_ready_i):
                         m.next = "INSN_START"  # back to fetch
