@@ -10,6 +10,7 @@ ls180:
 	yosys -p 'read_verilog libresoc.v' \
           -p 'write_ilang libresoc_cvt.il'
 	yosys -p 'read_verilog ls180.v' \
+	      -p 'read_verilog SPBlock_512W64B8W.v' \
           -p 'write_ilang ls180_cvt.il'
 	yosys -p 'read_ilang ls180_cvt.il' \
           -p 'read_ilang libresoc_cvt.il' \
