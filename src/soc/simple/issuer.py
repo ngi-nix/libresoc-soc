@@ -276,6 +276,15 @@ class TestIssuerInternal(Elaboratable):
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
+                    # while stopped, allow updating the PC and SVSTATE
+                    with m.If(self.pc_i.ok):
+                        comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(self.pc_i.data)
+                        sync += pc_changed.eq(1)
+                    with m.If(self.svstate_i.ok):
+                        comb += new_svstate.eq(self.svstate_i.data)
+                        comb += update_svstate.eq(1)
+                        sync += sv_changed.eq(1)
 
             # go fetch the instruction at the current PC
             # at this point, there is no instruction running, that
@@ -350,6 +359,15 @@ class TestIssuerInternal(Elaboratable):
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
+                    # while stopped, allow updating the PC and SVSTATE
+                    with m.If(self.pc_i.ok):
+                        comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(self.pc_i.data)
+                        sync += pc_changed.eq(1)
+                    with m.If(self.svstate_i.ok):
+                        comb += new_svstate.eq(self.svstate_i.data)
+                        comb += update_svstate.eq(1)
+                        sync += sv_changed.eq(1)
 
             # need to decode the instruction again, after updating SRCSTEP
             # in the previous state.
