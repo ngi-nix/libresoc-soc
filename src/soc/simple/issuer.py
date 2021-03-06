@@ -161,11 +161,7 @@ class TestIssuerInternal(Elaboratable):
         pdecode2 = self.pdecode2
         svp64 = self.svp64
         cur_state = self.cur_state
-
-        # latches copy of raw fetched instruction
-        fetch_insn_o = Signal(32, reset_less=True)
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
-        sync += dec_opcode_i.eq(fetch_insn_o)  # actual opcode
 
         msr_read = Signal(reset=1)
 
@@ -215,7 +211,7 @@ class TestIssuerInternal(Elaboratable):
                     with m.If(~svp64.is_svp64_mode):
                         # with no prefix, store the instruction
                         # and hand it directly to the next FSM
-                        comb += fetch_insn_o.eq(insn)
+                        sync += dec_opcode_i.eq(insn)
                         m.next = "INSN_READY"
                     with m.Else():
                         # fetch the rest of the instruction from memory
@@ -232,7 +228,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.Else():
                     # not busy: instruction fetched
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc+4)
-                    comb += fetch_insn_o.eq(insn)
+                    sync += dec_opcode_i.eq(insn)
                     m.next = "INSN_READY"
 
             with m.State("INSN_READY"):
