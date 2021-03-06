@@ -47,7 +47,8 @@ class SPBlock512W64B8W(Elaboratable):
         sram = Instance("SPBlock_512W64B8W", i_a=a, o_q=q, i_d=d,
                                              i_we=we, i_clk=ClockSignal())
         m.submodules += sram
-        sram.attrs['blackbox'] = 1
+        # has to be added to the actual module rather than the instance
+        # sram.attrs['blackbox'] = 1
 
         with m.If(self.enable): # in case of layout problems
             # wishbone is active if cyc and stb set
