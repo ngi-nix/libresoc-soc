@@ -7,7 +7,6 @@ from soc.sv.trans.svp64 import SVP64Asm
 
 class SVP64ALUTestCase(TestAccumulatorBase):
 
-    @skip_case("VL hardware loop is not yet implemented")
     def case_1_sv_add(self):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
