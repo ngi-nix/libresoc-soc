@@ -570,7 +570,7 @@ class TestIssuerInternal(Elaboratable):
         comb += dbg.state.svstate.eq(svstate)
         comb += dbg.state.msr.eq(cur_state.msr)
 
-        # there are *TWO* FSMs, one fetch (32/64-bit) one decode/execute.
+        # there are *THREE* FSMs, fetch (32/64-bit) issue, decode/execute.
         # these are the handshake signals between fetch and decode/execute
 
         # fetch FSM can run as soon as the PC is valid
@@ -589,19 +589,19 @@ class TestIssuerInternal(Elaboratable):
         exec_pc_valid_o = Signal()
         exec_pc_ready_i = Signal()
 
-        # actually use a nmigen FSM for the first time (w00t)
-        # this FSM is perhaps unusual in that it detects conditions
-        # then "holds" information, combinatorially, for the core
+        # the FSMs here are perhaps unusual in that they detect conditions
+        # then "hold" information, combinatorially, for the core
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
+
+        # Fetch, then Issue, then Execute. Issue is where the VL for-loop
+        # lives.  the ready/valid signalling is used to communicate between
+        # the three.
 
         self.fetch_fsm(m, core, pc, svstate, nia,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
 
-        # TODO: an SVSTATE-based for-loop FSM that goes in between
-        # fetch pc/insn ready/valid and advances SVSTATE.srcstep
-        # until it reaches VL-1 or PowerDecoder2.no_out_vec is True.
         self.issue_fsm(m, core, pc_changed, sv_changed, nia,
                        dbg, core_rst,
                        fetch_pc_ready_o, fetch_pc_valid_i,
