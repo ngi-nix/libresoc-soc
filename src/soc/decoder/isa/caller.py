@@ -228,6 +228,12 @@ class RADIX:
         self.pgtbl3 = 0
         self.pt3_valid = False
 
+    def __call__(self,*args, **kwargs):
+        print("TODO: implement RADIX.__call__()")
+        print(args)
+        print(kwargs)
+        return None
+
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
@@ -241,7 +247,10 @@ class RADIX:
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr, v, width, swap)
 
-    # def memassign(self, addr, sz, val):
+    def memassign(self, addr, sz, val):
+        print("memassign", addr, sz, val)
+        self.st(addr.value, val.value, sz, swap=False)
+
     def _next_level(self):
         return True
         ## DSISR_R_BADCONFIG
