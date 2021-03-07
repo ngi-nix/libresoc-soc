@@ -8,7 +8,7 @@ Open source down to VLSI Cells.
 
 # Installation
 
-    make update
+    make gitupdate
     make install
     make test # optional (ish)
 
