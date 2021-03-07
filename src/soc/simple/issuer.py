@@ -605,11 +605,11 @@ class TestIssuerInternal(Elaboratable):
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
-                       exec_pc_ready_i, exec_pc_valid_o)
+                       exec_pc_valid_o, exec_pc_ready_i)
 
         self.execute_fsm(m, core, insn_done, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
-                         exec_pc_ready_i, exec_pc_valid_o)
+                         exec_pc_valid_o, exec_pc_ready_i)
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
