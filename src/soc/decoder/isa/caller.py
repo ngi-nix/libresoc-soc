@@ -1130,6 +1130,7 @@ class ISACaller:
                               pfx.insn[7].value == 0b1 and
                               pfx.insn[9].value == 0b1)
         self.pc.update_nia(self.is_svp64_mode)
+        self.namespace['NIA'] = self.pc.NIA
         if not self.is_svp64_mode:
             return
 
