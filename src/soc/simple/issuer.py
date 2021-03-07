@@ -304,10 +304,19 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    # TODO: loop into INSN_FETCH if it's a vector instruction
-                    #       and VL == 0.  this because VL==0 is a for-loop
-                    #       from 0 to 0 i.e. always, always a NOP.
-                    m.next = "INSN_EXECUTE"  # move to "execute"
+                    # loop into INSN_FETCH if it's a vector instruction
+                    # and VL == 0.  this because VL==0 is a for-loop
+                    # from 0 to 0 i.e. always, always a NOP.
+                    cur_vl = cur_state.svstate.vl
+                    with m.If(~pdecode2.no_out_vec & (cur_vl == 0)):
+                        # update the PC before fetching the next instruction
+                        # since we are in a VL==0 loop, no instruction was
+                        # executed that we could be overwriting
+                        comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
+                        comb += self.state_w_pc.data_i.eq(nia)
+                        m.next = "INSN_FETCH"
+                    with m.Else():
+                        m.next = "INSN_EXECUTE"  # move to "execute"
 
             with m.State("INSN_EXECUTE"):
                 comb += exec_insn_valid_i.eq(1)
