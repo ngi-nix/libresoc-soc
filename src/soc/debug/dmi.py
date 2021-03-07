@@ -25,6 +25,7 @@ class DBGCore:
     LOG_DATA     = 0b0111 # Log buffer data register
     CR           = 0b1000 # CR (read only)
     XER          = 0b1001 # XER (read only) - note this is a TEMPORARY hack
+    SVSTATE      = 0b1010 # SVSTATE register (read only for now)
 
 
 # CTRL register (direct actions, write 1 to act, read back 0)
@@ -177,6 +178,8 @@ class CoreDebug(Elaboratable):
                 comb += dmi.dout.eq(self.state.pc)
             with m.Case( DBGCore.MSR):
                 comb += dmi.dout.eq(self.state.msr)
+            with m.Case( DBGCore.SVSTATE):
+                comb += dmi.dout.eq(self.state.svstate)
             with m.Case( DBGCore.GSPR_DATA):
                 comb += dmi.dout.eq(d_gpr.data)
             with m.Case( DBGCore.LOG_ADDR):
