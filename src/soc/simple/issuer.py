@@ -269,10 +269,16 @@ class TestIssuerInternal(Elaboratable):
 
         with m.FSM(name="issue_fsm"):
 
-            # Wait on "core stop" release, at reset
-            with m.State("WAIT_RESET"):
+            # go fetch the instruction at the current PC
+            # at this point, there is no instruction running, that
+            # could inadvertently update the PC.
+            with m.State("INSN_FETCH"):
+                # wait on "core stop" release, before next fetch
+                # need to do this here, in case we are in a VL==0 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
-                    m.next = "INSN_FETCH"
+                    comb += fetch_pc_valid_i.eq(1)
+                    with m.If(fetch_pc_ready_o):
+                        m.next = "INSN_WAIT"
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
@@ -285,15 +291,6 @@ class TestIssuerInternal(Elaboratable):
                         comb += new_svstate.eq(self.svstate_i.data)
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
-
-            # go fetch the instruction at the current PC
-            # at this point, there is no instruction running, that
-            # could inadvertently update the PC.
-            with m.State("INSN_FETCH"):
-                # TODO: update PC here, before fetch
-                comb += fetch_pc_valid_i.eq(1)
-                with m.If(fetch_pc_ready_o):
-                    m.next = "INSN_WAIT"
 
             # decode the instruction when it arrives
             with m.State("INSN_WAIT"):
@@ -325,6 +322,7 @@ class TestIssuerInternal(Elaboratable):
 
             with m.State("EXECUTE_WAIT"):
                 # wait on "core stop" release, at instruction end
+                # need to do this here, in case we are in a VL>1 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_ready_i.eq(1)
                     with m.If(exec_pc_valid_o):
