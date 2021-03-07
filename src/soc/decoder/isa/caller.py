@@ -22,6 +22,9 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp, In1Sel, In2Sel, In3Sel,
                                      OutSel, CROutSel)
+
+from soc.decoder.power_enums import SPR as DEC_SPR
+
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 from soc.decoder.power_svp64 import SVP64RM, decode_extra
@@ -236,16 +239,29 @@ class RADIX:
 
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
+        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
+        dar   = self.caller.spr[DEC_SPR.DAR.value]
+        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
+        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
 
         pte = self._walk_tree()
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
 
+        # XXX set SPRs on error
+
     # TODO implement
     def st(self, addr, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
+        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
+        dar   = self.caller.spr[DEC_SPR.DAR.value]
+        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
+        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
+
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr, v, width, swap)
+
+        # XXX set SPRs on error
 
     def memassign(self, addr, sz, val):
         print("memassign", addr, sz, val)
