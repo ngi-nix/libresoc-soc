@@ -615,6 +615,20 @@ class TestIssuerInternal(Elaboratable):
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI
+        self.do_dmi(m, dbg)
+
+        # DEC and TB inc/dec FSM.  copy of DEC is put into CoreState,
+        # (which uses that in PowerDecoder2 to raise 0x900 exception)
+        self.tb_dec_fsm(m, cur_state.dec)
+
+        return m
+
+    def do_dmi(self, m, dbg):
+        comb = m.d.comb
+        sync = m.d.sync
+        dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
+        intrf = self.core.regs.rf['int']
+
         with m.If(d_reg.req): # request for regfile access being made
             # TODO: error-check this
             # XXX should this be combinatorial?  sync better?
@@ -649,12 +663,6 @@ class TestIssuerInternal(Elaboratable):
             # data arrives one clock later
             comb += d_xer.data.eq(self.xer_r.data_o)
             comb += d_xer.ack.eq(1)
-
-        # DEC and TB inc/dec FSM.  copy of DEC is put into CoreState,
-        # (which uses that in PowerDecoder2 to raise 0x900 exception)
-        self.tb_dec_fsm(m, cur_state.dec)
-
-        return m
 
     def tb_dec_fsm(self, m, spr_dec):
         """tb_dec_fsm
