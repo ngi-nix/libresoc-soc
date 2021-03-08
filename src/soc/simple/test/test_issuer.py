@@ -9,6 +9,7 @@ related bugs:
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
 
 import unittest
+import sys
 from soc.simple.test.test_runner import TestRunner
 
 # test with ALU data and Logical data
@@ -25,19 +26,25 @@ from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 
 if __name__ == "__main__":
+    svp64 = True
+    if len(sys.argv) == 2:
+        if sys.argv[1] == 'nosvp64':
+            svp64 = False
+        sys.argv.pop()
+
     unittest.main(exit=False)
     suite = unittest.TestSuite()
-    # suite.addTest(TestRunner(HelloTestCases.test_data))
-    suite.addTest(TestRunner(DivTestCases().test_data))
-    # suite.addTest(TestRunner(AttnTestCase.test_data))
-    suite.addTest(TestRunner(GeneralTestCases.test_data))
-    suite.addTest(TestRunner(LDSTTestCase().test_data))
-    suite.addTest(TestRunner(CRTestCase().test_data))
-    suite.addTest(TestRunner(ShiftRotTestCase().test_data))
-    suite.addTest(TestRunner(LogicalTestCase().test_data))
-    suite.addTest(TestRunner(ALUTestCase().test_data))
-    # suite.addTest(TestRunner(BranchTestCase.test_data))
-    # suite.addTest(TestRunner(SPRTestCase.test_data))
+    # suite.addTest(TestRunner(HelloTestCases.test_data, svp64=svp64))
+    suite.addTest(TestRunner(DivTestCases().test_data, svp64=svp64))
+    # suite.addTest(TestRunner(AttnTestCase.test_data, svp64=svp64))
+    suite.addTest(TestRunner(GeneralTestCases.test_data, svp64=svp64))
+    suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(CRTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(ShiftRotTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(LogicalTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(ALUTestCase().test_data, svp64=svp64))
+    # suite.addTest(TestRunner(BranchTestCase.test_data, svp64=svp64))
+    # suite.addTest(TestRunner(SPRTestCase.test_data, svp64=svp64))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

@@ -121,11 +121,13 @@ def get_dmi(dmi, addr):
 
 
 class TestRunner(FHDLTestCase):
-    def __init__(self, tst_data, microwatt_mmu=False, rom=None):
+    def __init__(self, tst_data, microwatt_mmu=False, rom=None,
+                        svp64=True):
         super().__init__("run_all")
         self.test_data = tst_data
         self.microwatt_mmu = microwatt_mmu
         self.rom = rom
+        self.svp64 = svp64
 
     def run_all(self):
         m = Module()
@@ -143,6 +145,7 @@ class TestRunner(FHDLTestCase):
                              nocore=False,
                              xics=False,
                              gpio=False,
+                             svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
         m.submodules.issuer = issuer = TestIssuerInternal(pspec)

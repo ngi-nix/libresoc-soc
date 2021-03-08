@@ -38,6 +38,12 @@ if __name__ == '__main__':
                         default=False)
     parser.add_argument("--debug", default="jtag", help="Select debug " \
                         "interface [jtag | dmi] [default jtag]")
+    parser.add_argument("--enable-svp64", dest='svp64', action="store_true",
+                        help="Enable SVP64",
+                        default=True)
+    parser.add_argument("--disable-svp64", dest='svp64', action="store_false",
+                        help="disable SVP64",
+                        default=False)
 
     args = parser.parse_args()
 
@@ -68,6 +74,7 @@ if __name__ == '__main__':
                          gpio=args.enable_testgpio, # for test purposes
                          sram4x4kblock=args.enable_sram4x4kblock, # add SRAMs
                          debug=args.debug,      # set to jtag or dmi
+                         svp64=args.svp64,      # enable SVP64
                          units=units)
 
     print("nocore", pspec.__dict__["nocore"])
@@ -76,6 +83,7 @@ if __name__ == '__main__':
     print("xics", pspec.__dict__["xics"])
     print("use_pll", pspec.__dict__["use_pll"])
     print("debug", pspec.__dict__["debug"])
+    print("SVP64", pspec.__dict__["svp64"])
 
     dut = TestIssuer(pspec)
 
