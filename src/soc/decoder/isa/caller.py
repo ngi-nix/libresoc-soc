@@ -385,8 +385,8 @@ class RADIX:
         # note that SelectableInt does big-endian!  so the indices
         # below *directly* match the spec, unlike microwatt which
         # has to turn them around (to LE)
-        mask = genmask(shift, 43)
-        nonzero = addr[1:32] & mask[12:43] # mask 31 LSBs (BE numbered 12:43)
+        mask = genmask(shift, 44)
+        nonzero = addr[1:32] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
         print ("RADIX _segment_check nonzero", bin(nonzero.value))
         print ("RADIX _segment_check addr[0-1]", addr[0].value, addr[1].value)
         if addr[0] != addr[1] or nonzero == 1:
@@ -423,31 +423,46 @@ class RADIX:
                         end if;
         """
 
-    def _get_prtable_addr(self, prtbl, addr):
+    def _get_prtable_addr(self, shift, prtbl, addr, pid):
         """
         if r.addr(63) = '1' then
             effpid := x"00000000";
         else
             effpid := r.pid;
         end if;
-        prtable_addr := x"00" & r.prtbl(55 downto 36) &
-                        ((r.prtbl(35 downto 12) and not finalmask(23 downto 0)) or
-                         (effpid(31 downto 8) and finalmask(23 downto 0))) &
-                        effpid(7 downto 0) & "0000";
+        x"00" & r.prtbl(55 downto 36) &
+                ((r.prtbl(35 downto 12) and not finalmask(23 downto 0)) or
+                (effpid(31 downto 8) and finalmask(23 downto 0))) &
+                effpid(7 downto 0) & "0000";
         """
-
+        finalmask = genmask(shift, 44)
+        finalmask24 = finalmask[20:44]
+        if addr[0].value == 1:
+            effpid = SelectableInt(0, 32)
+        else:
+            effpid = self.pid[32:64] # TODO, check on this
+        zero16 = SelectableInt(0, 16)
+        zero4 = SelectableInt(0, 4)
+        rts = selectconcat(zero16,
+                           prtbl[8:28],                        # 
+                           (prtbl[28:52] & ~finalmask24) |     # 
+                           (effpid[0:24] & finalmask24),       # 
+                           effpid[24:32],
+                           zero4
+                           )
     def _get_pgtable_addr(self):
         """
-        pgtable_addr := x"00" & r.pgbase(55 downto 19) &
-                        ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
-                        "000";
+        x"00" & r.pgbase(55 downto 19) &
+        ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
+        "000";
         """
 
     def _get_pte(self):
         """
-        pte := x"00" &
-               ((r.pde(55 downto 12) and not finalmask) or (r.addr(55 downto 12) and finalmask))
-               & r.pde(11 downto 0);
+        x"00" &
+        ((r.pde(55 downto 12) and not finalmask) or 
+         (r.addr(55 downto 12) and finalmask))
+        & r.pde(11 downto 0);
         """
 
 
