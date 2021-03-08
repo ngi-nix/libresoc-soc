@@ -392,7 +392,7 @@ class TestIssuerInternal(Elaboratable):
             comb += self.state_w_sv.data_i.eq(new_svstate)
             sync += cur_state.svstate.eq(new_svstate) # for next clock
 
-    def execute_fsm(self, m, core, insn_done, pc_changed, sv_changed,
+    def execute_fsm(self, m, core, pc_changed, sv_changed,
                     exec_insn_valid_i, exec_insn_ready_o,
                     exec_pc_valid_o, exec_pc_ready_i):
         """execute FSM
@@ -436,7 +436,6 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
-                    comb += insn_done.eq(1)
                     comb += exec_pc_valid_o.eq(1)
                     with m.If(exec_pc_ready_i):
                         m.next = "INSN_START"  # back to fetch
@@ -520,7 +519,6 @@ class TestIssuerInternal(Elaboratable):
         comb += self.pc_o.eq(cur_state.pc)
         pc_changed = Signal() # note write to PC
         sv_changed = Signal() # note write to SVSTATE
-        insn_done = Signal()  # fires just once
 
         # read the PC
         pc = Signal(64, reset_less=True)
@@ -607,7 +605,7 @@ class TestIssuerInternal(Elaboratable):
                        exec_insn_valid_i, exec_insn_ready_o,
                        exec_pc_valid_o, exec_pc_ready_i)
 
-        self.execute_fsm(m, core, insn_done, pc_changed, sv_changed,
+        self.execute_fsm(m, core, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
                          exec_pc_valid_o, exec_pc_ready_i)
 
