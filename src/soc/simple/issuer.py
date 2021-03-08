@@ -60,6 +60,9 @@ class TestIssuerInternal(Elaboratable):
     """
     def __init__(self, pspec):
 
+        # test is SVP64 is to be enabled
+        self.svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
+
         # JTAG interface.  add this right at the start because if it's
         # added it *modifies* the pspec, by adding enable/disable signals
         # for parts of the rest of the core
@@ -108,8 +111,10 @@ class TestIssuerInternal(Elaboratable):
         pdecode = create_pdecode()
         self.cur_state = CoreState("cur") # current state (MSR/PC/EINT/SVSTATE)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
-                                     opkls=IssuerDecode2ToOperand)
-        self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
+                                     opkls=IssuerDecode2ToOperand,
+                                     svp64_en=self.svp64_en)
+        if self.svp64_en:
+            self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
@@ -159,7 +164,6 @@ class TestIssuerInternal(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
         pdecode2 = self.pdecode2
-        svp64 = self.svp64
         cur_state = self.cur_state
         dec_opcode_i = pdecode2.dec.raw_opcode_in # raw opcode
 
@@ -200,25 +204,32 @@ class TestIssuerInternal(Elaboratable):
                 with m.Else():
                     # not busy: instruction fetched
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc)
-                    # decode the SVP64 prefix, if any
-                    comb += svp64.raw_opcode_in.eq(insn)
-                    comb += svp64.bigendian.eq(self.core_bigendian_i)
-                    # pass the decoded prefix (if any) to PowerDecoder2
-                    sync += pdecode2.sv_rm.eq(svp64.svp64_rm)
-                    # calculate the address of the following instruction
-                    insn_size = Mux(svp64.is_svp64_mode, 8, 4)
-                    sync += nia.eq(cur_state.pc + insn_size)
-                    with m.If(~svp64.is_svp64_mode):
-                        # with no prefix, store the instruction
-                        # and hand it directly to the next FSM
+                    if self.svp64_en:
+                        svp64 = self.svp64
+                        # decode the SVP64 prefix, if any
+                        comb += svp64.raw_opcode_in.eq(insn)
+                        comb += svp64.bigendian.eq(self.core_bigendian_i)
+                        # pass the decoded prefix (if any) to PowerDecoder2
+                        sync += pdecode2.sv_rm.eq(svp64.svp64_rm)
+                        # calculate the address of the following instruction
+                        insn_size = Mux(svp64.is_svp64_mode, 8, 4)
+                        sync += nia.eq(cur_state.pc + insn_size)
+                        with m.If(~svp64.is_svp64_mode):
+                            # with no prefix, store the instruction
+                            # and hand it directly to the next FSM
+                            sync += dec_opcode_i.eq(insn)
+                            m.next = "INSN_READY"
+                        with m.Else():
+                            # fetch the rest of the instruction from memory
+                            comb += self.imem.a_pc_i.eq(cur_state.pc + 4)
+                            comb += self.imem.a_valid_i.eq(1)
+                            comb += self.imem.f_valid_i.eq(1)
+                            m.next = "INSN_READ2"
+                    else:
+                        # not SVP64 - 32-bit only
+                        sync += nia.eq(cur_state.pc + 4)
                         sync += dec_opcode_i.eq(insn)
                         m.next = "INSN_READY"
-                    with m.Else():
-                        # fetch the rest of the instruction from memory
-                        comb += self.imem.a_pc_i.eq(cur_state.pc + 4)
-                        comb += self.imem.a_valid_i.eq(1)
-                        comb += self.imem.f_valid_i.eq(1)
-                        m.next = "INSN_READ2"
 
             with m.State("INSN_READ2"):
                 with m.If(self.imem.f_busy_o):  # zzz...
@@ -406,7 +417,6 @@ class TestIssuerInternal(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
         pdecode2 = self.pdecode2
-        svp64 = self.svp64
 
         # temporaries
         core_busy_o = core.busy_o                 # core is busy
@@ -481,7 +491,8 @@ class TestIssuerInternal(Elaboratable):
         # instruction decoder
         pdecode = create_pdecode()
         m.submodules.dec2 = pdecode2 = self.pdecode2
-        m.submodules.svp64 = svp64 = self.svp64
+        if self.svp64_en:
+            m.submodules.svp64 = svp64 = self.svp64
 
         # convenience
         dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer

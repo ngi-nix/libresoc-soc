@@ -906,17 +906,21 @@ class PowerDecode2(PowerDecodeSubset):
         super().__init__(dec, opkls, fn_name, final, state, svp64_en)
         self.exc = LDSTException("dec2_exc")
 
-        self.cr_out_isvec = Signal(1, name="cr_out_isvec")
-        self.cr_in_isvec = Signal(1, name="cr_in_isvec")
-        self.cr_in_b_isvec = Signal(1, name="cr_in_b_isvec")
-        self.cr_in_o_isvec = Signal(1, name="cr_in_o_isvec")
-        self.in1_isvec = Signal(1, name="reg_a_isvec")
-        self.in2_isvec = Signal(1, name="reg_b_isvec")
-        self.in3_isvec = Signal(1, name="reg_c_isvec")
-        self.o_isvec = Signal(1, name="reg_o_isvec")
-        self.o2_isvec = Signal(1, name="reg_o2_isvec")
-        self.no_in_vec = Signal(1, name="no_in_vec") # no inputs are vectors
-        self.no_out_vec = Signal(1, name="no_out_vec") # no outputs are vectors
+        if self.svp64_en:
+            self.cr_out_isvec = Signal(1, name="cr_out_isvec")
+            self.cr_in_isvec = Signal(1, name="cr_in_isvec")
+            self.cr_in_b_isvec = Signal(1, name="cr_in_b_isvec")
+            self.cr_in_o_isvec = Signal(1, name="cr_in_o_isvec")
+            self.in1_isvec = Signal(1, name="reg_a_isvec")
+            self.in2_isvec = Signal(1, name="reg_b_isvec")
+            self.in3_isvec = Signal(1, name="reg_c_isvec")
+            self.o_isvec = Signal(1, name="reg_o_isvec")
+            self.o2_isvec = Signal(1, name="reg_o2_isvec")
+            self.no_in_vec = Signal(1, name="no_in_vec") # no inputs vector
+            self.no_out_vec = Signal(1, name="no_out_vec") # no outputs vector
+        else:
+            self.no_in_vec = Const(1, 1)
+            self.no_out_vec = Const(1, 1)
 
     def get_col_subset(self, opkls):
         subset = super().get_col_subset(opkls)
@@ -925,14 +929,15 @@ class PowerDecode2(PowerDecodeSubset):
         subset.add("in2_sel")
         subset.add("in3_sel")
         subset.add("out_sel")
-        subset.add("sv_in1")
-        subset.add("sv_in2")
-        subset.add("sv_in3")
-        subset.add("sv_out")
-        subset.add("sv_cr_in")
-        subset.add("sv_cr_out")
-        subset.add("SV_Etype")
-        subset.add("SV_Ptype")
+        if self.svp64_en:
+            subset.add("sv_in1")
+            subset.add("sv_in2")
+            subset.add("sv_in3")
+            subset.add("sv_out")
+            subset.add("sv_cr_in")
+            subset.add("sv_cr_out")
+            subset.add("SV_Etype")
+            subset.add("SV_Ptype")
         subset.add("lk")
         subset.add("internal_op")
         subset.add("form")
@@ -1106,21 +1111,24 @@ class PowerDecode2(PowerDecodeSubset):
                 comb += to_reg.ok.eq(fromreg.ok)
 
         else:
-            for to_reg, fromreg in (
-                (e.read_reg1, dec_a.reg_out),
-                (e.read_reg2, dec_b.reg_out),
-                (e.read_reg3, dec_c.reg_out),
-                (e.write_reg, dec_o.reg_out),
-                (e.write_ea, dec_o2.reg_out),
-                (e.read_cr1, self.dec_cr_in),
-                (e.read_cr2, self.dec_cr_in),
-                (e.read_cr3, self.dec_cr_in),
-                (e.write_cr, self.dec_cr_out )):
+            # connect up to/from read/write GPRs
+            for to_reg, fromreg in ((e.read_reg1, dec_a.reg_out),
+                                    (e.read_reg2, dec_b.reg_out),
+                                    (e.read_reg3, dec_c.reg_out),
+                                    (e.write_reg, dec_o.reg_out),
+                                    (e.write_ea, dec_o2.reg_out)):
                 comb += to_reg.data.eq(fromreg.data)
                 comb += to_reg.ok.eq(fromreg.ok)
 
-            comb += self.no_in_vec.eq(1)
-            comb += self.no_out_vec.eq(1)
+            # connect up to/from read/write CRs
+            for to_reg, cr, name in (
+                        (e.read_cr1, self.dec_cr_in, "cr_bitfield", ),
+                        (e.read_cr2, self.dec_cr_in, "cr_bitfield_b", ),
+                        (e.read_cr3, self.dec_cr_in, "cr_bitfield_o", ),
+                        (e.write_cr, self.dec_cr_out, "cr_bitfield", )):
+                fromreg = getattr(cr, name)
+                comb += to_reg.data.eq(fromreg.data)
+                comb += to_reg.ok.eq(fromreg.ok)
 
         # SPRs out
         comb += e.read_spr1.eq(dec_a.spr_out)

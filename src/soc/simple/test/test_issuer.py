@@ -32,6 +32,8 @@ if __name__ == "__main__":
             svp64 = False
         sys.argv.pop()
 
+    print ("SVP64 test mode enabled", svp64)
+
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     # suite.addTest(TestRunner(HelloTestCases.test_data, svp64=svp64))
