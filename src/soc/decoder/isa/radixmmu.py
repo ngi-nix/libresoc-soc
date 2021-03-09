@@ -219,7 +219,7 @@ class RADIX:
         ## DSISR_NOPTE
         ## Prepare for next iteration
 
-    def _walk_tree(self,addr,shift):
+    def _walk_tree(self, addr, shift):
         """walk tree
 
         // vaddr                    64 Bit
