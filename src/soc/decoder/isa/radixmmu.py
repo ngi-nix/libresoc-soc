@@ -14,61 +14,13 @@ related bugs:
 """
 
 from nmigen.back.pysim import Settle
-from functools import wraps
 from copy import copy
-from soc.decoder.orderedset import OrderedSet
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
-from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
-                                     insns, MicrOp, In1Sel, In2Sel, In3Sel,
-                                     OutSel, CROutSel)
-
-from soc.decoder.power_enums import SPR as DEC_SPR
-
 from soc.decoder.helpers import exts, gtu, ltu, undefined
-from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
-from soc.decoder.power_svp64 import SVP64RM, decode_extra
 
-from collections import namedtuple
 import math
 import sys
-
-instruction_info = namedtuple('instruction_info',
-                              'func read_regs uninit_regs write_regs ' +
-                              'special_regs op_fields form asmregs')
-
-special_sprs = {
-    'LR': 8,
-    'CTR': 9,
-    'TAR': 815,
-    'XER': 1,
-    'VRSAVE': 256}
-
-
-def swap_order(x, nbytes):
-    x = x.to_bytes(nbytes, byteorder='little')
-    x = int.from_bytes(x, byteorder='big', signed=False)
-    return x
-
-
-REG_SORT_ORDER = {
-    # TODO (lkcl): adjust other registers that should be in a particular order
-    # probably CA, CA32, and CR
-    "RT": 0,
-    "RA": 0,
-    "RB": 0,
-    "RS": 0,
-    "CR": 0,
-    "LR": 0,
-    "CTR": 0,
-    "TAR": 0,
-    "CA": 0,
-    "CA32": 0,
-    "MSR": 0,
-
-    "overflow": 1,
-}
-
 
 # very quick, TODO move to SelectableInt utils later
 def genmask(shift, size):
@@ -216,6 +168,10 @@ class RADIX:
     def __init__(self, mem, caller):
         self.mem = mem
         self.caller = caller
+        self.dsisr = self.caller.spr["DSISR"]
+        self.dar   = self.caller.spr["DAR"]
+        self.pidr  = self.caller.spr["PIDR"]
+        self.prtbl = self.caller.spr["PRTBL"]
 
         # cached page table stuff
         self.pgtbl0 = 0
@@ -231,10 +187,6 @@ class RADIX:
 
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
-        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
-        dar   = self.caller.spr[DEC_SPR.DAR.value]
-        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
-        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
 
         pte = self._walk_tree()
         # use pte to caclculate phys address
@@ -245,10 +197,6 @@ class RADIX:
     # TODO implement
     def st(self, addr, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
-        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
-        dar   = self.caller.spr[DEC_SPR.DAR.value]
-        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
-        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
 
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr, v, width, swap)
