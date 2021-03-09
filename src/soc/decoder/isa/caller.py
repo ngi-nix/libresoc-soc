@@ -443,27 +443,47 @@ class RADIX:
             effpid = self.pid[32:64] # TODO, check on this
         zero16 = SelectableInt(0, 16)
         zero4 = SelectableInt(0, 4)
-        rts = selectconcat(zero16,
-                           prtbl[8:28],                        # 
-                           (prtbl[28:52] & ~finalmask24) |     # 
-                           (effpid[0:24] & finalmask24),       # 
+        res = selectconcat(zero16,
+                           prtbl[8:28],                        #
+                           (prtbl[28:52] & ~finalmask24) |     #
+                           (effpid[0:24] & finalmask24),       #
                            effpid[24:32],
                            zero4
                            )
-    def _get_pgtable_addr(self):
+        return res
+
+    def _get_pgtable_addr(self, mask_size, pgbase, addrsh):
         """
         x"00" & r.pgbase(55 downto 19) &
         ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
         "000";
         """
+        mask16 = genmask(mask_size+5, 16)
+        zero8 = SelectableInt(0, 8)
+        zero3 = SelectableInt(0, 3)
+        res = selectconcat(zero8,
+                           pgbase[8:45],              #
+                           (prtbl[45:61] & ~mask16) | #
+                           (addrsh       & mask16),   #
+                           zero3
+                           )
+        return res
 
-    def _get_pte(self):
+    def _get_pte(self, shift, addr, pde):
         """
         x"00" &
-        ((r.pde(55 downto 12) and not finalmask) or 
+        ((r.pde(55 downto 12) and not finalmask) or
          (r.addr(55 downto 12) and finalmask))
         & r.pde(11 downto 0);
         """
+        finalmask = genmask(shift, 44)
+        zero8 = SelectableInt(0, 8)
+        res = selectconcat(zero8,
+                           (pde[8:52]  & ~finalmask) | #
+                           (addr[8:52] & finalmask),   #
+                           pde[52:64],
+                           )
+        return res
 
 
 class Mem:
