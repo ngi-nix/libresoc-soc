@@ -189,6 +189,7 @@ class RADIX:
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
+        addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
         #shift = SelectableInt(0, 32)
 
