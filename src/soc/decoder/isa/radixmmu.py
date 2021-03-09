@@ -170,10 +170,10 @@ class RADIX:
         self.mem = mem
         self.caller = caller
         #TODO move to lookup
-        #self.dsisr = self.caller.spr["DSISR"]
-        #self.dar   = self.caller.spr["DAR"]
-        #self.pidr  = self.caller.spr["PIDR"]
-        #self.prtbl = self.caller.spr["PRTBL"]
+        self.dsisr = self.caller.spr["DSISR"]
+        self.dar   = self.caller.spr["DAR"]
+        self.pidr  = self.caller.spr["PIDR"]
+        self.prtbl = self.caller.spr["PRTBL"]
 
         # cached page table stuff
         self.pgtbl0 = 0
@@ -181,11 +181,10 @@ class RADIX:
         self.pgtbl3 = 0
         self.pt3_valid = False
 
-    def __call__(self,*args, **kwargs):
-        print("TODO: implement RADIX.__call__()")
-        print(args)
-        print(kwargs)
-        return None
+    def __call__(self, addr, sz):
+        val = self.ld(addr.value, sz, swap=False)
+        print("RADIX memread", addr, sz, val)
+        return SelectableInt(val, sz*8)
 
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
@@ -285,8 +284,8 @@ class RADIX:
         """
         # get sprs
         print("_walk_tree")
-        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
-        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
+        pidr  = self.caller.spr["PIDR"]
+        prtbl = self.caller.spr["PRTBL"]
         print(pidr)
         print(prtbl)
 

@@ -399,12 +399,12 @@ class ISACaller:
             initial_svstate = SVP64State(initial_svstate)
         self.svstate = initial_svstate
         self.gpr = GPR(decoder2, self, self.svstate, regfile)
+        self.spr = SPR(decoder2, initial_sprs) # initialise SPRs before MMU
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         if mmu:
             self.mem = RADIX(self.mem, self)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         self.pc = PC()
-        self.spr = SPR(decoder2, initial_sprs)
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
         # TODO, needed here:
