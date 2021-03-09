@@ -1,0 +1,504 @@
+# SPDX-License-Identifier: LGPLv3+
+# Copyright (C) 2020, 2021 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
+# Copyright (C) 2021 Tobias Platen
+# Funded by NLnet http://nlnet.nl
+"""core of the python-based POWER9 simulator
+
+this is part of a cycle-accurate POWER9 simulator.  its primary purpose is
+not speed, it is for both learning and educational purposes, as well as
+a method of verifying the HDL.
+
+related bugs:
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=604
+"""
+
+from nmigen.back.pysim import Settle
+from functools import wraps
+from copy import copy
+from soc.decoder.orderedset import OrderedSet
+from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
+                                        selectconcat)
+from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
+                                     insns, MicrOp, In1Sel, In2Sel, In3Sel,
+                                     OutSel, CROutSel)
+
+from soc.decoder.power_enums import SPR as DEC_SPR
+
+from soc.decoder.helpers import exts, gtu, ltu, undefined
+from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
+from soc.decoder.power_svp64 import SVP64RM, decode_extra
+
+from collections import namedtuple
+import math
+import sys
+
+instruction_info = namedtuple('instruction_info',
+                              'func read_regs uninit_regs write_regs ' +
+                              'special_regs op_fields form asmregs')
+
+special_sprs = {
+    'LR': 8,
+    'CTR': 9,
+    'TAR': 815,
+    'XER': 1,
+    'VRSAVE': 256}
+
+
+def swap_order(x, nbytes):
+    x = x.to_bytes(nbytes, byteorder='little')
+    x = int.from_bytes(x, byteorder='big', signed=False)
+    return x
+
+
+REG_SORT_ORDER = {
+    # TODO (lkcl): adjust other registers that should be in a particular order
+    # probably CA, CA32, and CR
+    "RT": 0,
+    "RA": 0,
+    "RB": 0,
+    "RS": 0,
+    "CR": 0,
+    "LR": 0,
+    "CTR": 0,
+    "TAR": 0,
+    "CA": 0,
+    "CA32": 0,
+    "MSR": 0,
+
+    "overflow": 1,
+}
+
+
+# very quick, TODO move to SelectableInt utils later
+def genmask(shift, size):
+    res = SelectableInt(0, size)
+    for i in range(size):
+        if i < shift:
+            res[size-1-i] = SelectableInt(1, 1)
+    return res
+
+"""
+    Get Root Page
+
+    //Accessing 2nd double word of partition table (pate1)
+    //Ref: Power ISA Manual v3.0B, Book-III, section 5.7.6.1
+    //           PTCR Layout
+    // ====================================================
+    // -----------------------------------------------
+    // | /// |     PATB                | /// | PATS  |
+    // -----------------------------------------------
+    // 0     4                       51 52 58 59    63
+    // PATB[4:51] holds the base address of the Partition Table,
+    // right shifted by 12 bits.
+    // This is because the address of the Partition base is
+    // 4k aligned. Hence, the lower 12bits, which are always
+    // 0 are ommitted from the PTCR.
+    //
+    // Thus, The Partition Table Base is obtained by (PATB << 12)
+    //
+    // PATS represents the partition table size right-shifted by 12 bits.
+    // The minimal size of the partition table is 4k.
+    // Thus partition table size = (1 << PATS + 12).
+    //
+    //        Partition Table
+    //  ====================================================
+    //  0    PATE0            63  PATE1             127
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      | <-- effLPID
+    //  |----------------------|----------------------|
+    //           .
+    //           .
+    //           .
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //
+    // The effective LPID  forms the index into the Partition Table.
+    //
+    // Each entry in the partition table contains 2 double words, PATE0, PATE1,
+    // corresponding to that partition.
+    //
+    // In case of Radix, The structure of PATE0 and PATE1 is as follows.
+    //
+    //     PATE0 Layout
+    // -----------------------------------------------
+    // |1|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+    // -----------------------------------------------
+    //  0 1  2 3 4                55 56  58 59      63
+    //
+    // HR[0] : For Radix Page table, first bit should be 1.
+    // RTS1[1:2] : Gives one fragment of the Radix treesize
+    // RTS2[56:58] : Gives the second fragment of the Radix Tree size.
+    // RTS = (RTS1 << 3 + RTS2) + 31.
+    //
+    // RPDB[4:55] = Root Page Directory Base.
+    // RPDS = Logarithm of Root Page Directory Size right shifted by 3.
+    //        Thus, Root page directory size = 1 << (RPDS + 3).
+    //        Note: RPDS >= 5.
+    //
+    //   PATE1 Layout
+    // -----------------------------------------------
+    // |///|       PRTB             |  //  |  PRTS   |
+    // -----------------------------------------------
+    // 0  3 4                     51 52  58 59     63
+    //
+    // PRTB[4:51]   = Process Table Base. This is aligned to size.
+    // PRTS[59: 63] = Process Table Size right shifted by 12.
+    //                Minimal size of the process table is 4k.
+    //                Process Table Size = (1 << PRTS + 12).
+    //                Note: PRTS <= 24.
+    //
+    //                Computing the size aligned Process Table Base:
+    //                   table_base = (PRTB  & ~((1 << PRTS) - 1)) << 12
+    //                Thus, the lower 12+PRTS bits of table_base will
+    //                be zero.
+
+
+    //Ref: Power ISA Manual v3.0B, Book-III, section 5.7.6.2
+    //
+    //        Process Table
+    // ==========================
+    //  0    PRTE0            63  PRTE1             127
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //  |                      |                      | <-- effPID
+    //  |----------------------|----------------------|
+    //           .
+    //           .
+    //           .
+    //  |----------------------|----------------------|
+    //  |                      |                      |
+    //  |----------------------|----------------------|
+    //
+    // The effective Process id (PID) forms the index into the Process Table.
+    //
+    // Each entry in the partition table contains 2 double words, PRTE0, PRTE1,
+    // corresponding to that process
+    //
+    // In case of Radix, The structure of PRTE0 and PRTE1 is as follows.
+    //
+    //     PRTE0 Layout
+    // -----------------------------------------------
+    // |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+    // -----------------------------------------------
+    //  0 1  2 3 4                55 56  58 59      63
+    //
+    // RTS1[1:2] : Gives one fragment of the Radix treesize
+    // RTS2[56:58] : Gives the second fragment of the Radix Tree size.
+    // RTS = (RTS1 << 3 + RTS2) << 31,
+    //        since minimal Radix Tree size is 4G.
+    //
+    // RPDB = Root Page Directory Base.
+    // RPDS = Root Page Directory Size right shifted by 3.
+    //        Thus, Root page directory size = RPDS << 3.
+    //        Note: RPDS >= 5.
+    //
+    //   PRTE1 Layout
+    // -----------------------------------------------
+    // |                      ///                    |
+    // -----------------------------------------------
+    // 0                                            63
+    // All bits are reserved.
+
+
+"""
+
+# see qemu/target/ppc/mmu-radix64.c for reference
+class RADIX:
+    def __init__(self, mem, caller):
+        self.mem = mem
+        self.caller = caller
+
+        # cached page table stuff
+        self.pgtbl0 = 0
+        self.pt0_valid = False
+        self.pgtbl3 = 0
+        self.pt3_valid = False
+
+    def __call__(self,*args, **kwargs):
+        print("TODO: implement RADIX.__call__()")
+        print(args)
+        print(kwargs)
+        return None
+
+    def ld(self, address, width=8, swap=True, check_in_mem=False):
+        print("RADIX: ld from addr 0x%x width %d" % (address, width))
+        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
+        dar   = self.caller.spr[DEC_SPR.DAR.value]
+        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
+        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
+
+        pte = self._walk_tree()
+        # use pte to caclculate phys address
+        return self.mem.ld(address, width, swap, check_in_mem)
+
+        # XXX set SPRs on error
+
+    # TODO implement
+    def st(self, addr, v, width=8, swap=True):
+        print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
+        dsisr = self.caller.spr[DEC_SPR.DSISR.value]
+        dar   = self.caller.spr[DEC_SPR.DAR.value]
+        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
+        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
+
+        # use pte to caclculate phys address (addr)
+        return self.mem.st(addr, v, width, swap)
+
+        # XXX set SPRs on error
+
+    def memassign(self, addr, sz, val):
+        print("memassign", addr, sz, val)
+        self.st(addr.value, val.value, sz, swap=False)
+
+    def _next_level(self):
+        return True
+        ## DSISR_R_BADCONFIG
+        ## read_entry
+        ## DSISR_NOPTE
+        ## Prepare for next iteration
+
+    def _walk_tree(self):
+        """walk tree
+
+        // vaddr                    64 Bit
+        // vaddr |-----------------------------------------------------|
+        //       | Unused    |  Used                                   |
+        //       |-----------|-----------------------------------------|
+        //       | 0000000   | usefulBits = X bits (typically 52)      |
+        //       |-----------|-----------------------------------------|
+        //       |           |<--Cursize---->|                         |
+        //       |           |    Index      |                         |
+        //       |           |    into Page  |                         |
+        //       |           |    Directory  |                         |
+        //       |-----------------------------------------------------|
+        //                        |                       |
+        //                        V                       |
+        // PDE  |---------------------------|             |
+        //      |V|L|//|  NLB       |///|NLS|             |
+        //      |---------------------------|             |
+        // PDE = Page Directory Entry                     |
+        // [0] = V = Valid Bit                            |
+        // [1] = L = Leaf bit. If 0, then                 |
+        // [4:55] = NLB = Next Level Base                 |
+        //                right shifted by 8              |
+        // [59:63] = NLS = Next Level Size                |
+        //            |    NLS >= 5                       |
+        //            |                                   V
+        //            |                     |--------------------------|
+        //            |                     |   usfulBits = X-Cursize  |
+        //            |                     |--------------------------|
+        //            |---------------------><--NLS-->|                |
+        //                                  | Index   |                |
+        //                                  | into    |                |
+        //                                  | PDE     |                |
+        //                                  |--------------------------|
+        //                                                    |
+        // If the next PDE obtained by                        |
+        // (NLB << 8 + 8 * index) is a                        |
+        // nonleaf, then repeat the above.                    |
+        //                                                    |
+        // If the next PDE is a leaf,                         |
+        // then Leaf PDE structure is as                      |
+        // follows                                            |
+        //                                                    |
+        //                                                    |
+        // Leaf PDE                                           |
+        // |------------------------------|           |----------------|
+        // |V|L|sw|//|RPN|sw|R|C|/|ATT|EAA|           | usefulBits     |
+        // |------------------------------|           |----------------|
+        // [0] = V = Valid Bit                                 |
+        // [1] = L = Leaf Bit = 1 if leaf                      |
+        //                      PDE                            |
+        // [2] = Sw = Sw bit 0.                                |
+        // [7:51] = RPN = Real Page Number,                    V
+        //          real_page = RPN << 12 ------------->  Logical OR
+        // [52:54] = Sw Bits 1:3                               |
+        // [55] = R = Reference                                |
+        // [56] = C = Change                                   V
+        // [58:59] = Att =                                Physical Address
+        //           0b00 = Normal Memory
+        //           0b01 = SAO
+        //           0b10 = Non Idenmpotent
+        //           0b11 = Tolerant I/O
+        // [60:63] = Encoded Access
+        //           Authority
+        //
+        """
+        # walk tree starts on prtbl
+        while True:
+            ret = self._next_level()
+            if ret: return ret
+
+    def _decode_prte(self, data):
+        """PRTE0 Layout
+           -----------------------------------------------
+           |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+           -----------------------------------------------
+            0 1  2 3 4                55 56  58 59      63
+        """
+        # note that SelectableInt does big-endian!  so the indices
+        # below *directly* match the spec, unlike microwatt which
+        # has to turn them around (to LE)
+        zero = SelectableInt(0, 1)
+        rts = selectconcat(zero,
+                           data[56:59],      # RTS2
+                           data[1:3],        # RTS1
+                           )
+        masksize = data[59:64]               # RPDS
+        mbits = selectconcat(zero, masksize)
+        pgbase = selectconcat(data[8:56],  # part of RPDB
+                             SelectableInt(0, 16),)
+
+        return (rts, mbits, pgbase)
+
+    def _segment_check(self, addr, mbits, shift):
+        """checks segment valid
+                    mbits := '0' & r.mask_size;
+            v.shift := r.shift + (31 - 12) - mbits;
+            nonzero := or(r.addr(61 downto 31) and not finalmask(30 downto 0));
+            if r.addr(63) /= r.addr(62) or nonzero = '1' then
+                v.state := RADIX_FINISH;
+                v.segerror := '1';
+            elsif mbits < 5 or mbits > 16 or mbits > (r.shift + (31 - 12)) then
+                v.state := RADIX_FINISH;
+                v.badtree := '1';
+            else
+                v.state := RADIX_LOOKUP;
+        """
+        # note that SelectableInt does big-endian!  so the indices
+        # below *directly* match the spec, unlike microwatt which
+        # has to turn them around (to LE)
+        mask = genmask(shift, 44)
+        nonzero = addr[1:32] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
+        print ("RADIX _segment_check nonzero", bin(nonzero.value))
+        print ("RADIX _segment_check addr[0-1]", addr[0].value, addr[1].value)
+        if addr[0] != addr[1] or nonzero == 1:
+            return "segerror"
+        limit = shift + (31 - 12)
+        if mbits < 5 or mbits > 16 or mbits > limit:
+            return "badtree"
+        new_shift = shift + (31 - 12) - mbits
+        return new_shift
+
+    def _check_perms(self):
+        """check page permissions
+                    -- test leaf bit
+                    if data(62) = '1' then
+                        -- check permissions and RC bits
+                        perm_ok := '0';
+                        if r.priv = '1' or data(3) = '0' then
+                            if r.iside = '0' then
+                                perm_ok := data(1) or (data(2) and not r.store);
+                            else
+                                -- no IAMR, so no KUEP support for now
+                                -- deny execute permission if cache inhibited
+                                perm_ok := data(0) and not data(5);
+                            end if;
+                        end if;
+                        rc_ok := data(8) and (data(7) or not r.store);
+                        if perm_ok = '1' and rc_ok = '1' then
+                            v.state := RADIX_LOAD_TLB;
+                        else
+                            v.state := RADIX_FINISH;
+                            v.perm_err := not perm_ok;
+                            -- permission error takes precedence over RC error
+                            v.rc_error := perm_ok;
+                        end if;
+        """
+
+    def _get_prtable_addr(self, shift, prtbl, addr, pid):
+        """
+        if r.addr(63) = '1' then
+            effpid := x"00000000";
+        else
+            effpid := r.pid;
+        end if;
+        x"00" & r.prtbl(55 downto 36) &
+                ((r.prtbl(35 downto 12) and not finalmask(23 downto 0)) or
+                (effpid(31 downto 8) and finalmask(23 downto 0))) &
+                effpid(7 downto 0) & "0000";
+        """
+        finalmask = genmask(shift, 44)
+        finalmask24 = finalmask[20:44]
+        if addr[0].value == 1:
+            effpid = SelectableInt(0, 32)
+        else:
+            effpid = self.pid[32:64] # TODO, check on this
+        zero16 = SelectableInt(0, 16)
+        zero4 = SelectableInt(0, 4)
+        res = selectconcat(zero16,
+                           prtbl[8:28],                        #
+                           (prtbl[28:52] & ~finalmask24) |     #
+                           (effpid[0:24] & finalmask24),       #
+                           effpid[24:32],
+                           zero4
+                           )
+        return res
+
+    def _get_pgtable_addr(self, mask_size, pgbase, addrsh):
+        """
+        x"00" & r.pgbase(55 downto 19) &
+        ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
+        "000";
+        """
+        mask16 = genmask(mask_size+5, 16)
+        zero8 = SelectableInt(0, 8)
+        zero3 = SelectableInt(0, 3)
+        res = selectconcat(zero8,
+                           pgbase[8:45],              #
+                           (prtbl[45:61] & ~mask16) | #
+                           (addrsh       & mask16),   #
+                           zero3
+                           )
+        return res
+
+    def _get_pte(self, shift, addr, pde):
+        """
+        x"00" &
+        ((r.pde(55 downto 12) and not finalmask) or
+         (r.addr(55 downto 12) and finalmask))
+        & r.pde(11 downto 0);
+        """
+        finalmask = genmask(shift, 44)
+        zero8 = SelectableInt(0, 8)
+        res = selectconcat(zero8,
+                           (pde[8:52]  & ~finalmask) | #
+                           (addr[8:52] & finalmask),   #
+                           pde[52:64],
+                           )
+        return res
+
+
+# very quick test of maskgen function (TODO, move to util later)
+if __name__ == '__main__':
+    shift = SelectableInt(5, 6)
+    mask = genmask(shift, 43)
+    print ("    mask", bin(mask.value))
+
+    mem = Mem(row_bytes=8)
+    mem = RADIX(mem, None)
+    # -----------------------------------------------
+    # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+    # -----------------------------------------------
+    # |0|1  2|3|4                55|56  58|59     63|
+    data = SelectableInt(0, 64)
+    data[1:3] = 0b01
+    data[56:59] = 0b11
+    data[59:64] = 0b01101 # mask
+    data[55] = 1
+    (rts, mbits, pgbase) = mem._decode_prte(data)
+    print ("    rts", bin(rts.value), rts.bits)
+    print ("    mbits", bin(mbits.value), mbits.bits)
+    print ("    pgbase", hex(pgbase.value), pgbase.bits)
+    addr = SelectableInt(0x1000, 64)
+    check = mem._segment_check(addr, mbits, shift)
+    print ("    segment check", check)
