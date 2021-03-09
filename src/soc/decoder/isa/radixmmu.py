@@ -189,7 +189,8 @@ class RADIX:
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
-        pte = self._walk_tree()
+        shift = SelectableInt(0, 32)
+        pte = self._walk_tree(address,shift)
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
 
@@ -198,6 +199,9 @@ class RADIX:
     # TODO implement
     def st(self, addr, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
+
+        shift = SelectableInt(0, 32)
+        pte = self._walk_tree(addr,shift)
 
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr, v, width, swap)
@@ -215,7 +219,7 @@ class RADIX:
         ## DSISR_NOPTE
         ## Prepare for next iteration
 
-    def _walk_tree(self):
+    def _walk_tree(self,addr,shift):
         """walk tree
 
         // vaddr                    64 Bit
@@ -288,6 +292,8 @@ class RADIX:
         prtbl = self.caller.spr["PRTBL"]
         print(pidr)
         print(prtbl)
+        #prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
+        #print("prtable_addr",prtable_addr)
 
         # TODO read root entry from process table first
 
