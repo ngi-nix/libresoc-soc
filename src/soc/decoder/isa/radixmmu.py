@@ -338,10 +338,30 @@ class RADIX:
         new_shift = shift + (31 - 12) - mbits
         return new_shift
 
-    def _check_perms(self):
+    def _check_perms(self, data, priv, iside, store):
         """check page permissions
+        // Leaf PDE                                           |
+        // |------------------------------|           |----------------|
+        // |V|L|sw|//|RPN|sw|R|C|/|ATT|EAA|           | usefulBits     |
+        // |------------------------------|           |----------------|
+        // [0] = V = Valid Bit                                 |
+        // [1] = L = Leaf Bit = 1 if leaf                      |
+        //                      PDE                            |
+        // [2] = Sw = Sw bit 0.                                |
+        // [7:51] = RPN = Real Page Number,                    V
+        //          real_page = RPN << 12 ------------->  Logical OR
+        // [52:54] = Sw Bits 1:3                               |
+        // [55] = R = Reference                                |
+        // [56] = C = Change                                   V
+        // [58:59] = Att =                                Physical Address
+        //           0b00 = Normal Memory
+        //           0b01 = SAO
+        //           0b10 = Non Idenmpotent
+        //           0b11 = Tolerant I/O
+        // [60:63] = Encoded Access
+        //           Authority
+        //
                     -- test leaf bit
-                    if data(62) = '1' then
                         -- check permissions and RC bits
                         perm_ok := '0';
                         if r.priv = '1' or data(3) = '0' then
@@ -363,6 +383,18 @@ class RADIX:
                             v.rc_error := perm_ok;
                         end if;
         """
+        # check permissions and RC bits
+        perm_ok = 0
+        if priv == 1 or data[60] == 0:
+            if iside == 0:
+                perm_ok = data[62] | (data[61] & (store == 0))
+            # no IAMR, so no KUEP support for now
+            # deny execute permission if cache inhibited
+            perm_ok = data[63] & ~data[58]
+        rc_ok = data[55] & (data[56] | (store == 0))
+        if perm_ok == 1 and rc_ok == 1:
+            return True
+        return "perm_err" if perm_ok == 0 else "rc_err"
 
     def _get_prtable_addr(self, shift, prtbl, addr, pid):
         """
