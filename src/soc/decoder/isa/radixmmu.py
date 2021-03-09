@@ -18,6 +18,7 @@ from copy import copy
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.helpers import exts, gtu, ltu, undefined
+from soc.decoder.isa.mem import Mem
 
 import math
 import sys
@@ -428,12 +429,22 @@ class RADIX:
 
 # very quick test of maskgen function (TODO, move to util later)
 if __name__ == '__main__':
+    # set up dummy minimal ISACaller
+    spr = {'DSISR': SelectableInt(0, 64),
+           'DAR': SelectableInt(0, 64),
+           'PIDR': SelectableInt(0, 64),
+           'PRTBL': SelectableInt(0, 64)
+    }
+    class ISACaller: pass
+    caller = ISACaller()
+    caller.spr = spr
+
     shift = SelectableInt(5, 6)
     mask = genmask(shift, 43)
     print ("    mask", bin(mask.value))
 
     mem = Mem(row_bytes=8)
-    mem = RADIX(mem, None)
+    mem = RADIX(mem, caller)
     # -----------------------------------------------
     # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
     # -----------------------------------------------
