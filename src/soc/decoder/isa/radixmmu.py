@@ -169,10 +169,11 @@ class RADIX:
     def __init__(self, mem, caller):
         self.mem = mem
         self.caller = caller
-        self.dsisr = self.caller.spr["DSISR"]
-        self.dar   = self.caller.spr["DAR"]
-        self.pidr  = self.caller.spr["PIDR"]
-        self.prtbl = self.caller.spr["PRTBL"]
+        #TODO move to lookup
+        #self.dsisr = self.caller.spr["DSISR"]
+        #self.dar   = self.caller.spr["DAR"]
+        #self.pidr  = self.caller.spr["PIDR"]
+        #self.prtbl = self.caller.spr["PRTBL"]
 
         # cached page table stuff
         self.pgtbl0 = 0
