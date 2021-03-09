@@ -100,8 +100,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
 
-    @skip_case("VL hardware loop is not yet implemented")
-    def case_4_sv_check_vl_0(self):
+    def case_5_sv_check_vl_0(self):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
         isa = SVP64Asm([
