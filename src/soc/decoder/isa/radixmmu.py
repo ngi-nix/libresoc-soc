@@ -189,7 +189,9 @@ class RADIX:
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
-        shift = SelectableInt(0, 32)
+        (shift, mbits, pgbase) = self._decode_prte(addr)
+        #shift = SelectableInt(0, 32)
+
         pte = self._walk_tree(address,shift)
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
