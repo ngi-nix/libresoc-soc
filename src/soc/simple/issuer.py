@@ -153,6 +153,9 @@ class TestIssuerInternal(Elaboratable):
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
         self.state_nia.wen.name = 'state_nia_wen'
 
+        # pulse to synchronize the simulator at instruction end
+        self.insn_done = Signal()
+
     def fetch_fsm(self, m, core, pc, svstate, nia,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
@@ -322,6 +325,7 @@ class TestIssuerInternal(Elaboratable):
                         # executed that we could be overwriting
                         comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
                         comb += self.state_w_pc.data_i.eq(nia)
+                        comb += self.insn_done.eq(1)
                         m.next = "INSN_FETCH"
                     with m.Else():
                         m.next = "INSN_EXECUTE"  # move to "execute"
@@ -448,6 +452,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~core_busy_o): # instruction done!
                     comb += exec_pc_valid_o.eq(1)
                     with m.If(exec_pc_ready_i):
+                        comb += self.insn_done.eq(1)
                         m.next = "INSN_START"  # back to fetch
 
     def elaborate(self, platform):

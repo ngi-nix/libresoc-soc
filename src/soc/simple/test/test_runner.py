@@ -257,8 +257,12 @@ class TestRunner(FHDLTestCase):
                     counter = counter + 1
 
                     # wait until executed
-                    yield from wait_for_busy_hi(core)
-                    yield from wait_for_busy_clear(core)
+                    # wait for insn_done high
+                    while not (yield issuer.insn_done):
+                        yield
+                    # wait for insn_done low
+                    while (yield issuer.insn_done):
+                        yield
 
                     # set up simulated instruction (in simdec2)
                     try:
