@@ -282,6 +282,15 @@ class RADIX:
         //           Authority
         //
         """
+        # get sprs
+        print("_walk_tree")
+        pidr  = self.caller.spr[DEC_SPR.PIDR.value]
+        prtbl = self.caller.spr[DEC_SPR.PRTBL.value]
+        print(pidr)
+        print(prtbl)
+
+        # TODO read root entry from process table first
+
         # walk tree starts on prtbl
         while True:
             ret = self._next_level()
