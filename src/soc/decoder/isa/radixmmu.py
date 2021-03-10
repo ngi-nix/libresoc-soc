@@ -298,15 +298,24 @@ class RADIX:
         prtbl = self.caller.spr["PRTBL"]
         print(pidr)
         print(prtbl)
-        #prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
-        #print("prtable_addr",prtable_addr)
 
-        # TODO read root entry from process table first
+        # get address of root entry
+        prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
+        print("prtable_addr",prtable_addr)
+
+        # read root entry - imcomplete
+        swap = False
+        check_in_mem = False
+        entry_width = 8
+        value = self.mem.ld(prtable_addr, entry_width, swap, check_in_mem)
+        print("value",value)
+
 
         # walk tree starts on prtbl
         while True:
             ret = self._next_level()
             if ret: return ret
+        # TODO fix AttributeError: 'RADIX' object has no attribute 'pid'
 
     def _decode_prte(self, data):
         """PRTE0 Layout
@@ -434,7 +443,7 @@ class RADIX:
         if addr[0].value == 1:
             effpid = SelectableInt(0, 32)
         else:
-            effpid = self.pid[32:64] # TODO, check on this
+            effpid = pid[32:64] #self.pid[32:64] # TODO, check on this
         zero16 = SelectableInt(0, 16)
         zero4 = SelectableInt(0, 4)
         res = selectconcat(zero16,
@@ -514,3 +523,12 @@ if __name__ == '__main__':
     addr = SelectableInt(0x1000, 64)
     check = mem._segment_check(addr, mbits, shift)
     print ("    segment check", check)
+
+    print("walking tree")
+    # addr = unchanged
+    # pgbase = None 
+    mode = None
+    #mbits = None
+    shift = rts
+    result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
+    print(result)
