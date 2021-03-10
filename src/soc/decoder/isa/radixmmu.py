@@ -189,25 +189,28 @@ class RADIX:
     def ld(self, address, width=8, swap=True, check_in_mem=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
+        mode = 'LOAD' # XXX TODO: executable load (icache)
         addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
         #shift = SelectableInt(0, 32)
 
-        pte = self._walk_tree(address,shift)
+        pte = self._walk_tree(addr, pgbase, mode, mbits, shift)
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
 
         # XXX set SPRs on error
 
     # TODO implement
-    def st(self, addr, v, width=8, swap=True):
-        print("RADIX: st to addr 0x%x width %d data %x" % (addr, width, v))
+    def st(self, address, v, width=8, swap=True):
+        print("RADIX: st to addr 0x%x width %d data %x" % (address, width, v))
 
-        shift = SelectableInt(0, 32)
-        pte = self._walk_tree(addr,shift)
+        mode = 'STORE'
+        addr = SelectableInt(address, 64)
+        (shift, mbits, pgbase) = self._decode_prte(addr)
+        pte = self._walk_tree(addr, pgbase, mode, mbits, shift)
 
         # use pte to caclculate phys address (addr)
-        return self.mem.st(addr, v, width, swap)
+        return self.mem.st(addr.value, v, width, swap)
 
         # XXX set SPRs on error
 
@@ -222,7 +225,7 @@ class RADIX:
         ## DSISR_NOPTE
         ## Prepare for next iteration
 
-    def _walk_tree(self, addr, shift):
+    def _walk_tree(self, addr, pgbase, mode, mbits, shift):
         """walk tree
 
         // vaddr                    64 Bit
