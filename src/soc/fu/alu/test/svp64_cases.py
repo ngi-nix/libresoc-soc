@@ -124,3 +124,36 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    # checks that SRCSTEP was reset properly after an SV instruction
+    def case_6_sv_add_multiple(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
+        #       2 = 6 + 10  => 0x3334 = 0x2223 + 0x1111
+        #       3 = 7 + 11  => 0x4242 = 0x3012 + 0x1230
+        #      13 = 10 + 7  => 0x2341 = 0x1111 + 0x1230
+        #      14 = 11 + 8  => 0x3012 = 0x3012 + 0x0000
+        #      15 = 12 + 9  => 0x1234 = 0x0000 + 0x1234
+        isa = SVP64Asm([
+            'sv.add 1.v, 5.v, 9.v',
+            'sv.add 13.v, 10.v, 7.v'
+        ])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[11] = 0x3012
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        initial_regs[7] = 0x1230
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
