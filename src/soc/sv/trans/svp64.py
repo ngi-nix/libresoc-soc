@@ -120,6 +120,26 @@ def decode_ffirst(encoding):
     return decode_bo(encoding)
 
 
+def decode_reg(field):
+    # decode the field number. "5.v" or "3.s" or "9"
+    field = field.split(".")
+    regmode = 'scalar' # default
+    if len(field) == 2:
+        if field[1] == 's':
+            regmode = 'scalar'
+        elif field[1] == 'v':
+            regmode = 'vector'
+    field = int(field[0]) # actual register number
+    return field, regmode
+
+
+def decode_imm(field):
+    ldst_imm = "(" in field and field[-1] == ')'
+    if ldst_imm:
+        return field[:-1].split("(")
+    else:
+        return None, field
+
 # decodes svp64 assembly listings and creates EXT001 svp64 prefixes
 class SVP64Asm:
     def __init__(self, lst):
@@ -196,8 +216,9 @@ class SVP64Asm:
             extras = OrderedDict()
             for idx, (field, regname) in enumerate(opregfields):
                 extra = svp64_reg_byname.get(regname, None)
-                regtype = get_regtype(regname)
-                extras[extra] = (idx, field, regname, regtype)
+                imm, regname = decode_imm(regname)
+                rtype = get_regtype(regname)
+                extras[extra] = (idx, field, regname, rtype, imm)
                 print ("    ", extra, extras[extra])
 
             # great! got the extra fields in their associated positions:
@@ -206,22 +227,19 @@ class SVP64Asm:
             ptype = rm['Ptype'] # Predication type: Twin / Single
             extra_bits = 0
             v30b_newfields = []
-            for extra_idx, (idx, field, regname, regtype) in extras.items():
+            for extra_idx, (idx, field, rname, rtype, iname) in extras.items():
                 # is it a field we don't alter/examine?  if so just put it
                 # into newfields
-                if regtype is None:
+                if rtype is None:
                     v30b_newfields.append(field)
 
-                # first, decode the field number. "5.v" or "3.s" or "9"
-                field = field.split(".")
-                regmode = 'scalar' # default
-                if len(field) == 2:
-                    if field[1] == 's':
-                        regmode = 'scalar'
-                    elif field[1] == 'v':
-                        regmode = 'vector'
-                field = int(field[0]) # actual register number
-                print ("    ", regmode, field, end=" ")
+                # identify if this is a ld/st immediate(reg) thing
+                ldst_imm = "(" in field and field[-1] == ')'
+                if ldst_imm:
+                    immed, field = field[:-1].split("(")
+
+                field, regmode = decode_reg(field)
+                print ("    ", rtype, regmode, iname, field, end=" ")
 
                 # see Mode field https://libre-soc.org/openpower/sv/svp64/
                 # XXX TODO: the following is a bit of a laborious repeated
@@ -230,7 +248,7 @@ class SVP64Asm:
                 # https://libre-soc.org/openpower/sv/ldst/
 
                 # encode SV-GPR field into extra, v3.0field
-                if regtype == 'GPR':
+                if rtype == 'GPR':
                     sv_extra, field = get_extra_gpr(etype, regmode, field)
                     # now sanity-check. EXTRA3 is ok, EXTRA2 has limits
                     # (and shrink to a single bit if ok)
@@ -239,14 +257,14 @@ class SVP64Asm:
                             # range is r0-r63 in increments of 1
                             assert (sv_extra >> 1) == 0, \
                                 "scalar GPR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as scalar
                             sv_extra = sv_extra & 0b01
                         else:
                             # range is r0-r127 in increments of 4
                             assert sv_extra & 0b01 == 0, \
                                 "vector field %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as vector (bit 2 set)
                             sv_extra = 0b10 | (sv_extra >> 1)
                     elif regmode == 'vector':
@@ -254,7 +272,7 @@ class SVP64Asm:
                         sv_extra |= 0b100
 
                 # encode SV-CR 3-bit field into extra, v3.0field
-                elif regtype == 'CR_3bit':
+                elif rtype == 'CR_3bit':
                     sv_extra, field = get_extra_cr_3bit(etype, regmode, field)
                     # now sanity-check (and shrink afterwards)
                     if etype == 'EXTRA2':
@@ -262,14 +280,14 @@ class SVP64Asm:
                             # range is CR0-CR15 in increments of 1
                             assert (sv_extra >> 1) == 0, \
                                 "scalar CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as scalar
                             sv_extra = sv_extra & 0b01
                         else:
                             # range is CR0-CR127 in increments of 16
                             assert sv_extra & 0b111 == 0, \
                                 "vector CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as vector (bit 2 set)
                             sv_extra = 0b10 | (sv_extra >> 3)
                     else:
@@ -277,21 +295,21 @@ class SVP64Asm:
                             # range is CR0-CR31 in increments of 1
                             assert (sv_extra >> 2) == 0, \
                                 "scalar CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as scalar
                             sv_extra = sv_extra & 0b11
                         else:
                             # range is CR0-CR127 in increments of 8
                             assert sv_extra & 0b11 == 0, \
                                 "vector CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as vector (bit 3 set)
                             sv_extra = 0b100 | (sv_extra >> 2)
 
                 # encode SV-CR 5-bit field into extra, v3.0field
                 # *sigh* this is the same as 3-bit except the 2 LSBs are
                 # passed through
-                elif regtype == 'CR_5bit':
+                elif rtype == 'CR_5bit':
                     cr_subfield = field & 0b11
                     field = field >> 2 # strip bottom 2 bits
                     sv_extra, field = get_extra_cr_3bit(etype, regmode, field)
@@ -301,14 +319,14 @@ class SVP64Asm:
                             # range is CR0-CR15 in increments of 1
                             assert (sv_extra >> 1) == 0, \
                                 "scalar CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as scalar
                             sv_extra = sv_extra & 0b01
                         else:
                             # range is CR0-CR127 in increments of 16
                             assert sv_extra & 0b111 == 0, \
                                 "vector CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as vector (bit 2 set)
                             sv_extra = 0b10 | (sv_extra >> 3)
                     else:
@@ -316,14 +334,14 @@ class SVP64Asm:
                             # range is CR0-CR31 in increments of 1
                             assert (sv_extra >> 2) == 0, \
                                 "scalar CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as scalar
                             sv_extra = sv_extra & 0b11
                         else:
                             # range is CR0-CR127 in increments of 8
                             assert sv_extra & 0b11 == 0, \
                                 "vector CR %s cannot fit into EXTRA2 %s" % \
-                                    (regname, str(extras[extra_idx]))
+                                    (rname, str(extras[extra_idx]))
                             # all good: encode as vector (bit 3 set)
                             sv_extra = 0b100 | (sv_extra >> 2)
 
@@ -334,8 +352,11 @@ class SVP64Asm:
                 print ("=>", "%5s" % bin(sv_extra), field)
                 extras[extra_idx] = sv_extra
 
-                # append altered field value to v3.0b
-                v30b_newfields.append(str(field))
+                # append altered field value to v3.0b, differs for LDST
+                if ldst_imm:
+                    v30b_newfields.append(("%s(%s)" % (immed, str(field))))
+                else:
+                    v30b_newfields.append(str(field))
 
             print ("new v3.0B fields", v30b_op, v30b_newfields)
             print ("extras", extras)
@@ -573,7 +594,7 @@ class SVP64Asm:
             print ("new v3.0B fields", v30b_op, v30b_newfields)
 
 if __name__ == '__main__':
-    isa = SVP64Asm(['slw 3, 1, 4',
+    lst = ['slw 3, 1, 4',
                  'extsw 5, 3',
                  'sv.extsw 5, 3',
                  'sv.cmpi 5, 1, 3, 2',
@@ -586,6 +607,10 @@ if __name__ == '__main__':
                  'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                  'sv.add. 5.v, 2.v, 1.v',
-                ])
+                ]
+    lst += [
+                 'sv.ld 5.v, 4(4.v)',
+          ]
+    isa = SVP64Asm(lst)
     print ("list", list(isa))
     csvs = SVP64RM()
