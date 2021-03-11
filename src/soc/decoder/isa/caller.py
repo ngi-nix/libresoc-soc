@@ -836,6 +836,10 @@ class ISACaller:
             dest_cr, src_cr, src_byname, dest_byname = False, False, {}, {}
         print ("sv rm", sv_rm, dest_cr, src_cr, src_byname, dest_byname)
 
+        # get SVSTATE VL
+        if self.is_svp64_mode:
+            vl = self.svstate.vl.asint(msb0=True)
+
         # VL=0 in SVP64 mode means "do nothing: skip instruction"
         if self.is_svp64_mode and vl == 0:
             self.pc.update(self.namespace, self.is_svp64_mode)
