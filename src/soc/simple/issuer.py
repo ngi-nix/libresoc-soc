@@ -315,6 +315,8 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.state.eq(cur_state)
                     sync += core.raw_insn_i.eq(dec_opcode_i)
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
+                    # set RA_OR_ZERO detection in satellite decoders
+                    sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                     # loop into INSN_FETCH if it's a vector instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
@@ -399,6 +401,7 @@ class TestIssuerInternal(Elaboratable):
                 sync += core.e.eq(pdecode2.e)
                 sync += core.state.eq(cur_state)
                 sync += core.bigendian_i.eq(self.core_bigendian_i)
+                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                 m.next = "INSN_EXECUTE"  # move to "execute"
 
         # check if svstate needs updating: if so, write it to State Regfile

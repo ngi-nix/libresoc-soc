@@ -85,9 +85,13 @@ class NonProductionCore(Elaboratable):
         # instruction decoder - needs a Trap-capable Record (captures EINT etc.)
         self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand)
 
+        # SVP64 RA_OR_ZERO needs to know if the relevant EXTRA2/3 field is zero
+        self.sv_a_nz = Signal()
+
+        # state and raw instruction
         self.state = CoreState("core")
         self.raw_insn_i = Signal(32) # raw instruction
-        self.bigendian_i = Signal() # bigendian
+        self.bigendian_i = Signal() # bigendian - TODO, set by MSR.BE
 
         # issue/valid/busy signalling
         self.ivalid_i = Signal(reset_less=True) # instruction is valid
@@ -137,6 +141,8 @@ class NonProductionCore(Elaboratable):
             setattr(m.submodules, "dec_%s" % v.fn_name, v)
             comb += v.dec.raw_opcode_in.eq(self.raw_insn_i)
             comb += v.dec.bigendian.eq(self.bigendian_i)
+            # sigh due to SVP64 RA_OR_ZERO detection connect these too
+            comb += v.sv_a_nz.eq(self.sv_a_nz)
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.des[self.trapunit] = self.e.do
