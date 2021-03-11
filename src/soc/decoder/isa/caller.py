@@ -652,7 +652,8 @@ class ISACaller:
         yield self.dec2.dec.bigendian.eq(self.bigendian)
         yield self.dec2.state.msr.eq(self.msr.value)
         yield self.dec2.state.pc.eq(pc)
-        yield self.dec2.state.svstate.eq(self.svstate.spr.value)
+        if self.svstate is not None:
+            yield self.dec2.state.svstate.eq(self.svstate.spr.value)
 
         # SVP64.  first, check if the opcode is EXT001, and SVP64 id bits set
         yield Settle()
@@ -835,11 +836,6 @@ class ISACaller:
             dest_cr, src_cr, src_byname, dest_byname = False, False, {}, {}
         print ("sv rm", sv_rm, dest_cr, src_cr, src_byname, dest_byname)
 
-        # get SVSTATE srcstep.  TODO: dststep (twin predication)
-        srcstep = self.svstate.srcstep.asint(msb0=True)
-        vl = self.svstate.vl.asint(msb0=True)
-        mvl = self.svstate.maxvl.asint(msb0=True)
-
         # VL=0 in SVP64 mode means "do nothing: skip instruction"
         if self.is_svp64_mode and vl == 0:
             self.pc.update(self.namespace, self.is_svp64_mode)
@@ -856,10 +852,6 @@ class ISACaller:
                 # doing this is not part of svp64, it's because output
                 # registers, to be modified, need to be in the namespace.
                 regnum, is_vec = yield from get_pdecode_idx_out(self.dec2, name)
-            # here's where we go "vector".  TODO: zero-testing (RA_IS_ZERO)
-            # XXX already done by PowerDecoder2, now
-            #if is_vec:
-            #   regnum += srcstep # TODO, elwidth overrides
 
             # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
