@@ -157,3 +157,47 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    def case_7_sv_add_2(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
+        #       r1 is scalar so ENDS EARLY
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2  # VL
+        svstate.maxvl[0:7] = 2  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
+
+    def case_8_sv_add_3(self):
+        # adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
+        #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
+        isa = SVP64Asm(['sv.add 1.v, 5, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2  # VL
+        svstate.maxvl[0:7] = 2  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
