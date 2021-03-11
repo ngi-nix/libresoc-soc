@@ -307,7 +307,7 @@ class RADIX:
         swap = False
         check_in_mem = False
         entry_width = 8
-        value = self.mem.ld(prtable_addr, entry_width, swap, check_in_mem)
+        value = self.mem.ld(prtable_addr.value, entry_width, swap, check_in_mem)
         print("value",value)
 
 
