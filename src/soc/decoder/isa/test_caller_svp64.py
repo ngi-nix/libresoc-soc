@@ -23,21 +23,24 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_sv_load_store(self):
         lst = SVP64Asm(["addi 1, 0, 0x0010",
-                        "addi 2, 0, 0x1234",
-                        "sv.stw 2, 0(1)",
-                        "sv.lwz 3, 0(1)"])
+                        "addi 2, 0, 0x0008",
+                        "addi 5, 0, 0x1234",
+                        "addi 6, 0, 0x1235",
+                        "sv.stw 5, 0(1)",
+                        "sv.lwz 9, 0(1)"])
         lst = list(lst)
 
         # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
-        svstate.vl[0:7] = 1 # VL
-        svstate.maxvl[0:7] = 1 # MAXVL
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
         print ("SVSTATE", bin(svstate.spr.asint()))
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, svstate=svstate)
             print(sim.gpr(1))
-            self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
+            self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
+            #self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
 
     def test_sv_add(self):
         # adds:

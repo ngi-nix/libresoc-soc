@@ -96,6 +96,7 @@ class DecodeA(Elaboratable):
         self.reg_out = Data(5, name="reg_a")
         self.spr_out = Data(SPR, "spr_a")
         self.fast_out = Data(3, "fast_a")
+        self.sv_nz = Signal(1)
 
     def elaborate(self, platform):
         m = Module()
@@ -104,12 +105,12 @@ class DecodeA(Elaboratable):
         reg = self.reg_out
         m.submodules.sprmap = sprmap = SPRMap()
 
-        # select Register A field
+        # select Register A field, if *full 7 bits* are zero (2 more from SVP64)
         ra = Signal(5, reset_less=True)
         comb += ra.eq(self.dec.RA)
         with m.If((self.sel_in == In1Sel.RA) |
                   ((self.sel_in == In1Sel.RA_OR_ZERO) &
-                   (ra != Const(0, 5)))):
+                   ((ra != Const(0, 5)) | (self.sv_nz != Const(0, 1))))):
             comb += reg.data.eq(ra)
             comb += reg.ok.eq(1)
 
@@ -153,13 +154,14 @@ class DecodeAImm(Elaboratable):
     """DecodeA immediate from instruction
 
     decodes register RA, whether immediate-zero, implicit and
-    explicit CSRs
+    explicit CSRs.  SVP64 mode requires 2 extra bits
     """
 
     def __init__(self, dec):
         self.dec = dec
         self.sel_in = Signal(In1Sel, reset_less=True)
         self.immz_out = Signal(reset_less=True)
+        self.sv_nz = Signal(1) # EXTRA bits from SVP64
 
     def elaborate(self, platform):
         m = Module()
@@ -168,7 +170,9 @@ class DecodeAImm(Elaboratable):
         # zero immediate requested
         ra = Signal(5, reset_less=True)
         comb += ra.eq(self.dec.RA)
-        with m.If((self.sel_in == In1Sel.RA_OR_ZERO) & (ra == Const(0, 5))):
+        with m.If((self.sel_in == In1Sel.RA_OR_ZERO) &
+                    (ra == Const(0, 5)) &
+                    (self.sv_nz == Const(0, 1))):
             comb += self.immz_out.eq(1)
 
         return m
@@ -684,6 +688,7 @@ class PowerDecodeSubset(Elaboratable):
         self.svp64_en = svp64_en
         if svp64_en:
             self.sv_rm = SVP64Rec(name="dec_svp64") # SVP64 RM field
+        self.sv_a_nz = Signal(1)
         self.final = final
         self.opkls = opkls
         self.fn_name = fn_name
@@ -827,6 +832,7 @@ class PowerDecodeSubset(Elaboratable):
         # immediates
         if self.needs_field("zero_a", "in1_sel"):
             m.submodules.dec_ai = dec_ai = DecodeAImm(self.dec)
+            comb += dec_ai.sv_nz.eq(self.sv_a_nz)
             comb += dec_ai.sel_in.eq(op.in1_sel)
             comb += self.do_copy("zero_a", dec_ai.immz_out)  # RA==0 detected
         if self.needs_field("imm_data", "in2_sel"):
@@ -964,6 +970,7 @@ class PowerDecode2(PowerDecodeSubset):
         m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
         m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
         m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
+        comb += dec_a.sv_nz.eq(self.sv_a_nz)
 
         if self.svp64_en:
             # and SVP64 Extra decoders
@@ -1110,6 +1117,8 @@ class PowerDecode2(PowerDecodeSubset):
                     comb += to_reg.data.eq(svdec.cr_out) # 7-bit output
                 comb += to_reg.ok.eq(fromreg.ok)
 
+            # sigh must determine if RA is nonzero (7 bit)
+            comb += self.sv_a_nz.eq(e.read_reg1.data != Const(0, 7))
         else:
             # connect up to/from read/write GPRs
             for to_reg, fromreg in ((e.read_reg1, dec_a.reg_out),
