@@ -438,12 +438,13 @@ class RADIX:
                 (effpid(31 downto 8) and finalmask(23 downto 0))) &
                 effpid(7 downto 0) & "0000";
         """
+        print ("_get_prtable_addr_", shift, prtbl, addr, pid)
         finalmask = genmask(shift, 44)
         finalmask24 = finalmask[20:44]
         if addr[0].value == 1:
             effpid = SelectableInt(0, 32)
         else:
-            effpid = pid[32:64] #self.pid[32:64] # TODO, check on this
+            effpid = pid #self.pid # TODO, check on this
         zero16 = SelectableInt(0, 16)
         zero4 = SelectableInt(0, 4)
         res = selectconcat(zero16,
