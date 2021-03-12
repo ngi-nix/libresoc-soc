@@ -557,6 +557,8 @@ def create_pdecode(name=None, col_subset=None, row_subset=None):
                    opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
         Subdecoder(pattern=62, opcodes=get_csv("minor_62.csv"),
                    opint=True, bitsel=(0, 2), suffix=None, subdecoders=[]),
+        Subdecoder(pattern=22, opcodes=get_csv("minor_22.csv"),
+                   opint=True, bitsel=(1, 5), suffix=None, subdecoders=[]),
     ]
 
     # top level: extra merged with major

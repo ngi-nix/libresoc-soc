@@ -81,6 +81,7 @@ class Function(Enum):
     SPR = 1 << 10
     MMU = 1 << 11
     SV = 1 << 12  # Simple-V https://libre-soc.org/openpower/sv
+    VL = 1 << 13  # setvl
 
 
 @unique
