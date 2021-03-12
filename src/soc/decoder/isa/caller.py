@@ -23,7 +23,7 @@ from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp, In1Sel, In2Sel, In3Sel,
                                      OutSel, CROutSel)
 
-from soc.decoder.power_enums import SPR as DEC_SPR
+from soc.decoder.power_enums import SVPtype
 
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
@@ -93,7 +93,7 @@ class GPR(dict):
 
     def getz(self, rnum):
         # rnum = rnum.value # only SelectableInt allowed
-        print("GPR getzero", rnum)
+        print("GPR getzero?", rnum)
         if rnum == 0:
             return SelectableInt(0, 64)
         return self[rnum]
@@ -274,7 +274,12 @@ def get_pdecode_idx_in(dec2, name):
     in1_isvec = yield dec2.in1_isvec
     in2_isvec = yield dec2.in2_isvec
     in3_isvec = yield dec2.in3_isvec
-    print ("get_pdecode_idx", in1_sel, In1Sel.RA.value, in1, in1_isvec)
+    print ("get_pdecode_idx_in in1", name, in1_sel, In1Sel.RA.value,
+                                     in1, in1_isvec)
+    print ("get_pdecode_idx_in in2", name, in2_sel, In2Sel.RB.value,
+                                     in2, in2_isvec)
+    print ("get_pdecode_idx_in in3", name, in3_sel, In3Sel.RS.value,
+                                     in3, in3_isvec)
     # identify which regnames map to in1/2/3
     if name == 'RA':
         if (in1_sel == In1Sel.RA.value or
@@ -836,14 +841,20 @@ class ISACaller:
             dest_cr, src_cr, src_byname, dest_byname = False, False, {}, {}
         print ("sv rm", sv_rm, dest_cr, src_cr, src_byname, dest_byname)
 
-        # get SVSTATE VL
+        # get SVSTATE VL (oh and print out some debug stuff)
         if self.is_svp64_mode:
             vl = self.svstate.vl.asint(msb0=True)
+            srcstep = self.svstate.srcstep.asint(msb0=True)
+            sv_a_nz = yield self.dec2.sv_a_nz
+            in1 = yield self.dec2.e.read_reg1.data
+            print ("SVP64: VL, srcstep, sv_a_nz, in1",
+                    vl, srcstep, sv_a_nz, in1)
 
         # VL=0 in SVP64 mode means "do nothing: skip instruction"
         if self.is_svp64_mode and vl == 0:
             self.pc.update(self.namespace, self.is_svp64_mode)
-            print("end of call", self.namespace['CIA'], self.namespace['NIA'])
+            print("SVP64: VL=0, end of call", self.namespace['CIA'],
+                                       self.namespace['NIA'])
             return
 
         # main input registers (RT, RA ...)
@@ -968,13 +979,24 @@ class ISACaller:
             vl = self.svstate.vl.asint(msb0=True)
             mvl = self.svstate.maxvl.asint(msb0=True)
             srcstep = self.svstate.srcstep.asint(msb0=True)
+            sv_ptype = yield self.dec2.dec.op.SV_Ptype
+            no_out_vec = not (yield self.dec2.no_out_vec)
+            no_in_vec = not (yield self.dec2.no_in_vec)
             print ("    svstate.vl", vl)
             print ("    svstate.mvl", mvl)
             print ("    svstate.srcstep", srcstep)
+            print ("    no_out_vec", no_out_vec)
+            print ("    no_in_vec", no_in_vec)
+            print ("    sv_ptype", sv_ptype, sv_ptype == SVPtype.P2.value)
             # check if srcstep needs incrementing by one, stop PC advancing
-            # svp64 loop can end early if the dest is scalar
-            svp64_dest_vector = not (yield self.dec2.no_out_vec)
-            if svp64_dest_vector and srcstep != vl-1:
+            # svp64 loop can end early if the dest is scalar for single-pred
+            # but for 2-pred both src/dest have to be checked.
+            # XXX this might not be true! it may just be LD/ST
+            if sv_ptype == SVPtype.P2.value:
+                svp64_is_vector = (no_out_vec or no_in_vec)
+            else:
+                svp64_is_vector = no_out_vec
+            if svp64_is_vector and srcstep != vl-1:
                 self.svstate.srcstep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
                 self.namespace['NIA'] = self.pc.NIA

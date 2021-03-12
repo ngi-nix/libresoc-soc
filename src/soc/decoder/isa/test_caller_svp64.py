@@ -26,8 +26,8 @@ class DecoderTestCase(FHDLTestCase):
                         "addi 2, 0, 0x0008",
                         "addi 5, 0, 0x1234",
                         "addi 6, 0, 0x1235",
-                        "sv.stw 5, 0(1)",
-                        "sv.lwz 9, 0(1)"])
+                        "sv.stw 5.v, 0(1.v)",
+                        "sv.lwz 9.v, 0(1.v)"])
         lst = list(lst)
 
         # SVSTATE (in this case, VL=2)
@@ -40,7 +40,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, svstate=svstate)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
-            #self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
+            self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
 
     def test_sv_add(self):
         # adds:
