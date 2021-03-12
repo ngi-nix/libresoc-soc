@@ -24,6 +24,7 @@ def find_wiki_dir():
     tabledir = join(tabledir, 'openpower')
     return join(tabledir, 'isatables')
 
+
 def find_wiki_file(name):
     filedir = os.path.dirname(os.path.abspath(__file__))
     basedir = dirname(dirname(dirname(filedir)))
@@ -63,6 +64,8 @@ def get_signal_name(name):
 # this corresponds to which Function Unit (pipeline-with-Reservation-Stations)
 # is to process and guard the operation.  they are roughly divided by having
 # the same register input/output signature (X-Form, etc.)
+
+
 @unique
 class Function(Enum):
     NONE = 0
@@ -77,7 +80,7 @@ class Function(Enum):
     DIV = 1 << 9
     SPR = 1 << 10
     MMU = 1 << 11
-    SV = 1 << 12 # Simple-V https://libre-soc.org/openpower/sv
+    SV = 1 << 12  # Simple-V https://libre-soc.org/openpower/sv
 
 
 @unique
@@ -111,9 +114,10 @@ class Form(Enum):
     EVS = 26
     Z22 = 27
     Z23 = 28
-    SVL = 29 # Simple-V for setvl instruction
+    SVL = 29  # Simple-V for setvl instruction
 
 # Simple-V svp64 fields https://libre-soc.org/openpower/sv/svp64/
+
 
 @unique
 class SVPtype(Enum):
@@ -121,11 +125,13 @@ class SVPtype(Enum):
     P1 = 1
     P2 = 2
 
+
 @unique
 class SVEtype(Enum):
     NONE = 0
     EXTRA2 = 1
     EXTRA3 = 2
+
 
 @unique
 class SVEXTRA(Enum):
@@ -134,13 +140,15 @@ class SVEXTRA(Enum):
     Idx1 = 2
     Idx2 = 3
     Idx3 = 4
-    Idx_1_2 = 5 # due to weird BA/BB for crops
+    Idx_1_2 = 5  # due to weird BA/BB for crops
+
 
 @unique
 class SVP64PredMode(Enum):
     ALWAYS = 0
     INT = 1
     CR = 2
+
 
 @unique
 class SVP64PredInt(Enum):
@@ -153,6 +161,7 @@ class SVP64PredInt(Enum):
     R30 = 6
     R30_N = 7
 
+
 @unique
 class SVP64PredCR(Enum):
     LT = 0
@@ -164,6 +173,7 @@ class SVP64PredCR(Enum):
     SO = 6
     NS = 7
 
+
 @unique
 class SVP64RMMode(Enum):
     NORMAL = 0
@@ -172,6 +182,7 @@ class SVP64RMMode(Enum):
     SATURATE = 3
     PREDRES = 4
 
+
 @unique
 class SVP64width(Enum):
     DEFAULT = 0
@@ -179,12 +190,14 @@ class SVP64width(Enum):
     EW_16 = 2
     EW_8 = 3
 
+
 @unique
 class SVP64subvl(Enum):
     VEC1 = 0
     VEC2 = 1
     VEC3 = 2
     VEC4 = 3
+
 
 @unique
 class SVP64sat(Enum):
@@ -217,7 +230,7 @@ _insns = [
     "popcntb", "popcntd", "popcntw", "prtyd", "prtyw", "rfid", "rldcl",
     "rldcr", "rldic", "rldicl", "rldicr", "rldimi", "rlwimi", "rlwinm",
     "rlwnm", "setb",
-    "setvl", # https://libre-soc.org/openpower/sv/setvl
+    "setvl",  # https://libre-soc.org/openpower/sv/setvl
     "sim_cfg", "slbia", "sld", "slw", "srad", "sradi", "sraw",
     "srawi", "srd", "srw", "stb", "stbcix", "stbcx", "stbu", "stbux", "stbx",
     "std", "stdbrx", "stdcx", "stdu", "stdux", "stdx", "sth", "sthbrx", "sthcx",
@@ -235,6 +248,8 @@ for i, insn in enumerate(_insns):
     asmidx[insn] = i
 
 # Internal Operation numbering.  Add new opcodes here (FPADD, FPMUL etc.)
+
+
 @unique
 class MicrOp(Enum):
     OP_ILLEGAL = 0     # important that this is zero (see power_decoder.py)
@@ -445,4 +460,4 @@ if __name__ == '__main__':
     for x in SPR:
         print(x, x.value, str(x), x.name)
 
-    print ("function", Function.ALU.name)
+    print("function", Function.ALU.name)

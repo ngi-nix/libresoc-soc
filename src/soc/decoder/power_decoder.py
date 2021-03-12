@@ -92,7 +92,7 @@ from nmigen import Module, Elaboratable, Signal, Cat, Mux
 from nmigen.cli import rtlil
 from soc.decoder.power_enums import (Function, Form, MicrOp,
                                      In1Sel, In2Sel, In3Sel, OutSel,
-                                     SVEXTRA, SVEtype, SVPtype, # Simple-V
+                                     SVEXTRA, SVEtype, SVPtype,  # Simple-V
                                      RC, LdstLen, LDSTMode, CryIn,
                                      single_bit_flags, CRInSel,
                                      CROutSel, get_signal_name,
@@ -223,7 +223,7 @@ class PowerOp:
             if field not in power_op_csvmap:
                 continue
             csvname = power_op_csvmap[field]
-            print (field, ptype, csvname, row)
+            print(field, ptype, csvname, row)
             val = row[csvname]
             if csvname == 'upd' and isinstance(val, int):  # LDSTMode different
                 val = ptype(val)
