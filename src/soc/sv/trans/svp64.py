@@ -215,8 +215,8 @@ class SVP64Asm:
             # now for each of those find its place in the EXTRA encoding
             extras = OrderedDict()
             for idx, (field, regname) in enumerate(opregfields):
-                extra = svp64_reg_byname.get(regname, None)
                 imm, regname = decode_imm(regname)
+                extra = svp64_reg_byname.get(regname, None)
                 rtype = get_regtype(regname)
                 extras[extra] = (idx, field, regname, rtype, imm)
                 print ("    ", extra, extras[extra])
@@ -239,7 +239,8 @@ class SVP64Asm:
                     immed, field = field[:-1].split("(")
 
                 field, regmode = decode_reg(field)
-                print ("    ", rtype, regmode, iname, field, end=" ")
+                print ("    ", extra_idx, rname, rtype,
+                               regmode, iname, field, end=" ")
 
                 # see Mode field https://libre-soc.org/openpower/sv/svp64/
                 # XXX TODO: the following is a bit of a laborious repeated
@@ -609,7 +610,8 @@ if __name__ == '__main__':
                  'sv.add. 5.v, 2.v, 1.v',
                 ]
     lst += [
-                 'sv.ld 5.v, 4(4.v)',
+                 'sv.stw 5.v, 4(1.v)',
+                 'sv.ld 5.v, 4(1.v)',
           ]
     isa = SVP64Asm(lst)
     print ("list", list(isa))
