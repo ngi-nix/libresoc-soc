@@ -27,7 +27,7 @@ from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      CRInSel, CROutSel,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
                                      OutSel, SPR, RC, LDSTMode,
-                                     SVEXTRA, SVEtype)
+                                     SVEXTRA, SVEtype, SVPtype)
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
 from soc.sv.svp64 import SVP64Rec
@@ -924,9 +924,11 @@ class PowerDecode2(PowerDecodeSubset):
             self.o2_isvec = Signal(1, name="reg_o2_isvec")
             self.no_in_vec = Signal(1, name="no_in_vec") # no inputs vector
             self.no_out_vec = Signal(1, name="no_out_vec") # no outputs vector
+            self.loop_continue = Signal(1, name="loop_continue")
         else:
             self.no_in_vec = Const(1, 1)
             self.no_out_vec = Const(1, 1)
+            self.loop_continue = Const(0, 1)
 
     def get_col_subset(self, opkls):
         subset = super().get_col_subset(opkls)
@@ -1090,6 +1092,20 @@ class PowerDecode2(PowerDecodeSubset):
             comb += self.no_in_vec.eq(~Cat(*l).bool()) # all input scalar
             l = map(lambda svdec: svdec.isvec, [o2_svdec, o_svdec, crout_svdec])
             comb += self.no_out_vec.eq(~Cat(*l).bool()) # all output scalar
+            # now create a general-purpose "test" as to whether looping
+            # should continue.  this doesn't include predication bit-tests
+            loop = self.loop_continue
+            with m.Switch(op.SV_Ptype):
+                with m.Case(SVPtype.P2.value):
+                    # twin-predication
+                    # TODO: *and cache-inhibited LD/ST!*
+                    comb += loop.eq(~(self.no_in_vec | self.no_out_vec))
+                with m.Case(SVPtype.P1.value):
+                    # single-predication, test relies on dest only
+                    comb += loop.eq(~self.no_out_vec)
+                with m.Default():
+                    # not an SV operation, no looping
+                    comb += loop.eq(0)
 
             # condition registers (CR)
             for to_reg, cr, name, svdec in (
