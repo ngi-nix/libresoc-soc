@@ -352,6 +352,7 @@ class OutSel(Enum):
     RT = 1
     RA = 2
     SPR = 3
+    RT_OR_ZERO = 4
 
 
 @unique
