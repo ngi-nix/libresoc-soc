@@ -310,6 +310,7 @@ class MicrOp(Enum):
     OP_SC = 73
     OP_MTMSR = 74
     OP_TLBIE = 75
+    OP_SETVL = 76
 
 
 @unique
