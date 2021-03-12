@@ -321,7 +321,7 @@ class TestIssuerInternal(Elaboratable):
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
                     cur_vl = cur_state.svstate.vl
-                    with m.If(~pdecode2.no_out_vec & (cur_vl == 0)):
+                    with m.If(pdecode2.loop_continue & (cur_vl == 0)):
                         # update the PC before fetching the next instruction
                         # since we are in a VL==0 loop, no instruction was
                         # executed that we could be overwriting
@@ -360,7 +360,7 @@ class TestIssuerInternal(Elaboratable):
                         # also return to Fetch, when no output was a vector
                         # (regardless of SRCSTEP and VL), or when the last
                         # instruction was really the last one of the VL loop
-                        with m.Elif(pdecode2.no_out_vec | is_last):
+                        with m.Elif((~pdecode2.loop_continue) | is_last):
                             # before going back to fetch, update the PC state
                             # register with the NIA.
                             # ok here we are not reading the branch unit.
@@ -369,7 +369,7 @@ class TestIssuerInternal(Elaboratable):
                             comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
                             comb += self.state_w_pc.data_i.eq(nia)
                             # reset SRCSTEP before returning to Fetch
-                            with m.If(~pdecode2.no_out_vec):
+                            with m.If(pdecode2.loop_continue):
                                 comb += new_svstate.srcstep.eq(0)
                                 comb += update_svstate.eq(1)
                             m.next = "INSN_FETCH"
