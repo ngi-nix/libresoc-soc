@@ -62,6 +62,7 @@ REG_SORT_ORDER = {
     "CA": 0,
     "CA32": 0,
     "MSR": 0,
+    "SVSTATE": 0,
 
     "overflow": 1,
 }
@@ -334,12 +335,14 @@ def get_pdecode_idx_out(dec2, name):
     # get the IN1/2/3 from the decoder (includes SVP64 remap and isvec)
     out = yield dec2.e.write_reg.data
     o_isvec = yield dec2.o_isvec
-    print ("get_pdecode_idx_out", out_sel, OutSel.RA.value, out, o_isvec)
     # identify which regnames map to out / o2
     if name == 'RA':
+        print ("get_pdecode_idx_out", out_sel, OutSel.RA.value, out, o_isvec)
         if out_sel == OutSel.RA.value:
             return out, o_isvec
     elif name == 'RT':
+        print ("get_pdecode_idx_out", out_sel, OutSel.RT.value, 
+                                      OutSel.RT_OR_ZERO.value, out, o_isvec)
         if out_sel == OutSel.RT.value:
             return out, o_isvec
     print ("get_pdecode_idx_out not found", name)
@@ -441,7 +444,7 @@ class ISACaller:
                                'memassign': self.memassign,
                                'NIA': self.pc.NIA,
                                'CIA': self.pc.CIA,
-                               'SVSTATE': self.svstate,
+                               'SVSTATE': self.svstate.spr,
                                'CR': self.cr,
                                'MSR': self.msr,
                                'undefined': undefined,
@@ -674,7 +677,7 @@ class ISACaller:
                               pfx.insn[9].value == 0b1)
         self.pc.update_nia(self.is_svp64_mode)
         self.namespace['NIA'] = self.pc.NIA
-        self.namespace['SVSTATE'] = self.svstate
+        self.namespace['SVSTATE'] = self.svstate.spr
         if not self.is_svp64_mode:
             return
 
@@ -818,6 +821,11 @@ class ISACaller:
         if name not in ['mtcrf', 'mtocrf']:
             illegal = name != asmop
 
+        # sigh deal with setvl not being supported by binutils (.long)
+        if asmop.startswith('setvl'):
+            illegal = False
+            name = 'setvl'
+
         if illegal:
             print("illegal", name, asmop)
             self.TRAP(0x700, PIb.ILLEG)
@@ -873,7 +881,7 @@ class ISACaller:
             # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
             self.namespace[regname] = regnum
-            print('reading reg %s %d' % (name, regnum), is_vec)
+            print('reading reg %s %s' % (name, str(regnum)), is_vec)
             reg_val = self.gpr(regnum)
             inputs.append(reg_val)
 
@@ -1002,7 +1010,7 @@ class ISACaller:
                 self.svstate.srcstep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
                 self.namespace['NIA'] = self.pc.NIA
-                self.namespace['SVSTATE'] = self.svstate
+                self.namespace['SVSTATE'] = self.svstate.spr
                 print("end of sub-pc call", self.namespace['CIA'],
                                      self.namespace['NIA'])
                 return # DO NOT allow PC to update whilst Sub-PC loop running
@@ -1011,11 +1019,11 @@ class ISACaller:
             print ("    svstate.srcstep loop end (PC to update)")
             self.pc.update_nia(self.is_svp64_mode)
             self.namespace['NIA'] = self.pc.NIA
-            self.namespace['SVSTATE'] = self.svstate
+            self.namespace['SVSTATE'] = self.svstate.spr
 
         # UPDATE program counter
         self.pc.update(self.namespace, self.is_svp64_mode)
-        self.svstate = self.namespace['SVSTATE']
+        self.svstate.spr = self.namespace['SVSTATE']
         print("end of call", self.namespace['CIA'],
                              self.namespace['NIA'],
                              self.namespace['SVSTATE'])
@@ -1047,7 +1055,8 @@ def inject():
             result = func(*args, **kwargs)
             print("globals after", func_globals['CIA'], func_globals['NIA'])
             print("args[0]", args[0].namespace['CIA'],
-                  args[0].namespace['NIA'])
+                  args[0].namespace['NIA'],
+                  args[0].namespace['SVSTATE'])
             args[0].namespace = func_globals
             #exec (func.__code__, func_globals)
 

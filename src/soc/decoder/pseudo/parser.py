@@ -662,6 +662,8 @@ class PowerParser:
         """power : atom
                  | atom trailerlist"""
         if len(p) == 2:
+            print("power dump atom notrailer")
+            print(astor.dump_tree(p[1]))
             p[0] = p[1]
         else:
             print("power dump atom")
@@ -671,7 +673,7 @@ class PowerParser:
             p[0] = apply_trailer(p[1], p[2])
             if isinstance(p[1], ast.Name):
                 name = p[1].id
-                if name in ['RA', 'RS', 'RB', 'RC']:
+                if name in ['RA', 'RS', 'RB', 'RC', 'RT']:
                     self.read_regs.add(name)
 
     def p_atom_name(self, p):
@@ -684,7 +686,7 @@ class PowerParser:
         if self.include_ca_in_write:
             if name in ['CA', 'CA32']:
                 self.write_regs.add(name)
-        if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR', 'MSR']:
+        if name in ['CR', 'LR', 'CTR', 'TAR', 'FPSCR', 'MSR', 'SVSTATE']:
             self.special_regs.add(name)
             self.write_regs.add(name)  # and add to list to write
         p[0] = ast.Name(id=name, ctx=ast.Load())

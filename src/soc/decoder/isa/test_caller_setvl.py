@@ -22,7 +22,7 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(i), SelectableInt(expected[i], 64))
 
     def test_setvl_1(self):
-        lst = SVP64Asm(["setvl 1, 1, 3, 1, 1",
+        lst = SVP64Asm(["setvl 1, 0, 9, 1, 1",
                         ])
         lst = list(lst)
 
@@ -34,9 +34,9 @@ class DecoderTestCase(FHDLTestCase):
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, svstate=svstate)
-            print(sim.gpr(1))
-            self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
-            self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
+            print ("SVSTATE after", bin(sim.svstate.spr.asint()))
+            print ("        vl", bin(sim.svstate.vl.asint(True)))
+            print ("        mvl", bin(sim.svstate.maxvl.asint(True)))
 
     def run_tst_program(self, prog, initial_regs=None,
                               svstate=None):
