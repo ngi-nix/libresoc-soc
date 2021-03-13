@@ -441,6 +441,7 @@ class ISACaller:
                                'memassign': self.memassign,
                                'NIA': self.pc.NIA,
                                'CIA': self.pc.CIA,
+                               'SVSTATE': self.svstate,
                                'CR': self.cr,
                                'MSR': self.msr,
                                'undefined': undefined,
@@ -673,6 +674,7 @@ class ISACaller:
                               pfx.insn[9].value == 0b1)
         self.pc.update_nia(self.is_svp64_mode)
         self.namespace['NIA'] = self.pc.NIA
+        self.namespace['SVSTATE'] = self.svstate
         if not self.is_svp64_mode:
             return
 
@@ -1000,6 +1002,7 @@ class ISACaller:
                 self.svstate.srcstep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
                 self.namespace['NIA'] = self.pc.NIA
+                self.namespace['SVSTATE'] = self.svstate
                 print("end of sub-pc call", self.namespace['CIA'],
                                      self.namespace['NIA'])
                 return # DO NOT allow PC to update whilst Sub-PC loop running
@@ -1008,10 +1011,14 @@ class ISACaller:
             print ("    svstate.srcstep loop end (PC to update)")
             self.pc.update_nia(self.is_svp64_mode)
             self.namespace['NIA'] = self.pc.NIA
+            self.namespace['SVSTATE'] = self.svstate
 
         # UPDATE program counter
         self.pc.update(self.namespace, self.is_svp64_mode)
-        print("end of call", self.namespace['CIA'], self.namespace['NIA'])
+        self.svstate = self.namespace['SVSTATE']
+        print("end of call", self.namespace['CIA'],
+                             self.namespace['NIA'],
+                             self.namespace['SVSTATE'])
 
 
 def inject():
