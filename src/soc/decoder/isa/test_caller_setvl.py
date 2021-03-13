@@ -37,6 +37,39 @@ class DecoderTestCase(FHDLTestCase):
             print ("SVSTATE after", bin(sim.svstate.spr.asint()))
             print ("        vl", bin(sim.svstate.vl.asint(True)))
             print ("        mvl", bin(sim.svstate.maxvl.asint(True)))
+            self.assertEqual(sim.svstate.vl.asint(True), 10)
+            self.assertEqual(sim.svstate.maxvl.asint(True), 10)
+            self.assertEqual(sim.svstate.maxvl.asint(True), 10)
+            print("      gpr1", sim.gpr(1))
+            self.assertEqual(sim.gpr(1), SelectableInt(10, 64))
+
+
+    def test_sv_add(self):
+        # sets VL=2 then adds:
+        #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
+        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
+        isa = SVP64Asm(["setvl 3, 0, 1, 1, 1",
+                        'sv.add 1.v, 5.v, 9.v'
+                       ])
+        lst = list(isa)
+        print ("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[1] = 0x5555
+        expected_regs[2] = 0x3334
+        expected_regs[3] = 2       # setvl places copy of VL here
+
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs)
+            self._check_regs(sim, expected_regs)
 
     def run_tst_program(self, prog, initial_regs=None,
                               svstate=None):
@@ -49,3 +82,4 @@ class DecoderTestCase(FHDLTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

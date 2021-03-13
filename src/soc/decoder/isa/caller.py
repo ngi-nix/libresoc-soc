@@ -403,6 +403,8 @@ class ISACaller:
 
         # set up registers, instruction memory, data memory, PC, SPRs, MSR
         self.svp64rm = SVP64RM()
+        if initial_svstate is None:
+            initial_svstate = 0
         if isinstance(initial_svstate, int):
             initial_svstate = SVP64State(initial_svstate)
         self.svstate = initial_svstate
