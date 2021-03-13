@@ -142,9 +142,10 @@ def decode_imm(field):
 
 # decodes svp64 assembly listings and creates EXT001 svp64 prefixes
 class SVP64Asm:
-    def __init__(self, lst):
+    def __init__(self, lst, bigendian=False):
         self.lst = lst
         self.trans = self.translate(lst)
+        assert bigendian == False, "error, bigendian not supported yet"
 
     def __iter__(self):
         yield from self.trans
@@ -160,6 +161,22 @@ class SVP64Asm:
             fields = ''.join(ls[1:]).split(',')
             fields = list(map(str.strip, fields))
             print ("opcode, fields", ls, opcode, fields)
+
+            # sigh have to do setvl here manually for now...
+            if opcode in ["setvl", "setvl."]:
+                insn = 22 << (31-5)          # opcode 22, bits 0-5
+                fields = list(map(int, fields))
+                insn |= fields[0] << (31-10) # RT       , bits 6-10
+                insn |= fields[1] << (31-15) # RA       , bits 11-15
+                insn |= fields[2] << (31-23) # SVi      , bits 16-23
+                insn |= fields[3] << (31-24) # vs       , bit  24
+                insn |= fields[4] << (31-25) # ms       , bit  25
+                insn |= 0b00000   << (31-30) # XO       , bits 26..30
+                if opcode == 'setvl.':
+                    insn |= 1 << (31-31)     # Rc=1     , bit 31
+                print ("setvl", bin(insn))
+                yield ".long 0x%x" % insn
+                continue
 
             # identify if is a svp64 mnemonic
             if not opcode.startswith('sv.'):
@@ -612,6 +629,7 @@ if __name__ == '__main__':
     lst += [
                  'sv.stw 5.v, 4(1.v)',
                  'sv.ld 5.v, 4(1.v)',
+                 'setvl. 2, 3, 4, 1, 1',
           ]
     isa = SVP64Asm(lst)
     print ("list", list(isa))
