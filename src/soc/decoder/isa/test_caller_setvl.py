@@ -49,7 +49,7 @@ class DecoderTestCase(FHDLTestCase):
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
         isa = SVP64Asm(["setvl 3, 0, 1, 1, 1",
-                        'sv.add 1.v, 5.v, 9.v'
+                        'svadd 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)

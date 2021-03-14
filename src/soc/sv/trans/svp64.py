@@ -179,10 +179,10 @@ class SVP64Asm:
                 continue
 
             # identify if is a svp64 mnemonic
-            if not opcode.startswith('sv.'):
+            if not opcode.startswith('sv'):
                 yield insn  # unaltered
                 continue
-            opcode = opcode[3:] # strip leading "sv."
+            opcode = opcode[2:] # strip leading "sv"
 
             # start working on decoding the svp64 op: sv.basev30Bop/vec2/mode
             opmodes = opcode.split("/") # split at "/"
