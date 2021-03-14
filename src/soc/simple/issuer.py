@@ -156,7 +156,7 @@ class TestIssuerInternal(Elaboratable):
         # pulse to synchronize the simulator at instruction end
         self.insn_done = Signal()
 
-    def fetch_fsm(self, m, core, pc, svstate, nia,
+    def fetch_fsm(self, m, core, pc, svstate, nia, is_svp64_mode,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
@@ -214,6 +214,9 @@ class TestIssuerInternal(Elaboratable):
                         comb += svp64.bigendian.eq(self.core_bigendian_i)
                         # pass the decoded prefix (if any) to PowerDecoder2
                         sync += pdecode2.sv_rm.eq(svp64.svp64_rm)
+                        # remember whether this is a prefixed instruction, so
+                        # the FSM can readily loop when VL==0
+                        sync += is_svp64_mode.eq(svp64.is_svp64_mode)
                         # calculate the address of the following instruction
                         insn_size = Mux(svp64.is_svp64_mode, 8, 4)
                         sync += nia.eq(cur_state.pc + insn_size)
@@ -252,7 +255,7 @@ class TestIssuerInternal(Elaboratable):
                     m.next = "IDLE"
 
     def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
-                  dbg, core_rst,
+                  dbg, core_rst, is_svp64_mode,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
@@ -317,11 +320,11 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
                     # set RA_OR_ZERO detection in satellite decoders
                     sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
-                    # loop into INSN_FETCH if it's a vector instruction
+                    # loop into INSN_FETCH if it's a SVP64 instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
                     cur_vl = cur_state.svstate.vl
-                    with m.If(pdecode2.loop_continue & (cur_vl == 0)):
+                    with m.If(is_svp64_mode & (cur_vl == 0)):
                         # update the PC before fetching the next instruction
                         # since we are in a VL==0 loop, no instruction was
                         # executed that we could be overwriting
@@ -585,6 +588,10 @@ class TestIssuerInternal(Elaboratable):
         comb += dbg.state.svstate.eq(svstate)
         comb += dbg.state.msr.eq(cur_state.msr)
 
+        # pass the prefix mode from Fetch to Issue, so the latter can loop
+        # on VL==0
+        is_svp64_mode = Signal()
+
         # there are *THREE* FSMs, fetch (32/64-bit) issue, decode/execute.
         # these are the handshake signals between fetch and decode/execute
 
@@ -613,12 +620,12 @@ class TestIssuerInternal(Elaboratable):
         # lives.  the ready/valid signalling is used to communicate between
         # the three.
 
-        self.fetch_fsm(m, core, pc, svstate, nia,
+        self.fetch_fsm(m, core, pc, svstate, nia, is_svp64_mode,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i)
 
         self.issue_fsm(m, core, pc_changed, sv_changed, nia,
-                       dbg, core_rst,
+                       dbg, core_rst, is_svp64_mode,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
