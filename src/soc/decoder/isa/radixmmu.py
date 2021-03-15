@@ -31,6 +31,18 @@ def genmask(shift, size):
             res[size-1-i] = SelectableInt(1, 1)
     return res
 
+# NOTE: POWER 3.0B annotation order!  see p4 1.3.2
+# MSB is indexed **LOWEST** (sigh)
+# from gem5 radixwalk.hh
+# Bitfield<63> valid;  64 - (63 + 1) = 0
+# Bitfield<62> leaf;   64 - (62 + 1) = 1
+
+def rpte_valid(r):
+    return bool(r[0])
+
+def rpte_leaf(r):
+    return bool(r[1])
+
 """
     Get Root Page
 
