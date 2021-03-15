@@ -20,7 +20,7 @@ from nmigen import Elaboratable, Module, Signal
 from soc.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
                                     SVP64PredMode, SVP64sat)
 from soc.consts import EXTRA3
-from soc.svp64 import SVP64Rec
+from soc.sv.svp64 import SVP64Rec
 from nmutil.util import sel
 
 
