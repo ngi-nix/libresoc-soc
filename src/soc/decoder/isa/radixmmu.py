@@ -43,6 +43,20 @@ def rpte_valid(r):
 def rpte_leaf(r):
     return bool(r[1])
 
+def NLB(x):
+    """
+    Next Level Base
+    right shifted by 8
+    """
+    return x[4:55]
+
+def NLS(x):
+    """
+    Next Level Size
+    NLS >= 5
+    """
+    return x[59:63]
+
 """
     Get Root Page
 
@@ -310,6 +324,10 @@ class RADIX:
         prtbl = self.caller.spr["PRTBL"]
         print(pidr)
         print(prtbl)
+        p = addr[55:63]
+        print("last 8 bits ----------")
+        print
+        
 
         # get address of root entry
         prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
@@ -323,7 +341,7 @@ class RADIX:
         print("value",value)
 
         test_input = [
-            SelectableInt(0x8000000000000000, 64), #valid
+            SelectableInt(0x8000000000000007, 64), #valid
             SelectableInt(0xc000000000000000, 64) #exit
         ]
         index = 0
@@ -334,6 +352,25 @@ class RADIX:
             l = test_input[index]
             index += 1
             valid,leaf = self._next_level(l)
+            if not leaf:
+                mbits = l[59:64]
+                print("mbits=")
+                print(mbits)
+                if mbits < 5 or mbits > 16:
+                    print("badtree")
+                    return None
+                """
+                mbits := unsigned('0' & data(4 downto 0));
+                if mbits < 5 or mbits > 16 or mbits > r.shift then
+                    v.state := RADIX_FINISH;
+                    v.badtree := '1'; -- throw error
+                else
+                    v.shift := v.shift - mbits;
+                    v.mask_size := mbits(4 downto 0);
+                    v.pgbase := data(55 downto 8) & x"00"; NLB?
+                    v.state := RADIX_LOOKUP; --> next level
+                end if;
+                """
             print(valid)
             print(leaf)
             if not valid: return None
