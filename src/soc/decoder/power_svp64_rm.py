@@ -19,7 +19,7 @@ https://libre-soc.org/openpower/sv/svp64/
 from nmigen import Elaboratable, Module, Signal
 from soc.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
                                     SVP64PredMode, SVP64sat)
-from soc.consts import EXTRA3
+from soc.consts import EXTRA3, SVP64MODE
 from soc.sv.svp64 import SVP64Rec
 from nmutil.util import sel
 
@@ -85,14 +85,13 @@ class SVP64RMModeDecode(Elaboratable):
 
         # decode pieces of mode
         is_ldst = Signal()
-        mode2 = Signal(2)
         comb += is_ldst.eq(self.fn_in == Function.LDST)
-        comb += mode2.eq(mode[0:2])
+        mode2 = sel(m, mode, SVP64MODE.MOD2)
         with m.Switch(mode2):
             with m.Case(0): # needs further decoding (LDST no mapreduce)
                 with m.If(is_ldst):
                     comb += self.mode.eq(SVP64RMMode.NORMAL)
-                with m.Elif(mode[3] == 1):
+                with m.Elif(mode[SVP64MODE.REDUCE]):
                     comb += self.mode.eq(SVP64RMMode.MAPREDUCE)
                 with m.Else():
                     comb += self.mode.eq(SVP64RMMode.NORMAL)
