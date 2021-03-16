@@ -81,6 +81,7 @@ class SVP64RMModeDecode(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
+        mode = self.rm_in.mode
 
         # decode pieces of mode
         is_ldst = Signal()
