@@ -54,7 +54,7 @@ Arithmetic:
 11	inv	sz RC1	Rc=0: pred-result z/nonz
 """
 
-class SVP64RMMode(Elaboratable):
+class SVP64RMModeDecode(Elaboratable):
     def __init__(self, name=None):
         self.rm_in = SVP64Rec(name=name)
         self.fn_in = Signal(Function) # LD/ST is different
