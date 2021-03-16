@@ -230,8 +230,8 @@ class RADIX:
         print("memassign", addr, sz, val)
         self.st(addr.value, val.value, sz, swap=False)
 
-    def _next_level(self):
-        return True
+    def _next_level(self,r):
+        return rpte_valid(r), rpte_leaf(r)
         ## DSISR_R_BADCONFIG
         ## read_entry
         ## DSISR_NOPTE
@@ -322,12 +322,22 @@ class RADIX:
         value = self.mem.ld(prtable_addr.value, entry_width, swap, check_in_mem)
         print("value",value)
 
+        test_input = [
+            SelectableInt(0x8000000000000000, 64), #valid
+            SelectableInt(0xc000000000000000, 64) #exit
+        ]
+        index = 0
 
         # walk tree starts on prtbl
         while True:
-            ret = self._next_level()
-            if ret: return ret
-        # TODO fix AttributeError: 'RADIX' object has no attribute 'pid'
+            print("nextlevel----------------------------")
+            l = test_input[index]
+            index += 1
+            valid,leaf = self._next_level(l)
+            print(valid)
+            print(leaf)
+            if not valid: return None
+            if leaf: return None
 
     def _decode_prte(self, data):
         """PRTE0 Layout
