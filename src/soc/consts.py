@@ -213,3 +213,40 @@ class SVP64CROffs:
     CR0 = 0    # TODO: increase when CRs are expanded to 128
     CR1 = 1    # TODO: increase when CRs are expanded to 128
 
+
+class SVP64MODEb:
+    # mode bits
+    MOD2_MSB = 0
+    MOD2_LSB = 1
+    # when predicate not set: 0=ignore/skip 1=zero
+    SZ = 3  # for source
+    DZ = 4  # for destination
+    # reduce mode
+    REDUCE = 2  # 0=normal predication 1=reduce mode
+    SVM = 3  # subvector reduce mode 0=independent 1=horizontal
+    CRM = 4  # CR mode on reduce (Rc=1) 0=some 1=all
+    # saturation mode
+    N = 2  # saturation signed mode 0=signed 1=unsigned
+    # ffirst and predicate result modes
+    INV = 2  # invert CR sense 0=set 1=unset
+    CR_MSB = 3  # CR bit to update (with Rc=1)
+    CR_LSB = 4
+    RC1 = 4  # update CR as if Rc=1 (when Rc=0)
+    # LD immediate els (element-stride) locations, depending on mode
+    ELS_NORMAL = 2
+    ELS_FFIRST_PRED = 3
+    ELS_SAT = 4
+
+
+SVP64MODE_SIZE = 5
+
+
+class SVP64MODE:
+    pass
+
+
+botchify(SVP64MODEb, SVP64MODE, SVP64MODE_SIZE-1)
+
+# add subfields to use with nmutil.sel
+SVP64MODE.MOD2 = [0, 1]
+SVP64MODE.CR = [3, 4]
