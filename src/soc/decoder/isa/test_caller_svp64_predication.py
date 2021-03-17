@@ -53,7 +53,7 @@ class DecoderTestCase(FHDLTestCase):
         # therefore the operation that's carried out is:
         #       GPR(10) = extsb(GPR(5))
         #
-        # this is a type of back-to-back VGATHER and VSCATTER but it applies
+        # this is a type of back-to-back VREDUCE and VEXPAND but it applies
         # to *operations*, not just MVs like in traditional Vector ISAs
         # ascii graphic:
         #
