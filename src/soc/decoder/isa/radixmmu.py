@@ -392,7 +392,8 @@ class RADIX:
         if mbits < 5 or mbits > 16:
             print("badtree")
             return "badtree"
-        shift = shift - mbits
+        # reduce shift (has to be done at same bitwidth)
+        shift = shift - selectconcat(SelectableInt(0, 1), mbits)
         mask_size = mbits[1:5] # get 4 LSBs
         pgbase = selectconcat(data[8:56], SelectableInt(0, 8)) # shift up 8
         return shift, mask_size, pgbase
