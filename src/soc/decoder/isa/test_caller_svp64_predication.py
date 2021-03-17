@@ -42,8 +42,8 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
             self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
 
-    def test_sv_add(self):
-        # adds, predicated mask r3=0b10
+    def test_sv_add_intpred(self):
+        # adds, integer predicated mask r3=0b10
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
         isa = SVP64Asm(['svadd/m=r3 1.v, 5.v, 9.v'
@@ -71,6 +71,40 @@ class DecoderTestCase(FHDLTestCase):
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
+            self._check_regs(sim, expected_regs)
+
+    def test_sv_add_cr_pred(self):
+        # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
+        #       1 = 5 + 9   => not to be touched (skipped)
+        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
+        isa = SVP64Asm(['svadd/m=ne 1.v, 5.v, 9.v'
+                       ])
+        lst = list(isa)
+        print ("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xbeef   # not to be altered
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
+        print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[1] = 0xbeef
+        expected_regs[2] = 0x3334
+
+        # set up CR predicate - CR4.eq=0 and CR5.eq=1
+        cr = (0b0010) << ((7-4)*4) # CR5.eq (we hope)
+
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate,
+                                       initial_cr=cr)
             self._check_regs(sim, expected_regs)
 
     def tst_sv_add_2(self):
@@ -195,10 +229,12 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(CR1, SelectableInt(4, 4))
 
     def run_tst_program(self, prog, initial_regs=None,
-                              svstate=None):
+                              svstate=None,
+                              initial_cr=0):
         if initial_regs is None:
             initial_regs = [0] * 32
-        simulator = run_tst(prog, initial_regs, svstate=svstate)
+        simulator = run_tst(prog, initial_regs, svstate=svstate,
+                            initial_cr=initial_cr)
         simulator.gpr.dump()
         return simulator
 

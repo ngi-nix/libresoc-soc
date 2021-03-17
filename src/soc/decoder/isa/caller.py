@@ -228,6 +228,34 @@ def get_predint(gpr, mask):
     if mask == SVP64PredInt.R30_N.value:
         return ~gpr(30).value
 
+# decode SVP64 predicate CR to reg number and invert
+def _get_predcr(mask):
+    if mask == SVP64PredCR.LT.value:
+        return 0, 1
+    if mask == SVP64PredCR.GE.value:
+        return 0, 0
+    if mask == SVP64PredCR.GT.value:
+        return 1, 1
+    if mask == SVP64PredCR.LE.value:
+        return 1, 0
+    if mask == SVP64PredCR.EQ.value:
+        return 2, 1
+    if mask == SVP64PredCR.NE.value:
+        return 2, 0
+    if mask == SVP64PredCR.SO.value:
+        return 3, 1
+    if mask == SVP64PredCR.NS.value:
+        return 3, 0
+
+def get_predcr(crl, mask, vl):
+    idx, noninv = _get_predcr(mask)
+    mask = 0
+    for i in range(vl):
+        cr = crl[i+SVP64CROffs.CRPred]
+        if cr[idx].value == noninv:
+            mask |= (1<<i)
+    return mask
+
 
 class SPR(dict):
     def __init__(self, dec2, initial_sprs={}):
@@ -365,7 +393,7 @@ def get_pdecode_idx_out(dec2, name):
         if out_sel == OutSel.RA.value:
             return out, o_isvec
     elif name == 'RT':
-        print ("get_pdecode_idx_out", out_sel, OutSel.RT.value, 
+        print ("get_pdecode_idx_out", out_sel, OutSel.RT.value,
                                       OutSel.RT_OR_ZERO.value, out, o_isvec)
         if out_sel == OutSel.RT.value:
             return out, o_isvec
@@ -899,6 +927,10 @@ class ISACaller:
                 srcmask = dstmask = get_predint(self.gpr, dstpred)
                 if sv_ptype == SVPtype.P2.value:
                     srcmask = get_predint(srcpred)
+            elif pmode == SVP64PredMode.CR.value:
+                srcmask = dstmask = get_predcr(self.crl, dstpred, vl)
+                if sv_ptype == SVPtype.P2.value:
+                    srcmask = get_predcr(self.crl, srcpred, vl)
             print ("    pmode", pmode)
             print ("    ptype", sv_ptype)
             print ("    srcmask", bin(srcmask))
