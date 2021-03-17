@@ -77,6 +77,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
         self.r_ports = {'ra': self.read_port("src1"),
                         'rb': self.read_port("src2"),
                         'rc': self.read_port("src3"),
+                        'pred': self.read_port("pred"), # for predicate mask
                         'dmi': self.read_port("dmi")} # needed for Debug (DMI)
 
 
@@ -129,6 +130,7 @@ class CRRegs(VirtualRegPort):
                         'cr_b': self.write_port("dest2")} # 4-bit, unary-indexed
         self.r_ports = {'full_cr': self.full_rd, # 32-bit (masked, 8-en lines)
                         'full_cr_dbg': self.full_rd2, # for DMI
+                        'cr_pred': self.read_port("cr_pred"), # for predicate
                         'cr_a': self.read_port("src1"),
                         'cr_b': self.read_port("src2"),
                         'cr_c': self.read_port("src3")}
