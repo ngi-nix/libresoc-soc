@@ -42,7 +42,43 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
             self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
 
-    def test_sv_add_intpred(self):
+    def test_sv_extsw_intpred(self):
+        # extsb, integer twin-pred mask: source is ~r3 (0b01), dest r3 (0b10)
+        # works as follows, where any zeros indicate "skip element"
+        #       - sources are 9 and 10
+        #       - dests are 5 and 6
+        #       - source mask says "pick first element from source (5)
+        #       - dest mask says "pick *second* element from dest (10)
+        # therefore the operation that's carried out is:
+        #       GPR(10) = extsb(GPR(5))
+        # this is a type of back-to-back VGATHER and VSCATTER but it applies
+        # to *operations*, not just MVs like in traditional Vector ISAs
+
+        isa = SVP64Asm(['svextsb/sm=~r3/m=r3 5.v, 9.v'
+                       ])
+        lst = list(isa)
+        print ("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b10   # predicate mask
+        initial_regs[9] = 0x91
+        initial_regs[10] = 0x90
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2 # VL
+        svstate.maxvl[0:7] = 2 # MAXVL
+        print ("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[5] = 0x0
+        expected_regs[6] = 0xffff_ffff_ffff_ff91
+
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self._check_regs(sim, expected_regs)
+
+    def tst_sv_add_intpred(self):
         # adds, integer predicated mask r3=0b10
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
@@ -73,7 +109,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
-    def test_sv_add_cr_pred(self):
+    def tst_sv_add_cr_pred(self):
         # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111

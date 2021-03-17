@@ -927,7 +927,7 @@ class ISACaller:
             if pmode == SVP64PredMode.INT.value:
                 srcmask = dstmask = get_predint(self.gpr, dstpred)
                 if sv_ptype == SVPtype.P2.value:
-                    srcmask = get_predint(srcpred)
+                    srcmask = get_predint(self.gpr, srcpred)
             elif pmode == SVP64PredMode.CR.value:
                 srcmask = dstmask = get_predcr(self.crl, dstpred, vl)
                 if sv_ptype == SVPtype.P2.value:
@@ -943,6 +943,9 @@ class ISACaller:
             while (((1<<srcstep) & srcmask) == 0) and (srcstep != vl):
                 print ("      skip", bin(1<<srcstep))
                 srcstep += 1
+            # same for dststep
+            while (((1<<dststep) & dstmask) == 0) and (dststep != vl):
+                print ("      skip", bin(1<<dststep))
                 dststep += 1
 
             # update SVSTATE with new srcstep
