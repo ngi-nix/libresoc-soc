@@ -88,7 +88,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
-    def tst_sv_add_intpred(self):
+    def test_sv_add_intpred(self):
         # adds, integer predicated mask r3=0b10
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
@@ -119,7 +119,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
-    def tst_sv_add_cr_pred(self):
+    def test_sv_add_cr_pred(self):
         # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
