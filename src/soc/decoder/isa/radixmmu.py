@@ -343,6 +343,7 @@ class RADIX:
         check_in_mem = False
         entry_width = 8
         value = self.mem.ld(prtable_addr.value, entry_width, swap, check_in_mem)
+        data = SelectableInt(value, 64) # convert to SelectableInt
         print("value",value)
 
         test_input = [
@@ -356,33 +357,45 @@ class RADIX:
             print("nextlevel----------------------------")
             l = test_input[index]
             index += 1
-            valid,leaf = self._next_level(l)
+            valid, leaf = self._next_level(l)
+            print("    valid, leaf", valid, leaf)
             if leaf:
-                data = SelectableInt(value, 64) # convert to SelectableInt
                 ok = self._check_perms(data, priv, mode)
+                # TODO: check permissions
             else:
-                mbits = l[59:64]
-                print("mbits=")
-                print(mbits)
-                if mbits < 5 or mbits > 16:
-                    print("badtree")
+                data = l # TODO put actual data here
+                newlookup = self._new_lookup(data, mbits, shift)
+                if newlookup == 'badtree':
                     return None
-                """
-                mbits := unsigned('0' & data(4 downto 0));
-                if mbits < 5 or mbits > 16 or mbits > r.shift then
-                    v.state := RADIX_FINISH;
-                    v.badtree := '1'; -- throw error
-                else
-                    v.shift := v.shift - mbits;
-                    v.mask_size := mbits(4 downto 0);
-                    v.pgbase := data(55 downto 8) & x"00"; NLB?
-                    v.state := RADIX_LOOKUP; --> next level
-                end if;
-                """
-            print(valid)
-            print(leaf)
-            if not valid: return None
-            if leaf: return None
+                shift, mask, pgbase = newlookup
+                print ("   next level", shift, mask, pgbase)
+            if not valid:
+                return None # TODO: return error
+            if leaf:
+                return None # TODO return something
+
+    def _new_lookup(self, data, mbits, shift):
+        """
+        mbits := unsigned('0' & data(4 downto 0));
+        if mbits < 5 or mbits > 16 or mbits > r.shift then
+            v.state := RADIX_FINISH;
+            v.badtree := '1'; -- throw error
+        else
+            v.shift := v.shift - mbits;
+            v.mask_size := mbits(4 downto 0);
+            v.pgbase := data(55 downto 8) & x"00"; NLB?
+            v.state := RADIX_LOOKUP; --> next level
+        end if;
+        """
+        mbits = data[59:64]
+        print("mbits=", mbits)
+        if mbits < 5 or mbits > 16:
+            print("badtree")
+            return "badtree"
+        shift = shift - mbits
+        mask_size = mbits[1:5] # get 4 LSBs
+        pgbase = selectconcat(data[8:56], SelectableInt(0, 8)) # shift up 8
+        return shift, mask_size, pgbase
 
     def _decode_prte(self, data):
         """PRTE0 Layout
