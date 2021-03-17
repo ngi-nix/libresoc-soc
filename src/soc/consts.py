@@ -212,6 +212,7 @@ SVP64P_SIZE = 24
 class SVP64CROffs:
     CR0 = 0    # TODO: increase when CRs are expanded to 128
     CR1 = 1    # TODO: increase when CRs are expanded to 128
+    CRPred = 4 # TODO: increase when CRs are expanded to 128
 
 
 class SVP64MODEb:

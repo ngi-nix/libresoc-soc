@@ -21,12 +21,15 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp, In1Sel, In2Sel, In3Sel,
-                                     OutSel, CROutSel)
+                                     OutSel, CROutSel,
+                                     SVP64RMMode, SVP64PredMode,
+                                     SVP64PredInt, SVP64PredCR)
 
 from soc.decoder.power_enums import SVPtype
 
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
+from soc.consts import SVP64CROffs
 from soc.decoder.power_svp64 import SVP64RM, decode_extra
 
 from soc.decoder.isa.radixmmu import RADIX
@@ -203,6 +206,27 @@ class SVP64PrefixFields:
 SV64P_MAJOR_SIZE = len(SVP64PrefixFields().major.br)
 SV64P_PID_SIZE = len(SVP64PrefixFields().pid.br)
 SV64P_RM_SIZE = len(SVP64PrefixFields().rm.br)
+
+# decode SVP64 predicate integer to reg number and invert
+def get_predint(gpr, mask):
+    r10 = gpr(10)
+    r30 = gpr(30)
+    if mask == SVP64PredInt.ALWAYS.value:
+        return 0xffff_ffff_ffff_ffff
+    if mask == SVP64PredInt.R3_UNARY.value:
+        return 1 << (gpr(3).value & 0b111111)
+    if mask == SVP64PredInt.R3.value:
+        return gpr(3).value
+    if mask == SVP64PredInt.R3_N.value:
+        return ~gpr(3).value
+    if mask == SVP64PredInt.R10.value:
+        return gpr(10).value
+    if mask == SVP64PredInt.R10_N.value:
+        return ~gpr(10).value
+    if mask == SVP64PredInt.R30.value:
+        return gpr(30).value
+    if mask == SVP64PredInt.R30_N.value:
+        return ~gpr(30).value
 
 
 class SPR(dict):
@@ -864,6 +888,44 @@ class ISACaller:
             print ("SVP64: VL, srcstep, sv_a_nz, in1",
                     vl, srcstep, sv_a_nz, in1)
 
+        # get predicate mask
+        srcmask = dstmask = 0xffff_ffff_ffff_ffff
+        if self.is_svp64_mode:
+            pmode = yield self.dec2.rm_dec.predmode
+            sv_ptype = yield self.dec2.dec.op.SV_Ptype
+            srcpred = yield self.dec2.rm_dec.srcpred
+            dstpred = yield self.dec2.rm_dec.dstpred
+            if pmode == SVP64PredMode.INT.value:
+                srcmask = dstmask = get_predint(self.gpr, dstpred)
+                if sv_ptype == SVPtype.P2.value:
+                    srcmask = get_predint(srcpred)
+            print ("    pmode", pmode)
+            print ("    ptype", sv_ptype)
+            print ("    srcmask", bin(srcmask))
+            print ("    dstmask", bin(dstmask))
+
+            # okaaay, so here we simply advance srcstep (TODO dststep)
+            # until the predicate mask has a "1" bit... or we run out of VL
+            # let srcstep==VL be the indicator to move to next instruction
+            while (((1<<srcstep) & srcmask) == 0) and (srcstep != vl):
+                print ("      skip", bin(1<<srcstep))
+                srcstep += 1
+
+            # update SVSTATE with new srcstep
+            self.svstate.srcstep[0:7] = srcstep
+            self.namespace['SVSTATE'] = self.svstate.spr
+            yield self.dec2.state.svstate.eq(self.svstate.spr.value)
+            yield Settle() # let decoder update
+            srcstep = self.svstate.srcstep.asint(msb0=True)
+            print ("    srcstep", srcstep)
+
+            # check if end reached (we let srcstep overrun, above)
+            # nothing needs doing (TODO zeroing): just do next instruction
+            if srcstep == vl:
+                self.svp64_reset_loop()
+                self.update_pc_next()
+                return
+
         # VL=0 in SVP64 mode means "do nothing: skip instruction"
         if self.is_svp64_mode and vl == 0:
             self.pc.update(self.namespace, self.is_svp64_mode)
@@ -899,6 +961,7 @@ class ISACaller:
         # clear trap (trap) NIA
         self.trap_nia = None
 
+        # execute actual instruction here
         print("inputs", inputs)
         results = info.func(self, *inputs)
         print("results", results)
@@ -1018,13 +1081,12 @@ class ISACaller:
                 print("end of sub-pc call", self.namespace['CIA'],
                                      self.namespace['NIA'])
                 return # DO NOT allow PC to update whilst Sub-PC loop running
-            # reset to zero
-            self.svstate.srcstep[0:7] = 0
-            print ("    svstate.srcstep loop end (PC to update)")
-            self.pc.update_nia(self.is_svp64_mode)
-            self.namespace['NIA'] = self.pc.NIA
-            self.namespace['SVSTATE'] = self.svstate.spr
+            # reset loop to zero
+            self.svp64_reset_loop()
 
+        self.update_pc_next()
+
+    def update_pc_next(self):
         # UPDATE program counter
         self.pc.update(self.namespace, self.is_svp64_mode)
         self.svstate.spr = self.namespace['SVSTATE']
@@ -1032,6 +1094,12 @@ class ISACaller:
                              self.namespace['NIA'],
                              self.namespace['SVSTATE'])
 
+    def svp64_reset_loop(self):
+        self.svstate.srcstep[0:7] = 0
+        print ("    svstate.srcstep loop end (PC to update)")
+        self.pc.update_nia(self.is_svp64_mode)
+        self.namespace['NIA'] = self.pc.NIA
+        self.namespace['SVSTATE'] = self.svstate.spr
 
 def inject():
     """Decorator factory.
