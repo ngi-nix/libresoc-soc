@@ -911,10 +911,11 @@ class ISACaller:
         if self.is_svp64_mode:
             vl = self.svstate.vl.asint(msb0=True)
             srcstep = self.svstate.srcstep.asint(msb0=True)
+            dststep = self.svstate.srcstep.asint(msb0=True)
             sv_a_nz = yield self.dec2.sv_a_nz
             in1 = yield self.dec2.e.read_reg1.data
-            print ("SVP64: VL, srcstep, sv_a_nz, in1",
-                    vl, srcstep, sv_a_nz, in1)
+            print ("SVP64: VL, srcstep, dststep, sv_a_nz, in1",
+                    vl, srcstep, dststep, sv_a_nz, in1)
 
         # get predicate mask
         srcmask = dstmask = 0xffff_ffff_ffff_ffff
@@ -942,14 +943,18 @@ class ISACaller:
             while (((1<<srcstep) & srcmask) == 0) and (srcstep != vl):
                 print ("      skip", bin(1<<srcstep))
                 srcstep += 1
+                dststep += 1
 
             # update SVSTATE with new srcstep
             self.svstate.srcstep[0:7] = srcstep
+            self.svstate.dststep[0:7] = dststep
             self.namespace['SVSTATE'] = self.svstate.spr
             yield self.dec2.state.svstate.eq(self.svstate.spr.value)
             yield Settle() # let decoder update
             srcstep = self.svstate.srcstep.asint(msb0=True)
+            dststep = self.svstate.dststep.asint(msb0=True)
             print ("    srcstep", srcstep)
+            print ("    dststep", dststep)
 
             # check if end reached (we let srcstep overrun, above)
             # nothing needs doing (TODO zeroing): just do next instruction
@@ -1088,12 +1093,14 @@ class ISACaller:
             vl = self.svstate.vl.asint(msb0=True)
             mvl = self.svstate.maxvl.asint(msb0=True)
             srcstep = self.svstate.srcstep.asint(msb0=True)
+            dststep = self.svstate.srcstep.asint(msb0=True)
             sv_ptype = yield self.dec2.dec.op.SV_Ptype
             no_out_vec = not (yield self.dec2.no_out_vec)
             no_in_vec = not (yield self.dec2.no_in_vec)
             print ("    svstate.vl", vl)
             print ("    svstate.mvl", mvl)
             print ("    svstate.srcstep", srcstep)
+            print ("    svstate.dststep", dststep)
             print ("    no_out_vec", no_out_vec)
             print ("    no_in_vec", no_in_vec)
             print ("    sv_ptype", sv_ptype, sv_ptype == SVPtype.P2.value)
@@ -1107,6 +1114,7 @@ class ISACaller:
                 svp64_is_vector = no_out_vec
             if svp64_is_vector and srcstep != vl-1:
                 self.svstate.srcstep += SelectableInt(1, 7)
+                self.svstate.dststep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
                 self.namespace['NIA'] = self.pc.NIA
                 self.namespace['SVSTATE'] = self.svstate.spr
@@ -1128,6 +1136,7 @@ class ISACaller:
 
     def svp64_reset_loop(self):
         self.svstate.srcstep[0:7] = 0
+        self.svstate.dststep[0:7] = 0
         print ("    svstate.srcstep loop end (PC to update)")
         self.pc.update_nia(self.is_svp64_mode)
         self.namespace['NIA'] = self.pc.NIA

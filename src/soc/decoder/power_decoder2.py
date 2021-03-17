@@ -1054,27 +1054,30 @@ class PowerDecode2(PowerDecodeSubset):
             comb += crin_svdec_b.idx.eq(cr_b_idx)     # SVP64 CR in B
             comb += crin_svdec_o.idx.eq(op.sv_cr_out) # SVP64 CR out
 
-            # get SVSTATE srcstep (TODO: elwidth, dststep etc.) needed below
+            # get SVSTATE srcstep (TODO: elwidth etc.) needed below
             srcstep = Signal.like(self.state.svstate.srcstep)
+            dststep = Signal.like(self.state.svstate.dststep)
             comb += srcstep.eq(self.state.svstate.srcstep)
+            comb += dststep.eq(self.state.svstate.dststep)
 
             # registers a, b, c and out and out2 (LD/ST EA)
-            for to_reg, fromreg, svdec in (
-                (e.read_reg1, dec_a.reg_out, in1_svdec),
-                (e.read_reg2, dec_b.reg_out, in2_svdec),
-                (e.read_reg3, dec_c.reg_out, in3_svdec),
-                (e.write_reg, dec_o.reg_out, o_svdec),
-                (e.write_ea, dec_o2.reg_out, o2_svdec)):
+            for to_reg, fromreg, svdec, out in (
+                (e.read_reg1, dec_a.reg_out, in1_svdec, False),
+                (e.read_reg2, dec_b.reg_out, in2_svdec, False),
+                (e.read_reg3, dec_c.reg_out, in3_svdec, False),
+                (e.write_reg, dec_o.reg_out, o_svdec, True),
+                (e.write_ea, dec_o2.reg_out, o2_svdec, True)):
                 comb += svdec.extra.eq(extra)        # EXTRA field of SVP64 RM
                 comb += svdec.etype.eq(op.SV_Etype)  # EXTRA2/3 for this insn
                 comb += svdec.reg_in.eq(fromreg.data) # 3-bit (CR0/BC/BFA)
                 comb += to_reg.ok.eq(fromreg.ok)
-                # detect if Vectorised: add srcstep if yes.  TODO: a LOT.
-                # this trick only holds when elwidth=default and in single-pred
+                # detect if Vectorised: add srcstep/dststep if yes.
+                # to_reg is 7-bits, outs get dststep added, ins get srcstep
                 with m.If(svdec.isvec):
-                    comb += to_reg.data.eq(srcstep+svdec.reg_out) # 7-bit output
+                    step = dststep if out else srcstep
+                    comb += to_reg.data.eq(step+svdec.reg_out)
                 with m.Else():
-                    comb += to_reg.data.eq(svdec.reg_out) # 7-bit output
+                    comb += to_reg.data.eq(svdec.reg_out)
 
             comb += in1_svdec.idx.eq(op.sv_in1)  # SVP64 reg #1 (in1_sel)
             comb += in2_svdec.idx.eq(op.sv_in2)  # SVP64 reg #2 (in2_sel)
@@ -1113,11 +1116,11 @@ class PowerDecode2(PowerDecodeSubset):
                     comb += loop.eq(0)
 
             # condition registers (CR)
-            for to_reg, cr, name, svdec in (
-                (e.read_cr1, self.dec_cr_in, "cr_bitfield", crin_svdec),
-                (e.read_cr2, self.dec_cr_in, "cr_bitfield_b", crin_svdec_b),
-                (e.read_cr3, self.dec_cr_in, "cr_bitfield_o", crin_svdec_o),
-                (e.write_cr, self.dec_cr_out, "cr_bitfield", crout_svdec)):
+            for to_reg, cr, name, svdec, out in (
+                (e.read_cr1, self.dec_cr_in, "cr_bitfield", crin_svdec, 0),
+                (e.read_cr2, self.dec_cr_in, "cr_bitfield_b", crin_svdec_b, 0),
+                (e.read_cr3, self.dec_cr_in, "cr_bitfield_o", crin_svdec_o, 0),
+                (e.write_cr, self.dec_cr_out, "cr_bitfield", crout_svdec, 1)):
                 fromreg = getattr(cr, name)
                 comb += svdec.extra.eq(extra)        # EXTRA field of SVP64 RM
                 comb += svdec.etype.eq(op.SV_Etype)  # EXTRA2/3 for this insn
@@ -1126,14 +1129,15 @@ class PowerDecode2(PowerDecodeSubset):
                     # check if this is CR0 or CR1: treated differently
                     # (does not "listen" to EXTRA2/3 spec for a start)
                     # also: the CRs start from completely different locations
+                    step = dststep if out else srcstep
                     with m.If(cr.sv_override == 1): # CR0
                         offs = SVP64CROffs.CR0
-                        comb += to_reg.data.eq(srcstep+offs)
+                        comb += to_reg.data.eq(step+offs)
                     with m.Elif(cr.sv_override == 2): # CR1
                         offs = SVP64CROffs.CR1
-                        comb += to_reg.data.eq(srcstep+1)
+                        comb += to_reg.data.eq(step+1)
                     with m.Else():
-                        comb += to_reg.data.eq(srcstep+svdec.cr_out) # 7-bit out
+                        comb += to_reg.data.eq(step+svdec.cr_out) # 7-bit out
                 with m.Else():
                     comb += to_reg.data.eq(svdec.cr_out) # 7-bit output
                 comb += to_reg.ok.eq(fromreg.ok)

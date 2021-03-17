@@ -348,7 +348,9 @@ class TestIssuerInternal(Elaboratable):
                     with m.If(exec_pc_valid_o):
                         # precalculate srcstep+1
                         next_srcstep = Signal.like(cur_state.svstate.srcstep)
+                        next_dststep = Signal.like(cur_state.svstate.dststep)
                         comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
+                        comb += next_dststep.eq(cur_state.svstate.dststep+1)
                         # was this the last loop iteration?
                         is_last = Signal()
                         cur_vl = cur_state.svstate.vl
@@ -374,12 +376,14 @@ class TestIssuerInternal(Elaboratable):
                             # reset SRCSTEP before returning to Fetch
                             with m.If(pdecode2.loop_continue):
                                 comb += new_svstate.srcstep.eq(0)
+                                comb += new_svstate.dststep.eq(0)
                                 comb += update_svstate.eq(1)
                             m.next = "INSN_FETCH"
 
                         # returning to Execute? then, first update SRCSTEP
                         with m.Else():
                             comb += new_svstate.srcstep.eq(next_srcstep)
+                            comb += new_svstate.dststep.eq(next_dststep)
                             comb += update_svstate.eq(1)
                             m.next = "DECODE_SV"
 
