@@ -411,9 +411,11 @@ class ISACaller:
         self.gpr = GPR(decoder2, self, self.svstate, regfile)
         self.spr = SPR(decoder2, initial_sprs) # initialise SPRs before MMU
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
+        self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
+        # MMU mode, redirect underlying Mem through RADIX
         if mmu:
             self.mem = RADIX(self.mem, self)
-        self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
+            self.imem = RADIX(self.imem, self)
         self.pc = PC()
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
@@ -652,7 +654,7 @@ class ISACaller:
         else:
             pc = self.fake_pc
         self._pc = pc
-        ins = self.imem.ld(pc, 4, False, True)
+        ins = self.imem.ld(pc, 4, False, True, instr_fetch=True)
         if ins is None:
             raise KeyError("no instruction at 0x%x" % pc)
         print("setup: 0x%x 0x%x %s" % (pc, ins & 0xffffffff, bin(ins)))
@@ -688,7 +690,7 @@ class ISACaller:
         print ("    svstate.vl", self.svstate.vl.asint(msb0=True))
         print ("    svstate.mvl", self.svstate.maxvl.asint(msb0=True))
         sv_rm = pfx.rm.asint(msb0=True)
-        ins = self.imem.ld(pc+4, 4, False, True)
+        ins = self.imem.ld(pc+4, 4, False, True, instr_fetch=True)
         print("     svsetup: 0x%x 0x%x %s" % (pc+4, ins & 0xffffffff, bin(ins)))
         yield self.dec2.dec.raw_opcode_in.eq(ins & 0xffffffff) # v3.0B suffix
         yield self.dec2.sv_rm.eq(sv_rm)                        # svp64 prefix

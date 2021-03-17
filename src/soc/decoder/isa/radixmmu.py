@@ -212,10 +212,14 @@ class RADIX:
         print("RADIX memread", addr, sz, val)
         return SelectableInt(val, sz*8)
 
-    def ld(self, address, width=8, swap=True, check_in_mem=False):
+    def ld(self, address, width=8, swap=True, check_in_mem=False,
+                 instr_fetch=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
-        mode = 'LOAD' # XXX TODO: executable load (icache)
+        if instr_fetch:
+            mode = 'EXECUTE'
+        else:
+            mode = 'LOAD'
         addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
         #shift = SelectableInt(0, 32)
@@ -426,7 +430,7 @@ class RADIX:
         new_shift = shift + (31 - 12) - mbits
         return new_shift
 
-    def _check_perms(self, data, priv, iside, store):
+    def _check_perms(self, data, priv, instr_fetch, store):
         """check page permissions
         // Leaf PDE                                           |
         // |------------------------------|           |----------------|
@@ -474,7 +478,7 @@ class RADIX:
         # check permissions and RC bits
         perm_ok = 0
         if priv == 1 or data[60] == 0:
-            if iside == 0:
+            if instr_fetch == 0:
                 perm_ok = data[62] | (data[61] & (store == 0))
             # no IAMR, so no KUEP support for now
             # deny execute permission if cache inhibited

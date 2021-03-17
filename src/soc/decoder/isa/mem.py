@@ -64,8 +64,10 @@ class Mem:
         return shifter, mask
 
     # TODO: Implement ld/st of lesser width
-    def ld(self, address, width=8, swap=True, check_in_mem=False):
-        print("ld from addr 0x{:x} width {:d}".format(address, width))
+    def ld(self, address, width=8, swap=True, check_in_mem=False,
+                 instr_fetch=False):
+        print("ld from addr 0x{:x} width {:d}".format(address, width),
+                swap, check_in_mem, instr_fetch)
         remainder = address & (self.bytes_per_word - 1)
         address = address >> self.word_log2
         assert remainder & (width - 1) == 0, "Unaligned access unsupported!"
