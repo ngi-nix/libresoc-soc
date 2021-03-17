@@ -250,12 +250,14 @@ class RADIX:
         print("memassign", addr, sz, val)
         self.st(addr.value, val.value, sz, swap=False)
 
-    def _next_level(self,r):
-        return rpte_valid(r), rpte_leaf(r)
-        ## DSISR_R_BADCONFIG
-        ## read_entry
-        ## DSISR_NOPTE
-        ## Prepare for next iteration
+    def _next_level(self, addr, entry_width, swap, check_in_mem):
+        # implement read access to mmu mem here
+        value = self.mem.ld(addr.value, entry_width, swap, check_in_mem)
+        print("addr",addr.value)
+        data = SelectableInt(value, 64) # convert to SelectableInt
+        print("value",value)
+        # index += 1
+        return data;
 
     def _walk_tree(self, addr, pgbase, mode, mbits, shift, priv=1):
         """walk tree
@@ -335,33 +337,35 @@ class RADIX:
         print
 
         # get address of root entry
-        prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
-        print("prtable_addr",prtable_addr)
+        addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
 
-        # read root entry - imcomplete
-        swap = False
-        check_in_mem = False
-        entry_width = 8
-        value = self.mem.ld(prtable_addr.value, entry_width, swap, check_in_mem)
-        data = SelectableInt(value, 64) # convert to SelectableInt
-        print("value",value)
-
-        test_input = [
-            SelectableInt(0x8000000000000007, 64), #valid
-            SelectableInt(0xc000000000000000, 64) #exit
-        ]
-        index = 0
+        #test_input = [
+        #    SelectableInt(0x8000000000000007, 64), #valid
+        #    SelectableInt(0xc000000000000000, 64) #exit
+        #]
+        #index = 0
 
         # walk tree starts on prtbl
         while True:
             print("nextlevel----------------------------")
-            l = test_input[index]
-            index += 1
-            valid, leaf = self._next_level(l)
+            # read an entry
+            swap = False
+            check_in_mem = False
+            entry_width = 8
+
+            data = self._next_level(addr_next, entry_width, swap, check_in_mem)
+            valid = rpte_valid(data)
+            leaf = rpte_leaf(data)
+
             print("    valid, leaf", valid, leaf)
+            if not valid:
+                return None # TODO: return error
             if leaf:
                 ok = self._check_perms(data, priv, mode)
                 # TODO: check permissions
+                # then calculate phys address
+                return None # TODO return something
+                            # physical address if no error ?
             else:
                 data = l # TODO put actual data here
                 newlookup = self._new_lookup(data, mbits, shift)
@@ -369,10 +373,7 @@ class RADIX:
                     return None
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-            if not valid:
-                return None # TODO: return error
-            if leaf:
-                return None # TODO return something
+                next_addr = self._get_pgtable_addr(mask, pgbase, shift)
 
     def _new_lookup(self, data, mbits, shift):
         """
@@ -389,7 +390,7 @@ class RADIX:
         """
         mbits = data[59:64]
         print("mbits=", mbits)
-        if mbits < 5 or mbits > 16:
+        if mbits < 5 or mbits > 16: #fixme compare with r.shift
             print("badtree")
             return "badtree"
         # reduce shift (has to be done at same bitwidth)
