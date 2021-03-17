@@ -216,6 +216,7 @@ class RADIX:
                  instr_fetch=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
+        priv = 1 # XXX TODO: read MSR PR bit here priv = not ctrl.msr(MSR_PR);
         if instr_fetch:
             mode = 'EXECUTE'
         else:
@@ -224,7 +225,7 @@ class RADIX:
         (shift, mbits, pgbase) = self._decode_prte(addr)
         #shift = SelectableInt(0, 32)
 
-        pte = self._walk_tree(addr, pgbase, mode, mbits, shift)
+        pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
 
@@ -234,10 +235,11 @@ class RADIX:
     def st(self, address, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (address, width, v))
 
+        priv = 1 # XXX TODO: read MSR PR bit here priv = not ctrl.msr(MSR_PR);
         mode = 'STORE'
         addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
-        pte = self._walk_tree(addr, pgbase, mode, mbits, shift)
+        pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
 
         # use pte to caclculate phys address (addr)
         return self.mem.st(addr.value, v, width, swap)
@@ -255,7 +257,7 @@ class RADIX:
         ## DSISR_NOPTE
         ## Prepare for next iteration
 
-    def _walk_tree(self, addr, pgbase, mode, mbits, shift):
+    def _walk_tree(self, addr, pgbase, mode, mbits, shift, priv=1):
         """walk tree
 
         // vaddr                    64 Bit
@@ -355,7 +357,10 @@ class RADIX:
             l = test_input[index]
             index += 1
             valid,leaf = self._next_level(l)
-            if not leaf:
+            if leaf:
+                data = SelectableInt(value, 64) # convert to SelectableInt
+                ok = self._check_perms(data, priv, mode)
+            else:
                 mbits = l[59:64]
                 print("mbits=")
                 print(mbits)
@@ -430,7 +435,7 @@ class RADIX:
         new_shift = shift + (31 - 12) - mbits
         return new_shift
 
-    def _check_perms(self, data, priv, instr_fetch, store):
+    def _check_perms(self, data, priv, mode):
         """check page permissions
         // Leaf PDE                                           |
         // |------------------------------|           |----------------|
@@ -475,6 +480,13 @@ class RADIX:
                             v.rc_error := perm_ok;
                         end if;
         """
+        # decode mode into something that matches microwatt equivalent code
+        instr_fetch, store = 0, 0
+        if mode == 'STORE':
+            store = 1
+        if mode == 'EXECUTE':
+            inst_fetch = 1
+
         # check permissions and RC bits
         perm_ok = 0
         if priv == 1 or data[60] == 0:
@@ -486,6 +498,7 @@ class RADIX:
         rc_ok = data[55] & (data[56] | (store == 0))
         if perm_ok == 1 and rc_ok == 1:
             return True
+
         return "perm_err" if perm_ok == 0 else "rc_err"
 
     def _get_prtable_addr(self, shift, prtbl, addr, pid):
