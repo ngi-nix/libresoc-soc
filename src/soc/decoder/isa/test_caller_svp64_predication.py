@@ -62,8 +62,8 @@ class DecoderTestCase(FHDLTestCase):
         # initial values in GPR regfile
         initial_regs = [0] * 32
         initial_regs[3] = 0b10   # predicate mask
-        initial_regs[9] = 0x91
-        initial_regs[10] = 0x90
+        initial_regs[9] = 0x91   # source ~r3 is 0b01 so this will be used
+        initial_regs[10] = 0x90  # this gets skipped
         # SVSTATE (in this case, VL=2)
         svstate = SVP64State()
         svstate.vl[0:7] = 2 # VL
@@ -71,8 +71,8 @@ class DecoderTestCase(FHDLTestCase):
         print ("SVSTATE", bin(svstate.spr.asint()))
         # copy before running
         expected_regs = deepcopy(initial_regs)
-        expected_regs[5] = 0x0
-        expected_regs[6] = 0xffff_ffff_ffff_ff91
+        expected_regs[5] = 0x0                   # dest r3 is 0b10: skip
+        expected_regs[6] = 0xffff_ffff_ffff_ff91 # 2nd bit of r3 is 1
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate)
