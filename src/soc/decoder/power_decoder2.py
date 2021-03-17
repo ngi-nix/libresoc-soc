@@ -20,6 +20,7 @@ from soc.experiment.mem_types import LDSTException
 
 from soc.decoder.power_svp64_prefix import SVP64PrefixDecoder
 from soc.decoder.power_svp64_extra import SVP64CRExtra, SVP64RegExtra
+from soc.decoder.power_svp64_rm import SVP64RMModeDecode
 from soc.decoder.power_regspec_map import regspec_decode_read
 from soc.decoder.power_regspec_map import regspec_decode_write
 from soc.decoder.power_decoder import create_pdecode
@@ -925,6 +926,7 @@ class PowerDecode2(PowerDecodeSubset):
             self.no_in_vec = Signal(1, name="no_in_vec") # no inputs vector
             self.no_out_vec = Signal(1, name="no_out_vec") # no outputs vector
             self.loop_continue = Signal(1, name="loop_continue")
+            self.rm_dec = SVP64RMModeDecode("svp64_rm_dec")
         else:
             self.no_in_vec = Const(1, 1)
             self.no_out_vec = Const(1, 1)
@@ -988,6 +990,9 @@ class PowerDecode2(PowerDecodeSubset):
 
             # debug access to crout_svdec (used in get_pdecode_cr_out)
             self.crout_svdec = crout_svdec
+
+            # and SVP64 RM mode decoder
+            m.submodules.sv_rm_dec = self.rm_dec
 
         # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
         reg = Signal(5, reset_less=True)

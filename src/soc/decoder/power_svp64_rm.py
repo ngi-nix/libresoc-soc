@@ -102,6 +102,16 @@ class SVP64RMModeDecode(Elaboratable):
             with m.Case(3):
                 comb += self.mode.eq(SVP64RMMode.PREDRES) # predicate result
 
+        # extract src/dest predicate.  use EXTRA3.MASK because EXTRA2.MASK
+        # is in exactly the same bits
+        srcmask = sel(m, self.rm_in.extra, EXTRA3.MASK)
+        dstmask = self.rm_in.mask
+        with m.If(self.ptype_in == SVPtype.P2):
+            comb += self.srcpred.eq(srcmask)
+        with m.Else():
+            comb += self.srcpred.eq(dstmask)
+        comb += self.dstpred.eq(dstmask)
+
         # identify predicate mode
         with m.If(self.rm_in.mmode == 1):
             comb += self.predmode.eq(SVP64PredMode.CR) # CR Predicate
@@ -109,14 +119,6 @@ class SVP64RMModeDecode(Elaboratable):
             comb += self.predmode.eq(SVP64PredMode.ALWAYS) # No predicate
         with m.Else():
             comb += self.predmode.eq(SVP64PredMode.INT) # non-zero src: INT
-
-        # extract src/dest predicate.  use EXTRA3.MASK because EXTRA2.MASK
-        # is in exactly the same bits
-        srcmask = sel(m, self.rm_in.extra, EXTRA3.MASK)
-        dstmask = self.rm_in.mask
-        with m.If(self.ptype_in == SVPtype.P2):
-            comb += self.srcpred.eq(srcmask)
-        comb += self.dstpred.eq(dstmask)
 
         # TODO: detect zeroing mode, saturation mode, a few more.
 
