@@ -992,7 +992,7 @@ class PowerDecode2(PowerDecodeSubset):
             self.crout_svdec = crout_svdec
 
             # and SVP64 RM mode decoder
-            m.submodules.sv_rm_dec = self.rm_dec
+            m.submodules.sv_rm_dec = rm_dec = self.rm_dec
 
         # get the 5-bit reg data before svp64-munging it into 7-bit plus isvec
         reg = Signal(5, reset_less=True)
@@ -1169,6 +1169,14 @@ class PowerDecode2(PowerDecodeSubset):
         comb += e.read_fast2.eq(dec_b.fast_out)
         comb += e.write_fast1.eq(dec_o.fast_out)
         comb += e.write_fast2.eq(dec_o2.fast_out)
+
+        if self.svp64_en:
+            # connect up SVP64 RM Mode decoding
+            fn = self.op_get("function_unit")
+            comb += rm_dec.fn_in.eq(fn) # decode needs to know if LD/ST type
+            comb += rm_dec.ptype_in.eq(op.SV_Ptype) # Single/Twin predicated
+            comb += rm_dec.rc_in.eq(rc_out) # Rc=1
+            comb += rm_dec.rm_in.eq(self.sv_rm) # SVP64 RM mode
 
         # sigh this is exactly the sort of thing for which the
         # decoder is designed to not need.  MTSPR, MFSPR and others need
