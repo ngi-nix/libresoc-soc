@@ -327,7 +327,6 @@ class RADIX:
         p = addr[55:63]
         print("last 8 bits ----------")
         print
-        
 
         # get address of root entry
         prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pidr)
@@ -586,7 +585,7 @@ if __name__ == '__main__':
 
     print("walking tree")
     # addr = unchanged
-    # pgbase = None 
+    # pgbase = None
     mode = None
     #mbits = None
     shift = rts
