@@ -49,10 +49,20 @@ class DecoderTestCase(FHDLTestCase):
         #       - dests are 5 and 6
         #       - source mask says "pick first element from source (5)
         #       - dest mask says "pick *second* element from dest (10)
+        #
         # therefore the operation that's carried out is:
         #       GPR(10) = extsb(GPR(5))
+        #
         # this is a type of back-to-back VGATHER and VSCATTER but it applies
         # to *operations*, not just MVs like in traditional Vector ISAs
+        # ascii graphic:
+        #
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10
+        #   src ~r3=0b01                     Y N
+        #                                    |
+        #                              +-----+
+        #                              |
+        #   dest r3=0b10             N Y
 
         isa = SVP64Asm(['svextsb/sm=~r3/m=r3 5.v, 9.v'
                        ])
