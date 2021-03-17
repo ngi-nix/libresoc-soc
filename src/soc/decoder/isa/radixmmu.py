@@ -367,7 +367,6 @@ class RADIX:
                 return None # TODO return something
                             # physical address if no error ?
             else:
-                data = l # TODO put actual data here
                 newlookup = self._new_lookup(data, mbits, shift)
                 if newlookup == 'badtree':
                     return None
