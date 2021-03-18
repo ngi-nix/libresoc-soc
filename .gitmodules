@@ -7,3 +7,6 @@
 [submodule "src/soc/litex/florent"]
 	path = src/soc/litex/florent
 	url = https://git.libre-soc.org/git/libresoc-litex.git
+[submodule "nmigen-type-annotations"]
+	path = nmigen-type-annotations
+	url = https://git.libre-soc.org/git/nmigen-type-annotations.git
