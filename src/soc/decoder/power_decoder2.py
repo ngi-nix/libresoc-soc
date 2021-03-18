@@ -944,6 +944,7 @@ class PowerDecode2(PowerDecodeSubset):
             subset.add("sv_in2")
             subset.add("sv_in3")
             subset.add("sv_out")
+            subset.add("sv_out2")
             subset.add("sv_cr_in")
             subset.add("sv_cr_out")
             subset.add("SV_Etype")
@@ -1083,10 +1084,10 @@ class PowerDecode2(PowerDecodeSubset):
             comb += in2_svdec.idx.eq(op.sv_in2)  # SVP64 reg #2 (in2_sel)
             comb += in3_svdec.idx.eq(op.sv_in3)  # SVP64 reg #3 (in3_sel)
             comb += o_svdec.idx.eq(op.sv_out)    # SVP64 output (out_sel)
+            comb += o2_svdec.idx.eq(op.sv_out2)  # SVP64 output (implicit)
             # XXX TODO - work out where this should come from.  the problem is
             # that LD-with-update is implied (computed from "is instruction in
             # "update mode" rather than specified cleanly as its own CSV column
-            #comb += o2_svdec.idx.eq(op.sv_out)    # SVP64 output (implicit)
 
             # output reg-is-vectorised (and when no in/out is vectorised)
             comb += self.in1_isvec.eq(in1_svdec.isvec)
