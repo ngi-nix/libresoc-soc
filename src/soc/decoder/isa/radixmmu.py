@@ -253,9 +253,9 @@ class RADIX:
     def _next_level(self, addr, entry_width, swap, check_in_mem):
         # implement read access to mmu mem here
         value = self.mem.ld(addr.value, entry_width, swap, check_in_mem)
-        print("addr",addr.value)
+        print("addr", addr.value)
         data = SelectableInt(value, 64) # convert to SelectableInt
-        print("value",value)
+        print("value", value)
         # index += 1
         return data;
 
@@ -359,20 +359,19 @@ class RADIX:
 
             print("    valid, leaf", valid, leaf)
             if not valid:
-                return None # TODO: return error
+                return "invalid" # TODO: return error
             if leaf:
                 ok = self._check_perms(data, priv, mode)
-                # TODO: check permissions
-                # then calculate phys address
-                return None # TODO return something
-                            # physical address if no error ?
+                if ok == True: # data was ok, found phys address, return it?
+                    return addr_next
+                return ok # return the error code
             else:
                 newlookup = self._new_lookup(data, mbits, shift)
                 if newlookup == 'badtree':
-                    return None
+                    return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-                next_addr = self._get_pgtable_addr(mask, pgbase, shift)
+                addr_next = self._get_pgtable_addr(mask, pgbase, shift)
 
     def _new_lookup(self, data, mbits, shift):
         """
@@ -621,4 +620,4 @@ if __name__ == '__main__':
     #mbits = None
     shift = rts
     result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
-    print(result)
+    print("     walking tree result", result)
