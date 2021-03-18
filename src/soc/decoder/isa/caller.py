@@ -124,6 +124,65 @@ class GPR(dict):
             print("reg", "%2d" % i, s)
 
 
+class SPR(dict):
+    def __init__(self, dec2, initial_sprs={}):
+        self.sd = dec2
+        dict.__init__(self)
+        for key, v in initial_sprs.items():
+            if isinstance(key, SelectableInt):
+                key = key.value
+            key = special_sprs.get(key, key)
+            if isinstance(key, int):
+                info = spr_dict[key]
+            else:
+                info = spr_byname[key]
+            if not isinstance(v, SelectableInt):
+                v = SelectableInt(v, info.length)
+            self[key] = v
+
+    def __getitem__(self, key):
+        print("get spr", key)
+        print("dict", self.items())
+        # if key in special_sprs get the special spr, otherwise return key
+        if isinstance(key, SelectableInt):
+            key = key.value
+        if isinstance(key, int):
+            key = spr_dict[key].SPR
+        key = special_sprs.get(key, key)
+        if key == 'HSRR0':  # HACK!
+            key = 'SRR0'
+        if key == 'HSRR1':  # HACK!
+            key = 'SRR1'
+        if key in self:
+            res = dict.__getitem__(self, key)
+        else:
+            if isinstance(key, int):
+                info = spr_dict[key]
+            else:
+                info = spr_byname[key]
+            dict.__setitem__(self, key, SelectableInt(0, info.length))
+            res = dict.__getitem__(self, key)
+        print("spr returning", key, res)
+        return res
+
+    def __setitem__(self, key, value):
+        if isinstance(key, SelectableInt):
+            key = key.value
+        if isinstance(key, int):
+            key = spr_dict[key].SPR
+            print("spr key", key)
+        key = special_sprs.get(key, key)
+        if key == 'HSRR0':  # HACK!
+            self.__setitem__('SRR0', value)
+        if key == 'HSRR1':  # HACK!
+            self.__setitem__('SRR1', value)
+        print("setting spr", key, value)
+        dict.__setitem__(self, key, value)
+
+    def __call__(self, ridx):
+        return self[ridx]
+
+
 class PC:
     def __init__(self, pc_init=0):
         self.CIA = SelectableInt(pc_init, 64)
@@ -228,7 +287,7 @@ def get_predint(gpr, mask):
     if mask == SVP64PredInt.R30_N.value:
         return ~gpr(30).value
 
-# decode SVP64 predicate CR to reg number and invert
+# decode SVP64 predicate CR to reg number and invert status
 def _get_predcr(mask):
     if mask == SVP64PredCR.LT.value:
         return 0, 1
@@ -247,6 +306,8 @@ def _get_predcr(mask):
     if mask == SVP64PredCR.NS.value:
         return 3, 0
 
+# read individual CR fields (0..VL-1), extract the required bit
+# and construct the mask
 def get_predcr(crl, mask, vl):
     idx, noninv = _get_predcr(mask)
     mask = 0
@@ -256,64 +317,6 @@ def get_predcr(crl, mask, vl):
             mask |= (1<<i)
     return mask
 
-
-class SPR(dict):
-    def __init__(self, dec2, initial_sprs={}):
-        self.sd = dec2
-        dict.__init__(self)
-        for key, v in initial_sprs.items():
-            if isinstance(key, SelectableInt):
-                key = key.value
-            key = special_sprs.get(key, key)
-            if isinstance(key, int):
-                info = spr_dict[key]
-            else:
-                info = spr_byname[key]
-            if not isinstance(v, SelectableInt):
-                v = SelectableInt(v, info.length)
-            self[key] = v
-
-    def __getitem__(self, key):
-        print("get spr", key)
-        print("dict", self.items())
-        # if key in special_sprs get the special spr, otherwise return key
-        if isinstance(key, SelectableInt):
-            key = key.value
-        if isinstance(key, int):
-            key = spr_dict[key].SPR
-        key = special_sprs.get(key, key)
-        if key == 'HSRR0':  # HACK!
-            key = 'SRR0'
-        if key == 'HSRR1':  # HACK!
-            key = 'SRR1'
-        if key in self:
-            res = dict.__getitem__(self, key)
-        else:
-            if isinstance(key, int):
-                info = spr_dict[key]
-            else:
-                info = spr_byname[key]
-            dict.__setitem__(self, key, SelectableInt(0, info.length))
-            res = dict.__getitem__(self, key)
-        print("spr returning", key, res)
-        return res
-
-    def __setitem__(self, key, value):
-        if isinstance(key, SelectableInt):
-            key = key.value
-        if isinstance(key, int):
-            key = spr_dict[key].SPR
-            print("spr key", key)
-        key = special_sprs.get(key, key)
-        if key == 'HSRR0':  # HACK!
-            self.__setitem__('SRR0', value)
-        if key == 'HSRR1':  # HACK!
-            self.__setitem__('SRR1', value)
-        print("setting spr", key, value)
-        dict.__setitem__(self, key, value)
-
-    def __call__(self, ridx):
-        return self[ridx]
 
 def get_pdecode_idx_in(dec2, name):
     op = dec2.dec.op
