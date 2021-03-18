@@ -156,6 +156,11 @@ class TestIssuerInternal(Elaboratable):
         # pulse to synchronize the simulator at instruction end
         self.insn_done = Signal()
 
+        if self.svp64_en:
+            # store copies of predicate masks
+            self.srcmask = Signal(64)
+            self.dstmask = Signal(64)
+
     def fetch_fsm(self, m, core, pc, svstate, nia, is_svp64_mode,
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
@@ -247,6 +252,10 @@ class TestIssuerInternal(Elaboratable):
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc+4)
                     sync += dec_opcode_i.eq(insn)
                     m.next = "INSN_READY"
+                    # TODO: probably can start looking at pdecode2.rm_dec
+                    # here (or maybe even in INSN_READ state, if svp64_mode
+                    # detected, in order to trigger - and wait for - the
+                    # predicate reading.
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
