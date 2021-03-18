@@ -254,6 +254,24 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
+    def fetch_predicate_fsm(self, m, core, TODO):
+        """fetch_predicate_fsm - obtains (constructs in the case of CR)
+           src/dest predicate masks
+
+        https://bugs.libre-soc.org/show_bug.cgi?id=617
+        the predicates can be read here, by using IntRegs r_ports['pred']
+        or CRRegs r_ports['pred'].  in the case of CRs it will have to
+        be done through multiple reads, extracting one relevant at a time.
+        later, a faster way would be to use the 32-bit-wide CR port but
+        this is more complex decoding, here.
+        """
+        comb = m.d.comb
+        sync = m.d.sync
+        pdecode2 = self.pdecode2
+        rm_dec = pdecode2.rm_dec # SVP64RMModeDecode
+        predmode = rm_dec.predmode
+        srcpred, dstpred = rm_dec.srcpred, rm_dec.dstpred
+
     def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
                   dbg, core_rst, is_svp64_mode,
                   fetch_pc_ready_o, fetch_pc_valid_i,
@@ -286,17 +304,18 @@ class TestIssuerInternal(Elaboratable):
 
         with m.FSM(name="issue_fsm"):
 
-            # go fetch the instruction at the current PC
+            # sync with the "fetch" phase which is reading the instruction
             # at this point, there is no instruction running, that
             # could inadvertently update the PC.
-            with m.State("INSN_FETCH"):
+            with m.State("ISSUE_START"):
                 # wait on "core stop" release, before next fetch
                 # need to do this here, in case we are in a VL==0 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
-                    comb += fetch_pc_valid_i.eq(1)
-                    with m.If(fetch_pc_ready_o):
+                    comb += fetch_pc_valid_i.eq(1) # tell fetch to start
+                    with m.If(fetch_pc_ready_o):   # fetch acknowledged us
                         m.next = "INSN_WAIT"
                 with m.Else():
+                    # tell core it's stopped, and acknowledge debug handshake
                     comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
                     # while stopped, allow updating the PC and SVSTATE
@@ -320,7 +339,7 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.bigendian_i.eq(self.core_bigendian_i)
                     # set RA_OR_ZERO detection in satellite decoders
                     sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
-                    # loop into INSN_FETCH if it's a SVP64 instruction
+                    # loop into ISSUE_START if it's a SVP64 instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
                     cur_vl = cur_state.svstate.vl
@@ -331,13 +350,14 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
                         comb += self.state_w_pc.data_i.eq(nia)
                         comb += self.insn_done.eq(1)
-                        m.next = "INSN_FETCH"
+                        m.next = "ISSUE_START"
                     with m.Else():
                         m.next = "INSN_EXECUTE"  # move to "execute"
 
+            # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
-                comb += exec_insn_valid_i.eq(1)
-                with m.If(exec_insn_ready_o):
+                comb += exec_insn_valid_i.eq(1) # trigger execute
+                with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
 
             with m.State("EXECUTE_WAIT"):
@@ -346,11 +366,15 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_ready_i.eq(1)
                     with m.If(exec_pc_valid_o):
-                        # precalculate srcstep+1
+                        # precalculate srcstep+1 and dststep+1
+                        # TODO these need to "skip" over predicated-out src/dst
+                        # https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
+                        # but still without exceeding VL in either case
                         next_srcstep = Signal.like(cur_state.svstate.srcstep)
                         next_dststep = Signal.like(cur_state.svstate.dststep)
                         comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
                         comb += next_dststep.eq(cur_state.svstate.dststep+1)
+
                         # was this the last loop iteration?
                         is_last = Signal()
                         cur_vl = cur_state.svstate.vl
@@ -360,7 +384,7 @@ class TestIssuerInternal(Elaboratable):
                         # instruction, go directly back to Fetch, without
                         # updating either PC or SVSTATE
                         with m.If(pc_changed | sv_changed):
-                            m.next = "INSN_FETCH"
+                            m.next = "ISSUE_START"
 
                         # also return to Fetch, when no output was a vector
                         # (regardless of SRCSTEP and VL), or when the last
@@ -378,7 +402,7 @@ class TestIssuerInternal(Elaboratable):
                                 comb += new_svstate.srcstep.eq(0)
                                 comb += new_svstate.dststep.eq(0)
                                 comb += update_svstate.eq(1)
-                            m.next = "INSN_FETCH"
+                            m.next = "ISSUE_START"
 
                         # returning to Execute? then, first update SRCSTEP
                         with m.Else():
