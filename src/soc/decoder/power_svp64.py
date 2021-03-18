@@ -87,12 +87,16 @@ class SVP64RM:
 
         # now add the RM fields (for each instruction)
         for entry in v30b:
+            # *sigh* create extra field "out2" based on LD/ST update
+            entry['out2'] = 'NONE'
+            if entry['upd'] == '1':
+                entry['out2'] = 'RA'
             # dummy (blank) fields, first
             entry.update({'EXTRA0': '0', 'EXTRA1': '0', 'EXTRA2': '0',
                           'EXTRA3': '0',
                           'SV_Ptype': 'NONE', 'SV_Etype': 'NONE',
                           'sv_cr_in': 'NONE', 'sv_cr_out': 'NONE'})
-            for fname in ['in1', 'in2', 'in3', 'out']:
+            for fname in ['in1', 'in2', 'in3', 'out', 'out2']:
                 entry['sv_%s' % fname] = 'NONE'
 
             # is this SVP64-augmented?
@@ -113,16 +117,16 @@ class SVP64RM:
             dest_reg_cr, src_reg_cr, svp64_src, svp64_dest = decode
 
             # now examine in1/2/3/out, create sv_in1/2/3/out
-            for fname in ['in1', 'in2', 'in3', 'out']:
+            for fname in ['in1', 'in2', 'in3', 'out', 'out2']:
                 regfield = entry[fname]
                 extra_index = None
                 if regfield == 'RA_OR_ZERO':
                     regfield = 'RA'
                 print (asmcode, regfield, fname, svp64_dest, svp64_src)
                 # find the reg in the SVP64 extra map
-                if (fname == 'out' and regfield in svp64_dest):
+                if (fname in ['out', 'out2'] and regfield in svp64_dest):
                     extra_index = svp64_dest[regfield]
-                if (fname != 'out' and regfield in svp64_src):
+                if (fname not in ['out', 'out2'] and regfield in svp64_src):
                     extra_index = svp64_src[regfield]
                 # ta-daa, we know in1/2/3/out's bit-offset
                 if extra_index is not None:
@@ -157,9 +161,10 @@ class SVP64RM:
 
 if __name__ == '__main__':
     isa = SVP64RM()
-    minor_30 = isa.get_svp64_csv("minor_30.csv")
-    for entry in minor_30:
-        print (entry)
+    minor_31 = isa.get_svp64_csv("minor_31.csv")
+    for entry in minor_31:
+        if entry['comment'].startswith('ldu'):
+            print ("entry", entry)
     minor_19 = isa.get_svp64_csv("minor_19.csv")
     for entry in minor_19:
         if entry['comment'].startswith('cr'):

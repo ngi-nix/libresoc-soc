@@ -16,6 +16,9 @@ install: develop mkpinmux
 pywriter:
 	python3 src/soc/decoder/pseudo/pywriter.py
 
+svanalysis:
+	python3 libreriscv/openpower/sv_analysis.py
+
 develop:
 	python3 setup.py develop # yes, develop, not install
 	python3 src/soc/decoder/pseudo/pywriter.py
