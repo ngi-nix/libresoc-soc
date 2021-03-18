@@ -1,8 +1,3 @@
-[submodule "nmigen-type-annotations"]
-	path = nmigen-type-annotations
-	url = https://salsa.debian.org/Kazan-team/nmigen-type-annotations.git
-	branch = master
-[submodule "pinmux"]
 	path = pinmux
 	url = https://git.libre-soc.org/git/pinmux.git
 [submodule "libreriscv"]
