@@ -13,5 +13,6 @@
 /sprset.py
 /stringldst.py
 /system.py
+/simplev.py
 *.orig
 *.rej
