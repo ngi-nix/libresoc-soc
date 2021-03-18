@@ -365,6 +365,11 @@ class TestIssuerInternal(Elaboratable):
 
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
+                # with m.If(is_svp64_mode):
+                #    TODO advance src/dst step to "skip" over predicated-out
+                #    from self.srcmask and self.dstmask
+                #    https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
+                #    but still without exceeding VL in either case
                 comb += exec_insn_valid_i.eq(1) # trigger execute
                 with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
@@ -376,9 +381,6 @@ class TestIssuerInternal(Elaboratable):
                     comb += exec_pc_ready_i.eq(1)
                     with m.If(exec_pc_valid_o):
                         # precalculate srcstep+1 and dststep+1
-                        # TODO these need to "skip" over predicated-out src/dst
-                        # https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
-                        # but still without exceeding VL in either case
                         next_srcstep = Signal.like(cur_state.svstate.srcstep)
                         next_dststep = Signal.like(cur_state.svstate.dststep)
                         comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
