@@ -272,7 +272,8 @@ class TestIssuerInternal(Elaboratable):
         or CRRegs r_ports['pred'].  in the case of CRs it will have to
         be done through multiple reads, extracting one relevant at a time.
         later, a faster way would be to use the 32-bit-wide CR port but
-        this is more complex decoding, here.
+        this is more complex decoding, here.  equivalent code used in
+        ISACaller is "from soc.decoder.isa.caller import get_predcr"
         """
         comb = m.d.comb
         sync = m.d.sync
