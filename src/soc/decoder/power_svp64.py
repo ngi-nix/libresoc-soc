@@ -61,13 +61,23 @@ def decode_extra(rm, prefix=''):
 
 # gets SVP64 ReMap information
 class SVP64RM:
-    def __init__(self):
+    def __init__(self, microwatt_format=False):
+        """SVP64RM: gets micro-opcode information
+
+        microwatt_format: moves RS to in1 (to match decode1.vhdl)
+        """
         self.instrs = {}
         self.svp64_instrs = {}
         pth = find_wiki_dir()
         for fname in os.listdir(pth):
             if fname.startswith("RM") or fname.startswith("LDSTRM"):
                 for entry in get_csv(fname):
+                    if microwatt_format:
+                        # move RS from position 1 to position 3, to match
+                        # microwatt decode1.vhdl format
+                        if entry['in1'] == 'RS' and entry['in3'] == 'NONE':
+                            entry['in1'] = 'NONE'
+                            entry['in3'] = 'RS'
                     self.instrs[entry['insn']] = entry
 
 
