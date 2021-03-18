@@ -88,9 +88,11 @@ class SVP64RM:
         # now add the RM fields (for each instruction)
         for entry in v30b:
             # *sigh* create extra field "out2" based on LD/ST update
+            # KEEP TRACK HERE https://bugs.libre-soc.org/show_bug.cgi?id=619
             entry['out2'] = 'NONE'
             if entry['upd'] == '1':
                 entry['out2'] = 'RA'
+
             # dummy (blank) fields, first
             entry.update({'EXTRA0': '0', 'EXTRA1': '0', 'EXTRA2': '0',
                           'EXTRA3': '0',
