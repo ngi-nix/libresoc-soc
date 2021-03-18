@@ -19,6 +19,7 @@ from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 from soc.decoder.isa.mem import Mem
+from soc.consts import MSRb  # big-endian (PowerISA versions)
 
 import math
 import sys
@@ -200,6 +201,7 @@ class RADIX:
         self.dar   = self.caller.spr["DAR"]
         self.pidr  = self.caller.spr["PIDR"]
         self.prtbl = self.caller.spr["PRTBL"]
+        self.msr   = self.caller.msr
 
         # cached page table stuff
         self.pgtbl0 = 0
@@ -216,7 +218,7 @@ class RADIX:
                  instr_fetch=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
-        priv = 1 # XXX TODO: read MSR PR bit here priv = not ctrl.msr(MSR_PR);
+        priv = ~(self.msr(MSR_PR).value) # problem-state ==> privileged
         if instr_fetch:
             mode = 'EXECUTE'
         else:
@@ -235,7 +237,7 @@ class RADIX:
     def st(self, address, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (address, width, v))
 
-        priv = 1 # XXX TODO: read MSR PR bit here priv = not ctrl.msr(MSR_PR);
+        priv = ~(self.msr(MSR_PR).value) # problem-state ==> privileged
         mode = 'STORE'
         addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
@@ -586,9 +588,13 @@ if __name__ == '__main__':
            'PIDR': SelectableInt(0, 64),
            'PRTBL': SelectableInt(0, 64)
     }
+    # set problem state == 0 (other unit tests, set to 1)
+    msr = SelectableInt(0, 64)
+    msr[MSRb.PR] = 0
     class ISACaller: pass
     caller = ISACaller()
     caller.spr = spr
+    caller.msr = msr
 
     shift = SelectableInt(5, 6)
     mask = genmask(shift, 43)
