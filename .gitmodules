@@ -1,3 +1,4 @@
+[submodule "pinmux"]
 	path = pinmux
 	url = https://git.libre-soc.org/git/pinmux.git
 [submodule "libreriscv"]
