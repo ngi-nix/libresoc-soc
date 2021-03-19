@@ -615,7 +615,7 @@ class TestIssuerInternal(Elaboratable):
         sv_changed = Signal() # note write to SVSTATE
 
         # read state either from incoming override or from regfile
-        # TODO: really should be doing MSR in the same say
+        # TODO: really should be doing MSR in the same way
         pc = state_get(m, self.pc_i, "pc",                  # read PC
                             self.state_r_pc, StateRegs.PC)
         svstate = state_get(m, self.svstate_i, "svstate",   # read SVSTATE
