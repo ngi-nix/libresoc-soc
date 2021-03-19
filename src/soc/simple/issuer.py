@@ -52,6 +52,25 @@ def get_insn(f_instr_o, pc):
         # 64-bit: bit 2 of pc decides which word to select
         return f_instr_o.word_select(pc[2], 32)
 
+# gets state input or reads from state regfile
+def state_get(m, state_i, name, regfile, regnum):
+    comb = m.d.comb
+    sync = m.d.sync
+    # read the PC
+    res = Signal(64, reset_less=True, name=name)
+    res_ok_delay = Signal(name="%s_ok_delay" % name)
+    sync += res_ok_delay.eq(~state_i.ok)
+    with m.If(state_i.ok):
+        # incoming override (start from pc_i)
+        comb += res.eq(state_i.data)
+    with m.Else():
+        # otherwise read StateRegs regfile for PC...
+        comb += regfile.ren.eq(1<<regnum)
+    # ... but on a 1-clock delay
+    with m.If(res_ok_delay):
+        comb += res.eq(regfile.data_o)
+    return res
+
 
 class TestIssuerInternal(Elaboratable):
     """TestIssuer - reads instructions from TestMemory and issues them
@@ -582,33 +601,12 @@ class TestIssuerInternal(Elaboratable):
         pc_changed = Signal() # note write to PC
         sv_changed = Signal() # note write to SVSTATE
 
-        # read the PC
-        pc = Signal(64, reset_less=True)
-        pc_ok_delay = Signal()
-        sync += pc_ok_delay.eq(~self.pc_i.ok)
-        with m.If(self.pc_i.ok):
-            # incoming override (start from pc_i)
-            comb += pc.eq(self.pc_i.data)
-        with m.Else():
-            # otherwise read StateRegs regfile for PC...
-            comb += self.state_r_pc.ren.eq(1<<StateRegs.PC)
-        # ... but on a 1-clock delay
-        with m.If(pc_ok_delay):
-            comb += pc.eq(self.state_r_pc.data_o)
-
-        # read svstate
-        svstate = Signal(64, reset_less=True)
-        svstate_ok_delay = Signal()
-        sync += svstate_ok_delay.eq(~self.svstate_i.ok)
-        with m.If(self.svstate_i.ok):
-            # incoming override (start from svstate__i)
-            comb += svstate.eq(self.svstate_i.data)
-        with m.Else():
-            # otherwise read StateRegs regfile for SVSTATE...
-            comb += self.state_r_sv.ren.eq(1 << StateRegs.SVSTATE)
-        # ... but on a 1-clock delay
-        with m.If(svstate_ok_delay):
-            comb += svstate.eq(self.state_r_sv.data_o)
+        # read state either from incoming override or from regfile
+        # TODO: really should be doing MSR in the same say
+        pc = state_get(m, self.pc_i, "pc",                  # read PC
+                            self.state_r_pc, StateRegs.PC)
+        svstate = state_get(m, self.svstate_i, "svstate",   # read SVSTATE
+                            self.state_r_sv, StateRegs.SVSTATE)
 
         # don't write pc every cycle
         comb += self.state_w_pc.wen.eq(0)
