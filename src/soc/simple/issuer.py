@@ -71,6 +71,68 @@ def state_get(m, state_i, name, regfile, regnum):
         comb += res.eq(regfile.data_o)
     return res
 
+def get_predint(m, mask):
+    """decode SVP64 predicate integer mask field to reg number and invert
+    """
+    regread = Signal(5)
+    invert = Signal()
+    unary = Signal()
+    with m.Switch(mask):
+        with m.Case(SVP64PredInt.ALWAYS.value):
+            comb += regread.eq(0)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredInt.R3_UNARY.value):
+            comb += regread.eq(3)
+            comb += unary.eq(1)
+        with m.Case(SVP64PredInt.R3.value):
+            comb += regread.eq(3)
+        with m.Case(SVP64PredInt.R3_N.value):
+            comb += regread.eq(3)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredInt.R10.value):
+            comb += regread.eq(10)
+        with m.Case(SVP64PredInt.R10_N.value):
+            comb += regread.eq(10)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredInt.R30.value):
+            comb += regread.eq(30)
+        with m.Case(SVP64PredInt.R30_N.value):
+            comb += regread.eq(30)
+            comb += invert.eq(1)
+    return regread, invert, unary
+
+def get_predcr(m, mask):
+    """decode SVP64 predicate CR to reg number field and invert status
+    """
+    idx = Signal(2)
+    invert = Signal()
+    with m.Switch(mask):
+        with m.Case(SVP64PredCR.LT.value):
+            comb += idx.eq(0)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredCR.GE.value):
+            comb += idx.eq(0)
+            comb += invert.eq(0)
+        with m.Case(SVP64PredCR.GT.value):
+            comb += idx.eq(1)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredCR.LE.value):
+            comb += idx.eq(1)
+            comb += invert.eq(0)
+        with m.Case(SVP64PredCR.EQ.value):
+            comb += idx.eq(2)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredCR.NE.value):
+            comb += idx.eq(1)
+            comb += invert.eq(0)
+        with m.Case(SVP64PredCR.SO.value):
+            comb += idx.eq(3)
+            comb += invert.eq(1)
+        with m.Case(SVP64PredCR.NS.value):
+            comb += idx.eq(3)
+            comb += invert.eq(0)
+    return idx, invert
+
 
 class TestIssuerInternal(Elaboratable):
     """TestIssuer - reads instructions from TestMemory and issues them
@@ -164,6 +226,10 @@ class TestIssuerInternal(Elaboratable):
         self.int_r = intrf.r_ports['dmi'] # INT read
         self.cr_r = crrf.r_ports['full_cr_dbg'] # CR read
         self.xer_r = xerrf.r_ports['full_xer'] # XER read
+
+        # for predication
+        self.int_pred = intrf.r_ports['pred'] # INT predicate read
+        self.cr_pred = crrf.r_ports['cr_pred'] # CR predicate read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -297,6 +363,18 @@ class TestIssuerInternal(Elaboratable):
         rm_dec = pdecode2.rm_dec # SVP64RMModeDecode
         predmode = rm_dec.predmode
         srcpred, dstpred = rm_dec.srcpred, rm_dec.dstpred
+        cr_pred, int_pred = self.cr_pred, self.int_pred   # read regfiles
+        # if predmode == INT:
+        #    INT-src sregread, sinvert, sunary = get_predint(m, srcpred)
+        #    INT-dst dregread, dinvert, dunary = get_predint(m, dstpred)
+        #    TODO read INT-src and INT-dst into self.srcmask+dstmask
+        # elif predmode == CR:
+        #    CR-src sidx, sinvert = get_predcr(m, srcpred)
+        #    CR-dst didx, dinvert = get_predcr(m, dstpred)
+        #    TODO read CR-src and CR-dst into self.srcmask+dstmask with loop
+        # else
+        #    sync += self.srcmask.eq(-1) # set to all 1s
+        #    sync += self.dstmask.eq(-1) # set to all 1s
 
     def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
                   dbg, core_rst, is_svp64_mode,
