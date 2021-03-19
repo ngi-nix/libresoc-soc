@@ -123,12 +123,12 @@ class TestIssuerInternal(Elaboratable):
             self.simple_gpio = SimpleGPIO()
             self.gpio_o = self.simple_gpio.gpio_o
 
-        # main instruction core25
+        # main instruction core.  suitable for prototyping / demo only
         self.core = core = NonProductionCore(pspec)
 
         # instruction decoder.  goes into Trap Record
         pdecode = create_pdecode()
-        self.cur_state = CoreState("cur") # current state (MSR/PC/EINT/SVSTATE)
+        self.cur_state = CoreState("cur") # current state (MSR/PC/SVSTATE)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand,
                                      svp64_en=self.svp64_en)
@@ -137,9 +137,6 @@ class TestIssuerInternal(Elaboratable):
 
         # Test Instruction memory
         self.imem = ConfigFetchUnit(pspec).fu
-        # one-row cache of instruction read
-        self.iline = Signal(64) # one instruction line
-        self.iprev_adr = Signal(64) # previous address: if different, do read
 
         # DMI interface
         self.dbg = CoreDebug()
@@ -148,7 +145,7 @@ class TestIssuerInternal(Elaboratable):
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
         self.svstate_i = Data(32, "svstate_i") # ditto
-        self.core_bigendian_i = Signal()
+        self.core_bigendian_i = Signal() # TODO: set based on MSR.LE
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)
 
