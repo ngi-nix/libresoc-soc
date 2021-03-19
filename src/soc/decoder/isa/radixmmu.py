@@ -191,6 +191,29 @@ def NLS(x):
 
 """
 
+testaddr = 0x10000
+testmem = {
+
+           0x10000:    # PARTITION_TABLE_2 (not implemented yet)
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           0x800000000100000b,
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           0x8000000000040009,
+########   0x4000000 #### wrong address calculated by _get_pgtable_addr
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # 	   V = 1 L = 1 SW = 0 RPN = 0
+	                    # R = 1 C = 1 ATT = 0 EAA 0x7
+           0xc000000000000187,
+
+           0x1000000:   # PROCESS_TABLE_3
+                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           0x40000000000300ad,
+          }
+          
+
+
 # see qemu/target/ppc/mmu-radix64.c for reference
 class RADIX:
     def __init__(self, mem, caller):
@@ -254,10 +277,17 @@ class RADIX:
 
     def _next_level(self, addr, entry_width, swap, check_in_mem):
         # implement read access to mmu mem here
-        value = self.mem.ld(addr.value, entry_width, swap, check_in_mem)
-        print("addr", addr.value)
+
+        value = 0
+        if addr.value in testmem:
+            value = testmem[addr.value]
+        else:
+            print("not found")
+
+        ##value = self.mem.ld(addr.value, entry_width, swap, check_in_mem)
+        print("addr", hex(addr.value))
         data = SelectableInt(value, 64) # convert to SelectableInt
-        print("value", value)
+        print("value", hex(value))
         # index += 1
         return data;
 
@@ -341,11 +371,7 @@ class RADIX:
         # get address of root entry
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
 
-        #test_input = [
-        #    SelectableInt(0x8000000000000007, 64), #valid
-        #    SelectableInt(0xc000000000000000, 64) #exit
-        #]
-        #index = 0
+        addr_next = SelectableInt(0x30000,64) # radix root for testing
 
         # walk tree starts on prtbl
         while True:
@@ -373,7 +399,8 @@ class RADIX:
                     return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-                addr_next = self._get_pgtable_addr(mask, pgbase, shift)
+                shift = SelectableInt(shift.value,16) #FIXME
+                addr_next = self._get_pgtable_addr(mask, pgbase, shift, prtbl)
 
     def _new_lookup(self, data, mbits, shift):
         """
@@ -546,7 +573,7 @@ class RADIX:
                            )
         return res
 
-    def _get_pgtable_addr(self, mask_size, pgbase, addrsh):
+    def _get_pgtable_addr(self, mask_size, pgbase, addrsh, prtbl):
         """
         x"00" & r.pgbase(55 downto 19) &
         ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
@@ -620,7 +647,7 @@ if __name__ == '__main__':
     print ("    segment check", check)
 
     print("walking tree")
-    # addr = unchanged
+    addr = SelectableInt(testaddr,64)
     # pgbase = None
     mode = None
     #mbits = None
