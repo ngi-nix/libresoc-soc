@@ -520,8 +520,7 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.insn_done.eq(1)
                         m.next = "INSN_START"  # back to fetch
 
-    def elaborate(self, platform):
-        m = Module()
+    def setup_peripherals(self, m):
         comb, sync = m.d.comb, m.d.sync
 
         m.submodules.core = core = DomainRenamer("coresync")(self.core)
@@ -595,6 +594,20 @@ class TestIssuerInternal(Elaboratable):
         st_go_edge = rising_edge(m, ldst.st.rel_o)
         m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
         m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
+
+        return core_rst
+
+    def elaborate(self, platform):
+        m = Module()
+        # convenience
+        comb, sync = m.d.comb, m.d.sync
+        cur_state = self.cur_state
+        pdecode2 = self.pdecode2
+        dbg = self.dbg
+        core = self.core
+
+        # set up peripherals and core
+        core_rst = self.setup_peripherals(m)
 
         # PC and instruction from I-Memory
         comb += self.pc_o.eq(cur_state.pc)
