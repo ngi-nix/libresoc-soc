@@ -469,6 +469,9 @@ class TestIssuerInternal(Elaboratable):
                 #    from self.srcmask and self.dstmask
                 #    https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
                 #    but still without exceeding VL in either case
+                # IMPORTANT: when changing src/dest step, have to
+                # jump to m.next = "DECODE_SV" to deal with the change in
+                # SVSTATE
                 comb += exec_insn_valid_i.eq(1) # trigger execute
                 with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
