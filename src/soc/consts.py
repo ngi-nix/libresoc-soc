@@ -220,8 +220,8 @@ class SVP64MODEb:
     MOD2_MSB = 0
     MOD2_LSB = 1
     # when predicate not set: 0=ignore/skip 1=zero
-    SZ = 3  # for source
-    DZ = 4  # for destination
+    DZ = 3  # for destination
+    SZ = 4  # for source
     # reduce mode
     REDUCE = 2  # 0=normal predication 1=reduce mode
     SVM = 3  # subvector reduce mode 0=independent 1=horizontal

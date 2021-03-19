@@ -16,7 +16,7 @@ https://libre-soc.org/openpower/sv/svp64/
 | MODE        | `19:23`    | changes Vector behaviour               |
 """
 
-from nmigen import Elaboratable, Module, Signal
+from nmigen import Elaboratable, Module, Signal, Const
 from soc.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
                                     SVP64PredMode, SVP64sat)
 from soc.consts import EXTRA3, SVP64MODE
@@ -25,33 +25,36 @@ from nmutil.util import sel
 
 
 """RM Mode
+there are three Mode variants, two for LD/ST and one for everything else
+https://libre-soc.org/openpower/sv/svp64/
+https://libre-soc.org/openpower/sv/ldst/
 
 LD/ST immed:
 00	str	sz dz	normal mode
 01	inv	CR-bit	Rc=1: ffirst CR sel
 01	inv	els RC1	Rc=0: ffirst z/nonz
-10	N	sz els	sat mode: N=0/1 u/s
+10	N	dz els	sat mode: N=0/1 u/s
 11	inv	CR-bit	Rc=1: pred-result CR sel
 11	inv	els RC1	Rc=0: pred-result z/nonz
 
 LD/ST indexed:
 00	0	sz dz	normal mode
-00	rsv	rsvd	reserved
+00	1	rsvd	reserved
 01	inv	CR-bit	Rc=1: ffirst CR sel
-01	inv	sz RC1	Rc=0: ffirst z/nonz
+01	inv	dz RC1	Rc=0: ffirst z/nonz
 10	N	sz dz	sat mode: N=0/1 u/s
 11	inv	CR-bit	Rc=1: pred-result CR sel
-11	inv	sz RC1	Rc=0: pred-result z/nonz
+11	inv	dz RC1	Rc=0: pred-result z/nonz
 
 Arithmetic:
 00	0	sz dz	normal mode
-00	1	sz CRM	reduce mode (mapreduce), SUBVL=1
+00	1	dz CRM	reduce mode (mapreduce), SUBVL=1
 00	1	SVM CRM	subvector reduce mode, SUBVL>1
 01	inv	CR-bit	Rc=1: ffirst CR sel
-01	inv	sz RC1	Rc=0: ffirst z/nonz
+01	inv	dz RC1	Rc=0: ffirst z/nonz
 10	N	sz dz	sat mode: N=0/1 u/s
 11	inv	CR-bit	Rc=1: pred-result CR sel
-11	inv	sz RC1	Rc=0: pred-result z/nonz
+11	inv	dz RC1	Rc=0: pred-result z/nonz
 """
 
 class SVP64RMModeDecode(Elaboratable):
@@ -60,6 +63,7 @@ class SVP64RMModeDecode(Elaboratable):
         self.fn_in = Signal(Function) # LD/ST is different
         self.ptype_in = Signal(SVPtype)
         self.rc_in = Signal()
+        self.ldst_idx = Signal()
 
         # main mode (normal, reduce, saturate, ffirst, pred-result)
         self.mode = Signal(SVP64RMMode)
@@ -101,6 +105,31 @@ class SVP64RMModeDecode(Elaboratable):
                 comb += self.mode.eq(SVP64RMMode.SATURATE) # saturate
             with m.Case(3):
                 comb += self.mode.eq(SVP64RMMode.PREDRES) # predicate result
+
+        # extract zeroing
+        with m.Switch(mode2):
+            with m.Case(0): # needs further decoding (LDST no mapreduce)
+                with m.If(is_ldst):
+                    comb += self.pred_sz.eq(mode[SVP64MODE.SZ])
+                    comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+                with m.Elif(mode[SVP64MODE.REDUCE]):
+                    with m.If(self.rm_in.subvl == Const(0, 2)): # no SUBVL
+                        comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+                with m.Else():
+                    comb += self.pred_sz.eq(mode[SVP64MODE.SZ])
+                    comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+            with m.Case(1, 3):
+                with m.If(is_ldst):
+                    with m.If(~self.ldst_idx):
+                        comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+                with m.Elif(self.rc_in):
+                    comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+            with m.Case(2):
+                with m.If(is_ldst & ~self.ldst_idx):
+                    comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
+                with m.Else():
+                    comb += self.pred_sz.eq(mode[SVP64MODE.SZ])
+                    comb += self.pred_dz.eq(mode[SVP64MODE.DZ])
 
         # extract src/dest predicate.  use EXTRA3.MASK because EXTRA2.MASK
         # is in exactly the same bits
