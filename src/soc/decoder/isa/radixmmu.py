@@ -23,6 +23,7 @@ from soc.consts import MSRb  # big-endian (PowerISA versions)
 
 import math
 import sys
+import unittest
 
 # very quick, TODO move to SelectableInt utils later
 def genmask(shift, size):
@@ -607,50 +608,63 @@ class RADIX:
         return res
 
 
-# very quick test of maskgen function (TODO, move to util later)
+class TestRadixMMU(unittest.TestCase):
+
+    def test_genmask(self):
+        shift = SelectableInt(5, 6)
+        mask = genmask(shift, 43)
+        print ("    mask", bin(mask.value))
+
+        self.assertEqual(sum([1, 2, 3]), 6, "Should be 6")
+
+
+    def test_walk_tree(self):
+        # set up dummy minimal ISACaller
+        spr = {'DSISR': SelectableInt(0, 64),
+               'DAR': SelectableInt(0, 64),
+               'PIDR': SelectableInt(0, 64),
+               'PRTBL': SelectableInt(0, 64)
+        }
+        # set problem state == 0 (other unit tests, set to 1)
+        msr = SelectableInt(0, 64)
+        msr[MSRb.PR] = 0
+        class ISACaller: pass
+        caller = ISACaller()
+        caller.spr = spr
+        caller.msr = msr
+
+        shift = SelectableInt(5, 6)
+        mask = genmask(shift, 43)
+        print ("    mask", bin(mask.value))
+
+        mem = Mem(row_bytes=8)
+        mem = RADIX(mem, caller)
+        # -----------------------------------------------
+        # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+        # -----------------------------------------------
+        # |0|1  2|3|4                55|56  58|59     63|
+        data = SelectableInt(0, 64)
+        data[1:3] = 0b01
+        data[56:59] = 0b11
+        data[59:64] = 0b01101 # mask
+        data[55] = 1
+        (rts, mbits, pgbase) = mem._decode_prte(data)
+        print ("    rts", bin(rts.value), rts.bits)
+        print ("    mbits", bin(mbits.value), mbits.bits)
+        print ("    pgbase", hex(pgbase.value), pgbase.bits)
+        addr = SelectableInt(0x1000, 64)
+        check = mem._segment_check(addr, mbits, shift)
+        print ("    segment check", check)
+
+        print("walking tree")
+        addr = SelectableInt(testaddr,64)
+        # pgbase = None
+        mode = None
+        #mbits = None
+        shift = rts
+        result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
+        print("     walking tree result", result)
+
+
 if __name__ == '__main__':
-    # set up dummy minimal ISACaller
-    spr = {'DSISR': SelectableInt(0, 64),
-           'DAR': SelectableInt(0, 64),
-           'PIDR': SelectableInt(0, 64),
-           'PRTBL': SelectableInt(0, 64)
-    }
-    # set problem state == 0 (other unit tests, set to 1)
-    msr = SelectableInt(0, 64)
-    msr[MSRb.PR] = 0
-    class ISACaller: pass
-    caller = ISACaller()
-    caller.spr = spr
-    caller.msr = msr
-
-    shift = SelectableInt(5, 6)
-    mask = genmask(shift, 43)
-    print ("    mask", bin(mask.value))
-
-    mem = Mem(row_bytes=8)
-    mem = RADIX(mem, caller)
-    # -----------------------------------------------
-    # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
-    # -----------------------------------------------
-    # |0|1  2|3|4                55|56  58|59     63|
-    data = SelectableInt(0, 64)
-    data[1:3] = 0b01
-    data[56:59] = 0b11
-    data[59:64] = 0b01101 # mask
-    data[55] = 1
-    (rts, mbits, pgbase) = mem._decode_prte(data)
-    print ("    rts", bin(rts.value), rts.bits)
-    print ("    mbits", bin(mbits.value), mbits.bits)
-    print ("    pgbase", hex(pgbase.value), pgbase.bits)
-    addr = SelectableInt(0x1000, 64)
-    check = mem._segment_check(addr, mbits, shift)
-    print ("    segment check", check)
-
-    print("walking tree")
-    addr = SelectableInt(testaddr,64)
-    # pgbase = None
-    mode = None
-    #mbits = None
-    shift = rts
-    result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
-    print("     walking tree result", result)
+    unittest.main()
