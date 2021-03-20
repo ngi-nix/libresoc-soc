@@ -342,6 +342,10 @@ class TestIssuerInternal(Elaboratable):
                     # here (or maybe even in INSN_READ state, if svp64_mode
                     # detected, in order to trigger - and wait for - the
                     # predicate reading.
+                    pmode = pdecode2.rm_dec.predmode
+                    sv_ptype = pdecode2.dec.op.SV_Ptype
+                    srcpred = pdecode2.rm_dec.srcpred
+                    dstpred = pdecode2.rm_dec.dstpred
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
@@ -410,6 +414,14 @@ class TestIssuerInternal(Elaboratable):
         new_svstate = SVSTATERec("new_svstate")
         comb += new_svstate.eq(cur_state.svstate)
 
+        # precalculate srcstep+1 and dststep+1
+        cur_srcstep = cur_state.svstate.srcstep
+        cur_dststep = cur_state.svstate.dststep
+        next_srcstep = Signal.like(cur_srcstep)
+        next_dststep = Signal.like(cur_dststep)
+        comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
+        comb += next_dststep.eq(cur_state.svstate.dststep+1)
+
         with m.FSM(name="issue_fsm"):
 
             # sync with the "fetch" phase which is reading the instruction
@@ -472,6 +484,31 @@ class TestIssuerInternal(Elaboratable):
                 # IMPORTANT: when changing src/dest step, have to
                 # jump to m.next = "DECODE_SV" to deal with the change in
                 # SVSTATE
+
+                with m.If(is_svp64_mode):
+
+                    pred_src_zero = pdecode2.rm_dec.pred_sz
+                    pred_dst_zero = pdecode2.rm_dec.pred_dz
+
+                    """
+                    if not pred_src_zero:
+                        if (((1<<cur_srcstep) & self.srcmask) == 0) and
+                              (cur_srcstep != vl):
+                            comb += update_svstate.eq(1)
+                            comb += new_svstate.srcstep.eq(next_srcstep)
+                            sync += sv_changed.eq(1)
+
+                    if not pred_dst_zero:
+                        if (((1<<cur_dststep) & self.dstmask) == 0) and
+                              (cur_dststep != vl):
+                            comb += new_svstate.dststep.eq(next_dststep)
+                            comb += update_svstate.eq(1)
+                            sync += sv_changed.eq(1)
+
+                    if update_svstate:
+                        m.next = "DECODE_SV"
+                    """
+
                 comb += exec_insn_valid_i.eq(1) # trigger execute
                 with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
@@ -482,11 +519,6 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_ready_i.eq(1)
                     with m.If(exec_pc_valid_o):
-                        # precalculate srcstep+1 and dststep+1
-                        next_srcstep = Signal.like(cur_state.svstate.srcstep)
-                        next_dststep = Signal.like(cur_state.svstate.dststep)
-                        comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
-                        comb += next_dststep.eq(cur_state.svstate.dststep+1)
 
                         # was this the last loop iteration?
                         is_last = Signal()
