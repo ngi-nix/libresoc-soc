@@ -343,9 +343,15 @@ class TestIssuerInternal(Elaboratable):
                     # detected, in order to trigger - and wait for - the
                     # predicate reading.
                     pmode = pdecode2.rm_dec.predmode
-                    sv_ptype = pdecode2.dec.op.SV_Ptype
-                    srcpred = pdecode2.rm_dec.srcpred
-                    dstpred = pdecode2.rm_dec.dstpred
+                    """
+                    if pmode != SVP64PredMode.ALWAYS.value:
+                        fire predicate loading FSM and wait before
+                        moving to INSN_READY
+                    else:
+                        sync += self.srcmask.eq(-1) # set to all 1s
+                        sync += self.dstmask.eq(-1) # set to all 1s
+                        m.next = "INSN_READY"
+                    """
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
