@@ -270,6 +270,7 @@ SV64P_RM_SIZE = len(SVP64PrefixFields().rm.br)
 def get_predint(gpr, mask):
     r10 = gpr(10)
     r30 = gpr(30)
+    print ("get_predint", mask, SVP64PredInt.ALWAYS.value)
     if mask == SVP64PredInt.ALWAYS.value:
         return 0xffff_ffff_ffff_ffff
     if mask == SVP64PredInt.R3_UNARY.value:
@@ -939,6 +940,8 @@ class ISACaller:
                     srcmask = get_predcr(self.crl, srcpred, vl)
             print ("    pmode", pmode)
             print ("    ptype", sv_ptype)
+            print ("    srcpred", bin(srcpred))
+            print ("    dstpred", bin(dstpred))
             print ("    srcmask", bin(srcmask))
             print ("    dstmask", bin(dstmask))
             print ("    pred_sz", bin(pred_src_zero))
@@ -956,6 +959,12 @@ class ISACaller:
                 while (((1<<dststep) & dstmask) == 0) and (dststep != vl):
                     print ("      skip", bin(1<<dststep))
                     dststep += 1
+
+            # now work out if the relevant mask bits require zeroing
+            if pred_dst_zero:
+                pred_dst_zero = ((1<<dststep) & dstmask) == 0
+            if pred_src_zero:
+                pred_src_zero = ((1<<srcstep) & srcmask) == 0
 
             # update SVSTATE with new srcstep
             self.svstate.srcstep[0:7] = srcstep

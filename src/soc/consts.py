@@ -237,6 +237,9 @@ class SVP64MODEb:
     ELS_NORMAL = 2
     ELS_FFIRST_PRED = 3
     ELS_SAT = 4
+    # BO bits
+    BO_MSB = 2
+    BO_LSB = 4
 
 
 SVP64MODE_SIZE = 5

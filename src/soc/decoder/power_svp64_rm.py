@@ -144,7 +144,7 @@ class SVP64RMModeDecode(Elaboratable):
         # identify predicate mode
         with m.If(self.rm_in.mmode == 1):
             comb += self.predmode.eq(SVP64PredMode.CR) # CR Predicate
-        with m.Elif(self.srcpred == 0):
+        with m.Elif((self.srcpred == 0) & (self.dstpred == 0)):
             comb += self.predmode.eq(SVP64PredMode.ALWAYS) # No predicate
         with m.Else():
             comb += self.predmode.eq(SVP64PredMode.INT) # non-zero src: INT

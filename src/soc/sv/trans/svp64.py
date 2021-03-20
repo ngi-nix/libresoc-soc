@@ -28,6 +28,7 @@ from soc.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
 from soc.decoder.pseudo.pagereader import ISA
 from soc.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
 from soc.decoder.selectable_int import SelectableInt
+from soc.consts import SVP64MODE
 
 
 # decode GPR into sv extra
@@ -498,61 +499,63 @@ class SVP64Asm:
 
             # "normal" mode
             if sv_mode is None:
-                mode |= (src_zero << 4) | (dst_zero << 3) # predicate zeroing
+                mode |= src_zero << SVP64MODE.SZ # predicate zeroing
+                mode |= dst_zero << SVP64MODE.DZ # predicate zeroing
                 sv_mode = 0b00
 
             # "mapreduce" modes
             elif sv_mode == 0b00:
-                mode |= (0b1<<2) # sets mapreduce
+                mode |= (0b1<<SVP64MODE.REDUCE) # sets mapreduce
                 assert dst_zero == 0, "dest-zero not allowed in mapreduce mode"
                 if mapreduce_crm:
-                    mode |= (0b1<<4) # sets CRM mode
+                    mode |= (0b1<<SVP64MODE.CRM) # sets CRM mode
                     assert rc_mode, "CRM only allowed when Rc=1"
                 # bit of weird encoding to jam zero-pred or SVM mode in.
                 # SVM mode can be enabled only when SUBVL=2/3/4 (vec2/3/4)
                 if subvl == 0:
-                    mode |= (dst_zero << 3) # predicate src-zeroing
+                    mode |= dst_zero << SVP64MODE.DZ # predicate zeroing
                 elif mapreduce_svm:
-                    mode |= (1 << 3) # SVM mode
+                    mode |= (0b1<<SVP64MODE.SVM) # sets SVM mode
 
             # "failfirst" modes
             elif sv_mode == 0b01:
                 assert src_zero == 0, "dest-zero not allowed in failfirst mode"
                 if failfirst == 'RC1':
-                    mode |= (0b1<<4) # sets RC1 mode
-                    mode |= (dst_zero << 3) # predicate src-zeroing
+                    mode |= (0b1<<SVP64MODE.RC1) # sets RC1 mode
+                    mode |= (dst_zero << SVP64MODE.DZ) # predicate dst-zeroing
                     assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
                 elif failfirst == '~RC1':
-                    mode |= (0b1<<4) # sets RC1 mode...
-                    mode |= (dst_zero << 3) # predicate src-zeroing
-                    mode |= (0b1<<2) # ... with inversion
+                    mode |= (0b1<<SVP64MODE.RC1) # sets RC1 mode
+                    mode |= (dst_zero << SVP64MODE.DZ) # predicate dst-zeroing
+                    mode |= (0b1<<SVP64MODE.INV) # ... with inversion
                     assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
                 else:
                     assert dst_zero == 0, "dst-zero not allowed in ffirst BO"
                     assert rc_mode, "ffirst BO only possible when Rc=1"
-                    mode |= (failfirst << 2) # set BO
+                    mode |= (failfirst << SVP64MODE.BO_LSB) # set BO
 
             # "saturation" modes
             elif sv_mode == 0b10:
-                mode |= (src_zero << 4) | (dst_zero << 3) # predicate zeroing
-                mode |= (saturation<<2) # sets signed/unsigned saturation
+                mode |= src_zero << SVP64MODE.SZ # predicate zeroing
+                mode |= dst_zero << SVP64MODE.DZ # predicate zeroing
+                mode |= (saturation << SVP64MODE.N) # signed/unsigned saturation
 
             # "predicate-result" modes.  err... code-duplication from ffirst
             elif sv_mode == 0b11:
                 assert src_zero == 0, "dest-zero not allowed in predresult mode"
                 if predresult == 'RC1':
-                    mode |= (0b1<<4) # sets RC1 mode
-                    mode |= (dst_zero << 3) # predicate src-zeroing
+                    mode |= (0b1<<SVP64MODE.RC1) # sets RC1 mode
+                    mode |= (dst_zero << SVP64MODE.DZ) # predicate dst-zeroing
                     assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
                 elif predresult == '~RC1':
-                    mode |= (0b1<<4) # sets RC1 mode...
-                    mode |= (dst_zero << 3) # predicate src-zeroing
-                    mode |= (0b1<<2) # ... with inversion
+                    mode |= (0b1<<SVP64MODE.RC1) # sets RC1 mode
+                    mode |= (dst_zero << SVP64MODE.DZ) # predicate dst-zeroing
+                    mode |= (0b1<<SVP64MODE.INV) # ... with inversion
                     assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
                 else:
                     assert dst_zero == 0, "dst-zero not allowed in pr-mode BO"
                     assert rc_mode, "pr-mode BO only possible when Rc=1"
-                    mode |= (predresult << 2) # set BO
+                    mode |= (predresult << SVP64MODE.BO_LSB) # set BO
 
             # whewww.... modes all done :)
             # now put into svp64_rm

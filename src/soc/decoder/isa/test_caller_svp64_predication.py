@@ -42,7 +42,7 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(sim.gpr(9), SelectableInt(0x1234, 64))
             self.assertEqual(sim.gpr(10), SelectableInt(0x1235, 64))
 
-    def tst_sv_extsw_intpred(self):
+    def test_sv_extsw_intpred(self):
         # extsb, integer twin-pred mask: source is ~r3 (0b01), dest r3 (0b10)
         # works as follows, where any zeros indicate "skip element"
         #       - sources are 9 and 10
@@ -116,7 +116,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
-    def tst_sv_add_intpred(self):
+    def test_sv_add_intpred(self):
         # adds, integer predicated mask r3=0b10
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
@@ -147,7 +147,7 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
-    def tst_sv_add_cr_pred(self):
+    def test_sv_add_cr_pred(self):
         # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
