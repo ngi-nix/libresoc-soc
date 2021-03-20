@@ -498,7 +498,7 @@ class SVP64Asm:
 
             # "normal" mode
             if sv_mode is None:
-                mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
+                mode |= (src_zero << 4) | (dst_zero << 3) # predicate zeroing
                 sv_mode = 0b00
 
             # "mapreduce" modes
@@ -511,46 +511,46 @@ class SVP64Asm:
                 # bit of weird encoding to jam zero-pred or SVM mode in.
                 # SVM mode can be enabled only when SUBVL=2/3/4 (vec2/3/4)
                 if subvl == 0:
-                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (dst_zero << 3) # predicate src-zeroing
                 elif mapreduce_svm:
                     mode |= (1 << 3) # SVM mode
 
             # "failfirst" modes
             elif sv_mode == 0b01:
-                assert dst_zero == 0, "dest-zero not allowed in failfirst mode"
+                assert src_zero == 0, "dest-zero not allowed in failfirst mode"
                 if failfirst == 'RC1':
                     mode |= (0b1<<4) # sets RC1 mode
-                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (dst_zero << 3) # predicate src-zeroing
                     assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
                 elif failfirst == '~RC1':
                     mode |= (0b1<<4) # sets RC1 mode...
-                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (dst_zero << 3) # predicate src-zeroing
                     mode |= (0b1<<2) # ... with inversion
                     assert rc_mode==False, "ffirst RC1 only possible when Rc=0"
                 else:
-                    assert src_zero == 0, "src-zero not allowed in ffirst BO"
+                    assert dst_zero == 0, "dst-zero not allowed in ffirst BO"
                     assert rc_mode, "ffirst BO only possible when Rc=1"
                     mode |= (failfirst << 2) # set BO
 
             # "saturation" modes
             elif sv_mode == 0b10:
-                mode |= (src_zero << 3) | (dst_zero << 4) # predicate zeroing
+                mode |= (src_zero << 4) | (dst_zero << 3) # predicate zeroing
                 mode |= (saturation<<2) # sets signed/unsigned saturation
 
             # "predicate-result" modes.  err... code-duplication from ffirst
             elif sv_mode == 0b11:
-                assert dst_zero == 0, "dest-zero not allowed in predresult mode"
+                assert src_zero == 0, "dest-zero not allowed in predresult mode"
                 if predresult == 'RC1':
                     mode |= (0b1<<4) # sets RC1 mode
-                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (dst_zero << 3) # predicate src-zeroing
                     assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
                 elif predresult == '~RC1':
                     mode |= (0b1<<4) # sets RC1 mode...
-                    mode |= (src_zero << 3) # predicate src-zeroing
+                    mode |= (dst_zero << 3) # predicate src-zeroing
                     mode |= (0b1<<2) # ... with inversion
                     assert rc_mode==False, "pr-mode RC1 only possible when Rc=0"
                 else:
-                    assert src_zero == 0, "src-zero not allowed in pr-mode BO"
+                    assert dst_zero == 0, "dst-zero not allowed in pr-mode BO"
                     assert rc_mode, "pr-mode BO only possible when Rc=1"
                     mode |= (predresult << 2) # set BO
 

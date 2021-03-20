@@ -927,6 +927,8 @@ class ISACaller:
             sv_ptype = yield self.dec2.dec.op.SV_Ptype
             srcpred = yield self.dec2.rm_dec.srcpred
             dstpred = yield self.dec2.rm_dec.dstpred
+            pred_src_zero = yield self.dec2.rm_dec.pred_sz
+            pred_dst_zero = yield self.dec2.rm_dec.pred_dz
             if pmode == SVP64PredMode.INT.value:
                 srcmask = dstmask = get_predint(self.gpr, dstpred)
                 if sv_ptype == SVPtype.P2.value:
@@ -939,17 +941,21 @@ class ISACaller:
             print ("    ptype", sv_ptype)
             print ("    srcmask", bin(srcmask))
             print ("    dstmask", bin(dstmask))
+            print ("    pred_sz", bin(pred_src_zero))
+            print ("    pred_dz", bin(pred_dst_zero))
 
             # okaaay, so here we simply advance srcstep (TODO dststep)
             # until the predicate mask has a "1" bit... or we run out of VL
             # let srcstep==VL be the indicator to move to next instruction
-            while (((1<<srcstep) & srcmask) == 0) and (srcstep != vl):
-                print ("      skip", bin(1<<srcstep))
-                srcstep += 1
+            if not pred_src_zero:
+                while (((1<<srcstep) & srcmask) == 0) and (srcstep != vl):
+                    print ("      skip", bin(1<<srcstep))
+                    srcstep += 1
             # same for dststep
-            while (((1<<dststep) & dstmask) == 0) and (dststep != vl):
-                print ("      skip", bin(1<<dststep))
-                dststep += 1
+            if not pred_dst_zero:
+                while (((1<<dststep) & dstmask) == 0) and (dststep != vl):
+                    print ("      skip", bin(1<<dststep))
+                    dststep += 1
 
             # update SVSTATE with new srcstep
             self.svstate.srcstep[0:7] = srcstep
@@ -990,8 +996,12 @@ class ISACaller:
             # in case getting the register number is needed, _RA, _RB
             regname = "_" + name
             self.namespace[regname] = regnum
-            print('reading reg %s %s' % (name, str(regnum)), is_vec)
-            reg_val = self.gpr(regnum)
+            if not self.is_svp64_mode or not pred_src_zero:
+                print('reading reg %s %s' % (name, str(regnum)), is_vec)
+                reg_val = self.gpr(regnum)
+            else:
+                print('zero input reg %s %s' % (name, str(regnum)), is_vec)
+                reg_val = 0
             inputs.append(reg_val)
 
         # "special" registers
@@ -1034,27 +1044,29 @@ class ISACaller:
         if carry_en:
             yield from self.handle_carry_(inputs, results, already_done)
 
-        # detect if overflow was in return result
-        overflow = None
-        if info.write_regs:
-            for name, output in zip(output_names, results):
-                if name == 'overflow':
-                    overflow = output
+        if not self.is_svp64_mode: # yeah just no. not in parallel processing
+            # detect if overflow was in return result
+            overflow = None
+            if info.write_regs:
+                for name, output in zip(output_names, results):
+                    if name == 'overflow':
+                        overflow = output
 
-        if hasattr(self.dec2.e.do, "oe"):
-            ov_en = yield self.dec2.e.do.oe.oe
-            ov_ok = yield self.dec2.e.do.oe.ok
-        else:
-            ov_en = False
-            ov_ok = False
-        print("internal overflow", overflow, ov_en, ov_ok)
-        if ov_en & ov_ok:
-            yield from self.handle_overflow(inputs, results, overflow)
+            if hasattr(self.dec2.e.do, "oe"):
+                ov_en = yield self.dec2.e.do.oe.oe
+                ov_ok = yield self.dec2.e.do.oe.ok
+            else:
+                ov_en = False
+                ov_ok = False
+            print("internal overflow", overflow, ov_en, ov_ok)
+            if ov_en & ov_ok:
+                yield from self.handle_overflow(inputs, results, overflow)
 
-        if hasattr(self.dec2.e.do, "rc"):
-            rc_en = yield self.dec2.e.do.rc.rc
-        else:
-            rc_en = False
+        # only do SVP64 dest predicated Rc=1 if dest-pred is not enabled
+        rc_en = False
+        if not self.is_svp64_mode or not pred_dst_zero:
+            if hasattr(self.dec2.e.do, "rc"):
+                rc_en = yield self.dec2.e.do.rc.rc
         if rc_en:
             regnum, is_vec = yield from get_pdecode_cr_out(self.dec2, "CR0")
             self.handle_comparison(results, regnum)
@@ -1087,7 +1099,13 @@ class ISACaller:
                         # temporary hack for not having 2nd output
                         regnum = yield getattr(self.decoder, name)
                         is_vec = False
-                    print('writing reg %d %s' % (regnum, str(output)), is_vec)
+                    if self.is_svp64_mode and pred_dst_zero:
+                        print('zeroing reg %d %s' % (regnum, str(output)),
+                                                     is_vec)
+                        output = SelectableInt(0, 256)
+                    else:
+                        print('writing reg %d %s' % (regnum, str(output)),
+                                                     is_vec)
                     if output.bits > 64:
                         output = SelectableInt(output.value, 64)
                     self.gpr[regnum] = output
