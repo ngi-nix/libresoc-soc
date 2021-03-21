@@ -201,3 +201,47 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         print("SVSTATE", bin(svstate.spr.asint()))
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    @skip_case("Predication not implemented yet")
+    def case_9_sv_extsw_intpred(self):
+        # extsb, integer twin-pred mask: source is ~r3 (0b01), dest r3 (0b10)
+        # works as follows, where any zeros indicate "skip element"
+        #       - sources are 9 and 10
+        #       - dests are 5 and 6
+        #       - source mask says "pick first element from source (5)
+        #       - dest mask says "pick *second* element from dest (10)
+        #
+        # therefore the operation that's carried out is:
+        #       GPR(10) = extsb(GPR(5))
+        #
+        # this is a type of back-to-back VREDUCE and VEXPAND but it applies
+        # to *operations*, not just MVs like in traditional Vector ISAs
+        # ascii graphic:
+        #
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10
+        #   src ~r3=0b01                     Y N
+        #                                    |
+        #                              +-----+
+        #                              |
+        #   dest r3=0b10             N Y
+
+        # expected results:
+        # r5 = 0x0                   dest r3 is 0b10: skip
+        # r6 = 0xffff_ffff_ffff_ff91 2nd bit of r3 is 1
+        isa = SVP64Asm(['svextsb/sm=~r3/m=r3 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b10   # predicate mask
+        initial_regs[9] = 0x91   # source ~r3 is 0b01 so this will be used
+        initial_regs[10] = 0x90  # this gets skipped
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2  # VL
+        svstate.maxvl[0:7] = 2  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
