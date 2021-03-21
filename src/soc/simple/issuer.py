@@ -141,7 +141,9 @@ def get_predcr(m, mask):
 class TestIssuerInternal(Elaboratable):
     """TestIssuer - reads instructions from TestMemory and issues them
 
-    efficiency and speed is not the main goal here: functional correctness is.
+    efficiency and speed is not the main goal here: functional correctness
+    and code clarity is.  optimisations (which almost 100% interfere with
+    easy understanding) come later.
     """
     def __init__(self, pspec):
 
@@ -251,6 +253,7 @@ class TestIssuerInternal(Elaboratable):
                         fetch_pc_ready_o, fetch_pc_valid_i,
                         fetch_insn_valid_o, fetch_insn_ready_i):
         """fetch FSM
+
         this FSM performs fetch of raw instruction data, partial-decodes
         it 32-bit at a time to detect SVP64 prefixes, and will optionally
         read a 2nd 32-bit quantity if that occurs.
@@ -822,9 +825,9 @@ class TestIssuerInternal(Elaboratable):
         # (as opposed to using sync - which would be on a clock's delay)
         # this includes the actual opcode, valid flags and so on.
 
-        # Fetch, then Issue, then Execute. Issue is where the VL for-loop
-        # lives.  the ready/valid signalling is used to communicate between
-        # the three.
+        # Fetch, then predicate fetch, then Issue, then Execute.
+        # Issue is where the VL for-loop # lives.  the ready/valid
+        # signalling is used to communicate between the four.
 
         self.fetch_fsm(m, core, pc, svstate, nia, is_svp64_mode,
                        fetch_pc_ready_o, fetch_pc_valid_i,
@@ -858,6 +861,11 @@ class TestIssuerInternal(Elaboratable):
         return m
 
     def do_dmi(self, m, dbg):
+        """deals with DMI debug requests
+
+        currently only provides read requests for the INT regfile, CR and XER
+        it will later also deal with *writing* to these regfiles.
+        """
         comb = m.d.comb
         sync = m.d.sync
         dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
