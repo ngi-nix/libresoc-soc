@@ -359,7 +359,9 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(fetch_insn_ready_i):
                     m.next = "IDLE"
 
-    def fetch_predicate_fsm(self, m, core, TODO):
+    def fetch_predicate_fsm(self, m,
+                            pred_insn_valid_i, pred_insn_ready_o,
+                            pred_mask_valid_o, pred_mask_ready_i):
         """fetch_predicate_fsm - obtains (constructs in the case of CR)
            src/dest predicate masks
 
@@ -389,11 +391,26 @@ class TestIssuerInternal(Elaboratable):
         # else
         #    sync += self.srcmask.eq(-1) # set to all 1s
         #    sync += self.dstmask.eq(-1) # set to all 1s
+        with m.FSM(name="fetch_predicate"):
+
+            with m.State("FETCH_PRED_IDLE"):
+                comb += pred_insn_ready_o.eq(1)
+                with m.If(pred_insn_valid_i):
+                    sync += self.srcmask.eq(-1)
+                    sync += self.dstmask.eq(-1)
+                    m.next = "FETCH_PRED_DONE"
+
+            with m.State("FETCH_PRED_DONE"):
+                comb += pred_mask_valid_o.eq(1)
+                with m.If(pred_mask_ready_i):
+                    m.next = "FETCH_PRED_IDLE"
 
     def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
                   dbg, core_rst, is_svp64_mode,
                   fetch_pc_ready_o, fetch_pc_valid_i,
                   fetch_insn_valid_o, fetch_insn_ready_i,
+                  pred_insn_valid_i, pred_insn_ready_o,
+                  pred_mask_valid_o, pred_mask_ready_i,
                   exec_insn_valid_i, exec_insn_ready_o,
                   exec_pc_valid_o, exec_pc_ready_i):
         """issue FSM
@@ -478,7 +495,17 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.insn_done.eq(1)
                         m.next = "ISSUE_START"
                     with m.Else():
-                        m.next = "INSN_EXECUTE"  # move to "execute"
+                        m.next = "PRED_START"  # start fetching the predicate
+
+            with m.State("PRED_START"):
+                comb += pred_insn_valid_i.eq(1)  # tell fetch_pred to start
+                with m.If(pred_insn_ready_o):  # fetch_pred acknowledged us
+                    m.next = "MASK_WAIT"
+
+            with m.State("MASK_WAIT"):
+                comb += pred_mask_ready_i.eq(1) # ready to receive the masks
+                with m.If(pred_mask_valid_o): # predication masks are ready
+                    m.next = "INSN_EXECUTE"
 
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
@@ -774,6 +801,14 @@ class TestIssuerInternal(Elaboratable):
         fetch_insn_valid_o = Signal()
         fetch_insn_ready_i = Signal()
 
+        # predicate fetch FSM decodes and fetches the predicate
+        pred_insn_valid_i = Signal()
+        pred_insn_ready_o = Signal()
+
+        # predicate fetch FSM delivers the masks
+        pred_mask_valid_o = Signal()
+        pred_mask_ready_i = Signal()
+
         # issue FSM delivers the instruction to the be executed
         exec_insn_valid_i = Signal()
         exec_insn_ready_o = Signal()
@@ -799,8 +834,14 @@ class TestIssuerInternal(Elaboratable):
                        dbg, core_rst, is_svp64_mode,
                        fetch_pc_ready_o, fetch_pc_valid_i,
                        fetch_insn_valid_o, fetch_insn_ready_i,
+                       pred_insn_valid_i, pred_insn_ready_o,
+                       pred_mask_valid_o, pred_mask_ready_i,
                        exec_insn_valid_i, exec_insn_ready_o,
                        exec_pc_valid_o, exec_pc_ready_i)
+
+        self.fetch_predicate_fsm(m,
+                                 pred_insn_valid_i, pred_insn_ready_o,
+                                 pred_mask_valid_o, pred_mask_ready_i)
 
         self.execute_fsm(m, core, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
