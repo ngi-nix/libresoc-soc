@@ -79,6 +79,7 @@ class Program:
         with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
             args = ["powerpc64-linux-gnu-as",
                     '-mpower9',
+                    '-mregnames',
                     self.obj_fmt,
                     "-o",
                     outfile.name]
@@ -120,9 +121,10 @@ class Program:
         self.binfile.close()
 
 if __name__ == '__main__':
-    lst = ['addi 5, 0, 4660',
-           'mtcrf 255, 5',
+    lst = ['addi 5, 0, 4660/2',
+           'mtcrf 255, 5+3',
            'mfocrf 2, 1',
+           'addi r2, 3, 1',
            'attn',
           ]
     with Program(lst, False) as p:
