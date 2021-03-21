@@ -71,16 +71,16 @@ def state_get(m, state_i, name, regfile, regnum):
         comb += res.eq(regfile.data_o)
     return res
 
-def get_predint(m, mask):
+def get_predint(m, mask, name):
     """decode SVP64 predicate integer mask field to reg number and invert
     this is identical to the equivalent function in ISACaller except that
     it doesn't read the INT directly, it just decodes "what needs to be done"
     i.e. which INT reg, whether it is shifted and whether it is bit-inverted.
     """
     comb = m.d.comb
-    regread = Signal(5)
-    invert = Signal()
-    unary = Signal()
+    regread = Signal(5, name=name+"regread")
+    invert = Signal(name=name+"crinvert")
+    unary = Signal(name=name+"unary")
     with m.Switch(mask):
         with m.Case(SVP64PredInt.ALWAYS.value):
             comb += regread.eq(0)
@@ -105,13 +105,13 @@ def get_predint(m, mask):
             comb += invert.eq(1)
     return regread, invert, unary
 
-def get_predcr(m, mask):
+def get_predcr(m, mask, name):
     """decode SVP64 predicate CR to reg number field and invert status
     this is identical to _get_predcr in ISACaller
     """
     comb = m.d.comb
-    idx = Signal(2)
-    invert = Signal()
+    idx = Signal(2, name=name+"idx")
+    invert = Signal(name=name+"invert")
     with m.Switch(mask):
         with m.Case(SVP64PredCR.LT.value):
             comb += idx.eq(0)
