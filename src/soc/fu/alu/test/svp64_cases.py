@@ -11,7 +11,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
         #       2 = 6 + 10  => 0x3334 = 0x2223 + 0x1111
-        isa = SVP64Asm(['svadd 1.v, 5.v, 9.v'])
+        isa = SVP64Asm(['sv.add 1.v, 5.v, 9.v'])
         lst = list(isa)
         print("listing", lst)
 
@@ -33,7 +33,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
     def case_2_sv_add_scalar(self):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
-        isa = SVP64Asm(['svadd 1, 5, 9'])
+        isa = SVP64Asm(['sv.add 1, 5, 9'])
         lst = list(isa)
         print("listing", lst)
 
@@ -58,7 +58,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
     def case_3_sv_check_extra(self):
         # adds:
         #       13 = 10 + 7   => 0x4242 = 0x1230 + 0x3012
-        isa = SVP64Asm(['svadd 13.v, 10.v, 7.v'])
+        isa = SVP64Asm(['sv.add 13.v, 10.v, 7.v'])
         lst = list(isa)
         print("listing", lst)
 
@@ -80,7 +80,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         #       1 = 5 + 9   => 0 = -1+1                 CR0=0b100
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111   CR1=0b010
 
-        isa = SVP64Asm(['svadd. 1.v, 5.v, 9.v'])
+        isa = SVP64Asm(['sv.add. 1.v, 5.v, 9.v'])
         lst = list(isa)
         print("listing", lst)
 
@@ -104,7 +104,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
         isa = SVP64Asm([
-            'svadd 13.v, 10.v, 7.v',  # skipped, because VL == 0
+            'sv.add 13.v, 10.v, 7.v',  # skipped, because VL == 0
             'add 1, 5, 9'
         ])
         lst = list(isa)
@@ -135,8 +135,8 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         #      14 = 11 + 8  => 0x3012 = 0x3012 + 0x0000
         #      15 = 12 + 9  => 0x1234 = 0x0000 + 0x1234
         isa = SVP64Asm([
-            'svadd 1.v, 5.v, 9.v',
-            'svadd 13.v, 10.v, 7.v'
+            'sv.add 1.v, 5.v, 9.v',
+            'sv.add 13.v, 10.v, 7.v'
         ])
         lst = list(isa)
         print("listing", lst)
@@ -162,7 +162,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321 + 0x1234
         #       r1 is scalar so ENDS EARLY
-        isa = SVP64Asm(['svadd 1, 5.v, 9.v'])
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'])
         lst = list(isa)
         print("listing", lst)
 
@@ -184,7 +184,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
-        isa = SVP64Asm(['svadd 1.v, 5, 9.v'])
+        isa = SVP64Asm(['sv.add 1.v, 5, 9.v'])
         lst = list(isa)
         print("listing", lst)
 

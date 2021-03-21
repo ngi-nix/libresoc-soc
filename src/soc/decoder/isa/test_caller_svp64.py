@@ -26,8 +26,8 @@ class DecoderTestCase(FHDLTestCase):
                         "addi 2, 0, 0x0008",
                         "addi 5, 0, 0x1234",
                         "addi 6, 0, 0x1235",
-                        "svstw 5.v, 0(1.v)",
-                        "svlwz 9.v, 0(1.v)"])
+                        "sv.stw 5.v, 0(1.v)",
+                        "sv.lwz 9.v, 0(1.v)"])
         lst = list(lst)
 
         # SVSTATE (in this case, VL=2)
@@ -46,7 +46,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
-        isa = SVP64Asm(['svadd 1.v, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -75,7 +75,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       r1 is scalar so ENDS EARLY
-        isa = SVP64Asm(['svadd 1, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -103,7 +103,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
-        isa = SVP64Asm(['svadd 1.v, 5, 9.v'
+        isa = SVP64Asm(['sv.add 1.v, 5, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -131,7 +131,7 @@ class DecoderTestCase(FHDLTestCase):
     def test_sv_add_vl_0(self):
         # adds:
         #       none because VL is zer0
-        isa = SVP64Asm(['svadd 1, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -158,7 +158,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds when Rc=1:                               TODO CRs higher up
         #       1 = 5 + 9   => 0 = -1+1                 CR0=0b100
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111   CR1=0b010
-        isa = SVP64Asm(['svadd. 1.v, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add. 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)

@@ -26,8 +26,8 @@ class DecoderTestCase(FHDLTestCase):
                         "addi 2, 0, 0x0008",
                         "addi 5, 0, 0x1234",
                         "addi 6, 0, 0x1235",
-                        "svstw 5.v, 0(1.v)",
-                        "svlwz 9.v, 0(1.v)"])
+                        "sv.stw 5.v, 0(1.v)",
+                        "sv.lwz 9.v, 0(1.v)"])
         lst = list(lst)
 
         # SVSTATE (in this case, VL=2)
@@ -64,7 +64,7 @@ class DecoderTestCase(FHDLTestCase):
         #                              |
         #   dest r3=0b10             N Y
 
-        isa = SVP64Asm(['svextsb/sm=~r3/m=r3 5.v, 9.v'
+        isa = SVP64Asm(['sv.extsb/sm=~r3/m=r3 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -90,7 +90,7 @@ class DecoderTestCase(FHDLTestCase):
 
     def test_sv_extsw_intpred_dz(self):
         # extsb, integer twin-pred mask: dest is r3 (0b01), zeroing on dest
-        isa = SVP64Asm(['svextsb/m=r3/dz 5.v, 9.v'
+        isa = SVP64Asm(['sv.extsb/m=r3/dz 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -120,7 +120,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds, integer predicated mask r3=0b10
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
-        isa = SVP64Asm(['svadd/m=r3 1.v, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add/m=r3 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -151,7 +151,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
         #       1 = 5 + 9   => not to be touched (skipped)
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
-        isa = SVP64Asm(['svadd/m=ne 1.v, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add/m=ne 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -185,7 +185,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       r1 is scalar so ENDS EARLY
-        isa = SVP64Asm(['svadd 1, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -213,7 +213,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds:
         #       1 = 5 + 9   => 0x5555 = 0x4321+0x1234
         #       2 = 5 + 10  => 0x5432 = 0x4321+0x1111
-        isa = SVP64Asm(['svadd 1.v, 5, 9.v'
+        isa = SVP64Asm(['sv.add 1.v, 5, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -241,7 +241,7 @@ class DecoderTestCase(FHDLTestCase):
     def tst_sv_add_vl_0(self):
         # adds:
         #       none because VL is zer0
-        isa = SVP64Asm(['svadd 1, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add 1, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)
@@ -268,7 +268,7 @@ class DecoderTestCase(FHDLTestCase):
         # adds when Rc=1:                               TODO CRs higher up
         #       1 = 5 + 9   => 0 = -1+1                 CR0=0b100
         #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111   CR1=0b010
-        isa = SVP64Asm(['svadd. 1.v, 5.v, 9.v'
+        isa = SVP64Asm(['sv.add. 1.v, 5.v, 9.v'
                        ])
         lst = list(isa)
         print ("listing", lst)

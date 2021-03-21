@@ -180,10 +180,10 @@ class SVP64Asm:
                 continue
 
             # identify if is a svp64 mnemonic
-            if not opcode.startswith('sv'):
+            if not opcode.startswith('sv.'):
                 yield insn  # unaltered
                 continue
-            opcode = opcode[2:] # strip leading "sv"
+            opcode = opcode[3:] # strip leading "sv"
 
             # start working on decoding the svp64 op: sv.basev30Bop/vec2/mode
             opmodes = opcode.split("/") # split at "/"
@@ -617,21 +617,21 @@ class SVP64Asm:
 if __name__ == '__main__':
     lst = ['slw 3, 1, 4',
                  'extsw 5, 3',
-                 'svextsw 5, 3',
-                 'svcmpi 5, 1, 3, 2',
-                 'svsetb 5, 31',
-                 'svisel 64.v, 3, 2, 65.v',
-                 'svsetb/m=r3/sm=1<<r3 5, 31',
-                 'svsetb/vec2 5, 31',
-                 'svsetb/sw=8/ew=16 5, 31',
-                 'svextsw./ff=eq 5, 31',
-                 'svextsw./satu/sz/dz/sm=r3/m=r3 5, 31',
-                 'svextsw./pr=eq 5.v, 31',
-                 'svadd. 5.v, 2.v, 1.v',
+                 'sv.extsw 5, 3',
+                 'sv.cmpi 5, 1, 3, 2',
+                 'sv.setb 5, 31',
+                 'sv.isel 64.v, 3, 2, 65.v',
+                 'sv.setb/m=r3/sm=1<<r3 5, 31',
+                 'sv.setb/vec2 5, 31',
+                 'sv.setb/sw=8/ew=16 5, 31',
+                 'sv.extsw./ff=eq 5, 31',
+                 'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
+                 'sv.extsw./pr=eq 5.v, 31',
+                 'sv.add. 5.v, 2.v, 1.v',
                 ]
     lst += [
-                 'svstw 5.v, 4(1.v)',
-                 'svld 5.v, 4(1.v)',
+                 'sv.stw 5.v, 4(1.v)',
+                 'sv.ld 5.v, 4(1.v)',
                  'setvl. 2, 3, 4, 1, 1',
           ]
     isa = SVP64Asm(lst)
