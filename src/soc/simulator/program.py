@@ -15,6 +15,7 @@ import os
 import sys
 from io import BytesIO
 
+from soc.simulator.envcmds import cmds
 
 filedir = os.path.dirname(os.path.realpath(__file__))
 memmap = os.path.join(filedir, "memmap")
@@ -58,7 +59,7 @@ class Program:
 
     def _get_binary(self, elffile):
         self.binfile = tempfile.NamedTemporaryFile(suffix=".bin")
-        args = ["powerpc64-linux-gnu-objcopy",
+        args = [cmds['objcopy'],
                 "-O", "binary",
                 "-I", self.endian_fmt,
                 elffile.name,
@@ -67,7 +68,7 @@ class Program:
 
     def _link(self, ofile):
         with tempfile.NamedTemporaryFile(suffix=".elf") as elffile:
-            args = ["powerpc64-linux-gnu-ld",
+            args = [cmds['ld'],
                     self.ld_fmt,
                     "-o", elffile.name,
                     "-T", memmap,
@@ -77,7 +78,7 @@ class Program:
 
     def _assemble(self):
         with tempfile.NamedTemporaryFile(suffix=".o") as outfile:
-            args = ["powerpc64-linux-gnu-as",
+            args = [cmds['as'],
                     '-mpower9',
                     '-mregnames',
                     self.obj_fmt,
