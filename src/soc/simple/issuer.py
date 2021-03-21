@@ -342,7 +342,7 @@ class TestIssuerInternal(Elaboratable):
                     sync += dec_opcode_i.eq(insn)
                     m.next = "INSN_READY"
                     # TODO: probably can start looking at pdecode2.rm_dec
-                    # here (or maybe even in INSN_READ state, if svp64_mode
+                    # here or maybe even in INSN_READ state, if svp64_mode
                     # detected, in order to trigger - and wait for - the
                     # predicate reading.
                     pmode = pdecode2.rm_dec.predmode
@@ -391,6 +391,18 @@ class TestIssuerInternal(Elaboratable):
         #    CR-src sidx, sinvert = get_predcr(m, srcpred)
         #    CR-dst didx, dinvert = get_predcr(m, dstpred)
         #    TODO read CR-src and CR-dst into self.srcmask+dstmask with loop
+        #    for cr_idx = FSM-state-loop(0..VL-1):
+        #        FSM-state-trigger-CR-read:
+        #               cr_ren = (1<<7-(cr_idx+SVP64CROffs.CRPred))
+        #               comb += cr_pred.ren.eq(cr_ren)
+        #        FSM-state-1-clock-later-actual-Read:
+        #               cr_field = Signal(4)
+        #               cr_bit = Signal(1)
+        #               # read the CR field, select the appropriate bit
+        #               comb += cr_field.eq(cr_pred.data_o)
+        #               comb += cr_bit.eq(cr_field.bit_select(idx)))
+        #               # just like in branch BO tests
+        #               comd += self.srcmask[cr_idx].eq(inv ^ cr_bit)
         # else
         #    sync += self.srcmask.eq(-1) # set to all 1s
         #    sync += self.dstmask.eq(-1) # set to all 1s
