@@ -228,7 +228,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         # expected results:
         # r5 = 0x0                   dest r3 is 0b10: skip
         # r6 = 0xffff_ffff_ffff_ff91 2nd bit of r3 is 1
-        isa = SVP64Asm(['svextsb/sm=~r3/m=r3 5.v, 9.v'])
+        isa = SVP64Asm(['sv.extsb/sm=~r3/m=r3 5.v, 9.v'])
         lst = list(isa)
         print("listing", lst)
 
