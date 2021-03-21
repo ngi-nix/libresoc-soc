@@ -79,7 +79,7 @@ def get_predint(m, mask, name):
     """
     comb = m.d.comb
     regread = Signal(5, name=name+"regread")
-    invert = Signal(name=name+"crinvert")
+    invert = Signal(name=name+"invert")
     unary = Signal(name=name+"unary")
     with m.Switch(mask):
         with m.Case(SVP64PredInt.ALWAYS.value):
@@ -111,7 +111,7 @@ def get_predcr(m, mask, name):
     """
     comb = m.d.comb
     idx = Signal(2, name=name+"idx")
-    invert = Signal(name=name+"invert")
+    invert = Signal(name=name+"crinvert")
     with m.Switch(mask):
         with m.Case(SVP64PredCR.LT.value):
             comb += idx.eq(0)
