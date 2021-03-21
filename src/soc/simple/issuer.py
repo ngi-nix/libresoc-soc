@@ -30,7 +30,7 @@ from soc.regfile.regfiles import StateRegs, FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
-from soc.decoder.power_enums import MicrOp
+from soc.decoder.power_enums import MicrOp, SVP64PredInt, SVP64PredCR
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.debug.jtag import JTAG
 from soc.config.pinouts import get_pinspecs
@@ -77,29 +77,30 @@ def get_predint(m, mask):
     it doesn't read the INT directly, it just decodes "what needs to be done"
     i.e. which INT reg, whether it is shifted and whether it is bit-inverted.
     """
+    comb = m.d.comb
     regread = Signal(5)
     invert = Signal()
     unary = Signal()
     with m.Switch(mask):
-        with m.Case(SVP64PredInt.ALWAYS.value):
+        with m.Case(SVP64PredInt.ALWAYS):
             comb += regread.eq(0)
             comb += invert.eq(1)
-        with m.Case(SVP64PredInt.R3_UNARY.value):
+        with m.Case(SVP64PredInt.R3_UNARY):
             comb += regread.eq(3)
             comb += unary.eq(1)
-        with m.Case(SVP64PredInt.R3.value):
+        with m.Case(SVP64PredInt.R3):
             comb += regread.eq(3)
-        with m.Case(SVP64PredInt.R3_N.value):
+        with m.Case(SVP64PredInt.R3_N):
             comb += regread.eq(3)
             comb += invert.eq(1)
-        with m.Case(SVP64PredInt.R10.value):
+        with m.Case(SVP64PredInt.R10):
             comb += regread.eq(10)
-        with m.Case(SVP64PredInt.R10_N.value):
+        with m.Case(SVP64PredInt.R10_N):
             comb += regread.eq(10)
             comb += invert.eq(1)
-        with m.Case(SVP64PredInt.R30.value):
+        with m.Case(SVP64PredInt.R30):
             comb += regread.eq(30)
-        with m.Case(SVP64PredInt.R30_N.value):
+        with m.Case(SVP64PredInt.R30_N):
             comb += regread.eq(30)
             comb += invert.eq(1)
     return regread, invert, unary
@@ -108,31 +109,32 @@ def get_predcr(m, mask):
     """decode SVP64 predicate CR to reg number field and invert status
     this is identical to _get_predcr in ISACaller
     """
+    comb = m.d.comb
     idx = Signal(2)
     invert = Signal()
     with m.Switch(mask):
-        with m.Case(SVP64PredCR.LT.value):
+        with m.Case(SVP64PredCR.LT):
             comb += idx.eq(0)
             comb += invert.eq(1)
-        with m.Case(SVP64PredCR.GE.value):
+        with m.Case(SVP64PredCR.GE):
             comb += idx.eq(0)
             comb += invert.eq(0)
-        with m.Case(SVP64PredCR.GT.value):
+        with m.Case(SVP64PredCR.GT):
             comb += idx.eq(1)
             comb += invert.eq(1)
-        with m.Case(SVP64PredCR.LE.value):
+        with m.Case(SVP64PredCR.LE):
             comb += idx.eq(1)
             comb += invert.eq(0)
-        with m.Case(SVP64PredCR.EQ.value):
+        with m.Case(SVP64PredCR.EQ):
             comb += idx.eq(2)
             comb += invert.eq(1)
-        with m.Case(SVP64PredCR.NE.value):
+        with m.Case(SVP64PredCR.NE):
             comb += idx.eq(1)
             comb += invert.eq(0)
-        with m.Case(SVP64PredCR.SO.value):
+        with m.Case(SVP64PredCR.SO):
             comb += idx.eq(3)
             comb += invert.eq(1)
-        with m.Case(SVP64PredCR.NS.value):
+        with m.Case(SVP64PredCR.NS):
             comb += idx.eq(3)
             comb += invert.eq(0)
     return idx, invert
