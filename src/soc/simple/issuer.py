@@ -387,10 +387,17 @@ class TestIssuerInternal(Elaboratable):
         #    INT-src sregread, sinvert, sunary = get_predint(m, srcpred)
         #    INT-dst dregread, dinvert, dunary = get_predint(m, dstpred)
         #    TODO read INT-src and INT-dst into self.srcmask+dstmask
+        #         has to cope with first one then the other
+        #    FSM-triggered-int-read
+        #       comb += int_pred.addr.eq(d_reg.addr)
+        #       comb += int_pred.ren.eq(1)
+        #    FSM-1-clock-later
+        #       comb += d_reg.data.eq(self.int_r.data_o)
         # elif predmode == CR:
         #    CR-src sidx, sinvert = get_predcr(m, srcpred)
         #    CR-dst didx, dinvert = get_predcr(m, dstpred)
         #    TODO read CR-src and CR-dst into self.srcmask+dstmask with loop
+        #         has to cope with first one then the other
         #    for cr_idx = FSM-state-loop(0..VL-1):
         #        FSM-state-trigger-CR-read:
         #               cr_ren = (1<<7-(cr_idx+SVP64CROffs.CRPred))
