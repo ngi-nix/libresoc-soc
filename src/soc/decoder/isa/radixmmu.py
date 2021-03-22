@@ -220,12 +220,12 @@ class RADIX:
     def __init__(self, mem, caller):
         self.mem = mem
         self.caller = caller
-        #TODO move to lookup
-        self.dsisr = self.caller.spr["DSISR"]
-        self.dar   = self.caller.spr["DAR"]
-        self.pidr  = self.caller.spr["PIDR"]
-        self.prtbl = self.caller.spr["PRTBL"]
-        self.msr   = self.caller.msr
+        if(caller):
+            self.dsisr = self.caller.spr["DSISR"]
+            self.dar   = self.caller.spr["DAR"]
+            self.pidr  = self.caller.spr["PIDR"]
+            self.prtbl = self.caller.spr["PRTBL"]
+            self.msr   = self.caller.msr
 
         # cached page table stuff
         self.pgtbl0 = 0
@@ -400,8 +400,15 @@ class RADIX:
                     return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-                shift = SelectableInt(shift.value,16) #FIXME
-                addr_next = self._get_pgtable_addr(mask, pgbase, shift, prtbl)
+                shift = SelectableInt(shift.value,16) #THIS is wrong !!!
+                print("calling _get_pgtable_addr")
+                print(mask)    #SelectableInt(value=0x9, bits=4)
+                print(pgbase)  #SelectableInt(value=0x40000, bits=56)
+                print(shift)   #SelectableInt(value=0x4, bits=16) #FIXME
+                pgbase = SelectableInt(pgbase.value,64)
+                addr_next = self._get_pgtable_addr(mask, pgbase, shift)
+                assert(addr_next == 0x40000)
+                return "TODO verify next level"
 
     def _new_lookup(self, data, mbits, shift):
         """
@@ -574,7 +581,7 @@ class RADIX:
                            )
         return res
 
-    def _get_pgtable_addr(self, mask_size, pgbase, addrsh, prtbl):
+    def _get_pgtable_addr(self, mask_size, pgbase, addrsh):
         """
         x"00" & r.pgbase(55 downto 19) &
         ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
@@ -585,7 +592,7 @@ class RADIX:
         zero3 = SelectableInt(0, 3)
         res = selectconcat(zero8,
                            pgbase[8:45],              #
-                           (prtbl[45:61] & ~mask16) | #
+                           (pgbase[45:61] & ~mask16) | #
                            (addrsh       & mask16),   #
                            zero3
                            )
@@ -617,6 +624,18 @@ class TestRadixMMU(unittest.TestCase):
 
         self.assertEqual(sum([1, 2, 3]), 6, "Should be 6")
 
+    def test_get_pgtable_addr(self):
+
+        mem = None
+        caller = None
+        dut = RADIX(mem, caller)
+
+        mask_size=4
+        pgbase = SelectableInt(0,64)
+        addrsh = SelectableInt(0,16)
+        ret = dut._get_pgtable_addr(mask_size, pgbase, addrsh)
+        print("ret=",ret)
+        assert(ret==0)
 
     def test_walk_tree(self):
         # set up dummy minimal ISACaller
