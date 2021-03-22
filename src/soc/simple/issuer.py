@@ -16,7 +16,7 @@ improved.
 """
 
 from nmigen import (Elaboratable, Module, Signal, ClockSignal, ResetSignal,
-                    ClockDomain, DomainRenamer, Mux, Const)
+                    ClockDomain, DomainRenamer, Mux, Const, Repl)
 from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
@@ -30,7 +30,8 @@ from soc.regfile.regfiles import StateRegs, FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
-from soc.decoder.power_enums import MicrOp, SVP64PredInt, SVP64PredCR
+from soc.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
+                                     SVP64PredMode)
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.debug.jtag import JTAG
 from soc.config.pinouts import get_pinspecs
@@ -385,16 +386,7 @@ class TestIssuerInternal(Elaboratable):
         predmode = rm_dec.predmode
         srcpred, dstpred = rm_dec.srcpred, rm_dec.dstpred
         cr_pred, int_pred = self.cr_pred, self.int_pred   # read regfiles
-        # if predmode == INT:
-        #    INT-src sregread, sinvert, sunary = get_predint(m, srcpred)
-        #    INT-dst dregread, dinvert, dunary = get_predint(m, dstpred)
-        #    TODO read INT-src and INT-dst into self.srcmask+dstmask
-        #         has to cope with first one then the other
-        #    FSM-triggered-int-read
-        #       comb += int_pred.addr.eq(d_reg.addr)
-        #       comb += int_pred.ren.eq(1)
-        #    FSM-1-clock-later
-        #       comb += d_reg.data.eq(self.int_r.data_o)
+
         # elif predmode == CR:
         #    CR-src sidx, sinvert = get_predcr(m, srcpred)
         #    CR-dst didx, dinvert = get_predcr(m, dstpred)
@@ -412,17 +404,42 @@ class TestIssuerInternal(Elaboratable):
         #               comb += cr_bit.eq(cr_field.bit_select(idx)))
         #               # just like in branch BO tests
         #               comd += self.srcmask[cr_idx].eq(inv ^ cr_bit)
-        # else
-        #    sync += self.srcmask.eq(-1) # set to all 1s
-        #    sync += self.dstmask.eq(-1) # set to all 1s
+
+        # decode predicates
+        sregread, sinvert, sunary = get_predint(m, srcpred, 's')
+        dregread, dinvert, dunary = get_predint(m, dstpred, 'd')
+        sidx, scrinvert = get_predcr(m, srcpred, 's')
+        didx, dcrinvert = get_predcr(m, dstpred, 'd')
+
         with m.FSM(name="fetch_predicate"):
 
             with m.State("FETCH_PRED_IDLE"):
                 comb += pred_insn_ready_o.eq(1)
                 with m.If(pred_insn_valid_i):
-                    sync += self.srcmask.eq(-1)
-                    sync += self.dstmask.eq(-1)
-                    m.next = "FETCH_PRED_DONE"
+                    with m.If(predmode == SVP64PredMode.INT):
+                        # fetch destination predicate register
+                        comb += int_pred.addr.eq(dregread)
+                        comb += int_pred.ren.eq(1)
+                        m.next = "INT_DST_READ"
+                    with m.Else():
+                        sync += self.srcmask.eq(-1)
+                        sync += self.dstmask.eq(-1)
+                        m.next = "FETCH_PRED_DONE"
+
+            with m.State("INT_DST_READ"):
+                # store destination mask
+                inv = Repl(dinvert, 64)
+                sync += self.dstmask.eq(self.int_pred.data_o ^ inv)
+                # fetch source predicate register
+                comb += int_pred.addr.eq(sregread)
+                comb += int_pred.ren.eq(1)
+                m.next = "INT_SRC_READ"
+
+            with m.State("INT_SRC_READ"):
+                # store source mask
+                inv = Repl(sinvert, 64)
+                sync += self.srcmask.eq(self.int_pred.data_o ^ inv)
+                m.next = "FETCH_PRED_DONE"
 
             with m.State("FETCH_PRED_DONE"):
                 comb += pred_mask_valid_o.eq(1)
