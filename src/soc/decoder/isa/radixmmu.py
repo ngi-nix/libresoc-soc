@@ -220,7 +220,7 @@ class RADIX:
     def __init__(self, mem, caller):
         self.mem = mem
         self.caller = caller
-        if(caller):
+        if caller is not None:
             self.dsisr = self.caller.spr["DSISR"]
             self.dar   = self.caller.spr["DAR"]
             self.pidr  = self.caller.spr["PIDR"]

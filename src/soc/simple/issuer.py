@@ -595,14 +595,12 @@ class TestIssuerInternal(Elaboratable):
                               (cur_srcstep != vl):
                             comb += update_svstate.eq(1)
                             comb += new_svstate.srcstep.eq(next_srcstep)
-                            sync += sv_changed.eq(1)
 
                     if not pred_dst_zero:
                         if (((1<<cur_dststep) & self.dstmask) == 0) and
                               (cur_dststep != vl):
                             comb += new_svstate.dststep.eq(next_dststep)
                             comb += update_svstate.eq(1)
-                            sync += sv_changed.eq(1)
 
                     if update_svstate:
                         m.next = "DECODE_SV"
