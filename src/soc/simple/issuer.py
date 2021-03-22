@@ -77,18 +77,23 @@ def get_predint(m, mask, name):
     this is identical to the equivalent function in ISACaller except that
     it doesn't read the INT directly, it just decodes "what needs to be done"
     i.e. which INT reg, whether it is shifted and whether it is bit-inverted.
+
+    * all1s is set to indicate that no mask is to be applied.
+    * regread indicates the GPR register number to be read
+    * invert is set to indicate that the register value is to be inverted
+    * unary indicates that the contents of the register is to be shifted 1<<r3
     """
     comb = m.d.comb
     regread = Signal(5, name=name+"regread")
     invert = Signal(name=name+"invert")
     unary = Signal(name=name+"unary")
+    all1s = Signal(name=name+"all1s")
     with m.Switch(mask):
         with m.Case(SVP64PredInt.ALWAYS.value):
-            comb += regread.eq(0)
-            comb += invert.eq(1)
+            comb += all1s.eq(1)      # use 0b1111 (all ones)
         with m.Case(SVP64PredInt.R3_UNARY.value):
             comb += regread.eq(3)
-            comb += unary.eq(1)
+            comb += unary.eq(1)        # 1<<r3 - shift r3 (single bit)
         with m.Case(SVP64PredInt.R3.value):
             comb += regread.eq(3)
         with m.Case(SVP64PredInt.R3_N.value):
@@ -104,7 +109,7 @@ def get_predint(m, mask, name):
         with m.Case(SVP64PredInt.R30_N.value):
             comb += regread.eq(30)
             comb += invert.eq(1)
-    return regread, invert, unary
+    return regread, invert, unary, all1s
 
 def get_predcr(m, mask, name):
     """decode SVP64 predicate CR to reg number field and invert status
@@ -406,8 +411,8 @@ class TestIssuerInternal(Elaboratable):
         #               comd += self.srcmask[cr_idx].eq(inv ^ cr_bit)
 
         # decode predicates
-        sregread, sinvert, sunary = get_predint(m, srcpred, 's')
-        dregread, dinvert, dunary = get_predint(m, dstpred, 'd')
+        sregread, sinvert, sunary, sall1s = get_predint(m, srcpred, 's')
+        dregread, dinvert, dunary, dall1s = get_predint(m, dstpred, 'd')
         sidx, scrinvert = get_predcr(m, srcpred, 's')
         didx, dcrinvert = get_predcr(m, dstpred, 'd')
 
@@ -418,7 +423,7 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(pred_insn_valid_i):
                     with m.If(predmode == SVP64PredMode.INT):
                         # skip fetching destination mask register, when zero
-                        with m.If(dregread == 0):
+                        with m.If(dall1s):
                             sync += self.dstmask.eq(-1)
                             # directly go to fetch source mask register
                             # guaranteed not to be zero (otherwise predmode
@@ -441,7 +446,7 @@ class TestIssuerInternal(Elaboratable):
                 inv = Repl(dinvert, 64)
                 sync += self.dstmask.eq(self.int_pred.data_o ^ inv)
                 # skip fetching source mask register, when zero
-                with m.If(sregread == 0):
+                with m.If(sall1s):
                     sync += self.srcmask.eq(-1)
                     m.next = "FETCH_PRED_DONE"
                 # fetch source predicate register
