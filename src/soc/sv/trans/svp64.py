@@ -428,9 +428,9 @@ class SVP64Asm:
                     has_pmask = True
                     has_smask = True
                 # predicate mask (dest)
-                if encmode.startswith("dm="):
+                elif encmode.startswith("dm="):
                     pme = encmode
-                    pmmode, pmask = decode_predicate(encmode[2:])
+                    pmmode, pmask = decode_predicate(encmode[3:])
                     mmode = pmmode
                     has_pmask = True
                 # predicate mask (src, twin-pred)
