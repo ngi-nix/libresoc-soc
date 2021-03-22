@@ -353,7 +353,8 @@ class TestIssuerInternal(Elaboratable):
                     # here or maybe even in INSN_READ state, if svp64_mode
                     # detected, in order to trigger - and wait for - the
                     # predicate reading.
-                    pmode = pdecode2.rm_dec.predmode
+                    if self.svp64_en:
+                        pmode = pdecode2.rm_dec.predmode
                     """
                     if pmode != SVP64PredMode.ALWAYS.value:
                         fire predicate loading FSM and wait before
@@ -556,7 +557,10 @@ class TestIssuerInternal(Elaboratable):
                         comb += self.insn_done.eq(1)
                         m.next = "ISSUE_START"
                     with m.Else():
-                        m.next = "PRED_START"  # start fetching the predicate
+                        if self.svp64_en:
+                            m.next = "PRED_START"  # start fetching predicate
+                        else:
+                            m.next = "INSN_EXECUTE" # skip predication
 
             with m.State("PRED_START"):
                 comb += pred_insn_valid_i.eq(1)  # tell fetch_pred to start
@@ -581,8 +585,9 @@ class TestIssuerInternal(Elaboratable):
 
                 with m.If(is_svp64_mode):
 
-                    pred_src_zero = pdecode2.rm_dec.pred_sz
-                    pred_dst_zero = pdecode2.rm_dec.pred_dz
+                    if self.svp64_en:
+                        pred_src_zero = pdecode2.rm_dec.pred_sz
+                        pred_dst_zero = pdecode2.rm_dec.pred_dz
 
                     """
                     if not pred_src_zero:
@@ -900,9 +905,10 @@ class TestIssuerInternal(Elaboratable):
                        exec_insn_valid_i, exec_insn_ready_o,
                        exec_pc_valid_o, exec_pc_ready_i)
 
-        self.fetch_predicate_fsm(m,
-                                 pred_insn_valid_i, pred_insn_ready_o,
-                                 pred_mask_valid_o, pred_mask_ready_i)
+        if self.svp64_en:
+            self.fetch_predicate_fsm(m,
+                                     pred_insn_valid_i, pred_insn_ready_o,
+                                     pred_mask_valid_o, pred_mask_ready_i)
 
         self.execute_fsm(m, core, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
