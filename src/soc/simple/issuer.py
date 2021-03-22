@@ -417,10 +417,20 @@ class TestIssuerInternal(Elaboratable):
                 comb += pred_insn_ready_o.eq(1)
                 with m.If(pred_insn_valid_i):
                     with m.If(predmode == SVP64PredMode.INT):
+                        # skip fetching destination mask register, when zero
+                        with m.If(dregread == 0):
+                            sync += self.dstmask.eq(-1)
+                            # directly go to fetch source mask register
+                            # guaranteed not to be zero (otherwise predmode
+                            # would be SVP64PredMode.ALWAYS, not INT)
+                            comb += int_pred.addr.eq(sregread)
+                            comb += int_pred.ren.eq(1)
+                            m.next = "INT_SRC_READ"
                         # fetch destination predicate register
-                        comb += int_pred.addr.eq(dregread)
-                        comb += int_pred.ren.eq(1)
-                        m.next = "INT_DST_READ"
+                        with m.Else():
+                            comb += int_pred.addr.eq(dregread)
+                            comb += int_pred.ren.eq(1)
+                            m.next = "INT_DST_READ"
                     with m.Else():
                         sync += self.srcmask.eq(-1)
                         sync += self.dstmask.eq(-1)
@@ -430,10 +440,15 @@ class TestIssuerInternal(Elaboratable):
                 # store destination mask
                 inv = Repl(dinvert, 64)
                 sync += self.dstmask.eq(self.int_pred.data_o ^ inv)
+                # skip fetching source mask register, when zero
+                with m.If(sregread == 0):
+                    sync += self.srcmask.eq(-1)
+                    m.next = "FETCH_PRED_DONE"
                 # fetch source predicate register
-                comb += int_pred.addr.eq(sregread)
-                comb += int_pred.ren.eq(1)
-                m.next = "INT_SRC_READ"
+                with m.Else():
+                    comb += int_pred.addr.eq(sregread)
+                    comb += int_pred.ren.eq(1)
+                    m.next = "INT_SRC_READ"
 
             with m.State("INT_SRC_READ"):
                 # store source mask
