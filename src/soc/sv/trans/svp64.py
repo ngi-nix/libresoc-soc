@@ -419,8 +419,16 @@ class SVP64Asm:
 
             # ok let's start identifying opcode augmentation fields
             for encmode in opmodes:
-                # predicate mask (dest)
+                # predicate mask (src and dest)
                 if encmode.startswith("m="):
+                    pme = encmode
+                    pmmode, pmask = decode_predicate(encmode[2:])
+                    smmode, smask = pmmode, pmask
+                    mmode = pmmode
+                    has_pmask = True
+                    has_smask = True
+                # predicate mask (dest)
+                if encmode.startswith("dm="):
                     pme = encmode
                     pmmode, pmask = decode_predicate(encmode[2:])
                     mmode = pmmode
@@ -621,7 +629,8 @@ if __name__ == '__main__':
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
                  'sv.isel 64.v, 3, 2, 65.v',
-                 'sv.setb/m=r3/sm=1<<r3 5, 31',
+                 'sv.setb/pm=r3/sm=1<<r3 5, 31',
+                 'sv.setb/m=r3 5, 31',
                  'sv.setb/vec2 5, 31',
                  'sv.setb/sw=8/ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
