@@ -48,67 +48,8 @@ def rpte_leaf(r):
 ## Shift address bits 61--12 right by 0--47 bits and
 ## supply the least significant 16 bits of the result.
 def addrshift(addr,shift):
-    # shift : unsigned(5 downto 0);
-    print("addrshift")
-    print("addr",addr)
-
-    sh1 = None    # std_ulogic_vector(30 downto 0);
-    sh2 = None    # std_ulogic_vector(18 downto 0);
-    result = None # std_ulogic_vector(15 downto 0);
-
-    n = 64
-    if shift[0:1].value==0:
-       print("s1==0")
-       sh1 = addr[n-42-1:n-12] # r.addr(42 downto 12);
-    elif shift[0:1].value==1:
-       print("s1==1")
-       sh1 = addr[n-58-1:n-28] # r.addr(58 downto 28);
-    else:
-       print("s1==else")
-       zero = SelectableInt(0,13) # "0000000000000"
-       sh1 = selectconcat(zero,addr[n-61-1:n-44]) # r.addr(61 downto 44);
-    print("sh1=",sh1)
-
-    n=31
-    assert(sh1.bits==n)
-
-    if shift[1:2].value==0:
-       print("s2==0")
-       sh2 = sh1[n-18-1:n] # sh1(18 downto 0);
-    elif shift[1:2].value==1:
-       print("s2==2")
-       sh2 = sh1[n-22-1:n-4] # sh1(22 downto 4);
-    elif shift[1:2].value==2:
-       print("s2==3")
-       sh2 = sh1[n-26-1:n-8] # sh1(26 downto 8);
-    else:
-       print("s2==else")
-       sh2 = sh1[n-30-1:n-12] # sh1(30 downto 12);
-    print("sh2=",sh2)
-
-    n=19
-    assert(sh2.bits==n)
-
-    if shift[3:4].value==0:
-       print("s3==0")
-       result = sh2[n-15-1:n]   # sh2(15 downto 0);
-       print("xxx",result)
-    elif shift[3:4].value==1:
-       print("s3==2")
-       result = sh2[n-16-1:n-1] # sh2(16 downto 1);
-    elif shift[3:4].value==2:
-       print("s3==3")
-       result = sh2[n-17-1:n-2] # sh2(17 downto 2);
-    else:
-       print("s3==else")
-       result = sh2[n-18-1:n-3] # sh2(18 downto 3);
-
-    print("result of addrshift",result)
-
-    n=16
-    assert(result.bits==n)
-
-    return result
+    x = addr.value >> shift.value
+    return SelectableInt(x,16)
 
 def NLB(x):
     """
