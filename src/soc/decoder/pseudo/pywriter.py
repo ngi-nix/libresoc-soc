@@ -140,6 +140,7 @@ if __name__ == '__main__':
     if sources[0] == "noall": # don't rewrite all.py
         write_isa_class = False
         sources.pop(0)
+    print ("sources", write_isa_class, sources)
     for source in sources:
         isa.write_pysource(source)
         isa.patch_if_needed(source)
