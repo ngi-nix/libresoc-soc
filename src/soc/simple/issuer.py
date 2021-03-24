@@ -590,6 +590,9 @@ class TestIssuerInternal(Elaboratable):
                         pred_dst_zero = pdecode2.rm_dec.pred_dz
 
                     """
+                    TODO: actually, can use
+                    PriorityEncoder(self.srcmask | (1<<cur_srcstep))
+
                     if not pred_src_zero:
                         if (((1<<cur_srcstep) & self.srcmask) == 0) and
                               (cur_srcstep != vl):
