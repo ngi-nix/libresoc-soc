@@ -91,6 +91,14 @@ class ISA:
         rewrite.append(l)
         while lines:
             print(l)
+            # look for HTML comment, if starting, skip line.
+            # XXX this is braindead!  it doesn't look for the end
+            # so please put ending of comments on one line:
+            # <!-- line 1 comment -->
+            # <!-- line 2 comment -->
+            if l.startswith('<!--'):
+                print ("skipping comment", l)
+                continue
             # expect get heading
             assert l.startswith('#'), ("# not found in line %s" % l)
 
