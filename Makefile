@@ -24,7 +24,7 @@ develop:
 	python3 src/soc/decoder/pseudo/pywriter.py
 
 run_sim: install
-	python3 src/soc/simple/issuer_verilog.py \
+	python3 src/soc/simple/issuer_verilog.py --disable-svp64\
 			src/soc/litex/florent/libresoc/libresoc.v
 	python3 src/soc/litex/florent/sim.py --cpu=libresoc
 
