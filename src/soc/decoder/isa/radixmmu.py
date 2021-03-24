@@ -486,7 +486,7 @@ class RADIX:
         nonzero = addr[1:32] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
         print ("RADIX _segment_check nonzero", bin(nonzero.value))
         print ("RADIX _segment_check addr[0-1]", addr[0].value, addr[1].value)
-        if addr[0] != addr[1] or nonzero == 1:
+        if addr[0] != addr[1] or nonzero != 0:
             return "segerror"
         limit = shift + (31 - 12)
         if mbits < 5 or mbits > 16 or mbits > limit:
