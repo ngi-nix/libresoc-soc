@@ -136,7 +136,12 @@ if __name__ == '__main__':
         sources = isa.page.keys()
     else:
         sources = sys.argv[1:]
+    write_isa_class = True
+    if sources[0] == "noall": # don't rewrite all.py
+        write_isa_class = False
+        sources.pop(0)
     for source in sources:
         isa.write_pysource(source)
         isa.patch_if_needed(source)
-    isa.write_isa_class()
+    if write_isa_class:
+        isa.write_isa_class()
