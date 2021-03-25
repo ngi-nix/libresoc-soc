@@ -208,7 +208,6 @@ testmem = {
            0x30000:     # RADIX_ROOT_PTE
                         # V = 1 L = 0 NLB = 0x400 NLS = 9
            0x8000000000040009,
-########   0x4000000 #### wrong address calculated by _get_pgtable_addr
            0x40000:     # RADIX_SECOND_LEVEL
                         # 	   V = 1 L = 1 SW = 0 RPN = 0
 	                    # R = 1 C = 1 ATT = 0 EAA 0x7
@@ -220,6 +219,14 @@ testmem = {
           }
           
 
+testresult = """
+    prtbl = 1000000
+    DCACHE GET 1000000 PROCESS_TABLE_3
+    DCACHE GET 30000 RADIX_ROOT_PTE V = 1 L = 0
+    DCACHE GET 40000 RADIX_SECOND_LEVEL V = 1 L = 1
+    DCACHE GET 10000 PARTITION_TABLE_2
+translated done 1 err 0 badtree 0 addr 40000 pte 0
+"""
 
 # see qemu/target/ppc/mmu-radix64.c for reference
 class RADIX:
@@ -628,15 +635,6 @@ class RADIX:
                            )
         return res
 
-"""
-    prtbl = 1000000
-    DCACHE GET 1000000
-    DCACHE GET 30000
-    DCACHE GET 40000
-    DCACHE GET 10000
-translated done 1 err 0 badtree 0 addr 40000 pte 0
-"""
-
 class TestRadixMMU(unittest.TestCase):
 
     def test_genmask(self):
@@ -705,6 +703,7 @@ class TestRadixMMU(unittest.TestCase):
         shift = rts
         result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
         print("     walking tree result", result)
+        print("should be",testresult)
 
 
 if __name__ == '__main__':
