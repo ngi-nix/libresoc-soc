@@ -375,8 +375,15 @@ class RADIX:
         print("last 8 bits ----------")
         print
 
+        prtbl = SelectableInt(0x1000000,64) #FIXME do not hardcode
+
         # get address of root entry
+        shift = selectconcat(SelectableInt(0,1),prtbl[58:63]) # TODO verify
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
+        print("starting with addr_next",addr_next)
+
+        assert(addr_next.bits==64)
+        assert(addr_next.value==0x1000000) #TODO
 
         addr_next = SelectableInt(0x30000,64) # radix root for testing
 
@@ -416,8 +423,6 @@ class RADIX:
                 addr_next = self._get_pgtable_addr(mask, pgbase, addrsh)
                 print("addr_next",addr_next)
                 print("addrsh",addrsh)
-                assert(addr_next == 0x40000)
-                return "TODO verify next level"
 
     def _new_lookup(self, data, mbits, shift):
         """
@@ -579,9 +584,9 @@ class RADIX:
             effpid = SelectableInt(0, 32)
         else:
             effpid = pid #self.pid # TODO, check on this
-        zero16 = SelectableInt(0, 16)
+        zero8 = SelectableInt(0, 8)
         zero4 = SelectableInt(0, 4)
-        res = selectconcat(zero16,
+        res = selectconcat(zero8,
                            prtbl[8:28],                        #
                            (prtbl[28:52] & ~finalmask24) |     #
                            (effpid[0:24] & finalmask24),       #
@@ -623,6 +628,14 @@ class RADIX:
                            )
         return res
 
+"""
+    prtbl = 1000000
+    DCACHE GET 1000000
+    DCACHE GET 30000
+    DCACHE GET 40000
+    DCACHE GET 10000
+translated done 1 err 0 badtree 0 addr 40000 pte 0
+"""
 
 class TestRadixMMU(unittest.TestCase):
 
