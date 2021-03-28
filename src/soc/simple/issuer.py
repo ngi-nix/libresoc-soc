@@ -578,45 +578,44 @@ class TestIssuerInternal(Elaboratable):
             with m.State("MASK_WAIT"):
                 comb += pred_mask_ready_i.eq(1) # ready to receive the masks
                 with m.If(pred_mask_valid_o): # predication masks are ready
+                    # with m.If(is_svp64_mode):
+                    #    TODO advance src/dst step to "skip" over predicated-out
+                    #    from self.srcmask and self.dstmask
+                    #    https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
+                    #    but still without exceeding VL in either case
+                    # IMPORTANT: when changing src/dest step, have to
+                    # jump to m.next = "DECODE_SV" to deal with the change in
+                    # SVSTATE
+
+                    with m.If(is_svp64_mode):
+                        if self.svp64_en:
+                            pred_src_zero = pdecode2.rm_dec.pred_sz
+                            pred_dst_zero = pdecode2.rm_dec.pred_dz
+
+                        """
+                        TODO: actually, can use
+                        PriorityEncoder(self.srcmask | (1<<cur_srcstep))
+
+                        if not pred_src_zero:
+                            if (((1<<cur_srcstep) & self.srcmask) == 0) and
+                                  (cur_srcstep != vl):
+                                comb += update_svstate.eq(1)
+                                comb += new_svstate.srcstep.eq(next_srcstep)
+
+                        if not pred_dst_zero:
+                            if (((1<<cur_dststep) & self.dstmask) == 0) and
+                                  (cur_dststep != vl):
+                                comb += new_svstate.dststep.eq(next_dststep)
+                                comb += update_svstate.eq(1)
+
+                        if update_svstate:
+                            m.next = "DECODE_SV"
+                        """
+
                     m.next = "INSN_EXECUTE"
 
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
-                # with m.If(is_svp64_mode):
-                #    TODO advance src/dst step to "skip" over predicated-out
-                #    from self.srcmask and self.dstmask
-                #    https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
-                #    but still without exceeding VL in either case
-                # IMPORTANT: when changing src/dest step, have to
-                # jump to m.next = "DECODE_SV" to deal with the change in
-                # SVSTATE
-
-                with m.If(is_svp64_mode):
-
-                    if self.svp64_en:
-                        pred_src_zero = pdecode2.rm_dec.pred_sz
-                        pred_dst_zero = pdecode2.rm_dec.pred_dz
-
-                    """
-                    TODO: actually, can use
-                    PriorityEncoder(self.srcmask | (1<<cur_srcstep))
-
-                    if not pred_src_zero:
-                        if (((1<<cur_srcstep) & self.srcmask) == 0) and
-                              (cur_srcstep != vl):
-                            comb += update_svstate.eq(1)
-                            comb += new_svstate.srcstep.eq(next_srcstep)
-
-                    if not pred_dst_zero:
-                        if (((1<<cur_dststep) & self.dstmask) == 0) and
-                              (cur_dststep != vl):
-                            comb += new_svstate.dststep.eq(next_dststep)
-                            comb += update_svstate.eq(1)
-
-                    if update_svstate:
-                        m.next = "DECODE_SV"
-                    """
-
                 comb += exec_insn_valid_i.eq(1) # trigger execute
                 with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
