@@ -541,17 +541,10 @@ class TestIssuerInternal(Elaboratable):
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
 
-            # decode the instruction when it arrives
+            # wait for an instruction to arrive from Fetch
             with m.State("INSN_WAIT"):
                 comb += fetch_insn_ready_i.eq(1)
                 with m.If(fetch_insn_valid_o):
-                    # decode the instruction
-                    sync += core.e.eq(pdecode2.e)
-                    sync += core.state.eq(cur_state)
-                    sync += core.raw_insn_i.eq(dec_opcode_i)
-                    sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    # set RA_OR_ZERO detection in satellite decoders
-                    sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                     # loop into ISSUE_START if it's a SVP64 instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
@@ -568,7 +561,7 @@ class TestIssuerInternal(Elaboratable):
                         if self.svp64_en:
                             m.next = "PRED_START"  # start fetching predicate
                         else:
-                            m.next = "INSN_EXECUTE" # skip predication
+                            m.next = "DECODE_SV"  # skip predication
 
             with m.State("PRED_START"):
                 comb += pred_insn_valid_i.eq(1)  # tell fetch_pred to start
@@ -612,7 +605,7 @@ class TestIssuerInternal(Elaboratable):
                             m.next = "DECODE_SV"
                         """
 
-                    m.next = "INSN_EXECUTE"
+                    m.next = "DECODE_SV"
 
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
@@ -676,14 +669,15 @@ class TestIssuerInternal(Elaboratable):
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
 
-            # need to decode the instruction again, after updating SRCSTEP
-            # in the previous state.
-            # mostly a copy of INSN_WAIT, but without the actual wait
+            # after src/dst step have been updated, we are ready
+            # to decode the instruction
             with m.State("DECODE_SV"):
                 # decode the instruction
                 sync += core.e.eq(pdecode2.e)
                 sync += core.state.eq(cur_state)
+                sync += core.raw_insn_i.eq(dec_opcode_i)
                 sync += core.bigendian_i.eq(self.core_bigendian_i)
+                # set RA_OR_ZERO detection in satellite decoders
                 sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                 m.next = "INSN_EXECUTE"  # move to "execute"
 
