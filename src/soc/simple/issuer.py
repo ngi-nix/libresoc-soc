@@ -607,6 +607,18 @@ class TestIssuerInternal(Elaboratable):
 
                     m.next = "DECODE_SV"
 
+            # after src/dst step have been updated, we are ready
+            # to decode the instruction
+            with m.State("DECODE_SV"):
+                # decode the instruction
+                sync += core.e.eq(pdecode2.e)
+                sync += core.state.eq(cur_state)
+                sync += core.raw_insn_i.eq(dec_opcode_i)
+                sync += core.bigendian_i.eq(self.core_bigendian_i)
+                # set RA_OR_ZERO detection in satellite decoders
+                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
+                m.next = "INSN_EXECUTE"  # move to "execute"
+
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
                 comb += exec_insn_valid_i.eq(1) # trigger execute
@@ -668,18 +680,6 @@ class TestIssuerInternal(Elaboratable):
                         comb += new_svstate.eq(self.svstate_i.data)
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
-
-            # after src/dst step have been updated, we are ready
-            # to decode the instruction
-            with m.State("DECODE_SV"):
-                # decode the instruction
-                sync += core.e.eq(pdecode2.e)
-                sync += core.state.eq(cur_state)
-                sync += core.raw_insn_i.eq(dec_opcode_i)
-                sync += core.bigendian_i.eq(self.core_bigendian_i)
-                # set RA_OR_ZERO detection in satellite decoders
-                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
-                m.next = "INSN_EXECUTE"  # move to "execute"
 
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):
