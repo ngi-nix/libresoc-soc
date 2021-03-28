@@ -73,7 +73,7 @@ class NonProductionCore(Elaboratable):
 
         # test to see if regfile ports should be reduced
         self.regreduce_en = (hasattr(pspec, "regreduce") and
-                             (pspec.regreduce_en == True))
+                             (pspec.regreduce == True))
 
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
@@ -469,14 +469,15 @@ class NonProductionCore(Elaboratable):
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
 
-            # argh, more port-merging
-            if regfile == 'INT':
-                fuspecs['o'] = [fuspecs.pop('o')]
-                fuspecs['o'].append(fuspecs.pop('o1'))
-            if regfile == 'FAST':
-                fuspecs['fast1'] = [fuspecs.pop('fast1')]
-                if 'fast2' in fuspecs:
-                    fuspecs['fast1'].append(fuspecs.pop('fast2'))
+            if self.regreduce_en:
+                # argh, more port-merging
+                if regfile == 'INT':
+                    fuspecs['o'] = [fuspecs.pop('o')]
+                    fuspecs['o'].append(fuspecs.pop('o1'))
+                if regfile == 'FAST':
+                    fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                    if 'fast2' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 self.connect_wrport(m, fu_bitdict, wrpickers,
