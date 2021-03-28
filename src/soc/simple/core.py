@@ -71,6 +71,9 @@ class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
         self.pspec = pspec
 
+        # test is SVP64 is to be enabled
+        self.svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
+
         # test to see if regfile ports should be reduced
         self.regreduce_en = (hasattr(pspec, "regreduce") and
                              (pspec.regreduce == True))
@@ -87,7 +90,8 @@ class NonProductionCore(Elaboratable):
         self.regs = RegFiles(pspec)
 
         # instruction decoder - needs a Trap-capable Record (captures EINT etc.)
-        self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand)
+        self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand,
+                                regreduce_en=self.regreduce_en)
 
         # SVP64 RA_OR_ZERO needs to know if the relevant EXTRA2/3 field is zero
         self.sv_a_nz = Signal()
@@ -119,7 +123,9 @@ class NonProductionCore(Elaboratable):
                 continue
             self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
                                                       final=True,
-                                                      state=self.state)
+                                                      state=self.state,
+                                            svp64_en=self.svp64_en,
+                                            regreduce_en=self.regreduce_en)
             self.des[funame] = self.decoders[funame].do
 
         if "mmu0" in self.decoders:
