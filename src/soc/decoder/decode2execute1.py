@@ -5,7 +5,8 @@ based on Anton Blanchard microwatt decode2.vhdl
 """
 from nmigen import Signal, Record
 from nmutil.iocontrol import RecordObject
-from soc.decoder.power_enums import MicrOp, CryIn, Function, SPR, LDSTMode
+from soc.decoder.power_enums import (MicrOp, CryIn, Function,
+                                     SPRfull, SPRreduced, LDSTMode)
 from soc.consts import TT
 from soc.experiment.mem_types import LDSTException
 
@@ -83,7 +84,13 @@ class Decode2ToOperand(IssuerDecode2ToOperand):
 
 class Decode2ToExecute1Type(RecordObject):
 
-    def __init__(self, name=None, asmcode=True, opkls=None, do=None):
+    def __init__(self, name=None, asmcode=True, opkls=None, do=None,
+                       regreduce_en=False):
+
+        if regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
 
         if do is None and opkls is None:
             opkls = Decode2ToOperand

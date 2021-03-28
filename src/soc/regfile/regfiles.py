@@ -26,7 +26,7 @@ Links:
 
 from soc.regfile.regfile import RegFile, RegFileArray, RegFileMem
 from soc.regfile.virtual_port import VirtualRegPort
-from soc.decoder.power_enums import SPR
+from soc.decoder.power_enums import SPRfull, SPRreduced
 
 
 # "State" Regfile
@@ -177,7 +177,10 @@ class SPRRegs(RegFileMem):
     * write-through capability (read on same cycle as write)
     """
     def __init__(self, svp64_en=False, regreduce_en=False):
-        n_sprs = len(SPR)
+        if regreduce_en:
+            n_sprs = len(SPRreduced)
+        else:
+            n_sprs = len(SPRfull)
         super().__init__(width=64, depth=n_sprs)
         self.w_ports = {'spr1': self.write_port("spr1")}
         self.r_ports = {'spr1': self.read_port("spr1")}

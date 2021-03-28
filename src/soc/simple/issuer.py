@@ -158,6 +158,10 @@ class TestIssuerInternal(Elaboratable):
         # test is SVP64 is to be enabled
         self.svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
 
+        # and if regfiles are reduced
+        self.regreduce_en = (hasattr(pspec, "regreduce") and
+                                            (pspec.regreduce == True))
+
         # JTAG interface.  add this right at the start because if it's
         # added it *modifies* the pspec, by adding enable/disable signals
         # for parts of the rest of the core
@@ -207,7 +211,8 @@ class TestIssuerInternal(Elaboratable):
         self.cur_state = CoreState("cur") # current state (MSR/PC/SVSTATE)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand,
-                                     svp64_en=self.svp64_en)
+                                     svp64_en=self.svp64_en,
+                                     regreduce_en=self.regreduce_en)
         if self.svp64_en:
             self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
 

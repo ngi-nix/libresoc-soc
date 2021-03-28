@@ -1,6 +1,8 @@
 from soc.regfile.regfiles import FastRegs
-from soc.decoder.power_enums import SPR, spr_dict
+from soc.decoder.power_enums import SPRfull as SPR, spr_dict
 
+# note that we can get away with using SPRfull here because the values
+# (numerical values) are what is used for lookup.
 spr_to_fast = { SPR.CTR: FastRegs.CTR,
                 SPR.LR: FastRegs.LR,
                 SPR.TAR: FastRegs.TAR,

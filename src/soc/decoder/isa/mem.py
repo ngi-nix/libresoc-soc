@@ -16,8 +16,6 @@ from copy import copy
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
 
-from soc.decoder.power_enums import SPR as DEC_SPR
-
 from soc.decoder.helpers import exts, gtu, ltu, undefined
 import math
 import sys

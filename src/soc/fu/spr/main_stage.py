@@ -7,7 +7,7 @@
 from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.spr.pipe_data import SPRInputData, SPROutputData
-from soc.decoder.power_enums import MicrOp, SPR, XER_bits
+from soc.decoder.power_enums import MicrOp, SPRfull, SPRreduced, XER_bits
 
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
@@ -17,6 +17,10 @@ from soc.decoder.power_decoder2 import decode_spr_num
 class SPRMainStage(PipeModBase):
     def __init__(self, pspec):
         super().__init__(pspec, "spr_main")
+        # test if regfiles are reduced
+        self.regreduce_en = (hasattr(pspec, "regreduce") and
+                                            (pspec.regreduce == True))
+
         self.fields = DecodeFields(SignalBitRange, [self.i.ctx.op.insn])
         self.fields.create_specs()
 
@@ -27,6 +31,10 @@ class SPRMainStage(PipeModBase):
         return SPROutputData(self.pspec)
 
     def elaborate(self, platform):
+        if self.regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
         m = Module()
         comb = m.d.comb
         op = self.i.ctx.op

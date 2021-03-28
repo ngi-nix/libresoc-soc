@@ -155,10 +155,11 @@ class TestRunner(FHDLTestCase):
         dmi = issuer.dbg.dmi
         pdecode2 = issuer.pdecode2
         l0 = core.l0
+        regreduce_en = pspec.regreduce_en == True
 
         # copy of the decoder for simulator
         simdec = create_pdecode()
-        simdec2 = PowerDecode2(simdec)
+        simdec2 = PowerDecode2(simdec, regreduce_en=regreduce_en)
         m.submodules.simdec2 = simdec2  # pain in the neck
 
         # run core clock at same rate as test clock
