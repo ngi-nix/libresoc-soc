@@ -439,7 +439,7 @@ def get_spr_enum(full_file):
     has the option to reduce the enum to a much shorter list.
     this saves drastically on the size of the regfile
     """
-    short_list = {'PIDR', 'DAR', 'PRTBL', 'DSIRS', 'SVSRR', 'SVSTATE',
+    short_list = {'PIDR', 'DAR', 'PRTBL', 'DSISR', 'SVSRR0', 'SVSTATE',
                   'SPRG0_priv', 'SPRG1_priv', 'SPRG2_priv', 'SPRG3_priv',
                   'SPRG3'
                  }
