@@ -71,6 +71,10 @@ class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
         self.pspec = pspec
 
+        # test to see if regfile ports should be reduced
+        self.regreduce_en = (hasattr(pspec, "regreduce") and
+                             (pspec.regreduce_en == True))
+
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]
@@ -339,14 +343,15 @@ class NonProductionCore(Elaboratable):
 
             # argh.  an experiment to merge RA and RB in the INT regfile
             # (we have too many read/write ports)
-            #if regfile == 'INT':
-                #fuspecs['rabc'] = [fuspecs.pop('rb')]
-                #fuspecs['rabc'].append(fuspecs.pop('rc'))
-                #fuspecs['rabc'].append(fuspecs.pop('ra'))
-            #if regfile == 'FAST':
-            #    fuspecs['fast1'] = [fuspecs.pop('fast1')]
-            #    if 'fast2' in fuspecs:
-            #        fuspecs['fast1'].append(fuspecs.pop('fast2'))
+            if self.regreduce_en:
+                if regfile == 'INT':
+                    fuspecs['rabc'] = [fuspecs.pop('rb')]
+                    fuspecs['rabc'].append(fuspecs.pop('rc'))
+                    fuspecs['rabc'].append(fuspecs.pop('ra'))
+                if regfile == 'FAST':
+                    fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                    if 'fast2' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):

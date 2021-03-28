@@ -145,6 +145,7 @@ class TestRunner(FHDLTestCase):
                              nocore=False,
                              xics=False,
                              gpio=False,
+                             regreduce=True,
                              svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
