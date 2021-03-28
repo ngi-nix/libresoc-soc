@@ -48,7 +48,7 @@ class StateRegs(RegFileArray):
     PC = 0
     MSR = 1
     SVSTATE = 2
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         super().__init__(64, 3)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
@@ -69,7 +69,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
     """
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         super().__init__(64, 32)
         self.w_ports = {'o': self.write_port("dest1"),
                         #'o1': self.write_port("dest2") # for now (LD/ST update)
@@ -77,8 +77,9 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
         self.r_ports = {'ra': self.read_port("src1"),
                         'rb': self.read_port("src2"),
                         'rc': self.read_port("src3"),
-                        'pred': self.read_port("pred"), # for predicate mask
                         'dmi': self.read_port("dmi")} # needed for Debug (DMI)
+        if svp64_en:
+            self.r_ports['pred'] = self.read_port("pred") # for predicate mask
 
 
 # Fast SPRs Regfile
@@ -103,7 +104,7 @@ class FastRegs(RegFileMem): #RegFileArray):
     DEC = 6
     TB = 7
     N_REGS = 8 # maximum number of regs
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         super().__init__(64, self.N_REGS)
         self.w_ports = {'fast1': self.write_port("dest1"),
                         'issue': self.write_port("issue"), # writing DEC/TB
@@ -123,17 +124,18 @@ class CRRegs(VirtualRegPort):
     * Array-based unary-indexed (not binary-indexed)
     * write-through capability (read on same cycle as write)
     """
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         super().__init__(32, 8, rd2=True)
         self.w_ports = {'full_cr': self.full_wr, # 32-bit (masked, 8-en lines)
                         'cr_a': self.write_port("dest1"), # 4-bit, unary-indexed
                         'cr_b': self.write_port("dest2")} # 4-bit, unary-indexed
         self.r_ports = {'full_cr': self.full_rd, # 32-bit (masked, 8-en lines)
                         'full_cr_dbg': self.full_rd2, # for DMI
-                        'cr_pred': self.read_port("cr_pred"), # for predicate
                         'cr_a': self.read_port("src1"),
                         'cr_b': self.read_port("src2"),
                         'cr_c': self.read_port("src3")}
+        if svp64_en:
+            self.r_ports['cr_pred'] = self.read_port("cr_pred") # for predicate
 
 
 # XER Regfile
@@ -148,7 +150,7 @@ class XERRegs(VirtualRegPort):
     SO=0 # this is actually 2-bit but we ignore 1 bit of it
     CA=1 # CA and CA32
     OV=2 # OV and OV32
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         super().__init__(6, 3)
         self.w_ports = {'full_xer': self.full_wr, # 6-bit (masked, 3-en lines)
                         'xer_so': self.write_port("dest1"),
@@ -169,7 +171,7 @@ class SPRRegs(RegFileMem):
     * binary-indexed but REQUIRES MAPPING
     * write-through capability (read on same cycle as write)
     """
-    def __init__(self):
+    def __init__(self, svp64_en=False):
         n_sprs = len(SPR)
         super().__init__(width=64, depth=n_sprs)
         self.w_ports = {'spr1': self.write_port("spr1")}
@@ -178,7 +180,10 @@ class SPRRegs(RegFileMem):
 
 # class containing all regfiles: int, cr, xer, fast, spr
 class RegFiles:
-    def __init__(self):
+    def __init__(self, pspec):
+        # test is SVP64 is to be enabled
+        svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
+
         self.rf = {}
         # create regfiles here, Factory style
         for (name, kls) in [('int', IntRegs),
@@ -187,7 +192,7 @@ class RegFiles:
                             ('fast', FastRegs),
                             ('state', StateRegs),
                             ('spr', SPRRegs),]:
-            rf = self.rf[name] = kls()
+            rf = self.rf[name] = kls(svp64_en)
             # also add these as instances, self.state, self.fast, self.cr etc.
             setattr(self, name, rf)
 

@@ -80,7 +80,7 @@ class NonProductionCore(Elaboratable):
         self.fus = AllFunctionUnits(pspec, pilist=[pi])
 
         # register files (yes plural)
-        self.regs = RegFiles()
+        self.regs = RegFiles(pspec)
 
         # instruction decoder - needs a Trap-capable Record (captures EINT etc.)
         self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand)

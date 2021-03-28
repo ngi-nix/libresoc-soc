@@ -241,9 +241,10 @@ class TestIssuerInternal(Elaboratable):
         self.cr_r = crrf.r_ports['full_cr_dbg'] # CR read
         self.xer_r = xerrf.r_ports['full_xer'] # XER read
 
-        # for predication
-        self.int_pred = intrf.r_ports['pred'] # INT predicate read
-        self.cr_pred = crrf.r_ports['cr_pred'] # CR predicate read
+        if self.svp64_en:
+            # for predication
+            self.int_pred = intrf.r_ports['pred'] # INT predicate read
+            self.cr_pred = crrf.r_ports['cr_pred'] # CR predicate read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -384,6 +385,8 @@ class TestIssuerInternal(Elaboratable):
         later, a faster way would be to use the 32-bit-wide CR port but
         this is more complex decoding, here.  equivalent code used in
         ISACaller is "from soc.decoder.isa.caller import get_predcr"
+
+        note: this ENTIRE FSM is not to be called when svp64 is disabled
         """
         comb = m.d.comb
         sync = m.d.sync
