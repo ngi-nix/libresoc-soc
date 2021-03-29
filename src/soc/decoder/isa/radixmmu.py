@@ -495,7 +495,7 @@ class RADIX:
         # below *directly* match the spec, unlike microwatt which
         # has to turn them around (to LE)
         mask = genmask(shift, 44)
-        nonzero = addr[1:32] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
+        nonzero = addr[2:33] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
         print ("RADIX _segment_check nonzero", bin(nonzero.value))
         print ("RADIX _segment_check addr[0-1]", addr[0].value, addr[1].value)
         if addr[0] != addr[1] or nonzero != 0:
