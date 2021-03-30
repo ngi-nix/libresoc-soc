@@ -451,10 +451,8 @@ class RADIX:
         print("last 8 bits ----------")
         print
 
-        prtbl = SelectableInt(0x1000000,64) #FIXME do not hardcode
-
         # get address of root entry
-        shift = selectconcat(SelectableInt(0,1),prtbl[58:63]) # TODO verify
+        shift = selectconcat(SelectableInt(0,1), prtbl[58:63]) # TODO verify
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
         print("starting with prtable, addr_next",addr_next)
 
@@ -754,11 +752,14 @@ class TestRadixMMU(unittest.TestCase):
         testaddr = 0x1000
         expected = 0x1000
 
+        # starting prtbl
+        prtbl = 0x1000000
+
         # set up dummy minimal ISACaller
         spr = {'DSISR': SelectableInt(0, 64),
                'DAR': SelectableInt(0, 64),
                'PIDR': SelectableInt(0, 64),
-               'PRTBL': SelectableInt(0, 64)
+               'PRTBL': SelectableInt(prtbl, 64)
         }
         # set problem state == 0 (other unit tests, set to 1)
         msr = SelectableInt(0, 64)
@@ -811,11 +812,14 @@ class TestRadixMMU(unittest.TestCase):
         testaddr = 0x1101
         expected = 0x5001101
 
+        # starting prtbl
+        prtbl = 0x1000000
+
         # set up dummy minimal ISACaller
         spr = {'DSISR': SelectableInt(0, 64),
                'DAR': SelectableInt(0, 64),
                'PIDR': SelectableInt(0, 64),
-               'PRTBL': SelectableInt(0, 64)
+               'PRTBL': SelectableInt(prtbl, 64)
         }
         # set problem state == 0 (other unit tests, set to 1)
         msr = SelectableInt(0, 64)
