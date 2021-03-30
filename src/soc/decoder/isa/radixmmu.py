@@ -334,6 +334,8 @@ class RADIX:
         print("fetch data from PROCESS_TABLE_3")
 
         """
+        NOTE _ THIS IS CACHEING OF PGTBL3 / PGTBL0.  WE DO NOT NEED TO DO THIS
+
         if r.addr(63) = '1' then
           v.pgtbl3 := data;
           v.pt3_valid := '1';
@@ -342,12 +344,16 @@ class RADIX:
            v.pt0_valid := '1';
         end if;
 
+        # THIS IS WHEN SETTING THE SPR.  IT HAS NOTHING TO DO WITH RADIXMMU
+
         -- The RIC field of the tlbie instruction comes across on the
         -- sprn bus as bits 2--3.  RIC=2 flushes process table caches.
         if l_in.sprn(3) = '1' then
           v.pt0_valid := '0';
           v.pt3_valid := '0';
         end if;
+
+        # THIS IS AGAIN CACHEING.  WE DO NOT NEED TO DO CACHEING.
 
         if l_in.addr(63) = '0' then
           pgtbl := r.pgtbl0;
@@ -361,6 +367,9 @@ class RADIX:
           -- need to fetch process table entry
           -- set v.shift so we can use finalmask for generating
           -- the process table entry address
+
+          # THIS HAS ALREADY BEEN DONE
+
           v.shift := unsigned('0' & r.prtbl(4 downto 0));
           v.state := PROC_TBL_READ;
         elsif mbits = 0 then
