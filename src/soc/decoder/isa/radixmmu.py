@@ -389,8 +389,8 @@ class RADIX:
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
         print("starting with addr_next",addr_next)
 
-        assert(addr_next.bits==64)
-        assert(addr_next.value==0x1000000) #TODO
+        assert(addr_next.bits == 64)
+        assert(addr_next.value == 0x1000000) #TODO
 
         addr_next = SelectableInt(0x30000,64) # radix root for testing
 
@@ -642,7 +642,7 @@ class TestRadixMMU(unittest.TestCase):
         mask = genmask(shift, 43)
         print ("    mask", bin(mask.value))
 
-        self.assertEqual(sum([1, 2, 3]), 6, "Should be 6")
+        self.assertEqual(mask.value, 0b11111, "mask should be 5 1s")
 
     def test_get_pgtable_addr(self):
 
@@ -654,8 +654,8 @@ class TestRadixMMU(unittest.TestCase):
         pgbase = SelectableInt(0,64)
         addrsh = SelectableInt(0,16)
         ret = dut._get_pgtable_addr(mask_size, pgbase, addrsh)
-        print("ret=",ret)
-        assert(ret==0)
+        print("ret=", ret)
+        self.assertEqual(ret, 0, "pgtbl_addr should be 0")
 
     def test_walk_tree(self):
         # set up dummy minimal ISACaller
@@ -703,7 +703,11 @@ class TestRadixMMU(unittest.TestCase):
         shift = rts
         result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
         print("     walking tree result", result)
-        print("should be",testresult)
+        print("should be", testresult)
+        expected = 0x1000000
+        self.assertEqual(result.value, expected,
+                             "expected 0x%x got 0x%x" % (expected,
+                                                    result.value))
 
 
 if __name__ == '__main__':
