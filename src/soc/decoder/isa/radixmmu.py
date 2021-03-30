@@ -198,7 +198,6 @@ def NLS(x):
 
 """
 
-testaddr = 0x10000
 testmem = {
 
            0x10000:    # PARTITION_TABLE_2 (not implemented yet)
@@ -217,7 +216,27 @@ testmem = {
                        # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
            0x40000000000300ad,
           }
-          
+
+# this one has a 2nd level RADIX with a RPN of 0x5000
+testmem2 = {
+
+           0x10000:    # PARTITION_TABLE_2 (not implemented yet)
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           0x800000000100000b,
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           0x8000000000040009,
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # 	   V = 1 L = 1 SW = 0 RPN = 0x5000
+	                    # R = 1 C = 1 ATT = 0 EAA 0x7
+           0xc000000005000187,
+
+           0x1000000:   # PROCESS_TABLE_3
+                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           0x40000000000300ad,
+          }
+
 
 testresult = """
     prtbl = 1000000
@@ -265,6 +284,7 @@ class RADIX:
         #shift = SelectableInt(0, 32)
 
         pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
+
         # use pte to caclculate phys address
         return self.mem.ld(address, width, swap, check_in_mem)
 
@@ -292,13 +312,9 @@ class RADIX:
     def _next_level(self, addr, entry_width, swap, check_in_mem):
         # implement read access to mmu mem here
 
-        value = 0
-        if addr.value in testmem:
-            value = testmem[addr.value]
-        else:
-            print("not found")
+        value = self.mem.ld(addr.value, 8, False, check_in_mem)
+        assert(value is not None, "address lookup %x not found" % addr.value)
 
-        ##value = self.mem.ld(addr.value, entry_width, swap, check_in_mem)
         print("addr", hex(addr.value))
         data = SelectableInt(value, 64) # convert to SelectableInt
         print("value", hex(value))
@@ -387,7 +403,7 @@ class RADIX:
         # get address of root entry
         shift = selectconcat(SelectableInt(0,1),prtbl[58:63]) # TODO verify
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
-        print("starting with addr_next",addr_next)
+        print("starting with prtable, addr_next",addr_next)
 
         assert(addr_next.bits == 64)
         assert(addr_next.value == 0x1000000) #TODO
@@ -410,9 +426,12 @@ class RADIX:
             if not valid:
                 return "invalid" # TODO: return error
             if leaf:
+                print ("is leaf, checking perms")
                 ok = self._check_perms(data, priv, mode)
                 if ok == True: # data was ok, found phys address, return it?
-                    return addr_next
+                    paddr = self._get_pte(addrsh, addr, data)
+                    print ("    phys addr", hex(paddr.value))
+                    return paddr
                 return ok # return the error code
             else:
                 newlookup = self._new_lookup(data, mbits, shift)
@@ -425,7 +444,7 @@ class RADIX:
                 print(mask)    #SelectableInt(value=0x9, bits=4)
                 print(pgbase)  #SelectableInt(value=0x40000, bits=56)
                 print(shift)   #SelectableInt(value=0x4, bits=16) #FIXME
-                pgbase = SelectableInt(pgbase.value,64)
+                pgbase = SelectableInt(pgbase.value, 64)
                 addrsh = addrshift(addr,shift)
                 addr_next = self._get_pgtable_addr(mask, pgbase, addrsh)
                 print("addr_next",addr_next)
@@ -584,7 +603,7 @@ class RADIX:
                 (effpid(31 downto 8) and finalmask(23 downto 0))) &
                 effpid(7 downto 0) & "0000";
         """
-        print ("_get_prtable_addr_", shift, prtbl, addr, pid)
+        print ("_get_prtable_addr", shift, prtbl, addr, pid)
         finalmask = genmask(shift, 44)
         finalmask24 = finalmask[20:44]
         if addr[0].value == 1:
@@ -626,12 +645,19 @@ class RADIX:
          (r.addr(55 downto 12) and finalmask))
         & r.pde(11 downto 0);
         """
+        shift.value = 12
         finalmask = genmask(shift, 44)
         zero8 = SelectableInt(0, 8)
+        rpn = pde[8:52]       # RPN = Real Page Number
+        abits = addr[8:52] # non-masked address bits
+        print("     get_pte RPN", hex(rpn.value))
+        print("             abits", hex(abits.value))
+        print("             shift", shift.value)
+        print("             finalmask", bin(finalmask.value))
         res = selectconcat(zero8,
-                           (pde[8:52]  & ~finalmask) | #
-                           (addr[8:52] & finalmask),   #
-                           pde[52:64],
+                           (rpn  & ~finalmask) | #
+                           (abits & finalmask),   #
+                           addr[52:64],
                            )
         return res
 
@@ -657,7 +683,13 @@ class TestRadixMMU(unittest.TestCase):
         print("ret=", ret)
         self.assertEqual(ret, 0, "pgtbl_addr should be 0")
 
-    def test_walk_tree(self):
+    def test_walk_tree_1(self):
+
+        # test address as in
+        # https://github.com/power-gem5/gem5/blob/gem5-experimental/src/arch/power/radix_walk_example.txt#L65
+        testaddr = 0x1000
+        expected = 0x1000
+
         # set up dummy minimal ISACaller
         spr = {'DSISR': SelectableInt(0, 64),
                'DAR': SelectableInt(0, 64),
@@ -676,7 +708,7 @@ class TestRadixMMU(unittest.TestCase):
         mask = genmask(shift, 43)
         print ("    mask", bin(mask.value))
 
-        mem = Mem(row_bytes=8)
+        mem = Mem(row_bytes=8, initial_mem=testmem)
         mem = RADIX(mem, caller)
         # -----------------------------------------------
         # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
@@ -704,7 +736,63 @@ class TestRadixMMU(unittest.TestCase):
         result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
         print("     walking tree result", result)
         print("should be", testresult)
-        expected = 0x1000000
+        self.assertEqual(result.value, expected,
+                             "expected 0x%x got 0x%x" % (expected,
+                                                    result.value))
+
+
+    def test_walk_tree_2(self):
+
+        # test address slightly different
+        testaddr = 0x1101
+        expected = 0x5001101
+
+        # set up dummy minimal ISACaller
+        spr = {'DSISR': SelectableInt(0, 64),
+               'DAR': SelectableInt(0, 64),
+               'PIDR': SelectableInt(0, 64),
+               'PRTBL': SelectableInt(0, 64)
+        }
+        # set problem state == 0 (other unit tests, set to 1)
+        msr = SelectableInt(0, 64)
+        msr[MSRb.PR] = 0
+        class ISACaller: pass
+        caller = ISACaller()
+        caller.spr = spr
+        caller.msr = msr
+
+        shift = SelectableInt(5, 6)
+        mask = genmask(shift, 43)
+        print ("    mask", bin(mask.value))
+
+        mem = Mem(row_bytes=8, initial_mem=testmem2)
+        mem = RADIX(mem, caller)
+        # -----------------------------------------------
+        # |/|RTS1|/|     RPDB          | RTS2 |  RPDS   |
+        # -----------------------------------------------
+        # |0|1  2|3|4                55|56  58|59     63|
+        data = SelectableInt(0, 64)
+        data[1:3] = 0b01
+        data[56:59] = 0b11
+        data[59:64] = 0b01101 # mask
+        data[55] = 1
+        (rts, mbits, pgbase) = mem._decode_prte(data)
+        print ("    rts", bin(rts.value), rts.bits)
+        print ("    mbits", bin(mbits.value), mbits.bits)
+        print ("    pgbase", hex(pgbase.value), pgbase.bits)
+        addr = SelectableInt(0x1000, 64)
+        check = mem._segment_check(addr, mbits, shift)
+        print ("    segment check", check)
+
+        print("walking tree")
+        addr = SelectableInt(testaddr,64)
+        # pgbase = None
+        mode = None
+        #mbits = None
+        shift = rts
+        result = mem._walk_tree(addr, pgbase, mode, mbits, shift)
+        print("     walking tree result", result)
+        print("should be", testresult)
         self.assertEqual(result.value, expected,
                              "expected 0x%x got 0x%x" % (expected,
                                                     result.value))

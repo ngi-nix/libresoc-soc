@@ -47,7 +47,11 @@ class Mem:
             for i, val in enumerate(mem):
                 initial_mem[startaddr + row_bytes*i] = (val, row_bytes)
 
-        for addr, (val, width) in initial_mem.items():
+        for addr, val in initial_mem.items():
+            if isinstance(val, tuple):
+                (val, width) = val
+            else:
+                width = row_bytes # assume same width
             #val = swap_order(val, width)
             self.st(addr, val, width, swap=False)
 
