@@ -321,6 +321,18 @@ class RADIX:
         # index += 1
         return data;
 
+    def _prtable_lookup(self, prtbl, addr, pid):
+        # v.shift := unsigned('0' & r.prtbl(4 downto 0));
+        shift = prtbl[59:63]
+        print("shift",shift)
+        prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pid)
+        print("prtable_addr",prtable_addr)
+        # TODO check and loop if needed
+
+        assert(prtable_addr==0x1000000)
+        print("fetch data from PROCESS_TABLE_3")
+        return "TODO"
+
     def _walk_tree(self, addr, pgbase, mode, mbits, shift, priv=1):
         """walk tree
 
@@ -682,6 +694,17 @@ class TestRadixMMU(unittest.TestCase):
         ret = dut._get_pgtable_addr(mask_size, pgbase, addrsh)
         print("ret=", ret)
         self.assertEqual(ret, 0, "pgtbl_addr should be 0")
+
+    def test_prtable_lookup(self):
+
+        mem = None
+        caller = None
+        dut = RADIX(mem, caller)
+
+        prtbl = SelectableInt(0x1000000,64)
+        addr = SelectableInt(0, 64)
+        pid = SelectableInt(0, 64)
+        ret = dut._prtable_lookup(prtbl, addr, pid)
 
     def test_walk_tree_1(self):
 
