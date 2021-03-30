@@ -352,6 +352,8 @@ class RADIX:
         return ret
 
         """
+        NOTE _ THIS IS CACHEING OF PGTBL3 / PGTBL0.  WE DO NOT NEED TO DO THIS
+
         if r.addr(63) = '1' then
           v.pgtbl3 := data;
           v.pt3_valid := '1';
@@ -360,12 +362,16 @@ class RADIX:
            v.pt0_valid := '1';
         end if;
 
+        # THIS IS WHEN SETTING THE SPR.  IT HAS NOTHING TO DO WITH RADIXMMU
+
         -- The RIC field of the tlbie instruction comes across on the
         -- sprn bus as bits 2--3.  RIC=2 flushes process table caches.
         if l_in.sprn(3) = '1' then
           v.pt0_valid := '0';
           v.pt3_valid := '0';
         end if;
+
+        # THIS IS AGAIN CACHEING.  WE DO NOT NEED TO DO CACHEING.
 
         if l_in.addr(63) = '0' then
           pgtbl := r.pgtbl0;
@@ -379,6 +385,9 @@ class RADIX:
           -- need to fetch process table entry
           -- set v.shift so we can use finalmask for generating
           -- the process table entry address
+
+          # THIS HAS ALREADY BEEN DONE
+
           v.shift := unsigned('0' & r.prtbl(4 downto 0));
           v.state := PROC_TBL_READ;
         elsif mbits = 0 then
@@ -469,10 +478,8 @@ class RADIX:
         print("last 8 bits ----------")
         print
 
-        prtbl = SelectableInt(0x1000000,64) #FIXME do not hardcode
-
         # get address of root entry
-        shift = selectconcat(SelectableInt(0,1),prtbl[58:63]) # TODO verify
+        shift = selectconcat(SelectableInt(0,1), prtbl[58:63]) # TODO verify
         addr_next = self._get_prtable_addr(shift, prtbl, addr, pidr)
         print("starting with prtable, addr_next",addr_next)
 
@@ -772,11 +779,14 @@ class TestRadixMMU(unittest.TestCase):
         testaddr = 0x1000
         expected = 0x1000
 
+        # starting prtbl
+        prtbl = 0x1000000
+
         # set up dummy minimal ISACaller
         spr = {'DSISR': SelectableInt(0, 64),
                'DAR': SelectableInt(0, 64),
                'PIDR': SelectableInt(0, 64),
-               'PRTBL': SelectableInt(0, 64)
+               'PRTBL': SelectableInt(prtbl, 64)
         }
         # set problem state == 0 (other unit tests, set to 1)
         msr = SelectableInt(0, 64)
@@ -829,11 +839,14 @@ class TestRadixMMU(unittest.TestCase):
         testaddr = 0x1101
         expected = 0x5001101
 
+        # starting prtbl
+        prtbl = 0x1000000
+
         # set up dummy minimal ISACaller
         spr = {'DSISR': SelectableInt(0, 64),
                'DAR': SelectableInt(0, 64),
                'PIDR': SelectableInt(0, 64),
-               'PRTBL': SelectableInt(0, 64)
+               'PRTBL': SelectableInt(prtbl, 64)
         }
         # set problem state == 0 (other unit tests, set to 1)
         msr = SelectableInt(0, 64)
