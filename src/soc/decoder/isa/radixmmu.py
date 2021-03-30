@@ -331,6 +331,46 @@ class RADIX:
 
         assert(prtable_addr==0x1000000)
         print("fetch data from PROCESS_TABLE_3")
+
+        """
+        if r.addr(63) = '1' then
+          v.pgtbl3 := data;
+          v.pt3_valid := '1';
+        else
+           v.pgtbl0 := data;
+           v.pt0_valid := '1';
+        end if;
+
+        -- The RIC field of the tlbie instruction comes across on the
+        -- sprn bus as bits 2--3.  RIC=2 flushes process table caches.
+        if l_in.sprn(3) = '1' then
+          v.pt0_valid := '0';
+          v.pt3_valid := '0';
+        end if;
+
+        if l_in.addr(63) = '0' then
+          pgtbl := r.pgtbl0;
+          pt_valid := r.pt0_valid;
+        else
+          pgtbl := r.pgtbl3;
+          pt_valid := r.pt3_valid;
+        end if;
+
+        if pt_valid = '0' then
+          -- need to fetch process table entry
+          -- set v.shift so we can use finalmask for generating
+          -- the process table entry address
+          v.shift := unsigned('0' & r.prtbl(4 downto 0));
+          v.state := PROC_TBL_READ;
+        elsif mbits = 0 then
+          -- Use RPDS = 0 to disable radix tree walks
+          v.state := RADIX_FINISH;
+          v.invalid := '1';
+        else
+          v.state := SEGMENT_CHECK;
+        end if;
+        """
+
         return "TODO"
 
     def _walk_tree(self, addr, pgbase, mode, mbits, shift, priv=1):
