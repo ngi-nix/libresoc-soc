@@ -311,3 +311,35 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    @skip_case("Predication not implemented yet")
+    def case_12_sv_twinpred(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
+        #   src r3=0b101                     Y  N  Y
+        #                                    |
+        #                              +-----+
+        #                              |
+        #   dest ~r3=0b010           N Y N
+
+        # expected results:
+        # r5 = 0x0                   dest ~r3 is 0b010: skip
+        # r6 = 0xffff_ffff_ffff_ff90 2nd bit of ~r3 is 1
+        # r7 = 0x0                   dest ~r3 is 0b010: skip
+        isa = SVP64Asm(['sv.extsb/sm=r3/dm=~r3 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b101  # predicate mask
+        initial_regs[9] = 0x90   # source r3 is 0b101 so this will be used
+        initial_regs[10] = 0x91  # this gets skipped
+        initial_regs[11] = 0x92  # VL loop runs out before we can use it
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
