@@ -16,10 +16,12 @@ improved.
 """
 
 from nmigen import (Elaboratable, Module, Signal, ClockSignal, ResetSignal,
-                    ClockDomain, DomainRenamer, Mux, Const, Repl)
+                    ClockDomain, DomainRenamer, Mux, Const, Repl, Cat)
 from nmigen.cli import rtlil
 from nmigen.cli import main
 import sys
+
+from nmigen.lib.coding import PriorityEncoder
 
 from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2, SVP64PrefixDecoder
@@ -158,6 +160,10 @@ class TestIssuerInternal(Elaboratable):
         # test is SVP64 is to be enabled
         self.svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
 
+        # and if regfiles are reduced
+        self.regreduce_en = (hasattr(pspec, "regreduce") and
+                                            (pspec.regreduce == True))
+
         # JTAG interface.  add this right at the start because if it's
         # added it *modifies* the pspec, by adding enable/disable signals
         # for parts of the rest of the core
@@ -207,7 +213,8 @@ class TestIssuerInternal(Elaboratable):
         self.cur_state = CoreState("cur") # current state (MSR/PC/SVSTATE)
         self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand,
-                                     svp64_en=self.svp64_en)
+                                     svp64_en=self.svp64_en,
+                                     regreduce_en=self.regreduce_en)
         if self.svp64_en:
             self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
 
@@ -241,9 +248,10 @@ class TestIssuerInternal(Elaboratable):
         self.cr_r = crrf.r_ports['full_cr_dbg'] # CR read
         self.xer_r = xerrf.r_ports['full_xer'] # XER read
 
-        # for predication
-        self.int_pred = intrf.r_ports['pred'] # INT predicate read
-        self.cr_pred = crrf.r_ports['cr_pred'] # CR predicate read
+        if self.svp64_en:
+            # for predication
+            self.int_pred = intrf.r_ports['pred'] # INT predicate read
+            self.cr_pred = crrf.r_ports['cr_pred'] # CR predicate read
 
         # hack method of keeping an eye on whether branch/trap set the PC
         self.state_nia = self.core.regs.rf['state'].w_ports['nia']
@@ -384,6 +392,8 @@ class TestIssuerInternal(Elaboratable):
         later, a faster way would be to use the 32-bit-wide CR port but
         this is more complex decoding, here.  equivalent code used in
         ISACaller is "from soc.decoder.isa.caller import get_predcr"
+
+        note: this ENTIRE FSM is not to be called when svp64 is disabled
         """
         comb = m.d.comb
         sync = m.d.sync
@@ -533,17 +543,10 @@ class TestIssuerInternal(Elaboratable):
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
 
-            # decode the instruction when it arrives
+            # wait for an instruction to arrive from Fetch
             with m.State("INSN_WAIT"):
                 comb += fetch_insn_ready_i.eq(1)
                 with m.If(fetch_insn_valid_o):
-                    # decode the instruction
-                    sync += core.e.eq(pdecode2.e)
-                    sync += core.state.eq(cur_state)
-                    sync += core.raw_insn_i.eq(dec_opcode_i)
-                    sync += core.bigendian_i.eq(self.core_bigendian_i)
-                    # set RA_OR_ZERO detection in satellite decoders
-                    sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                     # loop into ISSUE_START if it's a SVP64 instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
@@ -560,7 +563,7 @@ class TestIssuerInternal(Elaboratable):
                         if self.svp64_en:
                             m.next = "PRED_START"  # start fetching predicate
                         else:
-                            m.next = "INSN_EXECUTE" # skip predication
+                            m.next = "DECODE_SV"  # skip predication
 
             with m.State("PRED_START"):
                 comb += pred_insn_valid_i.eq(1)  # tell fetch_pred to start
@@ -570,42 +573,79 @@ class TestIssuerInternal(Elaboratable):
             with m.State("MASK_WAIT"):
                 comb += pred_mask_ready_i.eq(1) # ready to receive the masks
                 with m.If(pred_mask_valid_o): # predication masks are ready
-                    m.next = "INSN_EXECUTE"
+                    m.next = "PRED_SKIP"
 
-            # handshake with execution FSM, move to "wait" once acknowledged
-            with m.State("INSN_EXECUTE"):
-                # with m.If(is_svp64_mode):
-                #    TODO advance src/dst step to "skip" over predicated-out
-                #    from self.srcmask and self.dstmask
-                #    https://bugs.libre-soc.org/show_bug.cgi?id=617#c3
-                #    but still without exceeding VL in either case
-                # IMPORTANT: when changing src/dest step, have to
-                # jump to m.next = "DECODE_SV" to deal with the change in
-                # SVSTATE
-
-                with m.If(is_svp64_mode):
-
+            # skip zeros in predicate
+            with m.State("PRED_SKIP"):
+                with m.If(~is_svp64_mode):
+                    m.next = "DECODE_SV"  # nothing to do
+                with m.Else():
                     if self.svp64_en:
                         pred_src_zero = pdecode2.rm_dec.pred_sz
                         pred_dst_zero = pdecode2.rm_dec.pred_dz
 
-                    """
-                    if not pred_src_zero:
-                        if (((1<<cur_srcstep) & self.srcmask) == 0) and
-                              (cur_srcstep != vl):
+                        # new srcstep, after skipping zeros
+                        skip_srcstep = Signal.like(cur_srcstep)
+                        # value to be added to the current srcstep
+                        src_delta = Signal.like(cur_srcstep)
+                        # add leading zeros to srcstep, if not in zero mode
+                        with m.If(~pred_src_zero):
+                            # priority encoder (count leading zeros)
+                            # append guard bit, in case the mask is all zeros
+                            pri_enc_src = PriorityEncoder(65)
+                            m.submodules.pri_enc_src = pri_enc_src
+                            comb += pri_enc_src.i.eq(Cat(self.srcmask, 1))
+                            comb += src_delta.eq(pri_enc_src.o)
+                        # apply delta to srcstep
+                        comb += skip_srcstep.eq(cur_srcstep + src_delta)
+                        # shift-out all leading zeros from the mask
+                        # plus the leading "one" bit
+                        sync += self.srcmask.eq(self.srcmask >> (src_delta+1))
+
+                        # same as above, but for dststep
+                        skip_dststep = Signal.like(cur_dststep)
+                        dst_delta = Signal.like(cur_dststep)
+                        with m.If(~pred_dst_zero):
+                            pri_enc_dst = PriorityEncoder(65)
+                            m.submodules.pri_enc_dst = pri_enc_dst
+                            comb += pri_enc_dst.i.eq(Cat(self.dstmask, 1))
+                            comb += dst_delta.eq(pri_enc_dst.o)
+                        comb += skip_dststep.eq(cur_dststep + dst_delta)
+                        sync += self.dstmask.eq(self.dstmask >> (dst_delta+1))
+
+                        # TODO: initialize mask[VL]=1 to avoid passing past VL
+                        with m.If((skip_srcstep >= cur_vl) |
+                                  (skip_dststep >= cur_vl)):
+                            # end of VL loop. Update PC and reset src/dst step
+                            comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
+                            comb += self.state_w_pc.data_i.eq(nia)
+                            comb += new_svstate.srcstep.eq(0)
+                            comb += new_svstate.dststep.eq(0)
                             comb += update_svstate.eq(1)
-                            comb += new_svstate.srcstep.eq(next_srcstep)
-
-                    if not pred_dst_zero:
-                        if (((1<<cur_dststep) & self.dstmask) == 0) and
-                              (cur_dststep != vl):
-                            comb += new_svstate.dststep.eq(next_dststep)
+                            # go back to Issue
+                            m.next = "ISSUE_START"
+                        with m.Else():
+                            # update new src/dst step
+                            comb += new_svstate.srcstep.eq(skip_srcstep)
+                            comb += new_svstate.dststep.eq(skip_dststep)
                             comb += update_svstate.eq(1)
+                            # proceed to Decode
+                            m.next = "DECODE_SV"
 
-                    if update_svstate:
-                        m.next = "DECODE_SV"
-                    """
+            # after src/dst step have been updated, we are ready
+            # to decode the instruction
+            with m.State("DECODE_SV"):
+                # decode the instruction
+                sync += core.e.eq(pdecode2.e)
+                sync += core.state.eq(cur_state)
+                sync += core.raw_insn_i.eq(dec_opcode_i)
+                sync += core.bigendian_i.eq(self.core_bigendian_i)
+                # set RA_OR_ZERO detection in satellite decoders
+                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
+                m.next = "INSN_EXECUTE"  # move to "execute"
 
+            # handshake with execution FSM, move to "wait" once acknowledged
+            with m.State("INSN_EXECUTE"):
                 comb += exec_insn_valid_i.eq(1) # trigger execute
                 with m.If(exec_insn_ready_o):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
@@ -651,7 +691,8 @@ class TestIssuerInternal(Elaboratable):
                             comb += new_svstate.srcstep.eq(next_srcstep)
                             comb += new_svstate.dststep.eq(next_dststep)
                             comb += update_svstate.eq(1)
-                            m.next = "DECODE_SV"
+                            # return to mask skip loop
+                            m.next = "PRED_SKIP"
 
                 with m.Else():
                     comb += core.core_stopped_i.eq(1)
@@ -665,17 +706,6 @@ class TestIssuerInternal(Elaboratable):
                         comb += new_svstate.eq(self.svstate_i.data)
                         comb += update_svstate.eq(1)
                         sync += sv_changed.eq(1)
-
-            # need to decode the instruction again, after updating SRCSTEP
-            # in the previous state.
-            # mostly a copy of INSN_WAIT, but without the actual wait
-            with m.State("DECODE_SV"):
-                # decode the instruction
-                sync += core.e.eq(pdecode2.e)
-                sync += core.state.eq(cur_state)
-                sync += core.bigendian_i.eq(self.core_bigendian_i)
-                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
-                m.next = "INSN_EXECUTE"  # move to "execute"
 
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):

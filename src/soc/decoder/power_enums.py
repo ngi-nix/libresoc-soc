@@ -8,6 +8,10 @@ Note: for SV, from v3.1B p12:
 
     The designated SPR sandbox consists of non-privileged SPRs 704-719 and
     privileged SPRs 720-735.
+
+Note: the option exists to select a much shorter list of SPRs, to reduce
+regfile size in HDL.  this is SPRreduced and the supported list is in
+get_spr_enum
 """
 
 from enum import Enum, unique
@@ -430,19 +434,35 @@ class CROutSel(Enum):
 # http://libre-riscv.org/openpower/isatables/sprs.csv
 # http://bugs.libre-riscv.org/show_bug.cgi?id=261
 
-spr_csv = get_csv("sprs.csv")
-spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr length idx')
-spr_dict = {}
-spr_byname = {}
-for row in spr_csv:
-    info = spr_info(SPR=row['SPR'], priv_mtspr=row['priv_mtspr'],
-                    priv_mfspr=row['priv_mfspr'], length=int(row['len']),
-                    idx=int(row['Idx']))
-    spr_dict[int(row['Idx'])] = info
-    spr_byname[row['SPR']] = info
-fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
-SPR = Enum('SPR', fields)
+def get_spr_enum(full_file):
+    """get_spr_enum - creates an Enum of SPRs, dynamically
+    has the option to reduce the enum to a much shorter list.
+    this saves drastically on the size of the regfile
+    """
+    short_list = {'PIDR', 'DAR', 'PRTBL', 'DSISR', 'SVSRR0', 'SVSTATE',
+                  'SPRG0_priv', 'SPRG1_priv', 'SPRG2_priv', 'SPRG3_priv',
+                  'SPRG3'
+                 }
+    spr_csv = []
+    for row in get_csv("sprs.csv"):
+        if full_file or row['SPR'] in short_list:
+            spr_csv.append(row)
 
+    spr_info = namedtuple('spr_info', 'SPR priv_mtspr priv_mfspr length idx')
+    spr_dict = {}
+    spr_byname = {}
+    for row in spr_csv:
+        info = spr_info(SPR=row['SPR'], priv_mtspr=row['priv_mtspr'],
+                        priv_mfspr=row['priv_mfspr'], length=int(row['len']),
+                        idx=int(row['Idx']))
+        spr_dict[int(row['Idx'])] = info
+        spr_byname[row['SPR']] = info
+    fields = [(row['SPR'], int(row['Idx'])) for row in spr_csv]
+    SPR = Enum('SPR', fields)
+    return SPR, spr_dict, spr_byname
+
+SPRfull, spr_dict, spr_byname = get_spr_enum(full_file=True)
+SPRreduced, _, _ = get_spr_enum(full_file=False)
 
 XER_bits = {
     'SO': 32,
@@ -454,11 +474,13 @@ XER_bits = {
 
 if __name__ == '__main__':
     # find out what the heck is in SPR enum :)
-    print("sprs", len(SPR))
-    print(dir(SPR))
+    print("sprs full", len(SPRfull))
+    print(dir(SPRfull))
+    print("sprs reduced", len(SPRreduced))
+    print(dir(SPRreduced))
     print(dir(Enum))
-    print(SPR.__members__['TAR'])
-    for x in SPR:
+    print(SPRfull.__members__['TAR'])
+    for x in SPRfull:
         print(x, x.value, str(x), x.name)
 
     print("function", Function.ALU.name)

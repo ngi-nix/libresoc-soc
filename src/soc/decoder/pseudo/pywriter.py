@@ -131,15 +131,16 @@ class PyISAWriter(ISA):
 
 if __name__ == '__main__':
     isa = PyISAWriter()
+    write_isa_class = True
     if len(sys.argv) == 1:  # quick way to do it
         print(dir(isa))
         sources = isa.page.keys()
     else:
         sources = sys.argv[1:]
-    write_isa_class = True
-    if sources[0] == "noall": # don't rewrite all.py
-        write_isa_class = False
-        sources.pop(0)
+        if sources[0] == "noall": # don't rewrite all.py
+            write_isa_class = False
+            sources.pop(0)
+    print ("sources", write_isa_class, sources)
     for source in sources:
         isa.write_pysource(source)
         isa.patch_if_needed(source)

@@ -71,6 +71,13 @@ class NonProductionCore(Elaboratable):
     def __init__(self, pspec):
         self.pspec = pspec
 
+        # test is SVP64 is to be enabled
+        self.svp64_en = hasattr(pspec, "svp64") and (pspec.svp64 == True)
+
+        # test to see if regfile ports should be reduced
+        self.regreduce_en = (hasattr(pspec, "regreduce") and
+                             (pspec.regreduce == True))
+
         # single LD/ST funnel for memory access
         self.l0 = TstL0CacheBuffer(pspec, n_units=1)
         pi = self.l0.l0.dports[0]
@@ -80,10 +87,11 @@ class NonProductionCore(Elaboratable):
         self.fus = AllFunctionUnits(pspec, pilist=[pi])
 
         # register files (yes plural)
-        self.regs = RegFiles()
+        self.regs = RegFiles(pspec)
 
         # instruction decoder - needs a Trap-capable Record (captures EINT etc.)
-        self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand)
+        self.e = Decode2ToExecute1Type("core", opkls=IssuerDecode2ToOperand,
+                                regreduce_en=self.regreduce_en)
 
         # SVP64 RA_OR_ZERO needs to know if the relevant EXTRA2/3 field is zero
         self.sv_a_nz = Signal()
@@ -115,7 +123,9 @@ class NonProductionCore(Elaboratable):
                 continue
             self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
                                                       final=True,
-                                                      state=self.state)
+                                                      state=self.state,
+                                            svp64_en=self.svp64_en,
+                                            regreduce_en=self.regreduce_en)
             self.des[funame] = self.decoders[funame].do
 
         if "mmu0" in self.decoders:
@@ -339,14 +349,15 @@ class NonProductionCore(Elaboratable):
 
             # argh.  an experiment to merge RA and RB in the INT regfile
             # (we have too many read/write ports)
-            #if regfile == 'INT':
-                #fuspecs['rabc'] = [fuspecs.pop('rb')]
-                #fuspecs['rabc'].append(fuspecs.pop('rc'))
-                #fuspecs['rabc'].append(fuspecs.pop('ra'))
-            #if regfile == 'FAST':
-            #    fuspecs['fast1'] = [fuspecs.pop('fast1')]
-            #    if 'fast2' in fuspecs:
-            #        fuspecs['fast1'].append(fuspecs.pop('fast2'))
+            if self.regreduce_en:
+                if regfile == 'INT':
+                    fuspecs['rabc'] = [fuspecs.pop('rb')]
+                    fuspecs['rabc'].append(fuspecs.pop('rc'))
+                    fuspecs['rabc'].append(fuspecs.pop('ra'))
+                if regfile == 'FAST':
+                    fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                    if 'fast2' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):
@@ -464,14 +475,15 @@ class NonProductionCore(Elaboratable):
             fuspecs = byregfiles_wrspec[regfile]
             wrpickers[regfile] = {}
 
-            # argh, more port-merging
-            if regfile == 'INT':
-                fuspecs['o'] = [fuspecs.pop('o')]
-                fuspecs['o'].append(fuspecs.pop('o1'))
-            if regfile == 'FAST':
-                fuspecs['fast1'] = [fuspecs.pop('fast1')]
-                if 'fast2' in fuspecs:
-                    fuspecs['fast1'].append(fuspecs.pop('fast2'))
+            if self.regreduce_en:
+                # argh, more port-merging
+                if regfile == 'INT':
+                    fuspecs['o'] = [fuspecs.pop('o')]
+                    fuspecs['o'].append(fuspecs.pop('o1'))
+                if regfile == 'FAST':
+                    fuspecs['fast1'] = [fuspecs.pop('fast1')]
+                    if 'fast2' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast2'))
 
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 self.connect_wrport(m, fu_bitdict, wrpickers,

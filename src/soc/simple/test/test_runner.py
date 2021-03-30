@@ -145,6 +145,7 @@ class TestRunner(FHDLTestCase):
                              nocore=False,
                              xics=False,
                              gpio=False,
+                             regreduce=True,
                              svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
@@ -154,10 +155,11 @@ class TestRunner(FHDLTestCase):
         dmi = issuer.dbg.dmi
         pdecode2 = issuer.pdecode2
         l0 = core.l0
+        regreduce_en = pspec.regreduce_en == True
 
         # copy of the decoder for simulator
         simdec = create_pdecode()
-        simdec2 = PowerDecode2(simdec)
+        simdec2 = PowerDecode2(simdec, regreduce_en=regreduce_en)
         m.submodules.simdec2 = simdec2  # pain in the neck
 
         # run core clock at same rate as test clock
@@ -393,6 +395,7 @@ class TestRunner(FHDLTestCase):
             {'comment': 'instruction memory'},
             'imem.sram.rdport.memory(0)[63:0]',
             {'comment': 'registers'},
+            # match with soc.regfile.regfiles.IntRegs port names
             'core.int.rp_src1.memory(0)[63:0]',
             'core.int.rp_src1.memory(1)[63:0]',
             'core.int.rp_src1.memory(2)[63:0]',

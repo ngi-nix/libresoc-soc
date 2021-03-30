@@ -6,7 +6,7 @@ from soc.decoder.power_decoder import (create_pdecode)
 from soc.decoder.power_enums import (Function, MicrOp,
                                      In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, LdstLen, CryIn,
-                                     single_bit_flags, Form, SPR,
+                                     single_bit_flags, Form,
                                      get_signal_name, get_csv)
 from soc.decoder.power_decoder2 import (PowerDecode2)
 from soc.simulator.program import Program

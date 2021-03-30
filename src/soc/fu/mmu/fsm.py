@@ -10,7 +10,7 @@ from soc.experiment.dcache import DCache
 from soc.decoder.power_fields import DecodeFields
 from soc.decoder.power_fieldsn import SignalBitRange
 from soc.decoder.power_decoder2 import decode_spr_num
-from soc.decoder.power_enums import MicrOp, SPR, XER_bits
+from soc.decoder.power_enums import MicrOp, XER_bits
 
 from soc.experiment.pimem import PortInterface
 from soc.experiment.pimem import PortInterfaceBase

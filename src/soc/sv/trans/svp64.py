@@ -402,6 +402,7 @@ class SVP64Asm:
             smask = 0 # bits 16-18 but only for twin-predication
             mode = 0 # bits 19-23
 
+            mask_m_specified = False
             has_pmask = False
             has_smask = False
 
@@ -421,6 +422,7 @@ class SVP64Asm:
             for encmode in opmodes:
                 # predicate mask (src and dest)
                 if encmode.startswith("m="):
+                    mask_m_specified = True
                     pme = encmode
                     pmmode, pmask = decode_predicate(encmode[2:])
                     smmode, smask = pmmode, pmask
@@ -490,7 +492,7 @@ class SVP64Asm:
                         (pme, sme)
 
             # sanity-check that twin-predication mask only specified in 2P mode
-            if ptype == '1P':
+            if not mask_m_specified and ptype == '1P':
                 assert has_smask == False, \
                     "source-mask can only be specified on Twin-predicate ops"
 
@@ -637,6 +639,7 @@ if __name__ == '__main__':
                  'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                  'sv.add. 5.v, 2.v, 1.v',
+                 'sv.add./m=r3 5.v, 2.v, 1.v',
                 ]
     lst += [
                  'sv.stw 5.v, 4(1.v)',

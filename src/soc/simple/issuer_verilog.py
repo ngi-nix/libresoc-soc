@@ -18,6 +18,14 @@ if __name__ == '__main__':
     parser.add_argument("--disable-xics", dest='xics', action="store_false",
                         help="Disable interrupts",
                         default=False)
+    parser.add_argument("--enable-lessports", dest='lessports',
+                        action="store_true",
+                        help="Enable less regfile ports",
+                        default=True)
+    parser.add_argument("--disable-lessports", dest='lessports',
+                        action="store_false",
+                        help="enable more regfile ports",
+                        default=False)
     parser.add_argument("--enable-core", dest='core', action="store_true",
                         help="Enable main core",
                         default=True)
@@ -70,6 +78,7 @@ if __name__ == '__main__':
                          #wb_data_wid=32,
                          xics=args.xics, # XICS interrupt controller
                          nocore=not args.core, # test coriolis2 ioring
+                         regreduce = args.lessports, # less regfile ports
                          use_pll=args.pll,  # bypass PLL
                          gpio=args.enable_testgpio, # for test purposes
                          sram4x4kblock=args.enable_sram4x4kblock, # add SRAMs
@@ -78,6 +87,7 @@ if __name__ == '__main__':
                          units=units)
 
     print("nocore", pspec.__dict__["nocore"])
+    print("regreduce", pspec.__dict__["regreduce"])
     print("gpio", pspec.__dict__["gpio"])
     print("sram4x4kblock", pspec.__dict__["sram4x4kblock"])
     print("xics", pspec.__dict__["xics"])

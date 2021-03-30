@@ -14,7 +14,9 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_decoder2 import PowerDecode2
 from soc.decoder.selectable_int import SelectableInt
 from soc.decoder.isa.all import ISA
-from soc.decoder.power_enums import SPR, spr_dict, Function, XER_bits
+
+# note that for testing using SPRfull should be ok here
+from soc.decoder.power_enums import SPRfull as SPR, spr_dict, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.endian import bigendian
 

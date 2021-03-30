@@ -27,7 +27,8 @@ from soc.decoder.power_decoder import create_pdecode
 from soc.decoder.power_enums import (MicrOp, CryIn, Function,
                                      CRInSel, CROutSel,
                                      LdstLen, In1Sel, In2Sel, In3Sel,
-                                     OutSel, SPR, RC, LDSTMode,
+                                     OutSel, SPRfull, SPRreduced,
+                                     RC, LDSTMode,
                                      SVEXTRA, SVEtype, SVPtype)
 from soc.decoder.decode2execute1 import (Decode2ToExecute1Type, Data,
                                          Decode2ToOperand)
@@ -65,13 +66,23 @@ class SPRMap(Elaboratable):
     """SPRMap: maps POWER9 SPR numbers to internal enum values, fast and slow
     """
 
-    def __init__(self):
+    def __init__(self, regreduce_en):
+        self.regreduce_en = regreduce_en
+        if regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
+
         self.spr_i = Signal(10, reset_less=True)
         self.spr_o = Data(SPR, name="spr_o")
         self.fast_o = Data(3, name="fast_o")
 
     def elaborate(self, platform):
         m = Module()
+        if self.regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
         with m.Switch(self.spr_i):
             for i, x in enumerate(SPR):
                 with m.Case(x.value):
@@ -90,7 +101,12 @@ class DecodeA(Elaboratable):
     decodes register RA, implicit and explicit CSRs
     """
 
-    def __init__(self, dec):
+    def __init__(self, dec, regreduce_en):
+        self.regreduce_en = regreduce_en
+        if self.regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
         self.dec = dec
         self.sel_in = Signal(In1Sel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
@@ -104,7 +120,7 @@ class DecodeA(Elaboratable):
         comb = m.d.comb
         op = self.dec.op
         reg = self.reg_out
-        m.submodules.sprmap = sprmap = SPRMap()
+        m.submodules.sprmap = sprmap = SPRMap(self.regreduce_en)
 
         # select Register A field, if *full 7 bits* are zero (2 more from SVP64)
         ra = Signal(5, reset_less=True)
@@ -325,7 +341,12 @@ class DecodeOut(Elaboratable):
     decodes output register RA, RT or SPR
     """
 
-    def __init__(self, dec):
+    def __init__(self, dec, regreduce_en):
+        self.regreduce_en = regreduce_en
+        if self.regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
         self.dec = dec
         self.sel_in = Signal(OutSel, reset_less=True)
         self.insn_in = Signal(32, reset_less=True)
@@ -336,7 +357,7 @@ class DecodeOut(Elaboratable):
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
-        m.submodules.sprmap = sprmap = SPRMap()
+        m.submodules.sprmap = sprmap = SPRMap(self.regreduce_en)
         op = self.dec.op
         reg = self.reg_out
 
@@ -684,9 +705,10 @@ class PowerDecodeSubset(Elaboratable):
     only fields actually requested are copied over. hence, "subset" (duh).
     """
     def __init__(self, dec, opkls=None, fn_name=None, final=False, state=None,
-                            svp64_en=True):
+                            svp64_en=True, regreduce_en=False):
 
         self.svp64_en = svp64_en
+        self.regreduce_en = regreduce_en
         if svp64_en:
             self.sv_rm = SVP64Rec(name="dec_svp64") # SVP64 RM field
         self.sv_a_nz = Signal(1)
@@ -700,7 +722,8 @@ class PowerDecodeSubset(Elaboratable):
 
         # only needed for "main" PowerDecode2
         if not self.final:
-            self.e = Decode2ToExecute1Type(name=self.fn_name, do=self.do)
+            self.e = Decode2ToExecute1Type(name=self.fn_name, do=self.do,
+                                           regreduce_en=regreduce_en)
 
         # create decoder if one not already given
         if dec is None:
@@ -766,6 +789,10 @@ class PowerDecodeSubset(Elaboratable):
         return getattr(self.dec.op, op_field, None)
 
     def elaborate(self, platform):
+        if self.regreduce_en:
+            SPR = SPRreduced
+        else:
+            SPR = SPRfull
         m = Module()
         comb = m.d.comb
         state = self.state
@@ -778,7 +805,8 @@ class PowerDecodeSubset(Elaboratable):
                 name = "tmp"
             else:
                 name = self.fn_name + "tmp"
-            self.e_tmp = Decode2ToExecute1Type(name=name, opkls=self.opkls)
+            self.e_tmp = Decode2ToExecute1Type(name=name, opkls=self.opkls,
+                                           regreduce_en=self.regreduce_en)
 
         # set up submodule decoders
         m.submodules.dec = self.dec
@@ -909,8 +937,9 @@ class PowerDecode2(PowerDecodeSubset):
     """
 
     def __init__(self, dec, opkls=None, fn_name=None, final=False,
-                            state=None, svp64_en=True):
-        super().__init__(dec, opkls, fn_name, final, state, svp64_en)
+                            state=None, svp64_en=True, regreduce_en=False):
+        super().__init__(dec, opkls, fn_name, final, state, svp64_en,
+                         regreduce_en=False)
         self.exc = LDSTException("dec2_exc")
 
         if self.svp64_en:
@@ -968,10 +997,10 @@ class PowerDecode2(PowerDecodeSubset):
         # copy over if non-exception, non-privileged etc. is detected
 
         # set up submodule decoders
-        m.submodules.dec_a = dec_a = DecodeA(self.dec)
+        m.submodules.dec_a = dec_a = DecodeA(self.dec, self.regreduce_en)
         m.submodules.dec_b = dec_b = DecodeB(self.dec)
         m.submodules.dec_c = dec_c = DecodeC(self.dec)
-        m.submodules.dec_o = dec_o = DecodeOut(self.dec)
+        m.submodules.dec_o = dec_o = DecodeOut(self.dec, self.regreduce_en)
         m.submodules.dec_o2 = dec_o2 = DecodeOut2(self.dec)
         m.submodules.dec_cr_in = self.dec_cr_in = DecodeCRIn(self.dec)
         m.submodules.dec_cr_out = self.dec_cr_out = DecodeCROut(self.dec)
