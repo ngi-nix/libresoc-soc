@@ -83,7 +83,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
             self.r_ports['rb'] = self.read_port("src2")
             self.r_ports['rc'] = self.read_port("src3")
         else:
-            self.r_ports['rabc'] = self.read_port("src")
+            self.r_ports['rabc'] = self.read_port("src1")
 
 
 # Fast SPRs Regfile
