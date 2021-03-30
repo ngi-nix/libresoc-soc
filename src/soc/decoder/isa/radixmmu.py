@@ -323,6 +323,7 @@ class RADIX:
         return data;
 
     def _prtable_lookup(self, prtbl, addr, pid):
+        print("_prtable_lookup")
         # v.shift := unsigned('0' & r.prtbl(4 downto 0));
         shift = prtbl[59:63]
         print("shift",shift)
@@ -330,8 +331,25 @@ class RADIX:
         print("prtable_addr",prtable_addr)
         # TODO check and loop if needed
 
-        assert(prtable_addr==0x1000000)
-        print("fetch data from PROCESS_TABLE_3")
+        #assert(prtable_addr==0x1000000)
+        #print("fetch data from PROCESS_TABLE_3")
+        data = self._next_level(prtable_addr, 8, False, False)
+        print("data",data)
+        #assert(data==0x40000000000300ad)
+        return "TODO verify"
+
+        # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
+        shift = selectconcat(SelectableInt(0,1), data[2:3], data[57:59])
+        print("shift",shift)
+        # mbits := unsigned('0' & data(4 downto 0));
+        mbits = selectconcat(SelectableInt(0,1), data[59:63])
+        print("mbits",mbits)
+
+        if mbits.value==0:
+            return "INVALID"
+        ret = self._segment_check(addr, mbits, shift)
+        print("ret",ret)
+        return ret
 
         """
         if r.addr(63) = '1' then
@@ -738,7 +756,7 @@ class TestRadixMMU(unittest.TestCase):
 
     def test_prtable_lookup(self):
 
-        mem = None
+        mem = Mem(row_bytes=8, initial_mem=testmem)
         caller = None
         dut = RADIX(mem, caller)
 
