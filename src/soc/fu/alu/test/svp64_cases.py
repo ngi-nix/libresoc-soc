@@ -246,7 +246,6 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
 
-    @skip_case("Predication not implemented yet")
     def case_10_intpred_vcompress(self):
         #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
         #   src r3=0b101                     Y  N  Y
