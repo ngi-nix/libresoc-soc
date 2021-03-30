@@ -285,8 +285,8 @@ class RADIX:
 
         pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
 
-        # use pte to caclculate phys address
-        return self.mem.ld(address, width, swap, check_in_mem)
+        # use pte to load from phys address
+        return self.mem.ld(pte.value, width, swap, check_in_mem)
 
         # XXX set SPRs on error
 
@@ -300,8 +300,8 @@ class RADIX:
         (shift, mbits, pgbase) = self._decode_prte(addr)
         pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
 
-        # use pte to caclculate phys address (addr)
-        return self.mem.st(addr.value, v, width, swap)
+        # use pte to store at phys address
+        return self.mem.st(pte.value, v, width, swap)
 
         # XXX set SPRs on error
 
@@ -312,6 +312,7 @@ class RADIX:
     def _next_level(self, addr, entry_width, swap, check_in_mem):
         # implement read access to mmu mem here
 
+        # DO NOT perform byte-swapping: load 8 bytes (that's the entry size)
         value = self.mem.ld(addr.value, 8, False, check_in_mem)
         assert(value is not None, "address lookup %x not found" % addr.value)
 

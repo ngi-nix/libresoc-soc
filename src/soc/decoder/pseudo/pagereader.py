@@ -97,8 +97,14 @@ class ISA:
             # <!-- line 1 comment -->
             # <!-- line 2 comment -->
             if l.startswith('<!--'):
-                print ("skipping comment", l)
+                # print ("skipping comment", l)
+                l = lines.pop(0).rstrip()  # get first line
                 continue
+
+            # Ignore blank lines before the first #
+            if len(l.strip()) == 0:
+                continue
+
             # expect get heading
             assert l.startswith('#'), ("# not found in line %s" % l)
 
@@ -158,7 +164,7 @@ class ISA:
             while lines:
                 l = lines.pop(0).rstrip()
                 rewrite.append(l)
-                if len(l) != 0:
+                if len(l) != 0 and not l.startswith('<!--'):
                     break
 
         return rewrite
@@ -179,8 +185,23 @@ class ISA:
         l = lines.pop(0).rstrip()  # get first line
         while lines:
             print(l)
+            # look for HTML comment, if starting, skip line.
+            # XXX this is braindead!  it doesn't look for the end
+            # so please put ending of comments on one line:
+            # <!-- line 1 comment -->
+            # <!-- line 2 comment -->
+            if l.startswith('<!--'):
+                # print ("skipping comment", l)
+                l = lines.pop(0).rstrip()  # get next line
+                continue
+
+            # Ignore blank lines before the first #
+            if len(l) == 0:
+                l = lines.pop(0).rstrip()  # get next line
+                continue
+
             # expect get heading
-            assert l.startswith('#'), ("# not found in line %s" % l)
+            assert l.startswith('#'), ("# not found in line '%s'" % l)
             d['desc'] = l[1:].strip()
 
             # whitespace expected
@@ -255,7 +276,7 @@ class ISA:
             # expect and drop whitespace
             while lines:
                 l = lines.pop(0).rstrip()
-                if len(l) != 0:
+                if len(l) != 0 and not l.startswith('<!--'):
                     break
 
     def add_op(self, o, d):
