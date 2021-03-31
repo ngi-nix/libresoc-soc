@@ -407,7 +407,28 @@ class RADIX:
         assert(addr_next.bits == 64)
         assert(addr_next.value == 0x1000000) #TODO
 
+        # read an entry from prtable
+        swap = False
+        check_in_mem = False
+        entry_width = 8
+        data = self._next_level(addr_next, entry_width, swap, check_in_mem)
+        print("pr_table",data)
+
+        # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
+        shift = selectconcat(SelectableInt(0,1), data[1:3], data[55:58])
+        assert(shift.bits==6) # variable rts : unsigned(5 downto 0);
+        print("shift",shift)
+
+        # mbits := unsigned('0' & data(4 downto 0));
+        mbits = selectconcat(SelectableInt(0,1), data[58:63])
+        assert(mbits.bits==6) #variable mbits : unsigned(5 downto 0);
+        print("mbits",mbits)
+
+        new_shift = self._segment_check(addr, mbits, shift)
+        print("new_shift",new_shift)
+
         addr_next = SelectableInt(0x30000,64) # radix root for testing
+        # this needs to be calculated using the code above
 
         # walk tree starts on prtbl
         while True:
@@ -520,7 +541,7 @@ class RADIX:
             return "segerror"
         limit = shift + (31 - 12)
         if mbits < 5 or mbits > 16 or mbits > limit:
-            return "badtree"
+            return "badtree mbits="+str(mbits)+" limit="+str(limit)
         new_shift = shift + (31 - 12) - mbits
         return new_shift
 
