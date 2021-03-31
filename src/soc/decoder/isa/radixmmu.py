@@ -322,85 +322,6 @@ class RADIX:
         # index += 1
         return data;
 
-    def _prtable_lookup(self, prtbl, addr, pid):
-        print("_prtable_lookup")
-        # v.shift := unsigned('0' & r.prtbl(4 downto 0));
-        shift = prtbl[59:63]
-        print("shift",shift)
-        prtable_addr = self._get_prtable_addr(shift, prtbl, addr, pid)
-        print("prtable_addr",prtable_addr)
-        # TODO check and loop if needed
-
-        #assert(prtable_addr==0x1000000)
-        #print("fetch data from PROCESS_TABLE_3")
-        data = self._next_level(prtable_addr, 8, False, False)
-        print("data",data)
-        #assert(data==0x40000000000300ad)
-        return "TODO verify"
-
-        # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
-        shift = selectconcat(SelectableInt(0,1), data[2:3], data[57:59])
-        print("shift",shift)
-        # mbits := unsigned('0' & data(4 downto 0));
-        mbits = selectconcat(SelectableInt(0,1), data[59:63])
-        print("mbits",mbits)
-
-        if mbits.value==0:
-            return "INVALID"
-        ret = self._segment_check(addr, mbits, shift)
-        print("ret",ret)
-        return ret
-
-        """
-        NOTE _ THIS IS CACHEING OF PGTBL3 / PGTBL0.  WE DO NOT NEED TO DO THIS
-
-        if r.addr(63) = '1' then
-          v.pgtbl3 := data;
-          v.pt3_valid := '1';
-        else
-           v.pgtbl0 := data;
-           v.pt0_valid := '1';
-        end if;
-
-        # THIS IS WHEN SETTING THE SPR.  IT HAS NOTHING TO DO WITH RADIXMMU
-
-        -- The RIC field of the tlbie instruction comes across on the
-        -- sprn bus as bits 2--3.  RIC=2 flushes process table caches.
-        if l_in.sprn(3) = '1' then
-          v.pt0_valid := '0';
-          v.pt3_valid := '0';
-        end if;
-
-        # THIS IS AGAIN CACHEING.  WE DO NOT NEED TO DO CACHEING.
-
-        if l_in.addr(63) = '0' then
-          pgtbl := r.pgtbl0;
-          pt_valid := r.pt0_valid;
-        else
-          pgtbl := r.pgtbl3;
-          pt_valid := r.pt3_valid;
-        end if;
-
-        if pt_valid = '0' then
-          -- need to fetch process table entry
-          -- set v.shift so we can use finalmask for generating
-          -- the process table entry address
-
-          # THIS HAS ALREADY BEEN DONE
-
-          v.shift := unsigned('0' & r.prtbl(4 downto 0));
-          v.state := PROC_TBL_READ;
-        elsif mbits = 0 then
-          -- Use RPDS = 0 to disable radix tree walks
-          v.state := RADIX_FINISH;
-          v.invalid := '1';
-        else
-          v.state := SEGMENT_CHECK;
-        end if;
-        """
-
-        return "TODO"
-
     def _walk_tree(self, addr, pgbase, mode, mbits, shift, priv=1):
         """walk tree
 
@@ -760,17 +681,6 @@ class TestRadixMMU(unittest.TestCase):
         ret = dut._get_pgtable_addr(mask_size, pgbase, addrsh)
         print("ret=", ret)
         self.assertEqual(ret, 0, "pgtbl_addr should be 0")
-
-    def test_prtable_lookup(self):
-
-        mem = Mem(row_bytes=8, initial_mem=testmem)
-        caller = None
-        dut = RADIX(mem, caller)
-
-        prtbl = SelectableInt(0x1000000,64)
-        addr = SelectableInt(0, 64)
-        pid = SelectableInt(0, 64)
-        ret = dut._prtable_lookup(prtbl, addr, pid)
 
     def test_walk_tree_1(self):
 
