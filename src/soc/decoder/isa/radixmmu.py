@@ -454,7 +454,7 @@ class RADIX:
                     return paddr
                 return ok # return the error code
             else:
-                newlookup = self._new_lookup(data, mbits, shift)
+                newlookup = self._new_lookup(data, shift)
                 if newlookup == 'badtree':
                     return newlookup
                 shift, mask, pgbase = newlookup
@@ -470,7 +470,7 @@ class RADIX:
                 print("addr_next",addr_next)
                 print("addrsh",addrsh)
 
-    def _new_lookup(self, data, mbits, shift):
+    def _new_lookup(self, data, shift):
         """
         mbits := unsigned('0' & data(4 downto 0));
         if mbits < 5 or mbits > 16 or mbits > r.shift then
