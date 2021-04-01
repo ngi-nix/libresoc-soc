@@ -10,3 +10,9 @@
 [submodule "nmigen-type-annotations"]
 	path = nmigen-type-annotations
 	url = https://git.libre-soc.org/git/nmigen-type-annotations.git
+[submodule "soc-cocotb-sim"]
+	path = soc-cocotb-sim
+	url = https://git.libre-soc.org/git/soc-cocotb-sim.git
+[submodule "src/soc/soc-cocotb-sim"]
+	path = src/soc/soc-cocotb-sim
+	url = https://git.libre-soc.org/git/soc-cocotb-sim.git
