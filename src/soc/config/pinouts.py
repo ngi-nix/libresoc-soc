@@ -2,6 +2,8 @@ import os
 import sys
 import json
 from pprint import pprint
+from collections import OrderedDict
+
 
 def _byteify(data, ignore_dicts = False):
     # if this is a unicode string, return its string representation
@@ -16,7 +18,7 @@ def _byteify(data, ignore_dicts = False):
     # if this is a dictionary, return dictionary of byteified keys and values
     # but only if we haven't already byteified it
     if isinstance(data, dict) and not ignore_dicts:
-        return dict((_byteify(key, ignore_dicts=True),
+        return OrderedDict((_byteify(key, ignore_dicts=True),
                     _byteify(value, ignore_dicts=True))
                         for key, value in data.iteritems())
     # if it's anything else, return it in its original form
@@ -26,7 +28,7 @@ def _byteify(data, ignore_dicts = False):
 def get_pinspecs(chipname=None, subset=None):
     chip = load_pinouts(chipname)
     pinmap = chip['pins.map']
-    specs = {}
+    specs = OrderedDict() # preserve order
     for k, bus in chip['pins.specs'].items():
         k, num = k.lower().split(":")
         name = '%s%s' % (k, num)
