@@ -36,6 +36,12 @@ testgpio_run_sim:
 	python3 src/soc/litex/florent/sim.py --cpu=libresoc \
 			--variant=standardjtagtestgpio
 
+ls180_verilog_nopll:
+	python3 src/soc/simple/issuer_verilog.py \
+	        --debug=jtag --enable-core --disable-pll \
+	        --enable-xics --disable-svp64 \
+			src/soc/litex/florent/libresoc/libresoc.v
+
 ls180_verilog:
 	python3 src/soc/simple/issuer_verilog.py \
 	        --debug=jtag --enable-core --enable-pll \
