@@ -169,8 +169,14 @@ class TestIssuerInternal(Elaboratable):
         # for parts of the rest of the core
         self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
         if self.jtag_en:
-            subset = {'uart', 'mtwi', 'eint', 'gpio', 'mspi0', 'mspi1',
-                      'pwm', 'sd0', 'sdr'}
+            # XXX MUST keep this up-to-date with litex, and
+            # soc-cocotb-sim, and err.. all needs sorting out, argh
+            subset = ['uart',
+                      # 'mtwi',  - disabled for now
+                      'eint', 'gpio', 'mspi0',
+                      # 'mspi1', - disabled for now
+                      # 'pwm', 'sd0', - disabled for now
+                       'sdr']
             self.jtag = JTAG(get_pinspecs(subset=subset))
             # add signals to pspec to enable/disable icache and dcache
             # (or data and intstruction wishbone if icache/dcache not included)
