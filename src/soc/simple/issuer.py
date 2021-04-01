@@ -680,7 +680,12 @@ class TestIssuerInternal(Elaboratable):
                             comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
                             comb += self.state_w_pc.data_i.eq(nia)
                             # reset SRCSTEP before returning to Fetch
-                            with m.If(pdecode2.loop_continue):
+                            if self.svp64_en:
+                                with m.If(pdecode2.loop_continue):
+                                    comb += new_svstate.srcstep.eq(0)
+                                    comb += new_svstate.dststep.eq(0)
+                                    comb += update_svstate.eq(1)
+                            else:
                                 comb += new_svstate.srcstep.eq(0)
                                 comb += new_svstate.dststep.eq(0)
                                 comb += update_svstate.eq(1)
