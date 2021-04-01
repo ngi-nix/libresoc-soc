@@ -172,7 +172,7 @@ class TestIssuerInternal(Elaboratable):
             # XXX MUST keep this up-to-date with litex, and
             # soc-cocotb-sim, and err.. all needs sorting out, argh
             subset = ['uart',
-                      # 'mtwi',  - disabled for now
+                      'mtwi',
                       'eint', 'gpio', 'mspi0',
                       # 'mspi1', - disabled for now
                       # 'pwm', 'sd0', - disabled for now
