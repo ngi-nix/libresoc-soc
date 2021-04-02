@@ -491,6 +491,15 @@ class SVP64Asm:
                         "cannot have both source-mask and predicate mask"
                     assert not has_pmask,\
                         "cannot have both dest-mask and predicate mask"
+                # since the default is INT predication (ALWAYS), if you
+                # specify one CR mask, you must specify both, to avoid
+                # mixing INT and CR reg types
+                if has_pmask and pmmode == 1:
+                    assert has_smask, \
+                        "need explicit source-mask in CR twin predication"
+                if has_smask and smmode == 1:
+                    assert has_pmask, \
+                        "need explicit dest-mask in CR twin predication"
 
             # sanity-check that 2Pred mask is same mode
             if (has_pmask and has_smask) or mask_m_specified:
