@@ -631,7 +631,7 @@ if __name__ == '__main__':
                  'sv.cmpi 5, 1, 3, 2',
                  'sv.setb 5, 31',
                  'sv.isel 64.v, 3, 2, 65.v',
-                 'sv.setb/pm=r3/sm=1<<r3 5, 31',
+                 'sv.setb/dm=r3/sm=1<<r3 5, 31',
                  'sv.setb/m=r3 5, 31',
                  'sv.setb/vec2 5, 31',
                  'sv.setb/sw=8/ew=16 5, 31',
