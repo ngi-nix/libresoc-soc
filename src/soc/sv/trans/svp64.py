@@ -500,12 +500,11 @@ class SVP64Asm:
                 if has_smask and smmode == 1:
                     assert has_pmask, \
                         "need explicit dest-mask in CR twin predication"
-
-            # sanity-check that 2Pred mask is same mode
-            if (has_pmask and has_smask) or mask_m_specified:
-                assert smmode == pmmode, \
-                    "predicate masks %s and %s must be same reg type" % \
-                        (pme, sme)
+                # sanity-check that 2Pred mask is same mode
+                if has_pmask and has_smask:
+                    assert smmode == pmmode, \
+                        "predicate masks %s and %s must be same reg type" % \
+                            (pme, sme)
 
             # sanity-check that twin-predication mask only specified in 2P mode
             if ptype == '1P':
