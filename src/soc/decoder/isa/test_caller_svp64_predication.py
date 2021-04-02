@@ -302,6 +302,39 @@ class DecoderTestCase(FHDLTestCase):
             self.assertEqual(CR0, SelectableInt(2, 4))
             self.assertEqual(CR1, SelectableInt(4, 4))
 
+    def test_intpred_vcompress(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
+        #   src r3=0b101                     Y  N  Y
+        #                                    |     |
+        #                            +-------+     |
+        #                            | +-----------+
+        #                            | |
+        #   dest always              Y Y Y
+
+        isa = SVP64Asm(['sv.extsb/sm=r3 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b101  # predicate mask
+        initial_regs[9] = 0x90   # source r3 is 0b101 so this will be used
+        initial_regs[10] = 0x91  # this gets skipped
+        initial_regs[11] = 0x92  # source r3 is 0b101 so this will be used
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[5] = 0xffff_ffff_ffff_ff90  # (from r9)
+        expected_regs[6] = 0xffff_ffff_ffff_ff92  # (from r11)
+        expected_regs[7] = 0x0  # (VL loop runs out before we can use it)
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self._check_regs(sim, expected_regs)
+
     def run_tst_program(self, prog, initial_regs=None,
                               svstate=None,
                               initial_cr=0):
