@@ -979,7 +979,7 @@ class ISACaller:
 
             # check if end reached (we let srcstep overrun, above)
             # nothing needs doing (TODO zeroing): just do next instruction
-            if srcstep == vl:
+            if srcstep == vl or dststep == vl:
                 self.svp64_reset_loop()
                 self.update_pc_next()
                 return
@@ -1145,7 +1145,7 @@ class ISACaller:
                 svp64_is_vector = (no_out_vec or no_in_vec)
             else:
                 svp64_is_vector = no_out_vec
-            if svp64_is_vector and srcstep != vl-1:
+            if svp64_is_vector and srcstep != vl-1 and dststep != vl-1:
                 self.svstate.srcstep += SelectableInt(1, 7)
                 self.svstate.dststep += SelectableInt(1, 7)
                 self.pc.NIA.value = self.pc.CIA.value
