@@ -493,6 +493,8 @@ class SVP64Asm:
             if ptype == '1P':
                 assert not has_smask, \
                     "source-mask can only be specified on Twin-predicate ops"
+                assert not has_pmask, \
+                    "dest-mask can only be specified on Twin-predicate ops"
 
             # construct the mode field, doing sanity-checking along the way
 
