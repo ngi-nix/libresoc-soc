@@ -422,13 +422,11 @@ class SVP64Asm:
             for encmode in opmodes:
                 # predicate mask (src and dest)
                 if encmode.startswith("m="):
-                    mask_m_specified = True
                     pme = encmode
                     pmmode, pmask = decode_predicate(encmode[2:])
                     smmode, smask = pmmode, pmask
                     mmode = pmmode
-                    has_pmask = True
-                    has_smask = True
+                    mask_m_specified = True
                 # predicate mask (dest)
                 elif encmode.startswith("dm="):
                     pme = encmode
@@ -486,14 +484,14 @@ class SVP64Asm:
                     mapreduce_svm = True
 
             # sanity-check that 2Pred mask is same mode
-            if has_pmask and has_smask:
+            if (has_pmask and has_smask) or mask_m_specified:
                 assert smmode == pmmode, \
                     "predicate masks %s and %s must be same reg type" % \
                         (pme, sme)
 
             # sanity-check that twin-predication mask only specified in 2P mode
             if not mask_m_specified and ptype == '1P':
-                assert has_smask == False, \
+                assert has_smask or mask_m_specified == False, \
                     "source-mask can only be specified on Twin-predicate ops"
 
             # construct the mode field, doing sanity-checking along the way
@@ -503,9 +501,11 @@ class SVP64Asm:
                 assert subvl != 0, "sub-vector mode not possible on SUBVL=1"
 
             if src_zero:
-                assert has_smask, "src zeroing requires a source predicate"
+                assert has_smask or mask_m_specified, \
+                    "src zeroing requires a source predicate"
             if dst_zero:
-                assert has_pmask, "dest zeroing requires a dest predicate"
+                assert has_pmask or mask_m_specified, \
+                    "dest zeroing requires a dest predicate"
 
             # "normal" mode
             if sv_mode is None:
