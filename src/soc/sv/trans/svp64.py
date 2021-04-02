@@ -490,8 +490,8 @@ class SVP64Asm:
                         (pme, sme)
 
             # sanity-check that twin-predication mask only specified in 2P mode
-            if not mask_m_specified and ptype == '1P':
-                assert has_smask or mask_m_specified == False, \
+            if ptype == '1P':
+                assert not has_smask, \
                     "source-mask can only be specified on Twin-predicate ops"
 
             # construct the mode field, doing sanity-checking along the way
