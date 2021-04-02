@@ -483,6 +483,15 @@ class SVP64Asm:
                 elif encmode == 'svm': # sub-vector mode
                     mapreduce_svm = True
 
+            if ptype == '2P':
+                # since m=xx takes precedence (overrides) sm=xx and dm=xx,
+                # treat them as mutually exclusive
+                if mask_m_specified:
+                    assert not has_smask,\
+                        "cannot have both source-mask and predicate mask"
+                    assert not has_pmask,\
+                        "cannot have both dest-mask and predicate mask"
+
             # sanity-check that 2Pred mask is same mode
             if (has_pmask and has_smask) or mask_m_specified:
                 assert smmode == pmmode, \
@@ -638,7 +647,7 @@ if __name__ == '__main__':
                  'sv.setb/vec2 5, 31',
                  'sv.setb/sw=8/ew=16 5, 31',
                  'sv.extsw./ff=eq 5, 31',
-                 'sv.extsw./satu/sz/dz/sm=r3/m=r3 5, 31',
+                 'sv.extsw./satu/sz/dz/sm=r3/dm=r3 5, 31',
                  'sv.extsw./pr=eq 5.v, 31',
                  'sv.add. 5.v, 2.v, 1.v',
                  'sv.add./m=r3 5.v, 2.v, 1.v',
