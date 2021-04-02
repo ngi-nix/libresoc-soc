@@ -1126,7 +1126,7 @@ class ISACaller:
             vl = self.svstate.vl.asint(msb0=True)
             mvl = self.svstate.maxvl.asint(msb0=True)
             srcstep = self.svstate.srcstep.asint(msb0=True)
-            dststep = self.svstate.srcstep.asint(msb0=True)
+            dststep = self.svstate.dststep.asint(msb0=True)
             sv_ptype = yield self.dec2.dec.op.SV_Ptype
             no_out_vec = not (yield self.dec2.no_out_vec)
             no_in_vec = not (yield self.dec2.no_in_vec)
