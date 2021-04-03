@@ -375,3 +375,40 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    # checks an instruction with no effect (all mask bits are zeros)
+    def case_14_intpred_all_zeros_all_ones(self):
+        # adds:
+        #       1 = 0 (skipped)
+        #       2 = 0 (skipped)
+        #       3 = 0 (skipped)
+        #
+        #      13 = 10 + 7  => 0x2341 = 0x1111 + 0x1230
+        #      14 = 11 + 8  => 0xB063 = 0x3012 + 0x8051
+        #      15 = 12 + 9  => 0x7736 = 0x6502 + 0x1234
+        isa = SVP64Asm([
+            'sv.add/m=r30 1.v, 5.v, 9.v',
+            'sv.add/m=~r30 13.v, 10.v, 7.v'
+        ])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[30] = 0b101  # predicate mask
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[11] = 0x3012
+        initial_regs[12] = 0x6502
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        initial_regs[7] = 0x1230
+        initial_regs[8] = 0x8051
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
