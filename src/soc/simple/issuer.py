@@ -607,6 +607,8 @@ class TestIssuerInternal(Elaboratable):
                         comb += skip_srcstep.eq(cur_srcstep + src_delta)
                         # shift-out all leading zeros from the mask
                         # plus the leading "one" bit
+                        # TODO count leading zeros and shift-out the zero
+                        #      bits, in the same step, in hardware
                         sync += self.srcmask.eq(self.srcmask >> (src_delta+1))
 
                         # same as above, but for dststep
