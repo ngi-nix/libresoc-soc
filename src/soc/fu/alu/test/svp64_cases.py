@@ -202,7 +202,6 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
 
-    @skip_case("Predication not implemented yet")
     def case_9_sv_extsw_intpred(self):
         # extsb, integer twin-pred mask: source is ~r3 (0b01), dest r3 (0b10)
         # works as follows, where any zeros indicate "skip element"
@@ -278,7 +277,6 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
 
-    @skip_case("Predication not implemented yet")
     def case_11_intpred_vexpand(self):
         #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
         #   src always                       Y  Y  Y
@@ -311,7 +309,6 @@ class SVP64ALUTestCase(TestAccumulatorBase):
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
 
-    @skip_case("Predication not implemented yet")
     def case_12_sv_twinpred(self):
         #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
         #   src r3=0b101                     Y  N  Y
