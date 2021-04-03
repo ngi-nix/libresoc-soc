@@ -600,7 +600,8 @@ class TestIssuerInternal(Elaboratable):
                             # append guard bit, in case the mask is all zeros
                             pri_enc_src = PriorityEncoder(65)
                             m.submodules.pri_enc_src = pri_enc_src
-                            comb += pri_enc_src.i.eq(Cat(self.srcmask, 1))
+                            comb += pri_enc_src.i.eq(Cat(self.srcmask,
+                                                         Const(1, 1)))
                             comb += src_delta.eq(pri_enc_src.o)
                         # apply delta to srcstep
                         comb += skip_srcstep.eq(cur_srcstep + src_delta)
@@ -614,7 +615,8 @@ class TestIssuerInternal(Elaboratable):
                         with m.If(~pred_dst_zero):
                             pri_enc_dst = PriorityEncoder(65)
                             m.submodules.pri_enc_dst = pri_enc_dst
-                            comb += pri_enc_dst.i.eq(Cat(self.dstmask, 1))
+                            comb += pri_enc_dst.i.eq(Cat(self.dstmask,
+                                                         Const(1, 1)))
                             comb += dst_delta.eq(pri_enc_dst.o)
                         comb += skip_dststep.eq(cur_dststep + dst_delta)
                         sync += self.dstmask.eq(self.dstmask >> (dst_delta+1))
