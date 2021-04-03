@@ -482,6 +482,8 @@ class SVP64Asm:
                     mapreduce_crm = True
                 elif encmode == 'svm': # sub-vector mode
                     mapreduce_svm = True
+                else:
+                    raise AssertionError("unknown encmode %s" % encmode)
 
             if ptype == '2P':
                 # since m=xx takes precedence (overrides) sm=xx and dm=xx,
