@@ -395,7 +395,7 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         # initial values in GPR regfile
         initial_regs = [0] * 32
-        initial_regs[30] = 0b101  # predicate mask
+        initial_regs[30] = 0  # predicate mask
         initial_regs[9] = 0x1234
         initial_regs[10] = 0x1111
         initial_regs[11] = 0x3012
