@@ -915,7 +915,7 @@ class ISACaller:
         if self.is_svp64_mode:
             vl = self.svstate.vl.asint(msb0=True)
             srcstep = self.svstate.srcstep.asint(msb0=True)
-            dststep = self.svstate.srcstep.asint(msb0=True)
+            dststep = self.svstate.dststep.asint(msb0=True)
             sv_a_nz = yield self.dec2.sv_a_nz
             in1 = yield self.dec2.e.read_reg1.data
             print ("SVP64: VL, srcstep, dststep, sv_a_nz, in1",
