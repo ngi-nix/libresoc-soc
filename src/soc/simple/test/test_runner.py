@@ -259,11 +259,7 @@ class TestRunner(FHDLTestCase):
                     counter = counter + 1
 
                     # wait until executed
-                    # wait for insn_done high
                     while not (yield issuer.insn_done):
-                        yield
-                    # wait for insn_done low
-                    while (yield issuer.insn_done):
                         yield
 
                     # set up simulated instruction (in simdec2)
@@ -288,9 +284,6 @@ class TestRunner(FHDLTestCase):
                         yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
                         yield
                         yield
-
-                    # wait one cycle for registers to settle
-                    yield
 
                     # register check
                     yield from check_regs(self, sim, core, test, code)
