@@ -628,6 +628,8 @@ class TestIssuerInternal(Elaboratable):
                             comb += new_svstate.srcstep.eq(0)
                             comb += new_svstate.dststep.eq(0)
                             comb += update_svstate.eq(1)
+                            # synchronize with the simulator
+                            comb += self.insn_done.eq(1)
                             # go back to Issue
                             m.next = "ISSUE_START"
                         with m.Else():
