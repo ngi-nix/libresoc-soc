@@ -403,6 +403,54 @@ class DecoderTestCase(FHDLTestCase):
             sim = self.run_tst_program(program, initial_regs, svstate)
             self._check_regs(sim, expected_regs)
 
+    # checks that we are able to resume in the middle of a VL loop,
+    # after an interrupt.
+    # let's assume an interrupt happens as we were about to operate on the
+    # second vector element
+    # as we return from the handler, src/dst step are restored
+    # make sure we avoid operating on the first vector element, again
+    def test_intpred_reentrant(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11 12
+        #   srcstep=2                              v
+        #   src r3=0b0101                    Y  N  Y  N
+        #                                    :     |
+        #                              + - - +     |
+        #                              :   +-------+
+        #                              :   |
+        #   dest ~r3=0b1010          N Y N Y
+        #   dststep=3                      ^
+
+        isa = SVP64Asm(['sv.extsb/sm=r3/dm=~r3 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b0101  # mask
+        initial_regs[9] = 0x90   # srcstep starts at 2, so this gets skipped
+        initial_regs[10] = 0x91  # skip
+        initial_regs[11] = 0x92  # this will be used
+        initial_regs[12] = 0x93  # skip
+
+        # SVSTATE (in this case, VL=4)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 4  # VL
+        svstate.maxvl[0:7] = 4  # MAXVL
+        # set src/dest step on the middle of the loop
+        svstate.srcstep[0:7] = 2
+        svstate.dststep[0:7] = 3
+        print("SVSTATE", bin(svstate.spr.asint()))
+        # copy before running
+        expected_regs = deepcopy(initial_regs)
+        expected_regs[5] = 0x0  # skip
+        expected_regs[6] = 0x0  # dststep starts at 3, so this gets skipped
+        expected_regs[7] = 0x0  # skip
+        expected_regs[8] = 0xffff_ffff_ffff_ff92  # this will be used
+
+        with Program(lst, bigendian=False) as program:
+            sim = self.run_tst_program(program, initial_regs, svstate)
+            self._check_regs(sim, expected_regs)
+
     def run_tst_program(self, prog, initial_regs=None,
                               svstate=None,
                               initial_cr=0):
