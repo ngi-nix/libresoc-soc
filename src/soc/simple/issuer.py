@@ -408,6 +408,10 @@ class TestIssuerInternal(Elaboratable):
         predmode = rm_dec.predmode
         srcpred, dstpred = rm_dec.srcpred, rm_dec.dstpred
         cr_pred, int_pred = self.cr_pred, self.int_pred   # read regfiles
+        # get src/dst step, so we can skip already used mask bits
+        cur_state = self.cur_state
+        srcstep = cur_state.svstate.srcstep
+        dststep = cur_state.svstate.dststep
 
         # elif predmode == CR:
         #    CR-src sidx, sinvert = get_predcr(m, srcpred)
@@ -461,7 +465,11 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INT_DST_READ"):
                 # store destination mask
                 inv = Repl(dinvert, 64)
-                sync += self.dstmask.eq(self.int_pred.data_o ^ inv)
+                new_dstmask = Signal(64)
+                # invert mask if requested
+                comb += new_dstmask.eq(self.int_pred.data_o ^ inv)
+                # shift-out already used mask bits
+                sync += self.dstmask.eq(new_dstmask >> dststep)
                 # skip fetching source mask register, when zero
                 with m.If(sall1s):
                     sync += self.srcmask.eq(-1)
@@ -475,7 +483,11 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INT_SRC_READ"):
                 # store source mask
                 inv = Repl(sinvert, 64)
-                sync += self.srcmask.eq(self.int_pred.data_o ^ inv)
+                new_srcmask = Signal(64)
+                # invert mask if requested
+                comb += new_srcmask.eq(self.int_pred.data_o ^ inv)
+                # shift-out already used mask bits
+                sync += self.srcmask.eq(new_srcmask >> srcstep)
                 m.next = "FETCH_PRED_DONE"
 
             with m.State("FETCH_PRED_DONE"):
