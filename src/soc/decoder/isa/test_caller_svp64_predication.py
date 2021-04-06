@@ -404,21 +404,19 @@ class DecoderTestCase(FHDLTestCase):
             self._check_regs(sim, expected_regs)
 
     # checks that we are able to resume in the middle of a VL loop,
-    # after an interrupt.
-    # let's assume an interrupt happens as we were about to operate on the
-    # second vector element
-    # as we return from the handler, src/dst step are restored
-    # make sure we avoid operating on the first vector element, again
+    # after an interrupt, or after the user has updated src/dst step
+    # let's assume the user has prepared src/dst step before running this
+    # vector instruction
     def test_intpred_reentrant(self):
         #   reg num        0 1 2 3 4 5 6 7 8 9 10 11 12
-        #   srcstep=2                              v
+        #   srcstep=1                           v
         #   src r3=0b0101                    Y  N  Y  N
         #                                    :     |
         #                              + - - +     |
         #                              :   +-------+
         #                              :   |
         #   dest ~r3=0b1010          N Y N Y
-        #   dststep=3                      ^
+        #   dststep=2                    ^
 
         isa = SVP64Asm(['sv.extsb/sm=r3/dm=~r3 5.v, 9.v'])
         lst = list(isa)
@@ -437,8 +435,8 @@ class DecoderTestCase(FHDLTestCase):
         svstate.vl[0:7] = 4  # VL
         svstate.maxvl[0:7] = 4  # MAXVL
         # set src/dest step on the middle of the loop
-        svstate.srcstep[0:7] = 2
-        svstate.dststep[0:7] = 3
+        svstate.srcstep[0:7] = 1
+        svstate.dststep[0:7] = 2
         print("SVSTATE", bin(svstate.spr.asint()))
         # copy before running
         expected_regs = deepcopy(initial_regs)
