@@ -38,7 +38,7 @@ class SPBlock512W64B8W(Elaboratable):
 
         # 4k SRAM instance
         a = Signal(9)
-        we = Signal()
+        we = Signal(8) # 8 select lines
         q = Signal(64) # output
         d = Signal(64) # input
 
