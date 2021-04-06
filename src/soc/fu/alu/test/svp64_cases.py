@@ -412,3 +412,49 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    # checks that we are able to resume in the middle of a VL loop,
+    # after an interrupt, or after the user has updated src/dst step
+    # let's assume the user has prepared src/dst step before running this
+    # vector instruction
+    # make sure we skip mask bits before the initial step
+    def case_15_intpred_reentrant(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11 12
+        #   srcstep=1                           v
+        #   src r3=0b0101                    Y  N  Y  N
+        #                                    :     |
+        #                              + - - +     |
+        #                              :   +-------+
+        #                              :   |
+        #   dest ~r3=0b1010          N Y N Y
+        #   dststep=2                    ^
+        #
+        # expected results:
+        # r5 = 0x0  # skip
+        # r6 = 0x0  # dststep starts at 3, so this gets skipped
+        # r7 = 0x0  # skip
+        # r8 = 0xffff_ffff_ffff_ff92  # this will be used
+
+        isa = SVP64Asm(['sv.extsb/sm=r3/dm=~r3 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 0b0101  # mask
+        initial_regs[9] = 0x90   # srcstep starts at 2, so this gets skipped
+        initial_regs[10] = 0x91  # skip
+        initial_regs[11] = 0x92  # this will be used
+        initial_regs[12] = 0x93  # skip
+
+        # SVSTATE (in this case, VL=4)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 4  # VL
+        svstate.maxvl[0:7] = 4  # MAXVL
+        # set src/dest step on the middle of the loop
+        svstate.srcstep[0:7] = 1
+        svstate.dststep[0:7] = 2
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
