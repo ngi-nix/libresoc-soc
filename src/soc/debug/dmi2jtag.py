@@ -12,7 +12,6 @@ from nmigen import Memory, Signal, Module
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick
 from nmutil.util import wrap
-from nmigen_soc.wishbone import Interface as WishboneInterface
 
 
 # JTAG to DMI interface
