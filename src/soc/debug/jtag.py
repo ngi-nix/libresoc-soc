@@ -82,6 +82,7 @@ class JTAG(DMITAP, Pins):
         # create and connect wishbone
         self.wb = self.add_wishbone(ircodes=[5, 6, 7], features={'err'},
                                    address_width=29, data_width=wb_data_wid,
+                                   granularity=8, # 8-bit wide
                                    name="jtag_wb")
 
         # create DMI2JTAG (goes through to dmi_sim())
