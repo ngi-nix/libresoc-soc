@@ -413,6 +413,7 @@ class RADIX:
         entry_width = 8
         data = self._next_level(addr_next, entry_width, swap, check_in_mem)
         print("pr_table",data)
+        pgtbl = data # this is cached in microwatt (as v.pgtbl3 / v.pgtbl0)
 
         # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
         shift = selectconcat(SelectableInt(0,1), data[1:3], data[55:58])
@@ -440,7 +441,15 @@ class RADIX:
         new_shift = self._segment_check(addr, mbits, shift)
         print("new_shift",new_shift)
 
-        print("TODO: next")
+        # v.pgbase := pgtbl(55 downto 8) & x"00";
+        leftzeros = SelectableInt(0,15)
+        pgbase = selectconcat(leftzeros,pgtbl[8:55],SelectableInt(0,2))
+        # FIXME number of bits is wrong, assertion fails
+        print("pgbase",pgbase)
+        print("pgbase[8:45]",pgbase[8:45])
+        print("pgbase[45:61]",pgbase[45:61])
+        #addr_next = self._get_pgtable_addr(mask_size, pgbase, new_shift)
+        #print("DONE ",addr_next)
         return None
 
         #addr_next = SelectableInt(0x30000,64) # radix root for testing
@@ -700,14 +709,14 @@ class RADIX:
 
 class TestRadixMMU(unittest.TestCase):
 
-    def tst_genmask(self):
+    def test_genmask(self):
         shift = SelectableInt(5, 6)
         mask = genmask(shift, 43)
         print ("    mask", bin(mask.value))
 
         self.assertEqual(mask.value, 0b11111, "mask should be 5 1s")
 
-    def tst_get_pgtable_addr(self):
+    def test_get_pgtable_addr(self):
 
         mem = None
         caller = None
@@ -781,7 +790,7 @@ class TestRadixMMU(unittest.TestCase):
                                                     result.value))
 
 
-    def tst_walk_tree_2(self):
+    def test_walk_tree_2(self):
 
         # test address slightly different
         testaddr = 0x1101
