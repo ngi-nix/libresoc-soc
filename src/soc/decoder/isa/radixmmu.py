@@ -422,12 +422,28 @@ class RADIX:
         # mbits := unsigned('0' & data(4 downto 0));
         mbits = selectconcat(SelectableInt(0,1), data[58:63])
         assert(mbits.bits==6) #variable mbits : unsigned(5 downto 0);
-        print("mbits",mbits)
 
+        # WIP
+        if mbits==0:
+            return "invalid"
+
+        # mask_size := mbits(4 downto 0);
+        mask_size = mbits[0:5];
+        assert(mask_size.bits==5)
+        print("before segment check ==========")
+        print("mask_size:",bin(mask_size.value))
+        print("mbits:",bin(mbits.value))
+
+        print("calling segment_check")
+
+        mbits = selectconcat(SelectableInt(0,1), mask_size)
         new_shift = self._segment_check(addr, mbits, shift)
         print("new_shift",new_shift)
 
-        addr_next = SelectableInt(0x30000,64) # radix root for testing
+        print("TODO: next")
+        return None
+
+        #addr_next = SelectableInt(0x30000,64) # radix root for testing
         # this needs to be calculated using the code above
 
         # walk tree starts on prtbl
@@ -540,9 +556,10 @@ class RADIX:
         if addr[0] != addr[1] or nonzero != 0:
             return "segerror"
         limit = shift + (31 - 12)
-        if mbits < 5 or mbits > 16 or mbits > limit:
-            return "badtree mbits="+str(mbits)+" limit="+str(limit)
+        if mbits.value < 5 or mbits.value > 16 or mbits.value > limit.value:
+            return "badtree mbits="+str(mbits.value)+" limit="+str(limit.value)
         new_shift = shift + (31 - 12) - mbits
+        # TODO verify that returned result is correct
         return new_shift
 
     def _check_perms(self, data, priv, mode):
@@ -683,14 +700,14 @@ class RADIX:
 
 class TestRadixMMU(unittest.TestCase):
 
-    def test_genmask(self):
+    def tst_genmask(self):
         shift = SelectableInt(5, 6)
         mask = genmask(shift, 43)
         print ("    mask", bin(mask.value))
 
         self.assertEqual(mask.value, 0b11111, "mask should be 5 1s")
 
-    def test_get_pgtable_addr(self):
+    def tst_get_pgtable_addr(self):
 
         mem = None
         caller = None
@@ -764,7 +781,7 @@ class TestRadixMMU(unittest.TestCase):
                                                     result.value))
 
 
-    def test_walk_tree_2(self):
+    def tst_walk_tree_2(self):
 
         # test address slightly different
         testaddr = 0x1101
