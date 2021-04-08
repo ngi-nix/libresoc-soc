@@ -21,6 +21,7 @@ from nmutil.util import wrap
 from soc.debug.jtagutils import (jtag_read_write_reg,
                                  jtag_srv, jtag_set_reset,
                                  jtag_set_ir, jtag_set_get_dr)
+from soc.simulator.program import Program
 
 def test_pinset():
     return {
@@ -84,7 +85,7 @@ def jtag_sim(dut, firmware):
     # write DMI CTRL register - STOP and RESET
     status = yield from writeread_dmi_addr(dut, DBGCore.CTRL, 0b011)
     print ("dmi ctrl status", hex(status))
-    assert status == 4 # returned old value (nice! cool feature!)
+    assert status == 0 # returned old value (nice! cool feature!)
 
     # read STAT and wait for "STOPPED"
     while True:
@@ -93,23 +94,23 @@ def jtag_sim(dut, firmware):
         if (status & (1<<DBGStat.STOPPED)) or (status & (1<<DBGStat.TERM)):
             break
 
-    ####### JTAG to Wishbone ######
+    ####### JTAG to Wishbone - hard-coded 30-bit addr, 32-bit data ######
 
     # write Wishbone address
-    yield from jtag_read_write_reg(dut, WB_ADDR, 64, 0)
+    yield from jtag_read_write_reg(dut, WB_ADDR, 30, 0)
 
     # write/read wishbone data
     for val in firmware:
-        data = yield from jtag_read_write_reg(dut, WB_WRRD, 64, val)
-        print ("wb write", hex(data))
+        data = yield from jtag_read_write_reg(dut, WB_WRRD, 32, val)
+        print ("wb write", val, hex(data))
 
     # write Wishbone address
-    yield from jtag_read_write_reg(dut, WB_ADDR, 64, 0)
+    yield from jtag_read_write_reg(dut, WB_ADDR, 30, 0)
 
     # confirm data written
     for val in firmware:
-        data = yield from jtag_read_write_reg(dut, WB_READ, 64, 0)
-        print ("wb read", hex(data))
+        data = yield from jtag_read_write_reg(dut, WB_READ, 32, val)
+        print ("wb read", val, hex(data))
 
     ####### JTAG to DMI Setup (IC-Reset, start) ######
 
@@ -153,7 +154,19 @@ if __name__ == '__main__':
     sim = Simulator(m)
     sim.add_clock(1e-6, domain="sync")      # standard clock
 
-    data = [0x01, 0x02] # list of 64-bit words
+    lst = ["addi 9, 0, 0x10",  # i = 16
+           "addi 9,9,-1",    # i = i - 1
+           "cmpi 2,1,9,12",     # compare 9 to value 12, store in CR2
+           "bc 4,10,-8",        # branch if CR2 "test was != 12"
+           'attn',
+           ]
+
+    data = []
+    with Program(lst, False) as p:
+        data = list(p.generate_instructions())
+        for instruction in data:
+            print (hex(instruction))
+
     sim.add_sync_process(wrap(jtag_sim(cdut, data))) 
 
     with sim.write_vcd("jtag_firmware_upload.vcd"):

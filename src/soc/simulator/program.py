@@ -128,5 +128,14 @@ if __name__ == '__main__':
            'addi r2, 3, 1',
            'attn',
           ]
+    lst = ["addi 9, 0, 0x10",  # i = 16
+           "addi 9,9,-1",    # i = i - 1
+           "cmpi 2,1,9,12",     # compare 9 to value 12, store in CR2
+           "bc 4,10,-8",        # branch if CR2 "test was != 12"
+           'attn',
+           ]
+
     with Program(lst, False) as p:
+        for instruction in p.generate_instructions():
+            print (hex(instruction))
         p.write_bin("/tmp/test.bin")
