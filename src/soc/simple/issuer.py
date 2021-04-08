@@ -56,22 +56,23 @@ def get_insn(f_instr_o, pc):
         return f_instr_o.word_select(pc[2], 32)
 
 # gets state input or reads from state regfile
-def state_get(m, state_i, name, regfile, regnum):
+def state_get(m, core_rst, state_i, name, regfile, regnum):
     comb = m.d.comb
     sync = m.d.sync
     # read the PC
     res = Signal(64, reset_less=True, name=name)
     res_ok_delay = Signal(name="%s_ok_delay" % name)
-    sync += res_ok_delay.eq(~state_i.ok)
-    with m.If(state_i.ok):
-        # incoming override (start from pc_i)
-        comb += res.eq(state_i.data)
-    with m.Else():
-        # otherwise read StateRegs regfile for PC...
-        comb += regfile.ren.eq(1<<regnum)
-    # ... but on a 1-clock delay
-    with m.If(res_ok_delay):
-        comb += res.eq(regfile.data_o)
+    with m.If(~core_rst):
+        sync += res_ok_delay.eq(~state_i.ok)
+        with m.If(state_i.ok):
+            # incoming override (start from pc_i)
+            comb += res.eq(state_i.data)
+        with m.Else():
+            # otherwise read StateRegs regfile for PC...
+            comb += regfile.ren.eq(1<<regnum)
+        # ... but on a 1-clock delay
+        with m.If(res_ok_delay):
+            comb += res.eq(regfile.data_o)
     return res
 
 def get_predint(m, mask, name):
@@ -879,6 +880,10 @@ class TestIssuerInternal(Elaboratable):
         # set up peripherals and core
         core_rst = self.setup_peripherals(m)
 
+        # reset current state if core reset requested
+        with m.If(core_rst):
+            m.d.sync += self.cur_state.eq(0)
+
         # PC and instruction from I-Memory
         comb += self.pc_o.eq(cur_state.pc)
         pc_changed = Signal() # note write to PC
@@ -886,9 +891,11 @@ class TestIssuerInternal(Elaboratable):
 
         # read state either from incoming override or from regfile
         # TODO: really should be doing MSR in the same way
-        pc = state_get(m, self.pc_i, "pc",                  # read PC
+        pc = state_get(m, core_rst, self.pc_i,
+                            "pc",                  # read PC
                             self.state_r_pc, StateRegs.PC)
-        svstate = state_get(m, self.svstate_i, "svstate",   # read SVSTATE
+        svstate = state_get(m, core_rst, self.svstate_i,
+                            "svstate",   # read SVSTATE
                             self.state_r_sv, StateRegs.SVSTATE)
 
         # don't write pc every cycle
@@ -900,7 +907,9 @@ class TestIssuerInternal(Elaboratable):
 
         # address of the next instruction, in the absence of a branch
         # depends on the instruction size
-        nia = Signal(64, reset_less=True)
+        nia = Signal(64)
+        with m.If(core_rst):
+            sync += nia.eq(0)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)

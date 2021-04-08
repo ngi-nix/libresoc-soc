@@ -29,6 +29,10 @@ def test_pinset():
             'test': ['io0-', 'io1+', 'io2>', 'io3*'],
            }
 
+def brev(n, width):
+    b = '{:0{width}b}'.format(n, width=width)
+    return int(b[::-1], 2)
+
 
 # JTAG-ircodes for accessing DMI
 DMI_ADDR = 8
@@ -83,7 +87,9 @@ def jtag_sim(dut, firmware):
     print ("dmi ctrl status", bin(status))
 
     # write DMI CTRL register - STOP and RESET
-    status = yield from writeread_dmi_addr(dut, DBGCore.CTRL, 0b011)
+    status = yield from writeread_dmi_addr(dut, DBGCore.CTRL,
+                        (1<<DBGCtrl.STOP) |
+                        (1<<DBGCtrl.RESET))
     print ("dmi ctrl status", hex(status))
     assert status == 0 # returned old value (nice! cool feature!)
 
@@ -102,7 +108,7 @@ def jtag_sim(dut, firmware):
     # write/read wishbone data
     for val in firmware:
         data = yield from jtag_read_write_reg(dut, WB_WRRD, 32, val)
-        print ("wb write", val, hex(data))
+        print ("wb write", hex(val), hex(data))
 
     # write Wishbone address
     yield from jtag_read_write_reg(dut, WB_ADDR, 30, 0)
@@ -110,7 +116,7 @@ def jtag_sim(dut, firmware):
     # confirm data written
     for val in firmware:
         data = yield from jtag_read_write_reg(dut, WB_READ, 32, val)
-        print ("wb read", val, hex(data))
+        print ("wb read", hex(val), hex(data))
 
     ####### JTAG to DMI Setup (IC-Reset, start) ######
 
