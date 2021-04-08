@@ -81,8 +81,7 @@ class JTAG(DMITAP, Pins):
         self.sr = self.add_shiftreg(ircode=4, length=3)
 
         # create and connect wishbone
-        self.wb = self.add_wishbone(ircodes=[5, 6, 7],
-                                   features={'err', 'stall'},
+        self.wb = self.add_wishbone(ircodes=[5, 6, 7], features={'err'},
                                    address_width=30, data_width=wb_data_wid,
                                    granularity=8, # 8-bit wide
                                    name="jtag_wb")
@@ -113,8 +112,8 @@ class JTAG(DMITAP, Pins):
             m.d.comb += self.sr_en.i.eq(en_sigs)
 
         # create a fake "stall"
-        wb = self.wb
-        m.d.comb += wb.stall.eq(wb.cyc & ~wb.ack) # No burst support
+        #wb = self.wb
+        #m.d.comb += wb.stall.eq(wb.cyc & ~wb.ack) # No burst support
 
         return m
 
