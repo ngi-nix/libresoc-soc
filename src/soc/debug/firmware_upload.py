@@ -160,6 +160,21 @@ if __name__ == '__main__':
     sim = Simulator(m)
     sim.add_clock(1e-6, domain="sync")      # standard clock
 
+    # blinken lights...
+    lst = """
+    blink:
+            li 3, 0
+            lis 4, 1234
+            lis 5, 5678
+    .LBB0_1:
+            std 3, 6780(4)
+            mtctr 5
+    .LBB0_2:
+            bdnz .LBB0_2
+            xori 3, 3, 1
+            b .LBB0_1
+    """
+    # simple loop
     lst = ["addi 9, 0, 0x10",  # i = 16
            "addi 9,9,-1",    # i = i - 1
            "cmpi 2,1,9,12",     # compare 9 to value 12, store in CR2
