@@ -908,8 +908,6 @@ class TestIssuerInternal(Elaboratable):
         # address of the next instruction, in the absence of a branch
         # depends on the instruction size
         nia = Signal(64)
-        with m.If(core_rst):
-            sync += nia.eq(0)
 
         # connect up debug signals
         # TODO comb += core.icache_rst_i.eq(dbg.icache_rst_o)
@@ -979,6 +977,10 @@ class TestIssuerInternal(Elaboratable):
         self.execute_fsm(m, core, pc_changed, sv_changed,
                          exec_insn_valid_i, exec_insn_ready_o,
                          exec_pc_valid_o, exec_pc_ready_i)
+
+        # whatever was done above, over-ride it if core reset is held
+        with m.If(core_rst):
+            sync += nia.eq(0)
 
         # this bit doesn't have to be in the FSM: connect up to read
         # regfiles on demand from DMI

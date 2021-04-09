@@ -163,7 +163,7 @@ if __name__ == '__main__':
     lst = ["addi 9, 0, 0x10",  # i = 16
            "addi 9,9,-1",    # i = i - 1
            "cmpi 2,1,9,12",     # compare 9 to value 12, store in CR2
-           "bc 4,10,-8",        # branch if CR2 "test was != 12"
+           "bc 4,10,-16",        # branch if CR2 "test was != 12"
            'attn',
            ]
 
