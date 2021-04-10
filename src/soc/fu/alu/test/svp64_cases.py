@@ -458,3 +458,69 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    def case_16_shift_one_by_r3_dest(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
+        #   src r30=0b100                    N  N  Y
+        #                                          |
+        #                              +-----------+
+        #                              |
+        #   dest r3=1: 1<<r3=0b010   N Y N
+        #
+        # expected results:
+        # r5 = 0x0                    skipped
+        # r6 = 0xffff_ffff_ffff_ff92  r3 is 1, so this is used
+        # r7 = 0x0                    skipped
+
+        isa = SVP64Asm(['sv.extsb/dm=1<<r3/sm=r30 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 1  # dest mask = 1<<r3 = 0b010
+        initial_regs[30] = 0b100  # source mask
+        initial_regs[9] = 0x90   # skipped
+        initial_regs[10] = 0x91  # skipped
+        initial_regs[11] = 0x92  # 3rd bit of r30 is 1
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
+
+    def case_17_shift_one_by_r3_source(self):
+        #   reg num        0 1 2 3 4 5 6 7 8 9 10 11
+        #   src r3=2: 1<<r3=0b100            N  N  Y
+        #                                          |
+        #                              +-----------+
+        #                              |
+        #   dest r30=0b010           N Y N
+        #
+        # expected results:
+        # r5 = 0x0                    skipped
+        # r6 = 0xffff_ffff_ffff_ff92  2nd bit of r30 is 1
+        # r7 = 0x0                    skipped
+
+        isa = SVP64Asm(['sv.extsb/sm=1<<r3/dm=r30 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[3] = 2  # source mask = 1<<r3 = 0b100
+        initial_regs[30] = 0b010  # dest mask
+        initial_regs[9] = 0x90   # skipped
+        initial_regs[10] = 0x91  # skipped
+        initial_regs[11] = 0x92  # r3 is 2, so this will be used
+        # SVSTATE (in this case, VL=3)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 3  # VL
+        svstate.maxvl[0:7] = 3  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate)
