@@ -467,8 +467,14 @@ class TestIssuerInternal(Elaboratable):
                 # store destination mask
                 inv = Repl(dinvert, 64)
                 new_dstmask = Signal(64)
-                # invert mask if requested
-                comb += new_dstmask.eq(self.int_pred.data_o ^ inv)
+                with m.If(dunary):
+                    # set selected mask bit for 1<<r3 mode
+                    dst_shift = Signal(range(64))
+                    comb += dst_shift.eq(self.int_pred.data_o & 0b111111)
+                    comb += new_dstmask.bit_select(dst_shift, 1).eq(1)
+                with m.Else():
+                    # invert mask if requested
+                    comb += new_dstmask.eq(self.int_pred.data_o ^ inv)
                 # shift-out already used mask bits
                 sync += self.dstmask.eq(new_dstmask >> dststep)
                 # skip fetching source mask register, when zero
@@ -485,8 +491,14 @@ class TestIssuerInternal(Elaboratable):
                 # store source mask
                 inv = Repl(sinvert, 64)
                 new_srcmask = Signal(64)
-                # invert mask if requested
-                comb += new_srcmask.eq(self.int_pred.data_o ^ inv)
+                with m.If(sunary):
+                    # set selected mask bit for 1<<r3 mode
+                    src_shift = Signal(range(64))
+                    comb += src_shift.eq(self.int_pred.data_o & 0b111111)
+                    comb += new_srcmask.bit_select(src_shift, 1).eq(1)
+                with m.Else():
+                    # invert mask if requested
+                    comb += new_srcmask.eq(self.int_pred.data_o ^ inv)
                 # shift-out already used mask bits
                 sync += self.srcmask.eq(new_srcmask >> srcstep)
                 m.next = "FETCH_PRED_DONE"
