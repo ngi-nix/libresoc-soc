@@ -438,22 +438,23 @@ class RADIX:
         print("calling segment_check")
 
         mbits = selectconcat(SelectableInt(0,1), mask_size)
-        new_shift = self._segment_check(addr, mbits, shift)
-        print("new_shift",new_shift)
+        shift = self._segment_check(addr, mbits, shift)
+        print("shift",shift)
 
         # v.pgbase := pgtbl(55 downto 8) & x"00";
         leftzeros = SelectableInt(0,15)
         pgbase = selectconcat(leftzeros,pgtbl[8:55],SelectableInt(0,2))
-        # FIXME number of bits is wrong, assertion fails
-        print("pgbase",pgbase)
-        print("pgbase[8:45]",pgbase[8:45])
-        print("pgbase[45:61]",pgbase[45:61])
-        #addr_next = self._get_pgtable_addr(mask_size, pgbase, new_shift)
-        #print("DONE ",addr_next)
-        return None
 
-        #addr_next = SelectableInt(0x30000,64) # radix root for testing
-        # this needs to be calculated using the code above
+        addrsh = addrshift(addr,shift)
+        print("addrsh",addrsh)
+
+        # TODO verify
+        addr_next = self._get_pgtable_addr(mask_size, pgbase, addrsh)
+        print("DONE addr_next",addr_next)
+
+        # wrong '0b000000011000000000'
+        # right '0b110000000000000000'
+        assert(addr_next==0x30000)
 
         # walk tree starts on prtbl
         while True:
