@@ -237,6 +237,15 @@ testmem2 = {
            0x40000000000300ad,
           }
 
+#def pt_RTS1(x):
+#    return x
+def pt_RPDB(x):
+    return x[8:56]
+#def pt_RTS2(x):
+#    return x
+#def pt_RPDS(x):
+#    return x
+
 
 testresult = """
     prtbl = 1000000
@@ -442,13 +451,23 @@ class RADIX:
         print("shift",shift)
 
         # v.pgbase := pgtbl(55 downto 8) & x"00";
-        leftzeros = SelectableInt(0,15)
-        pgbase = selectconcat(leftzeros,pgtbl[8:55],SelectableInt(0,2))
+        zero8 = SelectableInt(0,8)
+
+        rtdb = pt_RPDB(pgtbl)
+        print("rtdb",rtdb)
+        pgbase = selectconcat(zero8,rtdb,zero8)
+        print("pgbase",pgbase)
+        # assert(pgbase.value==0x30000)
 
         addrsh = addrshift(addr,shift)
         print("addrsh",addrsh)
 
-        # TODO verify
+        #print("========================")
+        #print("should be",bin(0x30000))
+        #print("pgbase",bin(pgbase.value))
+        #print("addrsh",bin(addrsh.value))
+        
+
         addr_next = self._get_pgtable_addr(mask_size, pgbase, addrsh)
         print("DONE addr_next",addr_next)
 
@@ -707,6 +726,7 @@ class RADIX:
                            addr[52:64],
                            )
         return res
+        
 
 class TestRadixMMU(unittest.TestCase):
 
@@ -716,6 +736,27 @@ class TestRadixMMU(unittest.TestCase):
         print ("    mask", bin(mask.value))
 
         self.assertEqual(mask.value, 0b11111, "mask should be 5 1s")
+
+    def test_pt(self):
+        inp = SelectableInt(0x40000000000300ad, 64)
+        exp = SelectableInt(0x30000,64)
+
+        # RTS1 = 0x2
+        # RPDB = 0x300
+        # RTS2 = 0x5
+        # RPDS = 13
+
+        print ("    inp", bin(inp.value))
+        print ("    exp", bin(exp.value))
+        #print ("result",  bin(result.value))
+
+        rtdb = pt_RPDB(inp)
+        print("rtdb",rtdb)
+        self.assertEqual(rtdb.value,0x300,"rtdb should be 0x300")
+
+        result = selectconcat(rtdb,SelectableInt(0,8))
+        print("result",result)
+
 
     def test_get_pgtable_addr(self):
 
