@@ -13,7 +13,7 @@ related bugs:
 * https://bugs.libre-soc.org/show_bug.cgi?id=604
 """
 
-from nmigen.back.pysim import Settle
+#from nmigen.back.pysim import Settle
 from copy import copy
 from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
@@ -64,6 +64,13 @@ def NLS(x):
     NLS >= 5
     """
     return x[59:63]
+
+def RPDB(x):
+    """
+    Root Page Directory Base
+    power isa docs says 4:55 investigate
+    """
+    return x[8:56]
 
 """
     Get Root Page
@@ -237,16 +244,6 @@ testmem2 = {
            0x40000000000300ad,
           }
 
-#def pt_RTS1(x):
-#    return x
-def pt_RPDB(x):
-    return x[8:56]
-#def pt_RTS2(x):
-#    return x
-#def pt_RPDS(x):
-#    return x
-
-
 testresult = """
     prtbl = 1000000
     DCACHE GET 1000000 PROCESS_TABLE_3
@@ -323,7 +320,9 @@ class RADIX:
 
         # DO NOT perform byte-swapping: load 8 bytes (that's the entry size)
         value = self.mem.ld(addr.value, 8, False, check_in_mem)
-        assert(value is not None, "address lookup %x not found" % addr.value)
+        if value is None:
+            return "address lookup %x not found" % addr.value
+        # assert(value is not None, "address lookup %x not found" % addr.value)
 
         print("addr", hex(addr.value))
         data = SelectableInt(value, 64) # convert to SelectableInt
@@ -451,31 +450,20 @@ class RADIX:
         print("shift",shift)
 
         # v.pgbase := pgtbl(55 downto 8) & x"00";
+        # see test_RPDB for reference
         zero8 = SelectableInt(0,8)
 
-        rtdb = pt_RPDB(pgtbl)
-        print("rtdb",rtdb)
-        pgbase = selectconcat(zero8,rtdb,zero8)
+        pgbase = selectconcat(zero8,RPDB(pgtbl),zero8)
         print("pgbase",pgbase)
-        # assert(pgbase.value==0x30000)
+        assert(pgbase.value==0x30000)
 
         addrsh = addrshift(addr,shift)
         print("addrsh",addrsh)
 
-        #print("========================")
-        #print("should be",bin(0x30000))
-        #print("pgbase",bin(pgbase.value))
-        #print("addrsh",bin(addrsh.value))
-        
-
         addr_next = self._get_pgtable_addr(mask_size, pgbase, addrsh)
         print("DONE addr_next",addr_next)
 
-        # wrong '0b000000011000000000'
-        # right '0b110000000000000000'
-        assert(addr_next==0x30000)
-
-        # walk tree starts on prtbl
+        # walk tree
         while True:
             print("nextlevel----------------------------")
             # read an entry
@@ -726,7 +714,6 @@ class RADIX:
                            addr[52:64],
                            )
         return res
-        
 
 class TestRadixMMU(unittest.TestCase):
 
@@ -737,21 +724,11 @@ class TestRadixMMU(unittest.TestCase):
 
         self.assertEqual(mask.value, 0b11111, "mask should be 5 1s")
 
-    def test_pt(self):
+    def test_RPDB(self):
         inp = SelectableInt(0x40000000000300ad, 64)
-        exp = SelectableInt(0x30000,64)
 
-        # RTS1 = 0x2
-        # RPDB = 0x300
-        # RTS2 = 0x5
-        # RPDS = 13
-
-        print ("    inp", bin(inp.value))
-        print ("    exp", bin(exp.value))
-        #print ("result",  bin(result.value))
-
-        rtdb = pt_RPDB(inp)
-        print("rtdb",rtdb)
+        rtdb = RPDB(inp)
+        print("rtdb",rtdb,bin(rtdb.value))
         self.assertEqual(rtdb.value,0x300,"rtdb should be 0x300")
 
         result = selectconcat(rtdb,SelectableInt(0,8))
