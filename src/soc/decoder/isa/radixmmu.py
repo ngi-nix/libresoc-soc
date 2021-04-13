@@ -48,6 +48,9 @@ def rpte_leaf(r):
 ## Shift address bits 61--12 right by 0--47 bits and
 ## supply the least significant 16 bits of the result.
 def addrshift(addr,shift):
+    print("addrshift")
+    print(addr)
+    print(shift)
     x = addr.value >> shift.value
     return SelectableInt(x,16)
 
@@ -259,6 +262,8 @@ class RADIX:
         self.mem = mem
         self.caller = caller
         if caller is not None:
+            print("caller")
+            print(caller)
             self.dsisr = self.caller.spr["DSISR"]
             self.dar   = self.caller.spr["DAR"]
             self.pidr  = self.caller.spr["PIDR"]
@@ -280,7 +285,7 @@ class RADIX:
                  instr_fetch=False):
         print("RADIX: ld from addr 0x%x width %d" % (address, width))
 
-        priv = ~(self.msr(MSR_PR).value) # problem-state ==> privileged
+        priv = ~(self.msr[MSRb.PR].value) # problem-state ==> privileged
         if instr_fetch:
             mode = 'EXECUTE'
         else:
@@ -300,7 +305,7 @@ class RADIX:
     def st(self, address, v, width=8, swap=True):
         print("RADIX: st to addr 0x%x width %d data %x" % (address, width, v))
 
-        priv = ~(self.msr(MSR_PR).value) # problem-state ==> privileged
+        priv = ~(self.msr[MSRb.PR].value) # problem-state ==> privileged
         mode = 'STORE'
         addr = SelectableInt(address, 64)
         (shift, mbits, pgbase) = self._decode_prte(addr)
@@ -413,7 +418,7 @@ class RADIX:
         print("starting with prtable, addr_next",addr_next)
 
         assert(addr_next.bits == 64)
-        assert(addr_next.value == 0x1000000) #TODO
+        #only for first unit tests assert(addr_next.value == 0x1000000)
 
         # read an entry from prtable
         swap = False
@@ -455,7 +460,7 @@ class RADIX:
 
         pgbase = selectconcat(zero8,RPDB(pgtbl),zero8)
         print("pgbase",pgbase)
-        assert(pgbase.value==0x30000)
+        #assert(pgbase.value==0x30000)
 
         addrsh = addrshift(addr,shift)
         print("addrsh",addrsh)
