@@ -469,11 +469,11 @@ class ISACaller:
         self.mem = Mem(row_bytes=8, initial_mem=initial_mem)
         self.imem = Mem(row_bytes=4, initial_mem=initial_insns)
         # MMU mode, redirect underlying Mem through RADIX
+        self.msr = SelectableInt(initial_msr, 64)  # underlying reg
         if mmu:
             self.mem = RADIX(self.mem, self)
             self.imem = RADIX(self.imem, self)
         self.pc = PC()
-        self.msr = SelectableInt(initial_msr, 64)  # underlying reg
 
         # TODO, needed here:
         # FPR (same as GPR except for FP nums)
