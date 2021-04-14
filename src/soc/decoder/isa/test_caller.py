@@ -17,7 +17,7 @@ class Register:
         self.num = num
 
 def run_tst(generator, initial_regs, initial_sprs=None, svstate=0, mmu=False,
-                                     initial_cr=0):
+                                     initial_cr=0,mem=None):
     if initial_sprs is None:
         initial_sprs = {}
     m = Module()
@@ -34,6 +34,7 @@ def run_tst(generator, initial_regs, initial_sprs=None, svstate=0, mmu=False,
     simulator = ISA(pdecode2, initial_regs, initial_sprs, initial_cr,
                     initial_insns=gen, respect_pc=True,
                     initial_svstate=svstate,
+                    initial_mem=mem,
                     disassembly=insncode,
                     bigendian=0,
                     mmu=mmu)
