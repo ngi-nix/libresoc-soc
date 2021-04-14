@@ -502,7 +502,7 @@ class RADIX:
                 return ok # return the error code
             else:
                 newlookup = self._new_lookup(data, shift)
-                if newlookup == 'badtree':
+                if type(newlookup) == str:
                     return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
@@ -588,7 +588,7 @@ class RADIX:
             return "segerror"
         limit = shift + (31 - 12)
         if mbits.value < 5 or mbits.value > 16 or mbits.value > limit.value:
-            return "badtree mbits="+str(mbits.value)+" limit="+str(limit.value)
+            return "badtree"
         new_shift = shift + (31 - 12) - mbits
         # TODO verify that returned result is correct
         return new_shift
