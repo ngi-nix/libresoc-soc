@@ -31,20 +31,34 @@ testmem = {
            0x40000000000300ad,
           }
 
+prtbl = 0x1000000
+
 class DecoderTestCase(FHDLTestCase):
 
     def test_load_store(self):
-        lst = ["addi 1, 0, 0x0010",
-               "addi 2, 0, 0x1234",
-               "stw 2, 0(1)",
-               "lwz 3, 0(1)"]
+        lst = [#"addi 1, 0, 0x1000",
+               #"addi 2, 0, 0x1234",
+               #"stw 2, 0(1)",
+               "lwz 3, 0(1)"
+               ]
         with Program(lst, bigendian=False) as program:
-            sim = self.run_tst_program(program)
+            initial_regs=[0] * 32
+            initial_regs[1] = 0x1000
+            initial_regs[2] = 0x1234
+            sim = self.run_tst_program(program,initial_regs=initial_regs)
             print(sim.gpr(1))
             self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
 
     def run_tst_program(self, prog, initial_regs=[0] * 32):
-        simulator = run_tst(prog, initial_regs,mmu=True,mem=testmem)
+        # set up dummy minimal ISACaller
+        spr = {'DSISR': SelectableInt(0, 64),
+               'DAR': SelectableInt(0, 64),
+               'PIDR': SelectableInt(0, 64),
+               'PRTBL': SelectableInt(prtbl, 64)
+        }
+
+        simulator = run_tst(prog, initial_regs,mmu=True,mem=testmem,
+                    initial_sprs=spr)
         simulator.gpr.dump()
         return simulator
 
