@@ -57,7 +57,7 @@ class DecoderTestCase(FHDLTestCase):
                'PRTBL': SelectableInt(prtbl, 64)
         }
 
-        simulator = run_tst(prog, initial_regs,mmu=True,mem=testmem,
+        simulator = run_tst(prog, initial_regs, mmu=True, mem=testmem,
                     initial_sprs=spr)
         simulator.gpr.dump()
         return simulator
