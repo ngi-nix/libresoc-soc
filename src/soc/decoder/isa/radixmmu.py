@@ -296,6 +296,10 @@ class RADIX:
 
         pte = self._walk_tree(addr, pgbase, mode, mbits, shift, priv)
 
+        if type(pte)==str:
+            print("error on load",pte)
+            return 0
+
         # use pte to load from phys address
         return self.mem.ld(pte.value, width, swap, check_in_mem)
 
@@ -461,6 +465,11 @@ class RADIX:
         pgbase = selectconcat(zero8,RPDB(pgtbl),zero8)
         print("pgbase",pgbase)
         #assert(pgbase.value==0x30000)
+
+        if type(addr) == str:
+            return addr
+        if type(shift) == str:
+            return shift
 
         addrsh = addrshift(addr,shift)
         print("addrsh",addrsh)
