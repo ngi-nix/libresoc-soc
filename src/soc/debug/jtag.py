@@ -90,11 +90,13 @@ class JTAG(DMITAP, Pins):
         self.dmi = self.add_dmi(ircodes=[8, 9, 10])
 
         # use this for enable/disable of parts of the ASIC.
-        # NOTE: increase length parameter when adding new enable signals
-        self.sr_en = self.add_shiftreg(ircode=11, length=3)
+        # XXX make sure to add the _en sig to en_sigs list
         self.wb_icache_en = Signal(reset=1)
         self.wb_dcache_en = Signal(reset=1)
         self.wb_sram_en = Signal(reset=1)
+        self.en_sigs = en_sigs = Cat(self.wb_icache_en, self.wb_dcache_en,
+                                     self.wb_sram_en)
+        self.sr_en = self.add_shiftreg(ircode=11, length=len(en_sigs))
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
@@ -103,13 +105,11 @@ class JTAG(DMITAP, Pins):
         # provide way to enable/disable wishbone caches and SRAM
         # just in case of issues
         # see https://bugs.libre-soc.org/show_bug.cgi?id=520
-        en_sigs = Cat(self.wb_icache_en, self.wb_dcache_en,
-                      self.wb_sram_en)
         with m.If(self.sr_en.oe):
-            m.d.sync += en_sigs.eq(self.sr_en.o)
+            m.d.sync += self.en_sigs.eq(self.sr_en.o)
         # also make it possible to read the enable/disable current state
         with m.If(self.sr_en.ie):
-            m.d.comb += self.sr_en.i.eq(en_sigs)
+            m.d.comb += self.sr_en.i.eq(self.en_sigs)
 
         # create a fake "stall"
         #wb = self.wb
