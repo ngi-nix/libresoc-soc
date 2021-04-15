@@ -52,28 +52,38 @@ def addrshift(addr,shift):
     print(addr)
     print(shift)
     x = addr.value >> shift.value
-    return SelectableInt(x,16)
+    return SelectableInt(x, 16)
+
+def RTS2(data):
+    return data[56:59]
+
+def RTS1(data):
+    return data[1:3]
+
+def RTS(data):
+    zero = SelectableInt(0, 1)
+    return selectconcat(zero, RTS2(data), RTS1(data))
 
 def NLB(x):
     """
     Next Level Base
     right shifted by 8
     """
-    return x[4:55]
+    return x[4:56] # python numbering end+1
 
 def NLS(x):
     """
     Next Level Size
     NLS >= 5
     """
-    return x[59:63]
+    return x[59:64] # python numbering end+1
 
 def RPDB(x):
     """
     Root Page Directory Base
     power isa docs says 4:55 investigate
     """
-    return x[8:56]
+    return x[8:56] # python numbering end+1
 
 """
     Get Root Page
@@ -429,40 +439,32 @@ class RADIX:
         check_in_mem = False
         entry_width = 8
         data = self._next_level(addr_next, entry_width, swap, check_in_mem)
-        print("pr_table",data)
+        print("pr_table", data)
         pgtbl = data # this is cached in microwatt (as v.pgtbl3 / v.pgtbl0)
-
-        # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
-        shift = selectconcat(SelectableInt(0,1), data[1:3], data[55:58])
-        assert(shift.bits==6) # variable rts : unsigned(5 downto 0);
-        print("shift",shift)
-
-        # mbits := unsigned('0' & data(4 downto 0));
-        mbits = selectconcat(SelectableInt(0,1), data[58:63])
-        assert(mbits.bits==6) #variable mbits : unsigned(5 downto 0);
+        shift, mbits = self._get_rts_nls(pgtbl)
 
         # WIP
-        if mbits==0:
+        if mbits == 0:
             return "invalid"
 
         # mask_size := mbits(4 downto 0);
-        mask_size = mbits[0:5];
-        assert(mask_size.bits==5)
+        mask_size = mbits[0:5]
+        assert(mask_size.bits == 5)
         print("before segment check ==========")
-        print("mask_size:",bin(mask_size.value))
-        print("mbits:",bin(mbits.value))
+        print("mask_size:", bin(mask_size.value))
+        print("mbits:", bin(mbits.value))
 
         print("calling segment_check")
 
         mbits = selectconcat(SelectableInt(0,1), mask_size)
         shift = self._segment_check(addr, mbits, shift)
-        print("shift",shift)
+        print("shift", shift)
 
         # v.pgbase := pgtbl(55 downto 8) & x"00";
         # see test_RPDB for reference
-        zero8 = SelectableInt(0,8)
+        zero8 = SelectableInt(0, 8)
 
-        pgbase = selectconcat(zero8,RPDB(pgtbl),zero8)
+        pgbase = selectconcat(zero8, RPDB(pgtbl), zero8)
         print("pgbase",pgbase)
         #assert(pgbase.value==0x30000)
 
@@ -552,16 +554,26 @@ class RADIX:
         # below *directly* match the spec, unlike microwatt which
         # has to turn them around (to LE)
         zero = SelectableInt(0, 1)
-        rts = selectconcat(zero,
-                           data[56:59],      # RTS2
-                           data[1:3],        # RTS1
-                           )
+        rts = RTS(data)
         masksize = data[59:64]               # RPDS
         mbits = selectconcat(zero, masksize)
         pgbase = selectconcat(data[8:56],  # part of RPDB
                              SelectableInt(0, 16),)
 
         return (rts, mbits, pgbase)
+
+    def _get_rts_nls(self, data):
+        # rts = shift = unsigned('0' & data(62 downto 61) & data(7 downto 5));
+        #                                        RTS1       RTS2
+        rts = RTS(data)
+        assert(rts.bits == 6) # variable rts : unsigned(5 downto 0);
+        print("shift", rts)
+
+        # mbits := unsigned('0' & data(4 downto 0));
+        mbits = selectconcat(SelectableInt(0, 1), NLS(data))
+        assert(mbits.bits == 6) #variable mbits : unsigned(5 downto 0);
+
+        return rts, mbits
 
     def _segment_check(self, addr, mbits, shift):
         """checks segment valid
