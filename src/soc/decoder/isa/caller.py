@@ -424,7 +424,8 @@ class ISACaller:
                  disassembly=None,
                  initial_pc=0,
                  bigendian=False,
-                 mmu=False):
+                 mmu=False,
+                 icachemmu=False):
 
         self.bigendian = bigendian
         self.halted = False
@@ -472,7 +473,8 @@ class ISACaller:
         self.msr = SelectableInt(initial_msr, 64)  # underlying reg
         if mmu:
             self.mem = RADIX(self.mem, self)
-            self.imem = RADIX(self.imem, self)
+            if icachemmu:
+                self.imem = RADIX(self.imem, self)
         self.pc = PC()
 
         # TODO, needed here:
