@@ -584,7 +584,7 @@ class RADIX:
         limit = shift + (31 - 12)
         if mbits.value < 5 or mbits.value > 16 or mbits.value > limit.value:
             return "badtree"
-        new_shift = limit - mbits
+        new_shift = SelectableInt(limit.value - mbits.value, shift.bits)
         # TODO verify that returned result is correct
         return new_shift
 
