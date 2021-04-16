@@ -22,8 +22,9 @@ def client_sync(dut):
 
 def tms_state_set(dut, bits):
     for bit in bits:
-        yield dut.cbus.tck.eq(1)
         yield dut.cbus.tms.eq(bit)
+        yield from client_sync(dut)
+        yield dut.cbus.tck.eq(1)
         yield from client_sync(dut)
         yield
         yield dut.cbus.tck.eq(0)
