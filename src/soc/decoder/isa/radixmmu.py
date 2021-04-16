@@ -459,6 +459,8 @@ class RADIX:
         if isinstance(shift, str):
             return shift
 
+        old_shift = shift
+
         mask = mask_size
 
         # walk tree
@@ -491,9 +493,10 @@ class RADIX:
                     return paddr
                 return ok # return the error code
             else:
-                newlookup = self._new_lookup(data, shift)
+                newlookup = self._new_lookup(data, shift, old_shift)
                 if isinstance(newlookup, str):
                     return newlookup
+                old_shift = shift # store old_shift before updating shift
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
 
@@ -504,7 +507,7 @@ class RADIX:
         zero8 = SelectableInt(0, 8)
         return selectconcat(zero8, data[8:56], zero8) # shift up 8
 
-    def _new_lookup(self, data, shift):
+    def _new_lookup(self, data, shift, old_shift):
         """
         mbits := unsigned('0' & data(4 downto 0));
         if mbits < 5 or mbits > 16 or mbits > r.shift then
@@ -519,7 +522,7 @@ class RADIX:
         """
         mbits = selectconcat(SelectableInt(0, 1), NLS(data))
         print("mbits=", mbits)
-        if mbits < 5 or mbits > 16: #fixme compare with r.shift
+        if mbits < 5 or mbits > 16 or mbits > old_shift:
             print("badtree")
             return "badtree"
         # reduce shift (has to be done at same bitwidth)
