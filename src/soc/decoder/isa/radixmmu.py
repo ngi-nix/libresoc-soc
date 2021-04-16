@@ -330,7 +330,7 @@ class RADIX:
         print("memassign", addr, sz, val)
         self.st(addr.value, val.value, sz, swap=False)
 
-    def _next_level(self, addr, entry_width, swap, check_in_mem):
+    def _next_level(self, addr, check_in_mem):
         # implement read access to mmu mem here
 
         # DO NOT perform byte-swapping: load 8 bytes (that's the entry size)
@@ -339,10 +339,9 @@ class RADIX:
             return "address lookup %x not found" % addr.value
         # assert(value is not None, "address lookup %x not found" % addr.value)
 
-        print("addr", hex(addr.value))
         data = SelectableInt(value, 64) # convert to SelectableInt
+        print("addr", hex(addr.value))
         print("value", hex(value))
-        # index += 1
         return data;
 
     def _walk_tree(self, addr, mode, priv=1):
@@ -433,10 +432,7 @@ class RADIX:
         #only for first unit tests assert(addr_next.value == 0x1000000)
 
         # read an entry from prtable, decode PTRE
-        swap = False
-        check_in_mem = False
-        entry_width = 8
-        data = self._next_level(addr_next, entry_width, swap, check_in_mem)
+        data = self._next_level(addr_next, check_in_mem=False)
         print("pr_table", data)
         pgtbl = data # this is cached in microwatt (as v.pgtbl3 / v.pgtbl0)
         (rts, mbits, pgbase) = self._decode_prte(pgtbl)
@@ -480,11 +476,7 @@ class RADIX:
 
             print("nextlevel----------------------------")
             # read an entry
-            swap = False
-            check_in_mem = False
-            entry_width = 8
-
-            data = self._next_level(addr_next, entry_width, swap, check_in_mem)
+            data = self._next_level(addr_next, check_in_mem=False)
             valid = rpte_valid(data)
             leaf = rpte_leaf(data)
 
@@ -505,8 +497,6 @@ class RADIX:
                     return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-                shift = SelectableInt(shift.value, 16) # THIS is wrong !!!
-                pgbase = SelectableInt(pgbase.value, 64)
 
     def _get_pgbase(self, data):
         """
