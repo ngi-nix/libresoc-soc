@@ -451,8 +451,7 @@ class RADIX:
 
         print("calling segment_check")
 
-        mbits = selectconcat(SelectableInt(0,1), mask_size)
-        shift = self._segment_check(addr, mbits, shift)
+        shift = self._segment_check(addr, mask_size, shift)
         print("shift", shift)
 
         if isinstance(addr, str):
@@ -558,9 +557,9 @@ class RADIX:
 
         return rts, mbits
 
-    def _segment_check(self, addr, mbits, shift):
+    def _segment_check(self, addr, mask_size, shift):
         """checks segment valid
-                    mbits := '0' & r.mask_size;
+            mbits := '0' & r.mask_size;
             v.shift := r.shift + (31 - 12) - mbits;
             nonzero := or(r.addr(61 downto 31) and not finalmask(30 downto 0));
             if r.addr(63) /= r.addr(62) or nonzero = '1' then
@@ -575,6 +574,7 @@ class RADIX:
         # note that SelectableInt does big-endian!  so the indices
         # below *directly* match the spec, unlike microwatt which
         # has to turn them around (to LE)
+        mbits = selectconcat(SelectableInt(0,1), mask_size)
         mask = genmask(shift, 44)
         nonzero = addr[2:33] & mask[13:44] # mask 31 LSBs (BE numbered 13:44)
         print ("RADIX _segment_check nonzero", bin(nonzero.value))
@@ -584,7 +584,7 @@ class RADIX:
         limit = shift + (31 - 12)
         if mbits.value < 5 or mbits.value > 16 or mbits.value > limit.value:
             return "badtree"
-        new_shift = shift + (31 - 12) - mbits
+        new_shift = limit - mbits
         # TODO verify that returned result is correct
         return new_shift
 
