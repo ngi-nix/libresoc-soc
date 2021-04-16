@@ -464,14 +464,20 @@ class RADIX:
         if isinstance(shift, str):
             return shift
 
-        addrsh = addrshift(addr, shift)
-        print("addrsh",addrsh)
-
-        addr_next = self._get_pgtable_addr(mask_size, pgbase, addrsh)
-        print("DONE addr_next", addr_next)
+        mask = mask_size
 
         # walk tree
         while True:
+            addrsh = addrshift(addr, shift)
+            print("addrsh",addrsh)
+
+            print("calling _get_pgtable_addr")
+            print(mask)    #SelectableInt(value=0x9, bits=4)
+            print(pgbase)  #SelectableInt(value=0x40000, bits=56)
+            print(shift)   #SelectableInt(value=0x4, bits=16) #FIXME
+            addr_next = self._get_pgtable_addr(mask, pgbase, addrsh)
+            print("DONE addr_next", addr_next)
+
             print("nextlevel----------------------------")
             # read an entry
             swap = False
@@ -495,20 +501,12 @@ class RADIX:
                 return ok # return the error code
             else:
                 newlookup = self._new_lookup(data, shift)
-                if type(newlookup) == str:
+                if isinstance(newlookup, str):
                     return newlookup
                 shift, mask, pgbase = newlookup
                 print ("   next level", shift, mask, pgbase)
-                shift = SelectableInt(shift.value,16) #THIS is wrong !!!
-                print("calling _get_pgtable_addr")
-                print(mask)    #SelectableInt(value=0x9, bits=4)
-                print(pgbase)  #SelectableInt(value=0x40000, bits=56)
-                print(shift)   #SelectableInt(value=0x4, bits=16) #FIXME
+                shift = SelectableInt(shift.value, 16) # THIS is wrong !!!
                 pgbase = SelectableInt(pgbase.value, 64)
-                addrsh = addrshift(addr,shift)
-                addr_next = self._get_pgtable_addr(mask, pgbase, addrsh)
-                print("addr_next",addr_next)
-                print("addrsh",addrsh)
 
     def _get_pgbase(self, data):
         """
