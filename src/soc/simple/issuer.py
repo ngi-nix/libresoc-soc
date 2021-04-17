@@ -471,7 +471,7 @@ class TestIssuerInternal(Elaboratable):
                     # set selected mask bit for 1<<r3 mode
                     dst_shift = Signal(range(64))
                     comb += dst_shift.eq(self.int_pred.data_o & 0b111111)
-                    comb += new_dstmask.bit_select(dst_shift, 1).eq(1)
+                    comb += new_dstmask.eq(1 << dst_shift)
                 with m.Else():
                     # invert mask if requested
                     comb += new_dstmask.eq(self.int_pred.data_o ^ inv)
@@ -495,7 +495,7 @@ class TestIssuerInternal(Elaboratable):
                     # set selected mask bit for 1<<r3 mode
                     src_shift = Signal(range(64))
                     comb += src_shift.eq(self.int_pred.data_o & 0b111111)
-                    comb += new_srcmask.bit_select(src_shift, 1).eq(1)
+                    comb += new_srcmask.eq(1 << src_shift)
                 with m.Else():
                     # invert mask if requested
                     comb += new_srcmask.eq(self.int_pred.data_o ^ inv)
