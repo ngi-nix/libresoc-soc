@@ -502,10 +502,12 @@ class RADIX:
 
     def _get_pgbase(self, data):
         """
-            v.pgbase := data(55 downto 8) & x"00"; NLB?
+        v.pgbase := data(55 downto 8) & x"00"; NLB?
         """
         zero8 = SelectableInt(0, 8)
-        return selectconcat(zero8, data[8:56], zero8) # shift up 8
+        ret = selectconcat(data[8:56], zero8)
+        assert(ret.bits==56)
+        return ret
 
     def _new_lookup(self, data, shift, old_shift):
         """
@@ -693,13 +695,15 @@ class RADIX:
         ((r.pgbase(18 downto 3) and not mask) or (addrsh and mask)) &
         "000";
         """
+        print("pgbase",pgbase)
+        assert(pgbase.bits==56)
         mask16 = genmask(mask_size+5, 16)
         zero8 = SelectableInt(0, 8)
         zero3 = SelectableInt(0, 3)
         res = selectconcat(zero8,
-                           pgbase[8:45],              #
-                           (pgbase[45:61] & ~mask16) | #
-                           (addrsh       & mask16),   #
+                           pgbase[0:37],
+                           (pgbase[37:53] & ~mask16) |
+                           (addrsh       & mask16),
                            zero3
                            )
         return res
@@ -754,7 +758,7 @@ class TestRadixMMU(unittest.TestCase):
         dut = RADIX(mem, caller)
 
         mask_size=4
-        pgbase = SelectableInt(0,64)
+        pgbase = SelectableInt(0,56)
         addrsh = SelectableInt(0,16)
         ret = dut._get_pgtable_addr(mask_size, pgbase, addrsh)
         print("ret=", ret)
