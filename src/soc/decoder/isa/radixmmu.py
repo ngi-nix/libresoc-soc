@@ -415,8 +415,8 @@ class RADIX:
         print("_walk_tree")
         pidr  = self.caller.spr["PIDR"]
         prtbl = self.caller.spr["PRTBL"]
-        print(pidr)
-        print(prtbl)
+        print("PIDR", pidr)
+        print("PRTBL", prtbl)
         p = addr[55:63]
         print("last 8 bits ----------")
         print
@@ -671,9 +671,10 @@ class RADIX:
                 (effpid(31 downto 8) and finalmask(23 downto 0))) &
                 effpid(7 downto 0) & "0000";
         """
-        print ("_get_prtable_addr", shift, prtbl, addr, pid)
         finalmask = genmask(shift, 44)
         finalmask24 = finalmask[20:44]
+        print ("_get_prtable_addr", shift, prtbl, addr, pid,
+                bin(finalmask24.value))
         if addr[0].value == 1:
             effpid = SelectableInt(0, 32)
         else:
