@@ -33,23 +33,30 @@ testmem = {
            0x40000000000300ad,
           }
 
-prtbl = 0x1000000
+prtbl = 0x1000000 # matches PROCESS_TABLE_3 above
 
 class DecoderTestCase(FHDLTestCase):
 
     def test_load(self):
         lst = [ "lwz 3, 0(1)"
                ]
+        sprs = {'DSISR': SelectableInt(0, 64),
+                'DAR': SelectableInt(0, 64),
+                'PIDR': SelectableInt(0, 64),
+                'PRTBL': SelectableInt(prtbl, 64)
+        }
+
+        initial_regs=[0] * 32
+        initial_regs[1] = 0x1000
+        initial_regs[2] = 0x1234
+
+        initial_mem = deepcopy(testmem)
+        initial_mem[0x1000] = 0x1337 # data to be read
+
         with Program(lst, bigendian=False) as program:
-            initial_regs=[0] * 32
-            initial_regs[1] = 0x1000
-            initial_regs[2] = 0x1234
-
-            initial_mem = deepcopy(testmem)
-            initial_mem[0x1000] = 0x1337 # data to be read
-
             sim = self.run_tst_program(program, initial_regs=initial_regs,
-                                                initial_mem=initial_mem)
+                                                initial_mem=initial_mem,
+                                                initial_sprs=sprs)
             self.assertEqual(sim.gpr(3), SelectableInt(0x1337, 64))
 
     def test_load_store(self):
@@ -58,29 +65,32 @@ class DecoderTestCase(FHDLTestCase):
                "stw 2, 0(1)",
                "lwz 3, 0(1)"
                ]
+        # set up dummy minimal ISACaller
+        sprs = {'DSISR': SelectableInt(0, 64),
+                'DAR': SelectableInt(0, 64),
+                'PIDR': SelectableInt(0, 64),
+                'PRTBL': SelectableInt(prtbl, 64)
+        }
+
+        initial_regs=[0] * 32
+        initial_regs[1] = 0x1000
+        initial_regs[2] = 0x1234
+        initial_mem = deepcopy(testmem)
+
         with Program(lst, bigendian=False) as program:
-            initial_regs=[0] * 32
-            initial_regs[1] = 0x1000
-            initial_regs[2] = 0x1234
-            initial_mem = deepcopy(testmem)
             sim = self.run_tst_program(program, initial_regs=initial_regs,
-                                                initial_mem=initial_mem)
+                                                initial_mem=initial_mem,
+                                                initial_sprs=sprs)
             self.assertEqual(sim.gpr(3), SelectableInt(0x1234, 64))
 
-    def run_tst_program(self, prog, initial_regs=None, initial_mem=None):
+    def run_tst_program(self, prog, initial_regs=None, initial_mem=None,
+                                    initial_sprs=None):
         # DO NOT set complex arguments, it is a "singleton" pattern
         if initial_regs is None:
             initial_regs = [0] * 32
 
-        # set up dummy minimal ISACaller
-        spr = {'DSISR': SelectableInt(0, 64),
-               'DAR': SelectableInt(0, 64),
-               'PIDR': SelectableInt(0, 64),
-               'PRTBL': SelectableInt(prtbl, 64)
-        }
-
         simulator = run_tst(prog, initial_regs, mmu=True, mem=initial_mem,
-                    initial_sprs=spr)
+                    initial_sprs=initial_sprs)
         simulator.gpr.dump()
         return simulator
 
