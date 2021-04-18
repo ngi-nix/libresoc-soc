@@ -107,7 +107,6 @@ class NonProductionCore(Elaboratable):
         self.busy_o = Signal(name="corebusy_o", reset_less=True)
 
         # start/stop and terminated signalling
-        self.core_stopped_i = Signal(reset_less=True)
         self.core_terminate_o = Signal(reset=0)  # indicates stopped
 
         # create per-FU instruction decoders (subsetted)

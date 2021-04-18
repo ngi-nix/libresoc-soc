@@ -562,7 +562,6 @@ class TestIssuerInternal(Elaboratable):
                         m.next = "INSN_WAIT"
                 with m.Else():
                     # tell core it's stopped, and acknowledge debug handshake
-                    comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
                     # while stopped, allow updating the PC and SVSTATE
                     with m.If(self.pc_i.ok):
@@ -737,7 +736,6 @@ class TestIssuerInternal(Elaboratable):
                             m.next = "PRED_SKIP"
 
                 with m.Else():
-                    comb += core.core_stopped_i.eq(1)
                     comb += dbg.core_stopped_i.eq(1)
                     # while stopped, allow updating the PC and SVSTATE
                     with m.If(self.pc_i.ok):
