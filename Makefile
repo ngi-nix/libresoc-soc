@@ -66,6 +66,9 @@ ls180_4ksram_verilog_build: ls180_4k_verilog
 test: install
 	python3 setup.py test # could just run nosetest3...
 
+pypiupload:
+	$(PYTHON3) setup.py sdist upload
+
 # Minimal makefile for Sphinx documentation
 #
 
