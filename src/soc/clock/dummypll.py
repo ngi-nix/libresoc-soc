@@ -1,34 +1,41 @@
 """a Dummy PLL module to be replaced by a real one
 """
 
-from nmigen import (Module, Signal, Elaboratable, Const)
+from nmigen import (Module, Signal, Elaboratable, Const, Cat)
 from nmigen.cli import rtlil
 
 class DummyPLL(Elaboratable):
     def __init__(self):
-        self.clk_24_i = Signal(reset_less=True) # 24 mhz external incoming
-        self.clk_sel_i = Signal(2, reset_less=True) # PLL selection
-        self.clk_pll_o = Signal(reset_less=True)  # output fake PLL clock
-        self.pll_18_o = Signal(reset_less=True)  # 16-divide from PLL
-        self.pll_lck_o = Signal(reset_less=True)  # output fake PLL "lock"
+        self.clk_24_i = Signal(name="ref", reset_less=True) # external incoming
+        self.sel_a0_i = Signal(name="a0", reset_less=True) # PLL selection
+        self.sel_a1_i = Signal(name="a1", reset_less=True) # PLL selection
+        self.clk_sel_i = Signal(2, reset_less=True) # same as a0,a1
+        self.clk_pll_o = Signal(name="out", reset_less=True)  # output clock
+        self.pll_18_o = Signal(name="div_out_test", reset_less=True)  # test out
+        self.pll_ana_o = Signal(name="vco_test_ana", reset_less=True) # analog
 
     def elaborate(self, platform):
         m = Module()
         m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
         # just get something, stops yosys destroying (optimising) these out
-        with m.If(self.clk_sel_i == Const(0, 2)):
-            m.d.comb += self.pll_lck_o.eq(self.clk_24_i)
+        with m.If((~self.sel_a0_i) & (~self.sel_a1_i)):
+            m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
             m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
+
+        # same API
+        m.d.comb += self.clk_sel_i.eq(Cat(self.sel_a0_i, self.sel_a1_i))
+
+        #self.attrs['blackbox'] = 1
 
         return m
 
     def ports(self):
-        return [self.clk_24_i, self.clk_sel_i, self.clk_pll_o,
-                self.pll_18_o, self.clk_lck_o]
+        return [self.clk_24_i, self.sel_a0_i, self.sel_a1_i, self.clk_pll_o,
+                self.pll_18_o, self.pll_ana_o]
 
 
 if __name__ == '__main__':
-    dut = ClockSelect()
+    dut = DummyPLL()
 
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_dummy_pll.il", "w") as f:

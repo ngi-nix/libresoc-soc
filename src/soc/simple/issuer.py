@@ -1208,7 +1208,7 @@ class TestIssuer(Elaboratable):
         if self.pll_en:
             ports.append(self.pll.clk_sel_i)
             ports.append(self.pll_18_o)
-            ports.append(self.pll.pll_lck_o)
+            ports.append(self.pll.pll_ana_o)
         return ports
 
 
