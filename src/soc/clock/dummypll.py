@@ -9,7 +9,6 @@ class DummyPLL(Elaboratable):
         self.clk_24_i = Signal(name="ref", reset_less=True) # external incoming
         self.sel_a0_i = Signal(name="a0", reset_less=True) # PLL selection
         self.sel_a1_i = Signal(name="a1", reset_less=True) # PLL selection
-        self.clk_sel_i = Signal(2, reset_less=True) # same as a0,a1
         self.clk_pll_o = Signal(name="out", reset_less=True)  # output clock
         self.pll_18_o = Signal(name="div_out_test", reset_less=True)  # test out
         self.pll_ana_o = Signal(name="vco_test_ana", reset_less=True) # analog
@@ -21,9 +20,6 @@ class DummyPLL(Elaboratable):
         with m.If((~self.sel_a0_i) & (~self.sel_a1_i)):
             m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
             m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
-
-        # same API
-        m.d.comb += self.clk_sel_i.eq(Cat(self.sel_a0_i, self.sel_a1_i))
 
         #self.attrs['blackbox'] = 1
 

@@ -1155,6 +1155,7 @@ class TestIssuer(Elaboratable):
         self.pll_en = hasattr(pspec, "use_pll") and pspec.use_pll
         if self.pll_en:
             self.pll_18_o = Signal(reset_less=True)
+            self.clk_sel_i = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
@@ -1183,6 +1184,9 @@ class TestIssuer(Elaboratable):
             # output 18 mhz PLL test signal
             comb += self.pll_18_o.eq(pll.pll_18_o)
 
+            # input to pll clock selection
+            comb += Cat(pll.sel_a0_i, pll.sel_a1_i).eq(self.clk_sel_i)
+
             # now wire up ResetSignals.  don't mind them being in this domain
             pll_rst = ResetSignal("pllclk")
             comb += pll_rst.eq(ResetSignal())
@@ -1206,7 +1210,7 @@ class TestIssuer(Elaboratable):
         ports.append(ClockSignal())
         ports.append(ResetSignal())
         if self.pll_en:
-            ports.append(self.pll.clk_sel_i)
+            ports.append(self.clk_sel_i)
             ports.append(self.pll_18_o)
             ports.append(self.pll.pll_ana_o)
         return ports
