@@ -44,9 +44,9 @@ class SPBlock512W64B8W(Elaboratable):
 
         # create Chips4Makers 4k SRAM cell here, mark it as "black box"
         # for coriolis2 to pick up
-        sram = Instance("spblock_512w64b8w", i_a=a, o_q=q, i_d=d,
-                                             i_we=we, i_clk=ClockSignal())
-        m.submodules += sram
+        sram = Instance("spblock512w64b8w", i_a=a, o_q=q, i_d=d,
+                                            i_we=we, i_clk=ClockSignal())
+        m.submodules.spb = sram
         # has to be added to the actual module rather than the instance
         # sram.attrs['blackbox'] = 1
 
