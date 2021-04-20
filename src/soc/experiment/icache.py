@@ -41,7 +41,7 @@ from soc.experiment.wb_types import (WB_ADDR_BITS, WB_DATA_BITS,
                                      WBIOMasterOut, WBIOSlaveOut)
 
 # for test
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory
 from nmutil.util import wrap
 from nmigen.cli import main, rtlil

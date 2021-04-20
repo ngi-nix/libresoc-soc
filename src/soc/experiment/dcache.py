@@ -30,7 +30,7 @@ from soc.experiment.cache_ram import CacheRam
 from nmutil.plru import PLRU
 
 # for test
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory
 from nmigen.cli import rtlil
 

@@ -1,7 +1,7 @@
 """demonstration of nmigen-soc SRAM behind a wishbone bus and a downconverter
 """
 from nmigen_soc.wishbone.bus import Interface
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory, Signal, Module
 from nmigen.utils import log2_int
 from soc.bus.wb_downconvert import WishboneDownConvert

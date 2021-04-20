@@ -2,7 +2,7 @@
 Bugs:
 * https://bugs.libre-soc.org/show_bug.cgi?id=382
 """
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory, Signal, Module
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell

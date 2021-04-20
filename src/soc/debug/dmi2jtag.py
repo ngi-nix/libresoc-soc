@@ -7,7 +7,7 @@ from nmigen import (Module, Signal, Elaboratable, Const)
 from nmigen.cli import rtlil
 from c4m.nmigen.jtag.tap import TAP, IOType
 
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory, Signal, Module
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick

@@ -13,7 +13,7 @@ from soc.debug.test.dmi_sim import dmi_sim
 from soc.debug.jtag import JTAG
 from soc.debug.test.jtagremote import JTAGServer, JTAGClient
 
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory, Signal, Module
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick

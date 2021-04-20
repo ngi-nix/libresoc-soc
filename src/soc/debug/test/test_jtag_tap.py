@@ -9,7 +9,7 @@ from soc.debug.dmi import DMIInterface, DBGCore
 from soc.debug.test.dmi_sim import dmi_sim
 from soc.debug.dmi2jtag import DMITAP
 
-from nmigen_soc.wishbone.sram import SRAM
+from soc.bus.sram import SRAM
 from nmigen import Memory, Signal, Module
 
 from nmigen.back.pysim import Simulator, Delay, Settle, Tick
