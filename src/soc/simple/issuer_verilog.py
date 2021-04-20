@@ -32,6 +32,12 @@ if __name__ == '__main__':
     parser.add_argument("--disable-core", dest='core', action="store_false",
                         help="disable main core",
                         default=False)
+    parser.add_argument("--enable-mmu", dest='mmu', action="store_true",
+                        help="Enable mmu",
+                        default=False)
+    parser.add_argument("--disable-mmu", dest='mmu', action="store_false",
+                        help="Disable mmu",
+                        default=False)
     parser.add_argument("--enable-pll", dest='pll', action="store_true",
                         help="Enable pll",
                         default=False)
@@ -65,6 +71,8 @@ if __name__ == '__main__':
              'mul': 1,
              'shiftrot': 1
             }
+    if args.mmu:
+        units['mmu'] = 1 # enable MMU
 
     pspec = TestMemPspec(ldst_ifacetype='bare_wb',
                          imem_ifacetype='bare_wb',
@@ -84,8 +92,10 @@ if __name__ == '__main__':
                          sram4x4kblock=args.enable_sram4x4kblock, # add SRAMs
                          debug=args.debug,      # set to jtag or dmi
                          svp64=args.svp64,      # enable SVP64
+                         mmu=args.mmu,          # enable MMU
                          units=units)
 
+    print("mmu", pspec.__dict__["mmu"])
     print("nocore", pspec.__dict__["nocore"])
     print("regreduce", pspec.__dict__["regreduce"])
     print("gpio", pspec.__dict__["gpio"])

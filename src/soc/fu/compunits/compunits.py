@@ -274,9 +274,9 @@ class AllFunctionUnits(Elaboratable):
         if microwatt_mmu:
             print("cut here ==============================")
             alu = self.fus["mmu0"].alu
-            print("alu",alu)
+            print("alu", alu)
             pi = alu.pi
-            print("pi",pi)
+            print("pi", pi)
             pilist = [pi]
         if pilist is None:
             return
