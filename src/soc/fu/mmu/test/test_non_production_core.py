@@ -125,7 +125,11 @@ class TestRunner(unittest.TestCase):
                              mask_wid=8,
                              reg_wid=64)
 
-        m.submodules.core = core = NonProductionCore(pspec,microwatt_mmu=True)
+        m.submodules.core = core = NonProductionCore(pspec
+                                     # XXX NO absolutely do not do this.
+                                     # all options must go into the pspec
+                                     #, microwatt_mmu=True
+                                                        )
 
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
