@@ -34,7 +34,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
                                      SVP64PredMode)
-from soc.consts import CR
+from soc.consts import (CR, SVP64CROffs)
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.debug.jtag import JTAG
 from soc.config.pinouts import get_pinspecs
@@ -414,24 +414,7 @@ class TestIssuerInternal(Elaboratable):
         cur_state = self.cur_state
         srcstep = cur_state.svstate.srcstep
         dststep = cur_state.svstate.dststep
-
-        # elif predmode == CR:
-        #    CR-src sidx, sinvert = get_predcr(m, srcpred)
-        #    CR-dst didx, dinvert = get_predcr(m, dstpred)
-        #    TODO read CR-src and CR-dst into self.srcmask+dstmask with loop
-        #         has to cope with first one then the other
-        #    for cr_idx = FSM-state-loop(0..VL-1):
-        #        FSM-state-trigger-CR-read:
-        #               cr_ren = (1<<7-(cr_idx+SVP64CROffs.CRPred))
-        #               comb += cr_pred.ren.eq(cr_ren)
-        #        FSM-state-1-clock-later-actual-Read:
-        #               cr_field = Signal(4)
-        #               cr_bit = Signal(1)
-        #               # read the CR field, select the appropriate bit
-        #               comb += cr_field.eq(cr_pred.data_o)
-        #               comb += cr_bit.eq(cr_field.bit_select(idx)))
-        #               # just like in branch BO tests
-        #               comd += self.srcmask[cr_idx].eq(inv ^ cr_bit)
+        cur_vl = cur_state.svstate.vl
 
         # decode predicates
         sregread, sinvert, sunary, sall1s = get_predint(m, srcpred, 's')
@@ -459,6 +442,11 @@ class TestIssuerInternal(Elaboratable):
                             comb += int_pred.addr.eq(dregread)
                             comb += int_pred.ren.eq(1)
                             m.next = "INT_DST_READ"
+                    with m.Elif(predmode == SVP64PredMode.CR):
+                        # go fetch masks from the CR register file
+                        sync += self.srcmask.eq(0)
+                        sync += self.dstmask.eq(0)
+                        m.next = "CR_READ"
                     with m.Else():
                         sync += self.srcmask.eq(-1)
                         sync += self.dstmask.eq(-1)
@@ -503,6 +491,56 @@ class TestIssuerInternal(Elaboratable):
                 # shift-out already used mask bits
                 sync += self.srcmask.eq(new_srcmask >> srcstep)
                 m.next = "FETCH_PRED_DONE"
+
+            # fetch masks from the CR register file
+            # implements the following loop:
+            # idx, inv = get_predcr(mask)
+            # mask = 0
+            # for cr_idx in range(vl):
+            #     cr = crl[cr_idx + SVP64CROffs.CRPred]  # takes one cycle to complete
+            #     if cr[idx] ^ inv:
+            #         mask |= 1 << cr_idx
+            # return mask
+            with m.State("CR_READ"):
+                # the CR index to be read, which will be ready by the next cycle
+                cr_idx = Signal.like(cur_vl, reset_less=True)
+                # submit the read operation to the regfile
+                with m.If(cr_idx != cur_vl):
+                    # the CR read port is unary ...
+                    # ren = 1 << cr_idx
+                    # ... in MSB0 convention ...
+                    # ren = 1 << (7 - cr_idx)
+                    # ... and with an offset:
+                    # ren = 1 << (7 - off - cr_idx)
+                    comb += cr_pred.ren.eq(1 << (7 - SVP64CROffs.CRPred - cr_idx))
+                    # signal data valid in the next cycle
+                    cr_read = Signal(reset_less=True)
+                    sync += cr_read.eq(1)
+                    # load the next index
+                    sync += cr_idx.eq(cr_idx + 1)
+                with m.Else():
+                    # exit on loop end
+                    sync += cr_read.eq(0)
+                    sync += cr_idx.eq(0)
+                    m.next = "FETCH_PRED_DONE"
+                with m.If(cr_read):
+                    # compensate for the one cycle delay on the regfile
+                    cur_cr_idx = Signal.like(cur_vl)
+                    comb += cur_cr_idx.eq(cr_idx - 1)
+                    # read the CR field, select the appropriate bit
+                    cr_field = Signal(4)
+                    scr_bit = Signal()
+                    dcr_bit = Signal()
+                    comb += cr_field.eq(cr_pred.data_o)
+                    comb += scr_bit.eq(cr_field.bit_select(sidx, 1) ^ scrinvert)
+                    comb += dcr_bit.eq(cr_field.bit_select(didx, 1) ^ dcrinvert)
+                    # set the corresponding mask bit
+                    bit_to_set = Signal.like(self.srcmask)
+                    comb += bit_to_set.eq(1 << cur_cr_idx)
+                    with m.If(scr_bit):
+                        sync += self.srcmask.eq(self.srcmask | bit_to_set)
+                    with m.If(dcr_bit):
+                        sync += self.dstmask.eq(self.dstmask | bit_to_set)
 
             with m.State("FETCH_PRED_DONE"):
                 comb += pred_mask_valid_o.eq(1)
