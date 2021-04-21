@@ -254,3 +254,21 @@ botchify(SVP64MODEb, SVP64MODE, SVP64MODE_SIZE-1)
 # add subfields to use with nmutil.sel
 SVP64MODE.MOD2 = [0, 1]
 SVP64MODE.CR = [3, 4]
+
+
+# CR sub-fields
+class CRb:
+    LT = 0
+    GT = 1
+    EQ = 2
+    SO = 3
+
+
+CR_SIZE = 4
+
+
+class CR:
+    pass
+
+
+botchify(CRb, CR, CR_SIZE-1)

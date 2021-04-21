@@ -34,6 +34,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
 from soc.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
                                      SVP64PredMode)
+from soc.consts import CR
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.debug.jtag import JTAG
 from soc.config.pinouts import get_pinspecs
@@ -123,28 +124,28 @@ def get_predcr(m, mask, name):
     invert = Signal(name=name+"crinvert")
     with m.Switch(mask):
         with m.Case(SVP64PredCR.LT.value):
-            comb += idx.eq(0)
+            comb += idx.eq(CR.LT)
             comb += invert.eq(0)
         with m.Case(SVP64PredCR.GE.value):
-            comb += idx.eq(0)
+            comb += idx.eq(CR.LT)
             comb += invert.eq(1)
         with m.Case(SVP64PredCR.GT.value):
-            comb += idx.eq(1)
+            comb += idx.eq(CR.GT)
             comb += invert.eq(0)
         with m.Case(SVP64PredCR.LE.value):
-            comb += idx.eq(1)
+            comb += idx.eq(CR.GT)
             comb += invert.eq(1)
         with m.Case(SVP64PredCR.EQ.value):
-            comb += idx.eq(2)
+            comb += idx.eq(CR.EQ)
             comb += invert.eq(0)
         with m.Case(SVP64PredCR.NE.value):
-            comb += idx.eq(1)
+            comb += idx.eq(CR.EQ)
             comb += invert.eq(1)
         with m.Case(SVP64PredCR.SO.value):
-            comb += idx.eq(3)
+            comb += idx.eq(CR.SO)
             comb += invert.eq(0)
         with m.Case(SVP64PredCR.NS.value):
-            comb += idx.eq(3)
+            comb += idx.eq(CR.SO)
             comb += invert.eq(1)
     return idx, invert
 
