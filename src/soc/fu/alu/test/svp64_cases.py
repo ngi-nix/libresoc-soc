@@ -524,3 +524,33 @@ class SVP64ALUTestCase(TestAccumulatorBase):
 
         self.add_case(Program(lst, bigendian), initial_regs,
                       initial_svstate=svstate)
+
+    def case_18_sv_add_cr_pred(self):
+        # adds, CR predicated mask CR4.eq = 1, CR5.eq = 0, invert (ne)
+        #       1 = 5 + 9   => not to be touched (skipped)
+        #       2 = 6 + 10  => 0x3334 = 0x2223+0x1111
+        # expected results:
+        # r1 = 0xbeef skipped since CR4 is 1 and test is inverted
+        # r2 = 0x3334 CR5 is 0, so this is used
+        isa = SVP64Asm(['sv.add/m=ne 1.v, 5.v, 9.v'])
+        lst = list(isa)
+        print("listing", lst)
+
+        # initial values in GPR regfile
+        initial_regs = [0] * 32
+        initial_regs[1] = 0xbeef   # not to be altered
+        initial_regs[9] = 0x1234
+        initial_regs[10] = 0x1111
+        initial_regs[5] = 0x4321
+        initial_regs[6] = 0x2223
+        # SVSTATE (in this case, VL=2)
+        svstate = SVP64State()
+        svstate.vl[0:7] = 2  # VL
+        svstate.maxvl[0:7] = 2  # MAXVL
+        print("SVSTATE", bin(svstate.spr.asint()))
+
+        # set up CR predicate - CR4.eq=1 and CR5.eq=0
+        cr = 0b0010 << ((7-4)*4)  # CR4.eq (we hope)
+
+        self.add_case(Program(lst, bigendian), initial_regs,
+                      initial_svstate=svstate, initial_cr=cr)
