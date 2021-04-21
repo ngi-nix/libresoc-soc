@@ -124,28 +124,28 @@ def get_predcr(m, mask, name):
     with m.Switch(mask):
         with m.Case(SVP64PredCR.LT.value):
             comb += idx.eq(0)
-            comb += invert.eq(1)
+            comb += invert.eq(0)
         with m.Case(SVP64PredCR.GE.value):
             comb += idx.eq(0)
-            comb += invert.eq(0)
+            comb += invert.eq(1)
         with m.Case(SVP64PredCR.GT.value):
             comb += idx.eq(1)
-            comb += invert.eq(1)
+            comb += invert.eq(0)
         with m.Case(SVP64PredCR.LE.value):
             comb += idx.eq(1)
-            comb += invert.eq(0)
+            comb += invert.eq(1)
         with m.Case(SVP64PredCR.EQ.value):
             comb += idx.eq(2)
-            comb += invert.eq(1)
+            comb += invert.eq(0)
         with m.Case(SVP64PredCR.NE.value):
             comb += idx.eq(1)
-            comb += invert.eq(0)
+            comb += invert.eq(1)
         with m.Case(SVP64PredCR.SO.value):
             comb += idx.eq(3)
-            comb += invert.eq(1)
+            comb += invert.eq(0)
         with m.Case(SVP64PredCR.NS.value):
             comb += idx.eq(3)
-            comb += invert.eq(0)
+            comb += invert.eq(1)
     return idx, invert
 
 
