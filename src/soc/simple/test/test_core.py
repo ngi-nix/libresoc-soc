@@ -35,6 +35,16 @@ from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 from soc.regfile.util import spr_to_fast_reg
 
+mmu_sprs = ["PRTBL"]
+
+def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
+        fsm = core.fus.fus["mmu0"].alu
+        yield fsm.mmu.l_in.mtspr.eq(1)
+        yield fsm.mmu.l_in.sprn.eq(i)
+        yield fsm.mmu.l_in.rs.eq(val)
+        yield
+        yield fsm.mmu.l_in.mtspr.eq(0)
+        print("mmu_spr was updated")
 
 def setup_regs(pdecode2, core, test):
 
@@ -104,7 +114,10 @@ def setup_regs(pdecode2, core, test):
                 if sprname == x.name:
                     print("setting slow SPR %d (%s) to %x" %
                           (i, sprname, val))
-                    yield sregs.memory._array[i].eq(val)
+                    if not sprname in mmu_sprs:
+                        yield sregs.memory._array[i].eq(val)
+                    else:
+                        yield from set_mmu_spr(sprname, i, val, core)
         else:
             yield fregs.regs[fast].reg.eq(val)
             print("setting fast reg %d (%s) to %x" %
