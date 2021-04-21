@@ -9,7 +9,7 @@ from enum import Enum, unique
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
 from nmutil.util import Display
 
-from random import randint
+from random import randint, seed
 
 from nmigen.cli import main
 from nmutil.iocontrol import RecordObject
@@ -46,7 +46,7 @@ LINE_SIZE = 64    # Line size in bytes
 NUM_LINES = 16    # Number of lines in a set
 NUM_WAYS = 4      # Number of ways
 TLB_SET_SIZE = 64 # L1 DTLB entries per set
-TLB_NUM_WAYS = 4  # L1 DTLB number of sets
+TLB_NUM_WAYS = 2  # L1 DTLB number of sets
 TLB_LG_PGSZ = 12  # L1 DTLB log_2(page_size)
 LOG_LENGTH = 0    # Non-zero to enable log data collection
 
@@ -1088,7 +1088,7 @@ class DCache(Elaboratable):
 
             # Cache hit reads
             comb += do_read.eq(1)
-            comb += rd_addr.eq(early_req_row[:ROW_BITS])
+            comb += rd_addr.eq(early_req_row)
             with m.If(r1.hit_way == i):
                 comb += cache_out_row.eq(_d_out)
 
@@ -1695,7 +1695,7 @@ def dcache_store(dut, addr, data, nc=0):
 def dcache_random_sim(dut):
 
     # start with stack of zeros
-    sim_mem = [0] * 512
+    sim_mem = [0] * 1024
 
     # clear stuff
     yield dut.d_in.valid.eq(0)
@@ -1715,29 +1715,36 @@ def dcache_random_sim(dut):
 
     print ()
 
-    for i in range(256):
-        addr = randint(0, 255)
+    for i in range(1024):
+        sim_mem[i] = i
+
+    for i in range(1024):
+        addr = randint(0, 1023)
         data = randint(0, (1<<64)-1)
         sim_mem[addr] = data
+        row = addr
         addr *= 8
 
-        print ("testing %x data %x" % (addr, data))
+        print ("random testing %d 0x%x row %d data 0x%x" % (i, addr, row, data))
 
         yield from dcache_load(dut, addr)
         yield from dcache_store(dut, addr, data)
 
-        addr = randint(0, 255)
+        addr = randint(0, 1023)
         sim_data = sim_mem[addr]
+        row = addr
         addr *= 8
 
+        print ("    load 0x%x row %d expect data 0x%x" % (addr, row, sim_data))
         data = yield from dcache_load(dut, addr)
         assert data == sim_data, \
-            "check %x data %x != %x" % (addr, data, sim_data)
+            "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
 
-    for addr in range(256):
+    for addr in range(1024):
         data = yield from dcache_load(dut, addr*8)
         assert data == sim_mem[addr], \
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
+
 
 def dcache_sim(dut):
     # clear stuff
@@ -1839,15 +1846,21 @@ def test_dcache(mem, test_fn, test_name):
         sim.run()
 
 if __name__ == '__main__':
+    seed(0)
     dut = DCache()
     vl = rtlil.convert(dut, ports=[])
     with open("test_dcache.il", "w") as f:
         f.write(vl)
 
     mem = []
-    for i in range(0,512):
+    for i in range(0, 512):
+        mem.append(i)
+
+    test_dcache(mem, dcache_random_sim, "random")
+
+    mem = []
+    for i in range(0, 512):
         mem.append((i*2)| ((i*2+1)<<32))
 
     test_dcache(mem, dcache_sim, "")
-    test_dcache(None, dcache_random_sim, "random")
 
