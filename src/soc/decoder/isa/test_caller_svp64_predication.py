@@ -173,8 +173,8 @@ class DecoderTestCase(FHDLTestCase):
         expected_regs[1] = 0xbeef
         expected_regs[2] = 0x3334
 
-        # set up CR predicate - CR4.eq=0 and CR5.eq=1
-        cr = (0b0010) << ((7-4)*4) # CR5.eq (we hope)
+        # set up CR predicate - CR4.eq=1 and CR5.eq=0
+        cr = (0b0010) << ((7-4)*4) # CR4.eq (we hope)
 
         with Program(lst, bigendian=False) as program:
             sim = self.run_tst_program(program, initial_regs, svstate,
