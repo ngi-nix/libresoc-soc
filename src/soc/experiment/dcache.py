@@ -1241,8 +1241,7 @@ class DCache(Elaboratable):
         # complete tlbies and TLB loads in the third cycle
         sync += r1.mmu_done.eq(r0_valid & (r0.tlbie | r0.tlbld))
 
-        with m.If((req_op == Op.OP_LOAD_HIT)
-                  | (req_op == Op.OP_STCX_FAIL)):
+        with m.If((req_op == Op.OP_LOAD_HIT) | (req_op == Op.OP_STCX_FAIL)):
             with m.If(~r0.mmu_req):
                 sync += r1.ls_valid.eq(1)
             with m.Else():
@@ -1307,7 +1306,7 @@ class DCache(Elaboratable):
                 # for subsequent stores.
                 sync += r1.store_index.eq(req_idx)
                 sync += r1.store_row.eq(req_row)
-                sync += r1.end_row_ix.eq(get_row_of_line(req_row))
+                sync += r1.end_row_ix.eq(get_row_of_line(req_row)-1)
                 sync += r1.reload_tag.eq(req_tag)
                 sync += r1.req.same_tag.eq(1)
 
