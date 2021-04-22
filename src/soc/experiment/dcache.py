@@ -678,7 +678,6 @@ class DCache(Elaboratable):
                    tlb_pte_way, pte, tlb_hit, valid_ra, perm_attr, ra):
 
         comb = m.d.comb
-        sync = m.d.sync
 
         hitway = Signal(TLB_WAY_BITS)
         hit    = Signal()
@@ -701,9 +700,8 @@ class DCache(Elaboratable):
 
         with m.If(tlb_hit):
             comb += pte.eq(read_tlb_pte(hitway, tlb_pte_way))
-        with m.Else():
-            comb += pte.eq(0)
         comb += valid_ra.eq(tlb_hit | ~r0.req.virt_mode)
+
         with m.If(r0.req.virt_mode):
             comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
                               r0.req.addr[ROW_OFF_BITS:TLB_LG_PGSZ],
@@ -717,7 +715,6 @@ class DCache(Elaboratable):
         with m.Else():
             comb += ra.eq(Cat(Const(0, ROW_OFF_BITS),
                               r0.req.addr[ROW_OFF_BITS:REAL_ADDR_BITS]))
-
             comb += perm_attr.reference.eq(1)
             comb += perm_attr.changed.eq(1)
             comb += perm_attr.nocache.eq(0)
