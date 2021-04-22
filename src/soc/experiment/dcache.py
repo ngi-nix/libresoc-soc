@@ -1388,11 +1388,9 @@ class DCache(Elaboratable):
                 comb += ld_stbs_done.eq(~r1.wb.stb)
 
                 with m.If((~wb_in.stall) & r1.wb.stb):
-                    # That was the last word?
-                    # We are done sending.
-                    # Clear stb and set ld_stbs_done
-                    # so we can handle an eventual
-                    # last ack on the same cycle.
+                    # That was the last word?  We are done sending.
+                    # Clear stb and set ld_stbs_done so we can handle an
+                    # eventual last ack on the same cycle.
                     with m.If(is_last_row_addr(r1.real_adr, r1.end_row_ix)):
                         sync += r1.wb.stb.eq(0)
                         comb += ld_stbs_done.eq(1)
@@ -1416,7 +1414,7 @@ class DCache(Elaboratable):
                     # started this refill.
                     with m.If(r1.full & r1.req.same_tag &
                               ((r1.dcbz & r1.req.dcbz) |
-                               (~r1.dcbz & (r1.req.op == Op.OP_LOAD_MISS))) &
+                               ((~r1.dcbz) & (r1.req.op == Op.OP_LOAD_MISS))) &
                                 (r1.store_row == get_row(r1.req.real_addr))):
                         sync += r1.full.eq(0)
                         sync += r1.slow_valid.eq(1)
@@ -1438,6 +1436,7 @@ class DCache(Elaboratable):
                         comb += cv.eq(cache_valids[r1.store_index])
                         comb += cv.bit_select(r1.store_way, 1).eq(1)
                         sync += cache_valids[r1.store_index].eq(cv)
+
                         sync += r1.state.eq(State.IDLE)
 
                     # Increment store row counter
