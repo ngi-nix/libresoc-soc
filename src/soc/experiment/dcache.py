@@ -1613,8 +1613,9 @@ class DCache(Elaboratable):
         comb += self.stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
-        comb += r1.wb.adr.eq(r1.real_adr[ROW_OFF_BITS:]) # truncate LSBs
+        comb += r1.wb.adr.eq(r1.real_adr)
         comb += self.wb_out.eq(r1.wb)
+        comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
         # call sub-functions putting everything together, using shared
         # signals established above
@@ -1847,13 +1848,13 @@ if __name__ == '__main__':
 
     mem = []
     for i in range(0, 512):
-        mem.append(i)
-
-    test_dcache(mem, dcache_random_sim, "random")
-
-    mem = []
-    for i in range(0, 512):
         mem.append((i*2)| ((i*2+1)<<32))
 
     test_dcache(mem, dcache_sim, "")
+
+    mem = []
+    for i in range(0, 512):
+        mem.append(i)
+
+    test_dcache(mem, dcache_random_sim, "random")
 
