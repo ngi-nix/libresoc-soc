@@ -425,11 +425,11 @@ class DTLBUpdate(Elaboratable):
         self.eatag           = Signal(TLB_EA_TAG_BITS)
         self.pte_data        = Signal(TLB_PTE_BITS)
 
-        self.dv = Signal(TLB_PTE_WAY_BITS)
+        self.dv = Signal(TLB_NUM_WAYS) # tlb_way_valids_t
 
-        self.tb_out = Signal(TLB_TAG_WAY_BITS)
-        self.pb_out = Signal(TLB_NUM_WAYS)
-        self.db_out = Signal(TLB_PTE_WAY_BITS)
+        self.tb_out = Signal(TLB_TAG_WAY_BITS) # tlb_way_tags_t
+        self.pb_out = Signal(TLB_NUM_WAYS)     # tlb_way_valids_t
+        self.db_out = Signal(TLB_PTE_WAY_BITS) # tlb_way_ptes_t
 
     def elaborate(self, platform):
         m = Module()
@@ -440,12 +440,12 @@ class DTLBUpdate(Elaboratable):
         pteset   = Signal(TLB_PTE_WAY_BITS)
 
         tb_out, pb_out, db_out = self.tb_out, self.pb_out, self.db_out
+        comb += db_out.eq(self.dv)
 
         with m.If(self.tlbie & self.doall):
             pass # clear all back in parent
         with m.Elif(self.tlbie):
             with m.If(self.tlb_hit):
-                comb += db_out.eq(self.dv)
                 comb += db_out.bit_select(self.tlb_hit_way, 1).eq(1)
                 comb += self.v_updated.eq(1)
 
@@ -523,7 +523,7 @@ class DCachePendingHit(Elaboratable):
         # the TLB, and then decide later which match to use.
 
         with m.If(virt_mode):
-            for j in range(TLB_NUM_WAYS):
+            for j in range(TLB_NUM_WAYS): # tlb_num_way_t
                 s_tag       = Signal(TAG_BITS, name="s_tag%d" % j)
                 s_hit       = Signal()
                 s_pte       = Signal(TLB_PTE_BITS)
@@ -533,7 +533,7 @@ class DCachePendingHit(Elaboratable):
                                     s_pte[TLB_LG_PGSZ:REAL_ADDR_BITS]))
                 comb += s_tag.eq(get_tag(s_ra))
 
-                for i in range(NUM_WAYS):
+                for i in range(NUM_WAYS): # way_t
                     is_tag_hit = Signal(name="is_tag_hit_%d_%d" % (j, i))
                     comb += is_tag_hit.eq(go & cache_valid_idx[i] &
                                   (read_tag(i, cache_tag_set) == s_tag)
@@ -551,7 +551,7 @@ class DCachePendingHit(Elaboratable):
         with m.Else():
             s_tag       = Signal(TAG_BITS)
             comb += s_tag.eq(get_tag(req_addr))
-            for i in range(NUM_WAYS):
+            for i in range(NUM_WAYS): # way_t
                 is_tag_hit = Signal(name="is_tag_hit_%d" % i)
                 comb += is_tag_hit.eq(go & cache_valid_idx[i] &
                           (read_tag(i, cache_tag_set) == s_tag))
@@ -726,6 +726,8 @@ class DCache(Elaboratable):
                     tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
                     dtlb_tags, tlb_pte_way, dtlb_ptes):
 
+        dtlb_valids = TLBValidBitsArray()
+
         comb = m.d.comb
         sync = m.d.sync
 
@@ -862,7 +864,7 @@ class DCache(Elaboratable):
             rrow = Signal(ROW_LINE_BITS)
             comb += rrow.eq(req_row)
             valid = r1.rows_valid[rrow]
-            comb += is_hit.eq(~r0.req.load | valid)
+            comb += is_hit.eq((~r0.req.load) | valid)
             comb += hit_way.eq(replace_way)
 
         # Whether to use forwarded data for a load or not
@@ -892,9 +894,8 @@ class DCache(Elaboratable):
         # work out whether we have permission for this access
         # NB we don't yet implement AMR, thus no KUAP
         comb += rc_ok.eq(perm_attr.reference
-                         & (r0.req.load | perm_attr.changed)
-                )
-        comb += perm_ok.eq((r0.req.priv_mode | ~perm_attr.priv) &
+                         & (r0.req.load | perm_attr.changed))
+        comb += perm_ok.eq((r0.req.priv_mode | (~perm_attr.priv)) &
                            (perm_attr.wr_perm |
                               (r0.req.load & perm_attr.rd_perm)))
         comb += access_ok.eq(valid_ra & perm_ok & rc_ok)
@@ -938,7 +939,6 @@ class DCache(Elaboratable):
         """Handle load-with-reservation and store-conditional instructions
         """
         comb = m.d.comb
-        sync = m.d.sync
 
         with m.If(r0_valid & r0.req.reserve):
             # XXX generate alignment interrupt if address
@@ -947,7 +947,7 @@ class DCache(Elaboratable):
                 comb += set_rsrv.eq(1) # load with reservation
             with m.Else():
                 comb += clear_rsrv.eq(1) # store conditional
-                with m.If(~reservation.valid |
+                with m.If((~reservation.valid) |
                          (r0.req.addr[LINE_OFF_BITS:64] != reservation.addr)):
                     comb += cancel_store.eq(1)
 
@@ -1071,7 +1071,7 @@ class DCache(Elaboratable):
             wr_data  = Signal(WB_DATA_BITS)
             wr_sel   = Signal(ROW_SIZE)
             wr_sel_m = Signal(ROW_SIZE)
-            _d_out   = Signal(WB_DATA_BITS, name="dout_%d" % i)
+            _d_out   = Signal(WB_DATA_BITS, name="dout_%d" % i) # cache_row_t
 
             way = CacheRam(ROW_BITS, WB_DATA_BITS, ADD_BUF=True)
             setattr(m.submodules, "cacheram_%d" % i, way)
@@ -1667,7 +1667,6 @@ def dcache_load(dut, addr, nc=0):
     yield
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.byte_sel.eq(0)
-    yield
     while not (yield dut.d_out.valid):
         yield
     data = yield dut.d_out.data
@@ -1684,7 +1683,6 @@ def dcache_store(dut, addr, data, nc=0):
     yield
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.byte_sel.eq(0)
-    yield
     while not (yield dut.d_out.valid):
         yield
 
