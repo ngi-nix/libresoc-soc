@@ -1169,7 +1169,7 @@ class DCache(Elaboratable):
                 sync += r1.cache_paradox.eq(0)
 
         with m.If(req_op == Op.OP_STCX_FAIL):
-            r1.stcx_fail.eq(1)
+            sync += r1.stcx_fail.eq(1)
         with m.Else():
             sync += r1.stcx_fail.eq(0)
 
