@@ -3,8 +3,8 @@ from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Elaboratable
 
 from nmutil.latch import SRLatch, latchregister
-from soc.decoder.power_decoder2 import Data
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_decoder2 import Data
+from openpower.decoder.power_enums import MicrOp
 
 from soc.experiment.alu_hier import CompALUOpSubset
 
@@ -224,7 +224,7 @@ def scoreboard_sim(dut):
 
 def test_scoreboard():
     from alu_hier import ALU
-    from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+    from openpower.decoder.power_decoder2 import Decode2ToExecute1Type
 
     alu = ALU(16)
     dut = ComputationUnitNoDelay(16, alu)

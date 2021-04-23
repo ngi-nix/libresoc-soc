@@ -7,10 +7,10 @@ from nmigen import Module, Signal
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
 from nmutil.sim_tmp_alternative import Simulator, Delay
 
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import XER_bits, Function
-from soc.decoder.isa.all import ISA
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_enums import XER_bits, Function
+from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import ALUHelpers

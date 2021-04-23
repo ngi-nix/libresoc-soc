@@ -7,10 +7,10 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2, get_rdflags
-from soc.decoder.power_enums import Function
-from soc.decoder.isa.all import ISA
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2, get_rdflags
+from openpower.decoder.power_enums import Function
+from openpower.decoder.isa.all import ISA
 
 from soc.experiment.compalu_multi import find_ok  # hack
 from soc.config.test.test_loadstore import TestMemPspec

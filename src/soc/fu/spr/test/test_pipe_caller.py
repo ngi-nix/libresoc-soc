@@ -6,13 +6,13 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import ISACaller, special_sprs
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from soc.decoder.selectable_int import SelectableInt
-from soc.simulator.program import Program
-from soc.decoder.isa.all import ISA
+from openpower.decoder.isa.caller import ISACaller, special_sprs
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
+from openpower.decoder.selectable_int import SelectableInt
+from openpower.simulator.program import Program
+from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 from soc.consts import MSR
 

@@ -1,6 +1,6 @@
 import random
 import unittest
-from soc.simulator.program import Program
+from openpower.simulator.program import Program
 from soc.config.endian import bigendian
 
 from soc.fu.test.common import (TestCase, TestAccumulatorBase, skip_case)

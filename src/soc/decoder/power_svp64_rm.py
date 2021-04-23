@@ -17,7 +17,7 @@ https://libre-soc.org/openpower/sv/svp64/
 """
 
 from nmigen import Elaboratable, Module, Signal, Const
-from soc.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
+from openpower.decoder.power_enums import (SVP64RMMode, Function, SVPtype,
                                     SVP64PredMode, SVP64sat)
 from soc.consts import EXTRA3, SVP64MODE
 from soc.sv.svp64 import SVP64Rec

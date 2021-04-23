@@ -11,11 +11,11 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.shift_rot.pipe_data import (ShiftRotOutputData,
                                        ShiftRotInputData)
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 from soc.fu.shift_rot.rotator import Rotator
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 
 
 class ShiftRotMainStage(PipeModBase):

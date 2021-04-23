@@ -16,24 +16,24 @@ related bugs:
 from nmigen.back.pysim import Settle
 from functools import wraps
 from copy import copy
-from soc.decoder.orderedset import OrderedSet
-from soc.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
+from openpower.decoder.orderedset import OrderedSet
+from openpower.decoder.selectable_int import (FieldSelectableInt, SelectableInt,
                                         selectconcat)
-from soc.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
+from openpower.decoder.power_enums import (spr_dict, spr_byname, XER_bits,
                                      insns, MicrOp, In1Sel, In2Sel, In3Sel,
                                      OutSel, CROutSel,
                                      SVP64RMMode, SVP64PredMode,
                                      SVP64PredInt, SVP64PredCR)
 
-from soc.decoder.power_enums import SVPtype
+from openpower.decoder.power_enums import SVPtype
 
-from soc.decoder.helpers import exts, gtu, ltu, undefined
+from openpower.decoder.helpers import exts, gtu, ltu, undefined
 from soc.consts import PIb, MSRb  # big-endian (PowerISA versions)
 from soc.consts import SVP64CROffs
-from soc.decoder.power_svp64 import SVP64RM, decode_extra
+from openpower.decoder.power_svp64 import SVP64RM, decode_extra
 
-from soc.decoder.isa.radixmmu import RADIX
-from soc.decoder.isa.mem import Mem, swap_order
+from openpower.decoder.isa.radixmmu import RADIX
+from openpower.decoder.isa.mem import Mem, swap_order
 
 from collections import namedtuple
 import math

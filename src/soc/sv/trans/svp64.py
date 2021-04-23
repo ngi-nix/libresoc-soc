@@ -17,7 +17,7 @@ Bugtracker: https://bugs.libre-soc.org/show_bug.cgi?id=578
 import os, sys
 from collections import OrderedDict
 
-from soc.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
+from openpower.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
                                     SV64P_PID_SIZE, SVP64RMFields,
                                     SVP64RM_EXTRA2_SPEC_SIZE,
                                     SVP64RM_EXTRA3_SPEC_SIZE,
@@ -25,9 +25,9 @@ from soc.decoder.isa.caller import (SVP64PrefixFields, SV64P_MAJOR_SIZE,
                                     SVP64RM_MMODE_SIZE, SVP64RM_MASK_SIZE,
                                     SVP64RM_SUBVL_SIZE, SVP64RM_EWSRC_SIZE,
                                     SVP64RM_ELWIDTH_SIZE)
-from soc.decoder.pseudo.pagereader import ISA
-from soc.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
-from soc.decoder.selectable_int import SelectableInt
+from openpower.decoder.pseudo.pagereader import ISA
+from openpower.decoder.power_svp64 import SVP64RM, get_regtype, decode_extra
+from openpower.decoder.selectable_int import SelectableInt
 from soc.consts import SVP64MODE
 
 

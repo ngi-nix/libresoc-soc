@@ -6,7 +6,7 @@ from nmigen.cli import rtlil
 from nmutil.util import sel
 
 
-from soc.decoder.power_enums import (SVEXTRA, SVEtype)
+from openpower.decoder.power_enums import (SVEXTRA, SVEtype)
 from soc.consts import (SPEC, EXTRA2, EXTRA3, SVP64P, field,
                         SPEC_SIZE, SPECb, SPEC_AUG_SIZE, SVP64CROffs)
 

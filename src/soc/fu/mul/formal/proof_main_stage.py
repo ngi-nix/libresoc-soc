@@ -49,15 +49,15 @@ from nmutil.formaltest import FHDLTestCase
 from nmutil.stageapi import StageChain
 from nmigen.cli import rtlil
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 
 from soc.fu.mul.pipe_data import CompMULOpSubset, MulPipeSpec
 from soc.fu.mul.pre_stage import MulMainStage1
 from soc.fu.mul.main_stage import MulMainStage2
 from soc.fu.mul.post_stage import MulMainStage3
 
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 import unittest
 
 

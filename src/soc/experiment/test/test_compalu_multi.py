@@ -15,7 +15,7 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.cr.cr_input_record import CompCROpSubset
 from soc.experiment.alu_hier import ALU, DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 from nmutil.gtkw import write_gtkw
 from nmigen import Module, Signal
 from nmigen.cli import rtlil

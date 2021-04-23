@@ -4,13 +4,13 @@ from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
 from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.config.endian import bigendian
-from soc.decoder.isa.all import ISA
-from soc.simulator.program import Program
-from soc.decoder.selectable_int import SelectableInt
-from soc.decoder.power_enums import (XER_bits, Function, CryIn)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.isa.caller import ISACaller, special_sprs
+from openpower.decoder.isa.all import ISA
+from openpower.simulator.program import Program
+from openpower.decoder.selectable_int import SelectableInt
+from openpower.decoder.power_enums import (XER_bits, Function, CryIn)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.isa.caller import ISACaller, special_sprs
 import unittest
 from nmigen.cli import rtlil
 from nmigen import Module, Signal

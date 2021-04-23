@@ -5,10 +5,10 @@ from nmigen import (Module, Signal, Cat, Repl, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.div.pipe_data import DivInputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 from soc.fu.div.pipe_data import CoreInputData
 from ieee754.div_rem_sqrt_rsqrt.core import DivPipeCoreOperation
 from nmutil.util import eq32

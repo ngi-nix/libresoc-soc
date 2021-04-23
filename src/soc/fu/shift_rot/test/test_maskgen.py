@@ -3,7 +3,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 from soc.fu.shift_rot.maskgen import MaskGen
-from soc.decoder.helpers import MASK
+from openpower.decoder.helpers import MASK
 import random
 import unittest
 

@@ -9,16 +9,16 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from soc.decoder.isa.caller import special_sprs
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2
-from soc.decoder.selectable_int import SelectableInt
-from soc.decoder.isa.all import ISA
+from openpower.decoder.isa.caller import special_sprs
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2
+from openpower.decoder.selectable_int import SelectableInt
+from openpower.decoder.isa.all import ISA
 
 # note that for testing using SPRfull should be ok here
-from soc.decoder.power_enums import SPRfull as SPR, spr_dict, Function, XER_bits
+from openpower.decoder.power_enums import SPRfull as SPR, spr_dict, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok  # hack

@@ -1,4 +1,4 @@
-from soc.simulator.program import Program
+from openpower.simulator.program import Program
 from soc.fu.test.common import TestCase
 
 import unittest
@@ -8,7 +8,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 
 from soc.simple.issuer import TestIssuer
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 from soc.config.test.test_loadstore import TestMemPspec

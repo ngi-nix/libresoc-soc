@@ -20,10 +20,10 @@ from soc.experiment.testmem import TestMemory
 
 from soc.experiment.alu_hier import ALU, BranchALU, CompALUOpSubset
 
-from soc.decoder.power_enums import MicrOp, Function
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.simulator.program import Program
+from openpower.decoder.power_enums import MicrOp, Function
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.simulator.program import Program
 
 
 from nmutil.latch import SRLatch

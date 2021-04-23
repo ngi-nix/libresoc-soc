@@ -1,6 +1,6 @@
 import unittest
 from soc.fu.mul.test.helper import MulTestHelper
-from soc.simulator.program import Program
+from openpower.simulator.program import Program
 from soc.config.endian import bigendian
 from soc.fu.test.common import TestAccumulatorBase, skip_case
 

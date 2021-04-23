@@ -46,7 +46,7 @@ see:
 from nmigen import Elaboratable, Module
 from nmigen.cli import rtlil
 from soc.experiment.compalu_multi import MultiCompUnit
-from soc.decoder.power_enums import Function
+from openpower.decoder.power_enums import Function
 from soc.config.test.test_loadstore import TestMemPspec
 
 # pipeline / spec imports

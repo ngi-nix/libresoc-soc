@@ -3,8 +3,8 @@
 # generation for subtraction, should happen here
 from nmigen import (Module, Signal)
 from nmutil.pipemodbase import PipeModBase
-from soc.decoder.power_enums import MicrOp
-from soc.decoder.power_enums import CryIn
+from openpower.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import CryIn
 
 
 class CommonInputStage(PipeModBase):

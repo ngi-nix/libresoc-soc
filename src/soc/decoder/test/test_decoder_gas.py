@@ -6,14 +6,14 @@ from nmutil.sim_tmp_alternative import Simulator, Delay
 
 from nmutil.formaltest import FHDLTestCase
 import unittest
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_enums import (Function, MicrOp,
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_enums import (Function, MicrOp,
                                      In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, LdstLen, CryIn,
                                      single_bit_flags, Form, SPR,
                                      get_signal_name, get_csv)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.simulator.gas import get_assembled_instruction
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.simulator.gas import get_assembled_instruction
 import random
 
 

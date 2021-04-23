@@ -11,7 +11,7 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.div.pipe_data import DivMulOutputData
 from soc.fu.mul.pipe_data import MulOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
 
 class MulMainStage3(PipeModBase):

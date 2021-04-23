@@ -15,7 +15,7 @@ from soc.fu.shift_rot.main_stage import ShiftRotMainStage
 from soc.fu.shift_rot.rotator import right_mask, left_mask
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 from soc.fu.shift_rot.sr_input_record import CompSROpSubset
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 from soc.consts import field
 
 import unittest

@@ -92,9 +92,9 @@ from soc.experiment.l0_cache import PortInterface
 from soc.experiment.pimem import LDSTException
 from soc.fu.regspec import RegSpecAPI
 
-from soc.decoder.power_enums import MicrOp, Function, LDSTMode
+from openpower.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
-from soc.decoder.power_decoder2 import Data
+from openpower.decoder.power_decoder2 import Data
 
 
 class LDSTCompUnitRecord(CompUnitRecord):

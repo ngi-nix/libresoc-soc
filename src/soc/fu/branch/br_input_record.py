@@ -1,7 +1,7 @@
 from soc.fu.base_input_record import CompOpSubsetBase
 from nmigen.hdl.rec import Layout
 
-from soc.decoder.power_enums import MicrOp, Function
+from openpower.decoder.power_enums import MicrOp, Function
 
 
 class CompBROpSubset(CompOpSubsetBase):

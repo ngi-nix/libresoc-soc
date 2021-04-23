@@ -6,7 +6,7 @@ Bugreports:
 import inspect
 import functools
 import types
-from soc.decoder.power_enums import XER_bits, CryIn, spr_dict
+from openpower.decoder.power_enums import XER_bits, CryIn, spr_dict
 from soc.regfile.util import fast_reg_to_spr, slow_reg_to_spr  # HACK!
 from soc.regfile.regfiles import XERRegs, FastRegs
 

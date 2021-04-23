@@ -7,11 +7,11 @@
 from nmigen import (Module, Signal, Cat)
 from nmutil.pipemodbase import PipeModBase
 from soc.fu.spr.pipe_data import SPRInputData, SPROutputData
-from soc.decoder.power_enums import MicrOp, SPRfull, SPRreduced, XER_bits
+from openpower.decoder.power_enums import MicrOp, SPRfull, SPRreduced, XER_bits
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
-from soc.decoder.power_decoder2 import decode_spr_num
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_decoder2 import decode_spr_num
 
 
 class SPRMainStage(PipeModBase):

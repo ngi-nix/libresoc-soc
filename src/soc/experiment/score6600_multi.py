@@ -23,12 +23,12 @@ from soc.experiment.l0_cache import TstL0CacheBuffer
 from soc.experiment.alu_hier import ALU, BranchALU
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 
-from soc.decoder.power_enums import MicrOp, Function
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+from openpower.decoder.power_enums import MicrOp, Function
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_decoder2 import Decode2ToExecute1Type
 
-from soc.simulator.program import Program
+from openpower.simulator.program import Program
 
 
 from nmutil.latch import SRLatch

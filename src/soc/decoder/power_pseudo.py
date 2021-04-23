@@ -15,13 +15,13 @@ from ply import lex, yacc
 import astor
 import ast
 
-from soc.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder import create_pdecode
 from nmigen.back.pysim import Simulator, Delay
 from nmigen import Module, Signal
 
-from soc.decoder.pseudo.parser import GardenSnakeCompiler
-from soc.decoder.selectable_int import SelectableInt, selectconcat
-from soc.decoder.isa.caller import GPR, Mem
+from openpower.decoder.pseudo.parser import GardenSnakeCompiler
+from openpower.decoder.selectable_int import SelectableInt, selectconcat
+from openpower.decoder.isa.caller import GPR, Mem
 
 
 ####### Test code #######
@@ -256,7 +256,7 @@ def test():
         print("args", args)
         print("-->", " ".join(map(str, args)))
 
-    from soc.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,
+    from openpower.decoder.helpers import (EXTS64, EXTZ64, ROTL64, ROTL32, MASK,
                                      trunc_div, trunc_rem)
 
     d = {}

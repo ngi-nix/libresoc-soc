@@ -1,4 +1,4 @@
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
 from random import randint, seed
 from copy import deepcopy

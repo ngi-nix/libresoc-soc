@@ -1,5 +1,5 @@
 import unittest
-from soc.decoder.power_enums import (XER_bits, Function)
+from openpower.decoder.power_enums import (XER_bits, Function)
 
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase, get_cu_inputs
 

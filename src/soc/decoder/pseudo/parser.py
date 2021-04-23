@@ -13,9 +13,9 @@ from ply import lex, yacc
 import astor
 from copy import deepcopy
 
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.pseudo.lexer import IndentLexer
-from soc.decoder.orderedset import OrderedSet
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.pseudo.lexer import IndentLexer
+from openpower.decoder.orderedset import OrderedSet
 
 # I use the Python AST
 #from compiler import ast

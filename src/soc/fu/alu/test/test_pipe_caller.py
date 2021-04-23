@@ -3,13 +3,13 @@ from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.pipeline import ALUBasePipe
 from soc.fu.test.common import (TestCase, TestAccumulatorBase, ALUHelpers)
 from soc.config.endian import bigendian
-from soc.decoder.isa.all import ISA
-from soc.simulator.program import Program
-from soc.decoder.selectable_int import SelectableInt
-from soc.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from soc.decoder.power_decoder2 import (PowerDecode2)
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.isa.caller import special_sprs
+from openpower.decoder.isa.all import ISA
+from openpower.simulator.program import Program
+from openpower.decoder.selectable_int import SelectableInt
+from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
+from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.isa.caller import special_sprs
 import unittest
 from nmigen.cli import rtlil
 from nmutil.formaltest import FHDLTestCase

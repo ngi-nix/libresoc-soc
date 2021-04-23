@@ -9,7 +9,7 @@ from nmigen.cli import rtlil
 from soc.fu.alu.input_stage import ALUInputStage
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.branch.br_input_record import CompBROpSubset
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 import unittest
 
 

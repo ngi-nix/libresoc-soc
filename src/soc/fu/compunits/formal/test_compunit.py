@@ -6,7 +6,7 @@ from soc.fu.compunits.compunits import FunctionUnitBaseSingle
 from soc.experiment.alu_hier import DummyALU
 from soc.experiment.compalu_multi import MultiCompUnit
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 import unittest
 
 class MaskGenTestCase(FHDLTestCase):

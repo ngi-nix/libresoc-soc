@@ -8,8 +8,8 @@ from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import os
 import unittest
-from soc.decoder.power_decoder import (create_pdecode)
-from soc.decoder.power_enums import (Function, MicrOp,
+from openpower.decoder.power_decoder import (create_pdecode)
+from openpower.decoder.power_enums import (Function, MicrOp,
                                      In1Sel, In2Sel, In3Sel,
                                      CRInSel, CROutSel,
                                      OutSel, RC, LdstLen, CryIn,

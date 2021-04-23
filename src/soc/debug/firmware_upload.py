@@ -21,7 +21,7 @@ from nmutil.util import wrap
 from soc.debug.jtagutils import (jtag_read_write_reg,
                                  jtag_srv, jtag_set_reset,
                                  jtag_set_ir, jtag_set_get_dr)
-from soc.simulator.program import Program
+from openpower.simulator.program import Program
 
 def test_pinset():
     return {

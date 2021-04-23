@@ -23,16 +23,16 @@ import sys
 
 from nmigen.lib.coding import PriorityEncoder
 
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2, SVP64PrefixDecoder
-from soc.decoder.decode2execute1 import IssuerDecode2ToOperand
-from soc.decoder.decode2execute1 import Data
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2, SVP64PrefixDecoder
+from openpower.decoder.decode2execute1 import IssuerDecode2ToOperand
+from openpower.decoder.decode2execute1 import Data
 from soc.experiment.testmem import TestMemory # test only for instructions
 from soc.regfile.regfiles import StateRegs, FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
-from soc.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
+from openpower.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
                                      SVP64PredMode)
 from soc.consts import (CR, SVP64CROffs)
 from soc.debug.dmi import CoreDebug, DMIInterface
@@ -399,7 +399,7 @@ class TestIssuerInternal(Elaboratable):
         be done through multiple reads, extracting one relevant at a time.
         later, a faster way would be to use the 32-bit-wide CR port but
         this is more complex decoding, here.  equivalent code used in
-        ISACaller is "from soc.decoder.isa.caller import get_predcr"
+        ISACaller is "from openpower.decoder.isa.caller import get_predcr"
 
         note: this ENTIRE FSM is not to be called when svp64 is disabled
         """

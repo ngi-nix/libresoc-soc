@@ -21,7 +21,7 @@ from nmutil.formaltest import FHDLTestCase
 
 from soc.consts import MSR, MSRb, PI, TT, field
 
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
 from soc.fu.trap.main_stage import TrapMainStage
 from soc.fu.trap.pipe_data import TrapPipeSpec

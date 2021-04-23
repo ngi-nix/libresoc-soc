@@ -22,8 +22,8 @@ from nmutil.gtkw import write_gtkw
 from nmutil.sim_tmp_alternative import (Simulator, nmigen_sim_top_module,
                                         is_engine_pysim)
 
-from soc.decoder.decode2execute1 import Data
-from soc.decoder.power_enums import MicrOp, Function, CryIn
+from openpower.decoder.decode2execute1 import Data
+from openpower.decoder.power_enums import MicrOp, Function, CryIn
 
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.cr.cr_input_record import CompCROpSubset

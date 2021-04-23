@@ -21,8 +21,8 @@ from soc.fu.cr.test.test_pipe_caller import CRTestCase
 # from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 # from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
-from soc.simulator.test_sim import (GeneralTestCases, AttnTestCase)
-# from soc.simulator.test_helloworld_sim import HelloTestCases
+from openpower.simulator.test_sim import (GeneralTestCases, AttnTestCase)
+# from openpower.simulator.test_helloworld_sim import HelloTestCases
 
 
 if __name__ == "__main__":

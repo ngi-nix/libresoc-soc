@@ -14,11 +14,11 @@ from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.trap.pipe_data import TrapInputData, TrapOutputData
 from soc.fu.branch.main_stage import br_ext
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 from soc.experiment.mem_types import LDSTException
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 
 from soc.consts import MSR, PI, TT, field, field_slice
 

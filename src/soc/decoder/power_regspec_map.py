@@ -36,7 +36,7 @@ see https://libre-soc.org/3d_gpu/architecture/regfile/ section on regspecs
 """
 from nmigen import Const
 from soc.regfile.regfiles import XERRegs, FastRegs, StateRegs
-from soc.decoder.power_enums import CryIn
+from openpower.decoder.power_enums import CryIn
 
 
 def regspec_decode_read(e, regfile, name):

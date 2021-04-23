@@ -32,10 +32,10 @@ from nmigen import (Module, Signal, Cat, Mux, Const, Array)
 from nmutil.pipemodbase import PipeModBase
 from nmutil.extend import exts
 from soc.fu.branch.pipe_data import BranchInputData, BranchOutputData
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 
 
 def br_ext(bd):

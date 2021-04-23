@@ -13,12 +13,12 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmutil.gtkw import write_gtkw
 from nmigen.cli import rtlil
-from soc.decoder.isa.caller import special_sprs, SVP64State
-from soc.decoder.isa.all import ISA
-from soc.config.endian import bigendian
+from openpower.decoder.isa.caller import special_sprs, SVP64State
+from openpower.decoder.isa.all import ISA
+from openpower.endian import bigendian
 
-from soc.decoder.power_decoder import create_pdecode
-from soc.decoder.power_decoder2 import PowerDecode2
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2
 from soc.regfile.regfiles import StateRegs
 
 from soc.simple.issuer import TestIssuerInternal

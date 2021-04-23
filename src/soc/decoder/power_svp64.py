@@ -2,7 +2,7 @@
 # Copyright (C) 2021 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
 # Funded by NLnet http://nlnet.nl
 
-from soc.decoder.power_enums import get_csv, find_wiki_dir
+from openpower.decoder.power_enums import get_csv, find_wiki_dir
 import os
 
 # identifies register by type

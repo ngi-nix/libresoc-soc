@@ -1,7 +1,7 @@
 from soc.fu.test.common import (TestAccumulatorBase, skip_case)
 from soc.config.endian import bigendian
-from soc.simulator.program import Program
-from soc.decoder.isa.caller import SVP64State
+from openpower.simulator.program import Program
+from openpower.decoder.isa.caller import SVP64State
 from soc.sv.trans.svp64 import SVP64Asm
 
 

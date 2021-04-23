@@ -3,7 +3,7 @@
 from nmigen import (Module, Signal, Cat, Const)
 from nmutil.pipemodbase import PipeModBase
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
 
 class CommonOutputStage(PipeModBase):

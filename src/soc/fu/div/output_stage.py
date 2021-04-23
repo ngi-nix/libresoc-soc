@@ -9,10 +9,10 @@ from nmutil.pipemodbase import PipeModBase
 from soc.fu.logical.pipe_data import LogicalInputData
 from soc.fu.div.pipe_data import DivMulOutputData
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 from soc.fu.div.pipe_data import CoreOutputData
 
 

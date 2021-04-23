@@ -7,7 +7,7 @@ from soc.fu.common_output_stage import CommonOutputStage
 from soc.fu.logical.pipe_data import (LogicalInputData, LogicalOutputData,
                                       LogicalOutputDataFinal)
 from ieee754.part.partsig import PartitionedSignal
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 
 
 class LogicalOutputStage(CommonOutputStage):

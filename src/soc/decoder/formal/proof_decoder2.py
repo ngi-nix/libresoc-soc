@@ -2,11 +2,11 @@ from nmigen import Module, Signal, Elaboratable, Cat, Repl
 from nmigen.asserts import Assert, AnyConst
 from nmutil.formaltest import FHDLTestCase
 
-from soc.decoder.power_decoder import create_pdecode, PowerOp
-from soc.decoder.power_enums import (In1Sel, In2Sel, In3Sel,
+from openpower.decoder.power_decoder import create_pdecode, PowerOp
+from openpower.decoder.power_enums import (In1Sel, In2Sel, In3Sel,
                                      OutSel, RC, Form,
                                      MicrOp, SPR)
-from soc.decoder.power_decoder2 import (PowerDecode2,
+from openpower.decoder.power_decoder2 import (PowerDecode2,
                                         Decode2ToExecute1Type)
 import unittest
 

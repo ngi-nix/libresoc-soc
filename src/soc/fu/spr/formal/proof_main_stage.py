@@ -18,10 +18,10 @@ from soc.fu.spr.main_stage import SPRMainStage
 from soc.fu.spr.pipe_data import SPRPipeSpec
 from soc.fu.spr.spr_input_record import CompSPROpSubset
 
-from soc.decoder.power_decoder2 import decode_spr_num
-from soc.decoder.power_enums import MicrOp, SPR, XER_bits
-from soc.decoder.power_fields import DecodeFields
-from soc.decoder.power_fieldsn import SignalBitRange
+from openpower.decoder.power_decoder2 import decode_spr_num
+from openpower.decoder.power_enums import MicrOp, SPR, XER_bits
+from openpower.decoder.power_fields import DecodeFields
+from openpower.decoder.power_fieldsn import SignalBitRange
 
 # use POWER numbering. sigh.
 def xer_bit(name):

@@ -10,7 +10,7 @@
 # Modifications for inclusion in PLY distribution
 from copy import copy
 from ply import lex
-from soc.decoder.selectable_int import SelectableInt
+from openpower.decoder.selectable_int import SelectableInt
 
 # I implemented INDENT / DEDENT generation as a post-processing filter
 

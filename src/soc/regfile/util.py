@@ -1,5 +1,5 @@
 from soc.regfile.regfiles import FastRegs
-from soc.decoder.power_enums import SPRfull as SPR, spr_dict
+from openpower.decoder.power_enums import SPRfull as SPR, spr_dict
 
 # note that we can get away with using SPRfull here because the values
 # (numerical values) are what is used for lookup.

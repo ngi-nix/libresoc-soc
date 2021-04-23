@@ -16,7 +16,7 @@ from nmigen.cli import rtlil
 from soc.fu.branch.main_stage import BranchMainStage
 from soc.fu.branch.pipe_data import BranchPipeSpec
 from soc.fu.branch.br_input_record import CompBROpSubset
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 import unittest
 
 

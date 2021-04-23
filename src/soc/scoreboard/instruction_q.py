@@ -6,7 +6,7 @@ from nmigen import Module, Signal, Cat, Array, Const, Repl, Elaboratable
 from nmutil.iocontrol import RecordObject
 from nmutil.nmoperator import eq, shape, cat
 
-from soc.decoder.power_decoder2 import Decode2ToExecute1Type
+from openpower.decoder.power_decoder2 import Decode2ToExecute1Type
 
 
 class Instruction(Decode2ToExecute1Type):

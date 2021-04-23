@@ -1,5 +1,5 @@
 import unittest
-from soc.decoder.power_enums import (XER_bits, Function)
+from openpower.decoder.power_enums import (XER_bits, Function)
 
 # XXX bad practice: use of global variables
 from soc.fu.shift_rot.test.test_pipe_caller import get_cu_inputs

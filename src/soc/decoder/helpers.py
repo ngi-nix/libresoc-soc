@@ -1,10 +1,10 @@
 import unittest
-from soc.decoder.selectable_int import SelectableInt, onebit
+from openpower.decoder.selectable_int import SelectableInt, onebit
 from nmutil.divmod import trunc_divs, trunc_rems
 from operator import floordiv, mod
-from soc.decoder.selectable_int import selectltu as ltu
-from soc.decoder.selectable_int import selectgtu as gtu
-from soc.decoder.selectable_int import check_extsign
+from openpower.decoder.selectable_int import selectltu as ltu
+from openpower.decoder.selectable_int import selectgtu as gtu
+from openpower.decoder.selectable_int import check_extsign
 
 trunc_div = floordiv
 trunc_rem = mod

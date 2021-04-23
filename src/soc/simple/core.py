@@ -22,22 +22,22 @@ before allowing a new instruction to proceed.
 from nmigen import Elaboratable, Module, Signal, ResetSignal, Cat, Mux
 from nmigen.cli import rtlil
 
-from soc.decoder.power_decoder2 import PowerDecodeSubset
-from soc.decoder.power_regspec_map import regspec_decode_read
-from soc.decoder.power_regspec_map import regspec_decode_write
+from openpower.decoder.power_decoder2 import PowerDecodeSubset
+from openpower.decoder.power_regspec_map import regspec_decode_read
+from openpower.decoder.power_regspec_map import regspec_decode_write
 
 from nmutil.picker import PriorityPicker
 from nmutil.util import treereduce
 
 from soc.fu.compunits.compunits import AllFunctionUnits
 from soc.regfile.regfiles import RegFiles
-from soc.decoder.decode2execute1 import Decode2ToExecute1Type
-from soc.decoder.decode2execute1 import IssuerDecode2ToOperand
-from soc.decoder.power_decoder2 import get_rdflags
-from soc.decoder.decode2execute1 import Data
+from openpower.decoder.decode2execute1 import Decode2ToExecute1Type
+from openpower.decoder.decode2execute1 import IssuerDecode2ToOperand
+from openpower.decoder.power_decoder2 import get_rdflags
+from openpower.decoder.decode2execute1 import Data
 from soc.experiment.l0_cache import TstL0CacheBuffer  # test only
 from soc.config.test.test_loadstore import TestMemPspec
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_enums import MicrOp
 from soc.config.state import CoreState
 
 import operator

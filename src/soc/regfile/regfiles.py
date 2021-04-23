@@ -26,7 +26,7 @@ Links:
 
 from soc.regfile.regfile import RegFile, RegFileArray, RegFileMem
 from soc.regfile.virtual_port import VirtualRegPort
-from soc.decoder.power_enums import SPRfull, SPRreduced
+from openpower.decoder.power_enums import SPRfull, SPRreduced
 
 
 # "State" Regfile

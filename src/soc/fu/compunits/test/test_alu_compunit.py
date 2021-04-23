@@ -1,5 +1,5 @@
 import unittest
-from soc.decoder.power_enums import (XER_bits, Function)
+from openpower.decoder.power_enums import (XER_bits, Function)
 
 from soc.fu.alu.test.test_pipe_caller import get_cu_inputs
 from soc.fu.alu.test.test_pipe_caller import ALUTestCase  # creates the tests

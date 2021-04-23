@@ -1,7 +1,7 @@
 from nmutil.concurrentunit import PipeContext
 from nmutil.dynamicpipe import SimpleHandshakeRedir
 from nmigen import Signal
-from soc.decoder.power_decoder2 import Data
+from openpower.decoder.power_decoder2 import Data
 from soc.fu.regspec import get_regspec_bitwidth
 
 

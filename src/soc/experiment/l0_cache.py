@@ -23,12 +23,12 @@ from nmigen.utils import log2_int
 from nmigen.hdl.rec import Record, Layout
 
 from nmutil.latch import SRLatch, latchregister
-from soc.decoder.power_decoder2 import Data
-from soc.decoder.power_enums import MicrOp
+from openpower.decoder.power_decoder2 import Data
+from openpower.decoder.power_enums import MicrOp
 from soc.regfile.regfile import ortreereduce
 from nmutil.util import treereduce
 
-from soc.decoder.power_decoder2 import Data
+from openpower.decoder.power_decoder2 import Data
 #from nmutil.picker import PriorityPicker
 from nmigen.lib.coding import PriorityEncoder
 from soc.scoreboard.addr_split import LDSTSplitter
