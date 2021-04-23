@@ -1,6 +1,6 @@
 from soc.fu.base_input_record import CompOpSubsetBase
 from openpower.decoder.power_enums import (MicrOp, Function)
-from soc.consts import TT
+from openpower.consts import TT
 from soc.experiment.mem_types import LDSTException
 
 class CompTrapOpSubset(CompOpSubsetBase):

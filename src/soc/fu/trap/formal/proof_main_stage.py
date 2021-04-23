@@ -19,7 +19,7 @@ from nmigen.cli import rtlil
 from nmutil.extend import exts
 from nmutil.formaltest import FHDLTestCase
 
-from soc.consts import MSR, MSRb, PI, TT, field
+from openpower.consts import MSR, MSRb, PI, TT, field
 
 from openpower.decoder.power_enums import MicrOp
 

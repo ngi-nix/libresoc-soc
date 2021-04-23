@@ -15,7 +15,7 @@ from openpower.decoder.selectable_int import SelectableInt
 from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
-from soc.consts import MSR
+from openpower.consts import MSR
 
 from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.trap.pipeline import TrapBasePipe

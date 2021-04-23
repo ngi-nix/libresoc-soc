@@ -20,7 +20,7 @@ from soc.experiment.mem_types import LDSTException
 from openpower.decoder.power_fields import DecodeFields
 from openpower.decoder.power_fieldsn import SignalBitRange
 
-from soc.consts import MSR, PI, TT, field, field_slice
+from openpower.consts import MSR, PI, TT, field, field_slice
 
 
 def msr_copy(msr_o, msr_i, zero_me=True):

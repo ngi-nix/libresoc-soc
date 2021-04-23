@@ -27,24 +27,24 @@ from openpower.decoder.power_decoder import create_pdecode
 from openpower.decoder.power_decoder2 import PowerDecode2, SVP64PrefixDecoder
 from openpower.decoder.decode2execute1 import IssuerDecode2ToOperand
 from openpower.decoder.decode2execute1 import Data
+from openpower.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
+                                     SVP64PredMode)
+from openpower.state import CoreState
+from openpower.consts import (CR, SVP64CROffs)
 from soc.experiment.testmem import TestMemory # test only for instructions
 from soc.regfile.regfiles import StateRegs, FastRegs
 from soc.simple.core import NonProductionCore
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.ifetch import ConfigFetchUnit
-from openpower.decoder.power_enums import (MicrOp, SVP64PredInt, SVP64PredCR,
-                                     SVP64PredMode)
-from soc.consts import (CR, SVP64CROffs)
 from soc.debug.dmi import CoreDebug, DMIInterface
 from soc.debug.jtag import JTAG
 from soc.config.pinouts import get_pinspecs
-from soc.config.state import CoreState
 from soc.interrupts.xics import XICS_ICP, XICS_ICS
 from soc.bus.simple_gpio import SimpleGPIO
 from soc.bus.SPBlock512W64B8W import SPBlock512W64B8W
 from soc.clock.select import ClockSelect
 from soc.clock.dummypll import DummyPLL
-from soc.sv.svstate import SVSTATERec
+from openpower.sv.svstate import SVSTATERec
 
 
 from nmutil.util import rising_edge
