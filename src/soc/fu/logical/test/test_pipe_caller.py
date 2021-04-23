@@ -7,20 +7,19 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from openpower.decoder.isa.caller import ISACaller, special_sprs
-from openpower.decoder.power_decoder import (create_pdecode)
-from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2
 from openpower.decoder.power_enums import (XER_bits, Function)
-from openpower.decoder.selectable_int import SelectableInt
-from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from openpower.endian import bigendian
 
 
-from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
+from openpower.test.common import TestAccumulatorBase, ALUHelpers
 from soc.fu.logical.pipeline import LogicalBasePipe
 from soc.fu.logical.pipe_data import LogicalPipeSpec
 import random
+
+from openpower.test.logical.logical_cases import LogicalTestCase
 
 
 def get_cu_inputs(dec2, sim):
@@ -49,137 +48,7 @@ def set_alu_inputs(alu, dec2, sim):
     yield from ALUHelpers.set_xer_so(alu, dec2, inp)
 
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in ALUTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
-class LogicalTestCase(TestAccumulatorBase):
-
-    def case_complement(self):
-        insns = ["andc", "orc", "nand", "nor"]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_rand(self):
-        insns = ["and", "or", "xor", "eqv"]
-        for i in range(40):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1, 2"]
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_regs[2] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_rand_(self):
-        insns = ["and.", "or.", "xor.", "eqv.", "andc.",
-                 "orc.", "nand.", "nor."]
-        for XER in [0, 0xe00c0000]:
-            for i in range(40):
-                choice = random.choice(insns)
-                lst = [f"{choice} 3, 1, 2"]
-                initial_regs = [0] * 32
-                initial_regs[1] = random.randint(0, (1 << 64)-1)
-                initial_regs[2] = random.randint(0, (1 << 64)-1)
-                self.add_case(Program(lst, bigendian), initial_regs,
-                                initial_sprs = {'XER': XER})
-
-    def case_rand_imm_so(self):
-        insns = ["andi.", "andis."]
-        for i in range(1):
-            choice = random.choice(insns)
-            imm = random.randint(0, (1 << 16)-1)
-            lst = [f"{choice} 3, 1, {imm}"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            initial_sprs = {'XER': 0xe00c0000}
-
-            self.add_case(Program(lst, bigendian), initial_regs,
-                          initial_sprs=initial_sprs)
-
-    def case_rand_imm_logical(self):
-        insns = ["andi.", "andis.", "ori", "oris", "xori", "xoris"]
-        for i in range(10):
-            choice = random.choice(insns)
-            imm = random.randint(0, (1 << 16)-1)
-            lst = [f"{choice} 3, 1, {imm}"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_cntz(self):
-        insns = ["cntlzd", "cnttzd", "cntlzw", "cnttzw"]
-        for i in range(100):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_parity(self):
-        insns = ["prtyw", "prtyd"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_popcnt(self):
-        insns = ["popcntb", "popcntw", "popcntd"]
-        for i in range(10):
-            choice = random.choice(insns)
-            lst = [f"{choice} 3, 1"]
-            print(lst)
-            initial_regs = [0] * 32
-            initial_regs[1] = random.randint(0, (1 << 64)-1)
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_popcnt_edge(self):
-        insns = ["popcntb", "popcntw", "popcntd"]
-        for choice in insns:
-            lst = [f"{choice} 3, 1"]
-            initial_regs = [0] * 32
-            initial_regs[1] = -1
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_cmpb(self):
-        lst = ["cmpb 3, 1, 2"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xdeadbeefcafec0de
-        initial_regs[2] = 0xd0adb0000afec1de
-        self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_bpermd(self):
-        lst = ["bpermd 3, 1, 2"]
-        for i in range(20):
-            initial_regs = [0] * 32
-            initial_regs[1] = 1 << random.randint(0, 63)
-            initial_regs[2] = 0xdeadbeefcafec0de
-            self.add_case(Program(lst, bigendian), initial_regs)
+class LogicalIlangCase(TestAccumulatorBase):
 
     def case_ilang(self):
         pspec = LogicalPipeSpec(id_wid=2)
@@ -296,6 +165,7 @@ class TestRunner(FHDLTestCase):
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
+    suite.addTest(TestRunner(LogicalIlangCase().test_data))
     suite.addTest(TestRunner(LogicalTestCase().test_data))
 
     runner = unittest.TextTestRunner()
