@@ -12,7 +12,7 @@ from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 
-from soc.fu.test.common import TestAccumulatorBase, TestCase
+from openpower.test.common import TestAccumulatorBase, TestCase
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 import random
 

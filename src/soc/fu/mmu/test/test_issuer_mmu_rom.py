@@ -4,7 +4,7 @@ from openpower.simulator.program import Program
 from soc.config.endian import bigendian
 import unittest
 
-from soc.fu.test.common import (TestAccumulatorBase, skip_case, TestCase,
+from openpower.test.common import (TestAccumulatorBase, skip_case, TestCase,
                                 ALUHelpers)
 
 def b(x):

@@ -4,7 +4,7 @@ from openpower.decoder.power_enums import (XER_bits, Function)
 from soc.fu.trap.test.test_pipe_caller import get_cu_inputs
 from soc.fu.trap.test.test_pipe_caller import TrapTestCase  # creates the tests
 
-from soc.fu.test.common import ALUHelpers
+from openpower.test.common import ALUHelpers
 from soc.fu.compunits.compunits import TrapFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.config.endian import bigendian

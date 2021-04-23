@@ -1,7 +1,7 @@
 import random
 from soc.fu.alu.pipe_data import ALUPipeSpec
 from soc.fu.alu.pipeline import ALUBasePipe
-from soc.fu.test.common import (TestCase, TestAccumulatorBase, ALUHelpers)
+from openpower.test.common import (TestCase, TestAccumulatorBase, ALUHelpers)
 from soc.config.endian import bigendian
 from openpower.decoder.isa.all import ISA
 from openpower.simulator.program import Program

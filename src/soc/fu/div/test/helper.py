@@ -13,7 +13,7 @@ from openpower.decoder.power_enums import XER_bits, Function
 from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import ALUHelpers
+from openpower.test.common import ALUHelpers
 from soc.fu.test.pia import pia_res_to_output
 from soc.fu.div.pipeline import DivBasePipe
 from soc.fu.div.pipe_data import DivPipeSpec

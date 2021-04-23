@@ -4,7 +4,7 @@ from openpower.simulator.program import Program
 from soc.config.endian import bigendian
 import unittest
 
-from soc.fu.test.common import (
+from openpower.test.common import (
     TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
 
 # this test case takes about half a minute to run on my Talos II

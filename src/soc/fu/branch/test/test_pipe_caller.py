@@ -16,7 +16,7 @@ from openpower.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
+from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random

@@ -15,7 +15,7 @@ from soc.config.endian import bigendian
 from openpower.consts import MSR
 
 
-from soc.fu.test.common import (
+from openpower.test.common import (
     TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
 import random
 

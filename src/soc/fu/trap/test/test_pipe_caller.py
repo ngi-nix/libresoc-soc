@@ -17,7 +17,7 @@ from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 from openpower.consts import MSR
 
-from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
+from openpower.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 import random

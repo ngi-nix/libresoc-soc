@@ -2,7 +2,7 @@ import random
 from soc.fu.shift_rot.pipe_data import ShiftRotPipeSpec
 from soc.fu.alu.alu_input_record import CompALUOpSubset
 from soc.fu.shift_rot.pipeline import ShiftRotBasePipe
-from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
+from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.config.endian import bigendian
 from openpower.decoder.isa.all import ISA
 from openpower.simulator.program import Program

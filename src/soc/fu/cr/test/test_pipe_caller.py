@@ -15,8 +15,8 @@ from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
-from soc.fu.test.common import mask_extend
+from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
+from openpower.util import mask_extend
 from soc.fu.cr.pipeline import CRBasePipe
 from soc.fu.cr.pipe_data import CRPipeSpec
 import random

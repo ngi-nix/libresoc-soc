@@ -17,7 +17,7 @@ from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
 
-from soc.fu.test.common import TestAccumulatorBase, TestCase, ALUHelpers
+from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.logical.pipeline import LogicalBasePipe
 from soc.fu.logical.pipe_data import LogicalPipeSpec
 import random

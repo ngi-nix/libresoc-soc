@@ -1,5 +1,5 @@
 from openpower.simulator.program import Program
-from soc.fu.test.common import TestCase
+from openpower.test.common import TestCase
 
 import unittest
 

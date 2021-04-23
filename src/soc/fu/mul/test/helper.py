@@ -17,7 +17,7 @@ from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from soc.config.endian import bigendian
 
-from soc.fu.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
+from openpower.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
 from soc.fu.test.pia import pia_res_to_output
 from soc.fu.mul.pipeline import MulBasePipe
 from soc.fu.mul.pipe_data import MulPipeSpec
