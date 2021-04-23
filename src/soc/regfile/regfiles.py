@@ -28,9 +28,12 @@ from soc.regfile.regfile import RegFile, RegFileArray, RegFileMem
 from soc.regfile.virtual_port import VirtualRegPort
 from openpower.decoder.power_enums import SPRfull, SPRreduced
 
+# XXX MAKE DAMN SURE TO KEEP THESE UP-TO-DATE if changing/adding regs
+from openpower.consts import StateRegsEnum, XERRegsEnum, FastRegsEnum
+
 
 # "State" Regfile
-class StateRegs(RegFileArray):
+class StateRegs(RegFileArray, StateRegsEnum):
     """StateRegs
 
     State regfile  - PC, MSR, SVSTATE (for SimpleV)
@@ -45,11 +48,8 @@ class StateRegs(RegFileArray):
     (d_rd2)
 
     """
-    PC = 0
-    MSR = 1
-    SVSTATE = 2
     def __init__(self, svp64_en=False, regreduce_en=False):
-        super().__init__(64, 3)
+        super().__init__(64, StateRegsEnum.N_REGS)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
                         'sv': self.write_port("sv"), # writing SVSTATE (issuer)
@@ -87,7 +87,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
 
 
 # Fast SPRs Regfile
-class FastRegs(RegFileMem): #RegFileArray):
+class FastRegs(RegFileMem, FastRegsEnum): #RegFileArray):
     """FastRegs
 
     FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER, TB, DEC
@@ -99,17 +99,8 @@ class FastRegs(RegFileMem): #RegFileArray):
 
     Note: r/w issue are used by issuer to increment/decrement TB/DEC.
     """
-    CTR = 0
-    LR = 1
-    TAR = 2
-    SRR0 = 3
-    SRR1 = 4
-    XER = 5 # non-XER bits
-    DEC = 6
-    TB = 7
-    N_REGS = 8 # maximum number of regs
     def __init__(self, svp64_en=False, regreduce_en=False):
-        super().__init__(64, self.N_REGS)
+        super().__init__(64, FastRegsEnum.N_REGS)
         self.w_ports = {'fast1': self.write_port("dest1"),
                         'issue': self.write_port("issue"), # writing DEC/TB
                        }
@@ -144,7 +135,7 @@ class CRRegs(VirtualRegPort):
 
 
 # XER Regfile
-class XERRegs(VirtualRegPort):
+class XERRegs(VirtualRegPort, XERRegsEnum):
     """XER Registers (SO, CA/CA32, OV/OV32)
 
     * QTY 3of 2-bit registers
@@ -156,7 +147,7 @@ class XERRegs(VirtualRegPort):
     CA=1 # CA and CA32
     OV=2 # OV and OV32
     def __init__(self, svp64_en=False, regreduce_en=False):
-        super().__init__(6, 3)
+        super().__init__(6, XERRegsEnum.N_REGS)
         self.w_ports = {'full_xer': self.full_wr, # 6-bit (masked, 3-en lines)
                         'xer_so': self.write_port("dest1"),
                         'xer_ca': self.write_port("dest2"),
