@@ -6,15 +6,16 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 
 from nmigen.cli import rtlil
 import unittest
-from openpower.decoder.isa.caller import ISACaller, special_sprs
 from openpower.decoder.power_decoder import (create_pdecode)
 from openpower.decoder.power_decoder2 import (PowerDecode2)
-from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
+from openpower.decoder.power_enums import XER_bits, Function
 from openpower.decoder.selectable_int import SelectableInt
 from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from openpower.endian import bigendian
 from openpower.consts import MSR
+
+from openpower.test.spr.spr_cases import SPRTestCase
 
 
 from openpower.test.common import (
@@ -58,111 +59,7 @@ def set_alu_inputs(alu, dec2, sim):
     return inp
 
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
-
-# Now, instead of doing that, every test case in SPRTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
-class SPRTestCase(TestAccumulatorBase):
-
-    def case_1_mfspr(self):
-        lst = ["mfspr 1, 26",  # SRR0
-               "mfspr 2, 27",  # SRR1
-               "mfspr 3, 8",  # LR
-               "mfspr 4, 1", ]  # XER
-        initial_regs = [0] * 32
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
-                        'XER': 0xe00c0000}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    def case_1_mtspr(self):
-        lst = ["mtspr 26, 1",  # SRR0
-               "mtspr 27, 2",  # SRR1
-               "mtspr 1, 3",  # XER
-               "mtspr 9, 4", ]  # CTR
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x129518230011feed
-        initial_regs[2] = 0x123518230011feed
-        initial_regs[3] = 0xe00c0000
-        initial_regs[4] = 0x1010101010101010
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
-                        'XER': 0x0}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    def case_2_mtspr_mfspr(self):
-        lst = ["mtspr 26, 1",  # SRR0
-               "mtspr 27, 2",  # SRR1
-               "mtspr 1, 3",  # XER
-               "mtspr 9, 4",  # CTR
-               "mfspr 2, 26",  # SRR0
-               "mfspr 3, 27",  # and into reg 2
-               "mfspr 4, 1",  # XER
-               "mfspr 5, 9", ]  # CTR
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x129518230011feed
-        initial_regs[2] = 0x123518230011feed
-        initial_regs[3] = 0xe00c0000
-        initial_regs[4] = 0x1010101010101010
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
-                        'XER': 0x0}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    # TODO XXX whoops...
-    @skip_case("spr does not have TRAP in it. has to be done another way")
-    def case_3_mtspr_priv(self):
-        lst = ["mtspr 26, 1",  # SRR0
-               "mtspr 27, 2",  # SRR1
-               "mtspr 1, 3",  # XER
-               "mtspr 9, 4", ]  # CTR
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x129518230011feed
-        initial_regs[2] = 0x123518230011feed
-        initial_regs[3] = 0xe00c0000
-        initial_regs[4] = 0x1010101010101010
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678, 'LR': 0x1234,
-                        'XER': 0x0}
-        msr = 1 << MSR.PR
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs, initial_msr=msr)
-
-    def case_4_mfspr_slow(self):
-        lst = ["mfspr 1, 272",    # SPRG0
-               "mfspr 4, 273", ]  # SPRG1
-        initial_regs = [0] * 32
-        initial_sprs = {'SPRG0_priv': 0x12345678, 'SPRG1_priv': 0x5678,
-                        }
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    def case_5_mtspr(self):
-        lst = ["mtspr 272, 1",  # SPRG0
-               "mtspr 273, 2",  # SPRG1
-               ]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0x129518230011feed
-        initial_regs[2] = 0x123518230011fee0
-        initial_sprs = {'SPRG0_priv': 0x12345678, 'SPRG1_priv': 0x5678,
-                        }
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
+class SPRIlangCase(TestAccumulatorBase):
     def case_ilang(self):
         pspec = SPRPipeSpec(id_wid=2)
         alu = SPRBasePipe(pspec)
@@ -309,6 +206,7 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(SPRTestCase().test_data))
+    suite.addTest(TestRunner(SPRIlangCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
