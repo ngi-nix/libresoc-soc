@@ -1,26 +1,31 @@
+"""trap pipeline tests
+
+issues:
+* https://bugs.libre-soc.org/show_bug.cgi?id=629
+"""
+
 from nmigen import Module, Signal
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
 from nmutil.sim_tmp_alternative import Simulator, Settle
 
-from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from openpower.decoder.isa.caller import ISACaller, special_sprs
 from openpower.decoder.power_decoder import (create_pdecode)
 from openpower.decoder.power_decoder2 import (PowerDecode2)
-from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
+from openpower.decoder.power_enums import XER_bits, Function
 from openpower.decoder.selectable_int import SelectableInt
-from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from openpower.endian import bigendian
 from openpower.consts import MSR
 
-from openpower.test.common import (TestAccumulatorBase, TestCase, ALUHelpers)
+from openpower.test.common import TestAccumulatorBase, ALUHelpers
 from soc.fu.trap.pipeline import TrapBasePipe
 from soc.fu.trap.pipe_data import TrapPipeSpec
 import random
+
+from openpower.test.trap.trap_cases import TrapTestCase
 
 
 def get_cu_inputs(dec2, sim):
@@ -55,125 +60,8 @@ def set_alu_inputs(alu, dec2, sim):
     # yield from ALUHelpers.set_msr(alu, dec2, inp)
     return inp
 
-# This test bench is a bit different than is usual. Initially when I
-# was writing it, I had all of the tests call a function to create a
-# device under test and simulator, initialize the dut, run the
-# simulation for ~2 cycles, and assert that the dut output what it
-# should have. However, this was really slow, since it needed to
-# create and tear down the dut and simulator for every test case.
 
-# Now, instead of doing that, every test case in TrapTestCase puts some
-# data into the test_data list below, describing the instructions to
-# be tested and the initial state. Once all the tests have been run,
-# test_data gets passed to TestRunner which then sets up the DUT and
-# simulator once, runs all the data through it, and asserts that the
-# results match the pseudocode sim at every cycle.
-
-# By doing this, I've reduced the time it takes to run the test suite
-# massively. Before, it took around 1 minute on my computer, now it
-# takes around 3 seconds
-
-
-class TrapTestCase(TestAccumulatorBase):
-
-    def case_0_hrfid(self):
-        lst = ["hrfid"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 1
-        initial_sprs = {'HSRR0': 0x12345678, 'HSRR1': 0x5678}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    def case_1_rfid(self):
-        lst = ["rfid"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 1
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
-    def case_0_trap_eq_imm(self):
-        insns = ["twi", "tdi"]
-        for i in range(2):
-            choice = random.choice(insns)
-            lst = [f"{choice} 4, 1, %d" % i]  # TO=4: trap equal
-            initial_regs = [0] * 32
-            initial_regs[1] = 1
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_0_trap_eq(self):
-        insns = ["tw", "td"]
-        for i in range(2):
-            choice = insns[i]
-            lst = [f"{choice} 4, 1, 2"]  # TO=4: trap equal
-            initial_regs = [0] * 32
-            initial_regs[1] = 1
-            initial_regs[2] = 1
-            self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_3_mtmsr_0(self):
-        lst = ["mtmsr 1,0"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_3_mtmsr_1(self):
-        lst = ["mtmsr 1,1"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_4_mtmsrd_0(self):
-        lst = ["mtmsrd 1,0"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_5_mtmsrd_1(self):
-        lst = ["mtmsrd 1,1"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        self.add_case(Program(lst, bigendian), initial_regs)
-
-    def case_6_mtmsr_priv_0(self):
-        lst = ["mtmsr 1,0"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 0xffffffffffffffff
-        msr = 1 << MSR.PR  # set in "problem state"
-        self.add_case(Program(lst, bigendian), initial_regs,
-                      initial_msr=msr)
-
-    def case_7_rfid_priv_0(self):
-        lst = ["rfid"]
-        initial_regs = [0] * 32
-        initial_regs[1] = 1
-        initial_sprs = {'SRR0': 0x12345678, 'SRR1': 0x5678}
-        msr = 1 << MSR.PR  # set in "problem state"
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs,
-                      initial_msr=msr)
-
-    def case_8_mfmsr(self):
-        lst = ["mfmsr 1"]
-        initial_regs = [0] * 32
-        msr = (~(1 << MSR.PR)) & 0xffffffffffffffff
-        self.add_case(Program(lst, bigendian), initial_regs,
-                      initial_msr=msr)
-
-    def case_9_mfmsr_priv(self):
-        lst = ["mfmsr 1"]
-        initial_regs = [0] * 32
-        msr = 1 << MSR.PR  # set in "problem state"
-        self.add_case(Program(lst, bigendian), initial_regs,
-                      initial_msr=msr)
-
-    def case_999_illegal(self):
-        # ok, um this is a bit of a cheat: use an instruction we know
-        # is not implemented by either ISACaller or the core
-        lst = ["tbegin.",
-               "mtmsr 1,1"]  # should not get executed
-        initial_regs = [0] * 32
-        self.add_case(Program(lst, bigendian), initial_regs)
+class TrapIlangCase(TestAccumulatorBase):
 
     def case_ilang(self):
         pspec = TrapPipeSpec(id_wid=2)
@@ -212,53 +100,54 @@ class TestRunner(unittest.TestCase):
             for test in self.test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
-                          test.mem, test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                with self.subTest(test.name):
+                    sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                              test.mem, test.msr,
+                              bigendian=bigendian)
+                    gen = program.generate_instructions()
+                    instructions = list(zip(gen, program.assembly.splitlines()))
 
-                msr = sim.msr.value
-                pc = sim.pc.CIA.value
-                print("starting msr, pc %08x, %08x" % (msr, pc))
-                index = pc//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("pc %08x msr %08x instr: %08x" % (pc, msr, ins))
-                    print(code)
-                    if 'XER' in sim.spr:
-                        so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
-                        ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
-                        ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
-                        print("before: so/ov/32", so, ov, ov32)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield pdecode2.dec.bigendian.eq(bigendian)  # little / big?
-                    yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
-                    yield pdecode2.state.pc.eq(pc)  # set CIA in pdecode2
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield Settle()
-                    fn_unit = yield pdecode2.e.do.fn_unit
-                    self.assertEqual(fn_unit, Function.TRAP.value)
-                    alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
-                    yield
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
-                    pc = sim.pc.CIA.value
-                    index = pc//4
-                    print("pc after %08x" % (pc))
                     msr = sim.msr.value
-                    print("msr after %08x" % (msr))
+                    pc = sim.pc.CIA.value
+                    print("starting msr, pc %08x, %08x" % (msr, pc))
+                    index = pc//4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
 
-                    vld = yield alu.n.valid_o
-                    while not vld:
+                        print("pc %08x msr %08x instr: %08x" % (pc, msr, ins))
+                        print(code)
+                        if 'XER' in sim.spr:
+                            so = 1 if sim.spr['XER'][XER_bits['SO']] else 0
+                            ov = 1 if sim.spr['XER'][XER_bits['OV']] else 0
+                            ov32 = 1 if sim.spr['XER'][XER_bits['OV32']] else 0
+                            print("before: so/ov/32", so, ov, ov32)
+
+                        # ask the decoder to decode this binary data (endian'd)
+                        yield pdecode2.dec.bigendian.eq(bigendian)  # l/big?
+                        yield pdecode2.state.msr.eq(msr)  # set MSR in pdecode2
+                        yield pdecode2.state.pc.eq(pc)  # set CIA in pdecode2
+                        yield instruction.eq(ins)          # raw binary instr.
+                        yield Settle()
+                        fn_unit = yield pdecode2.e.do.fn_unit
+                        self.assertEqual(fn_unit, Function.TRAP.value)
+                        alu_o = yield from set_alu_inputs(alu, pdecode2, sim)
                         yield
-                        vld = yield alu.n.valid_o
-                    yield
+                        opname = code.split(' ')[0]
+                        yield from sim.call(opname)
+                        pc = sim.pc.CIA.value
+                        index = pc//4
+                        print("pc after %08x" % (pc))
+                        msr = sim.msr.value
+                        print("msr after %08x" % (msr))
 
-                    yield from self.check_alu_outputs(alu, pdecode2, sim, code)
+                        vld = yield alu.n.valid_o
+                        while not vld:
+                            yield
+                            vld = yield alu.n.valid_o
+                        yield
+
+                        yield from self.check_alu_outputs(alu, pdecode2,
+                                                          sim, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("alu_simulator.vcd", "simulator.gtkw",
@@ -305,6 +194,7 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(TrapTestCase().test_data))
+    suite.addTest(TestRunner(TrapIlangCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
