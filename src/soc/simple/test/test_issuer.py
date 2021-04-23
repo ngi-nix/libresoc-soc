@@ -18,7 +18,7 @@ from openpower.test.div.div_cases import DivTestCases
 from openpower.test.logical.logical_cases import LogicalTestCase
 from openpower.test.shift_rot.shift_rot_cases import ShiftRotTestCase
 from openpower.test.cr.cr_cases import CRTestCase
-# from soc.fu.branch.test.test_pipe_caller import BranchTestCase
+from openpower.test.branch.branch_cases import BranchTestCase
 # from soc.fu.spr.test.test_pipe_caller import SPRTestCase
 from openpower.test.ldst.ldst_cases import LDSTTestCase
 from openpower.simulator.test_sim import (GeneralTestCases, AttnTestCase)
@@ -40,12 +40,12 @@ if __name__ == "__main__":
     suite.addTest(TestRunner(DivTestCases().test_data, svp64=svp64))
     # suite.addTest(TestRunner(AttnTestCase.test_data, svp64=svp64))
     suite.addTest(TestRunner(GeneralTestCases.test_data, svp64=svp64))
-    #suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64))
-    #suite.addTest(TestRunner(CRTestCase().test_data, svp64=svp64))
-    #suite.addTest(TestRunner(ShiftRotTestCase().test_data, svp64=svp64))
-    #suite.addTest(TestRunner(LogicalTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(CRTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(ShiftRotTestCase().test_data, svp64=svp64))
+    suite.addTest(TestRunner(LogicalTestCase().test_data, svp64=svp64))
     suite.addTest(TestRunner(ALUTestCase().test_data, svp64=svp64))
-    # suite.addTest(TestRunner(BranchTestCase.test_data, svp64=svp64))
+    suite.addTest(TestRunner(BranchTestCase().test_data, svp64=svp64))
     # suite.addTest(TestRunner(SPRTestCase.test_data, svp64=svp64))
 
     runner = unittest.TextTestRunner()
