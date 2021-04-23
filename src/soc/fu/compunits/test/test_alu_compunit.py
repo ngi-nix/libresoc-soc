@@ -7,7 +7,7 @@ from soc.fu.alu.test.test_pipe_caller import ALUTestCase  # creates the tests
 from openpower.test.common import ALUHelpers
 from soc.fu.compunits.compunits import ALUFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 class ALUTestRunner(TestRunner):

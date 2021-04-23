@@ -1,7 +1,7 @@
 import unittest
 from soc.fu.mul.test.helper import MulTestHelper
 from openpower.simulator.program import Program
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 from openpower.test.common import (TestAccumulatorBase)
 import random
 

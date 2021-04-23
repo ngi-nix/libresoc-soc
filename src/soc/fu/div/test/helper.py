@@ -11,7 +11,7 @@ from openpower.decoder.power_decoder import (create_pdecode)
 from openpower.decoder.power_decoder2 import (PowerDecode2)
 from openpower.decoder.power_enums import XER_bits, Function
 from openpower.decoder.isa.all import ISA
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from openpower.test.common import ALUHelpers
 from soc.fu.test.pia import pia_res_to_output

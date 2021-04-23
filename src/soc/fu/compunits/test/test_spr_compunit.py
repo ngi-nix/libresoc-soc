@@ -7,7 +7,7 @@ from soc.fu.spr.test.test_pipe_caller import SPRTestCase  # creates the tests
 from openpower.test.common import ALUHelpers
 from soc.fu.compunits.compunits import SPRFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 class SPRTestRunner(TestRunner):

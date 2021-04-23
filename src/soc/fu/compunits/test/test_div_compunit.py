@@ -7,7 +7,7 @@ from soc.fu.div.test.test_pipe_caller import DivTestCases  # creates the tests
 from openpower.test.common import ALUHelpers
 from soc.fu.compunits.compunits import DivFSMFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 class DivTestRunner(TestRunner):

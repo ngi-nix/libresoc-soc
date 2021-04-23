@@ -13,7 +13,7 @@ from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
 from openpower.decoder.selectable_int import SelectableInt
 from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 from openpower.consts import MSR
 
 

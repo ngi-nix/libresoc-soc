@@ -1,6 +1,6 @@
 import unittest
 from openpower.simulator.program import Program
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from openpower.test.common import TestAccumulatorBase
 from soc.fu.div.test.helper import DivTestHelper

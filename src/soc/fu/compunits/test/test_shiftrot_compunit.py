@@ -4,7 +4,7 @@ from openpower.decoder.power_enums import (XER_bits, Function)
 # XXX bad practice: use of global variables
 from soc.fu.shift_rot.test.test_pipe_caller import get_cu_inputs
 from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from soc.fu.compunits.compunits import ShiftRotFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner

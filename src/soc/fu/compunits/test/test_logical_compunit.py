@@ -7,7 +7,7 @@ from soc.fu.logical.test.test_pipe_caller import (LogicalTestCase,
 from soc.fu.compunits.compunits import LogicalFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from openpower.test.common import ALUHelpers
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 class LogicalTestRunner(TestRunner):

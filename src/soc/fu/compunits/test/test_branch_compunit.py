@@ -5,7 +5,7 @@ from soc.fu.branch.test.test_pipe_caller import BranchTestCase, get_cu_inputs
 
 from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 """

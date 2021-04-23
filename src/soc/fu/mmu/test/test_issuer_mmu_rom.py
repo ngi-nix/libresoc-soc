@@ -1,7 +1,7 @@
 from nmigen import Module, Signal
 from soc.simple.test.test_runner import TestRunner
 from openpower.simulator.program import Program
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 import unittest
 
 from openpower.test.common import (TestAccumulatorBase, skip_case, TestCase,

@@ -6,7 +6,7 @@ from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase, get_cu_inputs
 from soc.fu.compunits.compunits import LDSTFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from openpower.test.common import ALUHelpers
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 
 class LDSTTestRunner(TestRunner):

@@ -14,7 +14,7 @@ from openpower.decoder.selectable_int import SelectableInt
 from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from soc.regfile.regfiles import FastRegs
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from openpower.test.common import TestAccumulatorBase, TestCase, ALUHelpers
 from soc.fu.branch.pipeline import BranchBasePipe

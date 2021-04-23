@@ -1,7 +1,7 @@
 import random
 import unittest
 from openpower.simulator.program import Program
-from soc.config.endian import bigendian
+from openpower.endian import bigendian
 
 from openpower.test.common import (TestCase, TestAccumulatorBase, skip_case)
 from soc.fu.div.pipe_data import DivPipeKind
