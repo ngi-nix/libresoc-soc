@@ -13,11 +13,13 @@ mkpinmux:
 
 install: gitupdate develop mkpinmux svanalysis
 
+# this is now actually part of openpower-isa repository
 pywriter:
-	python3 src/soc/decoder/pseudo/pywriter.py
+	pywriter
 
+# this is now actually part of openpower-isa repository
 svanalysis:
-	python3 libreriscv/openpower/sv_analysis.py
+	svanalysis
 
 develop:
 	python3 setup.py develop # yes, develop, not install
