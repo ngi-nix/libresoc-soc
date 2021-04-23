@@ -6,19 +6,17 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 
 from nmigen.cli import rtlil
 import unittest
-from openpower.decoder.isa.caller import ISACaller, special_sprs
-from openpower.decoder.power_decoder import (create_pdecode)
-from openpower.decoder.power_decoder2 import (PowerDecode2)
+from openpower.decoder.power_decoder import create_pdecode
+from openpower.decoder.power_decoder2 import PowerDecode2
 from openpower.decoder.power_enums import (XER_bits, Function, MicrOp, CryIn)
-from openpower.decoder.selectable_int import SelectableInt
 from openpower.simulator.program import Program
 from openpower.decoder.isa.all import ISA
 from openpower.endian import bigendian
 from openpower.consts import MSR
 
+from openpower.test.mmu.mmu_cases import MMUTestCase
 
-from openpower.test.common import (
-    TestAccumulatorBase, skip_case, TestCase, ALUHelpers)
+from openpower.test.common import (TestAccumulatorBase, skip_case, ALUHelpers)
 #from soc.fu.spr.pipeline import SPRBasePipe
 #from soc.fu.spr.pipe_data import SPRPipeSpec
 from soc.fu.mmu.fsm import FSMMMUStage
@@ -26,7 +24,7 @@ from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
 from soc.fu.div.test.helper import (log_rand, get_cu_inputs,
-                                    set_alu_inputs, DivTestHelper)
+                                    set_alu_inputs)
 
 import power_instruction_analyzer as pia
 
@@ -69,31 +67,14 @@ def check_fsm_outputs(fsm, pdecode2, sim, code):
     return None #TODO
 
 #incomplete test - connect fsm inputs first
-class MMUTestCase(TestAccumulatorBase):
-    # MMU handles MTSPR, MFSPR, DCBZ and TLBIE.
-    # other instructions here -> must be load/store
-
-    #before running the test case: set DISR and DAR
-
-    def case_mfspr_after_invalid_load(self):
-        lst = [ # TODO -- set SPR on both sinulator and port interface
-                "mfspr 1, 18", # DSISR to reg 1
-                "mfspr 2, 19", # DAR to reg 2
-                # TODO -- verify returned sprvals
-              ]
-
-        initial_regs = [0] * 32
-
-        initial_sprs = {'DSISR': 0x12345678, 'DAR': 0x87654321}
-        self.add_case(Program(lst, bigendian),
-                      initial_regs, initial_sprs)
-
+class MMUIlangCase(TestAccumulatorBase):
     #def case_ilang(self):
     #    pspec = SPRPipeSpec(id_wid=2)
     #    alu = SPRBasePipe(pspec)
     #    vl = rtlil.convert(alu, ports=alu.ports())
     #    with open("trap_pipeline.il", "w") as f:
     #        f.write(vl)
+    pass
 
 
 class TestRunner(unittest.TestCase):
@@ -256,6 +237,7 @@ if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(MMUTestCase().test_data))
+    suite.addTest(TestRunner(MMUIlangCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
