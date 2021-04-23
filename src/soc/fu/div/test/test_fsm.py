@@ -9,7 +9,8 @@ except ImportError:
 
 
 class CheckEvent(Elaboratable):
-    """helper to add indication to vcd when signals are checked"""
+    """helper to add indication to vcd when signals are checked
+    """
 
     def __init__(self):
         self.event = Signal()
@@ -25,7 +26,8 @@ class CheckEvent(Elaboratable):
 
 
 class DivStateCombTest(Elaboratable):
-    """Test stringing a bunch of copies of the FSM state-function together"""
+    """Test stringing a bunch of copies of the FSM state-function together
+    """
 
     def __init__(self, quotient_width):
         self.check_event = CheckEvent()
@@ -168,8 +170,10 @@ class TestDivState(unittest.TestCase):
                         with self.subTest(quotient=f"{quotient:#x}",
                                           remainder=f"{remainder:#x}"):
                             self.assertTrue((yield dut.expected_valid))
-                            self.assertEqual((yield dut.expected_quotient), quotient)
-                            self.assertEqual((yield dut.expected_remainder), remainder)
+                            self.assertEqual((yield dut.expected_quotient),
+                                              quotient)
+                            self.assertEqual((yield dut.expected_remainder),
+                                              remainder)
                             self.assertEqual((yield dut.quotient), quotient)
                             self.assertEqual((yield dut.remainder), remainder)
                     else:
@@ -246,8 +250,10 @@ class TestDivState(unittest.TestCase):
                                           remainder=f"{remainder:#x}",
                                           now=f"{now}"):
                             self.assertTrue((yield dut.expected_valid))
-                            self.assertEqual((yield dut.expected_quotient), quotient)
-                            self.assertEqual((yield dut.expected_remainder), remainder)
+                            self.assertEqual((yield dut.expected_quotient),
+                                              quotient)
+                            self.assertEqual((yield dut.expected_remainder), 
+                                              remainder)
                             self.assertEqual((yield dut.quotient), quotient)
                             self.assertEqual((yield dut.remainder), remainder)
                     else:
