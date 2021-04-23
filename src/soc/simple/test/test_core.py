@@ -33,7 +33,7 @@ from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
 from soc.fu.cr.test.test_pipe_caller import CRTestCase
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
-from soc.regfile.util import spr_to_fast_reg
+from openpower.util import spr_to_fast_reg
 
 mmu_sprs = ["PRTBL"]
 

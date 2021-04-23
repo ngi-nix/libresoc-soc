@@ -21,8 +21,6 @@ from soc.fu.branch.pipeline import BranchBasePipe
 from soc.fu.branch.pipe_data import BranchPipeSpec
 import random
 
-from soc.regfile.util import fast_reg_to_spr  # HACK!
-
 
 def get_rec_width(rec):
     recwidth = 0

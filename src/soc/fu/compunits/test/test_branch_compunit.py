@@ -7,8 +7,6 @@ from soc.fu.compunits.compunits import BranchFunctionUnit
 from soc.fu.compunits.test.test_compunit import TestRunner
 from soc.config.endian import bigendian
 
-from soc.regfile.util import fast_reg_to_spr  # HACK!
-
 
 """
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
