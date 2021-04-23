@@ -18,6 +18,7 @@ from nmutil.sim_tmp_alternative import Simulator, Settle
 
 from openpower.test.shift_rot.shift_rot_cases import ShiftRotTestCase
 
+
 def get_cu_inputs(dec2, sim):
     """naming (res) must conform to ShiftRotFunctionUnit input regspec
     """
