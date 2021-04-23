@@ -1,5 +1,5 @@
 import unittest
-from openpower.decoder.power_enums import (XER_bits, Function, spr_dict, SPR)
+from openpower.decoder.power_enums import (XER_bits, Function)
 
 from soc.fu.branch.test.test_pipe_caller import BranchTestCase, get_cu_inputs
 
