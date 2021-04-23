@@ -12,7 +12,7 @@ import unittest
 from soc.simple.test.test_runner import TestRunner
 
 # test with ALU data and Logical data
-from soc.fu.alu.test.svp64_cases import SVP64ALUTestCase
+from openpower.test.alu.svp64_cases import SVP64ALUTestCase
 
 
 if __name__ == "__main__":
