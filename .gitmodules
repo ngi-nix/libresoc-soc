@@ -16,3 +16,6 @@
 [submodule "src/soc/soc-cocotb-sim"]
 	path = src/soc/soc-cocotb-sim
 	url = https://git.libre-soc.org/git/soc-cocotb-sim.git
+[submodule "openpower-isa"]
+	path = openpower-isa
+	url = https://git.libre-soc.org/git/openpower-isa.git
