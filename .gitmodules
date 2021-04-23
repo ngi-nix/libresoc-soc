@@ -1,9 +1,6 @@
 [submodule "pinmux"]
 	path = pinmux
 	url = https://git.libre-soc.org/git/pinmux.git
-[submodule "libreriscv"]
-	path = libreriscv
-	url = https://git.libre-soc.org/git/libreriscv.git
 [submodule "src/soc/litex/florent"]
 	path = src/soc/litex/florent
 	url = https://git.libre-soc.org/git/libresoc-litex.git
