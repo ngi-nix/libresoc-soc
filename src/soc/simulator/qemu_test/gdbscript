@@ -1,4 +1,0 @@
-target remote localhost:1234
-layout asm
-b *0x20000000
-c
