@@ -13,14 +13,14 @@ import sys
 from soc.simple.test.test_runner import TestRunner
 
 # test with ALU data and Logical data
-from soc.fu.alu.test.test_pipe_caller import ALUTestCase
-from soc.fu.div.test.test_pipe_caller import DivTestCases
-from soc.fu.logical.test.test_pipe_caller import LogicalTestCase
-from soc.fu.shift_rot.test.test_pipe_caller import ShiftRotTestCase
-from soc.fu.cr.test.test_pipe_caller import CRTestCase
+from openpower.test.alu.alu_cases import ALUTestCase
+from openpower.test.div.div_cases import DivTestCases
+from openpower.test.logical.logical_cases import LogicalTestCase
+from openpower.test.shift_rot.shift_rot_cases import ShiftRotTestCase
+from openpower.test.cr.cr_cases import CRTestCase
 # from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 # from soc.fu.spr.test.test_pipe_caller import SPRTestCase
-from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
+from openpower.test.ldst.ldst_cases import LDSTTestCase
 from openpower.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 # from openpower.simulator.test_helloworld_sim import HelloTestCases
 
@@ -40,10 +40,10 @@ if __name__ == "__main__":
     suite.addTest(TestRunner(DivTestCases().test_data, svp64=svp64))
     # suite.addTest(TestRunner(AttnTestCase.test_data, svp64=svp64))
     suite.addTest(TestRunner(GeneralTestCases.test_data, svp64=svp64))
-    suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64))
-    suite.addTest(TestRunner(CRTestCase().test_data, svp64=svp64))
-    suite.addTest(TestRunner(ShiftRotTestCase().test_data, svp64=svp64))
-    suite.addTest(TestRunner(LogicalTestCase().test_data, svp64=svp64))
+    #suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64))
+    #suite.addTest(TestRunner(CRTestCase().test_data, svp64=svp64))
+    #suite.addTest(TestRunner(ShiftRotTestCase().test_data, svp64=svp64))
+    #suite.addTest(TestRunner(LogicalTestCase().test_data, svp64=svp64))
     suite.addTest(TestRunner(ALUTestCase().test_data, svp64=svp64))
     # suite.addTest(TestRunner(BranchTestCase.test_data, svp64=svp64))
     # suite.addTest(TestRunner(SPRTestCase.test_data, svp64=svp64))
