@@ -10,6 +10,12 @@ related bugs:
 
 import unittest
 import sys
+
+# here is the logic which takes test cases and "executes" them.
+# in this instance (TestRunner) its job is to instantiate both
+# a Libre-SOC nmigen-based HDL instance and an ISACaller python
+# simulator.  it's also responsible for performing the single
+# step and comparison.
 from soc.simple.test.test_runner import TestRunner
 
 # test with ALU data and Logical data
