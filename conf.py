@@ -179,8 +179,8 @@ lsocbase = 'https://docs.libre-soc.org/'
 intersphinx_mapping = {"python": ('https://docs.python.org/3', None),
                        "nmigen": ('https://nmigen.info/nmigen', 'latest'),
                        "openpower": (lsocbase+'openpower-isa', None),
-                       "nmutil": (lsocbase+'nmutil', None),
-                       "ieee754fpu": (lsocbase+'ieee754fpu', None),
+                       #"nmutil": (lsocbase+'nmutil', None),
+                       #"ieee754fpu": (lsocbase+'ieee754fpu', None),
                       }
 
 # -- Options for todo extension ----------------------------------------------
