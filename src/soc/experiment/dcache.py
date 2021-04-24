@@ -9,6 +9,7 @@ from enum import Enum, unique
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
 from nmutil.util import Display
 
+from copy import deepcopy
 from random import randint, seed
 
 from nmigen.cli import main
@@ -1686,10 +1687,11 @@ def dcache_store(dut, addr, data, nc=0):
         yield
 
 
-def dcache_random_sim(dut):
+def dcache_random_sim(dut, mem):
 
-    # start with stack of zeros
-    sim_mem = [0] * 1024
+    # start copy of mem
+    sim_mem = deepcopy(mem)
+    print ("mem len", len(sim_mem))
 
     # clear stuff
     yield dut.d_in.valid.eq(0)
@@ -1709,8 +1711,8 @@ def dcache_random_sim(dut):
 
     print ()
 
-    for i in range(1024):
-        sim_mem[i] = i
+    #for i in range(1024):
+    #    sim_mem[i] = i
 
     for i in range(1024):
         addr = randint(0, 1023)
@@ -1740,7 +1742,7 @@ def dcache_random_sim(dut):
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
 
 
-def dcache_sim(dut):
+def dcache_sim(dut, mem):
     # clear stuff
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.load.eq(0)
@@ -1814,7 +1816,7 @@ def dcache_sim(dut):
 def test_dcache(mem, test_fn, test_name):
     dut = DCache()
 
-    memory = Memory(width=64, depth=16*64, init=mem)
+    memory = Memory(width=64, depth=16*64, init=mem, simulate=True)
     sram = SRAM(memory=memory, granularity=8)
 
     m = Module()
@@ -1835,7 +1837,7 @@ def test_dcache(mem, test_fn, test_name):
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(test_fn(dut)))
+    sim.add_sync_process(wrap(test_fn(dut, mem)))
     with sim.write_vcd('test_dcache%s.vcd' % test_name):
         sim.run()
 
@@ -1847,13 +1849,13 @@ if __name__ == '__main__':
         f.write(vl)
 
     mem = []
-    for i in range(0, 512):
+    for i in range(1024):
         mem.append((i*2)| ((i*2+1)<<32))
 
     test_dcache(mem, dcache_sim, "")
 
     mem = []
-    for i in range(0, 512):
+    for i in range(0, 1024):
         mem.append(i)
 
     test_dcache(mem, dcache_random_sim, "random")
