@@ -1714,7 +1714,7 @@ def dcache_random_sim(dut, mem):
     #for i in range(1024):
     #    sim_mem[i] = i
 
-    for i in range(1024):
+    for i in range(10240):
         addr = randint(0, 1023)
         data = randint(0, (1<<64)-1)
         sim_mem[addr] = data
