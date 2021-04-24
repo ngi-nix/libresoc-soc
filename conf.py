@@ -174,9 +174,13 @@ texinfo_documents = [
 
 # -- Options for intersphinx extension ---------------------------------------
 
+lsocbase = 'https://docs.libre-soc.org/'
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"python": ('https://docs.python.org/3', None),
-                       "nmigen": ('https://nmigen.info/nmigen', 'latest')
+                       "nmigen": ('https://nmigen.info/nmigen', 'latest'),
+                       "openpower": (lsocbase+'openpower-isa', None),
+                       "nmutil": (lsocbase+'nmutil', None),
+                       "ieee754fpu": (lsocbase+'ieee754fpu', None),
                       }
 
 # -- Options for todo extension ----------------------------------------------
