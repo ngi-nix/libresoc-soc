@@ -4,6 +4,9 @@ based on Anton Blanchard microwatt dcache.vhdl
 
 """
 
+import sys
+sys.setrecursionlimit(100000)
+
 from enum import Enum, unique
 
 from nmigen import Module, Signal, Elaboratable, Cat, Repl, Array, Const
@@ -1691,7 +1694,8 @@ def dcache_random_sim(dut, mem):
 
     # start copy of mem
     sim_mem = deepcopy(mem)
-    print ("mem len", len(sim_mem))
+    memsize = len(sim_mem)
+    print ("mem len", memsize)
 
     # clear stuff
     yield dut.d_in.valid.eq(0)
@@ -1714,8 +1718,8 @@ def dcache_random_sim(dut, mem):
     #for i in range(1024):
     #    sim_mem[i] = i
 
-    for i in range(10240):
-        addr = randint(0, 1023)
+    for i in range(1024):
+        addr = randint(0, memsize-1)
         data = randint(0, (1<<64)-1)
         sim_mem[addr] = data
         row = addr
@@ -1726,7 +1730,7 @@ def dcache_random_sim(dut, mem):
         yield from dcache_load(dut, addr)
         yield from dcache_store(dut, addr, data)
 
-        addr = randint(0, 1023)
+        addr = randint(0, memsize-1)
         sim_data = sim_mem[addr]
         row = addr
         addr *= 8
@@ -1736,7 +1740,7 @@ def dcache_random_sim(dut, mem):
         assert data == sim_data, \
             "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
 
-    for addr in range(1024):
+    for addr in range(memsize):
         data = yield from dcache_load(dut, addr*8)
         assert data == sim_mem[addr], \
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
@@ -1816,7 +1820,7 @@ def dcache_sim(dut, mem):
 def test_dcache(mem, test_fn, test_name):
     dut = DCache()
 
-    memory = Memory(width=64, depth=16*64, init=mem, simulate=True)
+    memory = Memory(width=64, depth=len(mem), init=mem, simulate=True)
     sram = SRAM(memory=memory, granularity=8)
 
     m = Module()
@@ -1855,7 +1859,8 @@ if __name__ == '__main__':
     test_dcache(mem, dcache_sim, "")
 
     mem = []
-    for i in range(0, 1024):
+    memsize = 4096
+    for i in range(memsize):
         mem.append(i)
 
     test_dcache(mem, dcache_random_sim, "random")
