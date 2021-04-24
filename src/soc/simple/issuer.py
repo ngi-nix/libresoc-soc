@@ -497,12 +497,12 @@ class TestIssuerInternal(Elaboratable):
             # idx, inv = get_predcr(mask)
             # mask = 0
             # for cr_idx in range(vl):
-            #     cr = crl[cr_idx + SVP64CROffs.CRPred]  # takes one cycle to complete
+            #     cr = crl[cr_idx + SVP64CROffs.CRPred]  # takes one cycle
             #     if cr[idx] ^ inv:
             #         mask |= 1 << cr_idx
             # return mask
             with m.State("CR_READ"):
-                # the CR index to be read, which will be ready by the next cycle
+                # CR index to be read, which will be ready by the next cycle
                 cr_idx = Signal.like(cur_vl, reset_less=True)
                 # submit the read operation to the regfile
                 with m.If(cr_idx != cur_vl):
@@ -512,7 +512,8 @@ class TestIssuerInternal(Elaboratable):
                     # ren = 1 << (7 - cr_idx)
                     # ... and with an offset:
                     # ren = 1 << (7 - off - cr_idx)
-                    comb += cr_pred.ren.eq(1 << (7 - SVP64CROffs.CRPred - cr_idx))
+                    idx = SVP64CROffs.CRPred + cr_idx
+                    comb += cr_pred.ren.eq(1 << (7 - idx))
                     # signal data valid in the next cycle
                     cr_read = Signal(reset_less=True)
                     sync += cr_read.eq(1)
