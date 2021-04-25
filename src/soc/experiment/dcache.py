@@ -1203,8 +1203,6 @@ class DCache(Elaboratable):
         wb_in = self.wb_in
 
         req         = MemAccessRequest("mreq_ds")
-        acks        = Signal(3)
-        adjust_acks = Signal(3)
 
         req_row = Signal(ROW_BITS)
         req_idx = Signal(INDEX_BITS)
@@ -1451,6 +1449,9 @@ class DCache(Elaboratable):
 
             with m.Case(State.STORE_WAIT_ACK):
                 st_stbs_done = Signal()
+                acks        = Signal(3)
+                adjust_acks = Signal(3)
+
                 comb += st_stbs_done.eq(~r1.wb.stb)
                 comb += acks.eq(r1.acks_pending)
 
