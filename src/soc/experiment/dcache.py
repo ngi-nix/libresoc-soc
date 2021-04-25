@@ -2,10 +2,13 @@
 
 based on Anton Blanchard microwatt dcache.vhdl
 
+note that the microwatt dcache wishbone interface expects "stall".
+for simplicity at the moment this is hard-coded to cyc & ~ack.
+see WB4 spec, p84, section 5.2.1
 """
 
 import sys
-sys.setrecursionlimit(100000)
+sys.setrecursionlimit(1000000)
 
 from enum import Enum, unique
 
@@ -1621,6 +1624,9 @@ class DCache(Elaboratable):
         comb += self.wb_out.eq(r1.wb)
         comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
+        # deal with litex not doing wishbone pipeline mode
+        comb += self.wb_in.stall.eq(self.wb_out.cyc & self.wb_in.ack)
+
         # call sub-functions putting everything together, using shared
         # signals established above
         self.stage_0(m, r0, r1, r0_full)
@@ -1859,7 +1865,7 @@ if __name__ == '__main__':
     test_dcache(mem, dcache_sim, "")
 
     mem = []
-    memsize = 4096
+    memsize = 16384
     for i in range(memsize):
         mem.append(i)
 
