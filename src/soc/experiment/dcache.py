@@ -1410,6 +1410,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                 # Requests are all sent if stb is 0
                 comb += ld_stbs_done.eq(~r1.wb.stb)
 
+                # If we are still sening requests, was one accepted?
                 with m.If((~wb_in.stall) & r1.wb.stb):
                     # That was the last word?  We are done sending.
                     # Clear stb and set ld_stbs_done so we can handle an
@@ -1438,7 +1439,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                     with m.If(req.valid & r1.req.same_tag &
                               ((r1.dcbz & r1.req.dcbz) |
                                (~r1.dcbz & (r1.req.op == Op.OP_LOAD_MISS))) &
-                                (r1.store_row == get_row(r1.req.real_addr))):
+                                (r1.store_row == get_row(req.real_addr))):
                         sync += r1.full.eq(0)
                         sync += r1.slow_valid.eq(1)
                         with m.If(~r1.mmu_req):
@@ -1645,7 +1646,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
         # deal with litex not doing wishbone pipeline mode
-        #comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
+        comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
 
         # call sub-functions putting everything together, using shared
         # signals established above
@@ -1795,7 +1796,7 @@ def dcache_regression_sim(dut, mem):
     yield
     yield
 
-    addr = 4
+    addr = 6
     data = ~i
     sim_mem[addr] = data
     row = addr
