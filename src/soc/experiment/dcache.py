@@ -1488,8 +1488,8 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                     # See if there is another store waiting
                     # to be done which is in the same real page.
                     with m.If(req.valid):
-                        ra = req.real_addr[0:SET_SIZE_BITS]
-                        sync += r1.real_adr[0:SET_SIZE_BITS].eq(ra)
+                        _ra = req.real_addr[0:SET_SIZE_BITS]
+                        sync += r1.real_adr[0:SET_SIZE_BITS].eq(_ra)
                         sync += r1.wb.dat.eq(req.data)
                         sync += r1.wb.sel.eq(req.byte_sel)
 
