@@ -1625,7 +1625,7 @@ class DCache(Elaboratable):
         comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
         # deal with litex not doing wishbone pipeline mode
-        comb += self.wb_in.stall.eq(self.wb_out.cyc & self.wb_in.ack)
+        comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
 
         # call sub-functions putting everything together, using shared
         # signals established above
