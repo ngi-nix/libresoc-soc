@@ -831,7 +831,6 @@ class DCache(Elaboratable):
         """
 
         comb = m.d.comb
-        sync = m.d.sync
         m_in, d_in = self.m_in, self.d_in
 
         is_hit      = Signal()
