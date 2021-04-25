@@ -1039,8 +1039,8 @@ class DCache(Elaboratable):
 
             # Slow ops (load miss, NC, stores)
             with m.If(r1.slow_valid):
-                sync += Display("completing store or load miss data=%x",
-                                data_out)
+                sync += Display("completing store or load miss adr=%x data=%x",
+                                r1.req.real_addr, data_out)
 
         with m.Else():
             # Request came from MMU
@@ -1474,7 +1474,7 @@ class DCache(Elaboratable):
                         sync += r1.wb.dat.eq(req.data)
                         sync += r1.wb.sel.eq(req.byte_sel)
 
-                    with m.Elif((adjust_acks < 7) & req.same_tag &
+                    with m.If((adjust_acks < 7) & req.same_tag &
                                 ((req.op == Op.OP_STORE_MISS)
                                  | (req.op == Op.OP_STORE_HIT))):
                         sync += r1.wb.stb.eq(1)
@@ -1865,7 +1865,7 @@ if __name__ == '__main__':
     test_dcache(mem, dcache_sim, "")
 
     mem = []
-    memsize = 16384
+    memsize = 256
     for i in range(memsize):
         mem.append(i)
 
