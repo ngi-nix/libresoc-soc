@@ -1258,6 +1258,11 @@ class DCache(Elaboratable):
                 with m.If(i == replace_way):
                     ct = Signal(TAG_RAM_WIDTH)
                     comb += ct.eq(cache_tags[r1.store_index])
+                    """
+TODO: check this
+cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
+                    (TAG_WIDTH - 1 downto TAG_BITS => '0') & r1.reload_tag;
+                    """
                     comb += ct.word_select(i, TAG_WIDTH).eq(r1.reload_tag)
                     sync += cache_tags[r1.store_index].eq(ct)
             sync += r1.store_way.eq(replace_way)
