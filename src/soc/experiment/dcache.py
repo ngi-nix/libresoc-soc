@@ -327,10 +327,11 @@ class RegStage0(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
         self.req     = LoadStore1ToDCacheType(name="lsmem")
-        self.tlbie   = Signal()
-        self.doall   = Signal()
-        self.tlbld   = Signal()
+        self.tlbie   = Signal() # indicates a tlbie request (from MMU)
+        self.doall   = Signal() # with tlbie, indicates flush whole TLB
+        self.tlbld   = Signal() # indicates a TLB load request (from MMU)
         self.mmu_req = Signal() # indicates source of request
+        self.d_valid = Signal() # indicates req.data is valid now
 
 
 class MemAccessRequest(RecordObject):
@@ -623,13 +624,21 @@ class DCache(Elaboratable):
             comb += r.mmu_req.eq(1)
         with m.Else():
             comb += r.req.eq(d_in)
+            comb += r.req.data.eq(0)
             comb += r.tlbie.eq(0)
             comb += r.doall.eq(0)
             comb += r.tlbld.eq(0)
             comb += r.mmu_req.eq(0)
-        with m.If(~(r1.full & r0_full)):
+        with m.If((~r1.full & ~d_in.hold) | ~r0_full):
             sync += r0.eq(r)
             sync += r0_full.eq(r.req.valid)
+            # Sample data the cycle after a request comes in from loadstore1.
+            # If another request has come in already then the data will get
+            # put directly into req.data below.
+            with m.If(r0.req.valid & ~r.req.valid & ~r0.d_valid &
+                     ~r0.mmu_req):
+                sync += r0.req.data.eq(d_in.data)
+                sync += r0.d_valid.eq(1)
 
     def tlb_read(self, m, r0_stall, tlb_valid_way,
                  tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
@@ -951,9 +960,9 @@ class DCache(Elaboratable):
             # XXX generate alignment interrupt if address
             # is not aligned XXX or if r0.req.nc = '1'
             with m.If(r0.req.load):
-                comb += set_rsrv.eq(1) # load with reservation
+                comb += set_rsrv.eq(r0.req.atomic_last) # load with reservation
             with m.Else():
-                comb += clear_rsrv.eq(1) # store conditional
+                comb += clear_rsrv.eq(r0.req.atomic_last) # store conditional
                 with m.If((~reservation.valid) |
                          (r0.req.addr[LINE_OFF_BITS:64] != reservation.addr)):
                     comb += cancel_store.eq(1)
@@ -1072,10 +1081,10 @@ class DCache(Elaboratable):
 
         for i in range(NUM_WAYS):
             do_read  = Signal(name="do_rd%d" % i)
-            rd_addr  = Signal(ROW_BITS)
+            rd_addr  = Signal(ROW_BITS, name="rd_addr_%d" % i)
             do_write = Signal(name="do_wr%d" % i)
-            wr_addr  = Signal(ROW_BITS)
-            wr_data  = Signal(WB_DATA_BITS)
+            wr_addr  = Signal(ROW_BITS, name="wr_addr_%d" % i)
+            wr_data  = Signal(WB_DATA_BITS, name="din_%d" % i)
             wr_sel   = Signal(ROW_SIZE)
             wr_sel_m = Signal(ROW_SIZE)
             _d_out   = Signal(WB_DATA_BITS, name="dout_%d" % i) # cache_row_t
@@ -1201,6 +1210,7 @@ class DCache(Elaboratable):
         comb = m.d.comb
         sync = m.d.sync
         wb_in = self.wb_in
+        d_in = self.d_in
 
         req         = MemAccessRequest("mreq_ds")
 
@@ -1279,10 +1289,13 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
             comb += req.dcbz.eq(r0.req.dcbz)
             comb += req.real_addr.eq(ra)
 
-            with m.If(~r0.req.dcbz):
+            with m.If(r0.req.dcbz):
+                # force data to 0 for dcbz
+                comb += req.data.eq(0)
+            with m.Elif(r0.d_valid):
                 comb += req.data.eq(r0.req.data)
             with m.Else():
-                comb += req.data.eq(0)
+                comb += req.data.eq(d_in.data)
 
             # Select all bytes for dcbz
             # and for cacheable loads
@@ -1422,9 +1435,9 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                     # Compare the whole address in case the
                     # request in r1.req is not the one that
                     # started this refill.
-                    with m.If(r1.full & r1.req.same_tag &
+                    with m.If(req.valid & r1.req.same_tag &
                               ((r1.dcbz & r1.req.dcbz) |
-                               ((~r1.dcbz) & (r1.req.op == Op.OP_LOAD_MISS))) &
+                               (~r1.dcbz & (r1.req.op == Op.OP_LOAD_MISS))) &
                                 (r1.store_row == get_row(r1.req.real_addr))):
                         sync += r1.full.eq(0)
                         sync += r1.slow_valid.eq(1)
@@ -1542,6 +1555,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
 
         m = Module()
         comb = m.d.comb
+        d_in = self.d_in
 
         # Storage. Hopefully "cache_rows" is a BRAM, the rest is LUTs
         cache_tags       = CacheTagArray()
@@ -1621,8 +1635,8 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         comb += self.m_out.stall.eq(0)
 
         # Hold off the request in r0 when r1 has an uncompleted request
-        comb += r0_stall.eq(r0_full & r1.full)
-        comb += r0_valid.eq(r0_full & ~r1.full)
+        comb += r0_stall.eq(r0_full & (r1.full | d_in.hold))
+        comb += r0_valid.eq(r0_full & ~r1.full & ~d_in.hold)
         comb += self.stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
@@ -1631,7 +1645,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
         # deal with litex not doing wishbone pipeline mode
-        comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
+        #comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
 
         # call sub-functions putting everything together, using shared
         # signals established above
@@ -1684,6 +1698,7 @@ def dcache_load(dut, addr, nc=0):
     yield dut.d_in.byte_sel.eq(0)
     while not (yield dut.d_out.valid):
         yield
+    # yield # data is valid one cycle AFTER valid goes hi? (no it isn't)
     data = yield dut.d_out.data
     return data
 
@@ -1756,6 +1771,52 @@ def dcache_random_sim(dut, mem):
         data = yield from dcache_load(dut, addr*8)
         assert data == sim_mem[addr], \
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
+
+def dcache_regression_sim(dut, mem):
+
+    # start copy of mem
+    sim_mem = deepcopy(mem)
+    memsize = len(sim_mem)
+    print ("mem len", memsize)
+
+    # clear stuff
+    yield dut.d_in.valid.eq(0)
+    yield dut.d_in.load.eq(0)
+    yield dut.d_in.priv_mode.eq(1)
+    yield dut.d_in.nc.eq(0)
+    yield dut.d_in.addr.eq(0)
+    yield dut.d_in.data.eq(0)
+    yield dut.m_in.valid.eq(0)
+    yield dut.m_in.addr.eq(0)
+    yield dut.m_in.pte.eq(0)
+    # wait 4 * clk_period
+    yield
+    yield
+    yield
+    yield
+
+    addr = 4
+    data = ~i
+    sim_mem[addr] = data
+    row = addr
+    addr *= 8
+
+    print ("random testing %d 0x%x row %d data 0x%x" % (i, addr, row, data))
+
+    yield from dcache_load(dut, addr)
+    yield from dcache_store(dut, addr, data)
+
+    addr = 7
+    sim_data = sim_mem[addr]
+    row = addr
+    addr *= 8
+
+    print ("    load 0x%x row %d expect data 0x%x" % (addr, row, sim_data))
+    data = yield from dcache_load(dut, addr)
+    assert data == sim_data, \
+        "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
+
+
 
 
 def dcache_sim(dut, mem):
@@ -1865,10 +1926,13 @@ if __name__ == '__main__':
         f.write(vl)
 
     mem = []
-    for i in range(1024):
-        mem.append((i*2)| ((i*2+1)<<32))
+    memsize = 16
+    for i in range(memsize):
+        mem.append(i)
 
-    test_dcache(mem, dcache_sim, "")
+    test_dcache(mem, dcache_regression_sim, "random")
+
+    exit(0)
 
     mem = []
     memsize = 256
@@ -1876,4 +1940,10 @@ if __name__ == '__main__':
         mem.append(i)
 
     test_dcache(mem, dcache_random_sim, "random")
+
+    mem = []
+    for i in range(1024):
+        mem.append((i*2)| ((i*2+1)<<32))
+
+    test_dcache(mem, dcache_sim, "")
 

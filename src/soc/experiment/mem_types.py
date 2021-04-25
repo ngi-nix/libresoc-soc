@@ -53,14 +53,17 @@ class LoadStore1ToDCacheType(RecordObject):
     def __init__(self, name=None):
         super().__init__(name=name)
         self.valid         = Signal()
+        self.hold          = Signal()
         self.load          = Signal() # this is a load
         self.dcbz          = Signal()
         self.nc            = Signal()
         self.reserve       = Signal()
+        self.atomic        = Signal() # part of a multi-transfer atomic op
+        self.atomic_last   = Signal()
         self.virt_mode     = Signal()
         self.priv_mode     = Signal()
         self.addr          = Signal(64)
-        self.data          = Signal(64)
+        self.data          = Signal(64) # valid the cycle after valid=1
         self.byte_sel      = Signal(8)
 
 
