@@ -1804,7 +1804,7 @@ def dcache_regression_sim(dut, mem):
     print ("random testing %d 0x%x row %d data 0x%x" % (i, addr, row, data))
 
     yield from dcache_load(dut, addr)
-    yield from dcache_store(dut, addr, data)
+    #yield from dcache_store(dut, addr, data)
 
     addr = 7
     sim_data = sim_mem[addr]
