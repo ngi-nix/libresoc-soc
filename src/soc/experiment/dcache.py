@@ -385,7 +385,6 @@ class RegStage1(RecordObject):
         self.write_bram       = Signal()
         self.write_tag        = Signal()
         self.slow_valid       = Signal()
-        self.real_adr         = Signal(REAL_ADDR_BITS)
         self.wb               = WBMasterOut("wb")
         self.reload_tag       = Signal(TAG_BITS)
         self.store_way        = Signal(WAY_BITS)
@@ -1319,7 +1318,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         with m.Switch(r1.state):
 
             with m.Case(State.IDLE):
-                sync += r1.real_adr.eq(req.real_addr)
+                sync += r1.wb.adr.eq(req.real_addr[ROW_LINE_BITS:])
                 sync += r1.wb.sel.eq(req.byte_sel)
                 sync += r1.wb.dat.eq(req.data)
                 sync += r1.dcbz.eq(req.dcbz)
@@ -1414,14 +1413,16 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                     # That was the last word?  We are done sending.
                     # Clear stb and set ld_stbs_done so we can handle an
                     # eventual last ack on the same cycle.
-                    with m.If(is_last_row_addr(r1.real_adr, r1.end_row_ix)):
+                    # sigh - reconstruct wb adr with 3 extra 0s at front
+                    wb_adr = Cat(Const(0, ROW_OFF_BITS), r1.wb.adr)
+                    with m.If(is_last_row_addr(wb_adr, r1.end_row_ix)):
                         sync += r1.wb.stb.eq(0)
                         comb += ld_stbs_done.eq(1)
 
                     # Calculate the next row address in the current cache line
                     row = Signal(LINE_OFF_BITS-ROW_OFF_BITS)
-                    comb += row.eq(r1.real_adr[ROW_OFF_BITS:])
-                    sync += r1.real_adr[ROW_OFF_BITS:LINE_OFF_BITS].eq(row+1)
+                    comb += row.eq(r1.wb.adr)
+                    sync += r1.wb.adr[:LINE_OFF_BITS-ROW_OFF_BITS].eq(row+1)
 
                 # Incoming acks processing
                 sync += r1.forward_valid1.eq(wb_in.ack)
@@ -1488,8 +1489,8 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                     # See if there is another store waiting
                     # to be done which is in the same real page.
                     with m.If(req.valid):
-                        _ra = req.real_addr[0:SET_SIZE_BITS]
-                        sync += r1.real_adr[0:SET_SIZE_BITS].eq(_ra)
+                        _ra = req.real_addr[ROW_LINE_BITS:SET_SIZE_BITS]
+                        sync += r1.wb.adr[0:SET_SIZE_BITS].eq(_ra)
                         sync += r1.wb.dat.eq(req.data)
                         sync += r1.wb.sel.eq(req.byte_sel)
 
@@ -1640,9 +1641,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         comb += self.stall_out.eq(r0_stall)
 
         # Wire up wishbone request latch out of stage 1
-        comb += r1.wb.adr.eq(r1.real_adr)
         comb += self.wb_out.eq(r1.wb)
-        comb += self.wb_out.adr.eq(r1.wb.adr[3:]) # truncate LSBs
 
         # deal with litex not doing wishbone pipeline mode
         comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
