@@ -1408,7 +1408,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                 # Requests are all sent if stb is 0
                 comb += ld_stbs_done.eq(~r1.wb.stb)
 
-                # If we are still sening requests, was one accepted?
+                # If we are still sending requests, was one accepted?
                 with m.If((~wb_in.stall) & r1.wb.stb):
                     # That was the last word?  We are done sending.
                     # Clear stb and set ld_stbs_done so we can handle an
