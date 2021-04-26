@@ -1644,7 +1644,9 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         comb += self.wb_out.eq(r1.wb)
 
         # deal with litex not doing wishbone pipeline mode
-        comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
+        # XXX in wrong way.  FIFOs are needed in the SRAM test
+        # so that stb/ack match up
+        #comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
 
         # call sub-functions putting everything together, using shared
         # signals established above
@@ -1794,7 +1796,7 @@ def dcache_regression_sim(dut, mem):
     yield
     yield
 
-    addr = 1
+    addr = 0
     row = addr
     addr *= 8
 
@@ -1925,9 +1927,7 @@ if __name__ == '__main__':
     for i in range(memsize):
         mem.append(i)
 
-    test_dcache(mem, dcache_regression_sim, "random")
-
-    exit(0)
+    test_dcache(mem, dcache_regression_sim, "simpleregression")
 
     mem = []
     memsize = 256
