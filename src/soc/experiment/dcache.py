@@ -1794,18 +1794,15 @@ def dcache_regression_sim(dut, mem):
     yield
     yield
 
-    addr = 6
-    data = ~i
-    sim_mem[addr] = data
+    addr = 1
     row = addr
     addr *= 8
 
-    print ("random testing %d 0x%x row %d data 0x%x" % (i, addr, row, data))
+    print ("random testing %d 0x%x row %d" % (i, addr, row))
 
     yield from dcache_load(dut, addr)
-    #yield from dcache_store(dut, addr, data)
 
-    addr = 7
+    addr = 2
     sim_data = sim_mem[addr]
     row = addr
     addr *= 8
@@ -1814,7 +1811,6 @@ def dcache_regression_sim(dut, mem):
     data = yield from dcache_load(dut, addr)
     assert data == sim_data, \
         "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
-
 
 
 
