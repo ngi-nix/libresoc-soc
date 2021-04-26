@@ -71,7 +71,9 @@ class SRAM(Elaboratable):
         if self.memory.width > len(self.bus.dat_r):
             raise NotImplementedError
 
-        # read
+        # read - this relies on the read port producing data
+        # with one clock delay. the "ack" goes out on a sync
+        # which matches that
         m.submodules.rdport = rdport = self.memory.read_port()
         m.d.comb += [
             rdport.addr.eq(self.bus.adr[:len(rdport.addr)]),
