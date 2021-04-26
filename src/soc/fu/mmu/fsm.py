@@ -7,6 +7,7 @@ from nmutil.util import rising_edge
 from soc.experiment.mmu import MMU
 from soc.experiment.dcache import DCache
 
+from openpower.consts import MSR
 from openpower.decoder.power_fields import DecodeFields
 from openpower.decoder.power_fieldsn import SignalBitRange
 from openpower.decoder.power_decoder2 import decode_spr_num
@@ -134,6 +135,7 @@ class LoadStore1(PortInterfaceBase):
         yield from super().ports()
         # TODO: memory ports
 
+
 class FSMMMUStage(ControlBase):
     def __init__(self, pspec):
         super().__init__()
@@ -194,6 +196,7 @@ class FSMMMUStage(ControlBase):
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o, spr1_o = data_i.ra, data_i.rb, data_o.o, data_o.spr1
         op = data_i.ctx.op
+        msr_i = op.msr
 
         # TODO: link these SPRs somewhere
         dsisr = Signal(64)
@@ -209,6 +212,11 @@ class FSMMMUStage(ControlBase):
         x_fields = self.fields.FormXFX
         spr = Signal(len(x_fields.SPR))
         comb += spr.eq(decode_spr_num(x_fields.SPR))
+
+        # based on MSR bits, set priv and virt mode.  TODO: 32-bit mode
+        comb += d_in.priv_mode.eq(~msr_i[MSR.PR])
+        comb += d_in.virt_mode.eq(msr_i[MSR.DR])
+        #comb += d_in.mode_32bit.eq(msr_i[MSR.SF]) # ?? err
 
         # ok so we have to "pulse" the MMU (or dcache) rather than
         # hold the valid hi permanently.  guess what this does...

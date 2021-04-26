@@ -13,6 +13,7 @@ class CompMMUOpSubset(CompOpSubsetBase):
         layout = (('insn_type', MicrOp),
                   ('fn_unit', Function),
                   ('insn', 32),
+                  ('msr', 64), # TODO: a lot less bits.  only need PR, DR, SF
                   ('zero_a', 1),
                   )
         super().__init__(layout, name=name)
