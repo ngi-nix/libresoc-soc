@@ -1128,9 +1128,9 @@ class DCache(Elaboratable):
                 comb += wr_addr.eq(r1.store_row)
                 comb += wr_sel.eq(~0) # all 1s
 
-            with m.If((r1.state == State.RELOAD_WAIT_ACK)
-                      & wb_in.ack & (replace_way == i)):
-                comb += do_write.eq(1)
+                with m.If((r1.state == State.RELOAD_WAIT_ACK)
+                          & wb_in.ack & (replace_way == i)):
+                    comb += do_write.eq(1)
 
             # Mask write selects with do_write since BRAM
             # doesn't have a global write-enable
