@@ -107,11 +107,12 @@ class RegFileArray(Elaboratable):
         and read-en signals (per port).
     """
 
-    def __init__(self, width, depth, synced=True):
+    def __init__(self, width, depth, synced=True, fwd_bus_mode=True):
         self.synced = synced
         self.width = width
         self.depth = depth
-        self.regs = Array(Register(width, synced=synced) \
+        self.regs = Array(Register(width, synced=synced,
+                                   writethru=fwd_bus_mode) \
                           for _ in range(self.depth))
         self._rdports = []
         self._wrports = []

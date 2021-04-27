@@ -70,7 +70,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
     * write-through capability (read on same cycle as write)
     """
     def __init__(self, svp64_en=False, regreduce_en=False):
-        super().__init__(64, 32)
+        super().__init__(64, 32, fwd_bus_mode=not regreduce_en)
         self.w_ports = {'o': self.write_port("dest1"),
                         }
         self.r_ports = {
