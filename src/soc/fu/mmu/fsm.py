@@ -64,8 +64,8 @@ class LoadStore1(PortInterfaceBase):
         return st_ok
 
     def get_rd_data(self, m):
-        ld_ok = Const(1, 1)
-        data = self.d_out.data
+        ld_ok = self.d_out.valid # indicates read data is valid
+        data = self.d_out.data   # actual read data
         return data, ld_ok
 
     """
