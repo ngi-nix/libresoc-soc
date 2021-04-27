@@ -100,7 +100,7 @@ class FastRegs(RegFileMem, FastRegsEnum): #RegFileArray):
     Note: r/w issue are used by issuer to increment/decrement TB/DEC.
     """
     def __init__(self, svp64_en=False, regreduce_en=False):
-        super().__init__(64, FastRegsEnum.N_REGS)
+        super().__init__(64, FastRegsEnum.N_REGS, fwd_bus_mode=not regreduce_en)
         self.w_ports = {'fast1': self.write_port("dest1"),
                         'issue': self.write_port("issue"), # writing DEC/TB
                        }
@@ -172,7 +172,8 @@ class SPRRegs(RegFileMem):
             n_sprs = len(SPRreduced)
         else:
             n_sprs = len(SPRfull)
-        super().__init__(width=64, depth=n_sprs)
+        super().__init__(width=64, depth=n_sprs,
+                         fwd_bus_mode=not regreduce_en)
         self.w_ports = {'spr1': self.write_port("spr1")}
         self.r_ports = {'spr1': self.read_port("spr1")}
 
