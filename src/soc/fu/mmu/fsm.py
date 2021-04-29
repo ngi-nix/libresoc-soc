@@ -24,8 +24,9 @@ from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
 class LoadStore1(PortInterfaceBase):
     def __init__(self, regwid=64, addrwid=4):
         super().__init__(regwid, addrwid)
-        self.d_in  = LoadStore1ToDCacheType()
-        self.d_out = DCacheToLoadStore1Type()
+        self.dcache = DCache()
+        self.d_in  = self.dcache.d_in
+        self.d_out = self.dcache.d_out
         self.l_in  = LoadStore1ToMMUType()
         self.l_out = MMUToLoadStore1Type()
         # for debugging with gtkwave only
@@ -34,6 +35,9 @@ class LoadStore1(PortInterfaceBase):
         # TODO microwatt
         self.mmureq = Signal()
         self.derror = Signal()
+
+        # TODO, convert dcache wb_in/wb_out to "standard" nmigen Wishbone bus
+        # self.bus = Interface(...)
 
     def set_wr_addr(self, m, addr, mask):
         #m.d.comb += self.d_in.valid.eq(1)
@@ -94,6 +98,9 @@ class LoadStore1(PortInterfaceBase):
         d_out = self.d_out
         l_out = self.l_out
 
+        # create dcache module
+        m.submodules.dcache = self.dcache
+
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
                 m.d.comb += self.derror.eq(1)
@@ -147,6 +154,7 @@ class FSMMMUStage(ControlBase):
 
         # incoming PortInterface
         self.ldst = LoadStore1()       # TODO make this depend on pspec
+        self.dcache = self.ldst.dcache
         self.pi = self.ldst.pi
 
         # this Function Unit is extremely unusual in that it actually stores a
@@ -155,7 +163,6 @@ class FSMMMUStage(ControlBase):
         # to be done back in Issuer (or Core)
 
         self.mmu = MMU()
-        self.dcache = DCache()
 
         # make life a bit easier in Core
         self.pspec.mmu = self.mmu
@@ -176,22 +183,21 @@ class FSMMMUStage(ControlBase):
     def elaborate(self, platform):
         m = super().elaborate(platform)
         comb = m.d.comb
+        dcache = self.dcache
 
         # link mmu and dcache together
-        m.submodules.dcache = dcache = self.dcache
         m.submodules.mmu = mmu = self.mmu
         m.submodules.ldst = ldst = self.ldst
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
+
         l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
         wb_out, wb_in = dcache.wb_out, dcache.wb_in
 
-        # link ldst and dcache together
-        comb += l_in.eq(self.ldst.l_in)
-        comb += self.ldst.l_out.eq(l_out)
-        comb += d_in.eq(self.ldst.d_in)
-        comb += self.ldst.d_out.eq(self.dcache.d_out)
+        # link ldst and MMU together
+        comb += l_in.eq(ldst.l_in)
+        comb += ldst.l_out.eq(l_out)
 
         data_i, data_o = self.p.data_i, self.n.data_o
         a_i, b_i, o, spr1_o = data_i.ra, data_i.rb, data_o.o, data_o.spr1
@@ -287,14 +293,19 @@ class FSMMMUStage(ControlBase):
                         comb += o.ok.eq(l_out.done) # only when l_out valid
                         comb += done.eq(1) # FIXME l_out.done
 
-                with m.Case(MicrOp.OP_DCBZ):
-                    # activate dcbz mode (spec: v3.0B p850)
-                    comb += valid.eq(1)   # start "pulse"
-                    comb += d_in.valid.eq(blip)     # start
-                    comb += d_in.dcbz.eq(1)         # dcbz mode
-                    comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
-                    comb += done.eq(d_out.store_done)     # TODO
-                    comb += self.debug0.eq(1)
+                # XXX this one is going to have to go through LDSTCompUnit
+                # because it's LDST that has control over dcache
+                # (through PortInterface).  or, another means is devised
+                # so as not to have double-drivers of d_in.valid and addr
+                #
+                #with m.Case(MicrOp.OP_DCBZ):
+                #    # activate dcbz mode (spec: v3.0B p850)
+                #    comb += valid.eq(1)   # start "pulse"
+                #    comb += d_in.valid.eq(blip)     # start
+                #    comb += d_in.dcbz.eq(1)         # dcbz mode
+                #    comb += d_in.addr.eq(a_i + b_i) # addr is (RA|0) + RB
+                #    comb += done.eq(d_out.store_done)     # TODO
+                #    comb += self.debug0.eq(1)
 
                 with m.Case(MicrOp.OP_TLBIE):
                     # pass TLBIE request to MMU (spec: v3.0B p1034)
