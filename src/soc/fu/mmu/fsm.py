@@ -164,9 +164,12 @@ class FSMMMUStage(ControlBase):
 
         self.mmu = MMU()
 
-        # make life a bit easier in Core
-        self.pspec.mmu = self.mmu
-        self.pspec.dcache = self.dcache
+        # make life a bit easier in Core XXX mustn't really do this,
+        # pspec is designed for config variables, rather than passing
+        # things around.  have to think about it, design a way to do
+        # it that makes "sense"
+        # comment out for now self.pspec.mmu = self.mmu
+        # comment out for now self.pspec.dcache = self.dcache
 
         # debugging output for gtkw
         self.debug0 = Signal(4)
