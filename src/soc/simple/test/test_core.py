@@ -122,9 +122,9 @@ def setup_regs(pdecode2, core, test):
             print("setting fast reg %d (%s) to %x" %
                   (fast, sprname, val))
             if fregs.unary:
-                rval = core.regs.int.regs[fast].reg
+                rval = fregs.int.regs[fast].reg
             else:
-                rval = core.regs.int.memory._array[fast]
+                rval = fregs.memory._array[fast]
             yield rval.eq(val)
 
     # allow changes to settle before reporting on XER
