@@ -262,8 +262,8 @@ class FSMMMUStage(ControlBase):
         # link mmu and dcache together
         m.submodules.mmu = mmu = self.mmu
         ldst = self.ldst # managed externally: do not add here
-        m.d.comb += dcache.m_in.eq(mmu.d_out)
-        m.d.comb += mmu.d_in.eq(dcache.m_out)
+        m.d.comb += dcache.m_in.eq(mmu.d_out) # MMUToDCacheType
+        m.d.comb += mmu.d_in.eq(dcache.m_out) # DCacheToMMUType
 
         l_in, l_out = mmu.l_in, mmu.l_out
         d_in, d_out = dcache.d_in, dcache.d_out
