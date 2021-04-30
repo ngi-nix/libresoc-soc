@@ -154,7 +154,8 @@ def check_regs(dut, sim, core, test, code):
     for i in range(32):
         simregval = sim.gpr[i].asint()
         dut.assertEqual(simregval, intregs[i],
-                        "int reg %d not equal %s" % (i, repr(code)))
+                        "int reg %d not equal %s. got %x expected %x" % \
+                            (i, repr(code), simregval, intregs[i]))
 
     # CRs
     crregs = []
