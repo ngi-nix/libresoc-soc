@@ -192,7 +192,9 @@ class TestRunner(unittest.TestCase):
             vld = yield fsm.n.valid_o #fsm
             while not vld:
                 yield
-                if debughang:  print("not valid -- hang")
+                if debughang:
+                    print("not valid -- hang")
+                    return
                 vld = yield fsm.n.valid_o
                 if debughang==2: vld=1
             yield
