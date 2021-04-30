@@ -1,5 +1,5 @@
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
-from nmigen import Record
+from nmigen import Record, Memory
 from nmigen import Const
 from soc.fu.mmu.pipe_data import MMUInputData, MMUOutputData, MMUPipeSpec
 from nmutil.singlepipe import ControlBase
@@ -21,11 +21,13 @@ from soc.experiment.mem_types import LoadStore1ToDCacheType, LoadStore1ToMMUType
 from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
 
 from soc.minerva.wishbone import make_wb_layout
+from soc.bus.sram import SRAM
 
 
 # glue logic for microwatt mmu and dcache
 class LoadStore1(PortInterfaceBase):
     def __init__(self, pspec):
+        self.pspec = pspec
         regwid = pspec.reg_wid
         addrwid = pspec.addr_wid
 
@@ -163,6 +165,44 @@ class LoadStore1(PortInterfaceBase):
         # TODO: memory ports
 
 
+class TestSRAMLoadStore1(LoadStore1):
+    def __init__(self, pspec):
+        super().__init__(pspec)
+        pspec = self.pspec
+        # small 32-entry Memory
+        if (hasattr(pspec, "dmem_test_depth") and
+                isinstance(pspec.dmem_test_depth, int)):
+            depth = pspec.dmem_test_depth
+        else:
+            depth = 32
+        print("TestSRAMBareLoadStoreUnit depth", depth)
+
+        self.mem = Memory(width=pspec.reg_wid, depth=depth)
+
+    def elaborate(self, platform):
+        m = super().elaborate(platform)
+        comb = m.d.comb
+        m.submodules.sram = sram = SRAM(memory=self.mem, granularity=8,
+                                        features={'cti', 'bte', 'err'})
+        dbus = self.dbus
+
+        # directly connect the wishbone bus of LoadStoreUnitInterface to SRAM
+        # note: SRAM is a target (slave), dbus is initiator (master)
+        fanouts = ['dat_w', 'sel', 'cyc', 'stb', 'we', 'cti', 'bte']
+        fanins = ['dat_r', 'ack', 'err']
+        for fanout in fanouts:
+            print("fanout", fanout, getattr(sram.bus, fanout).shape(),
+                  getattr(dbus, fanout).shape())
+            comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
+            comb += getattr(sram.bus, fanout).eq(getattr(dbus, fanout))
+        for fanin in fanins:
+            comb += getattr(dbus, fanin).eq(getattr(sram.bus, fanin))
+        # connect address
+        comb += sram.bus.adr.eq(dbus.adr)
+
+        return m
+
+
 class FSMMMUStage(ControlBase):
     """FSM MMU
 
@@ -221,7 +261,7 @@ class FSMMMUStage(ControlBase):
 
         # link mmu and dcache together
         m.submodules.mmu = mmu = self.mmu
-        m.submodules.ldst = ldst = self.ldst
+        ldst = self.ldst # managed externally: do not add here
         m.d.comb += dcache.m_in.eq(mmu.d_out)
         m.d.comb += mmu.d_in.eq(dcache.m_out)
 

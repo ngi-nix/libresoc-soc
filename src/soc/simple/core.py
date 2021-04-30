@@ -87,8 +87,12 @@ class NonProductionCore(Elaboratable):
         self.fus = AllFunctionUnits(pspec, pilist=[pi])
 
         # link LoadStore1 into MMU
-        if hasattr(self.fus, 'mmu') and hasattr(l0.cmpi, "ldst"):
-            self.fus.mmu.set_ldst_interface(l0.cmpi.ldst)
+        mmu = self.fus.get_fu('mmu0')
+        print ("core pspec", pspec.ldst_ifacetype)
+        print ("core mmu", mmu)
+        print ("core lsmem.lsi", l0.cmpi.lsmem.lsi)
+        if mmu is not None:
+            mmu.alu.set_ldst_interface(l0.cmpi.lsmem.lsi)
 
         # register files (yes plural)
         self.regs = RegFiles(pspec)

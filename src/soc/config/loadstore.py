@@ -11,14 +11,15 @@ from soc.bus.test.test_minerva import TestSRAMBareLoadStoreUnit
 from soc.experiment.pi2ls import Pi2LSUI
 from soc.experiment.pimem import TestMemoryPortInterface
 from soc.minerva.units.loadstore import BareLoadStoreUnit
-from soc.fu.mmu.fsm import LoadStore1 # MMU and DCache
+from soc.fu.mmu.fsm import TestSRAMLoadStore1, LoadStore1 # MMU and DCache
 
 class ConfigLoadStoreUnit:
     def __init__(self, pspec):
         lsidict = {'testmem': TestMemLoadStoreUnit,
-                   'test_bare_wb': TestSRAMBareLoadStoreUnit,
+                   'test_bare_wb': TestSRAMBareLoadStoreUnit, # SRAM added
                    'bare_wb': BareLoadStoreUnit,
-                   'mmu_cache_wb': LoadStore1
+                   'mmu_cache_wb': LoadStore1,
+                   'test_mmu_cache_wb': TestSRAMLoadStore1, # SRAM added
                   }
         lsikls = lsidict[pspec.ldst_ifacetype]
         self.lsi = lsikls(pspec)
@@ -32,8 +33,8 @@ class ConfigMemoryPortInterface:
                                               regwid=pspec.reg_wid) # data bus
             return
         self.lsmem = ConfigLoadStoreUnit(pspec)
-        if self.pspec.ldst_ifacetype == 'mmu_cache_wb':
-            self.pi = self.lsmem.lsi.pi # LoadStore1 already is a PortInterface
+        if self.pspec.ldst_ifacetype in ['mmu_cache_wb', 'test_mmu_cache_wb']:
+            self.pi = self.lsmem.lsi # LoadStore1 already is a PortInterface
             return
         self.pi = Pi2LSUI("mem", lsui=self.lsmem.lsi,
                           addr_wid=pspec.addr_wid, # address range
@@ -41,7 +42,7 @@ class ConfigMemoryPortInterface:
                           data_wid=pspec.reg_wid)  # data bus width
 
     def wb_bus(self):
-        if self.pspec.ldst_ifacetype == 'mmu_cache_wb':
+        if self.pspec.ldst_ifacetype in ['mmu_cache_wb', 'test_mmu_cache_wb']:
             return self.lsmem.lsi.dbus
         return self.lsmem.lsi.slavebus
 

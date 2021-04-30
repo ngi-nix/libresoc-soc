@@ -275,13 +275,17 @@ class AllFunctionUnits(Elaboratable):
             print("cut here ==============================")
             alu = self.fus["mmu0"].alu
             print("alu", alu)
-            pi = alu.pi
-            print("pi", pi)
-            pilist = [pi]
+            #pi = alu.pi
+            #print("pi", pi)
+            #pilist = [pi]
         if pilist is None:
             return
+        print ("pilist", pilist)
         for i, pi in enumerate(pilist):
             self.fus["ldst%d" % (i)] = LDSTFunctionUnit(pi, addrwid, i)
+
+    def get_fu(self, name):
+        return self.fus.get(name)
 
     def elaborate(self, platform):
         m = Module()

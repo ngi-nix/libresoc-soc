@@ -218,6 +218,7 @@ class TestRunner(unittest.TestCase):
         fsm = FSMMMUStage(pipe_spec)
         fsm.set_ldst_interface(ldst)
         m.submodules.fsm = fsm
+        m.submodules.ldst = ldst
 
         #FIXME connect fsm inputs
 

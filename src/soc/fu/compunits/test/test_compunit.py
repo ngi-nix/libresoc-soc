@@ -1,4 +1,4 @@
-from nmigen import Module, Signal, ResetSignal
+from nmigen import Module, Signal, ResetSignal, Memory
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
@@ -128,10 +128,13 @@ def get_inp_indexed(cu, inp):
     return res
 
 
-def get_l0_mem(l0):  # BLECH!
+def get_l0_mem(l0):  # BLECH! this is awful! hunting around through structures
     if hasattr(l0.pimem, 'lsui'):
         return l0.pimem.lsui.mem
-    return l0.pimem.mem.mem
+    mem = l0.pimem.mem
+    if isinstance(mem, Memory): # euuurg this one is for TestSRAMLoadStore1
+        return mem
+    return mem.mem
 
 
 def setup_test_memory(l0, sim):
