@@ -135,8 +135,11 @@ class TestRunner(FHDLTestCase):
         pc_i = Signal(32)
         svstate_i = Signal(32)
 
-        pspec = TestMemPspec(ldst_ifacetype='test_bare_wb',
-                             imem_ifacetype='test_bare_wb',
+        ldst_ifacetype = 'mmu_cache_wb' if microwatt_mmu else 'test_bare_wb'
+        imem_ifacetype = 'test_bare_wb'
+
+        pspec = TestMemPspec(ldst_ifacetype=ldst_ifacetype,
+                             imem_ifacetype=imem_ifacetype,
                              addr_wid=48,
                              mask_wid=8,
                              imem_reg_wid=64,
