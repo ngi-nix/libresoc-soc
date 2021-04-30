@@ -100,6 +100,7 @@ class LoadStore1(PortInterfaceBase):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
+        comb = m.d.comb
 
         # create dcache module
         m.submodules.dcache = dcache = self.dcache
@@ -109,7 +110,7 @@ class LoadStore1(PortInterfaceBase):
 
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
-                m.d.comb += self.derror.eq(1)
+                comb += self.derror.eq(1)
                 #  dsisr(63 - 38) := not r2.req.load;
                 #    -- XXX there is no architected bit for this
                 #    -- (probably should be a machine check in fact)
@@ -118,21 +119,21 @@ class LoadStore1(PortInterfaceBase):
                 # Look up the translation for TLB miss
                 # and also for permission error and RC error
                 # in case the PTE has been updated.
-                m.d.comb += self.mmureq.eq(1)
+                comb += self.mmureq.eq(1)
                 # v.state := MMU_LOOKUP;
                 # v.stage1_en := '0';
 
         exc = self.pi.exception_o
 
         #happened, alignment, instr_fault, invalid,
-        m.d.comb += exc.happened.eq(d_out.error | l_out.err)
-        m.d.comb += exc.invalid.eq(l_out.invalid)
+        comb += exc.happened.eq(d_out.error | l_out.err)
+        comb += exc.invalid.eq(l_out.invalid)
 
         #badtree, perm_error, rc_error, segment_fault
-        m.d.comb += exc.badtree.eq(l_out.badtree)
-        m.d.comb += exc.perm_error.eq(l_out.perm_error)
-        m.d.comb += exc.rc_error.eq(l_out.rc_error)
-        m.d.comb += exc.segment_fault.eq(l_out.segerr)
+        comb += exc.badtree.eq(l_out.badtree)
+        comb += exc.perm_error.eq(l_out.perm_error)
+        comb += exc.rc_error.eq(l_out.rc_error)
+        comb += exc.segment_fault.eq(l_out.segerr)
 
         # TODO connect those signals somewhere
         #print(d_out.valid)         -> no error
@@ -143,7 +144,18 @@ class LoadStore1(PortInterfaceBase):
         # TODO some exceptions set SPRs
 
         # TODO, connect dcache wb_in/wb_out to "standard" nmigen Wishbone bus
-        # comb += dcache.wb_in.blahblah.eq(dbus.blahblah)
+        comb += dbus.adr.eq(dcache.wb_out.adr)
+        comb += dbus.dat_w.eq(dcache.wb_out.dat)
+        comb += dbus.sel.eq(dcache.wb_out.sel)
+        comb += dbus.cyc.eq(dcache.wb_out.cyc)
+        comb += dbus.stb.eq(dcache.wb_out.stb)
+        comb += dbus.we.eq(dcache.wb_out.we)
+
+        comb += dcache.wb_in.dat.eq(dbus.dat_r)
+        comb += dcache.wb_in.ack.eq(dbus.ack)
+        if hasattr(dbus, "stall"):
+            comb += dcache.wb_in.stall.eq(dbus.stall)
+
         return m
 
     def ports(self):
