@@ -2,7 +2,7 @@ from nmigen import Elaboratable, Cat, Module, Signal, ClockSignal, Instance
 from nmigen.utils import log2_int
 
 from nmigen_soc.wishbone.bus import Interface
-from nmigen.cli import rtlil
+from nmigen.cli import rtlil, verilog
 
 __all__ = ["SPBlock512W64B8W"]
 
@@ -49,10 +49,10 @@ class SPBlock512W64B8W(Elaboratable):
         # create Chips4Makers 4k SRAM cell here, mark it as "black box"
         # for coriolis2 to pick up
         idx = self.idx
-        sram = Instance("spblock512w64b8w_%d" % idx, i_a=a, o_q=q,
+        sram = Instance("spblock_512w64b8w", i_a=a, o_q=q,
                                                      i_d=d, i_we=we,
                                                      i_clk=ClockSignal())
-        m.submodules.spb = sram
+        m.submodules['spblock_512w64b8w_%s'] = sram
         # has to be added to the actual module rather than the instance
         # sram.attrs['blackbox'] = 1
 
@@ -85,9 +85,18 @@ def create_ilang(dut, ports, test_name):
     with open("%s.il" % test_name, "w") as f:
         f.write(vl)
 
+def create_verilog(dut, ports, test_name):
+    vl = verilog.convert(dut, name=test_name, ports=ports)
+    with open("%s.v" % test_name, "w") as f:
+        f.write(vl)
+
 if __name__ == "__main__":
-    alu = SPBlock512W64B8W()
+    alu = SPBlock512W64B8W(name="test_0")
     create_ilang(alu, [alu.bus.cyc, alu.bus.stb, alu.bus.ack,
+                       alu.bus.dat_r, alu.bus.dat_w, alu.bus.adr,
+                       alu.bus.we, alu.bus.sel], "SPBlock512W64B8W")
+
+    create_verilog(alu, [alu.bus.cyc, alu.bus.stb, alu.bus.ack,
                        alu.bus.dat_r, alu.bus.dat_w, alu.bus.adr,
                        alu.bus.we, alu.bus.sel], "SPBlock512W64B8W")
 
