@@ -79,12 +79,16 @@ class NonProductionCore(Elaboratable):
                              (pspec.regreduce == True))
 
         # single LD/ST funnel for memory access
-        self.l0 = TstL0CacheBuffer(pspec, n_units=1)
-        pi = self.l0.l0.dports[0]
+        self.l0 = l0 = TstL0CacheBuffer(pspec, n_units=1)
+        pi = l0.l0.dports[0]
 
         # function units (only one each)
         # only include mmu if enabled in pspec
         self.fus = AllFunctionUnits(pspec, pilist=[pi])
+
+        # link LoadStore1 into MMU
+        if hasattr(self.fus, 'mmu') and hasattr(l0.cmpi, "ldst"):
+            self.fus.mmu.set_ldst_interface(l0.cmpi.ldst)
 
         # register files (yes plural)
         self.regs = RegFiles(pspec)

@@ -1,4 +1,5 @@
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
+from nmigen import Record
 from nmigen import Const
 from soc.fu.mmu.pipe_data import MMUInputData, MMUOutputData, MMUPipeSpec
 from nmutil.singlepipe import ControlBase
@@ -19,10 +20,15 @@ from soc.experiment.pimem import PortInterfaceBase
 from soc.experiment.mem_types import LoadStore1ToDCacheType, LoadStore1ToMMUType
 from soc.experiment.mem_types import DCacheToLoadStore1Type, MMUToLoadStore1Type
 
+from soc.minerva.wishbone import make_wb_layout
+
 
 # glue logic for microwatt mmu and dcache
 class LoadStore1(PortInterfaceBase):
-    def __init__(self, regwid=64, addrwid=4):
+    def __init__(self, pspec):
+        regwid = pspec.reg_wid
+        addrwid = pspec.addr_wid
+
         super().__init__(regwid, addrwid)
         self.dcache = DCache()
         self.d_in  = self.dcache.d_in
@@ -37,7 +43,7 @@ class LoadStore1(PortInterfaceBase):
         self.derror = Signal()
 
         # TODO, convert dcache wb_in/wb_out to "standard" nmigen Wishbone bus
-        # self.bus = Interface(...)
+        self.dbus = Record(make_wb_layout(pspec))
 
     def set_wr_addr(self, m, addr, mask):
         #m.d.comb += self.d_in.valid.eq(1)
@@ -95,11 +101,11 @@ class LoadStore1(PortInterfaceBase):
     def elaborate(self, platform):
         m = super().elaborate(platform)
 
-        d_out = self.d_out
-        l_out = self.l_out
-
         # create dcache module
-        m.submodules.dcache = self.dcache
+        m.submodules.dcache = dcache = self.dcache
+
+        # temp vars
+        d_out, l_out, dbus = self.d_out, self.l_out, self.dbus
 
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
@@ -136,6 +142,8 @@ class LoadStore1(PortInterfaceBase):
 
         # TODO some exceptions set SPRs
 
+        # TODO, connect dcache wb_in/wb_out to "standard" nmigen Wishbone bus
+        # comb += dcache.wb_in.blahblah.eq(dbus.blahblah)
         return m
 
     def ports(self):
@@ -144,6 +152,11 @@ class LoadStore1(PortInterfaceBase):
 
 
 class FSMMMUStage(ControlBase):
+    """FSM MMU
+
+    FSM-based MMU: must call set_ldst_interface and pass in an instance
+    of a LoadStore1.  this to comply with the ConfigMemoryPortInterface API
+    """
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
@@ -151,11 +164,6 @@ class FSMMMUStage(ControlBase):
         # set up p/n data
         self.p.data_i = MMUInputData(pspec)
         self.n.data_o = MMUOutputData(pspec)
-
-        # incoming PortInterface
-        self.ldst = LoadStore1()       # TODO make this depend on pspec
-        self.dcache = self.ldst.dcache
-        self.pi = self.ldst.pi
 
         # this Function Unit is extremely unusual in that it actually stores a
         # "thing" rather than "processes inputs and produces outputs".  hence
@@ -183,7 +191,18 @@ class FSMMMUStage(ControlBase):
         self.fields = DecodeFields(SignalBitRange, [i.ctx.op.insn])
         self.fields.create_specs()
 
+    def set_ldst_interface(self, ldst):
+        """must be called back in Core, after FUs have been set up.
+        one of those will be the MMU (us!) but the LoadStore1 instance
+        must be set up in ConfigMemoryPortInterface. sigh.
+        """
+        # incoming PortInterface
+        self.ldst = ldst
+        self.dcache = self.ldst.dcache
+        self.pi = self.ldst.pi
+
     def elaborate(self, platform):
+        assert hasattr(self, "dcache"), "remember to call set_ldst_interface"
         m = super().elaborate(platform)
         comb = m.d.comb
         dcache = self.dcache

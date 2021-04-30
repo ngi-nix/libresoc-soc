@@ -17,9 +17,10 @@ from openpower.consts import MSR
 from openpower.test.mmu.mmu_cases import MMUTestCase
 
 from openpower.test.common import (TestAccumulatorBase, skip_case, ALUHelpers)
+from soc.config.test.test_loadstore import TestMemPspec
 #from soc.fu.spr.pipeline import SPRBasePipe
 #from soc.fu.spr.pipe_data import SPRPipeSpec
-from soc.fu.mmu.fsm import FSMMMUStage
+from soc.fu.mmu.fsm import FSMMMUStage, LoadStore1
 from soc.fu.mmu.pipe_data import MMUPipeSpec
 import random
 
@@ -203,12 +204,20 @@ class TestRunner(unittest.TestCase):
         comb = m.d.comb
         instruction = Signal(32)
 
+        pspec = TestMemPspec(addr_wid=48,
+                             mask_wid=8,
+                             reg_wid=64,
+                             )
+
         pdecode = create_pdecode()
 
         m.submodules.pdecode2 = pdecode2 = PowerDecode2(pdecode)
 
-        pspec = MMUPipeSpec(id_wid=2)
-        m.submodules.fsm = fsm = FSMMMUStage(pspec)
+        pipe_spec = MMUPipeSpec(id_wid=2)
+        ldst = LoadStore1(pspec)
+        fsm = FSMMMUStage(pipe_spec)
+        fsm.set_ldst_interface(ldst)
+        m.submodules.fsm = fsm
 
         #FIXME connect fsm inputs
 

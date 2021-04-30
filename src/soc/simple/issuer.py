@@ -1170,7 +1170,7 @@ class TestIssuerInternal(Elaboratable):
             ports += list(self.dbg.dmi.ports())
 
         ports += list(self.imem.ibus.fields.values())
-        ports += list(self.core.l0.cmpi.lsmem.lsi.slavebus.fields.values())
+        ports += list(self.core.l0.cmpi.wb_bus().fields.values())
 
         if self.sram4x4k:
             for sram in self.sram4k:
