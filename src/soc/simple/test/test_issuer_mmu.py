@@ -21,7 +21,7 @@ from soc.simple.test.test_runner import TestRunner
 # test with MMU
 from openpower.test.mmu.mmu_cases import MMUTestCase
 from openpower.test.mmu.mmu_rom_cases import MMUTestCaseROM, default_mem
-#from openpower.test.ldst.ldst_cases import LDSTTestCase
+from openpower.test.ldst.ldst_cases import LDSTTestCase
 #from openpower.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
 if __name__ == "__main__":
@@ -37,13 +37,16 @@ if __name__ == "__main__":
     suite = unittest.TestSuite()
     #suite.addTest(TestRunner(GeneralTestCases.test_data, svp64=svp64,
     #                          microwatt_mmu=True))
-    #suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64,
-    #                          microwatt_mmu=True))
     suite.addTest(TestRunner(MMUTestCase().test_data, svp64=svp64,
                               microwatt_mmu=True))
+
+    # without ROM set
     suite.addTest(TestRunner(MMUTestCaseROM().test_data, svp64=svp64,
-                              microwatt_mmu=True,
-                              rom=default_mem))
+                              microwatt_mmu=True))
+
+    # LD/ST tests should all still work
+    suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64,
+                              microwatt_mmu=True))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
