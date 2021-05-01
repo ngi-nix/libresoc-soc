@@ -15,8 +15,10 @@ from openpower.decoder.power_decoder2 import PowerDecode2
 from openpower.decoder.selectable_int import SelectableInt
 from openpower.decoder.isa.all import ISA
 
-# note that for testing using SPRfull should be ok here
-from openpower.decoder.power_enums import SPRfull as SPR, spr_dict, Function, XER_bits
+# note that using SPRreduced has to be done to match the
+# PowerDecoder2 SPR map
+from openpower.decoder.power_enums import SPRreduced as SPR
+from openpower.decoder.power_enums import spr_dict, Function, XER_bits
 from soc.config.test.test_loadstore import TestMemPspec
 from openpower.endian import bigendian
 
@@ -35,7 +37,8 @@ from soc.fu.branch.test.test_pipe_caller import BranchTestCase
 from soc.fu.ldst.test.test_pipe_caller import LDSTTestCase
 from openpower.util import spr_to_fast_reg
 
-mmu_sprs = ["PRTBL"]
+# list of SPRs that are controlled and managed by the MMU
+mmu_sprs = ["PRTBL", "DSISR", "DAR", "PIDR"]
 
 def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
         fsm = core.fus.fus["mmu0"].alu
