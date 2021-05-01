@@ -20,6 +20,7 @@ from soc.simple.test.test_runner import TestRunner
 
 # test with MMU
 from openpower.test.mmu.mmu_cases import MMUTestCase
+from openpower.test.mmu.mmu_rom_cases import MMUTestCaseROM, default_mem
 #from openpower.test.ldst.ldst_cases import LDSTTestCase
 #from openpower.simulator.test_sim import (GeneralTestCases, AttnTestCase)
 
@@ -40,6 +41,9 @@ if __name__ == "__main__":
     #                          microwatt_mmu=True))
     suite.addTest(TestRunner(MMUTestCase().test_data, svp64=svp64,
                               microwatt_mmu=True))
+    suite.addTest(TestRunner(MMUTestCaseROM().test_data, svp64=svp64,
+                              microwatt_mmu=True,
+                              rom=default_mem))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
