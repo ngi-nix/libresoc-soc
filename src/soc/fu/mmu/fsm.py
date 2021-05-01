@@ -48,23 +48,25 @@ class LoadStore1(PortInterfaceBase):
         self.dbus = Record(make_wb_layout(pspec))
 
     def set_wr_addr(self, m, addr, mask):
-        #m.d.comb += self.d_in.valid.eq(1)
         #m.d.comb += self.l_in.valid.eq(1)
-        #m.d.comb += self.d_in.load.eq(0)
+        #m.d.comb += self.l_in.addr.eq(addr)
         #m.d.comb += self.l_in.load.eq(0)
+        m.d.comb += self.d_in.valid.eq(1)
+        m.d.comb += self.d_in.load.eq(0)
+        m.d.comb += self.d_in.byte_sel.eq(mask)
         # set phys addr on both units
         m.d.comb += self.d_in.addr.eq(addr)
-        m.d.comb += self.l_in.addr.eq(addr)
         # TODO set mask
         return None
 
     def set_rd_addr(self, m, addr, mask):
+        #m.d.comb += self.l_in.valid.eq(1)
+        #m.d.comb += self.l_in.load.eq(1)
+        #m.d.comb += self.l_in.addr.eq(addr)
         m.d.comb += self.d_in.valid.eq(1)
-        m.d.comb += self.l_in.valid.eq(1)
         m.d.comb += self.d_in.load.eq(1)
-        m.d.comb += self.l_in.load.eq(1)
+        m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
-        m.d.comb += self.l_in.addr.eq(addr)
         m.d.comb += self.debug1.eq(1)
         # m.d.comb += self.debug2.eq(1)
         return None #FIXME return value
