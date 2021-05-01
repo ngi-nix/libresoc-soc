@@ -41,7 +41,7 @@ from openpower.util import spr_to_fast_reg
 mmu_sprs = ["PRTBL", "DSISR", "DAR", "PIDR"]
 
 def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
-        fsm = core.fus.fus["mmu0"].alu
+        fsm = core.fus.get_fu("mmu0").alu
         yield fsm.mmu.l_in.mtspr.eq(1)
         yield fsm.mmu.l_in.sprn.eq(i)
         yield fsm.mmu.l_in.rs.eq(val)
