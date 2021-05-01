@@ -5,6 +5,7 @@ related bugs:
  * https://bugs.libre-soc.org/show_bug.cgi?id=363
 """
 from nmigen import Module, Signal, Cat, ClockSignal
+from nmigen.hdl.xfrm import ResetInserter
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
@@ -155,7 +156,12 @@ class TestRunner(FHDLTestCase):
                              svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
-        m.submodules.issuer = issuer = TestIssuerInternal(pspec)
+        #hard_reset = Signal(reset_less=True)
+        issuer = TestIssuerInternal(pspec)
+        # use DMI RESET command instead, this does actually work though
+        #issuer = ResetInserter({'coresync': hard_reset,
+        #                        'sync': hard_reset})(issuer)
+        m.submodules.issuer = issuer
         imem = issuer.imem._get_memory()
         core = issuer.core
         dmi = issuer.dbg.dmi
@@ -184,14 +190,10 @@ class TestRunner(FHDLTestCase):
             # start in stopped
             yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
             yield
-            yield
 
             # get each test, completely reset the core, and run it
 
             for test in self.test_data:
-
-                # pull a reset
-                # yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
 
                 # set up bigendian (TODO: don't do this, use MSR)
                 yield issuer.core_bigendian_i.eq(bigendian)
@@ -322,6 +324,10 @@ class TestRunner(FHDLTestCase):
 
                     print("after test %s reg %2d value %x" %
                           (test.name, int_reg, value))
+
+                # pull a reset
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                yield
 
         styles = {
             'dec': {'base': 'dec'},
