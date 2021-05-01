@@ -47,11 +47,16 @@ class LoadStore1(PortInterfaceBase):
         # TODO, convert dcache wb_in/wb_out to "standard" nmigen Wishbone bus
         self.dbus = Record(make_wb_layout(pspec))
 
+        # for creating a single clock blip to DCache
+        self.d_valid = Signal()
+        self.d_validblip = Signal()
+
     def set_wr_addr(self, m, addr, mask):
         #m.d.comb += self.l_in.valid.eq(1)
         #m.d.comb += self.l_in.addr.eq(addr)
         #m.d.comb += self.l_in.load.eq(0)
-        m.d.comb += self.d_in.valid.eq(1)
+        m.d.comb += self.d_valid.eq(1)
+        m.d.comb += self.d_in.valid.eq(self.d_validblip)
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         # set phys addr on both units
@@ -63,7 +68,8 @@ class LoadStore1(PortInterfaceBase):
         #m.d.comb += self.l_in.valid.eq(1)
         #m.d.comb += self.l_in.load.eq(1)
         #m.d.comb += self.l_in.addr.eq(addr)
-        m.d.comb += self.d_in.valid.eq(1)
+        m.d.comb += self.d_valid.eq(1)
+        m.d.comb += self.d_in.valid.eq(self.d_validblip)
         m.d.comb += self.d_in.load.eq(1)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
@@ -72,7 +78,7 @@ class LoadStore1(PortInterfaceBase):
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
-        m.d.comb += self.d_in.data.eq(data)
+        m.d.sync += self.d_in.data.eq(data) # one cycle **AFTER** valid raised
         # TODO set wen
         st_ok = Const(1, 1)
         return st_ok
@@ -159,6 +165,9 @@ class LoadStore1(PortInterfaceBase):
         comb += dcache.wb_in.ack.eq(dbus.ack)
         if hasattr(dbus, "stall"):
             comb += dcache.wb_in.stall.eq(dbus.stall)
+
+        # create a blip (single pulse) on valid read/write request
+        m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
 
         return m
 
