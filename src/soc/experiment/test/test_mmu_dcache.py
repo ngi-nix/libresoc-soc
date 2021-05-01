@@ -34,6 +34,8 @@ def set_stop(newval):
 def b(x):
     return int.from_bytes(x.to_bytes(8, byteorder='little'),
                           byteorder='big', signed=False)
+
+
 default_mem = { 0x10000:    # PARTITION_TABLE_2
                        # PATB_GR=1 PRTB=0x1000 PRTS=0xb
                 b(0x800000000100000b),
