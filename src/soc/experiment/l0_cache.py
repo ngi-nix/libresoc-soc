@@ -326,7 +326,7 @@ class TstL0CacheBuffer(Elaboratable):
 
         # really bad hack, the LoadStore1 classes already have the
         # lsi (LoadStoreInterface) as a submodule.
-        if pspec.ldst_ifacetype in ['mmu_cache_wb', 'test_mmu_cache_wb']:
+        if self.pspec.ldst_ifacetype in ['mmu_cache_wb', 'test_mmu_cache_wb']:
             return m
 
         # hmmm not happy about this - should not be digging down and
