@@ -8,6 +8,9 @@ see WB4 spec, p84, section 5.2.1
 """
 
 import sys
+
+from nmutil.gtkw import write_gtkw
+
 sys.setrecursionlimit(1000000)
 
 from enum import Enum, unique
@@ -588,8 +591,8 @@ class DCache(Elaboratable):
 
         self.stall_out = Signal()
 
-        self.wb_out    = WBMasterOut()
-        self.wb_in     = WBSlaveOut()
+        self.wb_out    = WBMasterOut("wb_out")
+        self.wb_in     = WBSlaveOut("wb_in")
 
         self.log_out   = Signal(20)
 
@@ -1907,6 +1910,8 @@ def test_dcache(mem, test_fn, test_name):
     m.d.comb += dut.wb_in.ack.eq(sram.bus.ack)
     m.d.comb += dut.wb_in.dat.eq(sram.bus.dat_r)
 
+    dcache_write_gtkw(test_name)
+
     # nmigen Simulation
     sim = Simulator(m)
     sim.add_clock(1e-6)
@@ -1914,6 +1919,30 @@ def test_dcache(mem, test_fn, test_name):
     sim.add_sync_process(wrap(test_fn(dut, mem)))
     with sim.write_vcd('test_dcache%s.vcd' % test_name):
         sim.run()
+
+
+def dcache_write_gtkw(test_name):
+    traces = [
+        'clk',
+        ('d_in', [
+            'd_in_load', 'd_in_nc', 'd_in_addr[63:0]', 'd_in_data[63:0]',
+            'd_in_byte_sel[7:0]', 'd_in_valid'
+        ]),
+        ('d_out', [
+            'd_out_valid', 'd_out_data[63:0]'
+        ]),
+        ('wb_out', [
+            'wb_out_cyc', 'wb_out_stb', 'wb_out_we',
+            'wb_out_adr[31:0]', 'wb_out_sel[7:0]', 'wb_out_dat[63:0]'
+        ]),
+        ('wb_in', [
+            'wb_in_stall', 'wb_in_ack', 'wb_in_dat[63:0]'
+        ])
+    ]
+    write_gtkw('test_dcache%s.gtkw' % test_name,
+               'test_dcache%s.vcd' % test_name,
+               traces, module='top.dcache')
+
 
 if __name__ == '__main__':
     seed(0)
