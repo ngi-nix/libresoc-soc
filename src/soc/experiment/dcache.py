@@ -5,6 +5,9 @@ based on Anton Blanchard microwatt dcache.vhdl
 note that the microwatt dcache wishbone interface expects "stall".
 for simplicity at the moment this is hard-coded to cyc & ~ack.
 see WB4 spec, p84, section 5.2.1
+
+IMPORTANT: for store, the data is sampled the cycle AFTER the "valid"
+is raised.  sigh
 """
 
 import sys
@@ -1710,11 +1713,11 @@ def dcache_load(dut, addr, nc=0):
 def dcache_store(dut, addr, data, nc=0):
     yield dut.d_in.load.eq(0)
     yield dut.d_in.nc.eq(nc)
-    yield dut.d_in.data.eq(data)
     yield dut.d_in.byte_sel.eq(~0)
     yield dut.d_in.addr.eq(addr)
     yield dut.d_in.valid.eq(1)
     yield
+    yield dut.d_in.data.eq(data)    # leave set, but the cycle AFTER
     yield dut.d_in.valid.eq(0)
     yield dut.d_in.byte_sel.eq(0)
     while not (yield dut.d_out.valid):
