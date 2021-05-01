@@ -309,6 +309,7 @@ class L0CacheBuffer(Elaboratable):
 
 class TstL0CacheBuffer(Elaboratable):
     def __init__(self, pspec, n_units=3):
+        self.pspec = pspec
         regwid = pspec.reg_wid
         addrwid = pspec.addr_wid
         self.cmpi = ConfigMemoryPortInterface(pspec)
@@ -319,8 +320,18 @@ class TstL0CacheBuffer(Elaboratable):
         m = Module()
         m.submodules.pimem = self.pimem
         m.submodules.l0 = self.l0
-        if hasattr(self.cmpi, 'lsmem'):  # hmmm not happy about this
-            m.submodules.lsmem = self.cmpi.lsmem.lsi
+
+        if not hasattr(self.cmpi, 'lsmem'):
+            return m
+
+        # really bad hack, the LoadStore1 classes already have the
+        # lsi (LoadStoreInterface) as a submodule.
+        if pspec.ldst_ifacetype in ['mmu_cache_wb', 'test_mmu_cache_wb']:
+            return m
+
+        # hmmm not happy about this - should not be digging down and
+        # putting modules in
+        m.submodules.lsmem = self.cmpi.lsmem.lsi
 
         return m
 
