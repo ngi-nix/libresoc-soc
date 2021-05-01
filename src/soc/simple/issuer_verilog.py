@@ -74,8 +74,15 @@ if __name__ == '__main__':
     if args.mmu:
         units['mmu'] = 1 # enable MMU
 
-    pspec = TestMemPspec(ldst_ifacetype='bare_wb',
-                         imem_ifacetype='bare_wb',
+    # decide which memory type to configure
+    if args.mmu:
+        ldst_ifacetype = 'mmu_cache_wb'
+    else:
+        ldst_ifacetype = 'bare_wb'
+    imem_ifacetype = 'bare_wb'
+
+    pspec = TestMemPspec(ldst_ifacetype=ldst_ifacetype,
+                         imem_ifacetype=imem_ifacetype,
                          addr_wid=48,
                          mask_wid=8,
                          # must leave at 64
