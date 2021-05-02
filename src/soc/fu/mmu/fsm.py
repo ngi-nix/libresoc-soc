@@ -51,6 +51,9 @@ class LoadStore1(PortInterfaceBase):
         self.d_validblip = Signal()
 
     def set_wr_addr(self, m, addr, mask):
+        # this gets complicated: actually a FSM is needed which
+        # first checks dcache, then if that fails (in virt mode)
+        # it checks the MMU instead.
         #m.d.comb += self.l_in.valid.eq(1)
         #m.d.comb += self.l_in.addr.eq(addr)
         #m.d.comb += self.l_in.load.eq(0)
@@ -62,6 +65,9 @@ class LoadStore1(PortInterfaceBase):
         return None
 
     def set_rd_addr(self, m, addr, mask):
+        # this gets complicated: actually a FSM is needed which
+        # first checks dcache, then if that fails (in virt mode)
+        # it checks the MMU instead.
         #m.d.comb += self.l_in.valid.eq(1)
         #m.d.comb += self.l_in.load.eq(1)
         #m.d.comb += self.l_in.addr.eq(addr)
@@ -72,7 +78,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.addr.eq(addr)
         # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
         # this is for peripherals.  same thing done in Microwatt loadstore1.vhdl
-        with m.If(addr[28:] == 0xc):
+        with m.If(addr[28:] == Const(0xc, 4)):
             m.d.comb += self.d_in.nc.eq(1)
         return None #FIXME return value
 
