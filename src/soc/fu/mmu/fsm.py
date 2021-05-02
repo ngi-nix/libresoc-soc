@@ -76,8 +76,8 @@ class LoadStore1(PortInterfaceBase):
 
     def set_wr_data(self, m, data, wen):
         m.d.sync += self.d_in.data.eq(data) # one cycle **AFTER** valid raised
-        # TODO set wen
-        st_ok = Const(1, 1)
+        #m.d.sync += self.d_in.byte_sel.eq(wen) # ditto
+        st_ok = self.d_out.valid # indicates write data is valid
         return st_ok
 
     def get_rd_data(self, m):
