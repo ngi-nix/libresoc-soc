@@ -1652,7 +1652,7 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
         # deal with litex not doing wishbone pipeline mode
         # XXX in wrong way.  FIFOs are needed in the SRAM test
         # so that stb/ack match up
-        #comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
+        comb += self.wb_in.stall.eq(self.wb_out.cyc & ~self.wb_in.ack)
 
         # call sub-functions putting everything together, using shared
         # signals established above

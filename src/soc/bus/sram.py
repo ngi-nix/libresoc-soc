@@ -99,7 +99,7 @@ class SRAM(Elaboratable):
 
         # generate ack (no "pipeline" mode here)
         m.d.sync += self.bus.ack.eq(0)
-        with m.If(self.bus.cyc & self.bus.stb):
+        with m.If(self.bus.cyc & self.bus.stb & ~self.bus.ack):
             m.d.sync += self.bus.ack.eq(1)
 
         return m
