@@ -37,9 +37,6 @@ class LoadStore1(PortInterfaceBase):
         self.d_out = self.dcache.d_out
         self.l_in  = LoadStore1ToMMUType()
         self.l_out = MMUToLoadStore1Type()
-        # for debugging with gtkwave only
-        self.debug1 = Signal()
-        self.debug2 = Signal()
         # TODO microwatt
         self.mmureq = Signal()
         self.derror = Signal()
@@ -59,9 +56,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.valid.eq(self.d_validblip)
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.d_in.byte_sel.eq(mask)
-        # set phys addr on both units
         m.d.comb += self.d_in.addr.eq(addr)
-        # TODO set mask
         return None
 
     def set_rd_addr(self, m, addr, mask):
@@ -73,8 +68,10 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.load.eq(1)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
-        m.d.comb += self.debug1.eq(1)
-        # m.d.comb += self.debug2.eq(1)
+        # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
+        # this is for peripherals.  same thing done in Microwatt loadstore1.vhdl
+        with m.If(addr[28:] == 0xc):
+            m.d.comb += self.d_in.nc.eq(1)
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
@@ -244,9 +241,6 @@ class FSMMMUStage(ControlBase):
 
         # debugging output for gtkw
         self.debug0 = Signal(4)
-        self.debug1 = Signal()
-        #self.debug2 = Signal(64)
-        #self.debug3 = Signal(64)
         self.illegal = Signal()
 
         # for SPR field number access
@@ -404,6 +398,7 @@ class FSMMMUStage(ControlBase):
                     comb += l_in.addr.eq(b_i)  # incoming operand (RB)
                     comb += done.eq(l_out.done) # zzzz
                     comb += self.debug0.eq(2)
+
                 with m.Case(MicrOp.OP_ILLEGAL):
                     comb += self.illegal.eq(1)
 
