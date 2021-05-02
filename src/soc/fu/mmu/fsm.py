@@ -46,6 +46,8 @@ class LoadStore1(PortInterfaceBase):
 
         # for creating a single clock blip to DCache
         self.d_valid = Signal()
+        self.d_w_data = Signal(64) # XXX
+        self.d_w_valid = Signal()
         self.d_validblip = Signal()
 
     def set_wr_addr(self, m, addr, mask):
@@ -75,9 +77,12 @@ class LoadStore1(PortInterfaceBase):
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
-        m.d.sync += self.d_in.data.eq(data) # one cycle **AFTER** valid raised
-        #m.d.sync += self.d_in.byte_sel.eq(wen) # ditto
-        st_ok = self.d_out.valid # indicates write data is valid
+        # put data into comb which is picked up in main elaborate()
+        m.d.comb += self.d_w_valid.eq(1)
+        m.d.comb += self.d_w_data.eq(data)
+        #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
+        #st_ok = self.d_out.valid # TODO indicates write data is valid
+        st_ok = Const(1, 1)
         return st_ok
 
     def get_rd_data(self, m):
@@ -165,6 +170,12 @@ class LoadStore1(PortInterfaceBase):
 
         # create a blip (single pulse) on valid read/write request
         m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
+
+        # write out d data only when flag set
+        with m.If(self.d_w_valid):
+            m.d.sync += self.d_in.data.eq(self.d_w_data)
+        with m.Else():
+            m.d.sync += self.d_in.data.eq(0)
 
         return m
 
