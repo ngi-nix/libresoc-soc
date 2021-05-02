@@ -16,11 +16,8 @@ version = '0.0.1'
 
 install_requires = [
     #    'sfpy',    # needs manual patching
-    'ieee754fpu',   # uploaded (successfully, whew) to pip
-    'pygdbmi',      # safe to include
+    'libresoc-ieee754fpu',   # uploaded (successfully, whew) to pip
     # 'nmigen-soc', # install manually from git.libre-soc.org
-    # 'ply',        # needs to be installed manually
-    'astor'         # safe to include
 ]
 
 test_requires = [
