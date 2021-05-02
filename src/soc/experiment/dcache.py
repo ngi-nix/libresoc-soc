@@ -1724,7 +1724,7 @@ def dcache_store(dut, addr, data, nc=0):
         yield
 
 
-def dcache_random_sim(dut, mem):
+def dcache_random_sim(dut, mem, nc=0):
 
     # start copy of mem
     sim_mem = deepcopy(mem)
@@ -1761,8 +1761,8 @@ def dcache_random_sim(dut, mem):
 
         print ("random testing %d 0x%x row %d data 0x%x" % (i, addr, row, data))
 
-        yield from dcache_load(dut, addr)
-        yield from dcache_store(dut, addr, data)
+        yield from dcache_load(dut, addr, nc)
+        yield from dcache_store(dut, addr, data, nc)
 
         addr = randint(0, memsize-1)
         sim_data = sim_mem[addr]
@@ -1770,16 +1770,17 @@ def dcache_random_sim(dut, mem):
         addr *= 8
 
         print ("    load 0x%x row %d expect data 0x%x" % (addr, row, sim_data))
-        data = yield from dcache_load(dut, addr)
+        data = yield from dcache_load(dut, addr, nc)
         assert data == sim_data, \
             "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
 
     for addr in range(memsize):
-        data = yield from dcache_load(dut, addr*8)
+        data = yield from dcache_load(dut, addr*8, nc)
         assert data == sim_mem[addr], \
             "final check %x data %x != %x" % (addr*8, data, sim_mem[addr])
 
-def dcache_regression_sim(dut, mem):
+
+def dcache_regression_sim(dut, mem, nc=0):
 
     # start copy of mem
     sim_mem = deepcopy(mem)
@@ -1808,7 +1809,7 @@ def dcache_regression_sim(dut, mem):
 
     print ("random testing %d 0x%x row %d" % (i, addr, row))
 
-    yield from dcache_load(dut, addr)
+    yield from dcache_load(dut, addr, nc)
 
     addr = 2
     sim_data = sim_mem[addr]
@@ -1816,7 +1817,7 @@ def dcache_regression_sim(dut, mem):
     addr *= 8
 
     print ("    load 0x%x row %d expect data 0x%x" % (addr, row, sim_data))
-    data = yield from dcache_load(dut, addr)
+    data = yield from dcache_load(dut, addr, nc)
     assert data == sim_data, \
         "check addr 0x%x row %d data %x != %x" % (addr, row, data, sim_data)
 
