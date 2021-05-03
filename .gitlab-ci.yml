@@ -69,6 +69,7 @@ build:
 
         - git clone --depth 1 https://git.libre-soc.org/git/nmigen-soc.git nmigen-soc
         - pushd nmigen-soc
+        - git tag | xargs git tag -d
         - python setup.py develop
         - popd
 
