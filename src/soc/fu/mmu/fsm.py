@@ -62,6 +62,8 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
+        # TEMPORARY BAD HACK! disable the cache entirely for read
+        m.d.comb += self.d_in.nc.eq(1)
         return None
 
     def set_rd_addr(self, m, addr, mask):
@@ -80,6 +82,8 @@ class LoadStore1(PortInterfaceBase):
         # this is for peripherals.  same thing done in Microwatt loadstore1.vhdl
         with m.If(addr[28:] == Const(0xc, 4)):
             m.d.comb += self.d_in.nc.eq(1)
+        # TEMPORARY BAD HACK! disable the cache entirely for read
+        m.d.comb += self.d_in.nc.eq(1)
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
