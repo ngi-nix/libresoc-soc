@@ -57,8 +57,6 @@ class LoadStore1(PortInterfaceBase):
         #m.d.comb += self.l_in.valid.eq(1)
         #m.d.comb += self.l_in.addr.eq(addr)
         #m.d.comb += self.l_in.load.eq(0)
-        m.d.comb += self.d_valid.eq(1)
-        m.d.comb += self.d_in.valid.eq(self.d_validblip)
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
@@ -87,12 +85,15 @@ class LoadStore1(PortInterfaceBase):
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
+        # do the "blip" on write data
+        m.d.comb += self.d_valid.eq(1)
+        m.d.comb += self.d_in.valid.eq(self.d_validblip)
         # put data into comb which is picked up in main elaborate()
         m.d.comb += self.d_w_valid.eq(1)
         m.d.comb += self.d_w_data.eq(data)
         #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
-        #st_ok = self.d_out.valid # TODO indicates write data is valid
-        st_ok = Const(1, 1)
+        st_ok = self.d_out.valid # TODO indicates write data is valid
+        #st_ok = Const(1, 1)
         return st_ok
 
     def get_rd_data(self, m):
