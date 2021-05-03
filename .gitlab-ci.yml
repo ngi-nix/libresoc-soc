@@ -62,17 +62,17 @@ build:
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/nmutil.git nmutil
+        - git clone --depth 1 https://git.libre-soc.org/git/nmutil.git nmutil
         - pushd nmutil
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/nmigen-soc.git nmigen-soc
+        - git clone --depth 1 https://git.libre-soc.org/git/nmigen-soc.git nmigen-soc
         - pushd nmigen-soc
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/ieee754fpu.git ieee754fpu
+        - git clone --depth 1 https://git.libre-soc.org/git/ieee754fpu.git ieee754fpu
         - pushd ieee754fpu
         - python setup.py develop
         - popd
