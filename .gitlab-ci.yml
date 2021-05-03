@@ -12,6 +12,7 @@ variables:
 
 build:
     stage: build
+    timeout: 2h
     before_script:
         - mkdir -p apt-cache
         - apt-get -o dir::cache::archives="$(pwd)/apt-cache" update
