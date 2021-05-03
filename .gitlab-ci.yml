@@ -80,6 +80,13 @@ build:
         - python setup.py develop
         - popd
 
+        - git clone --depth 1 https://git.libre-soc.org/git/openpower-isa.git openpower-isa
+        - pushd openpower-isa
+        - python3 setup.py develop
+        - make svanalysis
+        - make pywriter
+        - popd
+
         - IEEE754FPU_PATH="$(pwd)"/ieee754fpu
         - git clone --depth 1 --recursive https://github.com/billzorn/sfpy.git sfpy
         - pushd sfpy
