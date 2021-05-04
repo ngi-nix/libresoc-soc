@@ -14,7 +14,7 @@
     addr.ok/1       probably x_valid_i & ~x_stall_i
 
     addr_ok_o/1     no equivalent.  *might* work using x_stall_i
-    exception_o/2(?) m_load_err_o and m_store_err_o
+    exc_o/6(?)      m_load_err_o and m_store_err_o
 
     ld.data/64      m_ld_data_o
     ld.ok/1         probably implicit, when x_busy drops low

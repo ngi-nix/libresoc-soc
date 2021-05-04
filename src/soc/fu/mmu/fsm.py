@@ -150,7 +150,7 @@ class LoadStore1(PortInterfaceBase):
                 # v.state := MMU_LOOKUP;
                 # v.stage1_en := '0';
 
-        exc = self.pi.exception_o
+        exc = self.pi.exc_o
 
         #happened, alignment, instr_fault, invalid,
         comb += exc.happened.eq(d_out.error | l_out.err)

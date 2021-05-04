@@ -266,23 +266,33 @@ class AllFunctionUnits(Elaboratable):
         else:
             alus['div'] = DivPipeFunctionUnit
 
+        # create dictionary of Function Units
         self.fus = {}
         for name, qty in units.items():
             kls = alus[name]
             for i in range(qty):
                 self.fus["%s%d" % (name, i)] = kls(i)
+
+        # debug print for MMU ALU
         if microwatt_mmu:
-            print("cut here ==============================")
             alu = self.fus["mmu0"].alu
-            print("alu", alu)
-            #pi = alu.pi
-            #print("pi", pi)
-            #pilist = [pi]
+            print("MMU alu", alu)
+
+        # if any PortInterfaces, we want LDST Units.
         if pilist is None:
             return
         print ("pilist", pilist)
         for i, pi in enumerate(pilist):
             self.fus["ldst%d" % (i)] = LDSTFunctionUnit(pi, addrwid, i)
+
+        # extract exceptions from any FunctionUnits for easy access
+        self.excs = {}
+        for name, alu in self.fus.items():
+            if hasattr(alu, "exc_o"):
+                self.excs[name] = alu.exc_o
+
+    def get_exc(self, name):
+        return self.excs.get(name, default=None)
 
     def get_fu(self, name):
         return self.fus.get(name)
