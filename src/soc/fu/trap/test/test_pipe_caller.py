@@ -35,8 +35,9 @@ def get_cu_inputs(dec2, sim):
 
     yield from ALUHelpers.get_sim_int_ra(res, sim, dec2)  # RA
     yield from ALUHelpers.get_sim_int_rb(res, sim, dec2)  # RB
-    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2)  # SPR1
-    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)  # SPR2
+    yield from ALUHelpers.get_sim_fast_spr1(res, sim, dec2)  # SPR0
+    yield from ALUHelpers.get_sim_fast_spr2(res, sim, dec2)  # SPR1
+    yield from ALUHelpers.get_sim_fast_spr3(res, sim, dec2)  # SVSRR0
     ALUHelpers.get_sim_cia(res, sim, dec2)  # PC
     ALUHelpers.get_sim_msr(res, sim, dec2)  # MSR
 
@@ -53,8 +54,9 @@ def set_alu_inputs(alu, dec2, sim):
     inp = yield from get_cu_inputs(dec2, sim)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
     yield from ALUHelpers.set_int_rb(alu, dec2, inp)
-    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)  # SPR1
+    yield from ALUHelpers.set_fast_spr1(alu, dec2, inp)  # SPR0
     yield from ALUHelpers.set_fast_spr2(alu, dec2, inp)  # SPR1
+    yield from ALUHelpers.set_fast_spr3(alu, dec2, inp)  # SVSRR0
 
     # yield from ALUHelpers.set_cia(alu, dec2, inp)
     # yield from ALUHelpers.set_msr(alu, dec2, inp)
@@ -170,6 +172,7 @@ class TestRunner(unittest.TestCase):
         yield from ALUHelpers.get_int_o(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr1(res, alu, dec2)
         yield from ALUHelpers.get_fast_spr2(res, alu, dec2)
+        yield from ALUHelpers.get_fast_spr3(res, alu, dec2)
         yield from ALUHelpers.get_nia(res, alu, dec2)
         yield from ALUHelpers.get_msr(res, alu, dec2)
 
@@ -178,6 +181,7 @@ class TestRunner(unittest.TestCase):
         yield from ALUHelpers.get_sim_int_o(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr1(sim_o, sim, dec2)
         yield from ALUHelpers.get_wr_fast_spr2(sim_o, sim, dec2)
+        yield from ALUHelpers.get_wr_fast_spr3(sim_o, sim, dec2)
         ALUHelpers.get_sim_nia(sim_o, sim, dec2)
         ALUHelpers.get_sim_msr(sim_o, sim, dec2)
 
@@ -186,6 +190,7 @@ class TestRunner(unittest.TestCase):
         ALUHelpers.check_int_o(self, res, sim_o, code)
         ALUHelpers.check_fast_spr1(self, res, sim_o, code)
         ALUHelpers.check_fast_spr2(self, res, sim_o, code)
+        ALUHelpers.check_fast_spr3(self, res, sim_o, code)
         ALUHelpers.check_nia(self, res, sim_o, code)
         ALUHelpers.check_msr(self, res, sim_o, code)
 

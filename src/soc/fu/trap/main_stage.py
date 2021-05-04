@@ -64,7 +64,8 @@ class TrapMainStage(PipeModBase):
         comb  = m.d.comb
         op = self.i.ctx.op
         msr_i = op.msr
-        nia_o, srr0_o, srr1_o = self.o.nia, self.o.srr0, self.o.srr1
+        nia_o = self.o.nia
+        svsrr0_o, srr0_o, srr1_o = self.o.svsrr0, self.o.srr0, self.o.srr1
 
         # trap address
         comb += nia_o.data.eq(trap_addr)

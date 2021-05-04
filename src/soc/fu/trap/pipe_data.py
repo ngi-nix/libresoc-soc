@@ -7,13 +7,14 @@ class TrapInputData(FUBaseData):
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('FAST', 'fast1', '0:63'), # SRR0
                ('FAST', 'fast2', '0:63'), # SRR1
+               ('FAST', 'fast3', '0:63'), # SVSRR0
                 # note here that neither MSR nor CIA are read as regs: they are
                 # passed in as incoming "State", via the CompTrapOpSubset
                ] 
     def __init__(self, pspec):
         super().__init__(pspec, False)
         # convenience
-        self.srr0, self.srr1 = self.fast1, self.fast2
+        self.srr0, self.srr1, self.svsrr0 = self.fast1, self.fast2, self.fast3
         self.a, self.b = self.ra, self.rb
 
 
@@ -21,12 +22,13 @@ class TrapOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),     # RA
                ('FAST', 'fast1', '0:63'), # SRR0 SPR
                ('FAST', 'fast2', '0:63'), # SRR1 SPR
+               ('FAST', 'fast3', '0:63'), # SRR2 SPR
                ('STATE', 'nia', '0:63'),  # NIA (Next PC)
                ('STATE', 'msr', '0:63')]  # MSR
     def __init__(self, pspec):
         super().__init__(pspec, True)
         # convenience
-        self.srr0, self.srr1 = self.fast1, self.fast2
+        self.srr0, self.srr1, self.svsrr0 = self.fast1, self.fast2, self.fast3
 
 
 
