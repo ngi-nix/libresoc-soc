@@ -35,11 +35,12 @@ class FUBaseData:
         if exc_kls is not None:
             name = "exc_o" if output else "exc_i"
             self.exception = exc_kls(name=name)
-            self.data.append(self.exception)
 
     def __iter__(self):
         yield from self.ctx
         yield from self.data
+        if hasattr(self, "exception"):
+            yield from self.exception.ports()
 
     def eq(self, i):
         eqs = [self.ctx.eq(i.ctx)]
@@ -51,6 +52,8 @@ class FUBaseData:
                    "type mismatch in FUBaseData %s %s" % \
                    (repr(self.data[j]), repr(i.data[j]))
             eqs.append(self.data[j].eq(i.data[j]))
+        if hasattr(self, "exception"):
+            eqs.append(self.exception.eq(i.exception))
         return eqs
 
     def ports(self):
