@@ -28,6 +28,8 @@ from soc.bus.sram import SRAM
 class LoadStore1(PortInterfaceBase):
     def __init__(self, pspec):
         self.pspec = pspec
+        self.disable_cache = (hasattr(pspec, "disable_cache") and
+                              pspec.disable_cache == True)
         regwid = pspec.reg_wid
         addrwid = pspec.addr_wid
 
@@ -60,8 +62,9 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
-        # TEMPORARY BAD HACK! disable the cache entirely for read
-        m.d.comb += self.d_in.nc.eq(1)
+        # option to disable the cache entirely for write
+        if self.disable_cache:
+            m.d.comb += self.d_in.nc.eq(1)
         return None
 
     def set_rd_addr(self, m, addr, mask):
@@ -77,11 +80,12 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.byte_sel.eq(mask)
         m.d.comb += self.d_in.addr.eq(addr)
         # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
-        # this is for peripherals.  same thing done in Microwatt loadstore1.vhdl
+        # this is for peripherals. same thing done in Microwatt loadstore1.vhdl
         with m.If(addr[28:] == Const(0xc, 4)):
             m.d.comb += self.d_in.nc.eq(1)
-        # TEMPORARY BAD HACK! disable the cache entirely for read
-        m.d.comb += self.d_in.nc.eq(1)
+        # option to disable the cache entirely for read
+        if self.disable_cache:
+            m.d.comb += self.d_in.nc.eq(1)
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
