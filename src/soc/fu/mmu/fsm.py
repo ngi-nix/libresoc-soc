@@ -308,6 +308,7 @@ class FSMMMUStage(ControlBase):
         a_i, b_i, o, spr1_o = data_i.ra, data_i.rb, data_o.o, data_o.spr1
         op = data_i.ctx.op
         msr_i = op.msr
+        spr1_i = data_i.spr1
 
         # TODO: link these SPRs somewhere
         dsisr = Signal(64)
@@ -378,26 +379,28 @@ class FSMMMUStage(ControlBase):
 
                 with m.Case(MicrOp.OP_MFSPR):
                     # subset SPR: first check a few bits
-                    with m.If(~spr[9] & ~spr[5]):
-                        comb += self.debug0.eq(5)
-                        with m.If(spr[0]):
-                            comb += o.data.eq(dsisr)
-                        with m.Else():
-                            comb += o.data.eq(dar)
-                        comb += o.ok.eq(1)
-                        comb += done.eq(1)
+                    #with m.If(~spr[9] & ~spr[5]):
+                    #    comb += self.debug0.eq(5)
+                        #with m.If(spr[0]):
+                        #    comb += o.data.eq(dsisr)
+                        #with m.Else():
+                        #    comb += o.data.eq(dar)
+                    #do NOT return cached values
+                    comb += o.data.eq(spr1_i)
+                    comb += o.ok.eq(1)
+                    comb += done.eq(1)
                     # pass it over to the MMU instead
-                    with m.Else():
-                        comb += self.debug0.eq(6)
-                        # blip the MMU and wait for it to complete
-                        comb += valid.eq(1)   # start "pulse"
-                        comb += l_in.valid.eq(blip)   # start
-                        comb += l_in.mtspr.eq(0)   # mfspr!=mtspr
-                        comb += l_in.sprn.eq(spr)  # which SPR
-                        comb += l_in.rs.eq(a_i)    # incoming operand (RS)
-                        comb += o.data.eq(l_out.sprval) # SPR from MMU
-                        comb += o.ok.eq(l_out.done) # only when l_out valid
-                        comb += done.eq(1) # FIXME l_out.done
+                    #with m.Else():
+                    #    comb += self.debug0.eq(6)
+                    #    # blip the MMU and wait for it to complete
+                    #    comb += valid.eq(1)   # start "pulse"
+                    #    comb += l_in.valid.eq(blip)   # start
+                    #    comb += l_in.mtspr.eq(0)   # mfspr!=mtspr
+                    #    comb += l_in.sprn.eq(spr)  # which SPR
+                    #    comb += l_in.rs.eq(a_i)    # incoming operand (RS)
+                    #    comb += o.data.eq(l_out.sprval) # SPR from MMU
+                    #    comb += o.ok.eq(l_out.done) # only when l_out valid
+                    #    comb += done.eq(1) # FIXME l_out.done
 
                 # XXX this one is going to have to go through LDSTCompUnit
                 # because it's LDST that has control over dcache
