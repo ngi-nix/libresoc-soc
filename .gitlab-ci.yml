@@ -109,6 +109,13 @@ build:
         - pip install dist/sfpy*.whl
         - popd
 
+        - cargo install maturin
+        - git clone --depth 1 https://git.libre-soc.org/git/power-instruction-analyzer.git pia
+        - pushd pia
+        - maturin build --cargo-extra-args=--features=python-extension
+        - python3 -m pip install target/wheels/*.whl
+        - popd
+
         - python setup.py develop
         - python src/soc/decoder/pseudo/pywriter.py
         - nosetests -v --processes=-1 --process-timeout=120
