@@ -16,6 +16,8 @@ class LDSTInputData(FUBaseData):
 
 
 class LDSTOutputData(FUBaseData):
+    # these need to tie up with LDSTCompUnit.get_out index numbers
+    # LDSTCompUnit is unusual in that it's non-standard to RegSpecAPI
     regspec = [('INT', 'o', '0:63'),   # RT
                ('INT', 'o1', '0:63'),  # RA (effective address, update mode)
                # TODO, later ('CR', 'cr_a', '0:3'),

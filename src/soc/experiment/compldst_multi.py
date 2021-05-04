@@ -105,7 +105,7 @@ class LDSTCompUnitRecord(CompUnitRecord):
         self.ad = go_record(1, name="cu_ad")  # address go in, req out
         self.st = go_record(1, name="cu_st")  # store go in, req out
 
-        self.exception_o = LDSTException("exc")
+        self.exception_o = LDSTException("exc_o")
 
         self.ld_o = Signal(reset_less=True)  # operation is a LD
         self.st_o = Signal(reset_less=True)  # operation is a ST
@@ -533,11 +533,13 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         return m
 
     def get_out(self, i):
-        """make LDSTCompUnit look like RegSpecALUAPI"""
+        """make LDSTCompUnit look like RegSpecALUAPI.  these correspond
+        to LDSTOutputData o and o1 respectively.
+        """
         if i == 0:
-            return self.data_o
+            return self.data_o # LDSTOutputData.regspec o
         if i == 1:
-            return self.addr_o
+            return self.addr_o # LDSTOutputData.regspec o1
         # return self.dest[i]
 
     def get_fu_out(self, i):
