@@ -1,5 +1,6 @@
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
+from openpower.exceptions import LDSTException
 
 
 class LDSTInputData(FUBaseData):
@@ -21,7 +22,7 @@ class LDSTOutputData(FUBaseData):
                # TODO, later ('XER', 'xer_so', '32')
                 ]
     def __init__(self, pspec):
-        super().__init__(pspec, True)
+        super().__init__(pspec, True, LDSTException)
         # convenience
         self.cr0, self.ea = self.cr_a, self.o1
 
