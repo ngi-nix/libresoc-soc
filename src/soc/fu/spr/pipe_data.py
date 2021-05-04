@@ -10,12 +10,12 @@ Links:
 * https://libre-soc.org/3d_gpu/architecture/regfile/
 """
 
-from soc.fu.pipe_data import IntegerData
+from soc.fu.pipe_data import FUBaseData
 from soc.fu.spr.spr_input_record import CompSPROpSubset
 from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
-class SPRInputData(IntegerData):
+class SPRInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'),        # RA
                ('SPR', 'spr1', '0:63'),      # SPR (slow)
                ('FAST', 'fast1', '0:63'),    # SPR (fast: LR, CTR etc)
@@ -28,7 +28,7 @@ class SPRInputData(IntegerData):
         self.a = self.ra
 
 
-class SPROutputData(IntegerData):
+class SPROutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('SPR', 'spr1', '0:63'),     # SPR (slow)
                ('FAST', 'fast1', '0:63'),   # SPR (fast: LR, CTR etc)

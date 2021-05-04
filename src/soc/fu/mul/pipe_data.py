@@ -1,5 +1,5 @@
 from soc.fu.mul.mul_input_record import CompMULOpSubset
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 from soc.fu.div.pipe_data import DivInputData, DivMulOutputData
 from nmigen import Signal
 
@@ -14,7 +14,7 @@ class MulIntermediateData(DivInputData):
         self.data.append(self.neg_res32)
 
 
-class MulOutputData(IntegerData):
+class MulOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:128'),
                ('XER', 'xer_so', '32')] # XER bit 32: SO
     def __init__(self, pspec):

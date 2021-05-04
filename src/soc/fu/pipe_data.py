@@ -5,8 +5,8 @@ from openpower.decoder.power_decoder2 import Data
 from soc.fu.regspec import get_regspec_bitwidth
 
 
-class IntegerData:
-    """IntegerData: base class for all pipeline data structures
+class FUBaseData:
+    """FUBaseData: base class for all pipeline data structures
 
     see README.md for explanation of parameters and purpose.
 
@@ -41,7 +41,7 @@ class IntegerData:
                    (repr(self), repr(i), repr(self.data), repr(i.data))
         for j in range(len(self.data)):
             assert type(self.data[j]) == type(i.data[j]), \
-                   "type mismatch in IntegerData %s %s" % \
+                   "type mismatch in FUBaseData %s %s" % \
                    (repr(self.data[j]), repr(i.data[j]))
             eqs.append(self.data[j].eq(i.data[j]))
         return eqs

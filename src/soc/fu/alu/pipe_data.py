@@ -1,8 +1,8 @@
 from soc.fu.alu.alu_input_record import CompALUOpSubset
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 
 
-class ALUInputData(IntegerData):
+class ALUInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'), # RA
                ('INT', 'rb', '0:63'), # RB/immediate
                ('XER', 'xer_so', '32'), # XER bit 32: SO
@@ -13,7 +13,7 @@ class ALUInputData(IntegerData):
         self.a, self.b = self.ra, self.rb
 
 
-class ALUOutputData(IntegerData):
+class ALUOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),
                ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_ca', '34,45'), # bit0: ca, bit1: ca32

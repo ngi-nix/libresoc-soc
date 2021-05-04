@@ -1,6 +1,6 @@
 import enum
 from nmigen import Signal, Const
-from soc.fu.pipe_data import IntegerData
+from soc.fu.pipe_data import FUBaseData
 from soc.fu.alu.pipe_data import CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 from ieee754.div_rem_sqrt_rsqrt.core import (
@@ -9,7 +9,7 @@ from ieee754.div_rem_sqrt_rsqrt.core import (
     DivPipeCoreSetupStage, DivPipeCoreCalculateStage, DivPipeCoreFinalStage)
 
 
-class DivInputData(IntegerData):
+class DivInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'),  # RA
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('XER', 'xer_so', '32'), ]  # XER bit 32: SO
@@ -21,7 +21,7 @@ class DivInputData(IntegerData):
 
 
 # output stage shared between div and mul: like ALUOutputData but no CA/32
-class DivMulOutputData(IntegerData):
+class DivMulOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),
                ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_ov', '33,44'),  # bit0: ov, bit1: ov32

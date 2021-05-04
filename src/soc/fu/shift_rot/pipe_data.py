@@ -1,9 +1,9 @@
 from soc.fu.shift_rot.sr_input_record import CompSROpSubset
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 from soc.fu.alu.pipe_data import ALUOutputData
 
 
-class ShiftRotInputData(IntegerData):
+class ShiftRotInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'),      # RA
                ('INT', 'rb', '0:63'),      # RB
                ('INT', 'rc', '0:63'),      # RS
@@ -16,7 +16,7 @@ class ShiftRotInputData(IntegerData):
 
 
 # input to shiftrot final stage (common output)
-class ShiftRotOutputData(IntegerData):
+class ShiftRotOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_so', '32'),    # bit0: so
@@ -30,7 +30,7 @@ class ShiftRotOutputData(IntegerData):
 
 # output from shiftrot final stage (common output) - note that XER.so
 # is *not* included (the only reason it's in the input is because of CR0)
-class ShiftRotOutputDataFinal(IntegerData):
+class ShiftRotOutputDataFinal(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_ca', '34,45'), # XER bit 34/45: CA/CA32

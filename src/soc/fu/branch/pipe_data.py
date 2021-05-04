@@ -23,11 +23,11 @@
     op_bctarl  CR, TAR,   CTR
 """
 
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 from soc.fu.branch.br_input_record import CompBROpSubset # TODO: replace
 
 
-class BranchInputData(IntegerData):
+class BranchInputData(FUBaseData):
     # Note: for OP_BCREG, SPR1 will either be CTR, LR, or TAR
     # this involves the *decode* unit selecting the register, based
     # on detecting the operand being bcctr, bclr or bctar
@@ -44,7 +44,7 @@ class BranchInputData(IntegerData):
         self.cr = self.cr_a
 
 
-class BranchOutputData(IntegerData):
+class BranchOutputData(FUBaseData):
     regspec = [('FAST', 'fast1', '0:63'),
                ('FAST', 'fast2', '0:63'),
                ('STATE', 'nia', '0:63')]

@@ -10,12 +10,12 @@ Links:
 * https://libre-soc.org/3d_gpu/architecture/regfile/
 """
 
-from soc.fu.pipe_data import IntegerData
+from soc.fu.pipe_data import FUBaseData
 from soc.fu.mmu.mmu_input_record import CompMMUOpSubset
 from soc.fu.alu.pipe_data import CommonPipeSpec
 
 
-class MMUInputData(IntegerData):
+class MMUInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'),        # RA
                ('INT', 'rb', '0:63'),        # RB
                ('SPR', 'spr1', '0:63'),      # MMU (slow)
@@ -27,7 +27,7 @@ class MMUInputData(IntegerData):
         self.b = self.rb
 
 
-class MMUOutputData(IntegerData):
+class MMUOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('SPR', 'spr1', '0:63'),     # MMU (slow)
                ]

@@ -1,8 +1,8 @@
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 from soc.fu.trap.trap_input_record import CompTrapOpSubset
 
 
-class TrapInputData(IntegerData):
+class TrapInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'),  # RA
                ('INT', 'rb', '0:63'),  # RB/immediate
                ('FAST', 'fast1', '0:63'), # SRR0
@@ -17,7 +17,7 @@ class TrapInputData(IntegerData):
         self.a, self.b = self.ra, self.rb
 
 
-class TrapOutputData(IntegerData):
+class TrapOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),     # RA
                ('FAST', 'fast1', '0:63'), # SRR0 SPR
                ('FAST', 'fast2', '0:63'), # SRR1 SPR

@@ -1,10 +1,10 @@
-from soc.fu.pipe_data import IntegerData
+from soc.fu.pipe_data import FUBaseData
 from soc.fu.alu.pipe_data import ALUOutputData, CommonPipeSpec
 from soc.fu.logical.logical_input_record import CompLogicalOpSubset
 
 
 # input (and output) for logical initial stage (common input)
-class LogicalInputData(IntegerData):
+class LogicalInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'), # RA
                ('INT', 'rb', '0:63'), # RB/immediate
                ('XER', 'xer_so', '32'),    # bit0: so
@@ -16,7 +16,7 @@ class LogicalInputData(IntegerData):
 
 
 # input to logical final stage (common output)
-class LogicalOutputData(IntegerData):
+class LogicalOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('CR', 'cr_a', '0:3'),
                ('XER', 'xer_so', '32'),    # bit0: so
@@ -29,7 +29,7 @@ class LogicalOutputData(IntegerData):
 
 # output from logical final stage (common output) - note that XER.so
 # is *not* included (the only reason it's in the input is because of CR0)
-class LogicalOutputDataFinal(IntegerData):
+class LogicalOutputDataFinal(FUBaseData):
     regspec = [('INT', 'o', '0:63'),        # RT
                ('CR', 'cr_a', '0:3'),
                ]

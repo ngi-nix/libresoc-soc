@@ -1,8 +1,8 @@
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
-from soc.fu.pipe_data import IntegerData, CommonPipeSpec
+from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 
 
-class LDSTInputData(IntegerData):
+class LDSTInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'), # RA
                ('INT', 'rb', '0:63'), # RB/immediate
                ('INT', 'rc', '0:63'), # RC
@@ -14,7 +14,7 @@ class LDSTInputData(IntegerData):
         self.rs = self.rc
 
 
-class LDSTOutputData(IntegerData):
+class LDSTOutputData(FUBaseData):
     regspec = [('INT', 'o', '0:63'),   # RT
                ('INT', 'o1', '0:63'),  # RA (effective address, update mode)
                # TODO, later ('CR', 'cr_a', '0:3'),
