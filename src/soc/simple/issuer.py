@@ -594,6 +594,15 @@ class TestIssuerInternal(Elaboratable):
         comb += next_srcstep.eq(cur_state.svstate.srcstep+1)
         comb += next_dststep.eq(cur_state.svstate.dststep+1)
 
+        # note if an exception happened.  in a pipelined or OoO design
+        # this needs to be accompanied by "shadowing" (or stalling)
+        el = []
+        for exc in core.fus.excs.values():
+            el.append(exc.happened)
+        exc_happened = Signal()
+        if len(el) > 0: # at least one exception
+            comb += exc.happened.eq(Cat(*el).bool())
+
         with m.FSM(name="issue_fsm"):
 
             # sync with the "fetch" phase which is reading the instruction
