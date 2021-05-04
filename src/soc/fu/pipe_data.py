@@ -16,11 +16,13 @@ class FUBaseData:
     pipeline *to* output) must have it set to "True".
     """
 
-    def __init__(self, pspec, output):
+    def __init__(self, pspec, output, exc_kls=None):
         self.ctx = PipeContext(pspec) # context for ReservationStation usage
         self.muxid = self.ctx.muxid
         self.data = []
         self.is_output = output
+        # take regspec and create data attributes (in or out)
+        # TODO: use widspec to create reduced bit mapping.
         for i, (regfile, regname, widspec) in enumerate(self.regspec):
             wid = get_regspec_bitwidth([self.regspec], 0, i)
             if output:
@@ -29,6 +31,11 @@ class FUBaseData:
                 sig = Signal(wid, name=regname, reset_less=True)
             setattr(self, regname, sig)
             self.data.append(sig)
+        # optional exception type
+        if exc_kls is not None:
+            name = "exc_o" if output else "exc_i"
+            self.exception = exc_kls(name=name)
+            self.data.append(self.exception)
 
     def __iter__(self):
         yield from self.ctx
