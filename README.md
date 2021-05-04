@@ -10,7 +10,9 @@ and Sorbonne University lip6.fr
 
 # Installation
 
-    make gitupdate
+Best done using the dev-env-setup scripts:
+https://git.libre-soc.org/?p=dev-env-setup.git;a=summary
+
     make install
     make test # optional (ish)
 
@@ -32,3 +34,5 @@ this to work:
 
     apt-get install gcc-9-powerpc64-linux-gnu
 
+Or, use this dev-env-script:
+https://git.libre-soc.org/?p=dev-env-setup.git;a=blob;f=ppc64-gdb-gcc;hb=HEAD
