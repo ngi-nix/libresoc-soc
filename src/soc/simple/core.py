@@ -365,6 +365,8 @@ class NonProductionCore(Elaboratable):
                     fuspecs['fast1'] = [fuspecs.pop('fast1')]
                     if 'fast2' in fuspecs:
                         fuspecs['fast1'].append(fuspecs.pop('fast2'))
+                    if 'fast3' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast3'))
 
             # for each named regfile port, connect up all FUs to that port
             for (regname, fspec) in sort_fuspecs(fuspecs):
@@ -491,6 +493,8 @@ class NonProductionCore(Elaboratable):
                     fuspecs['fast1'] = [fuspecs.pop('fast1')]
                     if 'fast2' in fuspecs:
                         fuspecs['fast1'].append(fuspecs.pop('fast2'))
+                    if 'fast3' in fuspecs:
+                        fuspecs['fast1'].append(fuspecs.pop('fast3'))
 
             for (regname, fspec) in sort_fuspecs(fuspecs):
                 self.connect_wrport(m, fu_bitdict, wrpickers,
