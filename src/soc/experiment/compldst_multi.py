@@ -445,22 +445,26 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # address release only if addr ready, but Port must be idle
         comb += self.adr_rel_o.eq(alu_valid & adr_l.q & busy_o)
 
+        # the write/store (etc) all must be cancelled if an exception occurs
+        cancel = Signal(reset_less=True)
+        comb += cancel.eq(self.exc_o.happened | self.shadown_i)
+
         # store release when st ready *and* all operands read (and no shadow)
         comb += self.st.rel_o.eq(sto_l.q & busy_o & rd_done & op_is_st &
-                               self.shadown_i)
+                               cancel)
 
         # request write of LD result.  waits until shadow is dropped.
         comb += self.wr.rel_o[0].eq(rd_done & wri_l.q & busy_o & lod_l.qn &
-                                  op_is_ld & self.shadown_i)
+                                  op_is_ld & cancel)
 
         # request write of EA result only in update mode
         comb += self.wr.rel_o[1].eq(upd_l.q & busy_o & op_is_update &
-                                  alu_valid & self.shadown_i)
+                                  alu_valid & cancel)
 
         # provide "done" signal: select req_rel for non-LD/ST, adr_rel for LD/ST
         comb += wr_any.eq(self.st.go_i | p_st_go |
                           self.wr.go_i[0] | self.wr.go_i[1])
-        comb += wr_reset.eq(rst_l.q & busy_o & self.shadown_i &
+        comb += wr_reset.eq(rst_l.q & busy_o & cancel &
                             ~(self.st.rel_o | self.wr.rel_o[0] |
                               self.wr.rel_o[1]) &
                             (lod_l.qn | op_is_st)
