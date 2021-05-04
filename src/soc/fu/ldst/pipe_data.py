@@ -2,6 +2,8 @@ from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from soc.fu.pipe_data import FUBaseData, CommonPipeSpec
 from openpower.exceptions import LDSTException
 
+# XXX NOTE: neither of these are actually used at present other than regspecs
+# TODO: make use of them in LDSTCompUnit (somehow)
 
 class LDSTInputData(FUBaseData):
     regspec = [('INT', 'ra', '0:63'), # RA

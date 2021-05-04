@@ -96,6 +96,9 @@ from openpower.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from openpower.decoder.power_decoder2 import Data
 
+# TODO: LDSTInputData and LDSTOutputData really should be used
+# here, to make things more like the other CompUnits.  currently,
+# also, RegSpecAPI is used explicitly here
 
 class LDSTCompUnitRecord(CompUnitRecord):
     def __init__(self, rwid, opsubset=CompLDSTOpSubset, name=None):
@@ -105,7 +108,7 @@ class LDSTCompUnitRecord(CompUnitRecord):
         self.ad = go_record(1, name="cu_ad")  # address go in, req out
         self.st = go_record(1, name="cu_st")  # store go in, req out
 
-        self.exception_o = LDSTException("exc_o")
+        self.exc_o = LDSTException("exc_o")
 
         self.ld_o = Signal(reset_less=True)  # operation is a LD
         self.st_o = Signal(reset_less=True)  # operation is a ST
@@ -131,11 +134,11 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
     Data (outputs)
     --------------
-    * :data_o:     Dest out (LD)          - managed by wr[0] go/req
-    * :addr_o:     Address out (LD or ST) - managed by wr[1] go/req
-    * :exception_o: Address/Data Exception occurred.  LD/ST must terminate
+    * :data_o:  Dest out (LD)          - managed by wr[0] go/req
+    * :addr_o:  Address out (LD or ST) - managed by wr[1] go/req
+    * :exc_o:   Address/Data Exception occurred.  LD/ST must terminate
 
-    TODO: make exception_o a data-type rather than a single-bit signal
+    TODO: make exc_o a data-type rather than a single-bit signal
           (see bug #302)
 
     Control Signals (In)
@@ -228,7 +231,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         self.data_o = Data(self.data_wid, name="o")  # Dest1 out: RT
         self.addr_o = Data(self.data_wid, name="ea")  # Addr out: Update => RA
-        self.exception_o = cu.exception_o
+        self.exc_o = cu.exc_o
         self.done_o = cu.done_o
         self.busy_o = cu.busy_o
 
@@ -492,7 +495,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # address: use sync to avoid long latency
         sync += pi.addr.data.eq(addr_r)           # EA from adder
         sync += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
-        comb += self.exception_o.eq(pi.exception_o)  # exception occurred
+        comb += self.exc_o.eq(pi.exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
 
         # byte-reverse on LD
