@@ -359,10 +359,11 @@ class FSMMMUStage(ControlBase):
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(3)
+                        #if matched update local cached value
                         with m.If(spr[0]):
-                            comb += dsisr.eq(a_i[:32])
+                            sync += dsisr.eq(a_i[:32])
                         with m.Else():
-                            comb += dar.eq(a_i)
+                            sync += dar.eq(a_i)
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
