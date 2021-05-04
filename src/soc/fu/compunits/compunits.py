@@ -289,6 +289,7 @@ class AllFunctionUnits(Elaboratable):
         self.excs = {}
         for name, alu in self.fus.items():
             if hasattr(alu, "exc_o"):
+                print ("FU exceptions", name, type(alu.exc_o), alu.exc_o)
                 self.excs[name] = alu.exc_o
 
     def get_exc(self, name):
