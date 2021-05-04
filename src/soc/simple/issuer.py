@@ -746,7 +746,19 @@ class TestIssuerInternal(Elaboratable):
                 # need to do this here, in case we are in a VL>1 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_ready_i.eq(1)
-                    with m.If(exec_pc_valid_o):
+                    # see https://bugs.libre-soc.org/show_bug.cgi?id=636
+                    #with m.If(exec_pc_valid_o & exc_happened):
+                    # TODO: the exception info needs to be blatted
+                    # into pdecode.ldst_exc, and the instruction "re-run".
+                    # when ldst_exc.happened is set, the PowerDecoder2
+                    # reacts very differently: it re-writes the instruction
+                    # with a "trap" (calls PowerDecoder2.trap()) which
+                    # will *overwrite* whatever was requested and jump the
+                    # PC to the exception address, as well as alter MSR.
+                    # nothing else needs to be done other than to note
+                    # the change of PC and MSR (and, later, SVSTATE)
+                    #with m.Elif(exec_pc_valid_o):
+                    with m.If(exec_pc_valid_o): # replace with Elif (above)
 
                         # was this the last loop iteration?
                         is_last = Signal()
