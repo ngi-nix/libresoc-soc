@@ -1,7 +1,6 @@
 from nmigen import Elaboratable, Module, Signal, Record
 
 
-from ...csr import AutoCSR, CSR
 from ...wishbone import wishbone_layout
 from .controller import DebugController
 from .jtag import JTAGReg, dtmcs_layout, dmi_layout, jtag_layout
@@ -28,7 +27,7 @@ jtag_regs = {
 }
 
 
-class DebugUnit(Elaboratable, AutoCSR):
+class DebugUnit(Elaboratable):
     def __init__(self):
         self.jtag = Record(jtag_layout)
         self.dbus = Record(wishbone_layout)
