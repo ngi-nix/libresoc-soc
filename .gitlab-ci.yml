@@ -42,21 +42,21 @@ build:
         - pushd yices2
         - autoconf
         - ./configure
-        - make -j$(nproc)
+        - make -j$(nproc) > /dev/null
         - make install
         - popd
 
         - git clone --depth 1 https://github.com/YosysHQ/yosys.git yosys
         - pushd yosys
         - make config-gcc
-        - make -j$(nproc)
+        - make -j$(nproc) > /dev/null
         - make install
         - popd
         - yosys -V
 
         - git clone --depth 1 https://github.com/YosysHQ/SymbiYosys.git SymbiYosys
         - pushd SymbiYosys
-        - make install
+        - make install > /dev/null
         - popd
 
         - git clone --depth 1 https://github.com/nmigen/nmigen.git nmigen
@@ -83,8 +83,8 @@ build:
         - git clone --depth 1 https://git.libre-soc.org/git/openpower-isa.git openpower-isa
         - pushd openpower-isa
         - python3 setup.py develop
-        - make svanalysis
-        - make pywriter
+        - make -j$(nproc) svanalysis > /dev/null
+        - make -j$(nproc) pywriter > /dev/null
         - popd
 
         - git clone --depth 1 https://git.libre-soc.org/git/c4m-jtag.git c4m-jtag
@@ -117,5 +117,5 @@ build:
         - popd
 
         - python setup.py develop
-        - pywriter
+        - pywriter > /dev/null
         - nosetests -v --processes=-1 --process-timeout=120
