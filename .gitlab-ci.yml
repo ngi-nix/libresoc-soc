@@ -87,6 +87,11 @@ build:
         - make pywriter
         - popd
 
+        - git clone --depth 1 https://git.libre-soc.org/git/c4m-jtag.git c4m-jtag
+        - pushd c4m-jtag
+        - python setup.py develop
+        - popd
+
         - IEEE754FPU_PATH="$(pwd)"/ieee754fpu
         - git clone --depth 1 --recursive https://github.com/billzorn/sfpy.git sfpy
         - pushd sfpy
