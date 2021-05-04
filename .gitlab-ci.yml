@@ -21,13 +21,15 @@ build:
             python3-setuptools python3-wheel pkg-config tcl-dev
             libreadline-dev bison flex libffi-dev ccache python3-venv
             binutils-powerpc64-linux-gnu binutils-powerpc64le-linux-gnu
-            autoconf gperf libgmp-dev libmpfr-dev libssl-dev
+            autoconf gperf libgmp-dev libmpfr-dev libssl-dev curl
         - export PATH="/usr/lib/ccache:$PATH"
         - export CCACHE_BASEDIR="$PWD"
         - export CCACHE_DIR="$PWD/ccache"
         - export CCACHE_COMPILERCHECK=content
         - ccache --zero-stats || true
         - ccache --show-stats || true
+        - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        - source $HOME/.cargo/env
     after_script:
         - export CCACHE_DIR="$PWD/ccache"
         - ccache --show-stats
@@ -40,21 +42,21 @@ build:
         - pushd yices2
         - autoconf
         - ./configure
-        - make -j$(nproc)
+        - make -j$(nproc) > /dev/null
         - make install
         - popd
 
         - git clone --depth 1 https://github.com/YosysHQ/yosys.git yosys
         - pushd yosys
         - make config-gcc
-        - make -j$(nproc)
+        - make -j$(nproc) > /dev/null
         - make install
         - popd
         - yosys -V
 
         - git clone --depth 1 https://github.com/YosysHQ/SymbiYosys.git SymbiYosys
         - pushd SymbiYosys
-        - make install
+        - make install > /dev/null
         - popd
 
         - git clone --depth 1 https://github.com/nmigen/nmigen.git nmigen
@@ -62,18 +64,31 @@ build:
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/nmutil.git nmutil
+        - git clone --depth 1 https://git.libre-soc.org/git/nmutil.git nmutil
         - pushd nmutil
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/nmigen-soc.git nmigen-soc
+        - git clone --depth 1 https://git.libre-soc.org/git/nmigen-soc.git nmigen-soc
         - pushd nmigen-soc
+        - git tag | xargs git tag -d
         - python setup.py develop
         - popd
 
-        - git clone --depth 1 git://git.libre-riscv.org/ieee754fpu.git ieee754fpu
+        - git clone --depth 1 https://git.libre-soc.org/git/ieee754fpu.git ieee754fpu
         - pushd ieee754fpu
+        - python setup.py develop
+        - popd
+
+        - git clone --depth 1 https://git.libre-soc.org/git/openpower-isa.git openpower-isa
+        - pushd openpower-isa
+        - python3 setup.py develop
+        - make -j$(nproc) svanalysis > /dev/null
+        - make -j$(nproc) pywriter > /dev/null 2>&1
+        - popd
+
+        - git clone --depth 1 https://git.libre-soc.org/git/c4m-jtag.git c4m-jtag
+        - pushd c4m-jtag
         - python setup.py develop
         - popd
 
@@ -94,6 +109,13 @@ build:
         - pip install dist/sfpy*.whl
         - popd
 
+        - cargo install maturin
+        - git clone --depth 1 https://git.libre-soc.org/git/power-instruction-analyzer.git pia
+        - pushd pia
+        - maturin build --cargo-extra-args=--features=python-extension
+        - python3 -m pip install target/wheels/*.whl
+        - popd
+
         - python setup.py develop
-        - python src/soc/decoder/pseudo/pywriter.py
+        - pywriter > /dev/null 2>&1
         - nosetests -v --processes=-1 --process-timeout=120
