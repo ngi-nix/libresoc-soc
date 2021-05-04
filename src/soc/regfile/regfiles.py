@@ -52,6 +52,7 @@ class StateRegs(RegFileArray, StateRegsEnum):
         super().__init__(64, StateRegsEnum.N_REGS)
         self.w_ports = {'nia': self.write_port("nia"),
                         'msr': self.write_port("msr"),
+                        'svstate': self.write_port("svstate"),
                         'sv': self.write_port("sv"), # writing SVSTATE (issuer)
                         'd_wr1': self.write_port("d_wr1")} # writing PC (issuer)
         self.r_ports = {'cia': self.read_port("cia"), # reading PC (issuer)

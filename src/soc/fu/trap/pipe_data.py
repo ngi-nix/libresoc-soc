@@ -8,8 +8,9 @@ class TrapInputData(FUBaseData):
                ('FAST', 'fast1', '0:63'), # SRR0
                ('FAST', 'fast2', '0:63'), # SRR1
                ('FAST', 'fast3', '0:63'), # SVSRR0
-                # note here that neither MSR nor CIA are read as regs: they are
-                # passed in as incoming "State", via the CompTrapOpSubset
+                # note here that MSR CIA and SVSTATE are *not* read as regs:
+                # they are passed in as incoming "State", via the
+                # CompTrapOpSubset
                ] 
     def __init__(self, pspec):
         super().__init__(pspec, False)
@@ -23,8 +24,10 @@ class TrapOutputData(FUBaseData):
                ('FAST', 'fast1', '0:63'), # SRR0 SPR
                ('FAST', 'fast2', '0:63'), # SRR1 SPR
                ('FAST', 'fast3', '0:63'), # SRR2 SPR
+               # ... however we *do* need to *write* MSR, NIA, SVSTATE (RFID)
                ('STATE', 'nia', '0:63'),  # NIA (Next PC)
-               ('STATE', 'msr', '0:63')]  # MSR
+               ('STATE', 'msr', '0:63'),  # MSR
+               ('STATE', 'svstate', '0:31')]  # SVSTATE
     def __init__(self, pspec):
         super().__init__(pspec, True)
         # convenience

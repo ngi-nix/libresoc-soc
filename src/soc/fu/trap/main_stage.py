@@ -64,6 +64,7 @@ class TrapMainStage(PipeModBase):
         comb  = m.d.comb
         op = self.i.ctx.op
         msr_i = op.msr
+        svstate_i = op.svstate
         nia_o = self.o.nia
         svsrr0_o, srr0_o, srr1_o = self.o.svsrr0, self.o.srr0, self.o.srr1
 
@@ -75,9 +76,13 @@ class TrapMainStage(PipeModBase):
         comb += srr0_o.data.eq(return_addr)
         comb += srr0_o.ok.eq(1)
 
-        # take a copy of the current MSR in SRR1
+        # take a copy of the current MSR into SRR1
         comb += msr_copy(srr1_o.data, msr_i) # old MSR
         comb += srr1_o.ok.eq(1)
+
+        # take a copy of the current SVSTATE into SVSRR0
+        comb += svsrr0_o.data.eq(svstate_i) # old SVSTATE
+        comb += svsrr0_o.ok.eq(1)
 
     def msr_exception(self, m, trap_addr, msr_hv=None):
         """msr_exception - sets bits in MSR specific to an exception.
@@ -124,10 +129,12 @@ class TrapMainStage(PipeModBase):
         op = self.i.ctx.op
 
         # convenience variables
-        a_i, b_i, cia_i, msr_i = self.i.a, self.i.b, op.cia, op.msr
-        srr0_i, srr1_i = self.i.srr0, self.i.srr1
-        o, msr_o, nia_o = self.o.o, self.o.msr, self.o.nia
-        srr0_o, srr1_o = self.o.srr0, self.o.srr1
+        a_i, b_i = self.i.a, self.i.b
+        cia_i, msr_i, svstate_i = op.cia, op.msr, op.svstate
+        srr0_i, srr1_i, svsrr0_i = self.i.srr0, self.i.srr1, self.i.svsrr0
+        o = self.o.o
+        msr_o, nia_o, svstate_o = self.o.msr, self.o.nia, self.o.svstate
+        srr0_o, srr1_o, svsrr0_o = self.o.srr0, self.o.srr1, self.o.svsrr0
         traptype, trapaddr = op.traptype, op.trapaddr
 
         # take copy of D-Form TO field
@@ -218,6 +225,10 @@ class TrapMainStage(PipeModBase):
                     # when SRR1 is written to, update MSR bits
                     self.msr_exception(m, trapaddr)
 
+                    # and store SVSTATE in SVSRR0
+                    comb += svsrr0_o.data.eq(svstate_i)
+                    comb += svsrr0_o.ok.eq(1)
+
             ###################
             # MTMSR/D.  v3.0B p TODO - move to MSR
 
@@ -276,6 +287,10 @@ class TrapMainStage(PipeModBase):
                 # return addr was in srr0
                 comb += nia_o.data.eq(br_ext(srr0_i[2:]))
                 comb += nia_o.ok.eq(1)
+
+                # svstate was in svsrr0
+                comb += svstate_o.data.eq(svstate_i)
+                comb += svstate_o.ok.eq(1)
 
                 # MSR was in srr1: copy it over, however *caveats below*
                 comb += msr_copy(msr_o.data, srr1_i, zero_me=False) # don't zero
