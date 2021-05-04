@@ -90,7 +90,7 @@ class IntRegs(RegFileMem): #class IntRegs(RegFileArray):
 class FastRegs(RegFileMem, FastRegsEnum): #RegFileArray):
     """FastRegs
 
-    FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER, TB, DEC
+    FAST regfile  - CTR, LR, TAR, SRR1, SRR2, XER, TB, DEC, SVSRR0
 
     * QTY 6of 64-bit registers
     * 3R2W
