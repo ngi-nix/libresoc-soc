@@ -84,7 +84,7 @@ build:
         - pushd openpower-isa
         - python3 setup.py develop
         - make -j$(nproc) svanalysis > /dev/null
-        - make -j$(nproc) pywriter > /dev/null
+        - make -j$(nproc) pywriter > /dev/null 2>&1
         - popd
 
         - git clone --depth 1 https://git.libre-soc.org/git/c4m-jtag.git c4m-jtag
@@ -117,5 +117,5 @@ build:
         - popd
 
         - python setup.py develop
-        - pywriter > /dev/null
+        - pywriter > /dev/null 2>&1
         - nosetests -v --processes=-1 --process-timeout=120
