@@ -1,0 +1,3 @@
+# Version 0.0.1 Release
+
+First version of Libre-SOC uploaded to PyPI.
