@@ -310,7 +310,7 @@ class FSMMMUStage(ControlBase):
         msr_i = op.msr
         spr1_i = data_i.spr1
 
-        # TODO: link these SPRs somewhere
+        # FIXME: unused signals -> remove if not needed
         dsisr = Signal(64)
         dar = Signal(64)
 
@@ -355,7 +355,7 @@ class FSMMMUStage(ControlBase):
                     # regfile because the CSV file entry for OP_MTSPR
                     # categorically defines and requires the expectation
                     # that the CompUnit **WILL** write to the regfile.
-                    comb += spr1_o.data.eq(spr)
+                    comb += spr1_o.data.eq(a_i)
                     comb += spr1_o.ok.eq(1)
                     # subset SPR: first check a few bits
                     with m.If(~spr[9] & ~spr[5]):
