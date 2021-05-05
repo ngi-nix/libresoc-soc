@@ -31,6 +31,7 @@ setup(
     version=version,
     description="A nmigen-based OpenPOWER multi-issue Hybrid CPU / VPU / GPU",
     long_description=README + '\n\n' + NEWS,
+    long_description_content_type='text/markdown',
     classifiers=[
         "Topic :: Software Development",
         "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
