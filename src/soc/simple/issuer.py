@@ -601,7 +601,7 @@ class TestIssuerInternal(Elaboratable):
             el.append(exc.happened)
         exc_happened = Signal()
         if len(el) > 0: # at least one exception
-            comb += exc.happened.eq(Cat(*el).bool())
+            comb += exc_happened.eq(Cat(*el).bool())
 
         with m.FSM(name="issue_fsm"):
 
