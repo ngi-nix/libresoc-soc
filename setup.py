@@ -6,7 +6,6 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.md')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
-
 version = '0.0.1'
 
 # using pip3 for ongoing development is a royal pain.  seriously not
@@ -17,6 +16,7 @@ version = '0.0.1'
 install_requires = [
     #    'sfpy',    # needs manual patching
     'libresoc-ieee754fpu',   # uploaded (successfully, whew) to pip
+    'libresoc-openpower-isa',  # uploaded (successfully, whew) to pip
     # 'nmigen-soc', # install manually from git.libre-soc.org
 ]
 
