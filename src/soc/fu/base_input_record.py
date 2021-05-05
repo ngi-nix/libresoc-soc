@@ -1,6 +1,9 @@
 from nmigen.hdl.rec import Record, Layout
 from nmigen import Signal
 
+# needed for SVP64 information at the pipeline
+from openpower.decoder.power_svp64_rm import sv_input_record_layout
+
 
 class CompOpSubsetBase(Record):
     """CompOpSubsetBase
@@ -15,6 +18,7 @@ class CompOpSubsetBase(Record):
             assert name.endswith("OpSubset")
             name = name[4:-8].lower() + "_op"
 
+        layout = list(layout) + sv_input_record_layout
         Record.__init__(self, Layout(layout), name=name)
 
         # grrr.  Record does not have kwargs
