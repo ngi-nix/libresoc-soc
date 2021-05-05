@@ -31,7 +31,9 @@ class CommonInputStage(PipeModBase):
         else:
             comb += a.eq(self.i.a)
 
-        comb += self.o.a.eq(a)
+        # SV zeroing on predicate source zeros the input
+        with m.If(~op.sv_pred_sz):
+            comb += self.o.a.eq(a)
 
         ##### operand B #####
 
@@ -46,7 +48,9 @@ class CommonInputStage(PipeModBase):
         else:
             comb += b.eq(self.i.b)
 
-        comb += self.o.b.eq(b)
+        # SV zeroing on predicate source zeros the input
+        with m.If(~op.sv_pred_sz):
+            comb += self.o.b.eq(b)
 
         ##### carry-in #####
 

@@ -87,11 +87,13 @@ class CommonOutputStage(PipeModBase):
         with m.Else():
             comb += cr0.eq(Cat(so, ~is_nzero, is_positive, is_negative))
 
-        # copy out [inverted?] output, cr0, and context out
-        comb += self.o.o.data.eq(o)
+        with m.If(~op.sv_pred_dz):
+            # copy out [inverted?] output, cr0, and context out
+            comb += self.o.o.data.eq(o)
+            comb += self.o.cr0.data.eq(cr0) # CR0 to be set
+
+        # set output to write
         comb += self.o.o.ok.eq(self.i.o.ok)
-        # CR0 to be set
-        comb += self.o.cr0.data.eq(cr0)
         comb += self.o.cr0.ok.eq(op.write_cr0)
         # context
         comb += self.o.ctx.eq(self.i.ctx)
