@@ -13,12 +13,14 @@ from soc.simple.test.test_runner import TestRunner
 
 # test with ALU data and Logical data
 from openpower.test.alu.svp64_cases import SVP64ALUTestCase
+from openpower.test.logical.svp64_cases import SVP64LogicalTestCase
 
 
 if __name__ == "__main__":
     unittest.main(exit=False)
     suite = unittest.TestSuite()
     suite.addTest(TestRunner(SVP64ALUTestCase().test_data))
+    suite.addTest(TestRunner(SVP64LogicalTestCase().test_data))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
