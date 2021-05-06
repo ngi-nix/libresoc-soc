@@ -1,7 +1,7 @@
 # About
 
-The main SOC portion of Libre-SOC. A quad-core open source SOC with a 3D GPU,
-VPU, and using Libre-licensed design cells.
+The main SOC portion of Libre-SOC. A quad-core Libre-licensed SoC woth a 
+hybrid 3D GPU-VPU-CPU, and using Libre-licensed design cells.
 
 Libre-SOC is Libre down to the VLSI Cells, thanks to Chips4Makers FlexLib
 and Sorbonne University lip6.fr
