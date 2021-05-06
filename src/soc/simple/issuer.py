@@ -731,9 +731,15 @@ class TestIssuerInternal(Elaboratable):
                 sync += core.state.eq(cur_state)
                 sync += core.raw_insn_i.eq(dec_opcode_i)
                 sync += core.bigendian_i.eq(self.core_bigendian_i)
-                sync += core.sv_rm.eq(pdecode2.sv_rm)
-                # set RA_OR_ZERO detection in satellite decoders
-                sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
+                if self.svp64_en:
+                    sync += core.sv_rm.eq(pdecode2.sv_rm)
+                    # set RA_OR_ZERO detection in satellite decoders
+                    sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
+                    # pass predicate mask bits through to satellite decoders
+                    # TODO: for SIMD this will be *multiple* bits
+                    sync += core.sv_pred_sm.eq(self.srcmask[0])
+                    sync += core.sv_pred_dm.eq(self.dstmask[0])
+
                 m.next = "INSN_EXECUTE"  # move to "execute"
 
             # handshake with execution FSM, move to "wait" once acknowledged

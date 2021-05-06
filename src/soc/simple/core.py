@@ -111,6 +111,8 @@ class NonProductionCore(Elaboratable):
         self.bigendian_i = Signal() # bigendian - TODO, set by MSR.BE
         if self.svp64_en:
             self.sv_rm = SVP64Rec(name="core_svp64_rm") # SVP64 RM field
+            self.sv_pred_sm = Signal() # TODO: SIMD width
+            self.sv_pred_dm = Signal() # TODO: SIMD width
 
         # issue/valid/busy signalling
         self.ivalid_i = Signal(reset_less=True) # instruction is valid
@@ -163,8 +165,11 @@ class NonProductionCore(Elaboratable):
             comb += v.dec.bigendian.eq(self.bigendian_i)
             # sigh due to SVP64 RA_OR_ZERO detection connect these too
             comb += v.sv_a_nz.eq(self.sv_a_nz)
-            if self.svp64_en and k != self.trapunit:
-                comb += v.sv_rm.eq(self.sv_rm) # pass through SVP64 ReMap
+            if self.svp64_en:
+                comb += v.pred_sm.eq(self.sv_pred_sm)
+                comb += v.pred_dm.eq(self.sv_pred_dm)
+                if k != self.trapunit:
+                    comb += v.sv_rm.eq(self.sv_rm) # pass through SVP64 ReMap
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.des[self.trapunit] = self.e.do
