@@ -25,6 +25,7 @@ from nmigen.cli import rtlil
 from openpower.decoder.power_decoder2 import PowerDecodeSubset
 from openpower.decoder.power_regspec_map import regspec_decode_read
 from openpower.decoder.power_regspec_map import regspec_decode_write
+from openpower.sv.svp64 import SVP64Rec
 
 from nmutil.picker import PriorityPicker
 from nmutil.util import treereduce
@@ -104,10 +105,12 @@ class NonProductionCore(Elaboratable):
         # SVP64 RA_OR_ZERO needs to know if the relevant EXTRA2/3 field is zero
         self.sv_a_nz = Signal()
 
-        # state and raw instruction
+        # state and raw instruction (and SVP64 ReMap fields)
         self.state = CoreState("core")
         self.raw_insn_i = Signal(32) # raw instruction
         self.bigendian_i = Signal() # bigendian - TODO, set by MSR.BE
+        if self.svp64_en:
+            self.sv_rm = SVP64Rec(name="core_svp64_rm") # SVP64 RM field
 
         # issue/valid/busy signalling
         self.ivalid_i = Signal(reset_less=True) # instruction is valid
@@ -160,6 +163,8 @@ class NonProductionCore(Elaboratable):
             comb += v.dec.bigendian.eq(self.bigendian_i)
             # sigh due to SVP64 RA_OR_ZERO detection connect these too
             comb += v.sv_a_nz.eq(self.sv_a_nz)
+            if self.svp64_en and k != self.trapunit:
+                comb += v.sv_rm.eq(self.sv_rm) # pass through SVP64 ReMap
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.des[self.trapunit] = self.e.do

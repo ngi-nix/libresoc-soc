@@ -731,6 +731,7 @@ class TestIssuerInternal(Elaboratable):
                 sync += core.state.eq(cur_state)
                 sync += core.raw_insn_i.eq(dec_opcode_i)
                 sync += core.bigendian_i.eq(self.core_bigendian_i)
+                sync += core.sv_rm.eq(pdecode2.sv_rm)
                 # set RA_OR_ZERO detection in satellite decoders
                 sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                 m.next = "INSN_EXECUTE"  # move to "execute"
