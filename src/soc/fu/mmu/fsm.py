@@ -52,6 +52,12 @@ class LoadStore1(PortInterfaceBase):
         self.d_w_valid = Signal()
         self.d_validblip = Signal()
 
+        # DSISR and DAR cached values.  note that the MMU FSM is where
+        # these are accessed by OP_MTSPR/OP_MFSPR, on behalf of LoadStore1.
+        # by contrast microwatt has the spr set/get done *in* loadstore1.vhdl
+        self.dsisr = Signal(64)
+        self.dar = Signal(64)
+
     def set_wr_addr(self, m, addr, mask):
         # this gets complicated: actually a FSM is needed which
         # first checks dcache, then if that fails (in virt mode)
@@ -310,9 +316,8 @@ class FSMMMUStage(ControlBase):
         msr_i = op.msr
         spr1_i = data_i.spr1
 
-        # FIXME: unused signals -> remove if not needed
-        dsisr = Signal(64)
-        dar = Signal(64)
+        # these are set / got here *ON BEHALF* of LoadStore1
+        dsisr, dar = ldst.dsisr, ldst.dar
 
         # busy/done signals
         busy = Signal()
@@ -358,6 +363,9 @@ class FSMMMUStage(ControlBase):
                     comb += spr1_o.data.eq(a_i)
                     comb += spr1_o.ok.eq(1)
                     # subset SPR: first check a few bits
+                    # XXX NOTE this must now cover **FOUR** values: this
+                    # test is no longer adequate.  DSISR, DAR, PGTBL and PID
+                    # must ALL be covered here.
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(3)
                         #if matched update local cached value
