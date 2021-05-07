@@ -16,7 +16,7 @@ from openpower.decoder.power_enums import MicrOp
 from soc.experiment.mem_types import LoadStore1ToMMUType
 from soc.experiment.mem_types import MMUToLoadStore1Type
 
-from fu.ldst.loadstore import LoadStore1, TestSRAMLoadStore1
+from soc.fu.ldst.loadstore import LoadStore1, TestSRAMLoadStore1
 
 
 class FSMMMUStage(ControlBase):
