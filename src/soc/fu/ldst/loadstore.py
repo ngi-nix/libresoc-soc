@@ -132,10 +132,12 @@ class LoadStore1(PortInterfaceBase):
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
                 comb += self.derror.eq(1)
-                #  dsisr(63 - 38) := not r2.req.load;
+                """
+                sync += self.dsisr[63 - 38].eq(~r2.req.load)
                 #    -- XXX there is no architected bit for this
                 #    -- (probably should be a machine check in fact)
-                #    dsisr(63 - 35) := d_in.cache_paradox;
+                sync += self.dsisr[63 - 35].eq(d_in.cache_paradox)
+                """
             with m.Else():
                 # Look up the translation for TLB miss
                 # and also for permission error and RC error
