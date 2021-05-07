@@ -24,6 +24,11 @@ class FSMMMUStage(ControlBase):
 
     FSM-based MMU: must call set_ldst_interface and pass in an instance
     of a LoadStore1.  this to comply with the ConfigMemoryPortInterface API
+
+    this Function Unit is extremely unusual in that it actually stores a
+    "thing" rather than "processes inputs and produces outputs".  hence
+    why it has to be a FSM.  linking up LD/ST however is going to have
+    to be done back in Issuer (or Core).  sorted: call set_ldst_interface
     """
     def __init__(self, pspec):
         super().__init__()
@@ -33,19 +38,7 @@ class FSMMMUStage(ControlBase):
         self.p.data_i = MMUInputData(pspec)
         self.n.data_o = MMUOutputData(pspec)
 
-        # this Function Unit is extremely unusual in that it actually stores a
-        # "thing" rather than "processes inputs and produces outputs".  hence
-        # why it has to be a FSM.  linking up LD/ST however is going to have
-        # to be done back in Issuer (or Core)
-
         self.mmu = MMU()
-
-        # make life a bit easier in Core XXX mustn't really do this,
-        # pspec is designed for config variables, rather than passing
-        # things around.  have to think about it, design a way to do
-        # it that makes "sense"
-        # comment out for now self.pspec.mmu = self.mmu
-        # comment out for now self.pspec.dcache = self.dcache
 
         # debugging output for gtkw
         self.debug0 = Signal(4)
@@ -140,7 +133,7 @@ class FSMMMUStage(ControlBase):
                     comb += spr1_o.ok.eq(1)
                     # subset SPR: first check a few bits
                     # XXX NOTE this must now cover **FOUR** values: this
-                    # test is no longer adequate.  DSISR, DAR, PGTBL and PID
+                    # test might not be adequate.  DSISR, DAR, PGTBL and PID
                     # must ALL be covered here.
                     with m.If(~spr[9] & ~spr[5]):
                         comb += self.debug0.eq(3)
