@@ -52,7 +52,8 @@ class CommonOutputStage(PipeModBase):
         #    comb += target.eq(o[:32])
         #with m.Else():
         #    comb += target.eq(o)
-        comb += target.eq(o)
+        with m.If(~op.sv_pred_dz): # when SVP64 zeroing is set, target is zero
+            comb += target.eq(o)
 
         # carry-out only if actually present in this input spec
         # (note: MUL and DIV do not have it, but ALU and Logical do)
@@ -87,15 +88,11 @@ class CommonOutputStage(PipeModBase):
         with m.Else():
             comb += cr0.eq(Cat(so, ~is_nzero, is_positive, is_negative))
 
-        with m.If(~op.sv_pred_dz):
-            # copy out [inverted?] output, cr0, and context out
-            comb += self.o.o.data.eq(o)
-            comb += self.o.cr0.data.eq(cr0) # CR0 to be set
-
-        # set output to write
+        # copy out [inverted?] output, cr0, and context out
+        comb += self.o.o.data.eq(o)
         comb += self.o.o.ok.eq(self.i.o.ok)
+        comb += self.o.cr0.data.eq(cr0) # CR0 to be set
         comb += self.o.cr0.ok.eq(op.write_cr0)
-        # context
-        comb += self.o.ctx.eq(self.i.ctx)
+        comb += self.o.ctx.eq(self.i.ctx) # context
 
         return m
