@@ -206,128 +206,130 @@ class TestRunner(FHDLTestCase):
 
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                print("regs", test.regs)
-                print("sprs", test.sprs)
-                print("cr", test.cr)
-                print("mem", test.mem)
-                print("msr", test.msr)
-                print("assem", program.assembly)
-                gen = list(program.generate_instructions())
-                insncode = program.assembly.splitlines()
-                instructions = list(zip(gen, insncode))
+                with self.subTest(test.name):
+                    print("regs", test.regs)
+                    print("sprs", test.sprs)
+                    print("cr", test.cr)
+                    print("mem", test.mem)
+                    print("msr", test.msr)
+                    print("assem", program.assembly)
+                    gen = list(program.generate_instructions())
+                    insncode = program.assembly.splitlines()
+                    instructions = list(zip(gen, insncode))
 
-                # set up the Simulator (which must track TestIssuer exactly)
-                sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr,
-                          initial_insns=gen, respect_pc=True,
-                          disassembly=insncode,
-                          bigendian=bigendian,
-                          initial_svstate=test.svstate)
+                    # set up the Simulator (which must track TestIssuer exactly)
+                    sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
+                              test.msr,
+                              initial_insns=gen, respect_pc=True,
+                              disassembly=insncode,
+                              bigendian=bigendian,
+                              initial_svstate=test.svstate)
 
-                # establish the TestIssuer context (mem, regs etc)
+                    # establish the TestIssuer context (mem, regs etc)
 
-                pc = 0  # start address
-                counter = 0  # test to pause/start
+                    pc = 0  # start address
+                    counter = 0  # test to pause/start
 
-                yield from setup_i_memory(imem, pc, instructions)
-                yield from setup_test_memory(l0, sim)
-                yield from setup_regs(pdecode2, core, test)
+                    yield from setup_i_memory(imem, pc, instructions)
+                    yield from setup_test_memory(l0, sim)
+                    yield from setup_regs(pdecode2, core, test)
 
-                # set PC and SVSTATE
-                yield pc_i.eq(pc)
-                yield issuer.pc_i.ok.eq(1)
+                    # set PC and SVSTATE
+                    yield pc_i.eq(pc)
+                    yield issuer.pc_i.ok.eq(1)
 
-                initial_svstate = test.svstate
-                if isinstance(initial_svstate, int):
-                    initial_svstate = SVP64State(initial_svstate)
-                yield svstate_i.eq(initial_svstate.spr.value)
-                yield issuer.svstate_i.ok.eq(1)
-                yield
+                    initial_svstate = test.svstate
+                    if isinstance(initial_svstate, int):
+                        initial_svstate = SVP64State(initial_svstate)
+                    yield svstate_i.eq(initial_svstate.spr.value)
+                    yield issuer.svstate_i.ok.eq(1)
+                    yield
 
-                print("instructions", instructions)
+                    print("instructions", instructions)
 
-                # run the loop of the instructions on the current test
-                index = sim.pc.CIA.value//4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(index, code)
-
-                    if counter == 0:
-                        # start the core
-                        yield
-                        yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.START)
-                        yield issuer.pc_i.ok.eq(0)  # no change PC after this
-                        yield issuer.svstate_i.ok.eq(0) # ditto
-                        yield
-                        yield
-
-                    counter = counter + 1
-
-                    # wait until executed
-                    while not (yield issuer.insn_done):
-                        yield
-
-                    # set up simulated instruction (in simdec2)
-                    try:
-                        yield from sim.setup_one()
-                    except KeyError:  # indicates instruction not in imem: stop
-                        break
-                    yield Settle()
-
-                    # call simulated operation
-                    print("sim", code)
-                    yield from sim.execute_one()
-                    yield Settle()
+                    # run the loop of the instructions on the current test
                     index = sim.pc.CIA.value//4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
 
-                    terminated = yield issuer.dbg.terminated_o
-                    print("terminated", terminated)
+                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                        print(index, code)
 
-                    if index >= len(instructions):
-                        print ("index over, send dmi stop")
-                        # stop at end
-                        yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
-                        yield
-                        yield
+                        if counter == 0:
+                            # start the core
+                            yield
+                            yield from set_dmi(dmi, DBGCore.CTRL,
+                                               1<<DBGCtrl.START)
+                            yield issuer.pc_i.ok.eq(0) # no change PC after this
+                            yield issuer.svstate_i.ok.eq(0) # ditto
+                            yield
+                            yield
 
-                    # register check
-                    yield from check_regs(self, sim, core, test, code)
+                        counter = counter + 1
 
-                    # Memory check
-                    yield from check_sim_memory(self, l0, sim, code)
+                        # wait until executed
+                        while not (yield issuer.insn_done):
+                            yield
 
-                    terminated = yield issuer.dbg.terminated_o
-                    print("terminated(2)", terminated)
-                    if terminated:
-                        break
+                        # set up simulated instruction (in simdec2)
+                        try:
+                            yield from sim.setup_one()
+                        except KeyError:  # instruction not in imem: stop
+                            break
+                        yield Settle()
 
-                # stop at end
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
-                yield
-                yield
+                        # call simulated operation
+                        print("sim", code)
+                        yield from sim.execute_one()
+                        yield Settle()
+                        index = sim.pc.CIA.value//4
 
-                # get CR
-                cr = yield from get_dmi(dmi, DBGCore.CR)
-                print("after test %s cr value %x" % (test.name, cr))
+                        terminated = yield issuer.dbg.terminated_o
+                        print("terminated", terminated)
 
-                # get XER
-                xer = yield from get_dmi(dmi, DBGCore.XER)
-                print("after test %s XER value %x" % (test.name, xer))
+                        if index >= len(instructions):
+                            print ("index over, send dmi stop")
+                            # stop at end
+                            yield from set_dmi(dmi, DBGCore.CTRL,
+                                               1<<DBGCtrl.STOP)
+                            yield
+                            yield
 
-                # test of dmi reg get
-                for int_reg in range(32):
-                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
-                    value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
+                        # register check
+                        yield from check_regs(self, sim, core, test, code)
 
-                    print("after test %s reg %2d value %x" %
-                          (test.name, int_reg, value))
+                        # Memory check
+                        yield from check_sim_memory(self, l0, sim, code)
 
-                # pull a reset
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
-                yield
+                        terminated = yield issuer.dbg.terminated_o
+                        print("terminated(2)", terminated)
+                        if terminated:
+                            break
+
+                    # stop at end
+                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                    yield
+                    yield
+
+                    # get CR
+                    cr = yield from get_dmi(dmi, DBGCore.CR)
+                    print("after test %s cr value %x" % (test.name, cr))
+
+                    # get XER
+                    xer = yield from get_dmi(dmi, DBGCore.XER)
+                    print("after test %s XER value %x" % (test.name, xer))
+
+                    # test of dmi reg get
+                    for int_reg in range(32):
+                        yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
+                        value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
+
+                        print("after test %s reg %2d value %x" %
+                              (test.name, int_reg, value))
+
+                    # pull a reset
+                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                    yield
 
         styles = {
             'dec': {'base': 'dec'},
