@@ -34,26 +34,27 @@ class CommonOutputStage(PipeModBase):
         else:
             so = xer_so_i
 
-        # op requests inversion of the output...
-        o = Signal.like(self.i.o)
-        if hasattr(op, "invert_out"): # ... optionally
-            with m.If(op.invert_out):
-                comb += o.eq(~self.i.o.data)
-            with m.Else():
-                comb += o.eq(self.i.o.data)
-        else:
-            comb += o.eq(self.i.o.data) # ... no inversion
+        with m.If(~op.sv_pred_dz): # when SVP64 zeroing is set, output is zero
+            # op requests inversion of the output...
+            o = Signal.like(self.i.o)
+            if hasattr(op, "invert_out"): # ... optionally
+                with m.If(op.invert_out):
+                    comb += o.eq(~self.i.o.data)
+                with m.Else():
+                    comb += o.eq(self.i.o.data)
+            else:
+                comb += o.eq(self.i.o.data) # ... no inversion
 
         # target register if 32-bit is only the 32 LSBs
         # XXX ah.  right.  this needs to be done only if the *mode* is 32-bit
+        # (an MSR bit)
         # see https://bugs.libre-soc.org/show_bug.cgi?id=424
         target = Signal(64, reset_less=True)
         #with m.If(op.is_32bit):
         #    comb += target.eq(o[:32])
         #with m.Else():
         #    comb += target.eq(o)
-        with m.If(~op.sv_pred_dz): # when SVP64 zeroing is set, target is zero
-            comb += target.eq(o)
+        comb += target.eq(o)
 
         # carry-out only if actually present in this input spec
         # (note: MUL and DIV do not have it, but ALU and Logical do)
@@ -78,7 +79,7 @@ class CommonOutputStage(PipeModBase):
         comb += is_cmp.eq(op.insn_type == MicrOp.OP_CMP)
         comb += is_cmpeqb.eq(op.insn_type == MicrOp.OP_CMPEQB)
 
-        comb += msb_test.eq(target[-1]) # 64-bit MSB
+        comb += msb_test.eq(target[-1]) # 64-bit MSB, TODO 32-bit MSB
         comb += is_nzero.eq(target.bool())
         comb += is_negative.eq(msb_test)
         comb += is_positive.eq(is_nzero & ~msb_test)
