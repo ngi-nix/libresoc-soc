@@ -723,10 +723,10 @@ class TestIssuerInternal(Elaboratable):
                             # proceed to Decode
                             m.next = "DECODE_SV"
 
-                    # pass predicate mask bits through to satellite decoders
-                    # TODO: for SIMD this will be *multiple* bits
-                    sync += core.sv_pred_sm.eq(self.srcmask[0])
-                    sync += core.sv_pred_dm.eq(self.dstmask[0])
+                        # pass predicate mask bits through to satellite decoders
+                        # TODO: for SIMD this will be *multiple* bits
+                        sync += core.sv_pred_sm.eq(self.srcmask[0])
+                        sync += core.sv_pred_dm.eq(self.dstmask[0])
 
             # after src/dst step have been updated, we are ready
             # to decode the instruction
