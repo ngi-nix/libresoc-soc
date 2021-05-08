@@ -125,7 +125,6 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.store_data.eq(data)
         #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
         st_ok = self.done # TODO indicates write data is valid
-        #st_ok = Const(1, 1)
         return st_ok
 
     def get_rd_data(self, m):
@@ -210,15 +209,15 @@ class LoadStore1(PortInterfaceBase):
 
         # write out d data only when flag set
         with m.If(self.d_w_valid):
-            m.d.sync += self.d_in.data.eq(self.store_data)
+            m.d.sync += d_in.data.eq(self.store_data)
         with m.Else():
-            m.d.sync += self.d_in.data.eq(0)
+            m.d.sync += d_in.data.eq(0)
 
-        m.d.comb += self.d_in.load.eq(self.load)
-        m.d.comb += self.d_in.byte_sel.eq(self.byte_sel)
-        m.d.comb += self.d_in.addr.eq(self.addr)
-        m.d.comb += self.d_in.nc.eq(self.nc)
-        m.d.comb += self.done.eq(self.d_out.valid)
+        m.d.comb += d_in.load.eq(self.load)
+        m.d.comb += d_in.byte_sel.eq(self.byte_sel)
+        m.d.comb += d_in.addr.eq(self.addr)
+        m.d.comb += d_in.nc.eq(self.nc)
+        m.d.comb += self.done.eq(d_out.valid)
         m.d.comb += self.load_data.eq(d_out.data)
 
         return m
