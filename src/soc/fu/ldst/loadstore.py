@@ -58,40 +58,63 @@ class LoadStore1(PortInterfaceBase):
         self.dsisr = Signal(64)
         self.dar = Signal(64)
 
+        # state info for LD/ST
+        self.done          = Signal()
+        # latch most of the input request
+        self.load          = Signal()
+        self.tlbie         = Signal()
+        self.dcbz          = Signal()
+        self.addr          = Signal(64)
+        self.store_data    = Signal(64)
+        self.load_data     = Signal(64)
+        self.byte_sel      = Signal(8)
+        self.update        = Signal()
+        #self.xerc         : xer_common_t;
+        #self.reserve       = Signal()
+        #self.atomic        = Signal()
+        #self.atomic_last   = Signal()
+        #self.rc            = Signal()
+        self.nc            = Signal()              # non-cacheable access
+        self.virt_mode     = Signal()
+        self.priv_mode     = Signal()
+        self.state        = Signal(State)
+        self.instr_fault   = Signal()
+        self.align_intr    = Signal()
+        self.busy          = Signal()
+        self.wait_dcache   = Signal()
+        self.wait_mmu      = Signal()
+        #self.mode_32bit    = Signal()
+        self.wr_sel        = Signal(2)
+        self.interrupt     = Signal()
+        #self.intr_vec     : integer range 0 to 16#fff#;
+        #self.nia           = Signal(64)
+        #self.srr1          = Signal(16)
+
     def set_wr_addr(self, m, addr, mask):
-        # this gets complicated: actually a FSM is needed which
-        # first checks dcache, then if that fails (in virt mode)
-        # it checks the MMU instead.
-        #m.d.comb += self.l_in.valid.eq(1)
-        #m.d.comb += self.l_in.addr.eq(addr)
-        #m.d.comb += self.l_in.load.eq(0)
+        m.d.comb += self.load.eq(0) # store operation
+
         m.d.comb += self.d_in.load.eq(0)
-        m.d.comb += self.d_in.byte_sel.eq(mask)
-        m.d.comb += self.d_in.addr.eq(addr)
+        m.d.comb += self.byte_sel.eq(mask)
+        m.d.comb += self.addr.eq(addr)
         # option to disable the cache entirely for write
         if self.disable_cache:
-            m.d.comb += self.d_in.nc.eq(1)
+            m.d.comb += self.nc.eq(1)
         return None
 
     def set_rd_addr(self, m, addr, mask):
-        # this gets complicated: actually a FSM is needed which
-        # first checks dcache, then if that fails (in virt mode)
-        # it checks the MMU instead.
-        #m.d.comb += self.l_in.valid.eq(1)
-        #m.d.comb += self.l_in.load.eq(1)
-        #m.d.comb += self.l_in.addr.eq(addr)
         m.d.comb += self.d_valid.eq(1)
         m.d.comb += self.d_in.valid.eq(self.d_validblip)
+        m.d.comb += self.load.eq(1) # load operation
         m.d.comb += self.d_in.load.eq(1)
-        m.d.comb += self.d_in.byte_sel.eq(mask)
-        m.d.comb += self.d_in.addr.eq(addr)
+        m.d.comb += self.byte_sel.eq(mask)
+        m.d.comb += self.addr.eq(addr)
         # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
         # this is for peripherals. same thing done in Microwatt loadstore1.vhdl
         with m.If(addr[28:] == Const(0xc, 4)):
-            m.d.comb += self.d_in.nc.eq(1)
+            m.d.comb += self.nc.eq(1)
         # option to disable the cache entirely for read
         if self.disable_cache:
-            m.d.comb += self.d_in.nc.eq(1)
+            m.d.comb += self.nc.eq(1)
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
@@ -102,13 +125,13 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_w_valid.eq(1)
         m.d.comb += self.d_w_data.eq(data)
         #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
-        st_ok = self.d_out.valid # TODO indicates write data is valid
+        st_ok = self.done # TODO indicates write data is valid
         #st_ok = Const(1, 1)
         return st_ok
 
     def get_rd_data(self, m):
-        ld_ok = self.d_out.valid # indicates read data is valid
-        data = self.d_out.data   # actual read data
+        ld_ok = self.done      # indicates read data is valid
+        data = self.d_out.data # actual read data
         return data, ld_ok
 
     """
@@ -199,6 +222,12 @@ class LoadStore1(PortInterfaceBase):
             m.d.sync += self.d_in.data.eq(self.d_w_data)
         with m.Else():
             m.d.sync += self.d_in.data.eq(0)
+
+        m.d.comb += self.d_in.load.eq(self.load)
+        m.d.comb += self.d_in.byte_sel.eq(self.byte_sel)
+        m.d.comb += self.d_in.addr.eq(self.addr)
+        m.d.comb += self.d_in.nc.eq(self.nc)
+        m.d.comb += self.done.eq(self.d_out.valid)
 
         return m
 
