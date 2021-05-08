@@ -48,7 +48,6 @@ class LoadStore1(PortInterfaceBase):
 
         # for creating a single clock blip to DCache
         self.d_valid = Signal()
-        self.d_w_data = Signal(64) # XXX
         self.d_w_valid = Signal()
         self.d_validblip = Signal()
 
@@ -123,15 +122,15 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.valid.eq(self.d_validblip)
         # put data into comb which is picked up in main elaborate()
         m.d.comb += self.d_w_valid.eq(1)
-        m.d.comb += self.d_w_data.eq(data)
+        m.d.comb += self.store_data.eq(data)
         #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
         st_ok = self.done # TODO indicates write data is valid
         #st_ok = Const(1, 1)
         return st_ok
 
     def get_rd_data(self, m):
-        ld_ok = self.done      # indicates read data is valid
-        data = self.d_out.data # actual read data
+        ld_ok = self.done     # indicates read data is valid
+        data = self.load_data # actual read data
         return data, ld_ok
 
     """
@@ -156,48 +155,40 @@ class LoadStore1(PortInterfaceBase):
 
     def elaborate(self, platform):
         m = super().elaborate(platform)
-        comb = m.d.comb
+        comb, sync = m.d.comb, m.d.sync
 
         # create dcache module
         m.submodules.dcache = dcache = self.dcache
 
         # temp vars
-        d_out, l_out, dbus = self.d_out, self.l_out, self.dbus
+        d_in, d_out, l_out, dbus = self.d_in, self.d_out, self.l_out, self.dbus
 
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
-                comb += self.derror.eq(1)
-                """
-                sync += self.dsisr[63 - 38].eq(~r2.req.load)
-                #    -- XXX there is no architected bit for this
-                #    -- (probably should be a machine check in fact)
-                sync += self.dsisr[63 - 35].eq(d_in.cache_paradox)
-                """
+                sync += self.derror.eq(1)
+                sync += self.dsisr[63 - 38].eq(~self.load)
+                # XXX there is no architected bit for this
+                # (probably should be a machine check in fact)
+                sync += self.dsisr[63 - 35].eq(d_out.cache_paradox)
+
             with m.Else():
                 # Look up the translation for TLB miss
                 # and also for permission error and RC error
                 # in case the PTE has been updated.
-                comb += self.mmureq.eq(1)
-                # v.state := MMU_LOOKUP;
-                # v.stage1_en := '0';
+                sync += self.mmureq.eq(1)
+                sync += self.state.eq(State.MMU_LOOKUP)
 
         exc = self.pi.exc_o
 
-        #happened, alignment, instr_fault, invalid,
+        # happened, alignment, instr_fault, invalid,
         comb += exc.happened.eq(d_out.error | l_out.err)
         comb += exc.invalid.eq(l_out.invalid)
 
-        #badtree, perm_error, rc_error, segment_fault
+        # badtree, perm_error, rc_error, segment_fault
         comb += exc.badtree.eq(l_out.badtree)
         comb += exc.perm_error.eq(l_out.perm_error)
         comb += exc.rc_error.eq(l_out.rc_error)
         comb += exc.segment_fault.eq(l_out.segerr)
-
-        # TODO connect those signals somewhere
-        #print(d_out.valid)         -> no error
-        #print(d_out.store_done)    -> no error
-        #print(d_out.cache_paradox) -> ?
-        #print(l_out.done)          -> no error
 
         # TODO some exceptions set SPRs
 
@@ -219,7 +210,7 @@ class LoadStore1(PortInterfaceBase):
 
         # write out d data only when flag set
         with m.If(self.d_w_valid):
-            m.d.sync += self.d_in.data.eq(self.d_w_data)
+            m.d.sync += self.d_in.data.eq(self.store_data)
         with m.Else():
             m.d.sync += self.d_in.data.eq(0)
 
@@ -228,6 +219,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.addr.eq(self.addr)
         m.d.comb += self.d_in.nc.eq(self.nc)
         m.d.comb += self.done.eq(self.d_out.valid)
+        m.d.comb += self.load_data.eq(d_out.data)
 
         return m
 
