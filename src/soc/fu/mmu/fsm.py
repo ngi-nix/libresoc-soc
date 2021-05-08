@@ -1,3 +1,9 @@
+"""
+Based on microwatt mmu.vhdl
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=491
+"""
+
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
 from nmigen import Record, Memory
 from nmigen import Const
