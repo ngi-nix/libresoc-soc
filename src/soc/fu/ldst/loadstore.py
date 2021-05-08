@@ -1,7 +1,8 @@
-from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
-from nmigen import Record, Memory
-from nmigen import Const
+from nmigen import (Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux,
+                    Record, Memory,
+                    Const)
 from nmutil.util import rising_edge
+from enum import Enum, unique
 
 from soc.experiment.dcache import DCache
 from soc.experiment.pimem import PortInterfaceBase
@@ -10,6 +11,17 @@ from soc.experiment.mem_types import MMUToLoadStore1Type
 
 from soc.minerva.wishbone import make_wb_layout
 from soc.bus.sram import SRAM
+
+
+@unique
+class State(Enum):
+    IDLE = 0       # ready for instruction
+    SECOND_REQ = 1 # send 2nd request of unaligned xfer
+    ACK_WAIT = 2   # waiting for ack from dcache
+    MMU_LOOKUP = 3 # waiting for MMU to look up translation
+    TLBIE_WAIT = 4 # waiting for MMU to finish doing a tlbie
+    FINISH_LFS = 5 # write back converted SP data for lfs*
+    COMPLETE = 6   # extra cycle to complete an operation
 
 
 # glue logic for microwatt mmu and dcache
