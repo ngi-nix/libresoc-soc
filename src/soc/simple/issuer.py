@@ -756,6 +756,8 @@ class TestIssuerInternal(Elaboratable):
                     comb += exec_pc_ready_i.eq(1)
                     # see https://bugs.libre-soc.org/show_bug.cgi?id=636
                     #with m.If(exec_pc_valid_o & exc_happened):
+                    #    probably something like this:
+                    #    sync += pdecode2.ldst_exc.eq(core.fus.get_exc("ldst0")
                     # TODO: the exception info needs to be blatted
                     # into pdecode.ldst_exc, and the instruction "re-run".
                     # when ldst_exc.happened is set, the PowerDecoder2
