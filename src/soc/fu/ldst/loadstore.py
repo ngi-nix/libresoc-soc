@@ -201,7 +201,30 @@ class LoadStore1(PortInterfaceBase):
                         m.d.comb += self.load_data.eq(d_out.data)
 
             with m.Case(State.MMU_LOOKUP):
+                '''
+                if m_in.done = '1' then
+                    if r.instr_fault = '0' then
+                        # retry the request now that the MMU has
+                        #installed a TLB entry
+                        req := '1';
+                        if r.last_dword = '0' then
+                            v.state := SECOND_REQ;
+                        else
+                            v.state := ACK_WAIT;
+                        end if;
+                    end if;
+                end if;
+                if m_in.err = '1' then
+                    exception := '1';
+                    dsisr(63 - 33) := m_in.invalid;
+                    dsisr(63 - 36) := m_in.perm_error;
+                    dsisr(63 - 38) := not r.load;
+                    dsisr(63 - 44) := m_in.badtree;
+                    dsisr(63 - 45) := m_in.rc_error;
+                end if;
+                '''
                 pass
+
             with m.Case(State.TLBIE_WAIT):
                 pass
             with m.Case(State.COMPLETE):
