@@ -95,6 +95,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.d_in.load.eq(0)
         m.d.comb += self.byte_sel.eq(mask)
         m.d.comb += self.addr.eq(addr)
+        m.d.comb += self.align_intr.eq(misalign)
         # option to disable the cache entirely for write
         if self.disable_cache:
             m.d.comb += self.nc.eq(1)
@@ -106,6 +107,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.load.eq(1) # load operation
         m.d.comb += self.d_in.load.eq(1)
         m.d.comb += self.byte_sel.eq(mask)
+        m.d.comb += self.align_intr.eq(misalign)
         m.d.comb += self.addr.eq(addr)
         # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
         # this is for peripherals. same thing done in Microwatt loadstore1.vhdl
@@ -179,9 +181,12 @@ class LoadStore1(PortInterfaceBase):
 
         exc = self.pi.exc_o
 
-        # happened, alignment, instr_fault, invalid,
-        comb += exc.happened.eq(d_out.error | l_out.err)
+        # happened, alignment, instr_fault, invalid.
+        # note that all of these flow through - eventually to the TRAP
+        # pipeline, via PowerDecoder2.
+        comb += exc.happened.eq(d_out.error | l_out.err | self.align_intr)
         comb += exc.invalid.eq(l_out.invalid)
+        comb += exc.alignment.eq(self.align_intr)
 
         # badtree, perm_error, rc_error, segment_fault
         comb += exc.badtree.eq(l_out.badtree)
