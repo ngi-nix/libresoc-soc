@@ -1,3 +1,13 @@
+"""LoadStore1 FSM.
+
+based on microwatt loadstore1.vhdl
+
+Links:
+
+* https://bugs.libre-soc.org/show_bug.cgi?id=465
+
+"""
+
 from nmigen import (Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux,
                     Record, Memory,
                     Const)

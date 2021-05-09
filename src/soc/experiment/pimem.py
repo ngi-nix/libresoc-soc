@@ -12,6 +12,7 @@ Links:
 
 * https://bugs.libre-soc.org/show_bug.cgi?id=216
 * https://libre-soc.org/3d_gpu/architecture/memory_and_cache/
+* https://bugs.libre-soc.org/show_bug.cgi?id=465 - exception handling
 
 """
 
@@ -296,7 +297,7 @@ class PortInterfaceBase(Elaboratable):
             comb += adrok_l.r.eq(1)     # address reset
             comb += st_done.r.eq(1)     # store done reset
 
-        # monitor for an exception or the completion of LD.
+        # monitor for an exception, clear busy immediately
         with m.If(self.pi.exc_o.happened):
             comb += busy_l.r.eq(1)
 
