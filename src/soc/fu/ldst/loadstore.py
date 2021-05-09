@@ -202,20 +202,14 @@ class LoadStore1(PortInterfaceBase):
 
             with m.Case(State.MMU_LOOKUP):
                 '''
-                if m_in.done = '1' then
+                if m_in.done = '1' then # actually l_out.done
                     if r.instr_fault = '0' then
                         # retry the request now that the MMU has
-                        #installed a TLB entry
-                        req := '1';
-                        if r.last_dword = '0' then
-                            v.state := SECOND_REQ;
-                        else
-                            v.state := ACK_WAIT;
-                        end if;
+                        # installed a TLB entry
+                        v.state := ACK_WAIT;
                     end if;
                 end if;
-                if m_in.err = '1' then
-                    exception := '1';
+                if m_in.err = '1' then # actually l_out.err
                     dsisr(63 - 33) := m_in.invalid;
                     dsisr(63 - 36) := m_in.perm_error;
                     dsisr(63 - 38) := not r.load;
@@ -230,11 +224,10 @@ class LoadStore1(PortInterfaceBase):
             with m.Case(State.COMPLETE):
                 pass
 
-        exc = self.pi.exc_o
-
         # happened, alignment, instr_fault, invalid.
         # note that all of these flow through - eventually to the TRAP
         # pipeline, via PowerDecoder2.
+        exc = self.pi.exc_o
         comb += exc.happened.eq(d_out.error | l_out.err | self.align_intr)
         comb += exc.invalid.eq(l_out.invalid)
         comb += exc.alignment.eq(self.align_intr)
