@@ -187,6 +187,7 @@ class LoadStore1(PortInterfaceBase):
                 pass
             with m.Case(State.COMPLETE):
                 pass
+
         # microwatt: only if State.ACK_WAIZ
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
@@ -242,6 +243,11 @@ class LoadStore1(PortInterfaceBase):
         with m.Else():
             m.d.sync += d_in.data.eq(0)
 
+        # this must move into the FSM, conditionally noticing that
+        # the "blip" comes from self.d_validblip.
+        # task 1: look up in dcache
+        # task 2: if dcache fails, look up in MMU.
+        # do **NOT** confuse the two.
         m.d.comb += d_in.load.eq(self.load)
         m.d.comb += d_in.byte_sel.eq(self.byte_sel)
         m.d.comb += d_in.addr.eq(self.addr)
