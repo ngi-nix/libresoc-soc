@@ -29,8 +29,7 @@ class State(Enum):
     ACK_WAIT = 1   # waiting for ack from dcache
     MMU_LOOKUP = 2 # waiting for MMU to look up translation
     TLBIE_WAIT = 3 # waiting for MMU to finish doing a tlbie
-    FINISH_LFS = 4 # write back converted SP data for lfs*
-    COMPLETE = 5   # extra cycle to complete an operation
+    COMPLETE = 4   # extra cycle to complete an operation
 
 
 # glue logic for microwatt mmu and dcache
@@ -176,33 +175,37 @@ class LoadStore1(PortInterfaceBase):
         # fsm skeleton
         with m.Switch(self.state):
             with m.Case(State.IDLE):
-                pass
-            with m.Case(State.ACK_WAIT):
-                pass
+                with m.If(self.d_validblip):
+                    sync += self.state.eq(State.ACK_WAIT)
+
+            with m.Case(State.ACK_WAIT): # waiting for completion
+                with m.If(d_out.error):
+                    with m.If(d_out.cache_paradox):
+                        sync += self.derror.eq(1)
+                        sync += self.state.eq(State.IDLE)
+                        sync += self.dsisr[63 - 38].eq(~self.load)
+                        # XXX there is no architected bit for this
+                        # (probably should be a machine check in fact)
+                        sync += self.dsisr[63 - 35].eq(d_out.cache_paradox)
+
+                    with m.Else():
+                        # Look up the translation for TLB miss
+                        # and also for permission error and RC error
+                        # in case the PTE has been updated.
+                        sync += self.mmureq.eq(1)
+                        sync += self.state.eq(State.MMU_LOOKUP)
+                with m.If(d_out.valid):
+                    m.d.comb += self.done.eq(1)
+                    sync += self.state.eq(State.IDLE)
+                    with m.If(self.load):
+                        m.d.comb += self.load_data.eq(d_out.data)
+
             with m.Case(State.MMU_LOOKUP):
                 pass
             with m.Case(State.TLBIE_WAIT):
                 pass
-            with m.Case(State.FINISH_LFS):
-                pass
             with m.Case(State.COMPLETE):
                 pass
-
-        # microwatt: only if State.ACK_WAIZ
-        with m.If(d_out.error):
-            with m.If(d_out.cache_paradox):
-                sync += self.derror.eq(1)
-                sync += self.dsisr[63 - 38].eq(~self.load)
-                # XXX there is no architected bit for this
-                # (probably should be a machine check in fact)
-                sync += self.dsisr[63 - 35].eq(d_out.cache_paradox)
-
-            with m.Else():
-                # Look up the translation for TLB miss
-                # and also for permission error and RC error
-                # in case the PTE has been updated.
-                sync += self.mmureq.eq(1)
-                sync += self.state.eq(State.MMU_LOOKUP)
 
         exc = self.pi.exc_o
 
@@ -252,6 +255,9 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += d_in.byte_sel.eq(self.byte_sel)
         m.d.comb += d_in.addr.eq(self.addr)
         m.d.comb += d_in.nc.eq(self.nc)
+
+        # XXX these should be possible to remove but for some reason
+        # cannot be... yet. TODO, investigate
         m.d.comb += self.done.eq(d_out.valid)
         m.d.comb += self.load_data.eq(d_out.data)
 
