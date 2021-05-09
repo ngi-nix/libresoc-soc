@@ -2,6 +2,7 @@
 Based on microwatt mmu.vhdl
 
 * https://bugs.libre-soc.org/show_bug.cgi?id=491
+* https://bugs.libre-soc.org/show_bug.cgi?id=450
 """
 
 from nmigen import Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux
