@@ -68,7 +68,7 @@ class FSMMMUStage(ControlBase):
     def elaborate(self, platform):
         assert hasattr(self, "dcache"), "remember to call set_ldst_interface"
         m = super().elaborate(platform)
-        comb = m.d.comb
+        comb, sync = m.d.comb, m.d.sync
         dcache = self.dcache
 
         # link mmu and dcache together
@@ -118,7 +118,7 @@ class FSMMMUStage(ControlBase):
 
         with m.If(~busy):
             with m.If(self.p.valid_i):
-                m.d.sync += busy.eq(1)
+                sync += busy.eq(1)
         with m.Else():
 
             # based on the Micro-Op, we work out which of MMU or DCache
@@ -145,9 +145,9 @@ class FSMMMUStage(ControlBase):
                         comb += self.debug0.eq(3)
                         #if matched update local cached value
                         with m.If(spr[0]):
-                            m.d.sync += dsisr.eq(a_i[:32])
+                            sync += dsisr.eq(a_i[:32])
                         with m.Else():
-                            m.d.sync += dar.eq(a_i)
+                            sync += dar.eq(a_i)
                         comb += done.eq(1)
                     # pass it over to the MMU instead
                     with m.Else():
@@ -216,7 +216,7 @@ class FSMMMUStage(ControlBase):
                     comb += self.illegal.eq(1)
 
             with m.If(self.n.ready_i & self.n.valid_o):
-                m.d.sync += busy.eq(0)
+                sync += busy.eq(0)
 
         return m
 
