@@ -89,7 +89,7 @@ class LoadStore1(PortInterfaceBase):
         #self.nia           = Signal(64)
         #self.srr1          = Signal(16)
 
-    def set_wr_addr(self, m, addr, mask):
+    def set_wr_addr(self, m, addr, mask, misalign):
         m.d.comb += self.load.eq(0) # store operation
 
         m.d.comb += self.d_in.load.eq(0)
@@ -100,7 +100,7 @@ class LoadStore1(PortInterfaceBase):
             m.d.comb += self.nc.eq(1)
         return None
 
-    def set_rd_addr(self, m, addr, mask):
+    def set_rd_addr(self, m, addr, mask, misalign):
         m.d.comb += self.d_valid.eq(1)
         m.d.comb += self.d_in.valid.eq(self.d_validblip)
         m.d.comb += self.load.eq(1) # load operation

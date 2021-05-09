@@ -169,8 +169,8 @@ class PortInterfaceBase(Elaboratable):
     def connect_port(self, inport):
         return self.pi.connect_port(inport)
 
-    def set_wr_addr(self, m, addr, mask): pass
-    def set_rd_addr(self, m, addr, mask): pass
+    def set_wr_addr(self, m, addr, mask, misalign): pass
+    def set_rd_addr(self, m, addr, mask, misalign): pass
     def set_wr_data(self, m, data, wen): pass
     def get_rd_data(self, m): pass
 
@@ -215,6 +215,12 @@ class PortInterfaceBase(Elaboratable):
         sync += busy_delay.eq(pi.busy_o)
         comb += busy_edge.eq(pi.busy_o & ~busy_delay)
 
+        # misalignment detection: bits at end of lenexpand are set.
+        # when using the L0CacheBuffer "data expander" which splits requests
+        # into *two* PortInterfaces, this acts as a "safety check".
+        misalign = Signal()
+        comb += misalign.eq(lenexp.lexp_o[8:].bool())
+
         # activate mode: only on "edge"
         comb += ld_active.s.eq(rising_edge(m, lds))  # activate LD mode
         comb += st_active.s.eq(rising_edge(m, sts))  # activate ST mode
@@ -231,7 +237,7 @@ class PortInterfaceBase(Elaboratable):
             comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(pi.addr.ok & adrok_l.qn):
-                self.set_rd_addr(m, pi.addr.data, lenexp.lexp_o)
+                self.set_rd_addr(m, pi.addr.data, lenexp.lexp_o, misalign)
                 comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                 sync += adrok_l.s.eq(1)       # and pull "ack" latch
 
@@ -243,7 +249,7 @@ class PortInterfaceBase(Elaboratable):
             comb += lenexp.len_i.eq(pi.data_len)
             comb += lenexp.addr_i.eq(lsbaddr)
             with m.If(pi.addr.ok):
-                self.set_wr_addr(m, pi.addr.data, lenexp.lexp_o)
+                self.set_wr_addr(m, pi.addr.data, lenexp.lexp_o, misalign)
                 with m.If(adrok_l.qn):
                     comb += pi.addr_ok_o.eq(1)  # acknowledge addr ok
                     sync += adrok_l.s.eq(1)       # and pull "ack" latch
@@ -330,11 +336,11 @@ class TestMemoryPortInterface(PortInterfaceBase):
         # hard-code memory addressing width to 6 bits
         self.mem = TestMemory(regwid, 5, granularity=regwid//8, init=False)
 
-    def set_wr_addr(self, m, addr, mask):
+    def set_wr_addr(self, m, addr, mask, misalign):
         lsbaddr, msbaddr = self.splitaddr(addr)
         m.d.comb += self.mem.wrport.addr.eq(msbaddr)
 
-    def set_rd_addr(self, m, addr, mask):
+    def set_rd_addr(self, m, addr, mask, misalign):
         lsbaddr, msbaddr = self.splitaddr(addr)
         m.d.comb += self.mem.rdport.addr.eq(msbaddr)
 
