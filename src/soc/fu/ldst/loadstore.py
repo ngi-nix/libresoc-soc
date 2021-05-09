@@ -26,12 +26,11 @@ from soc.bus.sram import SRAM
 @unique
 class State(Enum):
     IDLE = 0       # ready for instruction
-    SECOND_REQ = 1 # send 2nd request of unaligned xfer
-    ACK_WAIT = 2   # waiting for ack from dcache
-    MMU_LOOKUP = 3 # waiting for MMU to look up translation
-    TLBIE_WAIT = 4 # waiting for MMU to finish doing a tlbie
-    FINISH_LFS = 5 # write back converted SP data for lfs*
-    COMPLETE = 6   # extra cycle to complete an operation
+    ACK_WAIT = 1   # waiting for ack from dcache
+    MMU_LOOKUP = 2 # waiting for MMU to look up translation
+    TLBIE_WAIT = 3 # waiting for MMU to finish doing a tlbie
+    FINISH_LFS = 4 # write back converted SP data for lfs*
+    COMPLETE = 5   # extra cycle to complete an operation
 
 
 # glue logic for microwatt mmu and dcache
