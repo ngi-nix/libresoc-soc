@@ -177,11 +177,6 @@ class LoadStore1(PortInterfaceBase):
         with m.Switch(self.state):
             with m.Case(State.IDLE):
                 pass
-            with m.Case(State.SECOND_REQ):
-                # req.eq(1);
-                # v.state.eq(ACK_WAIT)
-                # v.last_dword.eq(0);
-                pass
             with m.Case(State.ACK_WAIT):
                 pass
             with m.Case(State.MMU_LOOKUP):
