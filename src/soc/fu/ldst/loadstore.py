@@ -99,26 +99,6 @@ class LoadStore1(PortInterfaceBase):
         #self.nia           = Signal(64)
         #self.srr1          = Signal(16)
 
-        # fsm skeleton
-        with m.Switch(self.state):
-            with m.Case(State.IDLE):
-                pass
-            with m.Case(State.SECOND_REQ):
-                # req.eq(1);
-                # v.state.eq(ACK_WAIT)
-                # v.last_dword.eq(0);
-                pass
-            with m.Case(State.ACK_WAIT):
-                pass
-            with m.Case(State.MMU_LOOKUP):
-                pass
-            with m.Case(State.TLBIE_WAIT):
-                pass
-            with m.Case(State.FINISH_LFS):
-                pass
-            with m.Case(State.COMPLETE):
-                pass
-
     def set_wr_addr(self, m, addr, mask, misalign):
         m.d.comb += self.load.eq(0) # store operation
 
@@ -193,6 +173,26 @@ class LoadStore1(PortInterfaceBase):
 
         # temp vars
         d_in, d_out, l_out, dbus = self.d_in, self.d_out, self.l_out, self.dbus
+
+        # fsm skeleton
+        with m.Switch(self.state):
+            with m.Case(State.IDLE):
+                pass
+            with m.Case(State.SECOND_REQ):
+                # req.eq(1);
+                # v.state.eq(ACK_WAIT)
+                # v.last_dword.eq(0);
+                pass
+            with m.Case(State.ACK_WAIT):
+                pass
+            with m.Case(State.MMU_LOOKUP):
+                pass
+            with m.Case(State.TLBIE_WAIT):
+                pass
+            with m.Case(State.FINISH_LFS):
+                pass
+            with m.Case(State.COMPLETE):
+                pass
 
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
