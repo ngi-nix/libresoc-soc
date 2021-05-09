@@ -193,7 +193,7 @@ class LoadStore1(PortInterfaceBase):
                 pass
             with m.Case(State.COMPLETE):
                 pass
-
+        # microwatt: only if State.ACK_WAIZ
         with m.If(d_out.error):
             with m.If(d_out.cache_paradox):
                 sync += self.derror.eq(1)
@@ -252,6 +252,7 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += d_in.byte_sel.eq(self.byte_sel)
         m.d.comb += d_in.addr.eq(self.addr)
         m.d.comb += d_in.nc.eq(self.nc)
+        m.d.comb += d_in.valid.eq(self.mmureq)
         m.d.comb += self.done.eq(d_out.valid)
         m.d.comb += self.load_data.eq(d_out.data)
 
