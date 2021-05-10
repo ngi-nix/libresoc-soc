@@ -1,6 +1,15 @@
 """LoadStore1 FSM.
 
-based on microwatt loadstore1.vhdl
+based on microwatt loadstore1.vhdl, but conforming to PortInterface.
+unlike loadstore1.vhdl this does *not* deal with actual Load/Store
+ops: that job is handled by LDSTCompUnit, which talks to LoadStore1
+by way of PortInterface.  PortInterface is where things need extending,
+such as adding dcbz support, etc.
+
+this module basically handles "pure" load / store operations, and
+its first job is to ask the D-Cache for the data.  if that fails,
+the second task (if virtual memory is enabled) is to ask the MMU
+to perform a TLB, then to go *back* to the cache and ask again.
 
 Links:
 
@@ -172,6 +181,11 @@ class LoadStore1(PortInterfaceBase):
         # temp vars
         d_in, d_out, l_out, dbus = self.d_in, self.d_out, self.l_out, self.dbus
 
+        # create a blip (single pulse) on valid read/write request
+        # this can be over-ridden in the FSM to get dcache to re-run
+        # a request when MMU_LOOKUP completes
+        m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
+
         # fsm skeleton
         with m.Switch(self.state):
             with m.Case(State.IDLE):
@@ -205,6 +219,7 @@ class LoadStore1(PortInterfaceBase):
                     with m.If(~self.instr_fault):
                         # retry the request now that the MMU has
                         # installed a TLB entry
+                        m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
                 with m.If(l_out.err):
                     sync += self.dsisr[63 - 33].eq(l_out.invalid)
@@ -264,9 +279,6 @@ class LoadStore1(PortInterfaceBase):
         comb += dcache.wb_in.ack.eq(dbus.ack)
         if hasattr(dbus, "stall"):
             comb += dcache.wb_in.stall.eq(dbus.stall)
-
-        # create a blip (single pulse) on valid read/write request
-        m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
 
         # write out d data only when flag set
         with m.If(self.d_w_valid):
