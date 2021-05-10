@@ -1190,10 +1190,10 @@ class DCache(Elaboratable):
             sync += r1.mmu_error.eq(r0.mmu_req)
             sync += r1.cache_paradox.eq(access_ok)
 
-            with m.Else():
-                sync += r1.ls_error.eq(0)
-                sync += r1.mmu_error.eq(0)
-                sync += r1.cache_paradox.eq(0)
+        with m.Else():
+            sync += r1.ls_error.eq(0)
+            sync += r1.mmu_error.eq(0)
+            sync += r1.cache_paradox.eq(0)
 
         with m.If(req_op == Op.OP_STCX_FAIL):
             sync += r1.stcx_fail.eq(1)
