@@ -181,6 +181,10 @@ class LoadStore1(PortInterfaceBase):
         # temp vars
         d_in, d_out, l_out, dbus = self.d_in, self.d_out, self.l_out, self.dbus
 
+        # copy of address, but gets over-ridden for OP_FETCH_FAILED
+        maddr = Signal(64)
+        m.d.comb += maddr.eq(self.addr)
+
         # create a blip (single pulse) on valid read/write request
         # this can be over-ridden in the FSM to get dcache to re-run
         # a request when MMU_LOOKUP completes
@@ -206,7 +210,7 @@ class LoadStore1(PortInterfaceBase):
                         # Look up the translation for TLB miss
                         # and also for permission error and RC error
                         # in case the PTE has been updated.
-                        sync += self.mmureq.eq(1)
+                        comb += self.mmureq.eq(1)
                         sync += self.state.eq(State.MMU_LOOKUP)
                 with m.If(d_out.valid):
                     m.d.comb += self.done.eq(1)
@@ -300,6 +304,20 @@ class LoadStore1(PortInterfaceBase):
         # cannot be... yet. TODO, investigate
         m.d.comb += self.done.eq(d_out.valid)
         m.d.comb += self.load_data.eq(d_out.data)
+
+        ''' TODO: translate to nmigen.
+        -- Update outputs to MMU
+        m_out.valid <= mmureq;
+        m_out.iside <= v.instr_fault;
+        m_out.load <= r.load;
+        # m_out.priv <= r.priv_mode; TODO
+        m_out.tlbie <= v.tlbie;
+        # m_out.mtspr <= mmu_mtspr; # TODO
+        # m_out.sprn <= sprn; # TODO
+        m_out.addr <= maddr;
+        # m_out.slbia <= l_in.insn(7); # TODO: no idea what this is
+        # m_out.rs <= l_in.data; # nope, probably not needed, TODO investigate
+        '''
 
         return m
 
