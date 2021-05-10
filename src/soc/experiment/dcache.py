@@ -8,6 +8,12 @@ see WB4 spec, p84, section 5.2.1
 
 IMPORTANT: for store, the data is sampled the cycle AFTER the "valid"
 is raised.  sigh
+
+Links:
+
+* https://libre-soc.org/3d_gpu/architecture/set_associative_cache.jpg
+* https://bugs.libre-soc.org/show_bug.cgi?id=469
+
 """
 
 import sys
@@ -579,6 +585,7 @@ class DCachePendingHit(Elaboratable):
 
 class DCache(Elaboratable):
     """Set associative dcache write-through
+
     TODO (in no specific order):
     * See list in icache.vhdl
     * Complete load misses on the cycle when WB data comes instead of
