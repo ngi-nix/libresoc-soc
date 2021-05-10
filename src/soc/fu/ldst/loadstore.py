@@ -202,7 +202,7 @@ class LoadStore1(PortInterfaceBase):
 
             with m.Case(State.MMU_LOOKUP):
                 with m.If(l_out.done):
-                    with m.If(self.instr_fault==0):
+                    with m.If(~self.instr_fault):
                         # retry the request now that the MMU has
                         # installed a TLB entry
                         sync += self.state.eq(State.ACK_WAIT)
