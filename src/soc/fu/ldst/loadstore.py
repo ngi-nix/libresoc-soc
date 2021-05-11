@@ -38,7 +38,6 @@ class State(Enum):
     ACK_WAIT = 1   # waiting for ack from dcache
     MMU_LOOKUP = 2 # waiting for MMU to look up translation
     TLBIE_WAIT = 3 # waiting for MMU to finish doing a tlbie
-    COMPLETE = 4   # extra cycle to complete an operation
 
 
 # glue logic for microwatt mmu and dcache
@@ -178,6 +177,9 @@ class LoadStore1(PortInterfaceBase):
                     sync += self.state.eq(State.ACK_WAIT)
 
             with m.Case(State.ACK_WAIT): # waiting for completion
+
+                # cache error is not necessarily "final", it could
+                # be that it was just a TLB miss
                 with m.If(d_in.error):
                     with m.If(d_in.cache_paradox):
                         comb += exception.eq(1)
@@ -199,6 +201,8 @@ class LoadStore1(PortInterfaceBase):
                     with m.If(self.load):
                         m.d.comb += self.load_data.eq(d_in.data)
 
+            # waiting here for the MMU TLB lookup to complete.
+            # either re-try the dcache lookup or throw MMU exception
             with m.Case(State.MMU_LOOKUP):
                 with m.If(m_in.done):
                     with m.If(~self.instr_fault):
@@ -214,27 +218,7 @@ class LoadStore1(PortInterfaceBase):
                     sync += self.dsisr[63 - 44].eq(m_in.badtree)
                     sync += self.dsisr[63 - 45].eq(m_in.rc_error)
 
-                '''
-                if m_in.done = '1' then # actually m_in.done
-                    if r.instr_fault = '0' then
-                        # retry the request now that the MMU has
-                        # installed a TLB entry
-                        v.state := ACK_WAIT;
-                    end if;
-                end if;
-                if m_in.err = '1' then # actually m_in.err
-                    dsisr(63 - 33) := m_in.invalid;
-                    dsisr(63 - 36) := m_in.perm_error;
-                    dsisr(63 - 38) := not r.load;
-                    dsisr(63 - 44) := m_in.badtree;
-                    dsisr(63 - 45) := m_in.rc_error;
-                end if;
-                '''
-                pass
-
             with m.Case(State.TLBIE_WAIT):
-                pass
-            with m.Case(State.COMPLETE):
                 pass
 
         # happened, alignment, instr_fault, invalid.
