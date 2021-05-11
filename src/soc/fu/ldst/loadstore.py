@@ -176,11 +176,12 @@ class LoadStore1(PortInterfaceBase):
                 with m.If(self.d_validblip):
                     sync += self.state.eq(State.ACK_WAIT)
 
-            with m.Case(State.ACK_WAIT): # waiting for completion
+            # waiting for completion
+            with m.Case(State.ACK_WAIT):
 
-                # cache error is not necessarily "final", it could
-                # be that it was just a TLB miss
                 with m.If(d_in.error):
+                    # cache error is not necessarily "final", it could
+                    # be that it was just a TLB miss
                     with m.If(d_in.cache_paradox):
                         comb += exception.eq(1)
                         sync += self.state.eq(State.IDLE)
@@ -193,7 +194,7 @@ class LoadStore1(PortInterfaceBase):
                         # Look up the translation for TLB miss
                         # and also for permission error and RC error
                         # in case the PTE has been updated.
-                        comb += self.mmureq.eq(1)
+                        comb += mmureq.eq(1)
                         sync += self.state.eq(State.MMU_LOOKUP)
                 with m.If(d_in.valid):
                     m.d.comb += self.done.eq(1)
@@ -210,7 +211,13 @@ class LoadStore1(PortInterfaceBase):
                         # installed a TLB entry
                         m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
+                    with m.Else():
+                        # instruction lookup fault:
+                        comb += exc.happened.eq(1)
+                        sync += self.dar.eq(self.addr)
+
                 with m.If(m_in.err):
+                    # MMU RADIX exception thrown
                     comb += exception.eq(1)
                     sync += self.dsisr[63 - 33].eq(m_in.invalid)
                     sync += self.dsisr[63 - 36].eq(m_in.perm_error)
@@ -221,13 +228,16 @@ class LoadStore1(PortInterfaceBase):
             with m.Case(State.TLBIE_WAIT):
                 pass
 
+        with m.If(self.align_intr):
+            comb += exc.happened.eq(1)
+            sync += self.dar.eq(self.addr)
+
         # happened, alignment, instr_fault, invalid.
         # note that all of these flow through - eventually to the TRAP
         # pipeline, via PowerDecoder2.
-        with m.If(self.align_intr):
-            comb += exc.happened.eq(1)
         comb += exc.invalid.eq(m_in.invalid)
         comb += exc.alignment.eq(self.align_intr)
+        comb += exc.instr_fault.eq(self.instr_fault)
         # badtree, perm_error, rc_error, segment_fault
         comb += exc.badtree.eq(m_in.badtree)
         comb += exc.perm_error.eq(m_in.perm_error)
