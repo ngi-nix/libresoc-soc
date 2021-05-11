@@ -20,6 +20,7 @@ class CompLDSTOpSubset(CompOpSubsetBase):
                   ('zero_a', 1),
                   ('rc', Layout((("rc", 1), ("ok", 1)))), # for later
                   ('oe', Layout((("oe", 1), ("ok", 1)))), # for later
+                  ('msr', 64), # TODO: a lot less bits.  only need PR
                   ('is_32bit', 1),
                   ('is_signed', 1),
                   ('data_len', 4),
