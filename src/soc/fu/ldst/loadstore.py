@@ -212,7 +212,7 @@ class LoadStore1(PortInterfaceBase):
                         m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
                     with m.Else():
-                        # instruction lookup fault:
+                        # instruction lookup fault: store address in DAR
                         comb += exc.happened.eq(1)
                         sync += self.dar.eq(self.addr)
 
@@ -228,6 +228,7 @@ class LoadStore1(PortInterfaceBase):
             with m.Case(State.TLBIE_WAIT):
                 pass
 
+        # alignment error: store address in DAR
         with m.If(self.align_intr):
             comb += exc.happened.eq(1)
             sync += self.dar.eq(self.addr)
