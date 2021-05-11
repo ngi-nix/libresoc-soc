@@ -95,10 +95,13 @@ from soc.fu.regspec import RegSpecAPI
 from openpower.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from openpower.decoder.power_decoder2 import Data
+from openpower.consts import MSR
+
 
 # TODO: LDSTInputData and LDSTOutputData really should be used
 # here, to make things more like the other CompUnits.  currently,
 # also, RegSpecAPI is used explicitly here
+
 
 class LDSTCompUnitRecord(CompUnitRecord):
     def __init__(self, rwid, opsubset=CompLDSTOpSubset, name=None):
@@ -501,6 +504,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         sync += pi.addr.ok.eq(alu_ok & lsd_l.q)  # "do address stuff" (once)
         comb += self.exc_o.eq(pi.exc_o)  # exception occurred
         comb += addr_ok.eq(self.pi.addr_ok_o)  # no exc, address fine
+        # connect MSR.PR for priv/virt operation
+        comb += pi.msr_pr.eq(oper_r.msr[MSR.PR])
 
         # byte-reverse on LD
         revnorev = Signal(64, reset_less=True)
