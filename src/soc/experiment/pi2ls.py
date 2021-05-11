@@ -46,12 +46,12 @@ class Pi2LSUI(PortInterfaceBase):
         self.lsui_busy = Signal()
         self.valid_l = SRLatch(False, name="valid")
 
-    def set_wr_addr(self, m, addr, mask, misalign):
+    def set_wr_addr(self, m, addr, mask, misalign, msr_pr):
         m.d.comb += self.valid_l.s.eq(1)
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)
 
-    def set_rd_addr(self, m, addr, mask, misalign):
+    def set_rd_addr(self, m, addr, mask, misalign, msr_pr):
         m.d.comb += self.valid_l.s.eq(1)
         m.d.comb += self.lsui.x_mask_i.eq(mask)
         m.d.comb += self.lsui.x_addr_i.eq(addr)

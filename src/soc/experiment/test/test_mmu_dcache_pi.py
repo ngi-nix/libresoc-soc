@@ -43,29 +43,30 @@ from nmigen.compat.sim import run_simulation, Settle
 # will take at least one week (10.10.2020)
 # many unconnected signals
 
+
 class TestMicrowattMemoryPortInterface(PortInterfaceBase):
     """TestMicrowattMemoryPortInterface
 
     This is a Test Class for MMU and DCache conforming to PortInterface
     """
 
-    def __init__(self, mmu, dcache, regwid=64, addrwid=4,):
+    def __init__(self, mmu, dcache, regwid=64, addrwid=4):
         super().__init__(regwid, addrwid)
         self.mmu = mmu
         self.dcache = dcache
 
-    def set_wr_addr(self, m, addr, mask, misalign):
+    def set_wr_addr(self, m, addr, mask, misalign, msr_pr):
         m.d.comb += self.dcache.d_in.addr.eq(addr)
         m.d.comb += self.mmu.l_in.addr.eq(addr)
         m.d.comb += self.mmu.l_in.load.eq(0)
-        m.d.comb += self.mmu.l_in.priv.eq(1)
+        m.d.comb += self.mmu.l_in.priv.eq(1) # TODO put msr_pr here
         m.d.comb += self.mmu.l_in.valid.eq(1)
 
-    def set_rd_addr(self, m, addr, mask, misalign):
+    def set_rd_addr(self, m, addr, mask, misalign, msr_pr):
         m.d.comb += self.dcache.d_in.addr.eq(addr)
         m.d.comb += self.mmu.l_in.addr.eq(addr)
         m.d.comb += self.mmu.l_in.load.eq(1)
-        m.d.comb += self.mmu.l_in.priv.eq(1)
+        m.d.comb += self.mmu.l_in.priv.eq(1) # TODO put msr_pr here
         m.d.comb += self.mmu.l_in.valid.eq(1)
 
     def set_wr_data(self, m, data, wen):
