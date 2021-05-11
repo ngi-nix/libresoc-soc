@@ -115,10 +115,9 @@ class PortInterface(RecordObject):
         self.st = Data(regwid, "st_data_i")  # ok to be set by CompUnit
 
         # additional "modes"
-        self.dcbz          = Signal()  # data cache block zero request
-        self.nc            = Signal()  # no cacheing
-        self.virt_mode     = Signal()  # virtual mode
-        self.priv_mode     = Signal()  # privileged mode
+        self.is_dcbz        = Signal()  # data cache block zero request
+        self.is_nc         = Signal()  # no cacheing
+        self.msr_pr        = Signal()  # 1==virtual, 0==privileged
 
         # mmu
         self.mmu_done          = Signal() # keep for now
@@ -132,11 +131,14 @@ class PortInterface(RecordObject):
         print("connect_port", self, inport)
         return [self.is_ld_i.eq(inport.is_ld_i),
                 self.is_st_i.eq(inport.is_st_i),
+                self.is_nc.eq(inport.is_nc),
+                self.is_dcbz.eq(inport.is_dcbz),
                 self.data_len.eq(inport.data_len),
                 self.go_die_i.eq(inport.go_die_i),
                 self.addr.data.eq(inport.addr.data),
                 self.addr.ok.eq(inport.addr.ok),
                 self.st.eq(inport.st),
+                self.msr_pr.eq(inport.msr_pr),
                 inport.ld.eq(self.ld),
                 inport.busy_o.eq(self.busy_o),
                 inport.addr_ok_o.eq(self.addr_ok_o),
