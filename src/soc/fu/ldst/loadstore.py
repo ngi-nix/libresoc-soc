@@ -57,9 +57,6 @@ class LoadStore1(PortInterfaceBase):
         self.d_in = self.dcache.d_out      # out from dcache is in for LoadStore
         self.m_out  = LoadStore1ToMMUType() # out *to* MMU
         self.m_in = MMUToLoadStore1Type()   # in *from* MMU
-        # TODO microwatt
-        self.mmureq = Signal()
-        self.derror = Signal()
 
         # TODO, convert dcache wb_in/wb_out to "standard" nmigen Wishbone bus
         self.dbus = Record(make_wb_layout(pspec))
@@ -152,26 +149,6 @@ class LoadStore1(PortInterfaceBase):
         data = self.load_data # actual read data
         return data, ld_ok
 
-    """
-    if d_out.error = '1' then
-                if d_out.cache_paradox = '1' then
-                    -- signal an interrupt straight away
-                    exception := '1';
-                    dsisr(63 - 38) := not r2.req.load;
-                    -- XXX there is no architected bit for this
-                    -- (probably should be a machine check in fact)
-                    dsisr(63 - 35) := d_out.cache_paradox;
-                else
-                    -- Look up the translation for TLB miss
-                    -- and also for permission error and RC error
-                    -- in case the PTE has been updated.
-                    mmureq := '1';
-                    v.state := MMU_LOOKUP;
-                    v.stage1_en := '0';
-                end if;
-            end if;
-    """
-
     def elaborate(self, platform):
         m = super().elaborate(platform)
         comb, sync = m.d.comb, m.d.sync
@@ -181,6 +158,9 @@ class LoadStore1(PortInterfaceBase):
 
         # temp vars
         d_out, d_in, m_in, dbus = self.d_out, self.d_in, self.m_in, self.dbus
+        exc = self.pi.exc_o
+        exception = exc.happened
+        mmureq = Signal()
 
         # copy of address, but gets over-ridden for OP_FETCH_FAILED
         maddr = Signal(64)
@@ -200,7 +180,7 @@ class LoadStore1(PortInterfaceBase):
             with m.Case(State.ACK_WAIT): # waiting for completion
                 with m.If(d_in.error):
                     with m.If(d_in.cache_paradox):
-                        sync += self.derror.eq(1)
+                        comb += exception.eq(1)
                         sync += self.state.eq(State.IDLE)
                         sync += self.dsisr[63 - 38].eq(~self.load)
                         # XXX there is no architected bit for this
@@ -227,6 +207,7 @@ class LoadStore1(PortInterfaceBase):
                         m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
                 with m.If(m_in.err):
+                    comb += exception.eq(1)
                     sync += self.dsisr[63 - 33].eq(m_in.invalid)
                     sync += self.dsisr[63 - 36].eq(m_in.perm_error)
                     sync += self.dsisr[63 - 38].eq(self.load)
@@ -259,8 +240,8 @@ class LoadStore1(PortInterfaceBase):
         # happened, alignment, instr_fault, invalid.
         # note that all of these flow through - eventually to the TRAP
         # pipeline, via PowerDecoder2.
-        exc = self.pi.exc_o
-        comb += exc.happened.eq(d_in.error | m_in.err | self.align_intr)
+        with m.If(self.align_intr):
+            comb += exc.happened.eq(1)
         comb += exc.invalid.eq(m_in.invalid)
         comb += exc.alignment.eq(self.align_intr)
         # badtree, perm_error, rc_error, segment_fault
