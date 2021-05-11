@@ -52,10 +52,11 @@ class LoadStore1(PortInterfaceBase):
 
         super().__init__(regwid, addrwid)
         self.dcache = DCache()
-        self.d_in  = self.dcache.d_in
-        self.d_out = self.dcache.d_out
-        self.l_in  = LoadStore1ToMMUType()
-        self.l_out = MMUToLoadStore1Type()
+        # these names are from the perspective of here (LoadStore1)
+        self.d_out  = self.dcache.d_in     # in to dcache is out for LoadStore
+        self.d_in = self.dcache.d_out      # out from dcache is in for LoadStore
+        self.m_out  = LoadStore1ToMMUType() # out *to* MMU
+        self.m_in = MMUToLoadStore1Type()   # in *from* MMU
         # TODO microwatt
         self.mmureq = Signal()
         self.derror = Signal()
@@ -109,7 +110,7 @@ class LoadStore1(PortInterfaceBase):
     def set_wr_addr(self, m, addr, mask, misalign):
         m.d.comb += self.load.eq(0) # store operation
 
-        m.d.comb += self.d_in.load.eq(0)
+        m.d.comb += self.d_out.load.eq(0)
         m.d.comb += self.byte_sel.eq(mask)
         m.d.comb += self.addr.eq(addr)
         m.d.comb += self.align_intr.eq(misalign)
@@ -120,9 +121,9 @@ class LoadStore1(PortInterfaceBase):
 
     def set_rd_addr(self, m, addr, mask, misalign):
         m.d.comb += self.d_valid.eq(1)
-        m.d.comb += self.d_in.valid.eq(self.d_validblip)
+        m.d.comb += self.d_out.valid.eq(self.d_validblip)
         m.d.comb += self.load.eq(1) # load operation
-        m.d.comb += self.d_in.load.eq(1)
+        m.d.comb += self.d_out.load.eq(1)
         m.d.comb += self.byte_sel.eq(mask)
         m.d.comb += self.align_intr.eq(misalign)
         m.d.comb += self.addr.eq(addr)
@@ -138,11 +139,11 @@ class LoadStore1(PortInterfaceBase):
     def set_wr_data(self, m, data, wen):
         # do the "blip" on write data
         m.d.comb += self.d_valid.eq(1)
-        m.d.comb += self.d_in.valid.eq(self.d_validblip)
+        m.d.comb += self.d_out.valid.eq(self.d_validblip)
         # put data into comb which is picked up in main elaborate()
         m.d.comb += self.d_w_valid.eq(1)
         m.d.comb += self.store_data.eq(data)
-        #m.d.sync += self.d_in.byte_sel.eq(wen) # this might not be needed
+        #m.d.sync += self.d_out.byte_sel.eq(wen) # this might not be needed
         st_ok = self.done # TODO indicates write data is valid
         return st_ok
 
@@ -152,14 +153,14 @@ class LoadStore1(PortInterfaceBase):
         return data, ld_ok
 
     """
-    if d_in.error = '1' then
-                if d_in.cache_paradox = '1' then
+    if d_out.error = '1' then
+                if d_out.cache_paradox = '1' then
                     -- signal an interrupt straight away
                     exception := '1';
                     dsisr(63 - 38) := not r2.req.load;
                     -- XXX there is no architected bit for this
                     -- (probably should be a machine check in fact)
-                    dsisr(63 - 35) := d_in.cache_paradox;
+                    dsisr(63 - 35) := d_out.cache_paradox;
                 else
                     -- Look up the translation for TLB miss
                     -- and also for permission error and RC error
@@ -179,7 +180,7 @@ class LoadStore1(PortInterfaceBase):
         m.submodules.dcache = dcache = self.dcache
 
         # temp vars
-        d_in, d_out, l_out, dbus = self.d_in, self.d_out, self.l_out, self.dbus
+        d_out, d_in, m_in, dbus = self.d_out, self.d_in, self.m_in, self.dbus
 
         # copy of address, but gets over-ridden for OP_FETCH_FAILED
         maddr = Signal(64)
@@ -197,14 +198,14 @@ class LoadStore1(PortInterfaceBase):
                     sync += self.state.eq(State.ACK_WAIT)
 
             with m.Case(State.ACK_WAIT): # waiting for completion
-                with m.If(d_out.error):
-                    with m.If(d_out.cache_paradox):
+                with m.If(d_in.error):
+                    with m.If(d_in.cache_paradox):
                         sync += self.derror.eq(1)
                         sync += self.state.eq(State.IDLE)
                         sync += self.dsisr[63 - 38].eq(~self.load)
                         # XXX there is no architected bit for this
                         # (probably should be a machine check in fact)
-                        sync += self.dsisr[63 - 35].eq(d_out.cache_paradox)
+                        sync += self.dsisr[63 - 35].eq(d_in.cache_paradox)
 
                     with m.Else():
                         # Look up the translation for TLB miss
@@ -212,35 +213,35 @@ class LoadStore1(PortInterfaceBase):
                         # in case the PTE has been updated.
                         comb += self.mmureq.eq(1)
                         sync += self.state.eq(State.MMU_LOOKUP)
-                with m.If(d_out.valid):
+                with m.If(d_in.valid):
                     m.d.comb += self.done.eq(1)
                     sync += self.state.eq(State.IDLE)
                     with m.If(self.load):
-                        m.d.comb += self.load_data.eq(d_out.data)
+                        m.d.comb += self.load_data.eq(d_in.data)
 
             with m.Case(State.MMU_LOOKUP):
-                with m.If(l_out.done):
+                with m.If(m_in.done):
                     with m.If(~self.instr_fault):
                         # retry the request now that the MMU has
                         # installed a TLB entry
                         m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
-                with m.If(l_out.err):
-                    sync += self.dsisr[63 - 33].eq(l_out.invalid)
-                    sync += self.dsisr[63 - 36].eq(l_out.perm_error)
+                with m.If(m_in.err):
+                    sync += self.dsisr[63 - 33].eq(m_in.invalid)
+                    sync += self.dsisr[63 - 36].eq(m_in.perm_error)
                     sync += self.dsisr[63 - 38].eq(self.load)
-                    sync += self.dsisr[63 - 44].eq(l_out.badtree)
-                    sync += self.dsisr[63 - 45].eq(l_out.rc_error)
+                    sync += self.dsisr[63 - 44].eq(m_in.badtree)
+                    sync += self.dsisr[63 - 45].eq(m_in.rc_error)
 
                 '''
-                if m_in.done = '1' then # actually l_out.done
+                if m_in.done = '1' then # actually m_in.done
                     if r.instr_fault = '0' then
                         # retry the request now that the MMU has
                         # installed a TLB entry
                         v.state := ACK_WAIT;
                     end if;
                 end if;
-                if m_in.err = '1' then # actually l_out.err
+                if m_in.err = '1' then # actually m_in.err
                     dsisr(63 - 33) := m_in.invalid;
                     dsisr(63 - 36) := m_in.perm_error;
                     dsisr(63 - 38) := not r.load;
@@ -259,17 +260,14 @@ class LoadStore1(PortInterfaceBase):
         # note that all of these flow through - eventually to the TRAP
         # pipeline, via PowerDecoder2.
         exc = self.pi.exc_o
-        comb += exc.happened.eq(d_out.error | l_out.err | self.align_intr)
-        comb += exc.invalid.eq(l_out.invalid)
+        comb += exc.happened.eq(d_in.error | m_in.err | self.align_intr)
+        comb += exc.invalid.eq(m_in.invalid)
         comb += exc.alignment.eq(self.align_intr)
-
         # badtree, perm_error, rc_error, segment_fault
-        comb += exc.badtree.eq(l_out.badtree)
-        comb += exc.perm_error.eq(l_out.perm_error)
-        comb += exc.rc_error.eq(l_out.rc_error)
-        comb += exc.segment_fault.eq(l_out.segerr)
-
-        # TODO some exceptions set SPRs
+        comb += exc.badtree.eq(m_in.badtree)
+        comb += exc.perm_error.eq(m_in.perm_error)
+        comb += exc.rc_error.eq(m_in.rc_error)
+        comb += exc.segment_fault.eq(m_in.segerr)
 
         # TODO, connect dcache wb_in/wb_out to "standard" nmigen Wishbone bus
         comb += dbus.adr.eq(dcache.wb_out.adr)
@@ -286,24 +284,24 @@ class LoadStore1(PortInterfaceBase):
 
         # write out d data only when flag set
         with m.If(self.d_w_valid):
-            m.d.sync += d_in.data.eq(self.store_data)
+            m.d.sync += d_out.data.eq(self.store_data)
         with m.Else():
-            m.d.sync += d_in.data.eq(0)
+            m.d.sync += d_out.data.eq(0)
 
         # this must move into the FSM, conditionally noticing that
         # the "blip" comes from self.d_validblip.
         # task 1: look up in dcache
         # task 2: if dcache fails, look up in MMU.
         # do **NOT** confuse the two.
-        m.d.comb += d_in.load.eq(self.load)
-        m.d.comb += d_in.byte_sel.eq(self.byte_sel)
-        m.d.comb += d_in.addr.eq(self.addr)
-        m.d.comb += d_in.nc.eq(self.nc)
+        m.d.comb += d_out.load.eq(self.load)
+        m.d.comb += d_out.byte_sel.eq(self.byte_sel)
+        m.d.comb += d_out.addr.eq(self.addr)
+        m.d.comb += d_out.nc.eq(self.nc)
 
         # XXX these should be possible to remove but for some reason
         # cannot be... yet. TODO, investigate
-        m.d.comb += self.done.eq(d_out.valid)
-        m.d.comb += self.load_data.eq(d_out.data)
+        m.d.comb += self.done.eq(d_in.valid)
+        m.d.comb += self.load_data.eq(d_in.data)
 
         ''' TODO: translate to nmigen.
         -- Update outputs to MMU
