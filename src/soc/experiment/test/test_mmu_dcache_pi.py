@@ -1,7 +1,7 @@
 """MMU PortInterface Test
 
-quite basic, goes directly to the MMU to assert signals (does not
-yet use PortInterface)
+quite basic, calls pi_ld to get data via PortInterface.  this test
+shouldn't really exist, it's superceded by test_ldst_pi.py
 """
 
 from nmigen import (C, Module, Signal, Elaboratable, Mux, Cat, Repl, Signal)

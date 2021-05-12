@@ -30,6 +30,7 @@ from soc.experiment.mem_types import MMUToLoadStore1Type
 
 from soc.minerva.wishbone import make_wb_layout
 from soc.bus.sram import SRAM
+from nmutil.util import Display
 
 
 @unique
@@ -212,11 +213,13 @@ class LoadStore1(PortInterfaceBase):
             with m.Case(State.MMU_LOOKUP):
                 with m.If(m_in.done):
                     with m.If(~self.instr_fault):
+                        sync += Display("MMU_LOOKUP, done %x", self.addr)
                         # retry the request now that the MMU has
                         # installed a TLB entry
                         m.d.comb += self.d_validblip.eq(1) # re-run dcache req
                         sync += self.state.eq(State.ACK_WAIT)
                     with m.Else():
+                        sync += Display("MMU_LOOKUP, exception %x", self.addr)
                         # instruction lookup fault: store address in DAR
                         comb += exc.happened.eq(1)
                         sync += self.dar.eq(self.addr)
