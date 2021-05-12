@@ -20,6 +20,7 @@ Links:
 from nmigen import (Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux,
                     Record, Memory,
                     Const)
+from nmutil.iocontrol import RecordObject
 from nmutil.util import rising_edge
 from enum import Enum, unique
 
@@ -41,6 +42,22 @@ class State(Enum):
     TLBIE_WAIT = 3 # waiting for MMU to finish doing a tlbie
 
 
+# captures the LDSTRequest from the PortInterface, which "blips" most
+# of this at us (pipeline-style).
+class LDSTRequest(RecordObject):
+    def __init__(self, name=None):
+        RecordObject.__init__(self, name=name)
+
+        self.load          = Signal()
+        self.dcbz          = Signal()
+        self.addr          = Signal(64)
+        # self.store_data    = Signal(64) # this is already sync (on a delay)
+        self.byte_sel      = Signal(8)
+        self.nc            = Signal()              # non-cacheable access
+        self.virt_mode     = Signal()
+        self.priv_mode     = Signal()
+        self.align_intr    = Signal()
+
 # glue logic for microwatt mmu and dcache
 class LoadStore1(PortInterfaceBase):
     def __init__(self, pspec):
@@ -57,6 +74,7 @@ class LoadStore1(PortInterfaceBase):
         self.d_in = self.dcache.d_out      # out from dcache is in for LoadStore
         self.m_out  = LoadStore1ToMMUType() # out *to* MMU
         self.m_in = MMUToLoadStore1Type()   # in *from* MMU
+        self.req = LDSTRequest(name="ldst_req")
 
         # TODO, convert dcache wb_in/wb_out to "standard" nmigen Wishbone bus
         self.dbus = Record(make_wb_layout(pspec))
@@ -82,7 +100,6 @@ class LoadStore1(PortInterfaceBase):
         self.store_data    = Signal(64)
         self.load_data     = Signal(64)
         self.byte_sel      = Signal(8)
-        self.update        = Signal()
         #self.xerc         : xer_common_t;
         #self.reserve       = Signal()
         #self.atomic        = Signal()
@@ -98,49 +115,44 @@ class LoadStore1(PortInterfaceBase):
         self.wait_dcache   = Signal()
         self.wait_mmu      = Signal()
         #self.mode_32bit    = Signal()
-        self.wr_sel        = Signal(2)
-        self.interrupt     = Signal()
         #self.intr_vec     : integer range 0 to 16#fff#;
         #self.nia           = Signal(64)
         #self.srr1          = Signal(16)
 
     def set_wr_addr(self, m, addr, mask, misalign, msr_pr):
-        m.d.comb += self.load.eq(0) # store operation
-
-        m.d.comb += self.d_out.load.eq(0)
-        m.d.comb += self.byte_sel.eq(mask)
-        m.d.comb += self.addr.eq(addr)
-        m.d.comb += self.priv_mode.eq(~msr_pr) # not-problem  ==> priv
-        m.d.comb += self.virt_mode.eq(msr_pr) # problem-state ==> virt
-        m.d.comb += self.align_intr.eq(misalign)
+        m.d.comb += self.req.load.eq(0) # store operation
+        m.d.comb += self.req.byte_sel.eq(mask)
+        m.d.comb += self.req.addr.eq(addr)
+        m.d.comb += self.req.priv_mode.eq(~msr_pr) # not-problem  ==> priv
+        m.d.comb += self.req.virt_mode.eq(msr_pr) # problem-state ==> virt
+        m.d.comb += self.req.align_intr.eq(misalign)
         # option to disable the cache entirely for write
         if self.disable_cache:
-            m.d.comb += self.nc.eq(1)
+            m.d.comb += self.req.nc.eq(1)
         return None
 
     def set_rd_addr(self, m, addr, mask, misalign, msr_pr):
-        m.d.comb += self.d_valid.eq(1)
         m.d.comb += self.d_out.valid.eq(self.d_validblip)
-        m.d.comb += self.load.eq(1) # load operation
-        m.d.comb += self.d_out.load.eq(1)
-        m.d.comb += self.byte_sel.eq(mask)
-        m.d.comb += self.align_intr.eq(misalign)
-        m.d.comb += self.addr.eq(addr)
-        m.d.comb += self.priv_mode.eq(~msr_pr) # not-problem  ==> priv
-        m.d.comb += self.virt_mode.eq(msr_pr) # problem-state ==> virt
+        m.d.comb += self.d_valid.eq(1)
+        m.d.comb += self.req.load.eq(1) # load operation
+        m.d.comb += self.req.byte_sel.eq(mask)
+        m.d.comb += self.req.align_intr.eq(misalign)
+        m.d.comb += self.req.addr.eq(addr)
+        m.d.comb += self.req.priv_mode.eq(~msr_pr) # not-problem  ==> priv
+        m.d.comb += self.req.virt_mode.eq(msr_pr) # problem-state ==> virt
         # BAD HACK! disable cacheing on LD when address is 0xCxxx_xxxx
         # this is for peripherals. same thing done in Microwatt loadstore1.vhdl
         with m.If(addr[28:] == Const(0xc, 4)):
-            m.d.comb += self.nc.eq(1)
+            m.d.comb += self.req.nc.eq(1)
         # option to disable the cache entirely for read
         if self.disable_cache:
-            m.d.comb += self.nc.eq(1)
+            m.d.comb += self.req.nc.eq(1)
         return None #FIXME return value
 
     def set_wr_data(self, m, data, wen):
         # do the "blip" on write data
-        m.d.comb += self.d_valid.eq(1)
         m.d.comb += self.d_out.valid.eq(self.d_validblip)
+        m.d.comb += self.d_valid.eq(1)
         # put data into comb which is picked up in main elaborate()
         m.d.comb += self.d_w_valid.eq(1)
         m.d.comb += self.store_data.eq(data)
@@ -173,17 +185,22 @@ class LoadStore1(PortInterfaceBase):
 
         # create a blip (single pulse) on valid read/write request
         # this can be over-ridden in the FSM to get dcache to re-run
-        # a request when MMU_LOOKUP completes
+        # a request when MMU_LOOKUP completes.
         m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
+        ldst_r = LDSTRequest("ldst_r")
+        with m.If(self.d_validblip):
+            sync += ldst_r.eq(self.req) # copy of LDSTRequest on "blip"
 
         # fsm skeleton
         with m.Switch(self.state):
             with m.Case(State.IDLE):
                 with m.If(self.d_validblip):
+                    comb += self.busy.eq(1)
                     sync += self.state.eq(State.ACK_WAIT)
 
             # waiting for completion
             with m.Case(State.ACK_WAIT):
+                comb += self.busy.eq(1)
 
                 with m.If(d_in.error):
                     # cache error is not necessarily "final", it could
@@ -203,7 +220,9 @@ class LoadStore1(PortInterfaceBase):
                         comb += mmureq.eq(1)
                         sync += self.state.eq(State.MMU_LOOKUP)
                 with m.If(d_in.valid):
-                    m.d.comb += self.done.eq(1)
+                    m.d.comb += self.done.eq(~mmureq) # done if not doing MMU
+                    with m.If(self.done):
+                        sync += Display("ACK_WAIT, done %x", self.addr)
                     sync += self.state.eq(State.IDLE)
                     with m.If(self.load):
                         m.d.comb += self.load_data.eq(d_in.data)
@@ -211,12 +230,14 @@ class LoadStore1(PortInterfaceBase):
             # waiting here for the MMU TLB lookup to complete.
             # either re-try the dcache lookup or throw MMU exception
             with m.Case(State.MMU_LOOKUP):
+                comb += self.busy.eq(1)
                 with m.If(m_in.done):
                     with m.If(~self.instr_fault):
-                        sync += Display("MMU_LOOKUP, done %x", self.addr)
+                        sync += Display("MMU_LOOKUP, done %x -> %x",
+                                        self.addr, d_out.addr)
                         # retry the request now that the MMU has
-                        # installed a TLB entry
-                        m.d.comb += self.d_validblip.eq(1) # re-run dcache req
+                        # installed a TLB entry, if not exception raised
+                        m.d.comb += self.d_out.valid.eq(~exception)
                         sync += self.state.eq(State.ACK_WAIT)
                     with m.Else():
                         sync += Display("MMU_LOOKUP, exception %x", self.addr)
@@ -277,17 +298,25 @@ class LoadStore1(PortInterfaceBase):
         # task 1: look up in dcache
         # task 2: if dcache fails, look up in MMU.
         # do **NOT** confuse the two.
-        m.d.comb += d_out.load.eq(self.load)
-        m.d.comb += d_out.byte_sel.eq(self.byte_sel)
-        m.d.comb += d_out.addr.eq(self.addr)
-        m.d.comb += d_out.nc.eq(self.nc)
-        m.d.comb += d_out.priv_mode.eq(self.priv_mode)
-        m.d.comb += d_out.virt_mode.eq(self.virt_mode)
+        with m.If(self.d_validblip):
+            m.d.comb += d_out.load.eq(self.req.load)
+            m.d.comb += d_out.byte_sel.eq(self.req.byte_sel)
+            m.d.comb += self.addr.eq(self.req.addr)
+            m.d.comb += d_out.nc.eq(self.req.nc)
+            m.d.comb += d_out.priv_mode.eq(self.req.priv_mode)
+            m.d.comb += d_out.virt_mode.eq(self.req.virt_mode)
+        with m.Else():
+            m.d.comb += d_out.load.eq(ldst_r.load)
+            m.d.comb += d_out.byte_sel.eq(ldst_r.byte_sel)
+            m.d.comb += self.addr.eq(ldst_r.addr)
+            m.d.comb += d_out.nc.eq(ldst_r.nc)
+            m.d.comb += d_out.priv_mode.eq(ldst_r.priv_mode)
+            m.d.comb += d_out.virt_mode.eq(ldst_r.virt_mode)
 
         # XXX these should be possible to remove but for some reason
         # cannot be... yet. TODO, investigate
-        m.d.comb += self.done.eq(d_in.valid)
         m.d.comb += self.load_data.eq(d_in.data)
+        m.d.comb += d_out.addr.eq(self.addr)
 
         # Update outputs to MMU
         m.d.comb += m_out.valid.eq(mmureq)

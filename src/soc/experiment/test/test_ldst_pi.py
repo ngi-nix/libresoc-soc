@@ -138,8 +138,8 @@ def test_mmu():
 
     pspec = TestMemPspec(ldst_ifacetype='mmu_cache_wb',
                          imem_ifacetype='',
-                         disable_cache=True,
                          addr_wid=48,
+                         #disable_cache=True, # hmmm...
                          mask_wid=8,
                          reg_wid=64)
 
