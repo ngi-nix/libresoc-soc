@@ -31,10 +31,8 @@ class CacheRam(Elaboratable):
      
         rd_data0 = Signal(WIDTH)
      
-        sel0 = Signal(WIDTH//8) # defaults to zero
-
         with m.If(TRACE):
-            with m.If(self.wr_sel != sel0):
+            with m.If(self.wr_sel.bool()):
                 sync += Display( "write a: %x sel: %x dat: %x",
                                 self.wr_addr, self.wr_sel, self.wr_data)
         for i in range(WIDTH//8):
