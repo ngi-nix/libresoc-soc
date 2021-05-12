@@ -160,7 +160,8 @@ class LoadStore1(PortInterfaceBase):
         m.submodules.dcache = dcache = self.dcache
 
         # temp vars
-        d_out, d_in, m_in, dbus = self.d_out, self.d_in, self.m_in, self.dbus
+        d_out, d_in, dbus = self.d_out, self.d_in, self.dbus
+        m_out, m_in = self.m_out, self.m_in
         exc = self.pi.exc_o
         exception = exc.happened
         mmureq = Signal()
@@ -277,25 +278,25 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += d_out.byte_sel.eq(self.byte_sel)
         m.d.comb += d_out.addr.eq(self.addr)
         m.d.comb += d_out.nc.eq(self.nc)
+        m.d.comb += d_out.priv_mode.eq(self.priv_mode)
+        m.d.comb += d_out.virt_mode.eq(self.virt_mode)
 
         # XXX these should be possible to remove but for some reason
         # cannot be... yet. TODO, investigate
         m.d.comb += self.done.eq(d_in.valid)
         m.d.comb += self.load_data.eq(d_in.data)
 
-        ''' TODO: translate to nmigen.
-        -- Update outputs to MMU
-        m_out.valid <= mmureq;
-        m_out.iside <= v.instr_fault;
-        m_out.load <= r.load;
+        # Update outputs to MMU
+        m.d.comb += m_out.valid.eq(mmureq)
+        m.d.comb += m_out.iside.eq(self.instr_fault)
+        m.d.comb += m_out.load.eq(self.load)
         # m_out.priv <= r.priv_mode; TODO
-        m_out.tlbie <= v.tlbie;
+        m.d.comb += m_out.tlbie.eq(self.tlbie)
         # m_out.mtspr <= mmu_mtspr; # TODO
         # m_out.sprn <= sprn; # TODO
-        m_out.addr <= maddr;
+        m.d.comb += m_out.addr.eq(maddr)
         # m_out.slbia <= l_in.insn(7); # TODO: no idea what this is
         # m_out.rs <= l_in.data; # nope, probably not needed, TODO investigate
-        '''
 
         return m
 

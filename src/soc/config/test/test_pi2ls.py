@@ -35,7 +35,7 @@ def wait_ldok(port):
         yield
 
 
-def pi_st(port1, addr, data, datalen):
+def pi_st(port1, addr, data, datalen, msr_pr=0):
 
     # have to wait until not busy
     yield from wait_busy(port1, no=False)    # wait until not busy
@@ -43,6 +43,7 @@ def pi_st(port1, addr, data, datalen):
     # set up a ST on the port.  address first:
     yield port1.is_st_i.eq(1)  # indicate ST
     yield port1.data_len.eq(datalen)  # ST length (1/2/4/8)
+    yield port1.msr_pr.eq(msr_pr)  # MSR PR bit (1==>virt, 0==>real)
 
     yield port1.addr.data.eq(addr)  # set address
     yield port1.addr.ok.eq(1)  # set ok
@@ -62,7 +63,7 @@ def pi_st(port1, addr, data, datalen):
     yield port1.addr.ok.eq(0)  # set !ok
 
 
-def pi_ld(port1, addr, datalen):
+def pi_ld(port1, addr, datalen, msr_pr=0):
 
     # have to wait until not busy
     yield from wait_busy(port1, no=False)    # wait until not busy
@@ -70,6 +71,7 @@ def pi_ld(port1, addr, datalen):
     # set up a LD on the port.  address first:
     yield port1.is_ld_i.eq(1)  # indicate LD
     yield port1.data_len.eq(datalen)  # LD length (1/2/4/8)
+    yield port1.msr_pr.eq(msr_pr)  # MSR PR bit (1==>virt, 0==>real)
 
     yield port1.addr.data.eq(addr)  # set address
     yield port1.addr.ok.eq(1)  # set ok
@@ -87,7 +89,7 @@ def pi_ld(port1, addr, datalen):
     return data
 
 
-def pi_ldst(arg, dut):
+def pi_ldst(arg, dut, msr_pr=0):
 
     # do two half-word stores at consecutive addresses, then two loads
     addr1 = 0x04
@@ -95,16 +97,16 @@ def pi_ldst(arg, dut):
     data = 0xbeef
     data2 = 0xf00f
     #data = 0x4
-    yield from pi_st(dut, addr1, data, 2)
-    yield from pi_st(dut, addr2, data2, 2)
-    result = yield from pi_ld(dut, addr1, 2)
-    result2 = yield from pi_ld(dut, addr2, 2)
+    yield from pi_st(dut, addr1, data, 2, msr_pr)
+    yield from pi_st(dut, addr2, data2, 2, msr_pr)
+    result = yield from pi_ld(dut, addr1, 2, msr_pr)
+    result2 = yield from pi_ld(dut, addr2, 2, msr_pr)
     arg.assertEqual(data, result, "data %x != %x" % (result, data))
     arg.assertEqual(data2, result2, "data2 %x != %x" % (result2, data2))
 
     # now load both in a 32-bit load to make sure they're really consecutive
     data3 = data | (data2 << 16)
-    result3 = yield from pi_ld(dut, addr1, 4)
+    result3 = yield from pi_ld(dut, addr1, 4, msr_pr)
     arg.assertEqual(data3, result3, "data3 %x != %x" % (result3, data3))
 
 
