@@ -90,6 +90,7 @@ class TestMicrowattMemoryPortInterface(PortInterfaceBase):
         data = self.dcache.d_out.data
         return data, ld_ok
 
+
         # DCacheToLoadStore1Type NC
         # store_done
         # error
@@ -223,6 +224,7 @@ def mmu_sim(dut):
 
     stop = True
 
+
 def test_mmu():
     mmu = MMU()
     dcache = DCache()
@@ -239,6 +241,7 @@ def test_mmu():
     sim.add_sync_process(wrap(wb_get(dcache)))
     with sim.write_vcd('test_mmu_pi.vcd'):
         sim.run()
+
 
 if __name__ == '__main__':
     test_mmu()
