@@ -46,12 +46,12 @@ if __name__ == "__main__":
     #                          microwatt_mmu=True))
 
     # LD/ST tests should all still work
-    #suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64,
-    #                          microwatt_mmu=True))
+    suite.addTest(TestRunner(LDSTTestCase().test_data, svp64=svp64,
+                              microwatt_mmu=True))
 
     # LD/ST exception cases
-    suite.addTest(TestRunner(LDSTExceptionTestCase().test_data, svp64=svp64,
-                              microwatt_mmu=True))
+    #suite.addTest(TestRunner(LDSTExceptionTestCase().test_data, svp64=svp64,
+    #                          microwatt_mmu=True))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

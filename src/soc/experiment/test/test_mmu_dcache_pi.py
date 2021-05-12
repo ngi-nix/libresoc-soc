@@ -156,12 +156,9 @@ def wb_get(dc):
             yield
         addr = (yield dc.wb_out.adr) << 3
         if addr not in mem:
-            print ("    DCACHE LOOKUP FAIL %x" % (addr))
-            stop = True
-            return
+            print ("    WB LOOKUP NO entry @ %x, returning zero" % (addr))
 
-        yield
-        data = mem[addr]
+        data = mem.get(addr)
         yield dc.wb_in.dat.eq(data)
         print ("    DCACHE get %x data %x" % (addr, data))
         yield dc.wb_in.ack.eq(1)
