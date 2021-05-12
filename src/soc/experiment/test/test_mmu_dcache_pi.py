@@ -1,3 +1,9 @@
+"""MMU PortInterface Test
+
+quite basic, goes directly to the MMU to assert signals (does not
+yet use PortInterface)
+"""
+
 from nmigen import (C, Module, Signal, Elaboratable, Mux, Cat, Repl, Signal)
 from nmigen.cli import main
 from nmigen.cli import rtlil
