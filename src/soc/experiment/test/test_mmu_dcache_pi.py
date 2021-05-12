@@ -164,7 +164,7 @@ def wb_get(dc):
         if addr not in mem:
             print ("    WB LOOKUP NO entry @ %x, returning zero" % (addr))
 
-        data = mem.get(addr)
+        data = mem.get(addr, 0)
         yield dc.wb_in.dat.eq(data)
         print ("    DCACHE get %x data %x" % (addr, data))
         yield dc.wb_in.ack.eq(1)
@@ -176,9 +176,9 @@ def mmu_lookup(dut, addr):
     mmu = dut.mmu
     global stop
 
-    print("pi_st")
+    print("pi_ld")
     yield from pi_ld(dut.pi, addr, 1)
-    print("pi_st_done")
+    print("pi_ld done")
     """
     # original test code kept for reference
     while not stop: # wait for dc_valid / err
