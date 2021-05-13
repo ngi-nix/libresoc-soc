@@ -170,6 +170,7 @@ def wb_get(dc):
         yield dc.wb_in.ack.eq(1)
         yield
         yield dc.wb_in.ack.eq(0)
+        yield
 
 
 def mmu_lookup(dut, addr):

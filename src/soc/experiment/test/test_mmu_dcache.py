@@ -89,6 +89,7 @@ def wb_get(c, mem, name):
         yield c.wb_in.ack.eq(1)
         yield
         yield c.wb_in.ack.eq(0)
+        yield
 
 
 def icache_sim(dut, mem):

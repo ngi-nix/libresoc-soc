@@ -79,13 +79,14 @@ def wb_get(wb):
         yield wb.ack.eq(1)
         yield
         yield wb.ack.eq(0)
+        yield
 
 
 def mmu_lookup(dut, addr):
     mmu = dut.submodules.mmu
     global stop
 
-    print("pi_ld")
+    print("pi_ld", hex(addr))
     data = yield from pi_ld(dut.submodules.ldst.pi, addr, 4, msr_pr=1)
     print("pi_ld done, data", hex(data))
     """
@@ -123,20 +124,30 @@ def ldst_sim(dut):
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
+    # expecting this data to return
+    # 0x1000: 0xdeadbeef01234567,
+    # 0x1008: 0xfeedf00ff001a5a5
+
     addr = 0x1000
     print("pi_ld")
 
     # TODO mmu_lookup using port interface
     # set inputs 
-    phys_addr = yield from mmu_lookup(dut, addr)
+    data = yield from mmu_lookup(dut, addr)
+    assert data == 0x1234567
+
+    data = yield from mmu_lookup(dut, addr+8)
+    assert data == 0xf001a5a5
     #assert phys_addr == addr # happens to be the same (for this example)
 
-    phys_addr = yield from mmu_lookup(dut, addr)
-    #assert phys_addr == addr # happens to be the same (for this example)
+    data = yield from mmu_lookup(dut, addr+4)
+    assert data == 0xdeadbeef
 
-    phys_addr = yield from mmu_lookup(dut, addr+4)
+    data = yield from mmu_lookup(dut, addr+8)
+    assert data == 0xf001a5a5
 
-    phys_addr = yield from mmu_lookup(dut, addr+8)
+    yield
+    yield
 
     stop = True
 
