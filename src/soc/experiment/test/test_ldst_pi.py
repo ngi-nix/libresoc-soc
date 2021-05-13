@@ -73,9 +73,27 @@ def wb_get(wb):
         if addr not in mem:
             print ("    WB LOOKUP NO entry @ %x, returning zero" % (addr))
 
-        data = mem.get(addr, 0)
-        yield wb.dat_r.eq(data)
-        print ("    DCACHE get %x data %x" % (addr, data))
+        # read or write?
+        we = (yield wb.we)
+        if we:
+            store = (yield wb.dat_w)
+            sel = (yield wb.sel)
+            data = mem.get(addr, 0)
+            # note we assume 8-bit sel, here
+            res = 0
+            for i in range(8):
+                mask = 0xff << (i*8)
+                if sel & (1<<i):
+                    res |= store & mask
+                else:
+                    res |= data & mask
+            mem[addr] = res
+            print ("    DCACHE set %x mask %x data %x" % (addr, sel, res))
+        else:
+            data = mem.get(addr, 0)
+            yield wb.dat_r.eq(data)
+            print ("    DCACHE get %x data %x" % (addr, data))
+
         yield wb.ack.eq(1)
         yield
         yield wb.ack.eq(0)
@@ -132,7 +150,7 @@ def ldst_sim(dut):
     print("pi_ld")
 
     # TODO mmu_lookup using port interface
-    # set inputs 
+    # set inputs
     data = yield from mmu_lookup(dut, addr)
     assert data == 0x1234567
 
@@ -145,6 +163,11 @@ def ldst_sim(dut):
 
     data = yield from mmu_lookup(dut, addr+8)
     assert data == 0xf001a5a5
+
+    yield from pi_st(dut.submodules.ldst.pi, addr+4, 0x10015a5a, 4, msr_pr=1)
+
+    data = yield from mmu_lookup(dut, addr+4)
+    assert data == 0x10015a5a
 
     yield
     yield
