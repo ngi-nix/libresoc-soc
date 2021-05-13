@@ -447,8 +447,8 @@ class DTLBUpdate(Elaboratable):
         self.dv = Signal(TLB_NUM_WAYS) # tlb_way_valids_t
 
         self.tb_out = Signal(TLB_TAG_WAY_BITS) # tlb_way_tags_t
-        self.pb_out = Signal(TLB_NUM_WAYS)     # tlb_way_valids_t
-        self.db_out = Signal(TLB_PTE_WAY_BITS) # tlb_way_ptes_t
+        self.db_out = Signal(TLB_NUM_WAYS)     # tlb_way_valids_t
+        self.pb_out = Signal(TLB_PTE_WAY_BITS) # tlb_way_ptes_t
 
     def elaborate(self, platform):
         m = Module()
