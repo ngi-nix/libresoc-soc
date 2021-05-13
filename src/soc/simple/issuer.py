@@ -1007,8 +1007,9 @@ class TestIssuerInternal(Elaboratable):
         # on VL==0
         is_svp64_mode = Signal()
 
-        # there are *THREE* FSMs, fetch (32/64-bit) issue, decode/execute.
-        # these are the handshake signals between fetch and decode/execute
+        # there are *THREE^WFOUR-if-SVP64-enabled* FSMs, fetch (32/64-bit)
+        # issue, decode/execute, now joined by "Predicate fetch/calculate".
+        # these are the handshake signals between each
 
         # fetch FSM can run as soon as the PC is valid
         fetch_pc_valid_i = Signal() # Execute tells Fetch "start next read"
