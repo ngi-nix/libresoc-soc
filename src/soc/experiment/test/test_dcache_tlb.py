@@ -213,8 +213,13 @@ def dcache_sim(dut, mem):
 
     # Cacheable read of address 4
     data = yield from dcache_load_m(dut, 0x58)
-    addr = yield dut.d_in.addr
-    print ("dcache m_load 0x58", addr)
+    print ("dcache m_load 0x58", hex(data))
+    yield
+    yield
+
+    # Cacheable read of address 4
+    data = yield from dcache_load_m(dut, 0x58)
+    print ("dcache m_load 0x58", hex(data))
     yield
     yield
 

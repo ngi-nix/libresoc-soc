@@ -119,16 +119,15 @@ def ldst_sim(dut):
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
-    addr = 0x10000
-    data = 0
-    print("pi_st")
+    addr = 0x1000
+    print("pi_ld")
 
     # TODO mmu_lookup using port interface
     # set inputs 
-    phys_addr = yield from mmu_lookup(dut, 0x10000)
+    phys_addr = yield from mmu_lookup(dut, addr)
     assert phys_addr == 0x40000
 
-    phys_addr = yield from mmu_lookup(dut, 0x10000)
+    phys_addr = yield from mmu_lookup(dut, addr)
     assert phys_addr == 0x40000
 
     stop = True

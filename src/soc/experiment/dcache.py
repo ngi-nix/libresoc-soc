@@ -621,7 +621,7 @@ class DCache(Elaboratable):
 
         with m.If(m_in.valid):
             comb += r.req.valid.eq(1)
-            comb += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))
+            comb += r.req.load.eq(~(m_in.tlbie | m_in.tlbld))# no invalidate
             comb += r.req.dcbz.eq(0)
             comb += r.req.nc.eq(0)
             comb += r.req.reserve.eq(0)
@@ -634,6 +634,9 @@ class DCache(Elaboratable):
             comb += r.doall.eq(m_in.doall)
             comb += r.tlbld.eq(m_in.tlbld)
             comb += r.mmu_req.eq(1)
+            m.d.sync += Display("    DCACHE req mmu addr %x pte %x ld %d",
+                                 m_in.addr, m_in.pte, r.req.load)
+
         with m.Else():
             comb += r.req.eq(d_in)
             comb += r.req.data.eq(0)
@@ -651,6 +654,9 @@ class DCache(Elaboratable):
                      ~r0.mmu_req):
                 sync += r0.req.data.eq(d_in.data)
                 sync += r0.d_valid.eq(1)
+        with m.If(d_in.valid):
+            m.d.sync += Display("    DCACHE req cache addr %x data %x ld %d",
+                                 r.req.addr, r.req.data, r.req.load)
 
     def tlb_read(self, m, r0_stall, tlb_valid_way,
                  tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
@@ -749,6 +755,15 @@ class DCache(Elaboratable):
             comb += perm_attr.priv.eq(1)
             comb += perm_attr.rd_perm.eq(1)
             comb += perm_attr.wr_perm.eq(1)
+        with m.If(valid_ra):
+            m.d.sync += Display("DCACHE virt mode %d ra %x pte %x",
+                                r0.req.virt_mode, ra, pte)
+            m.d.sync += Display("       perm ref=%d", perm_attr.reference)
+            m.d.sync += Display("       perm chg=%d", perm_attr.changed)
+            m.d.sync += Display("       perm noc=%d", perm_attr.nocache)
+            m.d.sync += Display("       perm prv=%d", perm_attr.priv)
+            m.d.sync += Display("       perm rdp=%d", perm_attr.rd_perm)
+            m.d.sync += Display("       perm wrp=%d", perm_attr.wr_perm)
 
     def tlb_update(self, m, r0_valid, r0, dtlb_valid_bits, tlb_req_index,
                     tlb_hit_way, tlb_hit, tlb_plru_victim, tlb_tag_way,
@@ -932,10 +947,15 @@ class DCache(Elaboratable):
         comb += op.eq(Op.OP_NONE)
         with m.If(go):
             with m.If(~access_ok):
+                m.d.sync += Display("DCACHE access fail valid_ra=%d p=%d rc=%d",
+                                 valid_ra, perm_ok, rc_ok)
                 comb += op.eq(Op.OP_BAD)
             with m.Elif(cancel_store):
+                m.d.sync += Display("DCACHE cancel store")
                 comb += op.eq(Op.OP_STCX_FAIL)
             with m.Else():
+                m.d.sync += Display("DCACHE valid_ra=%d nc=%d ld=%d",
+                                 valid_ra, nc, r0.req.load)
                 comb += opsel.eq(Cat(is_hit, nc, r0.req.load))
                 with m.Switch(opsel):
                     with m.Case(0b101): comb += op.eq(Op.OP_LOAD_HIT)
@@ -1073,8 +1093,8 @@ class DCache(Elaboratable):
 
             # Slow ops (i.e. load miss)
             with m.If(r1.slow_valid):
-                sync += Display("completing MMU load miss, data=%x",
-                                m_out.data)
+                sync += Display("completing MMU load miss, adr=%x data=%x",
+                                r1.req.real_addr, m_out.data)
 
     def rams(self, m, r1, early_req_row, cache_out_row, replace_way):
         """rams
