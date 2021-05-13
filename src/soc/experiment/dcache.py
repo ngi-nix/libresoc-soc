@@ -465,7 +465,7 @@ class DTLBUpdate(Elaboratable):
             pass # clear all back in parent
         with m.Elif(self.tlbie):
             with m.If(self.tlb_hit):
-                comb += db_out.bit_select(self.tlb_hit_way, 1).eq(1)
+                comb += db_out.bit_select(self.tlb_hit_way, 1).eq(0)
                 comb += self.v_updated.eq(1)
 
         with m.Elif(self.tlbwe):
