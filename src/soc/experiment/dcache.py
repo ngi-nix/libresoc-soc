@@ -655,8 +655,10 @@ class DCache(Elaboratable):
                 sync += r0.req.data.eq(d_in.data)
                 sync += r0.d_valid.eq(1)
         with m.If(d_in.valid):
-            m.d.sync += Display("    DCACHE req cache addr %x data %x ld %d",
-                                 r.req.addr, r.req.data, r.req.load)
+            m.d.sync += Display("    DCACHE req cache "
+                                "virt %d addr %x data %x ld %d",
+                                 r.req.virt_mode, r.req.addr,
+                                 r.req.data, r.req.load)
 
     def tlb_read(self, m, r0_stall, tlb_valid_way,
                  tlb_tag_way, tlb_pte_way, dtlb_valid_bits,
@@ -722,9 +724,10 @@ class DCache(Elaboratable):
         comb += eatag.eq(r0.req.addr[TLB_LG_END : 64 ])
 
         for i in range(TLB_NUM_WAYS):
-            is_tag_hit = Signal()
-            comb += is_tag_hit.eq(tlb_valid_way[i]
-                                  & (read_tlb_tag(i, tlb_tag_way) == eatag))
+            is_tag_hit = Signal(name="is_tag_hit%d" % i)
+            tlb_tag = Signal(TLB_EA_TAG_BITS, name="tlb_tag%d" % i)
+            comb += tlb_tag.eq(read_tlb_tag(i, tlb_tag_way))
+            comb += is_tag_hit.eq(tlb_valid_way[i] & (tlb_tag == eatag))
             with m.If(is_tag_hit):
                 comb += hitway.eq(i)
                 comb += hit.eq(1)
@@ -755,9 +758,10 @@ class DCache(Elaboratable):
             comb += perm_attr.priv.eq(1)
             comb += perm_attr.rd_perm.eq(1)
             comb += perm_attr.wr_perm.eq(1)
+
         with m.If(valid_ra):
-            m.d.sync += Display("DCACHE virt mode %d ra %x pte %x",
-                                r0.req.virt_mode, ra, pte)
+            m.d.sync += Display("DCACHE virt mode %d hit %d ra %x pte %x",
+                                r0.req.virt_mode, tlb_hit, ra, pte)
             m.d.sync += Display("       perm ref=%d", perm_attr.reference)
             m.d.sync += Display("       perm chg=%d", perm_attr.changed)
             m.d.sync += Display("       perm noc=%d", perm_attr.nocache)
@@ -1495,6 +1499,9 @@ cache_tags(r1.store_index)((i + 1) * TAG_WIDTH - 1 downto i * TAG_WIDTH) <=
                         sync += cache_valids[r1.store_index].eq(cv)
 
                         sync += r1.state.eq(State.IDLE)
+                        sync += Display("cache valid set %x "
+                                        "idx %d way %d",
+                                         cv, r1.store_index, r1.store_way)
 
                     # Increment store row counter
                     sync += r1.store_row.eq(next_row(r1.store_row))
