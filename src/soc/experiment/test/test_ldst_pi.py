@@ -56,7 +56,8 @@ def wb_get(wb):
            b(0x40000000000300ad),
 
          # data to return
-          0x1000: 0xdeadbeef01234567
+          0x1000: 0xdeadbeef01234567,
+          0x1008: 0xfeedf00ff001a5a5
           }
 
     while not stop:
@@ -113,7 +114,7 @@ def mmu_lookup(dut, addr):
     yield
     yield mmu.l_in.valid.eq(0)
 
-    return phys_addr
+    return data
 
 
 def ldst_sim(dut):
@@ -132,6 +133,10 @@ def ldst_sim(dut):
 
     phys_addr = yield from mmu_lookup(dut, addr)
     #assert phys_addr == addr # happens to be the same (for this example)
+
+    phys_addr = yield from mmu_lookup(dut, addr+4)
+
+    phys_addr = yield from mmu_lookup(dut, addr+8)
 
     stop = True
 
