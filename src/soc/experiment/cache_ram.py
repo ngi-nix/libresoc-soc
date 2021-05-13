@@ -4,7 +4,9 @@ from nmutil.util import Display
 
 class CacheRam(Elaboratable):
 
-    def __init__(self, ROW_BITS=16, WIDTH = 64, TRACE=True, ADD_BUF=False):
+    def __init__(self, ROW_BITS=16, WIDTH = 64, TRACE=True, ADD_BUF=False,
+                       ram_num=0):
+        self.ram_num = ram_num # for debug reporting
         self.ROW_BITS = ROW_BITS
         self.WIDTH = WIDTH
         self.TRACE = TRACE
@@ -33,8 +35,10 @@ class CacheRam(Elaboratable):
      
         with m.If(TRACE):
             with m.If(self.wr_sel.bool()):
-                sync += Display( "write a: %x sel: %x dat: %x",
-                                self.wr_addr, self.wr_sel, self.wr_data)
+                sync += Display( "write ramno %d a: %%x "
+                                 "sel: %%x dat: %%x" % self.ram_num,
+                                self.wr_addr,
+                                self.wr_sel, self.wr_data)
         for i in range(WIDTH//8):
             lbit = i * 8;
             mbit = lbit + 8;
@@ -43,7 +47,7 @@ class CacheRam(Elaboratable):
         with m.If(self.rd_en):
             sync += rd_data0.eq(ram[self.rd_addr])
             if TRACE:
-                sync += Display("read a: %x dat: %x",
+                sync += Display("read ramno %d a: %%x dat: %%x" % self.ram_num,
                                 self.rd_addr, ram[self.rd_addr])
                 pass
 
