@@ -207,6 +207,7 @@ class LoadStore1(PortInterfaceBase):
                     with m.If(d_in.cache_paradox):
                         comb += exception.eq(1)
                         sync += self.state.eq(State.IDLE)
+                        sync += ldst_r.eq(0)
                         sync += self.dsisr[63 - 38].eq(~self.load)
                         # XXX there is no architected bit for this
                         # (probably should be a machine check in fact)
@@ -223,6 +224,7 @@ class LoadStore1(PortInterfaceBase):
                     with m.If(self.done):
                         sync += Display("ACK_WAIT, done %x", self.addr)
                     sync += self.state.eq(State.IDLE)
+                    sync += ldst_r.eq(0)
                     with m.If(self.load):
                         m.d.comb += self.load_data.eq(d_in.data)
 
@@ -238,6 +240,7 @@ class LoadStore1(PortInterfaceBase):
                         # installed a TLB entry, if not exception raised
                         m.d.comb += self.d_out.valid.eq(~exception)
                         sync += self.state.eq(State.ACK_WAIT)
+                        sync += ldst_r.eq(0)
                     with m.Else():
                         sync += Display("MMU_LOOKUP, exception %x", self.addr)
                         # instruction lookup fault: store address in DAR
