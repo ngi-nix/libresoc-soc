@@ -276,5 +276,5 @@ def test_misalign_mmu():
 
 
 if __name__ == '__main__':
-    #test_mmu()
+    test_mmu()
     test_misalign_mmu()

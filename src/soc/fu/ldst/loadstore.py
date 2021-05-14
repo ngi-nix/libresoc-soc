@@ -132,7 +132,6 @@ class LoadStore1(PortInterfaceBase):
         return None
 
     def set_rd_addr(self, m, addr, mask, misalign, msr_pr):
-        m.d.comb += self.d_out.valid.eq(self.d_validblip)
         m.d.comb += self.d_valid.eq(1)
         m.d.comb += self.req.load.eq(1) # load operation
         m.d.comb += self.req.byte_sel.eq(mask)
@@ -151,7 +150,6 @@ class LoadStore1(PortInterfaceBase):
 
     def set_wr_data(self, m, data, wen):
         # do the "blip" on write data
-        m.d.comb += self.d_out.valid.eq(self.d_validblip)
         m.d.comb += self.d_valid.eq(1)
         # put data into comb which is picked up in main elaborate()
         m.d.comb += self.d_w_valid.eq(1)
@@ -188,19 +186,20 @@ class LoadStore1(PortInterfaceBase):
         # a request when MMU_LOOKUP completes.
         m.d.comb += self.d_validblip.eq(rising_edge(m, self.d_valid))
         ldst_r = LDSTRequest("ldst_r")
-        with m.If(self.d_validblip):
-            sync += ldst_r.eq(self.req) # copy of LDSTRequest on "blip"
 
         # fsm skeleton
         with m.Switch(self.state):
             with m.Case(State.IDLE):
-                with m.If(self.d_validblip):
+                with m.If(self.d_validblip & ~exc.happened):
                     comb += self.busy.eq(1)
                     sync += self.state.eq(State.ACK_WAIT)
+                    sync += ldst_r.eq(self.req) # copy of LDSTRequest on "blip"
+                with m.Else():
+                    sync += ldst_r.eq(0)
 
             # waiting for completion
             with m.Case(State.ACK_WAIT):
-                comb += self.busy.eq(1)
+                comb += self.busy.eq(~exc.happened)
 
                 with m.If(d_in.error):
                     # cache error is not necessarily "final", it could
@@ -299,12 +298,14 @@ class LoadStore1(PortInterfaceBase):
         # task 2: if dcache fails, look up in MMU.
         # do **NOT** confuse the two.
         with m.If(self.d_validblip):
+            m.d.comb += self.d_out.valid.eq(~exc.happened)
             m.d.comb += d_out.load.eq(self.req.load)
             m.d.comb += d_out.byte_sel.eq(self.req.byte_sel)
             m.d.comb += self.addr.eq(self.req.addr)
             m.d.comb += d_out.nc.eq(self.req.nc)
             m.d.comb += d_out.priv_mode.eq(self.req.priv_mode)
             m.d.comb += d_out.virt_mode.eq(self.req.virt_mode)
+            m.d.comb += self.align_intr.eq(self.req.align_intr)
         with m.Else():
             m.d.comb += d_out.load.eq(ldst_r.load)
             m.d.comb += d_out.byte_sel.eq(ldst_r.byte_sel)
@@ -312,6 +313,7 @@ class LoadStore1(PortInterfaceBase):
             m.d.comb += d_out.nc.eq(ldst_r.nc)
             m.d.comb += d_out.priv_mode.eq(ldst_r.priv_mode)
             m.d.comb += d_out.virt_mode.eq(ldst_r.virt_mode)
+            m.d.comb += self.align_intr.eq(ldst_r.align_intr)
 
         # XXX these should be possible to remove but for some reason
         # cannot be... yet. TODO, investigate

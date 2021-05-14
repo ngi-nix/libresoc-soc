@@ -29,8 +29,9 @@ def wait_addr(port):
 def wait_ldok(port):
     while True:
         ldok = yield port.ld.ok
-        print("ldok", ldok)
-        if ldok:
+        exc_happened = yield port.exc_o.happened
+        print("ldok", ldok, "exception", exc_happened)
+        if ldok or exc_happened:
             break
         yield
 
@@ -80,10 +81,14 @@ def pi_ld(port1, addr, datalen, msr_pr=0):
     yield
     yield from wait_ldok(port1)             # wait until ld ok
     data = yield port1.ld.data
+    exc_happened = yield port1.exc_o.happened
 
     # cleanup
     yield port1.is_ld_i.eq(0)  # end
     yield port1.addr.ok.eq(0)  # set !ok
+    if exc_happened:
+        return 0
+
     yield from wait_busy(port1, no=False)    # wait while not busy
 
     return data
