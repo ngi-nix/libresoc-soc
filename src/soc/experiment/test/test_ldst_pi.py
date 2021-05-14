@@ -221,6 +221,7 @@ def test_mmu():
     with sim.write_vcd('test_ldst_pi.vcd'):
         sim.run()
 
+
 def ldst_sim_misalign(dut):
     mmu = dut.submodules.mmu
     global stop
@@ -275,6 +276,62 @@ def test_misalign_mmu():
         sim.run()
 
 
+def ldst_sim_radixmiss(dut):
+    mmu = dut.submodules.mmu
+    global stop
+    stop = False
+
+    yield mmu.rin.prtbl.eq(1<<40) # set process table
+    yield
+
+    data = yield from pi_ld(dut.submodules.ldst.pi, 0x10000000, 8, msr_pr=1)
+    print ("radixmiss ld data", hex(data))
+
+    yield
+    stop = True
+
+
+
+def test_radixmiss_mmu():
+
+    m, cmpi = setup_mmu()
+
+    # virtual "memory" to use for this test
+
+    mem = {0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           b(0x800000000100000b),
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           b(0x8000000000040009),
+
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # 	   V = 1 L = 1 SW = 0 RPN = 0
+                           # R = 1 C = 1 ATT = 0 EAA 0x7
+           b(0xc000000000000183),
+
+          0x1000000:   # PROCESS_TABLE_3
+                       # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           b(0x40000000000300ad),
+
+         # data to return
+          0x1000: 0xdeadbeef01234567,
+          0x1008: 0xfeedf00ff001a5a5
+          }
+
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(ldst_sim_radixmiss(m)))
+    sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
+    with sim.write_vcd('test_ldst_pi_radix_miss.vcd'):
+        sim.run()
+
+
 if __name__ == '__main__':
     test_mmu()
     test_misalign_mmu()
+    test_radixmiss_mmu()
