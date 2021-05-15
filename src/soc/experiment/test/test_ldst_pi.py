@@ -9,6 +9,7 @@ from nmigen.cli import main
 from nmigen.cli import rtlil
 from nmutil.mask import Mask, masked
 from nmutil.util import Display
+from random import randint, seed
 
 if True:
     from nmigen.back.pysim import Simulator, Delay, Settle
@@ -290,7 +291,47 @@ def ldst_sim_radixmiss(dut):
     yield
     stop = True
 
+def ldst_sim_dcache_regression(dut):
+    mmu = dut.submodules.mmu
+    global stop
+    stop = False
 
+    yield mmu.rin.prtbl.eq(1<<40) # set process table
+    yield
+
+    data = yield from pi_ld(dut.submodules.ldst.pi, 0, 8, msr_pr=1)
+    print ("dcache_regression ld data", hex(data))
+    # FIXME: this is 0 but should be 0xFFFFFFFFFFFFFFFF
+
+    yield
+    stop = True
+
+def ldst_sim_dcache_random(dut):
+    mmu = dut.submodules.mmu
+    pi = dut.submodules.ldst.pi
+    global stop
+    stop = False
+
+    yield mmu.rin.prtbl.eq(1<<40) # set process table
+    yield
+
+    memsize = 256
+
+    for i in range(1024):
+        addr = randint(0, memsize-1)
+        data = randint(0, (1<<64)-1)
+        addr *= 8
+
+        yield from pi_st(pi, addr, data, 8, msr_pr=1)
+        yield
+
+        ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+
+        print ("dcache_random random ld data", hex(data), hex(read))
+        print ("addr",addr)
+
+    yield
+    stop = True
 
 def test_radixmiss_mmu():
 
@@ -330,8 +371,46 @@ def test_radixmiss_mmu():
     with sim.write_vcd('test_ldst_pi_radix_miss.vcd'):
         sim.run()
 
+def test_dcache_regression():
+
+    m, cmpi = setup_mmu()
+
+    # dcache_load at addr 0
+    mem = {
+        0: 0xFFFFFFFFFFFFFFFF
+    }
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(ldst_sim_dcache_regression(m)))
+    sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
+    with sim.write_vcd('test_ldst_pi_radix_miss.vcd'):
+        sim.run()
+
+def test_dcache_random():
+
+    m, cmpi = setup_mmu()
+
+    # dcache_load at addr 0
+    mem = {
+    }
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(ldst_sim_dcache_random(m)))
+    sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
+    with sim.write_vcd('test_ldst_pi_radix_miss.vcd'):
+        sim.run()
 
 if __name__ == '__main__':
     test_mmu()
     test_misalign_mmu()
     test_radixmiss_mmu()
+    ### tests taken from src/soc/experiment/test/test_dcache.py
+    test_dcache_regression()
+    #FIXME test_dcache_random()
+    #TODO test_dcache()
