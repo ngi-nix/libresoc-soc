@@ -1232,7 +1232,7 @@ class TestIssuer(Elaboratable):
         # PLL direct clock or not
         self.pll_en = hasattr(pspec, "use_pll") and pspec.use_pll
         if self.pll_en:
-            self.pll_18_o = Signal(reset_less=True)
+            self.pll_test_o = Signal(reset_less=True)
             self.clk_sel_i = Signal(reset_less=True)
 
     def elaborate(self, platform):
@@ -1260,7 +1260,7 @@ class TestIssuer(Elaboratable):
             comb += pll.clk_24_i.eq(ClockSignal())
 
             # output 18 mhz PLL test signal
-            comb += self.pll_18_o.eq(pll.pll_18_o)
+            comb += self.pll_test_o.eq(pll.pll_test_o)
 
             # input to pll clock selection
             comb += pll.clk_sel_i.eq(self.clk_sel_i)
@@ -1289,8 +1289,8 @@ class TestIssuer(Elaboratable):
         ports.append(ResetSignal())
         if self.pll_en:
             ports.append(self.clk_sel_i)
-            ports.append(self.pll_18_o)
-            ports.append(self.pll.pll_ana_o)
+            ports.append(self.pll_test_o)
+            ports.append(self.pll.pll_vco_o)
         return ports
 
 

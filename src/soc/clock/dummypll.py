@@ -11,8 +11,8 @@ class DummyPLL(Elaboratable):
         self.clk_sel_i = Signal(2, reset_less=True) # PLL selection
         self.sel_a1_i = Signal(reset_less=True) # PLL selection
         self.clk_pll_o = Signal(reset_less=True)  # output clock
-        self.pll_18_o = Signal(reset_less=True)  # test out
-        self.pll_ana_o = Signal(reset_less=True) # analog
+        self.pll_test_o = Signal(reset_less=True)  # test out
+        self.pll_vco_o = Signal(reset_less=True) # analog
 
     def elaborate(self, platform):
         m = Module()
@@ -22,8 +22,8 @@ class DummyPLL(Elaboratable):
                                   i_a0=self.clk_sel_i[0],
                                   i_a1=self.clk_sel_i[1],
                                   o_out=self.clk_pll_o,
-                                  o_div_out_test=self.pll_18_o,
-                                  o_vco_test_ana=self.pll_ana_o,
+                                  o_div_out_test=self.pll_test_o,
+                                  o_vco_test_ana=self.pll_vco_o,
                            )
             m.submodules['pll'] = pll
             #pll.attrs['blackbox'] = 1
@@ -32,14 +32,14 @@ class DummyPLL(Elaboratable):
             # just get something, stops yosys destroying (optimising) these out
             with m.If(self.clk_sel_i == 0):
                 m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
-                m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
+                m.d.comb += self.pll_vco_o.eq(~self.clk_24_i)
 
 
         return m
 
     def ports(self):
         return [self.clk_24_i, self.clk_sel_i, self.clk_pll_o,
-                self.pll_18_o, self.pll_ana_o]
+                self.pll_test_o, self.pll_vco_o]
 
 
 if __name__ == '__main__':
