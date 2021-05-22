@@ -306,30 +306,30 @@ class TestRunner(FHDLTestCase):
                         if terminated:
                             break
 
-                    # stop at end
-                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
-                    yield
-                    yield
+                # stop at end
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                yield
+                yield
 
-                    # get CR
-                    cr = yield from get_dmi(dmi, DBGCore.CR)
-                    print("after test %s cr value %x" % (test.name, cr))
+                # get CR
+                cr = yield from get_dmi(dmi, DBGCore.CR)
+                print("after test %s cr value %x" % (test.name, cr))
 
-                    # get XER
-                    xer = yield from get_dmi(dmi, DBGCore.XER)
-                    print("after test %s XER value %x" % (test.name, xer))
+                # get XER
+                xer = yield from get_dmi(dmi, DBGCore.XER)
+                print("after test %s XER value %x" % (test.name, xer))
 
-                    # test of dmi reg get
-                    for int_reg in range(32):
-                        yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
-                        value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
+                # test of dmi reg get
+                for int_reg in range(32):
+                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
+                    value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
 
-                        print("after test %s reg %2d value %x" %
-                              (test.name, int_reg, value))
+                    print("after test %s reg %2d value %x" %
+                          (test.name, int_reg, value))
 
-                    # pull a reset
-                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
-                    yield
+                # pull a reset
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                yield
 
         styles = {
             'dec': {'base': 'dec'},
