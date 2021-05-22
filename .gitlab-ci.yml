@@ -119,5 +119,4 @@ build:
         - popd
 
         - python setup.py develop
-        - pywriter > /dev/null 2>&1
         - nosetests -v --processes=-1 --process-timeout=120
