@@ -1227,7 +1227,7 @@ class TestIssuer(Elaboratable):
     def __init__(self, pspec):
         self.ti = TestIssuerInternal(pspec)
 
-        self.pll = DummyPLL()
+        self.pll = DummyPLL(instance=True)
 
         # PLL direct clock or not
         self.pll_en = hasattr(pspec, "use_pll") and pspec.use_pll
@@ -1245,7 +1245,7 @@ class TestIssuer(Elaboratable):
 
         if self.pll_en:
             # ClockSelect runs at PLL output internal clock rate
-            m.submodules.pll = pll = self.pll
+            m.submodules.wrappll = pll = self.pll
 
             # add clock domains from PLL
             cd_pll = ClockDomain("pllclk")
@@ -1263,7 +1263,7 @@ class TestIssuer(Elaboratable):
             comb += self.pll_18_o.eq(pll.pll_18_o)
 
             # input to pll clock selection
-            comb += Cat(pll.sel_a0_i, pll.sel_a1_i).eq(self.clk_sel_i)
+            comb += pll.clk_sel_i.eq(self.clk_sel_i)
 
             # now wire up ResetSignals.  don't mind them being in this domain
             pll_rst = ResetSignal("pllclk")

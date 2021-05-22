@@ -1,32 +1,44 @@
 """a Dummy PLL module to be replaced by a real one
 """
 
-from nmigen import (Module, Signal, Elaboratable, Const, Cat)
+from nmigen import (Module, Signal, Elaboratable, Const, Cat, Instance)
 from nmigen.cli import rtlil
 
 class DummyPLL(Elaboratable):
-    def __init__(self):
-        self.clk_24_i = Signal(name="ref", reset_less=True) # external incoming
-        self.sel_a0_i = Signal(name="a0", reset_less=True) # PLL selection
-        self.sel_a1_i = Signal(name="a1", reset_less=True) # PLL selection
-        self.clk_pll_o = Signal(name="out", reset_less=True)  # output clock
-        self.pll_18_o = Signal(name="div_out_test", reset_less=True)  # test out
-        self.pll_ana_o = Signal(name="vco_test_ana", reset_less=True) # analog
+    def __init__(self, instance):
+        self.instance = instance
+        self.clk_24_i = Signal(reset_less=True) # external incoming
+        self.clk_sel_i = Signal(2, reset_less=True) # PLL selection
+        self.sel_a1_i = Signal(reset_less=True) # PLL selection
+        self.clk_pll_o = Signal(reset_less=True)  # output clock
+        self.pll_18_o = Signal(reset_less=True)  # test out
+        self.pll_ana_o = Signal(reset_less=True) # analog
 
     def elaborate(self, platform):
         m = Module()
-        m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
-        # just get something, stops yosys destroying (optimising) these out
-        with m.If((~self.sel_a0_i) & (~self.sel_a1_i)):
-            m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
-            m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
 
-        #self.attrs['blackbox'] = 1
+        if self.instance:
+            pll = Instance("pll", i_ref=self.clk_24_i,
+                                  i_a0=self.clk_sel_i[0],
+                                  i_a1=self.clk_sel_i[1],
+                                  o_out=self.clk_pll_o,
+                                  o_div_out_test=self.pll_18_o,
+                                  o_vco_test_ana=self.pll_ana_o,
+                           )
+            m.submodules['pll'] = pll
+            #pll.attrs['blackbox'] = 1
+        else:
+            m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
+            # just get something, stops yosys destroying (optimising) these out
+            with m.If(self.clk_sel_i == 0):
+                m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
+                m.d.comb += self.pll_18_o.eq(~self.clk_24_i)
+
 
         return m
 
     def ports(self):
-        return [self.clk_24_i, self.sel_a0_i, self.sel_a1_i, self.clk_pll_o,
+        return [self.clk_24_i, self.clk_sel_i, self.clk_pll_o,
                 self.pll_18_o, self.pll_ana_o]
 
 
