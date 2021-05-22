@@ -85,6 +85,7 @@ build:
         - pushd openpower-isa
         - python3 setup.py develop
         - make -j$(nproc) svanalysis > /dev/null
+        - make -j$(nproc) pyfnwriter > /dev/null 2>&1
         - make -j$(nproc) pywriter > /dev/null 2>&1
         - popd
 
