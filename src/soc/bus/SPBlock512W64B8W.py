@@ -52,7 +52,7 @@ class SPBlock512W64B8W(Elaboratable):
         sram = Instance("spblock_512w64b8w", i_a=a, o_q=q,
                                                      i_d=d, i_we=we,
                                                      i_clk=ClockSignal())
-        m.submodules['spblock_512w64b8w_%s'] = sram
+        m.submodules['spblock_512w64b8w_%d' % self.idx] = sram
         # has to be added to the actual module rather than the instance
         # sram.attrs['blackbox'] = 1
 
