@@ -25,13 +25,13 @@ class DummyPLL(Elaboratable):
                                   o_div_out_test=self.pll_test_o,
                                   o_vco_test_ana=self.pll_vco_o,
                            )
-            m.submodules['pll'] = pll
+            m.submodules['real_pll'] = pll
             #pll.attrs['blackbox'] = 1
         else:
             m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
             # just get something, stops yosys destroying (optimising) these out
             with m.If(self.clk_sel_i == 0):
-                m.d.comb += self.pll_ana_o.eq(self.clk_24_i)
+                m.d.comb += self.pll_test_o.eq(self.clk_24_i)
                 m.d.comb += self.pll_vco_o.eq(~self.clk_24_i)
 
 
