@@ -21,7 +21,7 @@ class DummyPLL(Elaboratable):
             pll = Instance("pll", i_ref=self.clk_24_i,
                                   i_a0=self.clk_sel_i[0],
                                   i_a1=self.clk_sel_i[1],
-                                  o_out=self.clk_pll_o,
+                                  o_out_v=self.clk_pll_o,
                                   o_div_out_test=self.pll_test_o,
                                   o_vco_test_ana=self.pll_vco_o,
                            )
