@@ -38,6 +38,7 @@ def wb_get(wb, mem):
     """
 
     global stop
+    assert(stop==False)
 
     while not stop:
         while True: # wait for dc_valid
@@ -154,6 +155,9 @@ def ldst_sim(dut):
     stop = True
 
 def setup_mmu():
+
+    global stop
+    stop = False
 
     pspec = TestMemPspec(ldst_ifacetype='mmu_cache_wb',
                          imem_ifacetype='',
