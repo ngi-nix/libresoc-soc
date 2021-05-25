@@ -27,10 +27,12 @@ def wait_addr(port):
 
 
 def wait_ldok(port):
+    cnt = 0
     while True:
         ldok = yield port.ld.ok
         exc_happened = yield port.exc_o.happened
-        print("ldok", ldok, "exception", exc_happened)
+        print("ldok", ldok, "exception", exc_happened, "count", cnt)
+        cnt += 1
         if ldok or exc_happened:
             break
         yield
