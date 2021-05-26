@@ -1235,7 +1235,7 @@ class TestIssuer(Elaboratable):
         if self.pll_en:
             self.pll_test_o = Signal(reset_less=True)
             self.pll_vco_o = Signal(reset_less=True)
-            self.clk_sel_i = Signal(reset_less=True)
+            self.clk_sel_i = Signal(2, reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
