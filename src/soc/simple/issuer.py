@@ -1276,7 +1276,7 @@ class TestIssuer(Elaboratable):
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
         intclk = ClockSignal("coresync")
         if self.pll_en:
-            comb += intclk.eq(pll.clk_pll_o)
+            comb += intclk.eq(pllclk)
         else:
             comb += intclk.eq(ClockSignal())
 

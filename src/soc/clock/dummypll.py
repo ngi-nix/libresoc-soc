@@ -9,7 +9,6 @@ class DummyPLL(Elaboratable):
         self.instance = instance
         self.clk_24_i = Signal(reset_less=True) # external incoming
         self.clk_sel_i = Signal(2, reset_less=True) # PLL selection
-        self.sel_a1_i = Signal(reset_less=True) # PLL selection
         self.clk_pll_o = Signal(reset_less=True)  # output clock
         self.pll_test_o = Signal(reset_less=True)  # test out
         self.pll_vco_o = Signal(reset_less=True) # analog
@@ -18,22 +17,32 @@ class DummyPLL(Elaboratable):
         m = Module()
 
         if self.instance:
-            pll = Instance("pll", i_ref=self.clk_24_i,
-                                  i_a0=self.clk_sel_i[0],
-                                  i_a1=self.clk_sel_i[1],
-                                  o_out_v=self.clk_pll_o,
-                                  o_div_out_test=self.pll_test_o,
-                                  o_vco_test_ana=self.pll_vco_o,
+            clk_24_i = Signal(reset_less=True) # external incoming
+            clk_sel_i = Signal(2, reset_less=True) # PLL selection
+            clk_pll_o = Signal(reset_less=True)  # output clock
+            pll_test_o = Signal(reset_less=True)  # test out
+            pll_vco_o = Signal(reset_less=True) # analog
+            pll = Instance("pll", i_ref=clk_24_i,
+                                  i_a0=clk_sel_i[0],
+                                  i_a1=clk_sel_i[1],
+                                  o_out_v=clk_pll_o,
+                                  o_div_out_test=pll_test_o,
+                                  o_vco_test_ana=pll_vco_o,
                            )
             m.submodules['real_pll'] = pll
             #pll.attrs['blackbox'] = 1
+            m.d.comb += clk_24_i.eq(self.clk_24_i)
+            m.d.comb += clk_sel_i.eq(self.clk_sel_i)
+            m.d.comb += self.clk_pll_o.eq(clk_pll_o)
+            m.d.comb += self.pll_test_o.eq(pll_test_o)
+            m.d.comb += self.pll_vco_o.eq(pll_vco_o)
+
         else:
             m.d.comb += self.clk_pll_o.eq(self.clk_24_i) # just pass through
             # just get something, stops yosys destroying (optimising) these out
             with m.If(self.clk_sel_i == 0):
                 m.d.comb += self.pll_test_o.eq(self.clk_24_i)
                 m.d.comb += self.pll_vco_o.eq(~self.clk_24_i)
-
 
         return m
 
