@@ -59,7 +59,8 @@ class SPBlock512W64B8W(Elaboratable):
         with m.If(self.enable): # in case of layout problems
             # wishbone is active if cyc and stb set
             wb_active = Signal()
-            m.d.comb += wb_active.eq(self.bus.cyc & self.bus.stb)
+            m.d.comb += wb_active.eq(self.bus.cyc & self.bus.stb &
+                                     ~self.bus.ack)
 
             # generate ack (no "pipeline" mode here)
             m.d.sync += self.bus.ack.eq(wb_active)
