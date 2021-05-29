@@ -300,12 +300,13 @@ def ldst_sim_dcache_regression(dut):
     global stop
     stop = False
 
-    yield mmu.rin.prtbl.eq(1<<40) # set process table
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
-    data = yield from pi_ld(dut.submodules.ldst.pi, 0, 8, msr_pr=1)
-    print ("dcache_regression ld data", hex(data))
-    # FIXME: this is 0 but should be 0xFFFFFFFFFFFFFFFF
+    addr = 0x10000
+    data = yield from pi_ld(dut.submodules.ldst.pi, addr, 8, msr_pr=1)
+    print ("=== dcache_regression ld data", hex(data))
+    assert(data == 0xdeadbeef01234567)
 
     yield
     stop = True
@@ -316,7 +317,7 @@ def ldst_sim_dcache_random(dut):
     global stop
     stop = False
 
-    yield mmu.rin.prtbl.eq(1<<40) # set process table
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
     memsize = 256
@@ -381,7 +382,26 @@ def test_dcache_regression():
 
     # dcache_load at addr 0
     mem = {
-        0: 0xFFFFFFFFFFFFFFFF
+           0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           b(0x800000000100000b),
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           b(0x8000000000040009),
+
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # V = 1 L = 1 SW = 0 RPN = 0
+                        # R = 1 C = 1 ATT = 0 EAA 0x7
+           b(0xc000000000000183),
+
+           0x1000000:   # PROCESS_TABLE_3
+                        # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           b(0x40000000000300ad),
+
+           # data to return
+           0x10000: 0xdeadbeef01234567,
+           0x10008: 0xfeedf00ff001a5a5
     }
 
     # nmigen Simulation
@@ -416,5 +436,5 @@ if __name__ == '__main__':
     test_radixmiss_mmu()
     ### tests taken from src/soc/experiment/test/test_dcache.py
     test_dcache_regression()
-    #FIXME test_dcache_random()
+    #test_dcache_random()
     #TODO test_dcache()
