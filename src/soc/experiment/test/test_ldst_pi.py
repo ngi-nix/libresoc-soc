@@ -322,7 +322,7 @@ def ldst_sim_dcache_random(dut):
 
     memsize = 64
 
-    for i in range(1024):
+    for i in range(4):
         addr = randint(0, memsize-1)
         data = randint(0, (1<<64)-1)
         addr *= 8
@@ -337,7 +337,37 @@ def ldst_sim_dcache_random(dut):
         print ("dcache_random random ld data", hex(data), hex(ld_data))
         if data!=ld_data:
             print("==== data read at random test differs")
-        #assert(data==ld_data)
+        assert(data==ld_data)
+
+    yield
+    stop = True
+
+def ldst_sim_dcache_first(dut): # this test is likely to fail
+    mmu = dut.submodules.mmu
+    pi = dut.submodules.ldst.pi
+    global stop
+    stop = False
+
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
+    yield
+
+    # failed ramdom data
+    addr = 65888
+    data = 0x8c5a3e460d71f0b4
+
+    # known to fail
+    yield from pi_st(pi, addr, data, 8, msr_pr=1)
+    yield
+    # guess will not fail
+    yield from pi_st(pi, addr, data, 8, msr_pr=1)
+    yield
+
+    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+
+    print ("addr",addr)
+    print ("dcache_random random ld data", hex(data), hex(ld_data))
+
+    assert(data==ld_data)
 
     yield
     stop = True
@@ -447,7 +477,40 @@ def test_dcache_random():
 
     sim.add_sync_process(wrap(ldst_sim_dcache_random(m)))
     sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
-    with sim.write_vcd('test_ldst_pi_radix_miss.vcd'):
+    with sim.write_vcd('test_ldst_pi_random.vcd'):
+        sim.run()
+
+def test_dcache_first():
+
+    m, cmpi = setup_mmu()
+
+    # dcache_load at addr 0
+    mem = {
+           0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           b(0x800000000100000b),
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           b(0x8000000000040009),
+
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # V = 1 L = 1 SW = 0 RPN = 0
+                        # R = 1 C = 1 ATT = 0 EAA 0x7
+           b(0xc000000000000183),
+
+           0x1000000:   # PROCESS_TABLE_3
+                        # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           b(0x40000000000300ad),
+    }
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(ldst_sim_dcache_first(m)))
+    sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
+    with sim.write_vcd('test_ldst_pi_first.vcd'):
         sim.run()
 
 if __name__ == '__main__':
@@ -456,5 +519,5 @@ if __name__ == '__main__':
     test_radixmiss_mmu()
     ### tests taken from src/soc/experiment/test/test_dcache.py
     test_dcache_regression()
-    test_dcache_random() #first access to memory fails - investigate
-    #TODO test_dcache()
+    test_dcache_first()
+    ##test_dcache_random() #first access to memory fails - tlb miss
