@@ -22,7 +22,7 @@ class DummyPLL(Elaboratable):
             clk_pll_o = Signal(reset_less=True)  # output clock
             pll_test_o = Signal(reset_less=True)  # test out
             pll_vco_o = Signal(reset_less=True) # analog
-            pll = Instance("pll", i_ref=clk_24_i,
+            pll = Instance("pll", i_ref_v=clk_24_i,
                                   i_a0=clk_sel_i[0],
                                   i_a1=clk_sel_i[1],
                                   o_out_v=clk_pll_o,
