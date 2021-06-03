@@ -63,7 +63,8 @@ class Pins:
 
 class JTAG(DMITAP, Pins):
     # 32-bit data width here so that it matches with litex
-    def __init__(self, pinset, wb_data_wid=32):
+    def __init__(self, pinset, domain, wb_data_wid=32):
+        self.domain = domain
         DMITAP.__init__(self, ir_width=4)
         Pins.__init__(self, pinset)
 
@@ -78,16 +79,19 @@ class JTAG(DMITAP, Pins):
             self.ios.append(io)
 
         # this is redundant.  or maybe part of testing, i don't know.
-        self.sr = self.add_shiftreg(ircode=4, length=3)
+        self.sr = self.add_shiftreg(ircode=4, length=3,
+                                    domain=domain)
 
         # create and connect wishbone
         self.wb = self.add_wishbone(ircodes=[5, 6, 7], features={'err'},
                                    address_width=30, data_width=wb_data_wid,
                                    granularity=8, # 8-bit wide
-                                   name="jtag_wb")
+                                   name="jtag_wb",
+                                   domain=domain)
 
         # create DMI2JTAG (goes through to dmi_sim())
-        self.dmi = self.add_dmi(ircodes=[8, 9, 10])
+        self.dmi = self.add_dmi(ircodes=[8, 9, 10],
+                                    domain=domain)
 
         # use this for enable/disable of parts of the ASIC.
         # XXX make sure to add the _en sig to en_sigs list
@@ -96,7 +100,8 @@ class JTAG(DMITAP, Pins):
         self.wb_sram_en = Signal(reset=1)
         self.en_sigs = en_sigs = Cat(self.wb_icache_en, self.wb_dcache_en,
                                      self.wb_sram_en)
-        self.sr_en = self.add_shiftreg(ircode=11, length=len(en_sigs))
+        self.sr_en = self.add_shiftreg(ircode=11, length=len(en_sigs),
+                                       domain=domain)
 
     def elaborate(self, platform):
         m = super().elaborate(platform)

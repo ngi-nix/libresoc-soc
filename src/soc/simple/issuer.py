@@ -170,6 +170,8 @@ class TestIssuerInternal(Elaboratable):
         # added it *modifies* the pspec, by adding enable/disable signals
         # for parts of the rest of the core
         self.jtag_en = hasattr(pspec, "debug") and pspec.debug == 'jtag'
+        self.dbg_domain = "sync" # sigh "dbgsunc" too problematic
+        #self.dbg_domain = "dbgsync" # domain for DMI/JTAG clock
         if self.jtag_en:
             # XXX MUST keep this up-to-date with litex, and
             # soc-cocotb-sim, and err.. all needs sorting out, argh
@@ -179,7 +181,8 @@ class TestIssuerInternal(Elaboratable):
                       # 'mspi1', - disabled for now
                       # 'pwm', 'sd0', - disabled for now
                        'sdr']
-            self.jtag = JTAG(get_pinspecs(subset=subset))
+            self.jtag = JTAG(get_pinspecs(subset=subset),
+                             domain=self.dbg_domain)
             # add signals to pspec to enable/disable icache and dcache
             # (or data and intstruction wishbone if icache/dcache not included)
             # https://bugs.libre-soc.org/show_bug.cgi?id=520
@@ -888,13 +891,13 @@ class TestIssuerInternal(Elaboratable):
         # submodule explicitly in coresync domain, debug and JTAG
         # in their own one but using *external* reset.
         csd = DomainRenamer("coresync")
-        dbd = csd #DomainRenamer("dbgsync")
+        dbd = DomainRenamer(self.dbg_domain)
 
         m.submodules.core = core = csd(self.core)
         m.submodules.imem = imem = csd(self.imem)
-        m.submodules.dbg = dbg = self.dbg
+        m.submodules.dbg = dbg = dbd(self.dbg)
         if self.jtag_en:
-            m.submodules.jtag = jtag = self.jtag
+            m.submodules.jtag = jtag = dbd(self.jtag)
             # TODO: UART2GDB mux, here, from external pin
             # see https://bugs.libre-soc.org/show_bug.cgi?id=499
             sync += dbg.dmi.connect_to(jtag.dmi)
@@ -939,6 +942,9 @@ class TestIssuerInternal(Elaboratable):
         cd_sync = ClockDomain()
         core_sync = ClockDomain("coresync")
         m.domains += cd_por, cd_sync, core_sync
+        if self.dbg_domain != "sync":
+            dbg_sync = ClockDomain(self.dbg_domain)
+            m.domains += dbg_sync
 
         ti_rst = Signal(reset_less=True)
         delay = Signal(range(4), reset=3)
@@ -950,6 +956,11 @@ class TestIssuerInternal(Elaboratable):
         core_rst = ResetSignal("coresync")
         comb += ti_rst.eq(delay != 0 | dbg.core_rst_o | ResetSignal())
         comb += core_rst.eq(ti_rst)
+
+        # debug clock is same as coresync, but reset is *main external*
+        if self.dbg_domain != "sync":
+            dbg_rst = ResetSignal(self.dbg_domain)
+            comb += dbg_rst.eq(ResetSignal())
 
         # busy/halted signals from core
         comb += self.busy_o.eq(core.busy_o)
@@ -1234,7 +1245,6 @@ class TestIssuerInternal(Elaboratable):
 class TestIssuer(Elaboratable):
     def __init__(self, pspec):
         self.ti = TestIssuerInternal(pspec)
-
         self.pll = DummyPLL(instance=True)
 
         # PLL direct clock or not
@@ -1248,9 +1258,9 @@ class TestIssuer(Elaboratable):
         m = Module()
         comb = m.d.comb
 
-        # TestIssuer runs at direct clock
+        # TestIssuer nominally runs at main clock, actually it is
+        # all combinatorial internally except for coresync'd components
         m.submodules.ti = ti = self.ti
-        cd_int = ClockDomain("coresync")
 
         if self.pll_en:
             # ClockSelect runs at PLL output internal clock rate
@@ -1281,11 +1291,21 @@ class TestIssuer(Elaboratable):
 
         # internal clock is set to selector clock-out.  has the side-effect of
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
+        # debug clock runs at coresync internal clock
         intclk = ClockSignal("coresync")
-        if self.pll_en:
+        dbgclk = ClockSignal(self.ti.dbg_domain)
+        # XXX BYPASS PLL XXX
+        # XXX BYPASS PLL XXX
+        # XXX BYPASS PLL XXX
+        if False and self.pll_en:
             comb += intclk.eq(pllclk)
+            comb += dbgclk.eq(pllclk)
         else:
             comb += intclk.eq(ClockSignal())
+            comb += dbgclk.eq(ClockSignal())
+        if self.ti.dbg_domain != 'sync':
+            dbgclk = ClockSignal(self.ti.dbg_domain)
+            comb += dbgclk.eq(intclk)
 
         return m
 
