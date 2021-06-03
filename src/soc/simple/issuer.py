@@ -216,6 +216,7 @@ class TestIssuerInternal(Elaboratable):
 
         # main instruction core.  suitable for prototyping / demo only
         self.core = core = NonProductionCore(pspec)
+        self.core_rst = ResetSignal("coresync")
 
         # instruction decoder.  goes into Trap Record
         pdecode = create_pdecode()
@@ -966,7 +967,8 @@ class TestIssuerInternal(Elaboratable):
         core = self.core
 
         # set up peripherals and core
-        core_rst = self.setup_peripherals(m)
+        core_rst = self.core_rst
+        self.setup_peripherals(m)
 
         # reset current state if core reset requested
         with m.If(core_rst):
