@@ -883,8 +883,15 @@ class TestIssuerInternal(Elaboratable):
     def setup_peripherals(self, m):
         comb, sync = m.d.comb, m.d.sync
 
-        m.submodules.core = core = DomainRenamer("coresync")(self.core)
-        m.submodules.imem = imem = self.imem
+        # okaaaay so the debug module must be in coresync clock domain
+        # but NOT its reset signal. to cope with this, set every single
+        # submodule explicitly in coresync domain, debug and JTAG
+        # in their own one but using *external* reset.
+        csd = DomainRenamer("coresync")
+        dbd = csd #DomainRenamer("dbgsync")
+
+        m.submodules.core = core = csd(self.core)
+        m.submodules.imem = imem = csd(self.imem)
         m.submodules.dbg = dbg = self.dbg
         if self.jtag_en:
             m.submodules.jtag = jtag = self.jtag
@@ -897,19 +904,19 @@ class TestIssuerInternal(Elaboratable):
         # 4x 4k SRAM blocks.  these simply "exist", they get routed in litex
         if self.sram4x4k:
             for i, sram in enumerate(self.sram4k):
-                m.submodules["sram4k_%d" % i] = sram
+                m.submodules["sram4k_%d" % i] = csd(sram)
                 comb += sram.enable.eq(self.wb_sram_en)
 
         # XICS interrupt handler
         if self.xics:
-            m.submodules.xics_icp = icp = self.xics_icp
-            m.submodules.xics_ics = ics = self.xics_ics
+            m.submodules.xics_icp = icp = csd(self.xics_icp)
+            m.submodules.xics_ics = ics = csd(self.xics_ics)
             comb += icp.ics_i.eq(ics.icp_o)           # connect ICS to ICP
             sync += cur_state.eint.eq(icp.core_irq_o) # connect ICP to core
 
         # GPIO test peripheral
         if self.gpio:
-            m.submodules.simple_gpio = simple_gpio = self.simple_gpio
+            m.submodules.simple_gpio = simple_gpio = csd(self.simple_gpio)
 
         # connect one GPIO output to ICS bit 15 (like in microwatt soc.vhdl)
         # XXX causes litex ECP5 test to get wrong idea about input and output
@@ -919,9 +926,9 @@ class TestIssuerInternal(Elaboratable):
 
         # instruction decoder
         pdecode = create_pdecode()
-        m.submodules.dec2 = pdecode2 = self.pdecode2
+        m.submodules.dec2 = pdecode2 = csd(self.pdecode2)
         if self.svp64_en:
-            m.submodules.svp64 = svp64 = self.svp64
+            m.submodules.svp64 = svp64 = csd(self.svp64)
 
         # convenience
         dmi, d_reg, d_cr, d_xer, = dbg.dmi, dbg.d_gpr, dbg.d_cr, dbg.d_xer
@@ -954,8 +961,6 @@ class TestIssuerInternal(Elaboratable):
         st_go_edge = rising_edge(m, ldst.st.rel_o)
         m.d.comb += ldst.ad.go_i.eq(ldst.ad.rel_o) # link addr-go direct to rel
         m.d.comb += ldst.st.go_i.eq(st_go_edge) # link store-go to rising rel
-
-        return core_rst
 
     def elaborate(self, platform):
         m = Module()
