@@ -1292,6 +1292,11 @@ class TestIssuer(Elaboratable):
         # internal clock is set to selector clock-out.  has the side-effect of
         # running TestIssuer at this speed (see DomainRenamer("intclk") above)
         # debug clock runs at coresync internal clock
+        cd_coresync = ClockDomain("coresync")
+        #m.domains += cd_coresync
+        if self.ti.dbg_domain != 'sync':
+            cd_dbgsync = ClockDomain("dbgsync")
+            #m.domains += cd_dbgsync
         intclk = ClockSignal("coresync")
         dbgclk = ClockSignal(self.ti.dbg_domain)
         # XXX BYPASS PLL XXX
