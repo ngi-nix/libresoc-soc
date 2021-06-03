@@ -1299,10 +1299,8 @@ class TestIssuer(Elaboratable):
         # XXX BYPASS PLL XXX
         if False and self.pll_en:
             comb += intclk.eq(pllclk)
-            comb += dbgclk.eq(pllclk)
         else:
             comb += intclk.eq(ClockSignal())
-            comb += dbgclk.eq(ClockSignal())
         if self.ti.dbg_domain != 'sync':
             dbgclk = ClockSignal(self.ti.dbg_domain)
             comb += dbgclk.eq(intclk)
