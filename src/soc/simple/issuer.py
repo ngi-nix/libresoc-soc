@@ -1253,6 +1253,8 @@ class TestIssuer(Elaboratable):
             self.pll_test_o = Signal(reset_less=True)
             self.pll_vco_o = Signal(reset_less=True)
             self.clk_sel_i = Signal(2, reset_less=True)
+            self.ref_clk = Signal(reset_less=True)
+            self.pllclk_clk = ClockSignal("pllclk")
 
     def elaborate(self, platform):
         m = Module()
@@ -1272,7 +1274,7 @@ class TestIssuer(Elaboratable):
 
             # PLL clock established.  has the side-effect of running clklsel
             # at the PLL's speed (see DomainRenamer("pllclk") above)
-            pllclk = ClockSignal("pllclk")
+            pllclk = self.pllclk_clk
             comb += pllclk.eq(pll.clk_pll_o)
 
             # wire up external 24mhz to PLL
@@ -1302,8 +1304,8 @@ class TestIssuer(Elaboratable):
         # XXX BYPASS PLL XXX
         # XXX BYPASS PLL XXX
         # XXX BYPASS PLL XXX
-        if False and self.pll_en:
-            comb += intclk.eq(pllclk)
+        if self.pll_en:
+            comb += intclk.eq(self.ref_clk)
         else:
             comb += intclk.eq(ClockSignal())
         if self.ti.dbg_domain != 'sync':
@@ -1324,6 +1326,8 @@ class TestIssuer(Elaboratable):
             ports.append(self.clk_sel_i)
             ports.append(self.pll_test_o)
             ports.append(self.pll_vco_o)
+            ports.append(self.pllclk_clk)
+            ports.append(self.ref_clk)
         return ports
 
 
