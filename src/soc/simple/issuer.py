@@ -1253,7 +1253,7 @@ class TestIssuer(Elaboratable):
             self.pll_test_o = Signal(reset_less=True)
             self.pll_vco_o = Signal(reset_less=True)
             self.clk_sel_i = Signal(2, reset_less=True)
-            self.ref_clk = Signal(reset_less=True)
+            self.ref_clk =  ClockSignal() # can't rename it but that's ok
             self.pllclk_clk = ClockSignal("pllclk")
 
     def elaborate(self, platform):
@@ -1278,8 +1278,7 @@ class TestIssuer(Elaboratable):
             comb += pllclk.eq(pll.clk_pll_o)
 
             # wire up external 24mhz to PLL
-            comb += pll.clk_24_i.eq(ClockSignal())
-
+            #comb += pll.clk_24_i.eq(self.ref_clk)
             # output 18 mhz PLL test signal, and analog oscillator out
             comb += self.pll_test_o.eq(pll.pll_test_o)
             comb += self.pll_vco_o.eq(pll.pll_vco_o)
@@ -1324,6 +1323,7 @@ class TestIssuer(Elaboratable):
         ports.append(ResetSignal())
         if self.pll_en:
             ports.append(self.clk_sel_i)
+            ports.append(self.pll.clk_24_i)
             ports.append(self.pll_test_o)
             ports.append(self.pll_vco_o)
             ports.append(self.pllclk_clk)
