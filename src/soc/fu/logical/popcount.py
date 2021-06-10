@@ -26,7 +26,7 @@ class Popcount(Elaboratable):
     def __init__(self):
         self.a = Signal(64, reset_less=True)
         self.b = Signal(64, reset_less=True)
-        self.data_len = Signal(64, reset_less=True)
+        self.data_len = Signal(4, reset_less=True) # data len up to... err.. 8?
         self.o = Signal(64, reset_less=True)
 
     def elaborate(self, platform):
