@@ -355,17 +355,14 @@ def ldst_sim_dcache_first(dut): # this test is likely to fail
     addr = 65888
     data = 0x8c5a3e460d71f0b4
 
-    # known to fail
-    yield from pi_st(pi, addr, data, 8, msr_pr=1)
-    yield
-    # guess will not fail
+    # known to fail without bugfix in src/soc/fu/ldst/loadstore.py
     yield from pi_st(pi, addr, data, 8, msr_pr=1)
     yield
 
     ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
 
     print ("addr",addr)
-    print ("dcache_random random ld data", hex(data), hex(ld_data))
+    print ("dcache_first ld data", hex(data), hex(ld_data))
 
     assert(data==ld_data)
 
