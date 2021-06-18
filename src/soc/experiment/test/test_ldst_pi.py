@@ -517,4 +517,4 @@ if __name__ == '__main__':
     ### tests taken from src/soc/experiment/test/test_dcache.py
     test_dcache_regression()
     test_dcache_first()
-    ##test_dcache_random() #first access to memory fails - tlb miss
+    test_dcache_random() #first access to memory still fails after recent change
