@@ -289,11 +289,12 @@ class LoadStore1(PortInterfaceBase):
         if hasattr(dbus, "stall"):
             comb += dcache.wb_in.stall.eq(dbus.stall)
 
-        # write out d data only when flag set
+        # update out d data when flag set
         with m.If(self.d_w_valid):
             m.d.sync += d_out.data.eq(self.store_data)
-        with m.Else():
-            m.d.sync += d_out.data.eq(0)
+        #with m.Else():
+        #    m.d.sync += d_out.data.eq(0)
+        # unit test passes with that change
 
         # this must move into the FSM, conditionally noticing that
         # the "blip" comes from self.d_validblip.
