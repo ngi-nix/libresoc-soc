@@ -1208,8 +1208,9 @@ class DCache(Elaboratable):
             sync += r1.cache_hit.eq(0)
 
         with m.If(req_op == Op.OP_BAD):
-            # Display(f"Signalling ld/st error valid_ra={valid_ra}"
-            #      f"rc_ok={rc_ok} perm_ok={perm_ok}"
+            sync += Display("Signalling ld/st error "
+                            "ls_error=%i mmu_error=%i cache_paradox=%i",
+                            ~r0.mmu_req,r0.mmu_req,access_ok)
             sync += r1.ls_error.eq(~r0.mmu_req)
             sync += r1.mmu_error.eq(r0.mmu_req)
             sync += r1.cache_paradox.eq(access_ok)
