@@ -311,6 +311,44 @@ def ldst_sim_dcache_regression(dut):
     yield
     stop = True
 
+def ldst_sim_dcache_random2(dut):
+    mmu = dut.submodules.mmu
+    pi = dut.submodules.ldst.pi
+    global stop
+    stop = False
+
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
+    yield
+
+    memsize = 64
+
+    refs = [
+         ## random values from a failed test
+         [0x100e0,0xf553b658ba7e1f51],
+         [0x10150,0x12c95a730df1cee7],
+         [0x10080,0x5a921ae06674cd81],
+         [0x100f8,0x4fea5eab80090fa5],
+         [0x10080,0xd481432d17a340be],
+         [0x10060,0x8553fcf29526fb32],
+        # [0x101d0,0x327c967c8be30ded],
+         [0x101e0,0x8f15d8d05d25b151]
+    ]
+
+    for i in refs:
+        addr = i[0]
+        data = i[1]
+
+        yield from pi_st(pi, addr, data, 8, msr_pr=1)
+        yield
+
+        ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+
+        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), data==ld_data)
+        assert(data==ld_data)   ## investigate why this fails -- really seldom
+
+    yield
+    stop = True
+
 def ldst_sim_dcache_random(dut):
     mmu = dut.submodules.mmu
     pi = dut.submodules.ldst.pi
@@ -322,7 +360,7 @@ def ldst_sim_dcache_random(dut):
 
     memsize = 64
 
-    for i in range(4):
+    for i in range(16):
         addr = randint(0, memsize-1)
         data = randint(0, (1<<64)-1)
         addr *= 8
@@ -333,11 +371,8 @@ def ldst_sim_dcache_random(dut):
 
         ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
 
-        print ("addr",addr)
-        print ("dcache_random random ld data", hex(data), hex(ld_data))
-        if data!=ld_data:
-            print("==== data read at random test differs")
-        assert(data==ld_data)
+        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), data==ld_data)
+        assert(data==ld_data)   ## investigate why this fails -- really seldom
 
     yield
     stop = True
@@ -477,6 +512,39 @@ def test_dcache_random():
     with sim.write_vcd('test_ldst_pi_random.vcd'):
         sim.run()
 
+def test_dcache_random2():
+
+    m, cmpi = setup_mmu()
+
+    # dcache_load at addr 0
+    mem = {
+           0x10000:    # PARTITION_TABLE_2
+                       # PATB_GR=1 PRTB=0x1000 PRTS=0xb
+           b(0x800000000100000b),
+
+           0x30000:     # RADIX_ROOT_PTE
+                        # V = 1 L = 0 NLB = 0x400 NLS = 9
+           b(0x8000000000040009),
+
+           0x40000:     # RADIX_SECOND_LEVEL
+                        # V = 1 L = 1 SW = 0 RPN = 0
+                        # R = 1 C = 1 ATT = 0 EAA 0x7
+           b(0xc000000000000183),
+
+           0x1000000:   # PROCESS_TABLE_3
+                        # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
+           b(0x40000000000300ad),
+    }
+
+    # nmigen Simulation
+    sim = Simulator(m)
+    sim.add_clock(1e-6)
+
+    sim.add_sync_process(wrap(ldst_sim_dcache_random2(m)))
+    sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
+    with sim.write_vcd('test_ldst_pi_random2.vcd'):
+        sim.run()
+
 def test_dcache_first():
 
     m, cmpi = setup_mmu()
@@ -517,4 +585,5 @@ if __name__ == '__main__':
     ### tests taken from src/soc/experiment/test/test_dcache.py
     test_dcache_regression()
     test_dcache_first()
-    test_dcache_random() #first access to memory still fails after recent change
+    test_dcache_random() #sometimes fails
+    test_dcache_random2() #reproduce error
