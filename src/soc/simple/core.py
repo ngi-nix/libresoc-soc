@@ -112,6 +112,7 @@ class NonProductionCore(Elaboratable):
         if self.svp64_en:
             self.sv_rm = SVP64Rec(name="core_svp64_rm") # SVP64 RM field
             self.is_svp64_mode = Signal() # set if SVP64 mode is enabled
+            self.use_svp64_ldst_dec = Signal() # use alternative LDST decoder
             self.sv_pred_sm = Signal() # TODO: SIMD width
             self.sv_pred_dm = Signal() # TODO: SIMD width
 
@@ -173,6 +174,11 @@ class NonProductionCore(Elaboratable):
                 if k != self.trapunit:
                     comb += v.sv_rm.eq(self.sv_rm) # pass through SVP64 ReMap
                     comb += v.is_svp64_mode.eq(self.is_svp64_mode)
+                    # only the LDST PowerDecodeSubset *actually* needs to
+                    # know to use the alternative decoder.  this is all
+                    # a terrible hack
+                    if k.lower().startswith("ldst"):
+                        comb += v.use_svp64_ldst_dec.eq(self.use_svp64_ldst_dec)
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.des[self.trapunit] = self.e.do

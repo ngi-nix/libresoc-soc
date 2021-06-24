@@ -748,6 +748,9 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
                     # and svp64 detection
                     sync += core.is_svp64_mode.eq(is_svp64_mode)
+                    # and svp64 bit-rev'd ldst mode
+                    ldst_dec = pdecode2.use_svp64_ldst_dec
+                    sync += core.use_svp64_ldst_dec.eq(ldst_dec)
 
                 m.next = "INSN_EXECUTE"  # move to "execute"
 
