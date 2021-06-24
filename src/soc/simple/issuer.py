@@ -337,6 +337,7 @@ class TestIssuerInternal(Elaboratable):
                         comb += svp64.bigendian.eq(self.core_bigendian_i)
                         # pass the decoded prefix (if any) to PowerDecoder2
                         sync += pdecode2.sv_rm.eq(svp64.svp64_rm)
+                        sync += pdecode2.is_svp64_mode.eq(is_svp64_mode)
                         # remember whether this is a prefixed instruction, so
                         # the FSM can readily loop when VL==0
                         sync += is_svp64_mode.eq(svp64.is_svp64_mode)
@@ -745,6 +746,8 @@ class TestIssuerInternal(Elaboratable):
                     sync += core.sv_rm.eq(pdecode2.sv_rm)
                     # set RA_OR_ZERO detection in satellite decoders
                     sync += core.sv_a_nz.eq(pdecode2.sv_a_nz)
+                    # and svp64 detection
+                    sync += core.is_svp64_mode.eq(is_svp64_mode)
 
                 m.next = "INSN_EXECUTE"  # move to "execute"
 

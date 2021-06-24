@@ -111,6 +111,7 @@ class NonProductionCore(Elaboratable):
         self.bigendian_i = Signal() # bigendian - TODO, set by MSR.BE
         if self.svp64_en:
             self.sv_rm = SVP64Rec(name="core_svp64_rm") # SVP64 RM field
+            self.is_svp64_mode = Signal() # set if SVP64 mode is enabled
             self.sv_pred_sm = Signal() # TODO: SIMD width
             self.sv_pred_dm = Signal() # TODO: SIMD width
 
@@ -131,6 +132,7 @@ class NonProductionCore(Elaboratable):
             fnunit = fu.fnunit.value
             opkls = fu.opsubsetkls
             if f_name == 'TRAP':
+                # TRAP decoder is the *main* decoder
                 self.trapunit = funame
                 continue
             self.decoders[funame] = PowerDecodeSubset(None, opkls, f_name,
@@ -170,6 +172,7 @@ class NonProductionCore(Elaboratable):
                 comb += v.pred_dm.eq(self.sv_pred_dm)
                 if k != self.trapunit:
                     comb += v.sv_rm.eq(self.sv_rm) # pass through SVP64 ReMap
+                    comb += v.is_svp64_mode.eq(self.is_svp64_mode)
 
         # ssh, cheat: trap uses the main decoder because of the rewriting
         self.des[self.trapunit] = self.e.do
