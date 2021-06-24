@@ -222,12 +222,14 @@ class TestIssuerInternal(Elaboratable):
         self.core_rst = ResetSignal("coresync")
 
         # instruction decoder.  goes into Trap Record
-        pdecode = create_pdecode()
+        #pdecode = create_pdecode()
         self.cur_state = CoreState("cur") # current state (MSR/PC/SVSTATE)
-        self.pdecode2 = PowerDecode2(pdecode, state=self.cur_state,
+        self.pdecode2 = PowerDecode2(None, state=self.cur_state,
                                      opkls=IssuerDecode2ToOperand,
                                      svp64_en=self.svp64_en,
                                      regreduce_en=self.regreduce_en)
+        pdecode = self.pdecode2.dec
+
         if self.svp64_en:
             self.svp64 = SVP64PrefixDecoder() # for decoding SVP64 prefix
 
