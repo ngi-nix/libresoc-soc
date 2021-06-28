@@ -33,6 +33,11 @@ def b(x): # byte-reverse function
     return int.from_bytes(x.to_bytes(8, byteorder='little'),
                           byteorder='big', signed=False)
 
+#def dumpmem(mem,fn):
+#    f = open(fn,"w")
+#    for cell in mem:
+#        f.write(str(hex(cell))+"="+str(hex(mem[cell]))+"\n")
+
 def wb_get(wb, mem):
     """simulator process for getting memory load requests
     """
@@ -311,44 +316,6 @@ def ldst_sim_dcache_regression(dut):
     yield
     stop = True
 
-def ldst_sim_dcache_random2(dut):
-    mmu = dut.submodules.mmu
-    pi = dut.submodules.ldst.pi
-    global stop
-    stop = False
-
-    yield mmu.rin.prtbl.eq(0x1000000) # set process table
-    yield
-
-    memsize = 64
-
-    refs = [
-         ## random values from a failed test
-         [0x100e0,0xf553b658ba7e1f51],
-         [0x10150,0x12c95a730df1cee7],
-         [0x10080,0x5a921ae06674cd81],
-         [0x100f8,0x4fea5eab80090fa5],
-         [0x10080,0xd481432d17a340be],
-         [0x10060,0x8553fcf29526fb32],
-        # [0x101d0,0x327c967c8be30ded],
-         [0x101e0,0x8f15d8d05d25b151]
-    ]
-
-    for i in refs:
-        addr = i[0]
-        data = i[1]
-
-        yield from pi_st(pi, addr, data, 8, msr_pr=1)
-        yield
-
-        ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
-
-        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), data==ld_data)
-        assert(data==ld_data)   ## investigate why this fails -- really seldom
-
-    yield
-    stop = True
-
 def ldst_sim_dcache_random(dut):
     mmu = dut.submodules.mmu
     pi = dut.submodules.ldst.pi
@@ -371,7 +338,8 @@ def ldst_sim_dcache_random(dut):
 
         ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
 
-        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), data==ld_data)
+        eq = (data==ld_data)
+        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), eq)
         assert(data==ld_data)   ## investigate why this fails -- really seldom
 
     yield
@@ -512,6 +480,63 @@ def test_dcache_random():
     with sim.write_vcd('test_ldst_pi_random.vcd'):
         sim.run()
 
+def ldst_sim_dcache_random2(dut, mem):
+    mmu = dut.submodules.mmu
+    pi = dut.submodules.ldst.pi
+    global stop
+    stop = False
+
+    yield mmu.rin.prtbl.eq(0x1000000) # set process table
+    yield
+
+    memsize = 64
+
+    refs = [
+         ## random values from a failed test
+         [0x100e0,0xf553b658ba7e1f51,0,0], ## 1
+         [0x10150,0x12c95a730df1cee7,0,0], ## 2
+         [0x10080,0x5a921ae06674cd81,0,0], ## 3
+         [0x100f8,0x4fea5eab80090fa5,0,0], ## 4
+         [0x10080,0xd481432d17a340be,0,0], ## 5
+         [0x10060,0x8553fcf29526fb32,0,0], ## 6
+         [0x101d0,0x327c967c8be30ded,0,0], ## 7
+         [0x101e0,0x8f15d8d05d25b151,1,0]  ## 8
+
+    ]
+
+    c = 0
+    for i in refs:
+        addr = i[0]
+        data = i[1]
+        c1 = i[2]
+        c2 = i[3]
+
+        print("== write: wb_get")
+
+        for i in range(0,c1):
+            print("before_pi_st")
+            yield
+
+        yield from pi_st(pi, addr, data, 8, msr_pr=1)
+        yield
+
+        for i in range(0,c2):
+            print("before_pi_ld")
+            yield
+
+        print("== read: wb_get")
+        ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+
+        #dumpmem(mem,"/tmp/dumpmem"+str(c)+".txt")
+        #c += 1
+
+        eq = (data==ld_data)
+        print ("dcache_random values", hex(addr), hex(data), hex(ld_data), eq)
+        assert(data==ld_data)   ## investigate why this fails -- really seldom
+
+    yield
+    stop = True
+
 def test_dcache_random2():
 
     m, cmpi = setup_mmu()
@@ -534,13 +559,15 @@ def test_dcache_random2():
            0x1000000:   # PROCESS_TABLE_3
                         # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
            b(0x40000000000300ad),
+
+           ###0x101e0:0x8f15d8d05d25b152      ## flush cache -- then check again
     }
 
     # nmigen Simulation
     sim = Simulator(m)
     sim.add_clock(1e-6)
 
-    sim.add_sync_process(wrap(ldst_sim_dcache_random2(m)))
+    sim.add_sync_process(wrap(ldst_sim_dcache_random2(m, mem)))
     sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
     with sim.write_vcd('test_ldst_pi_random2.vcd'):
         sim.run()
