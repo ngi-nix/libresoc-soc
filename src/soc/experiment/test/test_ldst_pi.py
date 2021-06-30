@@ -493,14 +493,15 @@ def ldst_sim_dcache_random2(dut, mem):
 
     refs = [
          ## random values from a failed test
-         [0x100e0,0xf553b658ba7e1f51,0,0], ## 1
-         [0x10150,0x12c95a730df1cee7,0,0], ## 2
-         [0x10080,0x5a921ae06674cd81,0,0], ## 3
-         [0x100f8,0x4fea5eab80090fa5,0,0], ## 4
-         [0x10080,0xd481432d17a340be,0,0], ## 5
-         [0x10060,0x8553fcf29526fb32,0,0], ## 6
+         #[0x100e0,0xf553b658ba7e1f51,0,0], ## 1
+         #[0x10150,0x12c95a730df1cee7,0,0], ## 2
+         #[0x10080,0x5a921ae06674cd81,0,0], ## 3
+         #[0x100f8,0x4fea5eab80090fa5,0,0], ## 4
+         #[0x10080,0xd481432d17a340be,0,0], ## 5
+         #[0x10060,0x8553fcf29526fb32,0,0], ## 6
          [0x101d0,0x327c967c8be30ded,0,0], ## 7
          [0x101e0,0x8f15d8d05d25b151,1,0]  ## 8
+         #uncommenting line 7 will cause the original test not to fail
 
     ]
 
