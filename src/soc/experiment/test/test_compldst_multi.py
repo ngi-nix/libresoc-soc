@@ -96,22 +96,48 @@ class TestLDSTCompUnit(unittest.TestCase):
 
     @classmethod
     def write_gtkw(cls):
+        style = {'dec': {'base': 'dec'}}
         traces = [
             'clk',
+            ('state latches', [
+                'q_opc',
+                ('q_src[2:0]', {'bit': 2}),
+                ('q_src[2:0]', {'bit': 1}),
+                ('q_src[2:0]', {'bit': 0}),
+                'q_alu', 'q_adr', 'qn_lod', 'q_sto',
+                'q_wri', 'q_upd', 'q_rst',  'q_lsd'
+            ]),
             ('operation', [
                 ('oper_i_ldst__insn_type', {'display': 'insn_type'}),
                 ('oper_i_ldst__ldst_mode', {'display': 'ldst_mode'}),
                 ('oper_i_ldst__zero_a', {'display': 'zero_a'}),
                 ('oper_i_ldst__imm_data__ok', {'display': 'imm_data_ok'}),
-                ('oper_i_ldst__imm_data__data[63:0]',
-                 {'display': 'imm_data_data', 'base': 'dec'})
+                ('oper_i_ldst__imm_data__data[63:0]', 'dec',
+                 {'display': 'imm_data_data'})
             ]),
-            ('cu_issue_i', {'display': 'issue_i'}),
-            ('cu_busy_o', {'display': 'busy_o'})
+            'cu_issue_i', 'cu_busy_o',
+            ('address ALU', [
+                ('cu_rd__rel_o[2:0]', {'bit': 2}),
+                ('cu_rd__go_i[2:0]', {'bit': 2}),
+                ('src1_i[63:0]', 'dec'),
+                ('cu_rd__rel_o[2:0]', {'bit': 1}),
+                ('cu_rd__go_i[2:0]', {'bit': 1}),
+                ('src2_i[63:0]', 'dec'),
+                'alu_valid', 'alu_ok', ('alu_o[63:0]', 'dec'),
+                'cu_ad__rel_o', 'cu_ad__go_i',
+                'pi_addr_i_ok', ('pi_addr_i[47:0]', 'dec'),
+            ]),
+            ('store operand', [
+                ('cu_rd__rel_o[2:0]', {'bit': 0}),
+                ('cu_rd__go_i[2:0]', {'bit': 0}),
+                ('src3_i[63:0]', 'dec'),
+                'rd_done',
+            ]),
+            'cu_st__rel_o', 'cu_st__go_i'
         ]
         write_gtkw("test_ldst_compunit.gtkw",
                    "test_ldst_compunit.vcd",
-                   traces, module="top.dut")
+                   traces, style, module="top.dut")
 
 
 if __name__ == '__main__':
