@@ -11,17 +11,38 @@ from openpower.decoder.power_enums import MicrOp, LDSTMode
 
 from soc.experiment.compldst_multi import LDSTCompUnit
 from soc.experiment.pimem import PortInterface
+from soc.experiment.test.test_compalu_multi import OperandProducer
 from soc.fu.ldst.pipe_data import LDSTPipeSpec
 
 
 class OpSim:
-    def __init__(self, dut):
+    def __init__(self, dut, sim):
         self.dut = dut
+        # create one operand producer for each input port
+        self.producers = list()
+        for i in range(len(dut.src_i)):
+            self.producers.append(OperandProducer(sim, dut, i))
 
-    def issue(self, op, zero_a=False, imm=None, update=False,
+    def issue(self, op, ra=None, rb=None, rc=None,
+              zero_a=False, imm=None, update=False,
               byterev=True, signext=False,
-              data_len=2, msr_pr=0):
+              data_len=2, msr_pr=0,
+              delays=None):
+        assert zero_a == (ra is None), \
+            "ra and zero_a are mutually exclusive"
+        assert (rb is None) != (imm is None), \
+            "rb and imm are mutually exclusive"
+        if op == MicrOp.OP_STORE:
+            assert rc, "need source operand for store"
         dut = self.dut
+        pi = dut.pi
+        producers = self.producers
+        if ra:
+            yield from producers[0].send(ra, delays['ra'])
+        if rb:
+            yield from producers[1].send(rb, delays['rb'])
+        if rc:
+            yield from producers[2].send(rc, delays['rc'])
         yield dut.oper_i.insn_type.eq(op)
         yield dut.oper_i.data_len.eq(data_len)
         yield dut.oper_i.zero_a.eq(zero_a)
@@ -47,6 +68,8 @@ class OpSim:
         yield dut.oper_i.imm_data.ok.eq(0)
         yield dut.oper_i.ldst_mode.eq(LDSTMode.NONE)
         yield dut.oper_i.msr[MSR.PR].eq(0)
+        while not (yield pi.addr.ok):
+            yield
 
 
 class TestLDSTCompUnit(unittest.TestCase):
@@ -59,11 +82,12 @@ class TestLDSTCompUnit(unittest.TestCase):
         m.submodules.dut = dut
         sim = Simulator(m)
         sim.add_clock(1e-6)
-        op = OpSim(dut)
+        op = OpSim(dut, sim)
         self.write_gtkw()
 
         def process():
-            yield from op.issue(MicrOp.OP_STORE)
+            yield from op.issue(MicrOp.OP_STORE, ra=1, rb=2, rc=3,
+                                delays={'ra': 1, 'rb': 2, 'rc': 5})
 
         sim.add_sync_process(process)
         sim_writer = sim.write_vcd("test_ldst_compunit.vcd")
