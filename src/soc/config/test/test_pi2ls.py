@@ -61,9 +61,36 @@ def pi_st(port1, addr, data, datalen, msr_pr=0):
     yield port1.st.ok.eq(0)
     yield from wait_busy(port1, True)    # wait while busy
 
+# copy of pi_st
+def pi_dcbz(port1, addr, data, datalen, msr_pr=0):
+
+    # have to wait until not busy
+    yield from wait_busy(port1, no=False)    # wait until not busy
+
+    # set up a ST on the port.  address first:
+    yield port1.is_st_i.eq(1)  # indicate ST
+    yield port1.data_len.eq(datalen)  # ST length (1/2/4/8)
+    yield port1.msr_pr.eq(msr_pr)  # MSR PR bit (1==>virt, 0==>real)
+
+    yield port1.is_dcbz.eq(1) # set dcbz
+
+    yield port1.addr.data.eq(addr)  # set address
+    yield port1.addr.ok.eq(1)  # set ok
+    yield Settle()
+    yield from wait_addr(port1)             # wait until addr ok
+    # yield # not needed, just for checking
+    # yield # not needed, just for checking
+    # assert "ST" for one cycle (required by the API)
+    yield port1.st.data.eq(data)
+    yield port1.st.ok.eq(1)
+    yield
+    yield port1.st.ok.eq(0)
+    yield from wait_busy(port1, True)    # wait while busy
+
     # can go straight to reset.
     yield port1.is_st_i.eq(0)  # end
     yield port1.addr.ok.eq(0)  # set !ok
+    yield port1.is_dcbz.eq(0)  # reset dcbz too
 
 
 def pi_ld(port1, addr, datalen, msr_pr=0):

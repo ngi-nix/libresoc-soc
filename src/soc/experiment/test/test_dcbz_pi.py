@@ -15,7 +15,7 @@ else:
     from nmigen.sim.cxxsim import Simulator, Delay, Settle
 from nmutil.util import wrap
 
-from soc.config.test.test_pi2ls import pi_ld, pi_st, pi_ldst
+from soc.config.test.test_pi2ls import pi_ld, pi_st, pi_ldst, pi_dcbz
 from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.loadstore import ConfigMemoryPortInterface
 
@@ -121,9 +121,12 @@ def _test_dcbz_addr_zero(dut, mem):
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
-    ###### TODO
-    #yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
-    #yield
+    addr = 0
+    data = 0 # FIXME
+    # size ==, msr_pr TODO
+
+    yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
+    yield
 
     yield
     stop = True
@@ -159,7 +162,7 @@ def test_dcbz_addr_zero():
 
     sim.add_sync_process(wrap(_test_dcbz_addr_zero(m, mem)))
     sim.add_sync_process(wrap(wb_get(cmpi.wb_bus(), mem)))
-    with sim.write_vcd('test_ldst_pi_random2.vcd'):
+    with sim.write_vcd('test_dcbz_addr_zero.vcd'):
         sim.run()
 
 if __name__ == '__main__':
