@@ -414,6 +414,17 @@ class TestRunner(FHDLTestCase):
             'core.int.rp_src1.memory(9)[63:0]',
             'core.int.rp_src1.memory(10)[63:0]',
             'core.int.rp_src1.memory(13)[63:0]',
+            {'comment': 'memory port interface'},
+            'core.l0.pimem.ldst_port0_is_ld_i',
+            'core.l0.pimem.ldst_port0_is_st_i',
+            'core.l0.pimem.ldst_port0_busy_o',
+            'core.l0.pimem.ldst_port0_addr_i[47:0]',
+            'core.l0.pimem.ldst_port0_addr_i_ok',
+            'core.l0.pimem.ldst_port0_addr_ok_o',
+            'core.l0.pimem.ldst_port0_st_data_i[63:0]',
+            'core.l0.pimem.ldst_port0_st_data_i_ok',
+            'core.l0.pimem.ldst_port0_ld_data_o[63:0]',
+            'core.l0.pimem.ldst_port0_ld_data_o_ok'
         ]
 
         if self.microwatt_mmu:

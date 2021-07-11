@@ -58,6 +58,7 @@ class OperandProducer:
         # transaction parameters, passed via signals
         self.delay = Signal(8)
         self.data = Signal.like(self.port)
+        self.data_valid = False
         # add ourselves to the simulation process list
         sim.add_sync_process(self._process)
 
@@ -72,6 +73,7 @@ class OperandProducer:
                 yield
                 yield Settle()
             # read the transaction parameters
+            assert self.data_valid, "an unexpected operand was consumed"
             delay = (yield self.delay)
             data = (yield self.data)
             # wait for `delay` cycles
@@ -82,6 +84,7 @@ class OperandProducer:
             yield self.port.eq(data)
             yield self.count.eq(self.count + 1)
             yield
+            self.data_valid = False
             yield self.go_i.eq(0)
             yield self.port.eq(0)
 
@@ -99,6 +102,7 @@ class OperandProducer:
         """
         yield self.data.eq(data)
         yield self.delay.eq(delay)
+        self.data_valid = True
 
 
 class ResultConsumer:
@@ -127,6 +131,7 @@ class ResultConsumer:
         # transaction parameters, passed via signals
         self.delay = Signal(8)
         self.expected = Signal.like(self.port)
+        self.expecting = False
         # add ourselves to the simulation process list
         sim.add_sync_process(self._process)
 
@@ -141,6 +146,7 @@ class ResultConsumer:
                 yield
                 yield Settle()
             # read the transaction parameters
+            assert self.expecting, "an unexpected result was produced"
             delay = (yield self.delay)
             expected = (yield self.expected)
             # wait for `delay` cycles
@@ -171,6 +177,7 @@ class ResultConsumer:
         """
         yield self.expected.eq(expected)
         yield self.delay.eq(delay)
+        self.expecting = True
 
 
 def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0, zero_a=0):
