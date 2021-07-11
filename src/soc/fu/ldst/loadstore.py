@@ -21,7 +21,7 @@ from nmigen import (Elaboratable, Module, Signal, Shape, unsigned, Cat, Mux,
                     Record, Memory,
                     Const)
 from nmutil.iocontrol import RecordObject
-from nmutil.util import rising_edge
+from nmutil.util import rising_edge, Display
 from enum import Enum, unique
 
 from soc.experiment.dcache import DCache
@@ -126,6 +126,11 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.req.priv_mode.eq(~msr_pr) # not-problem  ==> priv
         m.d.comb += self.req.virt_mode.eq(msr_pr) # problem-state ==> virt
         m.d.comb += self.req.align_intr.eq(misalign)
+
+        dcbz = self.pi.is_dcbz
+        m.d.comb += Display("is_dcbz %x",dcbz)
+        m.d.comb += self.req.dcbz.eq(dcbz)
+
         # option to disable the cache entirely for write
         if self.disable_cache:
             m.d.comb += self.req.nc.eq(1)
