@@ -121,9 +121,15 @@ def _test_dcbz_addr_zero(dut, mem):
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
-    addr = 0
-    data = 0 # FIXME
+    addr = 0x1000
+    data = 0x1337
     # size ==, msr_pr TODO
+
+    ## causes hang in pi_dcbz -- investigate
+    yield from pi_st(pi, addr, data, 8, msr_pr=1)
+    yield
+    yield
+    yield Display("done_pi_st")
 
     yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
     yield
