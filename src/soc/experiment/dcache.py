@@ -1079,7 +1079,10 @@ class DCache(Elaboratable):
 
             # error cases complete without stalling
             with m.If(r1.ls_error):
-                sync += Display("completing ld/st with error")
+                with m.If(r1.dcbz):
+                    sync += Display("completing dcbz with error")
+                with m.Else():
+                    sync += Display("completing ld/st with error")
 
             # Slow ops (load miss, NC, stores)
             with m.If(r1.slow_valid):
