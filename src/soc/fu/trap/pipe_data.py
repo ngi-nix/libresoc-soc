@@ -27,7 +27,7 @@ class TrapOutputData(FUBaseData):
                # ... however we *do* need to *write* MSR, NIA, SVSTATE (RFID)
                ('STATE', 'nia', '0:63'),  # NIA (Next PC)
                ('STATE', 'msr', '0:63'),  # MSR
-               ('STATE', 'svstate', '0:31')]  # SVSTATE
+               ('STATE', 'svstate', '0:63')]  # SVSTATE
     def __init__(self, pspec):
         super().__init__(pspec, True)
         # convenience

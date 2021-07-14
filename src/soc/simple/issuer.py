@@ -242,7 +242,7 @@ class TestIssuerInternal(Elaboratable):
         # instruction go/monitor
         self.pc_o = Signal(64, reset_less=True)
         self.pc_i = Data(64, "pc_i") # set "ok" to indicate "please change me"
-        self.svstate_i = Data(32, "svstate_i") # ditto
+        self.svstate_i = Data(64, "svstate_i") # ditto
         self.core_bigendian_i = Signal() # TODO: set based on MSR.LE
         self.busy_o = Signal(reset_less=True)
         self.memerr_o = Signal(reset_less=True)

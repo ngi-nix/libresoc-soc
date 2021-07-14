@@ -134,7 +134,7 @@ class TestRunner(FHDLTestCase):
         m = Module()
         comb = m.d.comb
         pc_i = Signal(32)
-        svstate_i = Signal(32)
+        svstate_i = Signal(64)
 
         if self.microwatt_mmu:
             ldst_ifacetype = 'test_mmu_cache_wb'

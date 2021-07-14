@@ -16,7 +16,7 @@ class CompTrapOpSubset(CompOpSubsetBase):
                   ('insn', 32),
                   ('msr', 64),     # from core.state
                   ('cia', 64),     # likewise
-                  ('svstate', 32), # likewise
+                  ('svstate', 64), # likewise
                   ('is_32bit', 1),
                   ('traptype', TT.size), # see trap main_stage.py, PowerDecoder2
                   ('trapaddr', 13),
