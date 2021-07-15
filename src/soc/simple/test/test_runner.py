@@ -240,7 +240,7 @@ class TestRunner(FHDLTestCase):
                     initial_svstate = test.svstate
                     if isinstance(initial_svstate, int):
                         initial_svstate = SVP64State(initial_svstate)
-                    yield svstate_i.eq(initial_svstate.spr.value)
+                    yield svstate_i.eq(initial_svstate.value)
                     yield issuer.svstate_i.ok.eq(1)
                     yield
 
