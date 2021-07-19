@@ -121,20 +121,23 @@ def _test_dcbz_addr_zero(dut, mem):
     yield mmu.rin.prtbl.eq(0x1000000) # set process table
     yield
 
-    addr = 0x1000
-    data = 0x1337
+    addr = 0x100e0
+    data = 0xf553b658ba7e1f51
     # size ==, msr_pr TODO
 
     ## causes hang in pi_dcbz -- investigate
-    ##yield from pi_st(pi, addr, data, 8, msr_pr=1)
-    ##yield
-    ##yield
-    ##yield Display("done_pi_st")
+    yield from pi_st(pi, addr, data, 8, msr_pr=1)
+    yield
+    yield Display("======== done_pi_st")
+
+    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+    assert ld_data == 0xf553b658ba7e1f51
+    #ok until here -- any other operation hangs
 
     ## verify this one first
     ## is_dcbz 1 ## addrok 1
-    yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
-    yield
+    #yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
+    #yield
 
     yield
     stop = True
@@ -143,7 +146,6 @@ def test_dcbz_addr_zero():
 
     m, cmpi = setup_mmu()
 
-    # dcache_load at addr 0
     mem = {
            0x10000:    # PARTITION_TABLE_2
                        # PATB_GR=1 PRTB=0x1000 PRTS=0xb
@@ -161,6 +163,8 @@ def test_dcbz_addr_zero():
            0x1000000:   # PROCESS_TABLE_3
                         # RTS1 = 0x2 RPDB = 0x300 RTS2 = 0x5 RPDS = 13
            b(0x40000000000300ad),
+           
+           0x10004: 0
 
     }
 
