@@ -8,22 +8,27 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.config.loadstore import ConfigMemoryPortInterface
 
 
-def wait_busy(port, no=False):
+def wait_busy(port, no=False,debug=None):
+    cnt = 0
     while True:
         busy = yield port.busy_o
-        print("busy", no, busy)
+        print("busy", no, busy, cnt, debug)
         if bool(busy) == no:
             break
         yield
+        cnt += 1
+        
 
 
-def wait_addr(port):
+def wait_addr(port,debug=None):
+    cnt = 0
     while True:
         addr_ok = yield port.addr_ok_o
-        print("addrok", addr_ok)
+        print("addrok", addr_ok,cnt,debug)
         if addr_ok:
             break
         yield
+        cnt += 1
 
 
 def wait_ldok(port):
@@ -65,7 +70,7 @@ def pi_st(port1, addr, data, datalen, msr_pr=0):
 def pi_dcbz(port1, addr, data, datalen, msr_pr=0):
 
     # have to wait until not busy
-    yield from wait_busy(port1, no=False)    # wait until not busy
+    yield from wait_busy(port1, no=False,debug="busy")    # wait until not busy
 
     # set up a ST on the port.  address first:
     yield port1.is_st_i.eq(1)  # indicate ST
@@ -77,7 +82,7 @@ def pi_dcbz(port1, addr, data, datalen, msr_pr=0):
     yield port1.addr.data.eq(addr)  # set address
     yield port1.addr.ok.eq(1)  # set ok
     yield Settle()
-    yield from wait_addr(port1)             # wait until addr ok
+    yield from wait_addr(port1,debug="addr")             # wait until addr ok
     # yield # not needed, just for checking
     # yield # not needed, just for checking
     # assert "ST" for one cycle (required by the API)
@@ -85,7 +90,7 @@ def pi_dcbz(port1, addr, data, datalen, msr_pr=0):
     yield port1.st.ok.eq(1)
     yield
     yield port1.st.ok.eq(0)
-    yield from wait_busy(port1, True)    # wait while busy
+    yield from wait_busy(port1, no=True, debug="not_busy")    # wait while busy
 
     # can go straight to reset.
     yield port1.is_st_i.eq(0)  # end
