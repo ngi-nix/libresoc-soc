@@ -66,6 +66,12 @@ def pi_st(port1, addr, data, datalen, msr_pr=0):
     yield port1.st.ok.eq(0)
     yield from wait_busy(port1, True)    # wait while busy
 
+    # can go straight to reset.
+    yield port1.is_st_i.eq(0)  # end
+    yield port1.addr.ok.eq(0)  # set !ok
+    yield port1.is_dcbz.eq(0)  # reset dcbz too
+
+
 # copy of pi_st
 def pi_dcbz(port1, addr, msr_pr=0):
 
