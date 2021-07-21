@@ -123,25 +123,25 @@ def _test_dcbz_addr_zero(dut, mem):
 
     addr = 0x100e0
     data = 0xf553b658ba7e1f51
-    # size ==, msr_pr TODO
 
-    ## causes hang in pi_dcbz -- investigate
-    yield from pi_st(pi, addr, data, 8, msr_pr=1)
+    yield from pi_st(pi, addr, data, 8, msr_pr=0)
     yield
-    yield Display("======== done_pi_st")
 
-    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=1)
+    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=0)
     assert ld_data == 0xf553b658ba7e1f51
-    #ok until here -- any other operation hangs
+    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=0)
+    assert ld_data == 0xf553b658ba7e1f51
 
     ## verify this one first
     ## is_dcbz 1 ## addrok 1
-    #yield from pi_dcbz(pi, addr, data, 8, msr_pr=1)
-    #yield
+    ##print("do_dcbz ===============")
+    ##yield from pi_dcbz(pi, addr, msr_pr=0)
+    ##yield
 
     yield
     stop = True
 
+#FIXME: rename
 def test_dcbz_addr_zero():
 
     m, cmpi = setup_mmu()
