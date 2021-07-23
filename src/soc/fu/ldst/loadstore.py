@@ -128,7 +128,8 @@ class LoadStore1(PortInterfaceBase):
         m.d.comb += self.req.align_intr.eq(misalign)
 
         dcbz = self.pi.is_dcbz
-        m.d.comb += Display("is_dcbz %x",dcbz)
+        with m.If(dcbz):
+            m.d.comb += Display("set_wr_addr: is_dcbz")
         m.d.comb += self.req.dcbz.eq(dcbz)
 
         # option to disable the cache entirely for write
@@ -315,7 +316,7 @@ class LoadStore1(PortInterfaceBase):
             m.d.comb += d_out.priv_mode.eq(self.req.priv_mode)
             m.d.comb += d_out.virt_mode.eq(self.req.virt_mode)
             m.d.comb += self.align_intr.eq(self.req.align_intr)
-            m.d.comb += Display("validblip dcbz=%i addr=%x",self.req.dcbz,self.req.addr)
+            #m.d.comb += Display("validblip dcbz=%i addr=%x",self.req.dcbz,self.req.addr)
             m.d.comb += d_out.dcbz.eq(self.req.dcbz)
         with m.Else():
             m.d.comb += d_out.load.eq(ldst_r.load)
@@ -325,7 +326,7 @@ class LoadStore1(PortInterfaceBase):
             m.d.comb += d_out.priv_mode.eq(ldst_r.priv_mode)
             m.d.comb += d_out.virt_mode.eq(ldst_r.virt_mode)
             m.d.comb += self.align_intr.eq(ldst_r.align_intr)
-            m.d.comb += Display("no_validblip dcbz=%i addr=%x",ldst_r.dcbz,ldst_r.addr)
+            #m.d.comb += Display("no_validblip dcbz=%i addr=%x",ldst_r.dcbz,ldst_r.addr)
             m.d.comb += d_out.dcbz.eq(ldst_r.dcbz)
 
         # XXX these should be possible to remove but for some reason
