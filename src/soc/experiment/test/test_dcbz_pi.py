@@ -132,11 +132,14 @@ def _test_dcbz_addr_zero(dut, mem):
     ld_data = yield from pi_ld(pi, addr, 8, msr_pr=0)
     assert ld_data == 0xf553b658ba7e1f51
 
-    ## verify this one first
-    ## is_dcbz 1 ## addrok 1
-    ##print("do_dcbz ===============")
-    ##yield from pi_dcbz(pi, addr, msr_pr=0)
-    ##yield
+    print("do_dcbz ===============")
+    yield from pi_dcbz(pi, addr, msr_pr=0)
+    print("done_dcbz ===============")
+    yield
+
+    ld_data = yield from pi_ld(pi, addr, 8, msr_pr=0)
+    print("ld_data after dcbz")
+    print(ld_data)
 
     yield
     stop = True
