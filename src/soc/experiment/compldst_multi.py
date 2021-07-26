@@ -97,6 +97,9 @@ from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from openpower.decoder.power_decoder2 import Data
 from openpower.consts import MSR
 
+# for debugging dcbz
+from nmutil.util import Display
+
 
 # TODO: LDSTInputData and LDSTOutputData really should be used
 # here, to make things more like the other CompUnits.  currently,
@@ -313,6 +316,8 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         oper_r = CompLDSTOpSubset(name="oper_r")  # Dest register
         comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE)  # ST
         comb += op_is_ld.eq(oper_r.insn_type == MicrOp.OP_LOAD)  # LD
+        comb += Display("compldst_multi: op_is_dcbz = %i",
+                        (oper_r.insn_type == MicrOp.OP_DCBZ))
         op_is_update = oper_r.ldst_mode == LDSTMode.update           # UPDATE
         op_is_cix = oper_r.ldst_mode == LDSTMode.cix           # cache-inhibit
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)
