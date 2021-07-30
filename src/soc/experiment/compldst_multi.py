@@ -96,6 +96,7 @@ from openpower.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from openpower.decoder.power_decoder2 import Data
 from openpower.consts import MSR
+from soc.config.test.test_loadstore import TestMemPspec
 
 # for debugging dcbz
 from nmutil.util import Display
@@ -748,9 +749,9 @@ def ldst_sim(dut):
 
 class TestLDSTCompUnit(LDSTCompUnit):
 
-    def __init__(self, rwid):
+    def __init__(self, rwid, pspec):
         from soc.experiment.l0_cache import TstL0CacheBuffer
-        self.l0 = l0 = TstL0CacheBuffer()
+        self.l0 = l0 = TstL0CacheBuffer(pspec)
         pi = l0.l0.dports[0].pi
         LDSTCompUnit.__init__(self, pi, rwid, 4)
 
@@ -763,7 +764,15 @@ class TestLDSTCompUnit(LDSTCompUnit):
 
 def test_scoreboard():
 
-    dut = TestLDSTCompUnit(16)
+    units = {}
+    pspec = TestMemPspec(ldst_ifacetype='bare_wb',
+                         imem_ifacetype='bare_wb',
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64,
+                         units=units)
+
+    dut = TestLDSTCompUnit(16,pspec)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
@@ -773,11 +782,11 @@ def test_scoreboard():
 
 class TestLDSTCompUnitRegSpec(LDSTCompUnit):
 
-    def __init__(self):
+    def __init__(self, pspec):
         from soc.experiment.l0_cache import TstL0CacheBuffer
         from soc.fu.ldst.pipe_data import LDSTPipeSpec
         regspec = LDSTPipeSpec.regspec
-        self.l0 = l0 = TstL0CacheBuffer()
+        self.l0 = l0 = TstL0CacheBuffer(pspec)
         pi = l0.l0.dports[0].pi
         LDSTCompUnit.__init__(self, pi, regspec, 4)
 
@@ -790,7 +799,15 @@ class TestLDSTCompUnitRegSpec(LDSTCompUnit):
 
 def test_scoreboard_regspec():
 
-    dut = TestLDSTCompUnitRegSpec()
+    units = {}
+    pspec = TestMemPspec(ldst_ifacetype='bare_wb',
+                         imem_ifacetype='bare_wb',
+                         addr_wid=48,
+                         mask_wid=8,
+                         reg_wid=64,
+                         units=units)
+
+    dut = TestLDSTCompUnitRegSpec(pspec)
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp.il", "w") as f:
         f.write(vl)
