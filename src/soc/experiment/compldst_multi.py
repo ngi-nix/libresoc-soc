@@ -752,7 +752,7 @@ class TestLDSTCompUnit(LDSTCompUnit):
     def __init__(self, rwid, pspec):
         from soc.experiment.l0_cache import TstL0CacheBuffer
         self.l0 = l0 = TstL0CacheBuffer(pspec)
-        pi = l0.l0.dports[0].pi
+        pi = l0.l0.dports[0]
         LDSTCompUnit.__init__(self, pi, rwid, 4)
 
     def elaborate(self, platform):
@@ -787,7 +787,7 @@ class TestLDSTCompUnitRegSpec(LDSTCompUnit):
         from soc.fu.ldst.pipe_data import LDSTPipeSpec
         regspec = LDSTPipeSpec.regspec
         self.l0 = l0 = TstL0CacheBuffer(pspec)
-        pi = l0.l0.dports[0].pi
+        pi = l0.l0.dports[0]
         LDSTCompUnit.__init__(self, pi, regspec, 4)
 
     def elaborate(self, platform):
