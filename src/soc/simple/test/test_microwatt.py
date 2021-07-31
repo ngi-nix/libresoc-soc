@@ -19,7 +19,7 @@ from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
                                                  check_sim_memory,
                                                  get_l0_mem)
 
-from soc.simple.test.test_issuer import setup_i_memory
+from soc.simple.test.test_runner import setup_i_memory
 
 import sys
 sys.setrecursionlimit(10**6)
