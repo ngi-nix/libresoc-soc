@@ -245,7 +245,7 @@ def dcache_sim(dut, mem):
     yield
 
 
-def test_dcache(mem, test_fn, test_name):
+def tst_dcache(mem, test_fn, test_name):
     dut = DCache()
 
     memory = Memory(width=64, depth=len(mem), init=mem, simulate=True)
@@ -311,18 +311,18 @@ if __name__ == '__main__':
     for i in range(memsize):
         mem.append(i)
 
-    test_dcache(mem, dcache_regression_sim, "simpleregression")
+    tst_dcache(mem, dcache_regression_sim, "simpleregression")
 
     mem = []
     memsize = 256
     for i in range(memsize):
         mem.append(i)
 
-    test_dcache(mem, dcache_random_sim, "random")
+    tst_dcache(mem, dcache_random_sim, "random")
 
     mem = []
     for i in range(1024):
         mem.append((i*2)| ((i*2+1)<<32))
 
-    test_dcache(mem, dcache_sim, "")
+    tst_dcache(mem, dcache_sim, "")
 

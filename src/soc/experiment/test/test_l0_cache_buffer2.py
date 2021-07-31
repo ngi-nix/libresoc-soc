@@ -55,7 +55,7 @@ class TestCachedMemoryPortInterface(PortInterfaceBase):
         # TODO: memory ports
 
 
-def test_cache_single_run(dut):
+def tst_cache_single_run(dut):
     #test single byte
     addr = 0
     data = 0xfeedface
@@ -65,7 +65,7 @@ def test_cache_single():
     dut = TestCachedMemoryPortInterface()
     #LDSTSplitter(8, 48, 4) #data leng in bytes, address bits, select bits
 
-    run_simulation(dut, test_cache_single_run(dut),
+    run_simulation(dut, tst_cache_single_run(dut),
                    vcd_name='test_cache_single.vcd')
 
 
