@@ -137,7 +137,7 @@ def get_l0_mem(l0):  # BLECH! this is awful! hunting around through structures
     return mem.mem
 
 
-def setup_test_memory(l0, sim):
+def setup_tst_memory(l0, sim):
     mem = get_l0_mem(l0)
     print("before, init mem", mem.depth, mem.width, mem)
     for i in range(mem.depth):
@@ -199,7 +199,7 @@ class TestRunner(FHDLTestCase):
 
         # initialise memory
         if self.funit == Function.LDST:
-            yield from setup_test_memory(l0, sim)
+            yield from setup_tst_memory(l0, sim)
 
         pc = sim.pc.CIA.value
         index = pc//4

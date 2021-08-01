@@ -28,7 +28,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.simple.test.test_core import (setup_regs, check_regs,
                                        wait_for_busy_clear,
                                        wait_for_busy_hi)
-from soc.fu.compunits.test.test_compunit import (setup_test_memory,
+from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
                                                  check_sim_memory)
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 from nmutil.util import wrap
@@ -230,7 +230,7 @@ class TestRunner(FHDLTestCase):
                     counter = 0  # test to pause/start
 
                     yield from setup_i_memory(imem, pc, instructions)
-                    yield from setup_test_memory(l0, sim)
+                    yield from setup_tst_memory(l0, sim)
                     yield from setup_regs(pdecode2, core, test)
 
                     # set PC and SVSTATE

@@ -25,7 +25,7 @@ from openpower.endian import bigendian
 from soc.simple.core import NonProductionCore
 from soc.experiment.compalu_multi import find_ok  # hack
 
-from soc.fu.compunits.test.test_compunit import (setup_test_memory,
+from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
                                                  check_sim_memory)
 
 # test with ALU data and Logical data
@@ -278,7 +278,7 @@ class TestRunner(FHDLTestCase):
                 gen = program.generate_instructions()
                 instructions = list(zip(gen, program.assembly.splitlines()))
 
-                yield from setup_test_memory(l0, sim)
+                yield from setup_tst_memory(l0, sim)
                 yield from setup_regs(core, test)
 
                 index = sim.pc.CIA.value//4
