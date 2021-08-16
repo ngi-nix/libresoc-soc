@@ -412,19 +412,31 @@ class TestRunner(FHDLTestCase):
             'core.int.rp_src1.memory(7)[63:0]',
             'core.int.rp_src1.memory(9)[63:0]',
             'core.int.rp_src1.memory(10)[63:0]',
-            'core.int.rp_src1.memory(13)[63:0]',
-            {'comment': 'memory port interface'},
-            'core.l0.pimem.ldst_port0_is_ld_i',
-            'core.l0.pimem.ldst_port0_is_st_i',
-            'core.l0.pimem.ldst_port0_busy_o',
-            'core.l0.pimem.ldst_port0_addr_i[47:0]',
-            'core.l0.pimem.ldst_port0_addr_i_ok',
-            'core.l0.pimem.ldst_port0_addr_ok_o',
-            'core.l0.pimem.ldst_port0_st_data_i[63:0]',
-            'core.l0.pimem.ldst_port0_st_data_i_ok',
-            'core.l0.pimem.ldst_port0_ld_data_o[63:0]',
-            'core.l0.pimem.ldst_port0_ld_data_o_ok'
+            'core.int.rp_src1.memory(13)[63:0]'
         ]
+
+        # PortInterface module path varies depending on MMU option
+        if self.microwatt_mmu:
+            pi_module = 'core.ldst0'
+        else:
+            pi_module = 'core.fus.ldst0'
+
+        traces += [('ld/st port interface', {'submodule': pi_module}, [
+            'oper_r__insn_type',
+            'ldst_port0_is_ld_i',
+            'ldst_port0_is_st_i',
+            'ldst_port0_busy_o',
+            'ldst_port0_addr_i[47:0]',
+            'ldst_port0_addr_i_ok',
+            'ldst_port0_addr_ok_o',
+            'ldst_port0_exc_happened',
+            'ldst_port0_st_data_i[63:0]',
+            'ldst_port0_st_data_i_ok',
+            'ldst_port0_ld_data_o[63:0]',
+            'ldst_port0_ld_data_o_ok',
+            'exc_o_happened',
+            'cancel'
+        ])]
 
         if self.microwatt_mmu:
             traces += [
