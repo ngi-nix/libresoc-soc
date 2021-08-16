@@ -609,9 +609,9 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
     yield dut.src1_i.eq(src1)
     yield dut.src2_i.eq(src2)
     yield dut.src3_i.eq(src3)
-    yield dut.oper_i.imm_data.imm.eq(imm)
+    yield dut.oper_i.imm_data.data.eq(imm)
     yield dut.oper_i.imm_data.ok.eq(imm_ok)
-    yield dut.oper_i.update.eq(update)
+    #guess: this one was removed -- yield dut.oper_i.update.eq(update)
     yield dut.issue_i.eq(1)
     yield
     yield dut.issue_i.eq(0)
@@ -626,9 +626,9 @@ def store(dut, src1, src2, src3, imm, imm_ok=True, update=False,
         if rel == active_rel:
             break
         yield
-    yield dut.rd.go.eq(active_rel)
+    yield dut.rd.go_i.eq(active_rel)
     yield
-    yield dut.rd.go.eq(0)
+    yield dut.rd.go_i.eq(0)
 
     yield from wait_for(dut.adr_rel_o, False, test1st=True)
     # yield from wait_for(dut.adr_rel_o)
@@ -793,7 +793,8 @@ class TestLDSTCompUnitRegSpec(LDSTCompUnit):
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
-        m.d.comb += self.ad.go.eq(self.ad.rel)  # link addr-go direct to rel
+        # link addr-go direct to rel
+        m.d.comb += self.ad.go_i.eq(self.ad.rel_o)
         return m
 
 
