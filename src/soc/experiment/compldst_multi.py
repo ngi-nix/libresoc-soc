@@ -766,7 +766,8 @@ class TestLDSTCompUnit(LDSTCompUnit):
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
-        m.d.comb += self.ad.go.eq(self.ad.rel)  # link addr-go direct to rel
+        # link addr-go direct to rel
+        m.d.comb += self.ad.go_i.eq(self.ad.rel_o)
         return m
 
 
