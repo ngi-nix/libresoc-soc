@@ -396,7 +396,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # create a latch/register for the operand
         with m.If(self.issue_i):
             sync += oper_r.eq(self.oper_i)
-        with m.If(self.done_o):
+        with m.If(self.done_o | terminate):
             sync += oper_r.eq(0)
 
         # and for LD
