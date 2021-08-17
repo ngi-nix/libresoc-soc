@@ -455,8 +455,10 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         comb += self.adr_rel_o.eq(alu_valid & adr_l.q & busy_o)
 
         # the write/store (etc) all must be cancelled if an exception occurs
+        # note: cancel is active low, like shadown_i,
+        #       while exc_o.happpened is active high
         cancel = Signal(reset_less=True)
-        comb += cancel.eq(self.exc_o.happened | self.shadown_i)
+        comb += cancel.eq(~self.exc_o.happened & self.shadown_i)
 
         # store release when st ready *and* all operands read (and no shadow)
         comb += self.st.rel_o.eq(sto_l.q & busy_o & rd_done & op_is_st &
