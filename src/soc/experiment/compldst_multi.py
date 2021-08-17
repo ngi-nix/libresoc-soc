@@ -302,13 +302,19 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         reset_r = Signal(self.n_src, reset_less=True)  # reset src
         reset_s = Signal(reset_less=True)             # reset store
 
-        comb += reset_i.eq(issue_i | self.go_die_i)       # various
-        comb += reset_o.eq(self.done_o | self.go_die_i)      # opcode reset
-        comb += reset_w.eq(self.wr.go_i[0] | self.go_die_i)  # write reg 1
-        comb += reset_u.eq(self.wr.go_i[1] | self.go_die_i)  # update (reg 2)
-        comb += reset_s.eq(self.go_st_i | self.go_die_i)  # store reset
-        comb += reset_r.eq(self.rd.go_i | Repl(self.go_die_i, self.n_src))
-        comb += reset_a.eq(self.go_ad_i | self.go_die_i)
+        # end execution when a terminating condition is detected:
+        # - go_die_i: a speculative operation was cancelled
+        # - exc_o.happened: an exception has occurred
+        terminate = Signal()
+        comb += terminate.eq(self.go_die_i | self.exc_o.happened)
+
+        comb += reset_i.eq(issue_i | terminate)       # various
+        comb += reset_o.eq(self.done_o | terminate)      # opcode reset
+        comb += reset_w.eq(self.wr.go_i[0] | terminate)  # write reg 1
+        comb += reset_u.eq(self.wr.go_i[1] | terminate)  # update (reg 2)
+        comb += reset_s.eq(self.go_st_i | terminate)  # store reset
+        comb += reset_r.eq(self.rd.go_i | Repl(terminate, self.n_src))
+        comb += reset_a.eq(self.go_ad_i | terminate)
 
         p_st_go = Signal(reset_less=True)
         sync += p_st_go.eq(self.st.go_i)
