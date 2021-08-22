@@ -11,15 +11,15 @@ mkpinmux:
 	cp pinmux/ls180/ls180_pins.py src/soc/debug
 	cp pinmux/ls180/ls180_pins.py src/soc/litex/florent/libresoc
 
-install: gitupdate develop mkpinmux svanalysis
+install: gitupdate develop mkpinmux
 
 # this is now actually part of openpower-isa repository
 pywriter:
-	pywriter
+	echo "pywriter is part of openpower-isa, run that instead"
 
 # this is now actually part of openpower-isa repository
 svanalysis:
-	svanalysis
+	echo "sv_analysis is part of openpower-isa, run that instead"
 
 develop:
 	python3 setup.py develop # yes, develop, not install
