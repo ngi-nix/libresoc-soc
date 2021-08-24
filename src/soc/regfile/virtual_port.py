@@ -27,15 +27,15 @@ class VirtualRegPort(RegFileArray):
 
         # "full" depth variant of the "external" port
         self.full_wr = RecordObject([("wen", n_regs),
-                                     ("data_i", bitwidth)],  # *full* wid
+                                     ("i_data", bitwidth)],  # *full* wid
                                     name="full_wr")
         self.full_rd = RecordObject([("ren", n_regs),
-                                     ("data_o", bitwidth)],  # *full* wid
+                                     ("o_data", bitwidth)],  # *full* wid
                                     name="full_rd")
         if not rd2:
             return
         self.full_rd2 = RecordObject([("ren", n_regs),
-                                     ("data_o", bitwidth)],  # *full* wid
+                                     ("o_data", bitwidth)],  # *full* wid
                                     name="full_rd2")
 
     def connect_full_rd(self, m, rfull, name):
@@ -43,10 +43,10 @@ class VirtualRegPort(RegFileArray):
         rd_regs = self.read_reg_port(name)
 
         # wire up the enable signals and chain-accumulate the data
-        l = map(lambda port: port.data_o, rd_regs)  # get port data(s)
+        l = map(lambda port: port.o_data, rd_regs)  # get port data(s)
         le = map(lambda port: port.ren, rd_regs)  # get port ren(s)
 
-        comb += rfull.data_o.eq(Cat(*l))  # we like Cat on lists
+        comb += rfull.o_data.eq(Cat(*l))  # we like Cat on lists
         comb += Cat(*le).eq(rfull.ren)
 
     def elaborate(self, platform):
@@ -65,11 +65,11 @@ class VirtualRegPort(RegFileArray):
         wfull = self.full_wr
 
         # wire up the enable signals from the large (full) port
-        l = map(lambda port: port.data_i, wr_regs)
+        l = map(lambda port: port.i_data, wr_regs)
         le = map(lambda port: port.wen, wr_regs)  # get port wen(s)
 
-        # get list of all data_i (and wens) and assign to them via Cat
-        comb += Cat(*l).eq(wfull.data_i)
+        # get list of all i_data (and wens) and assign to them via Cat
+        comb += Cat(*l).eq(wfull.i_data)
         comb += Cat(*le).eq(wfull.wen)
 
         return m
@@ -82,14 +82,14 @@ class VirtualRegPort(RegFileArray):
 
 def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     # part-port write
-    yield wp.data_i.eq(2)
+    yield wp.i_data.eq(2)
     yield wp.wen.eq(1 << 1)
     yield
     yield wp.wen.eq(0)
     # part-port read
     yield rp1.ren.eq(1 << 1)
     yield
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     print(data)
     assert data == 2
 
@@ -97,38 +97,38 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield rp1.ren.eq(1 << 5)
     yield rp2.ren.eq(1 << 1)
     yield wp.wen.eq(1 << 5)
-    yield wp.data_i.eq(6)
+    yield wp.i_data.eq(6)
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(0)
     yield rp2.ren.eq(0)
-    data1 = yield rp1.data_o
+    data1 = yield rp1.o_data
     print(data1)
     assert data1 == 6, data1
-    data2 = yield rp2.data_o
+    data2 = yield rp2.o_data
     print(data2)
     assert data2 == 2, data2
     yield
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     print(data)
 
     # full port read (whole reg)
     yield dut.full_rd.ren.eq(0xff)
     yield
     yield dut.full_rd.ren.eq(0)
-    data = yield dut.full_rd.data_o
+    data = yield dut.full_rd.o_data
     print(hex(data))
 
     # full port read (part reg)
     yield dut.full_rd.ren.eq(0x1 << 5)
     yield
     yield dut.full_rd.ren.eq(0)
-    data = yield dut.full_rd.data_o
+    data = yield dut.full_rd.o_data
     print(hex(data))
 
     # full port part-write (part masked reg)
     yield dut.full_wr.wen.eq(0x1 << 1)
-    yield dut.full_wr.data_i.eq(0xe0)
+    yield dut.full_wr.i_data.eq(0xe0)
     yield
     yield dut.full_wr.wen.eq(0x0)
 
@@ -136,12 +136,12 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield dut.full_rd.ren.eq(0xff)
     yield
     yield dut.full_rd.ren.eq(0)
-    data = yield dut.full_rd.data_o
+    data = yield dut.full_rd.o_data
     print(hex(data))
 
     # full port write
     yield dut.full_wr.wen.eq(0xff)
-    yield dut.full_wr.data_i.eq(0xcafeface)
+    yield dut.full_wr.i_data.eq(0xcafeface)
     yield
     yield dut.full_wr.wen.eq(0x0)
 
@@ -149,17 +149,17 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield dut.full_rd.ren.eq(0xff)
     yield
     yield dut.full_rd.ren.eq(0)
-    data = yield dut.full_rd.data_o
+    data = yield dut.full_rd.o_data
     print(hex(data))
 
     # part write
-    yield wp.data_i.eq(2)
+    yield wp.i_data.eq(2)
     yield wp.wen.eq(1 << 1)
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(1 << 1)
     yield
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     print(hex(data))
     assert data == 2
 
@@ -167,7 +167,7 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield dut.full_rd.ren.eq(0xff)
     yield
     yield dut.full_rd.ren.eq(0)
-    data = yield dut.full_rd.data_o
+    data = yield dut.full_rd.o_data
     print(hex(data))
 
     # simultaneous read/write: full-write, part-write, 3x part-read
@@ -175,22 +175,22 @@ def regfile_array_sim(dut, rp1, rp2, rp3, wp):
     yield rp2.ren.eq(1 << 1)
     yield rp3.ren.eq(1 << 3)
     yield wp.wen.eq(1 << 3)
-    yield wp.data_i.eq(6)
+    yield wp.i_data.eq(6)
     yield dut.full_wr.wen.eq((1 << 1) | (1 << 5))
-    yield dut.full_wr.data_i.eq((0xa << (1*4)) | (0x3 << (5*4)))
+    yield dut.full_wr.i_data.eq((0xa << (1*4)) | (0x3 << (5*4)))
     yield
     yield dut.full_wr.wen.eq(0)
     yield wp.wen.eq(0)
     yield rp1.ren.eq(0)
     yield rp2.ren.eq(0)
     yield rp3.ren.eq(0)
-    data1 = yield rp1.data_o
+    data1 = yield rp1.o_data
     print(hex(data1))
     assert data1 == 0x3
-    data2 = yield rp2.data_o
+    data2 = yield rp2.o_data
     print(hex(data2))
     assert data2 == 0xa
-    data3 = yield rp3.data_o
+    data3 = yield rp3.o_data
     print(hex(data3))
     assert data3 == 0x6
 

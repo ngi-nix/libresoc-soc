@@ -44,8 +44,8 @@ class Shifter(Elaboratable):
     """Simple sequential shifter
 
     Prev port data:
-    * p.data_i.data:  value to be shifted
-    * p.data_i.shift: shift amount
+    * p.i_data.data:  value to be shifted
+    * p.i_data.shift: shift amount
     *                 When zero, no shift occurs.
     *                 On POWER, range is 0 to 63 for 32-bit,
     *                 and 0 to 127 for 64-bit.
@@ -55,11 +55,11 @@ class Shifter(Elaboratable):
     * op.sdir:       shift direction (0 = left, 1 = right)
 
     Next port data:
-    * n.data_o.data: shifted value
+    * n.o_data.data: shifted value
     """
     class PrevData:
         def __init__(self, width):
-            self.data = Signal(width, name="p_data_i")
+            self.data = Signal(width, name="p_i_data")
             self.shift = Signal(width, name="p_shift_i")
             self.ctx = Dummy()  # comply with CompALU API
 
@@ -68,7 +68,7 @@ class Shifter(Elaboratable):
 
     class NextData:
         def __init__(self, width):
-            self.data = Signal(width, name="n_data_o")
+            self.data = Signal(width, name="n_o_data")
 
         def _get_data(self):
             return [self.data]
@@ -77,14 +77,14 @@ class Shifter(Elaboratable):
         self.width = width
         self.p = PrevControl()
         self.n = NextControl()
-        self.p.data_i = Shifter.PrevData(width)
-        self.n.data_o = Shifter.NextData(width)
+        self.p.i_data = Shifter.PrevData(width)
+        self.n.o_data = Shifter.NextData(width)
 
         # more pieces to make this example class comply with the CompALU API
         self.op = CompFSMOpSubset(name="op")
-        self.p.data_i.ctx.op = self.op
-        self.i = self.p.data_i._get_data()
-        self.out = self.n.data_o._get_data()
+        self.p.i_data.ctx.op = self.op
+        self.i = self.p.i_data._get_data()
+        self.out = self.n.o_data._get_data()
 
     def elaborate(self, platform):
         m = Module()
@@ -115,8 +115,8 @@ class Shifter(Elaboratable):
         # build the data flow
         m.d.comb += [
             # connect input and output
-            shift_in.eq(self.p.data_i.data),
-            self.n.data_o.data.eq(shift_reg),
+            shift_in.eq(self.p.i_data.data),
+            self.n.o_data.data.eq(shift_reg),
             # generate shifted views of the register
             shift_left_by_1.eq(Cat(0, shift_reg[:-1])),
             shift_right_by_1.eq(Cat(shift_reg[1:], 0)),
@@ -156,7 +156,7 @@ class Shifter(Elaboratable):
                     self.p.o_ready.eq(1),
                     # keep loading the shift register and shift count
                     load.eq(1),
-                    next_count.eq(self.p.data_i.shift),
+                    next_count.eq(self.p.i_data.shift),
                 ]
                 # capture the direction bit as well
                 m.d.sync += direction.eq(self.op.sdir)
@@ -188,13 +188,13 @@ class Shifter(Elaboratable):
 
     def __iter__(self):
         yield self.op.sdir
-        yield self.p.data_i.data
-        yield self.p.data_i.shift
+        yield self.p.i_data.data
+        yield self.p.i_data.shift
         yield self.p.i_valid
         yield self.p.o_ready
         yield self.n.i_ready
         yield self.n.o_valid
-        yield self.n.data_o.data
+        yield self.n.o_data.data
 
     def ports(self):
         return list(self)
@@ -222,7 +222,7 @@ def test_shifter():
         {'comment': 'Shifter Demonstration'},
         ('prev port', [
             ('op__sdir', 'in'),
-            ('p_data_i[7:0]', 'in'),
+            ('p_i_data[7:0]', 'in'),
             ('p_shift_i[7:0]', 'in'),
             ({'submodule': 'p'}, [
                 ('p_i_valid', 'in'),
@@ -232,7 +232,7 @@ def test_shifter():
             'count[3:0]',
             'shift_reg[7:0]']),
         ('next port', [
-            ('n_data_o[7:0]', 'out'),
+            ('n_o_data[7:0]', 'out'),
             ({'submodule': 'n'}, [
                 ('n_o_valid', 'out'),
                 ('n_i_ready', 'in')])])]
@@ -246,8 +246,8 @@ def test_shifter():
 
     def send(data, shift, direction):
         # present input data and assert i_valid
-        yield dut.p.data_i.data.eq(data)
-        yield dut.p.data_i.shift.eq(shift)
+        yield dut.p.i_data.data.eq(data)
+        yield dut.p.i_data.shift.eq(shift)
         yield dut.op.sdir.eq(direction)
         yield dut.p.i_valid.eq(1)
         yield
@@ -256,8 +256,8 @@ def test_shifter():
             yield
         # clear input data and negate p.i_valid
         yield dut.p.i_valid.eq(0)
-        yield dut.p.data_i.data.eq(0)
-        yield dut.p.data_i.shift.eq(0)
+        yield dut.p.i_data.data.eq(0)
+        yield dut.p.i_data.shift.eq(0)
         yield dut.op.sdir.eq(0)
 
     def receive(expected):
@@ -268,7 +268,7 @@ def test_shifter():
         while not (yield dut.n.o_valid):
             yield
         # read result
-        result = yield dut.n.data_o.data
+        result = yield dut.n.o_data.data
         # negate n.i_ready
         yield dut.n.i_ready.eq(0)
         # check result

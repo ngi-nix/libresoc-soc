@@ -115,7 +115,7 @@ class CompUnitsBase(Elaboratable):
             self.addr_o = Signal(rwid, reset_less=True)
 
         # in/out register data (note: not register#, actual data)
-        self.data_o = Signal(rwid, reset_less=True)
+        self.o_data = Signal(rwid, reset_less=True)
         self.src1_i = Signal(rwid, reset_less=True)
         self.src2_i = Signal(rwid, reset_less=True)
         # input operand
@@ -170,8 +170,8 @@ class CompUnitsBase(Elaboratable):
         # protected by a single go_wr.  multi-issue requires a bus
         # to be inserted here.
         if self.units:
-            data_o = ortreereduce(self.units, "data_o")
-            comb += self.data_o.eq(data_o)
+            o_data = ortreereduce(self.units, "o_data")
+            comb += self.o_data.eq(o_data)
             if self.ldstmode:
                 addr_o = ortreereduce(self.units, "addr_o")
                 comb += self.addr_o.eq(addr_o)
@@ -730,11 +730,11 @@ class Scoreboard(Elaboratable):
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
         with m.If(br1.go_wr_i):
-            sync += self.branch_direction_o.eq(br1.data_o+Const(1, 2))
+            sync += self.branch_direction_o.eq(br1.o_data+Const(1, 2))
             sync += bspec.active_i.eq(0)
             comb += bspec.br_i.eq(1)
             # branch occurs if data == 1, failed if data == 0
-            comb += bspec.br_ok_i.eq(br1.data_o == 1)
+            comb += bspec.br_ok_i.eq(br1.o_data == 1)
             for i in range(n_intfus):
                 # *expected* direction of the branch matched against *actual*
                 comb += bshadow.s_good_i[i][0].eq(bspec.match_g_o[i])
@@ -749,9 +749,9 @@ class Scoreboard(Elaboratable):
         comb += int_src2.ren.eq(intfus.src_rsel_o[1])
 
         # connect ALUs to regfile
-        comb += int_dest.data_i.eq(cu.data_o)
-        comb += cu.src1_i.eq(int_src1.data_o)
-        comb += cu.src2_i.eq(int_src2.data_o)
+        comb += int_dest.i_data.eq(cu.o_data)
+        comb += cu.src1_i.eq(int_src1.o_data)
+        comb += cu.src2_i.eq(int_src2.o_data)
 
         # connect ALU Computation Units
         for i in range(fu_n_src):
@@ -788,9 +788,9 @@ class IssueToScoreboard(Elaboratable):
         self.n_regs = n_regs
 
         mqbits = unsigned(int(log(qlen) / log(2))+2)
-        self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
+        self.p_add_i = Signal(mqbits)  # instructions to add (from i_data)
         self.p_o_ready = Signal()  # instructions were added
-        self.data_i = Instruction._nq(n_in, "data_i")
+        self.i_data = Instruction._nq(n_in, "i_data")
 
         self.busy_o = Signal(reset_less=True)  # at least one CU is busy
         self.qlen_o = Signal(mqbits, reset_less=True)
@@ -817,7 +817,7 @@ class IssueToScoreboard(Elaboratable):
         comb += iq.p_add_i.eq(self.p_add_i)
         comb += self.p_o_ready.eq(iq.p_o_ready)
         for i in range(self.n_in):
-            comb += eq(iq.data_i[i], self.data_i[i])
+            comb += eq(iq.i_data[i], self.i_data[i])
 
         # take instruction and process it.  note that it's possible to
         # "inspect" the queue contents *without* actually removing the
@@ -846,7 +846,7 @@ class IssueToScoreboard(Elaboratable):
         # "resetting" done above (insn_i=0) could be re-ASSERTed.
         with m.If(iq.qlen_o != 0):
             # get the operands and operation
-            instr = iq.data_o[0]
+            instr = iq.o_data[0]
             imm = instr.imm_data.data
             dest = instr.write_reg.data
             src1 = instr.read_reg1.data
@@ -886,7 +886,7 @@ class IssueToScoreboard(Elaboratable):
 
     def __iter__(self):
         yield self.p_o_ready
-        for o in self.data_i:
+        for o in self.i_data:
             yield from list(o)
         yield self.p_add_i
 
@@ -899,7 +899,7 @@ def power_instr_q(dut, pdecode2, ins, code):
 
     sendlen = 1
     for idx, instr in enumerate(instrs):
-        yield dut.data_i[idx].eq(instr)
+        yield dut.i_data[idx].eq(instr)
         insn_type = yield instr.insn_type
         fn_unit = yield instr.fn_unit
         print("senddata ", idx, insn_type, fn_unit, instr)
@@ -927,17 +927,17 @@ def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
         dest = instr['write_reg']
         insn_type = instr['insn_type']
         fn_unit = instr['fn_unit']
-        yield dut.data_i[idx].insn_type.eq(insn_type)
-        yield dut.data_i[idx].fn_unit.eq(fn_unit)
-        yield dut.data_i[idx].read_reg1.data.eq(reg1)
-        yield dut.data_i[idx].read_reg1.ok.eq(1)  # XXX TODO
-        yield dut.data_i[idx].read_reg2.data.eq(reg2)
-        yield dut.data_i[idx].read_reg2.ok.eq(1)  # XXX TODO
-        yield dut.data_i[idx].write_reg.data.eq(dest)
-        yield dut.data_i[idx].write_reg.ok.eq(1)  # XXX TODO
-        yield dut.data_i[idx].imm_data.data.eq(imm)
-        yield dut.data_i[idx].imm_data.ok.eq(op_imm)
-        di = yield dut.data_i[idx]
+        yield dut.i_data[idx].insn_type.eq(insn_type)
+        yield dut.i_data[idx].fn_unit.eq(fn_unit)
+        yield dut.i_data[idx].read_reg1.data.eq(reg1)
+        yield dut.i_data[idx].read_reg1.ok.eq(1)  # XXX TODO
+        yield dut.i_data[idx].read_reg2.data.eq(reg2)
+        yield dut.i_data[idx].read_reg2.ok.eq(1)  # XXX TODO
+        yield dut.i_data[idx].write_reg.data.eq(dest)
+        yield dut.i_data[idx].write_reg.ok.eq(1)  # XXX TODO
+        yield dut.i_data[idx].imm_data.data.eq(imm)
+        yield dut.i_data[idx].imm_data.ok.eq(op_imm)
+        di = yield dut.i_data[idx]
         print("senddata %d %x" % (idx, di))
     yield dut.p_add_i.eq(sendlen)
     yield

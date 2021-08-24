@@ -217,7 +217,7 @@ class Scoreboard(Elaboratable):
         # merge (OR) all integer FU / ALU outputs to a single value
         # bit of a hack: treereduce needs a list with an item named "dest_o"
         dest_o = treereduce(int_alus)
-        m.d.sync += int_dest.data_i.eq(dest_o)
+        m.d.sync += int_dest.i_data.eq(dest_o)
 
         # connect ALUs
         for i, alu in enumerate(int_alus):
@@ -225,8 +225,8 @@ class Scoreboard(Elaboratable):
             m.d.comb += alu.go_wr_i.eq(intpick1.go_wr_o[i])
             m.d.comb += alu.issue_i.eq(fn_issue_l[i])
             # m.d.comb += fn_busy_l[i].eq(alu.busy_o)  # XXX ignore, use fnissue
-            m.d.comb += alu.src1_i.eq(int_src1.data_o)
-            m.d.comb += alu.src2_i.eq(int_src2.data_o)
+            m.d.comb += alu.src1_i.eq(int_src1.o_data)
+            m.d.comb += alu.src2_i.eq(int_src2.o_data)
             m.d.comb += if_l[i].req_rel_i.eq(alu.req_rel_o)  # pipe out ready
 
         return m

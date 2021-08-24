@@ -34,7 +34,7 @@ debughang = 1
 def set_fsm_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
-    # and place it into data_i.b
+    # and place it into i_data.b
 
     print("Error here")
     inp = yield from get_cu_inputs(dec2, sim)
@@ -134,8 +134,8 @@ class TestRunner(unittest.TestCase):
         #print("oe, oe_ok", oe, oe_ok)
         #if not oe or not oe_ok:
         #    # if OE not enabled, XER SO and OV must not be activated
-        #    so_ok = yield alu.n.data_o.xer_so.ok
-        #    ov_ok = yield alu.n.data_o.xer_ov.ok
+        #    so_ok = yield alu.n.o_data.xer_so.ok
+        #    ov_ok = yield alu.n.o_data.xer_ov.ok
         #    print("so, ov", so_ok, ov_ok)
         #    self.assertEqual(ov_ok, False, code)
         #    self.assertEqual(so_ok, False, code)
@@ -224,7 +224,7 @@ class TestRunner(unittest.TestCase):
 
         #FIXME connect fsm inputs
 
-        comb += fsm.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
+        comb += fsm.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
         comb += fsm.p.valid_i.eq(1)
         comb += fsm.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)

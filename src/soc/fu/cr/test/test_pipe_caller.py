@@ -76,7 +76,7 @@ class TestRunner(unittest.TestCase):
 
         cr_en = yield dec2.e.write_cr.ok
         if whole_reg_ok:
-            full_cr = yield alu.n.data_o.full_cr.data & full_cr_mask
+            full_cr = yield alu.n.o_data.full_cr.data & full_cr_mask
             expected_cr = simulator.cr.value
             print("CR whole: expected %x, actual: %x mask: %x" % \
                 (expected_cr, full_cr, full_cr_mask))
@@ -87,10 +87,10 @@ class TestRunner(unittest.TestCase):
             expected_cr = simulator.cr.value
             print(f"CR whole: {expected_cr:x}, sel {cr_sel}")
             expected_cr = simulator.crl[cr_sel].get_range().value
-            real_cr = yield alu.n.data_o.cr.data
+            real_cr = yield alu.n.o_data.cr.data
             print(f"CR part: expected {expected_cr:x}, actual: {real_cr:x}")
             self.assertEqual(expected_cr, real_cr, code)
-        alu_out = yield alu.n.data_o.o.data
+        alu_out = yield alu.n.o_data.o.data
         out_reg_valid = yield dec2.e.write_reg.ok
         if out_reg_valid:
             write_reg_idx = yield dec2.e.write_reg.data
@@ -147,7 +147,7 @@ class TestRunner(unittest.TestCase):
         pspec = CRPipeSpec(id_wid=2)
         m.submodules.alu = alu = CRBasePipe(pspec)
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
+        comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)

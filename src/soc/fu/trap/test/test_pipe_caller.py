@@ -49,7 +49,7 @@ def get_cu_inputs(dec2, sim):
 def set_alu_inputs(alu, dec2, sim):
     # TODO: see https://bugs.libre-soc.org/show_bug.cgi?id=305#c43
     # detect the immediate here (with m.If(self.i.ctx.op.imm_data.imm_ok))
-    # and place it into data_i.b
+    # and place it into i_data.b
 
     inp = yield from get_cu_inputs(dec2, sim)
     yield from ALUHelpers.set_int_ra(alu, dec2, inp)
@@ -90,7 +90,7 @@ class TestRunner(unittest.TestCase):
         pspec = TrapPipeSpec(id_wid=2)
         m.submodules.alu = alu = TrapBasePipe(pspec)
 
-        comb += alu.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
+        comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
         comb += alu.p.valid_i.eq(1)
         comb += alu.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)

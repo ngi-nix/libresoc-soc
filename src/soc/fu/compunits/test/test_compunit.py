@@ -226,9 +226,9 @@ class TestRunner(FHDLTestCase):
                 fast_out2 = yield pdecode2.e.write_fast2.data
                 fast_out2_ok = yield pdecode2.e.write_fast2.ok
                 print("lk:", lk, fast_out2, fast_out2_ok)
-                op_lk = yield cu.alu.pipe1.p.data_i.ctx.op.lk
+                op_lk = yield cu.alu.pipe1.p.i_data.ctx.op.lk
                 print("op_lk:", op_lk)
-                print(dir(cu.alu.pipe1.n.data_o))
+                print(dir(cu.alu.pipe1.n.o_data))
             fn_unit = yield pdecode2.e.do.fn_unit
             fuval = self.funit.value
             self.assertEqual(fn_unit & fuval, fuval)
@@ -298,8 +298,8 @@ class TestRunner(FHDLTestCase):
 
             # debugging issue with branch
             if self.funit == Function.BRANCH:
-                lr = yield cu.alu.pipe1.n.data_o.lr.data
-                lr_ok = yield cu.alu.pipe1.n.data_o.lr.ok
+                lr = yield cu.alu.pipe1.n.o_data.lr.data
+                lr_ok = yield cu.alu.pipe1.n.o_data.lr.ok
                 print("lr:", hex(lr), lr_ok)
 
             if self.funit == Function.LDST:

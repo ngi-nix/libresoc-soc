@@ -141,7 +141,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
     Data (outputs)
     --------------
-    * :data_o:  Dest out (LD)          - managed by wr[0] go/req
+    * :o_data:  Dest out (LD)          - managed by wr[0] go/req
     * :addr_o:  Address out (LD or ST) - managed by wr[1] go/req
     * :exc_o:   Address/Data Exception occurred.  LD/ST must terminate
 
@@ -236,7 +236,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         self.oper_i = cu.oper_i
         self.src_i = cu._src_i
 
-        self.data_o = Data(self.data_wid, name="o")  # Dest1 out: RT
+        self.o_data = Data(self.data_wid, name="o")  # Dest1 out: RT
         self.addr_o = Data(self.data_wid, name="ea")  # Addr out: Update => RA
         self.exc_o = cu.exc_o
         self.done_o = cu.done_o
@@ -492,7 +492,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # Data/Address outputs
 
         # put the LD-output register directly onto the output bus on a go_write
-        comb += self.data_o.data.eq(self.dest[0])
+        comb += self.o_data.data.eq(self.dest[0])
         with m.If(self.wr.go_i[0]):
             comb += self.dest[0].eq(ldd_r)
 
@@ -563,7 +563,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         to LDSTOutputData o and o1 respectively.
         """
         if i == 0:
-            return self.data_o # LDSTOutputData.regspec o
+            return self.o_data # LDSTOutputData.regspec o
         if i == 1:
             return self.addr_o # LDSTOutputData.regspec o1
         # return self.dest[i]
@@ -586,7 +586,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         yield self.adr_rel_o
         yield self.sto_rel_o
         yield self.wr.rel_o
-        yield from self.data_o.ports()
+        yield from self.o_data.ports()
         yield from self.addr_o.ports()
         yield self.load_mem_o
         yield self.stwd_mem_o
@@ -711,7 +711,7 @@ def load(dut, src1, src2, imm, imm_ok=True, update=False, zero_a=False,
     yield from wait_for(dut.wr.rel_o[0], test1st=True)
     yield dut.wr.go.eq(1)
     yield
-    data = yield dut.data_o
+    data = yield dut.o_data
     print(data)
     yield dut.wr.go.eq(0)
     yield from wait_for(dut.busy_o)

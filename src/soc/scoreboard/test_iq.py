@@ -28,8 +28,8 @@ class IQSim:
             print("sendlen", len(self.iq)-i, sendlen)
             for idx in range(sendlen):
                 instr = self.iq[i+idx]
-                yield from eq(self.dut.data_i[idx], instr)
-                di = yield self.dut.data_i[idx]  # .src1_i
+                yield from eq(self.dut.i_data[idx], instr)
+                di = yield self.dut.i_data[idx]  # .src1_i
                 print("senddata %d %x" % ((i+idx), di))
                 self.oq.append(di)
             yield self.dut.p_add_i.eq(sendlen)
@@ -76,7 +76,7 @@ class IQSim:
             n_sub_o = yield self.dut.n_sub_o
             print("recv", n_sub_o)
             for j in range(n_sub_o):
-                r = yield self.dut.data_o[j]  # .src1_i
+                r = yield self.dut.o_data[j]  # .src1_i
                 print("recvdata %x %s" % (r, repr(self.iq[i+j])))
                 assert r == self.oq[i+j]
             yield

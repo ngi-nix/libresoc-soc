@@ -197,7 +197,7 @@ def check_regs(dut, sim, core, test, code):
 
     # Check the PC as well
     state = core.regs.state
-    pc = yield state.r_ports['cia'].data_o
+    pc = yield state.r_ports['cia'].o_data
     e_pc = sim.pc.CIA.value
     dut.assertEqual(e_pc, pc)
 

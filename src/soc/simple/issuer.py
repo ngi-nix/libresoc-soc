@@ -73,7 +73,7 @@ def state_get(m, core_rst, state_i, name, regfile, regnum):
             comb += regfile.ren.eq(1<<regnum)
         # ... but on a 1-clock delay
         with m.If(res_ok_delay):
-            comb += res.eq(regfile.data_o)
+            comb += res.eq(regfile.o_data)
     return res
 
 def get_predint(m, mask, name):
@@ -324,7 +324,7 @@ class TestIssuerInternal(Elaboratable):
                 # one cycle later, msr/sv read arrives.  valid only once.
                 with m.If(~msr_read):
                     sync += msr_read.eq(1) # yeah don't read it again
-                    sync += cur_state.msr.eq(self.state_r_msr.data_o)
+                    sync += cur_state.msr.eq(self.state_r_msr.o_data)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
                     comb += self.imem.a_i_valid.eq(1)
@@ -472,11 +472,11 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(dunary):
                     # set selected mask bit for 1<<r3 mode
                     dst_shift = Signal(range(64))
-                    comb += dst_shift.eq(self.int_pred.data_o & 0b111111)
+                    comb += dst_shift.eq(self.int_pred.o_data & 0b111111)
                     sync += new_dstmask.eq(1 << dst_shift)
                 with m.Else():
                     # invert mask if requested
-                    sync += new_dstmask.eq(self.int_pred.data_o ^ inv)
+                    sync += new_dstmask.eq(self.int_pred.o_data ^ inv)
                 # skip fetching source mask register, when zero
                 with m.If(sall1s):
                     sync += new_srcmask.eq(-1)
@@ -493,11 +493,11 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(sunary):
                     # set selected mask bit for 1<<r3 mode
                     src_shift = Signal(range(64))
-                    comb += src_shift.eq(self.int_pred.data_o & 0b111111)
+                    comb += src_shift.eq(self.int_pred.o_data & 0b111111)
                     sync += new_srcmask.eq(1 << src_shift)
                 with m.Else():
                     # invert mask if requested
-                    sync += new_srcmask.eq(self.int_pred.data_o ^ inv)
+                    sync += new_srcmask.eq(self.int_pred.o_data ^ inv)
                 m.next = "FETCH_PRED_SHIFT_MASK"
 
             # fetch masks from the CR register file
@@ -540,7 +540,7 @@ class TestIssuerInternal(Elaboratable):
                     cr_field = Signal(4)
                     scr_bit = Signal()
                     dcr_bit = Signal()
-                    comb += cr_field.eq(cr_pred.data_o)
+                    comb += cr_field.eq(cr_pred.o_data)
                     comb += scr_bit.eq(cr_field.bit_select(sidx, 1) ^ scrinvert)
                     comb += dcr_bit.eq(cr_field.bit_select(didx, 1) ^ dcrinvert)
                     # set the corresponding mask bit
@@ -629,7 +629,7 @@ class TestIssuerInternal(Elaboratable):
                     # while stopped, allow updating the PC and SVSTATE
                     with m.If(self.pc_i.ok):
                         comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(self.pc_i.data)
+                        comb += self.state_w_pc.i_data.eq(self.pc_i.data)
                         sync += pc_changed.eq(1)
                     with m.If(self.svstate_i.ok):
                         comb += new_svstate.eq(self.svstate_i.data)
@@ -649,7 +649,7 @@ class TestIssuerInternal(Elaboratable):
                         # since we are in a VL==0 loop, no instruction was
                         # executed that we could be overwriting
                         comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(nia)
+                        comb += self.state_w_pc.i_data.eq(nia)
                         comb += self.insn_done.eq(1)
                         m.next = "ISSUE_START"
                     with m.Else():
@@ -715,7 +715,7 @@ class TestIssuerInternal(Elaboratable):
                                   (skip_dststep >= cur_vl)):
                             # end of VL loop. Update PC and reset src/dst step
                             comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
-                            comb += self.state_w_pc.data_i.eq(nia)
+                            comb += self.state_w_pc.i_data.eq(nia)
                             comb += new_svstate.srcstep.eq(0)
                             comb += new_svstate.dststep.eq(0)
                             comb += update_svstate.eq(1)
@@ -804,7 +804,7 @@ class TestIssuerInternal(Elaboratable):
                             # TODO: this just blithely overwrites whatever
                             #       pipeline updated the PC
                             comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
-                            comb += self.state_w_pc.data_i.eq(nia)
+                            comb += self.state_w_pc.i_data.eq(nia)
                             # reset SRCSTEP before returning to Fetch
                             if self.svp64_en:
                                 with m.If(pdecode2.loop_continue):
@@ -830,7 +830,7 @@ class TestIssuerInternal(Elaboratable):
                     # while stopped, allow updating the PC and SVSTATE
                     with m.If(self.pc_i.ok):
                         comb += self.state_w_pc.wen.eq(1 << StateRegs.PC)
-                        comb += self.state_w_pc.data_i.eq(self.pc_i.data)
+                        comb += self.state_w_pc.i_data.eq(self.pc_i.data)
                         sync += pc_changed.eq(1)
                     with m.If(self.svstate_i.ok):
                         comb += new_svstate.eq(self.svstate_i.data)
@@ -840,7 +840,7 @@ class TestIssuerInternal(Elaboratable):
         # check if svstate needs updating: if so, write it to State Regfile
         with m.If(update_svstate):
             comb += self.state_w_sv.wen.eq(1<<StateRegs.SVSTATE)
-            comb += self.state_w_sv.data_i.eq(new_svstate)
+            comb += self.state_w_sv.i_data.eq(new_svstate)
             sync += cur_state.svstate.eq(new_svstate) # for next clock
 
     def execute_fsm(self, m, core, pc_changed, sv_changed,
@@ -1014,7 +1014,7 @@ class TestIssuerInternal(Elaboratable):
 
         # don't write pc every cycle
         comb += self.state_w_pc.wen.eq(0)
-        comb += self.state_w_pc.data_i.eq(0)
+        comb += self.state_w_pc.i_data.eq(0)
 
         # don't read msr every cycle
         comb += self.state_r_msr.ren.eq(0)
@@ -1130,7 +1130,7 @@ class TestIssuerInternal(Elaboratable):
         sync += d_reg_delay.eq(d_reg.req)
         with m.If(d_reg_delay):
             # data arrives one clock later
-            comb += d_reg.data.eq(self.int_r.data_o)
+            comb += d_reg.data.eq(self.int_r.o_data)
             comb += d_reg.ack.eq(1)
 
         # sigh same thing for CR debug
@@ -1140,7 +1140,7 @@ class TestIssuerInternal(Elaboratable):
         sync += d_cr_delay.eq(d_cr.req)
         with m.If(d_cr_delay):
             # data arrives one clock later
-            comb += d_cr.data.eq(self.cr_r.data_o)
+            comb += d_cr.data.eq(self.cr_r.o_data)
             comb += d_cr.ack.eq(1)
 
         # aaand XER...
@@ -1150,7 +1150,7 @@ class TestIssuerInternal(Elaboratable):
         sync += d_xer_delay.eq(d_xer.req)
         with m.If(d_xer_delay):
             # data arrives one clock later
-            comb += d_xer.data.eq(self.xer_r.data_o)
+            comb += d_xer.data.eq(self.xer_r.o_data)
             comb += d_xer.ack.eq(1)
 
     def tb_dec_fsm(self, m, spr_dec):
@@ -1181,10 +1181,10 @@ class TestIssuerInternal(Elaboratable):
             with m.State("DEC_WRITE"):
                 new_dec = Signal(64)
                 # TODO: MSR.LPCR 32-bit decrement mode
-                comb += new_dec.eq(fast_r_dectb.data_o - 1)
+                comb += new_dec.eq(fast_r_dectb.o_data - 1)
                 comb += fast_w_dectb.addr.eq(FastRegs.DEC)
                 comb += fast_w_dectb.wen.eq(1)
-                comb += fast_w_dectb.data_i.eq(new_dec)
+                comb += fast_w_dectb.i_data.eq(new_dec)
                 sync += spr_dec.eq(new_dec) # copy into cur_state for decoder
                 m.next = "TB_READ"
 
@@ -1197,10 +1197,10 @@ class TestIssuerInternal(Elaboratable):
             # waits for read TB to arrive, initiates write of current TB
             with m.State("TB_WRITE"):
                 new_tb = Signal(64)
-                comb += new_tb.eq(fast_r_dectb.data_o + 1)
+                comb += new_tb.eq(fast_r_dectb.o_data + 1)
                 comb += fast_w_dectb.addr.eq(FastRegs.TB)
                 comb += fast_w_dectb.wen.eq(1)
-                comb += fast_w_dectb.data_i.eq(new_tb)
+                comb += fast_w_dectb.i_data.eq(new_tb)
                 m.next = "DEC_READ"
 
         return m

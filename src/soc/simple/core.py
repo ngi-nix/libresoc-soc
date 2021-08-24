@@ -48,7 +48,7 @@ from nmutil.util import rising_edge
 
 # helper function for reducing a list of signals down to a parallel
 # ORed single signal.
-def ortreereduce(tree, attr="data_o"):
+def ortreereduce(tree, attr="o_data"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
 
@@ -338,9 +338,9 @@ class NonProductionCore(Elaboratable):
                     src = fu.src_i[idx]
                     print("reg connect widths",
                           regfile, regname, pi, funame,
-                          src.shape(), rport.data_o.shape())
+                          src.shape(), rport.o_data.shape())
                     # all FUs connect to same port
-                    comb += src.eq(rport.data_o)
+                    comb += src.eq(rport.o_data)
 
         # or-reduce the muxed read signals
         if rfile.unary:
@@ -466,11 +466,11 @@ class NonProductionCore(Elaboratable):
                 # connect regfile port to input
                 print("reg connect widths",
                       regfile, regname, pi, funame,
-                      dest.shape(), wport.data_i.shape())
+                      dest.shape(), wport.i_data.shape())
                 wsigs.append(fu_dest_latch)
 
         # here is where we create the Write Broadcast Bus. simple, eh?
-        comb += wport.data_i.eq(ortreereduce_sig(wsigs))
+        comb += wport.i_data.eq(ortreereduce_sig(wsigs))
         if rfile.unary:
             # for unary-addressed
             comb += wport.wen.eq(ortreereduce_sig(wens))

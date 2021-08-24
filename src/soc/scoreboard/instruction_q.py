@@ -46,15 +46,15 @@ class InstructionQ(Elaboratable):
         self.n_out = n_out
         mqbits = (int(log(iqlen) / log(2))+2, False)
 
-        self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
+        self.p_add_i = Signal(mqbits)  # instructions to add (from i_data)
         self.p_o_ready = Signal()  # instructions were added
-        self.data_i = Instruction._nq(n_in, "data_i")
+        self.i_data = Instruction._nq(n_in, "i_data")
 
-        self.data_o = Instruction._nq(n_out, "data_o")
+        self.o_data = Instruction._nq(n_out, "o_data")
         self.n_sub_i = Signal(mqbits)  # number of instructions to remove
         self.n_sub_o = Signal(mqbits)  # number of instructions removed
 
-        self.qsz = shape(self.data_o[0])[0]
+        self.qsz = shape(self.o_data[0])[0]
         q = []
         for i in range(iqlen):
             q.append(Signal(self.qsz, name="q%d" % i))
@@ -97,7 +97,7 @@ class InstructionQ(Elaboratable):
         for i in range(self.n_out):
             opos = Signal(mqbits)
             comb += opos.eq(end_q + i)
-            comb += cat(self.data_o[i]).eq(self.q[opos])
+            comb += cat(self.o_data[i]).eq(self.q[opos])
 
         with m.If(self.n_sub_o):
             # ok now the end's moved
@@ -109,7 +109,7 @@ class InstructionQ(Elaboratable):
                 with m.If(self.p_add_i > Const(i, len(self.p_add_i))):
                     ipos = Signal(mqbits)
                     comb += ipos.eq(start_q + i)  # should roll round
-                    sync += self.q[ipos].eq(cat(self.data_i[i]))
+                    sync += self.q[ipos].eq(cat(self.i_data[i]))
             sync += start_q.eq(start_q + self.p_add_i)
 
         with m.If(self.p_o_ready):
@@ -126,11 +126,11 @@ class InstructionQ(Elaboratable):
         yield from self.q
 
         yield self.p_o_ready
-        for o in self.data_i:
+        for o in self.i_data:
             yield from list(o)
         yield self.p_add_i
 
-        for o in self.data_o:
+        for o in self.o_data:
             yield from list(o)
         yield self.n_sub_i
         yield self.n_sub_o

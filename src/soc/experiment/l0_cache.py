@@ -126,8 +126,8 @@ class DataMerger(Elaboratable):
         :addr_array_i: an NxN Array of Signals with bits set indicating address
                        match.  bits across the diagonal (addr_array_i[x][x])
                        will always be set, to indicate "active".
-        :data_i: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
-        :data_o: an Output Record of same type
+        :i_data: an Nx Array of Records {data: 128 bit, byte_enable: 16 bit}
+        :o_data: an Output Record of same type
                  {data: 128 bit, byte_enable: 16 bit}
         """
         self.array_size = array_size
@@ -141,8 +141,8 @@ class DataMerger(Elaboratable):
         ul = []
         for i in range(array_size):
             ul.append(DataMergerRecord())
-        self.data_i = Array(ul)
-        self.data_o = DataMergerRecord()
+        self.i_data = Array(ul)
+        self.o_data = DataMergerRecord()
 
     def elaborate(self, platform):
         m = Module()
@@ -160,10 +160,10 @@ class DataMerger(Elaboratable):
                 select = self.addr_array_i[idx][j]
                 r = DataMergerRecord()
                 with m.If(select):
-                    comb += r.eq(self.data_i[j])
+                    comb += r.eq(self.i_data[j])
                 l.append(r)
-            comb += self.data_o.data.eq(ortreereduce(l, "data"))
-            comb += self.data_o.en.eq(ortreereduce(l, "en"))
+            comb += self.o_data.data.eq(ortreereduce(l, "data"))
+            comb += self.o_data.en.eq(ortreereduce(l, "en"))
 
         return m
 
@@ -197,15 +197,15 @@ class TstDataMerger2(Elaboratable):
 
         for j in range(self.n_units):
             inp = self.input_array[j]
-            m.d.comb += dm_even.data_i[j].en.eq(inp.bytemask_even)
-            m.d.comb += dm_odd.data_i[j].en.eq(inp.bytemask_odd)
-            m.d.comb += dm_even.data_i[j].data.eq(inp.data_even)
-            m.d.comb += dm_odd.data_i[j].data.eq(inp.data_odd)
+            m.d.comb += dm_even.i_data[j].en.eq(inp.bytemask_even)
+            m.d.comb += dm_odd.i_data[j].en.eq(inp.bytemask_odd)
+            m.d.comb += dm_even.i_data[j].data.eq(inp.data_even)
+            m.d.comb += dm_odd.i_data[j].data.eq(inp.data_odd)
             m.d.comb += dm_even.addr_array_i[j].eq(self.addr_match(j,addr_even))
             m.d.comb += dm_odd.addr_array_i[j].eq(self.addr_match(j,addr_odd))
 
-        m.d.comb += self.data_odd.eq(dm_odd.data_o.data)
-        m.d.comb += self.data_even.eq(dm_even.data_o.data)
+        m.d.comb += self.data_odd.eq(dm_odd.o_data.data)
+        m.d.comb += self.data_even.eq(dm_even.o_data.data)
         return m
 
 
@@ -384,20 +384,20 @@ def l0_cache_ldst(arg, dut):
 def data_merger_merge(dut):
     # starting with all inputs zero
     yield Settle()
-    en = yield dut.data_o.en
-    data = yield dut.data_o.data
+    en = yield dut.o_data.en
+    data = yield dut.o_data.data
     assert en == 0, "en must be zero"
     assert data == 0, "data must be zero"
     yield
 
     yield dut.addr_array_i[0].eq(0xFF)
     for j in range(dut.array_size):
-        yield dut.data_i[j].en.eq(1 << j)
-        yield dut.data_i[j].data.eq(0xFF << (16*j))
+        yield dut.i_data[j].en.eq(1 << j)
+        yield dut.i_data[j].data.eq(0xFF << (16*j))
     yield Settle()
 
-    en = yield dut.data_o.en
-    data = yield dut.data_o.data
+    en = yield dut.o_data.en
+    data = yield dut.o_data.data
     assert data == 0xff00ff00ff00ff00ff00ff00ff00ff
     assert en == 0xff
     yield

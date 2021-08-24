@@ -42,14 +42,14 @@ class Register(Elaboratable):
 
     def read_port(self, name=None):
         port = RecordObject([("ren", 1),
-                             ("data_o", self.width)],
+                             ("o_data", self.width)],
                             name=name)
         self._rdports.append(port)
         return port
 
     def write_port(self, name=None):
         port = RecordObject([("wen", 1),
-                             ("data_i", self.width)],
+                             ("i_data", self.width)],
                             name=name)
         self._wrports.append(port)
         return port
@@ -65,24 +65,24 @@ class Register(Elaboratable):
 
         # read ports. has write-through detection (returns data written)
         for rp in self._rdports:
-            domain += rp.data_o.eq(0)
+            domain += rp.o_data.eq(0)
             with m.If(rp.ren):
                 if self.writethru:
                     wr_detect = Signal(reset_less=False)
                     m.d.comb += wr_detect.eq(0)
                     for wp in self._wrports:
                         with m.If(wp.wen):
-                            domain += rp.data_o.eq(wp.data_i)
+                            domain += rp.o_data.eq(wp.i_data)
                             m.d.comb += wr_detect.eq(1)
                     with m.If(~wr_detect):
-                        domain += rp.data_o.eq(reg)
+                        domain += rp.o_data.eq(reg)
                 else:
-                    domain += rp.data_o.eq(reg)
+                    domain += rp.o_data.eq(reg)
 
         # write ports, delayed by 1 cycle
         for wp in self._wrports:
             with m.If(wp.wen):
-                m.d.sync += reg.eq(wp.data_i)
+                m.d.sync += reg.eq(wp.i_data)
 
         return m
 
@@ -96,7 +96,7 @@ class Register(Elaboratable):
         res = list(self)
 
 
-def ortreereduce(tree, attr="data_o"):
+def ortreereduce(tree, attr="o_data"):
     return treereduce(tree, operator.or_, lambda x: getattr(x, attr))
 
 
@@ -135,7 +135,7 @@ class RegFileArray(Elaboratable):
         regs = self.read_reg_port(name)
         regs = Array(regs)
         port = RecordObject([("ren", self.depth),
-                             ("data_o", self.width)], name)
+                             ("o_data", self.width)], name)
         self._rdports.append((regs, port))
         return port
 
@@ -143,7 +143,7 @@ class RegFileArray(Elaboratable):
         regs = self.write_reg_port(name)
         regs = Array(regs)
         port = RecordObject([("wen", self.depth),
-                             ("data_i", self.width)])
+                             ("i_data", self.width)])
         self._wrports.append((regs, port))
         return port
 
@@ -171,13 +171,13 @@ class RegFileArray(Elaboratable):
                 ren_delay = Signal.like(p.ren)
                 m.d.sync += ren_delay.eq(p.ren)
                 with m.If(ren_delay):
-                    m.d.comb += p.data_o.eq(ror)
+                    m.d.comb += p.o_data.eq(ror)
             else:
-                m.d.comb += p.data_o.eq(ror)
+                m.d.comb += p.o_data.eq(ror)
         for (regs, p) in self._wrports:
             m.d.comb += self._get_en_sig(regs, 'wen').eq(p.wen)
             for r in regs:
-                m.d.comb += r.data_i.eq(p.data_i)
+                m.d.comb += r.i_data.eq(p.i_data)
 
         return m
 
@@ -203,7 +203,7 @@ class RegFileMem(Elaboratable):
         bsz = log2_int(self.depth, False)
         port = RecordObject([("addr", bsz),
                              ("ren", 1),
-                             ("data_o", self.width)], name=name)
+                             ("o_data", self.width)], name=name)
         if self.synced:
             domain = "sync"
         else:
@@ -215,7 +215,7 @@ class RegFileMem(Elaboratable):
         bsz = log2_int(self.depth, False)
         port = RecordObject([("addr", bsz),
                              ("wen", 1),
-                             ("data_i", self.width)], name=name)
+                             ("i_data", self.width)], name=name)
         self._wrports[name] = (port, self.memory.write_port())
         return port
 
@@ -235,25 +235,25 @@ class RegFileMem(Elaboratable):
                         addrmatch = Signal(reset_less=False)
                         m.d.comb += addrmatch.eq(wp.addr == rp.addr)
                         with m.If(wp.wen & addrmatch):
-                            m.d.comb += rp.data_o.eq(wp.data_i)
+                            m.d.comb += rp.o_data.eq(wp.i_data)
                             m.d.comb += wr_detect.eq(1)
                     with m.If(~wr_detect):
-                        m.d.comb += rp.data_o.eq(rport.data)
+                        m.d.comb += rp.o_data.eq(rport.data)
             else:
                 if self.synced:
                     ren_delay = Signal.like(rp.ren)
                     m.d.sync += ren_delay.eq(rp.ren)
                     with m.If(ren_delay):
-                        m.d.comb += rp.data_o.eq(rport.data)
+                        m.d.comb += rp.o_data.eq(rport.data)
                 else:
-                    m.d.comb += rp.data_o.eq(rport.data)
+                    m.d.comb += rp.o_data.eq(rport.data)
 
         # write ports, delayed by one cycle (in the memory itself)
         for name, (port, wp) in self._wrports.items():
             setattr(m.submodules, "wp_"+name, wp)
             comb += wp.addr.eq(port.addr)
             comb += wp.en.eq(port.wen)
-            comb += wp.data.eq(port.data_i)
+            comb += wp.data.eq(port.i_data)
 
         return m
 
@@ -270,7 +270,7 @@ class RegFile(Elaboratable):
         bsz = int(log(self.width) / log(2))
         port = RecordObject([("addr", bsz),
                              ("ren", 1),
-                             ("data_o", self.width)], name=name)
+                             ("o_data", self.width)], name=name)
         self._rdports.append(port)
         return port
 
@@ -278,7 +278,7 @@ class RegFile(Elaboratable):
         bsz = int(log(self.width) / log(2))
         port = RecordObject([("addr", bsz),
                              ("wen", 1),
-                             ("data_i", self.width)], name=name)
+                             ("i_data", self.width)], name=name)
         self._wrports.append(port)
         return port
 
@@ -296,15 +296,15 @@ class RegFile(Elaboratable):
                     addrmatch = Signal(reset_less=False)
                     m.d.comb += addrmatch.eq(wp.addr == rp.addr)
                     with m.If(wp.wen & addrmatch):
-                        m.d.comb += rp.data_o.eq(wp.data_i)
+                        m.d.comb += rp.o_data.eq(wp.i_data)
                         m.d.comb += wr_detect.eq(1)
                 with m.If(~wr_detect):
-                    m.d.comb += rp.data_o.eq(regs[rp.addr])
+                    m.d.comb += rp.o_data.eq(regs[rp.addr])
 
         # write ports, delayed by one cycle
         for wp in self._wrports:
             with m.If(wp.wen):
-                m.d.sync += regs[wp.addr].eq(wp.data_i)
+                m.d.sync += regs[wp.addr].eq(wp.i_data)
 
         return m
 
@@ -323,7 +323,7 @@ class RegFile(Elaboratable):
 
 def regfile_sim(dut, rp, wp):
     yield wp.addr.eq(1)
-    yield wp.data_i.eq(2)
+    yield wp.i_data.eq(2)
     yield wp.wen.eq(1)
     yield
     yield wp.wen.eq(0)
@@ -333,13 +333,13 @@ def regfile_sim(dut, rp, wp):
     yield rp.ren.eq(1)
     yield rp.addr.eq(1)
     yield Settle()
-    data = yield rp.data_o
+    data = yield rp.o_data
     print(data)
     yield
-    data = yield rp.data_o
+    data = yield rp.o_data
     print(data)
     yield
-    data2 = yield rp.data_o
+    data2 = yield rp.o_data
     print(data2)
     assert data == 2
     yield
@@ -348,32 +348,32 @@ def regfile_sim(dut, rp, wp):
     yield rp.addr.eq(5)
     yield rp.ren.eq(1)
     yield wp.wen.eq(1)
-    yield wp.data_i.eq(6)
+    yield wp.i_data.eq(6)
     yield
-    data = yield rp.data_o
+    data = yield rp.o_data
     print(data)
     assert data == 6
     yield
     yield wp.wen.eq(0)
     yield rp.ren.eq(0)
     yield
-    data = yield rp.data_o
+    data = yield rp.o_data
     print(data)
     assert data == 0
     yield
-    data = yield rp.data_o
+    data = yield rp.o_data
     print(data)
 
 
 def regfile_array_sim(dut, rp1, rp2, wp, wp2):
     print("regfile_array_sim")
-    yield wp.data_i.eq(2)
+    yield wp.i_data.eq(2)
     yield wp.wen.eq(1 << 1)
     yield
     yield wp.wen.eq(0)
     yield rp1.ren.eq(1 << 1)
     yield Settle()
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     print(data)
     assert data == 2
     yield
@@ -381,9 +381,9 @@ def regfile_array_sim(dut, rp1, rp2, wp, wp2):
     yield rp1.ren.eq(1 << 5)
     yield rp2.ren.eq(1 << 1)
     yield wp.wen.eq(1 << 5)
-    yield wp.data_i.eq(6)
+    yield wp.i_data.eq(6)
     yield Settle()
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     assert data == 6
     print(data)
     yield
@@ -391,15 +391,15 @@ def regfile_array_sim(dut, rp1, rp2, wp, wp2):
     yield rp1.ren.eq(0)
     yield rp2.ren.eq(0)
     yield Settle()
-    data1 = yield rp1.data_o
+    data1 = yield rp1.o_data
     print(data1)
     assert data1 == 0
-    data2 = yield rp2.data_o
+    data2 = yield rp2.o_data
     print(data2)
     assert data2 == 0
 
     yield
-    data = yield rp1.data_o
+    data = yield rp1.o_data
     print(data)
     assert data == 0
 

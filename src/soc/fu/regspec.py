@@ -92,15 +92,15 @@ class RegSpecALUAPI(RegSpecAPI):
         if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.out[i]
         # regspec-based API: look up variable through regspec thru row number
-        return getattr(self.alu.n.data_o, self.get_out_name(i))
+        return getattr(self.alu.n.o_data, self.get_out_name(i))
 
     def get_in(self, i):
         if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.i[i]
         # regspec-based API: look up variable through regspec thru row number
-        return getattr(self.alu.p.data_i, self.get_in_name(i))
+        return getattr(self.alu.p.i_data, self.get_in_name(i))
 
     def get_op(self):
         if isinstance(self.rwid, int):  # old - testing - API (rwid is int)
             return self.alu.op
-        return self.alu.p.data_i.ctx.op
+        return self.alu.p.i_data.ctx.op

@@ -149,8 +149,8 @@ class Driver(Elaboratable):
             # then the alu data should be output
             with m.If(Past(wr_rel) & Past(go_wr)):
                 # the alu data is output
-                comb += Assert((dut.data_o == alu_temp)
-                               | (dut.data_o == dut.alu.o))
+                comb += Assert((dut.o_data == alu_temp)
+                               | (dut.o_data == dut.alu.o))
                 # wr_rel is dropped
                 comb += Assert(wr_rel == 0)
                 # busy is dropped.

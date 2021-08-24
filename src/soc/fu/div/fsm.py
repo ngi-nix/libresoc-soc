@@ -134,8 +134,8 @@ class FSMDivCoreStage(ControlBase):
     def __init__(self, pspec):
         super().__init__()
         self.pspec = pspec
-        self.p.data_i = CoreInputData(pspec)
-        self.n.data_o = CoreOutputData(pspec)
+        self.p.i_data = CoreInputData(pspec)
+        self.n.o_data = CoreOutputData(pspec)
         self.saved_input_data = CoreInputData(pspec)
         self.empty = Signal(reset=1)
         self.saved_state = DivState(64, name="saved_state")
@@ -147,10 +147,10 @@ class FSMDivCoreStage(ControlBase):
         m = super().elaborate(platform)
         m.submodules.div_state_next = self.div_state_next
         m.submodules.div_state_init = self.div_state_init
-        data_i = self.p.data_i
-        data_o = self.n.data_o
-        core_i = data_i.core
-        core_o = data_o.core
+        i_data = self.p.i_data
+        o_data = self.n.o_data
+        core_i = i_data.core
+        core_o = o_data.core
 
         core_saved_i = self.saved_input_data.core
 
@@ -158,7 +158,7 @@ class FSMDivCoreStage(ControlBase):
 
         m.d.comb += self.div_state_init.dividend.eq(core_i.dividend)
 
-        m.d.comb += data_o.eq_without_core(self.saved_input_data)
+        m.d.comb += o_data.eq_without_core(self.saved_input_data)
         m.d.comb += core_o.quotient_root.eq(self.div_state_next.o.quotient)
         # fract width of `DivPipeCoreOutputData.remainder`
         remainder_fract_width = 64 * 3
@@ -177,7 +177,7 @@ class FSMDivCoreStage(ControlBase):
             m.d.comb += self.div_state_next.divisor.eq(core_i.divisor_radicand)
             with m.If(self.p.i_valid):
                 m.d.sync += self.empty.eq(0)
-                m.d.sync += self.saved_input_data.eq(data_i)
+                m.d.sync += self.saved_input_data.eq(i_data)
         with m.Else():
             m.d.comb += [
                 self.div_state_next.i.eq(self.saved_state),

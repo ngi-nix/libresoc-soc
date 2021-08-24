@@ -73,7 +73,7 @@ class TestRunner(unittest.TestCase):
         pspec = BranchPipeSpec(id_wid=2)
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
-        comb += branch.p.data_i.ctx.op.eq_from_execute1(pdecode2.do)
+        comb += branch.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
         comb += branch.p.valid_i.eq(1)
         comb += branch.n.ready_i.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
@@ -141,11 +141,11 @@ class TestRunner(unittest.TestCase):
             sim.run()
 
     def assert_outputs(self, branch, dec2, sim, prev_nia, code):
-        branch_taken = yield branch.n.data_o.nia.ok
+        branch_taken = yield branch.n.o_data.nia.ok
         sim_branch_taken = prev_nia != sim.pc.CIA
         self.assertEqual(branch_taken, sim_branch_taken, code)
         if branch_taken:
-            branch_addr = yield branch.n.data_o.nia.data
+            branch_addr = yield branch.n.o_data.nia.data
             print(f"real: {branch_addr:x}, sim: {sim.pc.CIA.value:x}")
             self.assertEqual(branch_addr, sim.pc.CIA.value, code)
 
@@ -153,10 +153,10 @@ class TestRunner(unittest.TestCase):
 
         # TODO: this should be checking write_fast2
         lk = yield dec2.e.do.lk
-        branch_lk = yield branch.n.data_o.lr.ok
+        branch_lk = yield branch.n.o_data.lr.ok
         self.assertEqual(lk, branch_lk, code)
         if lk:
-            branch_lr = yield branch.n.data_o.lr.data
+            branch_lr = yield branch.n.o_data.lr.data
             self.assertEqual(sim.spr['LR'], branch_lr, code)
 
     def set_inputs(self, branch, dec2, sim):

@@ -61,7 +61,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.src2_i = Signal(rwid, reset_less=True)  # oper2 in
 
         self.busy_o = Signal(reset_less=True)  # fn busy out
-        self.data_o = Signal(rwid, reset_less=True)  # Dest out
+        self.o_data = Signal(rwid, reset_less=True)  # Dest out
         self.rd_rel_o = Signal(reset_less=True)  # release src1/src2 request
         # release request out (o_valid)
         self.req_rel_o = Signal(reset_less=True)
@@ -147,7 +147,7 @@ class ComputationUnitNoDelay(Elaboratable):
 
         # output the data from the latch on go_write
         with m.If(self.go_wr_i):
-            m.d.comb += self.data_o.eq(data_r)
+            m.d.comb += self.o_data.eq(data_r)
 
         return m
 
@@ -163,7 +163,7 @@ class ComputationUnitNoDelay(Elaboratable):
         yield self.busy_o
         yield self.rd_rel_o
         yield self.req_rel_o
-        yield self.data_o
+        yield self.o_data
 
     def ports(self):
         return list(self)
@@ -192,18 +192,18 @@ def op_sim(dut, a, b, op, inv_a=0, imm=0, imm_ok=0):
     yield
     yield dut.go_rd_i.eq(0)
     req_rel_o = yield dut.req_rel_o
-    result = yield dut.data_o
+    result = yield dut.o_data
     print("req_rel", req_rel_o, result)
     while True:
         req_rel_o = yield dut.req_rel_o
-        result = yield dut.data_o
+        result = yield dut.o_data
         print("req_rel", req_rel_o, result)
         if req_rel_o:
             break
         yield
     yield dut.go_wr_i.eq(1)
     yield
-    result = yield dut.data_o
+    result = yield dut.o_data
     print("result", result)
     yield dut.go_wr_i.eq(0)
     yield

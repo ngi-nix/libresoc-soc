@@ -157,7 +157,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         self.busy_o = cu.busy_o
         self.dest = cu._dest
-        self.data_o = self.dest[0]  # Dest out
+        self.o_data = self.dest[0]  # Dest out
         self.done_o = cu.done_o
 
     def _mux_op(self, m, sl, op_is_imm, imm, i):
@@ -372,7 +372,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         yield self.busy_o
         yield self.rd.rel_o
         yield self.wr.rel_o
-        yield self.data_o
+        yield self.o_data
 
     def ports(self):
         return list(self)

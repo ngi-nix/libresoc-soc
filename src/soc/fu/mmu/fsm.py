@@ -42,8 +42,8 @@ class FSMMMUStage(ControlBase):
         self.pspec = pspec
 
         # set up p/n data
-        self.p.data_i = MMUInputData(pspec)
-        self.n.data_o = MMUOutputData(pspec)
+        self.p.i_data = MMUInputData(pspec)
+        self.n.o_data = MMUOutputData(pspec)
 
         self.mmu = MMU()
 
@@ -52,7 +52,7 @@ class FSMMMUStage(ControlBase):
         self.illegal = Signal()
 
         # for SPR field number access
-        i = self.p.data_i
+        i = self.p.i_data
         self.fields = DecodeFields(SignalBitRange, [i.ctx.op.insn])
         self.fields.create_specs()
 
@@ -86,11 +86,11 @@ class FSMMMUStage(ControlBase):
         comb += l_in.eq(ldst.m_out)
         comb += ldst.m_in.eq(l_out)
 
-        data_i, data_o = self.p.data_i, self.n.data_o
-        a_i, b_i, o, spr1_o = data_i.ra, data_i.rb, data_o.o, data_o.spr1
-        op = data_i.ctx.op
+        i_data, o_data = self.p.i_data, self.n.o_data
+        a_i, b_i, o, spr1_o = i_data.ra, i_data.rb, o_data.o, o_data.spr1
+        op = i_data.ctx.op
         msr_i = op.msr
-        spr1_i = data_i.spr1
+        spr1_i = i_data.spr1
 
         # these are set / got here *ON BEHALF* of LoadStore1
         dsisr, dar = ldst.dsisr, ldst.dar

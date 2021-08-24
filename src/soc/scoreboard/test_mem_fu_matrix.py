@@ -392,11 +392,11 @@ class Scoreboard(Elaboratable):
         # branch is active (TODO: a better signal: this is over-using the
         # go_write signal - actually the branch should not be "writing")
         with m.If(br1.go_wr_i):
-            sync += self.branch_direction_o.eq(br1.data_o+Const(1, 2))
+            sync += self.branch_direction_o.eq(br1.o_data+Const(1, 2))
             sync += bspec.active_i.eq(0)
             comb += bspec.br_i.eq(1)
             # branch occurs if data == 1, failed if data == 0
-            comb += bspec.br_ok_i.eq(br1.data_o == 1)
+            comb += bspec.br_ok_i.eq(br1.o_data == 1)
             for i in range(n_intfus):
                 # *expected* direction of the branch matched against *actual*
                 comb += bshadow.s_good_i[i][0].eq(bspec.match_g_o[i])
@@ -411,9 +411,9 @@ class Scoreboard(Elaboratable):
         comb += int_src2.ren.eq(intfus.src2_rsel_o)
 
         # connect ALUs to regfule
-        comb += int_dest.data_i.eq(cu.data_o)
-        comb += cu.src1_i.eq(int_src1.data_o)
-        comb += cu.src2_i.eq(int_src2.data_o)
+        comb += int_dest.i_data.eq(cu.o_data)
+        comb += cu.src1_i.eq(int_src1.o_data)
+        comb += cu.src2_i.eq(int_src2.o_data)
 
         # connect ALU Computation Units
         comb += cu.go_rd_i[0:n_intfus].eq(go_rd_o[0:n_intfus])
