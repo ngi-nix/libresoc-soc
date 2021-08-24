@@ -19,8 +19,8 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         do_store = Signal() # set when store while valid and not stalled
 
         m.d.comb += [
-            do_load.eq(self.x_ld_i & (self.x_valid_i & ~self.x_stall_i)),
-            do_store.eq(self.x_st_i & (self.x_valid_i & ~self.x_stall_i)),
+            do_load.eq(self.x_ld_i & (self.x_i_valid & ~self.x_stall_i)),
+            do_store.eq(self.x_st_i & (self.x_i_valid & ~self.x_stall_i)),
             ]
         # bit of a messy FSM that progresses from idle to in progress
         # to done.
@@ -34,7 +34,7 @@ class TestMemLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         with m.If(~(do_load | do_store)):               # done
             m.d.sync += op_in_progress.eq(0)
 
-        m.d.comb += self.x_busy_o.eq(op_actioned & self.x_valid_i)
+        m.d.comb += self.x_busy_o.eq(op_actioned & self.x_i_valid)
 
         m.d.comb += [
             # load

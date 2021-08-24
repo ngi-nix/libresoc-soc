@@ -54,11 +54,11 @@ class LoadStoreUnitInterface:
         self.x_st_data_i = Signal(data_wid)  # The data to write when storing
 
         self.x_stall_i = Signal()           # do nothing until low
-        self.x_valid_i = Signal()           # Whether x pipeline stage is
+        self.x_i_valid = Signal()           # Whether x pipeline stage is
         # currently enabled (I
         # think?). Set to 1 for #now
         self.m_stall_i = Signal()           # do nothing until low
-        self.m_valid_i = Signal()           # Whether m pipeline stage is
+        self.m_i_valid = Signal()           # Whether m pipeline stage is
         # currently enabled. Set
         # to 1 for now
 
@@ -67,7 +67,7 @@ class LoadStoreUnitInterface:
         self.m_busy_o = Signal()            # set when the memory is busy
 
         self.m_ld_data_o = Signal(data_wid)  # Data returned from memory read
-        # Data validity is NOT indicated by m_valid_i or x_valid_i as
+        # Data validity is NOT indicated by m_i_valid or x_i_valid as
         # those are inputs. I believe it is valid on the next cycle
         # after raising m_load where busy is low
 
@@ -84,9 +84,9 @@ class LoadStoreUnitInterface:
         yield self.x_st_data_i
 
         yield self.x_stall_i
-        yield self.x_valid_i
+        yield self.x_i_valid
         yield self.m_stall_i
-        yield self.m_valid_i
+        yield self.m_i_valid
         yield self.x_busy_o
         yield self.m_busy_o
         yield self.m_ld_data_o
@@ -111,7 +111,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         with m.If(self.jtag_en): # for safety, JTAG can completely disable WB
 
             with m.If(self.dbus.cyc):
-                with m.If(self.dbus.ack | self.dbus.err | ~self.m_valid_i):
+                with m.If(self.dbus.ack | self.dbus.err | ~self.m_i_valid):
                     m.d.sync += [
                         self.dbus.cyc.eq(0),
                         self.dbus.stb.eq(0),
@@ -119,7 +119,7 @@ class BareLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
                         self.m_ld_data_o.eq(self.dbus.dat_r)
                     ]
             with m.Elif((self.x_ld_i | self.x_st_i) &
-                        self.x_valid_i & ~self.x_stall_i):
+                        self.x_i_valid & ~self.x_stall_i):
                 m.d.sync += [
                     self.dbus.cyc.eq(1),
                     self.dbus.stb.eq(1),
@@ -207,11 +207,11 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             dcache.s1_addr.eq(self.x_addr_i[self.adr_lsbs:]),
             dcache.s1_flush.eq(self.x_flush),
             dcache.s1_stall.eq(self.x_stall_i),
-            dcache.s1_valid.eq(self.x_valid_i & x_dcache_select),
+            dcache.s1_valid.eq(self.x_i_valid & x_dcache_select),
             dcache.s2_addr.eq(m_addr[self.adr_lsbs:]),
             dcache.s2_re.eq(self.m_load),
             dcache.s2_evict.eq(self.m_store),
-            dcache.s2_valid.eq(self.m_valid_i & m_dcache_select)
+            dcache.s2_valid.eq(self.m_i_valid & m_dcache_select)
         ]
 
         wrbuf_w_data = Record([("addr", self.addr_wid-self.adr_lsbs),
@@ -225,7 +225,7 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
             wrbuf_w_data.addr.eq(self.x_addr_i[self.adr_lsbs:]),
             wrbuf_w_data.mask.eq(self.x_mask_i),
             wrbuf_w_data.data.eq(self.x_st_data_i),
-            wrbuf.w_en.eq(self.x_st_i & self.x_valid_i &
+            wrbuf.w_en.eq(self.x_st_i & self.x_i_valid &
                           x_dcache_select & ~self.x_stall_i),
             wrbuf_r_data.eq(wrbuf.r_data),
         ]
@@ -267,14 +267,14 @@ class CachedLoadStoreUnit(LoadStoreUnitInterface, Elaboratable):
         bare_port = dba.port(priority=2)
         bare_rdata = Signal.like(bare_port.dat_r)
         with m.If(bare_port.cyc):
-            with m.If(bare_port.ack | bare_port.err | ~self.m_valid_i):
+            with m.If(bare_port.ack | bare_port.err | ~self.m_i_valid):
                 m.d.sync += [
                     bare_port.cyc.eq(0),
                     bare_port.stb.eq(0),
                     bare_rdata.eq(bare_port.dat_r)
                 ]
         with m.Elif((self.x_ld_i | self.x_st_i) &
-                    ~x_dcache_select & self.x_valid_i & ~self.x_stall_i):
+                    ~x_dcache_select & self.x_i_valid & ~self.x_stall_i):
             m.d.sync += [
                 bare_port.cyc.eq(1),
                 bare_port.stb.eq(1),

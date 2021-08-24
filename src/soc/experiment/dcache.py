@@ -489,7 +489,7 @@ class DTLBUpdate(Elaboratable):
 class DCachePendingHit(Elaboratable):
 
     def __init__(self, tlb_pte_way, tlb_valid_way, tlb_hit_way,
-                      cache_valid_idx, cache_tag_set,
+                      cache_i_validdx, cache_tag_set,
                     req_addr,
                     hit_set):
 
@@ -505,7 +505,7 @@ class DCachePendingHit(Elaboratable):
         self.tlb_hit_way = tlb_hit_way
         self.tlb_pte_way = tlb_pte_way
         self.tlb_valid_way = tlb_valid_way
-        self.cache_valid_idx = cache_valid_idx
+        self.cache_i_validdx = cache_i_validdx
         self.cache_tag_set = cache_tag_set
         self.req_addr = req_addr
         self.hit_set = hit_set
@@ -520,7 +520,7 @@ class DCachePendingHit(Elaboratable):
         is_hit = self.is_hit
         tlb_pte_way = self.tlb_pte_way
         tlb_valid_way = self.tlb_valid_way
-        cache_valid_idx = self.cache_valid_idx
+        cache_i_validdx = self.cache_i_validdx
         cache_tag_set = self.cache_tag_set
         req_addr = self.req_addr
         tlb_hit_way = self.tlb_hit_way
@@ -554,7 +554,7 @@ class DCachePendingHit(Elaboratable):
 
                 for i in range(NUM_WAYS): # way_t
                     is_tag_hit = Signal(name="is_tag_hit_%d_%d" % (j, i))
-                    comb += is_tag_hit.eq(go & cache_valid_idx[i] &
+                    comb += is_tag_hit.eq(go & cache_i_validdx[i] &
                                   (read_tag(i, cache_tag_set) == s_tag)
                                   & tlb_valid_way[j])
                     with m.If(is_tag_hit):
@@ -572,7 +572,7 @@ class DCachePendingHit(Elaboratable):
             comb += s_tag.eq(get_tag(req_addr))
             for i in range(NUM_WAYS): # way_t
                 is_tag_hit = Signal(name="is_tag_hit_%d" % i)
-                comb += is_tag_hit.eq(go & cache_valid_idx[i] &
+                comb += is_tag_hit.eq(go & cache_i_validdx[i] &
                           (read_tag(i, cache_tag_set) == s_tag))
                 with m.If(is_tag_hit):
                     comb += hit_way.eq(i)
@@ -872,7 +872,7 @@ class DCache(Elaboratable):
         nc          = Signal()
         hit_set     = Array(Signal(name="hit_set_%d" % i) \
                                   for i in range(TLB_NUM_WAYS))
-        cache_valid_idx = Signal(NUM_WAYS)
+        cache_i_validdx = Signal(NUM_WAYS)
 
         # Extract line, row and tag from request
         comb += req_index.eq(get_index(r0.req.addr))
@@ -884,11 +884,11 @@ class DCache(Elaboratable):
                     r0.req.addr, ra, req_index, req_tag, req_row)
 
         comb += go.eq(r0_valid & ~(r0.tlbie | r0.tlbld) & ~r1.ls_error)
-        comb += cache_valid_idx.eq(cache_valids[req_index])
+        comb += cache_i_validdx.eq(cache_valids[req_index])
 
         m.submodules.dcache_pend = dc = DCachePendingHit(tlb_pte_way,
                                 tlb_valid_way, tlb_hit_way,
-                                cache_valid_idx, cache_tag_set,
+                                cache_i_validdx, cache_tag_set,
                                 r0.req.addr,
                                 hit_set)
 

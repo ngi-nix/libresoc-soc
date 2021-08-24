@@ -109,10 +109,10 @@ class DummyALU(Elaboratable):
         self.p.data_i.ctx = Dummy()
         self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
-        self.p.valid_i = Signal()
-        self.p.ready_o = Signal()
-        self.n.ready_i = Signal()
-        self.n.valid_o = Signal()
+        self.p.i_valid = Signal()
+        self.p.o_ready = Signal()
+        self.n.i_ready = Signal()
+        self.n.o_valid = Signal()
         self.counter = Signal(4)
         self.op = CompCROpSubset()
         i = []
@@ -136,11 +136,11 @@ class DummyALU(Elaboratable):
 
         go_now = Signal(reset_less=True)  # testing no-delay ALU
 
-        with m.If(self.p.valid_i):
+        with m.If(self.p.i_valid):
             # input is valid. next check, if we already said "ready" or not
-            with m.If(~self.p.ready_o):
+            with m.If(~self.p.o_ready):
                 # we didn't say "ready" yet, so say so and initialise
-                m.d.sync += self.p.ready_o.eq(1)
+                m.d.sync += self.p.o_ready.eq(1)
 
                 m.d.sync += self.o.eq(self.a)
                 m.d.comb += go_now.eq(1)
@@ -149,14 +149,14 @@ class DummyALU(Elaboratable):
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
-            m.d.sync += self.p.ready_o.eq(0)
+            m.d.sync += self.p.o_ready.eq(0)
 
         # ok so the counter's running: when it gets to 1, fire the output
         with m.If((self.counter == 1) | go_now):
             # set the output as valid if the recipient is ready for it
-            m.d.sync += self.n.valid_o.eq(1)
-        with m.If(self.n.ready_i & self.n.valid_o):
-            m.d.sync += self.n.valid_o.eq(0)
+            m.d.sync += self.n.o_valid.eq(1)
+        with m.If(self.n.i_ready & self.n.o_valid):
+            m.d.sync += self.n.o_valid.eq(0)
             # recipient said it was ready: reset back to known-good.
             m.d.sync += self.counter.eq(0)  # reset the counter
             m.d.sync += self.o.eq(0)  # clear the output for tidiness sake
@@ -185,10 +185,10 @@ class ALU(Elaboratable):
         self.p.data_i.ctx = Dummy()
         self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
-        self.p.valid_i = Signal()
-        self.p.ready_o = Signal()
-        self.n.ready_i = Signal()
-        self.n.valid_o = Signal()
+        self.p.i_valid = Signal()
+        self.p.o_ready = Signal()
+        self.n.i_ready = Signal()
+        self.n.o_valid = Signal()
         self.counter = Signal(4)
         self.op = CompALUOpSubset(name="op")
         i = []
@@ -254,16 +254,16 @@ class ALU(Elaboratable):
         with m.If(go_now):
             # with a combinatorial, no-delay ALU, just pass through
             # the handshake signals to the other side
-            m.d.comb += self.p.ready_o.eq(self.n.ready_i)
-            m.d.comb += self.n.valid_o.eq(self.p.valid_i)
+            m.d.comb += self.p.o_ready.eq(self.n.i_ready)
+            m.d.comb += self.n.o_valid.eq(self.p.i_valid)
         with m.Else():
             # sequential ALU handshake:
-            # ready_o responds to valid_i, but only if the ALU is idle
-            m.d.comb += self.p.ready_o.eq(alu_idle)
-            # select the internally generated valid_o, above
-            m.d.comb += self.n.valid_o.eq(alu_done)
+            # o_ready responds to i_valid, but only if the ALU is idle
+            m.d.comb += self.p.o_ready.eq(alu_idle)
+            # select the internally generated o_valid, above
+            m.d.comb += self.n.o_valid.eq(alu_done)
 
-        # hold the ALU result until ready_o is asserted
+        # hold the ALU result until o_ready is asserted
         alu_r = Signal(self.width)
 
         # output masks
@@ -275,7 +275,7 @@ class ALU(Elaboratable):
         m.d.comb += self.cr.ok.eq(self.op.rc.rc)
 
         with m.If(alu_idle):
-            with m.If(self.p.valid_i):
+            with m.If(self.p.i_valid):
 
                 # as this is a "fake" pipeline, just grab the output right now
                 with m.If(self.op.insn_type == MicrOp.OP_ADD):
@@ -311,7 +311,7 @@ class ALU(Elaboratable):
                 with m.Else():
                     m.d.comb += go_now.eq(1)
 
-        with m.Elif(~alu_done | self.n.ready_i):
+        with m.Elif(~alu_done | self.n.i_ready):
             # decrement the counter while the ALU is neither idle nor finished
             m.d.sync += self.counter.eq(self.counter - 1)
 
@@ -337,10 +337,10 @@ class ALU(Elaboratable):
         yield self.a
         yield self.b
         yield from self.o.ports()
-        yield self.p.valid_i
-        yield self.p.ready_o
-        yield self.n.valid_o
-        yield self.n.ready_i
+        yield self.p.i_valid
+        yield self.p.o_ready
+        yield self.n.o_valid
+        yield self.n.i_ready
 
     def ports(self):
         return list(self)
@@ -366,10 +366,10 @@ class BranchALU(Elaboratable):
         self.p.data_i.ctx = Dummy()
         self.n = Dummy()  # make look like nmutil pipeline API
         self.n.data_o = Dummy()
-        self.p.valid_i = Signal()
-        self.p.ready_o = Signal()
-        self.n.ready_i = Signal()
-        self.n.valid_o = Signal()
+        self.p.i_valid = Signal()
+        self.p.o_ready = Signal()
+        self.n.i_ready = Signal()
+        self.n.o_valid = Signal()
         self.counter = Signal(4)
         self.op = Signal(2)
         i = []
@@ -399,11 +399,11 @@ class BranchALU(Elaboratable):
             ]
 
         go_now = Signal(reset_less=True)  # testing no-delay ALU
-        with m.If(self.p.valid_i):
+        with m.If(self.p.i_valid):
             # input is valid. next check, if we already said "ready" or not
-            with m.If(~self.p.ready_o):
+            with m.If(~self.p.o_ready):
                 # we didn't say "ready" yet, so say so and initialise
-                m.d.sync += self.p.ready_o.eq(1)
+                m.d.sync += self.p.o_ready.eq(1)
 
                 # as this is a "fake" pipeline, just grab the output right now
                 with m.Switch(self.op):
@@ -416,14 +416,14 @@ class BranchALU(Elaboratable):
         with m.Else():
             # input says no longer valid, so drop ready as well.
             # a "proper" ALU would have had to sync in the opcode and a/b ops
-            m.d.sync += self.p.ready_o.eq(0)
+            m.d.sync += self.p.o_ready.eq(0)
 
         # ok so the counter's running: when it gets to 1, fire the output
         with m.If((self.counter == 1) | go_now):
             # set the output as valid if the recipient is ready for it
-            m.d.sync += self.n.valid_o.eq(1)
-        with m.If(self.n.ready_i & self.n.valid_o):
-            m.d.sync += self.n.valid_o.eq(0)
+            m.d.sync += self.n.o_valid.eq(1)
+        with m.If(self.n.i_ready & self.n.o_valid):
+            m.d.sync += self.n.o_valid.eq(0)
             # recipient said it was ready: reset back to known-good.
             m.d.sync += self.counter.eq(0)  # reset the counter
             m.d.sync += self.o.eq(0)  # clear the output for tidiness sake
@@ -449,28 +449,28 @@ def run_op(dut, a, b, op, inv_a=0):
     yield dut.b.eq(b)
     yield dut.op.insn_type.eq(op)
     yield dut.op.invert_in.eq(inv_a)
-    yield dut.n.ready_i.eq(0)
-    yield dut.p.valid_i.eq(1)
-    yield dut.n.ready_i.eq(1)
+    yield dut.n.i_ready.eq(0)
+    yield dut.p.i_valid.eq(1)
+    yield dut.n.i_ready.eq(1)
     yield
 
     # wait for the ALU to accept our input data
-    while not (yield dut.p.ready_o):
+    while not (yield dut.p.o_ready):
         yield
 
-    yield dut.p.valid_i.eq(0)
+    yield dut.p.i_valid.eq(0)
     yield dut.a.eq(0)
     yield dut.b.eq(0)
     yield dut.op.insn_type.eq(0)
     yield dut.op.invert_in.eq(0)
 
     # wait for the ALU to present the output data
-    while not (yield dut.n.valid_o):
+    while not (yield dut.n.o_valid):
         yield
 
     # latch the result and lower read_i
     result = yield dut.o.data
-    yield dut.n.ready_i.eq(0)
+    yield dut.n.i_ready.eq(0)
 
     return result
 
@@ -520,21 +520,21 @@ def test_alu_parallel():
     sim.add_clock(1e-6)
 
     def send(a, b, op, inv_a=0, rc=0):
-        # present input data and assert valid_i
+        # present input data and assert i_valid
         yield dut.a.eq(a)
         yield dut.b.eq(b)
         yield dut.op.insn_type.eq(op)
         yield dut.op.invert_in.eq(inv_a)
         yield dut.op.rc.rc.eq(rc)
-        yield dut.p.valid_i.eq(1)
+        yield dut.p.i_valid.eq(1)
         yield
-        # wait for ready_o to be asserted
-        while not (yield dut.p.ready_o):
+        # wait for o_ready to be asserted
+        while not (yield dut.p.o_ready):
             yield
-        # clear input data and negate valid_i
+        # clear input data and negate i_valid
         # if send is called again immediately afterwards, there will be no
         # visible transition (they will not be negated, after all)
-        yield dut.p.valid_i.eq(0)
+        yield dut.p.i_valid.eq(0)
         yield dut.a.eq(0)
         yield dut.b.eq(0)
         yield dut.op.insn_type.eq(0)
@@ -543,18 +543,18 @@ def test_alu_parallel():
 
     def receive():
         # signal readiness to receive data
-        yield dut.n.ready_i.eq(1)
+        yield dut.n.i_ready.eq(1)
         yield
-        # wait for valid_o to be asserted
-        while not (yield dut.n.valid_o):
+        # wait for o_valid to be asserted
+        while not (yield dut.n.o_valid):
             yield
         # read results
         result = yield dut.o.data
         cr = yield dut.cr.data
-        # negate ready_i
+        # negate i_ready
         # if receive is called again immediately afterwards, there will be no
         # visible transition (it will not be negated, after all)
-        yield dut.n.ready_i.eq(0)
+        yield dut.n.i_ready.eq(0)
         return result, cr
 
     def producer():
@@ -650,10 +650,10 @@ def write_alu_gtkw(gtkw_name, clk_period=1e-6, sub_module=None,
         'i2[15:0]',
         'op__insn_type' if pysim else 'op__insn_type[6:0]',
         'op__invert_in',
-        'valid_i',
-        'ready_o',
-        'valid_o',
-        'ready_i',
+        'i_valid',
+        'o_ready',
+        'o_valid',
+        'i_ready',
         'alu_o[15:0]',
         'alu_o_ok',
         'alu_cr[15:0]',

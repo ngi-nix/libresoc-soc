@@ -27,19 +27,19 @@ class LDLatch(Elaboratable):
     def __init__(self, dwidth, awidth, mlen):
         self.addr_i = Signal(awidth, reset_less=True)
         self.mask_i = Signal(mlen, reset_less=True)
-        self.valid_i = Signal(reset_less=True)
+        self.i_valid = Signal(reset_less=True)
         self.ld_i = LDData(dwidth, "ld_i")
         self.ld_o = LDData(dwidth, "ld_o")
-        self.valid_o = Signal(reset_less=True)
+        self.o_valid = Signal(reset_less=True)
 
     def elaborate(self, platform):
         m = Module()
         comb = m.d.comb
         m.submodules.in_l = in_l = SRLatch(sync=False, name="in_l")
 
-        comb += in_l.s.eq(self.valid_i)
-        comb += self.valid_o.eq(in_l.q & self.valid_i)
-        latchregister(m, self.ld_i, self.ld_o, in_l.q & self.valid_o, "ld_i_r")
+        comb += in_l.s.eq(self.i_valid)
+        comb += self.o_valid.eq(in_l.q & self.i_valid)
+        latchregister(m, self.ld_i, self.ld_o, in_l.q & self.o_valid, "ld_i_r")
 
         return m
 
@@ -50,8 +50,8 @@ class LDLatch(Elaboratable):
         yield self.ld_i.data
         yield self.ld_o.err
         yield self.ld_o.data
-        yield self.valid_i
-        yield self.valid_o
+        yield self.i_valid
+        yield self.o_valid
 
     def ports(self):
         return list(self)
@@ -83,8 +83,8 @@ class LDSTSplitter(Elaboratable):
         self.addr_i = Signal(awidth, reset_less=True)
         # no match in PortInterface
         self.len_i = Signal(dlen, reset_less=True)
-        self.valid_i = Signal(reset_less=True)
-        self.valid_o = Signal(reset_less=True)
+        self.i_valid = Signal(reset_less=True)
+        self.o_valid = Signal(reset_less=True)
 
         self.is_ld_i = Signal(reset_less=True)
         self.is_st_i = Signal(reset_less=True)
@@ -95,13 +95,13 @@ class LDSTSplitter(Elaboratable):
         self.exc = Signal(reset_less=True) # pi.exc TODO
         # TODO : create/connect two outgoing port interfaces
 
-        self.sld_valid_o = Signal(2, reset_less=True)
-        self.sld_valid_i = Signal(2, reset_less=True)
+        self.sld_o_valid = Signal(2, reset_less=True)
+        self.sld_i_valid = Signal(2, reset_less=True)
         self.sld_data_i = Array((LDData(cline_wid, "ld_data_i1"),
                                  LDData(cline_wid, "ld_data_i2")))
 
-        self.sst_valid_o = Signal(2, reset_less=True)
-        self.sst_valid_i = Signal(2, reset_less=True)
+        self.sst_o_valid = Signal(2, reset_less=True)
+        self.sst_i_valid = Signal(2, reset_less=True)
         self.sst_data_o = Array((LDData(cline_wid, "st_data_i1"),
                                  LDData(cline_wid, "st_data_i2")))
 
@@ -151,22 +151,22 @@ class LDSTSplitter(Elaboratable):
             # set up connections to LD-split.  note: not active if mask is zero
             for i, (ld, mask) in enumerate(((ld1, mask1),
                                             (ld2, mask2))):
-                ld_valid = Signal(name="ldvalid_i%d" % i, reset_less=True)
-                comb += ld_valid.eq(self.valid_i & self.sld_valid_i[i])
-                comb += ld.valid_i.eq(ld_valid & (mask != mzero))
+                ld_valid = Signal(name="ldi_valid%d" % i, reset_less=True)
+                comb += ld_valid.eq(self.i_valid & self.sld_i_valid[i])
+                comb += ld.i_valid.eq(ld_valid & (mask != mzero))
                 comb += ld.ld_i.eq(self.sld_data_i[i])
-                comb += self.sld_valid_o[i].eq(ld.valid_o)
+                comb += self.sld_o_valid[i].eq(ld.o_valid)
 
             # sort out valid: mask2 zero we ignore 2nd LD
             with m.If(mask2 == mzero):
-                comb += self.valid_o.eq(self.sld_valid_o[0])
+                comb += self.o_valid.eq(self.sld_o_valid[0])
             with m.Else():
-                comb += self.valid_o.eq(self.sld_valid_o.all())
+                comb += self.o_valid.eq(self.sld_o_valid.all())
             ## debug output -- output mask2 and mzero
             ## guess second port is invalid
 
             # all bits valid (including when data error occurs!) decode ld1/ld2
-            with m.If(self.valid_o):
+            with m.If(self.o_valid):
                 # errors cause error condition
                 comb += self.ld_data_o.err.eq(ld1.ld_o.err | ld2.ld_o.err)
 
@@ -179,10 +179,10 @@ class LDSTSplitter(Elaboratable):
             # set busy flag -- required for unit test
             for i, (ld, mask) in enumerate(((ld1, mask1),
                                             (ld2, mask2))):
-                valid = Signal(name="stvalid_i%d" % i, reset_less=True)
-                comb += valid.eq(self.valid_i & self.sst_valid_i[i])
-                comb += ld.valid_i.eq(valid & (mask != mzero))
-                comb += self.sld_valid_o[i].eq(ld.valid_o)
+                valid = Signal(name="sti_valid%d" % i, reset_less=True)
+                comb += valid.eq(self.i_valid & self.sst_i_valid[i])
+                comb += ld.i_valid.eq(valid & (mask != mzero))
+                comb += self.sld_o_valid[i].eq(ld.o_valid)
                 comb += self.sst_data_o[i].data.eq(ld.ld_o.data)
 
             comb += ld1.ld_i.eq((self.st_data_i << (ashift1*8)) & mask1)
@@ -190,12 +190,12 @@ class LDSTSplitter(Elaboratable):
 
             # sort out valid: mask2 zero we ignore 2nd LD
             with m.If(mask2 == mzero):
-                comb += self.valid_o.eq(self.sst_valid_o[0])
+                comb += self.o_valid.eq(self.sst_o_valid[0])
             with m.Else():
-                comb += self.valid_o.eq(self.sst_valid_o.all())
+                comb += self.o_valid.eq(self.sst_o_valid.all())
 
             # all bits valid (including when data error occurs!) decode ld1/ld2
-            with m.If(self.valid_o):
+            with m.If(self.o_valid):
                 # errors cause error condition
                 comb += self.st_data_i.err.eq(ld1.ld_o.err | ld2.ld_o.err)
 
@@ -207,9 +207,9 @@ class LDSTSplitter(Elaboratable):
         yield self.is_ld_i
         yield self.ld_data_o.err
         yield self.ld_data_o.data
-        yield self.valid_i
-        yield self.valid_o
-        yield self.sld_valid_i
+        yield self.i_valid
+        yield self.o_valid
+        yield self.sld_i_valid
         for i in range(2):
             yield self.sld_data_i[i].err
             yield self.sld_data_i[i].data
@@ -247,11 +247,11 @@ def sim(dut):
         yield dut.is_ld_i.eq(1)
         yield dut.len_i.eq(ld_len)
         yield dut.addr_i.eq(addr)
-        yield dut.valid_i.eq(1)
+        yield dut.i_valid.eq(1)
         print("waiting")
         while True:
-            valid_o = yield dut.valid_o
-            if valid_o:
+            o_valid = yield dut.o_valid
+            if o_valid:
                 break
             yield
         exc = yield dut.exc
@@ -267,8 +267,8 @@ def sim(dut):
     def lds():
         print("lds")
         while True:
-            valid_i = yield dut.valid_i
-            if valid_i:
+            i_valid = yield dut.i_valid
+            if i_valid:
                 break
             yield
 
@@ -281,10 +281,10 @@ def sim(dut):
         data2 = (shfdata >> 128) & dmask1
         print("ld data2", 1 << dlen, hex(data >> (1 << dlen)), hex(data2))
         yield dut.sld_data_i[0].data.eq(data1)
-        yield dut.sld_valid_i[0].eq(1)
+        yield dut.sld_i_valid[0].eq(1)
         yield
         yield dut.sld_data_i[1].data.eq(data2)
-        yield dut.sld_valid_i[1].eq(1)
+        yield dut.sld_i_valid[1].eq(1)
         yield
 
     sim.add_sync_process(lds)

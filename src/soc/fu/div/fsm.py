@@ -167,22 +167,22 @@ class FSMDivCoreStage(ControlBase):
         rem_start = remainder_fract_width - dividend_fract_width
         m.d.comb += core_o.remainder.eq(self.div_state_next.o.remainder
                                         << rem_start)
-        m.d.comb += self.n.valid_o.eq(
+        m.d.comb += self.n.o_valid.eq(
             ~self.empty & self.saved_state.will_be_done_after(1))
-        m.d.comb += self.p.ready_o.eq(self.empty)
+        m.d.comb += self.p.o_ready.eq(self.empty)
         m.d.sync += self.saved_state.eq(self.div_state_next.o)
 
         with m.If(self.empty):
             m.d.comb += self.div_state_next.i.eq(self.div_state_init.o)
             m.d.comb += self.div_state_next.divisor.eq(core_i.divisor_radicand)
-            with m.If(self.p.valid_i):
+            with m.If(self.p.i_valid):
                 m.d.sync += self.empty.eq(0)
                 m.d.sync += self.saved_input_data.eq(data_i)
         with m.Else():
             m.d.comb += [
                 self.div_state_next.i.eq(self.saved_state),
                 self.div_state_next.divisor.eq(core_saved_i.divisor_radicand)]
-            with m.If(self.n.ready_i & self.n.valid_o):
+            with m.If(self.n.i_ready & self.n.o_valid):
                 m.d.sync += self.empty.eq(1)
 
         return m

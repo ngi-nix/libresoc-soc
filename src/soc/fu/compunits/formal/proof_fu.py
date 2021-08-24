@@ -216,7 +216,7 @@ class FUTestCase(FHDLTestCase):
             ('alu', {'submodule': 'alu'}, [
                 ('prev port', 'in', [
                     'oper_i_None__insn_type', 'i1[15:0]',
-                    'valid_i', 'ready_o']),
+                    'i_valid', 'o_ready']),
                 ('next port', 'out', [
                     'alu_o[15:0]', 'valid_o', 'ready_i'])])]
 

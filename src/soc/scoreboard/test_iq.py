@@ -34,10 +34,10 @@ class IQSim:
                 self.oq.append(di)
             yield self.dut.p_add_i.eq(sendlen)
             yield
-            o_p_ready = yield self.dut.p_ready_o
+            o_p_ready = yield self.dut.p_o_ready
             while not o_p_ready:
                 yield
-                o_p_ready = yield self.dut.p_ready_o
+                o_p_ready = yield self.dut.p_o_ready
 
             yield self.dut.p_add_i.eq(0)
 

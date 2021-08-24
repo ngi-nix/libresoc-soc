@@ -63,7 +63,7 @@ class ComputationUnitNoDelay(Elaboratable):
         self.busy_o = Signal(reset_less=True)  # fn busy out
         self.data_o = Signal(rwid, reset_less=True)  # Dest out
         self.rd_rel_o = Signal(reset_less=True)  # release src1/src2 request
-        # release request out (valid_o)
+        # release request out (o_valid)
         self.req_rel_o = Signal(reset_less=True)
         self.done_o = self.req_rel_o  # 'normalise' API
 
@@ -133,17 +133,17 @@ class ComputationUnitNoDelay(Elaboratable):
         # NOTE: this spells TROUBLE if the ALU isn't ready!
         # go_read is only valid for one clock!
         with m.If(self.go_rd_i):                     # src operands ready, GO!
-            with m.If(~self.alu.p_ready_o):          # no ACK yet
-                m.d.comb += self.alu.p_valid_i.eq(1)  # so indicate valid
+            with m.If(~self.alu.p_o_ready):          # no ACK yet
+                m.d.comb += self.alu.p_i_valid.eq(1)  # so indicate valid
 
         # only proceed if ALU says its output is valid
-        with m.If(self.alu.n_valid_o):
+        with m.If(self.alu.n_o_valid):
             # when ALU ready, write req release out. waits for shadow
             m.d.comb += self.req_rel_o.eq(req_l.q & busy_o & self.shadown_i)
             # when output latch is ready, and ALU says ready, accept ALU output
             with m.If(self.req_rel_o & self.go_wr_i):
                 # tells ALU "thanks got it"
-                m.d.comb += self.alu.n_ready_i.eq(1)
+                m.d.comb += self.alu.n_i_ready.eq(1)
 
         # output the data from the latch on go_write
         with m.If(self.go_wr_i):

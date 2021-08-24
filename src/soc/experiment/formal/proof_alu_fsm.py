@@ -39,19 +39,19 @@ class Driver(Elaboratable):
         # liveness counter
         live_cnt = Signal(5)
         # keep data and valid stable, until accepted
-        with m.If(Past(dut.p.valid_i) & ~Past(dut.p.ready_o)):
+        with m.If(Past(dut.p.i_valid) & ~Past(dut.p.o_ready)):
             comb += [
                 Assume(Stable(dut.op.sdir)),
                 Assume(Stable(dut.p.data_i.data)),
                 Assume(Stable(dut.p.data_i.shift)),
-                Assume(Stable(dut.p.valid_i)),
+                Assume(Stable(dut.p.i_valid)),
             ]
         # force reading the output in a reasonable time,
         # necessary to pass induction
-        with m.If(Past(dut.n.valid_o) & ~Past(dut.n.ready_i)):
-            comb += Assume(dut.n.ready_i)
+        with m.If(Past(dut.n.o_valid) & ~Past(dut.n.i_ready)):
+            comb += Assume(dut.n.i_ready)
         # capture transferred input data
-        with m.If(dut.p.ready_o & dut.p.valid_i):
+        with m.If(dut.p.o_ready & dut.p.i_valid):
             sync += [
                 data_i.eq(dut.p.data_i.data),
                 shift_i.eq(dut.p.data_i.shift),
@@ -71,18 +71,18 @@ class Driver(Elaboratable):
         # one work item ever in flight at any given time.
         # Whenever the unit is busy (not ready) the read and write counters
         # will differ by exactly one unit.
-        m.d.comb += Assert((read_cnt + ~dut.p.ready_o) & 0xF == write_cnt)
+        m.d.comb += Assert((read_cnt + ~dut.p.o_ready) & 0xF == write_cnt)
         # Check for liveness. It will ensure that the FSM is not stuck, and
         # will eventually produce some result.
-        # In this case, the delay between ready_o being negated and valid_o
+        # In this case, the delay between o_ready being negated and o_valid
         # being asserted has to be less than 16 cycles.
-        with m.If(~dut.p.ready_o & ~dut.n.valid_o):
+        with m.If(~dut.p.o_ready & ~dut.n.o_valid):
             m.d.sync += live_cnt.eq(live_cnt + 1)
         with m.Else():
             m.d.sync += live_cnt.eq(0)
         m.d.comb += Assert(live_cnt < 16)
         # check coverage as output data is accepted
-        with m.If(dut.n.ready_i & dut.n.valid_o):
+        with m.If(dut.n.i_ready & dut.n.o_valid):
             # increment read counter
             sync += read_cnt.eq(read_cnt + 1)
             # check result
@@ -123,9 +123,9 @@ class ALUFSMTestCase(FHDLTestCase):
         traces = [
             'clk',
             'p_data_i[7:0]', 'p_shift_i[7:0]', 'op__sdir',
-            'p_valid_i', 'p_ready_o',
+            'p_i_valid', 'p_o_ready',
             'n_data_o[7:0]',
-            'n_valid_o', 'n_ready_i',
+            'n_o_valid', 'n_i_ready',
             ('formal', {'module': 'top'}, [
                 'write_cnt[3:0]', 'read_cnt[3:0]', 'cov[7:0]'
             ])

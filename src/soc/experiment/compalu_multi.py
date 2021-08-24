@@ -196,7 +196,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         alu_done = Signal(reset_less=True)
         alu_pulse = Signal(reset_less=True)
         alu_pulsem = Signal(self.n_dst, reset_less=True)
-        m.d.comb += alu_done.eq(self.alu.n.valid_o)
+        m.d.comb += alu_done.eq(self.alu.n.o_valid)
         m.d.comb += alu_pulse.eq(rising_edge(m, alu_done))
         m.d.comb += alu_pulsem.eq(Repl(alu_pulse, self.n_dst))
 
@@ -213,13 +213,13 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
         m.d.comb += self.done_o.eq(self.busy_o &
                                    ~((self.wr.rel_o & ~self.wrmask).bool()))
         m.d.comb += wr_any.eq(self.wr.go_i.bool() | prev_wr_go.bool())
-        m.d.comb += req_done.eq(wr_any & ~self.alu.n.ready_i &
+        m.d.comb += req_done.eq(wr_any & ~self.alu.n.i_ready &
                                 ((req_l.q & self.wrmask) == 0))
         # argh, complicated hack: if there are no regs to write,
         # instead of waiting for regs that are never going to happen,
         # we indicate "done" when the ALU is "done"
         with m.If((self.wrmask == 0) &
-                  self.alu.n.ready_i & self.alu.n.valid_o & self.busy_o):
+                  self.alu.n.i_ready & self.alu.n.o_valid & self.busy_o):
             m.d.comb += req_done.eq(1)
 
         # shadow/go_die
@@ -234,7 +234,7 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # read-done,wr-proceed latch
         m.d.sync += rok_l.s.eq(self.issue_i)  # set up when issue starts
-        m.d.sync += rok_l.r.eq(self.alu.n.valid_o & self.busy_o)  # ALU done
+        m.d.sync += rok_l.r.eq(self.alu.n.o_valid & self.busy_o)  # ALU done
 
         # wr-done, back-to-start latch
         m.d.sync += rst_l.s.eq(all_rd)     # set when read-phase is fully done
@@ -323,15 +323,15 @@ class MultiCompUnit(RegSpecALUAPI, Elaboratable):
 
         # on a go_read, tell the ALU we're accepting data.
         m.submodules.alui_l = alui_l = SRLatch(False, name="alui")
-        m.d.comb += self.alu.p.valid_i.eq(alui_l.q)
-        m.d.sync += alui_l.r.eq(self.alu.p.ready_o & alui_l.q)
+        m.d.comb += self.alu.p.i_valid.eq(alui_l.q)
+        m.d.sync += alui_l.r.eq(self.alu.p.o_ready & alui_l.q)
         m.d.comb += alui_l.s.eq(all_rd_pulse)
 
         # ALU output "ready" side.  alu "ready" indication stays hi until
         # ALU says "valid".
         m.submodules.alu_l = alu_l = SRLatch(False, name="alu")
-        m.d.comb += self.alu.n.ready_i.eq(alu_l.q)
-        m.d.sync += alu_l.r.eq(self.alu.n.valid_o & alu_l.q)
+        m.d.comb += self.alu.n.i_ready.eq(alu_l.q)
+        m.d.sync += alu_l.r.eq(self.alu.n.o_valid & alu_l.q)
         m.d.comb += alu_l.s.eq(all_rd_pulse)
 
         # -----

@@ -23,9 +23,9 @@ class FetchUnitInterface:
         # inputs: address to fetch PC, and valid/stall signalling
         self.a_pc_i = Signal(self.addr_wid)
         self.a_stall_i = Signal()
-        self.a_valid_i = Signal()
+        self.a_i_valid = Signal()
         self.f_stall_i = Signal()
-        self.f_valid_i = Signal()
+        self.f_i_valid = Signal()
 
         # outputs: instruction (or error), and busy indicators
         self.a_busy_o = Signal()
@@ -45,9 +45,9 @@ class FetchUnitInterface:
     def __iter__(self):
         yield self.a_pc_i
         yield self.a_stall_i
-        yield self.a_valid_i
+        yield self.a_i_valid
         yield self.f_stall_i
-        yield self.f_valid_i
+        yield self.f_i_valid
         yield self.a_busy_o
         yield self.f_busy_o
         yield self.f_instr_o
@@ -68,14 +68,14 @@ class BareFetchUnit(FetchUnitInterface, Elaboratable):
 
             ibus_rdata = Signal.like(self.ibus.dat_r)
             with m.If(self.ibus.cyc):
-                with m.If(self.ibus.ack | self.ibus.err | ~self.f_valid_i):
+                with m.If(self.ibus.ack | self.ibus.err | ~self.f_i_valid):
                     m.d.sync += [
                         self.ibus.cyc.eq(0),
                         self.ibus.stb.eq(0),
                         self.ibus.sel.eq(0),
                         ibus_rdata.eq(self.ibus.dat_r)
                     ]
-            with m.Elif(self.a_valid_i & ~self.a_stall_i):
+            with m.Elif(self.a_i_valid & ~self.a_stall_i):
                 m.d.sync += [
                     self.ibus.adr.eq(self.a_pc_i[self.adr_lsbs:]),
                     self.ibus.cyc.eq(1),
@@ -153,11 +153,11 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
             icache.s1_addr.eq(self.a_pc_i[self.adr_lsbs:]),
             icache.s1_flush.eq(self.a_flush),
             icache.s1_stall.eq(self.a_stall_i),
-            icache.s1_valid.eq(self.a_valid_i & a_icache_select),
+            icache.s1_valid.eq(self.a_i_valid & a_icache_select),
             icache.s2_addr.eq(self.f_pc[self.adr_lsbs:]),
             icache.s2_re.eq(Const(1)),
             icache.s2_evict.eq(Const(0)),
-            icache.s2_valid.eq(self.f_valid_i & f_icache_select)
+            icache.s2_valid.eq(self.f_i_valid & f_icache_select)
         ]
 
         iba = WishboneArbiter(self.pspec)
@@ -180,14 +180,14 @@ class CachedFetchUnit(FetchUnitInterface, Elaboratable):
         bare_port = iba.port(priority=1)
         bare_rdata = Signal.like(bare_port.dat_r)
         with m.If(bare_port.cyc):
-            with m.If(bare_port.ack | bare_port.err | ~self.f_valid_i):
+            with m.If(bare_port.ack | bare_port.err | ~self.f_i_valid):
                 m.d.sync += [
                     bare_port.cyc.eq(0),
                     bare_port.stb.eq(0),
                     bare_port.sel.eq(0),
                     bare_rdata.eq(bare_port.dat_r)
                 ]
-        with m.Elif(~a_icache_select & self.a_valid_i & ~self.a_stall_i):
+        with m.Elif(~a_icache_select & self.a_i_valid & ~self.a_stall_i):
             m.d.sync += [
                 bare_port.cyc.eq(1),
                 bare_port.stb.eq(1),

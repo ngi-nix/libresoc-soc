@@ -47,7 +47,7 @@ class InstructionQ(Elaboratable):
         mqbits = (int(log(iqlen) / log(2))+2, False)
 
         self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
-        self.p_ready_o = Signal()  # instructions were added
+        self.p_o_ready = Signal()  # instructions were added
         self.data_i = Instruction._nq(n_in, "data_i")
 
         self.data_o = Instruction._nq(n_out, "data_o")
@@ -91,7 +91,7 @@ class InstructionQ(Elaboratable):
         comb += left.eq(self.qlen_o)  # - self.n_sub_o)
         comb += spare.eq(mqlen - self.p_add_i)
         comb += qmaxed.eq(left <= spare)
-        comb += self.p_ready_o.eq(qmaxed & (self.p_add_i != 0))
+        comb += self.p_o_ready.eq(qmaxed & (self.p_add_i != 0))
 
         # put q (flattened) into output
         for i in range(self.n_out):
@@ -103,7 +103,7 @@ class InstructionQ(Elaboratable):
             # ok now the end's moved
             sync += end_q.eq(end_q + self.n_sub_o)
 
-        with m.If(self.p_ready_o):
+        with m.If(self.p_o_ready):
             # copy in the input... insanely gate-costly... *sigh*...
             for i in range(self.n_in):
                 with m.If(self.p_add_i > Const(i, len(self.p_add_i))):
@@ -112,7 +112,7 @@ class InstructionQ(Elaboratable):
                     sync += self.q[ipos].eq(cat(self.data_i[i]))
             sync += start_q.eq(start_q + self.p_add_i)
 
-        with m.If(self.p_ready_o):
+        with m.If(self.p_o_ready):
             # update the queue length
             add2 = Signal(mqbits+1)
             comb += add2.eq(self.qlen_o + self.p_add_i)
@@ -125,7 +125,7 @@ class InstructionQ(Elaboratable):
     def __iter__(self):
         yield from self.q
 
-        yield self.p_ready_o
+        yield self.p_o_ready
         for o in self.data_i:
             yield from list(o)
         yield self.p_add_i

@@ -11,7 +11,7 @@
     busy_o/1        most likely to be x_busy_o
     go_die_i/1      rst?
     addr.data/48    x_addr_i (x_addr_i[:4] goes into LenExpand)
-    addr.ok/1       probably x_valid_i & ~x_stall_i
+    addr.ok/1       probably x_i_valid & ~x_stall_i
 
     addr_ok_o/1     no equivalent.  *might* work using x_stall_i
     exc_o/6(?)      m_load_err_o and m_store_err_o
@@ -100,8 +100,8 @@ class Pi2LSUI(PortInterfaceBase):
                     m.next = "IDLE"
 
         # indicate valid at both ends. OR with lsui_busy (stops comb loop)
-        m.d.comb += self.lsui.m_valid_i.eq(self.valid_l.q )
-        m.d.comb += self.lsui.x_valid_i.eq(self.valid_l.q )
+        m.d.comb += self.lsui.m_i_valid.eq(self.valid_l.q )
+        m.d.comb += self.lsui.x_i_valid.eq(self.valid_l.q )
 
         # reset the valid latch when not busy.  sync to stop loop
         lsui_active = Signal()
@@ -154,7 +154,7 @@ class Pi2LSUI1(Elaboratable):
             # expand the LSBs of address plus LD/ST len into 16-bit mask
             m.d.comb += lsui.x_mask_i.eq(lenexp.lexp_o)
             # pass through the address, indicate "valid"
-            m.d.comb += lsui.x_valid_i.eq(1)
+            m.d.comb += lsui.x_i_valid.eq(1)
             # indicate "OK" - XXX should be checking address valid
             m.d.comb += pi.addr_ok_o.eq(1)
 

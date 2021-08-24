@@ -527,11 +527,11 @@ def test_compunit_fsm():
             ('prev port', 'in', [
                 'op__sdir', 'p_data_i[7:0]', 'p_shift_i[7:0]',
                 ({'submodule': 'p'},
-                    ['p_valid_i', 'p_ready_o'])]),
+                    ['p_i_valid', 'p_o_ready'])]),
             ('next port', 'out', [
                 'n_data_o[7:0]',
                 ({'submodule': 'n'},
-                    ['n_valid_o', 'n_ready_i'])])]),
+                    ['n_o_valid', 'n_i_ready'])])]),
         ('debug', {'module': 'top'},
             ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]
 
@@ -657,9 +657,9 @@ def test_compunit_regspec3():
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'oper_i_None__insn_type', 'i1[15:0]',
-                'valid_i', 'ready_o']),
+                'i_valid', 'o_ready']),
             ('next port', 'out', [
-                'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+                'alu_o[15:0]', 'o_valid', 'i_ready'])])]
 
     write_gtkw("test_compunit_regspec3.gtkw",
                "test_compunit_regspec3.vcd",
@@ -732,9 +732,9 @@ def test_compunit_regspec1():
         ('alu', {'submodule': 'alu'}, [
             ('prev port', 'in', [
                 'op__insn_type', 'op__invert_in', 'a[15:0]', 'b[15:0]',
-                'valid_i', 'ready_o']),
+                'i_valid', 'o_ready']),
             ('next port', 'out', [
-                'alu_o[15:0]', 'valid_o', 'ready_i',
+                'alu_o[15:0]', 'o_valid', 'i_ready',
                 'alu_o_ok', 'alu_cr_ok'])]),
         ('debug', {'module': 'top'},
             ['src1_count[7:0]', 'src2_count[7:0]', 'dest1_count[7:0]'])]

@@ -117,7 +117,7 @@ class NonProductionCore(Elaboratable):
             self.sv_pred_dm = Signal() # TODO: SIMD width
 
         # issue/valid/busy signalling
-        self.ivalid_i = Signal(reset_less=True) # instruction is valid
+        self.ii_valid = Signal(reset_less=True) # instruction is valid
         self.issue_i = Signal(reset_less=True)
         self.busy_o = Signal(name="corebusy_o", reset_less=True)
 
@@ -226,7 +226,7 @@ class NonProductionCore(Elaboratable):
             sync += counter.eq(counter - 1)
             comb += self.busy_o.eq(1)
 
-        with m.If(self.ivalid_i): # run only when valid
+        with m.If(self.ii_valid): # run only when valid
             with m.Switch(self.e.do.insn_type):
                 # check for ATTN: halt if true
                 with m.Case(MicrOp.OP_ATTN):

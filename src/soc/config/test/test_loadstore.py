@@ -16,9 +16,9 @@ def write_to_addr(dut, addr, value):
     yield dut.x_st_data_i.eq(value)
     yield dut.x_st_i.eq(1)
     yield dut.x_mask_i.eq(-1)
-    yield dut.x_valid_i.eq(1)
+    yield dut.x_i_valid.eq(1)
     yield dut.x_stall_i.eq(1)
-    yield dut.m_valid_i.eq(1)
+    yield dut.m_i_valid.eq(1)
     yield
     yield
 
@@ -33,7 +33,7 @@ def write_to_addr(dut, addr, value):
 def read_from_addr(dut, addr):
     yield dut.x_addr_i.eq(addr)
     yield dut.x_ld_i.eq(1)
-    yield dut.x_valid_i.eq(1)
+    yield dut.x_i_valid.eq(1)
     yield dut.x_stall_i.eq(1)
     yield
     yield dut.x_stall_i.eq(0)
@@ -42,7 +42,7 @@ def read_from_addr(dut, addr):
     yield Settle()
     while (yield dut.x_busy_o):
         yield
-    assert (yield dut.x_valid_i)
+    assert (yield dut.x_i_valid)
     return (yield dut.m_ld_data_o)
 
 
@@ -53,8 +53,8 @@ def write_byte(dut, addr, val):
     yield dut.x_st_i.eq(1)
     yield dut.x_mask_i.eq(1 << offset)
     print("write_byte", addr, bin(1 << offset), hex(val << (offset*8)))
-    yield dut.x_valid_i.eq(1)
-    yield dut.m_valid_i.eq(1)
+    yield dut.x_i_valid.eq(1)
+    yield dut.m_i_valid.eq(1)
 
     yield
     yield dut.x_st_i.eq(0)
@@ -66,13 +66,13 @@ def read_byte(dut, addr):
     offset = addr & 0x3
     yield dut.x_addr_i.eq(addr)
     yield dut.x_ld_i.eq(1)
-    yield dut.x_valid_i.eq(1)
+    yield dut.x_i_valid.eq(1)
     yield
     yield dut.x_ld_i.eq(0)
     yield Settle()
     while (yield dut.x_busy_o):
         yield
-    assert (yield dut.x_valid_i)
+    assert (yield dut.x_i_valid)
     val = (yield dut.m_ld_data_o)
     print("read_byte", addr, offset, hex(val))
     return (val >> (offset * 8)) & 0xff

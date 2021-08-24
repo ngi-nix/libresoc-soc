@@ -15,8 +15,8 @@ sys.setrecursionlimit(10**6)
 
 def read_from_addr(dut, addr):
     yield dut.a_pc_i.eq(addr)
-    yield dut.a_valid_i.eq(1)
-    yield dut.f_valid_i.eq(1)
+    yield dut.a_i_valid.eq(1)
+    yield dut.f_i_valid.eq(1)
     yield dut.a_stall_i.eq(1)
     yield
     yield dut.a_stall_i.eq(0)
@@ -26,8 +26,8 @@ def read_from_addr(dut, addr):
         yield
     res = (yield dut.f_instr_o)
 
-    yield dut.a_valid_i.eq(0)
-    yield dut.f_valid_i.eq(0)
+    yield dut.a_i_valid.eq(0)
+    yield dut.f_i_valid.eq(0)
     yield
     return res
 

@@ -98,8 +98,8 @@ class FSMMMUStage(ControlBase):
         # busy/done signals
         busy = Signal()
         done = Signal()
-        m.d.comb += self.n.valid_o.eq(busy & done)
-        m.d.comb += self.p.ready_o.eq(~busy)
+        m.d.comb += self.n.o_valid.eq(busy & done)
+        m.d.comb += self.p.o_ready.eq(~busy)
 
         # take copy of X-Form SPR field
         x_fields = self.fields.FormXFX
@@ -118,7 +118,7 @@ class FSMMMUStage(ControlBase):
         m.d.comb += blip.eq(rising_edge(m, valid))
 
         with m.If(~busy):
-            with m.If(self.p.valid_i):
+            with m.If(self.p.i_valid):
                 sync += busy.eq(1)
         with m.Else():
 
@@ -216,7 +216,7 @@ class FSMMMUStage(ControlBase):
                 with m.Case(MicrOp.OP_ILLEGAL):
                     comb += self.illegal.eq(1)
 
-            with m.If(self.n.ready_i & self.n.valid_o):
+            with m.If(self.n.i_ready & self.n.o_valid):
                 sync += busy.eq(0)
 
         return m

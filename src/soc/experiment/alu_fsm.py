@@ -7,11 +7,11 @@ intended to comply with both the CompALU API and the nmutil Pipeline API
 
 The basic rules are:
 
-1) p.ready_o is asserted on the initial ("Idle") state, otherwise it keeps low.
-2) n.valid_o is asserted on the final ("Done") state, otherwise it keeps low.
-3) The FSM stays in the Idle state while p.valid_i is low, otherwise
+1) p.o_ready is asserted on the initial ("Idle") state, otherwise it keeps low.
+2) n.o_valid is asserted on the final ("Done") state, otherwise it keeps low.
+3) The FSM stays in the Idle state while p.i_valid is low, otherwise
    it accepts the input data and moves on.
-4) The FSM stays in the Done state while n.ready_i is low, otherwise
+4) The FSM stays in the Done state while n.i_ready is low, otherwise
    it releases the output data and goes back to the Idle state.
 
 """
@@ -152,15 +152,15 @@ class Shifter(Elaboratable):
         with m.FSM():
             with m.State("IDLE"):
                 m.d.comb += [
-                    # keep p.ready_o active on IDLE
-                    self.p.ready_o.eq(1),
+                    # keep p.o_ready active on IDLE
+                    self.p.o_ready.eq(1),
                     # keep loading the shift register and shift count
                     load.eq(1),
                     next_count.eq(self.p.data_i.shift),
                 ]
                 # capture the direction bit as well
                 m.d.sync += direction.eq(self.op.sdir)
-                with m.If(self.p.valid_i):
+                with m.If(self.p.i_valid):
                     # Leave IDLE when data arrives
                     with m.If(next_count == 0):
                         # short-circuit for zero shift
@@ -178,9 +178,9 @@ class Shifter(Elaboratable):
                     # exit when shift counter goes to zero
                     m.next = "DONE"
             with m.State("DONE"):
-                # keep n.valid_o active while the data is not accepted
-                m.d.comb += self.n.valid_o.eq(1)
-                with m.If(self.n.ready_i):
+                # keep n.o_valid active while the data is not accepted
+                m.d.comb += self.n.o_valid.eq(1)
+                with m.If(self.n.i_ready):
                     # go back to IDLE when the data is accepted
                     m.next = "IDLE"
 
@@ -190,10 +190,10 @@ class Shifter(Elaboratable):
         yield self.op.sdir
         yield self.p.data_i.data
         yield self.p.data_i.shift
-        yield self.p.valid_i
-        yield self.p.ready_o
-        yield self.n.ready_i
-        yield self.n.valid_o
+        yield self.p.i_valid
+        yield self.p.o_ready
+        yield self.n.i_ready
+        yield self.n.o_valid
         yield self.n.data_o.data
 
     def ports(self):
@@ -225,8 +225,8 @@ def test_shifter():
             ('p_data_i[7:0]', 'in'),
             ('p_shift_i[7:0]', 'in'),
             ({'submodule': 'p'}, [
-                ('p_valid_i', 'in'),
-                ('p_ready_o', 'out')])]),
+                ('p_i_valid', 'in'),
+                ('p_o_ready', 'out')])]),
         ('internal', [
             'fsm_state' if is_engine_pysim() else 'fsm_state[1:0]',
             'count[3:0]',
@@ -234,8 +234,8 @@ def test_shifter():
         ('next port', [
             ('n_data_o[7:0]', 'out'),
             ({'submodule': 'n'}, [
-                ('n_valid_o', 'out'),
-                ('n_ready_i', 'in')])])]
+                ('n_o_valid', 'out'),
+                ('n_i_ready', 'in')])])]
 
     write_gtkw("test_shifter.gtkw", "test_shifter.vcd",
                gtkwave_desc,  gtkwave_style,
@@ -245,32 +245,32 @@ def test_shifter():
     sim.add_clock(1e-6)
 
     def send(data, shift, direction):
-        # present input data and assert valid_i
+        # present input data and assert i_valid
         yield dut.p.data_i.data.eq(data)
         yield dut.p.data_i.shift.eq(shift)
         yield dut.op.sdir.eq(direction)
-        yield dut.p.valid_i.eq(1)
+        yield dut.p.i_valid.eq(1)
         yield
-        # wait for p.ready_o to be asserted
-        while not (yield dut.p.ready_o):
+        # wait for p.o_ready to be asserted
+        while not (yield dut.p.o_ready):
             yield
-        # clear input data and negate p.valid_i
-        yield dut.p.valid_i.eq(0)
+        # clear input data and negate p.i_valid
+        yield dut.p.i_valid.eq(0)
         yield dut.p.data_i.data.eq(0)
         yield dut.p.data_i.shift.eq(0)
         yield dut.op.sdir.eq(0)
 
     def receive(expected):
         # signal readiness to receive data
-        yield dut.n.ready_i.eq(1)
+        yield dut.n.i_ready.eq(1)
         yield
-        # wait for n.valid_o to be asserted
-        while not (yield dut.n.valid_o):
+        # wait for n.o_valid to be asserted
+        while not (yield dut.n.o_valid):
             yield
         # read result
         result = yield dut.n.data_o.data
-        # negate n.ready_i
-        yield dut.n.ready_i.eq(0)
+        # negate n.i_ready
+        yield dut.n.i_ready.eq(0)
         # check result
         assert result == expected
 

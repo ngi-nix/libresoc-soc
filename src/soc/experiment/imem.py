@@ -23,7 +23,7 @@ class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
         m.submodules.mem = mem = self.mem
 
         do_fetch = Signal()  # set when fetch while valid and not stalled
-        m.d.comb += do_fetch.eq(self.a_valid_i & ~self.a_stall_i)
+        m.d.comb += do_fetch.eq(self.a_i_valid & ~self.a_stall_i)
 
         # bit of a messy FSM that progresses from idle to in progress
         # to done.
@@ -37,7 +37,7 @@ class TestMemFetchUnit(FetchUnitInterface, Elaboratable):
         with m.If(~do_fetch):               # done
             m.d.sync += op_in_progress.eq(0)
 
-        m.d.comb += self.a_busy_o.eq(op_actioned & self.a_valid_i)
+        m.d.comb += self.a_busy_o.eq(op_actioned & self.a_i_valid)
         # fetch
         m.d.comb += mem.rdport.addr.eq(self.a_pc_i[adr_lsb:])
         m.d.comb += self.f_instr_o.eq(mem.rdport.data)

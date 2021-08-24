@@ -281,8 +281,8 @@ class TestIssuerInternal(Elaboratable):
             self.dstmask = Signal(64)
 
     def fetch_fsm(self, m, core, pc, svstate, nia, is_svp64_mode,
-                        fetch_pc_ready_o, fetch_pc_valid_i,
-                        fetch_insn_valid_o, fetch_insn_ready_i):
+                        fetch_pc_o_ready, fetch_pc_i_valid,
+                        fetch_insn_o_valid, fetch_insn_i_ready):
         """fetch FSM
 
         this FSM performs fetch of raw instruction data, partial-decodes
@@ -301,15 +301,15 @@ class TestIssuerInternal(Elaboratable):
 
             # waiting (zzz)
             with m.State("IDLE"):
-                comb += fetch_pc_ready_o.eq(1)
-                with m.If(fetch_pc_valid_i):
+                comb += fetch_pc_o_ready.eq(1)
+                with m.If(fetch_pc_i_valid):
                     # instruction allowed to go: start by reading the PC
                     # capture the PC and also drop it into Insn Memory
                     # we have joined a pair of combinatorial memory
                     # lookups together.  this is Generally Bad.
                     comb += self.imem.a_pc_i.eq(pc)
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
+                    comb += self.imem.a_i_valid.eq(1)
+                    comb += self.imem.f_i_valid.eq(1)
                     sync += cur_state.pc.eq(pc)
                     sync += cur_state.svstate.eq(svstate) # and svstate
 
@@ -327,8 +327,8 @@ class TestIssuerInternal(Elaboratable):
                     sync += cur_state.msr.eq(self.state_r_msr.data_o)
                 with m.If(self.imem.f_busy_o): # zzz...
                     # busy: stay in wait-read
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
+                    comb += self.imem.a_i_valid.eq(1)
+                    comb += self.imem.f_i_valid.eq(1)
                 with m.Else():
                     # not busy: instruction fetched
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc)
@@ -354,8 +354,8 @@ class TestIssuerInternal(Elaboratable):
                         with m.Else():
                             # fetch the rest of the instruction from memory
                             comb += self.imem.a_pc_i.eq(cur_state.pc + 4)
-                            comb += self.imem.a_valid_i.eq(1)
-                            comb += self.imem.f_valid_i.eq(1)
+                            comb += self.imem.a_i_valid.eq(1)
+                            comb += self.imem.f_i_valid.eq(1)
                             m.next = "INSN_READ2"
                     else:
                         # not SVP64 - 32-bit only
@@ -366,8 +366,8 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INSN_READ2"):
                 with m.If(self.imem.f_busy_o):  # zzz...
                     # busy: stay in wait-read
-                    comb += self.imem.a_valid_i.eq(1)
-                    comb += self.imem.f_valid_i.eq(1)
+                    comb += self.imem.a_i_valid.eq(1)
+                    comb += self.imem.f_i_valid.eq(1)
                 with m.Else():
                     # not busy: instruction fetched
                     insn = get_insn(self.imem.f_instr_o, cur_state.pc+4)
@@ -391,13 +391,13 @@ class TestIssuerInternal(Elaboratable):
 
             with m.State("INSN_READY"):
                 # hand over the instruction, to be decoded
-                comb += fetch_insn_valid_o.eq(1)
-                with m.If(fetch_insn_ready_i):
+                comb += fetch_insn_o_valid.eq(1)
+                with m.If(fetch_insn_i_ready):
                     m.next = "IDLE"
 
     def fetch_predicate_fsm(self, m,
-                            pred_insn_valid_i, pred_insn_ready_o,
-                            pred_mask_valid_o, pred_mask_ready_i):
+                            pred_insn_i_valid, pred_insn_o_ready,
+                            pred_mask_o_valid, pred_mask_i_ready):
         """fetch_predicate_fsm - obtains (constructs in the case of CR)
            src/dest predicate masks
 
@@ -439,8 +439,8 @@ class TestIssuerInternal(Elaboratable):
         with m.FSM(name="fetch_predicate"):
 
             with m.State("FETCH_PRED_IDLE"):
-                comb += pred_insn_ready_o.eq(1)
-                with m.If(pred_insn_valid_i):
+                comb += pred_insn_o_ready.eq(1)
+                with m.If(pred_insn_i_valid):
                     with m.If(predmode == SVP64PredMode.INT):
                         # skip fetching destination mask register, when zero
                         with m.If(dall1s):
@@ -558,18 +558,18 @@ class TestIssuerInternal(Elaboratable):
                 m.next = "FETCH_PRED_DONE"
 
             with m.State("FETCH_PRED_DONE"):
-                comb += pred_mask_valid_o.eq(1)
-                with m.If(pred_mask_ready_i):
+                comb += pred_mask_o_valid.eq(1)
+                with m.If(pred_mask_i_ready):
                     m.next = "FETCH_PRED_IDLE"
 
     def issue_fsm(self, m, core, pc_changed, sv_changed, nia,
                   dbg, core_rst, is_svp64_mode,
-                  fetch_pc_ready_o, fetch_pc_valid_i,
-                  fetch_insn_valid_o, fetch_insn_ready_i,
-                  pred_insn_valid_i, pred_insn_ready_o,
-                  pred_mask_valid_o, pred_mask_ready_i,
-                  exec_insn_valid_i, exec_insn_ready_o,
-                  exec_pc_valid_o, exec_pc_ready_i):
+                  fetch_pc_o_ready, fetch_pc_i_valid,
+                  fetch_insn_o_valid, fetch_insn_i_ready,
+                  pred_insn_i_valid, pred_insn_o_ready,
+                  pred_mask_o_valid, pred_mask_i_ready,
+                  exec_insn_i_valid, exec_insn_o_ready,
+                  exec_pc_o_valid, exec_pc_i_ready):
         """issue FSM
 
         decode / issue FSM.  this interacts with the "fetch" FSM
@@ -620,8 +620,8 @@ class TestIssuerInternal(Elaboratable):
                 # wait on "core stop" release, before next fetch
                 # need to do this here, in case we are in a VL==0 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
-                    comb += fetch_pc_valid_i.eq(1) # tell fetch to start
-                    with m.If(fetch_pc_ready_o):   # fetch acknowledged us
+                    comb += fetch_pc_i_valid.eq(1) # tell fetch to start
+                    with m.If(fetch_pc_o_ready):   # fetch acknowledged us
                         m.next = "INSN_WAIT"
                 with m.Else():
                     # tell core it's stopped, and acknowledge debug handshake
@@ -638,8 +638,8 @@ class TestIssuerInternal(Elaboratable):
 
             # wait for an instruction to arrive from Fetch
             with m.State("INSN_WAIT"):
-                comb += fetch_insn_ready_i.eq(1)
-                with m.If(fetch_insn_valid_o):
+                comb += fetch_insn_i_ready.eq(1)
+                with m.If(fetch_insn_o_valid):
                     # loop into ISSUE_START if it's a SVP64 instruction
                     # and VL == 0.  this because VL==0 is a for-loop
                     # from 0 to 0 i.e. always, always a NOP.
@@ -659,13 +659,13 @@ class TestIssuerInternal(Elaboratable):
                             m.next = "DECODE_SV"  # skip predication
 
             with m.State("PRED_START"):
-                comb += pred_insn_valid_i.eq(1)  # tell fetch_pred to start
-                with m.If(pred_insn_ready_o):  # fetch_pred acknowledged us
+                comb += pred_insn_i_valid.eq(1)  # tell fetch_pred to start
+                with m.If(pred_insn_o_ready):  # fetch_pred acknowledged us
                     m.next = "MASK_WAIT"
 
             with m.State("MASK_WAIT"):
-                comb += pred_mask_ready_i.eq(1) # ready to receive the masks
-                with m.If(pred_mask_valid_o): # predication masks are ready
+                comb += pred_mask_i_ready.eq(1) # ready to receive the masks
+                with m.If(pred_mask_o_valid): # predication masks are ready
                     m.next = "PRED_SKIP"
 
             # skip zeros in predicate
@@ -758,17 +758,17 @@ class TestIssuerInternal(Elaboratable):
 
             # handshake with execution FSM, move to "wait" once acknowledged
             with m.State("INSN_EXECUTE"):
-                comb += exec_insn_valid_i.eq(1) # trigger execute
-                with m.If(exec_insn_ready_o):   # execute acknowledged us
+                comb += exec_insn_i_valid.eq(1) # trigger execute
+                with m.If(exec_insn_o_ready):   # execute acknowledged us
                     m.next = "EXECUTE_WAIT"
 
             with m.State("EXECUTE_WAIT"):
                 # wait on "core stop" release, at instruction end
                 # need to do this here, in case we are in a VL>1 loop
                 with m.If(~dbg.core_stop_o & ~core_rst):
-                    comb += exec_pc_ready_i.eq(1)
+                    comb += exec_pc_i_ready.eq(1)
                     # see https://bugs.libre-soc.org/show_bug.cgi?id=636
-                    #with m.If(exec_pc_valid_o & exc_happened):
+                    #with m.If(exec_pc_o_valid & exc_happened):
                     #    probably something like this:
                     #    sync += pdecode2.ldst_exc.eq(core.fus.get_exc("ldst0")
                     # TODO: the exception info needs to be blatted
@@ -780,8 +780,8 @@ class TestIssuerInternal(Elaboratable):
                     # PC to the exception address, as well as alter MSR.
                     # nothing else needs to be done other than to note
                     # the change of PC and MSR (and, later, SVSTATE)
-                    #with m.Elif(exec_pc_valid_o):
-                    with m.If(exec_pc_valid_o): # replace with Elif (above)
+                    #with m.Elif(exec_pc_o_valid):
+                    with m.If(exec_pc_o_valid): # replace with Elif (above)
 
                         # was this the last loop iteration?
                         is_last = Signal()
@@ -844,8 +844,8 @@ class TestIssuerInternal(Elaboratable):
             sync += cur_state.svstate.eq(new_svstate) # for next clock
 
     def execute_fsm(self, m, core, pc_changed, sv_changed,
-                    exec_insn_valid_i, exec_insn_ready_o,
-                    exec_pc_valid_o, exec_pc_ready_i):
+                    exec_insn_i_valid, exec_insn_o_ready,
+                    exec_pc_o_valid, exec_pc_i_ready):
         """execute FSM
 
         execute FSM. this interacts with the "issue" FSM
@@ -860,7 +860,7 @@ class TestIssuerInternal(Elaboratable):
 
         # temporaries
         core_busy_o = core.busy_o                 # core is busy
-        core_ivalid_i = core.ivalid_i             # instruction is valid
+        core_ii_valid = core.ii_valid             # instruction is valid
         core_issue_i = core.issue_i               # instruction is issued
         insn_type = core.e.do.insn_type           # instruction MicroOp type
 
@@ -868,9 +868,9 @@ class TestIssuerInternal(Elaboratable):
 
             # waiting for instruction bus (stays there until not busy)
             with m.State("INSN_START"):
-                comb += exec_insn_ready_o.eq(1)
-                with m.If(exec_insn_valid_i):
-                    comb += core_ivalid_i.eq(1)  # instruction is valid
+                comb += exec_insn_o_ready.eq(1)
+                with m.If(exec_insn_i_valid):
+                    comb += core_ii_valid.eq(1)  # instruction is valid
                     comb += core_issue_i.eq(1)  # and issued
                     sync += sv_changed.eq(0)
                     sync += pc_changed.eq(0)
@@ -879,15 +879,15 @@ class TestIssuerInternal(Elaboratable):
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
-                    comb += core_ivalid_i.eq(1) # instruction is valid
+                    comb += core_ii_valid.eq(1) # instruction is valid
                 # note changes to PC and SVSTATE
                 with m.If(self.state_nia.wen & (1<<StateRegs.SVSTATE)):
                     sync += sv_changed.eq(1)
                 with m.If(self.state_nia.wen & (1<<StateRegs.PC)):
                     sync += pc_changed.eq(1)
                 with m.If(~core_busy_o): # instruction done!
-                    comb += exec_pc_valid_o.eq(1)
-                    with m.If(exec_pc_ready_i):
+                    comb += exec_pc_o_valid.eq(1)
+                    with m.If(exec_pc_i_ready):
                         comb += self.insn_done.eq(1)
                         m.next = "INSN_START"  # back to fetch
 
@@ -1039,28 +1039,28 @@ class TestIssuerInternal(Elaboratable):
         # these are the handshake signals between each
 
         # fetch FSM can run as soon as the PC is valid
-        fetch_pc_valid_i = Signal() # Execute tells Fetch "start next read"
-        fetch_pc_ready_o = Signal() # Fetch Tells SVSTATE "proceed"
+        fetch_pc_i_valid = Signal() # Execute tells Fetch "start next read"
+        fetch_pc_o_ready = Signal() # Fetch Tells SVSTATE "proceed"
 
         # fetch FSM hands over the instruction to be decoded / issued
-        fetch_insn_valid_o = Signal()
-        fetch_insn_ready_i = Signal()
+        fetch_insn_o_valid = Signal()
+        fetch_insn_i_ready = Signal()
 
         # predicate fetch FSM decodes and fetches the predicate
-        pred_insn_valid_i = Signal()
-        pred_insn_ready_o = Signal()
+        pred_insn_i_valid = Signal()
+        pred_insn_o_ready = Signal()
 
         # predicate fetch FSM delivers the masks
-        pred_mask_valid_o = Signal()
-        pred_mask_ready_i = Signal()
+        pred_mask_o_valid = Signal()
+        pred_mask_i_ready = Signal()
 
         # issue FSM delivers the instruction to the be executed
-        exec_insn_valid_i = Signal()
-        exec_insn_ready_o = Signal()
+        exec_insn_i_valid = Signal()
+        exec_insn_o_ready = Signal()
 
         # execute FSM, hands over the PC/SVSTATE back to the issue FSM
-        exec_pc_valid_o = Signal()
-        exec_pc_ready_i = Signal()
+        exec_pc_o_valid = Signal()
+        exec_pc_i_ready = Signal()
 
         # the FSMs here are perhaps unusual in that they detect conditions
         # then "hold" information, combinatorially, for the core
@@ -1072,26 +1072,26 @@ class TestIssuerInternal(Elaboratable):
         # signalling is used to communicate between the four.
 
         self.fetch_fsm(m, core, pc, svstate, nia, is_svp64_mode,
-                       fetch_pc_ready_o, fetch_pc_valid_i,
-                       fetch_insn_valid_o, fetch_insn_ready_i)
+                       fetch_pc_o_ready, fetch_pc_i_valid,
+                       fetch_insn_o_valid, fetch_insn_i_ready)
 
         self.issue_fsm(m, core, pc_changed, sv_changed, nia,
                        dbg, core_rst, is_svp64_mode,
-                       fetch_pc_ready_o, fetch_pc_valid_i,
-                       fetch_insn_valid_o, fetch_insn_ready_i,
-                       pred_insn_valid_i, pred_insn_ready_o,
-                       pred_mask_valid_o, pred_mask_ready_i,
-                       exec_insn_valid_i, exec_insn_ready_o,
-                       exec_pc_valid_o, exec_pc_ready_i)
+                       fetch_pc_o_ready, fetch_pc_i_valid,
+                       fetch_insn_o_valid, fetch_insn_i_ready,
+                       pred_insn_i_valid, pred_insn_o_ready,
+                       pred_mask_o_valid, pred_mask_i_ready,
+                       exec_insn_i_valid, exec_insn_o_ready,
+                       exec_pc_o_valid, exec_pc_i_ready)
 
         if self.svp64_en:
             self.fetch_predicate_fsm(m,
-                                     pred_insn_valid_i, pred_insn_ready_o,
-                                     pred_mask_valid_o, pred_mask_ready_i)
+                                     pred_insn_i_valid, pred_insn_o_ready,
+                                     pred_mask_o_valid, pred_mask_i_ready)
 
         self.execute_fsm(m, core, pc_changed, sv_changed,
-                         exec_insn_valid_i, exec_insn_ready_o,
-                         exec_pc_valid_o, exec_pc_ready_i)
+                         exec_insn_i_valid, exec_insn_o_ready,
+                         exec_pc_o_valid, exec_pc_i_ready)
 
         # whatever was done above, over-ride it if core reset is held
         with m.If(core_rst):

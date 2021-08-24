@@ -736,7 +736,7 @@ class IssueToScoreboard(Elaboratable):
 
         mqbits = unsigned(int(log(qlen) / log(2))+2)
         self.p_add_i = Signal(mqbits)  # instructions to add (from data_i)
-        self.p_ready_o = Signal()  # instructions were added
+        self.p_o_ready = Signal()  # instructions were added
         self.data_i = Instruction._nq(n_in, "data_i")
 
         self.busy_o = Signal(reset_less=True)  # at least one CU is busy
@@ -762,7 +762,7 @@ class IssueToScoreboard(Elaboratable):
 
         # link up instruction queue
         comb += iq.p_add_i.eq(self.p_add_i)
-        comb += self.p_ready_o.eq(iq.p_ready_o)
+        comb += self.p_o_ready.eq(iq.p_o_ready)
         for i in range(self.n_in):
             comb += eq(iq.data_i[i], self.data_i[i])
 
@@ -839,7 +839,7 @@ class IssueToScoreboard(Elaboratable):
         return m
 
     def __iter__(self):
-        yield self.p_ready_o
+        yield self.p_o_ready
         for o in self.data_i:
             yield from list(o)
         yield self.p_add_i
@@ -859,10 +859,10 @@ def power_instr_q(dut, pdecode2, ins, code):
         print("senddata ", idx, insn_type, fn_unit, instr)
     yield dut.p_add_i.eq(sendlen)
     yield
-    o_p_ready = yield dut.p_ready_o
+    o_p_ready = yield dut.p_o_ready
     while not o_p_ready:
         yield
-        o_p_ready = yield dut.p_ready_o
+        o_p_ready = yield dut.p_o_ready
 
     yield dut.p_add_i.eq(0)
 
@@ -895,10 +895,10 @@ def instr_q(dut, op, funit, op_imm, imm, src1, src2, dest,
         print("senddata %d %x" % (idx, di))
     yield dut.p_add_i.eq(sendlen)
     yield
-    o_p_ready = yield dut.p_ready_o
+    o_p_ready = yield dut.p_o_ready
     while not o_p_ready:
         yield
-        o_p_ready = yield dut.p_ready_o
+        o_p_ready = yield dut.p_o_ready
 
     yield dut.p_add_i.eq(0)
 

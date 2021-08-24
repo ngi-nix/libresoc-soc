@@ -29,7 +29,7 @@ class FnUnit(Elaboratable):
         * dest_i / src1_i / src2_i are in *binary*, whereas...
         * ...g_rd_pend_i / g_wr_pend_i and rd_pend_o / wr_pend_o are UNARY
         * req_rel_i (request release) is the direct equivalent of pipeline
-                    "output valid" (valid_o)
+                    "output valid" (o_valid)
         * recover is a local python variable (actually go_die_o)
         * when shadow_wid = 0, recover and shadown are Consts (i.e. do nothing)
         * wr_pend is set False for the majority of uses: however for
