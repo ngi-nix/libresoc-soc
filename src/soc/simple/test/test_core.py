@@ -240,7 +240,7 @@ class TestRunner(FHDLTestCase):
         m = Module()
         comb = m.d.comb
         instruction = Signal(32)
-        ii_valid = Signal()
+        ivalid_i = Signal()
 
         pspec = TestMemPspec(ldst_ifacetype='testpi',
                              imem_ifacetype='',
@@ -253,7 +253,7 @@ class TestRunner(FHDLTestCase):
         l0 = core.l0
 
         comb += core.raw_opcode_i.eq(instruction)
-        comb += core.ii_valid.eq(ii_valid)
+        comb += core.ivalid_i.eq(ivalid_i)
 
         # temporary hack: says "go" immediately for both address gen and ST
         ldst = core.fus.fus['ldst0']
@@ -291,7 +291,7 @@ class TestRunner(FHDLTestCase):
                     # ask the decoder to decode this binary data (endian'd)
                     yield core.bigendian_i.eq(bigendian)  # little / big?
                     yield instruction.eq(ins)          # raw binary instr.
-                    yield ii_valid.eq(1)
+                    yield ivalid_i.eq(1)
                     yield Settle()
                     # fn_unit = yield pdecode2.e.fn_unit
                     #fuval = self.funit.value
@@ -302,7 +302,7 @@ class TestRunner(FHDLTestCase):
                     yield Settle()
 
                     yield from wait_for_busy_clear(core)
-                    yield ii_valid.eq(0)
+                    yield ivalid_i.eq(0)
                     yield
 
                     print("sim", code)

@@ -860,7 +860,7 @@ class TestIssuerInternal(Elaboratable):
 
         # temporaries
         core_busy_o = core.busy_o                 # core is busy
-        core_ii_valid = core.ii_valid             # instruction is valid
+        core_ivalid_i = core.ivalid_i             # instruction is valid
         core_issue_i = core.issue_i               # instruction is issued
         insn_type = core.e.do.insn_type           # instruction MicroOp type
 
@@ -870,7 +870,7 @@ class TestIssuerInternal(Elaboratable):
             with m.State("INSN_START"):
                 comb += exec_insn_o_ready.eq(1)
                 with m.If(exec_insn_i_valid):
-                    comb += core_ii_valid.eq(1)  # instruction is valid
+                    comb += core_ivalid_i.eq(1)  # instruction is valid
                     comb += core_issue_i.eq(1)  # and issued
                     sync += sv_changed.eq(0)
                     sync += pc_changed.eq(0)
@@ -879,7 +879,7 @@ class TestIssuerInternal(Elaboratable):
             # instruction started: must wait till it finishes
             with m.State("INSN_ACTIVE"):
                 with m.If(insn_type != MicrOp.OP_NOP):
-                    comb += core_ii_valid.eq(1) # instruction is valid
+                    comb += core_ivalid_i.eq(1) # instruction is valid
                 # note changes to PC and SVSTATE
                 with m.If(self.state_nia.wen & (1<<StateRegs.SVSTATE)):
                     sync += sv_changed.eq(1)
