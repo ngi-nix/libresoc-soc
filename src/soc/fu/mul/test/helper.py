@@ -96,9 +96,9 @@ class MulTestHelper(unittest.TestCase):
                                                    has_third_input)
 
             # set valid for one cycle, propagate through pipeline...
-            yield alu.p.valid_i.eq(1)
+            yield alu.p.i_valid.eq(1)
             yield
-            yield alu.p.valid_i.eq(0)
+            yield alu.p.i_valid.eq(0)
 
             opname = code.split(' ')[0]
             fnname = opname.replace(".", "_")
@@ -118,11 +118,11 @@ class MulTestHelper(unittest.TestCase):
             index = isa_sim.pc.CIA.value//4
 
             # ...wait for valid to pop out the end
-            vld = yield alu.n.valid_o
+            vld = yield alu.n.o_valid
             while not vld:
                 yield
                 yield Delay(0.1e-6)
-                vld = yield alu.n.valid_o
+                vld = yield alu.n.o_valid
             yield Delay(0.1e-6)
 
             # XXX sim._engine is an internal variable
@@ -152,7 +152,7 @@ class MulTestHelper(unittest.TestCase):
         m.submodules.alu = alu = MulBasePipe(pspec)
 
         comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
