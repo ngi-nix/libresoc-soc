@@ -118,7 +118,7 @@ class TestRunner(unittest.TestCase):
             yield instruction.eq(ins)          # raw binary instr.
             yield Settle()
             yield from self.set_inputs(alu, pdecode2, sim)
-            yield alu.p.valid_i.eq(1)
+            yield alu.p.i_valid.eq(1)
             fn_unit = yield pdecode2.e.do.fn_unit
             self.assertEqual(fn_unit, Function.CR.value, code)
             yield
@@ -126,10 +126,10 @@ class TestRunner(unittest.TestCase):
             yield from sim.call(opname)
             index = sim.pc.CIA.value//4
 
-            vld = yield alu.n.valid_o
+            vld = yield alu.n.o_valid
             while not vld:
                 yield
-                vld = yield alu.n.valid_o
+                vld = yield alu.n.o_valid
             yield
             yield from self.assert_outputs(alu, pdecode2, sim, code)
 
@@ -148,7 +148,7 @@ class TestRunner(unittest.TestCase):
         m.submodules.alu = alu = CRBasePipe(pspec)
 
         comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
