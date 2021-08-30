@@ -95,9 +95,9 @@ class DivTestHelper(unittest.TestCase):
             # note that it is critically important to do this
             # for DIV otherwise it starts trying to produce
             # multiple results.
-            yield alu.p.valid_i.eq(1)
+            yield alu.p.i_valid.eq(1)
             yield
-            yield alu.p.valid_i.eq(0)
+            yield alu.p.i_valid.eq(0)
 
             opname = code.split(' ')[0]
             fnname = opname.replace(".", "_")
@@ -109,7 +109,7 @@ class DivTestHelper(unittest.TestCase):
             yield from isa_sim.call(opname)
             index = isa_sim.pc.CIA.value//4
 
-            vld = yield alu.n.valid_o
+            vld = yield alu.n.o_valid
             while not vld:
                 yield
                 yield Delay(0.1e-6)
@@ -119,7 +119,7 @@ class DivTestHelper(unittest.TestCase):
                     print(f"time: {sim._engine.now * 1e6}us")
                 except AttributeError:
                     pass
-                vld = yield alu.n.valid_o
+                vld = yield alu.n.o_valid
                 # bug #425 investigation
                 do = alu.pipe_end.div_out
                 ctx_op = do.i.ctx.op
@@ -167,7 +167,7 @@ class DivTestHelper(unittest.TestCase):
         m.submodules.alu = alu = DivBasePipe(pspec)
 
         comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
