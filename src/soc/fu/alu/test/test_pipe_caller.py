@@ -93,18 +93,18 @@ class TestRunner(unittest.TestCase):
             yield from set_alu_inputs(alu, pdecode2, sim)
 
             # set valid for one cycle, propagate through pipeline...
-            yield alu.p.valid_i.eq(1)
+            yield alu.p.i_valid.eq(1)
             yield
-            yield alu.p.valid_i.eq(0)
+            yield alu.p.i_valid.eq(0)
 
             opname = code.split(' ')[0]
             yield from sim.call(opname)
             index = sim.pc.CIA.value//4
 
-            vld = yield alu.n.valid_o
+            vld = yield alu.n.o_valid
             while not vld:
                 yield
-                vld = yield alu.n.valid_o
+                vld = yield alu.n.o_valid
             yield
 
             yield from self.check_alu_outputs(alu, pdecode2, sim, code)
@@ -127,7 +127,7 @@ class TestRunner(unittest.TestCase):
         m.submodules.alu = alu = ALUBasePipe(pspec)
 
         comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
