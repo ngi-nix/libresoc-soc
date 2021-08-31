@@ -1,7 +1,8 @@
 import unittest
 from soc.fu.mul.test.helper import MulTestHelper
 from openpower.test.mul.long_mul_cases import (MulTestCases2Arg,
-                                               MulTestCases3Arg)
+                                               MulTestCases3Arg,
+                                               MUL_3_ARG_TEST_VALUES)
 
 
 class TestPipeLong(MulTestHelper):
