@@ -88,8 +88,8 @@ def get_cu_outputs(cu, code):
     # pipelines (or FSMs) the write mask is only valid at that time.
     if hasattr(cu, "alu"): # ALU CompUnits
         while True:
-            valid_o = yield cu.alu.n.valid_o
-            if valid_o:
+            o_valid = yield cu.alu.n.o_valid
+            if o_valid:
                 break
             yield
     else: # LDST CompUnit
