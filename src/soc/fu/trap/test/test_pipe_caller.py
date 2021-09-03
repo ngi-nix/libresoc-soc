@@ -91,8 +91,8 @@ class TestRunner(unittest.TestCase):
         m.submodules.alu = alu = TrapBasePipe(pspec)
 
         comb += alu.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += alu.p.valid_i.eq(1)
-        comb += alu.n.ready_i.eq(1)
+        comb += alu.p.i_valid.eq(1)
+        comb += alu.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
@@ -142,10 +142,10 @@ class TestRunner(unittest.TestCase):
                         msr = sim.msr.value
                         print("msr after %08x" % (msr))
 
-                        vld = yield alu.n.valid_o
+                        vld = yield alu.n.o_valid
                         while not vld:
                             yield
-                            vld = yield alu.n.valid_o
+                            vld = yield alu.n.o_valid
                         yield
 
                         yield from self.check_alu_outputs(alu, pdecode2,

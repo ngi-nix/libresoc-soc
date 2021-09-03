@@ -102,11 +102,11 @@ class TestRunner(unittest.TestCase):
 
             fsm = core.fus.fus["mmu0"].alu
 
-            vld = yield fsm.n.valid_o
+            vld = yield fsm.n.o_valid
             while not vld:
                 yield
                 if debughang:  print("not valid -- hang")
-                vld = yield fsm.n.valid_o
+                vld = yield fsm.n.o_valid
                 if debughang==2: vld=1
             yield
 

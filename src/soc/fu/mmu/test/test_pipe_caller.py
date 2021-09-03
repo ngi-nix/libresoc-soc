@@ -189,13 +189,13 @@ class TestRunner(unittest.TestCase):
             index = pc//4
             print("pc after %08x" % (pc))
 
-            vld = yield fsm.n.valid_o #fsm
+            vld = yield fsm.n.o_valid #fsm
             while not vld:
                 yield
                 if debughang:
                     print("not valid -- hang")
                     return
-                vld = yield fsm.n.valid_o
+                vld = yield fsm.n.o_valid
                 if debughang==2: vld=1
             yield
 
@@ -225,8 +225,8 @@ class TestRunner(unittest.TestCase):
         #FIXME connect fsm inputs
 
         comb += fsm.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += fsm.p.valid_i.eq(1)
-        comb += fsm.n.ready_i.eq(1)
+        comb += fsm.p.i_valid.eq(1)
+        comb += fsm.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 

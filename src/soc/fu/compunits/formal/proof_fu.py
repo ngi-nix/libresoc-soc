@@ -114,12 +114,12 @@ class Driver(Elaboratable):
             alu_temp = Signal(16)
             write_req_valid = Signal(reset=0)
             with m.If(~Past(go_die) & Past(busy)):
-                with m.If(Rose(dut.alu.n.valid_o)):
+                with m.If(Rose(dut.alu.n.o_valid)):
                     sync += alu_temp.eq(dut.alu.o)
                     sync += write_req_valid.eq(1)
 
             # write_req_valid should only be high once the alu finishes
-            with m.If(~write_req_valid & ~dut.alu.n.valid_o):
+            with m.If(~write_req_valid & ~dut.alu.n.o_valid):
                 comb += Assert(wr_rel == 0)
 
             # Property 6: Write request release is held up if shadow_n
@@ -218,7 +218,7 @@ class FUTestCase(FHDLTestCase):
                     'oper_i_None__insn_type', 'i1[15:0]',
                     'i_valid', 'o_ready']),
                 ('next port', 'out', [
-                    'alu_o[15:0]', 'valid_o', 'ready_i'])])]
+                    'alu_o[15:0]', 'o_valid', 'i_ready'])])]
 
         write_gtkw('test_fu_formal_bmc.gtkw',
                    os.path.dirname(__file__) +

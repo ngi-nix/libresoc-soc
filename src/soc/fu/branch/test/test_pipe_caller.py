@@ -74,8 +74,8 @@ class TestRunner(unittest.TestCase):
         m.submodules.branch = branch = BranchBasePipe(pspec)
 
         comb += branch.p.i_data.ctx.op.eq_from_execute1(pdecode2.do)
-        comb += branch.p.valid_i.eq(1)
-        comb += branch.n.ready_i.eq(1)
+        comb += branch.p.i_valid.eq(1)
+        comb += branch.n.i_ready.eq(1)
         comb += pdecode2.dec.raw_opcode_in.eq(instruction)
         sim = Simulator(m)
 
