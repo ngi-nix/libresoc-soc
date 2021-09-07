@@ -150,6 +150,7 @@ def setup_regs(pdecode2, core, test):
 
 def check_regs(dut, sim, core, test, code):
     # int regs
+    # TODO, split this out into "core-register-getter" function
     intregs = []
     for i in range(32):
         if core.regs.int.unary:
@@ -157,12 +158,22 @@ def check_regs(dut, sim, core, test, code):
         else:
             rval = yield core.regs.int.memory._array[i]
         intregs.append(rval)
-    print("int regs", list(map(hex, intregs)))
+    print("core int regs", list(map(hex, intregs)))
+
+    # TODO, split this out into "sim-register-getter" function
+    intregs = []
     for i in range(32):
-        simregval = sim.gpr[i].asint()
+        simregs.append(sim.gpr[i].asint())
+    print("sim int regs", list(map(hex, simregs)))
+
+    # TODO, split this out into "compare-sim-regs-against-core-regs" function
+    for i in range(32):
+        simregval = simregs[i]
         dut.assertEqual(simregval, intregs[i],
                         "int reg %d not equal %s. got %x expected %x" % \
                             (i, repr(code), simregval, intregs[i]))
+
+    # TODO: exactly the same thing as above, except with CRs
 
     # CRs
     crregs = []
@@ -177,6 +188,8 @@ def check_regs(dut, sim, core, test, code):
         # XXX https://bugs.libre-soc.org/show_bug.cgi?id=363
         dut.assertEqual(cri, rval,
                         "cr reg %d not equal %s" % (i, repr(code)))
+
+    # TODO: exactly the same thing as above, except with XER
 
     # XER
     xregs = core.regs.xer
@@ -199,11 +212,17 @@ def check_regs(dut, sim, core, test, code):
     dut.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
     dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
 
+    # TODO: exactly the same thing as above, except with PC
+
     # Check the PC as well
     state = core.regs.state
     pc = yield state.r_ports['cia'].o_data
     e_pc = sim.pc.CIA.value
     dut.assertEqual(e_pc, pc)
+
+    # TODO: exactly the same thing with FPRs (later)
+
+    # TODO: exactly the same thing with SPRs (later)
 
 
 def wait_for_busy_hi(cu):
