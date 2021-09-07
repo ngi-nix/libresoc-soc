@@ -148,10 +148,9 @@ def setup_regs(pdecode2, core, test):
     print("oe:", oe, oe_ok)
 
 
-def get_core_hdl_regs(dut, sim, core, test, code):
+def get_core_hdl_regs(dut, sim, core, test, code, intregs):
     # int regs
     # TODO, split this out into "core-register-getter" function
-    intregs = []
     for i in range(32):
         if core.regs.int.unary:
             rval = yield core.regs.int.regs[i].reg
@@ -159,7 +158,6 @@ def get_core_hdl_regs(dut, sim, core, test, code):
             rval = yield core.regs.int.memory._array[i]
         intregs.append(rval)
     print("core int regs", list(map(hex, intregs)))
-    return intregs
 
 
 def get_sim_regs(dut, sim, core, test, code):
@@ -183,10 +181,10 @@ def compare_core_sim_regs(dut,regsim,regcore, code):
 def check_regs(dut, sim, core, test, code):
 
     # Get regs and compare
-    intregs = get_core_hdl_regs(dut, sim, core, test, code)
+    intregs = [] # temporary hack workaround for yield
+    yield from get_core_hdl_regs(dut, sim, core, test, code, intregs)
     simregs = get_sim_regs(dut, sim, core, test, code)
     compare_core_sim_regs(dut,simregs,intregs,code)
-
 
     # TODO: exactly the same thing as above, except with CRs
 
