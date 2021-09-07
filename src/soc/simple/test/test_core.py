@@ -3,7 +3,9 @@
 related bugs:
 
  * https://bugs.libre-soc.org/show_bug.cgi?id=363
+ * https://bugs.libre-soc.org/show_bug.cgi?id=686
 """
+
 from nmigen import Module, Signal, Cat
 from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
@@ -40,6 +42,7 @@ from openpower.util import spr_to_fast_reg
 # list of SPRs that are controlled and managed by the MMU
 mmu_sprs = ["PRTBL", "DSISR", "DAR", "PIDR"]
 
+
 def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
         fsm = core.fus.get_fu("mmu0").alu
         yield fsm.mmu.l_in.mtspr.eq(1)
@@ -48,6 +51,7 @@ def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
         yield
         yield fsm.mmu.l_in.mtspr.eq(0)
         print("mmu_spr was updated")
+
 
 def setup_regs(pdecode2, core, test):
 
