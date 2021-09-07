@@ -161,7 +161,7 @@ def check_regs(dut, sim, core, test, code):
     print("core int regs", list(map(hex, intregs)))
 
     # TODO, split this out into "sim-register-getter" function
-    intregs = []
+    simregs = []
     for i in range(32):
         simregs.append(sim.gpr[i].asint())
     print("sim int regs", list(map(hex, simregs)))
