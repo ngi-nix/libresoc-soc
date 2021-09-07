@@ -148,6 +148,38 @@ def setup_regs(pdecode2, core, test):
     print("oe:", oe, oe_ok)
 
 
+def get_core_hdl_regs(dut, sim, core, test, code):
+    # int regs
+    # TODO, split this out into "core-register-getter" function
+    intregs = []
+    for i in range(32):
+        if core.regs.int.unary:
+            rval = yield core.regs.int.regs[i].reg
+        else:
+            rval = yield core.regs.int.memory._array[i]
+        intregs.append(rval)
+    print("core int regs", list(map(hex, intregs)))
+    return intregs
+
+
+def get_sim_regs(dut, sim, core, test, code):
+    # int regs
+    # TODO, split this out into "core-register-getter" function
+    simregs = []
+    for i in range(32):
+        simregval = sim.gpr[i].asint()
+        simregs.append(simregval)
+    print("sim int regs", list(map(hex, simregs)))
+    return simregs
+
+
+def compare_core_sim_regs(dut,regsim,regcore, code):
+    for i, (regsim, regcore) in enumerate(zip(regsim, regcore)):
+        dut.assertEqual(regsim, regcore,
+                        "int reg %d not equal %s. got %x expected %x" % \
+                            (i, repr(code), regsim, regcore))
+
+
 def check_regs(dut, sim, core, test, code):
 
     # Get regs and compare
@@ -207,34 +239,6 @@ def check_regs(dut, sim, core, test, code):
 
     # TODO: exactly the same thing with SPRs (later)
 
-def get_core_hdl_regs(dut, sim, core, test, code):
-    # int regs
-    # TODO, split this out into "core-register-getter" function
-    intregs = []
-    for i in range(32):
-        if core.regs.int.unary:
-            rval = yield core.regs.int.regs[i].reg
-        else:
-            rval = yield core.regs.int.memory._array[i]
-        intregs.append(rval)
-    print("core int regs", list(map(hex, intregs)))
-    return intregs
-
-def get_sim_regs(dut, sim, core, test, code):
-    # int regs
-    # TODO, split this out into "core-register-getter" function
-    simregs = []
-    for i in range(32):
-        simregval = sim.gpr[i].asint()
-        simregs.append(simregval)
-    print("sim int regs", list(map(hex, simregs)))
-    return simregs
-
-def compare_core_sim_regs(dut,regsim,regcore, code):
-    for i, (regsim, regcore) in enumerate(zip(regsim, regcore)):
-        dut.assertEqual(regsim, regcore,
-                        "int reg %d not equal %s. got %x expected %x" % \
-                            (i, repr(code), regsim, regcore))
 
 def wait_for_busy_hi(cu):
     while True:
