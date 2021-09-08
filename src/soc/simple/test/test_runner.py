@@ -356,7 +356,7 @@ class TestRunner(FHDLTestCase):
                 'cia[63:0]', 'nia[63:0]', 'pc[63:0]',
                 'cur_pc[63:0]', 'core_core_cia[63:0]']),
             'raw_insn_i[31:0]',
-            'raw_opcode_in[31:0]', 'insn_type',
+            'raw_opcode_in[31:0]', 'insn_type', 'dec2.dec2_exc_happened',
             ('svp64 decoding', 'closed', [
                 'svp64_rm[23:0]', ('dec2.extra[8:0]', 'bin'),
                 'dec2.sv_rm_dec.mode', 'dec2.sv_rm_dec.predmode',
