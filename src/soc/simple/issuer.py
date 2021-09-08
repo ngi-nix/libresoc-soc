@@ -753,6 +753,9 @@ class TestIssuerInternal(Elaboratable):
                     # and svp64 bit-rev'd ldst mode
                     ldst_dec = pdecode2.use_svp64_ldst_dec
                     sync += core.use_svp64_ldst_dec.eq(ldst_dec)
+                # after decoding, reset any previous exception condition,
+                # allowing it to be set again during the next execution
+                sync += pdecode2.ldst_exc.eq(0)
 
                 m.next = "INSN_EXECUTE"  # move to "execute"
 
@@ -768,11 +771,8 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~dbg.core_stop_o & ~core_rst):
                     comb += exec_pc_i_ready.eq(1)
                     # see https://bugs.libre-soc.org/show_bug.cgi?id=636
-                    #with m.If(exec_pc_o_valid & exc_happened):
-                    #    probably something like this:
-                    #    sync += pdecode2.ldst_exc.eq(core.fus.get_exc("ldst0")
-                    # TODO: the exception info needs to be blatted
-                    # into pdecode.ldst_exc, and the instruction "re-run".
+                    # the exception info needs to be blatted into
+                    # pdecode.ldst_exc, and the instruction "re-run".
                     # when ldst_exc.happened is set, the PowerDecoder2
                     # reacts very differently: it re-writes the instruction
                     # with a "trap" (calls PowerDecoder2.trap()) which
@@ -780,18 +780,25 @@ class TestIssuerInternal(Elaboratable):
                     # PC to the exception address, as well as alter MSR.
                     # nothing else needs to be done other than to note
                     # the change of PC and MSR (and, later, SVSTATE)
-                    #with m.Elif(exec_pc_o_valid):
-                    with m.If(exec_pc_o_valid): # replace with Elif (above)
+                    with m.If(exc_happened):
+                        sync += pdecode2.ldst_exc.eq(core.fus.get_exc("ldst0"))
+
+                    with m.If(exec_pc_o_valid):
 
                         # was this the last loop iteration?
                         is_last = Signal()
                         cur_vl = cur_state.svstate.vl
                         comb += is_last.eq(next_srcstep == cur_vl)
 
+                        # return directly to Decode if Execute generated an
+                        # exception.
+                        with m.If(pdecode2.ldst_exc.happened):
+                            m.next = "DECODE_SV"
+
                         # if either PC or SVSTATE were changed by the previous
                         # instruction, go directly back to Fetch, without
                         # updating either PC or SVSTATE
-                        with m.If(pc_changed | sv_changed):
+                        with m.Elif(pc_changed | sv_changed):
                             m.next = "ISSUE_START"
 
                         # also return to Fetch, when no output was a vector
@@ -888,7 +895,12 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~core_busy_o): # instruction done!
                     comb += exec_pc_o_valid.eq(1)
                     with m.If(exec_pc_i_ready):
-                        comb += self.insn_done.eq(1)
+                        # when finished, synchronize with the simulator.
+                        # however, if there was an exception, the simulator
+                        # executes the trap directly, so don't signal in
+                        # this case.
+                        with m.If(~pdecode2.ldst_exc.happened):
+                            comb += self.insn_done.eq(1)
                         m.next = "INSN_START"  # back to fetch
 
     def setup_peripherals(self, m):
