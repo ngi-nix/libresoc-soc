@@ -1,5 +1,4 @@
 from openpower.decoder.power_enums import XER_bits
-import copy
 
 
 class SimState:
@@ -30,4 +29,17 @@ class SimState:
     def get_pc(self):
         self.pc = self.sim.pc.CIA.value
 
-# class HDLState:
+
+class HDLState:
+    def __init__(self, core):
+        self.core = core
+
+    def get_intregs(self):
+        self.intregs = []
+        for i in range(32):
+            if self.core.regs.int.unary:
+                rval = yield self.core.regs.int.regs[i].reg
+            else:
+                rval = yield self.core.regs.int.memory_array[i]
+            self.intregs.append(rval)
+        print("class core int regs", list(map(hex, intregs)))
