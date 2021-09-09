@@ -6,18 +6,27 @@ class SimState:
         self.sim = sim
 
     def get_intregs(self):
+        if False:
+            yield
         self.intregs = []
         for i in range(32):
             simregval = self.sim.gpr[i].asint()
             self.intregs.append(simregval)
+        print("class sim int regs", list(map(hex, self.intregs)))
 
     def get_crregs(self):
+        if False:
+            yield
         self.crregs = []
         for i in range(8):
             cri = self.sim.crl[7 - i].get_range().value
             self.crregs.append(cri)
+        print("class sim cr regs", list(map(hex, self.crregs)))
 
     def get_xregs(self):
+        if False:
+            yield
+        self.xregs = []
         self.so = self.sim.spr['XER'][XER_bits['SO']].value
         self.ov = self.sim.spr['XER'][XER_bits['OV']].value
         self.ov32 = self.sim.spr['XER'][XER_bits['OV32']].value
@@ -25,9 +34,16 @@ class SimState:
         self.ca32 = self.sim.spr['XER'][XER_bits['CA32']].value
         self.ov = self.ov | (self.ov32 << 1)
         self.ca = self.ca | (self.ca32 << 1)
+        self.xregs.extend((self.so, self.ov, self.ca))
+        print("class sim xregs", list(map(hex, self.xregs)))
 
     def get_pc(self):
+        if False:
+            yield
+        self.pcl = []
         self.pc = self.sim.pc.CIA.value
+        self.pcl.append(self.pc)
+        print("class sim pc", hex(self.pc))
 
 
 class HDLState:
@@ -42,23 +58,27 @@ class HDLState:
             else:
                 rval = yield self.core.regs.int.memory._array[i]
             self.intregs.append(rval)
-        print("class core int regs", list(map(hex, self.intregs)))
+        print("class hdl int regs", list(map(hex, self.intregs)))
 
     def get_crregs(self):
         self.crregs = []
         for i in range(8):
             rval = yield self.core.regs.cr.regs[i].reg
             self.crregs.append(rval)
-        print("class core cr regs", list(map(hex, self.crregs)))
+        print("class hdl cr regs", list(map(hex, self.crregs)))
 
     def get_xregs(self):
-        self.xregs = self.core.regs.xer
-        self.so = yield self.xregs.regs[self.xregs.SO].reg
-        self.ov = yield self.xregs.regs[self.xregs.OV].reg
-        self.ca = yield self.xregs.regs[self.xregs.CA].reg
-        print("class core xregs", list(map(hex, [self.so, self.ov, self.ca])))
+        self.xregs = []
+        self.xr = self.core.regs.xer
+        self.so = yield self.xr.regs[self.xr.SO].reg
+        self.ov = yield self.xr.regs[self.xr.OV].reg
+        self.ca = yield self.xr.regs[self.xr.CA].reg
+        self.xregs.extend((self.so, self.ov, self.ca))
+        print("class hdl xregs", list(map(hex, self.xregs)))
 
     def get_pc(self):
+        self.pcl = []
         self.state = self.core.regs.state
         self.pc = yield self.state.r_ports['cia'].o_data
-        print("class core pc", hex(self.pc))
+        self.pcl.append(self.pc)
+        print("class hdl pc", hex(self.pc))
