@@ -40,6 +40,25 @@ class HDLState:
             if self.core.regs.int.unary:
                 rval = yield self.core.regs.int.regs[i].reg
             else:
-                rval = yield self.core.regs.int.memory_array[i]
+                rval = yield self.core.regs.int.memory._array[i]
             self.intregs.append(rval)
-        print("class core int regs", list(map(hex, intregs)))
+        print("class core int regs", list(map(hex, self.intregs)))
+
+    def get_crregs(self):
+        self.crregs = []
+        for i in range(8):
+            rval = yield self.core.regs.cr.regs[i].reg
+            self.crregs.append(rval)
+        print("class core cr regs", list(map(hex, self.crregs)))
+
+    def get_xregs(self):
+        self.xregs = self.core.regs.xer
+        self.so = yield self.xregs.regs[self.xregs.SO].reg
+        self.ov = yield self.xregs.regs[self.xregs.OV].reg
+        self.ca = yield self.xregs.regs[self.xregs.CA].reg
+        print("class core xregs", list(map(hex, [self.so, self.ov, self.ca])))
+
+    def get_pc(self):
+        self.state = self.core.regs.state
+        self.pc = yield self.state.r_ports['cia'].o_data
+        print("class core pc", hex(self.pc))
