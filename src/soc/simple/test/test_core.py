@@ -11,6 +11,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
+from teststate import SimState, HDLState
 from openpower.decoder.isa.caller import special_sprs
 from openpower.decoder.power_decoder import create_pdecode
 from openpower.decoder.power_decoder2 import PowerDecode2
@@ -43,14 +44,14 @@ from openpower.util import spr_to_fast_reg
 mmu_sprs = ["PRTBL", "DSISR", "DAR", "PIDR"]
 
 
-def set_mmu_spr(name, i, val, core): #important keep pep8 formatting
-        fsm = core.fus.get_fu("mmu0").alu
-        yield fsm.mmu.l_in.mtspr.eq(1)
-        yield fsm.mmu.l_in.sprn.eq(i)
-        yield fsm.mmu.l_in.rs.eq(val)
-        yield
-        yield fsm.mmu.l_in.mtspr.eq(0)
-        print("mmu_spr was updated")
+def set_mmu_spr(name, i, val, core):  # important keep pep8 formatting
+    fsm = core.fus.get_fu("mmu0").alu
+    yield fsm.mmu.l_in.mtspr.eq(1)
+    yield fsm.mmu.l_in.sprn.eq(i)
+    yield fsm.mmu.l_in.rs.eq(val)
+    yield
+    yield fsm.mmu.l_in.mtspr.eq(0)
+    print("mmu_spr was updated")
 
 
 def setup_regs(pdecode2, core, test):
@@ -71,7 +72,7 @@ def setup_regs(pdecode2, core, test):
     print("setup cr reg", hex(cr))
     for i in range(8):
         #j = 7-i
-        cri = (cr >> (i*4)) & 0xf
+        cri = (cr >> (i * 4)) & 0xf
         #cri = int('{:04b}'.format(cri)[::-1], 2)
         print("setup cr reg", hex(cri), i,
               crregs.regs[i].reg.shape())
@@ -121,7 +122,7 @@ def setup_regs(pdecode2, core, test):
                 if sprname == x.name:
                     print("setting slow SPR %d (%s) to %x" %
                           (i, sprname, val))
-                    if not sprname in mmu_sprs:
+                    if sprname not in mmu_sprs:
                         yield sregs.memory._array[i].eq(val)
                     else:
                         yield from set_mmu_spr(sprname, i, val, core)
@@ -148,6 +149,7 @@ def setup_regs(pdecode2, core, test):
     print("oe:", oe, oe_ok)
 
 
+"""
 def get_core_hdl_regs(dut, sim, core, test, code, intregs):
     # int regs
     # TODO, split this out into "core-register-getter" function
@@ -170,16 +172,53 @@ def get_sim_regs(dut, sim, core, test, code):
     print("sim int regs", list(map(hex, simregs)))
     return simregs
 
+"""
 
-def compare_core_sim_regs(dut,regsim,regcore, code):
+
+def compare_core_sim_regs(dut, regsim, regcore, code):
     for i, (regsim, regcore) in enumerate(zip(regsim, regcore)):
+        print("asserting...reg", i, regsim, regcore)
         dut.assertEqual(regsim, regcore,
-                        "int reg %d not equal %s. got %x expected %x" % \
-                            (i, repr(code), regsim, regcore))
+                        "int reg %d not equal %s. got %x expected %x" %
+                        (i, repr(code), regsim, regcore))
+
+
+def compare_core_sim_cr(dut, crsim, crcore, code):
+    for i, (crsim, crcore) in enumerate(zip(crsim, crcore)):
+        print("asserting...cr", i, crsim, crcore)
+        dut.assertEqual(crsim, crcore,
+                        "cr reg %d not equal %s. got %x expected %x" %
+                        (i, repr(code), crsim, crcore))
 
 
 def check_regs(dut, sim, core, test, code):
 
+    simstate = SimState(sim)
+    corestate = HDLState(core)
+
+    # int registers
+    yield from simstate.get_intregs()
+    yield from corestate.get_intregs()
+    compare_core_sim_regs(dut, simstate.intregs, corestate.intregs, code)
+
+    # cr
+    yield from simstate.get_crregs()
+    yield from corestate.get_crregs()
+    compare_core_sim_cr(dut, simstate.crregs, corestate.crregs, code)
+
+    # XER
+    yield from simstate.get_xregs()
+    yield from corestate.get_xregs()
+    dut.assertEqual(simstate.so, corestate.so, "so mismatch %s" % (repr(code)))
+    dut.assertEqual(simstate.ov, corestate.ov, "ov mismatch %s" % (repr(code)))
+    dut.assertEqual(simstate.ca, corestate.ca, "ca mismatch %s" % (repr(code)))
+
+    # pc
+    yield from simstate.get_pc()
+    yield from corestate.get_pc()
+    dut.assertEqual(simstate.pc, corestate.pc)
+
+    """
     # Get regs and compare
     intregs = [] # temporary hack workaround for yield
     yield from get_core_hdl_regs(dut, sim, core, test, code, intregs)
@@ -232,6 +271,7 @@ def check_regs(dut, sim, core, test, code):
     pc = yield state.r_ports['cia'].o_data
     e_pc = sim.pc.CIA.value
     dut.assertEqual(e_pc, pc)
+    """
 
     # TODO: exactly the same thing with FPRs (later)
 
@@ -317,7 +357,7 @@ class TestRunner(FHDLTestCase):
                 yield from setup_tst_memory(l0, sim)
                 yield from setup_regs(core, test)
 
-                index = sim.pc.CIA.value//4
+                index = sim.pc.CIA.value // 4
                 while index < len(instructions):
                     ins, code = instructions[index]
 
@@ -345,7 +385,7 @@ class TestRunner(FHDLTestCase):
                     # call simulated operation
                     opname = code.split(' ')[0]
                     yield from sim.call(opname)
-                    index = sim.pc.CIA.value//4
+                    index = sim.pc.CIA.value // 4
 
                     # register check
                     yield from check_regs(self, sim, core, test, code)
