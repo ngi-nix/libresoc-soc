@@ -895,10 +895,16 @@ class TestIssuerInternal(Elaboratable):
                 with m.If(~core_busy_o): # instruction done!
                     comb += exec_pc_o_valid.eq(1)
                     with m.If(exec_pc_i_ready):
-                        # when finished, synchronize with the simulator.
-                        # however, if there was an exception, the simulator
-                        # executes the trap directly, so don't signal in
-                        # this case.
+                        # when finished, indicate "done".
+                        # however, if there was an exception, the instruction
+                        # is *not* yet done.  this is an implementation
+                        # detail: we choose to implement exceptions by
+                        # taking the exception information from the LDST
+                        # unit, putting that *back* into the PowerDecoder2,
+                        # and *re-running the entire instruction*.
+                        # if we erroneously indicate "done" here, it is as if
+                        # there were *TWO* instructions:
+                        # 1) the failed LDST 2) a TRAP.
                         with m.If(~pdecode2.ldst_exc.happened):
                             comb += self.insn_done.eq(1)
                         m.next = "INSN_START"  # back to fetch
