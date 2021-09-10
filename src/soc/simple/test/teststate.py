@@ -1,7 +1,28 @@
 from openpower.decoder.power_enums import XER_bits
 
+class State:
+    def __init__(self):
+        pass
 
-class SimState:
+    def get_intregs(self):
+        pass
+
+    def get_crregs(self):
+        pass
+
+    def get_xregs(self):
+        pass
+
+    def get_pc(self):
+        pass
+
+    def get_state(self):
+        yield from self.get_intregs()
+        yield from self.get_crregs()
+        yield from self.get_xregs()
+        yield from self.get_pc()
+
+class SimState(State):
     def __init__(self, sim):
         self.sim = sim
 
@@ -46,7 +67,7 @@ class SimState:
         print("class sim pc", hex(self.pc))
 
 
-class HDLState:
+class HDLState(State):
     def __init__(self, core):
         self.core = core
 
