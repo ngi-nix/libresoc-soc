@@ -22,6 +22,7 @@
             libresoc-ieee754fpu = pself.callPackage ./nix/ieee754fpu.nix {};
             libresoc-openpower-isa = pself.callPackage ./nix/openpower-isa.nix {};
             bigfloat = pself.callPackage ./nix/bigfloat.nix {};
+            libresoc-nmutil = pself.callPackage ./nix/nmutil.nix {};
           };
         };
 
