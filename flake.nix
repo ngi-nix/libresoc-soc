@@ -14,9 +14,24 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
-
     in
     {
-      overlay = final: prev: {};
+      overlay = self: super: {
+        python3Packages = super.python3Packages.override {
+          overrides = pself: psuper: {
+            libresoc-ieee754fpu = pself.callPackage ./nix/ieee754fpu.nix {};
+            libresoc-openpower-isa = pself.callPackage ./nix/openpower-isa.nix {};
+            bigfloat = pself.callPackage ./nix/bigfloat.nix {};
+          };
+        };
+
+        libresoc-verilog = self.callPackage (import ./nix/verilog.nix { inherit version; }) {};
+      };
+
+      packages = forAllSystems (system: {
+        verilog = nixpkgsFor.${system}.libresoc-verilog;
+      });
+
+      defaultPackage = forAllSystems (system: self.packages.${system}.verilog);
     };
 }
