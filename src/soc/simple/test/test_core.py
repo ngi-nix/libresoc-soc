@@ -11,7 +11,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from teststate import SimState, HDLState
+from teststate import SimState, HDLState, TestState
 from openpower.decoder.isa.caller import special_sprs
 from openpower.decoder.power_decoder import create_pdecode
 from openpower.decoder.power_decoder2 import PowerDecode2
@@ -149,133 +149,12 @@ def setup_regs(pdecode2, core, test):
     print("oe:", oe, oe_ok)
 
 
-"""
-def get_core_hdl_regs(dut, sim, core, test, code, intregs):
-    # int regs
-    # TODO, split this out into "core-register-getter" function
-    for i in range(32):
-        if core.regs.int.unary:
-            rval = yield core.regs.int.regs[i].reg
-        else:
-            rval = yield core.regs.int.memory._array[i]
-        intregs.append(rval)
-    print("core int regs", list(map(hex, intregs)))
-
-
-def get_sim_regs(dut, sim, core, test, code):
-    # int regs
-    # TODO, split this out into "core-register-getter" function
-    simregs = []
-    for i in range(32):
-        simregval = sim.gpr[i].asint()
-        simregs.append(simregval)
-    print("sim int regs", list(map(hex, simregs)))
-    return simregs
-
-"""
-
-
-def compare_core_sim_regs(dut, regsim, regcore, code):
-    for i, (regsim, regcore) in enumerate(zip(regsim, regcore)):
-        print("asserting...reg", i, regsim, regcore)
-        dut.assertEqual(regsim, regcore,
-                        "int reg %d not equal %s. got %x expected %x" %
-                        (i, repr(code), regsim, regcore))
-
-
-def compare_core_sim_cr(dut, crsim, crcore, code):
-    for i, (crsim, crcore) in enumerate(zip(crsim, crcore)):
-        print("asserting...cr", i, crsim, crcore)
-        dut.assertEqual(crsim, crcore,
-                        "cr reg %d not equal %s. got %x expected %x" %
-                        (i, repr(code), crsim, crcore))
-
-
 def check_regs(dut, sim, core, test, code):
-
-    simstate = SimState(sim)
-    corestate = HDLState(core)
-
-    # int registers
-    yield from simstate.get_intregs()
-    yield from corestate.get_intregs()
-    compare_core_sim_regs(dut, simstate.intregs, corestate.intregs, code)
-
-    # cr
-    yield from simstate.get_crregs()
-    yield from corestate.get_crregs()
-    compare_core_sim_cr(dut, simstate.crregs, corestate.crregs, code)
-
-    # XER
-    yield from simstate.get_xregs()
-    yield from corestate.get_xregs()
-    dut.assertEqual(simstate.so, corestate.so, "so mismatch %s" % (repr(code)))
-    dut.assertEqual(simstate.ov, corestate.ov, "ov mismatch %s" % (repr(code)))
-    dut.assertEqual(simstate.ca, corestate.ca, "ca mismatch %s" % (repr(code)))
-
-    # pc
-    yield from simstate.get_pc()
-    yield from corestate.get_pc()
-    dut.assertEqual(simstate.pc, corestate.pc)
-
-    """
-    # Get regs and compare
-    intregs = [] # temporary hack workaround for yield
-    yield from get_core_hdl_regs(dut, sim, core, test, code, intregs)
-    simregs = get_sim_regs(dut, sim, core, test, code)
-    compare_core_sim_regs(dut,simregs,intregs,code)
-
-    # TODO: exactly the same thing as above, except with CRs
-
-    # CRs
-    crregs = []
-    for i in range(8):
-        rval = yield core.regs.cr.regs[i].reg
-        crregs.append(rval)
-    print("cr regs", list(map(hex, crregs)))
-    for i in range(8):
-        rval = crregs[i]
-        cri = sim.crl[7-i].get_range().value
-        print("cr reg", i, hex(cri), i, hex(rval))
-        # XXX https://bugs.libre-soc.org/show_bug.cgi?id=363
-        dut.assertEqual(cri, rval,
-                        "cr reg %d not equal %s" % (i, repr(code)))
-
-    # TODO: exactly the same thing as above, except with XER
-
-    # XER
-    xregs = core.regs.xer
-    so = yield xregs.regs[xregs.SO].reg
-    ov = yield xregs.regs[xregs.OV].reg
-    ca = yield xregs.regs[xregs.CA].reg
-
-    print("sim SO", sim.spr['XER'][XER_bits['SO']])
-    e_so = sim.spr['XER'][XER_bits['SO']].value
-    e_ov = sim.spr['XER'][XER_bits['OV']].value
-    e_ov32 = sim.spr['XER'][XER_bits['OV32']].value
-    e_ca = sim.spr['XER'][XER_bits['CA']].value
-    e_ca32 = sim.spr['XER'][XER_bits['CA32']].value
-
-    e_ov = e_ov | (e_ov32 << 1)
-    e_ca = e_ca | (e_ca32 << 1)
-
-    print("after: so/ov-32/ca-32", so, bin(ov), bin(ca))
-    dut.assertEqual(e_so, so, "so mismatch %s" % (repr(code)))
-    dut.assertEqual(e_ov, ov, "ov mismatch %s" % (repr(code)))
-    dut.assertEqual(e_ca, ca, "ca mismatch %s" % (repr(code)))
-
-    # TODO: exactly the same thing as above, except with PC
-
-    # Check the PC as well
-    state = core.regs.state
-    pc = yield state.r_ports['cia'].o_data
-    e_pc = sim.pc.CIA.value
-    dut.assertEqual(e_pc, pc)
-    """
-
-    # TODO: exactly the same thing with FPRs (later)
-
-    # TODO: exactly the same thing with SPRs (later)
+    # create the two states and compare
+    testdic = {'sim': sim, 'hdl': core}
+    simstate = yield from TestState('sim', testdic, dut, code)
+    corestate = yield from TestState('hdl', testdic, dut, code)
+    simstate.compare(corestate)
 
 
 def wait_for_busy_hi(cu):
