@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "c4m-jtag": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1619101523,
+        "narHash": "sha256-y1OY8URcE1lnu5L7IDFcJ8zT8sqlrfMP9VPNmVvACGk=",
+        "ref": "master",
+        "rev": "c2bf4810f9f91ced7fcda777b92b86ab353da288",
+        "revCount": 146,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/c4m-jtag.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/c4m-jtag.git"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1630612789,
@@ -18,6 +34,7 @@
     },
     "root": {
       "inputs": {
+        "c4m-jtag": "c4m-jtag",
         "nixpkgs": "nixpkgs"
       }
     }

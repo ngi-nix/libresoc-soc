@@ -4,11 +4,11 @@
   description = "FOSS CPU/GPU/VPU/SoC all in one, see https://libre-soc.org/";
 
   inputs.nixpkgs.url = "github:L-as/nixpkgs?ref=alliance"; # for alliance
+  inputs.c4m-jtag.url = "git+https://git.libre-soc.org/git/c4m-jtag.git";
+  inputs.c4m-jtag.flake = false;
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, c4m-jtag }:
     let
-      version = builtins.substring 0 8 self.lastModifiedDate;
-
       supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -16,17 +16,19 @@
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
     in
     {
-      overlay = self: super: {
-        python3Packages = super.python3Packages.override {
-          overrides = pself: psuper: {
-            libresoc-ieee754fpu = pself.callPackage ./nix/ieee754fpu.nix {};
-            libresoc-openpower-isa = pself.callPackage ./nix/openpower-isa.nix {};
-            bigfloat = pself.callPackage ./nix/bigfloat.nix {};
-            libresoc-nmutil = pself.callPackage ./nix/nmutil.nix {};
+      overlay = final: prev: {
+        python3Packages = prev.python3Packages.override {
+          overrides = pfinal: pprev: {
+            libresoc-ieee754fpu = pfinal.callPackage ./nix/ieee754fpu.nix {};
+            libresoc-openpower-isa = pfinal.callPackage ./nix/openpower-isa.nix {};
+            c4m-jtag = pfinal.callPackage (import ./nix/c4m-jtag.nix { src = c4m-jtag; version = c4m-jtag.lastModifiedDate; }) {};
+            bigfloat = pfinal.callPackage ./nix/bigfloat.nix {};
+            modgrammar = pfinal.callPackage ./nix/modgrammar.nix {};
+            libresoc-nmutil = pfinal.callPackage ./nix/nmutil.nix {};
           };
         };
 
-        libresoc-verilog = self.callPackage (import ./nix/verilog.nix { inherit version; }) {};
+        libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = self.lastModifiedDate; }) {};
       };
 
       packages = forAllSystems (system: {
