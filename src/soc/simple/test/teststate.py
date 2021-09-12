@@ -1,4 +1,5 @@
 from openpower.decoder.power_enums import XER_bits
+from openpower.util import log
 
 
 class State:
@@ -12,8 +13,8 @@ class State:
         # Compare int registers
         for i, (self.intregs, s2.intregs) in enumerate(
                 zip(self.intregs, s2.intregs)):
-            print("asserting...reg", i, self.intregs, s2.intregs)
-            print("code, frepr(code)", self.code, repr(self.code))
+            log("asserting...reg", i, self.intregs, s2.intregs)
+            log("code, frepr(code)", self.code, repr(self.code))
             self.dut.assertEqual(self.intregs, s2.intregs,
                 "int reg %d (%s) not equal (%s) %s. got %x  expected %x" %
                 (i, self.state_type, s2.state_type, repr(self.code),
@@ -22,7 +23,7 @@ class State:
         # CR registers
         for i, (self.crregs, s2.crregs) in enumerate(
                 zip(self.crregs, s2.crregs)):
-            print("asserting...cr", i, self.crregs, s2.crregs)
+            log("asserting...cr", i, self.crregs, s2.crregs)
             self.dut.assertEqual(self.crregs, s2.crregs,
                 "cr reg %d (%s) not equal (%s) %s. got %x  expected %x" %
                 (i, self.state_type, s2.state_type, repr(self.code),
@@ -52,7 +53,7 @@ class SimState(State):
         for i in range(32):
             simregval = self.sim.gpr[i].asint()
             self.intregs.append(simregval)
-        print("class sim int regs", list(map(hex, self.intregs)))
+        log("class sim int regs", list(map(hex, self.intregs)))
 
     def get_crregs(self):
         if False:
@@ -61,7 +62,7 @@ class SimState(State):
         for i in range(8):
             cri = self.sim.crl[7 - i].get_range().value
             self.crregs.append(cri)
-        print("class sim cr regs", list(map(hex, self.crregs)))
+        log("class sim cr regs", list(map(hex, self.crregs)))
 
     def get_xregs(self):
         if False:
@@ -75,7 +76,7 @@ class SimState(State):
         self.ov = self.ov | (self.ov32 << 1)
         self.ca = self.ca | (self.ca32 << 1)
         self.xregs.extend((self.so, self.ov, self.ca))
-        print("class sim xregs", list(map(hex, self.xregs)))
+        log("class sim xregs", list(map(hex, self.xregs)))
 
     def get_pc(self):
         if False:
@@ -83,7 +84,7 @@ class SimState(State):
         self.pcl = []
         self.pc = self.sim.pc.CIA.value
         self.pcl.append(self.pc)
-        print("class sim pc", hex(self.pc))
+        log("class sim pc", hex(self.pc))
 
 
 class HDLState(State):
@@ -98,14 +99,14 @@ class HDLState(State):
             else:
                 rval = yield self.core.regs.int.memory._array[i]
             self.intregs.append(rval)
-        print("class hdl int regs", list(map(hex, self.intregs)))
+        log("class hdl int regs", list(map(hex, self.intregs)))
 
     def get_crregs(self):
         self.crregs = []
         for i in range(8):
             rval = yield self.core.regs.cr.regs[i].reg
             self.crregs.append(rval)
-        print("class hdl cr regs", list(map(hex, self.crregs)))
+        log("class hdl cr regs", list(map(hex, self.crregs)))
 
     def get_xregs(self):
         self.xregs = []
@@ -114,14 +115,14 @@ class HDLState(State):
         self.ov = yield self.xr.regs[self.xr.OV].reg
         self.ca = yield self.xr.regs[self.xr.CA].reg
         self.xregs.extend((self.so, self.ov, self.ca))
-        print("class hdl xregs", list(map(hex, self.xregs)))
+        log("class hdl xregs", list(map(hex, self.xregs)))
 
     def get_pc(self):
         self.pcl = []
         self.state = self.core.regs.state
         self.pc = yield self.state.r_ports['cia'].o_data
         self.pcl.append(self.pc)
-        print("class hdl pc", hex(self.pc))
+        log("class hdl pc", hex(self.pc))
 
 
 global state_factory
