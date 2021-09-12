@@ -33,6 +33,7 @@
 
       packages = forAllSystems (system: {
         verilog = nixpkgsFor.${system}.libresoc-verilog;
+        openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
       });
 
       defaultPackage = forAllSystems (system: self.packages.${system}.verilog);
