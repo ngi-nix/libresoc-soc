@@ -8,6 +8,38 @@ class State:
         yield from self.get_xregs()
         yield from self.get_pc()
 
+    def compare(self, s2):
+        # Compare int registers
+        for i, (self.intregs, s2.intregs) in enumerate(
+                zip(self.intregs, s2.intregs)):
+            print("asserting...reg", i, self.intregs, s2.intregs)
+            print("code, frepr(code)", self.code, repr(self.code))
+            self.dut.assertEqual(self.intregs, s2.intregs,
+                "int reg %d (%s) not equal (%s) %s. got %x  expected %x" %
+                (i, self.state_type, s2.state_type, repr(self.code),
+                self.intregs, s2.intregs))
+
+        # CR registers
+        for i, (self.crregs, s2.crregs) in enumerate(
+                zip(self.crregs, s2.crregs)):
+            print("asserting...cr", i, self.crregs, s2.crregs)
+            self.dut.assertEqual(self.crregs, s2.crregs,
+                "cr reg %d (%s) not equal (%s) %s. got %x  expected %x" %
+                (i, self.state_type, s2.state_type, repr(self.code),
+                self.crregs, s2.crregs))
+
+        # XER
+        self.dut.assertEqual(self.so, s2.so, "so mismatch (%s != %s) %s" %
+            (self.state_type, s2.state_type, repr(self.code)))
+        self.dut.assertEqual(self.ov, s2.ov, "ov mismatch (%s != %s) %s" %
+            (self.state_type, s2.state_type, repr(self.code)))
+        self.dut.assertEqual(self.ca, s2.ca, "ca mismatch (%s != %s) %s" %
+            (self.state_type, s2.state_type, repr(self.code)))
+
+        # pc
+        self.dut.assertEqual(self.pc, s2.pc, "pc mismatch (%s != %s) %s" %
+            (self.state_type, s2.state_type, repr(self.code)))
+
 
 class SimState(State):
     def __init__(self, sim):
@@ -92,11 +124,12 @@ class HDLState(State):
         print("class hdl pc", hex(self.pc))
 
 
-def TestState(state_type, dut, state_dic):
+def TestState(state_type, state_dic, dut, code):
     state_factory = {'sim': SimState, 'hdl': HDLState}
     state_class = state_factory[state_type]
     state = state_class(state_dic[state_type])
     state.dut = dut
     state.state_type = state_type
+    state.code = code
     yield from state.get_state()
     return state
