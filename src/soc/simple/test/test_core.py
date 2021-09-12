@@ -149,12 +149,23 @@ def setup_regs(pdecode2, core, test):
     print("oe:", oe, oe_ok)
 
 
+def teststate_check_regs(dut, states, test, code):
+    """teststate_check_regs: compares a set of Power ISA objects
+    to check if they have the same "state" (registers only, at the moment)
+    """
+    slist = []
+    for stype, totest in states.items():
+        state = yield from TestState(stype, totest, dut, code)
+        slist.append(state)
+    for i in range(len(slist)-1):
+        state, against = slist[i], slist[i+1]
+        state.compare(against)
+
+
 def check_regs(dut, sim, core, test, code):
     # create the two states and compare
     testdic = {'sim': sim, 'hdl': core}
-    simstate = yield from TestState('sim', testdic, dut, code)
-    corestate = yield from TestState('hdl', testdic, dut, code)
-    simstate.compare(corestate)
+    yield from teststate_check_regs(dut, testdic, test, code)
 
 
 def wait_for_busy_hi(cu):

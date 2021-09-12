@@ -124,10 +124,14 @@ class HDLState(State):
         print("class hdl pc", hex(self.pc))
 
 
-def TestState(state_type, state_dic, dut, code):
-    state_factory = {'sim': SimState, 'hdl': HDLState}
+global state_factory
+state_factory = {'sim': SimState, 'hdl': HDLState}
+
+
+def TestState(state_type, to_test, dut, code):
     state_class = state_factory[state_type]
-    state = state_class(state_dic[state_type])
+    state = state_class(to_test)
+    state.to_test = to_test
     state.dut = dut
     state.state_type = state_type
     state.code = code
