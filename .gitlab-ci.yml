@@ -5,6 +5,7 @@ cache:
         - ccache
         - .cache/pip
         - apt-cache
+    when: 'always'
 
 variables:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
