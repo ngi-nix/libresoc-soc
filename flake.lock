@@ -32,10 +32,44 @@
         "type": "github"
       }
     },
+    "nmigen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1618220900,
+        "narHash": "sha256-Ol2SMZLUTikZWDLmK7F5lZuKBfGO71WmisATPNMTpHQ=",
+        "ref": "master",
+        "rev": "d824795c2c7cb43dcbc8ed8fac6d309d77284913",
+        "revCount": 1056,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen.git"
+      }
+    },
+    "nmigen-soc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1601572554,
+        "narHash": "sha256-v9SH+KuIPydXCr363RUsMg9/tabuu+GjKPJOKq2Jze0=",
+        "ref": "master",
+        "rev": "692017c7eaf21ff37302790c4422db6bd08667be",
+        "revCount": 48,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen-soc.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen-soc.git"
+      }
+    },
     "root": {
       "inputs": {
         "c4m-jtag": "c4m-jtag",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nmigen": "nmigen",
+        "nmigen-soc": "nmigen-soc"
       }
     }
   },
