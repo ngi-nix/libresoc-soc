@@ -1,6 +1,29 @@
+""" Power ISA test API
+
+This module implements the creation, inspection and comparison
+of test states from different sources.
+
+The basic premise is to create a test state using the TestState method.
+The TestState method returns a test state object initialized with a
+basic set of registers pulled from the 'to_test' object.  The
+state created can then be tested against other test states using the
+'compare' method.
+
+The SimState class provides an example of needed registers and naming.
+
+The TestState method relies on the 'state_factory' dictionary for lookup
+of associated test class creation.  The dictionary can be added to using
+the state_add method.
+
+Also note when creating and accessing test state classes and object
+methods, the use of yield from/yield is required.
+
+
+"""
+
+
 from openpower.decoder.power_enums import XER_bits
 from openpower.util import log
-
 
 class State:
     def get_state(self):
@@ -127,6 +150,11 @@ class HDLState(State):
 
 global state_factory
 state_factory = {'sim': SimState, 'hdl': HDLState}
+
+
+global state_add
+def state_add(sdic):
+    state_factory.update(sdic)
 
 
 def TestState(state_type, to_test, dut, code):
