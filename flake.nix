@@ -3,15 +3,17 @@
 {
   description = "FOSS CPU/GPU/VPU/SoC all in one, see https://libre-soc.org/";
 
-  inputs.nixpkgs.url = "github:L-as/nixpkgs?ref=alliance"; # for alliance
+  inputs.nixpkgs.url = "github:L-as/nixpkgs?ref=libresoc"; # for alliance and migen
   inputs.c4m-jtag.url = "git+https://git.libre-soc.org/git/c4m-jtag.git";
   inputs.c4m-jtag.flake = false;
   inputs.nmigen.url = "git+https://git.libre-soc.org/git/nmigen.git";
   inputs.nmigen.flake = false;
   inputs.nmigen-soc.url = "git+https://git.libre-soc.org/git/nmigen-soc.git";
   inputs.nmigen-soc.flake = false;
+  inputs.nix-litex.url = "github:L-as/tock-litex";
+  inputs.nix-litex.flake = false;
 
-  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc }:
+  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex }:
     let
       getv = x: builtins.substring 0 8 x.lastModifiedDate;
 
@@ -20,6 +22,8 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
+
+      litexPkgs = pkgs: import "${nix-litex}/pkgs" { inherit pkgs; };
     in
     {
       overlay = final: prev: {
@@ -45,7 +49,7 @@
         };
 
         libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = getv self; }) {};
-        libresoc-ilang = final.callPackage (import ./nix/ilang.nix { version = getv self; }) {};
+        libresoc-ilang = final.callPackage (import ./nix/ilang.nix { version = getv self; litexPkgs = litexPkgs final; }) {};
       };
 
       packages = forAllSystems (system: {

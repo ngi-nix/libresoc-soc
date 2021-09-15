@@ -16,18 +16,34 @@
         "url": "https://git.libre-soc.org/git/c4m-jtag.git"
       }
     },
-    "nixpkgs": {
+    "nix-litex": {
+      "flake": false,
       "locked": {
-        "lastModified": 1630612789,
-        "narHash": "sha256-f1q5ExkMX2CBqBcRmrlnpewADt3EjhyncP/PfwUhK/Q=",
+        "lastModified": 1631733568,
+        "narHash": "sha256-2w63+QxzZS1jX9GXDhXFEIL1C9JcdJUlZ12Sg4GGiZ0=",
         "owner": "L-as",
-        "repo": "nixpkgs",
-        "rev": "11f9ff27bc66bf653ccbbfae1412e6f5705e4a5c",
+        "repo": "tock-litex",
+        "rev": "46910f86e5610795efe9a9aa71a25592df429c6b",
         "type": "github"
       },
       "original": {
         "owner": "L-as",
-        "ref": "alliance",
+        "repo": "tock-litex",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1631723418,
+        "narHash": "sha256-Sbey1S81fXUKcEHVCMwlXMju/IoCQxMwP1PPkVYpGrc=",
+        "owner": "L-as",
+        "repo": "nixpkgs",
+        "rev": "8bfc1026477692b933df6eeec27bd494cac3e436",
+        "type": "github"
+      },
+      "original": {
+        "owner": "L-as",
+        "ref": "libresoc",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -67,6 +83,7 @@
     "root": {
       "inputs": {
         "c4m-jtag": "c4m-jtag",
+        "nix-litex": "nix-litex",
         "nixpkgs": "nixpkgs",
         "nmigen": "nmigen",
         "nmigen-soc": "nmigen-soc"
