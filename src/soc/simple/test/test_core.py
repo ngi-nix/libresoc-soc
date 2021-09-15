@@ -11,7 +11,8 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from teststate import SimState, HDLState, TestState
+from openpower.test.state import SimState, TestState
+from soc.simple.test.teststate import HDLState
 from openpower.decoder.isa.caller import special_sprs
 from openpower.decoder.power_decoder import create_pdecode
 from openpower.decoder.power_decoder2 import PowerDecode2
