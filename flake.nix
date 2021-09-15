@@ -13,6 +13,8 @@
 
   outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc }:
     let
+      getv = x: builtins.substring 0 8 x.lastModifiedDate;
+
       supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -25,7 +27,7 @@
           overrides = pfinal: pprev: {
             libresoc-ieee754fpu = pfinal.callPackage ./nix/ieee754fpu.nix {};
             libresoc-openpower-isa = pfinal.callPackage ./nix/openpower-isa.nix {};
-            c4m-jtag = pfinal.callPackage (import ./nix/c4m-jtag.nix { src = c4m-jtag; version = c4m-jtag.lastModifiedDate; }) {};
+            c4m-jtag = pfinal.callPackage (import ./nix/c4m-jtag.nix { src = c4m-jtag; version = getv c4m-jtag; }) {};
             bigfloat = pfinal.callPackage ./nix/bigfloat.nix {};
             modgrammar = pfinal.callPackage ./nix/modgrammar.nix {};
             libresoc-nmutil = pfinal.callPackage ./nix/nmutil.nix {};
@@ -42,11 +44,13 @@
           };
         };
 
-        libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = self.lastModifiedDate; }) {};
+        libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = getv self; }) {};
+        libresoc-ilang = final.callPackage (import ./nix/ilang.nix { version = getv self; }) {};
       };
 
       packages = forAllSystems (system: {
         verilog = nixpkgsFor.${system}.libresoc-verilog;
+        ilang = nixpkgsFor.${system}.libresoc-ilang;
         openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
       });
 
