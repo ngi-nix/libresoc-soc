@@ -35,6 +35,7 @@
             bigfloat = pfinal.callPackage ./nix/bigfloat.nix {};
             modgrammar = pfinal.callPackage ./nix/modgrammar.nix {};
             libresoc-nmutil = pfinal.callPackage ./nix/nmutil.nix {};
+            libresoc-soc = pfinal.callPackage (import ./nix/soc.nix { version = getv self; }) {};
 
             nmigen-soc = pprev.nmigen-soc.overrideAttrs (_: {
               doCheck = false;
@@ -48,16 +49,19 @@
           };
         };
 
-        libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = getv self; }) {};
+        libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) {};
         libresoc-ilang = final.callPackage (import ./nix/ilang.nix { version = getv self; litexPkgs = litexPkgs final; }) {};
+        libresoc-pinmux = final.callPackage (import ./nix/pinmux.nix { version = getv self; }) {};
       };
 
       packages = forAllSystems (system: {
-        verilog = nixpkgsFor.${system}.libresoc-verilog;
+        soc = nixpkgsFor.${system}.python3Packages.libresoc-soc;
+        pre-litex = nixpkgsFor.${system}.libresoc-pre-litex;
+        pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ilang = nixpkgsFor.${system}.libresoc-ilang;
         openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
       });
 
-      defaultPackage = forAllSystems (system: self.packages.${system}.verilog);
+      defaultPackage = forAllSystems (system: self.packages.${system}.pre-litex);
     };
 }
