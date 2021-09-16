@@ -11,7 +11,7 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from openpower.test.state import SimState, TestState
+from openpower.test.state import SimState, teststate_check_regs
 from soc.simple.test.teststate import HDLState
 from openpower.decoder.isa.caller import special_sprs
 from openpower.decoder.power_decoder import create_pdecode
@@ -148,22 +148,6 @@ def setup_regs(pdecode2, core, test):
 
     print("before: so/ov-32/ca-32", so, bin(ov), bin(ca))
     print("oe:", oe, oe_ok)
-
-
-def teststate_check_regs(dut, states, test, code):
-    """teststate_check_regs: compares a set of Power ISA objects
-    to check if they have the same "state" (registers only, at the moment)
-    """
-    slist = []
-    # create one TestState per "thing"
-    for stype, totest in states.items():
-        state = yield from TestState(stype, totest, dut, code)
-        slist.append(state)
-    # compare each "thing" against the next "thing" in the list.
-    # (no need to do an O(N^2) comparison here, they *all* have to be the same
-    for i in range(len(slist)-1):
-        state, against = slist[i], slist[i+1]
-        state.compare(against)
 
 
 def check_regs(dut, sim, core, test, code):
