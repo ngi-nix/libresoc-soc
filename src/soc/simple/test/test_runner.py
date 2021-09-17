@@ -3,6 +3,7 @@
 related bugs:
 
  * https://bugs.libre-soc.org/show_bug.cgi?id=363
+ * https://bugs.libre-soc.org/show_bug.cgi?id=686#c51
 """
 from nmigen import Module, Signal, Cat, ClockSignal
 from nmigen.hdl.xfrm import ResetInserter
@@ -309,6 +310,12 @@ class TestRunner(FHDLTestCase):
                 yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
                 yield
                 yield
+
+                # TODO, here is where the static (expected) results
+                # can be checked: register check (TODO, memory check)
+                # see https://bugs.libre-soc.org/show_bug.cgi?id=686#c51
+                # yield from check_regs(self, sim, core, test, code,
+                #                       >>>expected_data<<<)
 
                 # get CR
                 cr = yield from get_dmi(dmi, DBGCore.CR)
