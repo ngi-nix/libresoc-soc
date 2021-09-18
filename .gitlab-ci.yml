@@ -112,7 +112,7 @@ build:
         - pip install dist/sfpy*.whl
         - popd
 
-        - cargo install maturin
+        - python3 -m pip install 'maturin>=0.11,<0.12'
         - git clone --depth 1 https://git.libre-soc.org/git/power-instruction-analyzer.git pia
         - pushd pia
         - maturin build --cargo-extra-args=--features=python-extension
