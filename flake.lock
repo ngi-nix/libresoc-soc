@@ -19,16 +19,17 @@
     "nix-litex": {
       "flake": false,
       "locked": {
-        "lastModified": 1631733568,
-        "narHash": "sha256-2w63+QxzZS1jX9GXDhXFEIL1C9JcdJUlZ12Sg4GGiZ0=",
-        "owner": "L-as",
-        "repo": "tock-litex",
-        "rev": "46910f86e5610795efe9a9aa71a25592df429c6b",
+        "lastModified": 1631995585,
+        "narHash": "sha256-DOkmQo/Y7Oorhj4ayNZpzL/HDNPiZnaqssAHwLEv3F4=",
+        "owner": "lschuermann",
+        "repo": "nix-litex",
+        "rev": "032c4f53bc70a32b217aaf634ee9a1bbce43f2bb",
         "type": "github"
       },
       "original": {
-        "owner": "L-as",
-        "repo": "tock-litex",
+        "owner": "lschuermann",
+        "ref": "staging",
+        "repo": "nix-litex",
         "type": "github"
       }
     },

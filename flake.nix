@@ -10,7 +10,7 @@
   inputs.nmigen.flake = false;
   inputs.nmigen-soc.url = "git+https://git.libre-soc.org/git/nmigen-soc.git";
   inputs.nmigen-soc.flake = false;
-  inputs.nix-litex.url = "github:L-as/tock-litex";
+  inputs.nix-litex.url = "github:lschuermann/nix-litex?ref=staging";
   inputs.nix-litex.flake = false;
 
   outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex }:
@@ -21,14 +21,16 @@
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
+      litex = pkgs: import "${nix-litex}/pkgs" { inherit pkgs; };
+
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
 
-      litexPkgs = pkgs: import "${nix-litex}/pkgs" { inherit pkgs; };
+      lib = nixpkgs.lib;
     in
     {
       overlay = final: prev: {
         python3Packages = prev.python3Packages.override {
-          overrides = pfinal: pprev: {
+          overrides = lib.composeExtensions (litex final).pythonOverlay (pfinal: pprev: {
             libresoc-ieee754fpu = pfinal.callPackage ./nix/ieee754fpu.nix {};
             libresoc-openpower-isa = pfinal.callPackage ./nix/openpower-isa.nix {};
             c4m-jtag = pfinal.callPackage (import ./nix/c4m-jtag.nix { src = c4m-jtag; version = getv c4m-jtag; }) {};
@@ -46,11 +48,11 @@
             nmigen = pprev.nmigen.overrideAttrs (_: {
               src = nmigen;
             });
-          };
+          });
         };
 
         libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) {};
-        libresoc-ilang = final.callPackage (import ./nix/ilang.nix { version = getv self; litexPkgs = litexPkgs final; }) {};
+        libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) {};
         libresoc-pinmux = final.callPackage (import ./nix/pinmux.nix { version = getv self; }) {};
       };
 
@@ -58,7 +60,7 @@
         soc = nixpkgsFor.${system}.python3Packages.libresoc-soc;
         pre-litex = nixpkgsFor.${system}.libresoc-pre-litex;
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
-        ilang = nixpkgsFor.${system}.libresoc-ilang;
+        ls180 = nixpkgsFor.${system}.libresoc-ls180;
         openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
       });
 
