@@ -59,8 +59,7 @@ class HDLState(State):
         self.mem = []
         for i in range(hdlmem.depth):
             value = yield hdlmem._array[i]
-            if value != 0:  # for comparison purposes
-                self.mem.append(((i*8), value))
+            self.mem.append(((i*8), value))
 
 
 # add to State Factory
