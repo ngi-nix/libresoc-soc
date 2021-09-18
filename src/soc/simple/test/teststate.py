@@ -49,6 +49,19 @@ class HDLState(State):
         self.pcl.append(self.pc)
         log("class hdl pc", hex(self.pc))
 
+    def get_mem(self):
+        if hasattr(self.core.l0.pimem, 'lsui'):
+            hdlmem = self.core.l0.pimem.lsui.mem
+        else:
+            hdlmem = self.core.l0.pimem.mem
+            if not isinstance(hdlmem, Memory):
+                hdlmem = hdlmem.mem
+        self.mem = []
+        for i in range(hdlmem.depth):
+            value = yield hdlmem._array[i]
+            if value != 0:  # for comparison purposes
+                self.mem.append(((i*8), value))
+
 
 # add to State Factory
 state_add('hdl', HDLState)
