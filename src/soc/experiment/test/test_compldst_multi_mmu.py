@@ -25,14 +25,12 @@ from soc.experiment.pimem import LDSTException
 from soc.experiment.compldst_multi import LDSTCompUnit
 from soc.config.test.test_loadstore import TestMemPspec
 
-# for debugging
-from nmutil.util import Display
-
 ########################################
 
 def ldst_sim(dut):
-    yield Display("TODO")
-    
+    print("TODO")
+    yield
+
 ########################################
 
 
