@@ -28,12 +28,12 @@ class MaskGenTestCase(FHDLTestCase):
             yield
             while True:
                 yield
-                rd_rel = yield dut.rd.rel
+                rd_rel = yield dut.rd.rel_o
                 if rd_rel != 0:
                     break
-            yield dut.rd.go.eq(0xfff)
+            yield dut.rd.go_i.eq(0xfff)
             yield
-            yield dut.rd.go.eq(0)
+            yield dut.rd.go_i.eq(0)
             for i in range(10):
                 yield
                 
