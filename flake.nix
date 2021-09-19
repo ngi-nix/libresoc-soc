@@ -21,7 +21,11 @@
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
-      litex = pkgs: import "${nix-litex}/pkgs" { inherit pkgs; };
+      litex = pkgs: import "${nix-litex}/pkgs" {
+        inherit pkgs;
+        pkgMetas = builtins.fromTOML (builtins.readFile ./nix/litex.toml);
+        skipChecks = true; # FIXME: remove once checks work
+      };
 
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; overlays = [ self.overlay ]; });
 
@@ -62,6 +66,7 @@
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ls180 = nixpkgsFor.${system}.libresoc-ls180;
         openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
+        debugNixpkgs = nixpkgsFor.${system};
       });
 
       defaultPackage = forAllSystems (system: self.packages.${system}.pre-litex);

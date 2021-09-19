@@ -19,11 +19,11 @@
     "nix-litex": {
       "flake": false,
       "locked": {
-        "lastModified": 1631995585,
-        "narHash": "sha256-DOkmQo/Y7Oorhj4ayNZpzL/HDNPiZnaqssAHwLEv3F4=",
+        "lastModified": 1632051102,
+        "narHash": "sha256-AapmvjJvFxR37Jzu5fgrIBPWy9+x0iMSOToK72GzNXk=",
         "owner": "lschuermann",
         "repo": "nix-litex",
-        "rev": "032c4f53bc70a32b217aaf634ee9a1bbce43f2bb",
+        "rev": "e92513d841df813545b318b4628288ba8ba9b973",
         "type": "github"
       },
       "original": {
