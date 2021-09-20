@@ -9,7 +9,7 @@ from openpower.decoder.power_enums import XER_bits
 from openpower.util import log
 from openpower.test.state import (State, state_add, state_factory,
                                   TestState,)
-
+from soc.fu.compunits.test.test_compunit import get_l0_mem
 
 class HDLState(State):
     def __init__(self, core):
@@ -50,15 +50,11 @@ class HDLState(State):
         log("class hdl pc", hex(self.pc))
 
     def get_mem(self):
-        if hasattr(self.core.l0.pimem, 'lsui'):
-            hdlmem = self.core.l0.pimem.lsui.mem
-        else:
-            hdlmem = self.core.l0.pimem.mem
-            if not isinstance(hdlmem, Memory):
-                hdlmem = hdlmem.mem
+        # get the underlying HDL-simulated memory from the L0CacheBuffer
+        hdlmem = get_l0_mem(self.core.l0)
         self.mem = []
         for i in range(hdlmem.depth):
-            value = yield hdlmem._array[i]
+            value = yield hdlmem._array[i] # should not really do this
             self.mem.append(((i*8), value))
 
 
