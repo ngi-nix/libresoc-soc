@@ -1,23 +1,19 @@
-# test case for LOAD / STORE Computation Unit.
-
+# test case for LOAD / STORE Computation Unit using MMU
 
 from nmigen.compat.sim import run_simulation
 from nmigen.cli import verilog, rtlil
 from nmigen import Module, Signal, Mux, Cat, Elaboratable, Array, Repl
 from nmigen.hdl.rec import Record, Layout
 
-"""
 from nmutil.latch import SRLatch, latchregister
 from nmutil.byterev import byte_reverse
 from nmutil.extend import exts
-
 from soc.fu.regspec import RegSpecAPI
 
 from openpower.decoder.power_enums import MicrOp, Function, LDSTMode
 from soc.fu.ldst.ldst_input_record import CompLDSTOpSubset
 from openpower.decoder.power_decoder2 import Data
 from openpower.consts import MSR
-"""
 
 from soc.experiment.compalu_multi import go_record, CompUnitRecord
 from soc.experiment.l0_cache import PortInterface
@@ -27,8 +23,64 @@ from soc.config.test.test_loadstore import TestMemPspec
 
 ########################################
 
+def dcbz(dut, src1, src2, src3, imm, imm_ok=True, update=False,
+          byterev=True):
+    print("DCBZ", src1, src2, src3, imm, imm_ok, update)
+    yield dut.oper_i.insn_type.eq(MicrOp.OP_DCBZ)
+    yield dut.oper_i.data_len.eq(2)  # half-word
+    yield dut.oper_i.byte_reverse.eq(byterev)
+    yield dut.src1_i.eq(src1)
+    yield dut.src2_i.eq(src2)
+    yield dut.src3_i.eq(src3)
+    yield dut.oper_i.imm_data.data.eq(imm)
+    yield dut.oper_i.imm_data.ok.eq(imm_ok)
+    #FIXME: -- yield dut.oper_i.update.eq(update)
+    yield dut.issue_i.eq(1)
+    yield
+    yield dut.issue_i.eq(0)
+
+    if imm_ok:
+        active_rel = 0b101
+    else:
+        active_rel = 0b111
+    # wait for all active rel signals to come up
+    while True:
+        rel = yield dut.rd.rel_o
+        if rel == active_rel:
+            break
+        yield
+    yield dut.rd.go_i.eq(active_rel)
+    yield
+    yield dut.rd.go_i.eq(0)
+
+    yield from wait_for(dut.adr_rel_o, False, test1st=True)
+    # yield from wait_for(dut.adr_rel_o)
+    # yield dut.ad.go.eq(1)
+    # yield
+    # yield dut.ad.go.eq(0)
+
+    if update:
+        yield from wait_for(dut.wr.rel_o[1])
+        yield dut.wr.go.eq(0b10)
+        yield
+        addr = yield dut.addr_o
+        print("addr", addr)
+        yield dut.wr.go.eq(0)
+    else:
+        addr = None
+
+    yield from wait_for(dut.sto_rel_o)
+    yield dut.go_st_i.eq(1)
+    yield
+    yield dut.go_st_i.eq(0)
+    yield from wait_for(dut.busy_o, False)
+    # wait_for(dut.stwd_mem_o)
+    yield
+    return addr
+
+
 def ldst_sim(dut):
-    print("TODO")
+    yield from dcbz(dut, 4, 0, 3, 2) # FIXME
     yield
 
 ########################################
