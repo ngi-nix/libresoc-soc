@@ -26,7 +26,7 @@ from soc.regfile.regfiles import StateRegs
 from soc.simple.issuer import TestIssuerInternal
 
 from soc.config.test.test_loadstore import TestMemPspec
-from soc.simple.test.test_core import (setup_regs, check_regs,
+from soc.simple.test.test_core import (setup_regs, check_regs, check_mem,
                                        wait_for_busy_clear,
                                        wait_for_busy_hi)
 from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
@@ -299,7 +299,7 @@ class TestRunner(FHDLTestCase):
                         yield from check_regs(self, sim, core, test, code)
 
                         # Memory check
-                        yield from check_sim_memory(self, l0, sim, code)
+                        yield from check_mem(self, sim, core, test, code)
 
                         terminated = yield issuer.dbg.terminated_o
                         print("terminated(2)", terminated)
