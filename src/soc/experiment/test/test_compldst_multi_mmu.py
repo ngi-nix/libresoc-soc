@@ -21,6 +21,8 @@ from soc.experiment.pimem import LDSTException
 from soc.experiment.compldst_multi import LDSTCompUnit
 from soc.config.test.test_loadstore import TestMemPspec
 
+from soc.experiment.mmu import MMU
+
 ########################################
 
 def dcbz(dut, src1, src2, src3, imm, imm_ok=True, update=False,
@@ -129,14 +131,24 @@ class TestLDSTCompUnitRegSpecMMU(LDSTCompUnit):
         from soc.fu.ldst.pipe_data import LDSTPipeSpec
         regspec = LDSTPipeSpec.regspec
         self.l0 = l0 = TstL0CacheBuffer(pspec)
+        self.mmu = MMU()
         pi = l0.l0.dports[0]
         LDSTCompUnit.__init__(self, pi, regspec, 4)
 
     def elaborate(self, platform):
         m = LDSTCompUnit.elaborate(self, platform)
         m.submodules.l0 = self.l0
+        m.submodules.mmu = self.mmu
         # link addr-go direct to rel
         m.d.comb += self.ad.go_i.eq(self.ad.rel_o)
+        
+        # link mmu and dcache together
+        dcache = self.l0.pimem.dcache
+        mmu = self.mmu
+        m.d.comb += dcache.m_in.eq(mmu.d_out) # MMUToDCacheType
+        m.d.comb += mmu.d_in.eq(dcache.m_out) # DCacheToMMUType
+        
+        
         return m
 
 
@@ -151,6 +163,9 @@ def test_scoreboard_regspec_mmu():
                          units=units)
 
     dut = TestLDSTCompUnitRegSpecMMU(pspec)
+    
+    # TODO: setup pagetables for MMU
+    
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp_mmu2.il", "w") as f:
         f.write(vl)
