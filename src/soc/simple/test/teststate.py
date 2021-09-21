@@ -52,10 +52,10 @@ class HDLState(State):
     def get_mem(self):
         # get the underlying HDL-simulated memory from the L0CacheBuffer
         hdlmem = get_l0_mem(self.core.l0)
-        self.mem = []
+        self.mem = {}
         for i in range(hdlmem.depth):
             value = yield hdlmem._array[i] # should not really do this
-            self.mem.append(((i*8), value))
+            self.mem[i*8] = value
 
 
 # add to State Factory
