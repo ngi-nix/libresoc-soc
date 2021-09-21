@@ -43,40 +43,42 @@ def dcbz(dut, src1, src2, src3, imm, imm_ok=True, update=False,
         active_rel = 0b101
     else:
         active_rel = 0b111
-    # wait for all active rel signals to come up
-    while True:
-        rel = yield dut.rd.rel_o
-        if rel == active_rel:
-            break
-        yield
-    yield dut.rd.go_i.eq(active_rel)
-    yield
-    yield dut.rd.go_i.eq(0)
+     # wait for all active rel signals to come up
+    # guess: bug is here
+    #while True:
+    #    rel = yield dut.rd.rel_o
+    #    if rel == active_rel:
+    #        break
+    #    yield
+    #yield dut.rd.go_i.eq(active_rel)
+    #yield
+    #yield dut.rd.go_i.eq(0)
 
-    yield from wait_for(dut.adr_rel_o, False, test1st=True)
+    #yield from wait_for(dut.adr_rel_o, False, test1st=True)
     # yield from wait_for(dut.adr_rel_o)
     # yield dut.ad.go.eq(1)
     # yield
     # yield dut.ad.go.eq(0)
 
-    if update:
-        yield from wait_for(dut.wr.rel_o[1])
-        yield dut.wr.go.eq(0b10)
-        yield
-        addr = yield dut.addr_o
-        print("addr", addr)
-        yield dut.wr.go.eq(0)
-    else:
-        addr = None
+    #if update:
+    #    yield from wait_for(dut.wr.rel_o[1])
+    #    yield dut.wr.go.eq(0b10)
+    #    yield
+    #    addr = yield dut.addr_o
+    #    print("addr", addr)
+    #    yield dut.wr.go.eq(0)
+    #else:
+    #    addr = None
 
-    yield from wait_for(dut.sto_rel_o)
-    yield dut.go_st_i.eq(1)
-    yield
-    yield dut.go_st_i.eq(0)
-    yield from wait_for(dut.busy_o, False)
+    # commented out for debugging
+    #yield from wait_for(dut.sto_rel_o)
+    #yield dut.go_st_i.eq(1)
+    #yield
+    #yield dut.go_st_i.eq(0)
+    #yield from wait_for(dut.busy_o, False)
     # wait_for(dut.stwd_mem_o)
-    yield
-    return addr
+    #yield
+    #return addr
 
 
 def ldst_sim(dut):
