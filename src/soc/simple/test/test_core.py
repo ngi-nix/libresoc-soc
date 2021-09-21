@@ -11,7 +11,8 @@ from nmigen.back.pysim import Simulator, Delay, Settle
 from nmutil.formaltest import FHDLTestCase
 from nmigen.cli import rtlil
 import unittest
-from openpower.test.state import SimState, teststate_check_regs
+from openpower.test.state import (SimState, teststate_check_regs,
+                                  teststate_check_mem)
 from soc.simple.test.teststate import HDLState
 from openpower.decoder.isa.caller import special_sprs
 from openpower.decoder.power_decoder import create_pdecode
@@ -156,6 +157,12 @@ def check_regs(dut, sim, core, test, code):
     yield from teststate_check_regs(dut, testdic, test, code)
 
 
+def check_mem(dut, sim, core, test, code):
+    # create the two states and compare mem
+    testdic = {'sim': sim, 'hdl': core}
+    yield from teststate_check_mem(dut, testdic, test, code)
+
+
 def wait_for_busy_hi(cu):
     while True:
         busy_o = yield cu.busy_o
@@ -269,7 +276,7 @@ class TestRunner(FHDLTestCase):
                     yield from check_regs(self, sim, core, test, code)
 
                     # Memory check
-                    yield from check_sim_memory(self, l0, sim, code)
+                    yield from check_mem(self, sim, core, test, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
