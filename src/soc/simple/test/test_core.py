@@ -232,51 +232,52 @@ class TestRunner(FHDLTestCase):
             for test in self.test_data:
                 print(test.name)
                 program = test.program
-                self.subTest(test.name)
-                sim = ISA(pdecode2, test.regs, test.sprs, test.cr, test.mem,
-                          test.msr,
-                          bigendian=bigendian)
-                gen = program.generate_instructions()
-                instructions = list(zip(gen, program.assembly.splitlines()))
+                with self.subTest(test.name):
+                    sim = ISA(pdecode2, test.regs, test.sprs, test.cr,
+                              test.mem,
+                              test.msr,
+                              bigendian=bigendian)
+                    gen = program.generate_instructions()
+                    instructions = list(zip(gen, program.assembly.splitlines()))
 
-                yield from setup_tst_memory(l0, sim)
-                yield from setup_regs(core, test)
+                    yield from setup_tst_memory(l0, sim)
+                    yield from setup_regs(core, test)
 
-                index = sim.pc.CIA.value // 4
-                while index < len(instructions):
-                    ins, code = instructions[index]
-
-                    print("instruction: 0x{:X}".format(ins & 0xffffffff))
-                    print(code)
-
-                    # ask the decoder to decode this binary data (endian'd)
-                    yield core.bigendian_i.eq(bigendian)  # little / big?
-                    yield instruction.eq(ins)          # raw binary instr.
-                    yield ivalid_i.eq(1)
-                    yield Settle()
-                    # fn_unit = yield pdecode2.e.fn_unit
-                    #fuval = self.funit.value
-                    #self.assertEqual(fn_unit & fuval, fuval)
-
-                    # set operand and get inputs
-                    yield from set_issue(core, pdecode2, sim)
-                    yield Settle()
-
-                    yield from wait_for_busy_clear(core)
-                    yield ivalid_i.eq(0)
-                    yield
-
-                    print("sim", code)
-                    # call simulated operation
-                    opname = code.split(' ')[0]
-                    yield from sim.call(opname)
                     index = sim.pc.CIA.value // 4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
 
-                    # register check
-                    yield from check_regs(self, sim, core, test, code)
+                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                        print(code)
 
-                    # Memory check
-                    yield from check_mem(self, sim, core, test, code)
+                        # ask the decoder to decode this binary data (endian'd)
+                        yield core.bigendian_i.eq(bigendian)  # little / big?
+                        yield instruction.eq(ins)          # raw binary instr.
+                        yield ivalid_i.eq(1)
+                        yield Settle()
+                        # fn_unit = yield pdecode2.e.fn_unit
+                        #fuval = self.funit.value
+                        #self.assertEqual(fn_unit & fuval, fuval)
+
+                        # set operand and get inputs
+                        yield from set_issue(core, pdecode2, sim)
+                        yield Settle()
+
+                        yield from wait_for_busy_clear(core)
+                        yield ivalid_i.eq(0)
+                        yield
+
+                        print("sim", code)
+                        # call simulated operation
+                        opname = code.split(' ')[0]
+                        yield from sim.call(opname)
+                        index = sim.pc.CIA.value // 4
+
+                        # register check
+                        yield from check_regs(self, sim, core, test, code)
+
+                        # Memory check
+                        yield from check_mem(self, sim, core, test, code)
 
         sim.add_sync_process(process)
         with sim.write_vcd("core_simulator.vcd", "core_simulator.gtkw",
