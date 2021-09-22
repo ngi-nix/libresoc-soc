@@ -211,7 +211,7 @@ def run_hdl_state(dut, test, issuer, pc_i, svstate_i, instructions):
     return hdl_states
 
 
-def run_sim_state(dut, test, simdec2, instructions):
+def run_sim_state(dut, test, simdec2, instructions, gen, insncode):
     """run_sim_state - runs an ISACaller simulation
     """
 
@@ -362,7 +362,8 @@ class TestRunner(FHDLTestCase):
                     ##########
 
                     sim_states = yield from run_sim_state(self, test, simdec2,
-                                                          instructions)
+                                                          instructions, gen,
+                                                          insncode)
 
                     ###############
                     # 3. Compare
