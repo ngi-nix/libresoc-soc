@@ -15,8 +15,7 @@ from soc.config.test.test_loadstore import TestMemPspec
 from soc.simple.test.test_core import (setup_regs, check_regs,
                                        wait_for_busy_clear,
                                        wait_for_busy_hi)
-from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
-                                                 check_sim_memory,
+from soc.fu.compunits.test.test_compunit import (check_sim_memory,
                                                  get_l0_mem)
 
 from soc.simple.test.test_runner import setup_i_memory
@@ -112,7 +111,6 @@ class TestRunner(FHDLTestCase):
                 # blech!  put the same listing into the data memory
                 data_mem = get_l0_mem(l0)
                 yield from setup_i_memory(data_mem, pc, instructions)
-                # yield from setup_tst_memory(l0, sim)
                 yield from setup_regs(core, test)
 
                 yield pc_i.eq(pc)

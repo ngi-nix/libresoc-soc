@@ -240,7 +240,7 @@ class TestRunner(FHDLTestCase):
                     gen = program.generate_instructions()
                     instructions = list(zip(gen, program.assembly.splitlines()))
 
-                    yield from setup_tst_memory(l0, sim)
+                    yield from setup_tst_memory(l0, test.mem)
                     yield from setup_regs(core, test)
 
                     index = sim.pc.CIA.value // 4
