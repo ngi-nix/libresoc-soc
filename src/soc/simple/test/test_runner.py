@@ -381,6 +381,16 @@ class TestRunner(FHDLTestCase):
                     for state in sim_states:
                         print (state)
 
+                    # compare against expected results
+                    if test.expected is not None:
+                        # have to put these in manually
+                        test.expected.to_test = test.expected
+                        test.expected.dut = self
+                        test.expected.state_type = "expected"
+                        test.expected.code = 0
+                        # do actual comparison, against last item
+                        sim_states[-1].compare(test.expected)
+
                     self.assertTrue(len(hdl_states) == len(sim_states),
                                     "number of instructions run not the same")
 
