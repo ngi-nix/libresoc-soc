@@ -34,6 +34,7 @@ from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 from nmutil.util import wrap
 from soc.experiment.test.test_mmu_dcache import wb_get
+from openpower.test.state import TestState
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -217,13 +218,18 @@ class TestRunner(FHDLTestCase):
                     insncode = program.assembly.splitlines()
                     instructions = list(zip(gen, insncode))
 
-                    # set up the Simulator (which must track TestIssuer exactly)
-                    sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
-                              test.msr,
-                              initial_insns=gen, respect_pc=True,
-                              disassembly=insncode,
-                              bigendian=bigendian,
-                              initial_svstate=test.svstate)
+                    # Run two tests (TODO, move these to functions)
+                    # * first the Simulator, collate a batch of results
+                    # * then the HDL, likewise
+                    #   (actually, the other way round because running
+                    #    Simulator somehow modifies the test state!)
+                    # * finally, compare all the results
+
+                    ##########
+                    # 1. HDL
+                    ##########
+
+                    hdl_states = []
 
                     # establish the TestIssuer context (mem, regs etc)
 
@@ -248,11 +254,11 @@ class TestRunner(FHDLTestCase):
                     print("instructions", instructions)
 
                     # run the loop of the instructions on the current test
-                    index = sim.pc.CIA.value//4
+                    index = (yield issuer.cur_state.pc) // 4
                     while index < len(instructions):
                         ins, code = instructions[index]
 
-                        print("instruction: 0x{:X}".format(ins & 0xffffffff))
+                        print("hdl instr: 0x{:X}".format(ins & 0xffffffff))
                         print(index, code)
 
                         if counter == 0:
@@ -271,6 +277,54 @@ class TestRunner(FHDLTestCase):
                         while not (yield issuer.insn_done):
                             yield
 
+                        yield Settle()
+
+                        index = (yield issuer.cur_state.pc) // 4
+
+                        terminated = yield issuer.dbg.terminated_o
+                        print("terminated", terminated)
+
+                        if index < len(instructions):
+                            # Get HDL mem and state
+                            state = yield from TestState("hdl", core, self,
+                                                         code)
+                            hdl_states.append(state)
+
+                        if index >= len(instructions):
+                            print ("index over, send dmi stop")
+                            # stop at end
+                            yield from set_dmi(dmi, DBGCore.CTRL,
+                                               1<<DBGCtrl.STOP)
+                            yield
+                            yield
+
+                        terminated = yield issuer.dbg.terminated_o
+                        print("terminated(2)", terminated)
+                        if terminated:
+                            break
+
+                    ##########
+                    # 2. Simulator
+                    ##########
+
+                    sim_states = []
+
+                    # set up the Simulator (which must track TestIssuer exactly)
+                    sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
+                              test.msr,
+                              initial_insns=gen, respect_pc=True,
+                              disassembly=insncode,
+                              bigendian=bigendian,
+                              initial_svstate=test.svstate)
+
+                    # run the loop of the instructions on the current test
+                    index = sim.pc.CIA.value//4
+                    while index < len(instructions):
+                        ins, code = instructions[index]
+
+                        print("sim instr: 0x{:X}".format(ins & 0xffffffff))
+                        print(index, code)
+
                         # set up simulated instruction (in simdec2)
                         try:
                             yield from sim.setup_one()
@@ -284,27 +338,28 @@ class TestRunner(FHDLTestCase):
                         yield Settle()
                         index = sim.pc.CIA.value//4
 
-                        terminated = yield issuer.dbg.terminated_o
-                        print("terminated", terminated)
+                        # get sim register and memory TestState, add to list
+                        state = yield from TestState("sim", sim, self, code)
+                        sim_states.append(state)
 
-                        if index >= len(instructions):
-                            print ("index over, send dmi stop")
-                            # stop at end
-                            yield from set_dmi(dmi, DBGCore.CTRL,
-                                               1<<DBGCtrl.STOP)
-                            yield
-                            yield
+                    ###############
+                    # 3. Compare
+                    ###############
 
-                        # register check
-                        yield from check_regs(self, sim, core, test, code)
+                    for simstate, hdlstate in zip(sim_states, hdl_states):
+                        simstate.compare(hdlstate)     # register check
+                        simstate.compare_mem(hdlstate) # memory check
 
-                        # Memory check
-                        yield from check_mem(self, sim, core, test, code)
+                    print ("hdl_states")
+                    for state in hdl_states:
+                        print (state)
 
-                        terminated = yield issuer.dbg.terminated_o
-                        print("terminated(2)", terminated)
-                        if terminated:
-                            break
+                    print ("sim_states")
+                    for state in sim_states:
+                        print (state)
+
+                    self.assertTrue(len(hdl_states) == len(sim_states),
+                                    "number of instructions run not the same")
 
                 # stop at end
                 yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
