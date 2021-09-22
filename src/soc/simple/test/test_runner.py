@@ -7,6 +7,7 @@ related bugs:
 """
 from nmigen import Module, Signal, Cat, ClockSignal
 from nmigen.hdl.xfrm import ResetInserter
+from copy import copy
 
 # NOTE: to use cxxsim, export NMIGEN_SIM_MODE=cxxsim from the shell
 # Also, check out the cxxsim nmigen branch, and latest yosys from git
@@ -123,6 +124,135 @@ def get_dmi(dmi, addr):
     return data
 
 
+def run_hdl_state(dut, test, issuer, pc_i, svstate_i, instructions):
+    """run_hdl_state - runs a TestIssuer nmigen HDL simulation
+    """
+
+    imem = issuer.imem._get_memory()
+    core = issuer.core
+    dmi = issuer.dbg.dmi
+    pdecode2 = issuer.pdecode2
+    l0 = core.l0
+    hdl_states = []
+
+    # establish the TestIssuer context (mem, regs etc)
+
+    pc = 0  # start address
+    counter = 0  # test to pause/start
+
+    yield from setup_i_memory(imem, pc, instructions)
+    yield from setup_tst_memory(l0, test.mem)
+    yield from setup_regs(pdecode2, core, test)
+
+    # set PC and SVSTATE
+    yield pc_i.eq(pc)
+    yield issuer.pc_i.ok.eq(1)
+
+    # copy initial SVSTATE
+    initial_svstate = copy(test.svstate)
+    if isinstance(initial_svstate, int):
+        initial_svstate = SVP64State(initial_svstate)
+    yield svstate_i.eq(initial_svstate.value)
+    yield issuer.svstate_i.ok.eq(1)
+    yield
+
+    print("instructions", instructions)
+
+    # run the loop of the instructions on the current test
+    index = (yield issuer.cur_state.pc) // 4
+    while index < len(instructions):
+        ins, code = instructions[index]
+
+        print("hdl instr: 0x{:X}".format(ins & 0xffffffff))
+        print(index, code)
+
+        if counter == 0:
+            # start the core
+            yield
+            yield from set_dmi(dmi, DBGCore.CTRL,
+                               1<<DBGCtrl.START)
+            yield issuer.pc_i.ok.eq(0) # no change PC after this
+            yield issuer.svstate_i.ok.eq(0) # ditto
+            yield
+            yield
+
+        counter = counter + 1
+
+        # wait until executed
+        while not (yield issuer.insn_done):
+            yield
+
+        yield Settle()
+
+        index = (yield issuer.cur_state.pc) // 4
+
+        terminated = yield issuer.dbg.terminated_o
+        print("terminated", terminated)
+
+        if index < len(instructions):
+            # Get HDL mem and state
+            state = yield from TestState("hdl", core, dut,
+                                         code)
+            hdl_states.append(state)
+
+        if index >= len(instructions):
+            print ("index over, send dmi stop")
+            # stop at end
+            yield from set_dmi(dmi, DBGCore.CTRL,
+                               1<<DBGCtrl.STOP)
+            yield
+            yield
+
+        terminated = yield issuer.dbg.terminated_o
+        print("terminated(2)", terminated)
+        if terminated:
+            break
+
+    return hdl_states
+
+
+def run_sim_state(dut, test, simdec2, instructions):
+    """run_sim_state - runs an ISACaller simulation
+    """
+
+    sim_states = []
+
+    # set up the Simulator (which must track TestIssuer exactly)
+    sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
+              test.msr,
+              initial_insns=gen, respect_pc=True,
+              disassembly=insncode,
+              bigendian=bigendian,
+              initial_svstate=test.svstate)
+
+    # run the loop of the instructions on the current test
+    index = sim.pc.CIA.value//4
+    while index < len(instructions):
+        ins, code = instructions[index]
+
+        print("sim instr: 0x{:X}".format(ins & 0xffffffff))
+        print(index, code)
+
+        # set up simulated instruction (in simdec2)
+        try:
+            yield from sim.setup_one()
+        except KeyError:  # instruction not in imem: stop
+            break
+        yield Settle()
+
+        # call simulated operation
+        print("sim", code)
+        yield from sim.execute_one()
+        yield Settle()
+        index = sim.pc.CIA.value//4
+
+        # get sim register and memory TestState, add to list
+        state = yield from TestState("sim", sim, dut, code)
+        sim_states.append(state)
+
+    return sim_states
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data, microwatt_mmu=False, rom=None,
                         svp64=True):
@@ -164,14 +294,9 @@ class TestRunner(FHDLTestCase):
         #issuer = ResetInserter({'coresync': hard_reset,
         #                        'sync': hard_reset})(issuer)
         m.submodules.issuer = issuer
-        imem = issuer.imem._get_memory()
-        core = issuer.core
         dmi = issuer.dbg.dmi
-        pdecode2 = issuer.pdecode2
-        l0 = core.l0
-        regreduce_en = pspec.regreduce_en == True
 
-        #simdec = create_pdecode()
+        regreduce_en = pspec.regreduce_en == True
         simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
         m.submodules.simdec2 = simdec2  # pain in the neck
 
@@ -228,119 +353,16 @@ class TestRunner(FHDLTestCase):
                     ##########
                     # 1. HDL
                     ##########
-
-                    hdl_states = []
-
-                    # establish the TestIssuer context (mem, regs etc)
-
-                    pc = 0  # start address
-                    counter = 0  # test to pause/start
-
-                    yield from setup_i_memory(imem, pc, instructions)
-                    yield from setup_tst_memory(l0, test.mem)
-                    yield from setup_regs(pdecode2, core, test)
-
-                    # set PC and SVSTATE
-                    yield pc_i.eq(pc)
-                    yield issuer.pc_i.ok.eq(1)
-
-                    initial_svstate = test.svstate
-                    if isinstance(initial_svstate, int):
-                        initial_svstate = SVP64State(initial_svstate)
-                    yield svstate_i.eq(initial_svstate.value)
-                    yield issuer.svstate_i.ok.eq(1)
-                    yield
-
-                    print("instructions", instructions)
-
-                    # run the loop of the instructions on the current test
-                    index = (yield issuer.cur_state.pc) // 4
-                    while index < len(instructions):
-                        ins, code = instructions[index]
-
-                        print("hdl instr: 0x{:X}".format(ins & 0xffffffff))
-                        print(index, code)
-
-                        if counter == 0:
-                            # start the core
-                            yield
-                            yield from set_dmi(dmi, DBGCore.CTRL,
-                                               1<<DBGCtrl.START)
-                            yield issuer.pc_i.ok.eq(0) # no change PC after this
-                            yield issuer.svstate_i.ok.eq(0) # ditto
-                            yield
-                            yield
-
-                        counter = counter + 1
-
-                        # wait until executed
-                        while not (yield issuer.insn_done):
-                            yield
-
-                        yield Settle()
-
-                        index = (yield issuer.cur_state.pc) // 4
-
-                        terminated = yield issuer.dbg.terminated_o
-                        print("terminated", terminated)
-
-                        if index < len(instructions):
-                            # Get HDL mem and state
-                            state = yield from TestState("hdl", core, self,
-                                                         code)
-                            hdl_states.append(state)
-
-                        if index >= len(instructions):
-                            print ("index over, send dmi stop")
-                            # stop at end
-                            yield from set_dmi(dmi, DBGCore.CTRL,
-                                               1<<DBGCtrl.STOP)
-                            yield
-                            yield
-
-                        terminated = yield issuer.dbg.terminated_o
-                        print("terminated(2)", terminated)
-                        if terminated:
-                            break
+                    hdl_states = yield from run_hdl_state(self, test, issuer,
+                                                          pc_i, svstate_i,
+                                                          instructions)
 
                     ##########
                     # 2. Simulator
                     ##########
 
-                    sim_states = []
-
-                    # set up the Simulator (which must track TestIssuer exactly)
-                    sim = ISA(simdec2, test.regs, test.sprs, test.cr, test.mem,
-                              test.msr,
-                              initial_insns=gen, respect_pc=True,
-                              disassembly=insncode,
-                              bigendian=bigendian,
-                              initial_svstate=test.svstate)
-
-                    # run the loop of the instructions on the current test
-                    index = sim.pc.CIA.value//4
-                    while index < len(instructions):
-                        ins, code = instructions[index]
-
-                        print("sim instr: 0x{:X}".format(ins & 0xffffffff))
-                        print(index, code)
-
-                        # set up simulated instruction (in simdec2)
-                        try:
-                            yield from sim.setup_one()
-                        except KeyError:  # instruction not in imem: stop
-                            break
-                        yield Settle()
-
-                        # call simulated operation
-                        print("sim", code)
-                        yield from sim.execute_one()
-                        yield Settle()
-                        index = sim.pc.CIA.value//4
-
-                        # get sim register and memory TestState, add to list
-                        state = yield from TestState("sim", sim, self, code)
-                        sim_states.append(state)
+                    sim_states = yield from run_sim_state(self, test, simdec2,
+                                                          instructions)
 
                     ###############
                     # 3. Compare
