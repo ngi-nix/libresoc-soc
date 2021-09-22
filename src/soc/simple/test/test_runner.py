@@ -369,6 +369,8 @@ class TestRunner(FHDLTestCase):
                     # 3. Compare
                     ###############
 
+                    last_sim = copy(sim_states[-1])
+
                     for simstate, hdlstate in zip(sim_states, hdl_states):
                         simstate.compare(hdlstate)     # register check
                         simstate.compare_mem(hdlstate) # memory check
@@ -389,7 +391,7 @@ class TestRunner(FHDLTestCase):
                         test.expected.state_type = "expected"
                         test.expected.code = 0
                         # do actual comparison, against last item
-                        sim_states[-1].compare(test.expected)
+                        last_sim.compare(test.expected)
 
                     self.assertTrue(len(hdl_states) == len(sim_states),
                                     "number of instructions run not the same")
