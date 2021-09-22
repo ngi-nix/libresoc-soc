@@ -141,14 +141,14 @@ class TestLDSTCompUnitRegSpecMMU(LDSTCompUnit):
         m.submodules.mmu = self.mmu
         # link addr-go direct to rel
         m.d.comb += self.ad.go_i.eq(self.ad.rel_o)
-        
+
         # link mmu and dcache together
         dcache = self.l0.pimem.dcache
         mmu = self.mmu
         m.d.comb += dcache.m_in.eq(mmu.d_out) # MMUToDCacheType
         m.d.comb += mmu.d_in.eq(dcache.m_out) # DCacheToMMUType
-        
-        
+
+
         return m
 
 
@@ -163,9 +163,9 @@ def test_scoreboard_regspec_mmu():
                          units=units)
 
     dut = TestLDSTCompUnitRegSpecMMU(pspec)
-    
+
     # TODO: setup pagetables for MMU
-    
+
     vl = rtlil.convert(dut, ports=dut.ports())
     with open("test_ldst_comp_mmu2.il", "w") as f:
         f.write(vl)
