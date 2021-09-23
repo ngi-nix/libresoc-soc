@@ -255,13 +255,14 @@ def run_sim_state(dut, test, simdec2, instructions, gen, insncode):
 
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data, microwatt_mmu=False, rom=None,
-                        svp64=True, run_hdl=True):
+                        svp64=True, run_hdl=True, run_sim=True):
         super().__init__("run_all")
         self.test_data = tst_data
         self.microwatt_mmu = microwatt_mmu
         self.rom = rom
         self.svp64 = svp64
         self.run_hdl = run_hdl
+        self.run_sim = run_sim
 
     def run_all(self):
         m = Module()
@@ -298,9 +299,10 @@ class TestRunner(FHDLTestCase):
             m.submodules.issuer = issuer
             dmi = issuer.dbg.dmi
 
-        regreduce_en = pspec.regreduce_en == True
-        simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
-        m.submodules.simdec2 = simdec2  # pain in the neck
+        if self.run_sim:
+            regreduce_en = pspec.regreduce_en == True
+            simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
+            m.submodules.simdec2 = simdec2  # pain in the neck
 
         # run core clock at same rate as test clock
         intclk = ClockSignal("coresync")
@@ -310,7 +312,8 @@ class TestRunner(FHDLTestCase):
             comb += issuer.pc_i.data.eq(pc_i)
             comb += issuer.svstate_i.data.eq(svstate_i)
 
-        # nmigen Simulation
+        # nmigen Simulation - everything runs around this, so it
+        # still has to be created.
         sim = Simulator(m)
         sim.add_clock(1e-6)
 
@@ -368,7 +371,9 @@ class TestRunner(FHDLTestCase):
                     # 2. Simulator
                     ##########
 
-                    sim_states = yield from run_sim_state(self, test, simdec2,
+                    if self.run_sim:
+                        sim_states = yield from run_sim_state(self, test,
+                                                          simdec2,
                                                           instructions, gen,
                                                           insncode)
 
@@ -376,9 +381,14 @@ class TestRunner(FHDLTestCase):
                     # 3. Compare
                     ###############
 
-                    last_sim = copy(sim_states[-1])
+                    if self.run_sim:
+                        last_sim = copy(sim_states[-1])
+                    elif self.run_hdl:
+                        last_sim = copy(hdl_states[-1])
+                    else:
+                        last_sim = None # err what are you doing??
 
-                    if self.run_hdl:
+                    if self.run_hdl and self.run_sim:
                         for simstate, hdlstate in zip(sim_states, hdl_states):
                             simstate.compare(hdlstate)     # register check
                             simstate.compare_mem(hdlstate) # memory check
@@ -388,9 +398,10 @@ class TestRunner(FHDLTestCase):
                         for state in hdl_states:
                             print (state)
 
-                    print ("sim_states")
-                    for state in sim_states:
-                        print (state)
+                    if self.run_sim:
+                        print ("sim_states")
+                        for state in sim_states:
+                            print (state)
 
                     # compare against expected results
                     if test.expected is not None:
@@ -402,7 +413,7 @@ class TestRunner(FHDLTestCase):
                         # do actual comparison, against last item
                         last_sim.compare(test.expected)
 
-                    if self.run_hdl:
+                    if self.run_hdl and self.run_sim:
                         self.assertTrue(len(hdl_states) == len(sim_states),
                                     "number of instructions run not the same")
 
