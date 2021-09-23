@@ -292,6 +292,7 @@ class TestRunner(FHDLTestCase):
                              reg_wid=64)
 
         ###### SETUP PHASE #######
+        # StateRunner.setup_for_test()
 
         if self.run_hdl:
             #hard_reset = Signal(reset_less=True)
@@ -323,6 +324,7 @@ class TestRunner(FHDLTestCase):
         def process():
 
             ###### PREPARATION PHASE AT START OF RUNNING #######
+            # StateRunner.setup_during_test()
 
             if self.run_hdl:
                 # start in stopped
@@ -336,6 +338,7 @@ class TestRunner(FHDLTestCase):
                 with self.subTest(test.name):
 
                     ###### PREPARATION PHASE AT START OF TEST #######
+                    # StateRunner.prepare_for_test()
 
                     if self.run_hdl:
                         # set up bigendian (TODO: don't do this, use MSR)
@@ -360,6 +363,7 @@ class TestRunner(FHDLTestCase):
                     instructions = list(zip(gen, insncode))
 
                     ###### RUNNING OF EACH TEST #######
+                    # StateRunner.step_test()
 
                     # Run two tests (TODO, move these to functions)
                     # * first the Simulator, collate a batch of results
@@ -430,6 +434,7 @@ class TestRunner(FHDLTestCase):
                                     "number of instructions run not the same")
 
                 ###### END OF A TEST #######
+                # StateRunner.end_test()
 
                 if self.run_hdl:
                     # stop at end
@@ -462,6 +467,9 @@ class TestRunner(FHDLTestCase):
                     # pull a reset
                     yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
                     yield
+
+        ###### END OF EVERYTHING (but none needs doing, still call fn) #######
+        # StateRunner.cleanup()
 
         styles = {
             'dec': {'base': 'dec'},
