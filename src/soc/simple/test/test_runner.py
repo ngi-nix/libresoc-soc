@@ -267,9 +267,6 @@ class TestRunner(FHDLTestCase):
     def run_all(self):
         m = Module()
         comb = m.d.comb
-        pc_i = Signal(32)
-        svstate_i = Signal(64)
-
         if self.microwatt_mmu:
             ldst_ifacetype = 'test_mmu_cache_wb'
         else:
@@ -295,6 +292,7 @@ class TestRunner(FHDLTestCase):
         # StateRunner.setup_for_test()
 
         if self.run_hdl:
+
             #hard_reset = Signal(reset_less=True)
             issuer = TestIssuerInternal(pspec)
             # use DMI RESET command instead, this does actually work though
@@ -313,6 +311,9 @@ class TestRunner(FHDLTestCase):
         comb += intclk.eq(ClockSignal())
 
         if self.run_hdl:
+            pc_i = Signal(32)
+            svstate_i = Signal(64)
+
             comb += issuer.pc_i.data.eq(pc_i)
             comb += issuer.svstate_i.data.eq(svstate_i)
 
