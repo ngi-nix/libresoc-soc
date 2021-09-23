@@ -290,6 +290,9 @@ class TestRunner(FHDLTestCase):
                              svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
+
+        ###### SETUP PHASE #######
+
         if self.run_hdl:
             #hard_reset = Signal(reset_less=True)
             issuer = TestIssuerInternal(pspec)
@@ -319,6 +322,8 @@ class TestRunner(FHDLTestCase):
 
         def process():
 
+            ###### PREPARATION PHASE AT START OF RUNNING #######
+
             if self.run_hdl:
                 # start in stopped
                 yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
@@ -328,19 +333,22 @@ class TestRunner(FHDLTestCase):
 
             for test in self.test_data:
 
-                if self.run_hdl:
-                    # set up bigendian (TODO: don't do this, use MSR)
-                    yield issuer.core_bigendian_i.eq(bigendian)
-                    yield Settle()
-
-                    yield
-                    yield
-                    yield
-                    yield
-
-                print(test.name)
-                program = test.program
                 with self.subTest(test.name):
+
+                    ###### PREPARATION PHASE AT START OF TEST #######
+
+                    if self.run_hdl:
+                        # set up bigendian (TODO: don't do this, use MSR)
+                        yield issuer.core_bigendian_i.eq(bigendian)
+                        yield Settle()
+
+                        yield
+                        yield
+                        yield
+                        yield
+
+                    print(test.name)
+                    program = test.program
                     print("regs", test.regs)
                     print("sprs", test.sprs)
                     print("cr", test.cr)
@@ -350,6 +358,8 @@ class TestRunner(FHDLTestCase):
                     gen = list(program.generate_instructions())
                     insncode = program.assembly.splitlines()
                     instructions = list(zip(gen, insncode))
+
+                    ###### RUNNING OF EACH TEST #######
 
                     # Run two tests (TODO, move these to functions)
                     # * first the Simulator, collate a batch of results
@@ -376,6 +386,8 @@ class TestRunner(FHDLTestCase):
                                                           simdec2,
                                                           instructions, gen,
                                                           insncode)
+
+                    ###### COMPARING THE TESTS #######
 
                     ###############
                     # 3. Compare
@@ -416,6 +428,8 @@ class TestRunner(FHDLTestCase):
                     if self.run_hdl and self.run_sim:
                         self.assertTrue(len(hdl_states) == len(sim_states),
                                     "number of instructions run not the same")
+
+                ###### END OF A TEST #######
 
                 if self.run_hdl:
                     # stop at end
