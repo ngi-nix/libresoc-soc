@@ -255,12 +255,13 @@ def run_sim_state(dut, test, simdec2, instructions, gen, insncode):
 
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data, microwatt_mmu=False, rom=None,
-                        svp64=True):
+                        svp64=True, run_hdl=True):
         super().__init__("run_all")
         self.test_data = tst_data
         self.microwatt_mmu = microwatt_mmu
         self.rom = rom
         self.svp64 = svp64
+        self.run_hdl = run_hdl
 
     def run_all(self):
         m = Module()
@@ -288,13 +289,14 @@ class TestRunner(FHDLTestCase):
                              svp64=self.svp64,
                              mmu=self.microwatt_mmu,
                              reg_wid=64)
-        #hard_reset = Signal(reset_less=True)
-        issuer = TestIssuerInternal(pspec)
-        # use DMI RESET command instead, this does actually work though
-        #issuer = ResetInserter({'coresync': hard_reset,
-        #                        'sync': hard_reset})(issuer)
-        m.submodules.issuer = issuer
-        dmi = issuer.dbg.dmi
+        if self.run_hdl:
+            #hard_reset = Signal(reset_less=True)
+            issuer = TestIssuerInternal(pspec)
+            # use DMI RESET command instead, this does actually work though
+            #issuer = ResetInserter({'coresync': hard_reset,
+            #                        'sync': hard_reset})(issuer)
+            m.submodules.issuer = issuer
+            dmi = issuer.dbg.dmi
 
         regreduce_en = pspec.regreduce_en == True
         simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
@@ -304,8 +306,9 @@ class TestRunner(FHDLTestCase):
         intclk = ClockSignal("coresync")
         comb += intclk.eq(ClockSignal())
 
-        comb += issuer.pc_i.data.eq(pc_i)
-        comb += issuer.svstate_i.data.eq(svstate_i)
+        if self.run_hdl:
+            comb += issuer.pc_i.data.eq(pc_i)
+            comb += issuer.svstate_i.data.eq(svstate_i)
 
         # nmigen Simulation
         sim = Simulator(m)
@@ -313,22 +316,24 @@ class TestRunner(FHDLTestCase):
 
         def process():
 
-            # start in stopped
-            yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
-            yield
+            if self.run_hdl:
+                # start in stopped
+                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                yield
 
             # get each test, completely reset the core, and run it
 
             for test in self.test_data:
 
-                # set up bigendian (TODO: don't do this, use MSR)
-                yield issuer.core_bigendian_i.eq(bigendian)
-                yield Settle()
+                if self.run_hdl:
+                    # set up bigendian (TODO: don't do this, use MSR)
+                    yield issuer.core_bigendian_i.eq(bigendian)
+                    yield Settle()
 
-                yield
-                yield
-                yield
-                yield
+                    yield
+                    yield
+                    yield
+                    yield
 
                 print(test.name)
                 program = test.program
@@ -353,9 +358,11 @@ class TestRunner(FHDLTestCase):
                     ##########
                     # 1. HDL
                     ##########
-                    hdl_states = yield from run_hdl_state(self, test, issuer,
-                                                          pc_i, svstate_i,
-                                                          instructions)
+                    if self.run_hdl:
+                        hdl_states = yield from run_hdl_state(self, test,
+                                                              issuer,
+                                                              pc_i, svstate_i,
+                                                              instructions)
 
                     ##########
                     # 2. Simulator
@@ -371,13 +378,15 @@ class TestRunner(FHDLTestCase):
 
                     last_sim = copy(sim_states[-1])
 
-                    for simstate, hdlstate in zip(sim_states, hdl_states):
-                        simstate.compare(hdlstate)     # register check
-                        simstate.compare_mem(hdlstate) # memory check
+                    if self.run_hdl:
+                        for simstate, hdlstate in zip(sim_states, hdl_states):
+                            simstate.compare(hdlstate)     # register check
+                            simstate.compare_mem(hdlstate) # memory check
 
-                    print ("hdl_states")
-                    for state in hdl_states:
-                        print (state)
+                    if self.run_hdl:
+                        print ("hdl_states")
+                        for state in hdl_states:
+                            print (state)
 
                     print ("sim_states")
                     for state in sim_states:
@@ -393,39 +402,41 @@ class TestRunner(FHDLTestCase):
                         # do actual comparison, against last item
                         last_sim.compare(test.expected)
 
-                    self.assertTrue(len(hdl_states) == len(sim_states),
+                    if self.run_hdl:
+                        self.assertTrue(len(hdl_states) == len(sim_states),
                                     "number of instructions run not the same")
 
-                # stop at end
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
-                yield
-                yield
+                if self.run_hdl:
+                    # stop at end
+                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                    yield
+                    yield
 
-                # TODO, here is where the static (expected) results
-                # can be checked: register check (TODO, memory check)
-                # see https://bugs.libre-soc.org/show_bug.cgi?id=686#c51
-                # yield from check_regs(self, sim, core, test, code,
-                #                       >>>expected_data<<<)
+                    # TODO, here is where the static (expected) results
+                    # can be checked: register check (TODO, memory check)
+                    # see https://bugs.libre-soc.org/show_bug.cgi?id=686#c51
+                    # yield from check_regs(self, sim, core, test, code,
+                    #                       >>>expected_data<<<)
 
-                # get CR
-                cr = yield from get_dmi(dmi, DBGCore.CR)
-                print("after test %s cr value %x" % (test.name, cr))
+                    # get CR
+                    cr = yield from get_dmi(dmi, DBGCore.CR)
+                    print("after test %s cr value %x" % (test.name, cr))
 
-                # get XER
-                xer = yield from get_dmi(dmi, DBGCore.XER)
-                print("after test %s XER value %x" % (test.name, xer))
+                    # get XER
+                    xer = yield from get_dmi(dmi, DBGCore.XER)
+                    print("after test %s XER value %x" % (test.name, xer))
 
-                # test of dmi reg get
-                for int_reg in range(32):
-                    yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
-                    value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
+                    # test of dmi reg get
+                    for int_reg in range(32):
+                        yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
+                        value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
 
-                    print("after test %s reg %2d value %x" %
-                          (test.name, int_reg, value))
+                        print("after test %s reg %2d value %x" %
+                              (test.name, int_reg, value))
 
-                # pull a reset
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
-                yield
+                    # pull a reset
+                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                    yield
 
         styles = {
             'dec': {'base': 'dec'},
