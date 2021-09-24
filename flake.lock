@@ -19,18 +19,18 @@
     "nix-litex": {
       "flake": false,
       "locked": {
-        "lastModified": 1632051102,
-        "narHash": "sha256-AapmvjJvFxR37Jzu5fgrIBPWy9+x0iMSOToK72GzNXk=",
-        "owner": "lschuermann",
-        "repo": "nix-litex",
-        "rev": "e92513d841df813545b318b4628288ba8ba9b973",
-        "type": "github"
+        "lastModified": 1632150297,
+        "narHash": "sha256-ghlAJBZxLVkQB+9tXEOBOF1FfdT5Pn4292khF4iKCNA=",
+        "ref": "main",
+        "rev": "5ab6984eb1efad0c91d808c9b7b79e00e50ccc05",
+        "revCount": 31,
+        "type": "git",
+        "url": "https://git.sr.ht/~lschuermann/nix-litex"
       },
       "original": {
-        "owner": "lschuermann",
-        "ref": "staging",
-        "repo": "nix-litex",
-        "type": "github"
+        "ref": "main",
+        "type": "git",
+        "url": "https://git.sr.ht/~lschuermann/nix-litex"
       }
     },
     "nixpkgs": {

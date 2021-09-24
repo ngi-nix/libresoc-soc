@@ -10,7 +10,7 @@
   inputs.nmigen.flake = false;
   inputs.nmigen-soc.url = "git+https://git.libre-soc.org/git/nmigen-soc.git";
   inputs.nmigen-soc.flake = false;
-  inputs.nix-litex.url = "github:lschuermann/nix-litex?ref=staging";
+  inputs.nix-litex.url = "git+https://git.sr.ht/~lschuermann/nix-litex?ref=main";
   inputs.nix-litex.flake = false;
 
   outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex }:
