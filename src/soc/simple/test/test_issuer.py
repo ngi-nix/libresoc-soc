@@ -23,6 +23,7 @@ from openpower.test.alu.alu_cases import ALUTestCase
 from openpower.test.div.div_cases import DivTestCases
 from openpower.test.logical.logical_cases import LogicalTestCase
 from openpower.test.shift_rot.shift_rot_cases import ShiftRotTestCase
+from openpower.test.shift_rot.shift_rot_cases2 import ShiftRotTestCase2
 from openpower.test.cr.cr_cases import CRTestCase
 from openpower.test.branch.branch_cases import BranchTestCase
 from soc.fu.spr.test.test_pipe_caller import SPRTestCase
@@ -43,7 +44,8 @@ if __name__ == "__main__":
     sys.argv = sys.argv[:1]
 
     if not testing:
-        testing = ['general', 'ldst', 'cr', 'shiftrot', 'logical', 'alu',
+        testing = ['general', 'ldst', 'cr', 'shiftrot', 'shiftrot2',
+                   'logical', 'alu',
                    'branch', 'div']
 
     print ("SVP64 test mode enabled", svp64, testing)
@@ -59,6 +61,7 @@ if __name__ == "__main__":
              'ldst': LDSTTestCase().test_data,
              'cr': CRTestCase().test_data,
              'shiftrot': ShiftRotTestCase().test_data,
+             'shiftrot2': ShiftRotTestCase2().test_data,
              'logical': LogicalTestCase().test_data,
              'alu': ALUTestCase().test_data,
              'branch': BranchTestCase().test_data,
