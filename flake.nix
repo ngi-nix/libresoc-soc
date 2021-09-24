@@ -57,6 +57,7 @@
 
         libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) {};
         libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) {};
+        libresoc-ecp5 = final.callPackage (import ./nix/ecp5.nix { version = getv self; }) {};
         libresoc-pinmux = final.callPackage (import ./nix/pinmux.nix { version = getv self; }) {};
       };
 
@@ -65,6 +66,7 @@
         pre-litex = nixpkgsFor.${system}.libresoc-pre-litex;
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ls180 = nixpkgsFor.${system}.libresoc-ls180;
+        ecp5 = nixpkgsFor.${system}.libresoc-ecp5;
         openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
         debugNixpkgs = nixpkgsFor.${system};
       });
