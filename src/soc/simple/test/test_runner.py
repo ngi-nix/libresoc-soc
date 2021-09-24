@@ -35,7 +35,7 @@ from soc.fu.compunits.test.test_compunit import (setup_tst_memory,
 from soc.debug.dmi import DBGCore, DBGCtrl, DBGStat
 from nmutil.util import wrap
 from soc.experiment.test.test_mmu_dcache import wb_get
-from openpower.test.state import TestState
+from openpower.test.state import TestState, StateRunner
 
 
 def setup_i_memory(imem, startaddr, instructions):
@@ -253,6 +253,15 @@ def run_sim_state(dut, test, simdec2, instructions, gen, insncode):
     return sim_states
 
 
+class SimRunner(StateRunner):
+    def __init__(self, dut, m, pspec):
+        self.dut = dut
+
+        regreduce_en = pspec.regreduce_en == True
+        self.simdec2 = simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
+        m.submodules.simdec2 = simdec2  # pain in the neck
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data, microwatt_mmu=False, rom=None,
                         svp64=True, run_hdl=True, run_sim=True):
@@ -302,9 +311,7 @@ class TestRunner(FHDLTestCase):
             dmi = issuer.dbg.dmi
 
         if self.run_sim:
-            regreduce_en = pspec.regreduce_en == True
-            simdec2 = PowerDecode2(None, regreduce_en=regreduce_en)
-            m.submodules.simdec2 = simdec2  # pain in the neck
+            simrun = SimRunner(self, m, pspec)
 
         # run core clock at same rate as test clock
         intclk = ClockSignal("coresync")
@@ -388,7 +395,7 @@ class TestRunner(FHDLTestCase):
 
                     if self.run_sim:
                         sim_states = yield from run_sim_state(self, test,
-                                                          simdec2,
+                                                          simrun.simdec2,
                                                           instructions, gen,
                                                           insncode)
 
