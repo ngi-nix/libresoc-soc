@@ -262,6 +262,18 @@ class SimRunner(StateRunner):
         m.submodules.simdec2 = simdec2  # pain in the neck
 
 
+class HDLRunner(StateRunner):
+    def __init__(self, dut, m, pspec):
+        self.dut = dut
+        #hard_reset = Signal(reset_less=True)
+        self.issuer = TestIssuerInternal(pspec)
+        # use DMI RESET command instead, this does actually work though
+        #issuer = ResetInserter({'coresync': hard_reset,
+        #                        'sync': hard_reset})(issuer)
+        m.submodules.issuer = self.issuer
+        self.dmi = self.issuer.dbg.dmi
+
+
 class TestRunner(FHDLTestCase):
     def __init__(self, tst_data, microwatt_mmu=False, rom=None,
                         svp64=True, run_hdl=True, run_sim=True):
@@ -301,14 +313,7 @@ class TestRunner(FHDLTestCase):
         # StateRunner.setup_for_test()
 
         if self.run_hdl:
-
-            #hard_reset = Signal(reset_less=True)
-            issuer = TestIssuerInternal(pspec)
-            # use DMI RESET command instead, this does actually work though
-            #issuer = ResetInserter({'coresync': hard_reset,
-            #                        'sync': hard_reset})(issuer)
-            m.submodules.issuer = issuer
-            dmi = issuer.dbg.dmi
+            hdlrun = HDLRunner(self, m, pspec)
 
         if self.run_sim:
             simrun = SimRunner(self, m, pspec)
@@ -318,11 +323,12 @@ class TestRunner(FHDLTestCase):
         comb += intclk.eq(ClockSignal())
 
         if self.run_hdl:
+
             pc_i = Signal(32)
             svstate_i = Signal(64)
 
-            comb += issuer.pc_i.data.eq(pc_i)
-            comb += issuer.svstate_i.data.eq(svstate_i)
+            comb += hdlrun.issuer.pc_i.data.eq(pc_i)
+            comb += hdlrun.issuer.svstate_i.data.eq(svstate_i)
 
         # nmigen Simulation - everything runs around this, so it
         # still has to be created.
@@ -336,7 +342,7 @@ class TestRunner(FHDLTestCase):
 
             if self.run_hdl:
                 # start in stopped
-                yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                yield from set_dmi(hdlrun.dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
                 yield
 
             # get each test, completely reset the core, and run it
@@ -350,7 +356,7 @@ class TestRunner(FHDLTestCase):
 
                     if self.run_hdl:
                         # set up bigendian (TODO: don't do this, use MSR)
-                        yield issuer.core_bigendian_i.eq(bigendian)
+                        yield hdlrun.issuer.core_bigendian_i.eq(bigendian)
                         yield Settle()
 
                         yield
@@ -385,7 +391,7 @@ class TestRunner(FHDLTestCase):
                     ##########
                     if self.run_hdl:
                         hdl_states = yield from run_hdl_state(self, test,
-                                                              issuer,
+                                                              hdlrun.issuer,
                                                               pc_i, svstate_i,
                                                               instructions)
 
@@ -446,7 +452,7 @@ class TestRunner(FHDLTestCase):
 
                 if self.run_hdl:
                     # stop at end
-                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
+                    yield from set_dmi(hdlrun.dmi, DBGCore.CTRL, 1<<DBGCtrl.STOP)
                     yield
                     yield
 
@@ -457,23 +463,23 @@ class TestRunner(FHDLTestCase):
                     #                       >>>expected_data<<<)
 
                     # get CR
-                    cr = yield from get_dmi(dmi, DBGCore.CR)
+                    cr = yield from get_dmi(hdlrun.dmi, DBGCore.CR)
                     print("after test %s cr value %x" % (test.name, cr))
 
                     # get XER
-                    xer = yield from get_dmi(dmi, DBGCore.XER)
+                    xer = yield from get_dmi(hdlrun.dmi, DBGCore.XER)
                     print("after test %s XER value %x" % (test.name, xer))
 
                     # test of dmi reg get
                     for int_reg in range(32):
-                        yield from set_dmi(dmi, DBGCore.GSPR_IDX, int_reg)
-                        value = yield from get_dmi(dmi, DBGCore.GSPR_DATA)
+                        yield from set_dmi(hdlrun.dmi, DBGCore.GSPR_IDX, int_reg)
+                        value = yield from get_dmi(hdlrun.dmi, DBGCore.GSPR_DATA)
 
                         print("after test %s reg %2d value %x" %
                               (test.name, int_reg, value))
 
                     # pull a reset
-                    yield from set_dmi(dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
+                    yield from set_dmi(hdlrun.dmi, DBGCore.CTRL, 1<<DBGCtrl.RESET)
                     yield
 
         ###### END OF EVERYTHING (but none needs doing, still call fn) #######
