@@ -10,10 +10,12 @@
   inputs.nmigen.flake = false;
   inputs.nmigen-soc.url = "git+https://git.libre-soc.org/git/nmigen-soc.git";
   inputs.nmigen-soc.flake = false;
+  inputs.migen.url = "github:m-labs/migen";
+  inputs.migen.flake = false;
   inputs.nix-litex.url = "git+https://git.sr.ht/~lschuermann/nix-litex?ref=main";
   inputs.nix-litex.flake = false;
 
-  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex }:
+  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex, migen }:
     let
       getv = x: builtins.substring 0 8 x.lastModifiedDate;
 
@@ -33,7 +35,7 @@
     in
     {
       overlay = final: prev: {
-        python3Packages = prev.python3Packages.override {
+        python37Packages = prev.python37Packages.override {
           overrides = lib.composeExtensions (litex final).pythonOverlay (pfinal: pprev: {
             libresoc-ieee754fpu = pfinal.callPackage ./nix/ieee754fpu.nix {};
             libresoc-openpower-isa = pfinal.callPackage ./nix/openpower-isa.nix {};
@@ -52,22 +54,26 @@
             nmigen = pprev.nmigen.overrideAttrs (_: {
               src = nmigen;
             });
+
+            migen = pprev.migen.overrideAttrs (_: {
+              src = migen;
+            });
           });
         };
 
-        libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) {};
-        libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) {};
-        libresoc-ecp5 = final.callPackage (import ./nix/ecp5.nix { version = getv self; }) {};
+        libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) { python3Packages = final.python37Packages; };
+        libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) { python3Packages = final.python37Packages; };
+        libresoc-ecp5 = final.callPackage (import ./nix/ecp5.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-pinmux = final.callPackage (import ./nix/pinmux.nix { version = getv self; }) {};
       };
 
       packages = forAllSystems (system: {
-        soc = nixpkgsFor.${system}.python3Packages.libresoc-soc;
+        soc = nixpkgsFor.${system}.python37Packages.libresoc-soc;
         pre-litex = nixpkgsFor.${system}.libresoc-pre-litex;
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ls180 = nixpkgsFor.${system}.libresoc-ls180;
         ecp5 = nixpkgsFor.${system}.libresoc-ecp5;
-        openpower-isa = nixpkgsFor.${system}.python3Packages.libresoc-openpower-isa;
+        openpower-isa = nixpkgsFor.${system}.python37Packages.libresoc-openpower-isa;
         debugNixpkgs = nixpkgsFor.${system};
       });
 

@@ -16,6 +16,22 @@
         "url": "https://git.libre-soc.org/git/c4m-jtag.git"
       }
     },
+    "migen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1631614362,
+        "narHash": "sha256-BgYf4e7O/rbS5P1ZpDlcgCEUh2h2vK3FyHADdzyaMg0=",
+        "owner": "m-labs",
+        "repo": "migen",
+        "rev": "7bc4eb1387b39159a74c1dbd1b820728e0bfbbaa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "migen",
+        "type": "github"
+      }
+    },
     "nix-litex": {
       "flake": false,
       "locked": {
@@ -84,6 +100,7 @@
     "root": {
       "inputs": {
         "c4m-jtag": "c4m-jtag",
+        "migen": "migen",
         "nix-litex": "nix-litex",
         "nixpkgs": "nixpkgs",
         "nmigen": "nmigen",
