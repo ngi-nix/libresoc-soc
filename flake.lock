@@ -104,7 +104,25 @@
         "nix-litex": "nix-litex",
         "nixpkgs": "nixpkgs",
         "nmigen": "nmigen",
-        "nmigen-soc": "nmigen-soc"
+        "nmigen-soc": "nmigen-soc",
+        "yosys": "yosys"
+      }
+    },
+    "yosys": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1617979565,
+        "narHash": "sha256-M8ppe+lL/pgd2sXh7bM6/sbk1099KKECeWA5mXtqE6Y=",
+        "owner": "YosysHQ",
+        "repo": "yosys",
+        "rev": "a58571d0fe8971cb7d3a619a31b2c21be6d75bac",
+        "type": "github"
+      },
+      "original": {
+        "owner": "YosysHQ",
+        "repo": "yosys",
+        "rev": "a58571d0fe8971cb7d3a619a31b2c21be6d75bac",
+        "type": "github"
       }
     }
   },

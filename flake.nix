@@ -12,10 +12,12 @@
   inputs.nmigen-soc.flake = false;
   inputs.migen.url = "github:m-labs/migen";
   inputs.migen.flake = false;
+  inputs.yosys.url = "github:YosysHQ/yosys?rev=a58571d0fe8971cb7d3a619a31b2c21be6d75bac";
+  inputs.yosys.flake = false;
   inputs.nix-litex.url = "git+https://git.sr.ht/~lschuermann/nix-litex?ref=main";
   inputs.nix-litex.flake = false;
 
-  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex, migen }:
+  outputs = { self, nixpkgs, c4m-jtag, nmigen, nmigen-soc, nix-litex, migen, yosys }:
     let
       getv = x: builtins.substring 0 8 x.lastModifiedDate;
 
@@ -60,6 +62,11 @@
             });
           });
         };
+
+        yosys = prev.yosys.overrideAttrs (_: {
+          version = "0.9+4052";
+          src = yosys;
+        });
 
         libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) { python3Packages = final.python37Packages; };
