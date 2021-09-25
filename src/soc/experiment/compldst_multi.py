@@ -20,6 +20,11 @@ Loads are activated when Go_Write[0] is enabled.  The EA is computed,
 and (as long as there was no exception) the data comes out (at any
 time from the PortInterface), and is captured by the LDCompSTUnit.
 
+TODO: dcbz, yes, that's going to be complicated, has to be done
+ with great care, to detect the case when dcbz is set
+ and *not* expect to read any data, just the address.
+ so, wait for RA but not RB.
+
 Both LD and ST may request that the address be computed from summing
 operand1 (src[0]) with operand2 (src[1]) *or* by summing operand1 with
 the immediate (from the opcode).
@@ -275,6 +280,7 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
         # opcode decode
         op_is_ld = Signal(reset_less=True)
         op_is_st = Signal(reset_less=True)
+        op_is_dcbz = Signal(reset_less=True)
 
         # ALU/LD data output control
         alu_valid = Signal(reset_less=True)  # ALU operands are valid
@@ -321,10 +327,12 @@ class LDSTCompUnit(RegSpecAPI, Elaboratable):
 
         # decode bits of operand (latched)
         oper_r = CompLDSTOpSubset(name="oper_r")  # Dest register
-        comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE)  # ST
-        comb += op_is_ld.eq(oper_r.insn_type == MicrOp.OP_LOAD)  # LD
-        comb += Display("compldst_multi: op_is_dcbz = %i",
-                        (oper_r.insn_type == MicrOp.OP_DCBZ))
+        comb += op_is_st.eq(oper_r.insn_type == MicrOp.OP_STORE)   # ST
+        comb += op_is_ld.eq(oper_r.insn_type == MicrOp.OP_LOAD)    # LD
+        comb += op_is_dcbz.eq(oper_r.insn_type == MicrOp.OP_DCBZ)  # DCBZ
+        #uncomment if needed
+        #comb += Display("compldst_multi: op_is_dcbz = %i",
+        #                (oper_r.insn_type == MicrOp.OP_DCBZ))
         op_is_update = oper_r.ldst_mode == LDSTMode.update           # UPDATE
         op_is_cix = oper_r.ldst_mode == LDSTMode.cix           # cache-inhibit
         comb += self.load_mem_o.eq(op_is_ld & self.go_ad_i)

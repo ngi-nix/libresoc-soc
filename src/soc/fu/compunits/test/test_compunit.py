@@ -11,6 +11,7 @@ from openpower.decoder.power_decoder import create_pdecode
 from openpower.decoder.power_decoder2 import PowerDecode2, get_rdflags
 from openpower.decoder.power_enums import Function
 from openpower.decoder.isa.all import ISA
+from openpower.decoder.isa.mem import Mem
 
 from soc.experiment.compalu_multi import find_ok  # hack
 from soc.config.test.test_loadstore import TestMemPspec
@@ -137,15 +138,17 @@ def get_l0_mem(l0):  # BLECH! this is awful! hunting around through structures
     return mem.mem
 
 
-def setup_tst_memory(l0, sim):
+def setup_tst_memory(l0, test_mem):
+    # create independent Sim Mem from test values
+    sim_mem = Mem(initial_mem=test_mem)
     mem = get_l0_mem(l0)
     print("before, init mem", mem.depth, mem.width, mem)
     for i in range(mem.depth):
-        data = sim.mem.ld(i*8, 8, False)
+        data = sim_mem.ld(i*8, 8, False)
         print("init ", i, hex(data))
         yield mem._array[i].eq(data)
     yield Settle()
-    for k, v in sim.mem.mem.items():
+    for k, v in sim_mem.mem.items():
         print("    %6x %016x" % (k, v))
     print("before, nmigen mem dump")
     for i in range(mem.depth):
@@ -199,7 +202,7 @@ class TestRunner(FHDLTestCase):
 
         # initialise memory
         if self.funit == Function.LDST:
-            yield from setup_tst_memory(l0, sim)
+            yield from setup_tst_memory(l0, test.mem)
 
         pc = sim.pc.CIA.value
         index = pc//4

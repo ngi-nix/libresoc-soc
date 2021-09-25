@@ -59,8 +59,14 @@ def set_alu_inputs(alu, dec2, sim, has_third_input):
         overflow = pia.OverflowFlags(so=bool(so),
                                      ov=False,
                                      ov32=False)
+    immediate_ok = yield dec2.e.do.imm_data.ok
+    if immediate_ok:
+        immediate = yield dec2.e.do.imm_data.data
+    else:
+        immediate = None
     rc = inp["rc"] if has_third_input else None
     return pia.InstructionInput(ra=inp.get("ra"), rb=inp.get("rb"),
+                                immediate=immediate,
                                 rc=rc, overflow=overflow)
 
 
@@ -103,15 +109,7 @@ class MulTestHelper(unittest.TestCase):
             opname = code.split(' ')[0]
             fnname = opname.replace(".", "_")
             print(f"{fnname}({pia_inputs})")
-            pia_res = None
-            try:
-                pia_res = getattr(pia, fnname)(pia_inputs)
-            except AttributeError:
-                EXPECTED_FAILURES = ["mulli"]
-                if fnname not in EXPECTED_FAILURES:
-                    raise
-                else:
-                    print("not implemented, as expected.")
+            pia_res = getattr(pia, fnname)(pia_inputs)
             print(f"-> {pia_res}")
 
             yield from isa_sim.call(opname)

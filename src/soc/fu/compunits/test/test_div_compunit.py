@@ -1,7 +1,7 @@
 import unittest
 from openpower.decoder.power_enums import (XER_bits, Function)
 
-from soc.fu.div.test.test_pipe_caller import get_cu_inputs
+from soc.fu.div.test.helper import get_cu_inputs
 from soc.fu.div.test.test_pipe_caller import DivTestCases  # creates the tests
 
 from openpower.test.common import ALUHelpers
