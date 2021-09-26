@@ -14,6 +14,7 @@
   inputs.migen.flake = false;
   inputs.yosys.url = "github:YosysHQ/yosys?rev=a58571d0fe8971cb7d3a619a31b2c21be6d75bac";
   inputs.yosys.flake = false;
+  # submodules needed
   inputs.nix-litex.url = "git+https://git.sr.ht/~lschuermann/nix-litex?ref=main";
   inputs.nix-litex.flake = false;
 
@@ -37,8 +38,8 @@
     in
     {
       overlay = final: prev: {
-        python37Packages = prev.python37Packages.override {
-          overrides = lib.composeExtensions (litex final).pythonOverlay (pfinal: pprev: {
+        python37 = prev.python37.override {
+          packageOverrides = lib.composeExtensions (litex final).pythonOverlay (pfinal: pprev: {
             libresoc-ieee754fpu = pfinal.callPackage ./nix/ieee754fpu.nix {};
             libresoc-openpower-isa = pfinal.callPackage ./nix/openpower-isa.nix {};
             c4m-jtag = pfinal.callPackage (import ./nix/c4m-jtag.nix { src = c4m-jtag; version = getv c4m-jtag; }) {};
@@ -71,8 +72,17 @@
         libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ecp5 = final.callPackage (import ./nix/ecp5.nix { version = getv self; }) { python3Packages = final.python37Packages; };
+        libresoc-ecp5-program = final.callPackage (import ./nix/ecp5-program.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-pinmux = final.callPackage (import ./nix/pinmux.nix { version = getv self; }) {};
       };
+
+      apps = forAllSystems (system: {
+        ecp5 = {
+          type = "app";
+          program = "${nixpkgsFor.${system}.libresoc-ecp5-program}";
+        };
+      });
+      defaultApp = forAllSystems (system: self.apps.${system}.ecp5);
 
       packages = forAllSystems (system: {
         soc = nixpkgsFor.${system}.python37Packages.libresoc-soc;
@@ -80,6 +90,7 @@
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ls180 = nixpkgsFor.${system}.libresoc-ls180;
         ecp5 = nixpkgsFor.${system}.libresoc-ecp5;
+        ecp5-program = nixpkgsFor.${system}.libresoc-ecp5-program;
         openpower-isa = nixpkgsFor.${system}.python37Packages.libresoc-openpower-isa;
         debugNixpkgs = nixpkgsFor.${system};
       });
