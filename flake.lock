@@ -97,26 +97,6 @@
         "url": "https://git.libre-soc.org/git/nmigen-soc.git"
       }
     },
-    "openocd": {
-      "flake": false,
-      "locked": {
-        "allRefs": true,
-        "lastModified": 1632577048,
-        "narHash": "sha256-jL6CvgEFslg3V4WIH3irLgXQRa1HczBZowZhTztW7nM=",
-        "ref": "master",
-        "rev": "c3993d3188da5976a64f47d4cbf4d7e5b63f0c8d",
-        "revCount": 9294,
-        "submodules": true,
-        "type": "git",
-        "url": "https://github.com/openocd-org/openocd?rev=35eed36ffdd082f5abfc16d4cc93511f6e225284&allR"
-      },
-      "original": {
-        "allRefs": true,
-        "submodules": true,
-        "type": "git",
-        "url": "https://github.com/openocd-org/openocd?rev=35eed36ffdd082f5abfc16d4cc93511f6e225284&allR"
-      }
-    },
     "root": {
       "inputs": {
         "c4m-jtag": "c4m-jtag",
@@ -125,7 +105,6 @@
         "nixpkgs": "nixpkgs",
         "nmigen": "nmigen",
         "nmigen-soc": "nmigen-soc",
-        "openocd": "openocd",
         "yosys": "yosys"
       }
     },
