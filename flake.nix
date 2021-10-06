@@ -69,7 +69,7 @@
           src = yosys;
         });
 
-        libresoc-pre-litex = final.callPackage (import ./nix/pre-litex.nix { version = getv self; }) { python3Packages = final.python37Packages; };
+        libresoc-verilog = final.callPackage (import ./nix/verilog.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ls180 = final.callPackage (import ./nix/ls180.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ecp5 = final.callPackage (import ./nix/ecp5.nix { version = getv self; }) { python3Packages = final.python37Packages; };
         libresoc-ecp5-program = final.callPackage (import ./nix/ecp5-program.nix { version = getv self; }) { python3Packages = final.python37Packages; };
@@ -86,7 +86,7 @@
 
       packages = forAllSystems (system: {
         soc = nixpkgsFor.${system}.python37Packages.libresoc-soc;
-        pre-litex = nixpkgsFor.${system}.libresoc-pre-litex;
+        verilog = nixpkgsFor.${system}.libresoc-verilog;
         pinmux = nixpkgsFor.${system}.libresoc-pinmux;
         ls180 = nixpkgsFor.${system}.libresoc-ls180;
         ecp5 = nixpkgsFor.${system}.libresoc-ecp5;
@@ -95,6 +95,6 @@
         debugNixpkgs = nixpkgsFor.${system};
       });
 
-      defaultPackage = forAllSystems (system: self.packages.${system}.pre-litex);
+      defaultPackage = forAllSystems (system: self.packages.${system}.verilog);
     };
 }
