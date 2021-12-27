@@ -1,0 +1,131 @@
+{
+  "nodes": {
+    "c4m-jtag": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1619101523,
+        "narHash": "sha256-y1OY8URcE1lnu5L7IDFcJ8zT8sqlrfMP9VPNmVvACGk=",
+        "ref": "master",
+        "rev": "c2bf4810f9f91ced7fcda777b92b86ab353da288",
+        "revCount": 146,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/c4m-jtag.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/c4m-jtag.git"
+      }
+    },
+    "migen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1631614362,
+        "narHash": "sha256-BgYf4e7O/rbS5P1ZpDlcgCEUh2h2vK3FyHADdzyaMg0=",
+        "owner": "m-labs",
+        "repo": "migen",
+        "rev": "7bc4eb1387b39159a74c1dbd1b820728e0bfbbaa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "migen",
+        "type": "github"
+      }
+    },
+    "nix-litex": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1632150297,
+        "narHash": "sha256-ghlAJBZxLVkQB+9tXEOBOF1FfdT5Pn4292khF4iKCNA=",
+        "ref": "main",
+        "rev": "5ab6984eb1efad0c91d808c9b7b79e00e50ccc05",
+        "revCount": 31,
+        "type": "git",
+        "url": "https://git.sr.ht/~lschuermann/nix-litex"
+      },
+      "original": {
+        "ref": "main",
+        "type": "git",
+        "url": "https://git.sr.ht/~lschuermann/nix-litex"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1631723418,
+        "narHash": "sha256-Sbey1S81fXUKcEHVCMwlXMju/IoCQxMwP1PPkVYpGrc=",
+        "owner": "L-as",
+        "repo": "nixpkgs",
+        "rev": "8bfc1026477692b933df6eeec27bd494cac3e436",
+        "type": "github"
+      },
+      "original": {
+        "owner": "L-as",
+        "ref": "libresoc",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nmigen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1618220900,
+        "narHash": "sha256-Ol2SMZLUTikZWDLmK7F5lZuKBfGO71WmisATPNMTpHQ=",
+        "ref": "master",
+        "rev": "d824795c2c7cb43dcbc8ed8fac6d309d77284913",
+        "revCount": 1056,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen.git"
+      }
+    },
+    "nmigen-soc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1601572554,
+        "narHash": "sha256-v9SH+KuIPydXCr363RUsMg9/tabuu+GjKPJOKq2Jze0=",
+        "ref": "master",
+        "rev": "692017c7eaf21ff37302790c4422db6bd08667be",
+        "revCount": 48,
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen-soc.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.libre-soc.org/git/nmigen-soc.git"
+      }
+    },
+    "root": {
+      "inputs": {
+        "c4m-jtag": "c4m-jtag",
+        "migen": "migen",
+        "nix-litex": "nix-litex",
+        "nixpkgs": "nixpkgs",
+        "nmigen": "nmigen",
+        "nmigen-soc": "nmigen-soc",
+        "yosys": "yosys"
+      }
+    },
+    "yosys": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1617979565,
+        "narHash": "sha256-M8ppe+lL/pgd2sXh7bM6/sbk1099KKECeWA5mXtqE6Y=",
+        "owner": "YosysHQ",
+        "repo": "yosys",
+        "rev": "a58571d0fe8971cb7d3a619a31b2c21be6d75bac",
+        "type": "github"
+      },
+      "original": {
+        "owner": "YosysHQ",
+        "repo": "yosys",
+        "rev": "a58571d0fe8971cb7d3a619a31b2c21be6d75bac",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

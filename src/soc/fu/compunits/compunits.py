@@ -293,7 +293,7 @@ class AllFunctionUnits(Elaboratable):
                 self.excs[name] = alu.exc_o
 
     def get_exc(self, name):
-        return self.excs.get(name, default=None)
+        return self.excs.get(name)
 
     def get_fu(self, name):
         return self.fus.get(name)
